@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-02T23:18:44.239Z",
+  "state": "CLOSED_GREEN_SOURCE_WITH_DECLARED_MIGRATION_GAPS",
+  "testedSourceHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+  "sourceWasClean": true,
+  "baseline": {
+    "manifestVersion": "15F.4-v34",
+    "manifestDigest": "e73bc62c8348adb7f1fd85c9785d17667c47c043e841a66c11d4a03edff5c0aa",
+    "sourceWorktreeDigest": "9b0fcdaf64ff65167ecde990ed88706d8ac1899b4d013c03b394fcd3c97292db",
+    "complete": true,
+    "suites": 116,
+    "failed": [],
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+    "rawReport": "15S_FULL_BASELINE_V34.json",
+    "rawSha256": "272b7907400a0023533412690166c8c6efa01039d57dfa9a5f63534b31ab20e9",
+    "knownLimitationSuites": [
+      "cognitive-quality"
+    ],
+    "cognitive": "54/55",
+    "heldOut": "4/5",
+    "uniqueCommittedPins": 136,
+    "sampledRamPeakPercent": 65.29
+  },
+  "focused": {
+    "scenarios": 24,
+    "negativeControls": "34/34",
+    "evidence": "15S_F35_CORRECTION.json"
+  },
+  "typeScript": "PASS_NO_EMIT_INCREMENTAL_FALSE",
+  "lint": {
+    "errors": 0,
+    "warnings": 13,
+    "classification": "13_EXISTING_WARNINGS"
+  },
+  "diff": "PASS",
+  "graphify": {
+    "schemaVersion": "1",
+    "recordedAt": "2026-10-02T23:18:44.209Z",
+    "head": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 17686,
+    "edges": 50621,
+    "communities": 335,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralCoverage": "PARTIAL_9_INHERITED",
+    "semanticCoverage": "PENDING",
+    "graphSha256": "99c9a91498e09aa080aedc0ce04847fefb7de35abbcd488fe81f3c0c9bb2e70b"
+  },
+  "realDestinationMigration": "NOT_RUN",
+  "destinationBenchmark": "NOT_RUN",
+  "podmanRebuild": "NOT_RUN",
+  "ownerActivation": "BLOCKED_OWNER_ACTION",
+  "oldPcCleanup": "BLOCKED_OWNER_ACTION_AFTER_VERIFIED_MIGRATION",
+  "liveModeEntered": false,
+  "liveDataExported": false,
+  "grantsAuthority": false,
+  "stage15Overall": "OPEN",
+  "nextStage": "STAGE_15T"
+}

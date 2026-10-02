@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-02T23:18:44.209Z",
+  "head": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+  "stale": false,
+  "needsUpdate": false,
+  "nodes": 17686,
+  "edges": 50621,
+  "communities": 335,
+  "duplicateNodes": 0,
+  "duplicateEdges": 0,
+  "danglingEdges": 0,
+  "selfLoops": 0,
+  "structuralCoverage": "PARTIAL_9_INHERITED",
+  "semanticCoverage": "PENDING",
+  "graphSha256": "99c9a91498e09aa080aedc0ce04847fefb7de35abbcd488fe81f3c0c9bb2e70b"
+}

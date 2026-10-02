@@ -948,3 +948,9 @@ Portable domain/manifest/encryption contract, owner-session/review/source-bound 
 ### 2026-10-03 — 15S F35 safe-mode export correction
 
 Source402d7bb clean fullv33 was intentionally interrupted when review found missing global safe-mode export binding; incomplete, not PASS. Existing mode reader now guards before payload work and before archive effects.24 TEMP scenarios/34 negative controls PASS, changed lint PASS; TypeScript completion/Graphify/source correction commit/fullv34 baseline next. Real migration/activation remain unmeasured.
+
+### 2026-10-03 — 15S full baseline GREEN; source closure;15T opens
+
+Exact clean tested source cd435bc6e9bb75288c05a16d09be086a8fcabdf0: complete v34 baseline116/116, no failed suite, PASS_WITH_KNOWN_LIMITATIONS (cognitive54/55, held-out4/5). All136 grader pins match worktree and committed bytes;24 TEMP scenarios/34 negative controls, TypeScript, whole lint0 errors/13 existing warnings and diff PASS. Graphify17686/50621 bound to this source, stale=false, zero duplicate/dangling/self-loop anomalies; PARTIAL9/semantic PENDING retained.
+
+Physical destination dependencies/path rebinding/Graphify rebuild/hardware qualification/startup/audit are NOT_RUN. Owner activation and old-PC cleanup remain owner-only. TEMP evidence does not certify migration. No live data was exported and no live mode was entered. Evidence hardening/15S/CLOSURE.md and15S_RESULT.json. Stage15 whole OPEN; next15T, then combined closure and authorized WIP push/parity; continue16 in canonical order.

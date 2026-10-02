@@ -1,3 +1,11 @@
+# AYAS continuation — 2026-10-03 /15S source GREEN;15T candidate in progress
+
+Exact clean tested source cd435bc6e9bb75288c05a16d09be086a8fcabdf0: complete v34 baseline116/116, no failed suite, PASS_WITH_KNOWN_LIMITATIONS (cognitive54/55, held-out4/5). All136 grader pins match worktree and committed bytes;24 TEMP scenarios/34 negative controls, TypeScript, whole lint0 errors/13 existing warnings and diff PASS. Graphify17686/50621 bound to this source, stale=false, zero duplicate/dangling/self-loop anomalies; PARTIAL9/semantic PENDING retained.
+
+Physical destination dependencies/path rebinding/Graphify rebuild/hardware qualification/startup/audit are NOT_RUN. Owner activation and old-PC cleanup remain owner-only. TEMP evidence does not certify migration. No live data was exported and no live mode was entered. Stage15 overall remains OPEN.15T candidate lives in isolated ayas-stage15t worktree;24 TEMP scenarios PASS, negative controls/TypeScript/actual browser/full baseline pending.
+
+Exact next: finish/integrate15T, exact-clean full baseline and combined Stage15 regression, address F33 technical failures honestly, Graphify/checkpoint, commit/push and verify0/0 parity/clean tree; then continue canonicalStage16. Latest owner command supersedes historical STOP/NO PUSH; live promotion/external writes/spend/owner activation remain gated.
+
 # AYAS continuation — 2026-10-03 / Stage 15S implemented; exact clean baseline pending
 
 15R source closure is recorded at `0666850`, tested source `a00091f`; existing completed work was preserved. 15S now has portable domain/schema/hash contracts, authenticated private archives, exact owner-session/review/source-bound export, a real isolated restore/audit, immutable runtime/image metadata, bounded destination artifact byte verification, ordered advisory migration gates and an operator CLI. Portable records remain inert; no old-machine signer/session/approval can activate the destination.

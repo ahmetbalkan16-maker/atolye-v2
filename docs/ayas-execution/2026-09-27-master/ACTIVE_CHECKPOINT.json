@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "a00091fdcc68f4588b2403b67e008ce796e117a1",
-  "currentHead": "402d7bb668d4d6bc327b7baef882181f17fd110e",
-  "stage": "STAGE_15S",
-  "subtask": "15S-source-packet-exact-clean-baseline-pending",
+  "lastGreenHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+  "currentHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+  "stage": "STAGE_15T",
+  "subtask": "15T-candidate-executive-briefing-security-and-browser-validation",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15R",
-    "status": "CLOSED_GREEN_SOURCE_WITH_DECLARED_LIVE_GAPS",
-    "closingCommit": "a00091fdcc68f4588b2403b67e008ce796e117a1"
+    "stage": "STAGE_15S",
+    "status": "CLOSED_GREEN_SOURCE_WITH_DECLARED_MIGRATION_GAPS",
+    "closingCommit": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -106,7 +106,8 @@
     "STAGE_15O_SOURCE",
     "STAGE_15P_SOURCE",
     "STAGE_15Q_SOURCE",
-    "STAGE_15R_SOURCE"
+    "STAGE_15R_SOURCE",
+    "STAGE_15S_SOURCE"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -357,22 +358,28 @@
     "Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending.",
     "15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding.",
     "15Q.2 source0763db5 exact clean validation8d1c28c: full declaredv30 110/110 PASS_WITH_KNOWN_LIMITATIONS, failed0;129 committed grader pins; cognitive54/55 and held-out4/5 unchanged. Controller11/24 negative controls, recovery22/runtime17, resource19/34, eval10/8, TypeScript/lint PASS (13 old warnings). Sampled RAM max55.11%. Graphify17492/50048, zero integrity anomalies; PARTIAL9/semantic pending retained. Injected source controller/image contract only; real backend/physical hardware not qualified. Stage15Q remains open. Owner instruction: finish15Q.2 then STOP.",
-    "15Q.3 exact clean source `ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4`: full declared v31 112/112 PASS_WITH_KNOWN_LIMITATIONS, failed 0; 131 committed grader pins; cognitive 54/55 and held-out 4/5 unchanged. Occupancy 12 scenarios / 45 negative controls, resource 19 and 34/34, lifecycle 11 and 24/24, eval governance 10, recovery 22, registry 15, closure 12, Machine Health 20 and 36; TypeScript and lint PASS (13 old warnings); production build PASS in a TEMP clone. Sampled RAM max 55.55 %. Graphify 17551/50207, zero integrity anomalies; PARTIAL9/semantic pending. Production suites outside the declared baseline: 31 in an isolated clone, 22 PASS, 9 FAIL identical at clean HEAD (F33). Source occupancy binding only: no production stage, model, container or host change; not a hardware qualification. Stage 15Q closed as source with declared gaps."
+    "15Q.3 exact clean source `ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4`: full declared v31 112/112 PASS_WITH_KNOWN_LIMITATIONS, failed 0; 131 committed grader pins; cognitive 54/55 and held-out 4/5 unchanged. Occupancy 12 scenarios / 45 negative controls, resource 19 and 34/34, lifecycle 11 and 24/24, eval governance 10, recovery 22, registry 15, closure 12, Machine Health 20 and 36; TypeScript and lint PASS (13 old warnings); production build PASS in a TEMP clone. Sampled RAM max 55.55 %. Graphify 17551/50207, zero integrity anomalies; PARTIAL9/semantic pending. Production suites outside the declared baseline: 31 in an isolated clone, 22 PASS, 9 FAIL identical at clean HEAD (F33). Source occupancy binding only: no production stage, model, container or host change; not a hardware qualification. Stage 15Q closed as source with declared gaps.",
+    "Stage15S exact clean cd435bc: complete v34 116/116 PASS_WITH_KNOWN_LIMITATIONS, no failures; cognitive54/55 and held-out4/5 retained;136 committed pins,24 TEMP scenarios/34 negative controls, TypeScript/whole lint0 errors13 existing warnings/diff PASS; Graphify17686/50621 stale=false zero anomalies; PARTIAL9/semantic PENDING. Real destination migration/activation unmeasured."
   ],
   "graphify": {
-    "head": "4475e94911104277d4287ebc950d666d187ba110",
-    "testedSourcePacket": "Stage 15R worktree on 4475e94 (precommit)",
+    "schemaVersion": "1",
+    "recordedAt": "2026-10-02T23:18:44.209Z",
+    "head": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17619,
-    "edges": 50418,
+    "nodes": 17686,
+    "edges": 50621,
+    "communities": 335,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
+    "structuralCoverage": "PARTIAL_9_INHERITED",
+    "semanticCoverage": "PENDING",
+    "graphSha256": "99c9a91498e09aa080aedc0ce04847fefb7de35abbcd488fe81f3c0c9bb2e70b",
+    "headSemantics": "Exact clean tested 15S source commit; documentation closure requires subsequent refresh.",
     "semanticPending": true,
-    "structuralPartialFiles": 9,
-    "headSemantics": "Precommit graph of the Stage 15R worktree (GRAPHIFY_15R_PRECOMMIT.json). Refreshed and recorded again at the source commit. PARTIAL9/semantic pending."
+    "structuralPartialFiles": 9
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -396,8 +403,8 @@
     "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
     "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload."
   ],
-  "nextAction": "Finish Graphify/whole lint/diff; commit 15S source packet, bind Graphify to it and run full declared v34 baseline without changing evaluated bytes. Record exact-commit evidence, close source only if passed, then canonical 15T. Real hardware migration and owner activation are unmeasured, not TEMP-certified. Stage15 remains OPEN; subsequent combined closure/push/parity then Stage16 in master order. Preserve ON_DEMAND/PC HEALTH.",
-  "updatedAt": "2026-10-02T22:37:44.663Z",
+  "nextAction": "Complete canonical15T candidate: durable diagnostic metadata, priority/dedupe/cooldown/acknowledgement, real owner UI and genuine negative controls; no alert-derived authority. Integrate tested source, run exact clean full declared baseline and combined Stage15 regression; resolve F33 technical fixture defects without hiding missing-data/live gaps. Then checkpoint/commit/push/parity and continue Stage16. Physical migration/activation unmeasured; ON_DEMAND/PC HEALTH preserved.",
+  "updatedAt": "2026-10-02T23:18:44.239Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1505,7 +1512,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Finish current TypeScript/lint/diff and documentation-only 15R closure commit, then canonical 15S Portable Brain Snapshot/Hardware Migration (final order, freeze 15S, post-freeze section 6). Inspect dependency/call/community effects before source changes; private exports encrypted; secrets and executable authority excluded; real migration activation remains owner-only. Continue 15T after 15S source verification; close Stage 15 only after the combined regression gate. Push current WIP branch and verify parity, then continue Stage 16. Preserve ON_DEMAND/PC HEALTH.",
+  "resumeNextAction": "Complete canonical15T candidate: durable diagnostic metadata, priority/dedupe/cooldown/acknowledgement, real owner UI and genuine negative controls; no alert-derived authority. Integrate tested source, run exact clean full declared baseline and combined Stage15 regression; resolve F33 technical fixture defects without hiding missing-data/live gaps. Then checkpoint/commit/push/parity and continue Stage16. Physical migration/activation unmeasured; ON_DEMAND/PC HEALTH preserved.",
   "ownerStop": {
     "state": "SUPERSEDED_BY_OWNER_RESUME",
     "appliedAt": "2026-10-02T18:30:19.106Z",
@@ -1587,7 +1594,7 @@
     "closure": "03_STAGE15_BASE/hardening/15R/CLOSURE.md"
   },
   "stage15S": {
-    "state": "SOURCE_IMPLEMENTED_FOCUSED_GREEN_FULL_BASELINE_PENDING",
+    "state": "CLOSED_GREEN_SOURCE_WITH_DECLARED_MIGRATION_GAPS",
     "openedOn": "2026-10-03",
     "openedAtHead": "a00091fdcc68f4588b2403b67e008ce796e117a1",
     "canonicalSection": "final execution order 15S; freeze addendum 15S; post-freeze addendum 6",
@@ -1606,7 +1613,24 @@
       "suites": 116,
       "uniquePins": 136
     },
-    "fullBaseline": "PENDING_EXACT_CLEAN_SOURCE_COMMIT",
+    "fullBaseline": {
+      "manifestVersion": "15F.4-v34",
+      "manifestDigest": "e73bc62c8348adb7f1fd85c9785d17667c47c043e841a66c11d4a03edff5c0aa",
+      "sourceWorktreeDigest": "9b0fcdaf64ff65167ecde990ed88706d8ac1899b4d013c03b394fcd3c97292db",
+      "complete": true,
+      "suites": 116,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "rawReport": "15S_FULL_BASELINE_V34.json",
+      "rawSha256": "272b7907400a0023533412690166c8c6efa01039d57dfa9a5f63534b31ab20e9",
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55",
+      "heldOut": "4/5",
+      "uniqueCommittedPins": 136,
+      "sampledRamPeakPercent": 65.29
+    },
     "liveMigration": "NOT_RUN",
     "ownerActivation": "BLOCKED_OWNER_ACTION",
     "oldPcCleanup": "BLOCKED_OWNER_ACTION_AFTER_VERIFIED_MIGRATION",
@@ -1616,7 +1640,12 @@
       "sourceHead": "402d7bb668d4d6bc327b7baef882181f17fd110e",
       "version": "15F.4-v33",
       "status": "INTENTIONALLY_INTERRUPTED_F35_NOT_COMPLETE_NOT_PASS"
-    }
+    },
+    "closedOn": "2026-10-03",
+    "testedSourceHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+    "correctionCommit": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+    "result": "03_STAGE15_BASE/hardening/15S/15S_RESULT.json",
+    "closure": "03_STAGE15_BASE/hardening/15S/CLOSURE.md"
   },
   "sessionStart": {
     "date": "2026-10-03",
@@ -1631,5 +1660,17 @@
     "stale": false,
     "needsUpdate": false,
     "attachmentMatchesAdoptedSupplement": true
+  },
+  "stage15T": {
+    "state": "CANDIDATE_IN_PROGRESS_NOT_CLOSED",
+    "openedOn": "2026-10-03",
+    "candidateWorktree": "ayas-stage15t",
+    "notes": "03_STAGE15_BASE/hardening/15T/IMPLEMENTATION_NOTES.md",
+    "initialFocused": "24_TEMP_SCENARIOS_PASS",
+    "negativeControls": "PENDING",
+    "typeScript": "PENDING",
+    "browserValidation": "NOT_RUN",
+    "fullBaseline": "PENDING",
+    "authority": "NONE"
   }
 }
