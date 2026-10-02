@@ -17,6 +17,8 @@
  * A file that matches no rule defaults to REVIEW_REQUIRED (fail safe).
  */
 
+import { AYAS_GOLDEN_VAULT_MODULE_DIR, AYAS_GOLDEN_VAULT_PINNED_FILES } from "../../ayas/golden/AyasGoldenVaultRegistry";
+
 export type BrainPatchSafetyLevel = "SAFE" | "REVIEW_REQUIRED" | "FORBIDDEN_AUTONOMOUS";
 
 interface Rule {
@@ -27,9 +29,37 @@ interface Rule {
 
 const norm = (p: string): string => String(p ?? "").replace(/\\/g, "/").replace(/^\.\//, "").trim();
 
+/**
+ * The yardstick an improvement is measured with (Stage 15O): the golden vault, every grader and fixture any of its
+ * versions pins, its operator script and suites, and the eval manifest with its validator and runner. Compared without
+ * case, so another spelling of the same file on a case-insensitive disk is the same file.
+ */
+const YARDSTICK_FILES: ReadonlySet<string> = new Set([
+  ...AYAS_GOLDEN_VAULT_PINNED_FILES,
+  "scripts/ayas-golden-vault.ts",
+  "scripts/lib/AyasGoldenVaultFiles.ts",
+  "scripts/smoke-ayas-golden-vault.ts",
+  "scripts/smoke-ayas-golden-vault-mutations.ts",
+  "scripts/smoke-ayas-golden-vault-operator.ts",
+  "scripts/smoke-ayas-golden-vault-run.ts",
+  "scripts/ayas-eval-baseline.ts",
+  "src/lib/ayas/observability/AyasEvalGovernance.ts",
+  "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+].map((file) => file.toLowerCase()));
+
 /** Order matters: the FIRST matching rule wins, and FORBIDDEN rules come first. */
 const RULES: readonly Rule[] = Object.freeze([
   // ---- FORBIDDEN_AUTONOMOUS -------------------------------------------------
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
+    why: "the owner constitution: its modules and its activation page (only the owner changes the root of trust)",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/governance/") || p.toLowerCase().startsWith("app/brain/constitution/"),
+  },
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
+    why: "the golden regression vault or the eval yardstick (a change may not rewrite what it is measured with)",
+    test: (p) => p.toLowerCase().startsWith(AYAS_GOLDEN_VAULT_MODULE_DIR.toLowerCase()) || YARDSTICK_FILES.has(p.toLowerCase()),
+  },
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "AYAS zero-cost policy or machine-health protection boundary",

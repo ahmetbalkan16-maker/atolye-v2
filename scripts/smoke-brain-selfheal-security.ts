@@ -182,7 +182,9 @@ async function run() {
       assert.equal(/writeActionsEnabled\s*[:=]\s*true/.test(code), false, `${f} enables write actions`);
       assert.equal(/ayasExecutionGate\s*=\s*["']OPEN/.test(code), false, `${f} opens the gate`);
       if (!guardFiles.has(f)) {
-        assert.equal(/child_process/.test(code), false, `${f} spawns a process (only the sandbox may)`);
+        // Loading the module is what spawning needs. The bare word also appears as DATA in a denylist
+        // (AyasExactPatchSafety forbids it in added code), which is not a use.
+        assert.equal(/(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](?:node:)?child_process["']/.test(code), false, `${f} spawns a process (only the sandbox may)`);
         assert.equal(/\bdeploy\b|vercel|netlify|git\s+push/.test(code), false, `${f} deploys / pushes`);
       }
     }

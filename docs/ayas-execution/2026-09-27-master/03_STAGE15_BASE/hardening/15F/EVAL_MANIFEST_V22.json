@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v23",
+  "version": "15F.4-v22",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1676,87 +1676,6 @@
         }
       ],
       "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-vault",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-vault.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-vault.ts",
-          "sha256": "2b0684f2e356f93e9e82c17d90ad5788e1995b34f526dceaa8d23cbca437046d"
-        },
-        {
-          "file": "scripts/lib/AyasGoldenVaultFiles.ts",
-          "sha256": "bb7f3eedd0cbb271b4d2c934999dcaa419177f1a4966375266cb9e5119f27c1f"
-        }
-      ],
-      "slices": [
-        "golden-vault",
-        "fail-closed",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-vault-operator",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-vault-operator.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-vault-operator.ts",
-          "sha256": "61ccb61d92875d0461f6044deca603c4b1518b161e9f403d9f59fed276a600ae"
-        },
-        {
-          "file": "scripts/lib/AyasGoldenVaultFiles.ts",
-          "sha256": "bb7f3eedd0cbb271b4d2c934999dcaa419177f1a4966375266cb9e5119f27c1f"
-        }
-      ],
-      "slices": [
-        "golden-vault",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-vault-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-vault-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-vault-mutations.ts",
-          "sha256": "03ccbcc1075b33b7ebdfcc6a1e84bcadb94b48d58546e32eb76500346a185ff6"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-vault-run",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-vault-run.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-vault-run.ts",
-          "sha256": "945802995515c6808f14edb4e7a2c99ae14ecd06cc14342ee8bb0d2a87b674ab"
-        },
-        {
-          "file": "scripts/lib/AyasGoldenVaultFiles.ts",
-          "sha256": "bb7f3eedd0cbb271b4d2c934999dcaa419177f1a4966375266cb9e5119f27c1f"
-        }
-      ],
-      "slices": [
-        "golden-vault",
-        "all-golden-cases",
         "deterministic-outcome"
       ]
     }

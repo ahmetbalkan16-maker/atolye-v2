@@ -46,3 +46,34 @@ A constraint found in the lifecycle registry: `AyasResearchExperimentRegistry.ts
 15O.3 — two or three deterministic historical-video golden projects from the Stage 15J contracts (fact pack, narrative review, character scenes and their rendered bytes), added as vault version 2.
 
 Nothing in this stage runs a model, a provider, a container or a live production. No owner gate is expected; reference projects rendered by a real production stay a declared gap that only the owner can close.
+
+## 15O.1 — the vault, its registry of record and path protection (implemented, not wired)
+
+Files: `src/lib/ayas/golden/AyasGoldenVault.ts` (pure contract), `src/lib/ayas/golden/AyasGoldenVaultRegistry.ts` (versions of record, data only), `scripts/lib/AyasGoldenVaultFiles.ts` (reads and runs, never writes), `scripts/ayas-golden-vault.ts` (read-only operator script), four suites, and one rule block in `src/lib/brain/selfheal/BrainPatchSafety.ts`.
+
+Vault version 1: 17 golden cases over seven domains. Each case is an existing deterministic offline suite, run with no arguments, with every file under `scripts/` it imports pinned by SHA-256 (22 files). Two declared gaps: revenue dry-run (no adapter before Stage 16) and whole historical-video projects (the two video cases cover the storytelling contracts and the quality gate, not a project).
+
+| Domain | Cases |
+|---|---|
+| Conversation | conversation quality master, chat quality |
+| Memory and retrieval correction | temporal correction, memory integrity, retrieval evaluation |
+| Coding repair | historical repair vault (five frozen tasks), guided repair |
+| Security and adversarial | action firewall, exact patch safety, access gate |
+| Production recovery | production fault repair, workflow recovery, durable task runtime |
+| Historical video | historical storytelling, production quality gate; whole projects declared missing |
+| Revenue dry-run | none; declared gap |
+| Brain UI | Brain Core UI, voice |
+
+Decisions taken, with the measurement behind each:
+
+- The decision rests on the candidate tree alone. A vault case that is red in the candidate tree stops promotion whether the change broke it or it was already red; a baseline run, when supplied, only says which. Reason: the live improvement cycle has 90 seconds in total, an experiment needs 60 of them, and the whole vault takes about 28 seconds on this workstation. Running it twice per experiment would make every experiment time out. That the vault passes at an accepted HEAD is proven by every declared baseline (suite `golden-vault-run`).
+- Cases were chosen to be short. The two longest (retrieval evaluation 14 s, temporal memory 3 s) are already regression suites of the one registered strategy, so 15O.2 can reuse their result instead of running them twice.
+- A gap is a field of the vault and of every decision. It is never counted as held.
+- "Cannot silently rewrite" is three things: versions are append-only and chained by digest, with a case leaving only by name; the pinned bytes are verified wherever a decision is made; and the patch-safety table classes the vault modules, every file any version pins, the operator script, the suites, the eval manifest with its validator and runner as never-autonomous, in any spelling. The same block makes the Stage 15N governance module and constitution page never-autonomous (finding F23).
+- A grader that starts importing a new fixture is reported as not fully pinned until a new version says so.
+
+Not done in 15O.1, on purpose: no promotion path reads the vault yet (asserted by the suite), and `AyasResearchExperimentRegistry.ts` is untouched because it is the identity of a lifecycle entry.
+
+Tests: contract suite 13 scenarios; operator and runner suite 3 scenarios in a TEMP copy; negative controls 39/39 caught in a TEMP copy; `golden-vault-run` runs all 17 cases (held, about 28 s). Eval manifest v23: 99 suites, 113 unique pins; v22 archived unchanged.
+
+Found on the way (F24): `scripts/smoke-brain-selfheal-security.ts`, which is outside the declared baseline, was already failing at HEAD. It searched every self-heal file for the bare word `child_process`, and `AyasExactPatchSafety.ts` contains that word as data in the denylist of code a patch may not add. The check now looks for the module being loaded (import, dynamic import or require), which is what spawning needs. 14 scenarios pass.
