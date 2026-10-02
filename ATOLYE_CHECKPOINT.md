@@ -1,5 +1,15 @@
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
+## AYAS Stage 15Q CLOSED (source, declared gaps) — Stage 15R open
+
+15Q.3 source `ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4` on its exact clean tree: full declared v31 112/112 PASS_WITH_KNOWN_LIMITATIONS, no failure; 131 grader pins; cognitive 54/55 and held-out 4/5 unchanged; RAM peak 55.55 %; Graphify 17551/50207 with no integrity anomaly (PARTIAL 9, semantic pending); production build PASS in a TEMP clone. Stage 15Q (Hardware / Resource Governor) is closed as source: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15Q/CLOSURE.md`. The entry below describes what 15Q.3 changed.
+
+Declared gaps: no registered local engine (the on-demand controller is a tested contract, not observed behaviour); owner interaction, loaded-model footprint, thermal and host-protection state unmeasured; no benchmark bound to the hardware fingerprint; operator-run heavy tools outside the capacity lock; Windows startup observed, not traced; production suites outside the declared baseline (F33). The six post-freeze rows for 15Q were re-evaluated: four SATISFIED, two GAP_OWNER_GATED.
+
+Owner actions, none blocking: rebuild and restart the Next server (production publishes its stages only then); restart the observer task; choose the coarse owner-activity signal; decide the Podman Desktop / Ollama logon entries.
+
+Exact next: Stage 15R (Global SAFE_READ_ONLY Emergency Stop), 15R.0 existing-seam inspection — `ACTIVE_CHECKPOINT.json` carries the action. NO PUSH / PC HEALTH / ON_DEMAND.
+
 ## AYAS 15Q.3 — owner resume; shared occupancy bound; focused GREEN, bound baseline pending
 
 The owner's master continuation command (2026-10-02T18:36Z) lifted the 15Q.2 stop; the entries below that say STOP are superseded. Resume truth: HEAD `0c020e0`, clean, 79 ahead / 0 behind origin, Graphify bound.

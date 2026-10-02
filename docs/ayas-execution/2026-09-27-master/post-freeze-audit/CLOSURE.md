@@ -64,3 +64,18 @@ Read the stage's canonical pack first, then the addendum section below, and say 
 ## Next
 
 Canonical Stage 15G (SBOM / Provenance / Release Trust). Local commits only. No push.
+
+## Re-evaluation at the Stage 15Q closure (2026-10-02)
+
+The table above is the audit as it closed. Stage 15Q has since been built, so its six not-applicable rows were looked at again at the stage's source closure (`ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4`, `03_STAGE15_BASE/hardening/15Q/CLOSURE.md`):
+
+| Row | Now | Why |
+|---|---|---|
+| 15Q-health | SATISFIED | Five classes; a sensor that cannot be read is absent, never a number. |
+| 15Q-single-heavy | SATISFIED (found GAP_SAFE_TO_FIX, fixed) | One heavy capacity holder; the owner's RAM limit; resource abort apart from model failure. F31 and F32 were found and fixed in 15Q.3. |
+| 15Q-on-demand | GAP_OWNER_GATED | The lifecycle is a tested source contract; the engine is unregistered and the logon startup entries are the owner's. |
+| 15Q-lazy-prewarm | SATISFIED | Lazy by default; nothing prewarms. |
+| 15Q-active-app | GAP_OWNER_GATED | Coarse signals inside the privacy boundary; the owner-activity signal is the owner's choice. |
+| 15Q-image-cleanup | SATISFIED | Read-only classification; no prune surface. |
+
+The matrix now reads 8 not applicable (browser executor 1, Stage 15S 4, Stage 15T 3), 6 equivalent, 14 satisfied, 4 owner-gated, no open safe gap.

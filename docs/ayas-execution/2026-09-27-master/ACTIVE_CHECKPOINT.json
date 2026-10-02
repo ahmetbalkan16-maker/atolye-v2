@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "8d1c28cc33d46d2e0059d5e889fe6c940faad40f",
-  "currentHead": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
-  "stage": "STAGE_15Q",
-  "subtask": "15Q.3-focused-GREEN-source-commit-full-baseline-pending",
+  "lastGreenHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+  "currentHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+  "stage": "STAGE_15R",
+  "subtask": "15R.0-existing-seam-inspection",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15P",
-    "status": "CLOSED_GREEN_CONTEXTUAL_METADATA_SOURCE",
-    "closingCommit": "409ef9616b9477e9047b5028bcc92cbf50ea309e"
+    "stage": "STAGE_15Q",
+    "status": "CLOSED_GREEN_SOURCE_WITH_DECLARED_GAPS",
+    "closingCommit": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -104,7 +104,8 @@
     "STAGE_15M_SOURCE",
     "STAGE_15N_SOURCE",
     "STAGE_15O_SOURCE",
-    "STAGE_15P_SOURCE"
+    "STAGE_15P_SOURCE",
+    "STAGE_15Q_SOURCE"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -214,7 +215,10 @@
     "15Q.0-existing-seam-inspection",
     "15Q.1-contextual-admission-common-capacity-GREEN-not-wired",
     "15Q.2-bounded-on-demand-lifecycle-image-contract-GREEN-not-wired",
-    "owner-resume-after-15Q2-stop"
+    "owner-resume-after-15Q2-stop",
+    "15Q.3-host-common-occupancy-and-consumer-binding-GREEN-not-live",
+    "post-freeze-15Q-rows-re-evaluated",
+    "15Q-closure-GREEN-source-with-declared-gaps"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -350,22 +354,23 @@
     "15O.3 source d08fed0: v25 declared 104/104 baseline PASS_WITH_KNOWN_LIMITATIONS, no failures; cognitive 54/55 / heldout 4/5 unchanged; projects 6 / 24 scenes, mutants17/17, vault13 / mutants40/40, 122 Git-blob pins; TypeScript/lint/diff PASS; RAM54.72%; Graphify17344/49711, zero anomalies, PARTIAL9/semantic pending.",
     "Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending.",
     "15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding.",
-    "15Q.2 source0763db5 exact clean validation8d1c28c: full declaredv30 110/110 PASS_WITH_KNOWN_LIMITATIONS, failed0;129 committed grader pins; cognitive54/55 and held-out4/5 unchanged. Controller11/24 negative controls, recovery22/runtime17, resource19/34, eval10/8, TypeScript/lint PASS (13 old warnings). Sampled RAM max55.11%. Graphify17492/50048, zero integrity anomalies; PARTIAL9/semantic pending retained. Injected source controller/image contract only; real backend/physical hardware not qualified. Stage15Q remains open. Owner instruction: finish15Q.2 then STOP."
+    "15Q.2 source0763db5 exact clean validation8d1c28c: full declaredv30 110/110 PASS_WITH_KNOWN_LIMITATIONS, failed0;129 committed grader pins; cognitive54/55 and held-out4/5 unchanged. Controller11/24 negative controls, recovery22/runtime17, resource19/34, eval10/8, TypeScript/lint PASS (13 old warnings). Sampled RAM max55.11%. Graphify17492/50048, zero integrity anomalies; PARTIAL9/semantic pending retained. Injected source controller/image contract only; real backend/physical hardware not qualified. Stage15Q remains open. Owner instruction: finish15Q.2 then STOP.",
+    "15Q.3 exact clean source `ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4`: full declared v31 112/112 PASS_WITH_KNOWN_LIMITATIONS, failed 0; 131 committed grader pins; cognitive 54/55 and held-out 4/5 unchanged. Occupancy 12 scenarios / 45 negative controls, resource 19 and 34/34, lifecycle 11 and 24/24, eval governance 10, recovery 22, registry 15, closure 12, Machine Health 20 and 36; TypeScript and lint PASS (13 old warnings); production build PASS in a TEMP clone. Sampled RAM max 55.55 %. Graphify 17551/50207, zero integrity anomalies; PARTIAL9/semantic pending. Production suites outside the declared baseline: 31 in an isolated clone, 22 PASS, 9 FAIL identical at clean HEAD (F33). Source occupancy binding only: no production stage, model, container or host change; not a hardware qualification. Stage 15Q closed as source with declared gaps."
   ],
   "graphify": {
-    "head": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
-    "testedSourcePacket": "15Q.3 worktree on 0c020e0 (precommit)",
+    "head": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+    "testedSourcePacket": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17550,
-    "edges": 50192,
+    "nodes": 17551,
+    "edges": 50207,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Counts are the precommit graph of the 15Q.3 worktree (GRAPHIFY_15Q3_PRECOMMIT.json). The graph is refreshed and recorded again at the source commit. PARTIAL9/semantic pending."
+    "headSemantics": "Counts belong to the Stage 15Q source commit ab6e531 (GRAPHIFY_15Q3_SOURCE_COMMIT.json). The documentation-only closure commit changes no executable source; the graph is rebound to it as closure housekeeping. Query the graphify status script for the actual HEAD. PARTIAL9/semantic pending."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -384,10 +389,13 @@
     "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
     "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework.",
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
-    "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
+    "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only.",
+    "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15Q.3. Until then production stages are not published to the shared resource occupancy, so discovery yields to production only through pressure.",
+    "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
+    "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload."
   ],
-  "nextAction": "15Q.3 source is committed locally with focused GREEN evidence. Run the full declared v31 112-suite baseline at that exact clean commit (npx tsx scripts/ayas-eval-baseline.ts --report <TEMP file>; do not edit the repository while it runs). On PASS_WITH_KNOWN_LIMITATIONS with no failure: record 15Q3_FULL_BASELINE_V31.json, 15Q3_RESULT.json and GRAPHIFY_15Q3_SOURCE_COMMIT.json and mark the packet GREEN. On a failure: keep the failed report, repair narrowly, repin, rerun. Then close Stage 15Q (post-freeze conformance rows for 15Q, CLOSURE.md, declared gaps) and open canonical 15R. NO PUSH / PC HEALTH / ON_DEMAND.",
-  "updatedAt": "2026-10-02T19:39:11.024Z",
+  "nextAction": "Stage 15R (Global SAFE_READ_ONLY Emergency Stop) is open. 15R.0: read only the canonical 15R sections (00_COMMAND final execution order STAGE 15R; 01_CANONICAL_SPECS freeze addendum 15R; post-freeze addendum 0 and 8.5) and inspect the existing seams a global safe mode must bind (action firewall and its leases, execution gate, owner session and constitution, discovery run guard, durable task admission, production admission, publication, cost reservation, the observer). Record them in 03_STAGE15_BASE/hardening/15R/IMPLEMENTATION_NOTES.md, then implement the smallest durable owner-only mode through those seams: TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT. NO PUSH / PC HEALTH / ON_DEMAND.",
+  "updatedAt": "2026-10-02T20:13:22.326Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -554,6 +562,11 @@
       "stage": "STAGE_15P",
       "sourceCommit": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
       "status": "CLOSED_GREEN_CONTEXTUAL_METADATA_SOURCE"
+    },
+    {
+      "stage": "STAGE_15Q",
+      "sourceCommit": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+      "status": "CLOSED_GREEN_SOURCE_WITH_DECLARED_GAPS"
     }
   ],
   "stage15C": {
@@ -587,7 +600,7 @@
     ],
     "finalSecurityFollowup": "Reject unknown top-level record fields on append/load; integrity suite 27/27; memory 30/30; temporal 52/52; retrieval 74 + determinism/error/isolation/chat chain PASS; TypeScript and changed-file lint PASS."
   },
-  "headSemantics": "currentHead is the base the 15Q.3 packet was built on (0c020e0, a documentation-only descendant of the validated 8d1c28c). The packet's own source commit is its child; read Git for the actual HEAD. lastGreenHead stays 8d1c28c until the bound v31 baseline passes.",
+  "headSemantics": "lastGreenHead/currentHead name the Stage 15Q source commit ab6e531, validated on its exact clean tree. The closure record is a documentation-only descendant. Read Git for the actual HEAD.",
   "stage15D": {
     "state": "CLOSED_GREEN",
     "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
@@ -866,7 +879,28 @@
       "sha256": "4b12ac217b0b639cb3952a4682983289531dfa5ac3f27e5b7a582b1667d01764",
       "suites": 72,
       "failed": 0
-    }
+    },
+    "reEvaluations": [
+      {
+        "stage": "15Q",
+        "on": "2026-10-02",
+        "sourceCommit": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+        "satisfied": [
+          "15Q-health",
+          "15Q-single-heavy",
+          "15Q-lazy-prewarm",
+          "15Q-image-cleanup"
+        ],
+        "foundAsGapAndFixed": [
+          "15Q-single-heavy"
+        ],
+        "ownerGated": [
+          "15Q-on-demand",
+          "15Q-active-app"
+        ],
+        "matrixNow": "8 not applicable, 6 equivalent, 14 satisfied, 4 owner-gated, 0 open safe gaps"
+      }
+    ]
   },
   "stage15G": {
     "state": "CLOSED_GREEN_WITH_DECLARED_GAPS",
@@ -1345,7 +1379,7 @@
     "fullLatestHeadBaselineClaimed": false
   },
   "stage15Q": {
-    "state": "15Q3_FOCUSED_GREEN_FULL_BASELINE_PENDING_STAGE_NOT_CLOSED",
+    "state": "CLOSED_GREEN_SOURCE_WITH_DECLARED_GAPS",
     "openedOn": "2026-10-02",
     "openedAtHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15Q; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md15Q",
@@ -1399,7 +1433,7 @@
       }
     },
     "packet15Q3": {
-      "state": "FOCUSED_GREEN_SOURCE_COMMITTED_FULL_BASELINE_PENDING",
+      "state": "GREEN_SOURCE_OCCUPANCY_BOUND_NOT_LIVE",
       "baseHead": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
       "scope": "Host-common occupancy inventory; production stage publication and model/render overlap refusal; heavy capacity holders publish then look; discovery child bound to the inventory and to the owner RAM policy; sandbox lanes held by BLOCK NEW HEAVY WORK; honest host context; read-only operator CLI.",
       "files": [
@@ -1435,11 +1469,40 @@
         "suites": 112,
         "uniquePins": 131
       },
-      "fullBaseline": "PENDING_AT_EXACT_CLEAN_SOURCE_COMMIT",
-      "authority": "NONE"
-    }
+      "fullBaseline": {
+        "sourceHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+        "worktree": "CLEAN",
+        "manifest": "15F.4-v31",
+        "manifestDigest": "1089b6600d87b0c731c8e38b98a6c3536f8f14c15170717c66e62aac77d734ed",
+        "suites": 112,
+        "completeDeclaredBaseline": true,
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "failed": [],
+        "knownLimitationSuites": [
+          "cognitive-quality"
+        ],
+        "cognitive": "54/55, held-out 4/5 unchanged",
+        "report": "15Q3_FULL_BASELINE_V31.json"
+      },
+      "authority": "NONE",
+      "sourceCommit": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+      "result": "03_STAGE15_BASE/hardening/15Q/15Q3_RESULT.json",
+      "productionBuild": "PASS in a TEMP clone at the source commit; repository .next untouched"
+    },
+    "closedOn": "2026-10-02",
+    "sourceCommit": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+    "closure": "03_STAGE15_BASE/hardening/15Q/CLOSURE.md",
+    "declaredGaps": [
+      "Local coding engine unregistered: the on-demand controller has no real backend; unload, idle stop and prewarm are contracts, not observed behaviour",
+      "Owner interaction not measured (owner chooses the coarse signal); a new heavy local model start is deferred",
+      "Loaded-model footprint, thermal state, queue depth and host-protection events have no measured source",
+      "No benchmark bound to the hardware fingerprint; the fingerprint has no GPU identity",
+      "Operator-run heavy tools and owner-approved governed execution are not capacity holders",
+      "Windows startup observed, not traced; host startup entries are the owner's",
+      "Production suites are outside the declared baseline (F33)"
+    ]
   },
-  "resumeNextAction": "15Q.3 source is committed locally with focused GREEN evidence. Run the full declared v31 112-suite baseline at that exact clean commit (npx tsx scripts/ayas-eval-baseline.ts --report <TEMP file>; do not edit the repository while it runs). On PASS_WITH_KNOWN_LIMITATIONS with no failure: record 15Q3_FULL_BASELINE_V31.json, 15Q3_RESULT.json and GRAPHIFY_15Q3_SOURCE_COMMIT.json and mark the packet GREEN. On a failure: keep the failed report, repair narrowly, repin, rerun. Then close Stage 15Q (post-freeze conformance rows for 15Q, CLOSURE.md, declared gaps) and open canonical 15R. NO PUSH / PC HEALTH / ON_DEMAND.",
+  "resumeNextAction": "Stage 15R (Global SAFE_READ_ONLY Emergency Stop) is open. 15R.0: read only the canonical 15R sections (00_COMMAND final execution order STAGE 15R; 01_CANONICAL_SPECS freeze addendum 15R; post-freeze addendum 0 and 8.5) and inspect the existing seams a global safe mode must bind (action firewall and its leases, execution gate, owner session and constitution, discovery run guard, durable task admission, production admission, publication, cost reservation, the observer). Record them in 03_STAGE15_BASE/hardening/15R/IMPLEMENTATION_NOTES.md, then implement the smallest durable owner-only mode through those seams: TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT. NO PUSH / PC HEALTH / ON_DEMAND.",
   "ownerStop": {
     "state": "SUPERSEDED_BY_OWNER_RESUME",
     "appliedAt": "2026-10-02T18:30:19.106Z",
@@ -1449,5 +1512,14 @@
     "nextStageAuthorized": true,
     "supersededAt": "2026-10-02T18:36:00.000Z",
     "supersededBy": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
+  },
+  "stage15R": {
+    "state": "OPEN_15R0_SEAM_INSPECTION",
+    "openedOn": "2026-10-02",
+    "openedAtHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15R; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md 15R",
+    "addendumSections": "Post-freeze 0 (global rules) and 8.5 (voice/UI cannot clear SAFE_READ_ONLY)",
+    "notes": "03_STAGE15_BASE/hardening/15R/IMPLEMENTATION_NOTES.md",
+    "authority": "NONE"
   }
 }

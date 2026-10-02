@@ -15,22 +15,33 @@
   "summary": {
     "rows": 32,
     "byStatus": {
-      "NOT_CURRENTLY_APPLICABLE": 14,
+      "NOT_CURRENTLY_APPLICABLE": 8,
       "SATISFIED_BY_EQUIVALENT_IMPLEMENTATION": 6,
-      "SATISFIED": 10,
-      "GAP_OWNER_GATED": 2
+      "SATISFIED": 14,
+      "GAP_OWNER_GATED": 4
     },
     "foundAsGapAndFixed": [
       "15C-dynamic-budget",
       "15F-outcome-detail",
+      "15Q-single-heavy",
       "voice-tool-action",
       "voice-barge-in"
     ],
     "ownerGated": [
       "15C-live-window-config",
+      "15Q-on-demand",
+      "15Q-active-app",
       "voice-barge-in-acoustic"
     ],
-    "openSafeGaps": []
+    "openSafeGaps": [],
+    "reEvaluated": [
+      {
+        "stage": "15Q",
+        "at": "Stage 15Q closure, 2026-10-02",
+        "sourceCommit": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+        "closure": "03_STAGE15_BASE/hardening/15Q/CLOSURE.md"
+      }
+    ]
   },
   "rows": [
     {
@@ -167,68 +178,97 @@
       "stage": "15Q",
       "section": "4.2, 4.3",
       "requirement": "Resource classes and a resource snapshot in which an unavailable sensor is UNKNOWN",
-      "status": "NOT_CURRENTLY_APPLICABLE",
+      "status": "SATISFIED",
       "evidence": [
-        "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md"
+        "src/lib/ayas/machine/AyasResourceGovernor.ts",
+        "src/lib/ayas/machine/AyasMachineTelemetry.ts",
+        "src/lib/ayas/machine/AyasResourceOccupancy.ts",
+        "scripts/smoke-ayas-resource-governor.ts",
+        "scripts/smoke-ayas-resource-occupancy.ts",
+        "scripts/ayas-resource-status.ts",
+        "03_STAGE15_BASE/hardening/15Q/CLOSURE.md"
       ],
-      "note": "Stage 15Q is not reached. Re-evaluate when the canonical resource governor is built, with its real sensor and admission adapters. No stand-in subsystem was built for this audit. What already binds every session: one heavy local workload at a time, no new heavy workload at 90 % host RAM or above, the local coding runtime on demand only (Stage 15A.3 closure)."
+      "note": "Re-evaluated at the Stage 15Q closure. Five classes; the snapshot carries CPU, RAM, GPU, VRAM, disk and coarse render/model process presence, and a sensor that cannot be read is absent, never a number. Production activity and the heavy inventory are measured from the shared occupancy records. Loaded-model footprint, thermal state and queue depth have no measured source on this host and are reported UNKNOWN (declared gap 3 of the closure)."
     },
     {
       "id": "15Q-single-heavy",
       "stage": "15Q",
       "section": "4.4, 9.2, 9.3",
       "requirement": "One heavy workload at a time; no new heavy job at 90 % host RAM or above as owner policy; RESOURCE_ABORT / HOST_PROTECTION kept apart from model failure",
-      "status": "NOT_CURRENTLY_APPLICABLE",
+      "status": "SATISFIED",
+      "auditFinding": "GAP_SAFE_TO_FIX",
+      "fixedBy": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
       "evidence": [
-        "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md",
-        "03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md"
+        "src/lib/ayas/machine/AyasResourceCapacity.ts",
+        "src/lib/ayas/machine/AyasResourceGovernor.ts",
+        "src/lib/ayas/machine/AyasMachineHealthGuard.ts",
+        "src/lib/brain/autonomy/AyasNovelPatchDiscovery.ts",
+        "src/lib/brain/autonomy/AyasMicroBatchAccumulator.ts",
+        "scripts/ayas-discovery-daemon.ts",
+        "scripts/smoke-ayas-resource-governor.ts",
+        "scripts/smoke-ayas-resource-occupancy.ts",
+        "scripts/smoke-ayas-resource-occupancy-mutations.ts",
+        "03_STAGE15_BASE/hardening/15Q/15Q3_RESULT.json"
       ],
-      "note": "Stage 15Q is not reached. Re-evaluate when the canonical resource governor is built, with its real sensor and admission adapters. No stand-in subsystem was built for this audit. What already binds every session: one heavy local workload at a time, no new heavy workload at 90 % host RAM or above, the local coding runtime on demand only (Stage 15A.3 closure). The telemetry class that keeps a resource abort out of the failure count already exists (15F-outcome-detail)."
+      "note": "Re-evaluated at the Stage 15Q closure. One heavy capacity holder at a time through the host-common lock; the admission limit is the owner constitution's maxRamAdmissionPercent (90 until adopted) and an active task is not stopped when the limit is crossed later; critical pressure is RESOURCE_ABORT / HOST_PROTECTION and never a model-quality failure. Found and fixed in 15Q.3: the discovery child ignored the owner limit (F31) and the two sandbox lanes started under BLOCK NEW HEAVY WORK (F32). Limit: operator-run heavy tools (eval baseline, build, Graphify, the qualification runner) and owner-approved governed execution are not capacity holders; whoever runs them applies the PC-health rule."
     },
     {
       "id": "15Q-on-demand",
       "stage": "15Q",
       "section": "4.5, 4.6, 9.1",
       "requirement": "On-demand local coding runtime lifecycle, unload after a task, Podman idle stop, no automatic wsl --shutdown, no model preload at Windows startup",
-      "status": "NOT_CURRENTLY_APPLICABLE",
+      "status": "GAP_OWNER_GATED",
       "evidence": [
-        "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md",
-        "sandbox/ayas-local-coding/README.md"
+        "src/lib/ayas/machine/AyasOnDemandLifecycle.ts",
+        "scripts/smoke-ayas-on-demand-lifecycle.ts",
+        "scripts/smoke-ayas-on-demand-lifecycle-mutations.ts",
+        "03_STAGE15_BASE/hardening/15Q/15Q2_RESULT.json",
+        "03_STAGE15_BASE/hardening/15Q/15Q_HOST_OBSERVATION_DURING_15P_BASELINE.json",
+        "03_STAGE15_BASE/hardening/15A/QUALIFICATION_CLOSURE.json"
       ],
-      "note": "Stage 15Q is not reached. Re-evaluate when the canonical resource governor is built, with its real sensor and admission adapters. No stand-in subsystem was built for this audit. What already binds every session: one heavy local workload at a time, no new heavy workload at 90 % host RAM or above, the local coding runtime on demand only (Stage 15A.3 closure). The on-demand policy is recorded and was followed at the Stage 15A.3 closure (no containers, Podman machine stopped, nothing preloaded); the lifecycle state machine and the idle stop are 15Q work."
+      "note": "Re-evaluated at the Stage 15Q closure. Built and tested as a source contract: the seven-state lifecycle, evidence and checkpoint read back before unload, no stop while an active or uncertain task depends on the runtime, ten-minute idle stop of the exact owned machine, no WSL shutdown or prune surface, no startup preload. BLOCKED_OWNER_ACTION, not blocking the master order: (1) the local coding engine is unregistered (Stage 15A/15H owner decision: a numeric qualification threshold, a different pinned model or engine, or GPU passthrough), so the controller has no real backend and model unload and the Podman idle stop are not observed behaviour; (2) Podman Desktop and Ollama have logon startup entries, observed and unchanged — removing one is a host-global change and the owner's. Nothing was started to stand in for either."
     },
     {
       "id": "15Q-lazy-prewarm",
       "stage": "15Q",
       "section": "4.7",
       "requirement": "Lazy load by default; prewarm only on measured benefit and safe headroom, cancellable at once",
-      "status": "NOT_CURRENTLY_APPLICABLE",
+      "status": "SATISFIED",
       "evidence": [
-        "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md"
+        "src/lib/ayas/machine/AyasResourceGovernor.ts",
+        "src/lib/ayas/machine/AyasOnDemandLifecycle.ts",
+        "scripts/smoke-ayas-resource-governor.ts",
+        "scripts/smoke-ayas-on-demand-lifecycle.ts"
       ],
-      "note": "Stage 15Q is not reached. Re-evaluate when the canonical resource governor is built, with its real sensor and admission adapters. No stand-in subsystem was built for this audit. What already binds every session: one heavy local workload at a time, no new heavy workload at 90 % host RAM or above, the local coding runtime on demand only (Stage 15A.3 closure). Nothing prewarms today."
+      "note": "Re-evaluated at the Stage 15Q closure. Lazy is the default: the controller starts only on an explicit durable task demand and never requests prewarm. The governor admits a prewarm only with a measured benefit, safe headroom and a known thermal state, and cancels it for owner interaction, production or pressure. No prewarm consumer exists, so nothing prewarms."
     },
     {
       "id": "15Q-active-app",
       "stage": "15Q",
       "section": "4.8",
       "requirement": "Coarse active-application awareness with no keystrokes, screen contents or stored window titles",
-      "status": "NOT_CURRENTLY_APPLICABLE",
+      "status": "GAP_OWNER_GATED",
       "evidence": [
-        "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md"
+        "src/lib/ayas/machine/AyasMachineTelemetry.ts",
+        "src/lib/ayas/machine/AyasResourceOccupancy.ts",
+        "scripts/smoke-ayas-resource-occupancy.ts",
+        "03_STAGE15_BASE/hardening/15Q/CLOSURE.md"
       ],
-      "note": "Stage 15Q is not reached. Re-evaluate when the canonical resource governor is built, with its real sensor and admission adapters. No stand-in subsystem was built for this audit. What already binds every session: one heavy local workload at a time, no new heavy workload at 90 % host RAM or above, the local coding runtime on demand only (Stage 15A.3 closure). No application-awareness code exists."
+      "note": "Re-evaluated at the Stage 15Q closure. In place and inside the privacy boundary: coarse process-class presence (render, local model) and published production stages; no keystroke, screen content, command line or window title is read or stored, and the operator CLI's output is checked for it. BLOCKED_OWNER_ACTION, not blocking the master order: the owner chooses the coarse signal for 'the owner is using the machine' (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred rather than admitted."
     },
     {
       "id": "15Q-image-cleanup",
       "stage": "15Q",
       "section": "4.9",
       "requirement": "Classify Podman images before any prune; never prune a qualification or provenance dependency blindly",
-      "status": "NOT_CURRENTLY_APPLICABLE",
+      "status": "SATISFIED",
       "evidence": [
-        "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md"
+        "src/lib/ayas/machine/AyasRuntimeImageLifecycle.ts",
+        "scripts/smoke-ayas-on-demand-lifecycle.ts",
+        "scripts/smoke-ayas-on-demand-lifecycle-mutations.ts",
+        "03_STAGE15_BASE/hardening/15Q/15Q2_RESULT.json"
       ],
-      "note": "Stage 15Q is not reached. Re-evaluate when the canonical resource governor is built, with its real sensor and admission adapters. No stand-in subsystem was built for this audit. What already binds every session: one heavy local workload at a time, no new heavy workload at 90 % host RAM or above, the local coding runtime on demand only (Stage 15A.3 closure). No prune or cleanup code exists and none was run."
+      "note": "Re-evaluated at the Stage 15Q closure. Images are classified read-only into the five classes; qualification, provenance, rollback and durable references of every evidence version protect an image even from a partial inventory; only a complete, unused, managed inventory yields RECLAIMABLE, and that grants nothing. No prune or delete surface exists and no image was removed."
     },
     {
       "id": "15Q-host-tuning",
@@ -238,9 +278,11 @@
       "status": "SATISFIED",
       "evidence": [
         "sandbox/ayas-local-coding/README.md",
-        "03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md"
+        "03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
+        "scripts/smoke-ayas-resource-occupancy.ts",
+        "scripts/smoke-ayas-on-demand-lifecycle.ts"
       ],
-      "note": "No such code path exists; the sandbox is rootless and its notes record that host-global changes are the owner's. Nothing of the kind was done in this audit."
+      "note": "No such code path exists; the sandbox is rootless and its notes record that host-global changes are the owner's. Re-checked at the Stage 15Q closure: the occupancy source has no process, shell, container or WSL surface, and the lifecycle controller has no global WSL shutdown, prune or startup action."
     },
     {
       "id": "artifacts-local",

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1",
+  "packet": "15Q.3",
+  "state": "GREEN_SOURCE_OCCUPANCY_BOUND_NOT_LIVE",
+  "sourceCommit": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+  "baseHead": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
+  "stage15QClosed": true,
+  "closure": "CLOSURE.md",
+  "authority": "NONE",
+  "tests": {
+    "focused": "15Q3_FOCUSED.json",
+    "occupancyScenarios": 12,
+    "occupancyNegativeControls": "45/45",
+    "productionSuitesIsolatedClone": "15Q3_PRODUCTION_REGRESSION.json (22 PASS, 9 FAIL identical at clean HEAD, none caused by this packet)",
+    "typeScript": "PASS",
+    "lint": "0 errors/13 existing warnings",
+    "exactCommittedGraderPins": 131,
+    "productionBuild": "PASS in a TEMP clone at the source commit with its own node_modules copy; build stamp ab6e5312d7b8 CLEAN; the repository's .next and the running server were not touched",
+    "fullBaseline": {
+      "sourceHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+      "worktree": "CLEAN",
+      "manifest": "15F.4-v31",
+      "manifestDigest": "1089b6600d87b0c731c8e38b98a6c3536f8f14c15170717c66e62aac77d734ed",
+      "suites": 112,
+      "completeDeclaredBaseline": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "knownLimitationSuites": ["cognitive-quality"],
+      "cognitive": "54/55, held-out 4/5 unchanged",
+      "report": "15Q3_FULL_BASELINE_V31.json"
+    }
+  },
+  "sampledRamPeakPercent": 55.55,
+  "graphify": "GRAPHIFY_15Q3_SOURCE_COMMIT.json",
+  "findings": ["F31 fixed", "F32 fixed", "F33 open, outside the stage"],
+  "evidenceClass": "TEMP_OCCUPANCY_REAL_CHILD_PROCESSES_AND_SOURCE_BINDING_NOT_HARDWARE_QUALIFICATION",
+  "limits": [
+    "No production stage ran; the running Next server publishes nothing until the owner rebuilds and restarts it",
+    "No registered local engine: nothing outside tests publishes a local model record, and the on-demand controller stays unwired",
+    "Owner interaction, loaded-model footprint, thermal state, queue depth and host-protection events are unmeasured and reported UNKNOWN",
+    "Operator-run heavy tools and owner-approved governed execution are not capacity holders",
+    "Two processes racing on a real host and a real render beside a real model were not measured"
+  ],
+  "runtime": "No physical model/container/provider/production/host-global mutation; PC HEALTH/ON_DEMAND/NO PUSH",
+  "next": "Stage 15Q closed as source with declared gaps; canonical Stage 15R opens"
+}
