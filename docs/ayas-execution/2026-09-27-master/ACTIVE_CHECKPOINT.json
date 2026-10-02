@@ -3,7 +3,7 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
-  "currentHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+  "currentHead": "5f7c13dfc79a90f8e30bdfacb5587c1942d27a54",
   "stage": "STAGE_15P",
   "subtask": "15P.1-contextual-source-evidence-kernel-and-record-integration",
   "status": "STAGE_15P_IN_PROGRESS",
@@ -208,7 +208,18 @@
     "15O-closure-GREEN-with-declared-gaps",
     "15P.0-existing-seam-inspection"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/trust/AyasSourceEvidence.ts",
+    "src/lib/ayas/trust/AyasSourceEvidenceIntegration.ts",
+    "src/lib/brain/autonomy/AyasExternalResearchStore.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "scripts/ayas-source-evidence.ts",
+    "scripts/smoke-ayas-source-evidence.ts",
+    "scripts/smoke-ayas-source-evidence-mutations.ts",
+    "scripts/smoke-ayas-eval-governance.ts",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V25.json"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -342,19 +353,19 @@
     "15O.3 source d08fed0: v25 declared 104/104 baseline PASS_WITH_KNOWN_LIMITATIONS, no failures; cognitive 54/55 / heldout 4/5 unchanged; projects 6 / 24 scenes, mutants17/17, vault13 / mutants40/40, 122 Git-blob pins; TypeScript/lint/diff PASS; RAM54.72%; Graphify17344/49711, zero anomalies, PARTIAL9/semantic pending."
   ],
   "graphify": {
-    "head": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+    "head": "5f7c13dfc79a90f8e30bdfacb5587c1942d27a54",
     "testedSourcePacket": "d08fed060c0dff8601cf968715f2b2469f328d4a",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17344,
-    "edges": 49711,
+    "nodes": 17401,
+    "edges": 49832,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Graph built at the clean 15O.3 source commit; refresh required after the closing documentation commit. PARTIAL 9 / semantic pending retained."
+    "headSemantics": "Refreshed over the covered Stage 15P.1 working source at 5f7c13d; refresh again at its source commit before full baseline. PARTIAL 9 / semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -375,7 +386,7 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "Stage 15P.1: implement the bounded source/claim/evidence graph and four contextual trust policies; reuse existing URL/source identity primitives, attach derived metadata to newly recorded external findings in the existing store, explicitly report legacy evidence UNMEASURED, and add offline query/scenario/negative-control suites. Plan and affected seams: hardening/15P/IMPLEMENTATION_NOTES.md. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. Canonical 15P-15T before 16; NO PUSH; PC HEALTH and ON_DEMAND retained.",
+  "nextAction": "Stage 15P.1 focused source is GREEN (21 scenarios, 27 mutants, affected regressions, TypeScript, lint, v26 106 suites/125 pins, Graphify integrity zero anomalies). Create local source commit, refresh Graphify at that exact clean commit, run full v26 baseline; then close 15P and automatically open canonical 15Q. NO PUSH; PC HEALTH / ON_DEMAND retained.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -1270,7 +1281,7 @@
     "closure": "03_STAGE15_BASE/hardening/15O/CLOSURE.md"
   },
   "stage15P": {
-    "state": "IN_PROGRESS_15P.1",
+    "state": "FOCUSED_GREEN_SOURCE_COMMIT_AND_FULL_BASELINE_PENDING",
     "openedOn": "2026-10-02",
     "openedAtHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15P; final freeze addendum 15P",

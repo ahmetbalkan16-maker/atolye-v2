@@ -5,6 +5,8 @@ import path from "node:path";
 import { redactBrainText } from "../BrainRedaction";
 import type { AyasCapabilityCategory } from "./AyasCapabilityTaxonomy";
 import type { AyasResearchDisposition } from "./AyasResearchDisposition";
+import { buildAyasFindingSourceEvidence, assessAyasFindingSourceTrust } from "../../ayas/trust/AyasSourceEvidenceIntegration";
+import type { AyasSourceEvidenceGraph, AyasSourceTrustReport } from "../../ayas/trust/AyasSourceEvidence";
 
 /**
  * M22.3/M22.11/M22.12 — durable record of ONE external capability research
@@ -31,6 +33,10 @@ export interface AyasExternalResearchFinding {
   readonly schemaVersion: typeof ayasExternalResearchSchemaVersion;
   readonly findingId: string;
   readonly recordedAt: string;
+  /** Stage 15P: derived by the store. Legacy records lack these fields and remain readable. */
+  readonly sourceEvidence?: AyasSourceEvidenceGraph;
+  /** Review at recordedAt only; consumers must recompute at their current time. No action authority. */
+  readonly sourceTrust?: AyasSourceTrustReport;
   /** e.g. "ElevenLabs", "CapCut", "ffmpeg". Never a proprietary code excerpt. */
   readonly provider: string;
   /** e.g. "voice cloning with prosody control". Human-facing capability name. */
@@ -85,7 +91,7 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
-export type AyasExternalResearchFindingInput = Omit<AyasExternalResearchFinding, "schemaVersion" | "findingId" | "recordedAt" | "treatedSourceAsUntrusted">;
+export type AyasExternalResearchFindingInput = Omit<AyasExternalResearchFinding, "schemaVersion" | "findingId" | "recordedAt" | "treatedSourceAsUntrusted" | "sourceEvidence" | "sourceTrust">;
 
 export interface AyasExternalResearchStoreOptions { readonly rootDir?: string }
 
@@ -130,7 +136,7 @@ export function createAyasExternalResearchStore(options: AyasExternalResearchSto
         throw new AyasExternalResearchStoreError("AYAS_RESEARCH_INVALID", "research execution identity or time is invalid");
       }
       const now = new Date().toISOString();
-      const finding: AyasExternalResearchFinding = {
+      const fields: AyasExternalResearchFinding = {
         schemaVersion: ayasExternalResearchSchemaVersion,
         findingId: `ayas-research-${crypto.randomUUID()}`,
         recordedAt: now,
@@ -157,6 +163,9 @@ export function createAyasExternalResearchStore(options: AyasExternalResearchSto
         ...(input.occurrenceId ? { occurrenceId: input.occurrenceId } : {}),
         ...(input.goalId ? { goalId: input.goalId } : {}),
       };
+      const sourceEvidence = buildAyasFindingSourceEvidence(fields);
+      const finding: AyasExternalResearchFinding = { ...fields, sourceEvidence,
+        sourceTrust: assessAyasFindingSourceTrust({ ...fields, sourceEvidence }, "CODE_ADOPTION", now) };
       fs.mkdirSync(dir, { recursive: true });
       const target = path.join(dir, `${finding.findingId}.json`);
       const tmp = path.join(dir, `.${finding.findingId}.${process.pid}.${crypto.randomUUID()}.tmp`);

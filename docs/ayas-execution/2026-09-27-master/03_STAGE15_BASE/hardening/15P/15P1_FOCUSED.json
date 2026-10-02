@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1",
+  "packet": "15P.1",
+  "state": "FOCUSED_GREEN_FULL_BASELINE_PENDING",
+  "sourceBaseHead": "5f7c13dfc79a90f8e30bdfacb5587c1942d27a54",
+  "authority": "NONE",
+  "implementation": "Closed bounded sealed graph, four contextual metadata review policies, current-time snapshot-bound query, derived finding metadata in the existing atomic store, offline operator and never-autonomous policy/grader paths",
+  "tests": {
+    "sourceEvidence": "21 scenarios across four uses PASS",
+    "negativeControls": "27/27 caught in TEMP; assertions, no load/syntax failures",
+    "evalGovernance": "10 scenarios / 8 of 8 mutants PASS",
+    "existingStore": "8 scenarios PASS",
+    "storeErrorContract": "12 scenarios PASS",
+    "externalPromptBoundary": "6 scenarios PASS",
+    "mockDeepResearch": "13 scenarios PASS",
+    "technologyWatch": "129 scenarios, 508 matrix cases and 400 fuzz records PASS",
+    "selfHealSecurity": "14 scenarios PASS",
+    "exactPatchSafety": "23 scenarios PASS",
+    "goldenVault": "13 scenarios, version 2 / 18 cases / unchanged published digests PASS",
+    "typeScript": "PASS on final current source",
+    "fullLint": "0 errors / 13 existing warnings; final changed-file lint PASS",
+    "manifest": "15F.4-v26 / 106 suites / 125 unique pins; no drift",
+    "previousManifest": "v25 archive byte-identical to 5f7c13d Git blob",
+    "diffCheck": "PASS",
+    "fullBaseline": "PENDING at exact local source commit"
+  },
+  "evidenceClass": "SYNTHETIC_METADATA_ORACLE_NOT_EXTERNAL_FACT_LICENSE_OR_TERMS_CERTIFICATION",
+  "knownLimits": [
+    "Separate reviewer bindings are assertions about reviewed metadata, never execution authority",
+    "Existing findings are not migrated; absent graphs are UNMEASURED",
+    "Default new DEEP findings have model-summary and declared-only usage evidence, so are REVIEW_REQUIRED",
+    "Downstream production/revenue/coding adoption retains its existing owner/security gates",
+    "Graphify PARTIAL 9 / semantic pending retained"
+  ],
+  "runtime": "ON_DEMAND; no model, container, provider, production, upload or push",
+  "graphify": "GRAPHIFY_15P1_PRECOMMIT.json"
+}

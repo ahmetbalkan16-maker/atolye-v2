@@ -47,6 +47,9 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/smoke-ayas-golden-experiment-gate-mutations.ts",
   "scripts/smoke-ayas-golden-sandbox-run.ts",
   "scripts/smoke-ayas-golden-video-projects-mutations.ts",
+  "scripts/ayas-source-evidence.ts",
+  "scripts/smoke-ayas-source-evidence.ts",
+  "scripts/smoke-ayas-source-evidence-mutations.ts",
   "scripts/ayas-eval-baseline.ts",
   "src/lib/ayas/observability/AyasEvalGovernance.ts",
   "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
@@ -55,6 +58,11 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
 /** Order matters: the FIRST matching rule wins, and FORBIDDEN rules come first. */
 const RULES: readonly Rule[] = Object.freeze([
   // ---- FORBIDDEN_AUTONOMOUS -------------------------------------------------
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
+    why: "the contextual source-trust policy and evidence boundary cannot review or rewrite itself",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/trust/"),
+  },
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "the owner constitution: its modules and its activation page (only the owner changes the root of trust)",

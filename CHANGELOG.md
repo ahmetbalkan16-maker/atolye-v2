@@ -1,3 +1,8 @@
+## 2026-10-02 — Stage15O deterministic golden vault source closure
+
+- Vault v2 preserves v1 and adds three historical projects /24 frozen SVG scenes; existing experiment/promotion golden gate retained. Source d08fed0, complete v25 baseline104/104 with no failure, known cognitive/held-out limits unchanged. Real audio/video quality and revenue dry-run remain declared gaps.
+- Automatically opened canonical15P. Local commits only; NO PUSH; PC HEALTH / ON_DEMAND retained.
+
 ## 2026-10-02 — Stage15K production cost governor
 
 - Three separate numbers (preferred target, project-approved cap, technical ceiling) and one decision before paid dispatch: continue, pause and ask the owner the exact escalation, or block; it never raises a cap. The report lists the estimate, retry reserve, conservative maximum, zero-cost alternatives and the allowance with its label. A reservation ledger keeps concurrent projects within the declared allowance. Operator script `scripts/run-production-cost-governor.ts`.
