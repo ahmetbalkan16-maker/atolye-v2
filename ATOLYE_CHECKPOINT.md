@@ -1,5 +1,19 @@
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
+## AYAS Stage 15R — global SAFE_READ_ONLY emergency stop; focused GREEN, bound baseline pending
+
+Stage 15R (Global SAFE_READ_ONLY Emergency Stop) is implemented as one source packet on base `4475e94`.
+
+What it is: one durable mode, the last event of an append-only, hash-chained log under the ignored `data/brain/execution/safe-mode`. Nothing holds it in memory, so it survives a restart. An unreadable or unverifiable log holds like an active mode. Entering only tightens: the owner page `/brain/safe-mode` or `npx tsx scripts/ayas-safe-mode.ts enter`. Leaving is the owner session alone, on that page, with five health checks passing at that moment (constitution, both execution gates, Machine Health, the resource inventory). The CLI has no exit, and the mode is not an action any tool can name.
+
+What stops in the mode: the action firewall refuses everything but a read (also leases issued before it); approvals and governed execution refuse before a decision or reservation; no production stage is admitted; nothing is published; the sixteen mutating production routes answer 423; no new cost reservation; the observer's discovery child holds its whole run; the self-heal CLI does not apply. Chat, status and read tools stay available. A stage that is already running is not interrupted.
+
+Evidence: 14 scenarios and 55/55 negative controls; a real Next server in a TEMP clone drove the page end to end (enter, 423 on a route, four refused exits, owner exit); affected declared suites on the overlay; 36 production-path suites in an isolated clone, with the same known non-passing set as clean HEAD (F33); TypeScript, lint (0 errors / 13 existing warnings), diff check; manifest v32 (114 suites, 133 pins). Two packet-caused failures were found and fixed before the commit (F34). The live mode was never entered.
+
+**Do not run `scripts/ayas-safe-mode.ts enter` in the live checkout during development: only the owner can leave the mode.**
+
+Exact next: full declared v32 baseline at the exact clean Stage 15R source commit, packet GREEN record, stage closure, then canonical 15S. The running Next server and observer load this source only after the owner rebuilds/restarts them. NO PUSH / PC HEALTH / ON_DEMAND.
+
 ## AYAS Stage 15Q CLOSED (source, declared gaps) — Stage 15R open
 
 15Q.3 source `ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4` on its exact clean tree: full declared v31 112/112 PASS_WITH_KNOWN_LIMITATIONS, no failure; 131 grader pins; cognitive 54/55 and held-out 4/5 unchanged; RAM peak 55.55 %; Graphify 17551/50207 with no integrity anomaly (PARTIAL 9, semantic pending); production build PASS in a TEMP clone. Stage 15Q (Hardware / Resource Governor) is closed as source: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15Q/CLOSURE.md`. The entry below describes what 15Q.3 changed.

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { AssetManager } from "@/lib/assets/AssetManager";
+import { assertAyasSafeModeAllowsMutation } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { ThumbnailStorage } from "@/lib/thumbnail/ThumbnailStorage";
@@ -47,6 +48,8 @@ export class YouTubePublishPipeline {
     attemptId?: string;
     signal?: AbortSignal;
   }): Promise<YouTubePublishRecord> {
+    // Stage 15R: nothing is published while AYAS is in SAFE_READ_ONLY. Outside the try: the reason is not folded into a generic publish error.
+    assertAyasSafeModeAllowsMutation();
     try {
       const slug = safeSlug(input.projectSlug);
       const timestamp = requireTimestamp(input.timestamp ?? new Date().toISOString());

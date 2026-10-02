@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { mergeAnimationData } from "@/lib/animation/animationMerge";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { isCompatibleAnimationData } from "@/lib/animation/AnimationMotionPlanValidation";
@@ -9,6 +10,9 @@ import type { SceneData } from "@/types/scene";
 import type { VisualData } from "@/types/visual";
 
 export async function POST(req: Request) {
+  // Stage 15R: nothing but a read starts while AYAS is in SAFE_READ_ONLY.
+  const safeMode = ayasSafeModeHold();
+  if (safeMode) return NextResponse.json({ success: false, error: safeMode }, { status: 423 });
   try {
     const body = await req.json();
     const {

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import { bindAyasConstitutionRun } from "../governance/AyasOwnerConstitutionReader";
+import { ayasSafeModeRefusal, readAyasSafeMode } from "../safety/AyasSafeModeReader";
 import { AyasExecutionAuthorizationError, AyasExecutionAuthorizationStore, type AyasExecutionGrantDescriptor } from "./AyasExecutionAuthorization";
 import { AYAS_DISCOVERY_RUN_ACTION, canonicalAyasDiscoveryRunScope, isAyasDiscoveryRunRequest, type AyasDiscoveryRunRequest, type AyasDiscoveryRunScope } from "./AyasCapabilityScope";
 import { ayasCapabilityRequestDigest, ayasLocalActionClassification, canonicalAyasCapabilityScope, isAyasLocalCapabilityRoot, type AyasActionFirewallDecision, type AyasCapabilityScope } from "./AyasCapabilityScope";
@@ -68,6 +69,9 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   const ownerLeases = new WeakMap<object, { audit: AyasOwnerCapabilityLeaseAudit; consumed: boolean; revoked: boolean }>();
   const discoveryRuns = new WeakMap<object, { readonly authorizationId: string; readonly createdAt: string; readonly expiresAt: string; readonly scope: AyasDiscoveryRunScope; consumed: boolean; revoked: boolean }>();
   const now = options.now ?? (() => new Date());
+  // Stage 15R: read from the durable log at every decision, so a mode entered by any process stops the next one.
+  // Reads stay allowed; an unreadable log refuses like an active mode.
+  const safeModeRefusal = (): string | undefined => ayasSafeModeRefusal(readAyasSafeMode(repoRoot));
 
   function snapshotRequest(raw: unknown): AyasExecutionRequest | undefined {
     const validated = validateAyasExecutionRequest(raw);
@@ -130,6 +134,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     if (decision === "DENY" || decision === "REQUIRE_OWNER") return refuse("AYAS_FIREWALL_SCOPE_NOT_ISSUABLE", decision);
     // A discovery run is leased only through issueDiscoveryRun, by the observer's own child; never as a tool request.
     if ((raw as { action?: unknown } | null)?.action === AYAS_DISCOVERY_RUN_ACTION) return refuse("AYAS_FIREWALL_SCOPE_NOT_ISSUABLE");
+    if (decision !== "ALLOW_READ") { const safeMode = safeModeRefusal(); if (safeMode) return refuse(safeMode); }
     try {
       if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
       const request = snapshotRequest(raw);
@@ -151,6 +156,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
     if (issued.revoked) return refuse("AYAS_EXEC_AUTH_REVOKED");
     if (issued.consumed) return refuse("AYAS_FIREWALL_REPLAY");
+    if (issued.scope.classification !== "READ") { const safeMode = safeModeRefusal(); if (safeMode) return refuse(safeMode); }
     try {
       if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
       const request = snapshotRequest(raw);
@@ -193,6 +199,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   }
   function bindOwnerReservation(raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
     const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
+    const safeMode = safeModeRefusal(); if (safeMode) return refuse(safeMode);
     if (isAyasOwnerCapabilityRequest(raw) && raw.exactFiles.some((file) => constitution.protectsPath(file))) return refuse("AYAS_CONSTITUTION_PROTECTED_PATH", "REQUIRE_OWNER");
     try {
       const adapter = options.ownerReservation;
@@ -215,6 +222,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   }
   function admitOwnerReservation(lease: unknown, raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly decision: "ALLOW_BOUNDED_LOCAL"; readonly request: AyasOwnerCapabilityRequest } {
     const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
+    const safeMode = safeModeRefusal(); if (safeMode) return refuse(safeMode);
     if (isAyasOwnerCapabilityRequest(raw) && raw.exactFiles.some((file) => constitution.protectsPath(file))) return refuse("AYAS_CONSTITUTION_PROTECTED_PATH", "REQUIRE_OWNER");
     const issued = lease && typeof lease === "object" ? ownerLeases.get(lease) : undefined;
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
@@ -263,6 +271,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   }
   function issueDiscoveryRun(raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
     const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
+    const safeMode = safeModeRefusal(); if (safeMode) return refuse(safeMode);
     try {
       if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
       if (!isAyasDiscoveryRunRequest(raw)) return refuse("AYAS_FIREWALL_REQUEST_INVALID");
@@ -280,6 +289,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   } {
     const issued = lease && typeof lease === "object" ? discoveryRuns.get(lease) : undefined;
     const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
+    const safeMode = safeModeRefusal(); if (safeMode) return refuse(safeMode);
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
     if (issued.revoked) return refuse("AYAS_EXEC_AUTH_REVOKED");
     if (issued.consumed) return refuse("AYAS_FIREWALL_REPLAY");
@@ -296,6 +306,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
       const permits = (capability: unknown): boolean => {
         try {
           if (constitution.refusal()) return false;
+          if (safeModeRefusal()) return false;
           if (issued.revoked || typeof capability !== "string" || !(issued.scope.capabilities as readonly string[]).includes(capability)) return false;
           const t = now().getTime();
           if (!Number.isFinite(t) || t < Date.parse(issued.createdAt) || t >= Date.parse(issued.expiresAt)) return false;

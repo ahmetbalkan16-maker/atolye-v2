@@ -35,6 +35,7 @@ import {
 } from "./ProductionWorkerLifecycle";
 import { assertAyasHeavyWorkloadAllowed } from "@/lib/ayas/machine/AyasMachineHealthGuard";
 import { withAyasProductionStageOccupancy } from "@/lib/ayas/machine/AyasResourceOccupancy";
+import { assertAyasSafeModeAllowsMutation } from "@/lib/ayas/safety/AyasSafeModeReader";
 
 const processCanonicalLockKey = Symbol.for(
   "@atolye/production-pipeline-execution-canonical-authority-lock/v1",
@@ -164,6 +165,8 @@ async function executeDurableProductionPipelineStage(
 ): Promise<boolean> {
   const active = getActiveProductionRuntimeOperationContext();
   if (!active) throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+  // Stage 15R: no stage starts while AYAS is in SAFE_READ_ONLY. Admission-only: a stage already running is not interrupted.
+  assertAyasSafeModeAllowsMutation();
   // Stage 15Q.3: the stage is published to the host-common resource occupancy for its whole run, so
   // heavy local work yields to production. Admission-only like the guard below: it grants nothing, and
   // only a render stage can be refused, by a loaded or unconfirmed local model, before durable preparation.

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1",
+  "packet": "15R",
+  "evidenceClass": "REAL_NEXT_SERVER_IN_TEMP_CLONE_FIXTURE_KEY_NO_JS_FORM_POST",
+  "sourceHead": "4475e94911104277d4287ebc950d666d187ba110",
+  "overlay": "working tree overlaid",
+  "repositoryUntouched": true,
+  "liveModeTouched": false,
+  "tempRemoved": true,
+  "steps": [
+    {
+      "name": "production build in the TEMP clone",
+      "head": "4475e94911104277d4287ebc950d666d187ba110",
+      "listsSafeModePage": true
+    },
+    {
+      "name": "next start on a spare loopback port",
+      "port": 39217,
+      "accessGate": "enforced with a fixture key"
+    },
+    {
+      "name": "the page shows NORMAL and needs a session",
+      "unauthenticatedStatus": 307
+    },
+    {
+      "name": "one owner action enters the mode",
+      "redirect": 303,
+      "event": {
+        "event": "ENTER",
+        "actor": "OWNER_SESSION"
+      }
+    },
+    {
+      "name": "the mode is shown with its health checks and a production route answers 423",
+      "healthChecks": [
+        "CONSTITUTION_MISSING",
+        "GATE_CLOSED",
+        "GATE_CLOSED",
+        "MACHINE_HEALTH_NOMINAL",
+        "INVENTORY_READ"
+      ],
+      "routeStatus": 423
+    },
+    {
+      "name": "exit is refused without the session, across origins, with a stale digest and with extra form fields",
+      "withoutSession": 307,
+      "crossOrigin": 403,
+      "staleDigest": 500,
+      "extraField": 500
+    },
+    {
+      "name": "the owner session leaves the mode with the current health checks",
+      "redirect": 303,
+      "healthChecks": [
+        "owner-constitution:CONSTITUTION_MISSING",
+        "execution-gate:GATE_CLOSED",
+        "self-improvement-gate:GATE_CLOSED",
+        "machine-health:MACHINE_HEALTH_NOMINAL",
+        "resource-occupancy:INVENTORY_READ"
+      ],
+      "routeStatusAfter": 400
+    }
+  ],
+  "limits": [
+    "The form was posted the way a browser without JavaScript posts it; the hydrated in-browser submit was not driven.",
+    "The owner's own server and its real access key were not used.",
+    "Health checks are this workstation's at the time of the run."
+  ]
+}

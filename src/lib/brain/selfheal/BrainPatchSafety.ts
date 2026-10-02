@@ -57,6 +57,9 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/ayas-resource-status.ts",
   "scripts/smoke-ayas-resource-occupancy.ts",
   "scripts/smoke-ayas-resource-occupancy-mutations.ts",
+  "scripts/ayas-safe-mode.ts",
+  "scripts/smoke-ayas-safe-mode.ts",
+  "scripts/smoke-ayas-safe-mode-mutations.ts",
   "scripts/ayas-eval-baseline.ts",
   "src/lib/ayas/observability/AyasEvalGovernance.ts",
   "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
@@ -74,6 +77,11 @@ const RULES: readonly Rule[] = Object.freeze([
     level: "FORBIDDEN_AUTONOMOUS",
     why: "the owner constitution: its modules and its activation page (only the owner changes the root of trust)",
     test: (p) => p.toLowerCase().startsWith("src/lib/ayas/governance/") || p.toLowerCase().startsWith("app/brain/constitution/"),
+  },
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
+    why: "the global SAFE_READ_ONLY mode: its modules, its owner page and its event log (only the owner leaves the mode)",
+    test: (p) => ["src/lib/ayas/safety/", "app/brain/safe-mode/", "data/brain/execution/safe-mode"].some((prefix) => p.toLowerCase().startsWith(prefix)),
   },
   {
     level: "FORBIDDEN_AUTONOMOUS",

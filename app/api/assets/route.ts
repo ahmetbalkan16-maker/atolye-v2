@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
 import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
@@ -43,6 +44,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // Stage 15R: nothing but a read starts while AYAS is in SAFE_READ_ONLY.
+  const safeMode = ayasSafeModeHold();
+  if (safeMode) return NextResponse.json({ success: false, error: safeMode }, { status: 423 });
   try {
     const body = await req.json();
     const { projectId, projectSlug, visualData, sceneId } = body;

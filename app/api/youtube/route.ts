@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { YouTubePackagePipeline } from "@/lib/youtube/YouTubePackagePipeline";
@@ -17,6 +18,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function POST(request: Request) {
+  // Stage 15R: nothing but a read starts while AYAS is in SAFE_READ_ONLY.
+  const safeMode = ayasSafeModeHold();
+  if (safeMode) return NextResponse.json({ success: false, error: safeMode }, { status: 423 });
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

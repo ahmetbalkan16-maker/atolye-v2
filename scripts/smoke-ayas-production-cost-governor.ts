@@ -318,7 +318,9 @@ async function main() {
         }
       };
       for (const dir of ["src", "app", "scripts"]) walk(dir);
-      assert.deepEqual(importers.filter((file) => ![governor, ledger, store, "scripts/run-production-cost-governor.ts", "scripts/smoke-ayas-production-cost-governor.ts", "scripts/smoke-ayas-production-cost-governor-mutations.ts"].includes(file)), []);
+      // Stage 15R: the safe-mode suites call the store on a TEMP ledger to prove a new reservation is refused in SAFE_READ_ONLY.
+      assert.deepEqual(importers.filter((file) => ![governor, ledger, store, "scripts/run-production-cost-governor.ts", "scripts/smoke-ayas-production-cost-governor.ts", "scripts/smoke-ayas-production-cost-governor-mutations.ts",
+        "scripts/smoke-ayas-safe-mode.ts", "scripts/smoke-ayas-safe-mode-mutations.ts"].includes(file)), []);
     });
   } finally {
     assert.equal(path.dirname(temp), path.resolve(os.tmpdir())); assert.ok(path.basename(temp).startsWith("ayas-cost-governor-"));

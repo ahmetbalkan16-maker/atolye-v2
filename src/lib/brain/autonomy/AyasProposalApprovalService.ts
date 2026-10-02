@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
+import { assertAyasSafeModeAllowsMutation } from "../../ayas/safety/AyasSafeModeReader";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -163,6 +164,7 @@ function loadAyasProposalForPublish(proposalId: string, approvedProposalHash: st
  * re-derived from durable state.
  */
 export async function approveAndExecuteAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
+  assertAyasSafeModeAllowsMutation(deps.repoRoot); // Stage 15R: before a decision is minted
   const trace = startAyasApprovalTrace(deps);
   trace.annotate({ approvalBinding: ayasApprovalBindingDigest(proposalId, approvedProposalHash) });
   const approvalSpan = trace.startSpan("approval", "ayas-approval", "decide");
@@ -213,6 +215,7 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
  * same authority boundary `approveAndExecuteAyasProposal` already enforces.
  */
 export async function publishAlreadyOwnerApprovedAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
+  assertAyasSafeModeAllowsMutation(deps.repoRoot); // Stage 15R: a recorded approval is not published in the mode
   const trace = startAyasApprovalTrace(deps);
   trace.annotate({ approvalBinding: ayasApprovalBindingDigest(proposalId, approvedProposalHash) });
   const approvalSpan = trace.startSpan("approval", "ayas-approval", "resume");

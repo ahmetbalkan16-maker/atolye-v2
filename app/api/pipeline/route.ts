@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { ProjectAlreadyExistsError } from "@/lib/projects/ProjectWriter";
@@ -28,6 +29,9 @@ async function attachProjectReference<T extends Record<string, unknown>>(
 }
 
 export async function POST(req: Request) {
+  // Stage 15R: nothing but a read starts while AYAS is in SAFE_READ_ONLY.
+  const safeMode = ayasSafeModeHold();
+  if (safeMode) return NextResponse.json({ success: false, error: safeMode }, { status: 423 });
   let slug = "";
 
   try {

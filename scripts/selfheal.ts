@@ -29,6 +29,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 
+import { ayasSafeModeHold } from "../src/lib/ayas/safety/AyasSafeModeReader";
 import { loadBrainSelfHealSnapshot } from "../src/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { createBrainSelfHealStore } from "../src/lib/brain/selfheal/BrainSelfHealStore";
 import { createBrainSelfHealSandbox, pruneBrainSelfHealSandboxes } from "../src/lib/brain/selfheal/BrainSelfHealSandbox";
@@ -106,6 +107,7 @@ function healAdapters(patchFiles: { path: string; content: string }[]): BrainSel
     },
     applyToWorkingTree: async () => ({ ok: false, detail: "heal uses autoApply / rollback" }),
     autoApplyToWorkingTree: async ({ diff, changedFiles }) => {
+      const safeMode = ayasSafeModeHold(repoRoot); if (safeMode) return { ok: false, detail: safeMode }; // Stage 15R: no source write in SAFE_READ_ONLY
       if (!diff.trim()) return { ok: false, detail: "no diff stored" };
       try {
         execFileSync("git", ["-C", repoRoot, "apply", "--index", "--3way", "-"], { input: diff, stdio: ["pipe", "pipe", "pipe"] });
@@ -375,6 +377,7 @@ async function main() {
       draftPatch: async () => null,
       runChecks: async () => [],
       applyToWorkingTree: async ({ diff, changedFiles }) => {
+        const safeMode = ayasSafeModeHold(repoRoot); if (safeMode) return { ok: false, detail: safeMode }; // Stage 15R: no source write in SAFE_READ_ONLY
         if (!diff.trim()) return { ok: false, detail: "no diff stored on the incident" };
         try {
           execFileSync("git", ["-C", repoRoot, "apply", "--index", "--3way", "-"], { input: diff, stdio: ["pipe", "pipe", "pipe"] });

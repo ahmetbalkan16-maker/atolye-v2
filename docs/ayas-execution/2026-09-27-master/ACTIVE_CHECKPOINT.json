@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
-  "currentHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+  "currentHead": "4475e94911104277d4287ebc950d666d187ba110",
   "stage": "STAGE_15R",
-  "subtask": "15R.0-existing-seam-inspection",
+  "subtask": "15R.1-15R.3-focused-GREEN-source-commit-full-baseline-pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -218,7 +218,8 @@
     "owner-resume-after-15Q2-stop",
     "15Q.3-host-common-occupancy-and-consumer-binding-GREEN-not-live",
     "post-freeze-15Q-rows-re-evaluated",
-    "15Q-closure-GREEN-source-with-declared-gaps"
+    "15Q-closure-GREEN-source-with-declared-gaps",
+    "15R.0-existing-seam-inspection"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -358,19 +359,19 @@
     "15Q.3 exact clean source `ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4`: full declared v31 112/112 PASS_WITH_KNOWN_LIMITATIONS, failed 0; 131 committed grader pins; cognitive 54/55 and held-out 4/5 unchanged. Occupancy 12 scenarios / 45 negative controls, resource 19 and 34/34, lifecycle 11 and 24/24, eval governance 10, recovery 22, registry 15, closure 12, Machine Health 20 and 36; TypeScript and lint PASS (13 old warnings); production build PASS in a TEMP clone. Sampled RAM max 55.55 %. Graphify 17551/50207, zero integrity anomalies; PARTIAL9/semantic pending. Production suites outside the declared baseline: 31 in an isolated clone, 22 PASS, 9 FAIL identical at clean HEAD (F33). Source occupancy binding only: no production stage, model, container or host change; not a hardware qualification. Stage 15Q closed as source with declared gaps."
   ],
   "graphify": {
-    "head": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
-    "testedSourcePacket": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
+    "head": "4475e94911104277d4287ebc950d666d187ba110",
+    "testedSourcePacket": "Stage 15R worktree on 4475e94 (precommit)",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17551,
-    "edges": 50207,
+    "nodes": 17619,
+    "edges": 50418,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Counts belong to the Stage 15Q source commit ab6e531 (GRAPHIFY_15Q3_SOURCE_COMMIT.json). The documentation-only closure commit changes no executable source; the graph is rebound to it as closure housekeeping. Query the graphify status script for the actual HEAD. PARTIAL9/semantic pending."
+    "headSemantics": "Precommit graph of the Stage 15R worktree (GRAPHIFY_15R_PRECOMMIT.json). Refreshed and recorded again at the source commit. PARTIAL9/semantic pending."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -394,8 +395,8 @@
     "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
     "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload."
   ],
-  "nextAction": "Stage 15R (Global SAFE_READ_ONLY Emergency Stop) is open. 15R.0: read only the canonical 15R sections (00_COMMAND final execution order STAGE 15R; 01_CANONICAL_SPECS freeze addendum 15R; post-freeze addendum 0 and 8.5) and inspect the existing seams a global safe mode must bind (action firewall and its leases, execution gate, owner session and constitution, discovery run guard, durable task admission, production admission, publication, cost reservation, the observer). Record them in 03_STAGE15_BASE/hardening/15R/IMPLEMENTATION_NOTES.md, then implement the smallest durable owner-only mode through those seams: TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT. NO PUSH / PC HEALTH / ON_DEMAND.",
-  "updatedAt": "2026-10-02T20:13:22.326Z",
+  "nextAction": "Stage 15R source (the durable SAFE_READ_ONLY mode, its bindings and the owner page) is committed locally with focused GREEN evidence and a TEMP-server end-to-end run. Run the full declared v32 114-suite baseline at that exact clean commit (npx tsx scripts/ayas-eval-baseline.ts --report <TEMP file>; do not edit the repository while it runs). On PASS_WITH_KNOWN_LIMITATIONS with no failure: record 15R_FULL_BASELINE_V32.json, 15R_RESULT.json and GRAPHIFY_15R_SOURCE_COMMIT.json, write hardening/15R/CLOSURE.md and close the stage. On a failure: keep the failed report, repair narrowly, repin, rerun. Never run `scripts/ayas-safe-mode.ts enter` in the live checkout: only the owner can leave the mode. Then open canonical 15S. NO PUSH / PC HEALTH / ON_DEMAND.",
+  "updatedAt": "2026-10-02T21:21:37.775Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -600,7 +601,7 @@
     ],
     "finalSecurityFollowup": "Reject unknown top-level record fields on append/load; integrity suite 27/27; memory 30/30; temporal 52/52; retrieval 74 + determinism/error/isolation/chat chain PASS; TypeScript and changed-file lint PASS."
   },
-  "headSemantics": "lastGreenHead/currentHead name the Stage 15Q source commit ab6e531, validated on its exact clean tree. The closure record is a documentation-only descendant. Read Git for the actual HEAD.",
+  "headSemantics": "currentHead is the base the Stage 15R packet was built on (4475e94, the documentation-only Stage 15Q closure). The packet's own source commit is its child; read Git for the actual HEAD. lastGreenHead stays ab6e531 until the bound v32 baseline passes.",
   "stage15D": {
     "state": "CLOSED_GREEN",
     "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
@@ -1502,7 +1503,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Stage 15R (Global SAFE_READ_ONLY Emergency Stop) is open. 15R.0: read only the canonical 15R sections (00_COMMAND final execution order STAGE 15R; 01_CANONICAL_SPECS freeze addendum 15R; post-freeze addendum 0 and 8.5) and inspect the existing seams a global safe mode must bind (action firewall and its leases, execution gate, owner session and constitution, discovery run guard, durable task admission, production admission, publication, cost reservation, the observer). Record them in 03_STAGE15_BASE/hardening/15R/IMPLEMENTATION_NOTES.md, then implement the smallest durable owner-only mode through those seams: TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT. NO PUSH / PC HEALTH / ON_DEMAND.",
+  "resumeNextAction": "Stage 15R source (the durable SAFE_READ_ONLY mode, its bindings and the owner page) is committed locally with focused GREEN evidence and a TEMP-server end-to-end run. Run the full declared v32 114-suite baseline at that exact clean commit (npx tsx scripts/ayas-eval-baseline.ts --report <TEMP file>; do not edit the repository while it runs). On PASS_WITH_KNOWN_LIMITATIONS with no failure: record 15R_FULL_BASELINE_V32.json, 15R_RESULT.json and GRAPHIFY_15R_SOURCE_COMMIT.json, write hardening/15R/CLOSURE.md and close the stage. On a failure: keep the failed report, repair narrowly, repin, rerun. Never run `scripts/ayas-safe-mode.ts enter` in the live checkout: only the owner can leave the mode. Then open canonical 15S. NO PUSH / PC HEALTH / ON_DEMAND.",
   "ownerStop": {
     "state": "SUPERSEDED_BY_OWNER_RESUME",
     "appliedAt": "2026-10-02T18:30:19.106Z",
@@ -1514,12 +1515,59 @@
     "supersededBy": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
   },
   "stage15R": {
-    "state": "OPEN_15R0_SEAM_INSPECTION",
+    "state": "FOCUSED_GREEN_SOURCE_COMMITTED_FULL_BASELINE_PENDING",
     "openedOn": "2026-10-02",
     "openedAtHead": "ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15R; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md 15R",
     "addendumSections": "Post-freeze 0 (global rules) and 8.5 (voice/UI cannot clear SAFE_READ_ONLY)",
     "notes": "03_STAGE15_BASE/hardening/15R/IMPLEMENTATION_NOTES.md",
-    "authority": "NONE"
+    "authority": "NONE",
+    "packet15R": {
+      "state": "FOCUSED_GREEN_FULL_BASELINE_PENDING",
+      "baseHead": "4475e94911104277d4287ebc950d666d187ba110",
+      "planned": [
+        "15R.1 mode and firewall",
+        "15R.2 consumers",
+        "15R.3 owner page"
+      ],
+      "committedAs": "one source packet (shared files)",
+      "scope": "Append-only hash-chained mode log with a fail-closed reader; owner-session-only exit with five current health checks; enter from the owner page or the operator CLI; firewall at seven decision points; approval and execution before any decision or reservation; production stage admission; publish; sixteen mutating production routes; new cost reservations; the discovery child; the self-heal CLI; owner page /brain/safe-mode.",
+      "files": [
+        "src/lib/ayas/safety/AyasSafeModeReader.ts",
+        "src/lib/ayas/safety/AyasSafeModeStore.ts",
+        "src/lib/ayas/execution/AyasActionFirewall.ts",
+        "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+        "src/lib/brain/autonomy/AyasProposalApprovalService.ts",
+        "src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts",
+        "src/lib/production/ProductionPipelineExecutionCanonicalRuntime.ts",
+        "src/lib/production/ProductionCostReservationStore.ts",
+        "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+        "src/lib/brain/selfheal/BrainPatchSafety.ts",
+        "app/brain/safe-mode/actions.ts",
+        "app/brain/safe-mode/page.tsx",
+        "app/api/*/route.ts (16 mutating production routes)",
+        "scripts/ayas-safe-mode.ts",
+        "scripts/ayas-discovery-daemon.ts",
+        "scripts/selfheal.ts",
+        "scripts/smoke-ayas-safe-mode.ts",
+        "scripts/smoke-ayas-safe-mode-mutations.ts",
+        "scripts/smoke-ayas-production-cost-governor.ts",
+        "scripts/smoke-ayas-eval-governance.ts"
+      ],
+      "findings": [
+        "F34"
+      ],
+      "focused": "03_STAGE15_BASE/hardening/15R/15R_FOCUSED.json",
+      "ownerPageEndToEnd": "03_STAGE15_BASE/hardening/15R/15R_OWNER_PAGE_E2E.json",
+      "productionRegression": "03_STAGE15_BASE/hardening/15R/15R_PRODUCTION_REGRESSION.json",
+      "manifest": {
+        "version": "15F.4-v32",
+        "suites": 114,
+        "uniquePins": 133
+      },
+      "fullBaseline": "PENDING_AT_EXACT_CLEAN_SOURCE_COMMIT",
+      "authority": "NONE",
+      "liveMode": "NEVER_ENTERED_ON_THIS_CHECKOUT"
+    }
   }
 }

@@ -920,3 +920,15 @@ The owner sent the master continuation command after the 15Q.2 stop was applied.
 - Declared gaps are in the closure: no registered engine, unmeasured owner interaction / model footprint / thermal / host-protection events, no benchmark bound to the hardware fingerprint, operator-run heavy tools outside the capacity lock, startup observed and not traced, production suites outside the declared baseline (F33).
 - Owner actions, none blocking: rebuild and restart the Next server (production publishes its stages only then) and restart the observer task; the two owner decisions above.
 - Next: canonical Stage 15R, Global SAFE_READ_ONLY Emergency Stop — 15R.0 existing-seam inspection. No model, container, provider, production stage, host setting or push.
+
+### 2026-10-02 — Stage 15R opened; 15R.0 seam inspection
+
+Canonical 15R only (final execution order, freeze addendum, post-freeze 0 and 8.5). No global mode existed. The seams a mode has to bind are recorded in hardening/15R/IMPLEMENTATION_NOTES.md: the action firewall beside its constitution check, the approval entry points before a decision is minted, production stage admission, the publish pipeline, sixteen mutating production routes that run outside the durable runtime, the cost reservation store, the discovery child and the self-heal CLI. Owner authority reused: the access gate session, as in the constitution's activation.
+
+### 2026-10-03 — 15R.1–15R.3 focused GREEN: the durable SAFE_READ_ONLY mode, its bindings and the owner page
+
+- The mode is the last event of an append-only, hash-chained log under the ignored execution tree; the reader carries no authority and fails closed (an unverifiable log holds like an active mode). Entering only tightens (owner page or operator CLI); leaving needs the owner session, verified before the store is read and again before the write, and five current health checks.
+- Bound: the firewall at seven decision points (reads stay allowed), the approval entry points and `executeApproved` before any decision or reservation, production stage admission, publish, sixteen mutating routes (423), new cost reservations, the discovery child (clean hold), the self-heal CLI's two applies. The three planned packets share files and are one source packet.
+- 14 scenarios / 55 negative controls; a real Next server in a TEMP clone drove the owner page end to end (enter, 423 on a production route, four refused exits, owner exit with five passing checks); 32 affected declared suites on the overlay after two packet-caused failures were fixed (F34); 36 production-path suites in an isolated clone, 26 PASS and 10 not passing exactly as at clean HEAD; TypeScript, lint (0 errors / 13 existing warnings), diff check. Manifest v32, 114 suites, 133 pins. Graphify precommit recorded.
+- The live mode was never entered: status on this workstation reads NORMAL and nothing was written.
+- Next: local source commit, full declared v32 baseline at the exact clean commit, packet GREEN record, Stage 15R closure, then canonical 15S. No model, container, provider, production stage, publish, host setting or push.

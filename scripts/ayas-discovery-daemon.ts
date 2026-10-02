@@ -7,6 +7,7 @@ import { collectAyasMachineTelemetry } from "../src/lib/ayas/machine/AyasMachine
 import { evaluateAyasMachineHealth } from "../src/lib/ayas/machine/AyasMachineHealthGuard";
 import { applyAyasSharedOccupancy, readAyasResourceOccupancy, resolveAyasHostCapacityRoot } from "../src/lib/ayas/machine/AyasResourceOccupancy";
 import { readAyasOwnerConstitution } from "../src/lib/ayas/governance/AyasOwnerConstitutionReader";
+import { ayasSafeModeHold } from "../src/lib/ayas/safety/AyasSafeModeReader";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { admitAyasDiscoveryRun, type AyasDiscoveryRunGuard } from "../src/lib/brain/autonomy/AyasDiscoveryRunGuard";
@@ -66,6 +67,10 @@ function graphifyFresh(head: string): boolean {
 const AYAS_DISCOVERY_CHILD_WORK_CEILING_MS = 200_000;
 
 async function main(): Promise<void> {
+  // Stage 15R — SAFE_READ_ONLY holds the whole discovery run: no ledger entry, no lease, no sandbox, no proposal, no
+  // fetch. A held tick is a clean hold, not a failed run; the firewall refuses the lease as well if this is bypassed.
+  const safeMode = ayasSafeModeHold(root);
+  if (safeMode) { console.log(JSON.stringify({ status: "SAFE_READ_ONLY_HOLD", code: safeMode })); return; }
   const childStartedAt = Date.now();
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1",
+  "packet": "15R.1-15R.3 (one source packet)",
+  "state": "FOCUSED_TESTS_AND_TEMP_SERVER_E2E_NOT_LIVE_ACTIVATION",
+  "sourceBaseHead": "4475e94911104277d4287ebc950d666d187ba110",
+  "worktree": "packet overlay, uncommitted",
+  "commands": [
+    { "id": "safe-mode", "status": "PASS", "detail": "14 scenarios, TEMP roots, synthetic owner sessions", "durationMs": 6800 },
+    { "id": "safe-mode-mutations", "status": "PASS", "detail": "55/55 negative controls caught in a gitless TEMP copy", "durationMs": 33000 },
+    { "id": "owner-page-e2e", "status": "PASS", "detail": "real next start in a TEMP clone, 7 steps; 15R_OWNER_PAGE_E2E.json" },
+    { "id": "action-firewall", "status": "PASS", "detail": "54 scenarios" },
+    { "id": "owner-capability-firewall", "status": "PASS", "detail": "32 scenarios" },
+    { "id": "action-firewall-closure", "status": "PASS", "detail": "12 scenarios, 8 surfaces, 41 mapped modules" },
+    { "id": "durable-task-recovery", "status": "PASS", "detail": "22 scenarios" },
+    { "id": "discovery-registry", "status": "PASS", "detail": "15 scenarios" },
+    { "id": "eval-governance", "status": "PASS", "detail": "10 scenarios, manifest v32" },
+    { "id": "resource-occupancy", "status": "PASS", "detail": "12 scenarios" },
+    { "id": "machine-health", "status": "PASS", "detail": "20 scenarios" },
+    { "id": "production-cost-governor", "status": "PASS", "detail": "14 scenarios after its wiring guard admitted the two safe-mode suites (F34)" },
+    { "id": "typescript", "status": "PASS", "detail": "incremental and --incremental false" },
+    { "id": "changed-lint", "status": "PASS", "detail": "--max-warnings 0" },
+    { "id": "full-lint", "status": "PASS", "detail": "0 errors, 13 existing warnings" },
+    { "id": "diff-check", "status": "PASS" }
+  ],
+  "declaredSuitesOnOverlay": {
+    "runner": "scripts/ayas-eval-baseline.ts --suite <id>, TEMP clone with the packet overlaid",
+    "firstRun": {
+      "passed": [
+        "safe-mode", "safe-mode-mutations", "constitution-run-binding", "owner-constitution-mutations", "production-cost-governor-mutations",
+        "action-firewall", "action-firewall-runtime", "action-firewall-bridge", "action-firewall-closure", "owner-capability-firewall",
+        "repair-approval-proof", "discovery-run-firewall", "micro-batch-approval-service", "proposal-execution-service", "micro-batch-execution-service",
+        "autonomy-daemon", "daemon-authority-boundary", "guided-repair", "golden-vault", "independence-certification", "production-director",
+        "graphify-integration", "resource-occupancy", "resource-occupancy-mutations", "exact-proposal-safety", "guarded-publication",
+        "runtime-stability-guard", "durable-task-recovery", "discovery-registry", "proposal-approval-service"
+      ],
+      "failed": ["constitution-run-binding-mutations", "production-cost-governor"],
+      "reading": "F34: both failures were this packet's; fixed before the commit"
+    },
+    "rerunAfterFix": {
+      "passed": ["constitution-run-binding-mutations", "production-cost-governor", "production-cost-governor-mutations", "safe-mode", "safe-mode-mutations", "discovery-run-firewall", "action-firewall"],
+      "failed": [],
+      "reading": "The fix split one firewall line in two and added two names to one test allowlist. The other suites of the first run were not repeated on the overlay; the full declared baseline at the commit runs all of them."
+    }
+  },
+  "productionSuites": "15R_PRODUCTION_REGRESSION.json",
+  "liveReadOnly": "scripts/ayas-safe-mode.ts status on this workstation: NORMAL, nothing written. The mode was never entered on the live checkout.",
+  "runtime": "Serial; TEMP roots, TEMP clones and one TEMP Next server on a loopback port; no model, container, provider, production stage, publish, host setting or push",
+  "manifest": {
+    "version": "15F.4-v32",
+    "suites": 114,
+    "uniquePins": 133,
+    "repinned": ["scripts/smoke-ayas-production-cost-governor.ts"],
+    "archiveV31": "EXACT_GIT_BYTES"
+  }
+}

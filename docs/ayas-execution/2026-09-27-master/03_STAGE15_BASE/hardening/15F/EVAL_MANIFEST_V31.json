@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v32",
+  "version": "15F.4-v31",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1494,7 +1494,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-production-cost-governor.ts",
-          "sha256": "2013379e3618b5d839c60427ad9ef5ef03824115fa462fa7507d4cf753d6e5b6"
+          "sha256": "2c579c9a8152f9866b3b64f047dd8364e8528939cd34f644263af8a794cd05f2"
         }
       ],
       "slices": [
@@ -2054,46 +2054,6 @@
       "slices": [
         "resource-occupancy",
         "production-priority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "safe-mode",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-safe-mode.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-safe-mode.ts",
-          "sha256": "992e86c0263cae2a285033196d245cf9987507322fab3cf31d4812122686d3f8"
-        }
-      ],
-      "slices": [
-        "safe-read-only",
-        "emergency-stop",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "safe-mode-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-safe-mode-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-safe-mode-mutations.ts",
-          "sha256": "7413136bf0aa80f20081cd4ebeafe31d2cf37763d032c893bb808d4a84c68390"
-        },
-        {
-          "file": "scripts/smoke-ayas-safe-mode.ts",
-          "sha256": "992e86c0263cae2a285033196d245cf9987507322fab3cf31d4812122686d3f8"
-        }
-      ],
-      "slices": [
-        "safe-read-only",
-        "emergency-stop",
         "deterministic-outcome"
       ]
     }

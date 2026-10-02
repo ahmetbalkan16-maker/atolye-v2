@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import {
   admitCostReservation, PRODUCTION_COST_LEDGER_SCHEMA_VERSION, summarizeCostLedger,
   type CostLedgerEvent, type CostLedgerSummary, type CostReservationRefusal,
@@ -48,7 +49,7 @@ export function readCostLedger(dir: string): CostLedgerRead {
   return { events, summary: storeProblems.length ? { ...summary, problems: [...summary.problems, ...storeProblems] } : summary, storeProblems };
 }
 
-export type CostLedgerAppendResult = { readonly ok: true; readonly seq: number; readonly summary: CostLedgerSummary } | { readonly ok: false; readonly reason: CostReservationRefusal | "EVENT_REFUSED" | "CONTENDED" | "STORE_WRITE_FAILED" };
+export type CostLedgerAppendResult = { readonly ok: true; readonly seq: number; readonly summary: CostLedgerSummary } | { readonly ok: false; readonly reason: CostReservationRefusal | "EVENT_REFUSED" | "CONTENDED" | "STORE_WRITE_FAILED" | "SAFE_READ_ONLY" };
 
 /**
  * Adds one event that `decide` chooses from the ledger as it stands. When another writer adds an event first, the
@@ -81,7 +82,10 @@ function append(dir: string, decide: (summary: CostLedgerSummary) => { readonly 
 }
 
 /** Reserves an approved cap for a project, or says why not. The allowance is the owner's declared one. */
-export function reserveProjectCost(dir: string, request: { readonly reservationId: string; readonly projectId: string; readonly capUsd: number; readonly at: string }, allowanceUsd: number | null): CostLedgerAppendResult {
+export function reserveProjectCost(dir: string, request: { readonly reservationId: string; readonly projectId: string; readonly capUsd: number; readonly at: string }, allowanceUsd: number | null,
+  /** Stage 15R: no new spend is reserved in SAFE_READ_ONLY. Settling or releasing an existing reservation stays possible. */
+  safeModeHold: () => string | undefined = ayasSafeModeHold): CostLedgerAppendResult {
+  if (safeModeHold()) return { ok: false, reason: "SAFE_READ_ONLY" };
   return append(dir, (summary) => {
     const admitted = admitCostReservation(summary, request, allowanceUsd);
     return admitted.ok ? { event: { type: "RESERVE", reservationId: request.reservationId, projectId: request.projectId, capUsd: request.capUsd, at: request.at } } : { refusal: admitted.reason };

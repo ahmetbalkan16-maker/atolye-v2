@@ -18,6 +18,7 @@ import type { AyasProposalStructuredImpact } from "./AyasProposalImpact";
 import { createAyasIsolatedGateRoot, type AyasIsolatedGateRoot } from "./AyasIsolatedGateRoot";
 import { withAyasExecutionAuthorityLock } from "./AyasExecutionAuthorityLock";
 import { revalidateAyasExecution, type AyasExecutionRevalidationDeps } from "./AyasExecutionRevalidation";
+import { assertAyasSafeModeAllowsMutation } from "../../ayas/safety/AyasSafeModeReader";
 import { AyasMutationScopeError, canonicalizeAyasExactFiles, createAyasMutationBoundary } from "./AyasMutationScope";
 import { classifyAyasRegressionReport, type AyasMutationReliabilityAudit } from "../../ayas/observability/AyasReliabilitySlo";
 import { classifyAyasRestartRecovery } from "./AyasExecutionRecoveryPolicy";
@@ -144,6 +145,9 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
   const executeApproved = async (input: { readonly mutationKind?: string; readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
     // Isolate authority scope from caller arrays while asynchronous checks are running.
     input = { ...input, mutationKind: input.mutationKind ?? inbox.load().proposals.find((p) => p.proposalId === input.proposalId)?.mutationKind, exactFiles: Object.freeze([...input.exactFiles]), currentExactFiles: Object.freeze([...input.currentExactFiles]) };
+    // Stage 15R: no source write starts in SAFE_READ_ONLY. Asked before the one-shot authorization is reserved, so the
+    // owner's approval is not consumed by the refusal; the firewall refuses again at the write itself.
+    assertAyasSafeModeAllowsMutation(repoRoot);
     if (!input.repoClean) { transition("PAUSED_DIRTY_REPO", { lastError: "working tree became dirty before execution" }); throw new Error("AYAS_DAEMON_DIRTY_REPO"); }
     if (!isolatedGateRoot) throw new Error("AYAS_DAEMON_DEVELOPMENT_GATE_ROOT_REQUIRED");
     if (input.currentHead !== input.baseHead) { transition("ERROR", { lastError: "proposal HEAD is stale" }); throw new Error("AYAS_DAEMON_STALE_HEAD"); }

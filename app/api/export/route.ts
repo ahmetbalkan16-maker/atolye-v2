@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { packageExport } from "@/lib/export/ExportPackager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
@@ -12,6 +13,9 @@ import type { YouTubePublishingPackage } from "@/types/youtube";
 import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 
 export async function POST(req: Request) {
+  // Stage 15R: nothing but a read starts while AYAS is in SAFE_READ_ONLY.
+  const safeMode = ayasSafeModeHold();
+  if (safeMode) return NextResponse.json({ success: false, error: safeMode }, { status: 423 });
   try {
     const body = (await req.json()) as Record<string, unknown>;
     const projectSlug = normalizeSlug(body.projectSlug ?? body.slug);

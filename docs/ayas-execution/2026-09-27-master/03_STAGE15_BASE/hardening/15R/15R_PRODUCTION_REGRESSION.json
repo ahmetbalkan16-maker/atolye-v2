@@ -1,0 +1,259 @@
+{
+  "schemaVersion": "1",
+  "packet": "15R",
+  "purpose": "The declared baseline excludes Atolye production suites. Stage 15R changes the production stage runtime, the publish pipeline, the cost reservation store, sixteen routes and the self-heal CLI; these suites exercise them.",
+  "fixture": "TEMP local clone without a remote, node_modules junction, minimal environment (no provider credential, ATOLYE_RUNTIME_ROOT unset); one suite at a time; the packet's working tree overlaid on 4475e94911104277d4287ebc950d666d187ba110.",
+  "sourceCheckoutUnchanged": true,
+  "overlayPassed": 26,
+  "overlayFailed": 10,
+  "failedOnlyWithOverlay": [],
+  "reading": "Nine suites fail exactly as they do at clean HEAD (F33). smoke-ayas-security-request-body-isolated refuses any layout but its own TEMP archive, at clean HEAD as well, so it is not runnable in this fixture. No failure is caused by this packet and no production suite was changed.",
+  "rows": [
+    {
+      "script": "scripts/smoke-sprint-129-25c-2b-4-runtime-context.ts",
+      "overlay": "FAIL",
+      "ms": 956,
+      "overlayFailure": "AssertionError [ERR_ASSERTION]: Missing expected exception (RuntimeStorageError).",
+      "cleanHeadFailure": "AssertionError [ERR_ASSERTION]: Missing expected exception (RuntimeStorageError).",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-sprint-129-28-production-acceptance-reauthorization.ts",
+      "overlay": "FAIL",
+      "ms": 99809,
+      "overlayFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: 0 !== 1",
+      "cleanHeadFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: 0 !== 1",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-production-pipeline-durable-wiring.ts",
+      "overlay": "PASS",
+      "ms": 1076,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"production-pipeline-durable-wiring\",\"scenarios\":19}"
+    },
+    {
+      "script": "scripts/smoke-production-worker-lifecycle.ts",
+      "overlay": "PASS",
+      "ms": 3425,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"production-worker-lifecycle\",\"scenarios\":21}"
+    },
+    {
+      "script": "scripts/smoke-production-pipeline-execution-factory-p3-disconnected-admission.ts",
+      "overlay": "FAIL",
+      "ms": 527,
+      "overlayFailure": "RuntimeStorageError: Runtime storage root is not configured for writes.",
+      "cleanHeadFailure": "RuntimeStorageError: Runtime storage root is not configured for writes.",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-classifier-superseded-duplicate-integration.ts",
+      "overlay": "PASS",
+      "ms": 1535,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"classifier-superseded-duplicate-integration\",\"scenarios\":12}"
+    },
+    {
+      "script": "scripts/smoke-durable-attempt-lineage-orphan-tolerance.ts",
+      "overlay": "PASS",
+      "ms": 1168,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"durable-attempt-lineage-orphan-tolerance\",\"scenarios\":13}"
+    },
+    {
+      "script": "scripts/smoke-durable-replay-manifest-desync-guard.ts",
+      "overlay": "PASS",
+      "ms": 4604,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"durable-replay-manifest-desync-guard\",\"scenarios\":11}"
+    },
+    {
+      "script": "scripts/smoke-environmental-failure-retry-extension.ts",
+      "overlay": "PASS",
+      "ms": 2935,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"environmental-failure-retry-extension\",\"scenarios\":37}"
+    },
+    {
+      "script": "scripts/smoke-production-audio-asset-wiring.ts",
+      "overlay": "PASS",
+      "ms": 7257,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"production-audio-asset-wiring\",\"scenarios\":74}"
+    },
+    {
+      "script": "scripts/smoke-production-durable-attempt-lineage-compatibility.ts",
+      "overlay": "PASS",
+      "ms": 1585,
+      "summary": "Production durable attempt lineage compatibility smoke: PASS (27 scenarios)"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-13-script-settlement.ts",
+      "overlay": "FAIL",
+      "ms": 607,
+      "overlayFailure": "ENOENT: no such file or directory, lstat '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadFailure": "ENOENT: no such file or directory, lstat '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-sprint-129-19-visuals-structured-output.ts",
+      "overlay": "FAIL",
+      "ms": 450,
+      "overlayFailure": "ENOENT: no such file or directory, scandir '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadFailure": "ENOENT: no such file or directory, scandir '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-sprint-129-21-animation-failure-diagnostics.ts",
+      "overlay": "FAIL",
+      "ms": 415,
+      "overlayFailure": "ENOENT: no such file or directory, scandir '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/images'",
+      "cleanHeadFailure": "ENOENT: no such file or directory, scandir '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/images'",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-sprint-129-27-audio-remediation.ts",
+      "overlay": "PASS",
+      "ms": 148966,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"sprint-129-27-audio-remediation\",\"scenarios\":117}"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-29-failed-terminal-settlement.ts",
+      "overlay": "PASS",
+      "ms": 29711,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"sprint-129-29-failed-terminal-settlement\",\"scenarios\":41}"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-30-persistence-boundary-retry.ts",
+      "overlay": "PASS",
+      "ms": 2017,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"sprint-129-30-persistence-boundary-retry\",\"scenarios\":5}"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-32-retry-durable-attempt-ordinal.ts",
+      "overlay": "PASS",
+      "ms": 24717,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"sprint-129-32-retry-durable-attempt-ordinal\",\"scenarios\":18}"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-33-exhausted-retry-admission.ts",
+      "overlay": "PASS",
+      "ms": 111416,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"sprint-129-33-exhausted-retry-admission\",\"scenarios\":58}"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-34-queued-exhausted-run-type.ts",
+      "overlay": "PASS",
+      "ms": 3039,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"sprint-129-34-queued-exhausted-run-type\",\"scenarios\":7}"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-35-legacy-global-quiescence.ts",
+      "overlay": "PASS",
+      "ms": 10641,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"sprint-129-35-legacy-global-quiescence\",\"scenarios\":32}"
+    },
+    {
+      "script": "scripts/smoke-sprint-129-36-retry-budget-extension.ts",
+      "overlay": "FAIL",
+      "ms": 677,
+      "overlayFailure": "ENOENT: no such file or directory, lstat '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadFailure": "ENOENT: no such file or directory, lstat '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-sprint-129-38-cross-stage-settled-receipt-replay.ts",
+      "overlay": "FAIL",
+      "ms": 605,
+      "overlayFailure": "ENOENT: no such file or directory, lstat '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadFailure": "ENOENT: no such file or directory, lstat '<clone>/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5'",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-sprint-129-41-completed-stage-regeneration.ts",
+      "overlay": "FAIL",
+      "ms": 642,
+      "overlayFailure": "AssertionError [ERR_ASSERTION]: Missing expected exception.",
+      "cleanHeadFailure": "AssertionError [ERR_ASSERTION]: Missing expected exception.",
+      "cleanHeadSource": "15Q/15Q3_PRODUCTION_REGRESSION.json (clean HEAD 0c020e0; the suite and the code it fails on are unchanged since)",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-sprint-129-9-failed-stage-resume.ts",
+      "overlay": "PASS",
+      "ms": 4527,
+      "summary": "Sprint 129.9 failed-stage resume smoke PASS: 42 scenarios."
+    },
+    {
+      "script": "scripts/smoke-superseded-duplicate-reservation-authority.ts",
+      "overlay": "PASS",
+      "ms": 803,
+      "summary": "ATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"superseded-duplicate-reservation-authority\",\"scenarios\":15}"
+    },
+    {
+      "script": "scripts/smoke-ayas-machine-health.ts",
+      "overlay": "PASS",
+      "ms": 268,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-machine-health\",\"scenarios\":20}"
+    },
+    {
+      "script": "scripts/smoke-ayas-autonomous-foundation-acceptance.ts",
+      "overlay": "PASS",
+      "ms": 282,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-autonomous-foundation-acceptance\",\"scenarios\":42}"
+    },
+    {
+      "script": "scripts/smoke-ayas-novel-patch-discovery.ts",
+      "overlay": "PASS",
+      "ms": 79587,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-novel-patch-discovery\",\"scenarios\":9}"
+    },
+    {
+      "script": "scripts/smoke-ayas-micro-batch-accumulator.ts",
+      "overlay": "PASS",
+      "ms": 52389,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-micro-batch-accumulator\",\"scenarios\":14}"
+    },
+    {
+      "script": "scripts/smoke-ayas-novel-patch-policy-suppression.ts",
+      "overlay": "PASS",
+      "ms": 3213,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-novel-patch-policy-suppression\",\"scenarios\":4}"
+    },
+    {
+      "script": "scripts/smoke-brain-selfheal.ts",
+      "overlay": "PASS",
+      "ms": 303,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}"
+    },
+    {
+      "script": "scripts/smoke-pipeline-start-recovery.ts",
+      "overlay": "PASS",
+      "ms": 632,
+      "summary": "Pipeline start recovery smoke: PASS (7 cases)"
+    },
+    {
+      "script": "scripts/smoke-existing-project-root-write-safety.ts",
+      "overlay": "PASS",
+      "ms": 2660,
+      "summary": "PASS (20 scenarios)"
+    },
+    {
+      "script": "scripts/smoke-ayas-security-request-body-isolated.ts",
+      "overlay": "FAIL",
+      "ms": 694,
+      "overlayFailure": "Error: AYAS_STAGE9_REQUIRES_TEMP_ARCHIVE",
+      "cleanHeadFailure": "Error: AYAS_STAGE9_REQUIRES_TEMP_ARCHIVE",
+      "cleanHeadSource": "clean HEAD 4475e94911104277d4287ebc950d666d187ba110",
+      "sameAsCleanHead": true
+    },
+    {
+      "script": "scripts/smoke-ayas-stt-security.ts",
+      "overlay": "PASS",
+      "ms": 533,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-stt-security\",\"scenarios\":7}"
+    }
+  ]
+}

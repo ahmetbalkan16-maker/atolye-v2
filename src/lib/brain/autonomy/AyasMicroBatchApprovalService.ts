@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import { assertAyasSafeModeAllowsMutation } from "../../ayas/safety/AyasSafeModeReader";
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatch } from "./AyasMicroBatch";
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
@@ -144,6 +145,7 @@ function commitMessageFor(batch: AyasMicroBatch): string {
  * execution entrypoint.
  */
 export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedBatchHash: string, deps: AyasMicroBatchApprovalDeps): Promise<AyasMicroBatchApprovalOutcome> {
+  assertAyasSafeModeAllowsMutation(deps.repoRoot); // Stage 15R: before a decision is minted
   if (typeof batchId !== "string" || !batchId.trim()) throw new AyasMicroBatchApprovalError("INVALID_INPUT", "batchId is required");
   if (typeof approvedBatchHash !== "string" || !approvedBatchHash.trim()) throw new AyasMicroBatchApprovalError("INVALID_INPUT", "approvedBatchHash is required");
 

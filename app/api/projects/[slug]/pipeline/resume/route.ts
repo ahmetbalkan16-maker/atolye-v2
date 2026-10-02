@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
@@ -10,6 +11,9 @@ type RouteContext = {
 };
 
 export async function POST(_req: Request, context: RouteContext) {
+  // Stage 15R: nothing but a read starts while AYAS is in SAFE_READ_ONLY.
+  const safeMode = ayasSafeModeHold();
+  if (safeMode) return NextResponse.json({ success: false, error: safeMode }, { status: 423 });
   try {
     const { slug } = await context.params;
 
