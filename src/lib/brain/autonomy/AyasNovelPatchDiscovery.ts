@@ -114,7 +114,10 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
   // Stage 10A — same freshness gate as the sibling lanes (micro-batch accumulation, research improvement,
   // daemon.discover): a candidate drafted against a stale graph would only be dropped by discover() after the
   // sandbox work and an orphaned frozen artifact.
-  if (!observation.repoClean || observation.graphifyFresh !== true || observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") {
+  // Stage 15Q.3 — the sandbox (worktree + project-wide typecheck) is a heavy build workload: it starts only under
+  // ALLOW or THROTTLE. BLOCK NEW HEAVY WORK (the owner's RAM admission limit, critical pressure, an invalid or
+  // missing core sensor) used to fall through here.
+  if (!observation.repoClean || observation.graphifyFresh !== true || (observation.machineAction !== "ALLOW" && observation.machineAction !== "THROTTLE")) {
     return { candidates: [], rejections: [], findings };
   }
 

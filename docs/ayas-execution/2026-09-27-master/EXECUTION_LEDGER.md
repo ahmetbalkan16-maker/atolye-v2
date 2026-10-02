@@ -899,3 +899,15 @@ Latest owner instruction15Q.2 bitir öyle dur supersedes previous stop boundary.
 15Q.2 source0763db5 exact clean validation8d1c28c: full declaredv30 110/110 PASS_WITH_KNOWN_LIMITATIONS, failed0;129 committed grader pins; cognitive54/55 and held-out4/5 unchanged. Controller11/24 negative controls, recovery22/runtime17, resource19/34, eval10/8, TypeScript/lint PASS (13 old warnings). Sampled RAM max55.11%. Graphify17492/50048, zero integrity anomalies; PARTIAL9/semantic pending retained. Injected source controller/image contract only; real backend/physical hardware not qualified. Stage15Q remains open. Owner instruction: finish15Q.2 then STOP.
 
 No push. Canonical checkpoint nextAction STOP;15Q.3 not started.
+
+### 2026-10-02T18:36Z — owner resume; 15Q.3 opened
+
+The owner sent the master continuation command after the 15Q.2 stop was applied. It is the explicit direction the stop asked for (OWNER_RESUME_15Q3.json). Repository truth at resume: HEAD `0c020e0`, clean, 79 ahead / 0 behind, Graphify bound to HEAD, no other agent job running. Saved resumeNextAction taken up: 15Q.3, then the stage closure.
+
+### 2026-10-02 — 15Q.3 focused GREEN: host-common occupancy and consumer binding
+
+- One advisory, liveness-checked occupancy inventory under this checkout's ignored execution tree is the shared source of the governor's context. Production publishes every durable stage for its run and stays unblocked by it, except that a render stage is refused while a local model is published as loaded or unconfirmed. A heavy capacity holder publishes itself under the lock, then looks; production does the same, so neither start can miss the other. The discovery child applies the inventory to its Machine Health decision before its lease and now reads the owner RAM policy (F31). The two sandbox lanes no longer start under BLOCK NEW HEAVY WORK (F32). Read-only operator CLI `scripts/ayas-resource-status.ts`.
+- Not bound, on purpose: owner-approved governed execution (its one-shot authorization is reserved before the health check), operator-run heavy tools, the observer's light recovery sweep. The on-demand controller stays unwired; the engine stays unregistered.
+- 12 scenarios / 45 negative controls; resource 19 and 34/34, lifecycle 11 and 24/24, eval governance 10, recovery 22, registry 15, closure 12, Machine Health 20 and 36; 15 affected declared suites on the overlay through the TEMP-clone runner; TypeScript, changed and full lint (0 errors / 13 existing warnings), diff check. Manifest v31, 112 suites, 131 pins, v30 archived from committed bytes. Graphify precommit 17550 / 50192, no integrity anomaly, PARTIAL 9, semantic pending.
+- Production suites are outside the declared baseline: 31 run in an isolated TEMP clone with the packet overlaid, 22 PASS, 9 FAIL, each of the nine identical at clean HEAD (F33).
+- Next: local source commit, full declared v31 baseline at the exact clean commit, packet checkpoint, then the Stage 15Q closure. No model, container, provider, production stage, host setting or push.

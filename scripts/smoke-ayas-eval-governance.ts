@@ -17,9 +17,9 @@ const cognitiveReport = { caseCount: 55, passed: 54, heldOut: { passed: 4, total
 const developerReport = { flow: { mainPass: "39/39", heldOut: "10/10" }, components: { safety: "5/5" }, componentHeldOut: "2/2", integration: "3/3" };
 
 scenario("versioned manifest separates suite kinds, pins graders and exposes exclusions/calibration", () => {
-  assert.equal(manifest.suites.length, 110); assert.equal(new Set(manifest.suites.map((s) => s.kind)).size, 3);
+  assert.equal(manifest.suites.length, 112); assert.equal(new Set(manifest.suites.map((s) => s.kind)).size, 3);
   for (const id of ["production-fault-repair", "production-fault-repair-mutations", "production-quality-gate", "production-quality-gate-mutations", "production-quality-collector", "production-quality-collector-mutations", "youtube-ready-export", "owner-constitution", "owner-constitution-mutations", "constitution-run-binding", "constitution-run-binding-mutations",
-    "golden-vault", "golden-vault-operator", "golden-vault-mutations", "golden-vault-run", "golden-experiment-gate", "golden-experiment-gate-mutations", "golden-sandbox-run", "golden-video-projects", "golden-video-projects-mutations", "source-evidence", "source-evidence-mutations", "resource-governor", "resource-governor-mutations", "on-demand-lifecycle", "on-demand-lifecycle-mutations"]) assert.ok(manifest.suites.some((suite) => suite.id === id), `missing declared suite ${id}`);
+    "golden-vault", "golden-vault-operator", "golden-vault-mutations", "golden-vault-run", "golden-experiment-gate", "golden-experiment-gate-mutations", "golden-sandbox-run", "golden-video-projects", "golden-video-projects-mutations", "source-evidence", "source-evidence-mutations", "resource-governor", "resource-governor-mutations", "on-demand-lifecycle", "on-demand-lifecycle-mutations", "resource-occupancy", "resource-occupancy-mutations"]) assert.ok(manifest.suites.some((suite) => suite.id === id), `missing declared suite ${id}`);
   assert.equal(manifest.modelGrader, "NONE"); assert.equal(manifest.definitionReview, "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING"); assert.equal(manifest.excluded.length, 4);
   const files = new Set(manifest.suites.flatMap((s) => s.pins.map((p) => p.file)));
   assert.ok(files.has("scripts/lib/AyasRetrievalEvaluation.ts")); assert.ok(files.has("scripts/fixtures/ayas-retrieval-evaluation-cases.ts"));

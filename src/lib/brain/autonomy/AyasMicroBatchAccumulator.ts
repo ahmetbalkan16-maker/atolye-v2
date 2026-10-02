@@ -67,7 +67,9 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
   // owner-actionable micro-batch state.  Do not reconcile, rebuild the
   // sandbox worktree, freeze artifacts, or touch existing batches here:
   // temporary graph staleness must merely pause NEW accumulation.
-  if (observation.graphifyFresh !== true || !observation.repoClean || observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") {
+  // Stage 15Q.3 — accumulation validates in the batch worktree (typecheck + smoke): heavy build work that starts
+  // only under ALLOW or THROTTLE, so BLOCK NEW HEAVY WORK holds it like PAUSE does.
+  if (observation.graphifyFresh !== true || !observation.repoClean || (observation.machineAction !== "ALLOW" && observation.machineAction !== "THROTTLE")) {
     return { itemsAdded: [], batch: null, rejections: [], readyForReview: false, staledPreviousBatchId: null };
   }
 

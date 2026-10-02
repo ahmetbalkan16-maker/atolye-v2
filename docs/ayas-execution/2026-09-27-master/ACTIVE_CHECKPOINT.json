@@ -3,10 +3,10 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "8d1c28cc33d46d2e0059d5e889fe6c940faad40f",
-  "currentHead": "8d1c28cc33d46d2e0059d5e889fe6c940faad40f",
+  "currentHead": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
   "stage": "STAGE_15Q",
-  "subtask": "15Q.2-GREEN-owner-stop-after-packet",
-  "status": "OWNER_STOPPED",
+  "subtask": "15Q.3-focused-GREEN-source-commit-full-baseline-pending",
+  "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -213,7 +213,8 @@
     "15P-closure-GREEN-metadata-not-external-certification",
     "15Q.0-existing-seam-inspection",
     "15Q.1-contextual-admission-common-capacity-GREEN-not-wired",
-    "15Q.2-bounded-on-demand-lifecycle-image-contract-GREEN-not-wired"
+    "15Q.2-bounded-on-demand-lifecycle-image-contract-GREEN-not-wired",
+    "owner-resume-after-15Q2-stop"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -352,19 +353,19 @@
     "15Q.2 source0763db5 exact clean validation8d1c28c: full declaredv30 110/110 PASS_WITH_KNOWN_LIMITATIONS, failed0;129 committed grader pins; cognitive54/55 and held-out4/5 unchanged. Controller11/24 negative controls, recovery22/runtime17, resource19/34, eval10/8, TypeScript/lint PASS (13 old warnings). Sampled RAM max55.11%. Graphify17492/50048, zero integrity anomalies; PARTIAL9/semantic pending retained. Injected source controller/image contract only; real backend/physical hardware not qualified. Stage15Q remains open. Owner instruction: finish15Q.2 then STOP."
   ],
   "graphify": {
-    "head": "8d1c28cc33d46d2e0059d5e889fe6c940faad40f",
-    "testedSourcePacket": "0763db5b6c006c5adae7764a3c94b546f79c44f6",
+    "head": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
+    "testedSourcePacket": "15Q.3 worktree on 0c020e0 (precommit)",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17492,
-    "edges": 50048,
+    "nodes": 17550,
+    "edges": 50192,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Recorded graph identity/counts belong to clean validation8d1c28c. Final documentation-only stop descendant changes no executable source. Final runtime Graphify refresh is finishing15Q.2 housekeeping; query graphify status for actual current HEAD. PARTIAL9/semantic pending."
+    "headSemantics": "Counts are the precommit graph of the 15Q.3 worktree (GRAPHIFY_15Q3_PRECOMMIT.json). The graph is refreshed and recorded again at the source commit. PARTIAL9/semantic pending."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -385,8 +386,8 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "STOP: latest owner instruction \"15Q.2 bitir öyle dur\" has been satisfied.15Q.2 source controller/image packet GREEN at exact clean8d1c28c(v30 full110/110,129 pins, no unexpected failures). Do not start15Q.3 source integration or15R/later stages. Stage15Q remains open; source-only/unregistered engine/hardware limits are explicit. Await explicit owner direction. NO PUSH.",
-  "updatedAt": "2026-10-02T18:30:19.106Z",
+  "nextAction": "15Q.3 source is committed locally with focused GREEN evidence. Run the full declared v31 112-suite baseline at that exact clean commit (npx tsx scripts/ayas-eval-baseline.ts --report <TEMP file>; do not edit the repository while it runs). On PASS_WITH_KNOWN_LIMITATIONS with no failure: record 15Q3_FULL_BASELINE_V31.json, 15Q3_RESULT.json and GRAPHIFY_15Q3_SOURCE_COMMIT.json and mark the packet GREEN. On a failure: keep the failed report, repair narrowly, repin, rerun. Then close Stage 15Q (post-freeze conformance rows for 15Q, CLOSURE.md, declared gaps) and open canonical 15R. NO PUSH / PC HEALTH / ON_DEMAND.",
+  "updatedAt": "2026-10-02T19:39:11.024Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -586,7 +587,7 @@
     ],
     "finalSecurityFollowup": "Reject unknown top-level record fields on append/load; integrity suite 27/27; memory 30/30; temporal 52/52; retrieval 74 + determinism/error/isolation/chat chain PASS; TypeScript and changed-file lint PASS."
   },
-  "headSemantics": "15Q.2 source0763db5 tested at clean documentation descendant8d1c28c; final stop checkpoint is another documentation descendant. Read Git for actual HEAD.",
+  "headSemantics": "currentHead is the base the 15Q.3 packet was built on (0c020e0, a documentation-only descendant of the validated 8d1c28c). The packet's own source commit is its child; read Git for the actual HEAD. lastGreenHead stays 8d1c28c until the bound v31 baseline passes.",
   "stage15D": {
     "state": "CLOSED_GREEN",
     "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
@@ -811,7 +812,9 @@
     "startNextStage": true,
     "push": false,
     "priorStopRevoked": true,
-    "prerequisite": "Met: the targeted post-freeze conformance audit is complete (post-freeze-audit/CLOSURE.md). Genuine owner-only gates stay in force."
+    "prerequisite": "Met: the targeted post-freeze conformance audit is complete (post-freeze-audit/CLOSURE.md). Genuine owner-only gates stay in force.",
+    "resumedAt": "2026-10-02T18:36:00.000Z",
+    "resumeRecord": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
   },
   "postFreezeAudit": {
     "status": "COMPLETE",
@@ -1342,7 +1345,7 @@
     "fullLatestHeadBaselineClaimed": false
   },
   "stage15Q": {
-    "state": "15Q2_GREEN_OWNER_STOPPED_STAGE_NOT_CLOSED",
+    "state": "15Q3_FOCUSED_GREEN_FULL_BASELINE_PENDING_STAGE_NOT_CLOSED",
     "openedOn": "2026-10-02",
     "openedAtHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15Q; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md15Q",
@@ -1394,15 +1397,57 @@
         "failed": [],
         "report": "15Q2_FULL_BASELINE_V30.json"
       }
+    },
+    "packet15Q3": {
+      "state": "FOCUSED_GREEN_SOURCE_COMMITTED_FULL_BASELINE_PENDING",
+      "baseHead": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
+      "scope": "Host-common occupancy inventory; production stage publication and model/render overlap refusal; heavy capacity holders publish then look; discovery child bound to the inventory and to the owner RAM policy; sandbox lanes held by BLOCK NEW HEAVY WORK; honest host context; read-only operator CLI.",
+      "files": [
+        "src/lib/ayas/machine/AyasResourceOccupancy.ts",
+        "src/lib/ayas/machine/AyasResourceCapacity.ts",
+        "src/lib/ayas/machine/AyasMachineHealthGuard.ts",
+        "src/lib/production/ProductionPipelineExecutionCanonicalRuntime.ts",
+        "src/lib/brain/autonomy/AyasNovelPatchDiscovery.ts",
+        "src/lib/brain/autonomy/AyasMicroBatchAccumulator.ts",
+        "src/lib/brain/selfheal/BrainPatchSafety.ts",
+        "scripts/ayas-discovery-daemon.ts",
+        "scripts/ayas-resource-status.ts",
+        "scripts/smoke-ayas-resource-occupancy.ts",
+        "scripts/smoke-ayas-resource-occupancy-mutations.ts",
+        "scripts/smoke-ayas-action-firewall-closure.ts",
+        "scripts/smoke-ayas-eval-governance.ts"
+      ],
+      "notBound": [
+        "owner-approved governed execution (one-shot authorization is reserved before its health check)",
+        "operator-run heavy tools (eval baseline, build, Graphify, local-coding qualification runner)",
+        "the observer tick's light recovery sweep",
+        "the on-demand controller (engine unregistered)"
+      ],
+      "findings": [
+        "F31",
+        "F32",
+        "F33"
+      ],
+      "focused": "03_STAGE15_BASE/hardening/15Q/15Q3_FOCUSED.json",
+      "productionRegression": "03_STAGE15_BASE/hardening/15Q/15Q3_PRODUCTION_REGRESSION.json",
+      "manifest": {
+        "version": "15F.4-v31",
+        "suites": 112,
+        "uniquePins": 131
+      },
+      "fullBaseline": "PENDING_AT_EXACT_CLEAN_SOURCE_COMMIT",
+      "authority": "NONE"
     }
   },
-  "resumeNextAction": "15Q.2 focused GREEN; Graphify complete partial9/semantic pending with17490 nodes/50037 links and zero integrity anomalies. Local source commit -> clean exact pin-verified isolated on-demand-lifecycle and mutation suites(v30); then15Q.3 bind existing production/render/heavy admission consumers to the shared source governor/capacity context. Stage15Q not closed: global common-capacity binding is a source integration task, not a hardware-proof claim. Full declared stage baseline follows integration. No15R before15Q source closure. NO PUSH/PC HEALTH/ON_DEMAND.",
+  "resumeNextAction": "15Q.3 source is committed locally with focused GREEN evidence. Run the full declared v31 112-suite baseline at that exact clean commit (npx tsx scripts/ayas-eval-baseline.ts --report <TEMP file>; do not edit the repository while it runs). On PASS_WITH_KNOWN_LIMITATIONS with no failure: record 15Q3_FULL_BASELINE_V31.json, 15Q3_RESULT.json and GRAPHIFY_15Q3_SOURCE_COMMIT.json and mark the packet GREEN. On a failure: keep the failed report, repair narrowly, repin, rerun. Then close Stage 15Q (post-freeze conformance rows for 15Q, CLOSURE.md, declared gaps) and open canonical 15R. NO PUSH / PC HEALTH / ON_DEMAND.",
   "ownerStop": {
-    "state": "OWNER_STOPPED_AFTER_15Q2",
+    "state": "SUPERSEDED_BY_OWNER_RESUME",
     "appliedAt": "2026-10-02T18:30:19.106Z",
     "latestRequest": "15Q.2 bitir öyle dur",
     "effectiveStopBoundary": "AFTER_15Q.2",
     "requestedPacketComplete": true,
-    "nextStageAuthorized": false
+    "nextStageAuthorized": true,
+    "supersededAt": "2026-10-02T18:36:00.000Z",
+    "supersededBy": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
   }
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v31",
+  "version": "15F.4-v30",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -129,7 +129,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-action-firewall-closure.ts",
-          "sha256": "f66e7a95de8a1cfacea92f375d1409a871146316509b86986cf15e51eb7950f3"
+          "sha256": "c2d2cafa54dee07190aa4bd02263a9bc8672a7793f1238a000fd7237e78000a6"
         }
       ],
       "slices": [
@@ -2014,46 +2014,6 @@
       "slices": [
         "on-demand-controller",
         "dependency-protection",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "resource-occupancy",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-resource-occupancy.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-resource-occupancy.ts",
-          "sha256": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5"
-        }
-      ],
-      "slices": [
-        "resource-occupancy",
-        "production-priority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "resource-occupancy-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-resource-occupancy-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-resource-occupancy-mutations.ts",
-          "sha256": "bbafc0d6dfdb630806fd883bb2713514d13487a7be3b4d73230ffec67044bd8c"
-        },
-        {
-          "file": "scripts/smoke-ayas-resource-occupancy.ts",
-          "sha256": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5"
-        }
-      ],
-      "slices": [
-        "resource-occupancy",
-        "production-priority",
         "deterministic-outcome"
       ]
     }

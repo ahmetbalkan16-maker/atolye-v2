@@ -135,6 +135,8 @@ const SURFACES: Readonly<Record<string, Surface>> = {
     modules: {
       ...LOCAL_MODELS,
       "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE",
+      // Stage 15Q.3: imported with the production stage runtime's resource occupancy (process identity of a record's owner).
+      "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE",
       "src/lib/pipeline/PipelineJobMutationLock.ts": "READ_ONLY_PROBE",
       "src/lib/ayas/developer/AyasGraphifyStateCollector.ts": "TOOL_LEASE",
       "src/lib/ayas/execution/AyasDeveloperEvidence.ts": "TOOL_LEASE",

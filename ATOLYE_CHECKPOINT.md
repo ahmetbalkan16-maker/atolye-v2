@@ -1,5 +1,17 @@
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
+## AYAS 15Q.3 — owner resume; shared occupancy bound; focused GREEN, bound baseline pending
+
+The owner's master continuation command (2026-10-02T18:36Z) lifted the 15Q.2 stop; the entries below that say STOP are superseded. Resume truth: HEAD `0c020e0`, clean, 79 ahead / 0 behind origin, Graphify bound.
+
+15Q.3 gives the Stage 15Q governor its one shared source and binds the existing consumers to it. `src/lib/ayas/machine/AyasResourceOccupancy.ts` keeps one advisory, liveness-checked record per running workload under this checkout's ignored `data/brain/execution/resource-capacity`. Production publishes every durable stage for its run (one call in `ProductionPipelineExecutionCanonicalRuntime.ts`; the two Machine Health checks are unchanged) and is never held by it, except that a render stage is refused before durable preparation while a local model is published as loaded or unconfirmed. A heavy capacity holder publishes itself under the lock and then looks, as production does, so neither start can miss the other. The observer's discovery child applies the inventory before its lease (production active, another heavy workload or an unreadable inventory means PAUSE) and now reads the owner RAM policy (F31). The novel-patch and micro-batch sandbox lanes no longer start under `BLOCK NEW HEAVY WORK` (F32). `npx tsx scripts/ayas-resource-status.ts` shows what the governor sees; it is read-only unless `--prune-stale` is given.
+
+Not bound on purpose: owner-approved governed execution (its one-shot authorization is reserved before the health check), operator-run heavy tools, the observer's light recovery sweep. The on-demand controller stays unwired and the local engine unregistered. Owner interaction, loaded-model footprint, thermal and host-protection state have no measured source and stay UNKNOWN, so a new heavy local model start is deferred, not admitted on a guess.
+
+Evidence: 12 scenarios and 45/45 negative controls; resource, lifecycle, eval governance, recovery, registry, closure and Machine Health suites; 15 affected declared suites on the overlay; TypeScript, lint (0 errors / 13 existing warnings), diff check; manifest v31 (112 suites, 131 pins). Production suites are outside the declared baseline: 31 were run in an isolated TEMP clone, 22 PASS and 9 FAIL, each of the nine identical at clean HEAD (F33). No model, container, provider, production stage, host setting or push.
+
+Exact next: full declared v31 baseline at the exact clean 15Q.3 source commit, packet GREEN record, Stage 15Q closure, then canonical 15R. The running Next server and observer load this source only after the owner rebuilds/restarts them. NO PUSH / PC HEALTH / ON_DEMAND.
+
 ## AYAS15Q.2 GREEN — OWNER STOP
 
 15Q.2 source0763db5 exact clean validation8d1c28c: full declaredv30 110/110 PASS_WITH_KNOWN_LIMITATIONS, failed0;129 committed grader pins; cognitive54/55 and held-out4/5 unchanged. Controller11/24 negative controls, recovery22/runtime17, resource19/34, eval10/8, TypeScript/lint PASS (13 old warnings). Sampled RAM max55.11%. Graphify17492/50048, zero integrity anomalies; PARTIAL9/semantic pending retained. Injected source controller/image contract only; real backend/physical hardware not qualified. Stage15Q remains open. Owner instruction: finish15Q.2 then STOP.

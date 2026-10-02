@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1",
+  "packet": "15Q.3",
+  "state": "FOCUSED_TESTS_ONLY_NOT_HARDWARE_QUALIFICATION",
+  "sourceBaseHead": "0c020e04a9b2e1f2217ab950c71ecb0b3fd097f8",
+  "worktree": "packet overlay, uncommitted",
+  "commands": [
+    { "id": "resource-occupancy", "status": "PASS", "detail": "12 scenarios", "durationMs": 11180 },
+    { "id": "resource-occupancy-mutations", "status": "PASS", "detail": "45/45 negative controls caught in a gitless TEMP copy", "durationMs": 52499 },
+    { "id": "resource-governor", "status": "PASS", "detail": "19 scenarios" },
+    { "id": "resource-governor-mutations", "status": "PASS", "detail": "34/34" },
+    { "id": "on-demand-lifecycle", "status": "PASS", "detail": "11 scenarios" },
+    { "id": "on-demand-lifecycle-mutations", "status": "PASS", "detail": "24/24" },
+    { "id": "eval-governance", "status": "PASS", "detail": "10 scenarios, manifest v31" },
+    { "id": "durable-task-recovery", "status": "PASS", "detail": "22 scenarios, 36 journal roots" },
+    { "id": "discovery-registry", "status": "PASS", "detail": "15 scenarios" },
+    { "id": "action-firewall-closure", "status": "PASS", "detail": "12 scenarios; first run FAILED until the chat surface map named the process-identity probe it now reaches" },
+    { "id": "machine-health", "status": "PASS", "detail": "20 and 36 (non-GPU stage)" },
+    { "id": "typescript", "status": "PASS", "detail": "incremental and --incremental false" },
+    { "id": "changed-lint", "status": "PASS", "detail": "13 files, --max-warnings 0" },
+    { "id": "full-lint", "status": "PASS", "detail": "0 errors, 13 existing warnings" },
+    { "id": "diff-check", "status": "PASS" }
+  ],
+  "declaredSuitesOnOverlay": {
+    "runner": "scripts/ayas-eval-baseline.ts --suite <id>, TEMP clone with the packet overlaid",
+    "passed": [
+      "resource-occupancy", "resource-occupancy-mutations", "discovery-run-firewall", "daemon-authority-boundary", "autonomy-daemon",
+      "constitution-run-binding", "constitution-run-binding-mutations", "controlled-self-evolution-cycle", "graphify-integration",
+      "independence-certification", "production-director", "execution-revalidation-scope-recovery", "runtime-stability-guard",
+      "action-firewall-closure", "research-improvement-loop"
+    ],
+    "failed": []
+  },
+  "productionSuites": "15Q3_PRODUCTION_REGRESSION.json",
+  "liveReadOnly": "scripts/ayas-resource-status.ts on this workstation: inventory empty, policy 90, heavy local model start DEFER (RESOURCE_EXTERNAL_MODEL_OR_FOOTPRINT_UNKNOWN: an Ollama process is present and its loaded footprint is unmeasured). Nothing started.",
+  "runtime": "Serial; TEMP roots and TEMP clones; child processes of the suites only; no model, container, provider, production stage, host setting or push",
+  "manifest": {
+    "version": "15F.4-v31",
+    "suites": 112,
+    "uniquePins": 131,
+    "repinned": ["scripts/smoke-ayas-action-firewall-closure.ts"],
+    "archiveV30": "EXACT_GIT_BYTES"
+  }
+}

@@ -36,3 +36,6 @@ export async function assertAyasHeavyWorkloadAllowed(workload: AyasMachineWorklo
   if (!decision.mayStart) throw new AyasMachineHealthBlockedError(decision);
   return decision;
 }
+
+/** Stage 15Q.3: the stages the pressure rule above already treats as local render work. */
+export function ayasStageIsGpuLikely(stage: ProductionStepKey): boolean { return GPU_LIKELY.has(stage); }

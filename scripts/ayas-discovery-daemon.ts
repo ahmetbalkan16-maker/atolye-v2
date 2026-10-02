@@ -5,6 +5,8 @@ import path from "node:path";
 import type { AyasDiscoveryRunCapability } from "../src/lib/ayas/execution/AyasCapabilityScope";
 import { collectAyasMachineTelemetry } from "../src/lib/ayas/machine/AyasMachineTelemetry";
 import { evaluateAyasMachineHealth } from "../src/lib/ayas/machine/AyasMachineHealthGuard";
+import { applyAyasSharedOccupancy, readAyasResourceOccupancy, resolveAyasHostCapacityRoot } from "../src/lib/ayas/machine/AyasResourceOccupancy";
+import { readAyasOwnerConstitution } from "../src/lib/ayas/governance/AyasOwnerConstitutionReader";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { admitAyasDiscoveryRun, type AyasDiscoveryRunGuard } from "../src/lib/brain/autonomy/AyasDiscoveryRunGuard";
@@ -67,7 +69,13 @@ async function main(): Promise<void> {
   const childStartedAt = Date.now();
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });
-  const health = evaluateAyasMachineHealth(telemetry, { stage: "video", ownedActive: false });
+  // Stage 15Q.3 — the same owner RAM admission policy the observer tick reads, then the host-common
+  // occupancy: discovery is heavy self-development work, so it waits for an active production stage,
+  // for any other heavy workload and for an inventory it cannot read. Nothing is lost; the next tick asks again.
+  const policy = readAyasOwnerConstitution(root);
+  const health = applyAyasSharedOccupancy(
+    evaluateAyasMachineHealth(telemetry, { stage: "video", ownedActive: false }, policy.state === "ACTIVE" ? policy.policy.rules.maxRamAdmissionPercent : policy.state === "MISSING" ? 90 : NaN),
+    await readAyasResourceOccupancy(resolveAyasHostCapacityRoot(root)), "SELF_EVOLUTION");
   const head = git(["rev-parse", "HEAD"]);
   const observation = {
     now,
@@ -237,6 +245,7 @@ async function main(): Promise<void> {
     repoClean: observation.repoClean,
     graphifyFresh: observation.graphifyFresh,
     machineAction: observation.machineAction,
+    machineReason: health.reasonCode,
     gaps: observation.gaps,
     staleReconciled: staled.map((p) => p.proposalId),
     discovered: discovered.map((p) => p.proposalId),
