@@ -3,7 +3,7 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
-  "currentHead": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+  "currentHead": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
   "stage": "STAGE_15O",
   "subtask": "15O.3-deterministic-historical-video-golden-projects",
   "status": "STAGE_15O_IN_PROGRESS",
@@ -204,7 +204,19 @@
     "15O.1-golden-vault-contract-registry-path-protection-GREEN-not-wired",
     "15O.2-golden-gate-in-the-improvement-flow-GREEN"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "scripts/fixtures/ayas-golden-video-projects.ts",
+    "scripts/fixtures/ayas-golden-video-projects-expected.ts",
+    "scripts/smoke-ayas-golden-video-projects.ts",
+    "scripts/smoke-ayas-golden-video-projects-mutations.ts",
+    "src/lib/ayas/golden/AyasGoldenVaultRegistry.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "scripts/smoke-ayas-golden-vault.ts",
+    "scripts/smoke-ayas-golden-vault-mutations.ts",
+    "scripts/smoke-ayas-eval-governance.ts",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V24.json"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -337,19 +349,19 @@
     "Stage 15O.2: declared 102-suite baseline on manifest v24 at 9cbe62d with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 58.94 %. 118 unique grader pins match the committed blobs. No model, container, provider or push."
   ],
   "graphify": {
-    "head": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+    "head": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
     "testedSourcePacket": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17310,
-    "edges": 49634,
+    "nodes": 17343,
+    "edges": 49700,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Graph built from the 15O.2 source commit with a clean tree. The checkpoint commit after it changes documentation only; refresh follows at that HEAD. PARTIAL 9 and semantic pending retained."
+    "headSemantics": "Current structural graph covers inherited 15O.3 working source before its local commit; exact-commit full baseline pending. PARTIAL 9 / semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -370,7 +382,7 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "Stage 15O.3: add three deterministic historical-video golden projects (fact pack with real sources and one disputed claim each, eight narrative units, one labelled character scene per unit) as fixtures, a suite that runs them through the Stage 15J engines and compares the reviews and the rendered scene bytes with frozen values, and publish golden vault version 2 with that suite as a HISTORICAL_VIDEO case (version 1 stays in the chain; the gap narrows to projects rendered by a real production). Negative controls; eval manifest bump; full baseline at the commit; then close Stage 15O (closure record, checkpoint, ledger) and open Stage 15P Source Trust and Evidence Graph. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT; canonical 15O-15T before 16. NO PUSH; PC HEALTH and ON_DEMAND retained.",
+  "nextAction": "Stage 15O.3 inherited implementation preserved at c93aeac. Focused project suite 6/24 scenes, mutations 17/17, vault 13 and mutations 40/40, governance 10, TypeScript, changed-file lint and full lint (0 errors/13 existing warnings) PASS. Finish structural Graphify refresh, local source commit and full declared 104-suite v25 baseline at that exact commit; then record evidence, close Stage 15O and automatically open canonical Stage 15P existing-seam inspection. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. NO PUSH; PC HEALTH and ON_DEMAND retained.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -1234,6 +1246,13 @@
         "failed": [],
         "report": "15O2_FULL_BASELINE_V24.json"
       }
+    },
+    "packet15O3": {
+      "state": "FOCUSED_GREEN_FULL_BASELINE_PENDING",
+      "sourceBaseHead": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
+      "result": "03_STAGE15_BASE/hardening/15O/15O3_FOCUSED.json",
+      "vaultVersion": 2,
+      "cases": 18
     }
   }
 }

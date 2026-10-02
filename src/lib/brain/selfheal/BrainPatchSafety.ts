@@ -46,6 +46,7 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/smoke-ayas-golden-experiment-gate.ts",
   "scripts/smoke-ayas-golden-experiment-gate-mutations.ts",
   "scripts/smoke-ayas-golden-sandbox-run.ts",
+  "scripts/smoke-ayas-golden-video-projects-mutations.ts",
   "scripts/ayas-eval-baseline.ts",
   "src/lib/ayas/observability/AyasEvalGovernance.ts",
   "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",

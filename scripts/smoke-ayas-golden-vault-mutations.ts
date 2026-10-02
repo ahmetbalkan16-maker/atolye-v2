@@ -75,7 +75,7 @@ try {
   for (const match of registry.matchAll(/file: "(scripts\/[^"]+)"/g)) copy(match[1]!, false);
   for (const file of ["docs/ayas-execution/2026-09-27-master/00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md", "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
     "scripts/smoke-ayas-golden-vault-mutations.ts", "scripts/smoke-ayas-golden-vault-run.ts", "scripts/fixtures/ayas-golden-fixtures.ts", "scripts/smoke-ayas-golden-experiment-gate.ts",
-    "scripts/smoke-ayas-golden-experiment-gate-mutations.ts", "scripts/smoke-ayas-golden-sandbox-run.ts", "scripts/ayas-eval-baseline.ts", "src/lib/ayas/observability/AyasEvalGovernance.ts",
+    "scripts/smoke-ayas-golden-experiment-gate-mutations.ts", "scripts/smoke-ayas-golden-sandbox-run.ts", "scripts/smoke-ayas-golden-video-projects-mutations.ts", "scripts/ayas-eval-baseline.ts", "src/lib/ayas/observability/AyasEvalGovernance.ts",
     "src/lib/ayas/governance/AyasOwnerConstitution.ts", "src/lib/ayas/governance/AyasOwnerConstitutionReader.ts", "src/lib/ayas/governance/AyasOwnerConstitutionStore.ts",
     "app/brain/constitution/page.tsx", "app/brain/constitution/actions.ts"]) copy(file, false);
   fs.symlinkSync(fs.realpathSync(path.join(repo, "node_modules")), link, process.platform === "win32" ? "junction" : "dir");

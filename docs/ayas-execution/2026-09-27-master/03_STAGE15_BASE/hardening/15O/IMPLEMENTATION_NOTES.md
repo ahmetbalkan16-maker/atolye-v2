@@ -129,3 +129,27 @@ Limits:
 - The golden cases are deterministic suites. They say whether a source change broke what the vault covers; they do not grade a model. A model promotion still rests on the lifecycle checks, and nothing is promoted there today.
 - The per-experiment time budget was not widened. A vault that grows needs either short cases or an owner decision about the cycle budget.
 - The red-case question is asked in the same sandbox after restoring the changed files from its commit; it relies on the strategy having written only its declared files, which the runner has already verified at that point.
+
+15O.2 source commit `9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74`; declared 102-suite baseline on v24 at that commit with no failure. Record: `15O2_RESULT.json`.
+
+## 15O.3 — three golden historical-video projects; vault version 2 (implemented)
+
+The design asks for two or three representative historical-video golden projects. A golden project here is everything the deterministic part of a historical video is made from, frozen: a fact pack with real sources, eight narrative units (one per beat), and one character scene per unit. What the Stage 15J engines make of it is frozen next to it.
+
+| Project | Fact pack | Disputed claim, narrated as uncertain |
+|---|---|---|
+| `istanbul-1453` | 9 claims, 4 sources (Kritovulos, Dukas, Runciman, İnalcık) | the Kerkoporta gate, told by Dukas alone |
+| `malazgirt-1071` | 10 claims, 4 sources (Attaleiates, İbnü'l-Esîr, Hillenbrand, Cahen) | the size of the armies |
+| `preveze-1538` | 10 claims, 4 sources (Gazavât-ı Hayreddin Paşa, Kâtib Çelebi, Bostan, Guilmartin) | the number of ships |
+
+Each project passes both reviews with no finding (narration evidence gate PASS; narrative contract gate PASS; 720 s; eight beats in order; a question opened in the cold open and answered at the turning point or payoff), and every scene builds and verifies as a labelled, local, zero-cost reenactment that is evidence of nothing. The 24 scenes were rasterized once into a scratch directory and looked at before their bytes were frozen; movement arrows that struck through the figures were moved to the ground line first.
+
+Frozen per project (`scripts/fixtures/ayas-golden-video-projects-expected.ts`): the digest of the project itself, the SHA-256 of each scene's SVG, and a digest over both reviews and every scene manifest. A change to the renderer, the rig, a review rule or a project shows as a named difference; the suite compares scene by scene first so a renderer change names the scene it moved.
+
+The golden data is also used the other way round: on the same three projects, a disputed claim told as fact, a year no claim carries, an unknown name, a claim without sources, beats out of order, an unanswered question, an unsupported superlative, a scene that calls itself evidence and an unlabelled documentary scene each produce the finding they should.
+
+Vault version 2 (digest `5f2fbf0b…2024a3f`): every case of version 1 with the same pinned bytes, plus `golden.video.historical-projects`. Version 1 stays in the chain unedited; the contract suite now also freezes the digests of the published versions, because the chain alone would accept a version edited in place together with a re-linked successor. The historical-video gap narrows to what only a real production can supply: narration audio, assembled video and measured quality.
+
+What these projects are not: productions. No audio, no video, no provider, no cost; the SVG is not rasterized by the suite (pixel output depends on the installed image library). The historical statements are well-established and the sources are real works, but the fixtures were written for regression, not reviewed by a historian; an edition detail could be wrong. They enter no production.
+
+Tests: project suite 6 scenarios; negative controls 17/17 in a TEMP copy; vault contract 13 with published-digest and version-2 checks; all 18 cases held in this tree and inside a real experiment sandbox (34 s). Eval manifest v25: 104 suites, 122 unique pins; v24 archived unchanged.

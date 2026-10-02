@@ -111,6 +111,16 @@ scenario("chain: versions are contiguous, each names the one before it, and a ca
 
 scenario("the vault of record: clean chain, pins equal the working tree and each script's whole grader closure", () => {
   assert.deepEqual(auditAyasGoldenVaultChain(AYAS_GOLDEN_VAULT_VERSIONS, AYAS_GOLDEN_VAULT_RETIRED), []);
+  // A published version keeps its digest. The chain alone would accept a version edited in place together with a
+  // re-linked successor; this list would not. Publishing a version appends one digest here.
+  assert.deepEqual(AYAS_GOLDEN_VAULT_VERSIONS.map((vault) => ayasGoldenVaultDigest(vault)), [
+    "1532277d2b7220fbc6eb774dbd623e648e5cab74e17cdb7ad3953584eedeba1c",
+    "5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f",
+  ]);
+  // Version 2 kept every case of version 1 with the same pinned bytes and added the golden video projects.
+  const [first, second] = AYAS_GOLDEN_VAULT_VERSIONS; assert.ok(first && second);
+  for (const entry of first.cases) assert.deepEqual(second.cases.find((candidate) => candidate.id === entry.id), entry, entry.id);
+  assert.deepEqual(second.cases.filter((entry) => !first.cases.some((candidate) => candidate.id === entry.id)).map((entry) => [entry.id, entry.domain]), [["golden.video.historical-projects", "HISTORICAL_VIDEO"]]);
   assert.equal(AYAS_GOLDEN_VAULT, AYAS_GOLDEN_VAULT_VERSIONS[AYAS_GOLDEN_VAULT_VERSIONS.length - 1]);
   assert.ok(Object.isFrozen(AYAS_GOLDEN_VAULT_VERSIONS) && Object.isFrozen(AYAS_GOLDEN_VAULT_PINNED_FILES));
   assert.deepEqual(verifyAyasGoldenVaultPins(AYAS_GOLDEN_VAULT, (file) => fs.readFileSync(path.join(repo, file))), []);
@@ -208,7 +218,7 @@ scenario("gate: a moved yardstick is not a comparison", () => {
 scenario("path protection: the vault, what it pins, the eval yardstick and the owner constitution are never autonomous", () => {
   const forbidden = [...AYAS_GOLDEN_VAULT_PINNED_FILES, `${AYAS_GOLDEN_VAULT_MODULE_DIR}AyasGoldenVault.ts`, `${AYAS_GOLDEN_VAULT_MODULE_DIR}AyasGoldenVaultRegistry.ts`, `${AYAS_GOLDEN_VAULT_MODULE_DIR}Anything.ts`,
     "scripts/ayas-golden-vault.ts", "scripts/lib/AyasGoldenVaultFiles.ts", "scripts/smoke-ayas-golden-vault.ts", "scripts/smoke-ayas-golden-vault-mutations.ts", "scripts/smoke-ayas-golden-vault-operator.ts", "scripts/smoke-ayas-golden-vault-run.ts",
-    "scripts/fixtures/ayas-golden-fixtures.ts", "scripts/smoke-ayas-golden-experiment-gate.ts", "scripts/smoke-ayas-golden-experiment-gate-mutations.ts", "scripts/smoke-ayas-golden-sandbox-run.ts",
+    "scripts/fixtures/ayas-golden-fixtures.ts", "scripts/smoke-ayas-golden-experiment-gate.ts", "scripts/smoke-ayas-golden-experiment-gate-mutations.ts", "scripts/smoke-ayas-golden-sandbox-run.ts", "scripts/smoke-ayas-golden-video-projects-mutations.ts",
     "scripts/ayas-eval-baseline.ts", "src/lib/ayas/observability/AyasEvalGovernance.ts", "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
     "src/lib/ayas/governance/AyasOwnerConstitution.ts", "src/lib/ayas/governance/AyasOwnerConstitutionReader.ts", "src/lib/ayas/governance/AyasOwnerConstitutionStore.ts", "src/lib/ayas/governance/New.ts",
     "app/brain/constitution/page.tsx", "app/brain/constitution/actions.ts"];

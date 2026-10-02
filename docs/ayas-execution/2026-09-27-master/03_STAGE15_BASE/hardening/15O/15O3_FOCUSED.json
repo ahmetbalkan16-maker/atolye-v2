@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1",
+  "packet": "15O.3",
+  "state": "FOCUSED_GREEN_FULL_BASELINE_PENDING",
+  "sourceBaseHead": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
+  "handoff": "Inherited implementation preserved and reviewed; resumed validation.",
+  "tests": {
+    "goldenVideoProjects": { "scenarios": 6, "projects": 3, "scenes": 24, "outcome": "PASS" },
+    "goldenVideoMutations": "17/17 caught",
+    "goldenVault": { "scenarios": 13, "version": 2, "cases": 18, "outcome": "PASS" },
+    "goldenVaultMutations": "40/40 caught",
+    "evalGovernance": "10 scenarios PASS",
+    "typeScript": "npx.cmd tsc --noEmit --incremental false PASS",
+    "changedLint": "PASS",
+    "fullLint": "0 errors / 13 existing warnings",
+    "workingTreePins": "122 unique pins match working bytes; manifest 15F.4-v25 / 104 suites",
+    "diffCheck": "PASS",
+    "fullBaseline": "PENDING at local source commit"
+  },
+  "graphify": "GRAPHIFY_15O3_PRECOMMIT.json",
+  "authority": "NONE",
+  "runtime": "ON_DEMAND; no model, container, provider, live production, upload or push",
+  "knownLimits": ["Fixture SVG only: no narration audio, assembled video or live quality certification", "REVENUE_DRY_RUN absent until Stage 16", "Historical fixture edition details not independently certified", "Graphify PARTIAL 9 / semantic pending"]
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v25",
+  "version": "15F.4-v24",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1708,7 +1708,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault.ts",
-          "sha256": "90465d6f867a3804b8039e0eda7f21bac51e31a47e39df05d51f20c90631f06b"
+          "sha256": "4715cf5ce3cc8a1e738ca29ff8f39d88e2f81e7240c02439bb232a4407e05587"
         },
         {
           "file": "scripts/lib/AyasGoldenVaultFiles.ts",
@@ -1751,7 +1751,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault-mutations.ts",
-          "sha256": "b78375833776702491891bc30110919d43fe4a2da8a209b874c88e671e7e2995"
+          "sha256": "982cc20b77fd48af6ce1806bea9676567bdcc987c7662b6c064356f87f3d69a3"
         }
       ],
       "slices": [
@@ -1843,49 +1843,6 @@
         "golden-vault",
         "experiment-sandbox",
         "all-golden-cases",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-video-projects",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-video-projects.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-video-projects.ts",
-          "sha256": "9f1b0be12afebdf434c06ee3225422ff84a1c16e7179cc17e0310fd356cf314d"
-        },
-        {
-          "file": "scripts/fixtures/ayas-golden-video-projects.ts",
-          "sha256": "0bf9fd37e52ebe91ce2504cc9405558b77d807b61cf94952d45a3f73dda72336"
-        },
-        {
-          "file": "scripts/fixtures/ayas-golden-video-projects-expected.ts",
-          "sha256": "151b55acd0c07cf7d4ca8e0938551f59f142204a0785affb5db134290458cda5"
-        }
-      ],
-      "slices": [
-        "golden-vault",
-        "historical-video",
-        "frozen-output",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-video-projects-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-video-projects-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-video-projects-mutations.ts",
-          "sha256": "3d52c4431335b5c1a097fa6781319e9a198be5a490b887067b4eafe5cd394158"
-        }
-      ],
-      "slices": [
         "deterministic-outcome"
       ]
     }
