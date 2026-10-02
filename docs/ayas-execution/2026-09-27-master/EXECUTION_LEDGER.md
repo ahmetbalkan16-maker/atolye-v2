@@ -722,3 +722,27 @@ LOCAL COMMITS; NO PUSH.
 ## Stage 15J — Historical Storytelling + Character / Stick-Figure Engine — OPEN (2026-10-02)
 
 Opened at `ebc373c`. Canonical section: master order STAGE 15J and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15J; directive V3.2 section 11. Addendum section 0 applies (no autonomous spend; unknown rights fail closed). First subtask: 15J.0 existing-seam inspection. Already seen: the Stage 12 review holds chronology, transition, beat order, repetition, factual-source and synthetic-label findings and is to be reused; no fact pack with claims and claim-to-scene mapping exists; no character or SVG scene engine exists. No paid image generation, no new dependency install and no live production run is made to prove this stage.
+
+## Stage 15J — CLOSED GREEN as contracts and a local engine; not wired into the pipeline (2026-10-02)
+
+Source `4e458f41a2a50cdd6daac795109b1a97f26f6edd`. Closure `03_STAGE15_BASE/hardening/15J/CLOSURE.md`; summary `15J_RESULT.json`.
+
+15J.0 INSPECTION. Already in place: the Stage 12 review's per-scene findings (chronology, transition, beat order, repetition, factual source, unlabelled synthetic image, long still, rights); `MediaRightsPolicy` (unknown and NC/ND fail closed); the Wikimedia path; Piper; a local music and SFX library with licence sidecars; ducking in the assembly filter graph. Missing: a fact pack with claims and claim-to-scene mapping; story-level narrative checks; any character or SVG drawing. `sharp` is installed with the framework and can rasterize SVG.
+
+WHAT. `src/lib/storytelling/HistoricalFactPack.ts`: the pack, its validation, the evidence rule (a source in the pack; a disputed or legendary claim only as uncertain) and `checkNarrationEvidence`. `NarrativeContract.ts`: eight beats and the seven checks; nothing inferred; the only numbers are the design's 10–15 minutes and Stage 12's 25 seconds. `src/lib/character/`: the nine parts of the design; one deterministic SVG per scene from primitives; a manifest that fixes the scene as synthetic, evidence of nothing and, in a documentary, labelled in the image; a rasterizer over the installed `sharp` that accepts only the renderer's own SVG; operator script `scripts/ayas-character-scene.ts`.
+
+NOT WIRED, declared: the research, script and visuals stages are unchanged. Wiring changes what a real production makes and needs a real run to judge, which is the owner's. No Openverse or Pexels adapter. No dependency added.
+
+FOUND. Looking at two rendered samples showed figures standing on water with the sea backdrop; the backdrop now has a shore.
+
+TEST. Historical storytelling 14 scenarios; negative controls 47/47 in a TEMP overlay; the suites with repo-wide wiring guards were run on the worktree before the commit; declared 82-suite baseline at the commit with no failure (cognitive 54/55 and held-out 4/5 unchanged), host RAM peak 54.64 %. TypeScript, changed-file lint, diff check PASS; full lint 0 errors / 13 existing warnings. Eval manifest `15F.4-v13`; v12 kept. No provider call, model or push.
+
+GRAPHIFY built from `4e458f4`: 16,958 nodes / 48,670 edges, anomalies 0, PARTIAL 9 known files, semantic pending.
+
+OWNER, none blocking: decide when to wire the fact pack and the character scenes into a production; decide whether `sharp` should be a declared dependency.
+
+LOCAL COMMITS; NO PUSH.
+
+## Stage 15K — Production Cost Governor — OPEN (2026-10-02)
+
+Opened at `4e458f4`. Canonical section: master order STAGE 15K and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15K; directive V3.2 section 10. Addendum section 0 applies (no autonomous spend; unknown pricing fails closed; AYAS never raises a cap). First subtask: 15K.0 existing-seam inspection (`ProductionCostPreflight`, `ProductionCostEstimate`, `AiCostBudget`, `MediaGenerationCostGuard`, `ProductionCostReceipt`, the director session's budget binding). No paid call is made to prove this stage.

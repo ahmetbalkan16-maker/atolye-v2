@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
-  "currentHead": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
-  "stage": "STAGE_15J",
-  "subtask": "15J.0-existing-seam-inspection",
-  "status": "STAGE_15J_OPEN",
+  "lastGreenHead": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+  "currentHead": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+  "stage": "STAGE_15K",
+  "subtask": "15K.0-existing-seam-inspection",
+  "status": "STAGE_15K_OPEN",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15I",
-    "status": "CLOSED_GREEN_CONTROL_PLANE",
-    "closingCommit": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a"
+    "stage": "STAGE_15J",
+    "status": "CLOSED_GREEN_CONTRACTS_AND_LOCAL_ENGINE_NOT_WIRED",
+    "closingCommit": "4e458f41a2a50cdd6daac795109b1a97f26f6edd"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -97,7 +97,8 @@
     "STAGE_15F",
     "STAGE_15G",
     "STAGE_15H",
-    "STAGE_15I"
+    "STAGE_15I",
+    "STAGE_15J"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -177,7 +178,10 @@
     "15I.0-existing-seam-inspection",
     "15I.1-director-session-and-decision-plane",
     "15I.R-director-suite-fix-after-failed-baseline",
-    "15I-closure-GREEN-control-plane"
+    "15I-closure-GREEN-control-plane",
+    "15J.0-existing-seam-inspection",
+    "15J.1-fact-pack-narrative-contract-character-engine",
+    "15J-closure-GREEN-not-wired"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -298,22 +302,24 @@
     "Stage 15H: independence certification 13 scenarios (fixture facts, TEMP repositories, loopback fixture server); negative controls 38/38 in a TEMP overlay; eval governance 10 and 8/8; firewall closure 12; research source resilience 24; Graphify integration 47 with --gate; TypeScript; changed-file lint; full lint 0 errors/13 existing warnings.",
     "Stage 15H: declared 78-suite baseline at 930b537, three trials each (234 trials), PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged in each trial, host RAM peak 61.65 %. Certification from a clean tree: 32/32 requirements proven, LOCAL_INDEPENDENCE_DEGRADED, one gap LOCAL_CODING_BACKEND_NOT_QUALIFIED. No model, container, provider call or push.",
     "Stage 15I: production director 17 scenarios (fixture facts, TEMP runtime root, operator script child process); negative controls 45/45 in a TEMP overlay; eval governance 10 and 8/8; firewall closure 12; independence certification 13; director readiness 53+8; TypeScript; changed-file lint; full lint 0 errors/13 existing warnings. One read-only run on a real project.",
-    "Stage 15I: first baseline at 10367e8 FAILED one suite of 80 (durable-task-recovery: the 15B wiring guard caught the new suite naming the recovery script); fixed in that suite at ebc373c. Declared 80-suite baseline at ebc373c PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 53.77 %. No provider call, stage run, model or push."
+    "Stage 15I: first baseline at 10367e8 FAILED one suite of 80 (durable-task-recovery: the 15B wiring guard caught the new suite naming the recovery script); fixed in that suite at ebc373c. Declared 80-suite baseline at ebc373c PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 53.77 %. No provider call, stage run, model or push.",
+    "Stage 15J: historical storytelling 14 scenarios (fixture data, one TEMP directory, operator script child process, rasterization measured with the installed sharp); negative controls 47/47 in a TEMP overlay; guard suites on the worktree before the commit (durable task recovery 22, discovery registry 15, firewall closure 12, independence certification 13, production director 17); TypeScript; changed-file lint; full lint 0 errors/13 existing warnings.",
+    "Stage 15J: declared 82-suite baseline at 4e458f4 PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 54.64 %. No provider call, paid generation, dependency install, model or push."
   ],
   "graphify": {
-    "head": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
-    "testedSourcePacket": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
+    "head": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+    "testedSourcePacket": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16805,
-    "edges": 48352,
+    "nodes": 16958,
+    "edges": 48670,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Built from the Stage 15I source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
+    "headSemantics": "Built from the Stage 15J source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -328,10 +334,12 @@
     "OWNER_ACTION (not blocking): a live npm advisory query needs the owner's authorization (it sends the dependency list to the public registry). Until then the release record says ADVISORIES_NOT_CURRENT.",
     "OWNER_ACTION (not blocking): `npm run build` writes the build stamp; until then the release record says BUILD_NOT_BOUND_TO_HEAD.",
     "OWNER_REVIEW (not blocking): 42 components have a license outside the short permissive list (LGPL-3.0-or-later, MPL-2.0, CC-BY-4.0); listed in 03_STAGE15_BASE/hardening/15G/release/RELEASE_PROVENANCE.json.",
-    "OWNER_DECISION (not blocking): approve or decline binding a read-only production director watch to the observer tick. Until then the director session is read only when the operator script is run."
+    "OWNER_DECISION (not blocking): approve or decline binding a read-only production director watch to the observer tick. Until then the director session is read only when the operator script is run.",
+    "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
+    "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework."
   ],
-  "nextAction": "STAGE_15J Historical Storytelling + Character / Stick-Figure Engine: 15J.0 existing-seam inspection (Stage 12 review findings to reuse, ResearchData and ScriptData shapes, MediaRightsPolicy, the local image provider and the motion-plan plus FFmpeg scene pipeline, whether the configured FFmpeg or an already-installed library can rasterize SVG). Then packets: the historical fact pack with claim-to-scene mapping and the narration evidence gate; the eight-beat narrative contract and its checks on top of the Stage 12 review; the deterministic local SVG character engine with its manifest and synthetic-reenactment label. No paid generation, no dependency install, no live production run. Local commits only; NO PUSH.",
-  "updatedAt": "2026-10-02T05:17:41.622Z",
+  "nextAction": "STAGE_15K Production Cost Governor: 15K.0 existing-seam inspection (ProductionCostPreflight and ProductionCostEstimate, AiCostBudget and its guard, MediaGenerationCostGuard, ProductionCostReceipt and ProductionCostReport, the director session's budget binding). Then the three-level policy (preferred target 0.25, project-approved cap, technical ceiling 1.00), the preflight decision (continue, pause and ask the exact escalation, block above the ceiling), reservation without oversubscription, settlement, mid-project pause and fail-closed unknown pricing, reusing what exists. AYAS never raises a cap; no paid call. Local commits only; NO PUSH.",
+  "updatedAt": "2026-10-02T05:55:22.016Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -464,6 +472,11 @@
       "stage": "STAGE_15I",
       "status": "CLOSED_GREEN_CONTROL_PLANE",
       "closingCommit": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a"
+    },
+    {
+      "stage": "STAGE_15J",
+      "status": "CLOSED_GREEN_CONTRACTS_AND_LOCAL_ENGINE_NOT_WIRED",
+      "closingCommit": "4e458f41a2a50cdd6daac795109b1a97f26f6edd"
     }
   ],
   "stage15C": {
@@ -696,14 +709,14 @@
     ],
     "evalGovernance": {
       "path": "EVAL_MANIFEST.json",
-      "version": "15F.4-v12",
-      "digest": "96cb3ec8dd86679fade6b43fda7ee9dfc50b48942ac3e77da76868db83211a85",
-      "previousVersion": "15F.4-v11 (EVAL_MANIFEST_V11.json, digest 0542b2d980a3735a00f76358b1f6d7806d2fd7f3873492aaffd911c9dcf2af03, 80 suites)",
-      "suites": 80,
-      "regression": 73,
+      "version": "15F.4-v13",
+      "digest": "09490fb41ab231ab39e3efe7794144496a667070b6bc962523461d059c0d3a14",
+      "previousVersion": "15F.4-v12 (EVAL_MANIFEST_V12.json, digest 96cb3ec8dd86679fade6b43fda7ee9dfc50b48942ac3e77da76868db83211a85, 80 suites)",
+      "suites": 82,
+      "regression": 75,
       "capability": 6,
       "frozenHeldOut": 1,
-      "pinnedScriptFiles": 92,
+      "pinnedScriptFiles": 94,
       "review": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
       "modelGrader": "NONE"
     },
@@ -907,12 +920,56 @@
     ]
   },
   "stage15J": {
-    "state": "OPEN",
+    "state": "CLOSED_GREEN_CONTRACTS_AND_LOCAL_ENGINE_NOT_WIRED",
     "openedOn": "2026-10-02",
     "openedAtHead": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15J; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15J; 01_CANONICAL_SPECS/AYAS_MASTER_EXECUTION_DIRECTIVE_V3_2.md, section 11",
     "addendumSections": "section 0 (no autonomous spend; unknown rights and unknown state fail closed)",
     "notes": "03_STAGE15_BASE/hardening/15J/IMPLEMENTATION_NOTES.md",
-    "constraints": "Deterministic local code first. No paid image generation, no dependency install, no live production run. Reuse the Stage 12 review, the motion plan and the FFmpeg scene pipeline."
+    "constraints": "Deterministic local code first. No paid image generation, no dependency install, no live production run. Reuse the Stage 12 review, the motion plan and the FFmpeg scene pipeline.",
+    "closedOn": "2026-10-02",
+    "closingCommit": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+    "closure": "03_STAGE15_BASE/hardening/15J/CLOSURE.md",
+    "result": "03_STAGE15_BASE/hardening/15J/15J_RESULT.json",
+    "files": [
+      "src/lib/storytelling/HistoricalFactPack.ts",
+      "src/lib/storytelling/NarrativeContract.ts",
+      "src/lib/character/CharacterRig.ts",
+      "src/lib/character/CharacterPose.ts",
+      "src/lib/character/CharacterExpression.ts",
+      "src/lib/character/SceneBlocking.ts",
+      "src/lib/character/PropLibrary.ts",
+      "src/lib/character/HistoricalCostumeHint.ts",
+      "src/lib/character/CameraBeat.ts",
+      "src/lib/character/SvgSceneRenderer.ts",
+      "src/lib/character/CharacterSceneManifest.ts",
+      "src/lib/character/CharacterSceneRasterizer.ts",
+      "scripts/ayas-character-scene.ts",
+      "scripts/smoke-ayas-historical-storytelling.ts",
+      "scripts/smoke-ayas-historical-storytelling-mutations.ts"
+    ],
+    "pipelineWiring": {
+      "state": "NOT_BUILT_OWNER_DECISION",
+      "note": "The research, script and visuals stages are unchanged. Wiring needs a real production run to judge."
+    },
+    "authority": "NONE: advisory checks and a local renderer",
+    "knownLimits": [
+      "The narration check is a text check: years, capitalized names and mapped claims; it over-reports names and cannot see a claim stated without a year or a name.",
+      "The narrative checks need declared beats, setups and static times; undeclared ones are reported, not passed.",
+      "A costume hint is not a depiction of historical dress.",
+      "Rasterized text uses the host's default sans-serif font; the SVG bytes are the same everywhere.",
+      "A character scene is one still image; its movement is the motion plan's.",
+      "sharp is used as installed with the framework and is not declared in package.json.",
+      "No Openverse or Pexels adapter."
+    ]
+  },
+  "stage15K": {
+    "state": "OPEN",
+    "openedOn": "2026-10-02",
+    "openedAtHead": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15K; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15K; 01_CANONICAL_SPECS/AYAS_MASTER_EXECUTION_DIRECTIVE_V3_2.md, section 10",
+    "addendumSections": "section 0 (no autonomous spend; unknown pricing and unknown authority fail closed; AYAS never raises a cap)",
+    "notes": "03_STAGE15_BASE/hardening/15K/IMPLEMENTATION_NOTES.md",
+    "constraints": "Reuse the existing preflight, estimate, guard and receipts. No paid call and no live production run is made to prove the stage."
   }
 }

@@ -1,3 +1,15 @@
+# AYAS MASTER CURRENT — STAGE 15J CLOSED / STAGE 15K OPEN — 2026-10-02
+
+Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `4e458f41a2a50cdd6daac795109b1a97f26f6edd`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+Stage 15J (Historical Storytelling + Character / Stick-Figure Engine) is closed green as contracts and a local engine. New: a historical fact pack with a narration evidence check (`src/lib/storytelling/HistoricalFactPack.ts`), the eight-beat narrative contract with the seven checks (`NarrativeContract.ts`), and the nine-part character scene engine (`src/lib/character/`) that draws a deterministic SVG, labels a documentary reenactment in the image and fixes the scene as synthetic and evidence of nothing. Operator script: `npx tsx scripts/ayas-character-scene.ts --request file.json --out dir [--png]`. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15J/`.
+
+Nothing is wired into the pipeline: the research, script and visuals stages are unchanged, so a production renders as before. Wiring is the owner's call because only a real production run can judge it. Media rights rules, the Wikimedia path, Piper and the music/SFX library were already in place. No Openverse or Pexels adapter; no dependency added (`sharp` is used as installed with the framework).
+
+Tests: 14 scenarios, 47/47 negative controls, declared 82-suite baseline at the commit with no failure, eval manifest `15F.4-v13`.
+
+Next: canonical Stage 15K (Production Cost Governor), starting with 15K.0 existing-seam inspection of the cost preflight, estimate, budget guard and receipts. AYAS never raises a cap; unknown pricing fails closed; no paid call.
+
 # AYAS MASTER CURRENT — STAGE 15I CLOSED / STAGE 15J OPEN — 2026-10-02
 
 Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.

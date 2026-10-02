@@ -1,3 +1,8 @@
+## 2026-10-02 — Stage15J historical fact pack, narrative contract and character scene engine
+
+- Fact pack with claims, certainty, sources and claim-to-scene mapping, and a deterministic narration evidence check; the eight-beat narrative contract with the seven checks; the nine-part local character scene engine (deterministic SVG, labelled reenactment, manifest that fixes the scene as synthetic and evidence of nothing), a rasterizer over the installed `sharp`, and operator script `scripts/ayas-character-scene.ts`.
+- Not wired into the pipeline: productions render as before. No paid generation, no dependency added. 14 scenarios, 47/47 negative controls, 82-suite baseline with no failure. Stage 15K opened. Local commits only; NO PUSH.
+
 ## 2026-10-02 — AYAS Stage15I production director session
 
 - A read model of one production: sixteen bindings from read/status evidence, fault classes from the pipeline's structured evidence, and one decision per stage (nothing, wait, one of four safe operations, a question for the owner, or a code defect routed to controlled self-evolution with the production held). Read-only collector and operator script `scripts/ayas-production-director.ts`.

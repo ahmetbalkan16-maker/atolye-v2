@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "stage": "STAGE_15J",
+  "title": "Historical Storytelling + Character / Stick-Figure Engine",
+  "result": "CLOSED_GREEN_CONTRACTS_AND_LOCAL_ENGINE_NOT_WIRED",
+  "sourceCommit": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+  "date": "2026-10-02",
+  "evidenceClass": "DETERMINISTIC_TEST_AND_LOCAL_RENDER",
+  "providerCalls": 0,
+  "paidGeneration": 0,
+  "modelRuns": 0,
+  "dependencyInstalls": 0,
+  "liveProduction": "NOT_RUN",
+  "push": false,
+  "factPack": {
+    "module": "src/lib/storytelling/HistoricalFactPack.ts",
+    "certainties": [
+      "ESTABLISHED",
+      "PROBABLE",
+      "DISPUTED",
+      "LEGENDARY",
+      "UNKNOWN"
+    ],
+    "evidence": [
+      "SUPPORTED",
+      "SUPPORTED_UNCERTAIN",
+      "UNSUPPORTED"
+    ],
+    "narrationFindings": [
+      "CLAIM_UNSUPPORTED_NARRATED",
+      "DATE_WITHOUT_CLAIM",
+      "CLAIM_NOT_MAPPED_TO_SCENE",
+      "UNCERTAINTY_NOT_STATED",
+      "NAME_WITHOUT_CLAIM"
+    ],
+    "authority": "ADVISORY_ONLY"
+  },
+  "narrative": {
+    "module": "src/lib/storytelling/NarrativeContract.ts",
+    "beats": 8,
+    "checks": 7,
+    "policy": {
+      "minTotalSeconds": 600,
+      "maxTotalSeconds": 900,
+      "maxStaticSecondsPerUnit": 25
+    },
+    "authority": "ADVISORY_ONLY"
+  },
+  "characterEngine": {
+    "folder": "src/lib/character",
+    "parts": [
+      "CharacterRig",
+      "CharacterPose",
+      "CharacterExpression",
+      "SceneBlocking",
+      "PropLibrary",
+      "HistoricalCostumeHint",
+      "CameraBeat",
+      "SvgSceneRenderer",
+      "CharacterSceneManifest"
+    ],
+    "vocabulary": {
+      "poses": 10,
+      "expressions": 6,
+      "costumeHints": 8,
+      "handProps": 7,
+      "stageProps": 8,
+      "backdrops": 6,
+      "times": 3,
+      "cameraBeats": 5
+    },
+    "output": "one deterministic 1920x1080 SVG from primitives; no image or font file; no external reference",
+    "classification": {
+      "mediaClass": "LOCAL_CHARACTER_REENACTMENT",
+      "origin": "GENERATED",
+      "synthetic": true,
+      "evidenceValue": "NONE",
+      "documentaryLabel": "ALWAYS_VISIBLE_IN_IMAGE",
+      "cost": "LOCAL_ZERO_COST"
+    },
+    "rasterizer": {
+      "library": "sharp 0.34.5, already installed with the framework; not declared in package.json",
+      "measuredOnThisWorkstation": true,
+      "withoutLibrary": "RASTERIZER_UNAVAILABLE"
+    },
+    "operatorScript": "scripts/ayas-character-scene.ts"
+  },
+  "alreadyInPlace": [
+    "media rights rules (MediaRightsPolicy; unknown and NC/ND fail closed)",
+    "Wikimedia real-media path",
+    "Piper as the local voice",
+    "music and SFX library with licence sidecars and attribution",
+    "sidechain ducking in the assembly filter graph",
+    "motion plan plus FFmpeg scene pipeline"
+  ],
+  "notBuilt": [
+    {
+      "what": "Pipeline wiring: fact pack from the research stage, narration check in the script stage, character scenes in the visuals stage",
+      "decidedBy": "the owner starts the real production run that can judge it"
+    },
+    {
+      "what": "Openverse and Pexels adapters",
+      "decidedBy": "a later adapter after a terms review; needs a network call to prove"
+    },
+    {
+      "what": "sharp as a declared dependency",
+      "decidedBy": "the owner"
+    }
+  ],
+  "tests": {
+    "historicalStorytelling": {
+      "script": "scripts/smoke-ayas-historical-storytelling.ts",
+      "scenarios": 14,
+      "result": "PASS"
+    },
+    "negativeControls": {
+      "script": "scripts/smoke-ayas-historical-storytelling-mutations.ts",
+      "caught": 47,
+      "total": 47
+    },
+    "visualCheck": "Two sample scenes rendered and looked at; one fault found (figures on water with the sea backdrop) and fixed. The samples are not kept in the repository.",
+    "evalGovernance": "10 scenarios PASS; negative controls 8/8",
+    "firewallClosure": "12 scenarios PASS; no new surface or leased module",
+    "typescript": "PASS (non-incremental)",
+    "changedFileLint": "0 warnings",
+    "fullLint": "0 errors, 13 existing warnings",
+    "fullBaseline": {
+      "report": "15J_FULL_BASELINE.json",
+      "sha256": "2a5c6575282e0d8f52959ccb1e85fcf6389dc74a12f7707406a4e045d262cc3f",
+      "sourceHead": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+      "manifestVersion": "15F.4-v13",
+      "manifestDigest": "09490fb41ab231ab39e3efe7794144496a667070b6bc962523461d059c0d3a14",
+      "suites": 82,
+      "trialsPerSuite": 1,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55 and held-out 4/5, unchanged",
+      "hostRamPeakPercent": 54.64
+    }
+  },
+  "evalManifest": {
+    "version": "15F.4-v13",
+    "suites": 82,
+    "added": [
+      "historical-storytelling",
+      "historical-storytelling-mutations"
+    ],
+    "previous": "EVAL_MANIFEST_V12.json (15F.4-v12, 80 suites)"
+  },
+  "graphify": {
+    "builtFrom": "4e458f41a2a50cdd6daac795109b1a97f26f6edd",
+    "nodes": 16958,
+    "edges": 48670,
+    "anomalies": 0,
+    "structural": "PARTIAL (9 known files)",
+    "semantic": "PENDING"
+  },
+  "ownerActions": [
+    {
+      "id": "storytelling-pipeline-wiring",
+      "blocking": false,
+      "action": "Decide when to wire the fact pack and the character scenes into a production; look at a scene drawn by scripts/ayas-character-scene.ts first."
+    },
+    {
+      "id": "sharp-dependency",
+      "blocking": false,
+      "action": "Decide whether sharp should be declared in package.json; today it is present as an optional dependency of the framework."
+    }
+  ],
+  "authority": "NONE: the checks are advisory and the engine draws; nothing here starts a stage, spends or publishes."
+}
