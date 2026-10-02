@@ -784,3 +784,5 @@ Opened after 15L source closure. Relevant canonical 15M sections and addendum 0/
 ## Stage 15M.1 — GREEN evidence coverage kernel; stage remains in progress (2026-10-02)
 
 Five domains, 29 criteria, 10 delivery items, current production revision binding. Missing/stale measurements cannot pass; rights/cost unknown stays review-required. Authority NONE, publication OWNER_ONLY. Focused 14 PASS; mutation audit 23/23; pin-verified isolated suites PASS. Documentary 4, subtitles 9, action-firewall closure 12, governance 10 and its mutations 8/8 PASS; TypeScript/changed lint/diff PASS. Manifest v17 contains 88 suites, not a claim of a full v17 run; last complete baseline v16/86 retained. Catalog corrections documented; no validator/threshold weakened. Graphify and source commit evidence follow in the packet. Next: 15M.2 real package construction and read-only collector; no stage closure or owner gate asserted. NO PUSH.
+
+15M.1 source commit e1eefa8a9ba9befa3f466542bfe8484b754007ab; precommit Graphify 17,100 nodes / 48,940 edges, zero anomalies, no uncovered dirty path, PARTIAL9 and semantic pending. Checkpoint advanced to 15M.2; stage remains in progress.

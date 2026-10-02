@@ -1,3 +1,7 @@
+# AYAS continuation — 2026-10-02 / Stage 15M.1 GREEN
+
+Exact tested source: e1eefa8a9ba9befa3f466542bfe8484b754007ab. Stage 15M remains IN_PROGRESS; next 15M.2 fixed YouTube-ready companions and real read-only collection through the existing export materializer. Gate: 5 domains / 29 criteria / 10 artifacts, focused 14 and mutants 23/23 PASS; two isolated pinned suites PASS; TypeScript/lint/diff and relevant regressions PASS. Manifest v17/88 declared, full v17 NOT_RUN; prior full v16/86 retained. Graphify integrity zero, PARTIAL9/semantic pending. No provider/model/container/upload/push. Active authority and exact nextAction: docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json.
+
 # AYAS MASTER CURRENT — STAGE 15L SOURCE CLOSED / STAGE 15M OPEN — 2026-10-02
 
 Resolve actual HEAD; tested source `144f16b06e11649dfbe2ee4bc431c6428f278a60`. Stage 15L inherited draft completed: twelve fault classes, six bounded repair plans, exact-scope Stage 15A coding-task bridge. Unknown failures/side effects stop; code defects hold production until sandbox/tests/Graphify/proposal/owner promotion. Live dispatch stays owner-gated and disabled.
