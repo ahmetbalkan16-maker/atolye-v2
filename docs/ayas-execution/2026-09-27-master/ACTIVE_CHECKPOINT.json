@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
-  "currentHead": "e1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6",
+  "lastGreenHead": "b381ed44ca5c1a8575130721af8929e9df36ce79",
+  "currentHead": "b381ed44ca5c1a8575130721af8929e9df36ce79",
   "stage": "STAGE_15Q",
-  "subtask": "15Q.R-TEMP-import-audit-integration",
+  "subtask": "15Q.2-bounded-on-demand-lifecycle",
   "status": "STAGE_15Q_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -211,12 +211,10 @@
     "15P.1-contextual-source-evidence-store-integration-GREEN",
     "15P.R-source-page-metadata-correction-GREEN",
     "15P-closure-GREEN-metadata-not-external-certification",
-    "15Q.0-existing-seam-inspection"
+    "15Q.0-existing-seam-inspection",
+    "15Q.1-contextual-admission-common-capacity-GREEN-not-wired"
   ],
-  "currentFiles": [
-    "scripts/smoke-ayas-durable-task-recovery.ts",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json"
-  ],
+  "currentFiles": [],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -348,22 +346,23 @@
     "Stage 15O.2: golden experiment gate 11 scenarios (real experiments in TEMP fixture repositories); negative controls 35/35 in a TEMP copy; the vault of record held inside a real experiment sandbox (17 of 17, no pin drift, tree untouched); vault contract 13 and 40/40; controlled-evolution artifact and cycle 20, exact proposal safety 28, lifecycle 14 (18 entries) and revision controls 5/5; TypeScript; changed-file lint; diff check.",
     "Stage 15O.2: declared 102-suite baseline on manifest v24 at 9cbe62d with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 58.94 %. 118 unique grader pins match the committed blobs. No model, container, provider or push.",
     "15O.3 source d08fed0: v25 declared 104/104 baseline PASS_WITH_KNOWN_LIMITATIONS, no failures; cognitive 54/55 / heldout 4/5 unchanged; projects 6 / 24 scenes, mutants17/17, vault13 / mutants40/40, 122 Git-blob pins; TypeScript/lint/diff PASS; RAM54.72%; Graphify17344/49711, zero anomalies, PARTIAL9/semantic pending.",
-    "Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending."
+    "Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending.",
+    "15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding."
   ],
   "graphify": {
-    "head": "6f0649beb70db63a496e47cb81bd3412de65d718",
-    "testedSourcePacket": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+    "head": "b381ed44ca5c1a8575130721af8929e9df36ce79",
+    "testedSourcePacket": "b381ed44ca5c1a8575130721af8929e9df36ce79",
     "stale": false,
-    "needsUpdate": false,
-    "nodes": 17441,
-    "edges": 49928,
+    "needsUpdate": true,
+    "nodes": 17443,
+    "edges": 49941,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Covered15Q.1 working source at6f0649b; refresh at new source commit before full baseline. PARTIAL9/semantic pending retained."
+    "headSemantics": "Graph built at clean15Q.1 source; refresh after packet documentation commit. PARTIAL9/semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -384,8 +383,8 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "15Q.R focused GREEN: recovery22/TEMP4 negative controls, resource19/34 mutants, eval10/8, TypeScript/changed lint; v29 108/127 pins, v28 exact archived. Graphify -> local correction commit -> clean fullv29 baseline; preserve fullv28 FAILED/e1cb95d. On GREEN close15Q.1 then automatically15Q.2 bounded ON_DEMAND lifecycle. NO PUSH.",
-  "updatedAt": "2026-10-02T16:55:28.590Z",
+  "nextAction": "15Q.1 GREEN at exactb381ed4: v29 declared108/108 with no failures. Automatically15Q.2: implement bounded ON_DEMAND lifecycle through existing durable task/evidence/capacity/pinned-runtime seams. Persist task/evidence before unload, refuse stop with active/UNCERTAIN/unmeasured dependencies, safe idle10min Podman stop, lazy default/cancellable measured prewarm and image dependency classification. Preserve unregistered/degraded engine state; no physical activation or host-global startup/WSL mutation. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. NO PUSH.",
+  "updatedAt": "2026-10-02T17:26:36.316Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -585,7 +584,7 @@
     ],
     "finalSecurityFollowup": "Reject unknown top-level record fields on append/load; integrity suite 27/27; memory 30/30; temporal 52/52; retrieval 74 + determinism/error/isolation/chat chain PASS; TypeScript and changed-file lint PASS."
   },
-  "headSemantics": "Closing source tested with exact-commit focused correction suites; full baseline at preceding34279af. Checkpoint is a documentation descendant; git HEAD is actual truth.",
+  "headSemantics": "Source tested at exact cleanb381ed4; packet checkpoint is a documentation descendant. Read git HEAD for actual current commit.",
   "stage15D": {
     "state": "CLOSED_GREEN",
     "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
@@ -1341,7 +1340,7 @@
     "fullLatestHeadBaselineClaimed": false
   },
   "stage15Q": {
-    "state": "15QR_FOCUSED_GREEN_GRAPHIFY_COMMIT_V29_BASELINE_PENDING",
+    "state": "15Q1_GREEN_15Q2_OPEN",
     "openedOn": "2026-10-02",
     "openedAtHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15Q; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md15Q",
@@ -1356,6 +1355,26 @@
         "durable-task-recovery"
       ],
       "report": "03_STAGE15_BASE/hardening/15Q/15Q1_FULL_BASELINE_V28_FAILED.json"
+    },
+    "packet15Q1": {
+      "state": "GREEN_SOURCE_ADMISSION_CAPACITY_NOT_WIRED",
+      "sourceCommit": "b381ed44ca5c1a8575130721af8929e9df36ce79",
+      "result": "03_STAGE15_BASE/hardening/15Q/15Q1_RESULT.json",
+      "fullBaseline": {
+        "manifest": "15F.4-v29",
+        "manifestDigest": "14f070fbdb79ffea116c11ed2854874df993293b0c9aff5375501f70837f5076",
+        "sourceHead": "b381ed44ca5c1a8575130721af8929e9df36ce79",
+        "worktree": "clean",
+        "suites": 108,
+        "complete": true,
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "failed": [],
+        "knownLimitationSuites": [
+          "cognitive-quality"
+        ],
+        "cognitive": "54/55, held-out4/5 unchanged",
+        "report": "15QR_FULL_BASELINE_V29.json"
+      }
     }
   }
 }

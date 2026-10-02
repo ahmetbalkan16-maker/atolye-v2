@@ -35,3 +35,9 @@ Final full lint0 errors/13 existing warnings. F28 confirmed against parent6f0649
 Full declaredv28 at exact cleane1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6 is FAIL; failed=["durable-task-recovery"]. Recovery static audit rejects scripts/smoke-ayas-resource-governor.ts, which legitimately imports durable journal/runtime for its TEMP-only defer/resume scenario. No production binding regression identified. Packet not GREEN; preserve complete failed report and exact stderr/stdout, then narrowly admit the TEMP probe with confinement/negative controls. No guard/quality threshold lowered.
 
 15Q.R focused GREEN: exact new probe allowlisted with explicit os.tmpdir prefix/one TEMP journal/no recovery sweep or side effects; four redirected-root/effect negative controls rejected. Recovery22/36 journal roots, resource19/34 mutants, eval10/8, TypeScript/changed lint PASS. v28 exact e1 Git bytes archived; v29 108 suites/127 pins. Full corrected baseline remains pending.
+
+## 15Q.1 GREEN packet
+
+15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding.
+
+See15Q1_RESULT.json and full baseline. Automatically proceed15Q.2: bounded STOPPED/STARTING/READY/BUSY/DRAINING/STOPPING/ERROR lifecycle, task/evidence persistence before unload, active/UNCERTAIN dependency protection, idle10min Podman stop, lazy/prewarm cancellation and dependency-aware image classification. Preserve existing unregistered/degraded engine boundary; no host-global startup/WSL changes.

@@ -1,5 +1,9 @@
 ## 2026-10-02 — Stage15O deterministic golden vault source closure
 
+## 2026-10-02 — AYAS15Q.1 resource admission
+
+Five contextual workload classes through current Machine Health, projected/unknown pressure and owner/production priority, host-protection resource abort distinct from model failure, shared heavy capacity with post-lock reread. Invalid percentages no longer allow work; resource policy/graders protected across Windows spellings. v29 baseline108/108 at exactb381ed4;19 scenarios/34 mutants; TypeScript/lint/diff PASS. Source primitives only; ON_DEMAND lifecycle next. No push.
+
 ## 2026-10-02 — AYAS Stage15P contextual source evidence
 
 Four contextual metadata policies, derived graph in existing research store, current-time snapshot binding, offline operator and policy/grader protection. F27 source-page type corrected. Full v26 baseline106/106 at34279af; closing correction22 scenarios/30 mutants and exact-commit isolated v27 suites. Legacy readable, missing graph UNMEASURED; external data has authority NONE. No external fact/license/terms certified. Canonical15Q opened automatically; no push.

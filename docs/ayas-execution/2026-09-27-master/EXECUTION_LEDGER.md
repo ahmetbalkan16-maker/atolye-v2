@@ -871,3 +871,9 @@ Bounded sealed source/claim/evidence graph, four contextual review policies, ind
 Full declaredv28 at exact cleane1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6 is FAIL; failed=["durable-task-recovery"]. Recovery static audit rejects scripts/smoke-ayas-resource-governor.ts, which legitimately imports durable journal/runtime for its TEMP-only defer/resume scenario. No production binding regression identified. Packet not GREEN; preserve complete failed report and exact stderr/stdout, then narrowly admit the TEMP probe with confinement/negative controls. No guard/quality threshold lowered.
 
 Next: scoped static audit correction, v29 repin, focused tests/Graphify/local commit and full baseline at corrected clean HEAD;15Q.2 remains next after GREEN. NO PUSH.
+
+### 2026-10-02 —15Q.1 GREEN; automatic15Q.2
+
+- 15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding.
+- Evidence:hardening/15Q/15Q1_RESULT.json,15QR_FULL_BASELINE_V29.json,GRAPHIFY_15QR_SOURCE_COMMIT.json. No physical model/production/host-global action or push.
+- Next15Q.2 ON_DEMAND lifecycle. Stage15Q remains IN_PROGRESS; this packet does not close the stage.

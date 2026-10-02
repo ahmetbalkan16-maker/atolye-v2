@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15Q",
+  "packet": "15Q.1",
+  "state": "GREEN_SOURCE_ADMISSION_CAPACITY_NOT_WIRED",
+  "stageSourceClosed": false,
+  "sourceBaseHead": "6f0649beb70db63a496e47cb81bd3412de65d718",
+  "sourceCommit": "b381ed44ca5c1a8575130721af8929e9df36ce79",
+  "originalSourceCommit": "e1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6",
+  "originalFailedBaseline": "15Q1_FULL_BASELINE_V28_FAILED.json",
+  "correction": "TEMP-only recovery importer audit;22 recovery scenarios and4 confinement negative controls",
+  "authority": "NONE",
+  "tests": {
+    "focused": "15Q1_FOCUSED.json",
+    "fullBaseline": {
+      "manifest": "15F.4-v29",
+      "manifestDigest": "14f070fbdb79ffea116c11ed2854874df993293b0c9aff5375501f70837f5076",
+      "sourceHead": "b381ed44ca5c1a8575130721af8929e9df36ce79",
+      "worktree": "clean",
+      "suites": 108,
+      "complete": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55, held-out4/5 unchanged",
+      "report": "15QR_FULL_BASELINE_V29.json"
+    },
+    "exactHeadPins": 127,
+    "typeScript": "PASS",
+    "lint": "0 errors/13 existing warnings",
+    "diffCheck": "PASS"
+  },
+  "sampledRamPeakPercent": 54.4,
+  "graphify": "GRAPHIFY_15QR_SOURCE_COMMIT.json",
+  "evidenceClass": "SYNTHETIC_RESOURCE_AND_TEMP_BOUNDARY_NOT_HARDWARE_BENCHMARK",
+  "declaredLimits": [
+    "Actual production/local-coding consumers have not yet been bound to the new common host capacity root",
+    "Trusted current context is required; model process presence does not measure loaded footprint",
+    "No real model/hardware coexistence/prewarm or ON_DEMAND lifecycle was validated"
+  ],
+  "next": "15Q.2 bounded ON_DEMAND lifecycle and image dependency protection",
+  "runtime": "PC HEALTH/ON_DEMAND/NO PUSH; no physical model/container/provider/production/host-global changes"
+}

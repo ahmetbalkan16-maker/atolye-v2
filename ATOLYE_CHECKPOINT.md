@@ -1,5 +1,11 @@
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
+## AYAS 2026-10-02 —15Q.1 GREEN;15Q.2 OPEN
+
+15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding.
+
+Exact next:15Q.2 bounded ON_DEMAND lifecycle; canonical checkpoint/notes carry details. NO PUSH /PC HEALTH retained.
+
 ## AYAS 2026-10-02 —15Q.1 focused GREEN
 
 19 resource scenarios/34 mutants and existing health/constitution/security/vault/durable/eval regressions passed. TypeScript/lint/diff/pins PASS; v28 has108 suites/127 pins, v27 archived unchanged. Exact next:Graphify/local source commit/full108 baseline, then15Q.2 ON_DEMAND lifecycle. Source/capacity primitive only; no physical model/production binding or host-global changes. Last green source409ef96; current base6f0649b. NO PUSH /PC HEALTH.
