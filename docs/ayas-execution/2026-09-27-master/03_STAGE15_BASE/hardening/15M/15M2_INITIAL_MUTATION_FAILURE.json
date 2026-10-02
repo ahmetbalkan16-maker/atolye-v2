@@ -1,0 +1,8 @@
+{
+  "packet": "15M.2",
+  "outcome": "FAIL_TEST_BLIND_SPOT",
+  "survivor": "manifest project identity ignored",
+  "reason": "Wrong manifest slug also broke its checksum, so checksum refusal masked the identity guard.",
+  "correction": "Wrong-identity scenario now recomputes a valid checksum; cost project mismatch uses otherwise valid numeric fields. Assertions isolated and strengthened; production guards not weakened.",
+  "final": "20/20 caught"
+}

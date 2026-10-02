@@ -26,6 +26,8 @@ import type { ThumbnailData, ThumbnailMimeType } from "@/types/thumbnail";
 import type { YouTubePublishingPackage } from "@/types/youtube";
 import { buildChapterSubtitles, SubtitleGenerationError } from "./SubtitleGenerator";
 import { MAX_BLEND_SECONDS } from "@/lib/assembly/providers/FFmpegVideoAssemblyProvider";
+import { buildYouTubeReadyCompanions, type YouTubeReadyPackageOptions } from "./YouTubeReadyPackage";
+import { collectProductionQualityFromFiles, serializeProductionBundleQuality } from "../production/ProductionQualityCollector";
 
 /**
  * Physical export bundle materializer (Sprint 132).
@@ -58,6 +60,8 @@ export interface MaterializeExportBundleInput {
   audio: AudioData;
   youtube: YouTubePublishingPackage;
   storageContext?: RuntimeStorageContext;
+  /** Explicit additive quality package; legacy exports remain byte-compatible. */
+  youtubeReady?: YouTubeReadyPackageOptions;
 }
 
 const MAX_VIDEO_BYTES = 8 * 1024 * 1024 * 1024;
@@ -153,6 +157,19 @@ export async function materializeExportBundle(
     );
     files.push(writeTextFile(stagingAbsolute, "subtitles.srt", subtitles.srt, "audio"));
     files.push(writeTextFile(stagingAbsolute, "subtitles.vtt", subtitles.vtt, "audio"));
+
+    if (input.youtubeReady) {
+      const companions = buildYouTubeReadyCompanions({ projectId: input.projectId, projectSlug: slug,
+        assembly: input.assembly, audio: input.audio, youtube: input.youtube, assets: projectAssets.assets, options: input.youtubeReady });
+      for (const [name, content] of Object.entries(companions.files)) files.push(writeTextFile(stagingAbsolute, name, content, "youtube-ready"));
+      const qualityInput = { directory: stagingAbsolute, files, projectSlug: slug, repositoryHead: input.youtubeReady.repositoryHead, storageContext: context };
+      const initial = await collectProductionQualityFromFiles(qualityInput);
+      files.push(writeTextFile(stagingAbsolute, "quality_report.json", serializeProductionBundleQuality(initial), "quality"));
+      // The preliminary report is now a real verified artifact. Its digest is excluded
+      // from the revision basis, so finalizing its inventory creates no hash cycle.
+      const final = await collectProductionQualityFromFiles(qualityInput);
+      files[files.length - 1] = writeTextFile(stagingAbsolute, "quality_report.json", serializeProductionBundleQuality(final), "quality");
+    }
 
     const manifest = buildManifest(input, files);
     writeManifestFile(stagingAbsolute, manifest);

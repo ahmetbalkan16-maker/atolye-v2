@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v19",
+  "version": "15F.4-v17",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1557,58 +1557,6 @@
         {
           "file": "scripts/smoke-ayas-production-quality-gate-mutations.ts",
           "sha256": "6e9d6005bde5331e5a3a7be7636ab616ef9ef1d9a8892cf8d13312db1eed18ed"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-quality-collector",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-quality-collector.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-quality-collector.ts",
-          "sha256": "49c71df68c789bba66eb21fd7759e2c78756013ac469d7583e3697049cd1f75e"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-quality-collector-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-quality-collector-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-quality-collector-mutations.ts",
-          "sha256": "d247b9f2c2f2e20ff598e774b0b241e619bd7c0f4b73c3aed32ed624f1d19739"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "youtube-ready-export",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-youtube-ready-export.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-youtube-ready-export.ts",
-          "sha256": "77b3fcfb4712fbf5708a6dfcd84e632b4ab8dcd7de8c7f26318906efbe75ed49"
-        },
-        {
-          "file": "scripts/smoke-sprint-132-export-packaging.ts",
-          "sha256": "542293fc5331813b88a21e20c15857c9b4e5c87e97c928b257aba8ff42e44b9c"
         }
       ],
       "slices": [

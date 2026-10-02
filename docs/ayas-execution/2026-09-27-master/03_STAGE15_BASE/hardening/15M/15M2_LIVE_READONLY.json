@@ -1,0 +1,11 @@
+{
+  "packet": "15M.2",
+  "mode": "READ_ONLY",
+  "project": "atilla-nin-y-kselisi",
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "{\"status\":\"UNAVAILABLE\",\"authority\":\"NONE\",\"publication\":\"OWNER_ONLY\",\"reason\":\"CURRENT_VERIFIED_QUALITY_PACKAGE_UNAVAILABLE\"}",
+  "meaning": "Current quality package unavailable; no production render or backfilled evidence was attempted.",
+  "authority": "NONE",
+  "runtime": "No model/provider/container/upload/push"
+}

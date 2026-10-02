@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { emitSmokeResult } from "./lib/SmokeResult";
 import { AssetManager } from "../src/lib/assets/AssetManager";
@@ -498,6 +498,29 @@ async function main() {
       assert.equal(fs.existsSync(bundleDir(storageContext, projectThree.slug)), true);
     });
 
+    await scenario("O: additive quality delivery uses the canonical materializer without declaring unmeasured quality", async () => {
+      const input = { projectId: project.id, projectSlug: project.slug, project,
+        audio: fixture.audio, assembly: fixture.assembly, thumbnail: fixture.thumbnail, youtube: fixture.youtube, storageContext,
+        youtubeReady: { repositoryHead: "a".repeat(40), titleOptions: ["Fetih belgeseli"] } };
+      const result = await packageExport(input);
+      assert.equal(result.bundle?.status, "packaged");
+      for (const name of ["video.mp4", "thumbnail.png", "subtitles.srt", "subtitles.vtt", "title_options.json", "description.txt", "chapters.txt", "attribution.json", "tags.json", "cost_report.json", "quality_report.json", "production_quality_basis.json"]) {
+        assert.ok(result.bundle?.files?.some((f) => f.fileName === name), `${name} absent from canonical manifest`);
+      }
+      const report = JSON.parse(fs.readFileSync(path.join(bundle, "quality_report.json"), "utf8"));
+      assert.equal(report.outcome, "QUALITY_REVIEW_REQUIRED"); assert.equal(report.authority, "NONE"); assert.equal(report.publication, "OWNER_ONLY");
+      assert.ok(report.counts.UNMEASURED >= 25); assert.deepEqual(report.missingArtifacts, []);
+      assert.match(report.evidence.basisDigest, /^[a-f0-9]{64}$/); assert.ok(Array.isArray(report.evidence.receipts));
+      assert.equal(report.evidence.receipts.length, report.counts.PASS + report.counts.FAIL);
+      assert.ok(report.evidence.verifiedFiles.includes("quality_report.json")); assert.ok(report.evidence.verifiedFiles.includes("video.mp4"));
+      assert.equal(typeof report.evidence.probe.available, "boolean");
+      for (const file of result.bundle!.files!) assert.equal(createHash("sha256").update(fs.readFileSync(path.join(bundle, file.fileName))).digest("hex"), file.sha256);
+      const repeated = await packageExport(input); assert.equal(repeated.bundle?.manifestChecksum, result.bundle?.manifestChecksum);
+      const before = fs.readFileSync(path.join(bundle, "export_manifest.json"));
+      await assert.rejects(packageExport({ ...input, youtubeReady: { repositoryHead: "not-a-head" } }), ExportBundleMaterializationError);
+      assert.deepEqual(fs.readFileSync(path.join(bundle, "export_manifest.json")), before);
+      assert.equal(fs.readdirSync(exportDir(storageContext, project.slug)).filter((n) => n.startsWith(".staging-")).length, 0);
+    });
     emitSmokeResult("sprint-132-export-packaging", count);
   });
 }

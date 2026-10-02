@@ -1,0 +1,16 @@
+{
+  "sourceHead": "0738cc063909cd5fbdf823768a05a5cc70b7b7fd",
+  "graphBuiltFromHead": "0738cc063909cd5fbdf823768a05a5cc70b7b7fd",
+  "structuralStatus": "PARTIAL",
+  "semanticStatus": "PENDING",
+  "dirtyUncoveredPaths": [],
+  "integrity": {
+    "builtFromHead": "0738cc063909cd5fbdf823768a05a5cc70b7b7fd",
+    "nodes": 17102,
+    "links": 48948,
+    "duplicateIds": 0,
+    "duplicateEdges": 0,
+    "dangling": 0,
+    "selfLoops": 0
+  }
+}

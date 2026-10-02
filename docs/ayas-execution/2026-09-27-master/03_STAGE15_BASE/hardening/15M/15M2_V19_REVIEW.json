@@ -1,0 +1,23 @@
+{
+  "priorManifest": "15F.4-v18",
+  "currentManifest": "15F.4-v19",
+  "suites": 91,
+  "fullV18": "91 PASS_WITH_KNOWN_LIMITATIONS, no unexpected failure",
+  "fullV19": "NOT_RUN",
+  "change": "Quality report now preserves genuine probe summary, receipt digests, basis digest and verified filenames; no staged absolute path or self-digest. New physical export assertions strengthened. Focused pin-verified three new suites and TSC/lint/guard checks follow.",
+  "normalization": [
+    {
+      "file": "scripts/smoke-sprint-132-export-packaging.ts",
+      "beforeSha256": "fab2a0ba78637290802abc5f719bb799a21cbf91242d21294ac13dbd6a600ae4",
+      "afterSha256": "542293fc5331813b88a21e20c15857c9b4e5c87e97c928b257aba8ff42e44b9c",
+      "change": "CRLF to LF only"
+    },
+    {
+      "file": "src/lib/export/ExportPackager.ts",
+      "beforeSha256": "595fba4414a5cf5bab07350e6cdef0e1455746c7dca31feabb620b94d8f6a5de",
+      "afterSha256": "7f4865b08a79263ae998ec921b01f2f26ec9041c32916eefdd3fcb378881d2f3",
+      "change": "CRLF to LF only"
+    }
+  ],
+  "authority": "NONE; no grading threshold or production guard relaxed"
+}

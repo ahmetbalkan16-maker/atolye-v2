@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15M",
+  "packet": "15M.2",
+  "state": "GREEN_OPT_IN_DELIVERY_SOURCE_LIVE_QUALITY_UNCERTIFIED",
+  "stageSourceClosed": true,
+  "sourceBaseHead": "0738cc063909cd5fbdf823768a05a5cc70b7b7fd",
+  "sourceCommit": "Recorded by post-commit checkpoint; resolve actual HEAD through git",
+  "criteria": 29,
+  "domains": 5,
+  "measuredCollectorCriteria": 4,
+  "unmeasuredCollectorCriteria": 25,
+  "defaultSuccessfulGateOutcome": "YOUTUBE_READY_OWNER_REVIEW",
+  "actualPhysicalCollectionOutcome": "QUALITY_REVIEW_REQUIRED or BLOCKED until all applicable evidence exists",
+  "authority": "NONE",
+  "publication": "OWNER_ONLY",
+  "tests": {
+    "focusedCollector": 13,
+    "collectorMutations": "20/20 caught",
+    "physicalExport": 16,
+    "gate": 14,
+    "gateMutations": "23/23",
+    "fullBaseline": {
+      "manifest": "15F.4-v18",
+      "suites": 91,
+      "complete": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "report": "15M2_FULL_BASELINE_V18.json"
+    },
+    "currentManifest": "15F.4-v19 / 91 suites",
+    "fullV19": "NOT_RUN",
+    "finalV19AffectedSuites": "3/3 isolated pin-verified PASS, including report evidence serialization and LF-normalized integration grader",
+    "typeScript": "PASS",
+    "changedLint": "PASS",
+    "fullLint": "0 errors / 13 pre-existing warnings",
+    "diffCheck": "PASS",
+    "authorityAudit": "12 PASS; 8 existing surfaces / 41 mapped modules",
+    "governance": "10 PASS, mutations 8/8"
+  },
+  "ramPeakPercent": 47.988517886132776,
+  "knownLimits": [
+    "Only 4 current technical receipts are collected; all other 25 criteria remain UNMEASURED, not waived.",
+    "Rights scope is a registry inventory, not complete render provenance; rights gate UNKNOWN.",
+    "Cost receipt is REPORTED_NOT_ATTESTED; approved cap and reservation are not inferred; cost gate UNKNOWN.",
+    "Extension is opt-in through the existing materializer/packager; pipeline/API automatic activation unchanged.",
+    "SRT sentence timing is best effort, not measured word alignment.",
+    "No existing verified live quality package for the read-only pilot; live quality not certified.",
+    "Graphify PARTIAL9 and semantic pending retained."
+  ],
+  "next": "STAGE_16.0 existing-seam inspection; canonical order. No new blocking owner gate asserted.",
+  "runtime": "ON_DEMAND; no model/container/provider/live production/upload/push"
+}

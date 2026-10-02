@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v19",
+  "version": "15F.4-v18",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1608,7 +1608,7 @@
         },
         {
           "file": "scripts/smoke-sprint-132-export-packaging.ts",
-          "sha256": "542293fc5331813b88a21e20c15857c9b4e5c87e97c928b257aba8ff42e44b9c"
+          "sha256": "60db7167884e49b7660bedea615e3caea703d0a7dda91e4fc5f1cb07f5324d97"
         }
       ],
       "slices": [

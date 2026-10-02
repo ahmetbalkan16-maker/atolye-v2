@@ -355,7 +355,7 @@
     "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
     "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework."
   ],
-  "nextAction": "Implement 15M.2 via existing atomic export materializer and storage containment: title options, description, chapters, credits, tags, cost report and quality report alongside existing MP4/thumbnail/SRT/VTT. Add read-only physical byte/manifest verification and current ffprobe evidence; never trust a packaged PASS report as authority. Test, Graphify, LOCAL COMMIT, CHECKPOINT, NEXT. No blocking owner gate identified. NO PUSH; ON_DEMAND runtime and PC HEALTH retained.",
+  "nextAction": "Finish GREEN 15M.2: Graphify worktree refresh, LOCAL COMMIT, exact source/checkpoint; then automatically Stage16.0 inspect only canonical Stage16 sections and existing revenue seams, preserving prior work. Source quality closure does not certify live production: 4 measured/25 UNMEASURED, rights/cost UNKNOWN. No new blocking owner gate. NO PUSH; PC HEALTH / ON_DEMAND retained.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -1071,12 +1071,39 @@
       "changedFileLint": "PASS",
       "manifest": "15F.4-v17 / 88 suites; full v17 NOT_RUN; last complete v16 / 86 retained",
       "catalogCorrection": "Standalone governance smoke expected 84 while declared catalog had 86; update to exact 88 and assert all four 15L/15M suites. New suites renamed to the already-required smoke-ayas namespace; validator unchanged. Rejected draft preserved.",
-      "isolatedSuites": "2/2 pin-verified PASS"
+      "isolatedSuites": "2/2 pin-verified PASS",
+      "focusedCollector": 13,
+      "collectorMutations": "20/20 caught",
+      "physicalExport": 16,
+      "gate": 14,
+      "gateMutations": "23/23",
+      "fullBaseline": {
+        "manifest": "15F.4-v18",
+        "suites": 91,
+        "complete": true,
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "failed": [],
+        "report": "15M2_FULL_BASELINE_V18.json"
+      },
+      "currentManifest": "15F.4-v19 / 91 suites",
+      "fullV19": "NOT_RUN",
+      "finalV19AffectedSuites": "3/3 isolated pin-verified PASS, including report evidence serialization and LF-normalized integration grader",
+      "changedLint": "PASS",
+      "fullLint": "0 errors / 13 pre-existing warnings",
+      "diffCheck": "PASS",
+      "authorityAudit": "12 PASS; 8 existing surfaces / 41 mapped modules",
+      "governance": "10 PASS, mutations 8/8"
     },
     "packet15M1": {
       "state": "GREEN_NOT_WIRED",
       "sourceCommit": "e1eefa8a9ba9befa3f466542bfe8484b754007ab",
       "result": "03_STAGE15_BASE/hardening/15M/15M1_RESULT.json"
+    },
+    "packet15M2": {
+      "state": "GREEN_OPT_IN_DELIVERY_SOURCE_LIVE_QUALITY_UNCERTIFIED",
+      "result": "03_STAGE15_BASE/hardening/15M/15M_RESULT.json",
+      "closure": "03_STAGE15_BASE/hardening/15M/CLOSURE.md",
+      "sourceCommit": "PENDING_LOCAL_COMMIT"
     }
   }
 }

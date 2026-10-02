@@ -5,11 +5,13 @@ import {
 } from "./ExportBundleMaterializer";
 import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import type { ExportPackageData } from "@/types/export";
+import type { YouTubeReadyPackageOptions } from "./YouTubeReadyPackage";
 
 export { ExportBundleMaterializationError };
 
 export type PackageExportInput = GenerateExportPackageInput & {
   storageContext?: RuntimeStorageContext;
+  youtubeReady?: YouTubeReadyPackageOptions;
 };
 
 /**
@@ -52,6 +54,7 @@ export async function packageExport(
     audio: input.audio,
     youtube: input.youtube,
     storageContext: input.storageContext,
+    youtubeReady: input.youtubeReady,
   });
 
   return {
