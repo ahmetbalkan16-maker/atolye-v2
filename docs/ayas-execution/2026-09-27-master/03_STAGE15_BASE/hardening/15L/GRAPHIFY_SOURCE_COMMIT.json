@@ -1,0 +1,29 @@
+{
+  "sourceHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+  "lastAnalyzedHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+  "graphBuiltFromHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+  "structuralStatus": "PARTIAL",
+  "semanticStatus": "PENDING",
+  "dirtyUncoveredPaths": [],
+  "needsUpdateFlag": false,
+  "integrity": {
+    "builtFromHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "nodes": 17067,
+    "links": 48893,
+    "duplicateIds": 0,
+    "duplicateEdges": 0,
+    "dangling": 0,
+    "selfLoops": 0
+  },
+  "incompleteCodeFiles": [
+    ".github/workflows/ayas-safe-ci.yml",
+    "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+    "scripts/ayas-access-daemon.ps1",
+    "scripts/ayas-autonomy-daemon.ps1",
+    "scripts/register-ayas-autonomy-autostart.ps1",
+    "scripts/register-ayas-autostart.ps1",
+    "scripts/smoke-ayas-access-daemon.ps1",
+    "scripts/unregister-ayas-autonomy-autostart.ps1",
+    "scripts/unregister-ayas-autostart.ps1"
+  ]
+}

@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
-  "currentHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
-  "stage": "STAGE_15L",
-  "subtask": "15L.1-final-regression-and-closure",
-  "status": "STAGE_15L_IN_PROGRESS",
+  "lastGreenHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+  "currentHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+  "stage": "STAGE_15M",
+  "subtask": "15M.0-existing-seam-inspection",
+  "status": "STAGE_15M_OPEN",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15K",
-    "status": "CLOSED_GREEN_GOVERNOR_AND_LEDGER_NOT_WIRED",
-    "closingCommit": "b95a71bde06974dbda916f64cf71cc31c6555ff2"
+    "stage": "STAGE_15L",
+    "status": "GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NO_LIVE_DISPATCH",
+    "closingCommit": "144f16b06e11649dfbe2ee4bc431c6428f278a60"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -99,7 +99,8 @@
     "STAGE_15H",
     "STAGE_15I",
     "STAGE_15J",
-    "STAGE_15K"
+    "STAGE_15K",
+    "STAGE_15L"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -185,15 +186,13 @@
     "15J-closure-GREEN-not-wired",
     "15K.0-existing-seam-inspection",
     "15K.1-cost-governor-and-reservation-ledger",
-    "15K-closure-GREEN-not-wired"
+    "15K-closure-GREEN-not-wired",
+    "15L.0-existing-seam-inspection",
+    "15L.1-bounded-repair-plans-and-coding-task-bridge",
+    "15L.R-existing-bridge-fixture-race-correction",
+    "15L-closure-GREEN-not-live"
   ],
-  "currentFiles": [
-    "src/lib/ayas/director/AyasProductionFaultRepair.ts",
-    "scripts/ayas-production-fault-repair.ts",
-    "scripts/smoke-ayas-production-fault-repair.ts",
-    "scripts/smoke-ayas-production-fault-repair-mutations.ts",
-    "scripts/smoke-ayas-action-firewall-bridge.ts"
-  ],
+  "currentFiles": [],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -316,22 +315,23 @@
     "Stage 15J: historical storytelling 14 scenarios (fixture data, one TEMP directory, operator script child process, rasterization measured with the installed sharp); negative controls 47/47 in a TEMP overlay; guard suites on the worktree before the commit (durable task recovery 22, discovery registry 15, firewall closure 12, independence certification 13, production director 17); TypeScript; changed-file lint; full lint 0 errors/13 existing warnings.",
     "Stage 15J: declared 82-suite baseline at 4e458f4 PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 54.64 %. No provider call, paid generation, dependency install, model or push.",
     "Stage 15K: cost governor 14 scenarios (fixture numbers, TEMP directories, the pipeline's own estimate, a forced race, six real concurrent processes, operator script on a TEMP runtime); negative controls 35/35 in a TEMP overlay; guard suites on the worktree before the commit; phase-5 cost 9; TypeScript; changed-file lint; full lint 0 errors/13 existing warnings.",
-    "Stage 15K: declared 84-suite baseline at b95a71b PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 64.94 %. No paid call, provider, model or push."
+    "Stage 15K: declared 84-suite baseline at b95a71b PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 64.94 %. No paid call, provider, model or push.",
+    "Stage 15L: 24 scenarios; 24/25 mutants caught, 1 safety equivalent; bridge 8/8 focused trials with existing assertions; complete v16 86-suite baseline no unexpected failure; TypeScript/changed lint/diff PASS, full lint 0 errors/13 existing warnings. Cognitive 54/55, held-out 4/5 unchanged; no model/provider/live stage/push."
   ],
   "graphify": {
-    "head": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
-    "testedSourcePacket": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
-    "stale": true,
-    "needsUpdate": true,
-    "nodes": 17026,
-    "edges": 48804,
+    "head": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "testedSourcePacket": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 17067,
+    "edges": 48893,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Graph built at d5efa35 before the source packet; current worktree edits require refresh after validation."
+    "headSemantics": "Graph built from the tested Stage 15L source commit; checkpoint documentation descendant and later packets require actual HEAD resolution/refresh."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -350,7 +350,7 @@
     "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
     "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework."
   ],
-  "nextAction": "Finish 15L.1: run declared 86-suite v16 baseline after the bridge fixture barrier (no production authorization code changed); TypeScript/lint; Graphify current on worktree; local source commit; exact HEAD Graphify refresh; close/checkpoint 15L as a repair planner and bounded task bridge, with live dispatch owner-gated; then automatically start canonical Stage 15M existing-seam inspection. NO PUSH; no model/container/live production run.",
+  "nextAction": "STAGE_15M 15M.0 existing-seam inspection: reuse Stage 12 director review, Stage 15J fact pack/narrative/character contracts, BrainQualityModel and read-only ffprobe, YouTubePackagePipeline/Validation, ExportBundleMaterializer/SubtitleGenerator and cost reports. Build the canonical five-domain quality gate plus complete YouTube-ready owner-review package; unmeasured/unknown criteria never become PASS. Publication remains owner-only, existing production authority/rights/cost guards retained. Read only relevant canonical 15M/addendum sections. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. NO PUSH.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -413,30 +413,18 @@
     "stage15BOpenedNote": "Opened on 2026-10-01 at f7e19c1, after the closure. QUALIFICATION_CLOSURE.json records the state at closure."
   },
   "sourcePacketFiles": [
-    "sandbox/ayas-local-coding/Containerfile",
-    "sandbox/ayas-local-coding/README.md",
-    "sandbox/ayas-local-coding/evaluate.cjs",
-    "sandbox/ayas-local-coding/probe.mjs",
-    "sandbox/ayas-local-coding/verify-payload.mjs",
-    "scripts/prepare-ayas-local-coding-image.ts",
-    "scripts/run-ayas-local-coding-container.ts",
-    "scripts/smoke-ayas-local-coding-image-payload.ts",
-    "scripts/smoke-ayas-local-coding-pins-adapter.ts",
-    "scripts/smoke-ayas-local-coding-model-boundary.ts",
-    "src/lib/brain/autonomy/AyasLocalCodingModelAdapter.ts",
-    "src/lib/brain/autonomy/AyasLocalCodingPins.ts",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/*.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/QUALIFICATION_PREPARATION_REPORT.md",
-    "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md",
-    "CHANGELOG.md",
-    "ROADMAP.md"
+    "src/lib/ayas/director/AyasProductionFaultRepair.ts",
+    "scripts/ayas-production-fault-repair.ts",
+    "scripts/smoke-ayas-production-fault-repair.ts",
+    "scripts/smoke-ayas-production-fault-repair-mutations.ts",
+    "scripts/smoke-ayas-action-firewall-bridge.ts"
   ],
   "localClosure": {
-    "sourcePacketCommit": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
-    "push": false,
-    "documentationOnlyClosure": true,
-    "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
+    "stage": "STAGE_15L",
+    "sourceCommit": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "result": "GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NO_LIVE_DISPATCH",
+    "evidence": "03_STAGE15_BASE/hardening/15L/15L_RESULT.json",
+    "next": "STAGE_15M"
   },
   "stageHistory": [
     {
@@ -1015,7 +1003,7 @@
     ]
   },
   "stage15L": {
-    "state": "IN_PROGRESS",
+    "state": "CLOSED_GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NOT_LIVE",
     "openedOn": "2026-10-02",
     "openedAtHead": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15L; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15L",
@@ -1024,12 +1012,51 @@
     "constraints": "Build on the Stage 15I director. The write path stays closed and owner-gated. No live production run and no paid call.",
     "inheritedDraft": "Untracked repair module at session start; preserved and completed.",
     "tests": {
-      "focused": "24 scenarios PASS",
-      "mutation": "24/25 caught; one equivalent safety mutation",
-      "firstFullBaseline": "86 suites; 85 PASS/known limitations, action-firewall-bridge fixture race FAIL; evidence retained in 15L_BASELINE.json",
-      "bridgeFix": "TEMP scope barrier; exact-one assertion retained; focused 12 PASS",
-      "currentManifest": "15F.4-v16",
-      "finalFullBaseline": "PENDING"
-    }
+      "focusedScenarios": 24,
+      "negativeControls": {
+        "caught": 24,
+        "total": 25,
+        "equivalent": 1
+      },
+      "bridgeFocusedTrials": "8/8, 12 scenarios each; assertions retained",
+      "fullBaseline": {
+        "manifestVersion": "15F.4-v16",
+        "suites": 86,
+        "complete": true,
+        "failed": [],
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "report": "15L_FULL_BASELINE_V16.json"
+      },
+      "typeScript": "PASS",
+      "changedFileLint": "PASS",
+      "fullLint": "PASS, 0 errors / 13 pre-existing warnings",
+      "diffCheck": "PASS"
+    },
+    "closedOn": "2026-10-02",
+    "sourceCommit": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "files": [
+      "src/lib/ayas/director/AyasProductionFaultRepair.ts",
+      "scripts/ayas-production-fault-repair.ts",
+      "scripts/smoke-ayas-production-fault-repair.ts",
+      "scripts/smoke-ayas-production-fault-repair-mutations.ts",
+      "scripts/smoke-ayas-action-firewall-bridge.ts"
+    ],
+    "failedEvidence": [
+      "15L_BASELINE.json",
+      "ACTION_FIREWALL_BRIDGE_FAILURE.json"
+    ],
+    "writeActivation": "OWNER_GATED_UNCHANGED",
+    "readOnlyEvidence": "03_STAGE15_BASE/hardening/15L/15L_LIVE_READONLY.json",
+    "result": "03_STAGE15_BASE/hardening/15L/15L_RESULT.json",
+    "next": "STAGE_15M"
+  },
+  "stage15M": {
+    "state": "OPEN",
+    "openedOn": "2026-10-02",
+    "openedAtHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15M; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md STAGE 15M",
+    "addendumSections": "0: unknown evidence/rights/cost fails closed; no unauthorized publication. Global 9 remains in force.",
+    "notes": "03_STAGE15_BASE/hardening/15M/IMPLEMENTATION_NOTES.md",
+    "constraints": "No automatic public upload. Real quality observations must not be invented or upgraded from unmeasured data."
   }
 }

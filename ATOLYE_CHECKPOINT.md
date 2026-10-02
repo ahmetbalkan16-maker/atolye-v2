@@ -1,3 +1,11 @@
+# AYAS MASTER CURRENT — STAGE 15L SOURCE CLOSED / STAGE 15M OPEN — 2026-10-02
+
+Resolve actual HEAD; tested source `144f16b06e11649dfbe2ee4bc431c6428f278a60`. Stage 15L inherited draft completed: twelve fault classes, six bounded repair plans, exact-scope Stage 15A coding-task bridge. Unknown failures/side effects stop; code defects hold production until sandbox/tests/Graphify/proposal/owner promotion. Live dispatch stays owner-gated and disabled.
+
+Tests: 24 scenarios; 24/25 mutants caught, 1 equivalent; complete 86-suite v16 baseline no unexpected failure; TypeScript/lint/diff PASS (13 existing warnings). Old two-process bridge fixture race fixed with exact-one assertion retained; failed baseline and grader identities preserved. Graphify source 17,067/48,893, anomalies0, known PARTIAL9/semantic pending. Evidence: hardening/15L/.
+
+Next: canonical 15M five-domain quality and YouTube-ready owner-review package, starting with existing seams. No model/container/provider/live stage/upload started; LOCAL COMMITS ONLY, NO PUSH.
+
 
 # AYAS MASTER CURRENT — STAGE 15L SOURCE PACKET / FINAL VALIDATION PENDING — 2026-10-02
 

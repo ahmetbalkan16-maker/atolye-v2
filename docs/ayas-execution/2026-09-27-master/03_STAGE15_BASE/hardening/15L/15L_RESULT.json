@@ -3,7 +3,7 @@
   "stage": "STAGE_15L",
   "result": "GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NO_LIVE_DISPATCH",
   "date": "2026-10-02",
-  "sourceCommit": null,
+  "sourceCommit": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
   "sourceHeadBeforeCommit": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
   "testedWorktreeDigest": "dd0f0f59d399acd3370d40e1f098d9a2863dc0b96b5008211dcb522a93a37eeb",
   "sourcePins": [
@@ -51,17 +51,17 @@
     "diffCheck": "PASS"
   },
   "graphify": {
-    "sourceHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
-    "lastAnalyzedHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
-    "graphBuiltFromHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
+    "sourceHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "lastAnalyzedHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+    "graphBuiltFromHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
     "structuralStatus": "PARTIAL",
     "semanticStatus": "PENDING",
     "dirtyUncoveredPaths": [],
     "needsUpdateFlag": false,
     "integrity": {
-      "builtFromHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
-      "nodes": 17066,
-      "links": 48886,
+      "builtFromHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+      "nodes": 17067,
+      "links": 48893,
       "duplicateIds": 0,
       "duplicateEdges": 0,
       "dangling": 0,
