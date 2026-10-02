@@ -60,6 +60,9 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/ayas-safe-mode.ts",
   "scripts/smoke-ayas-safe-mode.ts",
   "scripts/smoke-ayas-safe-mode-mutations.ts",
+  "scripts/ayas-portable-brain.ts",
+  "scripts/smoke-ayas-portable-brain.ts",
+  "scripts/smoke-ayas-portable-brain-mutations.ts",
   "scripts/ayas-eval-baseline.ts",
   "src/lib/ayas/observability/AyasEvalGovernance.ts",
   "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
@@ -68,6 +71,11 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
 /** Order matters: the FIRST matching rule wins, and FORBIDDEN rules come first. */
 const RULES: readonly Rule[] = Object.freeze([
   // ---- FORBIDDEN_AUTONOMOUS -------------------------------------------------
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
+    why: "portable private state and migration qualification cannot export or activate themselves",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/migration/"),
+  },
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "the contextual source-trust policy and evidence boundary cannot review or rewrite itself",

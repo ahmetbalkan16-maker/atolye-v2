@@ -1,3 +1,11 @@
+# AYAS continuation — 2026-10-03 / Stage 15S implemented; exact clean baseline pending
+
+15R source closure is recorded at `0666850`, tested source `a00091f`; existing completed work was preserved. 15S now has portable domain/schema/hash contracts, authenticated private archives, exact owner-session/review/source-bound export, a real isolated restore/audit, immutable runtime/image metadata, bounded destination artifact byte verification, ordered advisory migration gates and an operator CLI. Portable records remain inert; no old-machine signer/session/approval can activate the destination.
+
+Current evidence: 23 TEMP scenarios and 33/33 negative controls PASS; TypeScript PASS; changed-source lint PASS. Manifest v33 declares 116 suites /136 unique pins, with v32 preserved byte-for-byte. Full exact clean v33 baseline and final Graphify evidence are PENDING. Stage 15S and Stage 15 remain OPEN; no real destination hardware/migration/model benchmark, Podman rebuild, owner activation or old-PC removal occurred. Do not relabel TEMP evidence as migration certification.
+
+Exact next: finish Graphify/whole lint/diff, commit this source packet, refresh Graphify at that commit and run the full declared v33 baseline without editing the source under test. Close 15S source only with real clean-commit evidence; then canonical 15T. The latest owner command authorizes uninterrupted master continuation and WIP-branch commit/push, superseding historical STOP/NO PUSH records. Session-end save/push is mandatory even if incomplete. Production/live promotion and owner-only activation remain gated.
+
 # AYAS continuation — 2026-10-03 / Stage 15R source GREEN; canonical 15S next
 
 Current tested source: `a00091fdcc68f4588b2403b67e008ce796e117a1`. The existing 15R work was continued, not reimplemented. Its pre-existing full v32 baseline completed on that exact clean commit: 114/114 suites, no failed suite, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 remain declared limitations. All 133 grader pins match both worktree and committed bytes. Graphify is bound to this source, stale=false, 17,620 nodes / 50,455 links, no duplicate/dangling/self-loop anomalies; PARTIAL 9 / semantic PENDING remain explicit. TypeScript PASS; current-session lint/diff closure follows in the evidence file.

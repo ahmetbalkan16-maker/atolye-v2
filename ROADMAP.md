@@ -1,7 +1,7 @@
 ## AYAS Stage 15 continuation — 2026-10-03 (latest status)
 
 - [x] 15R source: exact clean `a00091f`, complete v32 baseline 114/114 with no failure; declared cognitive/held-out limitations retained. See `hardening/15R/CLOSURE.md` under the canonical execution documentation.
-- [ ] 15S Portable Brain Snapshot / Hardware Migration: canonical seam inspection next; encrypted private payload, no secrets/absolute machine paths/executable approval transfer, validated import and owner activation boundary.
+- [ ] 15S Portable Brain Snapshot / Hardware Migration: source implemented, 23 TEMP scenarios /33 negative controls and TypeScript PASS; exact clean v33 baseline pending. Real destination qualification/activation remains owner-gated and unmeasured.
 - [ ] 15T Owner Executive Briefing / Alert Priority: after 15S, with durable evidence, dedupe, cooldown, acknowledgement and no alert-derived authority.
 - [ ] Stage 15 combined regression, Graphify/clean checkpoint, commit/push and remote parity, then Stage 16 in master order. Live qualification and F33 gaps remain visible; no synthetic PASS.
 

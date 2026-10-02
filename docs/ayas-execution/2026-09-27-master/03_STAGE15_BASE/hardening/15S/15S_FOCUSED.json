@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-02T22:27:34.369Z",
+  "baseHead": "06668502911a69ca2be71fe093f4af885af87b32",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "fixture": "OWNED_TEMP_REPOSITORIES_AND_RESTORE_ROOTS_ONLY",
+  "sourceState": "UNCOMMITTED_SOURCE_PACKET_FULL_EXACT_COMMIT_BASELINE_PENDING",
+  "scenarios": 23,
+  "negativeControls": {
+    "caught": 33,
+    "total": 33
+  },
+  "checks": {
+    "portableSmoke": "PASS",
+    "portableMutations": "PASS",
+    "typeScript": "PASS",
+    "lint": {
+      "exitCode": 0,
+      "errors": 0,
+      "existingWarnings": 13
+    },
+    "diff": "PASS"
+  },
+  "manifest": {
+    "version": "15F.4-v33",
+    "suites": 116,
+    "pins": 136
+  },
+  "graphify": {
+    "boundHead": "06668502911a69ca2be71fe093f4af885af87b32",
+    "stale": false,
+    "nodes": 17684,
+    "edges": 50601,
+    "integrity": {
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "dangling": 0,
+      "selfLoops": 0
+    },
+    "structuralCoverage": "PARTIAL_9_INHERITED",
+    "semanticCoverage": "PENDING"
+  },
+  "sourceFiles": [
+    {
+      "file": "src/lib/ayas/migration/AyasPortableBrain.ts",
+      "sha256": "0fa7c99aebf798266cbfbb89c614c00b01d6192fc95295debea113ead5ef7628"
+    },
+    {
+      "file": "src/lib/ayas/migration/AyasPortableBrainStore.ts",
+      "sha256": "9dbbd3f08d0f424d770c102fb27cde2d7378940c23c97712c623a09dc950395f"
+    },
+    {
+      "file": "src/lib/ayas/migration/AyasPortableMigration.ts",
+      "sha256": "2ba6087598442bdb2386b6938b3504c1fa4e4128e44df16f90d50d749953eb45"
+    },
+    {
+      "file": "src/lib/ayas/migration/AyasPortableArtifacts.ts",
+      "sha256": "035f1d1fe3ae85bd698cc78880c22866321ac9cb9130ca4cc5eea6013c3c1c86"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "ebad1b415b60f2742456b32b0dc87d585a25f2e83e4b8928ef65f99dcc43729e"
+    },
+    {
+      "file": "scripts/ayas-portable-brain.ts",
+      "sha256": "d5d848a0738efe9004c2c314811e74422e72aab3769f6b5b0f3abd4517cf72d2"
+    },
+    {
+      "file": "scripts/smoke-ayas-portable-brain.ts",
+      "sha256": "666f4845159f9e41363a703dbc8ead8de01d644715b2ece333f2e1987bdbed9f"
+    },
+    {
+      "file": "scripts/smoke-ayas-portable-brain-mutations.ts",
+      "sha256": "c34b1d7896eb0016448a2341c12d508d61f9d10909465b37ce630c742ffd3482"
+    }
+  ],
+  "realMigration": "NOT_RUN",
+  "hardwareBenchmark": "NOT_RUN",
+  "ownerActivation": "BLOCKED_OWNER_ACTION",
+  "oldPcCleanup": "BLOCKED_OWNER_ACTION_AFTER_VERIFIED_MIGRATION",
+  "liveStoresChanged": false,
+  "grantsAuthority": false
+}
