@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v14",
+  "version": "15F.4-v13",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1459,40 +1459,6 @@
         {
           "file": "scripts/smoke-ayas-historical-storytelling-mutations.ts",
           "sha256": "9f1d036788ccbf9e4e9d4399ce5a4cc11be5cab39c66833b9b776a64631c00dd"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-cost-governor",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-cost-governor.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-cost-governor.ts",
-          "sha256": "2c579c9a8152f9866b3b64f047dd8364e8528939cd34f644263af8a794cd05f2"
-        }
-      ],
-      "slices": [
-        "cost",
-        "fail-closed",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-cost-governor-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-cost-governor-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-cost-governor-mutations.ts",
-          "sha256": "07e28fe992009b1441eeb9a21f6ffc87b4d5ed0424f8074954535a9c432c8ff9"
         }
       ],
       "slices": [
