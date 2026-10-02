@@ -1,3 +1,15 @@
+# AYAS MASTER CURRENT — STAGE 15H CLOSED / STAGE 15I OPEN — 2026-10-02
+
+Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `930b53797fa8d84693d6c4d1d6e234bddf0e6b31`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+Stage 15H (Autonomy Burn-In / No-Cloud Independence Certification Framework) is closed. The certification result is `LOCAL_INDEPENDENCE_DEGRADED` with one gap, `LOCAL_CODING_BACKEND_NOT_QUALIFIED`: the known Stage 15A result. All 32 requirements are proven at the commit (21 faults, ten maintenance-task links, cloud coding off), from a baseline of 78 suites run three times each with no failure. No model was run again. Operator script: `npx tsx scripts/ayas-independence-certification.ts`. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15H/`.
+
+Today AYAS can carry a maintenance task from detection to rollback without the cloud only when the patch comes from a registered deterministic strategy. It cannot write a new patch by itself. The result changes only when a local coding model reaches ACTIVE through the lifecycle's checks; that needs the owner's Stage 15A decision.
+
+Tests: 13 scenarios, 38/38 negative controls, eval manifest `15F.4-v10` (78 suites). No recovery, approval or execution code changed.
+
+Next: canonical Stage 15I (AYAS ↔ Atölye Live Production Director), starting with 15I.0 existing-seam inspection. The AYAS write action `resume-stage` stays disabled and owner-gated; no paid call and no live production run.
+
 # AYAS MASTER CURRENT — STAGE 15G CLOSED / STAGE 15H OPEN — 2026-10-02
 
 Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `5ad8c0c86ed484157845168c8a2ca73fc6366d3b`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.

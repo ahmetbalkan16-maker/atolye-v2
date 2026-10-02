@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "stage": "STAGE_15H",
+  "title": "Autonomy Burn-In / No-Cloud Independence Certification Framework",
+  "result": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
+  "sourceCommit": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+  "date": "2026-10-02",
+  "evidenceClass": "DETERMINISTIC_TEST_AND_LOCAL_READ",
+  "modelRuns": 0,
+  "containerRuns": 0,
+  "providerCalls": 0,
+  "liveBurnIn": "NOT_RUN",
+  "push": false,
+  "certification": {
+    "file": "CERTIFICATION.json",
+    "sha256": "2ad63994b99e85af39008d9d890fcbef37d812648e6809503a58c64791e8b87e",
+    "certificationDigest": "447757f8b5e25be514807afa1054ef59c4f2dd02e5fc38c888be2f5be16fdf38",
+    "seal": "INTACT",
+    "generatedFrom": { "head": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31", "treeState": "CLEAN" },
+    "result": "LOCAL_INDEPENDENCE_DEGRADED",
+    "gaps": ["LOCAL_CODING_BACKEND_NOT_QUALIFIED"],
+    "requirements": { "total": 32, "faults": 21, "chainLinks": 10, "conditions": 1, "proven": 32, "notMeasured": 0, "unproven": 0, "proofs": 93, "suitesCited": 33 },
+    "localCodingBackends": [
+      { "id": "coding-model.local-coding.qwen2.5-coder-14b-q4km", "state": "DEGRADED", "admission": "NONE", "mayServeAutonomousCoding": false }
+    ],
+    "cloudCoding": "OFF (condition CLOUD_CODING_OFF proven; nothing falls back to a cloud or paid model)",
+    "authority": "NONE"
+  },
+  "gapExplained": {
+    "LOCAL_CODING_BACKEND_NOT_QUALIFIED": "The lifecycle registry holds one coding model and its serving rule does not let it do autonomous coding: Stage 15A ran it on one case, it did not pass, and the stage closed LOCAL_INDEPENDENCE_DEGRADED. This is that known result carried forward. No model was run again for this stage."
+  },
+  "whatIsProven": "With cloud coding off, each of the 21 faults is handled without a duplicate side effect, a false success or a silent fallback, and a maintenance task goes from detection to rollback when its patch comes from a registered deterministic strategy.",
+  "whatIsNotProven": [
+    "A patch written by a local coding model (the gap).",
+    "A live burn-in of the running observer over time: not run.",
+    "A model reading a repository file with instructions written into it: no local coding model is qualified to read one.",
+    "An MCP schema: AYAS has no MCP client.",
+    "A scenario skipped at run time inside a suite that still exits 0 would not be noticed."
+  ],
+  "found": {
+    "suitesNotDeclared": ["research-source-resilience", "graphify-integration"],
+    "scenarioAdded": "a source answering 500 or 503 is an endpoint failure: one request each, never retried inline",
+    "productionCodeChanged": false
+  },
+  "tests": {
+    "independenceCertification": { "script": "scripts/smoke-ayas-independence-certification.ts", "scenarios": 13, "result": "PASS" },
+    "negativeControls": { "script": "scripts/smoke-ayas-independence-certification-mutations.ts", "caught": 38, "total": 38 },
+    "evalGovernance": "10 scenarios PASS; negative controls 8/8",
+    "firewallClosure": "12 scenarios PASS; no new surface or leased module",
+    "newlyDeclared": { "research-source-resilience": "24 scenarios PASS", "graphify-integration": "47 scenarios PASS with --gate" },
+    "typescript": "PASS (non-incremental)",
+    "changedFileLint": "0 warnings",
+    "fullLint": "0 errors, 13 existing warnings",
+    "fullBaseline": {
+      "report": "15H_FULL_BASELINE.json",
+      "sha256": "d3ff1e4b0829ccd5188224ef7b863806e7ad6fec622f815c05cb11dd70b4a85b",
+      "sourceHead": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+      "manifestVersion": "15F.4-v10",
+      "manifestDigest": "c8bef3060c49ca0c734f16fdc1567841cc2217ffde32f687eee19dd551f077ce",
+      "suites": 78,
+      "trialsPerSuite": 3,
+      "trials": 234,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "knownLimitationSuites": ["cognitive-quality"],
+      "cognitive": "54/55 and held-out 4/5 in each of the three trials, unchanged",
+      "hostRamPeakPercent": 61.65
+    }
+  },
+  "evalManifest": { "version": "15F.4-v10", "suites": 78, "added": ["research-source-resilience", "graphify-integration", "independence-certification", "independence-certification-mutations"], "previous": "EVAL_MANIFEST_V9.json (15F.4-v9, 74 suites)" },
+  "graphify": { "builtFrom": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31", "nodes": 16712, "edges": 48148, "anomalies": 0, "structural": "PARTIAL (9 known files)", "semantic": "PENDING" },
+  "whatWouldChangeTheResult": "A local coding model that reaches ACTIVE through the lifecycle's promotion checks. Then run the baseline and scripts/ayas-independence-certification.ts again; nothing else in this stage has to change.",
+  "ownerActions": [
+    { "id": "local-coding-requalification", "blocking": false, "action": "Unchanged from Stage 15A: a numeric qualification threshold, and/or another pinned model or engine, and/or GPU passthrough into the rootless sandbox. Only if local coding is wanted." }
+  ],
+  "authority": "NONE: the record is evidence. It approves nothing, enables nothing and registers no engine; nothing in the application reads it."
+}

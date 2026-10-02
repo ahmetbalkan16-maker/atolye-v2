@@ -1,0 +1,1336 @@
+{
+  "schemaVersion": "1",
+  "generatedAt": "2026-10-02T04:14:10.311Z",
+  "git": {
+    "head": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+    "treeState": "CLEAN",
+    "dirtyPaths": 0
+  },
+  "evalManifest": {
+    "version": "15F.4-v10",
+    "digest": "c8bef3060c49ca0c734f16fdc1567841cc2217ffde32f687eee19dd551f077ce",
+    "suites": 78
+  },
+  "baseline": {
+    "state": "PRESENT",
+    "sha256": "d3ff1e4b0829ccd5188224ef7b863806e7ad6fec622f815c05cb11dd70b4a85b",
+    "sourceHead": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+    "manifestDigest": "c8bef3060c49ca0c734f16fdc1567841cc2217ffde32f687eee19dd551f077ce",
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+    "complete": true,
+    "trials": 3,
+    "suites": 78,
+    "failed": 0
+  },
+  "requirements": [
+    {
+      "kind": "FAULT",
+      "id": "PROCESS_KILL",
+      "claim": "A killed process leaves a closed attempt and a durable receipt: a read is retried within its bound, a side effect is reread before anything else and never repeated.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "process crash: the attempt is closed first, retried on a later tick, within the bound",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "durable-task-runtime",
+          "scenario": "crash during a side effect that landed: reread proves it, the effect is not repeated",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "an interruption after mutation but before commit leaves a recovery-required durable receipt and never records terminal success",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "REBOOT",
+      "claim": "After every owner is gone at once, recovery runs first, durable approvals and reservations are read back as they were, and nothing is produced twice.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "reboot: every owner is gone at once, recovery runs first and nothing is produced twice",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "authorization-reservation",
+          "scenario": "reservation restarts across process boundaries — a fresh store instance sees the same RESERVED state",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "autonomy-daemon",
+          "scenario": "restart preserves pending approval and corrupt daemon state fails loudly",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "MODEL_DEATH",
+      "claim": "A local model that is down is reported as unavailable, the answer says so, a task waits out its retry delay and stops at its bound, and no paid model takes over.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "model-router",
+          "scenario": "ollama provider — health down (connection refused) → available:false",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "model-router",
+          "scenario": "router — neither provider → null provider + honest message, no config/secret detail",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "durable-task-runtime",
+          "scenario": "model restart: retryable failures wait out the delay and stop at the bound",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "NETWORK_LOSS",
+      "claim": "A lost connection records nothing as a result: the task waits where it is, the source failure is classed transient, and the other sources are still checked.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "durable-task-runtime",
+          "scenario": "network loss during a reread: nothing recorded, the task waits where it is",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "research-source-resilience",
+          "scenario": "a connection cut mid-body IS a transient network failure — the classification the oversize case was wrongly borrowing",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "research-source-resilience",
+          "scenario": "one dead source never prevents the healthy ones in the same scan from being checked",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "DNS_FAILURE",
+      "claim": "A host that does not resolve is a typed failure within the timeout, not a hang.",
+      "limit": "The scenario asks the machine's resolver for a reserved .invalid name; it accepts either the DNS or the generic network failure code.",
+      "proofs": [
+        {
+          "suite": "safe-public-fetch",
+          "scenario": "a DNS-unresolvable host fails as a network error, not a hang",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "HTTP_429_500",
+      "claim": "A rate-limit answer is its own class and is never retried inline; a 5xx answer is an endpoint failure with one request and no retry; a local model server answering 5xx is unavailable and no paid model takes over.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "research-source-resilience",
+          "scenario": "an explicit rate-limit answer is its own class, carries the endpoint's own Retry-After, and is never retried inline",
+          "marker": "res.writeHead(429",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "independence-certification",
+          "scenario": "a source answering 500 or 503 is an endpoint failure: one request each, never retried inline",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "model-router",
+          "scenario": "router — Ollama down + unknown-cost cloud configured → denied, no paid fallback",
+          "marker": "status: 503",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "DISK_EXHAUSTION",
+      "claim": "A write that fails for lack of space is a reported fault for that one task or record: nothing is issued or admitted on an unwritten journal, and the other tasks go on.",
+      "limit": "An injected ENOSPC on the journal write, and injected write failures. No real volume is filled.",
+      "proofs": [
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "corrupt journal: reported for that task, untouched, and the sweep goes on",
+          "marker": "code: \"ENOSPC\"",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "owner-capability-firewall",
+          "scenario": "journal IO failure prevents issue",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "operation-telemetry",
+          "scenario": "real evidence directory and day IO failures cannot become zero telemetry",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "CORRUPT_STATE",
+      "claim": "Corrupt durable state is loud on read, fails closed for a decision, is never overwritten and never read as a shorter history.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "execution-gate",
+          "scenario": "store — corrupt gate.json: loud on read(), fail-closed for a decision, never overwritten",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "execution-journal",
+          "scenario": "a corrupt journal entry fails closed on read (not silently reinterpreted)",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "corrupt journal: reported for that task, untouched, and the sweep goes on",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "CLOCK_BACKWARD_FUTURE",
+      "claim": "A clock that went backwards or a time that cannot be read fails admission closed; a future-dated fact or measurement is not current evidence.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "action-firewall",
+          "scenario": "backwards and invalid admission clocks fail closed",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "action-firewall",
+          "scenario": "malformed persisted time fails closed instead of a NaN immortal grant",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "open-ended-evolution",
+          "scenario": "54 old-HEAD measurements and future-dated observations are not current evidence",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "memory",
+          "scenario": "retrieval — a future-dated fact is quarantined",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "DUPLICATE_DAEMON",
+      "claim": "Two daemons share one lock: one sweeps, one executes, one occurrence is reserved.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "duplicate daemon: one sweeper at a time, a crashed sweeper's lock is reclaimed",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "durable-task-runtime",
+          "scenario": "duplicate daemon: two runtimes, one execution",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "research-scheduler",
+          "scenario": "two daemon ticks use the same lock and reserve only one occurrence",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "STALE_GRAPHIFY",
+      "claim": "A stale graph promotes no candidate, touches no store and closes no publication.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "autonomy-daemon",
+          "scenario": "stale Graphify never promotes a candidate into a new owner-actionable PENDING proposal",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "scenario": "stale Graphify touches no store",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "stale Graphify metadata and unhealthy health are independently fail-closed by the canonical closure",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "GRAPHIFY_NEEDS_UPDATE",
+      "claim": "The needs_update marker makes the graph stale: discovery produces no proposal, recovery does not loop, and the recorded graph state is not bound to the commit.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "graphify-integration",
+          "scenario": "Stage 10 recovery: needs_update is stale; a never-indexed dirty file does not loop GRAPHIFY_REFRESH",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "graphify-integration",
+          "scenario": "proposal-producing discovery honors the needs_update lifecycle marker",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "first activity set: one read-only Graphify state read, recorded once per commit",
+          "marker": "needsUpdateFlag: true",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "DELAYED_OWNER",
+      "claim": "A task that waits for the owner waits for days without expiring and is never taken over; an approval that expired while waiting is not renewed.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "durable-task-runtime",
+          "scenario": "owner delay of days: the task waits without expiring, then follows the signal",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "owner delay and stale tasks: waiting is not stale, a stuck step is reported and never taken over",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "owner-capability-firewall",
+          "scenario": "expired reservation cannot issue a fresh TTL",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "REJECTED_PROPOSAL",
+      "claim": "A rejection is durable and is not replayed: the same opportunity comes back only through the owner.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "autonomy-daemon",
+          "scenario": "reject and defer persist distinct decisions",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "scenario": "owner rejected opportunity not replayed",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "open-ended-evolution",
+          "scenario": "49 duplicate of a rejected opportunity needs the owner",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "STALE_PROPOSAL_AFTER_NEW_HEAD",
+      "claim": "A proposal whose base commit is no longer HEAD is refused, marked STALE, and reserves and mutates nothing.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "proposal-execution-service",
+          "scenario": "M16: stale baseHead (repo advanced) is blocked, durably marked STALE, and no reservation is ever created",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "HEAD drift since the proposal's baseHead invalidates the authorization — refused, proposal reconciled to STALE",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "patch-artifact-execution-integration",
+          "scenario": "stale baseHead: the repo moved on since the proposal's baseHead — execution refuses (fail closed, no replay)",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "FAILED_REGRESSION",
+      "claim": "A change that fails its validators after it was applied is rolled back to the original bytes and recorded as recovery-required, never as a success.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "patch-artifact-execution-integration",
+          "scenario": "real execution-time validator failure rolls back the write and leaves the proposal RECOVERY_REQUIRED, never a false success",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "an edit to a pre-existing file that fails post-execution validation is reverted to its ORIGINAL content, never deleted (the M19 revertToHead fix)",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "guarded-publication",
+          "scenario": "a post-execution validation failure is ROLLED_BACK with its ORIGINAL code and stage preserved — the guard reports the lane's truth, it does not relabel it",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "MEMORY_POISONING",
+      "claim": "Poisoned memory is quarantined, cannot write a protected key as authority, and gains nothing from being short or lexically close.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "memory-integrity",
+          "scenario": "real persisted chat provenance and poisoned memory after context reset",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "memory-integrity",
+          "scenario": "protected keys cannot be written as instruction authority",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "context-budget",
+          "scenario": "quarantine excluded; low trust cannot promote itself to protected authority; a shorter low-trust entry gains nothing",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "MALICIOUS_REPO_CONTENT",
+      "claim": "Hostile content is data: shell-shaped text in a request is refused, a redirected or junctioned repository is not the leased resource, and a change to runtime configuration, a scheduler or an authority module is not publishable.",
+      "limit": "No suite gives a model a repository file with instructions written into it: no local coding model is qualified to read one (Stage 15A).",
+      "proofs": [
+        {
+          "suite": "action-runtime",
+          "scenario": "shell-like content anywhere in the request is rejected (no arbitrary shell escape)",
+          "marker": "rm -rf",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "durable-task-recovery",
+          "scenario": "durable native read refuses unknown or redirected physical repository",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "repair-approval-proof",
+          "scenario": "junction scope is rejected before foreign read/write",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "guarded-publication",
+          "scenario": "runtime config, scheduler, service entry and storage/execution authority each classify to their own non-publishable class",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "technology-watch",
+          "scenario": "P24 instruction-shaped source text blocks the candidate and never becomes an action",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "DEPENDENCY_INSTALL_REQUEST",
+      "claim": "A request to install a dependency is never executed: AYAS has no install path, the opportunity needs an approval AYAS cannot give itself, and package.json is not a publishable target.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "open-ended-evolution",
+          "scenario": "28 no install authority",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "open-ended-evolution",
+          "scenario": "H5 research-derived capability containing malicious instruction text",
+          "marker": "npm install evil-codec",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "technology-watch",
+          "scenario": "P15 install scripts or elevated privilege require security review",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "guarded-publication",
+          "scenario": "runtime config, scheduler, service entry and storage/execution authority each classify to their own non-publishable class",
+          "marker": "[\"package.json\", \"RUNTIME_CONFIG\"]",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "INVALID_TOOL_SCHEMA",
+      "claim": "An unknown tool, a request without its required input and a malformed or self-widened request are refused before anything is dispatched or recorded.",
+      "limit": "AYAS has no MCP client, so there is no MCP schema to be invalid; the closure audit pins that absence. An MCP client added later must bring its own invalid-schema proof.",
+      "proofs": [
+        {
+          "suite": "action-runtime",
+          "scenario": "unknown tool is denied, never dispatched",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "action-runtime",
+          "scenario": "missing required input (inspect-project with no projectSlug) is rejected",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "discovery-run-firewall",
+          "scenario": "a malformed, unknown or self-widened request is refused before any record",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "execution-bridge",
+          "scenario": "policy — malformed request / plan → DENY",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "action-firewall-closure",
+          "scenario": "product context reads the catalogue through the guarded tool; no MCP client exists",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "FAULT",
+      "id": "EXTERNAL_AUTH_EXPIRY",
+      "claim": "A credential the other side no longer accepts gives a status-only error with no secret in it; an expired owner session approves nothing; an expired grant is denied and marked expired.",
+      "limit": "The phone gateway's key handling is proven by the phone runtime suite, which is outside the declared baseline. Git push credentials are the owner's and are not held by AYAS.",
+      "proofs": [
+        {
+          "suite": "model-router",
+          "scenario": "cloud provider — a non-200 throws a status-only error (never the body)",
+          "marker": "status: 401",
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": true,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "owner-session-admission",
+          "scenario": "expired session cannot approve",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "access-gate",
+          "scenario": "session fails once expired",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "execution-bridge",
+          "scenario": "authz — an expired grant is DENIED and marked expired",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "DETECT",
+      "claim": "A gap counts only when it is measured at the current commit with the same evaluator; observing is read-only and a dirty repository pauses it.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "open-ended-evolution",
+          "scenario": "50 Stage 8 gap must reproduce at the current HEAD with the same evaluator",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "autonomy-daemon",
+          "scenario": "default observation is read-only and dirty repositories pause",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "PLAN",
+      "claim": "The planner turns a measured, registered opportunity into one plan and touches no store for anything else.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "scenario": "measured register really is eligible",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "scenario": "unregistered strategy touches no store",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "LOCAL_PATCH",
+      "claim": "The patch is made on this machine and frozen as an immutable artifact with its own hash.",
+      "limit": "The patch comes from a registered deterministic strategy. No local coding model writes it: none is qualified, which is the LOCAL_CODING_BACKEND_NOT_QUALIFIED gap.",
+      "proofs": [
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "scenario": "real TEMP experiment yields verified candidate",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "patch-artifact",
+          "scenario": "freeze computes a patchHash and persists the artifact to disk",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "TESTS",
+      "claim": "The candidate is validated in a TEMP sandbox before it is proposed, and the artifact's own validators run again at execution and are recorded.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "scenario": "real TEMP experiment yields verified candidate",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "patch-artifact-execution-integration",
+          "scenario": "execution runs the artifact's own declared validators and records their PASS result durably",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "GRAPHIFY",
+      "claim": "A stale graph blocks the proposal, and a publication closes only after the graph is refreshed and verified at the new commit.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "autonomy-daemon",
+          "scenario": "stale Graphify never promotes a candidate into a new owner-actionable PENDING proposal",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "real publication order closes only after the new pushed HEAD: refresh, fresh metadata, integrity, then HEALTHY health",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "PROPOSAL",
+      "claim": "A safe candidate becomes exactly one durable pending proposal.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "autonomy-daemon",
+          "scenario": "safe candidate becomes one durable pending proposal",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "scenario": "existing owner-flow proposal blocks duplicate",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "OWNER_PATH",
+      "claim": "Only the owner's decision, bound to the proposal's hash, base commit and exact files, lets it run, and only once.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "autonomy-daemon",
+          "scenario": "approval binds hash, HEAD and exact files and is one-shot",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "owner-session-admission",
+          "scenario": "expired session cannot approve",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "one authorization binds decide + Package C execution + Git publication: a single call produces ONE pushed commit",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "EXECUTE",
+      "claim": "The approved change is applied inside its exact files, through the execution gate, and durably completed.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "patch-artifact-execution-integration",
+          "scenario": "full happy path: APPROVE -> execute -> real mutation applied -> durable testResults -> EXECUTED -> gate closed",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-execution-service",
+          "scenario": "successful execution stays within exactFiles and is durably completed",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "POST_VERIFY",
+      "claim": "After the change, success is recorded only when the validators, the graph and the health check agree; a failed closure is recovery-required.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "real publication order closes only after the new pushed HEAD: refresh, fresh metadata, integrity, then HEALTHY health",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "a post-push Graphify closure failure preserves the published commit and becomes recovery-required, never a false success",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CHAIN",
+      "id": "RECOVER_ROLLBACK",
+      "claim": "A failed change is rolled back to the original bytes, and an interrupted finalization resumes its own receipt without repeating the result.",
+      "limit": null,
+      "proofs": [
+        {
+          "suite": "patch-artifact-execution-integration",
+          "scenario": "real execution-time validator failure rolls back the write and leaves the proposal RECOVERY_REQUIRED, never a false success",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "an edit to a pre-existing file that fails post-execution validation is reverted to its ORIGINAL content, never deleted (the M19 revertToHead fix)",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "proposal-approval-service",
+          "scenario": "a crash after result persistence during finalization resumes the same receipt without replaying or duplicating the result",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    },
+    {
+      "kind": "CONDITION",
+      "id": "CLOUD_CODING_OFF",
+      "claim": "No AYAS surface reaches a paid or cloud model: the router never selects the cloud provider, whatever is configured or down.",
+      "limit": "AYAS has no adapter that hands a coding task to Claude or Codex; a hand-over to those agents is a person's act and is outside this record.",
+      "proofs": [
+        {
+          "suite": "action-firewall-closure",
+          "scenario": "the model router never selects the cloud provider, whatever is configured or down",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "action-firewall-closure",
+          "scenario": "no AYAS surface reaches a production provider, a paid model, the pipeline runner, a publisher or the dormant write bridge",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        },
+        {
+          "suite": "model-router",
+          "scenario": "router — Ollama down + unknown-cost cloud configured → denied, no paid fallback",
+          "marker": null,
+          "pin": "MATCH",
+          "scenarioPresent": true,
+          "markerPresent": null,
+          "outcome": "PASS"
+        }
+      ]
+    }
+  ],
+  "localCodingBackends": [
+    {
+      "id": "coding-model.local-coding.qwen2.5-coder-14b-q4km",
+      "state": "DEGRADED",
+      "admission": "NONE",
+      "mayServeAutonomousCoding": false
+    }
+  ],
+  "authority": "NONE",
+  "evaluation": {
+    "result": "LOCAL_INDEPENDENCE_DEGRADED",
+    "gaps": [
+      "LOCAL_CODING_BACKEND_NOT_QUALIFIED"
+    ],
+    "requirements": [
+      {
+        "kind": "FAULT",
+        "id": "PROCESS_KILL",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "REBOOT",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "MODEL_DEATH",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "NETWORK_LOSS",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "DNS_FAILURE",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "HTTP_429_500",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "DISK_EXHAUSTION",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "CORRUPT_STATE",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "CLOCK_BACKWARD_FUTURE",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "DUPLICATE_DAEMON",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "STALE_GRAPHIFY",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "GRAPHIFY_NEEDS_UPDATE",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "DELAYED_OWNER",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "REJECTED_PROPOSAL",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "STALE_PROPOSAL_AFTER_NEW_HEAD",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "FAILED_REGRESSION",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "MEMORY_POISONING",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "MALICIOUS_REPO_CONTENT",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "DEPENDENCY_INSTALL_REQUEST",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "INVALID_TOOL_SCHEMA",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "FAULT",
+        "id": "EXTERNAL_AUTH_EXPIRY",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "DETECT",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "PLAN",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "LOCAL_PATCH",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "TESTS",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "GRAPHIFY",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "PROPOSAL",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "OWNER_PATH",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "EXECUTE",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "POST_VERIFY",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CHAIN",
+        "id": "RECOVER_ROLLBACK",
+        "status": "PROVEN",
+        "problems": []
+      },
+      {
+        "kind": "CONDITION",
+        "id": "CLOUD_CODING_OFF",
+        "status": "PROVEN",
+        "problems": []
+      }
+    ],
+    "counts": {
+      "proven": 32,
+      "notMeasured": 0,
+      "unproven": 0,
+      "proofs": 93
+    }
+  },
+  "certificationDigest": "447757f8b5e25be514807afa1054ef59c4f2dd02e5fc38c888be2f5be16fdf38"
+}

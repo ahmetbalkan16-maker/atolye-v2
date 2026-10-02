@@ -672,3 +672,27 @@ LOCAL COMMITS; NO PUSH.
 ## Stage 15H — Autonomy Burn-In / No-Cloud Independence Certification Framework — OPEN (2026-10-02)
 
 Opened at `5ad8c0c`. Canonical section: master order STAGE 15H and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15H. Addendum sections 0 and 1 apply. Cloud coding stays off. Stage 15A closed `LOCAL_INDEPENDENCE_DEGRADED`, so the honest result here is expected to be DEGRADED with the exact gap named; READY is never faked.
+
+## Stage 15H — CLOSED, certification LOCAL_INDEPENDENCE_DEGRADED with one gap (2026-10-02)
+
+Source `930b53797fa8d84693d6c4d1d6e234bddf0e6b31`. Closure `03_STAGE15_BASE/hardening/15H/CLOSURE.md`; record `CERTIFICATION.json`; summary `15H_RESULT.json`.
+
+15H.0 INSPECTION. Every named scenario of the AYAS suites was listed (2,886) and each of the 21 faults was looked for. Every fault already had a proof. Two suites that hold proofs were not in the eval manifest (research source resilience; Graphify integration). No suite sent a 5xx answer through the research fetch path.
+
+SEAMS REUSED. The Stage 15F eval manifest, its pins and the baseline runner as the only source of "this suite passed at this commit"; the Stage 15E serving rule `ayasLifecycleMayServe(entry, "AUTONOMOUS_CODING")` as the only source of "a local coding backend is qualified"; the Stage 15G read-only Git probe and canonical JSON.
+
+WHAT. `AyasIndependenceCertification` (pure) holds the fault matrix and the maintenance chain in the master order's order and judges facts: a requirement is PROVEN only when every one of its proofs is a named scenario in the pinned bytes of a declared suite that passed in a baseline of this commit and this manifest. `AyasIndependenceEvidenceMap` binds 32 requirements to 93 proofs and says what each does not cover. The collector is read-only and runs no suite. READY needs no gap at all; the record is sealed and a record relabelled READY and hashed again is refused. Authority NONE: nothing in the application reads it. Operator script `scripts/ayas-independence-certification.ts`.
+
+RECORD FOR THIS COMMIT, generated from a clean tree: 32 of 32 requirements proven; baseline 78 suites x 3 trials with no failure; result `LOCAL_INDEPENDENCE_DEGRADED`; one gap, `LOCAL_CODING_BACKEND_NOT_QUALIFIED`. That is the known Stage 15A result carried forward (the one coding model is DEGRADED with admission NONE). No model was run again. Cloud coding stays off.
+
+TEST. Independence certification 13 scenarios; negative controls 38/38 in a TEMP overlay; eval governance 10 and 8/8; firewall closure 12; research source resilience 24; Graphify integration 47; declared 78-suite baseline at the commit, three trials each, no failure (cognitive 54/55, held-out 4/5 unchanged in each trial), host RAM peak 61.65 %. TypeScript, changed-file lint, diff check PASS; full lint 0 errors / 13 existing warnings. Eval manifest `15F.4-v10`; v9 kept. No model, container, provider call or push. No live burn-in of the running observer.
+
+GRAPHIFY built from `930b537`: 16,712 nodes / 48,148 edges, anomalies 0, PARTIAL 9 known files, semantic pending.
+
+OWNER, none blocking: the Stage 15A re-qualification decision, only if local coding is wanted.
+
+LOCAL COMMITS; NO PUSH.
+
+## Stage 15I — AYAS ↔ Atölye Live Production Director — OPEN (2026-10-02)
+
+Opened at `930b537`. Canonical section: master order STAGE 15I and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15I; directive V3.2 section 11 (implement the designed behaviour on the existing media architecture). Addendum sections 0 and 3 apply (unknown state fails closed; an added operation records evidence with a closed outcome class). First subtask: 15I.0 existing-seam inspection. No paid provider call and no live production run is made to prove this stage. The existing AYAS write action (`resume-stage`) is disabled and needs the owner; this stage does not open it.

@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
-  "currentHead": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
-  "stage": "STAGE_15H",
-  "subtask": "15H.0-existing-seam-inspection",
-  "status": "STAGE_15H_OPEN",
+  "lastGreenHead": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+  "currentHead": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+  "stage": "STAGE_15I",
+  "subtask": "15I.0-existing-seam-inspection",
+  "status": "STAGE_15I_OPEN",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15G",
-    "status": "CLOSED_GREEN_WITH_DECLARED_GAPS",
-    "closingCommit": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b"
+    "stage": "STAGE_15H",
+    "status": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
+    "closingCommit": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -95,7 +95,8 @@
     "STAGE_15D",
     "STAGE_15E",
     "STAGE_15F",
-    "STAGE_15G"
+    "STAGE_15G",
+    "STAGE_15H"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -168,7 +169,10 @@
     "post-freeze-retroactive-audit-COMPLETE",
     "15G.0-existing-seam-inspection",
     "15G.1-sbom-and-release-provenance",
-    "15G-closure-GREEN-with-declared-gaps"
+    "15G-closure-GREEN-with-declared-gaps",
+    "15H.0-existing-seam-inspection",
+    "15H.1-independence-certification-framework",
+    "15H-closure-LOCAL_INDEPENDENCE_DEGRADED"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -285,22 +289,24 @@
     "Post-freeze section 8: voice 79; console 43; stream client 11; reasoning 48; negative controls 12/12 in a 411-file TEMP overlay; chat stream 31, mobile voice regression 36, wake adapter 54, unified trace 17, phone runtime 42, context budget 21; TypeScript, changed-file lint, diff check PASS; production build PASS in a TEMP clone (repository .next untouched).",
     "Post-freeze audit closure: declared 72-suite baseline at 5c31024 PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 52.75 %. No model, container, network or push.",
     "Stage 15G: release provenance 18 scenarios (fixture lockfiles, TEMP repositories); negative controls 28/28 in a TEMP overlay; firewall closure 12 (one operator entry, one off-surface module declared); eval governance 10 and 8/8; npm run build with the stamp hook in a TEMP clone; TypeScript; changed-file lint.",
-    "Stage 15G: declared 74-suite baseline at 5ad8c0c PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 53.58 %. No install, upgrade, network, model or push."
+    "Stage 15G: declared 74-suite baseline at 5ad8c0c PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 53.58 %. No install, upgrade, network, model or push.",
+    "Stage 15H: independence certification 13 scenarios (fixture facts, TEMP repositories, loopback fixture server); negative controls 38/38 in a TEMP overlay; eval governance 10 and 8/8; firewall closure 12; research source resilience 24; Graphify integration 47 with --gate; TypeScript; changed-file lint; full lint 0 errors/13 existing warnings.",
+    "Stage 15H: declared 78-suite baseline at 930b537, three trials each (234 trials), PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged in each trial, host RAM peak 61.65 %. Certification from a clean tree: 32/32 requirements proven, LOCAL_INDEPENDENCE_DEGRADED, one gap LOCAL_CODING_BACKEND_NOT_QUALIFIED. No model, container, provider call or push."
   ],
   "graphify": {
-    "head": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
-    "testedSourcePacket": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
+    "head": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+    "testedSourcePacket": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16633,
-    "edges": 47982,
+    "nodes": 16712,
+    "edges": 48148,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Built from the Stage 15G source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
+    "headSemantics": "Built from the Stage 15H source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -316,8 +322,8 @@
     "OWNER_ACTION (not blocking): `npm run build` writes the build stamp; until then the release record says BUILD_NOT_BOUND_TO_HEAD.",
     "OWNER_REVIEW (not blocking): 42 components have a license outside the short permissive list (LGPL-3.0-or-later, MPL-2.0, CC-BY-4.0); listed in 03_STAGE15_BASE/hardening/15G/release/RELEASE_PROVENANCE.json."
   ],
-  "nextAction": "STAGE_15H Autonomy Burn-In / No-Cloud Independence Certification Framework: read the canonical section; map each of the 21 faults to the existing suites and scenarios that already prove it; add tests only where a fault has no evidence; build the certification evaluator. The result is expected to be an honest LOCAL_INDEPENDENCE_DEGRADED (Stage 15A closed degraded). Cloud coding stays off. Local commits only; NO PUSH.",
-  "updatedAt": "2026-10-01T23:29:35.952Z",
+  "nextAction": "STAGE_15I AYAS <-> Atolye Live Production Director: 15I.0 existing-seam inspection (the Stage 12 director review and project adapter, ProjectReader, PipelineRecoveryPlanner, the cost report and budget, rights policy, the disabled resume-stage write action). Then the Director Session binding its 16 parts from read/status evidence, and the decision between the four SAFE_OPERATION classes, REQUIRE_OWNER and CODE_DEFECT. The write action stays disabled and owner-gated; no paid call and no live production run. Local commits only; NO PUSH.",
+  "updatedAt": "2026-10-02T04:15:55.327Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -440,6 +446,11 @@
       "stage": "STAGE_15G",
       "status": "CLOSED_GREEN_WITH_DECLARED_GAPS",
       "closingCommit": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b"
+    },
+    {
+      "stage": "STAGE_15H",
+      "status": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
+      "closingCommit": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31"
     }
   ],
   "stage15C": {
@@ -672,14 +683,14 @@
     ],
     "evalGovernance": {
       "path": "EVAL_MANIFEST.json",
-      "version": "15F.4-v9",
-      "digest": "ff009ee38f5f8d45d1b13706112fe017b2d70b935f32585485ff147924f0367c",
-      "previousVersion": "15F.4-v8 (EVAL_MANIFEST_V8.json, digest f3d2947d34308a15a77583c5ad3a8760bd4e3e01401dc6fe42af25012eb13e31, 72 suites)",
-      "suites": 74,
-      "regression": 67,
+      "version": "15F.4-v10",
+      "digest": "c8bef3060c49ca0c734f16fdc1567841cc2217ffde32f687eee19dd551f077ce",
+      "previousVersion": "15F.4-v9 (EVAL_MANIFEST_V9.json, digest ff009ee38f5f8d45d1b13706112fe017b2d70b935f32585485ff147924f0367c, 74 suites)",
+      "suites": 78,
+      "regression": 71,
       "capability": 6,
       "frozenHeldOut": 1,
-      "pinnedScriptFiles": 86,
+      "pinnedScriptFiles": 90,
       "review": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
       "modelGrader": "NONE"
     },
@@ -796,12 +807,57 @@
     ]
   },
   "stage15H": {
-    "state": "OPEN",
+    "state": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
     "openedOn": "2026-10-02",
     "openedAtHead": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15H; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15H",
     "addendumSections": "section 0 (unmeasured is never PASS; no silent cloud fallback); section 1 (no blind replay) for the recovery faults",
     "expectedResult": "LOCAL_INDEPENDENCE_DEGRADED unless a local coding backend qualifies; never a faked READY",
-    "notes": "03_STAGE15_BASE/hardening/15H/IMPLEMENTATION_NOTES.md"
+    "notes": "03_STAGE15_BASE/hardening/15H/IMPLEMENTATION_NOTES.md",
+    "closedOn": "2026-10-02",
+    "closingCommit": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+    "closure": "03_STAGE15_BASE/hardening/15H/CLOSURE.md",
+    "result": "03_STAGE15_BASE/hardening/15H/15H_RESULT.json",
+    "files": [
+      "src/lib/ayas/certification/AyasIndependenceCertification.ts",
+      "src/lib/ayas/certification/AyasIndependenceEvidenceMap.ts",
+      "src/lib/ayas/certification/AyasIndependenceCertificationCollector.ts",
+      "scripts/ayas-independence-certification.ts",
+      "scripts/smoke-ayas-independence-certification.ts",
+      "scripts/smoke-ayas-independence-certification-mutations.ts"
+    ],
+    "certification": {
+      "record": "03_STAGE15_BASE/hardening/15H/CERTIFICATION.json",
+      "certificationDigest": "447757f8b5e25be514807afa1054ef59c4f2dd02e5fc38c888be2f5be16fdf38",
+      "result": "LOCAL_INDEPENDENCE_DEGRADED",
+      "gaps": [
+        "LOCAL_CODING_BACKEND_NOT_QUALIFIED"
+      ],
+      "requirements": 32,
+      "proven": 32,
+      "proofs": 93,
+      "baseline": "03_STAGE15_BASE/hardening/15H/15H_FULL_BASELINE.json (78 suites x 3 trials, no failure)"
+    },
+    "authority": "NONE: evidence only; nothing in the application reads the record",
+    "liveBurnIn": "NOT_RUN",
+    "modelRerun": false,
+    "knownLimits": [
+      "A proof is a named scenario in a pinned suite that passed; a scenario skipped at run time inside a suite that exits 0 would not be noticed.",
+      "A marker is looked for in the whole script, not inside the scenario.",
+      "Disk exhaustion is an injected ENOSPC and injected write failures; no volume is filled.",
+      "No live burn-in of the running observer.",
+      "No MCP client exists, so there is no MCP schema proof.",
+      "The local patch in the chain comes from a registered deterministic strategy, not from a local coding model."
+    ],
+    "whatWouldChangeTheResult": "A local coding model that reaches ACTIVE through the lifecycle's promotion checks (owner decision carried from Stage 15A), then a new baseline and a new record."
+  },
+  "stage15I": {
+    "state": "OPEN",
+    "openedOn": "2026-10-02",
+    "openedAtHead": "930b53797fa8d84693d6c4d1d6e234bddf0e6b31",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15I; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15I; 01_CANONICAL_SPECS/AYAS_MASTER_EXECUTION_DIRECTIVE_V3_2.md, section 11",
+    "addendumSections": "section 0 (unknown state fails closed; unmeasured is never PASS); section 3 (an added operation records evidence with a closed outcome class)",
+    "notes": "03_STAGE15_BASE/hardening/15I/IMPLEMENTATION_NOTES.md",
+    "constraints": "The resume-stage write action stays disabled and owner-gated. No paid provider call and no live production run is made to prove the stage."
   }
 }

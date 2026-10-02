@@ -1,3 +1,8 @@
+## 2026-10-02 — AYAS Stage15H no-cloud independence certification
+
+- The 21 faults of the master order's matrix, the ten links of the representative maintenance task and the cloud-off condition are bound to 93 named scenarios of declared suites. A read-only collector and a pure evaluator produce a sealed record; READY needs no gap at all. Operator script `scripts/ayas-independence-certification.ts`. The record grants no authority.
+- Result for this commit: `LOCAL_INDEPENDENCE_DEGRADED`, one gap (`LOCAL_CODING_BACKEND_NOT_QUALIFIED`, the known Stage 15A result). 32 of 32 requirements proven; 78 suites x 3 trials with no failure. Eval manifest `15F.4-v10` (two existing suites declared, two added). 13 scenarios, 38/38 negative controls. Stage 15I opened. Local commits only; NO PUSH.
+
 ## 2026-10-02 — AYAS Stage15G SBOM and release provenance
 
 - CycloneDX 1.5 SBOM built from the lockfile alone (550 components, no blocking finding) and a sealed offline release provenance manifest: commit, lockfile, SBOM, licenses, install scripts, advisory state, pinned model and binary identities, Graphify state, test matrix, build output. Operator script `scripts/ayas-release-provenance.ts`; `npm run build` writes a build stamp.
