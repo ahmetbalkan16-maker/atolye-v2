@@ -1,3 +1,13 @@
+# AYAS continuation — 2026-10-02 / Stage 15O.2 GREEN (golden gate in the improvement flow), 15O.3 next
+
+Tested source `9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74`; resolve the real HEAD with `git rev-parse HEAD`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+The golden vault is now wired. An improvement is measured against it in the experiment's own sandbox, after held-out and before review, and only a held vault leaves the verdict IMPROVED. The artifact freeze, both proposal bridges, the cycle's proposal evidence and exact proposal safety each require a golden block held against the vault as it is now, so evidence from before this stage or from an older vault version cannot be promoted. Production callers pass nothing and get the vault of record; fixture repositories pass their own vault.
+
+Tests: declared 102-suite baseline on manifest `15F.4-v24` at the commit, no failure, cognitive 54/55 and held-out 4/5 unchanged, RAM peak 58.94 %. Gate 11 scenarios, negative controls 35/35; the vault of record held inside a real experiment sandbox (17 of 17). Graphify 17,310 / 49,634, no anomaly, PARTIAL 9 and semantic pending. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15O/15O2_RESULT.json`.
+
+Next: 15O.3, three deterministic historical-video golden projects as vault version 2; then the Stage 15O closure and Stage 15P. Unchanged OWNER ACTION, not blocking: adopt the Owner Constitution at `/brain/constitution`. Exact nextAction: `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json`.
+
 # AYAS continuation — 2026-10-02 / Stage 15O.1 GREEN (golden vault, not wired), 15O.2 next
 
 Tested source `143178caeef99ef778b44de0c7d135ecdf4c287d`; resolve the real HEAD with `git rev-parse HEAD`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.

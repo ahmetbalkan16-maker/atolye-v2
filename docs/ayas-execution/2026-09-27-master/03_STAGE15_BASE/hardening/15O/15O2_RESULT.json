@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15O",
+  "packet": "15O.2",
+  "state": "GREEN_GOLDEN_GATE_IN_THE_IMPROVEMENT_FLOW",
+  "stageSourceClosed": false,
+  "sourceBaseHead": "67e3838f30ef72ea10fb3ce5d4a659d2ddb48ddc",
+  "sourceCommit": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+  "authority": "NONE",
+  "flow": "baseline -> candidate -> held-out -> golden regression -> review",
+  "askedWhere": "runAyasRegisteredImprovementExperiment, in the experiment's own sandbox, only when the comparison before the vault would say IMPROVED",
+  "verdictMapping": {
+    "GOLDEN_HELD": "IMPROVED stands",
+    "regressedByChange": "REGRESSED / GOLDEN_REGRESSION",
+    "redNotShownGoldenBefore": "INCONCLUSIVE / GOLDEN_NOT_HELD",
+    "notMeasured": "INCONCLUSIVE / GOLDEN_NOT_MEASURED",
+    "vaultOrPinMoved": "INVALID_EXPERIMENT / GOLDEN_VAULT_CHANGED"
+  },
+  "promotionConsumers": [
+    "freezeAyasControlledEvolutionArtifact",
+    "buildAyasControlledEvolutionProposalCandidate",
+    "runAyasResearchImprovementCycle proposal evidence",
+    "discoverAyasResearchExperimentProposalCandidates",
+    "verifyAyasExactProposalSafety"
+  ],
+  "consumerRule": "a well-formed golden block, decision held, every case of the vault asked, the digest of the vault as it is now; evidence from before the vault or from an older version is not promoted",
+  "measured": {
+    "realSandboxAtHead": "no pin drift over 22 pinned files, 17 of 17 cases held in the sandbox environment, tree untouched, 31 to 33 s",
+    "goldenSandboxRunInBaselineSeconds": 33,
+    "stage8SuiteSeconds": 201,
+    "notMeasured": "the whole live cycle with a real strategy: none can run at this HEAD; a budget that is too small gives INCONCLUSIVE, never IMPROVED"
+  },
+  "lifecycle": {
+    "newEntry": "evaluator.research-improvement.15o-v3",
+    "rollbackTarget": "evaluator.research-improvement.15f4-v2 (revision 67e3838f30ef72ea10fb3ce5d4a659d2ddb48ddc)",
+    "registryEntries": 18
+  },
+  "tests": {
+    "gate": 11,
+    "gateMutations": "35/35 caught",
+    "goldenSandboxRun": "17 of 17 held in a real sandbox",
+    "vaultContract": 13,
+    "vaultMutations": "40/40 caught",
+    "updatedSuites": [
+      "research-improvement-loop",
+      "controlled-self-evolution-cycle",
+      "controlled-self-evolution-artifact",
+      "exact-proposal-safety",
+      "lifecycle"
+    ],
+    "fullBaseline": {
+      "manifest": "15F.4-v24",
+      "manifestDigest": "9909ba95ee85df0e384125c7a03dd72795f5c7dbbda229a7d89a0f9b7cd98a64",
+      "sourceHead": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+      "worktree": "clean at the commit",
+      "suites": 102,
+      "complete": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55, held-out 4/5, unchanged",
+      "report": "15O2_FULL_BASELINE_V24.json"
+    },
+    "exactHeadPins": "118 unique grader files match the committed Git blobs; no drift",
+    "typeScript": "PASS",
+    "changedLint": "PASS",
+    "diffCheck": "PASS"
+  },
+  "ramPeakPercent": 58.94,
+  "graphify": "GRAPHIFY_15O2_SOURCE_COMMIT.json",
+  "findings": [
+    "F25 found and resolved",
+    "F26 recorded: not a defect"
+  ],
+  "knownLimits": [
+    "The golden cases are deterministic suites; they do not grade a model. A model promotion still rests on the lifecycle checks.",
+    "The per-experiment time budget was not widened; a growing vault needs short cases or an owner decision about the cycle budget.",
+    "The experiment registry's own protected-path list is unchanged (lifecycle identity); the patch-safety table stops an artifact that touches a protected file.",
+    "Graphify PARTIAL 9 and semantic pending retained."
+  ],
+  "next": "15O.3 deterministic historical-video golden projects as vault version 2",
+  "runtime": "ON_DEMAND; no model, container, provider, live production or push"
+}

@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "143178caeef99ef778b44de0c7d135ecdf4c287d",
-  "currentHead": "143178caeef99ef778b44de0c7d135ecdf4c287d",
+  "lastGreenHead": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+  "currentHead": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
   "stage": "STAGE_15O",
-  "subtask": "15O.2-golden-gate-in-the-improvement-flow",
+  "subtask": "15O.3-deterministic-historical-video-golden-projects",
   "status": "STAGE_15O_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -201,7 +201,8 @@
     "15N.R-handoff-review-path-spelling-and-gitignore-fixes",
     "15N-closure-GREEN-source-not-adopted",
     "15O.0-existing-seam-inspection",
-    "15O.1-golden-vault-contract-registry-path-protection-GREEN-not-wired"
+    "15O.1-golden-vault-contract-registry-path-protection-GREEN-not-wired",
+    "15O.2-golden-gate-in-the-improvement-flow-GREEN"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -331,22 +332,24 @@
     "Stage 15N: owner constitution 18 scenarios (TEMP policies, synthetic owner sessions); negative controls 19/19 caught with one declared equivalent and one Windows-only control; run binding 18 and 13/13; durable task recovery 22; eval governance 10; firewall closure 12; discovery registry 15; TypeScript; changed-file lint; full lint 0 errors/13 existing warnings; diff check.",
     "Stage 15N: first full run on manifest v20 FAILED one suite of 95 (durable-task-recovery importer inventory, repaired in the grader); v21 archived without a full run. Declared 95-suite baseline on v22 at 9cdf5db with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 50.59 %. 108 unique grader pins match the committed blobs. Production build PASS in a TEMP clone. No adoption, model, container, provider or push.",
     "Stage 15O.1: golden vault contract 13 scenarios; operator and runner 3 (one TEMP copy); negative controls 39/39 in a TEMP copy; all 17 golden cases held in 28 s; patch-safety consumers (brain-selfheal 41, brain-selfheal-security 14, exact-proposal-safety 28, autonomous-foundation-acceptance 42, patch-detectors 37, adaptation-pipeline 7); TypeScript; changed-file lint; diff check.",
-    "Stage 15O.1: declared 99-suite baseline on manifest v23 at 143178c with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 56.87 %. 113 unique grader pins match the committed blobs. No model, container, provider or push."
+    "Stage 15O.1: declared 99-suite baseline on manifest v23 at 143178c with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 56.87 %. 113 unique grader pins match the committed blobs. No model, container, provider or push.",
+    "Stage 15O.2: golden experiment gate 11 scenarios (real experiments in TEMP fixture repositories); negative controls 35/35 in a TEMP copy; the vault of record held inside a real experiment sandbox (17 of 17, no pin drift, tree untouched); vault contract 13 and 40/40; controlled-evolution artifact and cycle 20, exact proposal safety 28, lifecycle 14 (18 entries) and revision controls 5/5; TypeScript; changed-file lint; diff check.",
+    "Stage 15O.2: declared 102-suite baseline on manifest v24 at 9cbe62d with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 58.94 %. 118 unique grader pins match the committed blobs. No model, container, provider or push."
   ],
   "graphify": {
-    "head": "143178caeef99ef778b44de0c7d135ecdf4c287d",
-    "testedSourcePacket": "143178caeef99ef778b44de0c7d135ecdf4c287d",
+    "head": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+    "testedSourcePacket": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17271,
-    "edges": 49440,
+    "nodes": 17310,
+    "edges": 49634,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Graph built from the 15O.1 source commit with a clean tree. The checkpoint commit after it changes documentation only; refresh follows at that HEAD. PARTIAL 9 and semantic pending retained."
+    "headSemantics": "Graph built from the 15O.2 source commit with a clean tree. The checkpoint commit after it changes documentation only; refresh follows at that HEAD. PARTIAL 9 and semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -367,7 +370,7 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "Stage 15O.2: run the golden vault once in the existing experiment sandbox, on the candidate tree, only when the benchmark and held-out comparison would otherwise say IMPROVED; reuse the result of a regression suite that is also a golden case; on a red case re-run only that case on the unchanged tree to say whether the change broke it. Add a golden block to the experiment evidence; a red, unmeasured or moved vault can never yield IMPROVED, so the artifact freeze, the controlled-evolution bridge, the research proposal bridge and exact proposal safety all stop; each also requires the block and the current vault digest. Vault injectable through the cycle dependencies for fixture repositories. New lifecycle evaluator entry for the changed Stage 8 evaluator with the old identity kept as rollback target. Suite and negative controls; eval manifest bump. Then 15O.3: two or three deterministic historical-video golden projects as vault version 2. Plan: 03_STAGE15_BASE/hardening/15O/IMPLEMENTATION_NOTES.md. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT; canonical 15O-15T before 16. NO PUSH; PC HEALTH and ON_DEMAND retained.",
+  "nextAction": "Stage 15O.3: add three deterministic historical-video golden projects (fact pack with real sources and one disputed claim each, eight narrative units, one labelled character scene per unit) as fixtures, a suite that runs them through the Stage 15J engines and compares the reviews and the rendered scene bytes with frozen values, and publish golden vault version 2 with that suite as a HISTORICAL_VIDEO case (version 1 stays in the chain; the gap narrows to projects rendered by a real production). Negative controls; eval manifest bump; full baseline at the commit; then close Stage 15O (closure record, checkpoint, ledger) and open Stage 15P Source Trust and Evidence Graph. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT; canonical 15O-15T before 16. NO PUSH; PC HEALTH and ON_DEMAND retained.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -431,15 +434,21 @@
   },
   "sourcePacketFiles": [
     "src/lib/ayas/golden/AyasGoldenVault.ts",
-    "src/lib/ayas/golden/AyasGoldenVaultRegistry.ts",
+    "src/lib/brain/autonomy/AyasResearchExperimentSandbox.ts",
+    "src/lib/brain/autonomy/AyasResearchExperimentEvaluation.ts",
+    "src/lib/brain/autonomy/AyasRegisteredImprovementExperiment.ts",
+    "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts",
+    "src/lib/brain/autonomy/AyasResearchProposalBridge.ts",
+    "src/lib/brain/autonomy/AyasExactProposalSafety.ts",
+    "src/lib/ayas/evolution/AyasControlledSelfEvolutionArtifact.ts",
+    "src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge.ts",
+    "src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle.ts",
+    "src/lib/ayas/lifecycle/AyasLifecycleRegistry.ts",
     "src/lib/brain/selfheal/BrainPatchSafety.ts",
-    "scripts/lib/AyasGoldenVaultFiles.ts",
-    "scripts/ayas-golden-vault.ts",
-    "scripts/smoke-ayas-golden-vault.ts",
-    "scripts/smoke-ayas-golden-vault-operator.ts",
-    "scripts/smoke-ayas-golden-vault-mutations.ts",
-    "scripts/smoke-ayas-golden-vault-run.ts",
-    "scripts/smoke-brain-selfheal-security.ts"
+    "scripts/fixtures/ayas-golden-fixtures.ts",
+    "scripts/smoke-ayas-golden-experiment-gate.ts",
+    "scripts/smoke-ayas-golden-experiment-gate-mutations.ts",
+    "scripts/smoke-ayas-golden-sandbox-run.ts"
   ],
   "localClosure": {
     "stage": "STAGE_15N",
@@ -1180,7 +1189,7 @@
     "next": "STAGE_15O"
   },
   "stage15O": {
-    "state": "IN_PROGRESS_15O.2",
+    "state": "IN_PROGRESS_15O.3",
     "openedOn": "2026-10-02",
     "openedAtHead": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15O; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md 15O",
@@ -1211,6 +1220,19 @@
         "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
         "failed": [],
         "report": "15O1_FULL_BASELINE_V23.json"
+      }
+    },
+    "packet15O2": {
+      "state": "GREEN_GOLDEN_GATE_IN_THE_IMPROVEMENT_FLOW",
+      "sourceCommit": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+      "result": "03_STAGE15_BASE/hardening/15O/15O2_RESULT.json",
+      "fullBaseline": {
+        "manifest": "15F.4-v24",
+        "suites": 102,
+        "complete": true,
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "failed": [],
+        "report": "15O2_FULL_BASELINE_V24.json"
       }
     }
   }
