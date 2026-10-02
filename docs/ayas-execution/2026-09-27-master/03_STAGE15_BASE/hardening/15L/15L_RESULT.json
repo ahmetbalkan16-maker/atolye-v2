@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "stage": "STAGE_15L",
+  "result": "GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NO_LIVE_DISPATCH",
+  "date": "2026-10-02",
+  "sourceCommit": null,
+  "sourceHeadBeforeCommit": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
+  "testedWorktreeDigest": "dd0f0f59d399acd3370d40e1f098d9a2863dc0b96b5008211dcb522a93a37eeb",
+  "sourcePins": [
+    {
+      "file": "src/lib/ayas/director/AyasProductionFaultRepair.ts",
+      "sha256": "d23e4483df3f880ecf30cf6f1212d79f56749ff8969e8571e455bc785f9bca55"
+    },
+    {
+      "file": "scripts/ayas-production-fault-repair.ts",
+      "sha256": "2ae50d6be8205255751171652a3bed178e90d972ce59e3eabc44f60f482b73eb"
+    },
+    {
+      "file": "scripts/smoke-ayas-production-fault-repair.ts",
+      "sha256": "7f67d0e6d33a2461d09076ac186a7258b2ec8f120cfa58de25b6cc390548518f"
+    },
+    {
+      "file": "scripts/smoke-ayas-production-fault-repair-mutations.ts",
+      "sha256": "ae2f41db49ded0ba9735265890b027fea2b8d22d15ff77be98378ed2548b1b66"
+    },
+    {
+      "file": "scripts/smoke-ayas-action-firewall-bridge.ts",
+      "sha256": "272c36b9e09b211d3acce01567caf7efc6ca6ab21ac0d21d22629179b3151287"
+    }
+  ],
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "tests": {
+    "focusedScenarios": 24,
+    "negativeControls": {
+      "caught": 24,
+      "total": 25,
+      "equivalent": 1
+    },
+    "bridgeFocusedTrials": "8/8, 12 scenarios each; assertions retained",
+    "fullBaseline": {
+      "manifestVersion": "15F.4-v16",
+      "suites": 86,
+      "complete": true,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "report": "15L_FULL_BASELINE_V16.json"
+    },
+    "typeScript": "PASS",
+    "changedFileLint": "PASS",
+    "fullLint": "PASS, 0 errors / 13 pre-existing warnings",
+    "diffCheck": "PASS"
+  },
+  "graphify": {
+    "sourceHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
+    "lastAnalyzedHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
+    "graphBuiltFromHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
+    "structuralStatus": "PARTIAL",
+    "semanticStatus": "PENDING",
+    "dirtyUncoveredPaths": [],
+    "needsUpdateFlag": false,
+    "integrity": {
+      "builtFromHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
+      "nodes": 17066,
+      "links": 48886,
+      "duplicateIds": 0,
+      "duplicateEdges": 0,
+      "dangling": 0,
+      "selfLoops": 0
+    },
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "resourceProtection": {
+    "singleHeavyWorkload": true,
+    "ramAdmissionLimitPercent": 90,
+    "baselinePeakRamUsedPercent": 56.82205744354594,
+    "localCodingRuntime": "ON_DEMAND_NOT_STARTED"
+  },
+  "liveReadOnly": {
+    "evidence": "15L_LIVE_READONLY.json",
+    "storage": "explicit-external",
+    "ownerRequest": "NOT_BOUND",
+    "authority": "NONE"
+  },
+  "productionGuardsChanged": false,
+  "writeActivation": "OWNER_GATED_UNCHANGED",
+  "paidCalls": 0,
+  "providerCalls": 0,
+  "modelRuns": 0,
+  "liveStageRuns": 0,
+  "uploads": 0,
+  "push": false,
+  "limits": [
+    "Repair plans do not execute; every dispatch remains executableByAyas false.",
+    "Retry-After is not collected; rate limits use the declared conservative 900-second wait.",
+    "Numeric retry extensions remain owner-gated; base bound reused conservatively.",
+    "Coding task needs separately localized exact files and line budget; no task is enqueued or promoted.",
+    "Graphify has 9 known structural gaps and semantic pending.",
+    "Local coding backend remains unqualified/DEGRADED."
+  ],
+  "failedEvidence": [
+    "15L_BASELINE.json",
+    "ACTION_FIREWALL_BRIDGE_FAILURE.json"
+  ],
+  "graderRevision": "BRIDGE_GRADER_REVISION.json"
+}

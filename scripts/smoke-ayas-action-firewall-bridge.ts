@@ -100,13 +100,32 @@ async function main() {
   await scenario("two fresh Node processes cannot attach/consume one legacy grant for different runs", async () => {
     const { store, dir } = setup(); const grant = store.grant(request());
     const authModule = path.resolve("src/lib/ayas/execution/AyasExecutionAuthorization.ts"), firewallModule = path.resolve("src/lib/ayas/execution/AyasActionFirewall.ts");
-    const code = `const {AyasExecutionAuthorizationStore}=require(${JSON.stringify(authModule)});const {createAyasActionFirewall}=require(${JSON.stringify(firewallModule)});const store=new AyasExecutionAuthorizationStore({rootDir:${JSON.stringify(dir)}});const guard=createAyasActionFirewall({repoRoot:${JSON.stringify(dir)},authorizations:store});setTimeout(()=>{const issued=guard.issue(${JSON.stringify(raw)},${JSON.stringify(grant.authorizationId)});const result=issued.allowed?guard.admit(issued.lease,${JSON.stringify(raw)}):issued;process.stdout.write(result.allowed?'ALLOWED':result.reason)},100);`;
+    // Both contenders finish their scope attachment before either consumes. A losing attachment holds the same
+    // non-waiting record lock briefly: consuming during that refusal can legitimately refuse BOTH processes.
+    // This barrier tests the single-use race without assuming lock scheduling fairness; the exact-one assertion stays.
+    const code = `
+      const io=require('node:fs'),p=require('node:path');
+      const {AyasExecutionAuthorizationStore}=require(${JSON.stringify(authModule)});
+      const {createAyasActionFirewall}=require(${JSON.stringify(firewallModule)});
+      const dir=${JSON.stringify(dir)},store=new AyasExecutionAuthorizationStore({rootDir:dir});
+      const guard=createAyasActionFirewall({repoRoot:dir,authorizations:store});
+      (async()=>{
+        const issued=guard.issue(${JSON.stringify(raw)},${JSON.stringify(grant.authorizationId)});
+        io.writeFileSync(p.join(dir,'scope-ready-'+process.pid),'');
+        const deadline=Date.now()+10000;
+        while(io.readdirSync(dir).filter(n=>n.startsWith('scope-ready-')).length<2){
+          if(Date.now()>deadline)throw Error('FIXTURE_SCOPE_BARRIER_TIMEOUT');
+          await new Promise(resolve=>setTimeout(resolve,5));
+        }
+        const result=issued.allowed?guard.admit(issued.lease,${JSON.stringify(raw)}):issued;
+        process.stdout.write(result.allowed?'ALLOWED':result.reason);
+      })().catch(error=>{console.error(error);process.exitCode=1;});`;
     const run = () => new Promise<string>((resolve, reject) => {
       const child = spawn(process.execPath, ["--require", "tsx/cjs", "-e", code], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
       let output = "", error = ""; child.stdout.on("data", (b) => output += b); child.stderr.on("data", (b) => error += b);
       child.on("error", reject); child.on("exit", (status) => status === 0 ? resolve(output) : reject(new Error(error)));
     });
-    const results = await Promise.all([run(), run()]); assert.equal(results.filter((r) => r === "ALLOWED").length, 1);
+    const results = await Promise.all([run(), run()]); assert.equal(results.filter((r) => r === "ALLOWED").length, 1, JSON.stringify(results));
     assert.equal(store.list().length, 1); assert.equal(store.read(grant.authorizationId).state, "consumed");
   });
   console.log(`Stage 15D legacy read bridge firewall: PASS (${count} scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)`);

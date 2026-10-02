@@ -1,0 +1,55 @@
+{
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "trials": [
+    {
+      "trial": 1,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "trial": 2,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "trial": 3,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "trial": 4,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "trial": 5,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "trial": 6,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "trial": 7,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "trial": 8,
+      "exitCode": 0,
+      "stdout": "Stage 15D legacy read bridge firewall: PASS (12 scenarios; one grant; TEMP/mock adapters; model/network/pipeline actions 0)\n",
+      "stderr": ""
+    }
+  ],
+  "productionCodeChanged": false,
+  "assertionsLowered": false
+}

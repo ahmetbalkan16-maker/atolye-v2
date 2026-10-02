@@ -1,0 +1,4 @@
+{
+  "source": "TEMP baseline stderr",
+  "text": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 1\n\n    at <anonymous> (C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-eval-baseline-AnNf9b\\repo\\scripts\\smoke-ayas-action-firewall-bridge.ts:109:63)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async scenario (C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-eval-baseline-AnNf9b\\repo\\scripts\\smoke-ayas-action-firewall-bridge.ts:25:74)\n    at async main (C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-eval-baseline-AnNf9b\\repo\\scripts\\smoke-ayas-action-firewall-bridge.ts:100:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: 0,\n  expected: 1,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n"
+}

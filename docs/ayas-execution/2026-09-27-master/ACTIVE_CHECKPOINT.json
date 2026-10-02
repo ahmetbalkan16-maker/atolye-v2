@@ -3,10 +3,10 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
-  "currentHead": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
+  "currentHead": "d5efa35b3cfe05e8dffe771120a6403682d8369b",
   "stage": "STAGE_15L",
-  "subtask": "15L.0-existing-seam-inspection",
-  "status": "STAGE_15L_OPEN",
+  "subtask": "15L.1-final-regression-and-closure",
+  "status": "STAGE_15L_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -187,7 +187,13 @@
     "15K.1-cost-governor-and-reservation-ledger",
     "15K-closure-GREEN-not-wired"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/director/AyasProductionFaultRepair.ts",
+    "scripts/ayas-production-fault-repair.ts",
+    "scripts/smoke-ayas-production-fault-repair.ts",
+    "scripts/smoke-ayas-production-fault-repair-mutations.ts",
+    "scripts/smoke-ayas-action-firewall-bridge.ts"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -315,8 +321,8 @@
   "graphify": {
     "head": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
     "testedSourcePacket": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
-    "stale": false,
-    "needsUpdate": false,
+    "stale": true,
+    "needsUpdate": true,
     "nodes": 17026,
     "edges": 48804,
     "duplicateNodes": 0,
@@ -325,7 +331,7 @@
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Built from the Stage 15K source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
+    "headSemantics": "Graph built at d5efa35 before the source packet; current worktree edits require refresh after validation."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -344,8 +350,8 @@
     "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
     "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework."
   ],
-  "nextAction": "STAGE_15L Autonomous Production Fault Repair + Resume: 15L.0 existing-seam inspection (the Stage 15I director's fault classes and plans, PipelineRetryAdmission and PipelineRecoveryPlanner, the YouTube publish pipeline's reconciliation of an indeterminate upload, the Runtime Stability Guard). Then the twelve canonical fault classes, the six safe auto repairs as bounded plans with backoff, CODE_DEFECT as a Stage 15 coding task record with no production hot patch, and UNKNOWN failing closed with an explanation. The write path stays closed; no live production run. Local commits only; NO PUSH.",
-  "updatedAt": "2026-10-02T06:28:20.710Z",
+  "nextAction": "Finish 15L.1: run declared 86-suite v16 baseline after the bridge fixture barrier (no production authorization code changed); TypeScript/lint; Graphify current on worktree; local source commit; exact HEAD Graphify refresh; close/checkpoint 15L as a repair planner and bounded task bridge, with live dispatch owner-gated; then automatically start canonical Stage 15M existing-seam inspection. NO PUSH; no model/container/live production run.",
+  "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -742,7 +748,7 @@
   },
   "executionControl": {
     "mode": "AUTONOMOUS_CANONICAL_MASTER_CONTINUATION",
-    "source": "OWNER_REQUEST_2026-10-01_POST_FREEZE_ADDENDUM",
+    "source": "OWNER_REQUEST_2026-10-02_MASTER_CONTINUATION",
     "startNextStage": true,
     "push": false,
     "priorStopRevoked": true,
@@ -1009,12 +1015,21 @@
     ]
   },
   "stage15L": {
-    "state": "OPEN",
+    "state": "IN_PROGRESS",
     "openedOn": "2026-10-02",
     "openedAtHead": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15L; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15L",
     "addendumSections": "section 0 (unknown fails closed with an explanation); section 1 (no blind replay of a possibly completed side effect)",
     "notes": "03_STAGE15_BASE/hardening/15L/IMPLEMENTATION_NOTES.md",
-    "constraints": "Build on the Stage 15I director. The write path stays closed and owner-gated. No live production run and no paid call."
+    "constraints": "Build on the Stage 15I director. The write path stays closed and owner-gated. No live production run and no paid call.",
+    "inheritedDraft": "Untracked repair module at session start; preserved and completed.",
+    "tests": {
+      "focused": "24 scenarios PASS",
+      "mutation": "24/25 caught; one equivalent safety mutation",
+      "firstFullBaseline": "86 suites; 85 PASS/known limitations, action-firewall-bridge fixture race FAIL; evidence retained in 15L_BASELINE.json",
+      "bridgeFix": "TEMP scope barrier; exact-one assertion retained; focused 12 PASS",
+      "currentManifest": "15F.4-v16",
+      "finalFullBaseline": "PENDING"
+    }
   }
 }

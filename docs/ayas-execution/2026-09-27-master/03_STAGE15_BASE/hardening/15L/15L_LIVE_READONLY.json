@@ -1,0 +1,48 @@
+{
+  "storage": "explicit-external",
+  "readRetries": 0,
+  "report": {
+    "schemaVersion": "1",
+    "projectSlug": "atilla-nin-y-kselisi",
+    "sessionId": "director-005a81c32b607e50df952de0",
+    "sessionDigest": "6771091f54baa8eceb000aca21e76795901381930515db8fba48327623f6e953",
+    "holds": [
+      "OWNER_REQUEST_NOT_BOUND"
+    ],
+    "plans": [
+      {
+        "stage": null,
+        "faultClass": null,
+        "repair": null,
+        "backoff": null,
+        "reuse": [],
+        "dispatch": null,
+        "ownerQuestion": "BIND_OWNER_REQUEST",
+        "codingTask": null,
+        "explanation": "No owner request is bound to this production, so nothing here is authorized to continue.",
+        "action": "REQUIRE_OWNER"
+      },
+      {
+        "stage": "script",
+        "faultClass": null,
+        "repair": null,
+        "backoff": null,
+        "reuse": [],
+        "dispatch": null,
+        "ownerQuestion": null,
+        "codingTask": null,
+        "explanation": "Held: OWNER_REQUEST_NOT_BOUND.",
+        "action": "WAIT"
+      }
+    ],
+    "counts": {
+      "AUTO_REPAIR_PLAN": 0,
+      "REQUIRE_OWNER": 1,
+      "CODING_TASK": 0,
+      "FAIL_CLOSED": 0,
+      "WAIT": 1,
+      "NONE": 0
+    },
+    "authority": "NONE"
+  }
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v16",
+  "version": "15F.4-v15",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -113,7 +113,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-action-firewall-bridge.ts",
-          "sha256": "272c36b9e09b211d3acce01567caf7efc6ca6ab21ac0d21d22629179b3151287"
+          "sha256": "c37b5af990056bce567109efc21ede66da8a096282ba23c728ec85410101e320"
         }
       ],
       "slices": [
