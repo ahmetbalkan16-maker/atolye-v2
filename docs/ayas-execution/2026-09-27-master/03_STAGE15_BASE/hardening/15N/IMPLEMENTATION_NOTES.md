@@ -47,3 +47,9 @@ Limits found in the review and left as they are, because closing them needs an o
 - A process that was already running when the owner adopts holds new work until it is restarted: the observer logs `CONSTITUTION_HOLD` on every tick.
 
 The full declared baseline is run once, at the source commit, on v22.
+
+## Source closure (2026-10-02)
+
+Source commit `9cdf5dbdede418dd35c6a9a1c5057299c20af693`. Declared baseline on v22 at that commit with a clean tree: 95 of 95 suites, PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 50.59 %. 108 unique grader pins match the committed blobs. Full lint 0 errors / 13 existing warnings. Production build PASS in a TEMP clone; the repository `.next` and the running server were not touched. Graphify at the commit: 17,202 nodes / 49,285 links, no anomaly, PARTIAL 9 and semantic pending.
+
+Stage 15N is closed as source. Nothing was adopted on this host; adoption is the owner's action and does not block later stages. See `CLOSURE.md`, `15N_RESULT.json` and `OWNER_REVIEW_PACKET.json`.

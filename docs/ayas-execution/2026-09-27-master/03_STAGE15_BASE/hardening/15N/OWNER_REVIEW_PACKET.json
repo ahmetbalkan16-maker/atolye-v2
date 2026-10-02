@@ -39,5 +39,14 @@
   "reviewBinding": "Existing authenticated HttpOnly owner session; exact proposalDigest form; no model/tool owner flag",
   "versionChanges": "Signed append-only service requires current digest and owner session; UI currently exposes bootstrap only",
   "liveAcceptance": "NOT_RUN",
-  "validation": "IN_PROGRESS"
+  "validation": "SOURCE_GREEN at 9cdf5dbdede418dd35c6a9a1c5057299c20af693: declared 95-suite baseline on 15F.4-v22 with no failure; proposalDigest recomputed from the committed source and unchanged",
+  "ownerSteps": [
+    "Rebuild and restart the Next server; the running server was built before this page existed.",
+    "Open /brain/constitution with the owner session and expand the draft.",
+    "Compare the digest shown on the page with proposalDigest in this file. They must be identical.",
+    "Activate. The page then shows the active version; data/brain/owner-constitution holds root.json and 1.json and is ignored by Git.",
+    "Restart the AYAS Autonomy Observer Scheduled Task. A process that was already running holds new work after an adoption until it is restarted."
+  ],
+  "afterActivation": "Every new run carries this digest in its evidence. A later change needs a new signed version; no owner route for that exists yet.",
+  "notBlocking": "Until activation the state is MISSING: behaviour is as before Stage 15N and later stages continue."
 }

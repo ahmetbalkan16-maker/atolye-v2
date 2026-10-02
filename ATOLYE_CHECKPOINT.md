@@ -1,3 +1,17 @@
+# AYAS continuation — 2026-10-02 / Stage 15N source CLOSED GREEN (not adopted), Stage 15O OPEN
+
+Tested source `9cdf5dbdede418dd35c6a9a1c5057299c20af693`; resolve the real HEAD with `git rev-parse HEAD`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+Stage 15N (Owner Constitution / Root of Trust) is closed as source. One versioned owner-only constitution: closed schema, signed append-only chain bound to the physical repository, public reader with no authority, owner writer behind the existing session, review page at `/brain/constitution`. Every long-running run binds the digest and rechecks it before new work (action firewall, observer tick, durable task operator, research tick, light and deep scans); machine health reads the owner's RAM admission threshold.
+
+The packet changed hands mid-stage (Codex to Claude) with the checkpoint still naming 15N.0. The review of the uncommitted draft found two defects, both fixed with a scenario and a negative control: the bound repository followed the caller's path spelling on Windows (F21), and the adoption directories were not ignored by Git (F22).
+
+Tests: declared 95-suite baseline on manifest `15F.4-v22` at the commit, no failure, cognitive 54/55 and held-out 4/5 unchanged, RAM peak 50.59 %. Owner constitution 18 and 19/19 negative controls; run binding 18 and 13/13; 108 grader pins match committed blobs; production build PASS in a TEMP clone. Graphify 17,202 / 49,285, no anomaly, PARTIAL 9 and semantic pending. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15N/`.
+
+Nothing was adopted on this host: the state is MISSING and behaviour is as before the stage. OWNER ACTION, not blocking: rebuild and restart the Next server, review the digest on `/brain/constitution`, activate, then restart the AYAS Autonomy Observer Scheduled Task.
+
+Next: Stage 15O Golden Benchmark and Regression Vault. Seam inspection is done and the plan is in `hardening/15O/IMPLEMENTATION_NOTES.md` (15O.1 vault and path protection, 15O.2 gate in the improvement flow, 15O.3 deterministic golden video projects). Exact nextAction: `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json`. No model, container, provider, live run or upload.
+
 # AYAS continuation — 2026-10-02 / Stage15M source GREEN, Stage15N OPEN
 
 Exact source e1241dfd5246adb03690080a1b8a8ac0c3bbba65. 15M coverage gate + opt-in physical delivery + current read-only technical collection implemented. Fullv18 baseline91 PASS_WITH_KNOWN_LIMITATIONS; finalv19 affected suites3/3 PASS, fullv19 NOT_RUN; 104 grader pins match committed blobs. 4 measured/25 UNMEASURED; rights/costUNKNOWN and live quality uncertified. Next is15N Owner Constitution, per final execution order; older direct16 pointers superseded. No Stage16 source changed. Exact nextAction in docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json. NO PUSH; no model/container/provider/live run/upload.

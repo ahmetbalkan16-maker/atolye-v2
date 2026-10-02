@@ -794,3 +794,28 @@ Reuses the existing materializer lease/verified assets/subtitles/atomic promotio
 ## Stage15M source closure / Stage15N open (2026-10-02)
 
 Source e1241dfd5246adb03690080a1b8a8ac0c3bbba65; all104 unique grader pins match Git HEAD blobs. ORDER CORRECTION: priority2 final order adds15N–15T before16; lower-priority direct16 pointers above are superseded. No16 code changed. Stage15N opened automatically; inspect constitution/owner authority/run digest seams. Source quality closure remains live-uncertified. LOCAL COMMITS; NO PUSH.
+
+## Stage 15N — handoff Codex -> Claude with the source packet uncommitted (2026-10-02)
+
+At the start of the session the checkpoint named 15N.0 at HEAD `ea159a2`, while the worktree held 15N.1 and 15N.2 implemented and uncommitted, and the other agent was still writing (last write 13:29:11, processes gone by 13:32). Nothing was written until it had exited. The repository was taken as the truth: the stage notes and file times gave the stopping point (a v20 full run with one failure, repaired in the grader, manifest v21 prepared, validation pending). No completed work was redone and nothing was reset, stashed or cleaned.
+
+## Stage 15N — handoff review found two defects in the draft; both fixed (2026-10-02)
+
+Measured at this workstation's real values before validating the draft:
+
+1. The bound repository digest followed the caller's spelling of the path. `c:\Users\...` and `C:\Users\...` gave different digests for one directory, and a child process inherits its parent's spelling. After an adoption one of server, observer and operator shell would have read the policy as unverifiable and refused all new work. Fixed with one canonical-root helper used by the reader, the binding and the writer.
+2. The adoption directory, the writer lock directory and the bootstrap staging directory were not ignored by Git. Fixed with three anchored rules.
+
+Both failed closed. Each has a new scenario and a negative control. Findings F21 and F22.
+
+## Stage 15N — CLOSED GREEN as source; not adopted on this host (2026-10-02)
+
+Source commit `9cdf5dbdede418dd35c6a9a1c5057299c20af693`. One versioned owner-only constitution with a closed schema, a signed append-only chain bound to the physical repository, a public reader with no authority, and an owner writer behind the existing session. Every long-running run binds the digest and rechecks it before new work: action firewall, observer tick, durable task operator, research tick, light and deep scans. Machine health reads the owner's RAM admission threshold.
+
+Evidence: declared baseline on manifest v22 at the commit with a clean tree, 95 of 95 suites, PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 50.59 %. Owner constitution 18 scenarios and 19/19 negative controls; run binding 18 and 13/13. 108 unique grader pins match the committed blobs. TypeScript, changed-file lint, diff check PASS; full lint 0 errors / 13 existing warnings. Production build PASS in a TEMP clone. Graphify at the commit 17,202 nodes / 49,285 links, no anomaly, PARTIAL 9 and semantic pending. The failed v20 run and its output are kept; v21 was archived without a full run.
+
+Not claimed: nothing was adopted; the host state is MISSING and behaviour is as before the stage. Owner action, not blocking: rebuild and restart the server, review the digest on `/brain/constitution`, activate, restart the observer task. Evidence in `03_STAGE15_BASE/hardening/15N/`. LOCAL COMMITS; NO PUSH.
+
+## Stage 15O — Golden Benchmark and Regression Vault — OPEN (2026-10-02)
+
+Opened after the 15N source commit. Existing-seam inspection done read-only: eval manifest and pinned graders, the Stage 8 experiment evaluation and its sandbox runner, the three promotion consumers of an evidence package, the lifecycle promotion checks and the patch-safety table. Plan in `03_STAGE15_BASE/hardening/15O/IMPLEMENTATION_NOTES.md`: 15O.1 the vault contract, registry of record and path protection, not wired; 15O.2 the golden gate inside the existing improvement flow; 15O.3 deterministic historical-video golden projects. Revenue dry-run is a declared gap until Stage 16. No owner gate expected. NO PUSH.

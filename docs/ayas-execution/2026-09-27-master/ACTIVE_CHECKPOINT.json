@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
-  "currentHead": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
-  "stage": "STAGE_15N",
-  "subtask": "15N.0-owner-constitution-existing-seam-inspection",
-  "status": "STAGE_15N_OPEN",
+  "lastGreenHead": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
+  "currentHead": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
+  "stage": "STAGE_15O",
+  "subtask": "15O.1-golden-vault-contract-registry-and-path-protection",
+  "status": "STAGE_15O_OPEN",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15M",
-    "status": "CLOSED_GREEN_SOURCE_LIVE_QUALITY_UNCERTIFIED",
-    "closingCommit": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65"
+    "stage": "STAGE_15N",
+    "status": "CLOSED_GREEN_SOURCE_NOT_ADOPTED",
+    "closingCommit": "9cdf5dbdede418dd35c6a9a1c5057299c20af693"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -101,7 +101,8 @@
     "STAGE_15J",
     "STAGE_15K",
     "STAGE_15L",
-    "STAGE_15M_SOURCE"
+    "STAGE_15M_SOURCE",
+    "STAGE_15N_SOURCE"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -193,7 +194,13 @@
     "15L.R-existing-bridge-fixture-race-correction",
     "15L-closure-GREEN-not-live",
     "15M.1-five-domain-evidence-coverage-gate-GREEN",
-    "15M.2-verified-opt-in-delivery-and-readonly-quality-source"
+    "15M.2-verified-opt-in-delivery-and-readonly-quality-source",
+    "15N.0-existing-seam-inspection",
+    "15N.1-versioned-owner-constitution-signed-chain-reader-writer-review-page",
+    "15N.2-run-digest-binding-firewall-observer-durable-research-machine-health",
+    "15N.R-handoff-review-path-spelling-and-gitignore-fixes",
+    "15N-closure-GREEN-source-not-adopted",
+    "15O.0-existing-seam-inspection"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -319,22 +326,24 @@
     "Stage 15J: declared 82-suite baseline at 4e458f4 PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 54.64 %. No provider call, paid generation, dependency install, model or push.",
     "Stage 15K: cost governor 14 scenarios (fixture numbers, TEMP directories, the pipeline's own estimate, a forced race, six real concurrent processes, operator script on a TEMP runtime); negative controls 35/35 in a TEMP overlay; guard suites on the worktree before the commit; phase-5 cost 9; TypeScript; changed-file lint; full lint 0 errors/13 existing warnings.",
     "Stage 15K: declared 84-suite baseline at b95a71b PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 64.94 %. No paid call, provider, model or push.",
-    "Stage 15L: 24 scenarios; 24/25 mutants caught, 1 safety equivalent; bridge 8/8 focused trials with existing assertions; complete v16 86-suite baseline no unexpected failure; TypeScript/changed lint/diff PASS, full lint 0 errors/13 existing warnings. Cognitive 54/55, held-out 4/5 unchanged; no model/provider/live stage/push."
+    "Stage 15L: 24 scenarios; 24/25 mutants caught, 1 safety equivalent; bridge 8/8 focused trials with existing assertions; complete v16 86-suite baseline no unexpected failure; TypeScript/changed lint/diff PASS, full lint 0 errors/13 existing warnings. Cognitive 54/55, held-out 4/5 unchanged; no model/provider/live stage/push.",
+    "Stage 15N: owner constitution 18 scenarios (TEMP policies, synthetic owner sessions); negative controls 19/19 caught with one declared equivalent and one Windows-only control; run binding 18 and 13/13; durable task recovery 22; eval governance 10; firewall closure 12; discovery registry 15; TypeScript; changed-file lint; full lint 0 errors/13 existing warnings; diff check.",
+    "Stage 15N: first full run on manifest v20 FAILED one suite of 95 (durable-task-recovery importer inventory, repaired in the grader); v21 archived without a full run. Declared 95-suite baseline on v22 at 9cdf5db with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 50.59 %. 108 unique grader pins match the committed blobs. Production build PASS in a TEMP clone. No adoption, model, container, provider or push."
   ],
   "graphify": {
-    "head": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
-    "testedSourcePacket": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
-    "stale": true,
+    "head": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
+    "testedSourcePacket": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
+    "stale": false,
     "needsUpdate": false,
-    "nodes": 17137,
-    "edges": 49060,
+    "nodes": 17202,
+    "edges": 49285,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Precommit graph covers15M.2 worktree; refresh at documentation checkpoint HEAD follows. PARTIAL9/semantic pending retained."
+    "headSemantics": "Graph built from the 15N source commit with a clean tree. The closure commit after it changes documentation only; refresh follows at that HEAD. PARTIAL 9 and semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -351,9 +360,11 @@
     "OWNER_REVIEW (not blocking): 42 components have a license outside the short permissive list (LGPL-3.0-or-later, MPL-2.0, CC-BY-4.0); listed in 03_STAGE15_BASE/hardening/15G/release/RELEASE_PROVENANCE.json.",
     "OWNER_DECISION (not blocking): approve or decline binding a read-only production director watch to the observer tick. Until then the director session is read only when the operator script is run.",
     "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
-    "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework."
+    "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework.",
+    "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
+    "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "Stage15N.0 inspect current immutable owner/session/action-firewall/configuration fingerprint and long-running-run seams. Implement versioned constitution proposal/verification/digest binding without autonomous edit or activation. Relevant source/tests first; only stop at a concrete owner-only activation boundary. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT; canonical15N–15T before16. NO PUSH; PC HEALTH and ON_DEMAND retained.",
+  "nextAction": "Stage 15O.1: add src/lib/ayas/golden/AyasGoldenVault.ts (pure contract, chain audit, pin verification, evaluateAyasGoldenRegression) and AyasGoldenVaultRegistry.ts (version 1 from existing deterministic offline suites over the eight canonical domains; revenue dry-run and rendered video projects as declared gaps); make the vault modules, every pinned file, src/lib/ayas/governance and app/brain/constitution never-autonomous in BrainPatchSafety (finding F23); read-only operator script; suite with negative controls; eval manifest bump. Not wired in 15O.1. Then 15O.2 (golden block in the experiment evidence, verdict and three promotion consumers; new lifecycle evaluator entry) and 15O.3 (deterministic historical-video golden projects as vault version 2). Plan and inspection: 03_STAGE15_BASE/hardening/15O/IMPLEMENTATION_NOTES.md. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT; canonical 15O-15T before 16. NO PUSH; PC HEALTH and ON_DEMAND retained.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -416,18 +427,33 @@
     "stage15BOpenedNote": "Opened on 2026-10-01 at f7e19c1, after the closure. QUALIFICATION_CLOSURE.json records the state at closure."
   },
   "sourcePacketFiles": [
-    "src/lib/ayas/director/AyasProductionFaultRepair.ts",
-    "scripts/ayas-production-fault-repair.ts",
-    "scripts/smoke-ayas-production-fault-repair.ts",
-    "scripts/smoke-ayas-production-fault-repair-mutations.ts",
-    "scripts/smoke-ayas-action-firewall-bridge.ts"
+    "src/lib/ayas/governance/AyasOwnerConstitution.ts",
+    "src/lib/ayas/governance/AyasOwnerConstitutionReader.ts",
+    "src/lib/ayas/governance/AyasOwnerConstitutionStore.ts",
+    "app/brain/constitution/page.tsx",
+    "app/brain/constitution/actions.ts",
+    "src/lib/ayas/execution/AyasActionFirewall.ts",
+    "src/lib/ayas/machine/AyasMachineHealthGuard.ts",
+    "src/lib/brain/autonomy/AyasResearchScheduler.ts",
+    "src/lib/brain/autonomy/AyasLightResearchEngine.ts",
+    "src/lib/brain/autonomy/AyasDeepResearchEngine.ts",
+    "src/lib/brain/autonomy/AyasSafePublicFetch.ts",
+    "src/lib/brain/autonomy/AyasDiscoveryRunGuard.ts",
+    "scripts/ayas-autonomy-daemon.ts",
+    "scripts/ayas-discovery-daemon.ts",
+    "scripts/ayas-durable-task-recovery.ts",
+    "scripts/smoke-ayas-owner-constitution.ts",
+    "scripts/smoke-ayas-owner-constitution-mutations.ts",
+    "scripts/smoke-ayas-constitution-run-binding.ts",
+    "scripts/smoke-ayas-constitution-run-binding-mutations.ts",
+    ".gitignore"
   ],
   "localClosure": {
-    "stage": "STAGE_15L",
-    "sourceCommit": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
-    "result": "GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NO_LIVE_DISPATCH",
-    "evidence": "03_STAGE15_BASE/hardening/15L/15L_RESULT.json",
-    "next": "STAGE_15M"
+    "stage": "STAGE_15N",
+    "sourceCommit": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
+    "result": "GREEN_SOURCE_OWNER_CONSTITUTION_AND_RUN_BINDING_NOT_ADOPTED",
+    "evidence": "03_STAGE15_BASE/hardening/15N/15N_RESULT.json",
+    "next": "STAGE_15O"
   },
   "stageHistory": [
     {
@@ -485,6 +511,21 @@
       "stage": "STAGE_15K",
       "status": "CLOSED_GREEN_GOVERNOR_AND_LEDGER_NOT_WIRED",
       "closingCommit": "b95a71bde06974dbda916f64cf71cc31c6555ff2"
+    },
+    {
+      "stage": "STAGE_15L",
+      "status": "CLOSED_GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NOT_LIVE",
+      "closingCommit": "144f16b06e11649dfbe2ee4bc431c6428f278a60"
+    },
+    {
+      "stage": "STAGE_15M",
+      "status": "CLOSED_GREEN_SOURCE_LIVE_QUALITY_UNCERTIFIED",
+      "closingCommit": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65"
+    },
+    {
+      "stage": "STAGE_15N",
+      "status": "CLOSED_GREEN_SOURCE_NOT_ADOPTED",
+      "closingCommit": "9cdf5dbdede418dd35c6a9a1c5057299c20af693"
     }
   ],
   "stage15C": {
@@ -1109,12 +1150,59 @@
     "orderCorrection": "Final execution order priority2 adds15N–15T before16; lower-priority PRE_ATOLYE direct16 pointer superseded."
   },
   "stage15N": {
-    "state": "OPEN_INSPECTION",
+    "state": "CLOSED_GREEN_SOURCE_NOT_ADOPTED",
     "openedOn": "2026-10-02",
     "openedAtHead": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
+    "closedOn": "2026-10-02",
+    "sourceCommit": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15N; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md 15N",
     "addendumSections": "Post-freeze section0/global9 retained; no separate15N override located",
     "notes": "03_STAGE15_BASE/hardening/15N/IMPLEMENTATION_NOTES.md",
-    "constraints": "AYAS may propose but may never autonomously edit/activate constitution. Every long-running run must bind current digest; live activation remains owner-only."
+    "constraints": "AYAS may propose but may never autonomously edit/activate constitution. Every long-running run must bind current digest; live activation remains owner-only.",
+    "result": "03_STAGE15_BASE/hardening/15N/15N_RESULT.json",
+    "closure": "03_STAGE15_BASE/hardening/15N/CLOSURE.md",
+    "ownerReviewPacket": "03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json",
+    "hostConstitutionState": "MISSING",
+    "activation": "OWNER_ONLY_NOT_PERFORMED",
+    "proposalDigest": "916500ef826bce17de9f95c60be562e2e0f22e1b11e3222ba06f7cdc1232f473",
+    "handoff": "Codex -> Claude on 2026-10-02 with 15N.1 and 15N.2 uncommitted and the checkpoint at 15N.0; review found and fixed F21 (path spelling) and F22 (.gitignore)",
+    "tests": {
+      "ownerConstitution": 18,
+      "ownerConstitutionMutations": "19/19 caught, 1 declared equivalent",
+      "runBinding": 18,
+      "runBindingMutations": "13/13",
+      "fullBaseline": {
+        "manifest": "15F.4-v22",
+        "suites": 95,
+        "complete": true,
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "failed": [],
+        "sourceHead": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
+        "report": "FULL_BASELINE_V22.json"
+      },
+      "earlierFullRun": "15F.4-v20: 94 of 95, durable-task-recovery importer inventory, repaired; report retained",
+      "exactHeadPins": "108 unique grader files match committed blobs",
+      "productionBuild": "PASS in a TEMP clone"
+    },
+    "next": "STAGE_15O"
+  },
+  "stage15O": {
+    "state": "OPEN_15O.1",
+    "openedOn": "2026-10-02",
+    "openedAtHead": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15O; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md 15O",
+    "addendumSections": "Post-freeze sections 0 and 9 apply; no separate 15O section",
+    "notes": "03_STAGE15_BASE/hardening/15O/IMPLEMENTATION_NOTES.md",
+    "inspection": "15O.0 done read-only: eval manifest, Stage 8 experiment evaluation and sandbox runner, three promotion consumers, lifecycle promotion checks, patch-safety table",
+    "packets": [
+      "15O.1 vault contract, registry of record, path protection; not wired",
+      "15O.2 golden gate in the improvement flow",
+      "15O.3 deterministic historical-video golden projects"
+    ],
+    "declaredGaps": [
+      "REVENUE_DRY_RUN until Stage 16",
+      "rendered reference video projects (owner-supplied)"
+    ],
+    "constraints": "AYAS cannot silently rewrite the vault. Unmeasured or missing golden evidence is never PASS. Evidence only, no promotion or approval authority."
   }
 }
