@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v13",
+  "version": "15F.4-v12",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1425,40 +1425,6 @@
         {
           "file": "scripts/smoke-ayas-production-director-mutations.ts",
           "sha256": "5d5420d3694b68878567c128f465257797fa4c4acfc71a5b36fff166b7047a91"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "historical-storytelling",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-historical-storytelling.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-historical-storytelling.ts",
-          "sha256": "5a6eea742a70a5e1ccd60bf6c03d9eb6742357ca4fec610e0b2f5275c7b24a1a"
-        }
-      ],
-      "slices": [
-        "storytelling",
-        "fail-closed",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "historical-storytelling-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-historical-storytelling-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-historical-storytelling-mutations.ts",
-          "sha256": "9f1d036788ccbf9e4e9d4399ce5a4cc11be5cab39c66833b9b776a64631c00dd"
         }
       ],
       "slices": [
