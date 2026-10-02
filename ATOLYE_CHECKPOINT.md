@@ -1,3 +1,7 @@
+# OWNER STOP — 2026-10-03 /isolated15T WIP candidate
+
+Owner requested stop after15S.15S source is GREEN on primary branch: cd435bc full v34 116/116 with declared cognitive/held-out limits; closure e35c6f1.15T candidate had already begun under the preceding command; it is unmerged and incomplete. No further development is authorized. Candidate state and exact remaining work: docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15T/IMPLEMENTATION_NOTES.md. NextAction STOP. Session-end commit/push only preserves existing WIP; it does not complete or activate15T.
+
 # AYAS continuation — 2026-10-03 / Stage 15S implemented; exact clean baseline pending
 
 15R source closure is recorded at `0666850`, tested source `a00091f`; existing completed work was preserved. 15S now has portable domain/schema/hash contracts, authenticated private archives, exact owner-session/review/source-bound export, a real isolated restore/audit, immutable runtime/image metadata, bounded destination artifact byte verification, ordered advisory migration gates and an operator CLI. Portable records remain inert; no old-machine signer/session/approval can activate the destination.
