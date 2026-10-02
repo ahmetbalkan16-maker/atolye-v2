@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v29",
+  "version": "15F.4-v28",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -725,7 +725,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-durable-task-recovery.ts",
-          "sha256": "0c690e9d87f597858205c1c8956f5eb0cc46524c0ef7641d5b09640ba8854c81"
+          "sha256": "ba9defb3974dc535cbbd33a513526c6e0a45ced7acb7290838eb9e0d5862bf0f"
         }
       ],
       "slices": [

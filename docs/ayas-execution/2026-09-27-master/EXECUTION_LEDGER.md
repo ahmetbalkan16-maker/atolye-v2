@@ -865,3 +865,9 @@ Bounded sealed source/claim/evidence graph, four contextual review policies, ind
 
 - Source framework extends existing Machine Health/telemetry and signed owner RAM policy; five classes, one-heavy occupancy/lock, host-protection resource abort, priority/unknown sensor/projected-memory/prewarm/recalibration checks. Capacity rereads under lock and preserves domain errors after acquisition. Not yet bound to real production/local coding.
 -19 scenarios /34 mutants; Machine Health20/non-GPU36, constitution binding18, security14, exact patch23, vault13/v2/18, durable17, eval10/8; TypeScript/changed lint/pins/v27 archive/diff PASS. v28 declared108 suites/127 unique pins; full lint/Graphify/commit/full baseline next. No real runtime/model/host-global mutation or push.
+
+### 2026-10-02 —15Q.1 full baseline RED;15Q.R repair
+
+Full declaredv28 at exact cleane1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6 is FAIL; failed=["durable-task-recovery"]. Recovery static audit rejects scripts/smoke-ayas-resource-governor.ts, which legitimately imports durable journal/runtime for its TEMP-only defer/resume scenario. No production binding regression identified. Packet not GREEN; preserve complete failed report and exact stderr/stdout, then narrowly admit the TEMP probe with confinement/negative controls. No guard/quality threshold lowered.
+
+Next: scoped static audit correction, v29 repin, focused tests/Graphify/local commit and full baseline at corrected clean HEAD;15Q.2 remains next after GREEN. NO PUSH.

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1",
+  "packet": "15Q.R",
+  "sourceBaseHead": "e1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6",
+  "recovery": {
+    "status": "PASS",
+    "scenarios": 22,
+    "journalRoots": 36,
+    "tempConfinementNegativeControls": 4
+  },
+  "commands": [
+    {
+      "id": "resource-governor",
+      "status": "PASS",
+      "durationMs": 2277
+    },
+    {
+      "id": "resource-mutants",
+      "status": "PASS",
+      "durationMs": 14946
+    },
+    {
+      "id": "eval-governance",
+      "status": "PASS",
+      "durationMs": 217
+    },
+    {
+      "id": "eval-mutants",
+      "status": "PASS",
+      "durationMs": 2312
+    },
+    {
+      "id": "typescript",
+      "status": "PASS",
+      "durationMs": 8668
+    },
+    {
+      "id": "changed-lint",
+      "status": "PASS",
+      "durationMs": 23157
+    }
+  ],
+  "runtime": "Serial/no model/network/production/push",
+  "manifest": {
+    "version": "15F.4-v29",
+    "suites": 108,
+    "uniquePins": 127,
+    "archiveV28": "EXACT_GIT_BYTES"
+  }
+}

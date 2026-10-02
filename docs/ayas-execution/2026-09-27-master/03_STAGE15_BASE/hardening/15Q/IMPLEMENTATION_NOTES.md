@@ -29,3 +29,9 @@ Existing telemetry now includes measured host RAM total/free bytes; old Machine 
 Resource policy/graders are never-autonomous in every Windows spelling. Source packet only: no physical model/runtime start, no host startup/WSL mutation, no production/push. Next15Q.2:bounded ON_DEMAND lifecycle, durable evidence before unload, active/UNCERTAIN stop protection, idle10min and image dependency classification.
 
 Final full lint0 errors/13 existing warnings. F28 confirmed against parent6f0649b:diskFreePercent NaN previously ALLOW, now BLOCK NEW HEAVY WORK. Offline transpilation/VM with inert imports; no host effect. Guard validator and negative controls cover this boundary.
+
+## 15Q.R — failed full baseline retained
+
+Full declaredv28 at exact cleane1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6 is FAIL; failed=["durable-task-recovery"]. Recovery static audit rejects scripts/smoke-ayas-resource-governor.ts, which legitimately imports durable journal/runtime for its TEMP-only defer/resume scenario. No production binding regression identified. Packet not GREEN; preserve complete failed report and exact stderr/stdout, then narrowly admit the TEMP probe with confinement/negative controls. No guard/quality threshold lowered.
+
+15Q.R focused GREEN: exact new probe allowlisted with explicit os.tmpdir prefix/one TEMP journal/no recovery sweep or side effects; four redirected-root/effect negative controls rejected. Recovery22/36 journal roots, resource19/34 mutants, eval10/8, TypeScript/changed lint PASS. v28 exact e1 Git bytes archived; v29 108 suites/127 pins. Full corrected baseline remains pending.

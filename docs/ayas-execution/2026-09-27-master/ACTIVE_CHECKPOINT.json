@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
-  "currentHead": "6f0649beb70db63a496e47cb81bd3412de65d718",
+  "currentHead": "e1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6",
   "stage": "STAGE_15Q",
-  "subtask": "15Q.1-contextual-resource-admission",
+  "subtask": "15Q.R-TEMP-import-audit-integration",
   "status": "STAGE_15Q_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -214,16 +214,8 @@
     "15Q.0-existing-seam-inspection"
   ],
   "currentFiles": [
-    "src/lib/ayas/machine/AyasResourceGovernor.ts",
-    "src/lib/ayas/machine/AyasResourceCapacity.ts",
-    "src/lib/ayas/machine/AyasMachineTelemetry.ts",
-    "src/lib/ayas/machine/AyasMachineHealthGuard.ts",
-    "src/lib/brain/selfheal/BrainPatchSafety.ts",
-    "scripts/smoke-ayas-resource-governor.ts",
-    "scripts/smoke-ayas-resource-governor-mutations.ts",
-    "scripts/smoke-ayas-eval-governance.ts",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V27.json"
+    "scripts/smoke-ayas-durable-task-recovery.ts",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -392,8 +384,8 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "15Q.1 focused GREEN:19 scenarios/34 mutants plus affected regressions, TypeScript/lint/pins/v27 archive/diff PASS; full lint0 errors/13 old warnings. Refresh Graphify, create local source commit, refresh at exact clean source commit and run declared v28 baseline108/108. Then checkpoint GREEN packet and automatically15Q.2 bounded ON_DEMAND lifecycle. No physical startup/production binding yet; NO PUSH.",
-  "updatedAt": "2026-10-02T16:15:06.164Z",
+  "nextAction": "15Q.R focused GREEN: recovery22/TEMP4 negative controls, resource19/34 mutants, eval10/8, TypeScript/changed lint; v29 108/127 pins, v28 exact archived. Graphify -> local correction commit -> clean fullv29 baseline; preserve fullv28 FAILED/e1cb95d. On GREEN close15Q.1 then automatically15Q.2 bounded ON_DEMAND lifecycle. NO PUSH.",
+  "updatedAt": "2026-10-02T16:55:28.590Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1349,12 +1341,21 @@
     "fullLatestHeadBaselineClaimed": false
   },
   "stage15Q": {
-    "state": "15Q1_FOCUSED_GREEN_GRAPHIFY_COMMIT_FULL_BASELINE_PENDING",
+    "state": "15QR_FOCUSED_GREEN_GRAPHIFY_COMMIT_V29_BASELINE_PENDING",
     "openedOn": "2026-10-02",
     "openedAtHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15Q; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md15Q",
     "addendumSections": "Post-freeze4; global0/9",
     "notes": "03_STAGE15_BASE/hardening/15Q/IMPLEMENTATION_NOTES.md",
-    "authority": "NONE"
+    "authority": "NONE",
+    "failedBaseline": {
+      "sourceHead": "e1cb95dd4a9d9cc0996160bdf10a6fdf8efbd8d6",
+      "manifest": "15F.4-v28",
+      "suites": 108,
+      "failed": [
+        "durable-task-recovery"
+      ],
+      "report": "03_STAGE15_BASE/hardening/15Q/15Q1_FULL_BASELINE_V28_FAILED.json"
+    }
   }
 }

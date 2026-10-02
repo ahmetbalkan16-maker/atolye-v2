@@ -1,0 +1,19 @@
+FAIL: live binding: owner-approved, the off switch still works, only the observer runs the script
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'scripts/smoke-ayas-resource-governor.ts'
++ ]
+- []
+
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-eval-baseline-KIdC3X\repo\scripts\smoke-ayas-durable-task-recovery.ts:854:12)
+    at async scenario (C:\Users\Metod\AppData\Local\Temp\ayas-eval-baseline-KIdC3X\repo\scripts\smoke-ayas-durable-task-recovery.ts:94:9)
+    at async main (C:\Users\Metod\AppData\Local\Temp\ayas-eval-baseline-KIdC3X\repo\scripts\smoke-ayas-durable-task-recovery.ts:733:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
