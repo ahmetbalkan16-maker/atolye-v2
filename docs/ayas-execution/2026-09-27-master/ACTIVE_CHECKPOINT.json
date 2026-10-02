@@ -214,7 +214,16 @@
     "15Q.0-existing-seam-inspection",
     "15Q.1-contextual-admission-common-capacity-GREEN-not-wired"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/machine/AyasOnDemandLifecycle.ts",
+    "src/lib/ayas/machine/AyasRuntimeImageLifecycle.ts",
+    "scripts/smoke-ayas-on-demand-lifecycle.ts",
+    "scripts/smoke-ayas-on-demand-lifecycle-mutations.ts",
+    "scripts/smoke-ayas-durable-task-recovery.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "scripts/smoke-ayas-eval-governance.ts",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -354,15 +363,15 @@
     "testedSourcePacket": "b381ed44ca5c1a8575130721af8929e9df36ce79",
     "stale": false,
     "needsUpdate": true,
-    "nodes": 17443,
-    "edges": 49941,
+    "nodes": 17490,
+    "edges": 50037,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Graph built at clean15Q.1 source; refresh after packet documentation commit. PARTIAL9/semantic pending retained."
+    "headSemantics": "Graph covers dirty15Q.2 source at base4828e44; refresh after local source commit; partial9/semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -383,8 +392,8 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "15Q.1 GREEN at exactb381ed4: v29 declared108/108 with no failures. Automatically15Q.2: implement bounded ON_DEMAND lifecycle through existing durable task/evidence/capacity/pinned-runtime seams. Persist task/evidence before unload, refuse stop with active/UNCERTAIN/unmeasured dependencies, safe idle10min Podman stop, lazy default/cancellable measured prewarm and image dependency classification. Preserve unregistered/degraded engine state; no physical activation or host-global startup/WSL mutation. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. NO PUSH.",
-  "updatedAt": "2026-10-02T17:26:36.316Z",
+  "nextAction": "15Q.2 focused GREEN; Graphify complete partial9/semantic pending with17490 nodes/50037 links and zero integrity anomalies. Local source commit -> clean exact pin-verified isolated on-demand-lifecycle and mutation suites(v30); then15Q.3 bind existing production/render/heavy admission consumers to the shared source governor/capacity context. Stage15Q not closed: global common-capacity binding is a source integration task, not a hardware-proof claim. Full declared stage baseline follows integration. No15R before15Q source closure. NO PUSH/PC HEALTH/ON_DEMAND.",
+  "updatedAt": "2026-10-02T17:48:09.112Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1340,7 +1349,7 @@
     "fullLatestHeadBaselineClaimed": false
   },
   "stage15Q": {
-    "state": "15Q1_GREEN_15Q2_OPEN",
+    "state": "15Q2_FOCUSED_GREEN_GRAPHIFY_COMMIT_STAGE_BASELINE_PENDING",
     "openedOn": "2026-10-02",
     "openedAtHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15Q; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md15Q",
@@ -1375,6 +1384,17 @@
         "cognitive": "54/55, held-out4/5 unchanged",
         "report": "15QR_FULL_BASELINE_V29.json"
       }
+    },
+    "packet15Q2": {
+      "state": "FOCUSED_GREEN_SOURCE_CONTROLLER_NOT_WIRED",
+      "sourceBaseHead": "4828e442015e57f9756af57ac5ee43199e20ada7",
+      "focused": "03_STAGE15_BASE/hardening/15Q/15Q2_FOCUSED.json",
+      "controllerScenarios": 11,
+      "negativeControls": "24/24",
+      "manifest": "15F.4-v30",
+      "suites": 110,
+      "pins": 129,
+      "fullBaseline": "PENDING"
     }
   }
 }

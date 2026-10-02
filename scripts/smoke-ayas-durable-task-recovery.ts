@@ -832,6 +832,8 @@ async function main(): Promise<void> {
       "scripts/smoke-ayas-constitution-run-binding.ts", "scripts/smoke-ayas-constitution-run-binding-mutations.ts",
       // Stage15Q proves defer/resume against one explicitly TEMP-rooted journal, audited below.
       "scripts/smoke-ayas-resource-governor.ts",
+      // Source controller reads an injected journal only; inert lifecycle fixture has one explicit TEMP factory.
+      "src/lib/ayas/machine/AyasOnDemandLifecycle.ts", "scripts/smoke-ayas-on-demand-lifecycle.ts",
       // Stage 15F observes existing journals only; it registers no activity and cannot append/recover.
       "src/lib/ayas/observability/AyasReliabilityState.ts", "scripts/smoke-ayas-reliability-slo.ts"]);
     assert.doesNotMatch(fs.readFileSync(path.join(repo, "scripts", "smoke-ayas-action-firewall-closure.ts"), "utf8"), /from\s+["'][^"']*AyasDurableTask/);
@@ -856,6 +858,20 @@ async function main(): Promise<void> {
       resourceProbe.replace('rootDir: path.join(temp, "journal"), ', ''),
       resourceProbe.replace('effect: "READ_ONLY"', 'effect: "SIDE_EFFECT"'),
     ]) { assert.notEqual(redirected, resourceProbe); assert.throws(() => auditResourceProbe(redirected), assert.AssertionError); }
+    const lifecycle = fs.readFileSync(path.join(repo, "src/lib/ayas/machine/AyasOnDemandLifecycle.ts"), "utf8");
+    assert.match(lifecycle, /import type \{ AyasDurableTaskJournal \}/);
+    assert.doesNotMatch(lifecycle, /createAyasDurableTaskJournal|advanceAyasDurableTask|AyasDurableTaskRuntime|AyasDurableTaskRecovery/);
+    const lifecycleProbe = fs.readFileSync(path.join(repo, "scripts/smoke-ayas-on-demand-lifecycle.ts"), "utf8");
+    const auditLifecycleProbe = (probe: string): void => {
+      assert.match(probe, /const temp = fs\.mkdtempSync\(path\.join\(os\.tmpdir\(\), "ayas-on-demand-"\)\);/);
+      assert.equal((probe.match(/createAyasDurableTaskJournal\s*\(/g) ?? []).length, 1);
+      assert.match(probe, /rootDir: path\.join\(temp, "journal", String\(serial\+\+\)\)/);
+      assert.doesNotMatch(probe, /child_process|execFile|spawnSync|fetch\s*\(|allowSideEffectStarts|effect: "SIDE_EFFECT"/);
+    };
+    auditLifecycleProbe(lifecycleProbe);
+    for (const redirected of [lifecycleProbe.replace('path.join(os.tmpdir(), "ayas-on-demand-")', 'path.join(process.cwd(), "ayas-on-demand-")'), lifecycleProbe.replace('rootDir: path.join(temp, "journal", String(serial++))', 'rootDir: process.cwd()')]) {
+      assert.notEqual(redirected, lifecycleProbe); assert.throws(() => auditLifecycleProbe(redirected), assert.AssertionError);
+    }
     const sloReader = fs.readFileSync(path.join(repo, "src/lib/ayas/observability/AyasReliabilityState.ts"), "utf8");
     assert.doesNotMatch(sloReader, /AyasDurableTask(?:Runtime|Recovery|Activities)\b|\.append\s*\(|\.run\s*\(|\.sweep\s*\(/);
     assert.match(sloReader, /Pick<AyasDurableTaskJournal, "load">/);

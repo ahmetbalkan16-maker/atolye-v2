@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1",
+  "packet": "15Q.2",
+  "sourceBaseHead": "4828e44",
+  "draftOnly": true,
+  "physicalStarts": 0,
+  "findings": [
+    {
+      "kind": "LINT",
+      "finding": "prefer-const on closure-captured verifiedTaskDigest",
+      "resolution": "const is initialized only after verified persistence, before any cleanup call"
+    },
+    {
+      "kind": "MUTATION_COVERAGE_GAP",
+      "finding": "uncertain dependency is terminal mutant survived after adding independent own-task safe-unload guard",
+      "resolution": "separate synthetic foreign ACTIVE/UNCERTAIN dependency with real own TEMP task COMPLETED; final24 controls pending"
+    },
+    {
+      "kind": "CONTRACT_REVIEW",
+      "finding": "priority DEFER must preserve pending durable task, not turn it into terminal cancellation",
+      "resolution": "TASK_DEFERRED permits confirmed inactive pending work to unload after evidence, pending journal/attempts preserved and safe STOPPED phase admits later resume"
+    }
+  ],
+  "runtime": "No physical activation; source draft validation only"
+}

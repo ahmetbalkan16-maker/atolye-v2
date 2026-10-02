@@ -877,3 +877,9 @@ Next: scoped static audit correction, v29 repin, focused tests/Graphify/local co
 - 15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding.
 - Evidence:hardening/15Q/15Q1_RESULT.json,15QR_FULL_BASELINE_V29.json,GRAPHIFY_15QR_SOURCE_COMMIT.json. No physical model/production/host-global action or push.
 - Next15Q.2 ON_DEMAND lifecycle. Stage15Q remains IN_PROGRESS; this packet does not close the stage.
+
+### 2026-10-02 —15Q.2 focused GREEN, source-only lifecycle
+
+- Fixed heavy-class/common-capacity explicit demand controller, verified durable task/evidence/checkpoint before owned cleanup, observed ownership/dependencies, bounded calls and no auto replay of partial/ERROR phases. Confirmed pending DEFER preserves journal/attempt budget and later safe resume. Idle600000ms with fresh demand/dependency/capability reread; dependency-aware image classification, no delete/WSL/startup surface.
+- Controller11/24 controls, recovery22/runtime17, resource19/34, eval10/8, type/lint PASS; full lint0 errors/13 old warnings; v30 110/129 pins, v29 exact archive.
+- Existing engine registry unregistered; injected controller contract only, no actual hardware/model unload/production binding proof. Graphify/local source commit/full clean stage baseline pending;15R follows source closure. NO PUSH.

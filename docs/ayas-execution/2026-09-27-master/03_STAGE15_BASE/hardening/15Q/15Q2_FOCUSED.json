@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1",
+  "packet": "15Q.2",
+  "state": "FOCUSED_TESTS_ONLY_NOT_HARDWARE_QUALIFICATION",
+  "sourceBaseHead": "4828e442015e57f9756af57ac5ee43199e20ada7",
+  "commands": [
+    {
+      "id": "lifecycle",
+      "status": "PASS",
+      "durationMs": 13100
+    },
+    {
+      "id": "lifecycle-mutants",
+      "status": "PASS",
+      "durationMs": 48897
+    },
+    {
+      "id": "durable-recovery",
+      "status": "PASS",
+      "durationMs": 21801
+    },
+    {
+      "id": "durable-runtime",
+      "status": "PASS",
+      "durationMs": 1349
+    },
+    {
+      "id": "resource-governor",
+      "status": "PASS",
+      "durationMs": 1523
+    },
+    {
+      "id": "resource-mutants",
+      "status": "PASS",
+      "durationMs": 13907
+    },
+    {
+      "id": "eval-governance",
+      "status": "PASS",
+      "durationMs": 292
+    },
+    {
+      "id": "eval-mutants",
+      "status": "PASS",
+      "durationMs": 3133
+    },
+    {
+      "id": "typescript",
+      "status": "PASS",
+      "durationMs": 3591
+    },
+    {
+      "id": "changed-lint",
+      "status": "PASS",
+      "durationMs": 2083
+    }
+  ],
+  "runtime": "Serial/inert ports/TEMP journals/no model/network/production/push",
+  "manifest": {
+    "version": "15F.4-v30",
+    "suites": 110,
+    "uniquePins": 129,
+    "archiveV29": "EXACT_GIT_BYTES"
+  }
+}
