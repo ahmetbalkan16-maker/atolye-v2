@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "receivedAt": "2026-10-02T17:57:36.024Z",
+  "latestRequest": "15Q.2 bitir öyle dur",
+  "supersedes": "previous requested15O.2 stop boundary",
+  "effectiveScope": "Finish15Q.2 source packet validation/checkpoint, then stop",
+  "nextAuthorizedWork": "Exact clean fullv30 110-suite baseline; resolve relevant failures; close15Q.2 only",
+  "forbiddenNext": "Do not start15Q.3 or later stages",
+  "push": false
+}

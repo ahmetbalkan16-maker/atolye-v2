@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1",
+  "state": "OWNER_STOPPED",
+  "receivedAt": "2026-10-02T17:56:36.681Z",
+  "request": "15O.2 bitince dur 15O.3 e başlama",
+  "requestedBoundary": "15O.2",
+  "actualSourceHead": "0763db5b6c006c5adae7764a3c94b546f79c44f6",
+  "requestedBoundaryAlreadyPassed": true,
+  "actualStage": "STAGE_15Q",
+  "actualPacket": "15Q.2 source committed /focused GREEN",
+  "stage15QClosed": false,
+  "completedBeforeStop": [
+    "15O.3",
+    "15P source closure",
+    "15Q.1 admission/capacity and repaired full v29 108-suite baseline",
+    "15Q.2 bounded lifecycle/image source with focused tests"
+  ],
+  "notRun": [
+    "15Q.2 exact clean pin-verified isolated new suites",
+    "full declared v30 110-suite stage baseline",
+    "15Q.3 production/render/common-capacity source integration",
+    "15R and later stages"
+  ],
+  "stopBehavior": "No further development or tests. Resume only after explicit owner direction; current commits preserved.",
+  "push": "NONE; forbidden by current session instruction",
+  "graphify": "GRAPHIFY_15Q2_OWNER_STOP_SOURCE.json; source graph fresh at0763db5, PARTIAL9/semantic PENDING. Documentation-only stop commit makes exact HEAD metadata stale; refresh only upon authorized resume."
+}
