@@ -746,3 +746,25 @@ LOCAL COMMITS; NO PUSH.
 ## Stage 15K — Production Cost Governor — OPEN (2026-10-02)
 
 Opened at `4e458f4`. Canonical section: master order STAGE 15K and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15K; directive V3.2 section 10. Addendum section 0 applies (no autonomous spend; unknown pricing fails closed; AYAS never raises a cap). First subtask: 15K.0 existing-seam inspection (`ProductionCostPreflight`, `ProductionCostEstimate`, `AiCostBudget`, `MediaGenerationCostGuard`, `ProductionCostReceipt`, the director session's budget binding). No paid call is made to prove this stage.
+
+## Stage 15K — CLOSED GREEN as a governor and a ledger; the pipeline does not call them yet (2026-10-02)
+
+Source `b95a71bde06974dbda916f64cf71cc31c6555ff2`. Closure `03_STAGE15_BASE/hardening/15K/CLOSURE.md`; summary `15K_RESULT.json`.
+
+15K.0 INSPECTION. Already in place: a conservative provider-aware pre-run estimate with a per-component breakdown; a single-budget preflight; the pre-dispatch guard for token, image and speech calls; fail-closed unknown pricing; the post-run receipt and report. One number for all of it: the technical ceiling. Missing: a project-approved cap distinct from the ceiling, the pause between cap and ceiling, the allowance, any reservation across projects.
+
+WHAT. `ProductionCostGovernor` (pure): three numbers and one decision before paid dispatch, CONTINUE, PAUSE_ASK_OWNER or BLOCK, with the design's exact escalation; a paid estimate with no approved cap pauses; an approval above the ceiling counts only up to the ceiling; unknown prices and untrusted numbers block. The report carries the estimate, retry reserve, conservative maximum, the zero-cost alternative for every paid line with what it gives up, and the allowance with its label. A checkpoint decides before the next billable call of a running project. `ProductionCostReservationLedger` (pure) and `ProductionCostReservationStore`: reserve a cap, settle the actual cost, release the rest; settled spend and every active cap count against the allowance; one file per event, linked into place only if the position is free. Operator script `scripts/run-production-cost-governor.ts`, read-only.
+
+NOT WIRED, declared: the existing preflight and guard are unchanged and still use the one technical ceiling. No stored project cap or allowance; the ledger has no live location.
+
+TEST. Cost governor 14 scenarios, including a forced race and six real concurrent processes; negative controls 35/35 in a TEMP overlay; guard suites on the worktree before the commit; phase-5 cost 9; declared 84-suite baseline at the commit with no failure (cognitive 54/55 and held-out 4/5 unchanged), host RAM peak 64.94 %. TypeScript, changed-file lint, diff check PASS; full lint 0 errors / 13 existing warnings. Eval manifest `15F.4-v14`; v13 kept. No paid call, provider, model or push.
+
+GRAPHIFY built from `b95a71b`: 17,026 nodes / 48,804 edges, anomalies 0, PARTIAL 9 known files, semantic pending.
+
+OWNER: nothing new.
+
+LOCAL COMMITS; NO PUSH.
+
+## Stage 15L — Autonomous Production Fault Repair + Resume — OPEN (2026-10-02)
+
+Opened at `b95a71b`. Canonical section: master order STAGE 15L and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15L. Addendum sections 0 and 1 apply (unknown fails closed with an explanation; no blind replay of a possibly completed side effect). First subtask: 15L.0 existing-seam inspection: the Stage 15I director's fault classes and safe-operation plans, the pipeline's retry admission and recovery planner, the YouTube publish pipeline's own reconciliation of an indeterminate upload, the Runtime Stability Guard. The write path stays closed; no live production run is made to prove the stage.

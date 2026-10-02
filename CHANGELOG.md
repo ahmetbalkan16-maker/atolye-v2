@@ -1,3 +1,8 @@
+## 2026-10-02 — Stage15K production cost governor
+
+- Three separate numbers (preferred target, project-approved cap, technical ceiling) and one decision before paid dispatch: continue, pause and ask the owner the exact escalation, or block; it never raises a cap. The report lists the estimate, retry reserve, conservative maximum, zero-cost alternatives and the allowance with its label. A reservation ledger keeps concurrent projects within the declared allowance. Operator script `scripts/run-production-cost-governor.ts`.
+- Not wired: the existing preflight and guard are unchanged. 14 scenarios, 35/35 negative controls, 84-suite baseline with no failure. Stage 15L opened. Local commits only; NO PUSH.
+
 ## 2026-10-02 — Stage15J historical fact pack, narrative contract and character scene engine
 
 - Fact pack with claims, certainty, sources and claim-to-scene mapping, and a deterministic narration evidence check; the eight-beat narrative contract with the seven checks; the nine-part local character scene engine (deterministic SVG, labelled reenactment, manifest that fixes the scene as synthetic and evidence of nothing), a rasterizer over the installed `sharp`, and operator script `scripts/ayas-character-scene.ts`.

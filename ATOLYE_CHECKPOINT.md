@@ -1,3 +1,15 @@
+# AYAS MASTER CURRENT — STAGE 15K CLOSED / STAGE 15L OPEN — 2026-10-02
+
+Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `b95a71bde06974dbda916f64cf71cc31c6555ff2`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+Stage 15K (Production Cost Governor) is closed green as a governor and a ledger. `src/lib/production/ProductionCostGovernor.ts` separates the preferred target (0.25), the cap the owner approved for a project and the technical ceiling (1.00), and decides before any paid dispatch: continue, pause and ask the owner the exact escalation, or block. It never raises a cap. `ProductionCostReservationLedger.ts` and `ProductionCostReservationStore.ts` reserve a cap, settle the actual cost and keep concurrent projects from oversubscribing the declared allowance. Operator script: `npx tsx --env-file-if-exists=.env.local scripts/run-production-cost-governor.ts --project <slug> [--approved-cap usd] [--allowance usd --allowance-basis declared|revalidated] [--ledger dir]`. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15K/`.
+
+The pipeline does not call the governor yet: a production is still stopped by the one technical ceiling through the existing preflight and guard, which are unchanged. No project cap or allowance is stored; the ledger has no live location.
+
+Tests: 14 scenarios, 35/35 negative controls, declared 84-suite baseline at the commit with no failure, eval manifest `15F.4-v14`.
+
+Next: canonical Stage 15L (Autonomous Production Fault Repair + Resume), starting with 15L.0 existing-seam inspection. Build on the Stage 15I director's fault classes and plans; the write path stays closed.
+
 # AYAS MASTER CURRENT — STAGE 15J CLOSED / STAGE 15K OPEN — 2026-10-02
 
 Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `4e458f41a2a50cdd6daac795109b1a97f26f6edd`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.

@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "stage": "STAGE_15K",
+  "title": "Production Cost Governor",
+  "result": "CLOSED_GREEN_GOVERNOR_AND_LEDGER_NOT_WIRED",
+  "sourceCommit": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
+  "date": "2026-10-02",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "paidCalls": 0,
+  "providerCalls": 0,
+  "modelRuns": 0,
+  "liveProduction": "NOT_RUN",
+  "push": false,
+  "policy": {
+    "preferredTargetUsd": 0.25,
+    "technicalCeilingUsd": 1,
+    "planningAllowanceUsd": 9.85,
+    "allowanceBases": [
+      "OWNER_DECLARED_AT_PLANNING",
+      "REVALIDATED",
+      "NOT_DECLARED"
+    ]
+  },
+  "governor": {
+    "module": "src/lib/production/ProductionCostGovernor.ts",
+    "decisions": [
+      "CONTINUE",
+      "PAUSE_ASK_OWNER",
+      "BLOCK"
+    ],
+    "reasons": [
+      "ZERO_COST",
+      "WITHIN_APPROVED_CAP",
+      "NO_APPROVED_CAP",
+      "ABOVE_APPROVED_CAP",
+      "ALLOWANCE_NOT_DECLARED",
+      "UNKNOWN_PRICING",
+      "ABOVE_TECHNICAL_CEILING",
+      "ALLOWANCE_OVERSUBSCRIBED",
+      "INPUT_INVALID"
+    ],
+    "escalation": "Estimated $0.82. Current cap $0.25. Authorize this project up to $1.00?",
+    "lines": [
+      "llm",
+      "image",
+      "video",
+      "tts",
+      "music",
+      "animation",
+      "thumbnail",
+      "youtube"
+    ],
+    "neverRaisesACap": "126 combinations of cap, estimate and prior spend: no decision continues above what was approved, and no question names more than the ceiling",
+    "authority": "NONE"
+  },
+  "ledger": {
+    "modules": [
+      "src/lib/production/ProductionCostReservationLedger.ts",
+      "src/lib/production/ProductionCostReservationStore.ts"
+    ],
+    "events": [
+      "RESERVE",
+      "SETTLE",
+      "RELEASE"
+    ],
+    "concurrency": "one file per event, linked into place only if the position is free; six processes started together, each asking for 0.3 of 1.0, end with exactly three reservations",
+    "liveLocation": "NONE"
+  },
+  "alreadyInPlace": [
+    "conservative provider-aware pre-run estimate",
+    "single-budget preflight",
+    "pre-dispatch guard for token, image and speech calls",
+    "unknown pricing fails closed",
+    "post-run receipt and report",
+    "local-first provider selection"
+  ],
+  "notBuilt": [
+    {
+      "what": "The pipeline calling the governor and the ledger",
+      "decidedBy": "the owner's approval path and a real production run"
+    },
+    {
+      "what": "A stored project cap and allowance",
+      "decidedBy": "Brain UI V2 cost tiles"
+    },
+    {
+      "what": "A live location for the ledger",
+      "decidedBy": "with the wiring"
+    }
+  ],
+  "tests": {
+    "costGovernor": {
+      "script": "scripts/smoke-ayas-production-cost-governor.ts",
+      "scenarios": 14,
+      "result": "PASS"
+    },
+    "negativeControls": {
+      "script": "scripts/smoke-ayas-production-cost-governor-mutations.ts",
+      "caught": 35,
+      "total": 35
+    },
+    "existingCostSuite": "smoke-phase5-cost 9 scenarios PASS (canonical TEMP smoke runtime); the estimate, preflight, guard and receipt modules are unchanged",
+    "evalGovernance": "10 scenarios PASS; negative controls 8/8",
+    "firewallClosure": "12 scenarios PASS; no new surface or leased module",
+    "typescript": "PASS (non-incremental)",
+    "changedFileLint": "0 warnings",
+    "fullLint": "0 errors, 13 existing warnings",
+    "fullBaseline": {
+      "report": "15K_FULL_BASELINE.json",
+      "sha256": "f7e5bd13351ab0bebc9eb8bf0634575e10f1f272f5a92f6dbb7f4eaf25f10547",
+      "sourceHead": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
+      "manifestVersion": "15F.4-v14",
+      "manifestDigest": "05ca6cb839d59c1fa49d5336a70953491a43f5c5a10dd253b611ec10e070c31f",
+      "suites": 84,
+      "trialsPerSuite": 1,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55 and held-out 4/5, unchanged",
+      "hostRamPeakPercent": 64.94
+    }
+  },
+  "evalManifest": {
+    "version": "15F.4-v14",
+    "suites": 84,
+    "added": [
+      "production-cost-governor",
+      "production-cost-governor-mutations"
+    ],
+    "previous": "EVAL_MANIFEST_V13.json (15F.4-v13, 82 suites)"
+  },
+  "graphify": {
+    "builtFrom": "b95a71bde06974dbda916f64cf71cc31c6555ff2",
+    "nodes": 17026,
+    "edges": 48804,
+    "anomalies": 0,
+    "structural": "PARTIAL (9 known files)",
+    "semantic": "PENDING"
+  },
+  "ownerActions": [],
+  "authority": "NONE: the governor returns a decision and a question; it approves nothing, reserves nothing by itself and never raises a cap."
+}
