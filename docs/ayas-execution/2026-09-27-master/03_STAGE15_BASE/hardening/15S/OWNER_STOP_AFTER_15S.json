@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-02T23:27:22.652Z",
+  "request": "15S yi bitirince dur 15T ye geçme",
+  "state": "OWNER_STOPPED",
+  "effectiveStopBoundary": "AFTER_15S_SOURCE_CLOSURE",
+  "stage15S": "CLOSED_GREEN_SOURCE_WITH_DECLARED_MIGRATION_GAPS",
+  "testedSourceHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+  "closureCommit": "e35c6f17b41c01478d8040643110015ec4693109",
+  "fullBaseline": "116/116_PASS_WITH_KNOWN_LIMITATIONS",
+  "nextAction": "STOP",
+  "nextStageAuthorized": false,
+  "stage15Overall": "OPEN",
+  "candidate": {
+    "branch": "codex/ayas-stage15t-paused",
+    "head": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+    "remote": "origin/codex/ayas-stage15t-paused",
+    "state": "UNMERGED_INCOMPLETE_WIP_SAVED",
+    "origin": "Started under preceding continuation authorization before latest owner stop",
+    "afterStop": "Documentation/commit/push only; no implementation or test continuation",
+    "focused": "24_SCENARIOS_PASSED_BEFORE_LATER_HARDENING",
+    "negativeControls": "FAILED_UNRESOLVED_SURVIVING_FILENAME_GUARD_CONTROL",
+    "typeScript": "FIXTURE_ERROR_CORRECTED_NOT_RERUN",
+    "browser": "NOT_RUN",
+    "fullBaseline": "NOT_RUN",
+    "graphify": "NOT_CURRENT",
+    "worktreeState": "ARCHIVED_RECOVERABLE",
+    "remoteParity": {
+      "localHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+      "originHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+      "ahead": 0,
+      "behind": 0,
+      "worktreeBeforeArchive": "CLEAN"
+    }
+  },
+  "liveActivation": false,
+  "realMigration": "NOT_RUN",
+  "sessionEndSave": "AUTHORIZED_BY_AGENTS_MD",
+  "resumeOnlyByExplicitOwner": true
+}

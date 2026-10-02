@@ -1,3 +1,13 @@
+# AYAS OWNER STOP — 2026-10-03 /15S source closed;15T not integrated
+
+Latest owner instruction: '15S yi bitirince dur 15T ye geçme'. NextAction STOP;15T/Stage16 continuation requires a new explicit owner instruction.
+
+15S source closure e35c6f1; exact clean tested source cd435bc: full v34 baseline116/116, no failed suite, PASS_WITH_KNOWN_LIMITATIONS (cognitive54/55, held-out4/5).136 committed pins,24 TEMP scenarios/34 negative controls, TypeScript/whole lint0 errors13 existing warnings/diff PASS. Closure proof: docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15S/CLOSURE.md. Real destination migration/qualification and owner activation remain unmeasured; Stage15 overall remains OPEN.
+
+Before this stop arrived, an isolated15T candidate had begun under the preceding authorization. It is saved unmerged as codex/ayas-stage15t-paused, commit03cddde74f90c5f0246c4ac1d4e09dba16489582, pushed to origin. Initial24 scenarios passed before later hardening; mutation audit has an unresolved surviving filename guard; TypeScript fixture corrected but not rerun; latest edits/lint/browser/full baseline unverified. No15T source was integrated into the primary branch. Read the candidate branch's IMPLEMENTATION_NOTES.md only on authorized resume.
+
+After the stop, only session-end documentation/commit/push/parity/Graphify and worktree preservation were performed under AGENTS.md; no further implementation or tests. OWNER_STOP_AFTER_15S.json and ACTIVE_CHECKPOINT.json contain exact state. Never silently resume from superseded continuation entries below.
+
 # AYAS continuation — 2026-10-03 /15S source GREEN;15T candidate in progress
 
 Exact clean tested source cd435bc6e9bb75288c05a16d09be086a8fcabdf0: complete v34 baseline116/116, no failed suite, PASS_WITH_KNOWN_LIMITATIONS (cognitive54/55, held-out4/5). All136 grader pins match worktree and committed bytes;24 TEMP scenarios/34 negative controls, TypeScript, whole lint0 errors/13 existing warnings and diff PASS. Graphify17686/50621 bound to this source, stale=false, zero duplicate/dangling/self-loop anomalies; PARTIAL9/semantic PENDING retained.

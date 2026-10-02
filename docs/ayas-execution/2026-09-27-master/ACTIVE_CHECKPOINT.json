@@ -3,10 +3,10 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
-  "currentHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
-  "stage": "STAGE_15T",
-  "subtask": "15T-candidate-executive-briefing-security-and-browser-validation",
-  "status": "IN_PROGRESS",
+  "currentHead": "e35c6f17b41c01478d8040643110015ec4693109",
+  "stage": "STAGE_15S",
+  "subtask": "15S-source-closed-owner-stop-no-15T-integration",
+  "status": "OWNER_STOPPED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -403,8 +403,8 @@
     "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
     "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload."
   ],
-  "nextAction": "Complete canonical15T candidate: durable diagnostic metadata, priority/dedupe/cooldown/acknowledgement, real owner UI and genuine negative controls; no alert-derived authority. Integrate tested source, run exact clean full declared baseline and combined Stage15 regression; resolve F33 technical fixture defects without hiding missing-data/live gaps. Then checkpoint/commit/push/parity and continue Stage16. Physical migration/activation unmeasured; ON_DEMAND/PC HEALTH preserved.",
-  "updatedAt": "2026-10-02T23:18:44.239Z",
+  "nextAction": "STOP — owner requested stop after15S.15S source closure is complete; no15T integration/development or Stage16 continuation authorized. Existing isolated15T WIP is saved separately; no stage-completion claim.",
+  "updatedAt": "2026-10-02T23:27:22.652Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1512,16 +1512,15 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Complete canonical15T candidate: durable diagnostic metadata, priority/dedupe/cooldown/acknowledgement, real owner UI and genuine negative controls; no alert-derived authority. Integrate tested source, run exact clean full declared baseline and combined Stage15 regression; resolve F33 technical fixture defects without hiding missing-data/live gaps. Then checkpoint/commit/push/parity and continue Stage16. Physical migration/activation unmeasured; ON_DEMAND/PC HEALTH preserved.",
+  "resumeNextAction": "Only if the owner explicitly authorizes15T: recover codex/ayas-stage15t-paused at03cddde, read its IMPLEMENTATION_NOTES.md and primary15S closure, refresh Graphify, adjudicate the surviving mutation honestly, rerun focused/TypeScript/lint and real UI; integrate only a green packet, then exact-clean full baseline and combined Stage15 closure. Stage16 is not started.",
   "ownerStop": {
-    "state": "SUPERSEDED_BY_OWNER_RESUME",
-    "appliedAt": "2026-10-02T18:30:19.106Z",
-    "latestRequest": "15Q.2 bitir öyle dur",
-    "effectiveStopBoundary": "AFTER_15Q.2",
+    "state": "OWNER_STOPPED",
+    "appliedAt": "2026-10-02T23:27:22.652Z",
+    "latestRequest": "15S yi bitirince dur 15T ye geçme",
+    "effectiveStopBoundary": "AFTER_15S_SOURCE_CLOSURE",
     "requestedPacketComplete": true,
-    "nextStageAuthorized": true,
-    "supersededAt": "2026-10-02T18:36:00.000Z",
-    "supersededBy": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
+    "nextStageAuthorized": false,
+    "record": "03_STAGE15_BASE/hardening/15S/OWNER_STOP_AFTER_15S.json"
   },
   "stage15R": {
     "state": "CLOSED_GREEN_SOURCE_WITH_DECLARED_LIVE_GAPS",
@@ -1662,15 +1661,42 @@
     "attachmentMatchesAdoptedSupplement": true
   },
   "stage15T": {
-    "state": "CANDIDATE_IN_PROGRESS_NOT_CLOSED",
+    "state": "OWNER_STOPPED_UNMERGED_WIP_NOT_CLOSED",
     "openedOn": "2026-10-03",
     "candidateWorktree": "ayas-stage15t",
     "notes": "03_STAGE15_BASE/hardening/15T/IMPLEMENTATION_NOTES.md",
-    "initialFocused": "24_TEMP_SCENARIOS_PASS",
-    "negativeControls": "PENDING",
-    "typeScript": "PENDING",
+    "initialFocused": "24_SCENARIOS_PASSED_BEFORE_LATER_HARDENING",
+    "negativeControls": "FAILED_UNRESOLVED_SURVIVING_FILENAME_GUARD_CONTROL",
+    "typeScript": "FIXTURE_ERROR_CORRECTED_NOT_RERUN",
     "browserValidation": "NOT_RUN",
-    "fullBaseline": "PENDING",
-    "authority": "NONE"
-  }
+    "fullBaseline": "NOT_RUN",
+    "authority": "NONE",
+    "candidateBranch": "codex/ayas-stage15t-paused",
+    "candidateHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+    "candidatePushed": true,
+    "integratedIntoPrimary": false,
+    "graphify": "NOT_CURRENT",
+    "notesLocation": "Only on codex/ayas-stage15t-paused; not integrated into this branch",
+    "candidateWorktreeState": "ARCHIVED_RECOVERABLE",
+    "candidateRemoteParity": {
+      "localHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+      "originHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+      "ahead": 0,
+      "behind": 0,
+      "worktreeBeforeArchive": "CLEAN"
+    }
+  },
+  "ownerStopHistory": [
+    {
+      "state": "SUPERSEDED_BY_OWNER_RESUME",
+      "appliedAt": "2026-10-02T18:30:19.106Z",
+      "latestRequest": "15Q.2 bitir öyle dur",
+      "effectiveStopBoundary": "AFTER_15Q.2",
+      "requestedPacketComplete": true,
+      "nextStageAuthorized": true,
+      "supersededAt": "2026-10-02T18:36:00.000Z",
+      "supersededBy": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
+    }
+  ],
+  "currentHeadSemantics": "Last completed stage-closure commit before this documentation-only owner-stop save; live Git HEAD is authoritative."
 }
