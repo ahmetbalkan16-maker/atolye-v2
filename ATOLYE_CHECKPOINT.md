@@ -1,5 +1,11 @@
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
+## AYAS 2026-10-02 —15P GREEN;15Q OPEN
+
+Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending.
+
+Exact next:canonical15Q resource admission and ON_DEMAND lifecycle; hardening/15Q/IMPLEMENTATION_NOTES.md. No external certification, all action flagsfalse. NO PUSH / PC HEALTH retained.
+
 ## AYAS 2026-10-02 —15P full baseline GREEN; source-kind correction
 
 Exact green34279af:v26 full106/106 passed, no failure, cognitive54/55/held-out4/5 unchanged, RAM53.34%. F27 narrow metadata correction validated22 scenarios/30 mutants, store/error/deep/governance regressions, TypeScript/lint. Current next:Graphify/local correction commit and isolated source suites on exact commit, then15P closure/15Q. Full baseline belongs to34279af; no latest-head full-run claim. NO PUSH / ON_DEMAND.

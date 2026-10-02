@@ -28,3 +28,9 @@ Tests so far: 21 synthetic metadata scenarios; 27/27 negative controls in TEMP; 
 ## 15P.R — source page type correction
 
 Full declared v26 baseline at clean34279af passed106/106 with no failure; cognitive54/55 and held-out4/5 unchanged; RAM peak53.34%. Preserved before this narrow follow-up. Review found registered repository identity was too broadly labelled OFFICIAL_RELEASE_NOTES. The URL path now distinguishes release pages/feed, repository root/blob/tree, community issues/discussions/pulls, and unknown paths. It does not assert content truth or direct extraction. All trust/action boundaries remain unchanged. Focused22 scenarios /30 negative controls, existing store8/error12/deep13/eval10 +8 mutants passed; TypeScript/lint and Graphify/source commit checks follow. v26 archived byte-for-byte; v27 keeps106 suites/125 pins. Full106 evidence belongs to predecessor34279af; correction evidence is separately bound, never relabelled as a full latest-head run.
+
+## Closure
+
+Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending.
+
+See CLOSURE.md and15PR_RESULT.json for exact evidence binding. Automatically continue15Q; no external certification or action authority.

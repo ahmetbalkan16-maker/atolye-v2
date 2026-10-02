@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15P",
+  "packet": "15P.R",
+  "state": "GREEN_SOURCE_PAGE_METADATA_CORRECTION",
+  "stageSourceClosed": true,
+  "sourceBaseHead": "34279af33fc1d048372ce842f7286139a6b04dcc",
+  "sourceCommit": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+  "authority": "NONE",
+  "tests": {
+    "focused": "15PR_FOCUSED.json",
+    "isolatedAtExactHead": {
+      "sourceHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+      "manifest": "15F.4-v27",
+      "sourceEvidence": 22,
+      "mutations": "30/30",
+      "reports": [
+        "15PR_SOURCE_SUITE_V27.json",
+        "15PR_MUTATION_SUITE_V27.json"
+      ],
+      "completeDeclaredBaseline": false
+    },
+    "precedingFullBaseline": {
+      "manifest": "15F.4-v26",
+      "manifestDigest": "c2b20d716f18ff937ec17e3ca4b667cad451b500fa3ba7344fa6e4c4b7357051",
+      "sourceHead": "34279af33fc1d048372ce842f7286139a6b04dcc",
+      "worktree": "clean",
+      "suites": 106,
+      "complete": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55, held-out 4/5 unchanged",
+      "report": "15P_FULL_BASELINE_V26.json"
+    },
+    "exactHeadPins": 125,
+    "typeScript": "PASS",
+    "changedLint": "PASS",
+    "diffCheck": "PASS",
+    "v26Archive": "byte-identical to34279af committed manifest"
+  },
+  "graphify": "GRAPHIFY_15PR_SOURCE_COMMIT.json",
+  "fullLatestHeadBaselineClaimed": false,
+  "evidenceClass": "SYNTHETIC_METADATA_ORACLE_NOT_EXTERNAL_FACT_LICENSE_OR_TERMS_CERTIFICATION",
+  "knownLimits": [
+    "No external fact, license or current terms certified",
+    "Default DEEP findings remain model summaries / declared-only usage, REVIEW_REQUIRED",
+    "Legacy missing graphs remain UNMEASURED; no migration",
+    "All action flags false; downstream owner gates retained"
+  ],
+  "next": "Stage15Q Hardware / Resource Governor",
+  "runtime": "ON_DEMAND; no model/container/provider/production/upload/push"
+}

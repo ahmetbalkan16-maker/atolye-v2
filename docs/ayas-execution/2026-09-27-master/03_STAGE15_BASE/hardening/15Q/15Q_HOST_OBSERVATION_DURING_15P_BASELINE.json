@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1",
+  "observedAt": "2026-10-02T15:09:53.1917415Z",
+  "sourceHead": "34279af33fc1d048372ce842f7286139a6b04dcc",
+  "context": "Read-only inspection during serial deterministic Stage15P baseline; no runtime started",
+  "privacy": "Coarse names/counts/RSS only; no command lines, window titles, screens, keystrokes or user content",
+  "noHostMutation": true,
+  "processes": {
+    "podman": {
+      "count": 1,
+      "names": [
+        "win-sshproxy.exe"
+      ],
+      "aggregateRssMiB": 28.17,
+      "modelLoaded": "UNKNOWN"
+    },
+    "ollama": {
+      "count": 2,
+      "names": [
+        "ollama app.exe",
+        "ollama.exe"
+      ],
+      "aggregateRssMiB": 115.48,
+      "modelLoaded": "UNKNOWN"
+    },
+    "llama": {
+      "count": 0,
+      "names": [],
+      "aggregateRssMiB": 0.0,
+      "modelLoaded": "UNKNOWN"
+    },
+    "qwen": {
+      "count": 0,
+      "names": [],
+      "aggregateRssMiB": 0.0,
+      "modelLoaded": "UNKNOWN"
+    },
+    "render": {
+      "count": 0,
+      "names": [],
+      "aggregateRssMiB": 0.0,
+      "modelLoaded": "UNKNOWN"
+    },
+    "wsl": {
+      "count": 0,
+      "names": [],
+      "aggregateRssMiB": 0.0,
+      "modelLoaded": "UNKNOWN"
+    }
+  },
+  "relatedStartupNames": [
+    "io.podman_desktop.PodmanDesktop",
+    "Ollama"
+  ],
+  "relatedScheduledTasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running"
+    }
+  ],
+  "podmanMachines": {
+    "name": "podman-machine-default",
+    "running": false,
+    "starting": false,
+    "default": true,
+    "vmType": "wsl"
+  },
+  "hostRam": {
+    "totalMiB": 32456.73,
+    "freeMiB": 15841.82,
+    "usedPercent": 51.19
+  },
+  "startupChanges": "NONE; observation does not authorize host-global startup changes"
+}

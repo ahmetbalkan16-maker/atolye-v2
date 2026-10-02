@@ -1,0 +1,21 @@
+{
+  "sourceHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+  "graphBuiltFromHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+  "worktreeAtCheck": "CLEAN",
+  "structuralStatus": "PARTIAL",
+  "structuralPartialFiles": 9,
+  "semanticStatus": "PENDING",
+  "structuralReasons": [
+    "INCOMPLETE_CODE_FILES:9"
+  ],
+  "integrity": {
+    "builtFromHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+    "nodes": 17404,
+    "links": 49849,
+    "duplicateIds": 0,
+    "duplicateEdges": 0,
+    "dangling": 0,
+    "selfLoops": 0
+  },
+  "command": "graphify update --scope all --no-description --no-label ."
+}

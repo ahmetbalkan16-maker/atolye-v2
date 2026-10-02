@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15P",
+  "packet": "15P.1",
+  "state": "GREEN_CONTEXTUAL_METADATA_SOURCE",
+  "stageSourceClosed": false,
+  "sourceCommit": "34279af33fc1d048372ce842f7286139a6b04dcc",
+  "authority": "NONE",
+  "tests": {
+    "focused": "15P1_FOCUSED.json",
+    "fullBaseline": {
+      "manifest": "15F.4-v26",
+      "manifestDigest": "c2b20d716f18ff937ec17e3ca4b667cad451b500fa3ba7344fa6e4c4b7357051",
+      "sourceHead": "34279af33fc1d048372ce842f7286139a6b04dcc",
+      "worktree": "clean",
+      "suites": 106,
+      "complete": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55, held-out 4/5 unchanged",
+      "report": "15P_FULL_BASELINE_V26.json"
+    },
+    "exactHeadPins": 125,
+    "typeScript": "PASS",
+    "lint": "0 errors /13 existing warnings"
+  },
+  "graphify": "GRAPHIFY_15P1_SOURCE_COMMIT.json",
+  "ramPeakPercent": 53.34,
+  "next": "Narrow F27 source-page metadata correction,15P.R"
+}
