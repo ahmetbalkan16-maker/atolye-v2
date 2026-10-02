@@ -849,3 +849,8 @@ Source `d08fed060c0dff8601cf968715f2b2469f328d4a`. Inherited implementation pres
 ## Stage15P.1 — source implemented, focused green, final validation pending (2026-10-02)
 
 Bounded sealed source/claim/evidence graph, four contextual review policies, independent publisher grouping, explicit freshness/usage/provenance and conflicts. New external findings get derived metadata through the same atomic store; legacy records remain readable and missing graphs query UNMEASURED. Saved scores never count as current truth; complete graph snapshot binding is checked. All action flags false / authority NONE; protected policy and graders. Synthetic21 scenarios, TEMP mutants27/27 and affected existing regressions pass; no external facts/terms/license or live production certified. v26 declares106 suites/125 pins, full baseline pending at source commit. Final TypeScript/lint, Graphify/local commit before closure and automatic15Q. NO PUSH.
+
+### 2026-10-02 —15P.R narrow metadata correction
+
+- Preserve exact clean34279af full v26 baseline106/106 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 /held-out4/5 unchanged, RAM peak53.34%; source Graphify17402/49842 integrity0.
+- F27:registered publisher identity is insufficient to label every page as release notes. Correct registered URL path metadata with community/unknown distinctions.22 focused scenarios /30 mutants;store8/error12/deep13/eval10+8 mutants passed;TypeScript/lint/Graphify/commit follows. No permission flags changed. v26 archived; v27 keeps106 suites/125 pins. No full-baseline evidence relabelled to another HEAD.

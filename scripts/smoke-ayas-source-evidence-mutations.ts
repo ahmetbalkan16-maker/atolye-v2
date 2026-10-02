@@ -43,6 +43,9 @@ const mutants: readonly (readonly [string, string, string, string])[] = [
   ["a substituted finding snapshot passes", bridge, " || graph.digest !== buildAyasFindingSourceEvidence(finding).digest", ""],
   ["the store trusts the caller's saved verdict", store, "sourceTrust: assessAyasFindingSourceTrust(", "sourceTrust: (input as unknown as { sourceTrust?: AyasSourceTrustReport }).sourceTrust ?? assessAyasFindingSourceTrust("],
   ["model-derived metadata calls itself direct", bridge, "extraction: finding.researchMode === \"DEEP\" ? \"MODEL_SUMMARY\" : \"UNDECLARED\"", "extraction: \"DIRECT_SOURCE\""],
+  ["repository source pages are called release notes", bridge, "kind: \"SOURCE_REPOSITORY\", relationship: \"FIRST_PARTY\"", "kind: \"OFFICIAL_RELEASE_NOTES\", relationship: \"FIRST_PARTY\""],
+  ["community content inherits publisher authorship", bridge, "kind: \"COMMUNITY\", relationship: \"COMMUNITY\"", "kind: \"OFFICIAL_RELEASE_NOTES\", relationship: \"FIRST_PARTY\""],
+  ["unknown repository paths are called release notes", bridge, "return { kind: \"UNKNOWN\", relationship: \"FIRST_PARTY\" } as const;", "return { kind: \"OFFICIAL_RELEASE_NOTES\", relationship: \"FIRST_PARTY\" } as const;"],
   ["the source-trust kernel may rewrite itself", "src/lib/brain/selfheal/BrainPatchSafety.ts", "p.toLowerCase().startsWith(\"src/lib/ayas/trust/\")", "false"],
   ["the source-trust grader may rewrite itself", "src/lib/brain/selfheal/BrainPatchSafety.ts", "  \"scripts/smoke-ayas-source-evidence.ts\",\n", ""],
 ];

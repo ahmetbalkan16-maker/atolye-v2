@@ -17,13 +17,25 @@ const anchors = Object.freeze({ names: [], packages: [], repositories: [], hosts
 const checkedTime = (value: string | null): string | null => ayasTechnologyIso(value);
 const statement = (finding: FindingFacts) => `${finding.capability}: ${finding.problemSolved}`.slice(0, 1200);
 
+/** A verified repository root establishes publisher identity, not the type/authorship of every page under it. */
+function registeredPageType(source: NonNullable<ReturnType<typeof describeAyasTechnologySource>>) {
+  if (source.host === "github.com") {
+    const repositoryPath = source.path.split("/").slice(0, 3).join("/");
+    const tail = source.path.slice(repositoryPath.length);
+    if (/^\/releases(?:\.atom|\/tag\/.+)?\/?$/.test(tail)) return { kind: "OFFICIAL_RELEASE_NOTES", relationship: "FIRST_PARTY" } as const;
+    if (/^\/(?:issues|discussions|pulls|pull)(?:\/.*)?$/.test(tail)) return { kind: "COMMUNITY", relationship: "COMMUNITY" } as const;
+    if (tail === "" || tail === "/" || /^\/(?:tree|blob)\/[^/]+(?:\/.*)?$/.test(tail)) return { kind: "SOURCE_REPOSITORY", relationship: "FIRST_PARTY" } as const;
+  }
+  return { kind: "UNKNOWN", relationship: "FIRST_PARTY" } as const;
+}
+
 /** The official flag is a declaration. Only the existing registered-source verifier can bind it to an identity. */
 export function buildAyasFindingSourceEvidence(finding: FindingFacts): AyasSourceEvidenceGraph {
   const source = describeAyasTechnologySource(finding.sourceUrl);
   const registered = !!source && finding.isOfficialSource === true && verifyAyasTechnologySource(source.url, anchors) === "REGISTERED_OFFICIAL";
   return sealAyasSourceEvidence({ schemaVersion: "1", dataOnly: true,
     sources: [{ id: "finding-source", reference: source?.url ?? "UNVERIFIED_SOURCE_REFERENCE", domain: source?.host ?? null,
-      kind: registered ? "OFFICIAL_RELEASE_NOTES" : "UNKNOWN", relationship: registered ? "FIRST_PARTY" : "UNKNOWN",
+      ...(registered ? registeredPageType(source!) : { kind: "UNKNOWN" as const, relationship: "UNKNOWN" as const }),
       checkedAt: checkedTime(finding.lastCheckedAt), publishedAt: checkedTime(finding.featureDate), usage: ["open-source", "paid-only", "free-tier-available"].includes(finding.licenseCostStatus) ? "DECLARED_ONLY" : "UNKNOWN" }],
     claims: [{ id: "finding-capability", text: statement(finding), use: "CODE_ADOPTION" }],
     evidence: [{ id: "finding-summary", claimId: "finding-capability", sourceId: "finding-source", relation: "SUPPORTS", extraction: finding.researchMode === "DEEP" ? "MODEL_SUMMARY" : "UNDECLARED", locator: null }],

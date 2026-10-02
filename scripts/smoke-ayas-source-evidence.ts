@@ -65,6 +65,20 @@ try {
     assert.equal(assessAyasFindingSourceTrust({ ...f, sourceEvidence: g }, "HISTORICAL_CLAIM", NOW).state, "UNMEASURED");
     assert.equal(buildAyasFindingSourceEvidence({ ...f, licenseCostStatus: "unrecognized" }).sources[0]!.usage, "UNKNOWN");
   });
+  scenario("registered repository identity does not turn source pages, community text or unknown paths into release notes", () => {
+    const cases = [
+      ["/releases.atom", "OFFICIAL_RELEASE_NOTES", "FIRST_PARTY"], ["/releases", "OFFICIAL_RELEASE_NOTES", "FIRST_PARTY"], ["/releases/tag/v1", "OFFICIAL_RELEASE_NOTES", "FIRST_PARTY"],
+      ["", "SOURCE_REPOSITORY", "FIRST_PARTY"], ["/blob/main/README.md", "SOURCE_REPOSITORY", "FIRST_PARTY"], ["/tree/main/src", "SOURCE_REPOSITORY", "FIRST_PARTY"],
+      ["/issues/1", "COMMUNITY", "COMMUNITY"], ["/discussions/1", "COMMUNITY", "COMMUNITY"], ["/pull/1", "COMMUNITY", "COMMUNITY"],
+      ["/wiki", "UNKNOWN", "FIRST_PARTY"], ["/releases-pretend", "UNKNOWN", "FIRST_PARTY"], ["/releases/unknown", "UNKNOWN", "FIRST_PARTY"],
+    ] as const;
+    for (const [suffix, kind, relationship] of cases) {
+      const f = facts({ sourceUrl: `https://github.com/openai/openai-python${suffix}` }); const g = buildAyasFindingSourceEvidence(f);
+      assert.equal(g.sources[0]!.kind, kind, suffix); assert.equal(g.sources[0]!.relationship, relationship, suffix);
+      const r = assessAyasFindingSourceTrust({ ...f, sourceEvidence: g }, "CODE_ADOPTION", NOW);
+      assert.equal(r.state, "REVIEW_REQUIRED"); assert.equal(r.authority, "NONE"); assert.equal(r.mayAdopt, false); assert.equal(r.mayExecute, false);
+    }
+  });
   scenario("publisher independence is derived: duplicate pages, subdomains and fake publisher labels do not corroborate history", () => {
     const b = history(); const same = { ...b, sources: b.sources.map((s, i) => ({ ...s, reference: `https://${i ? "other" : "one"}.publisher.test/book`, domain: `${i ? "other" : "one"}.publisher.test` })) };
     const r = review(same); assert.equal(r.state, "REVIEW_REQUIRED"); assert.equal(r.claims[0]!.independentSources, 1); assert.equal(r.claims[0]!.corroboration, "SINGLE_SOURCE");

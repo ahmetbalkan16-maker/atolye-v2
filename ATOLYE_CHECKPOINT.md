@@ -1,5 +1,10 @@
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
+## AYAS 2026-10-02 —15P full baseline GREEN; source-kind correction
+
+Exact green34279af:v26 full106/106 passed, no failure, cognitive54/55/held-out4/5 unchanged, RAM53.34%. F27 narrow metadata correction validated22 scenarios/30 mutants, store/error/deep/governance regressions, TypeScript/lint. Current next:Graphify/local correction commit and isolated source suites on exact commit, then15P closure/15Q. Full baseline belongs to34279af; no latest-head full-run claim. NO PUSH / ON_DEMAND.
+
+
 Last complete green source d08fed060c0dff8601cf968715f2b2469f328d4a (15O full104/104); source base5f7c13dfc79a90f8e30bdfacb5587c1942d27a54. 15P now has the contextual source/evidence graph, derived finding metadata, snapshot-bound current-time query and protected policies/graders. Focused21 / TEMP mutants27/27 and affected regressions PASS; v26 declares106 suites/125 pins; full exact-commit baseline pending. Finish final TypeScript/lint, Graphify and local source commit, then full v26 baseline; close15P and automatically open15Q. Exact nextAction and files: ACTIVE_CHECKPOINT.json; notes/evidence: hardening/15P/. No external source/fact/license certified; all reports authority NONE. NO PUSH; ON_DEMAND / PC HEALTH retained.
 
 # AYAS continuation — 2026-10-02 / Stage 15O source CLOSED GREEN, Stage 15P OPEN

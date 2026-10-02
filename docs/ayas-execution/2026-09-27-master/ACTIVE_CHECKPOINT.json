@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
-  "currentHead": "5f7c13dfc79a90f8e30bdfacb5587c1942d27a54",
+  "lastGreenHead": "34279af33fc1d048372ce842f7286139a6b04dcc",
+  "currentHead": "34279af33fc1d048372ce842f7286139a6b04dcc",
   "stage": "STAGE_15P",
-  "subtask": "15P.1-contextual-source-evidence-kernel-and-record-integration",
+  "subtask": "15P.R-registered-reference-source-kind-correction",
   "status": "STAGE_15P_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -209,16 +209,11 @@
     "15P.0-existing-seam-inspection"
   ],
   "currentFiles": [
-    "src/lib/ayas/trust/AyasSourceEvidence.ts",
     "src/lib/ayas/trust/AyasSourceEvidenceIntegration.ts",
-    "src/lib/brain/autonomy/AyasExternalResearchStore.ts",
-    "src/lib/brain/selfheal/BrainPatchSafety.ts",
-    "scripts/ayas-source-evidence.ts",
     "scripts/smoke-ayas-source-evidence.ts",
     "scripts/smoke-ayas-source-evidence-mutations.ts",
-    "scripts/smoke-ayas-eval-governance.ts",
     "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V25.json"
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V26.json"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -355,8 +350,8 @@
   "graphify": {
     "head": "5f7c13dfc79a90f8e30bdfacb5587c1942d27a54",
     "testedSourcePacket": "d08fed060c0dff8601cf968715f2b2469f328d4a",
-    "stale": false,
-    "needsUpdate": false,
+    "stale": true,
+    "needsUpdate": true,
     "nodes": 17401,
     "edges": 49832,
     "duplicateNodes": 0,
@@ -386,8 +381,8 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "Stage 15P.1 focused source is GREEN (21 scenarios, 27 mutants, affected regressions, TypeScript, lint, v26 106 suites/125 pins, Graphify integrity zero anomalies). Create local source commit, refresh Graphify at that exact clean commit, run full v26 baseline; then close 15P and automatically open canonical 15Q. NO PUSH; PC HEALTH / ON_DEMAND retained.",
-  "updatedAt": "2026-10-02",
+  "nextAction": "Preserve full v26 106/106 evidence at34279af. Correct the registered URL metadata type: release URLs, repository source pages, community issues/discussions and unknown paths must not all claim release notes. Validate focused source/store/deep/governance regressions and new negative controls, TypeScript/lint, Graphify, local commit and checkpoint; then close15P and automatically open15Q. NO PUSH.",
+  "updatedAt": "2026-10-02T15:27:36.811Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1281,12 +1276,25 @@
     "closure": "03_STAGE15_BASE/hardening/15O/CLOSURE.md"
   },
   "stage15P": {
-    "state": "FOCUSED_GREEN_SOURCE_COMMIT_AND_FULL_BASELINE_PENDING",
+    "state": "FULL_V26_GREEN_NARROW_SOURCE_KIND_CORRECTION",
     "openedOn": "2026-10-02",
     "openedAtHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15P; final freeze addendum 15P",
     "addendumSections": "0 and 9",
     "notes": "03_STAGE15_BASE/hardening/15P/IMPLEMENTATION_NOTES.md",
-    "authority": "NONE"
+    "authority": "NONE",
+    "packet15P1": {
+      "state": "GREEN",
+      "sourceCommit": "34279af33fc1d048372ce842f7286139a6b04dcc",
+      "fullBaseline": {
+        "manifest": "15F.4-v26",
+        "sourceHead": "34279af33fc1d048372ce842f7286139a6b04dcc",
+        "suites": 106,
+        "complete": true,
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "failed": [],
+        "report": "15P_FULL_BASELINE_V26.json"
+      }
+    }
   }
 }
