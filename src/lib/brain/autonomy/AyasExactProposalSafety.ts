@@ -3,7 +3,10 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import { ayasGoldenVaultDigest, type AyasGoldenVault } from "../../ayas/golden/AyasGoldenVault";
+import { AYAS_GOLDEN_VAULT } from "../../ayas/golden/AyasGoldenVaultRegistry";
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
+import { ayasExperimentEvidenceGoldenHeld } from "./AyasResearchExperimentEvaluation";
 import { ayasExactPatchSha256, verifyAyasExactPatchSafetyProof, verifyAyasReviewedExactPatch } from "../selfheal/AyasExactPatchSafety";
 import type { AyasInboxProposal } from "./AyasApprovalInboxStore";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
@@ -13,7 +16,8 @@ import { createAyasResearchExperimentStore, resolveAyasResearchImprovementRoot, 
 /** Keeps the path classifier authoritative while proving only one immutable reviewed replacement. */
 export function verifyAyasExactProposalSafety(proposal: Pick<AyasInboxProposal,
   "baseHead" | "exactFiles" | "safetyClassification" | "mutationKind" | "patchArtifactId" | "patchHash" | "exactPatchSafetyProof">,
-  options: { readonly repoRoot?: string; readonly artifactStore?: AyasPatchArtifactStore; readonly experimentStore?: AyasResearchExperimentStore; readonly requireUnchangedSource?: boolean } = {}): boolean {
+  options: { readonly repoRoot?: string; readonly artifactStore?: AyasPatchArtifactStore; readonly experimentStore?: AyasResearchExperimentStore; readonly requireUnchangedSource?: boolean;
+    /** Stage 15O. Production callers leave it out: the vault of record. */ readonly goldenVault?: AyasGoldenVault } = {}): boolean {
   if (classifyPatchSet(proposal.exactFiles).level !== "REVIEW_REQUIRED"
     || proposal.safetyClassification !== "SAFE" || proposal.mutationKind !== "patch-artifact:v1"
     || !proposal.patchArtifactId || !proposal.patchHash || !/^[0-9a-f]{64}$/.test(proposal.patchHash)
@@ -44,6 +48,8 @@ export function verifyAyasExactProposalSafety(proposal: Pick<AyasInboxProposal,
       || record.strategyId !== proof.strategyId || record.strategyVersion !== proof.strategyVersion
       || evidence.experimentId !== record.experimentId || evidence.verdict !== "IMPROVED"
       || evidence.baseHead !== proof.baseHead || evidence.authority !== "NONE"
+      // Stage 15O: an exact proof also needs the golden vault held, against the vault as it is now.
+      || !ayasExperimentEvidenceGoldenHeld(evidence, ayasGoldenVaultDigest(options.goldenVault ?? AYAS_GOLDEN_VAULT), (options.goldenVault ?? AYAS_GOLDEN_VAULT).cases.length)
       || evidence.risk.riskClass !== "REVIEW_REQUIRED" || evidence.change?.strategyId !== proof.strategyId
       || evidence.change.strategyVersion !== proof.strategyVersion || evidence.targetGain < 1
       || evidence.regressions.newlyFailingCaseIds.length > 0 || evidence.regressions.heldOutDelta < 0

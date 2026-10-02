@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 
+import type { AyasGoldenDecision, AyasGoldenRegressionResult } from "../../ayas/golden/AyasGoldenVault";
 import { containsBrainSecret, redactBrainText } from "../BrainRedaction";
 import { AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, type AyasImprovementHypothesis } from "./AyasResearchImprovementLoop";
 
@@ -107,6 +108,8 @@ export interface AyasExperimentEvaluationInput {
   readonly baselineSuites: readonly AyasRegressionSuiteResult[];
   readonly experimentSuites: readonly AyasRegressionSuiteResult[];
   readonly abortCode?: AyasExperimentAbortCode;
+  /** Stage 15O — the golden vault's answer for the candidate tree. Without it nothing is IMPROVED. */
+  readonly golden?: AyasGoldenRegressionResult | null;
 }
 
 export interface AyasExperimentComparison {
@@ -128,8 +131,37 @@ export function ayasBaselineReproducesHypothesis(hypothesis: AyasImprovementHypo
   return baseline.evaluatorSha256 === hypothesis.gapEvidence.evaluatorSha256 && JSON.stringify(failingTargets) === JSON.stringify([...hypothesis.targetCaseIds].sort());
 }
 
-/** Phases 9, 11, 12 and 13 — ordered, deterministic, fail-closed. */
+/**
+ * Phases 9, 11, 12 and 13 — ordered, deterministic, fail-closed — and then the golden vault (Stage 15O):
+ * baseline -> candidate -> held-out -> golden regression. The vault is asked only about a change that everything
+ * before it would call improved, and it can only take that verdict away:
+ *
+ *   held                                   IMPROVED stands
+ *   a golden case the change broke         REGRESSED
+ *   a golden case red, not shown golden before   INCONCLUSIVE (the vault is not passing here; nothing is promoted)
+ *   not measured, or no answer at all      INCONCLUSIVE
+ *   the vault or a pinned file moved       INVALID_EXPERIMENT
+ */
 export function evaluateAyasExperiment(input: AyasExperimentEvaluationInput): AyasExperimentComparison {
+  const before = compareAyasExperimentBeforeGolden(input);
+  if (before.verdict !== "IMPROVED") return before;
+  const golden = input.golden;
+  const held = (code: string, verdict: AyasExperimentVerdict): AyasExperimentComparison => ({ ...before, verdict, reasonCodes: [code] });
+  if (!golden || typeof golden !== "object" || golden.authority !== "NONE") return held("GOLDEN_NOT_MEASURED", "INCONCLUSIVE");
+  switch (golden.decision) {
+    case "GOLDEN_HELD":
+      return Array.isArray(golden.failingCaseIds) && golden.failingCaseIds.length === 0 && golden.cases > 0 && HEX64.test(String(golden.vaultDigest ?? "")) ? before : held("GOLDEN_NOT_MEASURED", "INCONCLUSIVE");
+    case "PROMOTION_STOPPED":
+      return Array.isArray(golden.regressedCaseIds) && golden.regressedCaseIds.length > 0 ? held("GOLDEN_REGRESSION", "REGRESSED") : held("GOLDEN_NOT_HELD", "INCONCLUSIVE");
+    case "GOLDEN_VAULT_CHANGED":
+      return held("GOLDEN_VAULT_CHANGED", "INVALID_EXPERIMENT");
+    default:
+      return held("GOLDEN_NOT_MEASURED", "INCONCLUSIVE");
+  }
+}
+
+/** What the benchmark, the held-out cases and the regression suites say, before the golden vault is asked. */
+export function compareAyasExperimentBeforeGolden(input: AyasExperimentEvaluationInput): AyasExperimentComparison {
   const { hypothesis } = input;
   if (input.abortCode && UNSAFE_ABORTS.has(input.abortCode)) return { verdict: "UNSAFE", reasonCodes: [input.abortCode], ...EMPTY_COMPARISON };
   if (input.abortCode && INVALID_ABORTS.has(input.abortCode)) return { verdict: "INVALID_EXPERIMENT", reasonCodes: [input.abortCode], ...EMPTY_COMPARISON };
@@ -240,6 +272,11 @@ export interface AyasExperimentEvidence {
     readonly heldOutDelta: number;
     readonly suites: readonly { readonly script: string; readonly baselinePass: boolean | null; readonly experimentPass: boolean | null }[];
   };
+  /**
+   * Stage 15O — what the golden vault said about the candidate tree. Absent in evidence from before the vault and
+   * when the comparison never reached it (nothing to promote). An IMPROVED package always carries it, held.
+   */
+  readonly golden?: AyasExperimentGoldenEvidence;
   readonly performance: { readonly baselineMs: number | null; readonly experimentMs: number | null; readonly ratio: number | null };
   readonly risk: { readonly riskClass: AyasImprovementHypothesis["riskClass"]; readonly isolation: typeof AYAS_EXPERIMENT_ISOLATION; readonly liveWorkspaceUnchanged: boolean; readonly sandboxDiscarded: boolean };
   readonly analysisRoute: AyasExperimentAnalysisRoute | null;
@@ -250,6 +287,57 @@ export interface AyasExperimentEvidence {
   readonly remainingTargetFailures: number;
   readonly completedAt: string;
   readonly authority: "NONE";
+}
+
+export interface AyasExperimentGoldenEvidence {
+  readonly vaultVersion: number | null;
+  readonly vaultDigest: string | null;
+  readonly decision: AyasGoldenDecision;
+  readonly reasonCodes: readonly string[];
+  /** One row per case that was asked, in vault order. `reused`: the result of a regression suite that ran in the same tree. */
+  readonly cases: readonly { readonly id: string; readonly script: string; readonly pass: boolean; readonly timedOut: boolean; readonly reused: boolean }[];
+  readonly failingCaseIds: readonly string[];
+  readonly regressedCaseIds: readonly string[];
+  /** Canonical domains the vault declares it does not cover yet. */
+  readonly gapDomains: readonly string[];
+}
+
+const GOLDEN_DECISIONS: readonly string[] = ["GOLDEN_HELD", "PROMOTION_STOPPED", "GOLDEN_NOT_MEASURED", "GOLDEN_VAULT_CHANGED"];
+const GOLDEN_CASE_ID = /^golden\.[a-z0-9]+(?:[.-][a-z0-9]+){1,8}$/;
+const GOLDEN_SCRIPT = /^scripts\/smoke-[a-z0-9-]+\.ts$/;
+const strings = (value: unknown, max: number, pattern: RegExp): value is readonly string[] => Array.isArray(value) && value.length <= max && value.every((item) => typeof item === "string" && pattern.test(item));
+
+function validAyasExperimentGoldenEvidence(value: unknown): value is AyasExperimentGoldenEvidence {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const golden = value as Record<string, unknown>;
+  const keys = ["vaultVersion", "vaultDigest", "decision", "reasonCodes", "cases", "failingCaseIds", "regressedCaseIds", "gapDomains"];
+  if (Object.keys(golden).length !== keys.length || !keys.every((key) => Object.hasOwn(golden, key)) || !GOLDEN_DECISIONS.includes(String(golden.decision))
+    || !(golden.vaultVersion === null || (Number.isSafeInteger(golden.vaultVersion) && (golden.vaultVersion as number) >= 1))
+    || !(golden.vaultDigest === null || (typeof golden.vaultDigest === "string" && HEX64.test(golden.vaultDigest)))
+    || !strings(golden.reasonCodes, 8, /^[A-Z][A-Z0-9_]{1,63}$/) || !strings(golden.failingCaseIds, 200, GOLDEN_CASE_ID) || !strings(golden.regressedCaseIds, 200, GOLDEN_CASE_ID)
+    || !strings(golden.gapDomains, 16, /^[A-Z][A-Z0-9_]{1,63}$/) || !Array.isArray(golden.cases) || golden.cases.length > 200) return false;
+  const ids = new Set<string>();
+  for (const row of golden.cases as readonly unknown[]) {
+    const item = row as Record<string, unknown> | null;
+    if (!item || typeof item !== "object" || Object.keys(item).length !== 5 || typeof item.id !== "string" || !GOLDEN_CASE_ID.test(item.id) || ids.has(item.id)
+      || typeof item.script !== "string" || !GOLDEN_SCRIPT.test(item.script) || typeof item.pass !== "boolean" || typeof item.timedOut !== "boolean" || typeof item.reused !== "boolean") return false;
+    ids.add(item.id);
+  }
+  // The block has to agree with itself: every case named red is a row that is red, and a regressed case is a red one.
+  const red = (golden.cases as AyasExperimentGoldenEvidence["cases"]).filter((item) => !item.pass || item.timedOut).map((item) => item.id);
+  const failing = golden.failingCaseIds as readonly string[];
+  return JSON.stringify([...failing].sort()) === JSON.stringify([...red].sort()) && (golden.regressedCaseIds as readonly string[]).every((id) => failing.includes(id))
+    && (golden.decision !== "GOLDEN_HELD" || (red.length === 0 && golden.cases.length > 0 && golden.vaultDigest !== null && golden.vaultVersion !== null));
+}
+
+/**
+ * True only for a package whose golden block is held against exactly this vault: every case asked and green.
+ * Every path that turns evidence into something an owner can approve asks this, with the vault of record.
+ */
+export function ayasExperimentEvidenceGoldenHeld(evidence: Pick<AyasExperimentEvidence, "golden"> | null | undefined, vaultDigest: string, vaultCases: number): boolean {
+  const golden = evidence?.golden;
+  return validAyasExperimentGoldenEvidence(golden) && golden.decision === "GOLDEN_HELD" && HEX64.test(vaultDigest) && golden.vaultDigest === vaultDigest
+    && Number.isSafeInteger(vaultCases) && vaultCases > 0 && golden.cases.length === vaultCases;
 }
 
 export interface AyasExperimentSourceBinding {
@@ -338,6 +426,8 @@ export function verifyAyasExperimentEvidence(evidence: unknown, expectedHash: st
     || candidate.findingIds.length !== candidate.hypothesis.findingIds.length
     || !candidate.findingIds.every((id) => candidate.hypothesis.findingIds.includes(id)))) return false;
   if (candidate.replacementDigest !== undefined && (!HEX64.test(candidate.replacementDigest) || !candidate.sourceBindings?.some((binding) => binding.kind === "EVOLUTION_OPPORTUNITY"))) return false;
+  // A golden block is well-formed, and it cannot sit next to a verdict it contradicts.
+  if (candidate.golden !== undefined && (!validAyasExperimentGoldenEvidence(candidate.golden) || (candidate.verdict === "IMPROVED" && candidate.golden.decision !== "GOLDEN_HELD"))) return false;
   if (ayasEvidenceContainsSecret(candidate)) return false;
   return hashAyasExperimentEvidence(candidate) === expectedHash;
 }

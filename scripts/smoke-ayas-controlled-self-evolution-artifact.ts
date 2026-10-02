@@ -5,6 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { ayasGoldenVaultDigest, type AyasGoldenVault } from "../src/lib/ayas/golden/AyasGoldenVault";
+import { AYAS_GOLDEN_VAULT } from "../src/lib/ayas/golden/AyasGoldenVaultRegistry";
 import { freezeAyasControlledEvolutionArtifact } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionArtifact";
 import { buildAyasControlledEvolutionProposalCandidate } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge";
 import { ayasControlledEvolutionDedupeKey, type AyasControlledEvolutionCandidate } from "../src/lib/ayas/evolution/AyasControlledSelfEvolution";
@@ -19,6 +21,7 @@ import { createAyasResearchExperimentStore, type AyasExperimentRecord } from "..
 import { buildAyasImprovementHypothesis, AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION } from "../src/lib/brain/autonomy/AyasResearchImprovementLoop";
 import { runAyasRegisteredImprovementExperiment, type AyasRegisteredExperimentResult } from "../src/lib/brain/autonomy/AyasRegisteredImprovementExperiment";
 import { measureAyasLocalGapSnapshot } from "../src/lib/brain/autonomy/AyasResearchImprovementCycle";
+import { fixtureGoldenVault, heldGoldenEvidence } from "./fixtures/ayas-golden-fixtures";
 import { behaviorStrategy, createFixtureRepo, FIXTURE_NOW, fixtureRegistry, tempDir } from "./fixtures/ayas-research-improvement-fixtures";
 
 const hash = (value: string) => crypto.createHash("sha256").update(value, "utf8").digest("hex");
@@ -43,7 +46,8 @@ async function retainedSandboxSource(): Promise<void> {
       strategyVersion: strategy.version, inputsDigest: "c".repeat(64), status: "RESERVED", reservedAt: FIXTURE_NOW, updatedAt: FIXTURE_NOW,
       owner: { pid: process.pid, processStartEpochMs: Date.now() - 1_000, runId: crypto.randomUUID() }, leaseExpiresAt: "2026-09-22T00:00:00.000Z" };
     store.writeExperiment(record);
-    const result = await runAyasRegisteredImprovementExperiment({ deps: { repoRoot: repo.root, nodeModulesDir: NODE_MODULES },
+    const goldenVault = fixtureGoldenVault(repo.root);
+    const result = await runAyasRegisteredImprovementExperiment({ deps: { repoRoot: repo.root, nodeModulesDir: NODE_MODULES, goldenVault },
       observation: { now: FIXTURE_NOW, head, repoClean: true, graphifyFresh: true, machineAction: "ALLOW" }, store, record, hypothesis, strategy, benchmark,
       sourceIds: [], sourceBindings: [{ kind: "EVOLUTION_OPPORTUNITY", id: OPPORTUNITY_ID }], remainingMs: () => 120_000, clock: () => FIXTURE_NOW });
     assert.equal(result.verdict, "IMPROVED", JSON.stringify({ reasons: result.reasonCodes, baseline: store.readEvidence(result.record.evidenceHash!)?.baseline, hypothesis: hypothesis.gapEvidence }));
@@ -56,6 +60,8 @@ async function retainedSandboxSource(): Promise<void> {
     assert.equal(evidence?.change?.diffSha256, result.retainedSource.diffSha256);
     assert.deepEqual(evidence?.sourceBindings, [{ kind: "EVOLUTION_OPPORTUNITY", id: OPPORTUNITY_ID }]);
     assert.equal(evidence?.risk.sandboxDiscarded, true);
+    // Stage 15O: the improvement was also measured against the golden vault, in the same sandbox, and held.
+    assert.deepEqual(evidence?.golden, heldGoldenEvidence(goldenVault, strategy.regressionSuites));
     assert.equal(git(repo.root, "status", "--porcelain"), "");
   } finally { repo.remove(); fs.rmSync(storeDir, { recursive: true, force: true }); }
 }
@@ -99,6 +105,7 @@ async function frozenArtifact(): Promise<void> {
       environment: { node: process.version, platform: process.platform, arch: process.arch, tsx: null, typescript: null },
       change: { strategyId: strategy.strategyId, strategyVersion: strategy.version, files: [{ filePath, addedLines: 1, removedLines: 1 }], diffSha256, diffExcerpt: "bounded fixture diff" },
       regressions: { newlyFailingCaseIds: [], heldOutDelta: 0, suites: [{ script: strategy.regressionSuites[0]!, baselinePass: true, experimentPass: true }] },
+      golden: heldGoldenEvidence(),
       performance: { baselineMs: 1, experimentMs: 1, ratio: 1 },
       risk: { riskClass: "SAFE", isolation: AYAS_EXPERIMENT_ISOLATION, liveWorkspaceUnchanged: true, sandboxDiscarded: true },
       analysisRoute: null, verdict: "IMPROVED", reasonCodes: [], targetGain: 1, fixedCaseIds: ["target"], remainingTargetFailures: 0,
@@ -123,6 +130,15 @@ async function frozenArtifact(): Promise<void> {
     const input = { repoRoot: root, candidate: boundCandidate, registry, result, experimentStore, artifactStore, now: FIXTURE_NOW };
     assert.equal(await freezeAyasControlledEvolutionArtifact({ ...input, result: { ...result, verdict: "NEUTRAL" } }), null);
     assert.equal(await freezeAyasControlledEvolutionArtifact({ ...input, result: { ...result, retainedSource: { diffSha256, replacements: [{ ...replacements[0]!, expectedHash: "0".repeat(64) }] } } }), null);
+    // Stage 15O: improved without a golden block held against the current vault freezes nothing.
+    const withEvidence = (changed: AyasExperimentEvidence) => { const hash = experimentStore.writeEvidence(changed); return { ...input, result: { ...result, record: { ...record, evidenceHash: hash } } }; };
+    const { golden: heldGolden, ...beforeTheVault } = boundEvidence;
+    assert.equal(await freezeAyasControlledEvolutionArtifact(withEvidence(beforeTheVault)), null, "evidence from before the vault");
+    assert.equal(await freezeAyasControlledEvolutionArtifact(withEvidence({ ...boundEvidence, golden: { ...heldGolden!, vaultDigest: "f".repeat(64) } })), null, "held against another vault");
+    assert.equal(await freezeAyasControlledEvolutionArtifact(withEvidence({ ...boundEvidence, golden: { ...heldGolden!, cases: heldGolden!.cases.slice(1) } })), null, "not every case asked");
+    // The vault moved on by one version after the experiment: the evidence is held against the older one.
+    const laterVault: AyasGoldenVault = { ...AYAS_GOLDEN_VAULT, version: AYAS_GOLDEN_VAULT.version + 1, previousDigest: ayasGoldenVaultDigest(AYAS_GOLDEN_VAULT) };
+    assert.equal(await freezeAyasControlledEvolutionArtifact({ ...input, goldenVault: laterVault }), null, "held against an older version of the vault");
     const artifact = await freezeAyasControlledEvolutionArtifact(input);
     assert.ok(artifact, "verified improvement should freeze exactly one artifact");
     assert.equal(artifact.baseHead, boundHead);
@@ -166,6 +182,8 @@ async function frozenArtifact(): Promise<void> {
       loadVerified: () => ({ ...artifact, controlledEvolutionBinding: { ...artifact.controlledEvolutionBinding!, evidenceHash: "0".repeat(64) } }) } }), null);
     assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, experimentStore: { ...experimentStore,
       readEvidence: () => ({ ...boundEvidence, verdict: "NEUTRAL" }) } }), null);
+    // Stage 15O: the bridge asks the same question again; a frozen artifact does not carry evidence past the vault.
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, goldenVault: laterVault }), null);
     const artifactPath = path.join(artifactStore.dir, `${artifact.artifactId}.json`);
     const originalArtifact = fs.readFileSync(artifactPath, "utf8");
     fs.writeFileSync(artifactPath, originalArtifact.replace(evidenceHash, "0".repeat(64)), "utf8");

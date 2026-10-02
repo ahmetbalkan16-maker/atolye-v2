@@ -7,6 +7,7 @@ import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
+import { ayasGoldenVaultDigest, verifyAyasGoldenVaultPins, type AyasGoldenCaseResult, type AyasGoldenRun, type AyasGoldenVault } from "../../ayas/golden/AyasGoldenVault";
 import { applyAyasBoundedFileReplacements } from "./AyasBoundedFileWrite";
 import { parseAyasBenchmarkReport, type AyasBenchmarkRunOutcome, type AyasRegressionSuiteResult } from "./AyasResearchExperimentEvaluation";
 import { isAyasExperimentProtectedPath, type AyasImprovementBenchmark, type AyasImprovementStrategy } from "./AyasResearchExperimentRegistry";
@@ -177,6 +178,47 @@ export async function runAyasRegressionSuiteInSandbox(sandbox: AyasResearchExper
   if (!loader || !/^scripts\/smoke-[a-z0-9-]+\.ts$/.test(script) || !fs.existsSync(path.join(sandbox.repoDir, script))) return { script, pass: false, timedOut: false, durationMs: 0 };
   const result = await runChild([...loader, script], sandbox.repoDir, buildAyasExperimentChildEnv(sandbox.runRoot), timeoutMs);
   return { script, pass: !result.timedOut && result.exitCode === 0, timedOut: result.timedOut, durationMs: result.durationMs };
+}
+
+/** Below this, a golden case is not started: it would be killed by the budget and read as a failure of the case. */
+export const AYAS_GOLDEN_CASE_MIN_START_MS = 5_000;
+
+export interface AyasSandboxGoldenRun {
+  readonly run: AyasGoldenRun;
+  /** Case ids whose result came from a regression suite that had already run in this tree. */
+  readonly reusedCaseIds: readonly string[];
+}
+
+/**
+ * Stage 15O — runs the golden vault once in the sandbox tree as it stands.
+ *
+ * The pinned grader and fixture bytes are read from the sandbox first; with any drift no case runs, because a result
+ * measured with a moved yardstick means nothing. A case whose script already ran here as a regression suite reuses that
+ * result. A case that cannot start inside the remaining time is left out, and an incomplete run is never held.
+ * `onlyCaseIds` asks about some cases only (the unchanged-tree question for the cases that were red).
+ */
+export async function runAyasGoldenVaultInSandbox(sandbox: AyasResearchExperimentSandbox, vault: AyasGoldenVault, options: {
+  readonly reuse?: readonly AyasRegressionSuiteResult[]; readonly caseTimeoutMs: () => number; readonly remainingMs: () => number; readonly onlyCaseIds?: readonly string[];
+}): Promise<AyasSandboxGoldenRun> {
+  const pinDrift = verifyAyasGoldenVaultPins(vault, (file) => fs.readFileSync(path.join(sandbox.repoDir, file)));
+  const results: AyasGoldenCaseResult[] = []; const reusedCaseIds: string[] = [];
+  if (pinDrift.length === 0) {
+    for (const item of vault.cases) {
+      if (options.onlyCaseIds && !options.onlyCaseIds.includes(item.id)) continue;
+      const earlier = options.reuse?.find((suite) => suite.script === item.script);
+      if (earlier) { results.push({ id: item.id, pass: earlier.pass && !earlier.timedOut, timedOut: earlier.timedOut }); reusedCaseIds.push(item.id); continue; }
+      if (options.remainingMs() < AYAS_GOLDEN_CASE_MIN_START_MS) break;
+      const outcome = await runAyasRegressionSuiteInSandbox(sandbox, item.script, options.caseTimeoutMs());
+      results.push({ id: item.id, pass: outcome.pass && !outcome.timedOut, timedOut: outcome.timedOut });
+    }
+  }
+  return { run: { vaultDigest: ayasGoldenVaultDigest(vault), pinDrift, results }, reusedCaseIds };
+}
+
+/** Puts the unchanged bytes of `files` back from the sandbox's own commit. The sandbox is disposable; nothing live is read or written. */
+export async function restoreAyasSandboxBase(sandbox: AyasResearchExperimentSandbox, files: readonly string[]): Promise<void> {
+  if (files.length === 0) return;
+  await git(sandbox.repoDir, ["-c", `core.hooksPath=${path.join(sandbox.runRoot, "no-hooks")}`, "checkout", "--quiet", sandbox.baseHead, "--", ...files], buildAyasExperimentChildEnv(sandbox.runRoot));
 }
 
 const sha256 = (value: string): string => crypto.createHash("sha256").update(value, "utf8").digest("hex");

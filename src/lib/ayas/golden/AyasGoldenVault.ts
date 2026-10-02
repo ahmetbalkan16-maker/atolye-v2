@@ -140,7 +140,7 @@ export interface AyasGoldenRegressionResult {
   readonly cases: number;
   /** Not golden in the candidate tree. */
   readonly failingCaseIds: readonly string[];
-  /** Of those, the ones a supplied baseline run shows were golden before the change. Empty without a baseline. */
+  /** Of those, the ones a supplied baseline result shows were golden before the change. Empty without a baseline. */
   readonly regressedCaseIds: readonly string[];
   /** Canonical domains with a declared gap. Reported with every decision; never part of "held". */
   readonly gapDomains: readonly AyasGoldenDomain[];
@@ -156,6 +156,20 @@ function measured(vault: AyasGoldenVault, run: AyasGoldenRun): Map<string, AyasG
     byId.set(result.id, { id: result.id, pass: result.pass, timedOut: result.timedOut });
   }
   return vault.cases.every((item) => byId.has(item.id)) ? byId : null;
+}
+/**
+ * A baseline may cover any part of the vault: it is only asked about the cases that are red in the candidate tree.
+ * Each result is well-formed and names its case once, or the baseline says nothing at all. A result for a case this
+ * vault does not have is never looked up, so it explains nothing.
+ */
+function baselineResults(vault: AyasGoldenVault, run: AyasGoldenRun): Map<string, AyasGoldenCaseResult> | null {
+  if (!Array.isArray(run.results) || run.results.length > vault.cases.length) return null;
+  const byId = new Map<string, AyasGoldenCaseResult>();
+  for (const result of run.results as readonly unknown[]) {
+    if (!plain(result) || typeof result.id !== "string" || typeof result.pass !== "boolean" || typeof result.timedOut !== "boolean" || byId.has(result.id)) return null;
+    byId.set(result.id, { id: result.id, pass: result.pass, timedOut: result.timedOut });
+  }
+  return byId;
 }
 const golden = (result: AyasGoldenCaseResult | undefined) => result !== undefined && result.pass === true && result.timedOut === false;
 
@@ -182,12 +196,14 @@ export function evaluateAyasGoldenRegression(input: { readonly vault: AyasGolden
   if (!after) return { decision: "GOLDEN_NOT_MEASURED", ...shared, reasonCodes: ["CANDIDATE_RESULTS_INCOMPLETE"], ...none };
   const failing = vault.cases.filter((item) => !golden(after.get(item.id)));
   if (failing.length === 0) return { decision: "GOLDEN_HELD", ...shared, reasonCodes: ["ALL_GOLDEN_CASES_HELD"], ...none };
-  const before = plain(baseline) ? measured(vault, baseline) : null;
-  const regressed = before ? failing.filter((item) => golden(before.get(item.id))) : [];
+  const before = plain(baseline) ? baselineResults(vault, baseline) : null;
+  const regressed = failing.filter((item) => golden(before?.get(item.id)));
+  const redBefore = failing.filter((item) => before?.has(item.id) === true && !golden(before.get(item.id)));
   const reasonCodes = [
     ...(failing.some((item) => after.get(item.id)?.timedOut === true) ? ["GOLDEN_CASE_TIMEOUT"] : []),
     ...(failing.some((item) => after.get(item.id)?.timedOut !== true) ? ["GOLDEN_CASE_FAILED"] : []),
-    ...(!before ? ["BASELINE_NOT_SUPPLIED"] : regressed.length < failing.length ? ["NOT_GOLDEN_AT_BASELINE"] : []),
+    ...(regressed.length + redBefore.length < failing.length ? ["BASELINE_NOT_SUPPLIED"] : []),
+    ...(redBefore.length > 0 ? ["NOT_GOLDEN_AT_BASELINE"] : []),
     ...(regressed.length > 0 ? ["REGRESSED_BY_CHANGE"] : []),
   ];
   return { decision: "PROMOTION_STOPPED", ...shared, reasonCodes, authority: "NONE", failingCaseIds: failing.map((item) => item.id), regressedCaseIds: regressed.map((item) => item.id) };

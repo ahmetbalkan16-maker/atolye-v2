@@ -247,6 +247,8 @@ function harness(s8: Stage8, behavior?: Readonly<Record<string, boolean | string
         observation: { now: clock, head: options.head ?? repo.head(), repoClean: options.repoClean ?? true, graphifyFresh: true, machineAction: options.machine ?? "ALLOW" },
         findings: options.findings ?? defaultFindings,
         nodeModulesDir: NODE_MODULES, timeBudgetMs: options.timeBudgetMs ?? 120_000, clock: () => clock,
+        // Stage 15O: the fixture repository's guard suite is its golden vault, pinned to the bytes it has at this call.
+        goldenVault: s8.fixtures.fixtureGoldenVault(repo.root),
         ...(options.budget ? { budget: options.budget } : {}), ...(options.inbox ? { inbox: options.inbox } : {}),
         ...(options.trace ? { trace: options.trace } : {}), ...(options.fault ? { faultInjection: options.fault } : {}),
         ...(options.availability ? { availability: options.availability } : {}),

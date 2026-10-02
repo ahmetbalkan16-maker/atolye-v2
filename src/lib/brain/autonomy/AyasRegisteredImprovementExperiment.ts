@@ -4,9 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { selectAyasAgenticRoute, type AyasAvailabilityEvidence } from "../../ayas/routing/AyasAgenticRouting";
-import { AYAS_EXPERIMENT_ISOLATION, ayasBaselineReproducesHypothesis, ayasEvidenceContainsSecret, boundAyasExperimentDiff, evaluateAyasExperiment, toAyasEvidenceMeasurement, validAyasExperimentSourceBindings, type AyasBenchmarkRunOutcome, type AyasExperimentAbortCode, type AyasExperimentAnalysisRoute, type AyasExperimentEvidence, type AyasExperimentSourceBinding, type AyasRegressionSuiteResult } from "./AyasResearchExperimentEvaluation";
+import { evaluateAyasGoldenRegression, type AyasGoldenRegressionResult, type AyasGoldenVault } from "../../ayas/golden/AyasGoldenVault";
+import { AYAS_GOLDEN_VAULT } from "../../ayas/golden/AyasGoldenVaultRegistry";
+import { AYAS_EXPERIMENT_ISOLATION, ayasBaselineReproducesHypothesis, ayasEvidenceContainsSecret, boundAyasExperimentDiff, compareAyasExperimentBeforeGolden, evaluateAyasExperiment, toAyasEvidenceMeasurement, validAyasExperimentSourceBindings, type AyasBenchmarkRunOutcome, type AyasExperimentAbortCode, type AyasExperimentAnalysisRoute, type AyasExperimentEvidence, type AyasExperimentGoldenEvidence, type AyasExperimentSourceBinding, type AyasRegressionSuiteResult } from "./AyasResearchExperimentEvaluation";
 import { AYAS_EXPERIMENT_MAX_CHANGED_LINES, type AyasImprovementBenchmark, type AyasImprovementStrategy } from "./AyasResearchExperimentRegistry";
-import { applyAyasStrategyInSandbox, captureAyasSandboxChange, createAyasResearchExperimentSandbox, destroyAyasResearchExperimentSandbox, readAyasSandboxToolVersions, runAyasBenchmarkInSandbox, runAyasRegressionSuiteInSandbox, stampAyasNodeModules, type AyasResearchExperimentSandbox } from "./AyasResearchExperimentSandbox";
+import { applyAyasStrategyInSandbox, captureAyasSandboxChange, createAyasResearchExperimentSandbox, destroyAyasResearchExperimentSandbox, readAyasSandboxToolVersions, restoreAyasSandboxBase, runAyasBenchmarkInSandbox, runAyasGoldenVaultInSandbox, runAyasRegressionSuiteInSandbox, stampAyasNodeModules, type AyasResearchExperimentSandbox } from "./AyasResearchExperimentSandbox";
 import type { AyasExperimentRecord, AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 import { AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, type AyasImprovementHypothesis } from "./AyasResearchImprovementLoop";
 import type { AyasResearchImprovementCycleDeps, AyasResearchImprovementObservation, AyasResearchExperimentFaultPoint } from "./AyasResearchImprovementCycle";
@@ -38,7 +40,7 @@ function analysisRoute(availability: AyasAvailabilityEvidence | undefined): Ayas
 }
 
 export interface AyasRegisteredExperimentDeps {
-  readonly deps: Pick<AyasResearchImprovementCycleDeps, "repoRoot" | "nodeModulesDir" | "availability" | "trace" | "faultInjection">;
+  readonly deps: Pick<AyasResearchImprovementCycleDeps, "repoRoot" | "nodeModulesDir" | "availability" | "trace" | "faultInjection" | "goldenVault">;
   readonly observation: AyasRegisteredExperimentObservation;
   readonly store: AyasResearchExperimentStore;
   readonly record: AyasExperimentRecord;
@@ -81,6 +83,9 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
   let abortCode: AyasExperimentAbortCode | undefined;
   let change: Awaited<ReturnType<typeof captureAyasSandboxChange>> | null = null;
   let retainedSource: AyasRegisteredExperimentRetainedSource | null = null;
+  let golden: AyasGoldenRegressionResult | null = null;
+  let goldenCases: AyasExperimentGoldenEvidence["cases"] = [];
+  const vault: AyasGoldenVault = deps.goldenVault ?? AYAS_GOLDEN_VAULT;
   let liveUnchanged = false;
   let discarded = false;
   let tools: { readonly tsx: string | null; readonly typescript: string | null } = { tsx: null, typescript: null };
@@ -133,6 +138,24 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
               }));
               retainedSource = { diffSha256: crypto.createHash("sha256").update(post.diff, "utf8").digest("hex"), replacements };
             }
+            // Golden regression comes after held-out, and only for a change that everything so far would call improved.
+            if (!abortCode && compareAyasExperimentBeforeGolden({ hypothesis, baseline, experiment, baselineSuites, experimentSuites }).verdict === "IMPROVED") {
+              const candidateRun = await runAyasGoldenVaultInSandbox(sandbox, vault, { reuse: experimentSuites, caseTimeoutMs: cap, remainingMs: ctx.remainingMs });
+              goldenCases = candidateRun.run.results.map((result) => ({ id: result.id, script: vault.cases.find((item) => item.id === result.id)?.script ?? "", pass: result.pass, timedOut: result.timedOut, reused: candidateRun.reusedCaseIds.includes(result.id) }));
+              golden = evaluateAyasGoldenRegression({ vault, candidate: candidateRun.run });
+              // A golden case that wrote into the tree is the same breach as a benchmark that did.
+              const afterGolden = await captureAyasSandboxChange(sandbox);
+              if (afterGolden.diff !== post.diff || afterGolden.changedPaths.join("\n") !== post.changedPaths.join("\n")) abortCode = "SANDBOX_ESCAPE";
+              else if (golden.decision === "PROMOTION_STOPPED") {
+                // Was it the change? Everything that had to be read from the changed tree has been read: put the unchanged
+                // bytes back and ask only the red cases. The answer names the cause; it never rescues the candidate.
+                await restoreAyasSandboxBase(sandbox, post.changedPaths);
+                if ((await captureAyasSandboxChange(sandbox)).changedPaths.length === 0) {
+                  const baselineRun = await runAyasGoldenVaultInSandbox(sandbox, vault, { reuse: baselineSuites, caseTimeoutMs: cap, remainingMs: ctx.remainingMs, onlyCaseIds: golden.failingCaseIds });
+                  golden = evaluateAyasGoldenRegression({ vault, candidate: candidateRun.run, baseline: baselineRun.run });
+                }
+              }
+            }
           }
         }
       }
@@ -151,7 +174,7 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
   else if (!abortCode && !liveUnchanged) abortCode = live && live.head !== record.baseHead ? "BASE_HEAD_MOVED" : "LIVE_WORKSPACE_CHANGED";
   const bounded = change ? boundAyasExperimentDiff(change.diff) : null;
   if (bounded?.containedSecret && !abortCode) abortCode = "EVIDENCE_SECRET";
-  const comparison = evaluateAyasExperiment({ hypothesis, baseline, experiment, baselineSuites, experimentSuites, ...(abortCode ? { abortCode } : {}) });
+  const comparison = evaluateAyasExperiment({ hypothesis, baseline, experiment, baselineSuites, experimentSuites, golden, ...(abortCode ? { abortCode } : {}) });
   const evidence: AyasExperimentEvidence = {
     schemaVersion: AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION,
     experimentId: record.experimentId,
@@ -171,6 +194,8 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
       heldOutDelta: comparison.heldOutDelta,
       suites: hypothesis.regressionSuites.map((script) => ({ script, baselinePass: baselineSuites.find((s) => s.script === script)?.pass ?? null, experimentPass: experimentSuites.find((s) => s.script === script)?.pass ?? null })),
     },
+    ...(golden ? { golden: { vaultVersion: golden.vaultVersion, vaultDigest: golden.vaultDigest, decision: golden.decision, reasonCodes: golden.reasonCodes, cases: goldenCases,
+      failingCaseIds: golden.failingCaseIds, regressedCaseIds: golden.regressedCaseIds, gapDomains: golden.gapDomains } } : {}),
     performance: { baselineMs: baseline?.ok ? baseline.measurement.durationMs : null, experimentMs: experiment?.ok ? experiment.measurement.durationMs : null, ratio: comparison.performanceRatio },
     risk: { riskClass: hypothesis.riskClass, isolation: AYAS_EXPERIMENT_ISOLATION, liveWorkspaceUnchanged: liveUnchanged, sandboxDiscarded: discarded },
     analysisRoute: analysisRoute(deps.availability),

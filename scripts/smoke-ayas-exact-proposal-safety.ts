@@ -5,6 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { ayasGoldenVaultDigest, type AyasGoldenVault } from "../src/lib/ayas/golden/AyasGoldenVault";
+import { AYAS_GOLDEN_VAULT } from "../src/lib/ayas/golden/AyasGoldenVaultRegistry";
 import { createAyasExactPatchSafetyProof, ayasExactPatchSha256, verifyAyasExecutedExactPatch } from "../src/lib/brain/selfheal/AyasExactPatchSafety";
 import { verifyAyasExactProposalSafety } from "../src/lib/brain/autonomy/AyasExactProposalSafety";
 import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest,
@@ -22,6 +24,7 @@ import { classifyPatchSet } from "../src/lib/brain/selfheal/BrainPatchSafety";
 import { approveAndExecuteAyasProposal, AyasProposalApprovalError } from "../src/lib/brain/autonomy/AyasProposalApprovalService";
 import { bindAyasOwnerApproval } from "../src/lib/brain/autonomy/AyasApprovalBinding";
 import { decideAyasOwnerApproval } from "../src/lib/brain/autonomy/AyasAutonomousExecutionGate";
+import { heldGoldenEvidence } from "./fixtures/ayas-golden-fixtures";
 import { resumeAyasOwnerApprovedProposals } from "../src/lib/brain/autonomy/AyasOwnerApprovalResume";
 
 async function main(): Promise<void> {
@@ -60,6 +63,7 @@ const evidence = { schemaVersion: AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, expe
   change: { strategyId: strategy.strategyId, strategyVersion: strategy.version, diffSha256: "d".repeat(64), files: [{ filePath: file }] },
   regressions: { newlyFailingCaseIds: [], heldOutDelta: 0,
     suites: strategy.regressionSuites.map((script) => ({ script, baselinePass: true, experimentPass: true })) },
+  golden: heldGoldenEvidence(AYAS_GOLDEN_VAULT, strategy.regressionSuites),
   performance: { baselineMs: 100, experimentMs: 100, ratio: 1 },
   risk: { riskClass: "REVIEW_REQUIRED", isolation: AYAS_EXPERIMENT_ISOLATION, liveWorkspaceUnchanged: true, sandboxDiscarded: true },
   analysisRoute: null, verdict: "IMPROVED", reasonCodes: [], targetGain: 1, fixedCaseIds: ["stale-free-text-seed"],
@@ -107,6 +111,15 @@ assert.equal(classifyPatchSet(["src/lib/brain/autonomy/AyasExactProposalSafety.t
 assert.equal(classifyPatchSet(["src/lib/ayas/execution/AyasExecutionGateStore.ts"]).level, "FORBIDDEN_AUTONOMOUS");
 assert.equal(classifyPatchSet(["scripts/smoke-fixture.ts"]).level, "SAFE");
 assert.equal(verifyAyasExactProposalSafety(proposal, options), true);
+// Stage 15O: the same proof with evidence that is not held against the current golden vault is no proof.
+const { golden: heldGolden, ...beforeTheVault } = evidence;
+const withEvidence = (changed: unknown) => ({ ...options, experimentStore: { ...experiments, readEvidence: () => changed } as never });
+assert.equal(verifyAyasExactProposalSafety(proposal, withEvidence(evidence)), true);
+assert.equal(verifyAyasExactProposalSafety(proposal, withEvidence(beforeTheVault)), false, "evidence from before the vault");
+assert.equal(verifyAyasExactProposalSafety(proposal, withEvidence({ ...evidence, golden: { ...heldGolden, decision: "PROMOTION_STOPPED" } })), false, "a stopped golden block");
+assert.equal(verifyAyasExactProposalSafety(proposal, withEvidence({ ...evidence, golden: { ...heldGolden, cases: heldGolden.cases.slice(1) } })), false, "not every golden case asked");
+const laterVault: AyasGoldenVault = { ...AYAS_GOLDEN_VAULT, version: AYAS_GOLDEN_VAULT.version + 1, previousDigest: ayasGoldenVaultDigest(AYAS_GOLDEN_VAULT) };
+assert.equal(verifyAyasExactProposalSafety(proposal, { ...options, goldenVault: laterVault }), false, "held against an older version of the vault");
 const daemon = createAyasAutonomyDaemon({ inbox, repoRoot: root, exactPatchArtifactStore: artifacts, exactExperimentStore: experiments });
 const observation = { now: evidence.completedAt, branch: "fixture", head: baseHead, repoClean: true,
   graphifyFresh: true, machineAction: "ALLOW" as const, gaps: [] };

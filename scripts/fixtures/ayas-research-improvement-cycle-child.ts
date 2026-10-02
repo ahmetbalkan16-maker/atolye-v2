@@ -11,7 +11,7 @@ import path from "node:path";
 import { runAyasResearchImprovementCycle, type AyasResearchExperimentFaultPoint } from "../../src/lib/brain/autonomy/AyasResearchImprovementCycle";
 import { createAyasResearchExperimentStore } from "../../src/lib/brain/autonomy/AyasResearchExperimentStore";
 import type { AyasExternalResearchFinding } from "../../src/lib/brain/autonomy/AyasExternalResearchStore";
-import { behaviorStrategy, fixtureRegistry } from "./ayas-research-improvement-fixtures";
+import { behaviorStrategy, fixtureGoldenVault, fixtureRegistry } from "./ayas-research-improvement-fixtures";
 
 function arg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
@@ -36,6 +36,7 @@ async function main(): Promise<void> {
     repoRoot,
     store: createAyasResearchExperimentStore({ rootDir: storeDir }),
     registry: fixtureRegistry([strategy]),
+    goldenVault: fixtureGoldenVault(repoRoot),
     observation: { now: new Date().toISOString(), head, repoClean: true, graphifyFresh: true, machineAction: "ALLOW" },
     findings,
     nodeModulesDir: arg("node-modules"),

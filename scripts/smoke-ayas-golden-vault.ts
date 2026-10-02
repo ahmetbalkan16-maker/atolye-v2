@@ -163,6 +163,16 @@ scenario("gate: a baseline only says whose fault it is; it never rescues a red c
   // The candidate tree decides: a red baseline does not stop a candidate in which every case is golden.
   assert.equal(decide(vault, runOf(vault), runOf(vault, [a])).decision, "GOLDEN_HELD");
   assert.equal(decide(vault, runOf(vault, [a]), null).decision, "PROMOTION_STOPPED");
+  // A baseline may answer for the red cases only; a red case it does not name stays unexplained.
+  const answer = (results: unknown) => decide(vault, runOf(vault, [a, b]), { ...runOf(vault), results } as AyasGoldenRun);
+  const partial = answer([{ id: a, pass: true, timedOut: false }]);
+  assert.deepEqual([partial.decision, partial.regressedCaseIds, partial.reasonCodes], ["PROMOTION_STOPPED", [a], ["GOLDEN_CASE_FAILED", "BASELINE_NOT_SUPPLIED", "REGRESSED_BY_CHANGE"]]);
+  assert.deepEqual(answer([{ id: a, pass: false, timedOut: false }, { id: b, pass: true, timedOut: true }]).reasonCodes, ["GOLDEN_CASE_FAILED", "NOT_GOLDEN_AT_BASELINE"]);
+  // A baseline that names a case this vault does not have, names one twice or is malformed explains nothing.
+  for (const results of [[{ id: "golden.fixture.unknown", pass: true, timedOut: false }], [{ id: a, pass: true, timedOut: false }, { id: a, pass: true, timedOut: false }],
+    [{ id: a, pass: "true", timedOut: false }], [{ id: a, pass: true }], "all golden", [...runOf(vault).results, { id: a, pass: true, timedOut: false }]]) {
+    assert.deepEqual([answer(results).regressedCaseIds, answer(results).reasonCodes], [[], ["GOLDEN_CASE_FAILED", "BASELINE_NOT_SUPPLIED"]], JSON.stringify(results).slice(0, 80));
+  }
 });
 
 scenario("gate: what was not measured is never held", () => {
@@ -198,6 +208,7 @@ scenario("gate: a moved yardstick is not a comparison", () => {
 scenario("path protection: the vault, what it pins, the eval yardstick and the owner constitution are never autonomous", () => {
   const forbidden = [...AYAS_GOLDEN_VAULT_PINNED_FILES, `${AYAS_GOLDEN_VAULT_MODULE_DIR}AyasGoldenVault.ts`, `${AYAS_GOLDEN_VAULT_MODULE_DIR}AyasGoldenVaultRegistry.ts`, `${AYAS_GOLDEN_VAULT_MODULE_DIR}Anything.ts`,
     "scripts/ayas-golden-vault.ts", "scripts/lib/AyasGoldenVaultFiles.ts", "scripts/smoke-ayas-golden-vault.ts", "scripts/smoke-ayas-golden-vault-mutations.ts", "scripts/smoke-ayas-golden-vault-operator.ts", "scripts/smoke-ayas-golden-vault-run.ts",
+    "scripts/fixtures/ayas-golden-fixtures.ts", "scripts/smoke-ayas-golden-experiment-gate.ts", "scripts/smoke-ayas-golden-experiment-gate-mutations.ts", "scripts/smoke-ayas-golden-sandbox-run.ts",
     "scripts/ayas-eval-baseline.ts", "src/lib/ayas/observability/AyasEvalGovernance.ts", "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
     "src/lib/ayas/governance/AyasOwnerConstitution.ts", "src/lib/ayas/governance/AyasOwnerConstitutionReader.ts", "src/lib/ayas/governance/AyasOwnerConstitutionStore.ts", "src/lib/ayas/governance/New.ts",
     "app/brain/constitution/page.tsx", "app/brain/constitution/actions.ts"];
@@ -213,7 +224,7 @@ scenario("path protection: the vault, what it pins, the eval yardstick and the o
   assert.equal(classifyPatchTarget("src/lib/ayas/memory/AyasMemoryTemporal.ts").level, "REVIEW_REQUIRED");
 });
 
-scenario("evidence, not authority: the contract is pure, the registry is data, and no promotion path reads the vault yet", () => {
+scenario("evidence, not authority: the contract is pure, the registry is data, and only the flow it gates reads the vault", () => {
   const contract = fs.readFileSync(path.join(repo, "src/lib/ayas/golden/AyasGoldenVault.ts"), "utf8");
   assert.deepEqual([...contract.matchAll(/^import .* from "([^"]+)";$/gm)].map((match) => match[1]), ["node:crypto"]);
   assert.doesNotMatch(contract, /node:fs|child_process|Date\.now|new Date|fetch\(|process\.env|require\(/);
@@ -221,7 +232,8 @@ scenario("evidence, not authority: the contract is pure, the registry is data, a
   assert.ok(Object.values({ held: decide(fixture(), runOf(fixture())), stopped: decide(fixture(), runOf(fixture(), [fixture().cases[0]!.id])), unmeasured: decide(fixture(), null), moved: decide({ ...fixture(), cases: [] }, null) }).every((result) => result.authority === "NONE"));
   const registry = fs.readFileSync(path.join(repo, "src/lib/ayas/golden/AyasGoldenVaultRegistry.ts"), "utf8");
   assert.deepEqual([...registry.matchAll(/^import (.*) from "([^"]+)";$/gm)].map((match) => [match[1], match[2]]), [["type { AyasGoldenVault }", "./AyasGoldenVault"]]);
-  // 15O.1 is not wired: besides the patch-safety table, the operator script and these suites, nothing imports the vault.
+  // Who reads the vault: the patch-safety table, and the improvement flow it gates — the sandbox that runs it, the
+  // experiment runner and its evaluation, the cycle, and every step that turns evidence into something an owner can approve.
   const importers: string[] = [];
   const walk = (dir: string) => { for (const entry of fs.readdirSync(path.join(repo, dir), { withFileTypes: true })) {
     const relative = `${dir}/${entry.name}`;
@@ -229,7 +241,13 @@ scenario("evidence, not authority: the contract is pure, the registry is data, a
     else if (/\.tsx?$/.test(entry.name) && /from\s+["'][^"']*\/golden\/AyasGoldenVault(?:Registry)?["']/.test(fs.readFileSync(path.join(repo, relative), "utf8"))) importers.push(relative);
   } };
   for (const root of ["src", "app", "scripts"]) if (fs.existsSync(path.join(repo, root))) walk(root);
-  assert.deepEqual(importers.sort(), ["scripts/ayas-golden-vault.ts", "scripts/lib/AyasGoldenVaultFiles.ts", "scripts/smoke-ayas-golden-vault-operator.ts", "scripts/smoke-ayas-golden-vault-run.ts", "scripts/smoke-ayas-golden-vault.ts", "src/lib/brain/selfheal/BrainPatchSafety.ts"].filter((file) => fs.existsSync(path.join(repo, file))));
+  assert.deepEqual(importers.filter((file) => file.startsWith("src/")).sort(), [
+    "src/lib/ayas/evolution/AyasControlledSelfEvolutionArtifact.ts", "src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge.ts", "src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle.ts",
+    "src/lib/brain/autonomy/AyasExactProposalSafety.ts", "src/lib/brain/autonomy/AyasRegisteredImprovementExperiment.ts", "src/lib/brain/autonomy/AyasResearchExperimentEvaluation.ts",
+    "src/lib/brain/autonomy/AyasResearchExperimentSandbox.ts", "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts", "src/lib/brain/selfheal/BrainPatchSafety.ts",
+  ].filter((file) => fs.existsSync(path.join(repo, file))));
+  // Outside src/ only the operator script, its library, the fixtures and the suites read it; no page or route does.
+  assert.deepEqual(importers.filter((file) => !file.startsWith("src/") && !/^scripts\/(?:ayas-golden-vault\.ts|lib\/AyasGoldenVaultFiles\.ts|fixtures\/ayas-golden-fixtures\.ts|smoke-ayas-[a-z0-9-]+\.ts)$/.test(file)), []);
 });
 
 console.log(JSON.stringify({ status: "PASS", suite: "ayas-golden-vault", scenarios: count, vaultVersion: AYAS_GOLDEN_VAULT.version, cases: AYAS_GOLDEN_VAULT.cases.length, gaps: AYAS_GOLDEN_VAULT.gaps.length, modelRuns: 0 }));

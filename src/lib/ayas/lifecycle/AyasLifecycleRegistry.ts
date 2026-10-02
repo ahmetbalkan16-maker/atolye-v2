@@ -206,12 +206,21 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
   },
   {
     id: "evaluator.research-improvement.15f4-v2", kind: "evaluator", role: "research-improvement-evaluator", label: "smoke-ayas-research-improvement-loop (frozen historical gap)",
-    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "5d1901da1169cab5d2b496ed26522c4df0526ea9e47ae094b898f281572e66a9" },
-    state: "PINNED", admission: "NONE", compatibility: "developer TEMP baseline only; current loop and grader with the independently hashed pre-repair temporal input; every assertion retained.",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "5d1901da1169cab5d2b496ed26522c4df0526ea9e47ae094b898f281572e66a9", revision: "67e3838f30ef72ea10fb3ce5d4a659d2ddb48ddc" },
+    state: "PINNED", admission: "NONE", compatibility: "archived pre-15O evaluator; preserved in Git as a rollback artifact, never admitted as current source.",
     record: unmeasured("new evaluator identity; owner/human calibration pending"), rollbackTarget: "evaluator.research-improvement.2026-10-01",
     history: [{ state: "DISCOVERED", on: OPENED, basis: "15F.4 baseline exposed a stale historical-gap fixture" },
       { state: "PINNED", on: OPENED, basis: "fixture input pinned to immutable history; assertions and held-out expectations unchanged" }],
     notes: "No qualification, promotion or serving admission. Old bytes and their digest are preserved at the rollback target; the cognitive and retrieval graders did not change.",
+  },
+  {
+    id: "evaluator.research-improvement.15o-v3", kind: "evaluator", role: "research-improvement-evaluator", label: "smoke-ayas-research-improvement-loop (golden vault in the loop)",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "0eb404efe5225b9663dde0c28212c6f8dc7e7c33b3a1a269a48322a75e67cfd7" },
+    state: "PINNED", admission: "NONE", compatibility: "developer TEMP baseline only; the loop as of Stage 15O, where a fixture experiment is measured against the fixture repository's own golden vault; every case and assertion retained.",
+    record: unmeasured("new evaluator identity; owner/human calibration pending"), rollbackTarget: "evaluator.research-improvement.15f4-v2",
+    history: [{ state: "DISCOVERED", on: "2026-10-02", basis: "Stage 15O put the golden vault between held-out and review; without a vault no fixture experiment is IMPROVED" },
+      { state: "PINNED", on: "2026-10-02", basis: "one line of the harness passes the fixture vault to the cycle; cases, graders, expectations and held-out set unchanged" }],
+    notes: "No qualification, promotion or serving admission. The previous bytes and their digest are preserved at the rollback target, readable at its revision.",
   },
   {
     id: "evaluator.retrieval.2026-10-01", kind: "evaluator", role: "retrieval-evaluator", label: "smoke-ayas-retrieval-evaluation",

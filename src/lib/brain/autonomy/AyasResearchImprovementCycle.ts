@@ -10,8 +10,10 @@ import type { AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
 import type { AyasExternalResearchFinding } from "./AyasExternalResearchStore";
 import { isAyasInternalReviewDecisionReason } from "./AyasOwnerApprovalProvenance";
 import { readProcessStartEpochMs } from "./AyasProcessLiveness";
+import { ayasGoldenVaultDigest, type AyasGoldenVault } from "../../ayas/golden/AyasGoldenVault";
+import { AYAS_GOLDEN_VAULT } from "../../ayas/golden/AyasGoldenVaultRegistry";
 import {
-  AYAS_RESEARCH_EXPERIMENT_PROPOSAL_MUTATION_KIND, type AyasExperimentEvidence,
+  AYAS_RESEARCH_EXPERIMENT_PROPOSAL_MUTATION_KIND, ayasExperimentEvidenceGoldenHeld, type AyasExperimentEvidence,
 } from "./AyasResearchExperimentEvaluation";
 import {
   AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest, findAyasImprovementBenchmark, validateAyasImprovementStrategy,
@@ -62,6 +64,8 @@ export interface AyasResearchImprovementCycleDeps {
   readonly findings: readonly AyasExternalResearchFinding[];
   readonly store?: AyasResearchExperimentStore;
   readonly registry?: AyasImprovementRegistry;
+  /** Stage 15O — the golden vault an experiment is measured against. Production callers leave it out: the vault of record. */
+  readonly goldenVault?: AyasGoldenVault;
   readonly budget?: Partial<AyasResearchExperimentBudget>;
   readonly timeBudgetMs?: number;
   readonly nodeModulesDir?: string;
@@ -559,12 +563,14 @@ export async function runAyasResearchImprovementCycle(deps: AyasResearchImprovem
   // E — evidence binding for existing proposals, then verified evidence for new ones (read-only unless a binding broke).
   const staleProposals = deps.inbox ? reconcileAyasResearchExperimentProposals(deps.inbox, store, clock()) : [];
   const proposalEvidence: { evidence: AyasExperimentEvidence; evidenceHash: string }[] = [];
+  const goldenVault: AyasGoldenVault = deps.goldenVault ?? AYAS_GOLDEN_VAULT; const goldenVaultDigest = ayasGoldenVaultDigest(goldenVault);
   // Newest first, and never spend the bound on experiments the inbox already carries.
   const bridged = new Set(deps.inbox ? deps.inbox.load().proposals.map((proposal) => proposal.sourceReference).filter(Boolean) : []);
   for (const record of [...store.listExperiments()].reverse()) {
     if (record.status !== "COMPLETED" || record.verdict !== "IMPROVED" || record.baseHead !== head || !record.evidenceHash || bridged.has(record.experimentId) || rejectedAttemptKeys.has(record.attemptKey)) continue;
     const evidence = store.readEvidence(record.evidenceHash);
-    if (evidence && evidence.experimentId === record.experimentId) proposalEvidence.push({ evidence, evidenceHash: record.evidenceHash });
+    // Evidence from before the golden vault, or measured against another version of it, proposes nothing.
+    if (evidence && evidence.experimentId === record.experimentId && ayasExperimentEvidenceGoldenHeld(evidence, goldenVaultDigest, goldenVault.cases.length)) proposalEvidence.push({ evidence, evidenceHash: record.evidenceHash });
     if (proposalEvidence.length >= 5) break;
   }
   const finalIndex = store.loadIndex();

@@ -11,6 +11,7 @@ import { planAyasControlledSelfEvolution } from "../src/lib/ayas/evolution/AyasC
 import { qualifyAyasEvolutionRegister } from "../src/lib/ayas/evolution/AyasEvolutionQualification";
 import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { inventoryAyasCapabilities } from "../src/lib/ayas/routing/AyasAgenticRouting";
+import { fixtureGoldenVault } from "./fixtures/ayas-golden-fixtures";
 import { createFixtureRepo, behaviorStrategy, FIXTURE_NOW, FIXTURE_BEHAVIOR_FILE, renderBehavior } from "./fixtures/ayas-research-improvement-fixtures";
 import { createAyasResearchExperimentStore } from "../src/lib/brain/autonomy/AyasResearchExperimentStore";
 import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
@@ -131,7 +132,9 @@ async function main(): Promise<void> {
       const inbox = createAyasApprovalInboxStore({ rootDir: path.join(storeRoot, "inbox") });
       const cycle = { repoRoot: repo.root, observation: { ...observation, now: FIXTURE_NOW, head },
         register: createAyasEvolutionRegister([fixtureOpportunity]), registry: fixture, experimentStore, artifactStore, inbox,
-        nodeModulesDir: path.join(process.cwd(), "node_modules"), now: () => FIXTURE_NOW, remainingMs: () => 120_000 };
+        nodeModulesDir: path.join(process.cwd(), "node_modules"), now: () => FIXTURE_NOW, remainingMs: () => 120_000,
+        // Stage 15O: the fixture repository's own guard suite is its golden vault.
+        goldenVault: fixtureGoldenVault(repo.root) };
       const fixtureEnvironment = { now: FIXTURE_NOW, currentHead: head, capabilities: inventoryAyasCapabilities({ availableModelIds: [] }),
         operatingMode: "UNKNOWN" as const, improvementRegistry: fixture, gapSnapshots: [measured] };
       const fixturePlan = planAyasControlledSelfEvolution({ register: cycle.register, environment: fixtureEnvironment });
@@ -147,7 +150,14 @@ async function main(): Promise<void> {
         const records = experimentStore.listExperiments();
         assert.equal(records.length, 1);
         assert.equal(records[0]?.verdict, "IMPROVED");
+        assert.equal(experimentStore.readEvidence(records[0]!.evidenceHash!)?.golden?.decision, "GOLDEN_HELD");
         assert.equal(inbox.load().proposals.length, 0);
+      });
+      await expect("a frozen artifact does not carry evidence past a vault it was not held against", async () => {
+        // The vault of record is not the vault this experiment was measured with: no candidate, and no second experiment.
+        const { goldenVault: _fixtureVault, ...withoutVault } = cycle; void _fixtureVault;
+        assert.equal(await runAyasControlledSelfEvolutionCycle(withoutVault), null);
+        assert.equal(experimentStore.listExperiments().length, 1);
       });
       await expect("frozen artifact replay does not rerun experiment", async () => {
         const replay = await runAyasControlledSelfEvolutionCycle(cycle);

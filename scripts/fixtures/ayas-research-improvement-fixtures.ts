@@ -12,6 +12,8 @@ import path from "node:path";
 import { AYAS_RESEARCH_CAPABILITY_MAP, type AyasImprovementRegistry, type AyasImprovementStrategy } from "../../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 
 export { FIXTURE_NOW, makeFinding, type FindingSpec } from "./ayas-research-improvement-findings";
+// Stage 15O: an experiment in a fixture repository is measured against that repository's own golden vault.
+export { fixtureGoldenVault, heldGoldenEvidence } from "./ayas-golden-fixtures";
 
 export const FIXTURE_BENCHMARK_ID = "fixture-quality";
 export const FIXTURE_BEHAVIOR_FILE = "src/fixture/behavior.ts";
@@ -92,6 +94,9 @@ export function createFixtureRepo(behavior: Readonly<Record<string, boolean | st
   fs.mkdirSync(path.join(root, "src", "fixture"), { recursive: true });
   fs.mkdirSync(path.join(root, "scripts"), { recursive: true });
   fs.writeFileSync(path.join(root, ".gitignore"), "node_modules\nignored-cache/\n");
+  // The same line-ending policy as the real repository: a sandbox clone holds the committed bytes, whatever the
+  // machine's Git is configured to do at checkout. A golden vault pins those bytes.
+  fs.writeFileSync(path.join(root, ".gitattributes"), "* text=auto eol=lf\n");
   fs.writeFileSync(path.join(root, FIXTURE_BEHAVIOR_FILE), renderBehavior(behavior));
   fs.writeFileSync(path.join(root, FIXTURE_OTHER_FILE), "export const other = 1;\n");
   fs.writeFileSync(path.join(root, "scripts", "fixture-benchmark.ts"), BENCHMARK_SOURCE);

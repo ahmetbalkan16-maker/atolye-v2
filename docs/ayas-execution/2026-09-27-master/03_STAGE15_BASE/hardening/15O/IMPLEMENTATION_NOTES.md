@@ -76,4 +76,56 @@ Not done in 15O.1, on purpose: no promotion path reads the vault yet (asserted b
 
 Tests: contract suite 13 scenarios; operator and runner suite 3 scenarios in a TEMP copy; negative controls 39/39 caught in a TEMP copy; `golden-vault-run` runs all 17 cases (held, about 28 s). Eval manifest v23: 99 suites, 113 unique pins; v22 archived unchanged.
 
+15O.1 source commit `143178caeef99ef778b44de0c7d135ecdf4c287d`; declared 99-suite baseline on v23 at that commit with no failure. Record: `15O1_RESULT.json`.
+
 Found on the way (F24): `scripts/smoke-brain-selfheal-security.ts`, which is outside the declared baseline, was already failing at HEAD. It searched every self-heal file for the bare word `child_process`, and `AyasExactPatchSafety.ts` contains that word as data in the denylist of code a patch may not add. The check now looks for the module being loaded (import, dynamic import or require), which is what spawning needs. 14 scenarios pass.
+
+## 15O.2 — the golden gate inside the existing improvement flow (implemented)
+
+The flow is now baseline, candidate, held-out, golden regression, review, without a second runner, store or approval path.
+
+Where the vault is asked: `runAyasRegisteredImprovementExperiment`, in the same sandbox, after the benchmark, the held-out comparison and the regression suites, and only when all of them together would say IMPROVED (`compareAyasExperimentBeforeGolden`). A change that was not going to be promoted is not measured against the vault and its verdict is what it was.
+
+How it is asked (`runAyasGoldenVaultInSandbox` in the existing sandbox module):
+
+- The pinned bytes are read from the sandbox tree first. With any drift no case runs.
+- A case whose script already ran in this tree as a regression suite reuses that result.
+- A case that cannot start inside the remaining time is left out; an incomplete run is never held.
+- After the cases the tree is captured again: a golden case that wrote into it is `SANDBOX_ESCAPE`, as for a benchmark.
+- Only when a case is red: the unchanged bytes are put back from the sandbox's own commit and the red cases alone are run again. That answer names the cause; it never rescues the candidate.
+
+What the verdict becomes (`evaluateAyasExperiment`), when everything before the vault said IMPROVED:
+
+| The vault says | Verdict | Reason |
+|---|---|---|
+| every case held | IMPROVED | as before |
+| a case the change broke | REGRESSED | `GOLDEN_REGRESSION` |
+| a case red, and red or unknown before the change | INCONCLUSIVE | `GOLDEN_NOT_HELD` |
+| not measured, or no answer | INCONCLUSIVE | `GOLDEN_NOT_MEASURED` |
+| the vault or a pinned file moved | INVALID_EXPERIMENT | `GOLDEN_VAULT_CHANGED` |
+
+Because every promotion consumer already requires IMPROVED, all of them stop on anything but a held vault. Each one also asks the question itself (`ayasExperimentEvidenceGoldenHeld`: a well-formed block, decision held, every case of the vault asked, the digest of the vault as it is now), so evidence from before this stage or from an older vault version cannot be promoted either:
+
+- `freezeAyasControlledEvolutionArtifact` and `buildAyasControlledEvolutionProposalCandidate` (controlled self-evolution);
+- the research improvement cycle's proposal evidence and `discoverAyasResearchExperimentProposalCandidates`;
+- `verifyAyasExactProposalSafety`, which every approval and execution path of an exact proposal calls.
+
+Evidence: an optional `golden` block in the existing content-hashed package (vault version and digest, decision, reasons, one row per case with `reused`, failing and regressed ids, declared gap domains). Evidence without it still verifies as what it is. A block that is malformed, disagrees with itself or sits next to an IMPROVED verdict without being held does not verify.
+
+The vault is injectable (`goldenVault` on the cycle and controlled-evolution inputs) so a fixture repository can be measured against its own vault. Production callers pass nothing and get the vault of record.
+
+Measured, not assumed:
+
+- A real experiment sandbox of this repository at HEAD: no pin drift, all 17 cases pass in the sandbox's stripped environment, the tree is untouched, 31 to 33 s for the whole vault. Suite `golden-sandbox-run` repeats this in every baseline.
+- With the one registered strategy the two longest cases are reused, which leaves about 15 s of vault time inside the 90 s cycle. No real strategy can run at this HEAD (its source was already applied in Stage 15.7), so the whole real cycle with the vault was not timed end to end; if the budget is too small the result is INCONCLUSIVE, never IMPROVED.
+- Finding F25: a fixture repository without a line-ending policy is checked out with CRLF by this machine's Git, so a vault pinned to its committed bytes read as changed in the sandbox. The real repository has the policy; the fixture repositories now have the same one. The gate failed closed.
+
+Lifecycle: the Stage 8 evaluator changed by one harness line (it passes the fixture vault). New entry `evaluator.research-improvement.15o-v3`; `15f4-v2` is kept as a revision-pinned rollback target. 18 registry entries.
+
+Tests: gate suite 11 scenarios (real experiments in TEMP fixture repositories); negative controls 35/35 in a TEMP copy; `golden-sandbox-run`; vault contract 13 with a partial-baseline scenario and 40/40 negative controls; controlled-evolution artifact and cycle, exact proposal safety and the Stage 8 suite updated. Eval manifest v24: 102 suites, 118 unique pins; v23 archived unchanged.
+
+Limits:
+
+- The golden cases are deterministic suites. They say whether a source change broke what the vault covers; they do not grade a model. A model promotion still rests on the lifecycle checks, and nothing is promoted there today.
+- The per-experiment time budget was not widened. A vault that grows needs either short cases or an owner decision about the cycle budget.
+- The red-case question is asked in the same sandbox after restoring the changed files from its commit; it relies on the strategy having written only its declared files, which the runner has already verified at that point.

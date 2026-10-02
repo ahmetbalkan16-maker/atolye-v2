@@ -16,6 +16,7 @@ import { runAyasRegisteredImprovementExperiment } from "../../brain/autonomy/Aya
 import { verifyAyasReviewedExactPatch } from "../../brain/selfheal/AyasExactPatchSafety";
 import { classifyPatchSet } from "../../brain/selfheal/BrainPatchSafety";
 import { readProcessStartEpochMs } from "../../brain/autonomy/AyasProcessLiveness";
+import type { AyasGoldenVault } from "../golden/AyasGoldenVault";
 import { inventoryAyasCapabilities } from "../routing/AyasAgenticRouting";
 import { parseAyasEvolutionRegister, type AyasEvolutionRegister } from "./AyasEvolutionOpportunity";
 import { type AyasEvolutionEnvironment } from "./AyasEvolutionQualification";
@@ -84,6 +85,8 @@ export interface AyasControlledEvolutionCycleInput {
   readonly artifactStore?: AyasPatchArtifactStore;
   readonly nodeModulesDir?: string;
   readonly now?: () => string;
+  /** Stage 15O. Production callers leave it out: the vault of record. */
+  readonly goldenVault?: AyasGoldenVault;
 }
 
 /** At most one Stage 15 sandbox experiment and one candidate. The existing daemon owns proposal creation. */
@@ -130,7 +133,8 @@ export async function runAyasControlledSelfEvolutionCycle(input: AyasControlledE
   if (existing) {
     const artifactId = existingArtifact(artifacts, candidate, existing);
     return artifactId ? buildAyasControlledEvolutionProposalCandidate({ repoRoot: input.repoRoot, candidate, registry,
-      experimentId: existing.experimentId, artifactId, experimentStore: store, artifactStore: artifacts }) : null;
+      experimentId: existing.experimentId, artifactId, experimentStore: store, artifactStore: artifacts,
+      ...(input.goldenVault ? { goldenVault: input.goldenVault } : {}) }) : null;
   }
   if (input.remainingMs() < AYAS_RESEARCH_EXPERIMENT_BUDGET.minExperimentTimeBudgetMs) return null;
   const record = await store.withLock(async (): Promise<AyasExperimentRecord | null> => {
@@ -154,15 +158,16 @@ export async function runAyasControlledSelfEvolutionCycle(input: AyasControlledE
   });
   if (!record) return null;
   const result = await runAyasRegisteredImprovementExperiment({ deps: { repoRoot: input.repoRoot,
-    ...(input.nodeModulesDir ? { nodeModulesDir: input.nodeModulesDir } : {}) }, observation,
+    ...(input.nodeModulesDir ? { nodeModulesDir: input.nodeModulesDir } : {}), ...(input.goldenVault ? { goldenVault: input.goldenVault } : {}) }, observation,
     store, record, hypothesis: candidate.hypothesis, strategy: candidate.strategy, benchmark: candidate.benchmark,
     sourceIds: [], sourceBindings: candidate.sourceBindings, remainingMs: input.remainingMs, clock: now });
   if (result.verdict !== "IMPROVED") return null;
   const artifact = await freezeAyasControlledEvolutionArtifact({ repoRoot: input.repoRoot, candidate, registry, result,
-    experimentStore: store, artifactStore: artifacts, now: now() });
+    experimentStore: store, artifactStore: artifacts, now: now(), ...(input.goldenVault ? { goldenVault: input.goldenVault } : {}) });
   if (!artifact) return null;
   return buildAyasControlledEvolutionProposalCandidate({ repoRoot: input.repoRoot, candidate, registry,
-    experimentId: result.record.experimentId, artifactId: artifact.artifactId, experimentStore: store, artifactStore: artifacts });
+    experimentId: result.record.experimentId, artifactId: artifact.artifactId, experimentStore: store, artifactStore: artifacts,
+    ...(input.goldenVault ? { goldenVault: input.goldenVault } : {}) });
 }
 
 export function resolveAyasControlledEvolutionRegisterFile(repoRoot: string, configured: string | undefined): string | null {

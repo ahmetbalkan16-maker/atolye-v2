@@ -39,13 +39,16 @@ const mutants: readonly (readonly [string, string, string, string, string])[] = 
   ["a failing case is golden", contract, "result !== undefined && result.pass === true && result.timedOut === false;", "result !== undefined;", contractTest],
   ["a timed-out case is golden", contract, " && result.timedOut === false;", ";", contractTest],
   ["results for other cases count as measured", contract, "return vault.cases.every((item) => byId.has(item.id)) ? byId : null;", "return byId;", contractTest],
-  ["a malformed result counts as measured", contract, "typeof result.pass !== \"boolean\" || ", "", contractTest],
+  ["a malformed result counts as measured", contract, "typeof result.pass !== \"boolean\" || typeof result.timedOut !== \"boolean\" || byId.has(result.id)) return null;\n    byId.set(result.id, { id: result.id, pass: result.pass, timedOut: result.timedOut });\n  }\n  return vault.cases.every(",
+    "typeof result.timedOut !== \"boolean\" || byId.has(result.id)) return null;\n    byId.set(result.id, { id: result.id, pass: result.pass, timedOut: result.timedOut });\n  }\n  return vault.cases.every(", contractTest],
   ["no candidate run is held", contract, "if (!plain(candidate)) return { decision: \"GOLDEN_NOT_MEASURED\"", "if (!plain(candidate)) return { decision: \"GOLDEN_HELD\"", contractTest],
   ["an invalid vault is evaluated", contract, "if (!isAyasGoldenVault(input.vault)) return {", "if (false) return {", contractTest],
   ["results from another vault are compared", contract, "if (candidate.vaultDigest !== digest || (plain(baseline) && baseline.vaultDigest !== digest)) moved.push(\"VAULT_DIGEST_MISMATCH\");", "", contractTest],
   ["candidate pin drift is ignored", contract, "if (!Array.isArray(candidate.pinDrift) || candidate.pinDrift.length > 0) moved.push(\"CANDIDATE_PIN_DRIFT\");", "", contractTest],
   ["baseline pin drift is ignored", contract, "if (plain(baseline) && (!Array.isArray(baseline.pinDrift) || baseline.pinDrift.length > 0)) moved.push(\"BASELINE_PIN_DRIFT\");", "", contractTest],
-  ["a red case that was already red is held", contract, "const failing = vault.cases.filter((item) => !golden(after.get(item.id)));", "const early = plain(baseline) ? measured(vault, baseline) : null; const failing = vault.cases.filter((item) => !golden(after.get(item.id)) && (!early || golden(early.get(item.id))));", contractTest],
+  ["a red case that was already red is held", contract, "const failing = vault.cases.filter((item) => !golden(after.get(item.id)));", "const early = plain(baseline) ? baselineResults(vault, baseline) : null; const failing = vault.cases.filter((item) => !golden(after.get(item.id)) && (!early?.has(item.id) || golden(early.get(item.id))));", contractTest],
+  ["a malformed baseline still explains a red case", contract, "if (!Array.isArray(run.results) || run.results.length > vault.cases.length) return null;\n  const byId = new Map<string, AyasGoldenCaseResult>();\n  for (const result of run.results as readonly unknown[]) {\n    if (!plain(result) || typeof result.id !== \"string\" || typeof result.pass !== \"boolean\" || typeof result.timedOut !== \"boolean\" || byId.has(result.id)) return null;",
+    "if (!Array.isArray(run.results)) return null;\n  const byId = new Map<string, AyasGoldenCaseResult>();\n  for (const result of run.results as readonly unknown[]) {\n    if (!plain(result) || typeof result.id !== \"string\") return null;", contractTest],
   ["a stopped promotion is reported as held", contract, "return { decision: \"PROMOTION_STOPPED\", ...shared, reasonCodes, authority", "return { decision: \"GOLDEN_HELD\", ...shared, reasonCodes, authority", contractTest],
   ["declared gaps are hidden from a decision", contract, "gapDomains: vault.gaps.map((gap) => gap.domain) };", "gapDomains: [] };", contractTest],
   ["the vault and yardstick are not protected", safety, "test: (p) => p.toLowerCase().startsWith(AYAS_GOLDEN_VAULT_MODULE_DIR.toLowerCase()) || YARDSTICK_FILES.has(p.toLowerCase()),", "test: () => false,", contractTest],
@@ -71,7 +74,8 @@ try {
   const registry = fs.readFileSync(path.join(repo, "src/lib/ayas/golden/AyasGoldenVaultRegistry.ts"), "utf8");
   for (const match of registry.matchAll(/file: "(scripts\/[^"]+)"/g)) copy(match[1]!, false);
   for (const file of ["docs/ayas-execution/2026-09-27-master/00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md", "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
-    "scripts/smoke-ayas-golden-vault-mutations.ts", "scripts/smoke-ayas-golden-vault-run.ts", "scripts/ayas-eval-baseline.ts", "src/lib/ayas/observability/AyasEvalGovernance.ts",
+    "scripts/smoke-ayas-golden-vault-mutations.ts", "scripts/smoke-ayas-golden-vault-run.ts", "scripts/fixtures/ayas-golden-fixtures.ts", "scripts/smoke-ayas-golden-experiment-gate.ts",
+    "scripts/smoke-ayas-golden-experiment-gate-mutations.ts", "scripts/smoke-ayas-golden-sandbox-run.ts", "scripts/ayas-eval-baseline.ts", "src/lib/ayas/observability/AyasEvalGovernance.ts",
     "src/lib/ayas/governance/AyasOwnerConstitution.ts", "src/lib/ayas/governance/AyasOwnerConstitutionReader.ts", "src/lib/ayas/governance/AyasOwnerConstitutionStore.ts",
     "app/brain/constitution/page.tsx", "app/brain/constitution/actions.ts"]) copy(file, false);
   fs.symlinkSync(fs.realpathSync(path.join(repo, "node_modules")), link, process.platform === "win32" ? "junction" : "dir");

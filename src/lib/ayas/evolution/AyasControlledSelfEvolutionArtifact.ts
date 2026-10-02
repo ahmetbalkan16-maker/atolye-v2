@@ -4,10 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { ayasGoldenVaultDigest, type AyasGoldenVault } from "../golden/AyasGoldenVault";
+import { AYAS_GOLDEN_VAULT } from "../golden/AyasGoldenVaultRegistry";
 import { measureAyasGraphifyImportCount } from "../../brain/autonomy/AyasBatchGraphifyCheck";
 import { resolveAyasBoundedPath } from "../../brain/autonomy/AyasBoundedFileWrite";
 import { type AyasPatchArtifact, type AyasPatchArtifactStore } from "../../brain/autonomy/AyasPatchArtifact";
-import { validAyasExperimentSourceBindings, verifyAyasExperimentEvidence } from "../../brain/autonomy/AyasResearchExperimentEvaluation";
+import { ayasExperimentEvidenceGoldenHeld, validAyasExperimentSourceBindings, verifyAyasExperimentEvidence } from "../../brain/autonomy/AyasResearchExperimentEvaluation";
 import { ayasImprovementRegistryDigest, type AyasImprovementRegistry } from "../../brain/autonomy/AyasResearchExperimentRegistry";
 import type { AyasResearchExperimentStore } from "../../brain/autonomy/AyasResearchExperimentStore";
 import type { AyasRegisteredExperimentResult } from "../../brain/autonomy/AyasRegisteredImprovementExperiment";
@@ -43,6 +45,8 @@ export interface AyasControlledEvolutionArtifactInput {
   readonly experimentStore: AyasResearchExperimentStore;
   readonly artifactStore: AyasPatchArtifactStore;
   readonly now: string;
+  /** Stage 15O. Production callers leave it out: the vault of record. */
+  readonly goldenVault?: AyasGoldenVault;
 }
 
 /** Freezes one content-bound artifact only after the existing Stage 8 evidence and live Git truth agree. */
@@ -69,6 +73,8 @@ export async function freezeAyasControlledEvolutionArtifact(input: AyasControlle
   const baseline = evidence?.baseline;
   const experiment = evidence?.experiment;
   if (!evidence || !verifyAyasExperimentEvidence(evidence, record.evidenceHash) || evidence.verdict !== "IMPROVED"
+    // No frozen artifact without a golden block held against the current vault: improved and still golden, or nothing.
+    || !ayasExperimentEvidenceGoldenHeld(evidence, ayasGoldenVaultDigest(input.goldenVault ?? AYAS_GOLDEN_VAULT), (input.goldenVault ?? AYAS_GOLDEN_VAULT).cases.length)
     || evidence.experimentId !== record.experimentId || evidence.attemptKey !== record.attemptKey || evidence.baseHead !== candidate.baseHead
     || JSON.stringify(evidence.hypothesis) !== JSON.stringify(candidate.hypothesis) || evidence.change?.strategyId !== candidate.strategy.strategyId
     || evidence.change.strategyVersion !== candidate.strategy.version || evidence.change.diffSha256 !== retainedSource.diffSha256

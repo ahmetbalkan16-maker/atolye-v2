@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v24",
+  "version": "15F.4-v23",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -452,12 +452,8 @@
       "grading": "EXIT_STATUS",
       "pins": [
         {
-          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
-          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
-        },
-        {
           "file": "scripts/smoke-ayas-exact-proposal-safety.ts",
-          "sha256": "ceca87d87dc132392625b248e68fba3a4307ea91a6d2805cf7b03793f2a9397e"
+          "sha256": "98c11778c449c584b68c7493c78c6aed6688fef937cea8a22ebd87331bb7b403"
         }
       ],
       "slices": [
@@ -889,7 +885,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-lifecycle.ts",
-          "sha256": "4e6488c7d8d623df8e1347a4347c61b3143b611af355fbb66b503ad651c349f0"
+          "sha256": "6a02f8b5141ae248496809328c41eb6ff0cababa0fa19bda1f3bc7bbc0035d64"
         }
       ],
       "slices": [
@@ -984,24 +980,16 @@
       "grading": "EXIT_STATUS",
       "pins": [
         {
-          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
-          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
-        },
-        {
-          "file": "scripts/fixtures/ayas-research-improvement-cycle-child.ts",
-          "sha256": "5aeb43c50f55966ce390c3b8365ff8d67905a373d28472e53be4330e93f072b7"
-        },
-        {
           "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
           "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
         },
         {
           "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
-          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
+          "sha256": "f9e9345afc4ef5ea713429fba1794a672e92ccc2c618412e2767593457bde3a9"
         },
         {
           "file": "scripts/smoke-ayas-research-improvement-loop.ts",
-          "sha256": "2fa2bbd212d4ea39154df81140685d1a614d10875e297914b4325a4ce0443e27"
+          "sha256": "4358a14aaf3a3fbb11b37abda22c801a7f0670c416c46681d8767631396fc00f"
         }
       ],
       "slices": [
@@ -1016,20 +1004,16 @@
       "grading": "EXIT_STATUS",
       "pins": [
         {
-          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
-          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
-        },
-        {
           "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
           "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
         },
         {
           "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
-          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
+          "sha256": "f9e9345afc4ef5ea713429fba1794a672e92ccc2c618412e2767593457bde3a9"
         },
         {
           "file": "scripts/smoke-ayas-controlled-self-evolution-cycle.ts",
-          "sha256": "b1df060df0c4a29fe97a0586e9aea78ffe3bd7cf3ccfa5094eb0313c73c7c9bf"
+          "sha256": "291daa8c5402d9566f5231a276f8cb280d5922070a98c5184392e4cd3d550b7e"
         }
       ],
       "slices": [
@@ -1044,20 +1028,16 @@
       "grading": "EXIT_STATUS",
       "pins": [
         {
-          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
-          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
-        },
-        {
           "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
           "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
         },
         {
           "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
-          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
+          "sha256": "f9e9345afc4ef5ea713429fba1794a672e92ccc2c618412e2767593457bde3a9"
         },
         {
           "file": "scripts/smoke-ayas-controlled-self-evolution-artifact.ts",
-          "sha256": "6af6c10af0c3c3c234a194944b5ccdb30b03519ed2e6fa3b1f2c7b2e4ffb194f"
+          "sha256": "b926659d270e355b85dcb05d4419c8e05de1919dff250536668021a64d411e25"
         }
       ],
       "slices": [
@@ -1708,7 +1688,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault.ts",
-          "sha256": "4715cf5ce3cc8a1e738ca29ff8f39d88e2f81e7240c02439bb232a4407e05587"
+          "sha256": "2b0684f2e356f93e9e82c17d90ad5788e1995b34f526dceaa8d23cbca437046d"
         },
         {
           "file": "scripts/lib/AyasGoldenVaultFiles.ts",
@@ -1751,7 +1731,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault-mutations.ts",
-          "sha256": "982cc20b77fd48af6ce1806bea9676567bdcc987c7662b6c064356f87f3d69a3"
+          "sha256": "03ccbcc1075b33b7ebdfcc6a1e84bcadb94b48d58546e32eb76500346a185ff6"
         }
       ],
       "slices": [
@@ -1776,72 +1756,6 @@
       ],
       "slices": [
         "golden-vault",
-        "all-golden-cases",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-experiment-gate",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-experiment-gate.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-experiment-gate.ts",
-          "sha256": "889e070b4e973e9daab221ab97981b65d0dace8d3c77b5962b840fa7d6f22a7d"
-        },
-        {
-          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
-          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
-        },
-        {
-          "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
-          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
-        },
-        {
-          "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
-          "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
-        }
-      ],
-      "slices": [
-        "golden-vault",
-        "improvement-flow",
-        "fail-closed",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-experiment-gate-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-experiment-gate-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-experiment-gate-mutations.ts",
-          "sha256": "31b06c7c9e138e06bfe001e0fa22a1ba9c6d58c4dbf1146a0f51e805a53a4c04"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "golden-sandbox-run",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-golden-sandbox-run.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-golden-sandbox-run.ts",
-          "sha256": "1fbd4fb5d9ace17b954bed1dff25bf91d9c4758c6e7296e64bf93493270ff331"
-        }
-      ],
-      "slices": [
-        "golden-vault",
-        "experiment-sandbox",
         "all-golden-cases",
         "deterministic-outcome"
       ]

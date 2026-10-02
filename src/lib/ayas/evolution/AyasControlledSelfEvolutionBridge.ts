@@ -4,11 +4,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { ayasGoldenVaultDigest, type AyasGoldenVault } from "../golden/AyasGoldenVault";
+import { AYAS_GOLDEN_VAULT } from "../golden/AyasGoldenVaultRegistry";
 import type { AyasDaemonCandidate } from "../../brain/autonomy/AyasAutonomyDaemon";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../../brain/autonomy/AyasNovelPatchDiscovery";
 import { AYAS_UNRESOLVED_STRUCTURED_IMPACT } from "../../brain/autonomy/AyasProposalImpact";
 import type { AyasPatchArtifactStore } from "../../brain/autonomy/AyasPatchArtifact";
-import { validAyasExperimentSourceBindings, verifyAyasExperimentEvidence } from "../../brain/autonomy/AyasResearchExperimentEvaluation";
+import { ayasExperimentEvidenceGoldenHeld, validAyasExperimentSourceBindings, verifyAyasExperimentEvidence } from "../../brain/autonomy/AyasResearchExperimentEvaluation";
 import { ayasImprovementRegistryDigest, validateAyasImprovementStrategy, type AyasImprovementRegistry } from "../../brain/autonomy/AyasResearchExperimentRegistry";
 import type { AyasResearchExperimentStore } from "../../brain/autonomy/AyasResearchExperimentStore";
 import { classifyPatchSet } from "../../brain/selfheal/BrainPatchSafety";
@@ -42,6 +44,8 @@ export interface AyasControlledEvolutionBridgeInput {
   readonly artifactId: string;
   readonly experimentStore: AyasResearchExperimentStore;
   readonly artifactStore: AyasPatchArtifactStore;
+  /** Stage 15O. Production callers leave it out: the vault of record. */
+  readonly goldenVault?: AyasGoldenVault;
 }
 
 /** Read-only Stage 15 boundary: verified experiment + frozen SAFE patch become a candidate, never an approval. */
@@ -71,6 +75,7 @@ export async function buildAyasControlledEvolutionProposalCandidate(input: AyasC
       || record.strategyId !== candidate.strategy.strategyId || record.strategyVersion !== candidate.strategy.version) return null;
     const evidence = input.experimentStore.readEvidence(record.evidenceHash);
     if (!evidence || !verifyAyasExperimentEvidence(evidence, record.evidenceHash) || evidence.verdict !== "IMPROVED"
+      || !ayasExperimentEvidenceGoldenHeld(evidence, ayasGoldenVaultDigest(input.goldenVault ?? AYAS_GOLDEN_VAULT), (input.goldenVault ?? AYAS_GOLDEN_VAULT).cases.length)
       || evidence.authority !== "NONE" || evidence.experimentId !== record.experimentId || evidence.attemptKey !== record.attemptKey
       || evidence.baseHead !== candidate.baseHead || JSON.stringify(evidence.hypothesis) !== JSON.stringify(candidate.hypothesis)
       || !same(evidence.sourceBindings?.map((binding) => `${binding.kind}:${binding.id}`) ?? [], candidate.sourceBindings.map((binding) => `${binding.kind}:${binding.id}`))

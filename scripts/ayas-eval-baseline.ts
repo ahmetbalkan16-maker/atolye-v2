@@ -75,7 +75,7 @@ function main() {
         // A complete suite contains multiple internally bounded operations (e.g. 180s validation).
         // The constitution and golden-vault negative-control suites contain many separate, individually bounded TEMP trials.
         const timeoutMs = ["proposal-approval-service", "research-improvement-loop"].includes(suite.id) ? 600_000
-          : ["owner-constitution-mutations", "constitution-run-binding-mutations", "golden-vault-mutations"].includes(suite.id) ? 300_000 : 120_000;
+          : ["owner-constitution-mutations", "constitution-run-binding-mutations", "golden-vault-mutations", "golden-experiment-gate-mutations"].includes(suite.id) ? 300_000 : 120_000;
         const run = spawnSync(process.execPath, ["--import", "tsx", suite.script, ...suite.args], { cwd: checkout, env, encoding: "utf8", windowsHide: true, timeout: timeoutMs, maxBuffer: 2_000_000 });
         timedOut = (run.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
         const result = gradeAyasEvalTrial(suite, { exitCode: run.status, stdout: run.stdout ?? "", stderr: run.stderr ?? "", durationMs: performance.now() - started });

@@ -87,6 +87,9 @@ export function discoverAyasResearchExperimentProposalCandidates(
   return evidences
     .filter(({ evidence, evidenceHash }) => verifyAyasExperimentEvidence(evidence, evidenceHash))
     .filter(({ evidence }) => evidence.verdict === "IMPROVED" && evidence.baseHead === currentHead && evidence.hypothesis.riskClass !== "FORBIDDEN_AUTONOMOUS")
+    // Stage 15O: baseline -> candidate -> held-out -> golden regression -> review. No held golden block, no proposal.
+    // (The verification above already refused a block that is malformed or contradicts its verdict.)
+    .filter(({ evidence }) => evidence.golden?.decision === "GOLDEN_HELD" && evidence.golden.cases.length > 0 && evidence.golden.failingCaseIds.length === 0)
     .filter(({ evidence }) => !alreadyBridged.has(evidence.experimentId))
     .slice(0, 5)
     .map(({ evidence, evidenceHash }, index) => {
