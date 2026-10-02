@@ -17,3 +17,15 @@ Opened 2026-10-02 after source `409ef9616b9477e9047b5028bcc92cbf50ea309e` closed
 ## Next packet
 
 Implement contextual resource admission and bounded durable ON_DEMAND lifecycle through these seams, with read-only operator/inventory. No actual model activation or host-global mutation. Test required boundaries/negative controls, TypeScript/lint/pins, Graphify and local commit; update checkpoint and automatically next packet/stage. NO PUSH.
+
+## 15Q.1 — contextual resource admission / common capacity
+
+Implemented AyasResourceGovernor through the existing Machine Health evaluator, telemetry collector and owner constitution (current90% admission). Five classes, explicit owner/production priority, fresh snapshots (30s conservative metadata bound), required CPU/GPU/core sensors, projected peak memory, unknown external model/render occupancy, UNCERTAIN dependencies and hardware-change recalibration. Optional unmeasured metrics remain UNKNOWN/null; process presence is not loaded-model footprint. Prewarm requires measured benefit and safe headroom and is cancelled by priority/pressure. No action/approval authority is granted.
+
+Existing telemetry now includes measured host RAM total/free bytes; old Machine Health refuses non-finite/out-of-range percentages. Common capacity reuses the PID/start-time authority lock for the entire heavy operation, rereads pressure after acquisition, requires an absolute local host-common root with no live default, and separates capacity-busy from a domain error after execution began. All heavy consumers must use the same host-owned root; current production/local qualification callers have not yet been bound to this new primitive. No live concurrency or hardware benchmark is claimed.
+
+19 synthetic snapshot/TEMP scenarios and34 negative controls passed, including real concurrent promises under the filesystem lock, post-lock pressure race, operation-domain lock failure, preserved durable journal/attempt budget and later resume. Existing Machine Health20/non-GPU36, constitution binding18, self-heal14, exact patch23, vault13 (v2/18), durable runtime17 and eval governance10/8 mutants passed. TypeScript/changed lint and manifest v28 (108 suites/127 pins; v27 archive identical) passed. Full lint/Graphify/source commit/full declared baseline follow. Initial scenario harness used the durable creation API incorrectly; corrected to its real signature and COMPLETED task status before validation, without changing that runtime.
+
+Resource policy/graders are never-autonomous in every Windows spelling. Source packet only: no physical model/runtime start, no host startup/WSL mutation, no production/push. Next15Q.2:bounded ON_DEMAND lifecycle, durable evidence before unload, active/UNCERTAIN stop protection, idle10min and image dependency classification.
+
+Final full lint0 errors/13 existing warnings. F28 confirmed against parent6f0649b:diskFreePercent NaN previously ALLOW, now BLOCK NEW HEAVY WORK. Offline transpilation/VM with inert imports; no host effect. Guard validator and negative controls cover this boundary.

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1",
+  "packet": "15Q.1",
+  "state": "FOCUSED_GREEN_FULL_BASELINE_PENDING",
+  "sourceBaseHead": "6f0649beb70db63a496e47cb81bd3412de65d718",
+  "scope": "Contextual resource admission through existing Machine Health and common filesystem capacity; no production runtime binding",
+  "tests": {
+    "resourceScenarios": 19,
+    "negativeControls": "34/34 caught in TEMP",
+    "machineHealth": 20,
+    "nonGpu": 36,
+    "constitutionBinding": 18,
+    "security": 14,
+    "exactPatch": 23,
+    "goldenVault": "13 /v2 /18 cases unchanged",
+    "durableRuntime": 17,
+    "evalGovernance": "10 /8 mutants",
+    "typeScript": "PASS",
+    "changedLint": "PASS",
+    "manifest": "v28 /108 suites /127 pins; v27 archive byte-identical",
+    "fullLint": "0 errors/13 existing warnings",
+    "diffCheck": "PASS"
+  },
+  "authority": "NONE",
+  "modelRuns": 0,
+  "physicalStarts": 0,
+  "knownLimits": [
+    "Host-common root and trusted fresh context must be bound by each consumer; current production/local coding remain on existing guards",
+    "No actual model footprint or hardware/coexistence benchmark measured",
+    "ON_DEMAND lifecycle is the next packet; no host-global mutation"
+  ],
+  "runtime": "ON_DEMAND /PC HEALTH /NO PUSH",
+  "graphify": "GRAPHIFY_15Q1_PRECOMMIT.json"
+}

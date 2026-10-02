@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
-  "currentHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+  "currentHead": "6f0649beb70db63a496e47cb81bd3412de65d718",
   "stage": "STAGE_15Q",
-  "subtask": "15Q.1-resource-admission-and-on-demand-lifecycle",
+  "subtask": "15Q.1-contextual-resource-admission",
   "status": "STAGE_15Q_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -213,7 +213,18 @@
     "15P-closure-GREEN-metadata-not-external-certification",
     "15Q.0-existing-seam-inspection"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/machine/AyasResourceGovernor.ts",
+    "src/lib/ayas/machine/AyasResourceCapacity.ts",
+    "src/lib/ayas/machine/AyasMachineTelemetry.ts",
+    "src/lib/ayas/machine/AyasMachineHealthGuard.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "scripts/smoke-ayas-resource-governor.ts",
+    "scripts/smoke-ayas-resource-governor-mutations.ts",
+    "scripts/smoke-ayas-eval-governance.ts",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V27.json"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -348,19 +359,19 @@
     "Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending."
   ],
   "graphify": {
-    "head": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
+    "head": "6f0649beb70db63a496e47cb81bd3412de65d718",
     "testedSourcePacket": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
     "stale": false,
-    "needsUpdate": true,
-    "nodes": 17404,
-    "edges": 49849,
+    "needsUpdate": false,
+    "nodes": 17441,
+    "edges": 49928,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Graph at clean closing15P source; refresh after closure documentation. PARTIAL9/semantic pending retained."
+    "headSemantics": "Covered15Q.1 working source at6f0649b; refresh at new source commit before full baseline. PARTIAL9/semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -381,8 +392,8 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "Stage15P CLOSED GREEN. Automatically Stage15Q: inspected current Machine Health, durable task admission, local qualification runner and coarse startup/runtime inventory. Implement contextual resource admission extending the current guard, common heavy-work capacity and bounded ON_DEMAND lifecycle. Preserve unknown telemetry, owner/production priority, current90% new-heavy limit and one-heavy policy; no host-global startup/WSL changes or real model activation. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. NO PUSH.",
-  "updatedAt": "2026-10-02T15:38:25.967Z",
+  "nextAction": "15Q.1 focused GREEN:19 scenarios/34 mutants plus affected regressions, TypeScript/lint/pins/v27 archive/diff PASS; full lint0 errors/13 old warnings. Refresh Graphify, create local source commit, refresh at exact clean source commit and run declared v28 baseline108/108. Then checkpoint GREEN packet and automatically15Q.2 bounded ON_DEMAND lifecycle. No physical startup/production binding yet; NO PUSH.",
+  "updatedAt": "2026-10-02T16:15:06.164Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1338,7 +1349,7 @@
     "fullLatestHeadBaselineClaimed": false
   },
   "stage15Q": {
-    "state": "OPEN_SOURCE_INSPECTION_COMPLETE",
+    "state": "15Q1_FOCUSED_GREEN_GRAPHIFY_COMMIT_FULL_BASELINE_PENDING",
     "openedOn": "2026-10-02",
     "openedAtHead": "409ef9616b9477e9047b5028bcc92cbf50ea309e",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15Q; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md15Q",

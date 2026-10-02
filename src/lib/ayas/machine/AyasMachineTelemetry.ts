@@ -10,6 +10,8 @@ export interface AyasMachineTelemetry {
   readonly cpuPercent?: number;
   readonly gpuPercent?: number;
   readonly ramUsedPercent?: number;
+  readonly totalRamBytes?: number;
+  readonly freeRamBytes?: number;
   readonly vramUsedPercent?: number;
   readonly diskFreePercent?: number;
   readonly processRssMb: number;
@@ -87,6 +89,7 @@ export async function collectAyasMachineTelemetry(deps: AyasMachineTelemetryDeps
     ...(cpuPercent === undefined ? {} : { cpuPercent }),
     ...(gpuPercent === undefined ? {} : { gpuPercent }),
     ...(ramUsedPercent === undefined ? {} : { ramUsedPercent }),
+    ...(ramUsedPercent === undefined ? {} : { totalRamBytes: totalRam, freeRamBytes: freeRam }),
     ...(vramUsedPercent === undefined ? {} : { vramUsedPercent }),
     ...(diskFreePercent === undefined ? {} : { diskFreePercent }),
     processRssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),

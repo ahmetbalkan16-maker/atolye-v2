@@ -1,5 +1,10 @@
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
+## AYAS 2026-10-02 —15Q.1 focused GREEN
+
+19 resource scenarios/34 mutants and existing health/constitution/security/vault/durable/eval regressions passed. TypeScript/lint/diff/pins PASS; v28 has108 suites/127 pins, v27 archived unchanged. Exact next:Graphify/local source commit/full108 baseline, then15Q.2 ON_DEMAND lifecycle. Source/capacity primitive only; no physical model/production binding or host-global changes. Last green source409ef96; current base6f0649b. NO PUSH /PC HEALTH.
+
+
 ## AYAS 2026-10-02 —15P GREEN;15Q OPEN
 
 Stage 15P source is closed at `409ef9616b9477e9047b5028bcc92cbf50ea309e`. The complete v26 baseline ran at predecessor `34279af33fc1d048372ce842f7286139a6b04dcc`: 106/106 suites, no failures, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 unchanged, RAM peak 53.34%. The narrow F27 correction was then validated with 22 scenarios /30 negative controls, existing store8/error12/deep13/eval10+8, TypeScript and changed lint; both source suites passed again in isolated TEMP at the exact clean closing commit on v27. The full baseline is explicitly tied to its predecessor, never relabelled as a full closing-HEAD run. 125 v27 pins match committed bytes. Graphify at closing source: 17404 nodes /49849 links, zero integrity anomalies; existing PARTIAL9 / semantic pending.

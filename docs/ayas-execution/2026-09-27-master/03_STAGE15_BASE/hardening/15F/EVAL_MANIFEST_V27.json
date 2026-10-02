@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v28",
+  "version": "15F.4-v27",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1934,46 +1934,6 @@
       "slices": [
         "contextual-source-trust",
         "external-data-boundary",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "resource-governor",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-resource-governor.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-resource-governor.ts",
-          "sha256": "8a10fe07e553323cfdc4f607490b4c395b1c8646a48314b0ed3140dd5e865568"
-        }
-      ],
-      "slices": [
-        "resource-admission",
-        "host-protection",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "resource-governor-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-resource-governor-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-resource-governor-mutations.ts",
-          "sha256": "8666819faa764853d77c642c4fc2fce16a9255e02b8cfa9498703f858624da74"
-        },
-        {
-          "file": "scripts/smoke-ayas-resource-governor.ts",
-          "sha256": "8a10fe07e553323cfdc4f607490b4c395b1c8646a48314b0ed3140dd5e865568"
-        }
-      ],
-      "slices": [
-        "resource-admission",
-        "host-protection",
         "deterministic-outcome"
       ]
     }

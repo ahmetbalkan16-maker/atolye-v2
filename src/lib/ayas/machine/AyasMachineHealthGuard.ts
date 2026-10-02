@@ -10,6 +10,7 @@ const GPU_LIKELY = new Set<ProductionStepKey>(["visuals", "animation", "video", 
 
 export function evaluateAyasMachineHealth(telemetry: AyasMachineTelemetry, workload: AyasMachineWorkload, maxRamAdmissionPercent = 90): AyasMachineHealthDecision {
   const decide = (action: AyasMachineHealthAction, reasonCode: string): AyasMachineHealthDecision => Object.freeze({ action, reasonCode, telemetry, mayStart: action === "ALLOW" || action === "THROTTLE" });
+  if ([telemetry.cpuPercent, telemetry.gpuPercent, telemetry.ramUsedPercent, telemetry.vramUsedPercent, telemetry.diskFreePercent].some(value => value !== undefined && (!Number.isFinite(value) || value < 0 || value > 100))) return decide("BLOCK NEW HEAVY WORK", "MACHINE_HEALTH_SENSOR_INVALID");
   if (telemetry.diskFreePercent === undefined || telemetry.ramUsedPercent === undefined) return decide("BLOCK NEW HEAVY WORK", "MACHINE_HEALTH_CORE_TELEMETRY_UNAVAILABLE");
   if (telemetry.diskFreePercent < 3 || telemetry.ramUsedPercent >= 97 || (telemetry.vramUsedPercent ?? 0) >= 99) return decide(workload.ownedActive ? "STOP OWN WORKLOAD" : "BLOCK NEW HEAVY WORK", "MACHINE_HEALTH_CRITICAL_PRESSURE");
   if ((telemetry.cpuPercent ?? 0) >= 99 || telemetry.ramUsedPercent >= 93 || (telemetry.vramUsedPercent ?? 0) >= 95) return decide("PAUSE", "MACHINE_HEALTH_HIGH_PRESSURE");

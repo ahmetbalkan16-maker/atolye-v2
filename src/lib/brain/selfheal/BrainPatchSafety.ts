@@ -50,6 +50,8 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/ayas-source-evidence.ts",
   "scripts/smoke-ayas-source-evidence.ts",
   "scripts/smoke-ayas-source-evidence-mutations.ts",
+  "scripts/smoke-ayas-resource-governor.ts",
+  "scripts/smoke-ayas-resource-governor-mutations.ts",
   "scripts/ayas-eval-baseline.ts",
   "src/lib/ayas/observability/AyasEvalGovernance.ts",
   "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
@@ -76,7 +78,7 @@ const RULES: readonly Rule[] = Object.freeze([
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "AYAS zero-cost policy or machine-health protection boundary",
-    test: (p) => p.startsWith("src/lib/ayas/policy/") || p.startsWith("src/lib/ayas/machine/"),
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/policy/") || p.toLowerCase().startsWith("src/lib/ayas/machine/"),
   },
   {
     level: "FORBIDDEN_AUTONOMOUS",
