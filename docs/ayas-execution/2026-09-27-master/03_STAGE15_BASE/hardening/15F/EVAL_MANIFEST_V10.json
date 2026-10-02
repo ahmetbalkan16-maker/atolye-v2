@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v11",
+  "version": "15F.4-v10",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1391,40 +1391,6 @@
         {
           "file": "scripts/smoke-ayas-independence-certification-mutations.ts",
           "sha256": "35cd98b9121f4764dab087fde5a8e3431e4b07dba451da5297bbd2a478ae6bcf"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-director",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-director.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-director.ts",
-          "sha256": "39e3d3d82fed33c7f1d02c026e170b36bea412e4868f69d53abbdf92daf15b78"
-        }
-      ],
-      "slices": [
-        "production-director",
-        "fail-closed",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-director-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-director-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-director-mutations.ts",
-          "sha256": "5d5420d3694b68878567c128f465257797fa4c4acfc71a5b36fff166b7047a91"
         }
       ],
       "slices": [
