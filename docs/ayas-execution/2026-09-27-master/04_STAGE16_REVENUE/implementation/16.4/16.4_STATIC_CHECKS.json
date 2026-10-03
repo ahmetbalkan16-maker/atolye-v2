@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-03T11:07:41.314Z",
+  "checks": [
+    {
+      "name": "typescript",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 11396,
+      "stdout": "",
+      "stderr": "",
+      "ramPercent": 53.28124956748306
+    },
+    {
+      "name": "changedLint",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 1793,
+      "stdout": "",
+      "stderr": "",
+      "ramPercent": 53.44397823881627
+    },
+    {
+      "name": "wholeLint",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 18301,
+      "stdout": "\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\apply-retry-admission-istanbul-1453.ts\n  1:8  warning  'fs' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\diagnose-global-terminal-quiescence-istanbul-1453-readonly.ts\n  1:8  warning  'fs' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\diagnose-retry-compensation-failed-root-cause-readonly.ts\n  1:8   warning  'fs' is defined but never used                                       @typescript-eslint/no-unused-vars\n  9:10  warning  'classifyProductionDurableAttemptLineage' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\production-failed-stage-retry-with-authority-final-preflight-readonly.ts\n  7:36  warning  'fingerprintPipelineJob' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\production-manifest-reconciliation-final-preflight-readonly.ts\n  12:15  warning  'PipelineJobList' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-audio-compensation-descriptor-rebind.ts\n  27:8  warning  'AudioCanonicalDescriptorRebind' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-audio-publication-rebind.ts\n   24:8   warning  'AudioPublicationDescriptorRebind' is defined but never used  @typescript-eslint/no-unused-vars\n  155:10  warning  'intentFilePath' is defined but never used                    @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-isolated-e2e-audio-rebind-assembly.ts\n  254:13  warning  'publicationRebind' is assigned a value but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-sprint-129-25c-1-runtime-backup.ts\n    14:3   warning  'runtimeBackupFormatVersion' is defined but never used          @typescript-eslint/no-unused-vars\n    18:3   warning  'runtimeBackupManifestSchemaVersion' is defined but never used  @typescript-eslint/no-unused-vars\n  1401:13  warning  'relativePath' is assigned a value but never used               @typescript-eslint/no-unused-vars\n\n✖ 13 problems (0 errors, 13 warnings)\n\n",
+      "stderr": "",
+      "ramPercent": 53.287002418965734
+    },
+    {
+      "name": "diff",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v43",
+  "version": "15F.4-v42",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2529,56 +2529,6 @@
         "delivery-manifest",
         "no-spend-authority",
         "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-etsy-adapter",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
-          "sha256": "b626576cc88d2cee950896094f7f7ed6ad1561d6906680f4166068689cb35aae"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
-          "sha256": "99fba49229ecb707ec76b6ab2d232e7a7991334d62a587eba224cd1d15115440"
-        }
-      ],
-      "slices": [
-        "official-api-read",
-        "credential-boundary",
-        "pii-minimized",
-        "no-external-write"
-      ]
-    },
-    {
-      "id": "revenue-etsy-adapter-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-etsy-adapter-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-etsy-adapter-mutations.ts",
-          "sha256": "70642884b98c0ec77acf2427ba190e5222f5cead245ac8d9c0787e13940be7b2"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
-          "sha256": "b626576cc88d2cee950896094f7f7ed6ad1561d6906680f4166068689cb35aae"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
-          "sha256": "99fba49229ecb707ec76b6ab2d232e7a7991334d62a587eba224cd1d15115440"
-        }
-      ],
-      "slices": [
-        "official-api-read",
-        "credential-boundary",
-        "pii-minimized",
-        "no-external-write"
       ]
     }
   ],

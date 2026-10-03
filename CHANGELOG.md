@@ -1,3 +1,7 @@
+# AYAS current — 2026-10-03 / Codex takeover, 16.4 post-review validation
+
+Claude’s valid Etsy WIP preserved at 1ba03b4eb1abcf0a79d1ac599fd16a1f7606306b. Last closed16.3B. Initial67+12/82 controls reproduced; F62–F64 reproduced and repaired;72+12 and89 controls PASS. 134 suites/162 pins, fullv43 baseline NOT_RUN. Static/selected regression/Graphify exact-source closure pending;16.4 andStage16 OPEN. Next16.5 after16.4 closure, master order unchanged. Normal push authorized at majorStage16 boundary. Exact next:ACTIVE_CHECKPOINT.json.
+
 ## 2026-10-03 — 16.3B fulfillment and delivery quality gate
 
 Pure order gate: offer re-proven at acceptance and bound by revision; unsupported promises refused; requirements, per-round files, QA receipts, rights, attribution and cost tracked; canonical file-hash delivery manifest bound to the owner's handoff; deadline and observed completion reported; lateness never hidden. Authority NONE; no delivery, message, spend or ledger write. Exact `e20eb57`: 61+10 / 65 controls / 159 pins, 17+6 regressions, static checks and Graphify PASS. 16.4 active.

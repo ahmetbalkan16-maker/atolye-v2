@@ -3,7 +3,7 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "e20eb573e82873df50487125ea72859e345a6ed4",
-  "currentHead": "e20eb573e82873df50487125ea72859e345a6ed4",
+  "currentHead": "1ba03b4eb1abcf0a79d1ac599fd16a1f7606306b",
   "stage": "STAGE_16_4",
   "subtask": "16.4 Etsy adapter: official Open API v3 read paths, local listing draft, verified webhook pointer, ledger mapping; external write closed",
   "status": "IN_PROGRESS",
@@ -430,8 +430,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Implement 16.4 Etsy adapter under the 16.0 standard with an injected connector-managed transport (no credentials in AYAS); fixtures from the official v3 spec; >=50 primary + 12 held-out; mutations; regressions; Graphify; commit. Production registry stays empty. Push at Stage 16 closure.",
-  "updatedAt": "2026-10-03T09:43:45.388Z",
+  "nextAction": "Finish 16.4 Etsy post-review regressions, Graphify and exact-source closure. Then canonical 16.5 Upwork. Stage 16 remains OPEN; push at the Stage 16 boundary.",
+  "updatedAt": "2026-10-03T11:09:18.524Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -730,7 +730,7 @@
   },
   "pushPolicy": {
     "state": "PUSH_AT_MAJOR_STAGE_BOUNDARY",
-    "requires": "Local commits only. Latest owner FULL MASTER CONTINUATION command says PUSH YOK and PUSH YAPMA; supersedes all earlier push authorization and session-end exception. No remote/history rewrite.",
+    "requires": "Latest owner request authorizes logical checkpoint commits and normal push at major master stage boundaries, then verify local/origin parity. No force push or history rewrite.",
     "correctedOn": "2026-10-01",
     "deviation": {
       "head": "36fa76b48662f491df59a21fe27cc434da02b876",
@@ -748,7 +748,7 @@
     "correctionNote": "Supersedes the earlier LOCAL COMMIT ONLY / NO PUSH instruction for major stage boundaries only; substage packets stay local until the stage boundary.",
     "supersededAuthorization": "OWNER_AUTHORIZED_CURRENT_WIP_BRANCH",
     "latestInstructionOn": "2026-10-03",
-    "latestInstruction": "Owner continuation order to Claude (2026-10-03): push was required at Stage 15 closure (done, ea11283) and is authorized at later major master stage boundaries. Next push: Stage 16 closure. No force push, no history rewrite."
+    "latestInstruction": "2026-10-03 Codex takeover: finish Stage 16 in canonical order, validate, commit and normal push at the major stage boundary, verify parity, then automatically continue the remaining master."
   },
   "stage15E": {
     "state": "CLOSED_GREEN",
@@ -855,14 +855,14 @@
   },
   "executionControl": {
     "mode": "AUTONOMOUS_CANONICAL_MASTER_CONTINUATION",
-    "source": "LATEST_OWNER_MASTER_CONTINUATION_AND_DEVAM_ET_2026-10-03",
+    "source": "LATEST_OWNER_PASTED_MASTER_CONTINUATION_2026-10-03_CODEX_TAKEOVER",
     "startNextStage": true,
-    "push": false,
+    "push": true,
     "priorStopRevoked": true,
     "prerequisite": "Met: the targeted post-freeze conformance audit is complete (post-freeze-audit/CLOSURE.md). Genuine owner-only gates stay in force.",
     "resumedAt": "2026-10-03T00:00:00.000Z",
     "resumeRecord": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json",
-    "pushScope": "LOCAL_COMMIT_ONLY_NO_PUSH",
+    "pushScope": "MAJOR_STAGE_BOUNDARIES_NORMAL_PUSH_ONLY",
     "readOnlyReviewAgentsAuthorized": true
   },
   "postFreezeAudit": {
@@ -1923,18 +1923,20 @@
   },
   "ownerGate": "NONE_BLOCKING_IMPLEMENTATION",
   "sessionResume": {
-    "at": "2026-10-03T09:01:42.000Z",
-    "pull": "Already up to date",
-    "worktree": "DIRTY_INHERITED_16.3A_DRAFT",
+    "at": "2026-10-03T11:09:18.524Z",
+    "agent": "Codex takeover from Claude usage limit",
+    "head": "1ba03b4eb1abcf0a79d1ac599fd16a1f7606306b",
+    "branch": "wip/ayas-graphify-final-execution",
+    "pull": "Already up to date after sandbox escalation",
     "aheadBehind": [
-      7,
+      11,
       0
     ],
-    "reason": "Seven local 16.0-16.3 commits after the Stage 15 push; uncommitted Codex 16.3A draft resumed in place",
-    "independentReviewAuthorization": "devam et",
-    "agent": "Claude (Codex usage limit reached)",
-    "head": "60153e31a356b68a17de981ab200ac310a050a59",
-    "liveOtherAgent": "NONE_FOUND"
+    "inheritedWorktree": "16.4 Etsy adapter, fixture/evaluators, v43 manifest, BrainPatchSafety. Preserved and reproduced in place.",
+    "lastCompleted": "16.3B e20eb573e82873df50487125ea72859e345a6ed4",
+    "initialFocused": "67/67 + 12/12",
+    "initialNegativeControls": "82/82",
+    "postFreezeAttachmentMatchesCanonical": true
   },
   "stage16_2": {
     "state": "CLOSED_GREEN_SOURCE_OFFLINE_OBSERVATION_LEDGER",
@@ -2105,5 +2107,24 @@
       "classification": "GRAPH_PARTIAL",
       "sha256": "0097423cc658b764c29a6c050732f1ef15a88c904d71b6f52190dd7e60b10983"
     }
+  },
+  "stage16_4": {
+    "state": "IMPLEMENTED_POST_REVIEW_REGRESSIONS_PENDING",
+    "stageClosed": false,
+    "baseHead": "1ba03b4eb1abcf0a79d1ac599fd16a1f7606306b",
+    "primary": 72,
+    "heldOut": 12,
+    "negativeControls": {
+      "total": 89,
+      "caught": 89
+    },
+    "manifestVersion": "15F.4-v43",
+    "declaredSuites": 134,
+    "uniquePins": 162,
+    "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+    "review": "INHERITED_CODE_REVIEW_PLUS_SAME_SESSION_REPAIR_AUDIT_F62_F64",
+    "productionRegistry": "EMPTY",
+    "authority": "NONE",
+    "officialSpecSha256": "b993d52f46afdf87f7687dc6ff8885f2b012589f9b123e1faf14cc54ee73a9ef"
   }
 }

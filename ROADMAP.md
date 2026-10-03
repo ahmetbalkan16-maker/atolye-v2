@@ -1,3 +1,7 @@
+# AYAS current — 2026-10-03 / Codex takeover, 16.4 post-review validation
+
+Claude’s valid Etsy WIP preserved at 1ba03b4eb1abcf0a79d1ac599fd16a1f7606306b. Last closed16.3B. Initial67+12/82 controls reproduced; F62–F64 reproduced and repaired;72+12 and89 controls PASS. 134 suites/162 pins, fullv43 baseline NOT_RUN. Static/selected regression/Graphify exact-source closure pending;16.4 andStage16 OPEN. Next16.5 after16.4 closure, master order unchanged. Normal push authorized at majorStage16 boundary. Exact next:ACTIVE_CHECKPOINT.json.
+
 ## AYAS current — 2026-10-03 / 16.3B source closure
 
 - [x] 16.3B fulfillment gate: exact `e20eb57`, 61+10 / 65 controls / 159 pins / F59-F61 fixed / Graphify.

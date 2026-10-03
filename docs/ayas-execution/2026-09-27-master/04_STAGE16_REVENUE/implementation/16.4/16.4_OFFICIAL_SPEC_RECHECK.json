@@ -1,0 +1,736 @@
+{
+  "checkedAt": "2026-10-03T11:01:48.805Z",
+  "source": "https://www.etsy.com/openapi/generated/oas/3.0.0.json",
+  "sha256": "b993d52f46afdf87f7687dc6ff8885f2b012589f9b123e1faf14cc54ee73a9ef",
+  "servers": [
+    {
+      "url": "https://openapi.etsy.com",
+      "description": "Base URL for all Open API endpoints."
+    }
+  ],
+  "operations": [
+    {
+      "id": "getListingsByShop",
+      "path": "/v3/application/shops/{shop_id}/listings",
+      "method": "get",
+      "security": [
+        {
+          "api_key": [],
+          "oauth2": [
+            "listings_r"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "shop_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "state",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "description": "When _updating_ a listing, this value can be either `active` or `inactive`. Note: Setting a `draft` listing to `active` will also publish the listing on etsy.com and requires that the listing have an image set. Setting a `sold_out` listing to active will update the quantity to 1 and renew the listing on etsy.com.",
+            "enum": [
+              "active",
+              "inactive",
+              "sold_out",
+              "draft",
+              "removed",
+              "expired"
+            ],
+            "default": "active"
+          }
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The maximum number of results to return.",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          }
+        },
+        {
+          "name": "offset",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The number of records to skip before selecting the first result.",
+            "format": "int64",
+            "minimum": 0,
+            "default": 0
+          }
+        },
+        {
+          "name": "sort_on",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "description": "The value to sort a search result of listings on. NOTES: a) `sort_on` only works when combined with one of the search options (keywords, region, etc.). b) when using `score` the returned results will always be in _descending_ order, regardless of the `sort_order` parameter.",
+            "enum": [
+              "created",
+              "price",
+              "updated",
+              "score"
+            ],
+            "default": "created"
+          }
+        },
+        {
+          "name": "sort_order",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "description": "The ascending(up) or descending(down) order to sort listings by. NOTE: sort_order only works when combined with one of the search options (keywords, region, etc.).",
+            "enum": [
+              "asc",
+              "ascending",
+              "desc",
+              "descending",
+              "up",
+              "down"
+            ],
+            "default": "desc"
+          }
+        },
+        {
+          "name": "includes",
+          "required": false,
+          "schema": {
+            "type": "array",
+            "description": "An enumerated string that attaches a valid association. Acceptable inputs are 'Shipping', 'Shop', 'Images', 'User', 'Translations', 'Videos', 'Inventory' and 'Personalization'.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "Shipping",
+                "Images",
+                "Shop",
+                "User",
+                "Translations",
+                "Inventory",
+                "Videos",
+                "Personalization",
+                "BuyerPrice"
+              ]
+            },
+            "default": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "getShopPaymentAccountLedgerEntries",
+      "path": "/v3/application/shops/{shop_id}/payment-account/ledger-entries",
+      "method": "get",
+      "security": [
+        {
+          "api_key": [],
+          "oauth2": [
+            "transactions_r"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "shop_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "min_created",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The earliest unix timestamp for when a record was created.",
+            "format": "int64",
+            "minimum": 946684800
+          }
+        },
+        {
+          "name": "max_created",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The latest unix timestamp for when a record was created.",
+            "format": "int64",
+            "minimum": 946684800
+          }
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The maximum number of results to return.",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          }
+        },
+        {
+          "name": "offset",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The number of records to skip before selecting the first result.",
+            "format": "int64",
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "getShopPaymentByReceiptId",
+      "path": "/v3/application/shops/{shop_id}/receipts/{receipt_id}/payments",
+      "method": "get",
+      "security": [
+        {
+          "api_key": [],
+          "oauth2": [
+            "transactions_r"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "shop_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "receipt_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The numeric ID for the [receipt](/documentation/reference#tag/Shop-Receipt) associated to this transaction.",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "getShopReceipt",
+      "path": "/v3/application/shops/{shop_id}/receipts/{receipt_id}",
+      "method": "get",
+      "security": [
+        {
+          "api_key": [],
+          "oauth2": [
+            "transactions_r"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "shop_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "receipt_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The numeric ID for the [receipt](/documentation/reference#tag/Shop-Receipt) associated to this transaction.",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "legacy",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "description": "This parameter needed to enable new parameters and response values related to processing profiles."
+          }
+        }
+      ]
+    },
+    {
+      "id": "getShopReceipts",
+      "path": "/v3/application/shops/{shop_id}/receipts",
+      "method": "get",
+      "security": [
+        {
+          "api_key": [],
+          "oauth2": [
+            "transactions_r"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "shop_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "min_created",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The earliest unix timestamp for when a record was created.",
+            "format": "int64",
+            "minimum": 946684800,
+            "default": null
+          }
+        },
+        {
+          "name": "max_created",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The latest unix timestamp for when a record was created.",
+            "format": "int64",
+            "minimum": 946684800,
+            "default": null
+          }
+        },
+        {
+          "name": "min_last_modified",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The earliest unix timestamp for when a record last changed.",
+            "format": "int64",
+            "minimum": 946684800,
+            "default": null
+          }
+        },
+        {
+          "name": "max_last_modified",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The latest unix timestamp for when a record last changed.",
+            "format": "int64",
+            "minimum": 946684800,
+            "default": null
+          }
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The maximum number of results to return.",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          }
+        },
+        {
+          "name": "offset",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "description": "The number of records to skip before selecting the first result.",
+            "format": "int64",
+            "minimum": 0,
+            "default": 0
+          }
+        },
+        {
+          "name": "sort_on",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "description": "The value to sort a search result of listings on.",
+            "enum": [
+              "created",
+              "updated",
+              "receipt_id"
+            ],
+            "default": "created"
+          }
+        },
+        {
+          "name": "sort_order",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "description": "The ascending(up) or descending(down) order to sort receipts by.",
+            "enum": [
+              "asc",
+              "ascending",
+              "desc",
+              "descending",
+              "up",
+              "down"
+            ],
+            "default": "desc"
+          }
+        },
+        {
+          "name": "was_paid",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "description": "When `true`, returns receipts where the seller has received payment for the receipt. When `false`, returns receipts where payment has not been received.",
+            "nullable": true
+          }
+        },
+        {
+          "name": "was_shipped",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "description": "When `true`, returns receipts where the seller shipped the product(s) in this receipt. When `false`, returns receipts where shipment has not been set.",
+            "nullable": true
+          }
+        },
+        {
+          "name": "was_delivered",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "description": "When `true`, returns receipts that have been marked as delivered. When `false`, returns receipts where shipment has not been marked as delivered.",
+            "nullable": true
+          }
+        },
+        {
+          "name": "was_canceled",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "description": "When `true`, the endpoint will only return the canceled receipts. When `false`, the endpoint will only return non-canceled receipts.",
+            "nullable": true
+          }
+        },
+        {
+          "name": "legacy",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "description": "This parameter needed to enable new parameters and response values related to processing profiles."
+          }
+        }
+      ]
+    },
+    {
+      "id": "getShop",
+      "path": "/v3/application/shops/{shop_id}",
+      "method": "get",
+      "parameters": [
+        {
+          "name": "shop_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "getMe",
+      "path": "/v3/application/users/me",
+      "method": "get",
+      "security": [
+        {
+          "api_key": [],
+          "oauth2": [
+            "shops_r"
+          ]
+        }
+      ],
+      "parameters": []
+    }
+  ],
+  "Payment": {
+    "shop_id": {
+      "type": "integer",
+      "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+      "format": "int64",
+      "minimum": 1
+    },
+    "amount_gross": {
+      "description": "An integer equal to gross amount of the order, in pennies, including shipping and taxes.",
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/Money"
+        }
+      ]
+    },
+    "amount_fees": {
+      "description": "An integer equal to the original card processing fee of the order in pennies.",
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/Money"
+        }
+      ]
+    },
+    "amount_net": {
+      "description": "An integer equal to the payment value, in pennies, less fees (`amount_gross` - `amount_fees`).",
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/Money"
+        }
+      ]
+    },
+    "currency": {
+      "type": "string",
+      "description": "The ISO (alphabetic) code string for the payment's currency."
+    },
+    "shop_currency": {
+      "type": "string",
+      "description": "The ISO (alphabetic) code for the shop's currency. The shop displays all prices in this currency by default.",
+      "nullable": true
+    },
+    "buyer_currency": {
+      "type": "string",
+      "description": "The currency string of the buyer.",
+      "nullable": true
+    },
+    "status": {
+      "type": "string",
+      "description": "A string indicating the current status of the payment, most commonly \"settled\" or \"authed\"."
+    },
+    "shipped_timestamp": {
+      "type": "integer",
+      "description": "The transaction's shipping date and time, in epoch seconds.",
+      "format": "int64",
+      "nullable": true,
+      "minimum": 946684800
+    },
+    "create_timestamp": {
+      "type": "integer",
+      "description": "The transaction's creation date and time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "created_timestamp": {
+      "type": "integer",
+      "description": "The transaction's creation date and time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "update_timestamp": {
+      "type": "integer",
+      "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "updated_timestamp": {
+      "type": "integer",
+      "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "payment_adjustments": {
+      "type": "array",
+      "description": "List of refund objects on an Etsy Payments transaction. All monetary amounts are in USD pennies unless otherwise specified.",
+      "items": {
+        "description": "List of refund objects on an Etsy Payments transaction. All monetary amounts are in USD pennies unless otherwise specified.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaymentAdjustment"
+          }
+        ]
+      }
+    }
+  },
+  "PaymentAdjustment": {
+    "payment_adjustment_id": {
+      "type": "integer",
+      "description": "The numeric ID for a payment adjustment.",
+      "format": "int64",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "description": "The status string of the payment adjustment."
+    },
+    "total_adjustment_amount": {
+      "type": "integer",
+      "description": "The total numeric amount of the refund in the payment currency.",
+      "format": "int64",
+      "nullable": true,
+      "minimum": 0
+    },
+    "shop_total_adjustment_amount": {
+      "type": "integer",
+      "description": "The numeric amount of the refund in the shop currency.",
+      "format": "int64",
+      "nullable": true,
+      "minimum": 0
+    },
+    "buyer_total_adjustment_amount": {
+      "type": "integer",
+      "description": "The numeric amount of the refund in the buyer currency.",
+      "format": "int64",
+      "nullable": true,
+      "minimum": 0
+    },
+    "total_fee_adjustment_amount": {
+      "type": "integer",
+      "description": "The numeric amount of card processing fees associated with a payment adjustment.",
+      "format": "int64",
+      "nullable": true,
+      "minimum": 0
+    },
+    "create_timestamp": {
+      "type": "integer",
+      "description": "The transaction's creation date and time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "created_timestamp": {
+      "type": "integer",
+      "description": "The transaction's creation date and time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "update_timestamp": {
+      "type": "integer",
+      "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "updated_timestamp": {
+      "type": "integer",
+      "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "payment_adjustment_items": {
+      "type": "array",
+      "description": "List of payment adjustment line items.",
+      "items": {
+        "description": "List of payment adjustment line items.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaymentAdjustmentItem"
+          }
+        ]
+      }
+    }
+  },
+  "ShopReceipt": {
+    "status": {
+      "type": "string",
+      "description": "The current order status string. One of: `paid`, `completed`, `open`, `payment processing` or `canceled`.",
+      "enum": [
+        "paid",
+        "completed",
+        "open",
+        "payment processing",
+        "canceled",
+        "fully refunded",
+        "partially refunded"
+      ]
+    },
+    "create_timestamp": {
+      "type": "integer",
+      "description": "The receipt's creation time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "created_timestamp": {
+      "type": "integer",
+      "description": "The receipt's creation time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "update_timestamp": {
+      "type": "integer",
+      "description": "The time of the last update to the receipt, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "updated_timestamp": {
+      "type": "integer",
+      "description": "The time of the last update to the receipt, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    }
+  },
+  "ShopListing": {
+    "shop_id": {
+      "type": "integer",
+      "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+      "format": "int64",
+      "minimum": 1
+    },
+    "creation_timestamp": {
+      "type": "integer",
+      "description": "The listing's creation time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "created_timestamp": {
+      "type": "integer",
+      "description": "The listing's creation time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "ending_timestamp": {
+      "type": "integer",
+      "description": "The listing's expiration time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "original_creation_timestamp": {
+      "type": "integer",
+      "description": "The listing's creation time, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "last_modified_timestamp": {
+      "type": "integer",
+      "description": "The time of the last update to the listing, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "updated_timestamp": {
+      "type": "integer",
+      "description": "The time of the last update to the listing, in epoch seconds.",
+      "format": "int64",
+      "minimum": 946684800
+    },
+    "state_timestamp": {
+      "type": "integer",
+      "description": "The date and time of the last state change of this listing.",
+      "format": "int64",
+      "nullable": true,
+      "minimum": 946684800
+    }
+  }
+}
