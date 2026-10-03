@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "sourceHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+  "evidenceClass": "EXACT_CLEAN_SOURCE_TEMP_LOCAL_CLONE_NO_REMOTE_SCRUBBED_ENV",
+  "sourceDigest": "6ef902b7af21d54b01592c8f78222735b19f72c535e6b3ae51ec9bcfe0daaed0",
+  "sourceUnchanged": true,
+  "rows": [
+    {
+      "script": "smoke-ayas-patch-detectors.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 522,
+      "stdout": "AYAS patch detectors smoke: PASS (37 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-patch-detectors\",\"scenarios\":37}\n",
+      "stderr": "",
+      "ramPercent": 49.05995638664602
+    },
+    {
+      "script": "smoke-brain-selfheal.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 240,
+      "stdout": "Atölye Brain self-heal (pure core) smoke: PASS (41 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}\n",
+      "stderr": "",
+      "ramPercent": 49.03148097533219
+    },
+    {
+      "script": "smoke-brain-selfheal-security.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 229,
+      "stdout": "Atölye Brain self-heal security smoke: PASS (14 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal-security\",\"scenarios\":14}\n",
+      "stderr": "",
+      "ramPercent": 49.03036169669643
+    },
+    {
+      "script": "smoke-ayas-adaptation-pipeline.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 193,
+      "stdout": "AYAS adaptation pipeline smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-adaptation-pipeline\",\"scenarios\":7}\n",
+      "stderr": "",
+      "ramPercent": 49.018157948990506
+    },
+    {
+      "script": "smoke-ayas-eval-governance.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 304,
+      "stdout": "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)\n",
+      "stderr": "",
+      "ramPercent": 49.01897634627256
+    },
+    {
+      "script": "smoke-ayas-eval-governance-mutations.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 2720,
+      "stdout": "Stage 15F.4 mutation audit: PASS (8/8 caught; TEMP only)\n",
+      "stderr": "",
+      "ramPercent": 49.335551671377864
+    }
+  ]
+}

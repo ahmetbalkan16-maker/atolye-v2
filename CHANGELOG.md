@@ -1,3 +1,7 @@
+# AYAS current — 2026-10-03 /16.7 framework verified;16.8 active
+
+Exact source e634a73: course57+12/Udemy53+12,56 controls,31 selected+6 extra regressions and173 committed pins PASS. Graphify18498/52948 current, integrity clean; inheritedPARTIAL9/semanticPENDING. Fullv46 NOT_RUN. Udemy reviews/Q&A/individual-message route qualification remains pending;16.7 stageClosed=false.16.5 official tool qualification also pending. Independent16.8 Lemon Squeezy source proceeds in order. No live account, publication, send, money, provider/job or registration. Stage16/Master OPEN. Evidence:implementation/16.7/16.7_EXACT_SOURCE_RECEIPT.json; exact next ACTIVE_CHECKPOINT.json.
+
 # AYAS current —2026-10-03 /16.7 source implemented; exact validation pending
 
 Course57+12/Udemy53+12 and56 assertion-caught controls PASS; TS/changed lint0 errors, full lint0 errors/13 inherited warnings. Manifestv46:141 suites/173 pins; fullbaseline NOT_RUN. Two captured official GET routes, other review/Q&A/individual-message routes unqualified; Stage16.7 not fully closed. Coarse token policy source default closed; global scoped gate unchanged. No live account, provider/job, publication, send, money or registration. Stage16.5 qualification remains pending; Stage16/Master OPEN. Next31+6 exact-source regressions/Graphify/receipt, then independent16.8 in order. SeeACTIVE_CHECKPOINT.json.

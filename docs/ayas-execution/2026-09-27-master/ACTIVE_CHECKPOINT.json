@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
-  "currentHead": "347913089d518ecd929a911cced4dcf6ac21ed0f",
-  "stage": "STAGE_16_7",
-  "subtask": "16.7 source implementation; exact-source validation pending; official review/Q&A/individual-message routes unresolved",
+  "currentHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+  "stage": "STAGE_16_8",
+  "subtask": "16.8 Lemon Squeezy Graphify-first inspection and official REST/webhook qualification; carry unresolved16.5 and16.7",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -253,15 +253,15 @@
     "Graphify current exact source; zero integrity anomalies; PARTIAL9 /semanticPENDING"
   ],
   "graphify": {
-    "at": "2026-10-03T12:35:29.068Z",
-    "head": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
-    "lastAnalyzedHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
-    "graphBuiltFrom": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "at": "2026-10-03T13:20:33.948Z",
+    "head": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "lastAnalyzedHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "graphBuiltFrom": "e634a73a9613e25938cc3ef223519a36deb8ac05",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 18422,
-    "edges": 52712,
-    "communities": 373,
+    "nodes": 18498,
+    "edges": 52948,
+    "communities": 374,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -273,7 +273,7 @@
     "semanticStatus": "PENDING",
     "worktreeState": "CLEAN",
     "classification": "GRAPH_PARTIAL",
-    "sha256": "5e50efb90dbf99744f8a048354ce07d679e98b9de48d8b6f83b76eacd1a6c2c5"
+    "sha256": "dac62463973927a844aa6ea5e9c8355b79ec02a73f5670268a5bd5ab5da78c48"
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -297,10 +297,11 @@
     "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
     "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload.",
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
-    "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
+    "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only.",
+    "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure."
   ],
-  "nextAction": "Commit16.7 source; exact31 selected+6 extra regressions, Graphify integrity and173 committed pins. Then independent16.8 in canonical order, carry unresolved16.5 and16.7. Stage16/Master remainOPEN.",
-  "updatedAt": "2026-10-03T13:09:09.439Z",
+  "nextAction": "Refresh Graphify after documentation commit, inspect16.8 related source, implement official bounded TEST-first GET/pointer webhook/local plans. Keep16.5 and16.7 qualification pending; Stage16/Master OPEN.",
+  "updatedAt": "2026-10-03T13:20:33.948Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1407,7 +1408,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Run exact16.7 source validation before modifying further source.",
+  "resumeNextAction": "16.8 Graphify-first source work. No live account or authority promotion.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -1670,7 +1671,7 @@
       "supersededBy": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
     }
   ],
-  "currentHeadSemantics": "Exact tested source; later documentation-only closure commit may follow. Resolve actual Git HEAD.",
+  "currentHeadSemantics": "Tested16.7 source; later documentation-only descendant may follow. Resolve actual git HEAD.",
   "stage15Closure": {
     "state": "CLOSED_SOURCE_COMBINED",
     "closedOn": "2026-10-03",
@@ -2128,7 +2129,7 @@
     "exactReceipt": "04_STAGE16_REVENUE/implementation/16.6/16.6_EXACT_SOURCE_RECEIPT.json"
   },
   "stage16_7": {
-    "state": "IMPLEMENTED_PENDING_EXACT_SOURCE_VALIDATION_PARTIAL_ENDPOINT_QUALIFICATION",
+    "state": "FRAMEWORK_VERIFIED_PARTIAL_ENDPOINT_QUALIFICATION_PENDING",
     "stageClosed": false,
     "baseHead": "347913089d518ecd929a911cced4dcf6ac21ed0f",
     "course": {
@@ -2158,6 +2159,43 @@
     "productionRegistry": "EMPTY",
     "authority": "NONE",
     "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F71_FIXED",
-    "specRecheck": "04_STAGE16_REVENUE/implementation/16.7/16.7_OFFICIAL_SPEC_RECHECK.json"
+    "specRecheck": "04_STAGE16_REVENUE/implementation/16.7/16.7_OFFICIAL_SPEC_RECHECK.json",
+    "sourceCommit": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "testedSourceHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "selectedRegressionSuites": 31,
+    "extraRegressionSuites": 6,
+    "graphify": {
+      "at": "2026-10-03T13:20:33.948Z",
+      "head": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+      "lastAnalyzedHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+      "graphBuiltFrom": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+      "stale": false,
+      "needsUpdate": false,
+      "nodes": 18498,
+      "edges": 52948,
+      "communities": 374,
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0,
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "worktreeState": "CLEAN",
+      "classification": "GRAPH_PARTIAL",
+      "sha256": "dac62463973927a844aa6ea5e9c8355b79ec02a73f5670268a5bd5ab5da78c48"
+    },
+    "exactReceipt": "04_STAGE16_REVENUE/implementation/16.7/16.7_EXACT_SOURCE_RECEIPT.json",
+    "result": "04_STAGE16_REVENUE/implementation/16.7/16.7_RESULT.json"
+  },
+  "stage16_8": {
+    "state": "INSPECTION_IN_PROGRESS",
+    "stageClosed": false,
+    "baseHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "authority": "NONE",
+    "productionRegistry": "EMPTY",
+    "externalWrites": "CLOSED"
   }
 }

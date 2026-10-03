@@ -1064,3 +1064,7 @@ Exact source f7a5188:52+12 scenarios;48 controls (46 caught,2 verified equivalen
 ## 2026-10-03T13:09:09.439Z —16.7 source implementation
 
 Course57+12/Udemy53+12 and56 assertion-caught controls PASS; TS/changed lint0 errors, full lint0 errors/13 inherited warnings. Manifestv46:141 suites/173 pins; fullbaseline NOT_RUN. Two captured official GET routes, other review/Q&A/individual-message routes unqualified; Stage16.7 not fully closed. Coarse token policy source default closed; global scoped gate unchanged. No live account, provider/job, publication, send, money or registration. Stage16.5 qualification remains pending; Stage16/Master OPEN. Next31+6 exact-source regressions/Graphify/receipt, then independent16.8 in order. SeeACTIVE_CHECKPOINT.json.
+
+## 2026-10-03 —16.7 exact-source framework verification
+
+e634a73: course57+12/Udemy53+12,56 caught controls,31 selected+6 extra regressions,173 committed pins, v45 archive exact, TS/lint/diff PASS. Graphify current18498/52948/374, integrity0, PARTIAL9/semanticPENDING. Framework verified, stageClosed=false: official review/Q&A/individual-message endpoint qualification pending. Fullv46 NOT_RUN. Carry16.5; independent16.8 proceeds; Stage16/Master OPEN, no live effect or authority.

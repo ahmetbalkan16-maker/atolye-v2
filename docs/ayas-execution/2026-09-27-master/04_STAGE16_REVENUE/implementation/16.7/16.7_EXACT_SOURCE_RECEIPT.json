@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T13:20:33.948Z",
+  "testedSourceHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+  "testedSourceInitiallyClean": true,
+  "manifestVersion": "15F.4-v46",
+  "declaredSuites": 141,
+  "uniqueCommittedPins": 173,
+  "pinDrift": [],
+  "archiveV45Exact": true,
+  "sourceInputs": [
+    {
+      "file": "docs/AYAS_REVENUE_UDEMY_ATOLYE.md",
+      "sha256": "07cc060ded3a3b8b8f609d9d11f394b9dccccde611281166dfa27a6512dc7b2e",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-course-fixture.ts",
+      "sha256": "c52976549a1fc88fbd24144dfca916ac01488cef3866d62ea15401927301ace5",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-udemy-fixture.ts",
+      "sha256": "e298d5563246956895fa695c45799a0a0fa6eebbc621ca1d1d6fe9ddbed49ce2",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-course-production-plan.ts",
+      "sha256": "3dc36cf4ea53c8af960aa18f9b9af3d6b14b746163a5619cbac52cad65668b4c",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "05a899c242beda15e99963531efc577b55d60ab2888dd4e96e7ffb443085fff7",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+      "sha256": "dcfc41b49c23b355dbc920c0edf4b6ac8b359973c5436d250f78a11bf570dd2e",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-udemy-course-mutations.ts",
+      "sha256": "2f20420bd70871b8e984bf47101bc9a647b603e5929418b9faba85559b8a1a17",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/udemy/AyasUdemyAdapter.ts",
+      "sha256": "ca790a5cf7cdbb186e81bbf34f7c776ce255980ff1c51a3baafeb65277eab090",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/udemy/AyasUdemyCourseReadModel.ts",
+      "sha256": "7eacf79de6022197a7c4666490ccd8fd435542fd8d7bbfc7e4438d3c25ce1c3c",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/udemy/AyasUdemySupportWorkflow.ts",
+      "sha256": "cd90e739571293f8877b0307ddee7c2155aa4eaa65bd6215a275b0ae96c66242",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/content/AyasCourseAssetManifest.ts",
+      "sha256": "8cec5c0e29b597db8ad7031ec4a1412e4c0b9851528fa12d1e671ea70a84903c",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/content/AyasCourseProductionPlan.ts",
+      "sha256": "c99f5af05ee204a1d64414a81bf8182e18abea300603246e227fe826412f051f",
+      "committed": true
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "54f332bc6ca9363f3cd72551ecc9c06f85df6b462d64cf18e2d1103eb277c966",
+      "committed": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "bb7f5f1e8554912087875d37982ed115b7685c96c01ea34021a7e91fbfbb0750",
+      "committed": true
+    }
+  ],
+  "course": {
+    "primary": 57,
+    "heldOut": 12
+  },
+  "udemy": {
+    "primary": 53,
+    "heldOut": 12
+  },
+  "negativeControls": {
+    "total": 56,
+    "caught": 56,
+    "equivalents": 0
+  },
+  "selectedExactSourceSuites": 31,
+  "extraExactSourceSuites": 6,
+  "fullDeclaredBaseline": "NOT_RUN_V46_LAST_COMPLETE_V38_5cbb217",
+  "graphify": {
+    "at": "2026-10-03T13:20:33.948Z",
+    "head": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "lastAnalyzedHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "graphBuiltFrom": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18498,
+    "edges": 52948,
+    "communities": 374,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "dac62463973927a844aa6ea5e9c8355b79ec02a73f5670268a5bd5ab5da78c48"
+  },
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F71_FIXED",
+  "state": "FRAMEWORK_VERIFIED_PARTIAL_ENDPOINT_QUALIFICATION_PENDING",
+  "stageClosed": false,
+  "courseComponent": "VERIFIED_SOURCE_ADVISORY_OWNER_UPLOAD_ONLY",
+  "qualifiedGetRoutes": 2,
+  "unqualifiedReadRoutes": [
+    "REVIEWS",
+    "QUESTIONS",
+    "INDIVIDUAL_MESSAGES"
+  ],
+  "coarseTokenPolicy": "SOURCE_DEFAULT_CLOSED_OWNER_AND_COST_BINDING_REQUIRED",
+  "productionRegistry": "EMPTY",
+  "authority": "NONE",
+  "externalWrites": "CLOSED",
+  "financialExecution": "NONE",
+  "actualMediaOrLiveQualification": "NOT_RUN",
+  "deferred16_5": "OFFICIAL_TOOL_QUALIFICATION_PENDING_OWNER_OAUTH_AFTER_FOUNDATION",
+  "next": "16.8 independent source; carry16.5 and16.7; Stage16/Master OPEN"
+}
