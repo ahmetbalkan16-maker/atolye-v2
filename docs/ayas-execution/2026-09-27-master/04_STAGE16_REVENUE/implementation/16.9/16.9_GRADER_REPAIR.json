@@ -1,0 +1,78 @@
+{
+  "at": "2026-10-03T17:19:31.564Z",
+  "finding": "F81",
+  "failedExactHead": "6b6bc6e3443f79006491197d3b8c4c17cd5cd7da",
+  "case": "P48",
+  "failure": "Regex treated the closed schema key \"from\" as a module import.",
+  "repair": "Use TypeScript AST for literal static/dynamic/export dependencies; reject invalid syntax and nonliteral imports. All dependency allowlists, no-network/env/fs/consumer restrictions retained.",
+  "addedPrimary": "P55",
+  "negativeControls": "Three independent forbidden static/dynamic/export imports must fail P48; no module-load failures counted.",
+  "dependencyContext": {
+    "status": "ok",
+    "summary": "Review context for 3 changed file(s):\n  - Risk: high\n  - 164 impacted nodes in 59 files",
+    "risk": "high",
+    "changedFileCount": 3,
+    "impactedFileCount": 59,
+    "keyEntities": [
+      "ALL_OPS",
+      "AYAS_REVENUE_DEFAULT_REINVESTMENT_POLICY",
+      "AyasRevenueReinvestmentPolicy.ts",
+      "AyasRevenueReviewedReinvestmentPolicy",
+      "Outcome"
+    ],
+    "testGaps": 36,
+    "nextToolSuggestions": [
+      "detect-changes",
+      "affected-flows",
+      "review-context"
+    ]
+  },
+  "graphAfter": {
+    "at": "2026-10-03T17:19:32.287Z",
+    "head": "6b6bc6e3443f79006491197d3b8c4c17cd5cd7da",
+    "lastAnalyzedHead": "6b6bc6e3443f79006491197d3b8c4c17cd5cd7da",
+    "graphBuiltFrom": "6b6bc6e3443f79006491197d3b8c4c17cd5cd7da",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18609,
+    "edges": 53331,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "cc0078062bd0a1eb1e27754c899b2668bcfa5e2ec599d162f8cee3e74f15b406",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "rows": [
+    {
+      "name": "TypeScript",
+      "exit": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "changed-eslint",
+      "exit": 0,
+      "status": "PASS"
+    }
+  ],
+  "focused": "Stage 16.0 revenue adapter standard: PASS (55/55 primary, 10/10 held-out; fake adapters only)\n{\"status\":\"PASS\",\"suite\":\"ayas-revenue-adapter-standard\",\"primary\":{\"pass\":55,\"fail\":0,\"total\":55},\"heldOut\":{\"pass\":10,\"fail\":0,\"total\":10},\"network\":\"NONE\",\"credentials\":\"NONE\",\"productionAdapters\":0}\n",
+  "mutations": "Stage 16.0 revenue adapter standard mutation audit: PASS (77/77 caught)\n"
+}

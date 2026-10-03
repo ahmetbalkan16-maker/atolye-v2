@@ -23,6 +23,9 @@ const REGISTRY = "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts", REDACTIO
 const TYPES = "src/lib/ayas/revenue/AyasRevenuePlatformTypes.ts", SAFETY = "src/lib/brain/selfheal/BrainPatchSafety.ts";
 /** Each change weakens a real contract; the named scenario must fail with an assertion, not a loader error. */
 const mutants: readonly (readonly [string, string, string, string, string, number?])[] = [
+  ["forbidden static module import", POLICY, "import { evaluateAyasZeroCost", "import \"node:os\";\nimport { evaluateAyasZeroCost", "P48"],
+  ["forbidden dynamic module import", POLICY, "import { evaluateAyasZeroCost", "const forbiddenProbe = () => import(\"node:os\");\nimport { evaluateAyasZeroCost", "P48"],
+  ["forbidden module export", POLICY, "import { evaluateAyasZeroCost", "export { tmpdir as forbiddenProbe } from \"node:os\";\nimport { evaluateAyasZeroCost", "P48"],
   ["autonomous financial manifest accepted", ADAPTER, "raw.financialOperationsAutonomous !== false", "false", "P02"],
   ["owner-free writes accepted", ADAPTER, "raw.writeOperationsRequireOwnerApproval !== true", "false", "P03"],
   ["unknown manifest platform accepted", ADAPTER, "!isAyasRevenuePlatform(raw.platform)", "false", "P04"],

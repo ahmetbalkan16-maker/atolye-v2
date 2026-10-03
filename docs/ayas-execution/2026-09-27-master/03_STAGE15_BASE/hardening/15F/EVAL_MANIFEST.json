@@ -2202,7 +2202,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "641217971c1a752b8333a622df71fd887f1040ee9f23c59e0ab2f91805aaad2e"
+          "sha256": "2656c978fb1ed44e6e52c3ffdb59b6b685a01b01293ddf635bf762ad0d81b35d"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
@@ -2224,11 +2224,11 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "641217971c1a752b8333a622df71fd887f1040ee9f23c59e0ab2f91805aaad2e"
+          "sha256": "2656c978fb1ed44e6e52c3ffdb59b6b685a01b01293ddf635bf762ad0d81b35d"
         },
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
-          "sha256": "49b421bf91c1fd02dfc512b779975d61b4f712b5f0a31434dc75588fda3eb5ec"
+          "sha256": "731ec6e059ca2c6a49f34428ee47b6e45d2ec994b374b73959ef79c5064dfef8"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",

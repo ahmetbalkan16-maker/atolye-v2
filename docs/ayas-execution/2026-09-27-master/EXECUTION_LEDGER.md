@@ -1084,3 +1084,7 @@ Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33
 ## 2026-10-03T17:04:35.389Z —F80 /16.9 exact-source architecture regression
 
 P48 failed53/54+10/10 at ce93d31: direct crypto/provenance imports escape the isolated digest boundary. Seven prior selected suites PASS; remaining pending. Repair source without weakening P48; no later stage advancement.
+
+## 2026-10-03T17:19:31.564Z —F81 /16.9 AST import grader repair
+
+P48 dependency regex misread schema field "from" after F80 repair at6b6bc6e. AST now inspects actual static/dynamic/export dependencies and rejects nonliteral/invalid syntax. Existing allowlists and network/env/fs/consumer restrictions remain. AddedP55 and3 forbidden-import controls; source/test repair exact receipts pending.

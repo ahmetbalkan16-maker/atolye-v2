@@ -5,7 +5,7 @@
   "lastGreenHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
   "currentHead": "ce93d3132f150288d04bf421e8f26b5fe268304f",
   "stage": "STAGE_16_9",
-  "subtask": "16.9 P48 architecture isolation repair; no16.10 advancement",
+  "subtask": "16.9 F80 production/F81 grader repaired; rerun clean exact source before16.10",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -324,7 +324,7 @@
     "STAGE16_CLOSURE_BLOCKER:16.8 actual owner Test-mode key/connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
   "nextAction": "Repair digest isolation; focused graders/static checks; clean fix commit; full current Graphify; rerun35+6 exact-source regressions and179 committed pins.",
-  "updatedAt": "2026-10-03T17:06:08.667Z",
+  "updatedAt": "2026-10-03T17:19:31.564Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -2418,7 +2418,7 @@
     "result": "04_STAGE16_REVENUE/implementation/16.8/16.8_RESULT.json"
   },
   "stage16_9": {
-    "state": "ARCHITECTURE_REPAIRED_PENDING_CLEAN_EXACT_SOURCE_REGRESSION",
+    "state": "AST_GRADER_REPAIRED_PENDING_EXACT_SOURCE_REGRESSION",
     "stageClosed": false,
     "baseHead": "821ecbd62c3a3bdeb35cdc97d294c108214ce1ad",
     "defaultPolicy": "DISABLED_ZERO_EMPTY_CAPS",

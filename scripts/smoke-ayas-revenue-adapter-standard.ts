@@ -1,12 +1,13 @@
 /**
  * Stage 16.0 evaluator — revenue platform adapter standard.
- * 54 primary + 10 frozen held-out scenarios. Pure and deterministic: fake adapters only, no network,
+ * 55 primary + 10 frozen held-out scenarios. Pure and deterministic: fake adapters only, no network,
  * no credentials, no file writes. `AYAS_REVENUE_MUTATION_CASE=<id>` runs one scenario uncaught (negative controls).
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import ts from "typescript";
 import { classifyPatchTarget } from "../src/lib/brain/selfheal/BrainPatchSafety";
 import { AYAS_REVENUE_OPERATIONS, AYAS_REVENUE_OPERATION_EFFECT, AYAS_REVENUE_PLATFORMS, AYAS_REVENUE_MODES, type AyasRevenueOperation } from "../src/lib/ayas/revenue/AyasRevenuePlatformTypes";
 import { ayasRevenueEffect, ayasRevenueModeFor, decideAyasRevenueOperation } from "../src/lib/ayas/revenue/AyasRevenueActionPolicy";
@@ -16,6 +17,21 @@ import { containsAyasRevenueSensitiveData } from "../src/lib/ayas/revenue/AyasRe
 import { createFakeRevenueAdapter, fakeRevenueAnswer, fakeRevenueManifest, type FakeRevenueOptions } from "./fixtures/ayas-revenue-fake-adapter";
 
 const AT = "2026-10-03T12:00:00.000Z";
+/** Import/export syntax only: a field named "from" or an example in a comment is data. */
+function revenueModuleImports(source: string): readonly string[] {
+  const tree = ts.createSourceFile("revenue.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  assert.equal((tree as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length, 0, "invalid source syntax");
+  const imports: string[] = [];
+  const literal = (node: ts.Node | undefined) => { assert.ok(node && ts.isStringLiteral(node), "nonliteral module import"); imports.push(node.text); };
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node)) literal(node.moduleSpecifier);
+    else if (ts.isExportDeclaration(node) && node.moduleSpecifier) literal(node.moduleSpecifier);
+    else if (ts.isImportEqualsDeclaration(node)) { assert.ok(ts.isExternalModuleReference(node.moduleReference)); literal(node.moduleReference.expression); }
+    else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) { assert.equal(node.arguments.length, 1); literal(node.arguments[0]); }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree); return imports;
+}
 const SELECTED = process.env.AYAS_REVENUE_MUTATION_CASE;
 if (SELECTED !== undefined) {
   const cwd = fs.realpathSync.native(process.cwd());
@@ -326,7 +342,7 @@ async function main() {
         "AyasRevenueDigest.ts": ["node:crypto", "../provenance/AyasReleaseProvenance"],
         "AyasRevenueLedgerStore.ts": ["node:fs", "node:path", "node:crypto", "../../runtime/RuntimeStoragePaths", "../../brain/autonomy/AyasExecutionAuthorityLock", "../safety/AyasSafeModeReader"],
       };
-      for (const m of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) assert.ok(allowed.test(m[1]!) || extensions[file]?.includes(m[1]!), `${file} imports ${m[1]}`);
+      for (const dependency of revenueModuleImports(source)) assert.ok(allowed.test(dependency) || extensions[file]?.includes(dependency), `${file} imports ${dependency}`);
       assert.doesNotMatch(source, /(?<![.\w])fetch\s*\(|https?:\/\/|child_process|process\.env|require\(|XMLHttpRequest|WebSocket/, file);
       if (file !== "AyasRevenueLedgerStore.ts") assert.doesNotMatch(source, /node:fs/, file);
     }
@@ -336,6 +352,12 @@ async function main() {
     for (const root of ["src", "app"]) if (fs.existsSync(root)) walk(root);
     assert.deepEqual(outside, []);
     assert.match(fs.readFileSync(path.join(REVENUE_DIR, "AyasRevenuePlatformRegistry.ts"), "utf8"), /AYAS_REVENUE_PRODUCTION_ADAPTERS: readonly AyasRevenuePlatformAdapter\[\] = Object\.freeze\(\[\]\);/);
+  });
+  await scenario("primary", "P55", "module audit distinguishes data and detects static, dynamic and export dependencies", () => {
+    assert.deepEqual(revenueModuleImports('const keys = ["from", "to"]; // import "node:fs"\n'), []);
+    assert.deepEqual(revenueModuleImports('import type { Stats }\nfrom "node:fs"; export { resolve } from "node:path"; const probe = () => import("node:os");'), ["node:fs", "node:path", "node:os"]);
+    assert.throws(() => revenueModuleImports('const probe = (module: string) => import(module);'));
+    assert.throws(() => revenueModuleImports('import { broken from "node:fs";'));
   });
   await scenario("primary", "P49", "revenue policy, its standard and its graders cannot rewrite themselves", () => {
     for (const file of ["src/lib/ayas/revenue/AyasRevenueActionPolicy.ts", "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts", "src/lib/ayas/revenue/NewFile.ts", "docs/AYAS_REVENUE_ADAPTER_STANDARD.md",
@@ -440,7 +462,7 @@ async function main() {
   if (SELECTED !== undefined) { assert.equal(results.length, 1, `unknown case ${SELECTED}`); console.log(`case ${SELECTED}: PASS`); return; }
   const tally = (set: string) => ({ pass: results.filter((r) => r.set === set && r.outcome === "PASS").length, fail: results.filter((r) => r.set === set && r.outcome === "FAIL").length, total: results.filter((r) => r.set === set).length });
   for (const r of results) if (r.outcome !== "PASS") console.log(`FAIL ${r.id} ${r.detail ?? ""}`);
-  const primary = tally("primary"), heldOut = tally("held-out"), pass = primary.fail === 0 && heldOut.fail === 0 && primary.total === 54 && heldOut.total === 10;
+  const primary = tally("primary"), heldOut = tally("held-out"), pass = primary.fail === 0 && heldOut.fail === 0 && primary.total === 55 && heldOut.total === 10;
   console.log(`Stage 16.0 revenue adapter standard: ${pass ? "PASS" : "FAIL"} (${primary.pass}/${primary.total} primary, ${heldOut.pass}/${heldOut.total} held-out; fake adapters only)`);
   console.log(JSON.stringify({ status: pass ? "PASS" : "FAIL", suite: "ayas-revenue-adapter-standard", primary, heldOut, network: "NONE", credentials: "NONE", productionAdapters: 0 }));
   process.exitCode = pass ? 0 : 1;
