@@ -5,7 +5,7 @@
   "lastGreenHead": "5cbb21706eb12693555a9fefbc7554fadf175049",
   "currentHead": "48c9de2534678c5aa50aab7b2ab831fe532a54bb",
   "stage": "STAGE_16_2",
-  "subtask": "16.2-architecture-and-durable-ledger-implementation",
+  "subtask": "16.2-reviewed-affected-regressions-pass-final-source-commit-graphify-pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -237,7 +237,18 @@
     "16.0+16.0A-closure-GREEN-source",
     "16.1-zero-spend-source-independent-review-closure"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/revenue/AyasRevenueLedger.ts",
+    "src/lib/ayas/revenue/AyasRevenueLedgerStore.ts",
+    "src/lib/ayas/revenue/AyasRevenueEconomics.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "scripts/smoke-ayas-revenue-ledger.ts",
+    "scripts/smoke-ayas-revenue-ledger-mutations.ts",
+    "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
+    "scripts/fixtures/ayas-revenue-ledger-worker.ts",
+    "scripts/smoke-ayas-revenue-adapter-standard.ts",
+    "scripts/smoke-ayas-eval-governance.ts"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -418,8 +429,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Implement canonical16.2 with TEMP-only tests, atomic/fsync/exclusive lock, digest-only immutable observations, separate currencies and reversal/evidence rules; review, affected regressions, Graphify, local commit; continue16.3. NO PUSH.",
-  "updatedAt": "2026-10-03T06:51:20.587Z",
+  "nextAction": "Finish16.2 exact-source commit/Graphify/pin/clean receipt and source closure, then canonical16.3 free-first validation. LOCAL COMMIT ONLY / NO PUSH.",
+  "updatedAt": "2026-10-03T07:33:16.304Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1938,5 +1949,22 @@
     ],
     "reason": "Expected local source/docs commits under NO PUSH",
     "independentReviewAuthorization": "devam et"
+  },
+  "stage16_2": {
+    "state": "SOURCE_REVIEWED_AFFECTED_TESTS_PASS_FINAL_GATES_PENDING",
+    "stageClosed": false,
+    "primary": 53,
+    "heldOut": 10,
+    "negativeControls": {
+      "total": 30,
+      "caught": 29,
+      "safetyEquivalent": 1
+    },
+    "manifestVersion": "15F.4-v39",
+    "declaredSuites": 126,
+    "uniquePins": 150,
+    "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+    "independentReview": "PASS_AFTER_ALL_FINDINGS_FIXED",
+    "notes": "04_STAGE16_REVENUE/implementation/16.2/IMPLEMENTATION_NOTES.md"
   }
 }

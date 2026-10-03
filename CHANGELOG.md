@@ -1,3 +1,7 @@
+## 2026-10-03 —16.2 durable revenue observations and unit economics
+
+Immutable digest-only facts, explicit-root atomic/fsync/exclusive-lock storage, write-free replay/conflict/reversal/capacity/privacy/safemode refusal and purecurrency-separated economics. Payout/tax separate;missingfees incomplete;profit grants noauthority. Independentreview correctionsF48/F49,UTCedgeF50;53+10/29controls+1equivalent and14+9affectedregressions pass. Manifestv39 126/150;exactsourceclosurepending,no fullv39baselineclaim. NO PUSH.
+
 ## 2026-10-03 —16.1 independent source review and closure
 
 Authorized read-only reviewer confirmed spend/action boundaries, 124 baseline results,146pins and frozenv37 archive; no concrete defect.16.1 source CLOSED_GREEN at5cbb217;16.2 now in progress. Full baseline remains tied to testedsource. NO PUSH.

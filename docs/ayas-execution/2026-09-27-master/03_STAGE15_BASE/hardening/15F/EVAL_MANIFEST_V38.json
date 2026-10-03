@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v39",
+  "version": "15F.4-v38",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2202,7 +2202,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "65fa3e52e169c539af6e7aac27dedd9e2fb523c4821f528c235ed2fa92992a9a"
+          "sha256": "4384595063ee7a20abf3e7b8726596fa64cb18948bd1678840d5291bd87d0942"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
@@ -2224,7 +2224,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "65fa3e52e169c539af6e7aac27dedd9e2fb523c4821f528c235ed2fa92992a9a"
+          "sha256": "4384595063ee7a20abf3e7b8726596fa64cb18948bd1678840d5291bd87d0942"
         },
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
@@ -2318,66 +2318,6 @@
       "slices": [
         "revenue-zero-cost",
         "financial-non-autonomy",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-ledger",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-ledger.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-ledger.ts",
-          "sha256": "e6f7546968ef16f5827b6a6f994f36bb59bb69bb3b0968967b102c1977eb3f90"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
-          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-worker.ts",
-          "sha256": "523813cd835c6665dbd6df38e99026ae23ffdf29d3e00e7d36615dccb69c3432"
-        }
-      ],
-      "slices": [
-        "revenue-economics",
-        "durable-observation",
-        "privacy-bounded",
-        "no-spend-authority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-ledger-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-ledger-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-ledger-mutations.ts",
-          "sha256": "382281109985223e57dabf5572c951b0fa231ec7d9c617ba374ce4eb8384f949"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-ledger.ts",
-          "sha256": "e6f7546968ef16f5827b6a6f994f36bb59bb69bb3b0968967b102c1977eb3f90"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
-          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-worker.ts",
-          "sha256": "523813cd835c6665dbd6df38e99026ae23ffdf29d3e00e7d36615dccb69c3432"
-        }
-      ],
-      "slices": [
-        "revenue-economics",
-        "durable-observation",
-        "privacy-bounded",
-        "no-spend-authority",
         "deterministic-outcome"
       ]
     }

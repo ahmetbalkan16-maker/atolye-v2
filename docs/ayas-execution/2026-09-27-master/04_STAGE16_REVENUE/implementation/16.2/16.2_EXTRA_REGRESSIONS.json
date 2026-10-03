@@ -1,0 +1,88 @@
+{
+  "sourceHead": "3b43cdc808378295458b3958161456c6287421fc",
+  "sourceDigest": "691e2dd0bb9ff8b1ff593dc17832dbd013627eb8815783d9d033e07226445a0a",
+  "evidenceClass": "TEMP_LOCAL_CLONE_NO_REMOTE_SCRUBBED_ENV",
+  "rows": [
+    {
+      "script": "smoke-ayas-patch-detectors.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 504,
+      "stdout": "AYAS patch detectors smoke: PASS (37 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-patch-detectors\",\"scenarios\":37}\n",
+      "stderr": "",
+      "ramPercent": 50.76234308586083
+    },
+    {
+      "script": "smoke-brain-selfheal.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 267,
+      "stdout": "Atölye Brain self-heal (pure core) smoke: PASS (41 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}\n",
+      "stderr": "",
+      "ramPercent": 50.637609711872415
+    },
+    {
+      "script": "smoke-brain-selfheal-security.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 216,
+      "stdout": "Atölye Brain self-heal security smoke: PASS (14 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal-security\",\"scenarios\":14}\n",
+      "stderr": "",
+      "ramPercent": 50.624407038072206
+    },
+    {
+      "script": "smoke-ayas-adaptation-pipeline.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 179,
+      "stdout": "AYAS adaptation pipeline smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-adaptation-pipeline\",\"scenarios\":7}\n",
+      "stderr": "",
+      "ramPercent": 50.63005157226754
+    },
+    {
+      "script": "smoke-ayas-autonomous-foundation-acceptance.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 216,
+      "stdout": "{\"status\":\"PASS\",\"suite\":\"ayas-autonomous-foundation-acceptance\",\"scenarios\":42}\n",
+      "stderr": "",
+      "ramPercent": 50.63407134715294
+    },
+    {
+      "script": "smoke-ayas-brain-control-center.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 5097,
+      "stdout": "AYAS Brain Control Center smoke: PASS (39 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-brain-control-center\",\"mode\":\"final\",\"primary\":{\"pass\":22,\"fail\":0,\"missing\":0,\"total\":22},\"heldOut\":{\"pass\":13,\"fail\":0,\"missing\":0,\"total\":13},\"integration\":{\"pass\":4,\"fail\":0,\"missing\":0,\"total\":4}}\n",
+      "stderr": "",
+      "ramPercent": 50.63543133087165
+    },
+    {
+      "script": "smoke-brain-core-ui.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 1281,
+      "stdout": "Atölye Brain Core UI smoke: PASS (43 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-core-ui\",\"scenarios\":43}\n",
+      "stderr": "",
+      "ramPercent": 50.73763470909527
+    },
+    {
+      "script": "smoke-ayas-eval-governance.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 282,
+      "stdout": "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)\n",
+      "stderr": "",
+      "ramPercent": 50.733675110480625
+    },
+    {
+      "script": "smoke-ayas-eval-governance-mutations.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 2512,
+      "stdout": "Stage 15F.4 mutation audit: PASS (8/8 caught; TEMP only)\n",
+      "stderr": "",
+      "ramPercent": 50.73740603926646
+    }
+  ]
+}

@@ -314,15 +314,20 @@ async function main() {
     assert.equal(r.result?.status, "OK"); assert.equal(r.result?.operation, "LISTING_LIST_READ"); assert.equal(r.plan.operation, "LISTING_LIST_READ");
     for (const operation of [" PURCHASE", "purchase", "Purchase"]) assert.equal(decide({ operations: ALL_OPS }, req({ operation, mode: "EXECUTE" })).reason, "UNKNOWN_OPERATION");
   });
-  await scenario("primary", "P48", "the revenue module imports no authority, network, process or file access, and nothing imports it yet", () => {
+  await scenario("primary", "P48", "pure adapter policy stays isolated; only explicit16.2 ledger store has local file access; no live consumer", () => {
     const allowed = /^(?:\.\/AyasRevenue[A-Za-z]+|\.\.\/policy\/AyasZeroCostPolicy|\.\.\/\.\.\/brain\/BrainRedaction)$/;
     const files = fs.readdirSync(REVENUE_DIR).filter((f) => f.endsWith(".ts"));
     // Every file present obeys the rules below; the core standard files must be among them.
     for (const core of ["AyasRevenueActionPolicy.ts", "AyasRevenuePlatformAdapter.ts", "AyasRevenuePlatformRegistry.ts", "AyasRevenuePlatformTypes.ts", "AyasRevenueRedaction.ts"]) assert.ok(files.includes(core), core);
     for (const file of files) {
       const source = fs.readFileSync(path.join(REVENUE_DIR, file), "utf8");
-      for (const m of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) assert.match(m[1]!, allowed, `${file} imports ${m[1]}`);
-      assert.doesNotMatch(source, /(?<![.\w])fetch\s*\(|https?:\/\/|child_process|process\.env|node:fs|require\(|XMLHttpRequest|WebSocket/, file);
+      const extensions: Record<string, readonly string[]> = {
+        "AyasRevenueLedger.ts": ["node:crypto"],
+        "AyasRevenueLedgerStore.ts": ["node:fs", "node:path", "node:crypto", "../../runtime/RuntimeStoragePaths", "../../brain/autonomy/AyasExecutionAuthorityLock", "../safety/AyasSafeModeReader"],
+      };
+      for (const m of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) assert.ok(allowed.test(m[1]!) || extensions[file]?.includes(m[1]!), `${file} imports ${m[1]}`);
+      assert.doesNotMatch(source, /(?<![.\w])fetch\s*\(|https?:\/\/|child_process|process\.env|require\(|XMLHttpRequest|WebSocket/, file);
+      if (file !== "AyasRevenueLedgerStore.ts") assert.doesNotMatch(source, /node:fs/, file);
     }
     const redaction = fs.readFileSync("src/lib/brain/BrainRedaction.ts", "utf8"); assert.doesNotMatch(redaction, /^import /m);
     const outside: string[] = [];

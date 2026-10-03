@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-03T07:33:16.304Z",
+  "baseHead": "3b43cdc808378295458b3958161456c6287421fc",
+  "state": "WIP_VALIDATED_PENDING_EXACT_COMMIT",
+  "files": {
+    "src/lib/ayas/revenue/AyasRevenueLedger.ts": "23361c6d7b71a2b793ef62e5fe108132f95cbf74519a8b985fe72aa0bf510dc8",
+    "src/lib/ayas/revenue/AyasRevenueLedgerStore.ts": "289d5ac9f7764a635c114c1a6f9e37498a8699e056d0e40ace7f05e5ee3f258e",
+    "src/lib/ayas/revenue/AyasRevenueEconomics.ts": "6d28d8d76c2834e4c12ab5fd7ef7ace3bd486cd377c7283b3797a74625eb4c90",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts": "4b1d8bc16631eef5e371b4b7d810dcb5273250a353ba9eb4c156d2a1441a9844",
+    "scripts/smoke-ayas-revenue-ledger.ts": "e6f7546968ef16f5827b6a6f994f36bb59bb69bb3b0968967b102c1977eb3f90",
+    "scripts/smoke-ayas-revenue-ledger-mutations.ts": "382281109985223e57dabf5572c951b0fa231ec7d9c617ba374ce4eb8384f949",
+    "scripts/fixtures/ayas-revenue-ledger-fixture.ts": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89",
+    "scripts/fixtures/ayas-revenue-ledger-worker.ts": "523813cd835c6665dbd6df38e99026ae23ffdf29d3e00e7d36615dccb69c3432",
+    "scripts/smoke-ayas-revenue-adapter-standard.ts": "65fa3e52e169c539af6e7aac27dedd9e2fb523c4821f528c235ed2fa92992a9a",
+    "scripts/smoke-ayas-eval-governance.ts": "d03bbc8a213fc1f7327ddedc0c5fd2f7d334c55d0903c854910b16ad2cf07eb0"
+  }
+}

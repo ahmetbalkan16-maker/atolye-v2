@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-03T07:35:04.388Z",
+  "stage": "STAGE_16_2",
+  "state": "REVIEWED_VALIDATED_PENDING_EXACT_HEAD_GRAPHIFY",
+  "stageClosed": false,
+  "primary": 53,
+  "heldOut": 10,
+  "negativeControls": {
+    "total": 30,
+    "caught": 29,
+    "safetyEquivalent": [
+      "EARLY_CAPACITY_OPTIMIZATION"
+    ]
+  },
+  "manifestVersion": "15F.4-v39",
+  "declaredSuites": 126,
+  "uniquePins": 150,
+  "selectedRegressionSuites": {
+    "declared": 14,
+    "extra": 9,
+    "allPass": true
+  },
+  "typescript": "PASS",
+  "changedLint": "0_ERRORS_0_WARNINGS",
+  "fullLint": "0_ERRORS_13_PRE_EXISTING_WARNINGS",
+  "diffCheck": "PASS",
+  "independentReview": "16.2_INDEPENDENT_REVIEW.json",
+  "lastCompleteBaseline": {
+    "sourceCommit": "5cbb21706eb12693555a9fefbc7554fadf175049",
+    "version": "15F.4-v38",
+    "suites": 124,
+    "knownLimitations": [
+      "cognitive-quality"
+    ]
+  },
+  "newFullDeclaredBaseline": "NOT_RUN",
+  "liveRevenueDirectory": "ABSENT_BEFORE_AND_AFTER",
+  "grantsAuthority": false,
+  "network": "NONE",
+  "moneyMovement": "NONE",
+  "productionBinding": "NONE",
+  "nextAction": "Exact source local commit, Graphify bound, final clean receipt, source closure then16.3;NO PUSH"
+}

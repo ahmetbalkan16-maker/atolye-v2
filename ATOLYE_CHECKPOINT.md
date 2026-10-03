@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.2 source validated; exact HEAD gates pending
+
+16.1 source5cbb217 CLOSED_GREEN after independent review.16.2 durable digest-only ledger +pure economics implemented; independent review repairedF48/F49;UTC edgeF50;53primary/10heldout,30negativecontrols(29caught+1declared equivalent),14selected+9extra TEMP regressions PASS. TS/lint/diff/pins PASS;whole lint13 oldwarnings. v39 126suites/150pins,v38 frozen. Stage16.2 OPEN untilsourcecommit/Graphify/exactreceipt. Last completebaseline still5cbb217 v38 124/124, no newfullbaselineclaim. Nextcanonical16.3 after16.2 closure. NO PUSH/localcommits only, no liveledger/network/money/model/hostactivation. Exactstate ACTIVE_CHECKPOINT.json;master NOTCOMPLETE.
+
 # AYAS current — 2026-10-03 /16.1 independent review PASS;16.2 in progress
 
 Stage16.1 source5cbb217 closed GREEN after authorized read-only independent reviewer found no defect and verified evidence. Exactv38 full baseline124/124 PASS_WITH_KNOWN_LIMITATIONS (existing cognitive limitation),146pins,40+10/36controls,TS/lint/diff/Graphify verified. Review record:04_STAGE16_REVENUE/implementation/16.1/16.1_INDEPENDENT_REVIEW.json. Current canonical task16.2 durable unit-economics ledger; TEMP-only tests, no financial/network execution. NO PUSH, local commits only. Actual Git HEAD can be later docs-only commit; resolvegit. Master NOT COMPLETE. Exact next:ACTIVE_CHECKPOINT.json.
