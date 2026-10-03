@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T17:32:01.651Z",
+  "state": "FRAMEWORK_VERIFIED_DEFAULT_DISABLED_OWNER_POLICY_UNBOUND",
+  "stageClosed": false,
+  "frameworkVerified": true,
+  "sourceCommit": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+  "repairCommits": [
+    "6b6bc6e3443f79006491197d3b8c4c17cd5cd7da",
+    "eee322cb8693a2fd8980d0c4a1d62ea924b17659"
+  ],
+  "testedSourceHead": "eee322cb8693a2fd8980d0c4a1d62ea924b17659",
+  "sourceInitiallyClean": true,
+  "primary": 64,
+  "heldOut": 12,
+  "negativeControls": {
+    "total": 40,
+    "caught": 40,
+    "equivalents": 0
+  },
+  "adapterStandard": {
+    "primary": 55,
+    "heldOut": 10,
+    "negativeControls": 77
+  },
+  "manifestVersion": "15F.4-v48",
+  "declaredSuites": 145,
+  "uniquePins": 179,
+  "pinDrift": [],
+  "committed": true,
+  "archiveV47Exact": true,
+  "selectedExactSourceSuites": 35,
+  "extraExactSourceSuites": 6,
+  "fullDeclaredBaseline": "NOT_RUN_V48_LAST_COMPLETE_V38_5cbb217",
+  "graphify": {
+    "at": "2026-10-03T17:31:54.993Z",
+    "head": "eee322cb8693a2fd8980d0c4a1d62ea924b17659",
+    "lastAnalyzedHead": "eee322cb8693a2fd8980d0c4a1d62ea924b17659",
+    "graphBuiltFrom": "eee322cb8693a2fd8980d0c4a1d62ea924b17659",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18610,
+    "edges": 53335,
+    "communities": 374,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "e804368b05d89f4875d73a822f48811b85d2c421e22e4142aefd3f57c29339c8",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "staticChecks": {
+    "typeScript": "PASS",
+    "changedLint": "PASS",
+    "wholeLint": {
+      "status": "PASS",
+      "errors": 0,
+      "warnings": 13
+    },
+    "diffCheck": "PASS"
+  },
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F77_F81_RECORDED",
+  "inputs": [
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueReinvestmentPolicy.ts",
+      "sha256": "c20b3db679e9d420764cd29a478cc39d698ebdc8360dc31800b8be6d2bdd5d05",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueReinvestmentProposal.ts",
+      "sha256": "bdd168b5bd4284c508da087aa0cbbd475eb7e2f5cada0426f612888ea68bc802",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueDigest.ts",
+      "sha256": "4f42633b1879a62437c0a4931f3790f15c69fcb2a639d6d4ab84b7d513500366",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
+      "sha256": "93ebf1320fd90ba4d37063433561e8af7dd44a0a52b1f58c56b9594d254444be",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-reinvestment-mutations.ts",
+      "sha256": "5194365cc200d8a22e8a43704d1111293bcc275703feb74d3c43421a49fc1b7e",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
+      "sha256": "3c5db7b98b2423f5bf0b89fe67846c1e43871458b01b3c8b3d17585b5c6595b0",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
+      "sha256": "2656c978fb1ed44e6e52c3ffdb59b6b685a01b01293ddf635bf762ad0d81b35d",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
+      "sha256": "731ec6e059ca2c6a49f34428ee47b6e45d2ec994b374b73959ef79c5064dfef8",
+      "committed": true
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "9ecc9bbd08552409aba7ae6af16d4ed22e01aeaa14bf677286d6935550a87aee",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "c027b5398374b493f3c8a13cc23d15d3f9a608174c03d76f089fe113312c5bbe",
+      "committed": true
+    }
+  ],
+  "sourcePolicy": "DISABLED_BPS0_EMPTY_CAPS; REVIEWED_SOURCE_READER_UNBOUND",
+  "authority": "NONE",
+  "financialExecution": "NONE",
+  "externalWrites": "CLOSED",
+  "reservation": "NONE",
+  "productionRegistry": "EMPTY",
+  "evidenceVerification": "SYNTHETIC_NOT_ACTUAL_OWNER_POLICY_OR_LIVE_CERTIFICATION",
+  "next": "16.10 dedicated temporal business memory in canonical order; Stage16/Master OPEN"
+}

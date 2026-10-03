@@ -296,3 +296,7 @@ P48 failed53/54+10/10 at ce93d31: direct crypto/provenance imports escape the is
 ## 2026-10-03T17:19:31.564Z —F81 /16.9 AST import grader repair
 
 P48 dependency regex misread schema field "from" after F80 repair at6b6bc6e. AST now inspects actual static/dynamic/export dependencies and rejects nonliteral/invalid syntax. Existing allowlists and network/env/fs/consumer restrictions remain. AddedP55 and3 forbidden-import controls; source/test repair exact receipts pending.
+
+## 2026-10-03T17:32:01.651Z —16.9 exact-source framework verification
+
+16.9 framework exact-source verified at eee322cb8693a2fd8980d0c4a1d62ea924b17659:64+12/40 controls; adapter55+10/77 controls;35 selected+6 extra TEMP regressions;179 committed pins; TS/lint/diff PASS. F80 production digest isolation andF81 AST import grader repaired without broadening allowlists or weakening privacy/action gates. Graphify current/integrity0;PARTIAL9/semanticPENDING. Fullv48 NOT_RUN. Source policy disabled/0/emptycaps; no actual owner-reviewed source binding, financial authority, reservation or executor. Stage16/Master OPEN; next16.10.

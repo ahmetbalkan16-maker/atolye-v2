@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.9 framework verified;16.10 active
+
+16.9 framework exact-source verified at eee322cb8693a2fd8980d0c4a1d62ea924b17659:64+12/40 controls; adapter55+10/77 controls;35 selected+6 extra TEMP regressions;179 committed pins; TS/lint/diff PASS. F80 production digest isolation andF81 AST import grader repaired without broadening allowlists or weakening privacy/action gates. Graphify current/integrity0;PARTIAL9/semanticPENDING. Fullv48 NOT_RUN. Source policy disabled/0/emptycaps; no actual owner-reviewed source binding, financial authority, reservation or executor. Stage16/Master OPEN; next16.10.
+
 # AYAS current —2026-10-03 /16.9 source implemented; exact validation pending
 
 16.9 pure realized-ledger reinvestment advice implemented:63+12 and40/40 controls PASS; defaults disabled/0/emptycaps; exact-source closure pending. F77 expiry reproduced/fixed, F78 fixture false-positive isolated without scanner change, F79 independent prior-loss probe. No money/approval/reservation/executor or actual source-policy binding. v48:145 suites/179 pins; full baseline NOT_RUN.
