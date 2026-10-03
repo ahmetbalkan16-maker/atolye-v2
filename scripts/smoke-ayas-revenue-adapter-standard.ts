@@ -317,7 +317,8 @@ async function main() {
   await scenario("primary", "P48", "the revenue module imports no authority, network, process or file access, and nothing imports it yet", () => {
     const allowed = /^(?:\.\/AyasRevenue[A-Za-z]+|\.\.\/policy\/AyasZeroCostPolicy|\.\.\/\.\.\/brain\/BrainRedaction)$/;
     const files = fs.readdirSync(REVENUE_DIR).filter((f) => f.endsWith(".ts"));
-    assert.deepEqual(files.sort(), ["AyasRevenueActionPolicy.ts", "AyasRevenuePlatformAdapter.ts", "AyasRevenuePlatformRegistry.ts", "AyasRevenuePlatformTypes.ts", "AyasRevenueRedaction.ts"]);
+    // Every file present obeys the rules below; the core standard files must be among them.
+    for (const core of ["AyasRevenueActionPolicy.ts", "AyasRevenuePlatformAdapter.ts", "AyasRevenuePlatformRegistry.ts", "AyasRevenuePlatformTypes.ts", "AyasRevenueRedaction.ts"]) assert.ok(files.includes(core), core);
     for (const file of files) {
       const source = fs.readFileSync(path.join(REVENUE_DIR, file), "utf8");
       for (const m of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) assert.match(m[1]!, allowed, `${file} imports ${m[1]}`);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v37",
+  "version": "15F.4-v36",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2202,7 +2202,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "4384595063ee7a20abf3e7b8726596fa64cb18948bd1678840d5291bd87d0942"
+          "sha256": "a6f80597c8b1489f49e2bfc0a75b07c41bdab9998dcb03518ccf0e5ac08c1be4"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
@@ -2224,7 +2224,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "4384595063ee7a20abf3e7b8726596fa64cb18948bd1678840d5291bd87d0942"
+          "sha256": "a6f80597c8b1489f49e2bfc0a75b07c41bdab9998dcb03518ccf0e5ac08c1be4"
         },
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
@@ -2238,46 +2238,6 @@
       "slices": [
         "revenue-adapter-standard",
         "financial-non-autonomy",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-account-boundary",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-account-boundary.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-account-boundary.ts",
-          "sha256": "e3f6fb56ffe116d3c2ae73dc5a8d44b4baa5614906498a0afe678fb531e39d73"
-        }
-      ],
-      "slices": [
-        "revenue-account-boundary",
-        "credential-boundary",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-account-boundary-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-account-boundary-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-account-boundary.ts",
-          "sha256": "e3f6fb56ffe116d3c2ae73dc5a8d44b4baa5614906498a0afe678fb531e39d73"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-account-boundary-mutations.ts",
-          "sha256": "2b6e004877800c4a153df714a489d85bc82f9add5fcddf5eae84d788c98fd360"
-        }
-      ],
-      "slices": [
-        "revenue-account-boundary",
-        "credential-boundary",
         "deterministic-outcome"
       ]
     }

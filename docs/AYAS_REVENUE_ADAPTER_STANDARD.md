@@ -85,6 +85,27 @@ zero-cost policy and the Brain redaction scanner, and no approval, execution or 
 the revenue modules in Stage 16.0. Patch safety marks the revenue modules, this document, the evaluator
 and the fake adapter fixture as FORBIDDEN_AUTONOMOUS.
 
+## Account connection / credential boundary (Stage 16.0A)
+
+`src/lib/ayas/revenue/AyasRevenueAccountConnection.ts` is the framework; real account onboarding comes
+later and only on the owner's decision. A connection is metadata only: platform, opaque account
+reference, privacy-safe label (no contact detail, no run of five or more digits), credential handling
+(`CONNECTOR_MANAGED` or `SERVER_SECRET`; `NONE` is not a connection) and the NAME of the holder
+(`connector:<id>` or `vault:<name>`), granted scopes, connected / expires / last-verified times and a
+re-authorization flag. No credential value, token or password field exists; a record that carries one,
+or whose holder name looks like a credential, is refused.
+
+Least privilege comes from a code-owned scope map per platform: the needed scopes are those of the
+adapter's declared reads and owner-gated writes. Local drafts need none and a financial operation never
+justifies a scope. `assessAyasRevenueConnection` returns, in order: `REAUTH_REQUIRED`, `EXPIRED`,
+`UNVERIFIED` (scope map does not cover a declared read/write), `SCOPE_MISSING`, `SCOPE_EXCESS`,
+`UNVERIFIED` (never verified, or verified more than 24 h ago), `SCOPE_DRIFT` (the platform reports
+different scopes), `EXPIRING` (under 7 days left; still usable) and `HEALTHY`. Only HEALTHY and EXPIRING
+are usable. `gateAyasRevenueRequestConnection` checks a planned request against a connection — same
+platform and account, usable health (computed there, never taken from the caller) and the operation's
+scopes granted; local drafts need no connection and financial requests are refused. Both results are
+advisory and grant no authority; platform stages call the gate before dispatching a read.
+
 ## Known limits
 
 The sensitive-data refusal is deliberately conservative for generic results: a Luhn-valid 13–19 digit

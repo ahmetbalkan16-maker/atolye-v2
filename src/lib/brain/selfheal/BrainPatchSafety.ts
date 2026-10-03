@@ -66,6 +66,8 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/smoke-ayas-revenue-adapter-standard.ts",
   "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
   "scripts/fixtures/ayas-revenue-fake-adapter.ts",
+  "scripts/smoke-ayas-revenue-account-boundary.ts",
+  "scripts/smoke-ayas-revenue-account-boundary-mutations.ts",
   "scripts/ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain-mutations.ts",
