@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
-  "currentHead": "821ecbd62c3a3bdeb35cdc97d294c108214ce1ad",
+  "currentHead": "ce93d3132f150288d04bf421e8f26b5fe268304f",
   "stage": "STAGE_16_9",
-  "subtask": "16.9 source implemented/63+12 and40 controls; exact-source regression/Graphify pending",
+  "subtask": "16.9 P48 architecture isolation repair; no16.10 advancement",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -323,8 +323,8 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 actual owner Test-mode key/connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "Commit16.9 source after TS/lint/diff; run35 selected+6 extra exact-source regressions,179 committed pins, full Graphify cluster/HEAD/integrity validation. Record source closure then16.10 in order; preserve external16.5/16.7/16.8 qualification and major-stage push policy.",
-  "updatedAt": "2026-10-03T16:47:57.267Z",
+  "nextAction": "Repair digest isolation; focused graders/static checks; clean fix commit; full current Graphify; rerun35+6 exact-source regressions and179 committed pins.",
+  "updatedAt": "2026-10-03T17:06:08.667Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -2418,12 +2418,12 @@
     "result": "04_STAGE16_REVENUE/implementation/16.8/16.8_RESULT.json"
   },
   "stage16_9": {
-    "state": "IMPLEMENTED_PENDING_EXACT_SOURCE_VALIDATION",
+    "state": "ARCHITECTURE_REPAIRED_PENDING_CLEAN_EXACT_SOURCE_REGRESSION",
     "stageClosed": false,
     "baseHead": "821ecbd62c3a3bdeb35cdc97d294c108214ce1ad",
     "defaultPolicy": "DISABLED_ZERO_EMPTY_CAPS",
     "authority": "NONE",
-    "primary": 63,
+    "primary": 64,
     "heldOut": 12,
     "negativeControls": {
       "total": 40,

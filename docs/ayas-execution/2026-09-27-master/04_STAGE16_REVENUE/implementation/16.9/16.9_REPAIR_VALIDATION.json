@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-03T17:06:08.008Z",
+  "finding": "F80",
+  "repair": "Centralized16MiB validated ledger digest; generic512KiB unchanged; P48 unchanged",
+  "primary": 64,
+  "heldOut": 12,
+  "negativeControls": 40,
+  "static": [
+    {
+      "name": "TypeScript",
+      "exit": 0,
+      "status": "PASS"
+    },
+    {
+      "name": "changed-eslint",
+      "exit": 0,
+      "status": "PASS"
+    }
+  ],
+  "diffCheck": "PASS",
+  "graphAfter": {
+    "at": "2026-10-03T17:06:08.578Z",
+    "head": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+    "lastAnalyzedHead": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+    "graphBuiltFrom": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18607,
+    "edges": 53325,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "f646d7f78d4b973aa8ef95d0a6e363079354d7e3c92c554f27aa1b4eca65b730",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  }
+}

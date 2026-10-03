@@ -1,0 +1,219 @@
+{
+  "status": "PASS",
+  "baseline": {
+    "primary": {
+      "passed": 64,
+      "total": 64
+    },
+    "heldOut": {
+      "passed": 12,
+      "total": 12
+    }
+  },
+  "total": 40,
+  "caught": 40,
+  "equivalents": 0,
+  "fixture": "GITLESS_TEMP_NO_NETWORK_MODEL_CREDENTIAL_OR_OWNER_POLICY",
+  "mutations": [
+    {
+      "name": "default policy guard removed",
+      "scenario": "P01",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "percentage rounded up",
+      "scenario": "P11",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "absolute cap widened",
+      "scenario": "P12",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "reserve ignored",
+      "scenario": "P08",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "amount cap removed",
+      "scenario": "P13",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "currency isolation removed",
+      "scenario": "P15",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "debt accepted",
+      "scenario": "P16",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "unknown settlement accepted",
+      "scenario": "P10",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "history completeness removed",
+      "scenario": "P48",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "unknown fee coverage accepted",
+      "scenario": "P54",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "refund uncertainty accepted",
+      "scenario": "P55",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "dispute uncertainty accepted",
+      "scenario": "P56",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "tax uncertainty accepted",
+      "scenario": "P57",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "ledger digest mismatch accepted",
+      "scenario": "P36",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "ledger revision mismatch accepted",
+      "scenario": "P37",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "purpose allowlist ignored",
+      "scenario": "P38",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "free-first readiness ignored",
+      "scenario": "P19",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "equivalent free alternative ignored",
+      "scenario": "P17",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "free alternative proof ignored",
+      "scenario": "H12",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "risk classes ignored",
+      "scenario": "P20",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "risk evidence ignored",
+      "scenario": "P60",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "irreversible effect accepted",
+      "scenario": "P23",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "recurring effect accepted",
+      "scenario": "P25",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "credit accepted",
+      "scenario": "P26",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "loss chasing accepted",
+      "scenario": "P27",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "automatic scaling accepted",
+      "scenario": "P28",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "one shot not required",
+      "scenario": "P29",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "downside amount mismatch accepted",
+      "scenario": "P30",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "downside currency mismatch accepted",
+      "scenario": "P31",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "subscription accepted",
+      "scenario": "P32",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "unknown cost accepted",
+      "scenario": "P33",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "expired effect accepted",
+      "scenario": "P34",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "effect outlives evidence",
+      "scenario": "P35",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "effect outlives effective age ceiling",
+      "scenario": "P62",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "prior loss ignored",
+      "scenario": "P61",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "loss after window ignored",
+      "scenario": "P53",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "reversed payout reused",
+      "scenario": "H08",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "proposal self-authorizes",
+      "scenario": "P03",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "proposal automatic renewal",
+      "scenario": "P03",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "unrelated order payout reused",
+      "scenario": "P63",
+      "status": "ASSERTION_CAUGHT"
+    }
+  ]
+}

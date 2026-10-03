@@ -288,3 +288,7 @@ Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33
 ## 2026-10-03T16:47:57.267Z —16.9 source/review validation
 
 16.9 pure realized-ledger reinvestment advice implemented:63+12 and40/40 controls PASS; defaults disabled/0/emptycaps; exact-source closure pending. F77 expiry reproduced/fixed, F78 fixture false-positive isolated without scanner change, F79 independent prior-loss probe. No money/approval/reservation/executor or actual source-policy binding. v48:145 suites/179 pins; full baseline NOT_RUN.
+
+## 2026-10-03T17:04:35.389Z —F80 /16.9 exact-source architecture regression
+
+P48 failed53/54+10/10 at ce93d31: direct crypto/provenance imports escape the isolated digest boundary. Seven prior selected suites PASS; remaining pending. Repair source without weakening P48; no later stage advancement.

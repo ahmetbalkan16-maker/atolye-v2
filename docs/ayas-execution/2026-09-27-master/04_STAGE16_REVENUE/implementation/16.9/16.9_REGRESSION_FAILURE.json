@@ -1,0 +1,71 @@
+{
+  "at": "2026-10-03T17:04:35.389Z",
+  "sourceHead": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+  "suite": "revenue-adapter-standard",
+  "primary": {
+    "pass": 53,
+    "total": 54
+  },
+  "heldOut": {
+    "pass": 10,
+    "total": 10
+  },
+  "case": "P48",
+  "failure": "AyasRevenueReinvestmentPolicy.ts directly imports node:crypto outside isolated digest module",
+  "scope": "Seven earlier selected suites PASS; remaining NOT_RUN; no closure",
+  "graphBefore": {
+    "at": "2026-10-03T17:04:35.310Z",
+    "head": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+    "lastAnalyzedHead": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+    "graphBuiltFrom": "ce93d3132f150288d04bf421e8f26b5fe268304f",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18606,
+    "edges": 53316,
+    "communities": 373,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "ed42749363da586e62bc6f96ab3651246b259a0a72129fc5e6011c43ab0c9c98",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "dependencyContext": {
+    "status": "ok",
+    "summary": "Review context for 5 changed file(s):\n  - Risk: high\n  - 136 impacted nodes in 59 files",
+    "risk": "high",
+    "changedFileCount": 5,
+    "impactedFileCount": 59,
+    "keyEntities": [
+      ".constructor()",
+      "ALL_OPS",
+      "AYAS_REVENUE_DEFAULT_REINVESTMENT_POLICY",
+      "AYAS_REVENUE_ECONOMIC_EVENTS",
+      "AYAS_REVENUE_LEDGER_NOTES"
+    ],
+    "testGaps": 64,
+    "nextToolSuggestions": [
+      "detect-changes",
+      "affected-flows",
+      "review-context"
+    ]
+  },
+  "repair": "Move ledger-sized validated canonical hashing into existing AyasRevenueDigest; generic512KiB contract unchanged; keep P48 unchanged."
+}

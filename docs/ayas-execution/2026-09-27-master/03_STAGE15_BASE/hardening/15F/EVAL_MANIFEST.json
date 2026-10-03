@@ -2850,7 +2850,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
-          "sha256": "9690f0c488addf4c7a0e1f9d2bd1058cf3c94611fb2b0855d233fdf2d9a0df93"
+          "sha256": "93ebf1320fd90ba4d37063433561e8af7dd44a0a52b1f58c56b9594d254444be"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
@@ -2899,7 +2899,7 @@
         },
         {
           "file": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
-          "sha256": "9690f0c488addf4c7a0e1f9d2bd1058cf3c94611fb2b0855d233fdf2d9a0df93"
+          "sha256": "93ebf1320fd90ba4d37063433561e8af7dd44a0a52b1f58c56b9594d254444be"
         }
       ],
       "slices": [

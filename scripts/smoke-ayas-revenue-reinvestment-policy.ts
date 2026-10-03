@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { canonicalAyasJson } from "../src/lib/ayas/provenance/AyasReleaseProvenance";
+import { digestAyasRevenueData } from "../src/lib/ayas/revenue/AyasRevenueDigest";
 import { createAyasRevenueReinvestmentEvaluator, evaluateAyasRevenueReinvestment, AYAS_REVENUE_DEFAULT_REINVESTMENT_POLICY, digestLedger as digestLedgerForTest } from "../src/lib/ayas/revenue/AyasRevenueReinvestmentPolicy";
 import { decideAyasRevenueSpend } from "../src/lib/ayas/revenue/AyasRevenueSpendPolicy";
 import { createAyasRevenueLedgerEntry, validateAyasRevenueLedgerState } from "../src/lib/ayas/revenue/AyasRevenueLedger";
@@ -78,6 +81,10 @@ run("P61","primary",()=>{const p=riFixture(),oldLoss=revenueLedgerFixtureFact("o
   assert.equal(evaluate(p).availableProfitMinor,5500);assert.equal(evaluate(p).maxEligibleMinor,1375);});
 run("P62","primary",()=>{const p=riFixture();p.reconciliation.freshUntil="2026-10-10T12:00:00.000Z";p.effect.expiresAt="2026-10-05T12:00:00.000Z";blocked(p);});
 run("P63","primary",()=>{const other=revenueLedgerFixtureFact("unrelated-payout","PAYOUT_OBSERVED",9000,{platform:"lemon-squeezy",orderDigest:riDigest("unrelated-order")});blocked(riBind(riFixture(),[...riFacts().filter(v=>v.event!=="PAYOUT_OBSERVED"),other]));});
+run("P64","primary",()=>{const entries=Array.from({length:900},(_,i)=>createAyasRevenueLedgerEntry(revenueLedgerFixtureFact("large-ledger-"+i,"OTHER_COST",0,{platform:"lemon-squeezy"}),RI_AT));
+  const state=validateAyasRevenueLedgerState({schemaVersion:"1",revision:entries.length,entries});assert.ok(Buffer.byteLength(JSON.stringify(state))>512*1024);
+  assert.equal(digestAyasRevenueData(state),null);assert.equal(digestLedgerForTest(state),createHash("sha256").update(canonicalAyasJson(state)).digest("hex"));
+  let hits=0;const bad={...state};Object.defineProperty(bad,"entries",{enumerable:true,get(){hits++;return entries;}});assert.throws(()=>digestLedgerForTest(bad));assert.equal(hits,0);});
 run("H01","heldOut",()=>{const p=riFixture();p.effect.reversibility="PARTIALLY_REVERSIBLE";assert.equal(evaluate(p).status,"OWNER_REVIEW_ELIGIBLE");});
 run("H02","heldOut",()=>{const p=riPolicy();p.maxAbsoluteMinorByCurrency={};assert.equal(evaluate(riFixture(),p).maxEligibleMinor,0);});
 run("H03","heldOut",()=>{const p=riFixture();p.reconciliation.reserve.taxMinor=null;blocked(p);});

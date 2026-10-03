@@ -1,12 +1,10 @@
 /** Pure realized-money advice. No env, memory, store, registry, payment, network or executor access. */
-import { createHash } from "node:crypto";
-import { canonicalAyasJson } from "../provenance/AyasReleaseProvenance";
 import { parseAyasCostClass } from "../policy/AyasZeroCostPolicy";
 import { AYAS_REVENUE_MAX_MINOR_UNITS, AYAS_REVENUE_CURRENCIES } from "./AyasRevenueSpendPolicy";
 import { validateAyasRevenueLedgerState, AYAS_REVENUE_LEDGER_MAX_BYTES, type AyasRevenueLedgerEntry } from "./AyasRevenueLedger";
 import { summarizeAyasRevenueEconomics } from "./AyasRevenueEconomics";
 import { validateAyasRevenueFreeFirst } from "./AyasRevenueValidation";
-import { digestAyasRevenueData } from "./AyasRevenueDigest";
+import { digestAyasRevenueData, digestAyasRevenueLedgerData } from "./AyasRevenueDigest";
 import { isAyasRevenueDigest, isAyasRevenueNeutralCode, isAyasRevenueScenarioMoney } from "./AyasRevenueOpportunity";
 import { containsAyasRevenueSensitiveData, deepFreezeAyasRevenueValue, hasExactAyasRevenueKeys, isAyasRevenueBoundedJson, isAyasRevenueExternalId,
   isAyasRevenuePlainRecord, isAyasRevenuePlatform, isAyasRevenueTimestamp } from "./AyasRevenueRedaction";
@@ -139,5 +137,5 @@ export function createAyasRevenueReinvestmentEvaluator(options: { readonly readO
   };
 }
 // A canonical ledger digest is scoped to16.2 bytes, not the generic small-object bound.
-export function digestLedger(ledger: unknown): string { return createHash("sha256").update(canonicalAyasJson(validateAyasRevenueLedgerState(ledger))).digest("hex"); }
+export function digestLedger(ledger: unknown): string { return digestAyasRevenueLedgerData(ledger); }
 export const evaluateAyasRevenueReinvestment = createAyasRevenueReinvestmentEvaluator();
