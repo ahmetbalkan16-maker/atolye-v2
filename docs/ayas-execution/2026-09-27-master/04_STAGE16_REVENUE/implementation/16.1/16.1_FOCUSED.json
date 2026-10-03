@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-03T05:48:44.975Z",
+  "sourceHead": "ee2118452d9df58bb78fc1035419a7ae40a0df2a",
+  "sourceState": "UNCOMMITTED_OVERLAY",
+  "primary": {
+    "pass": 40,
+    "total": 40
+  },
+  "heldOut": {
+    "pass": 10,
+    "total": 10
+  },
+  "mutations": {
+    "caught": 36,
+    "total": 36
+  },
+  "typescript": "PASS",
+  "changedLint": "PASS_0_ERRORS_0_WARNINGS",
+  "coreRegression": [
+    {
+      "id": "revenue-adapter-standard",
+      "outcome": "PASS",
+      "fixture": "EXISTING_TEMP_BASELINE_RUNNER"
+    },
+    {
+      "id": "revenue-account-boundary",
+      "outcome": "PASS",
+      "fixture": "EXISTING_TEMP_BASELINE_RUNNER"
+    },
+    {
+      "id": "zero-cost-policy",
+      "outcome": "PASS",
+      "fixture": "EXISTING_TEMP_BASELINE_RUNNER"
+    },
+    {
+      "id": "action-firewall-closure",
+      "outcome": "PASS",
+      "fixture": "EXISTING_TEMP_BASELINE_RUNNER"
+    }
+  ],
+  "additionalRegression": {
+    "evidenceClass": "DETERMINISTIC_TEST",
+    "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_CREDENTIAL_ENV",
+    "results": [
+      {
+        "script": "scripts/smoke-ayas-patch-detectors.ts",
+        "exitCode": 0,
+        "durationMs": 461,
+        "stdout": "AYAS patch detectors smoke: PASS (37 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-patch-detectors\",\"scenarios\":37}\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-brain-selfheal.ts",
+        "exitCode": 0,
+        "durationMs": 206,
+        "stdout": "Atölye Brain self-heal (pure core) smoke: PASS (41 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-brain-selfheal-security.ts",
+        "exitCode": 0,
+        "durationMs": 200,
+        "stdout": "Atölye Brain self-heal security smoke: PASS (14 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal-security\",\"scenarios\":14}\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-ayas-adaptation-pipeline.ts",
+        "exitCode": 0,
+        "durationMs": 206,
+        "stdout": "AYAS adaptation pipeline smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-adaptation-pipeline\",\"scenarios\":7}\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-ayas-autonomous-foundation-acceptance.ts",
+        "exitCode": 0,
+        "durationMs": 203,
+        "stdout": "{\"status\":\"PASS\",\"suite\":\"ayas-autonomous-foundation-acceptance\",\"scenarios\":42}\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-ayas-brain-control-center.ts",
+        "exitCode": 0,
+        "durationMs": 5881,
+        "stdout": "AYAS Brain Control Center smoke: PASS (39 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-brain-control-center\",\"mode\":\"final\",\"primary\":{\"pass\":22,\"fail\":0,\"missing\":0,\"total\":22},\"heldOut\":{\"pass\":13,\"fail\":0,\"missing\":0,\"total\":13},\"integration\":{\"pass\":4,\"fail\":0,\"missing\":0,\"total\":4}}\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-brain-core-ui.ts",
+        "exitCode": 0,
+        "durationMs": 1290,
+        "stdout": "Atölye Brain Core UI smoke: PASS (43 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-core-ui\",\"scenarios\":43}\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-ayas-eval-governance.ts",
+        "exitCode": 0,
+        "durationMs": 268,
+        "stdout": "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)\n",
+        "stderr": ""
+      },
+      {
+        "script": "scripts/smoke-ayas-eval-governance-mutations.ts",
+        "exitCode": 0,
+        "durationMs": 2467,
+        "stdout": "Stage 15F.4 mutation audit: PASS (8/8 caught; TEMP only)\n",
+        "stderr": ""
+      }
+    ]
+  },
+  "review": {
+    "kind": "INDEPENDENT_CONTINUATION_REVIEW_OF_INHERITED_WIP",
+    "secondReviewerOnRepairs": "NOT_RUN"
+  },
+  "fullDeclaredBaseline": "PENDING",
+  "grantsAuthority": false,
+  "fullLint": {
+    "outcome": "PASS",
+    "errors": 0,
+    "warnings": 13,
+    "warningClass": "PRE_EXISTING"
+  },
+  "diffCheck": "PASS"
+}

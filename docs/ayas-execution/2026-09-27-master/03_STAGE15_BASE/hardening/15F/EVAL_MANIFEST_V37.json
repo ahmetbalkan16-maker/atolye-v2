@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v38",
+  "version": "15F.4-v37",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2278,46 +2278,6 @@
       "slices": [
         "revenue-account-boundary",
         "credential-boundary",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-spend-policy",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-spend-policy.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-spend-policy.ts",
-          "sha256": "f768325c93d2ec1d6d3d72cc8fb93eba2015172bcb57d92b2f02f8de93f58237"
-        }
-      ],
-      "slices": [
-        "revenue-zero-cost",
-        "financial-non-autonomy",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-spend-policy-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
-          "sha256": "ae88ad56a830ee0e2381f5a263ff22edbd2e865f167dd142a8b3d4363aa95c9e"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-spend-policy.ts",
-          "sha256": "f768325c93d2ec1d6d3d72cc8fb93eba2015172bcb57d92b2f02f8de93f58237"
-        }
-      ],
-      "slices": [
-        "revenue-zero-cost",
-        "financial-non-autonomy",
         "deterministic-outcome"
       ]
     }

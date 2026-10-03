@@ -1,3 +1,9 @@
+# AYAS resume — 2026-10-03 / Stage 16.1 focused GREEN; exact clean baseline pending
+
+Repository truth ee2118452d9df58bb78fc1035419a7ae40a0df2a: initial pull up to date, origin parity 0/0; inherited six-path Stage 16.1 WIP preserved and reviewed. Latest owner FULL MASTER CONTINUATION says NO PUSH: LOCAL COMMIT ONLY, superseding prior push authorization and AGENTS.md session-end exception. Stage 16.0/16.0A remains closed.
+
+16.1: literal zero budgets, global zero-cost wrapper, active/unknown monetary commitment denied, passive fees accounting-only; existing runner binding and protected policy/evaluators. F44–F47 corrected; 40 primary +10 held-out and36/36 controls PASS in TEMP, TypeScript/changed lint/core adapter/credential/zero-cost/firewall regressions and9 extra TEMP regressions PASS. v38:124 suites/146 pins. Full lint/Graphify/source commit/exact clean declared baseline pending; Stage 16.1 OPEN, not source-certified GREEN. No live adapter, credentials, network, money or owner activation. Exact next: ACTIVE_CHECKPOINT.json; after16.1 evidence closure, canonical16.2.
+
 # AYAS Stage 16.0 + 16.0A closed — 2026-10-03 / next 16.1
 
 Stage 15 closure pushed and verified (`ea11283`, local = origin, 0/0, clean). Stage 16.0 Revenue Platform Adapter Standard (`be25d72`) and 16.0A Account/Credential Boundary (`6676c24`): exact clean v37 baseline 122/122 PASS_WITH_KNOWN_LIMITATIONS; 16.0 evaluator 54 + 10 held-out, negative controls 74/74, independent review 10 findings fixed (F42); 16.0A 24 + 6, 35/35 (F43). Production revenue registry is empty; no network, credential, onboarding or financial execution. Deviation: canonical WIP branch kept instead of a dedicated branch. Records: `docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.0/`. Next: 16.1 Revenue Zero-Cost / Spend Gate. Exact state: ACTIVE_CHECKPOINT.json.

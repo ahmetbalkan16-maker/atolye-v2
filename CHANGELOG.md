@@ -1,3 +1,7 @@
+## 2026-10-03 — AYAS Stage 16.1 inherited spend-policy completion (validation pending)
+
+Preserved and reviewed prior WIP; literal zero revenue budgets, unchanged global zero-cost policy, passive-fee accounting-only and owner-gated external writes. Corrected local-read regression, hostile amount/getter/Proxy handling and stale mutation targets; updated standalone manifest smoke. 40+10 scenarios and36/36 negative controls PASS; v38 adds two suites (124/146). Exact clean full baseline pending; no network or money execution. Latest owner instruction: local commits only, no push.
+
 ## 2026-10-03 — AYAS Stage 16.0 + 16.0A source closure (revenue adapter standard, credential boundary)
 
 One platform-neutral revenue adapter contract (`src/lib/ayas/revenue/`): closed platforms and operations with one effect each, pure action policy (ALLOW_READ / ALLOW_LOCAL_DRAFT / REQUIRE_OWNER / DENY; every financial operation denied), adapters limited to read and local draft, closed registry with an empty production list, single-read snapshots and sensitive-data refusal. Account connection metadata with holder names only, least-privilege scopes, expiry/drift/re-auth health and a request gate. Exact clean `6676c24`: v37 baseline 122/122 PASS_WITH_KNOWN_LIMITATIONS. No network, credential, onboarding or money movement.

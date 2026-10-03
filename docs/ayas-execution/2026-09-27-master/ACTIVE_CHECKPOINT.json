@@ -3,10 +3,10 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "6676c240f54f3a8812139410264335b792675022",
-  "currentHead": "6676c240f54f3a8812139410264335b792675022",
-  "stage": "STAGE_16_0",
-  "subtask": "16.0-and-16.0A-closed-next-16.1",
-  "status": "CLOSED_GREEN_SOURCE",
+  "currentHead": "ee2118452d9df58bb78fc1035419a7ae40a0df2a",
+  "stage": "STAGE_16_1",
+  "subtask": "16.1-source-implemented-focused-green-exact-clean-baseline-pending",
+  "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -235,7 +235,15 @@
     "16.0A-account-connection-credential-boundary",
     "16.0+16.0A-closure-GREEN-source"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/revenue/AyasRevenueSpendPolicy.ts",
+    "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "scripts/smoke-ayas-revenue-spend-policy.ts",
+    "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
+    "scripts/smoke-ayas-eval-governance.ts",
+    "docs/AYAS_REVENUE_SPEND_POLICY.md"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -417,8 +425,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Stage 16.1 Revenue Zero-Cost / Spend Gate (04_STAGE16_REVENUE/16.1): pure revenue-domain wrapper around AyasZeroCostPolicy in src/lib/ayas/revenue/AyasRevenueSpendPolicy.ts; literal zero budgets, every monetary commitment denied autonomously, passive fees accounting-only, no offsets; 35+ primary and 10 held-out cases; independent review before commit.",
-  "updatedAt": "2026-10-03T02:58:00.000Z",
+  "nextAction": "Finish 16.1 source validation/commit; bind Graphify to exact clean source; run complete v38 124-suite declared baseline without source edits; close truthfully, then canonical 16.2 Unit-Economics Ledger. LOCAL COMMIT ONLY / NO PUSH.",
+  "updatedAt": "2026-10-03T05:48:44.975Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -728,8 +736,8 @@
     }
   },
   "pushPolicy": {
-    "state": "OWNER_AUTHORIZED_CURRENT_WIP_BRANCH",
-    "requires": "Normal git push on the current WIP branch only; no force push, history rewrite or canonical merge; verify local == origin, ahead/behind 0/0 after each push.",
+    "state": "NO_PUSH_EXPLICIT_OWNER_COMMAND",
+    "requires": "Local commits only. Latest owner FULL MASTER CONTINUATION command says PUSH YOK and PUSH YAPMA; supersedes all earlier push authorization and session-end exception. No remote/history rewrite.",
     "correctedOn": "2026-10-01",
     "deviation": {
       "head": "36fa76b48662f491df59a21fe27cc434da02b876",
@@ -744,7 +752,9 @@
       "scope": "Stage 15 closure (owner order 2026-10-03)",
       "verified": true
     },
-    "correctionNote": "The 15T closure record briefly relabelled this policy as Stage-15-closure-only; restored to the pre-existing current-WIP-branch authorization (2026-10-03 owner order plus AGENTS.md session-end saves)."
+    "correctionNote": "The 15T closure record briefly relabelled this policy as Stage-15-closure-only; restored to the pre-existing current-WIP-branch authorization (2026-10-03 owner order plus AGENTS.md session-end saves).",
+    "supersededAuthorization": "OWNER_AUTHORIZED_CURRENT_WIP_BRANCH",
+    "latestInstructionOn": "2026-10-03"
   },
   "stage15E": {
     "state": "CLOSED_GREEN",
@@ -1663,18 +1673,27 @@
     "closure": "03_STAGE15_BASE/hardening/15S/CLOSURE.md"
   },
   "sessionStart": {
-    "date": "2026-10-03",
+    "recordedAt": "2026-10-03T05:48:44.975Z",
     "branch": "wip/ayas-graphify-final-execution",
-    "head": "a00091fdcc68f4588b2403b67e008ce796e117a1",
-    "originHead": "36fa76b48662f491df59a21fe27cc434da02b876",
-    "ahead": 82,
-    "behind": 0,
-    "worktree": "CLEAN",
-    "pull": "Already up to date",
-    "graphifyHead": "a00091fdcc68f4588b2403b67e008ce796e117a1",
-    "stale": false,
-    "needsUpdate": false,
-    "attachmentMatchesAdoptedSupplement": true
+    "head": "ee2118452d9df58bb78fc1035419a7ae40a0df2a",
+    "upstream": "origin/wip/ayas-graphify-final-execution",
+    "aheadBehind": [
+      0,
+      0
+    ],
+    "pull": "Already up to date (after sandbox .git write permission escalation)",
+    "staged": [],
+    "unstaged": [
+      "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
+      "src/lib/brain/selfheal/BrainPatchSafety.ts"
+    ],
+    "untracked": [
+      "docs/AYAS_REVENUE_SPEND_POLICY.md",
+      "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
+      "scripts/smoke-ayas-revenue-spend-policy.ts",
+      "src/lib/ayas/revenue/AyasRevenueSpendPolicy.ts"
+    ],
+    "checkpointReconciliation": "Worktree 16.1 ahead of checkpoint 16.0 closure; preserved and continued."
   },
   "stage15T": {
     "state": "CLOSED_GREEN_SOURCE_LOCAL_UI_DELIVERY",
@@ -1787,7 +1806,7 @@
       "supersededBy": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
     }
   ],
-  "currentHeadSemantics": "currentHead and lastGreenHead name the exact tested 16.0A source commit; the 16.0 closure documentation commit follows it. Live Git HEAD is authoritative.",
+  "currentHeadSemantics": "Pre-source-commit HEAD; inherited and repaired 16.1 overlay, not a GREEN clean source.",
   "stage15Closure": {
     "state": "CLOSED_SOURCE_COMBINED",
     "closedOn": "2026-10-03",
@@ -1880,5 +1899,19 @@
     ],
     "result": "04_STAGE16_REVENUE/implementation/16.0/16.0_RESULT.json",
     "closure": "04_STAGE16_REVENUE/implementation/16.0/CLOSURE.md"
+  },
+  "stage16_1": {
+    "state": "OPEN_FOCUSED_GREEN",
+    "baseHead": "ee2118452d9df58bb78fc1035419a7ae40a0df2a",
+    "notes": "04_STAGE16_REVENUE/implementation/16.1/IMPLEMENTATION_NOTES.md",
+    "focusedEvidence": "04_STAGE16_REVENUE/implementation/16.1/16.1_FOCUSED.json",
+    "primary": 40,
+    "heldOut": 10,
+    "negativeControls": "36/36",
+    "manifestVersion": "15F.4-v38",
+    "declaredSuites": 124,
+    "uniquePins": 146,
+    "fullBaseline": "PENDING",
+    "financialExecution": "NONE"
   }
 }

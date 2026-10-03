@@ -14,6 +14,7 @@ import { AYAS_REVENUE_LIMITS, AYAS_REVENUE_PLATFORMS, type AyasRevenueAdapterRes
 import { decideAyasRevenueOperation, type AyasRevenuePlan } from "./AyasRevenueActionPolicy";
 import { ayasRevenueLocalResult, isAyasRevenuePlatformAdapter, normalizeAyasRevenueResult, type AyasRevenuePlatformAdapter } from "./AyasRevenuePlatformAdapter";
 import { deepFreezeAyasRevenueValue, isAyasRevenuePlainRecord, snapshotAyasRevenueValue } from "./AyasRevenueRedaction";
+import { decideAyasRevenueSpend } from "./AyasRevenueSpendPolicy";
 
 export interface AyasRevenuePlatformRegistry {
   readonly platforms: readonly AyasRevenuePlatform[];
@@ -77,6 +78,10 @@ export async function runAyasRevenueReadOrDraft(registry: AyasRevenuePlatformReg
   // The adapter gets the deep-frozen snapshot that was planned, never the caller's object.
   const sent = snapshot as Parameters<AyasRevenuePlatformAdapter["read"]>[0];
   if (!plan.executable) return { plan, result: ayasRevenueLocalResult(adapter.manifest, sent, "BLOCKED", `AYAS_REVENUE_${plan.reason}`, now()) };
+  // Stage 16.1: the spend gate decides every dispatch too. A draft is local work; a read carries the adapter's declared cost.
+  const spend = decideAyasRevenueSpend({ schemaVersion: "1", platform: sent.platform, operation: sent.operation, event: "NONE", amount: null,
+    costClass: plan.decision === "ALLOW_LOCAL_DRAFT" ? "local-zero-cost" : adapter.manifest.costClass, source: "LOCAL_PLAN", requestedAt: sent.requestedAt });
+  if (!spend.allowedAutonomously) return { plan, result: ayasRevenueLocalResult(adapter.manifest, sent, "BLOCKED", `AYAS_REVENUE_SPEND_${spend.reasonCode}`, now()) };
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const call = plan.decision === "ALLOW_READ" ? adapter.read(sent) : adapter.draft(sent);

@@ -1,3 +1,11 @@
+## AYAS Revenue continuation — 2026-10-03 (latest)
+
+- [x] 16.0 /16.0A source closure remains as recorded at6676c24 (v37 122/122, declared limitations).
+- [ ] 16.1 spend policy: source implemented, focused40+10/36 controls GREEN; full exact clean v38 baseline and closure pending.
+- [ ] Next16.2 Unit-Economics Ledger, then remaining master order.
+
+LOCAL COMMIT ONLY / NO PUSH under the latest owner command. Existing source/live limitations and owner gates remain.
+
 ## AYAS Stage 15 continuation — 2026-10-03 (latest status)
 
 - [x] 15R source: exact clean `a00091f`, complete v32 baseline 114/114 with no failure; declared cognitive/held-out limitations retained. See `hardening/15R/CLOSURE.md` under the canonical execution documentation.

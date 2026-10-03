@@ -68,6 +68,8 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/fixtures/ayas-revenue-fake-adapter.ts",
   "scripts/smoke-ayas-revenue-account-boundary.ts",
   "scripts/smoke-ayas-revenue-account-boundary-mutations.ts",
+  "scripts/smoke-ayas-revenue-spend-policy.ts",
+  "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
   "scripts/ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain-mutations.ts",
@@ -82,7 +84,7 @@ const RULES: readonly Rule[] = Object.freeze([
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "the revenue platform standard (operation effects, owner-required writes, non-autonomous money) cannot rewrite itself",
-    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md",
   },
   {
     level: "FORBIDDEN_AUTONOMOUS",
