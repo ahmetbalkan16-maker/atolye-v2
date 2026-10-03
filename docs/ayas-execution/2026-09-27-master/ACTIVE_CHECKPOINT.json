@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
-  "currentHead": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
-  "stage": "STAGE_15T",
-  "subtask": "15T-closed-stage15-closed-push-parity-then-16.0",
+  "lastGreenHead": "6676c240f54f3a8812139410264335b792675022",
+  "currentHead": "6676c240f54f3a8812139410264335b792675022",
+  "stage": "STAGE_16_0",
+  "subtask": "16.0-and-16.0A-closed-next-16.1",
   "status": "CLOSED_GREEN_SOURCE",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15T",
-    "status": "CLOSED_GREEN_SOURCE_LOCAL_UI_DELIVERY",
-    "closingCommit": "2bebdbaf127e0136e486cf45fef78d83f9b76479"
+    "stage": "STAGE_16_0",
+    "status": "CLOSED_GREEN_SOURCE_FRAMEWORK_NO_LIVE_ADAPTER",
+    "closingCommit": "6676c240f54f3a8812139410264335b792675022"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -109,7 +109,9 @@
     "STAGE_15R_SOURCE",
     "STAGE_15S_SOURCE",
     "STAGE_15T_SOURCE",
-    "STAGE_15_SOURCE_COMBINED"
+    "STAGE_15_SOURCE_COMBINED",
+    "STAGE_16_0_SOURCE",
+    "STAGE_16_0A_SOURCE"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -227,7 +229,11 @@
     "15T.0-candidate-recovery-and-as-found-reproduction",
     "15T.1-review-hardening-and-integration",
     "15T-closure-GREEN-source-local-ui-delivery",
-    "stage15-combined-closure"
+    "stage15-combined-closure",
+    "16.0-revenue-adapter-standard",
+    "16.0-independent-review-10-findings-fixed",
+    "16.0A-account-connection-credential-boundary",
+    "16.0+16.0A-closure-GREEN-source"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -369,21 +375,21 @@
   ],
   "graphify": {
     "schemaVersion": "1",
-    "recordedAt": "2026-10-03T00:41:05.864Z",
-    "head": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+    "recordedAt": "2026-10-03T02:50:11.087Z",
+    "head": "6676c240f54f3a8812139410264335b792675022",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17793,
-    "edges": 51126,
-    "communities": 366,
+    "nodes": 17934,
+    "edges": 51452,
+    "communities": 368,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "structuralCoverage": "PARTIAL_9_INHERITED",
     "semanticCoverage": "PENDING",
-    "graphSha256": "c8493b4dd8b0588e098ea2ff65e7f627f19db3cc85600058ce2729fea6c2b13b",
-    "headSemantics": "Exact clean tested 15T source commit; the documentation closure commit requires a subsequent refresh.",
+    "graphSha256": "38248bb851daab10991d172cd32a795fd869de4415fcc5b93fd7c030b673542b",
+    "headSemantics": "Exact clean tested 16.0A source commit; the closure documentation commit requires a subsequent refresh.",
     "semanticPending": true,
     "structuralPartialFiles": 9
   },
@@ -411,8 +417,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Verify the Stage 15 closure push: local HEAD == origin, ahead/behind 0/0, worktree CLEAN, stash empty, Graphify bound to the final HEAD (stale=false). Then start Stage 16.0 Revenue Platform Adapter Standard (04_STAGE16_REVENUE/16.0) in canonical order: Graphify-first, src/lib/ayas/revenue/, empty production registry, fake adapter only, no network/credentials/financial execution.",
-  "updatedAt": "2026-10-03T01:25:00.000Z",
+  "nextAction": "Stage 16.1 Revenue Zero-Cost / Spend Gate (04_STAGE16_REVENUE/16.1): pure revenue-domain wrapper around AyasZeroCostPolicy in src/lib/ayas/revenue/AyasRevenueSpendPolicy.ts; literal zero budgets, every monetary commitment denied autonomously, passive fees accounting-only, no offsets; 35+ primary and 10 held-out cases; independent review before commit.",
+  "updatedAt": "2026-10-03T02:58:00.000Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -722,8 +728,8 @@
     }
   },
   "pushPolicy": {
-    "state": "OWNER_AUTHORIZED_STAGE15_CLOSURE_PUSH",
-    "requires": "Normal git push, no force or canonical merge; verify local == origin, 0/0, clean, Graphify bound to final HEAD before Stage 16.",
+    "state": "OWNER_AUTHORIZED_CURRENT_WIP_BRANCH",
+    "requires": "Normal git push on the current WIP branch only; no force push, history rewrite or canonical merge; verify local == origin, ahead/behind 0/0 after each push.",
     "correctedOn": "2026-10-01",
     "deviation": {
       "head": "36fa76b48662f491df59a21fe27cc434da02b876",
@@ -732,7 +738,13 @@
       "reason": "The session-end exception was incorrectly applied over the explicit owner PUSH YOK rule. Remote permissions and auto-review acceptance were not owner approval.",
       "remediation": "Recorded only. No reset, force push or history rewrite. All subsequent packets use local commits only."
     },
-    "authorizedOn": "2026-10-03"
+    "authorizedOn": "2026-10-03",
+    "lastPush": {
+      "head": "ea1128315897b1309fabc79804a6911201deea1d",
+      "scope": "Stage 15 closure (owner order 2026-10-03)",
+      "verified": true
+    },
+    "correctionNote": "The 15T closure record briefly relabelled this policy as Stage-15-closure-only; restored to the pre-existing current-WIP-branch authorization (2026-10-03 owner order plus AGENTS.md session-end saves)."
   },
   "stage15E": {
     "state": "CLOSED_GREEN",
@@ -1521,7 +1533,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Verify the Stage 15 closure push: local HEAD == origin, ahead/behind 0/0, worktree CLEAN, stash empty, Graphify bound to the final HEAD (stale=false). Then start Stage 16.0 Revenue Platform Adapter Standard (04_STAGE16_REVENUE/16.0) in canonical order: Graphify-first, src/lib/ayas/revenue/, empty production registry, fake adapter only, no network/credentials/financial execution.",
+  "resumeNextAction": "Stage 16.1 Revenue Zero-Cost / Spend Gate (04_STAGE16_REVENUE/16.1): pure revenue-domain wrapper around AyasZeroCostPolicy in src/lib/ayas/revenue/AyasRevenueSpendPolicy.ts; literal zero budgets, every monetary commitment denied autonomously, passive fees accounting-only, no offsets; 35+ primary and 10 held-out cases; independent review before commit.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -1775,7 +1787,7 @@
       "supersededBy": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
     }
   ],
-  "currentHeadSemantics": "currentHead and lastGreenHead name the exact tested 15T source commit; the Stage 15 closure documentation commit follows it. Live Git HEAD is authoritative.",
+  "currentHeadSemantics": "currentHead and lastGreenHead name the exact tested 16.0A source commit; the 16.0 closure documentation commit follows it. Live Git HEAD is authoritative.",
   "stage15Closure": {
     "state": "CLOSED_SOURCE_COMBINED",
     "closedOn": "2026-10-03",
@@ -1783,6 +1795,90 @@
     "finalBaselineSource": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
     "finalBaseline": "15F.4-v35 118/118 PASS_WITH_KNOWN_LIMITATIONS",
     "ownerGatesCarriedForward": 22,
-    "push": "PENDING_AT_RECORDING_VERIFY_IN_LEDGER"
+    "push": "PUSHED_NORMAL_ea11283_PARITY_VERIFIED",
+    "pushVerified": {
+      "localHead": "ea1128315897b1309fabc79804a6911201deea1d",
+      "originHead": "ea1128315897b1309fabc79804a6911201deea1d",
+      "ahead": 0,
+      "behind": 0,
+      "worktree": "CLEAN",
+      "stash": "EMPTY",
+      "graphifyBound": true
+    }
+  },
+  "stage16_0": {
+    "state": "CLOSED_GREEN_SOURCE_FRAMEWORK_NO_LIVE_ADAPTER",
+    "scope": "16.0 Revenue Platform Adapter Standard + 16.0A External Account Connection / Credential Boundary",
+    "canonicalSection": "final execution order §10 (16.0, 16.0A); 04_STAGE16_REVENUE/16.0; master sprint V3 pre-Atölye 16.0A",
+    "openedOn": "2026-10-03",
+    "closedOn": "2026-10-03",
+    "authority": "NONE",
+    "packetCommits": {
+      "16.0": "be25d7281ab6fae75797d8a72990207404eeeece",
+      "16.0A": "6676c240f54f3a8812139410264335b792675022"
+    },
+    "testedSourceHead": "6676c240f54f3a8812139410264335b792675022",
+    "files": [
+      "src/lib/ayas/revenue/AyasRevenuePlatformTypes.ts",
+      "src/lib/ayas/revenue/AyasRevenueRedaction.ts",
+      "src/lib/ayas/revenue/AyasRevenueActionPolicy.ts",
+      "src/lib/ayas/revenue/AyasRevenuePlatformAdapter.ts",
+      "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
+      "src/lib/ayas/revenue/AyasRevenueAccountConnection.ts",
+      "scripts/fixtures/ayas-revenue-fake-adapter.ts",
+      "scripts/smoke-ayas-revenue-adapter-standard.ts",
+      "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
+      "scripts/smoke-ayas-revenue-account-boundary.ts",
+      "scripts/smoke-ayas-revenue-account-boundary-mutations.ts",
+      "docs/AYAS_REVENUE_ADAPTER_STANDARD.md",
+      "src/lib/brain/selfheal/BrainPatchSafety.ts"
+    ],
+    "focused": {
+      "16.0": {
+        "primary": "54/54",
+        "heldOut": "10/10",
+        "negativeControls": "74/74"
+      },
+      "16.0A": {
+        "primary": "24/24",
+        "heldOut": "6/6",
+        "negativeControls": "35/35"
+      }
+    },
+    "independentReview": "code-review (high) before the 16.0 commit: 10 findings, all fixed",
+    "fullBaseline": {
+      "manifestVersion": "15F.4-v37",
+      "manifestDigest": "27a5465dcfe1cfa376189c042423834eb6b162b03754e8a1e60836468b3ec9fe",
+      "sourceWorktreeDigest": "0fbd747bf4db4f8d2e7ec04e8761ad5b70031f491691b0c93d72564d86b533a3",
+      "complete": true,
+      "suites": 122,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "rawReport": "16.0_FULL_BASELINE_V37.json",
+      "rawSha256": "97bfc867a065dfad2a302ff9ac62bc26a7762777a652fcc0f920294856c3ba81",
+      "sampledRamPeakPercent": 58.63
+    },
+    "productionRegistry": "EMPTY",
+    "network": "NONE",
+    "credentials": "NONE",
+    "financialExecution": "NONE",
+    "deviations": [
+      "validation step 2 dedicated branch: canonical WIP branch kept (owner's autonomy daemon runs in this worktree)"
+    ],
+    "knownLimits": [
+      "No live adapter, credential, network, onboarding, connection store, owner-authorized write bridge or financial executor (by design)",
+      "Generic result refusal is conservative (Luhn-valid numeric ids, IBAN-shaped SKUs, ...Token field names); platform stages add closed per-operation schemas",
+      "The adapter timeout stops waiting but cannot cancel the adapter's own work",
+      "Scope maps per platform and the connection gate wiring arrive with 16.4+"
+    ],
+    "notes": [
+      "04_STAGE16_REVENUE/implementation/16.0/IMPLEMENTATION_NOTES.md",
+      "04_STAGE16_REVENUE/implementation/16.0A/IMPLEMENTATION_NOTES.md"
+    ],
+    "result": "04_STAGE16_REVENUE/implementation/16.0/16.0_RESULT.json",
+    "closure": "04_STAGE16_REVENUE/implementation/16.0/CLOSURE.md"
   }
 }

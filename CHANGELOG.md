@@ -1,3 +1,7 @@
+## 2026-10-03 — AYAS Stage 16.0 + 16.0A source closure (revenue adapter standard, credential boundary)
+
+One platform-neutral revenue adapter contract (`src/lib/ayas/revenue/`): closed platforms and operations with one effect each, pure action policy (ALLOW_READ / ALLOW_LOCAL_DRAFT / REQUIRE_OWNER / DENY; every financial operation denied), adapters limited to read and local draft, closed registry with an empty production list, single-read snapshots and sensitive-data refusal. Account connection metadata with holder names only, least-privilege scopes, expiry/drift/re-auth health and a request gate. Exact clean `6676c24`: v37 baseline 122/122 PASS_WITH_KNOWN_LIMITATIONS. No network, credential, onboarding or money movement.
+
 ## 2026-10-03 — AYAS Stage 15T source closure and Stage 15 combined closure
 
 Owner executive briefing and alert priority (`src/lib/ayas/briefing/`, `/brain/briefing`, compact panel on the Control Center): four priorities, one key per issue, material fingerprint, owner acknowledgement bound to the exact fingerprint, cooldown from actual delivery, coverage-gated resolution, bounded state and windowed hash-chained history, ROUTINE audit-only, 15F reliability BREACH as CRITICAL, unreadable sources surfaced without lowering known conditions. Metadata only: no approval, execution, spend or external transport. Exact clean `2bebdba`: v35 baseline 118/118 PASS_WITH_KNOWN_LIMITATIONS; 30 scenarios, 68/68 negative controls, real hydrated browser in a TEMP build. Stage 15 combined closure recorded.

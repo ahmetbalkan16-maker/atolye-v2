@@ -4,7 +4,9 @@
 - [x] 15S source: exact clean cd435bc, complete v34 baseline116/116 with no failure;24 TEMP scenarios/34 negative controls,136 committed pins, TypeScript/lint/diff PASS. Physical destination migration/qualification/activation remain NOT_RUN or owner-gated.
 - [x] 15T Owner Executive Briefing / Alert Priority: exact clean `2bebdba`, complete v35 baseline 118/118 with no failure; 30 TEMP scenarios / 68 negative controls, real hydrated browser in a TEMP build, TypeScript/lint/diff PASS. Codex candidate integrated after review (F36–F41 fixed). Delivery is the owner's open Brain UI only; push/phone transport and the live-server rebuild are owner items.
 - [x] Stage 15 combined closure: `03_STAGE15_BASE/STAGE15_CLOSURE.md` under the canonical execution documentation; every sub-stage keeps its recorded state (DEGRADED / NOT_WIRED / WITH_DECLARED_GAPS are not upgraded); 22 owner items carried forward. Live qualification and F33 gaps remain visible; no synthetic PASS.
-- [ ] Commit, normal push and remote parity of the Stage 15 closure, then Stage 16.0 Revenue Platform Adapter Standard in master order.
+- [x] Commit, normal push and remote parity of the Stage 15 closure (`ea11283`, local = origin, 0/0, clean).
+- [x] 16.0 Revenue Platform Adapter Standard + 16.0A Account/Credential Boundary: exact clean `6676c24`, v37 baseline 122/122; empty production registry, fake adapter only, no network/credentials/financial execution.
+- [ ] 16.1 Revenue Zero-Cost / Spend Gate, then 16.2 onward in master order.
 
 The 2026-10-03 owner order supersedes the stop after 15S (OWNER_RESUME_15T.json). Current continuation: `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json`.
 

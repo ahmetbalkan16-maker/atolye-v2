@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-03T02:50:11.087Z",
+  "head": "6676c240f54f3a8812139410264335b792675022",
+  "builtFrom": "6676c240f54f3a8812139410264335b792675022",
+  "stale": false,
+  "needsUpdate": false,
+  "worktreeState": "CLEAN_AT_BUILD",
+  "nodes": 17934,
+  "edges": 51452,
+  "communities": 368,
+  "duplicateNodes": 0,
+  "duplicateEdges": 0,
+  "danglingEdges": 0,
+  "selfLoops": 0,
+  "structuralCoverage": "PARTIAL_9_INHERITED",
+  "semanticCoverage": "PENDING",
+  "graphSha256": "38248bb851daab10991d172cd32a795fd869de4415fcc5b93fd7c030b673542b",
+  "command": "graphify update --scope all --no-description --no-label .",
+  "worktreeNote": "Graph rebuilt right after commit 6676c24 with a clean worktree (ayas-graphify-status: WORKTREE_STATE CLEAN, LAST_ANALYZED_HEAD = HEAD); these facts were read after the closure evidence files were copied in."
+}

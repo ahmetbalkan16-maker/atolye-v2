@@ -972,3 +972,11 @@ Candidate `codex/ayas-stage15t-paused` (`03cddde`) brought over unchanged and re
 ### 2026-10-03 — 15T source GREEN; Stage 15 combined closure
 
 Source commit `2bebdbaf127e0136e486cf45fef78d83f9b76479`. Exact clean bound baseline v35: 118/118, no failed suite, PASS_WITH_KNOWN_LIMITATIONS (`cognitive-quality`), raw SHA-256 `5a367ed2…cdc526`, sampled RAM peak 56.42 %. Full lint 0 errors / 13 existing warnings. Graphify 17,793 / 51,126 bound to the source, stale=false, zero anomalies, PARTIAL 9 inherited, semantic PENDING. No production or pipeline file changed (production clean-HEAD comparison not triggered). Delivery LOCAL_OWNER_UI_ONLY; push/phone channel and live-server rebuild are owner items; revenue/cost NOT_CONFIGURED until Stage 16. Stage 15 combined closure: `03_STAGE15_BASE/STAGE15_CLOSURE.md` (every sub-stage keeps its recorded state; 22 owner items carried forward). Next: closure commit, normal push, parity verification, then Stage 16.0.
+
+### 2026-10-03 — Stage 15 closure pushed; Stage 16 opened
+
+Normal push `dd119b3..ea11283`; verified local = origin `ea11283`, 0/0, worktree clean, stash empty, Graphify bound to `ea11283` (stale=false, PARTIAL 9, semantic PENDING). Stage 16 started at 16.0 per the owner order.
+
+### 2026-10-03 — Stage 16.0 + 16.0A source GREEN
+
+16.0 Revenue Platform Adapter Standard (`be25d72`): closed vocabulary (5 platforms, 24 operations, one effect each), pure action policy (financial denied first; zero-cost as decision input), adapter = `{manifest, read, draft}`, closed registry with EMPTY production list, read/draft-only runner; evaluator 54 + 10 held-out, negative controls 74/74; independent review: 10 findings fixed before commit (F42). 16.0A credential boundary (`6676c24`): metadata-only connections, holder names (`connector:` / `vault:`), least-privilege scopes, re-auth/expiry/drift/verification health, request gate; evaluator 24 + 6, negative controls 35/35 (F43). Exact clean bound baseline v37 at `6676c24`: 122/122 PASS_WITH_KNOWN_LIMITATIONS (cognitive-quality), raw SHA-256 `97bfc867…c3ba81`, RAM peak 58.63 %. Full lint 0 errors / 13 existing warnings. No network, credential, onboarding or financial execution. Deviation: dedicated branch not used (owner's daemon in this worktree). Next: 16.1.
