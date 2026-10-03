@@ -1,0 +1,92 @@
+{
+  "status": "PASS",
+  "heldOut": {
+    "pass": 20,
+    "total": 20
+  },
+  "frozen": true,
+  "network": "NONE",
+  "ownerAuthentication": "NONE",
+  "results": [
+    {
+      "id": "H01",
+      "ok": true
+    },
+    {
+      "id": "H02",
+      "ok": true
+    },
+    {
+      "id": "H03",
+      "ok": true
+    },
+    {
+      "id": "H04",
+      "ok": true
+    },
+    {
+      "id": "H05",
+      "ok": true
+    },
+    {
+      "id": "H06",
+      "ok": true
+    },
+    {
+      "id": "H07",
+      "ok": true
+    },
+    {
+      "id": "H08",
+      "ok": true
+    },
+    {
+      "id": "H09",
+      "ok": true
+    },
+    {
+      "id": "H10",
+      "ok": true
+    },
+    {
+      "id": "H11",
+      "ok": true
+    },
+    {
+      "id": "H12",
+      "ok": true
+    },
+    {
+      "id": "H13",
+      "ok": true
+    },
+    {
+      "id": "H14",
+      "ok": true
+    },
+    {
+      "id": "H15",
+      "ok": true
+    },
+    {
+      "id": "H16",
+      "ok": true
+    },
+    {
+      "id": "H17",
+      "ok": true
+    },
+    {
+      "id": "H18",
+      "ok": true
+    },
+    {
+      "id": "H19",
+      "ok": true
+    },
+    {
+      "id": "H20",
+      "ok": true
+    }
+  ]
+}

@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "7195e96d1ae8345fb554391bc256012653a9ae5b",
-  "currentHead": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+  "currentHead": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
   "stage": "STAGE_16_11",
-  "subtask": "16.11 canonical security/fraud architecture and Graphify dependency review before source",
+  "subtask": "16.11 focused/static checked; clean source commit then exact-source security/adapter/ledger/memory matrix",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -250,7 +250,12 @@
     "16.9 default-disabled pure framework exact-source verified; actual owner-reviewed source binding absent",
     "16.10 dedicated memory/intelligence framework verified; cognitiveCF49 and production data/writer qualification pending"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/revenue/security/",
+    "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
+    "scripts/smoke-ayas-revenue-security.ts",
+    "scripts/adversarial-ayas-revenue-security.ts"
+  ],
   "lastGreenTests": [
     "16.10 memory65+15/intelligence32+8/15 assertion-caught controls; captured real prompt with in-process provider",
     "45 selected exact-source PASS; cognitive54/55+4/5 held-out PASS_WITH_KNOWN_LIMITATIONS(CF49);7 extra PASS",
@@ -258,15 +263,15 @@
     "Graphify exact tested HEAD current/integrity0; structuralPARTIAL9 and semanticPENDING"
   ],
   "graphify": {
-    "at": "2026-10-03T18:39:59.289Z",
-    "head": "7195e96d1ae8345fb554391bc256012653a9ae5b",
-    "lastAnalyzedHead": "7195e96d1ae8345fb554391bc256012653a9ae5b",
-    "graphBuiltFrom": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+    "at": "2026-10-03T19:25:36.711Z",
+    "head": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "lastAnalyzedHead": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "graphBuiltFrom": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 18699,
-    "edges": 53574,
-    "communities": 376,
+    "nodes": 18763,
+    "edges": 53762,
+    "communities": 0,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -276,9 +281,9 @@
       "INCOMPLETE_CODE_FILES:9"
     ],
     "semanticStatus": "PENDING",
-    "worktreeState": "CLEAN",
+    "worktreeState": "DIRTY",
     "classification": "GRAPH_PARTIAL",
-    "sha256": "b81dbf2b43388e8d33f80f1a3e8ee0bce2b4e5bc326fafee02f781c9b290d739",
+    "sha256": "211f02eda214be4b4958225fa5bef79ce57cfdca20c6396b5b32a0923bc7521f",
     "incompleteCodeFiles": [
       ".github/workflows/ayas-safe-ci.yml",
       "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
@@ -317,8 +322,8 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 actual owner Test-mode key/connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "16.11 Graphify-first revenue security/fraud/account guard: untrusted content stays data, canonical host and file quarantine safety, existing signed webhook/replay/canonical reread, account/scope drift, duplicate action/resource binding, no approval/execute/spend. >=70 primary+20 frozen held-out/adversarial, controls, TS/lint/affected exact-source tests/current Graphify/pins. Then16.11A terms/compliance→16.12 low-cost pilot framework→16.13 profit-gated scaling→16.14→17→infinity/certs. Preserve CF49/Graphify limits and16.5/16.7/16.8 owner qualification. Push only authorized major-stage GREEN.",
-  "updatedAt": "2026-10-03T18:40:06.307Z",
+  "nextAction": "16.11 commit reviewed source;188 committed pins/full clustered Graphify current;49 prior+new suites plus security account-boundary mutations and owner-binding/bounded-write suites;7 extra safety regressions in exact clean TEMP clone. Preserve CF49, fullv50 NOT_RUN and process gap; then only16.11A terms/compliance framework.",
+  "updatedAt": "2026-10-03T19:28:28.617Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -2758,8 +2763,22 @@
     "result": "04_STAGE16_REVENUE/implementation/16.10/16.10_RESULT.json"
   },
   "stage16_11": {
-    "state": "ARCHITECTURE_ANALYSIS_PENDING_SOURCE",
+    "state": "FOCUSED_VERIFIED_PENDING_EXACT_SOURCE_MATRIX",
     "stageClosed": false,
-    "baseHead": "7195e96d1ae8345fb554391bc256012653a9ae5b"
+    "baseHead": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "authority": "NONE",
+    "liveQualification": "NOT_RUN",
+    "canonicalWebhookReuse": "ETSY_AND_LEMON_NO_NEW_SIGNATURE_OR_AUTH_SHORTCUT",
+    "attachmentPolicy": "BOUNDED_BYTES_ONLY_NO_DOWNLOAD_OR_EXECUTION",
+    "ownerApproval": "EXISTING_OWNER_PATH_UNCHANGED_NO_NEW_APPROVAL",
+    "frameworkVerified": false,
+    "primary": 105,
+    "heldOut": 20,
+    "controls": 17,
+    "manifestVersion": "15F.4-v50",
+    "declaredSuites": 151,
+    "pins": 188,
+    "productionRegistry": "EMPTY",
+    "processLimit": "One governance-metadata checkpoint step rejected a doc-only stale graph, but the following edit in the same orchestration cell was not stopped. Relevant code dependency context was already captured; subsequent refresh/current integrity checks and AST audit recover source truth. This historical process gap is recorded, not retroactively declared a Graphify-first PASS."
   }
 }

@@ -1,0 +1,148 @@
+{
+  "at": "2026-10-03T19:28:28.614Z",
+  "state": "PASS_WITH_RECORDED_PROCESS_LIMITATION",
+  "rows": [
+    {
+      "name": "TypeScript",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "changed-eslint",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "whole-eslint",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "3173d816806e8ec20cd99e86721a5a740a788c15c14ce4a67ea3dae2bfd36bed",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "errors": 0,
+      "warnings": 13
+    }
+  ],
+  "diffCheck": "PASS",
+  "pins": {
+    "manifestVersion": "15F.4-v50",
+    "declaredSuites": 151,
+    "uniquePins": 188,
+    "pinDrift": [],
+    "committed": false
+  },
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
+      "sha256": "1555f8c91e9255e69b45f1f18cd0915db9064662295756ed46610811dddf7e41"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "b81bb2d622f3d78aaef73b638c985dd1f19c2ef77f5d8e260c6913be7d6ec292"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "2581fa02efdf76b59b1216235423c32bc13b44a01000212502c35aa989daee71"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
+      "sha256": "d0b8da0e40ff0644e027c2241d7a1596688c9684258d97cdcfd765a0797d371c"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
+      "sha256": "7bc8ae082df2fcc08e95a2b1cd7963a7f36957c498baa49df65e3d91512efc77"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-security.ts",
+      "sha256": "86125456d4af5e4fdd139517d2fe3a31e1ed2ed45780dbb8620ab3ed35b81265"
+    },
+    {
+      "file": "scripts/adversarial-ayas-revenue-security.ts",
+      "sha256": "29fbfad86f8a3b76d0add891e94674da879be7b5787910488228901be4993765"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-security-adversarial.ts",
+      "sha256": "6303dd69675b34386334a380fe5e9920b3747214460a7684610f03a9cd800535"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-security-mutations.ts",
+      "sha256": "0f141358c05b3f874b633cbcb95a693567f2264ef02b7404bbefe303ef861c2e"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-security-fixture.ts",
+      "sha256": "3efdb7f112e4212f0a8434792075930119c46f80e8fb2161ab74a7b5f400c65b"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueAccountSafety.ts",
+      "sha256": "3f73f531604e038684213cc0a6495397fcf3396d2ef6e1afba7b481e1e3943f8"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueActionGuard.ts",
+      "sha256": "d3a7a31a1a8d38d6620bc28057fd1ba4e7b81c250f4199e71b83a44fa49db8d2"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueAttachmentQuarantine.ts",
+      "sha256": "b7acaee031fb5eb863c791ace67b49e85390aa0e46af172b14cf419d06dbdf46"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueContentFirewall.ts",
+      "sha256": "1e6f3d0e9a1861e5991bdf4ace318e254b32579c679732d887aaccfca987bdb7"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueFileSafety.ts",
+      "sha256": "d0f01fb2e35036941618a7de0f60ef0666fa5af39b89cebe6bdd4f46dcd0ea63"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueRiskClassifier.ts",
+      "sha256": "52d7a99d5404a48b25526682ce2025a33a48f4097fea5d178135ecfbce1fd8c4"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueThreatModel.ts",
+      "sha256": "0ac5cb69bb9aeab17fcd6cff3f8cd2a713320c9f74d10f36f546d84c42dad51e"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueWebhookVerifier.ts",
+      "sha256": "96776e528f14a03e64f3d4d2bf7c857760355ba7935afab403afac9ca8633930"
+    }
+  ],
+  "graphAfter": {
+    "at": "2026-10-03T19:28:28.530Z",
+    "head": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "lastAnalyzedHead": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "graphBuiltFrom": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18763,
+    "edges": 53762,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "211f02eda214be4b4958225fa5bef79ce57cfdca20c6396b5b32a0923bc7521f",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "review": "SAME_SESSION_SOURCE_REVIEW_PLUS_INDEPENDENT_AST_AND_MUTATION_GRADERS_NO_SEPARATE_AGENT",
+  "processLimit": "One governance-metadata checkpoint step rejected a doc-only stale graph, but the following edit in the same orchestration cell was not stopped. Relevant code dependency context was already captured; subsequent refresh/current integrity checks and AST audit recover source truth. This historical process gap is recorded, not retroactively declared a Graphify-first PASS.",
+  "scope": "FOCUSED_ONLY_PENDING_CLEAN_EXACT_SOURCE_REGRESSIONS_AND_FULL_CLUSTERED_GRAPH"
+}

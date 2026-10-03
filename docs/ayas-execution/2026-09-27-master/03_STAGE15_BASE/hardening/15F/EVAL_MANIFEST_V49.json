@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v50",
+  "version": "15F.4-v49",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2202,7 +2202,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "d0b8da0e40ff0644e027c2241d7a1596688c9684258d97cdcfd765a0797d371c"
+          "sha256": "11943669624bb8de3c27dd27aa03d9c5fa8c26c6e7bd21f3b5dfa7fb86c103b3"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
@@ -2224,7 +2224,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "d0b8da0e40ff0644e027c2241d7a1596688c9684258d97cdcfd765a0797d371c"
+          "sha256": "11943669624bb8de3c27dd27aa03d9c5fa8c26c6e7bd21f3b5dfa7fb86c103b3"
         },
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
@@ -2540,7 +2540,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
-          "sha256": "7bc8ae082df2fcc08e95a2b1cd7963a7f36957c498baa49df65e3d91512efc77"
+          "sha256": "b626576cc88d2cee950896094f7f7ed6ad1561d6906680f4166068689cb35aae"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
@@ -2567,7 +2567,7 @@
         },
         {
           "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
-          "sha256": "7bc8ae082df2fcc08e95a2b1cd7963a7f36957c498baa49df65e3d91512efc77"
+          "sha256": "b626576cc88d2cee950896094f7f7ed6ad1561d6906680f4166068689cb35aae"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
@@ -2981,94 +2981,6 @@
         {
           "file": "scripts/smoke-ayas-revenue-intelligence.ts",
           "sha256": "d8f3d4cb41b818ece0b510b6939e02594c41bf7aed72e426846c4572e9b1f81b"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-security",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-security.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-security.ts",
-          "sha256": "86125456d4af5e4fdd139517d2fe3a31e1ed2ed45780dbb8620ab3ed35b81265"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-security-fixture.ts",
-          "sha256": "3efdb7f112e4212f0a8434792075930119c46f80e8fb2161ab74a7b5f400c65b"
-        },
-        {
-          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
-          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
-          "sha256": "aa773ce2bbca18abf958704726af1e07e19479eb1dd28d0baaab495fcd66f95a"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-security-adversarial",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-security-adversarial.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/adversarial-ayas-revenue-security.ts",
-          "sha256": "29fbfad86f8a3b76d0add891e94674da879be7b5787910488228901be4993765"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-security-fixture.ts",
-          "sha256": "3efdb7f112e4212f0a8434792075930119c46f80e8fb2161ab74a7b5f400c65b"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-security-adversarial.ts",
-          "sha256": "6303dd69675b34386334a380fe5e9920b3747214460a7684610f03a9cd800535"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-security-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-security-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-security-mutations.ts",
-          "sha256": "0f141358c05b3f874b633cbcb95a693567f2264ef02b7404bbefe303ef861c2e"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-security.ts",
-          "sha256": "86125456d4af5e4fdd139517d2fe3a31e1ed2ed45780dbb8620ab3ed35b81265"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-security.ts",
-          "sha256": "29fbfad86f8a3b76d0add891e94674da879be7b5787910488228901be4993765"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-security-fixture.ts",
-          "sha256": "3efdb7f112e4212f0a8434792075930119c46f80e8fb2161ab74a7b5f400c65b"
-        },
-        {
-          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
-          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
-          "sha256": "aa773ce2bbca18abf958704726af1e07e19479eb1dd28d0baaab495fcd66f95a"
         }
       ],
       "slices": [

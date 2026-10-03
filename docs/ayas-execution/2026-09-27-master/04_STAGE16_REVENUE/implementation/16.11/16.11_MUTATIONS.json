@@ -1,0 +1,95 @@
+{
+  "status": "PASS",
+  "caught": 17,
+  "total": 17,
+  "equivalents": 0,
+  "baselineAndRecovered": "PASS",
+  "scope": "OWNED_GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY",
+  "rows": [
+    {
+      "name": "prompt instruction lost",
+      "assertion": "P02",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "fake owner claim allowed",
+      "assertion": "P03",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "payment scam allowed",
+      "assertion": "P05",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "foreign host admitted",
+      "assertion": "P21",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "nested getter executed",
+      "assertion": "P17",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "secret-bearing external text admitted",
+      "assertion": "P13",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "archive disguised as text",
+      "assertion": "P100",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "forbidden dynamic module",
+      "assertion": "P98",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "token revocation ignored",
+      "assertion": "P51",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "scope drift ignored",
+      "assertion": "P52",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "tool catalog drift ignored",
+      "assertion": "P57",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "duplicate journal action admitted",
+      "assertion": "P68",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "canonical read drift ignored",
+      "assertion": "P72",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "request firewall skipped",
+      "assertion": "P87",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "result firewall skipped",
+      "assertion": "P88",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "financial operations read-allowed",
+      "assertion": "P91",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "guard gains authority",
+      "assertion": "P01",
+      "status": "ASSERTION_CAUGHT"
+    }
+  ]
+}

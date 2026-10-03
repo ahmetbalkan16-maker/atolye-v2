@@ -146,7 +146,8 @@ async function main() {
     assert.equal(s.fake.calls.length, 7); for (const c of s.fake.calls) { assert.equal(c.method, "GET"); assert.equal(c.host, "openapi.etsy.com");
       assert.match(c.path, /^\/v3\/application\/(?:users\/me|shops\/12345678(?:\/listings|\/receipts(?:\/\d+(?:\/payments)?)?|\/payment-account\/ledger-entries)?)$/); assert.ok(Object.isFrozen(c) && Object.isFrozen(c.query)); } });
   await p("P40", "hostile ids never reach a path", async () => { const s = setup(); for (const receiptId of ["../1", "1/../../x", "https://evil.test/1", 700001, "01", "700001?x=1", ""]) {
-    assert.equal((await go(s, req("ORDER_LIST_READ", { payload: { receiptId } }))).result!.errorCode, "AYAS_REVENUE_ETSY_PAYLOAD_INVALID"); }
+    assert.equal((await go(s, req("ORDER_LIST_READ", { payload: { receiptId } }))).result!.errorCode,
+      ["../1", "https://evil.test/1"].includes(String(receiptId)) ? "AYAS_REVENUE_SECURITY_REFUSED" : "AYAS_REVENUE_ETSY_PAYLOAD_INVALID"); }
     for (const [op, payload] of [["ORDER_LIST_READ", { receiptId: "700001", host: "evil.test" }], ["PAYOUT_LIST_READ", { kind: "RECEIPT_PAYMENTS", receiptId: "700001", path: "/v3/x" }]] as const)
       assert.equal((await go(s, req(op, { payload }))).result!.errorCode, "AYAS_REVENUE_ETSY_PAYLOAD_INVALID"); assert.equal(s.fake.calls.length, 0); });
   await p("P41", "adapter construction validates its inputs", () => { const t = etsyFakeTransport().transport; for (const o of [{ transport: t, shopId: "0", accountRef: ACCOUNT }, { transport: t, shopId: "../1", accountRef: ACCOUNT },
@@ -164,7 +165,8 @@ async function main() {
     assert.equal(((await s.adapter.draft(req("LISTING_DRAFT", { payload: mail }) as never)) as { refused: string }).refused, "AYAS_REVENUE_ETSY_REQUEST_INVALID");
     for (const o of [{ description: "See www.example.test" }, { title: "Buy at https://shop.test" }, { description: "Order at mapstudio.shop" },
     { tags: Array.from({ length: 14 }, (_, i) => `t${i}`) }, { tags: ["map", "Map"] }, { tags: ["a".repeat(21)] }, { title: "x".repeat(141) }, { price: { valueMinor: 0, currency: "USD" } }, { price: { valueMinor: 100, currency: "XAU" } },
-    { quantity: 1000 }, { listingType: "service" }, { mediaDigests: ["not-a-digest"] }, { publish: true }, { shopUrl: "x" }]) assert.equal((await go(s, req("LISTING_DRAFT", { payload: draftPayload(o) }))).result!.errorCode, "AYAS_REVENUE_ETSY_DRAFT_INVALID", JSON.stringify(o)); });
+    { quantity: 1000 }, { listingType: "service" }, { mediaDigests: ["not-a-digest"] }, { publish: true }, { shopUrl: "x" }]) assert.equal((await go(s, req("LISTING_DRAFT", { payload: draftPayload(o) }))).result!.errorCode,
+      "title" in o && o.title === "Buy at https://shop.test" ? "AYAS_REVENUE_SECURITY_REFUSED" : "AYAS_REVENUE_ETSY_DRAFT_INVALID", JSON.stringify(o)); });
   await p("P46", "same draft, same digest; changed price, new digest", async () => { const s = setup(); const a = data(await go(s, req("LISTING_DRAFT", { payload: draftPayload() })));
     const reordered = Object.fromEntries(Object.entries(draftPayload()).reverse()); const b = data(await go(s, req("LISTING_DRAFT", { payload: reordered }))); assert.equal(a.draftDigest, b.draftDigest);
     const c = data(await go(s, req("LISTING_DRAFT", { payload: draftPayload({ price: { valueMinor: 1300, currency: "USD" } }) }))); assert.notEqual(a.draftDigest, c.draftDigest); });
@@ -274,8 +276,9 @@ async function main() {
   await h("H10", "an expiring connection still reads", async () => { const s = setup({ connection: etsyConnection({ expiresAt: "2026-10-05T12:00:00.000Z" }) }); assert.equal((await go(s, req("ACCOUNT_STATUS_READ"))).result!.status, "OK"); });
   await h("H11", "a gross amount in another currency than the payment is unknown", async () => { const m = mapAyasEtsyPaymentsToLedger((await paymentsRead({ currency: "EUR" })).result);
     assert.ok(!m.inputs.some((i) => i.event === "GROSS_REVENUE")); assert.ok(m.unknown.includes("GROSS_REVENUE:800001")); });
-  await h("H12", "a link in a listing title is data and is never followed", async () => { const s = setup({ override: (q) => q.path.endsWith("/listings") ? { status: 200, headers: {}, body: { count: 1, results: [etsyListing(1, { title: "See https://evil.test/x" })] } } : undefined });
-    const r = await go(s, req("LISTING_LIST_READ")); assert.equal(r.result!.status, "OK"); assert.equal(s.fake.calls.length, 1); assert.ok(s.fake.calls.every((c) => c.host === "openapi.etsy.com")); });
+  await h("H12", "unknown link in a listing title is quarantined and never followed", async () => { const s = setup({ override: (q) => q.path.endsWith("/listings") ? { status: 200, headers: {}, body: { count: 1, results: [etsyListing(1, { title: "See https://evil.test/x" })] } } : undefined });
+    const r = await go(s, req("LISTING_LIST_READ")); assert.equal(r.result!.status, "BLOCKED"); assert.equal(r.result!.errorCode, "AYAS_REVENUE_SECURITY_CONTENT_REFUSED"); assert.equal(r.result!.data, null);
+    assert.equal(s.fake.calls.length, 1); assert.ok(s.fake.calls.every((c) => c.host === "openapi.etsy.com")); });
   if (selected === undefined) { assert.equal(results.filter((r) => r.set === "primary").length, 72); assert.equal(results.filter((r) => r.set === "held-out").length, 12); } else assert.equal(results.length, 1);
   console.log(JSON.stringify({ status: results.every((r) => r.ok) ? "PASS" : "FAIL", primary: { passed: results.filter((r) => r.set === "primary" && r.ok).length, total: results.filter((r) => r.set === "primary").length },
     heldOut: { passed: results.filter((r) => r.set === "held-out" && r.ok).length, total: results.filter((r) => r.set === "held-out").length }, authority: "NONE", results }, null, 2)); if (results.some((r) => !r.ok)) process.exitCode = 1;

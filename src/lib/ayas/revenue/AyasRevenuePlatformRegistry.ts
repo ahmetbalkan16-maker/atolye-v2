@@ -15,6 +15,8 @@ import { decideAyasRevenueOperation, type AyasRevenuePlan } from "./AyasRevenueA
 import { ayasRevenueLocalResult, isAyasRevenuePlatformAdapter, normalizeAyasRevenueResult, type AyasRevenuePlatformAdapter } from "./AyasRevenuePlatformAdapter";
 import { deepFreezeAyasRevenueValue, isAyasRevenuePlainRecord, snapshotAyasRevenueValue } from "./AyasRevenueRedaction";
 import { decideAyasRevenueSpend } from "./AyasRevenueSpendPolicy";
+import { guardAyasRevenueAction } from "./security/AyasRevenueActionGuard";
+import { inspectAyasRevenueContent } from "./security/AyasRevenueContentFirewall";
 
 export interface AyasRevenuePlatformRegistry {
   readonly platforms: readonly AyasRevenuePlatform[];
@@ -82,12 +84,16 @@ export async function runAyasRevenueReadOrDraft(registry: AyasRevenuePlatformReg
   const spend = decideAyasRevenueSpend({ schemaVersion: "1", platform: sent.platform, operation: sent.operation, event: "NONE", amount: null,
     costClass: plan.decision === "ALLOW_LOCAL_DRAFT" ? "local-zero-cost" : adapter.manifest.costClass, source: "LOCAL_PLAN", requestedAt: sent.requestedAt });
   if (!spend.allowedAutonomously) return { plan, result: ayasRevenueLocalResult(adapter.manifest, sent, "BLOCKED", `AYAS_REVENUE_SPEND_${spend.reasonCode}`, now()) };
+  const security = guardAyasRevenueAction(sent);
+  if (!["ALLOW_READ", "ALLOW_LOCAL_DRAFT"].includes(security.decision)) return { plan, result: ayasRevenueLocalResult(adapter.manifest, sent, "BLOCKED", "AYAS_REVENUE_SECURITY_REFUSED", now()) };
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const call = plan.decision === "ALLOW_READ" ? adapter.read(sent) : adapter.draft(sent);
     const raw = await Promise.race([call, new Promise<"TIMEOUT">((resolve) => { timer = setTimeout(() => resolve("TIMEOUT"), timeoutMs); })]);
     if (raw === "TIMEOUT") return { plan, result: ayasRevenueLocalResult(adapter.manifest, sent, "UNAVAILABLE", "AYAS_REVENUE_ADAPTER_TIMEOUT", now()) };
     const normalized = normalizeAyasRevenueResult(adapter.manifest, sent, raw);
+    if (normalized.ok && normalized.result.data !== null && inspectAyasRevenueContent(normalized.result.data, sent.platform).decision === "BLOCK")
+      return { plan, result: ayasRevenueLocalResult(adapter.manifest, sent, "BLOCKED", "AYAS_REVENUE_SECURITY_CONTENT_REFUSED", now()) };
     return { plan, result: normalized.ok ? normalized.result : ayasRevenueLocalResult(adapter.manifest, sent, normalized.code === "AYAS_REVENUE_RESULT_SENSITIVE_REFUSED" ? "BLOCKED" : "ERROR", normalized.code, now()) };
   } catch {
     return { plan, result: ayasRevenueLocalResult(adapter.manifest, sent, "ERROR", "AYAS_REVENUE_ADAPTER_FAILED", now()) };

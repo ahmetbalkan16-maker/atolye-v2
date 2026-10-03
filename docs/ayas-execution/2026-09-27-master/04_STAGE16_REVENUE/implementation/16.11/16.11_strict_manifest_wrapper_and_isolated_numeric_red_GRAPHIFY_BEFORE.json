@@ -1,0 +1,65 @@
+{
+  "at": "2026-10-03T19:22:44.807Z",
+  "graph": {
+    "at": "2026-10-03T19:22:44.714Z",
+    "head": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "lastAnalyzedHead": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "graphBuiltFrom": "0aa8c4077d7eb6e87360671f17d179d82e8be6ea",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18762,
+    "edges": 53761,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "17d3fd5c72cf1b3d21298643936d06d5afaeb9f9b440e6619a1fa4a7a5553615",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "context": {
+    "status": "ok",
+    "summary": "Review context for 6 changed file(s):\n  - Risk: high\n  - 135 impacted nodes in 69 files",
+    "risk": "high",
+    "changedFileCount": 6,
+    "impactedFileCount": 69,
+    "keyEntities": [
+      "AYAS_LEMON_WEBHOOK_EVENT_TYPE",
+      "AYAS_REVENUE_CONNECTION_HEALTH",
+      "AYAS_REVENUE_CONNECTION_LIMITS",
+      "AYAS_REVENUE_PRODUCTION_ADAPTERS",
+      "AyasLemonWebhook.ts"
+    ],
+    "testGaps": 65,
+    "nextToolSuggestions": [
+      "detect-changes",
+      "affected-flows",
+      "review-context"
+    ]
+  },
+  "design": [
+    "Pure security decisions never authorize or execute; all external text is data and no model-provided trust/owner approval input is accepted.",
+    "Existing runner adapter policy then spend then security guard; unchanged invalid/financial/write early denial, inspect bounded payload before dispatch and normalized data before return.",
+    "Reuse actual platform HMAC verifiers and Lemon canonical reread; unknown webhook platform refused, no generic verified boolean, no invented Lemon signed timestamp/durable dedupe.",
+    "Strict code-owned hosts, no redirects/shorteners/unknown links opened; file byte sniffing and closed formats, reject archives/executables, allowed bytes only in owned TEMP read-only isolation with cleanup.",
+    "Read-only exact account snapshots and drift observation; write retry binding/dedup/rejection are additional refusals, never owner approval or execution."
+  ],
+  "graphLimit": "PARTIAL9/semanticPENDING; current quick graph skipped communities, final full clustering required"
+}

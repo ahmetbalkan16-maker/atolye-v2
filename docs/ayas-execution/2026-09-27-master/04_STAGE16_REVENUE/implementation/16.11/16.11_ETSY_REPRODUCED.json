@@ -1,0 +1,442 @@
+{
+  "status": "FAIL",
+  "primary": {
+    "passed": 66,
+    "total": 72
+  },
+  "heldOut": {
+    "passed": 10,
+    "total": 12
+  },
+  "authority": "NONE",
+  "results": [
+    {
+      "id": "P01",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P02",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P03",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P04",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P05",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P06",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P07",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P08",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P09",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P10",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P11",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P12",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P13",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P14",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P15",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P16",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P17",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P18",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P19",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P20",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P21",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P22",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P23",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P24",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P25",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P26",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P27",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P28",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P29",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P30",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P31",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P32",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P33",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P34",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P35",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P36",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P37",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P38",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P39",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P40",
+      "set": "primary",
+      "ok": false,
+      "detail": "hostile ids never reach a path: Expected values to be strictly equal:"
+    },
+    {
+      "id": "P41",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P42",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P43",
+      "set": "primary",
+      "ok": false,
+      "detail": "local listing draft is hash-bound and publication stays closed: Expected values to be strictly equal:"
+    },
+    {
+      "id": "P44",
+      "set": "primary",
+      "ok": false,
+      "detail": "missing proofs are listed as issues: Cannot read properties of null (reading 'issues')"
+    },
+    {
+      "id": "P45",
+      "set": "primary",
+      "ok": false,
+      "detail": "draft refuses links, contact details, bad tags, bad price and extra fields: {\"title\":\"Buy at https://shop.test\"}"
+    },
+    {
+      "id": "P46",
+      "set": "primary",
+      "ok": false,
+      "detail": "same draft, same digest; changed price, new digest: Cannot read properties of null (reading 'draftDigest')"
+    },
+    {
+      "id": "P47",
+      "set": "primary",
+      "ok": false,
+      "detail": "a draft needs no connection: Expected values to be strictly equal:"
+    },
+    {
+      "id": "P48",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P49",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P50",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P51",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P52",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P53",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P54",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P55",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P56",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P57",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P58",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P59",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P60",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P61",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P62",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P63",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P64",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P65",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P66",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P67",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P68",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P69",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P70",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P71",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P72",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "H01",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H02",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H03",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H04",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H05",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H06",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H07",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H08",
+      "set": "held-out",
+      "ok": false,
+      "detail": "a download listing draft with ten media items is fine: Cannot read properties of null (reading 'publication')"
+    },
+    {
+      "id": "H09",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H10",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H11",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H12",
+      "set": "held-out",
+      "ok": false,
+      "detail": "a link in a listing title is data and is never followed: Expected values to be strictly equal:"
+    }
+  ]
+}

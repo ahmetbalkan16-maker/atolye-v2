@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-03T19:20:34.636Z",
+  "id": "F84",
+  "problem": "Owner-required closed metadata (OWNER_APPROVAL/publicationRequires) was misclassified as an owner-approved text claim, blocking safe Etsy local drafts.",
+  "reproduced": "Etsy66/72 primary +10/12 held-out;99 primary security +20 held-out passed. Distinct unsafe-link/early-refusal expectation changes are stronger16.11 contracts, not the metadata false-positive.",
+  "repair": "Owner claim pattern requires a natural-language word boundary/whitespace. Explicit OWNER_APPROVAL enum and ownerApprovalRequired remain DATA_ONLY with no authority. P105 independently proves both metadata eligibility and actual owner-claim refusal.",
+  "gradeHardening": "P47 and EtsyH12 now require BLOCKED/null data/unchanged operation for instruction or unknown link; EtsyP40/P45 keep zero transport and distinguish required earlier security refusals. Original validation is never skipped.",
+  "mutationAudit": "First archive control using an explicitly blocked Office archive was equivalent because the format restriction independently refused it; NOT COUNTED AS CAUGHT. Revised P100 disguised .txt archive isolates byte magic and must assertion-fail. Final controls contain no equivalence."
+}
