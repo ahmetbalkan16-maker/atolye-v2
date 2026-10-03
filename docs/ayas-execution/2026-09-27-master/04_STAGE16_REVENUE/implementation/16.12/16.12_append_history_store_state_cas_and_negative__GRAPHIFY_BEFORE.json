@@ -1,0 +1,93 @@
+{
+  "at": "2026-10-03T21:40:21.301Z",
+  "graph": {
+    "at": "2026-10-03T21:40:21.176Z",
+    "head": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
+    "lastAnalyzedHead": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
+    "graphBuiltFrom": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18872,
+    "edges": 54046,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "3f06952a96c189c3b5e1db9c39277277ca2efe46a7b30d4c0dd9c85f90cb5f80",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "context": {
+    "status": "ok",
+    "summary": "Review context for 7 changed file(s):\n  - Risk: high\n  - 54 impacted nodes in 25 files",
+    "risk": "high",
+    "changedFileCount": 7,
+    "impactedFileCount": 25,
+    "keyEntities": [
+      ".append()",
+      ".checkRoot()",
+      ".constructor()",
+      ".constructor()",
+      ".constructor()"
+    ],
+    "testGaps": 146,
+    "nextToolSuggestions": [
+      "detect-changes",
+      "affected-flows",
+      "review-context"
+    ]
+  },
+  "analysis": {
+    "scope": "PREPARATORY_ANALYSIS_ONLY_DURING_16.11A_EXACT_MATRIX",
+    "defaults": {
+      "platforms": 1,
+      "offers": 1,
+      "acquisitionPaths": 1,
+      "primaryMetrics": 1,
+      "autonomousSpend": 0,
+      "maxExternalWrites": 1,
+      "maxDurationDays": 14,
+      "durationCeiling": 30,
+      "executionAuthority": "NONE"
+    },
+    "ownerBoundary": "Trusted SOURCE reader seam defaults null; no request approval field or new approval endpoint; normalized reader metadata is not authentication. Existing authenticated owner integration remains UNBOUND; synthetic ACTIVE history is explicitly framework-only and never creates platform execution.",
+    "store": "Explicit-root offline pilots/pilot.json; immutable history and observations; no arbitrary filename; lock+fsync+atomic rename+CAS+SAFE_READ_ONLY; TEMP tests only.",
+    "economics": "Validate full16MiB ledger identity/chronology; global reversals before pilot selection; known later fees/refunds retained for selected orders; only16.2 per-currency realized summaries; missing reconciliation never zero/profit. No FX or future revenue.",
+    "revision": "Frozen metric/actions/duration/window after activation; extension requires new reviewed plan revision preserving prior snapshots and negative observations.",
+    "verdict": "No scale authority; incomplete money/canonical evidence =>INCONCLUSIVE; safety/policy recommends pause only, no external cancellation."
+  },
+  "limits": "Graph structuralPARTIAL9/semanticPENDING; no-cluster quick context only, final full clustering required",
+  "ownerStopBoundary": {
+    "state": "MANDATORY_STOP_BEFORE_IMPLEMENTATION",
+    "name": "AYAS Homepage Redesign / Brain UI V2 visual implementation",
+    "canonicalPosition": "Master section14 /07_BRAIN_UI_V2 after infinity framework",
+    "purpose": "Main /brain homepage new visual and interaction design",
+    "homepageImplementation": "NOT_STARTED",
+    "prohibited": [
+      "homepage UI/layout/refactor",
+      "new homepage components or controls",
+      "brain/avatar visual system",
+      "speaking/listening animations",
+      "starting redesign branch/sprint"
+    ],
+    "finalRequired": "Finish preceding authorized packet,validate/checkpoint/commit/normalpush/verifyparity,report MASTER CHECKPOINT — HOMEPAGE REDESIGN SINIRINA ULAŞILDI and STATUS STOPPED AS REQUESTED; then no further code/master tasks",
+    "laterCertifications": "OUTSIDE_CURRENT_AUTHORIZED_CONTINUATION_AFTER_STOP"
+  }
+}

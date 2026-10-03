@@ -1,0 +1,160 @@
+{
+  "at": "2026-10-03T22:21:34.709Z",
+  "state": "FRAMEWORK_FOCUSED_VERIFIED_EXACT_SOURCE_MATRIX_PENDING",
+  "rows": [
+    {
+      "name": "TypeScript",
+      "status": "PASS",
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "changed-eslint",
+      "status": "PASS",
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "whole-eslint",
+      "status": "PASS",
+      "stdoutDigest": "acda7137578c6b377451ce4f15e36817e9294da22d8c7dca00e3966c97a50712",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "errors": 0,
+      "warnings": 13
+    },
+    {
+      "name": "smoke-ayas-eval-governance.ts",
+      "status": "PASS",
+      "stdoutDigest": "42a098df54dc9978c43fd51a7e582e8bb48a22206005006026c509b7d2a3fce3"
+    },
+    {
+      "name": "smoke-ayas-exact-patch-safety.ts",
+      "status": "PASS",
+      "stdoutDigest": "c9d700fc0afca8d61b3da67631fac8c865a2d39b9c443b61e9c214e2bc403822"
+    },
+    {
+      "name": "smoke-ayas-revenue-security.ts",
+      "status": "PASS",
+      "stdoutDigest": "83052320045ad7767e8428824ccbe183354f4d8b380eb643a461cae3757f527b"
+    },
+    {
+      "name": "smoke-ayas-revenue-compliance.ts",
+      "status": "PASS",
+      "stdoutDigest": "d11b77e239a848a114ae183a273f5217cc699cc77012776fe8e429daae65d806"
+    },
+    {
+      "name": "smoke-ayas-revenue-free-first-validation.ts",
+      "status": "PASS",
+      "stdoutDigest": "fcc004c98d146b032d397b8126bc5e98367ff92d3999a2cd49eaa7c487b59140"
+    }
+  ],
+  "primary": 112,
+  "frozenHeldOut": 30,
+  "originalFrozenCasesPreserved": 20,
+  "negativeControls": 29,
+  "graderDefault": "FULL_112_CASES_ARGS_EMPTY",
+  "mutationTrial": "ONE_NAMED_ASSERTION_PER_FAULT_FULL_BASELINE_AND_RECOVERED_PRIMARY_HELD_OUT_REQUIRED",
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilot.ts",
+      "sha256": "7c5d9bea1db213eb372f9b27787ee79284be4d08b4c92450b4684583665ffa98"
+    },
+    {
+      "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilotPolicy.ts",
+      "sha256": "1f04e14edfdc87b3187147c71fe6d36b88a079528c90b541cac1cb470e69c3a4"
+    },
+    {
+      "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilotStore.ts",
+      "sha256": "0eeb808058893a8bdd61e85ddcb2153096503614ac281631edbb50a9c0291606"
+    },
+    {
+      "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilotEvaluation.ts",
+      "sha256": "9b2b3af55bd4c1bc937fc331fd8e2a8e13c705c5e94c474fbbf7863e048c89cd"
+    },
+    {
+      "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilotHandoff.ts",
+      "sha256": "7e33d0a7e6d4b9bbbef26338225d90ad0cad390c54e15a7d19ec3c48e411172f"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
+      "sha256": "64dd74f05e05cdac302fc06edd48a563e7e0124b2dac636551ed7ca0895612a9"
+    },
+    {
+      "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
+      "sha256": "61de138a9f7fdb71570eb317c70b8472df270948bdbe8beba2ac41935023f2e1"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
+      "sha256": "6d920895bb0e8e7b9d9a8bec8cba84d7274dfc39245e3458163dd59f1098208c"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
+      "sha256": "3bd14f974bad80728ec3aa43872245f5858a27d6384929544e5555c253ee1d99"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
+      "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "d8c00d30b0cf6b5b1b9a33ecc858d57ab2858f21a536032dff6eaded6b62cee6"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "9b136ffbd41315598872f972760e7f50e41aa3ff31d6e85e877893ba16b67f6f"
+    }
+  ],
+  "pins": {
+    "manifestVersion": "15F.4-v52",
+    "declaredSuites": 157,
+    "uniquePins": 198,
+    "pinDrift": [],
+    "committed": false
+  },
+  "manifestVersion": "15F.4-v52",
+  "declaredSuites": 157,
+  "fullDeclaredBaseline": "NOT_RUN_V52_LAST_COMPLETE_V38",
+  "graphAfter": {
+    "at": "2026-10-03T22:21:34.509Z",
+    "head": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
+    "lastAnalyzedHead": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
+    "graphBuiltFrom": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18914,
+    "edges": 54211,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "0d9d1ce9f44cc6569e33fb925ac9900eb86915058bb34da3166db0b42c69ef3d",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "review": "SAME_SESSION_SOURCE_REVIEW_PLUS_INDEPENDENT_AST_AND_MUTATION_GRADERS_NO_SEPARATE_AGENT",
+  "ownerReader": "UNBOUND_NORMALIZED_METADATA_NOT_AUTHENTICATION",
+  "productionStore": "UNBOUND",
+  "livePilotActions": "NOT_AUTHORIZED_NOT_RUN",
+  "externalWrite": false,
+  "autonomousSpend": 0,
+  "authority": "NONE",
+  "homepageImplementation": "NOT_STARTED",
+  "typeScriptRepair": "BigInt literals rejected by existing pre-ES2020 target; use BigInt(0)/BigInt(10000), calculation preserved, target unchanged"
+}

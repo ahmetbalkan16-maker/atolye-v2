@@ -1,0 +1,164 @@
+{
+  "status": "PASS",
+  "heldOut": {
+    "pass": 30,
+    "total": 30
+  },
+  "frozen": true,
+  "originalFrozenCases": 20,
+  "appendedStageCases": 10,
+  "scope": "MODEL_OWNER_ADMISSION_REALIZED_ECONOMICS_MANUAL_HANDOFF",
+  "liveQualification": "NOT_RUN",
+  "results": [
+    {
+      "id": "H01",
+      "name": "Turkish owner claim cannot activate plan",
+      "ok": true
+    },
+    {
+      "id": "H02",
+      "name": "float duration refused",
+      "ok": true
+    },
+    {
+      "id": "H03",
+      "name": "negative zero write budget refused",
+      "ok": true
+    },
+    {
+      "id": "H04",
+      "name": "prototype and symbol approval data refused",
+      "ok": true
+    },
+    {
+      "id": "H05",
+      "name": "oversized goal cannot enter history",
+      "ok": true
+    },
+    {
+      "id": "H06",
+      "name": "crypto/payment action stays outside pilot plan",
+      "ok": true
+    },
+    {
+      "id": "H07",
+      "name": "bank details never become resource identity",
+      "ok": true
+    },
+    {
+      "id": "H08",
+      "name": "human-looking model receipt cannot replace default source reader",
+      "ok": true
+    },
+    {
+      "id": "H09",
+      "name": "unknown owner decision remains pending",
+      "ok": true
+    },
+    {
+      "id": "H10",
+      "name": "recovery-required state cannot masquerade as approval",
+      "ok": true
+    },
+    {
+      "id": "H11",
+      "name": "empty decision digest not a review proof",
+      "ok": true
+    },
+    {
+      "id": "H12",
+      "name": "malicious reader getter never executes",
+      "ok": true
+    },
+    {
+      "id": "H13",
+      "name": "revised action scope cannot retain old plan identity",
+      "ok": true
+    },
+    {
+      "id": "H14",
+      "name": "time extension cannot be disguised as normal pause",
+      "ok": true
+    },
+    {
+      "id": "H15",
+      "name": "subscription launch cost cannot become free fallback",
+      "ok": true
+    },
+    {
+      "id": "H16",
+      "name": "private admission body refused",
+      "ok": true
+    },
+    {
+      "id": "H17",
+      "name": "unknown security state stays blocking",
+      "ok": true
+    },
+    {
+      "id": "H18",
+      "name": "model claim does not establish professional review",
+      "ok": true
+    },
+    {
+      "id": "H19",
+      "name": "source seam always preserves zero execution authority",
+      "ok": true
+    },
+    {
+      "id": "H20",
+      "name": "no direct ACTIVE from unreviewed draft even supplied callback",
+      "ok": true
+    },
+    {
+      "id": "H21",
+      "name": "empty ledger never claims known zero income or profit",
+      "ok": true
+    },
+    {
+      "id": "H22",
+      "name": "altered reconciliation window refused",
+      "ok": true
+    },
+    {
+      "id": "H23",
+      "name": "unknown disputes cannot become complete observations",
+      "ok": true
+    },
+    {
+      "id": "H24",
+      "name": "local model counts cannot satisfy owner proposal metric",
+      "ok": true
+    },
+    {
+      "id": "H25",
+      "name": "proof digest is not permission or scaling authority",
+      "ok": true
+    },
+    {
+      "id": "H26",
+      "name": "zero fees require explicit observed facts",
+      "ok": true
+    },
+    {
+      "id": "H27",
+      "name": "extra secret receipt cannot upgrade economics",
+      "ok": true
+    },
+    {
+      "id": "H28",
+      "name": "new draft revision cannot remove old policy signal",
+      "ok": true
+    },
+    {
+      "id": "H29",
+      "name": "nonce replay blocks despite different action journal key",
+      "ok": true
+    },
+    {
+      "id": "H30",
+      "name": "source getter in handoff never executes",
+      "ok": true
+    }
+  ]
+}

@@ -7,11 +7,7 @@ import { classifyAyasRevenueRisk } from "../security/AyasRevenueRiskClassifier";
 import { AYAS_REVENUE_TRANSPORTS } from "../AyasRevenuePlatformTypes";
 import { deepFreezeAyasRevenueValue,hasExactAyasRevenueKeys,isAyasRevenuePlainRecord,isAyasRevenueTimestamp } from "../AyasRevenueRedaction";
 import { isAyasRevenueDigest } from "../AyasRevenueOpportunity";
-import { snapshotAyasRevenuePilot,snapshotAyasRevenuePilotData,type AyasRevenuePilot,type AyasRevenuePilotState } from "./AyasRevenuePilot";
-const TRANSITIONS:Readonly<Record<AyasRevenuePilotState,readonly AyasRevenuePilotState[]>>=Object.freeze({
-  DRAFT:["OWNER_REVIEW","CANCELLED","INVALIDATED"],OWNER_REVIEW:["READY","CANCELLED","INVALIDATED"],READY:["ACTIVE","CANCELLED","INVALIDATED"],
-  ACTIVE:["PAUSED","COMPLETED","CANCELLED","INVALIDATED"],PAUSED:["ACTIVE","COMPLETED","CANCELLED","INVALIDATED"],COMPLETED:[],CANCELLED:[],INVALIDATED:[],
-});
+import { AYAS_REVENUE_PILOT_TRANSITIONS,snapshotAyasRevenuePilot,snapshotAyasRevenuePilotData,type AyasRevenuePilot,type AyasRevenuePilotState } from "./AyasRevenuePilot";
 export interface AyasRevenuePilotOwnerRead {readonly planDigest:string;readonly transitionDigest:string;readonly requestedState:AyasRevenuePilotState;readonly now:string}
 function admission(p:AyasRevenuePilot,raw:unknown,now:string):string|null {
   const v=snapshotAyasRevenuePilotData(raw);
@@ -38,7 +34,7 @@ export function createAyasRevenuePilotPolicy(options:{readonly readExistingOwner
     const p=snapshotAyasRevenuePilot(raw),out=(status:"BLOCKED"|"OWNER_REVIEW_REQUIRED"|"LOCAL_STATE_PLAN",reasonCode:string,next:AyasRevenuePilot|null=null)=>deepFreezeAyasRevenueValue({status,reasonCode,next,
       ownerAuthentication:"UNBOUND_NORMALIZED_SOURCE_READER_NOT_AUTHENTICATION" as const,grantsAuthority:false as const,executionAuthority:"NONE" as const,externalWrite:false as const,autonomousSpend:0 as const});
     if(!p||!isAyasRevenueTimestamp(now)||Date.parse(now)<Date.parse(p.lastStateAt))return out("BLOCKED","INVALID_PILOT_OR_CLOCK");
-    if(!TRANSITIONS[p.state].includes(requestedState))return out("BLOCKED","TRANSITION_NOT_ALLOWED");
+    if(!AYAS_REVENUE_PILOT_TRANSITIONS[p.state].includes(requestedState))return out("BLOCKED","TRANSITION_NOT_ALLOWED");
     if(requestedState==="OWNER_REVIEW")return out("LOCAL_STATE_PLAN","REVIEW_REQUEST_ONLY",{...p,state:requestedState,lastStateAt:now});
     if(["READY","ACTIVE"].includes(requestedState)){const reason=admission(p,rawAdmission,now);if(reason)return out("BLOCKED",reason);}
     const startAt=requestedState==="ACTIVE"&&p.startAt===null?now:p.startAt,stopAt=startAt===null?null:p.stopAt??new Date(Date.parse(startAt)+p.maxDurationDays*86400000).toISOString();

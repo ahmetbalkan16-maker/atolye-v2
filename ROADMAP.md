@@ -1,3 +1,7 @@
+# AYAS current —2026-10-04 /16.12 framework verified; exact source matrix pending
+
+16.12 bounded pilot framework focused verified:112 primary+30 held-out (original20 preserved)+29 independent assertion-caught controls; explicit-root TEMP append history/CAS/SAFE/corruption/replay, immutable window/metric, negative evidence retained across revisions, full16MiB realized ledger/per currency/global reversals/later fees/refunds, manual owner handoff/no executor. TS/lint/diff/pins/governance/protection/security/compliance/free-first PASS;198 pins/157 v52 declared suites, full baseline NOT_RUN. Owner/authenticated source, production store/journal and actual pilot actions UNBOUND/NOT_RUN. Exact source matrix/full Graphify pending. Homepage NOT_STARTED;STOP before redesign.
+
 # AYAS current —2026-10-04 /16.12 model packet verified;store/economics/handoff pending;STOP before Homepage Redesign
 
 16.12 model/owner/admission packet verified:61 primary+20 frozen held-out+15 assertion-caught controls;TS/changed and whole lint/diff,governance/protection/security/spend/free-first PASS;193 old pins unchanged, new pilot graders NOT_REGISTERED until fullstage. Wholelint13 inherited warnings. Graphify quickcurrent/integrity0,PARTIAL9/semanticPENDING,clusteringSKIPPED—not finalstageGraphPASS. Durable store/economics/handoff and fullstage/exact-source qualification pending. No real pilot/platform action,approval authority or homepage change.

@@ -1,0 +1,155 @@
+{
+  "status": "PASS",
+  "caught": 29,
+  "total": 29,
+  "equivalents": 0,
+  "baselineAndRecovered": "PASS",
+  "scope": "MODEL_OWNER_ADMISSION_STORE_ECONOMICS_HANDOFF_OWNED_GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY",
+  "rows": [
+    {
+      "name": "bounded integer ceilings lost",
+      "assertion": "P10",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "cross-platform action admitted",
+      "assertion": "P15",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "proxy reflection executes",
+      "assertion": "P52",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "rejected owner metadata accepted",
+      "assertion": "P27",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "plan decision rebound",
+      "assertion": "P25",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "transition decision rebound",
+      "assertion": "P26",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "stale review accepted",
+      "assertion": "P28",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "paid launch cost admitted",
+      "assertion": "P32",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "blocking risk ignored",
+      "assertion": "P35",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "professional review ignored",
+      "assertion": "P41",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "free-first failure ignored",
+      "assertion": "P61",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "metadata becomes authority",
+      "assertion": "P23",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "expired pilot resumes",
+      "assertion": "P49",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "foreign fee proof accepted",
+      "assertion": "P38",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "forbidden dynamic capability",
+      "assertion": "P56",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "stale caller revision ignored",
+      "assertion": "P71",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "conflicting evidence silently replayed",
+      "assertion": "P68",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "SAFE refusal after directory creation",
+      "assertion": "P77",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "persisted chain validation omitted",
+      "assertion": "P76",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "persisted future history accepted",
+      "assertion": "P80",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "late negative silently bound only to current plan",
+      "assertion": "P74",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "refund reconciliation omitted",
+      "assertion": "P85",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "global reversal ignored",
+      "assertion": "P89",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "late fees discarded by pilot window",
+      "assertion": "P88",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "incomplete fee observations called complete",
+      "assertion": "P84",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "unexpected monetary risk ignored",
+      "assertion": "P96",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "handoff ignores binding checker",
+      "assertion": "P105",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "failed/unknown action retry permitted",
+      "assertion": "P109",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "handoff manufactures authority",
+      "assertion": "P104",
+      "status": "ASSERTION_CAUGHT"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v52",
+  "version": "15F.4-v51",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -3141,78 +3141,6 @@
         {
           "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
           "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-low-cost-pilot",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "64dd74f05e05cdac302fc06edd48a563e7e0124b2dac636551ed7ca0895612a9"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
-          "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-low-cost-pilot-adversarial",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
-          "sha256": "6d920895bb0e8e7b9d9a8bec8cba84d7274dfc39245e3458163dd59f1098208c"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "61de138a9f7fdb71570eb317c70b8472df270948bdbe8beba2ac41935023f2e1"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
-          "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-low-cost-pilot-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
-          "sha256": "3bd14f974bad80728ec3aa43872245f5858a27d6384929544e5555c253ee1d99"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "64dd74f05e05cdac302fc06edd48a563e7e0124b2dac636551ed7ca0895612a9"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "61de138a9f7fdb71570eb317c70b8472df270948bdbe8beba2ac41935023f2e1"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
-          "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
         }
       ],
       "slices": [
