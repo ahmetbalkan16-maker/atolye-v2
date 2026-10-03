@@ -1,0 +1,90 @@
+{
+  "status": "PASS",
+  "caught": 16,
+  "total": 16,
+  "equivalents": 0,
+  "baselineAndRecovered": "PASS",
+  "scope": "OWNED_GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY",
+  "rows": [
+    {
+      "name": "scope binding lost",
+      "assertion": "P26",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "restricted account ignored",
+      "assertion": "P19",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "scope expiry ignored",
+      "assertion": "P33",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "future receipt accepted",
+      "assertion": "P34",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "receipt expiry ignored",
+      "assertion": "P10",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "duplicate terms hidden",
+      "assertion": "P35",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "Etsy public API terms treated as permission",
+      "assertion": "P36",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "Upwork key treated as approved use case",
+      "assertion": "P37",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "financial action no longer refused",
+      "assertion": "P49",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "metadata becomes authority",
+      "assertion": "P01",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "checklist becomes pilot activation",
+      "assertion": "P01",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "accessor executes before refusal",
+      "assertion": "P51",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "public reference replaces professional review",
+      "assertion": "P41",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "unknown jurisdiction hidden",
+      "assertion": "P07",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "forbidden dynamic capability",
+      "assertion": "P60",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "native proxy refusal lost",
+      "assertion": "P62",
+      "status": "ASSERTION_CAUGHT"
+    }
+  ]
+}

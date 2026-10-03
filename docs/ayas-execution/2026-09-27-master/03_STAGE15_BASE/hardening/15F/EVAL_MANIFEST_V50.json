@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v51",
+  "version": "15F.4-v50",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -3069,78 +3069,6 @@
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
           "sha256": "aa773ce2bbca18abf958704726af1e07e19479eb1dd28d0baaab495fcd66f95a"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-compliance",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-compliance.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-compliance.ts",
-          "sha256": "d32d3e9a9a2c8601dcef4280c5ec2733173f731c8dc2269ad2e7d429de17f533"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
-          "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-compliance-adversarial",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-compliance-adversarial.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-compliance-adversarial.ts",
-          "sha256": "876b33025aaf473f3803f11fa2e1140d5d02672a35447f853d77f435beac5bea"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-compliance.ts",
-          "sha256": "1c22e6d28f98da8503ff57612cdf9870a532a34b372675dddd112dab28b2b617"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
-          "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-compliance-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-compliance-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-compliance-mutations.ts",
-          "sha256": "024ed14311d55afbe4986ce5a7c63a09059e1b715de2f3ff1b96ed62a33a8598"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-compliance.ts",
-          "sha256": "d32d3e9a9a2c8601dcef4280c5ec2733173f731c8dc2269ad2e7d429de17f533"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-compliance.ts",
-          "sha256": "1c22e6d28f98da8503ff57612cdf9870a532a34b372675dddd112dab28b2b617"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
-          "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
         }
       ],
       "slices": [

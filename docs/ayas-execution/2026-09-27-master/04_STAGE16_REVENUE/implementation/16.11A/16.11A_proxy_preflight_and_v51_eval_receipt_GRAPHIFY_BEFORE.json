@@ -1,0 +1,65 @@
+{
+  "at": "2026-10-03T20:03:06.413Z",
+  "graph": {
+    "at": "2026-10-03T20:03:06.340Z",
+    "head": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "lastAnalyzedHead": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "graphBuiltFrom": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18812,
+    "edges": 53867,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "fcc99c035f72b688a6c3237f036dfc99cd51d065e7e27dbaec1f6feab25bcf90",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "context": {
+    "status": "ok",
+    "summary": "Review context for 4 changed file(s):\n  - Risk: high\n  - 157 impacted nodes in 85 files",
+    "risk": "high",
+    "changedFileCount": 4,
+    "impactedFileCount": 85,
+    "keyEntities": [
+      "AYAS_REVENUE_COMPLIANCE_REQUIREMENTS",
+      "AyasRevenueCompliance.ts",
+      "AyasRevenueComplianceInput",
+      "AyasRevenueComplianceRecord",
+      "AyasRevenueComplianceScope"
+    ],
+    "testGaps": 43,
+    "nextToolSuggestions": [
+      "detect-changes",
+      "affected-flows",
+      "review-context"
+    ]
+  },
+  "design": [
+    "New isolated pure module only; existing adapter read/draft policy, effects, money, approval path and production registry unchanged.",
+    "Closed digest-only checklist metadata cannot authenticate owner/platform/professional decisions or declare compliance. Missing, stale, restricted, cross-bound or unknown evidence fails closed.",
+    "Exact platform/account/offer/operation/terms/scope binding. Fixed freshness ceilings; no caller-selected policy or legal/tax interpretation.",
+    "Etsy written permission and Upwork approved API use case surface separately; Fiverr manual handoff remains code-owned. Timezone is not jurisdiction.",
+    "All outputs pilotActivationAllowed=false/grantsAuthority=false/spend0; actual review reader and owner approval path remain unbound."
+  ],
+  "limitations": "Structural PARTIAL9, semantic PENDING; quick no-cluster context is not final full graph qualification."
+}

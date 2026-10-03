@@ -1,0 +1,10 @@
+{
+  "finding": "F85",
+  "state": "BLOCKED",
+  "proxyTraps": 22,
+  "authority": false,
+  "reproduced": true,
+  "repair": "Native node:util types.isProxy check before every reflection/serialization, including nested records/arrays; descriptor-only bounded preflight. P62/H19/H20 assert refusal with zero traps; independent mutation must assertion-fail. Scope is new compliance module; existing global redaction helper unchanged.",
+  "authorityBefore": false,
+  "authorityAfter": false
+}

@@ -328,3 +328,7 @@ Owner-required closed metadata (OWNER_APPROVAL/publicationRequires) was misclass
 ## 2026-10-03T19:51:39.383Z —16.11 exact-source receipt with explicit qualifications
 
 16.11 exact-source framework verified at 74b6c495813bbce9f6b405dc11f628900da99261:105 primary+20 frozen adversarial+17 assertion-caught controls;53 selected (52 plainPASS, cognitive CF49 known limitation),13 extra including Stage9 isolated/security PASS;188 committed pins,TS/lint/diff PASS (13 inherited warnings). Fullv50 NOT_RUN. Graphify current/integrity0/full clustering, structuralPARTIAL9/semanticPENDING. Historical metadata doc-stale checkpoint orchestration gap explicit; not retroactive Graphify-first PASS. No actual owner/platform qualification, production attachment/account-reader, webhook durable ingress/dedupe/ACK or write journal/executor. Stage16/Master OPEN; next16.11A terms/compliance.
+
+## 2026-10-03T20:05:19.010Z —16.11A/F85 proxy preflight side effect
+
+The first new compliance draft refused proxied input at structuredClone but its descriptor/JSON preflight had already invoked 22 controlled proxy traps. Reproduced without authority or IO. Native proxy rejection now precedes reflection/serialization recursively. P62/H19/H20 and an independent mutation cover zero-trap refusal. Existing redaction contracts were not broadened or refactored.

@@ -1,0 +1,61 @@
+{
+  "checkedAt": "2026-10-03T19:38:00.000Z",
+  "scope": "16.11A PUBLIC_REFERENCE_ONLY_NOT_LIVE_COMPLIANCE",
+  "qualification": "NOT_OWNER_APPROVAL_NOT_ACCOUNT_STANDING_NOT_LEGAL_TAX_OR_LIVE_COMPLIANCE",
+  "sources": [
+    {
+      "platform": "etsy",
+      "url": "https://www.etsy.com/legal/api/",
+      "retrieval": "BODY_READ",
+      "publishedRevision": "2026-08-18",
+      "reviewNote": "Current API policy requires express written platform permission for the described automated access/analyzing/scraping uses and certain analytics or AI-related content requests. Do not infer permission from API credentials or owner authorization alone."
+    },
+    {
+      "platform": "etsy",
+      "url": "https://www.etsy.com/legal/sellers/",
+      "retrieval": "OFFICIAL_SEARCH_REFERENCE",
+      "reviewNote": "Seller-policy standing and the exact proposed offer require separate current review."
+    },
+    {
+      "platform": "upwork",
+      "url": "https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly",
+      "retrieval": "BODY_READ",
+      "reviewNote": "Automation requires the approved API use case; an API key does not permit prohibited proposal spam, scraping, scope misuse or browser/session credential mixing. Official MCP use must separately match its currently qualified policy."
+    },
+    {
+      "platform": "fiverr",
+      "url": "https://www.fiverr.com/legal-portal/legal-terms/terms-of-service",
+      "retrieval": "OFFICIAL_SEARCH_TEXT_MAIN_BODY_NAVIGATION_ONLY",
+      "reviewNote": "Search-index text describes restrictions on unauthorized automation and scraping; direct body extraction yielded navigation. Full current terms review remains unqualified. Existing manual-handoff-only transport stays closed to network automation."
+    },
+    {
+      "platform": "udemy",
+      "url": "https://www.udemy.com/terms/instructor/",
+      "retrieval": "POLICY_NAVIGATION_ONLY",
+      "reviewNote": "Current instructor terms body was not returned by the text reader. Do not call the full terms verified."
+    },
+    {
+      "platform": "udemy",
+      "url": "https://support.udemy.com/hc/en-us/articles/360034920354-Instructor-Withholding-Tax-Status-FAQ",
+      "retrieval": "BODY_READ",
+      "reviewNote": "Platform withholding is distinct from consumer sales tax; exact forms and jurisdiction require owner/professional review, with no personal tax IDs stored in AYAS evidence."
+    },
+    {
+      "platform": "lemon-squeezy",
+      "url": "https://www.lemonsqueezy.com/terms",
+      "retrieval": "BODY_READ",
+      "reviewNote": "Merchant terms include lawful-business, applicable-law and licensing obligations. The product must separately match current permitted-product policy."
+    },
+    {
+      "platform": "lemon-squeezy",
+      "url": "https://docs.lemonsqueezy.com/help/payments/sales-tax-vat",
+      "retrieval": "BODY_READ",
+      "reviewNote": "Merchant-of-record sales-tax handling does not establish that the supplier has no income/payout-related tax obligations. Documentation recommends jurisdiction-specific expert advice."
+    }
+  ],
+  "inferences": [
+    "A local timezone is not proof of tax residence or entity jurisdiction.",
+    "Public terms retrieval is reference evidence; it cannot authenticate owner decisions, account standing, individual platform permission or professional advice."
+  ],
+  "actualOwnerProfessionalReview": "UNBOUND"
+}

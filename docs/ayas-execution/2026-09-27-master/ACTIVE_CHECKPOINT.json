@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "74b6c495813bbce9f6b405dc11f628900da99261",
-  "currentHead": "74b6c495813bbce9f6b405dc11f628900da99261",
+  "currentHead": "b8385d201e1bfc188754557cac4aed52ea2e3138",
   "stage": "STAGE_16_11A",
-  "subtask": "16.11A current platform terms/compliance and owner/professional-review boundary architecture before source",
+  "subtask": "16.11A focused verified, source commit and exact-source matrix pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -251,7 +251,11 @@
     "16.10 dedicated memory/intelligence framework verified; cognitiveCF49 and production data/writer qualification pending",
     "16.11 security framework verified with inherited CF49/process gap and live qualification pending"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/revenue/compliance/",
+    "scripts/smoke-ayas-revenue-compliance.ts",
+    "scripts/adversarial-ayas-revenue-compliance.ts"
+  ],
   "lastGreenTests": [
     "16.11 105 primary+20 frozen adversarial+17 assertion-caught controls",
     "52 selected exact-source PASS; cognitive54/55+4/5 held-out PASS_WITH_KNOWN_LIMITATIONS(CF49);13 extra including Stage9 isolation/security PASS",
@@ -259,15 +263,15 @@
     "Graphify exact tested HEAD current/integrity0/full378 communities; structuralPARTIAL9/semanticPENDING; historical doc-stale orchestration gap explicit"
   ],
   "graphify": {
-    "at": "2026-10-03T19:51:32.458Z",
-    "head": "74b6c495813bbce9f6b405dc11f628900da99261",
-    "lastAnalyzedHead": "74b6c495813bbce9f6b405dc11f628900da99261",
-    "graphBuiltFrom": "74b6c495813bbce9f6b405dc11f628900da99261",
+    "at": "2026-10-03T20:07:30.473Z",
+    "head": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "lastAnalyzedHead": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "graphBuiltFrom": "b8385d201e1bfc188754557cac4aed52ea2e3138",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 18764,
-    "edges": 53782,
-    "communities": 378,
+    "nodes": 18813,
+    "edges": 53869,
+    "communities": 0,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -277,9 +281,9 @@
       "INCOMPLETE_CODE_FILES:9"
     ],
     "semanticStatus": "PENDING",
-    "worktreeState": "CLEAN",
+    "worktreeState": "DIRTY",
     "classification": "GRAPH_PARTIAL",
-    "sha256": "34bf5e101ff26c2497b46a77823740cd835925c35c91377396fa4f281786f541",
+    "sha256": "cd9dacf8aa81e423e51b1b86bd7e27e0491c8961d65373890ea4ba16b0acb7a1",
     "incompleteCodeFiles": [
       ".github/workflows/ayas-safe-ci.yml",
       "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
@@ -318,8 +322,8 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 actual owner Test-mode key/connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "16.11A Graphify-first strict pure compliance/terms checklist: current platform terms, account standing, exact approved automation use case and platform permission, rights/fees, unknown jurisdiction/tax/legal => OWNER/PROFESSIONAL_REVIEW_REQUIRED. No legal/tax authority or new owner approval. Official web research is reference only, never live compliance/owner authorization. Etsy current2026-08-18 API policy automation/analytics written-permission requirement must be surfaced. Then16.12 bounded low-cost pilot framework→16.13 realized profit scaling→16.14 dashboard+closure→17→infinity/certs. Preserve unbound live inputs/defaults; push only authorized major-stage GREEN.",
-  "updatedAt": "2026-10-03T19:51:39.383Z",
+  "nextAction": "16.11A closed pure terms/account/automation/rights/fees/jurisdiction/tax/legal checklist; no legal conclusion, no approval or execution. Primary/frozen held-out/independent controls, exact-source regressions, TS/lint/pins/Graphify. Then16.12 pilot framework; no actual account/pilot actions.",
+  "updatedAt": "2026-10-03T20:07:30.559Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -2975,8 +2979,57 @@
     "result": "04_STAGE16_REVENUE/implementation/16.11/16.11_RESULT.json"
   },
   "stage16_11A": {
-    "state": "ARCHITECTURE_ANALYSIS_PENDING_SOURCE",
+    "state": "FOCUSED_VERIFIED_PENDING_EXACT_SOURCE_MATRIX",
     "stageClosed": false,
-    "baseHead": "74b6c495813bbce9f6b405dc11f628900da99261"
+    "baseHead": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "authority": "NONE",
+    "liveQualification": "NOT_RUN",
+    "ownerReader": "UNBOUND",
+    "professionalAuthority": "NONE",
+    "pilotActivation": "CLOSED",
+    "primary": 62,
+    "frozenHeldOut": 20,
+    "independentControls": 16,
+    "pins": 193,
+    "staticChecks": [
+      {
+        "name": "TypeScript",
+        "status": "PASS",
+        "exit": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "changed-eslint",
+        "status": "PASS",
+        "exit": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "whole-eslint",
+        "status": "PASS",
+        "exit": 0,
+        "stdoutDigest": "37c2ac5fa276f1b3ca0965ea44b433ba182f9b649f49377b531e2b7feb4e1a61",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "errors": 0,
+        "warnings": 13
+      },
+      {
+        "name": "governance",
+        "status": "PASS",
+        "stdoutDigest": "42a098df54dc9978c43fd51a7e582e8bb48a22206005006026c509b7d2a3fce3"
+      },
+      {
+        "name": "patch-safety",
+        "status": "PASS",
+        "stdoutDigest": "c9d700fc0afca8d61b3da67631fac8c865a2d39b9c443b61e9c214e2bc403822"
+      },
+      {
+        "name": "security",
+        "status": "PASS",
+        "stdoutDigest": "83052320045ad7767e8428824ccbe183354f4d8b380eb643a461cae3757f527b"
+      }
+    ]
   }
 }

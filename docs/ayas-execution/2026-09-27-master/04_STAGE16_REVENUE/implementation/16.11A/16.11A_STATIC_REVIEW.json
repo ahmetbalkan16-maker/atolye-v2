@@ -1,0 +1,130 @@
+{
+  "at": "2026-10-03T20:07:30.556Z",
+  "state": "PASS_BOUNDED_FRAMEWORK_ONLY",
+  "rows": [
+    {
+      "name": "TypeScript",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "changed-eslint",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "whole-eslint",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "37c2ac5fa276f1b3ca0965ea44b433ba182f9b649f49377b531e2b7feb4e1a61",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "errors": 0,
+      "warnings": 13
+    },
+    {
+      "name": "governance",
+      "status": "PASS",
+      "stdoutDigest": "42a098df54dc9978c43fd51a7e582e8bb48a22206005006026c509b7d2a3fce3"
+    },
+    {
+      "name": "patch-safety",
+      "status": "PASS",
+      "stdoutDigest": "c9d700fc0afca8d61b3da67631fac8c865a2d39b9c443b61e9c214e2bc403822"
+    },
+    {
+      "name": "security",
+      "status": "PASS",
+      "stdoutDigest": "83052320045ad7767e8428824ccbe183354f4d8b380eb643a461cae3757f527b"
+    }
+  ],
+  "diffCheck": "PASS",
+  "pins": {
+    "manifestVersion": "15F.4-v51",
+    "declaredSuites": 154,
+    "uniquePins": 193,
+    "pinDrift": [],
+    "committed": false
+  },
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/compliance/AyasRevenueCompliance.ts",
+      "sha256": "d45f926ea1992edcc86e92eb0ec2fcf3ec317e59474029d1eb6dc4c037bf2866"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "ea83b7468dfed8cf7cc013a0523572e513288c0359e62263fd54f690309c92d6"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "1dda105e755f7335f815267c7bf8c2a8624827810f0acc88fd48339a5c855449"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-compliance.ts",
+      "sha256": "d32d3e9a9a2c8601dcef4280c5ec2733173f731c8dc2269ad2e7d429de17f533"
+    },
+    {
+      "file": "scripts/adversarial-ayas-revenue-compliance.ts",
+      "sha256": "1c22e6d28f98da8503ff57612cdf9870a532a34b372675dddd112dab28b2b617"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-compliance-adversarial.ts",
+      "sha256": "876b33025aaf473f3803f11fa2e1140d5d02672a35447f853d77f435beac5bea"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-compliance-mutations.ts",
+      "sha256": "024ed14311d55afbe4986ce5a7c63a09059e1b715de2f3ff1b96ed62a33a8598"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
+      "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
+    }
+  ],
+  "graphAfter": {
+    "at": "2026-10-03T20:07:30.473Z",
+    "head": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "lastAnalyzedHead": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "graphBuiltFrom": "b8385d201e1bfc188754557cac4aed52ea2e3138",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18813,
+    "edges": 53869,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "cd9dacf8aa81e423e51b1b86bd7e27e0491c8961d65373890ea4ba16b0acb7a1",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "review": "SAME_SESSION_SOURCE_REVIEW_PLUS_INDEPENDENT_AST_AND_MUTATION_GRADERS_NO_SEPARATE_AGENT",
+  "notQualified": [
+    "ACTUAL_OWNER_REVIEW",
+    "PLATFORM_PERMISSION",
+    "ACCOUNT_STANDING",
+    "PROFESSIONAL_ADVICE",
+    "CURRENT_FULL_FIVERR_OR_UDEMY_TERMS",
+    "LIVE_COMPLIANCE",
+    "PILOT_ACTIVATION"
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "status": "PASS",
+  "heldOut": {
+    "pass": 20,
+    "total": 20
+  },
+  "frozen": true,
+  "liveQualification": "NOT_RUN",
+  "results": [
+    {
+      "id": "H01",
+      "name": "Turkish instruction in legal metadata is refused",
+      "ok": true
+    },
+    {
+      "id": "H02",
+      "name": "model-supplied tax review cannot satisfy professional boundary",
+      "ok": true
+    },
+    {
+      "id": "H03",
+      "name": "bank/customer fields never retained",
+      "ok": true
+    },
+    {
+      "id": "H04",
+      "name": "updated platform terms invalidate older scope review",
+      "ok": true
+    },
+    {
+      "id": "H05",
+      "name": "suspended account cannot be overridden by reviewed terms",
+      "ok": true
+    },
+    {
+      "id": "H06",
+      "name": "scope capability downgrade is still mismatch",
+      "ok": true
+    },
+    {
+      "id": "H07",
+      "name": "owner confirmation cannot replace a professional review",
+      "ok": true
+    },
+    {
+      "id": "H08",
+      "name": "complete permission receipts never grant live pilot activation",
+      "ok": true
+    },
+    {
+      "id": "H09",
+      "name": "whitespace/confusable status is not REVIEWED",
+      "ok": true
+    },
+    {
+      "id": "H10",
+      "name": "unknown legal jurisdiction not inferred from local timezone",
+      "ok": true
+    },
+    {
+      "id": "H11",
+      "name": "API receipt cannot cover a manual-only Fiverr platform",
+      "ok": true
+    },
+    {
+      "id": "H12",
+      "name": "silent fee waiver input is refused",
+      "ok": true
+    },
+    {
+      "id": "H13",
+      "name": "all financial effects remain closed",
+      "ok": true
+    },
+    {
+      "id": "H14",
+      "name": "symbol metadata cannot select review behavior",
+      "ok": true
+    },
+    {
+      "id": "H15",
+      "name": "receipt accessor cannot run a review function",
+      "ok": true
+    },
+    {
+      "id": "H16",
+      "name": "future account observation remains unresolved",
+      "ok": true
+    },
+    {
+      "id": "H17",
+      "name": "unknown transport is not manual permission",
+      "ok": true
+    },
+    {
+      "id": "H18",
+      "name": "forged current terms digest does not execute coercion",
+      "ok": true
+    },
+    {
+      "id": "H19",
+      "name": "revoked proxy is refused without activating traps",
+      "ok": true
+    },
+    {
+      "id": "H20",
+      "name": "proxy array cannot execute serialization",
+      "ok": true
+    }
+  ]
+}

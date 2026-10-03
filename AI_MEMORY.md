@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.11A exact-source verification pending
+
+16.11A focused framework verified:62 primary/20 frozen held-out/16 independent assertion-caught controls; TypeScript, changed/whole lint (0 errors,13 inherited warnings), diff, governance, exact patch safety and revenue security PASS. v51:154 declared suites/193 pins; full baseline NOT_RUN. F85 proxy preflight repaired. Actual review/permission/account qualification UNBOUND. Source commit, exact-source selected matrix and final clustered Graphify pending; Stage16/Master OPEN.
+
 # AYAS current —2026-10-03 /16.11 framework verified with limitations;16.11A active
 
 16.11 exact-source framework verified at 74b6c495813bbce9f6b405dc11f628900da99261:105 primary+20 frozen adversarial+17 assertion-caught controls;53 selected (52 plainPASS, cognitive CF49 known limitation),13 extra including Stage9 isolated/security PASS;188 committed pins,TS/lint/diff PASS (13 inherited warnings). Fullv50 NOT_RUN. Graphify current/integrity0/full clustering, structuralPARTIAL9/semanticPENDING. Historical metadata doc-stale checkpoint orchestration gap explicit; not retroactive Graphify-first PASS. No actual owner/platform qualification, production attachment/account-reader, webhook durable ingress/dedupe/ACK or write journal/executor. Stage16/Master OPEN; next16.11A terms/compliance.
