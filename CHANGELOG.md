@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.8 source implemented; exact validation pending
+
+Lemon Squeezy89+15 scenarios/60 assertion-caught controls PASS; TS/changed lint0/0, whole lint0 errors/13 inherited warnings. Manifestv47:143 suites/176 pins; fullbaseline NOT_RUN. Official GET/parent/mode, raw HMAC pointer→common-gated canonical refresh, inert ledger and local plans; all writes/money CLOSED. Actual owner Test-mode key/connection and durable HTTP ingress remain pending after foundation; no production binding. Carry16.5 official tool qualification and16.7 route gaps; Stage16/Master OPEN. Next33+6 exact-source regressions/Graphify, then independent16.9 in order. SeeACTIVE_CHECKPOINT.json.
+
 # AYAS current — 2026-10-03 /16.7 framework verified;16.8 active
 
 Exact source e634a73: course57+12/Udemy53+12,56 controls,31 selected+6 extra regressions and173 committed pins PASS. Graphify18498/52948 current, integrity clean; inheritedPARTIAL9/semanticPENDING. Fullv46 NOT_RUN. Udemy reviews/Q&A/individual-message route qualification remains pending;16.7 stageClosed=false.16.5 official tool qualification also pending. Independent16.8 Lemon Squeezy source proceeds in order. No live account, publication, send, money, provider/job or registration. Stage16/Master OPEN. Evidence:implementation/16.7/16.7_EXACT_SOURCE_RECEIPT.json; exact next ACTIVE_CHECKPOINT.json.

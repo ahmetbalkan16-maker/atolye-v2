@@ -1,0 +1,1041 @@
+{
+  "status": "PASS",
+  "baselines": [
+    {
+      "status": "PASS",
+      "primary": {
+        "passed": 89,
+        "total": 89
+      },
+      "heldOut": {
+        "passed": 15,
+        "total": 15
+      },
+      "fixture": "SYNTHETIC_ONLY_NO_OWNER_KEY_OR_ACCOUNT",
+      "noLiveIO": true,
+      "results": [
+        {
+          "id": "P01",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P02",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P03",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P04",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P05",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P06",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P07",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P08",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P09",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P10",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P11",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P12",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P13",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P14",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P15",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P16",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P17",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P18",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P19",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P20",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P21",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P22",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P23",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P24",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P25",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P26",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P27",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P28",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P29",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P30",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P31",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P32",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P33",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P34",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P35",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P36",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P37",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P38",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P39",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P40",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P41",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P42",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P43",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P44",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P45",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P46",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P47",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P48",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P49",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P50",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P51",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P52",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P53",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P54",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P55",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P56",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P57",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P58",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P59",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P60",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P61",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P62",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P63",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P64",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P65",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P66",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P67",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P68",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P69",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P70",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P71",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P72",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P73",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P74",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P75",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P76",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P77",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P78",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P79",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P80",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P81",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P82",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P83",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P84",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P85",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P86",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P87",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P88",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P89",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "H01",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H02",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H03",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H04",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H05",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H06",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H07",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H08",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H09",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H10",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H11",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H12",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H13",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H14",
+          "set": "heldOut",
+          "ok": true
+        },
+        {
+          "id": "H15",
+          "set": "heldOut",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "negativeControls": {
+    "total": 60,
+    "caught": [
+      {
+        "name": "owner policy default opens",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P05",
+        "failedAssertions": [
+          "P05"
+        ]
+      },
+      {
+        "name": "cost default opens",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P06",
+        "failedAssertions": [
+          "P06"
+        ]
+      },
+      {
+        "name": "LIVE owner policy removed",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P07",
+        "failedAssertions": [
+          "P07"
+        ]
+      },
+      {
+        "name": "invented platform scopes accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P10",
+        "failedAssertions": [
+          "P10"
+        ]
+      },
+      {
+        "name": "request account ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P11",
+        "failedAssertions": [
+          "P11"
+        ]
+      },
+      {
+        "name": "expiration ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P12",
+        "failedAssertions": [
+          "P12"
+        ]
+      },
+      {
+        "name": "expiration required removed",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P13",
+        "failedAssertions": [
+          "P13"
+        ]
+      },
+      {
+        "name": "stale metadata accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P14",
+        "failedAssertions": [
+          "P14"
+        ]
+      },
+      {
+        "name": "reauth ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P15",
+        "failedAssertions": [
+          "P15"
+        ]
+      },
+      {
+        "name": "connector mode evidence ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P17",
+        "failedAssertions": [
+          "P17"
+        ]
+      },
+      {
+        "name": "post-await connection changed accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P18",
+        "failedAssertions": [
+          "P18"
+        ]
+      },
+      {
+        "name": "cross store accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P19",
+        "failedAssertions": [
+          "P19",
+          "P23"
+        ]
+      },
+      {
+        "name": "test mode confusion accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P20",
+        "failedAssertions": [
+          "P20",
+          "P25",
+          "P27"
+        ]
+      },
+      {
+        "name": "old quote qualified",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P24",
+        "failedAssertions": [
+          "P24"
+        ]
+      },
+      {
+        "name": "page size bound widened",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P29",
+        "failedAssertions": [
+          "P29"
+        ]
+      },
+      {
+        "name": "cursor format incompatible",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P30",
+        "failedAssertions": [
+          "P30",
+          "P71"
+        ]
+      },
+      {
+        "name": "next foreign host accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P31",
+        "failedAssertions": [
+          "P31"
+        ]
+      },
+      {
+        "name": "next wrong store accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P32",
+        "failedAssertions": [
+          "P32"
+        ]
+      },
+      {
+        "name": "JSON API version ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P33",
+        "failedAssertions": [
+          "P33"
+        ]
+      },
+      {
+        "name": "duplicate identity accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P34",
+        "failedAssertions": [
+          "P34"
+        ]
+      },
+      {
+        "name": "backoff ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P35",
+        "failedAssertions": [
+          "P35",
+          "P36",
+          "P38",
+          "P74"
+        ]
+      },
+      {
+        "name": "Retry After ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P36",
+        "failedAssertions": [
+          "P36"
+        ]
+      },
+      {
+        "name": "parent budget ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P37",
+        "failedAssertions": [
+          "P37"
+        ]
+      },
+      {
+        "name": "product publication opens",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P40",
+        "failedAssertions": [
+          "P40"
+        ]
+      },
+      {
+        "name": "owner product review removed",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P40",
+        "failedAssertions": [
+          "P40"
+        ]
+      },
+      {
+        "name": "rights gaps hidden",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P41",
+        "failedAssertions": [
+          "P41"
+        ]
+      },
+      {
+        "name": "fulfillment offer incomplete accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P42",
+        "failedAssertions": [
+          "P42"
+        ]
+      },
+      {
+        "name": "checkout creation opens",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P43",
+        "failedAssertions": [
+          "P43"
+        ]
+      },
+      {
+        "name": "missing source reads accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P44",
+        "failedAssertions": [
+          "P44"
+        ]
+      },
+      {
+        "name": "subscription renewal unbounded",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P45",
+        "failedAssertions": [
+          "P45"
+        ]
+      },
+      {
+        "name": "delivery QA ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P46",
+        "failedAssertions": [
+          "P46"
+        ]
+      },
+      {
+        "name": "signature check ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P50",
+        "failedAssertions": [
+          "P50",
+          "P51",
+          "P89"
+        ]
+      },
+      {
+        "name": "signed body header mismatch ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P52",
+        "failedAssertions": [
+          "P52"
+        ]
+      },
+      {
+        "name": "delivery replay ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P53",
+        "failedAssertions": [
+          "P53",
+          "P87"
+        ]
+      },
+      {
+        "name": "unknown event expanded",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P54",
+        "failedAssertions": [
+          "P54"
+        ]
+      },
+      {
+        "name": "webhook store ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P55",
+        "failedAssertions": [
+          "P55"
+        ]
+      },
+      {
+        "name": "webhook mode ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P56",
+        "failedAssertions": [
+          "P56"
+        ]
+      },
+      {
+        "name": "canonical API reread optional",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P49",
+        "failedAssertions": [
+          "P49"
+        ]
+      },
+      {
+        "name": "webhook writes ledger",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P49",
+        "failedAssertions": [
+          "P49",
+          "P86"
+        ]
+      },
+      {
+        "name": "webhook authority opens",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P49",
+        "failedAssertions": [
+          "P49"
+        ]
+      },
+      {
+        "name": "TEST sales realized",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P59",
+        "failedAssertions": [
+          "P59"
+        ]
+      },
+      {
+        "name": "MoR tax treated as merchant gross",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P60",
+        "failedAssertions": [
+          "P60",
+          "P62",
+          "P66"
+        ]
+      },
+      {
+        "name": "unknown platform fee hidden",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P60",
+        "failedAssertions": [
+          "P60"
+        ]
+      },
+      {
+        "name": "pending order revenue",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P61",
+        "failedAssertions": [
+          "P58",
+          "P61"
+        ]
+      },
+      {
+        "name": "partial refund asserted known",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P63",
+        "failedAssertions": [
+          "P63"
+        ]
+      },
+      {
+        "name": "initial invoice double counted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P65",
+        "failedAssertions": [
+          "P65"
+        ]
+      },
+      {
+        "name": "product unproved artifacts",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P69",
+        "failedAssertions": [
+          "P69"
+        ]
+      },
+      {
+        "name": "product price drifts",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P70",
+        "failedAssertions": [
+          "P70"
+        ]
+      },
+      {
+        "name": "pagination missing rows hidden",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P73",
+        "failedAssertions": [
+          "P73"
+        ]
+      },
+      {
+        "name": "observed lower rate ceiling ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P74",
+        "failedAssertions": [
+          "P74"
+        ]
+      },
+      {
+        "name": "key lifetime unchecked",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P75",
+        "failedAssertions": [
+          "P75"
+        ]
+      },
+      {
+        "name": "next resource path unchecked",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P78",
+        "failedAssertions": [
+          "P78"
+        ]
+      },
+      {
+        "name": "inflight concurrent calls admitted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P80",
+        "failedAssertions": [
+          "P80"
+        ]
+      },
+      {
+        "name": "duplicate response header ambiguity",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P81",
+        "failedAssertions": [
+          "P81"
+        ]
+      },
+      {
+        "name": "future fact accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "H10",
+        "failedAssertions": [
+          "H10"
+        ]
+      },
+      {
+        "name": "fractional money accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "H06",
+        "failedAssertions": [
+          "H06"
+        ]
+      },
+      {
+        "name": "page cardinality mismatch accepted",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P83",
+        "failedAssertions": [
+          "P83"
+        ]
+      },
+      {
+        "name": "zero decimal cents treated as native minor",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P85",
+        "failedAssertions": [
+          "P85"
+        ]
+      },
+      {
+        "name": "canonical pointer store mismatch ignored",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P88",
+        "failedAssertions": [
+          "P88"
+        ]
+      },
+      {
+        "name": "canonical refresh claims ledger commit",
+        "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "assertion": "P86",
+        "failedAssertions": [
+          "P86"
+        ]
+      }
+    ],
+    "equivalents": []
+  },
+  "noLiveIO": true
+}

@@ -1,0 +1,123 @@
+{
+  "at": "2026-10-03T14:14:04.214Z",
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT",
+  "findings": [
+    {
+      "id": "F73",
+      "issue": "Common cursor alphabet, product artifact/price proof binding",
+      "reproducedBy": [
+        {
+          "name": "cursor format incompatible",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P30",
+          "failedAssertions": [
+            "P30",
+            "P71"
+          ]
+        },
+        {
+          "name": "product unproved artifacts",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P69",
+          "failedAssertions": [
+            "P69"
+          ]
+        },
+        {
+          "name": "product price drifts",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P70",
+          "failedAssertions": [
+            "P70"
+          ]
+        }
+      ],
+      "status": "REPAIRED"
+    },
+    {
+      "id": "F74",
+      "issue": "Page total/cardinality and observed lower rate ceilings",
+      "reproducedBy": [
+        {
+          "name": "pagination missing rows hidden",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P73",
+          "failedAssertions": [
+            "P73"
+          ]
+        },
+        {
+          "name": "observed lower rate ceiling ignored",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P74",
+          "failedAssertions": [
+            "P74"
+          ]
+        },
+        {
+          "name": "page cardinality mismatch accepted",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P83",
+          "failedAssertions": [
+            "P83"
+          ]
+        }
+      ],
+      "status": "REPAIRED"
+    },
+    {
+      "id": "F75",
+      "issue": "Native zero-decimal cents-to-minor ambiguity",
+      "reproducedBy": [
+        {
+          "name": "zero decimal cents treated as native minor",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P85",
+          "failedAssertions": [
+            "P85"
+          ]
+        }
+      ],
+      "status": "FAIL_CLOSED_UNQUALIFIED_REPRESENTATION"
+    },
+    {
+      "id": "F76",
+      "issue": "Actual source callback for verified pointer→common gated canonical read; pointer mismatch/no-commit proof",
+      "reproducedBy": [
+        {
+          "name": "canonical pointer store mismatch ignored",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P88",
+          "failedAssertions": [
+            "P88"
+          ]
+        },
+        {
+          "name": "canonical refresh claims ledger commit",
+          "grader": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+          "assertion": "P86",
+          "failedAssertions": [
+            "P86"
+          ]
+        }
+      ],
+      "status": "REPAIRED_SOURCE_DURABLE_BINDING_STILL_PENDING"
+    }
+  ],
+  "graderCalibration": {
+    "excludedBeforeCounting": [
+      "Manifest financial flag mutation is centrally rejected at registry construction; runtime rejection was not counted as an assertion control."
+    ],
+    "strengthenedPrimaryProbes": [
+      "Offer incompleteness now probes UNMEASURED quality with valid artifact membership as well as missing proofs.",
+      "Pagination last-page and row-count guards have separate otherwise-valid probes.",
+      "Patch classification now asserts .level exactly for source/graders/fixtures/protocol; comparing the classification object to a string was ineffective."
+    ],
+    "heldOutAssertionsWeakened": false,
+    "finalControls": {
+      "total": 60,
+      "assertionCaught": 60,
+      "equivalents": 0
+    }
+  }
+}

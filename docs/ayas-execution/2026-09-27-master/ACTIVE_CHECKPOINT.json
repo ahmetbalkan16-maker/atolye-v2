@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
-  "currentHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+  "lastGreenHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+  "currentHead": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
   "stage": "STAGE_16_8",
-  "subtask": "16.8 Lemon Squeezy Graphify-first inspection and official REST/webhook qualification; carry unresolved16.5 and16.7",
+  "subtask": "16.8 recovery reconciled; inherited source validation/commit before exact-source regression and Graphify",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -84,9 +84,10 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_16_2",
-    "status": "CLOSED_GREEN_SOURCE_OFFLINE_OBSERVATION_LEDGER",
-    "sourceCommit": "d901186e202dbe5a78482876ba93667d7dc03700"
+    "stage": "STAGE_16_7",
+    "status": "FRAMEWORK_VERIFIED_PARTIAL_ENDPOINT_QUALIFICATION_PENDING",
+    "sourceCommit": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "stageClosed": false
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -244,24 +245,49 @@
     "16.3B Fulfillment & Delivery Quality Gate",
     "16.4 Etsy read-only/local-draft source closure"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "I_MEMORY.md",
+    "ATOLYE_CHECKPOINT.md",
+    "ATOLYE_MASTER_ROADMAP.md",
+    "CHANGELOG.md",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+    "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+    "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md",
+    "scripts/smoke-ayas-eval-governance.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "docs/AYAS_REVENUE_LEMON_SQUEEZY.md",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V46.json",
+    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_FOCUSED.json",
+    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_MUTATIONS.json",
+    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_OFFICIAL_SPEC_RECHECK.json",
+    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_REVIEW_REPRODUCED.json",
+    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_STATIC_CHECKS.json",
+    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/IMPLEMENTATION_NOTES.md",
+    "scripts/fixtures/ayas-lemon-fixture.ts",
+    "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
+    "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+    "src/lib/ayas/revenue/adapters/lemon/AyasLemonCheckoutPolicy.ts",
+    "src/lib/ayas/revenue/adapters/lemon/AyasLemonMapper.ts",
+    "src/lib/ayas/revenue/adapters/lemon/AyasLemonSchemas.ts",
+    "src/lib/ayas/revenue/adapters/lemon/AyasLemonSqueezyAdapter.ts",
+    "src/lib/ayas/revenue/adapters/lemon/AyasLemonWebhook.ts"
+  ],
   "lastGreenTests": [
-    "16.4 primary72/72 +held-out12/12",
-    "16.4 negative controls89/89",
-    "19 selected exact-source +6 extra TEMP regressions PASS",
-    "TypeScript/lint/diff PASS; lint13 inherited warnings",
-    "Graphify current exact source; zero integrity anomalies; PARTIAL9 /semanticPENDING"
+    "16.7 course57+12/Udemy53+12;56 assertion-caught controls",
+    "31 selected+6 extra exact-source regressions PASS;173 committed pins",
+    "TypeScript/lint/diff PASS;13 inherited lint warnings",
+    "Graphify exact source current with PARTIAL9/semanticPENDING retained"
   ],
   "graphify": {
-    "at": "2026-10-03T13:20:33.948Z",
-    "head": "e634a73a9613e25938cc3ef223519a36deb8ac05",
-    "lastAnalyzedHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
-    "graphBuiltFrom": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "at": "2026-10-03T16:10:58.353Z",
+    "head": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+    "lastAnalyzedHead": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+    "graphBuiltFrom": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 18498,
-    "edges": 52948,
-    "communities": 374,
+    "nodes": 18557,
+    "edges": 53168,
+    "communities": 378,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -271,9 +297,20 @@
       "INCOMPLETE_CODE_FILES:9"
     ],
     "semanticStatus": "PENDING",
-    "worktreeState": "CLEAN",
+    "worktreeState": "DIRTY",
     "classification": "GRAPH_PARTIAL",
-    "sha256": "dac62463973927a844aa6ea5e9c8355b79ec02a73f5670268a5bd5ab5da78c48"
+    "sha256": "9d3f1fcfcfe8daedb24c934fcb786b6e4d40f2ef142643f05b63ea7a8d286773",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -300,8 +337,8 @@
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only.",
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure."
   ],
-  "nextAction": "Refresh Graphify after documentation commit, inspect16.8 related source, implement official bounded TEST-first GET/pointer webhook/local plans. Keep16.5 and16.7 qualification pending; Stage16/Master OPEN.",
-  "updatedAt": "2026-10-03T13:20:33.948Z",
+  "nextAction": "Validate and commit inherited 16.8 source, then run 33 selected + 6 extra exact-source regressions; refresh Graphify and record framework receipt; continue canonical 16.9 with external qualification deferred.",
+  "updatedAt": "2026-10-03T16:10:58.437Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1408,7 +1445,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "16.8 Graphify-first source work. No live account or authority promotion.",
+  "resumeNextAction": "16.8 exact-source validation before any later source edit.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -1793,20 +1830,76 @@
   },
   "ownerGate": "NONE_BLOCKING_IMPLEMENTATION",
   "sessionResume": {
-    "at": "2026-10-03T11:09:18.524Z",
-    "agent": "Codex takeover from Claude usage limit",
-    "head": "1ba03b4eb1abcf0a79d1ac599fd16a1f7606306b",
+    "schemaVersion": "1",
+    "at": "2026-10-03T16:10:57.690Z",
     "branch": "wip/ayas-graphify-final-execution",
-    "pull": "Already up to date after sandbox escalation",
-    "aheadBehind": [
-      11,
-      0
-    ],
-    "inheritedWorktree": "16.4 Etsy adapter, fixture/evaluators, v43 manifest, BrainPatchSafety. Preserved and reproduced in place.",
-    "lastCompleted": "16.3B e20eb573e82873df50487125ea72859e345a6ed4",
-    "initialFocused": "67/67 + 12/12",
-    "initialNegativeControls": "82/82",
-    "postFreezeAttachmentMatchesCanonical": true
+    "head": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+    "upstream": "origin/wip/ayas-graphify-final-execution",
+    "aheadBehind": "19\t0",
+    "pull": "Already up to date",
+    "initialStatus": "M AI_MEMORY.md\n M ATOLYE_CHECKPOINT.md\n M ATOLYE_MASTER_ROADMAP.md\n M CHANGELOG.md\n M docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json\n M docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json\n M docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md\n M scripts/smoke-ayas-eval-governance.ts\n M src/lib/brain/selfheal/BrainPatchSafety.ts\n?? docs/AYAS_REVENUE_LEMON_SQUEEZY.md\n?? docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V46.json\n?? docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_FOCUSED.json\n?? docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_MUTATIONS.json\n?? docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_OFFICIAL_SPEC_RECHECK.json\n?? docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_REVIEW_REPRODUCED.json\n?? docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_STATIC_CHECKS.json\n?? docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/IMPLEMENTATION_NOTES.md\n?? scripts/fixtures/ayas-lemon-fixture.ts\n?? scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts\n?? scripts/smoke-ayas-revenue-lemon-adapter.ts\n?? src/lib/ayas/revenue/adapters/lemon/AyasLemonCheckoutPolicy.ts\n?? src/lib/ayas/revenue/adapters/lemon/AyasLemonMapper.ts\n?? src/lib/ayas/revenue/adapters/lemon/AyasLemonSchemas.ts\n?? src/lib/ayas/revenue/adapters/lemon/AyasLemonSqueezyAdapter.ts\n?? src/lib/ayas/revenue/adapters/lemon/AyasLemonWebhook.ts",
+    "checkpointBefore": {
+      "lastGreenHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+      "currentHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+      "stage": "STAGE_16_8",
+      "nextAction": "Commit16.8 source; run33 selected+6 extra exact-source regressions, Graphify integrity and176 committed pins. Then independent16.9 in canonical order; carry16.5/16.7/16.8 external qualification. Stage16/Master OPEN."
+    },
+    "classification": {
+      "completed": [
+        "16.7 source e634a73 and docs 984dda2 verified; official endpoint gaps remain"
+      ],
+      "incomplete": [
+        "Existing 16.8 source/tests/manifest/static evidence; exact-source regression and Graphify receipt pending"
+      ],
+      "unrelated": []
+    },
+    "preservation": "No reset, clean, stash, force checkout or history rewrite. All initial changes retained.",
+    "graphify": {
+      "at": "2026-10-03T16:10:58.353Z",
+      "head": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+      "lastAnalyzedHead": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+      "graphBuiltFrom": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+      "stale": false,
+      "needsUpdate": false,
+      "nodes": 18557,
+      "edges": 53168,
+      "communities": 378,
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0,
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "worktreeState": "DIRTY",
+      "classification": "GRAPH_PARTIAL",
+      "sha256": "9d3f1fcfcfe8daedb24c934fcb786b6e4d40f2ef142643f05b63ea7a8d286773",
+      "incompleteCodeFiles": [
+        ".github/workflows/ayas-safe-ci.yml",
+        "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+        "scripts/ayas-access-daemon.ps1",
+        "scripts/ayas-autonomy-daemon.ps1",
+        "scripts/register-ayas-autonomy-autostart.ps1",
+        "scripts/register-ayas-autostart.ps1",
+        "scripts/smoke-ayas-access-daemon.ps1",
+        "scripts/unregister-ayas-autonomy-autostart.ps1",
+        "scripts/unregister-ayas-autostart.ps1"
+      ]
+    },
+    "pins": {
+      "manifestVersion": "15F.4-v47",
+      "declaredSuites": 143,
+      "uniquePins": 176,
+      "pinDrift": [],
+      "committed": false
+    },
+    "attachment": {
+      "reference": "Owner-mentioned design addendum is already canonical and adopted; no fresh instruction/adoption inferred from attachment.",
+      "identicalBytes": true
+    },
+    "nextAction": "Validate and commit inherited 16.8 source, then run 33 selected + 6 extra exact-source regressions; refresh Graphify and record framework receipt; continue canonical 16.9 with external qualification deferred."
   },
   "stage16_2": {
     "state": "CLOSED_GREEN_SOURCE_OFFLINE_OBSERVATION_LEDGER",
@@ -2191,11 +2284,26 @@
     "result": "04_STAGE16_REVENUE/implementation/16.7/16.7_RESULT.json"
   },
   "stage16_8": {
-    "state": "INSPECTION_IN_PROGRESS",
+    "state": "IMPLEMENTED_PENDING_EXACT_SOURCE_VALIDATION_OWNER_TEST_MODE_PROOF",
     "stageClosed": false,
-    "baseHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
-    "authority": "NONE",
+    "baseHead": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+    "primary": 89,
+    "heldOut": 15,
+    "negativeControls": {
+      "total": 60,
+      "caught": 60,
+      "equivalents": 0
+    },
+    "manifestVersion": "15F.4-v47",
+    "declaredSuites": 143,
+    "uniquePins": 176,
+    "fullDeclaredBaseline": "NOT_RUN",
     "productionRegistry": "EMPTY",
-    "externalWrites": "CLOSED"
+    "authority": "NONE",
+    "externalWrites": "CLOSED",
+    "ownerTestModeProof": "PENDING_OWNER_ACTION_AFTER_FOUNDATION",
+    "durableWebhookBinding": "PENDING_TRUSTED_CALLER_NO_HTTP_ACK_OR_ROUTE",
+    "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F73_F76",
+    "specRecheck": "04_STAGE16_REVENUE/implementation/16.8/16.8_OFFICIAL_SPEC_RECHECK.json"
   }
 }

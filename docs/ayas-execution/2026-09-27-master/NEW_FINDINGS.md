@@ -264,3 +264,19 @@ New courseP51/P52 andUdemyP51/P52 reproduce premature owner/publication timestam
 ## F72 — Udemy media minima and independent mutation probes
 
 Current official video-course rules require5 lectures/30min/HD/landscape/stereo/sync/dynamic visuals; original small fixture exposed readiness without these measured guards. Added reviewed versioned minima and measured QA, extended full synthetic course to5 lessons/30min. Freshness andlecture-count mutants initially survived due invalid metadata/short total duration masking the intended guards; corrected only primary fixtures to isolate each property. No equivalent or hidden PASS.
+
+## F73 — Lemon cursor and product evidence binding
+
+Initial pagination smoke found an opaque cursor containing a forbidden colon. Fixed to the common alphabet. Same-session review added exact artifact membership/price binding against rederived16.3A proof. Counterfactual source controls reproduce all three accepted/refused boundaries.
+
+## F74 — Lemon pagination and quota completeness
+
+Require last-page and row cardinality to match declared totals; separate isolated primary probes catch each guard. Observed lower rate ceiling stretches admission interval; remaining quota constrains parent batches. No hidden retries or shared/global durable quota claim.
+
+## F75 — Lemon monetary representation and public example inconsistency
+
+Current object references specify integer cents; older webhook examples include fractional amounts and inconsistent refund fields. Only current canonical integer facts map; fractions refuse, partial refund tax/time remain unknown. Native JPY/KRW cents-to-minor representation unqualified: no realized inputs. Currency page says processingUSD; no inferred FX or settlement currency. Fees/payout remain unknown.
+
+## F76 — Lemon canonical refresh and honest control qualification
+
+Verified notification refresh now uses common read/spend/result gates and matches pointer store/type/ID/mode before inert mapping; no route, ACK, durable receipt or auto ledger commit.60 assertion-caught controls after rejecting a manifest mutation that produced runtime central-guard rejection, isolating redundant probes and fixing classification assertions to compare .level. Held-out assertions unchanged. Owner trusted binding/Test-mode proof remains pending after foundation.

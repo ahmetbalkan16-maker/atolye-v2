@@ -1068,3 +1068,7 @@ Course57+12/Udemy53+12 and56 assertion-caught controls PASS; TS/changed lint0 er
 ## 2026-10-03 —16.7 exact-source framework verification
 
 e634a73: course57+12/Udemy53+12,56 caught controls,31 selected+6 extra regressions,173 committed pins, v45 archive exact, TS/lint/diff PASS. Graphify current18498/52948/374, integrity0, PARTIAL9/semanticPENDING. Framework verified, stageClosed=false: official review/Q&A/individual-message endpoint qualification pending. Fullv46 NOT_RUN. Carry16.5; independent16.8 proceeds; Stage16/Master OPEN, no live effect or authority.
+
+## 2026-10-03T16:10:58.437Z — 16.8 session recovery
+
+Recovered 984dda2cb291e61f97a98bfe37b2904b6695f8c9 (19 ahead/0 behind). Preserved inherited 16.8 work; repaired stale continuity HEAD/lastGreenTests/previousStage from verified16.7 evidence. Graphify AST refreshed; exact-source closure pending. No live activation or money. Evidence: implementation/16.8/16.8_SESSION_RECOVERY.json.

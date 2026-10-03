@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v47",
+  "version": "15F.4-v46",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2767,78 +2767,6 @@
         "course-quality-evidence",
         "coarse-token-get-policy",
         "partial-endpoint-qualification"
-      ]
-    },
-    {
-      "id": "revenue-lemon-adapter",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
-          "sha256": "6d5c58d27e4bd1bba193210178270124ac8098a6143f85afd01b1133dce52b16"
-        },
-        {
-          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
-          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
-          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
-          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
-        }
-      ],
-      "slices": [
-        "synthetic-only",
-        "test-live-boundary",
-        "official-rest-get-only",
-        "canonical-parent-proof",
-        "signed-webhook-pointer",
-        "no-live-write-binding",
-        "owner-test-mode-proof-pending"
-      ]
-    },
-    {
-      "id": "revenue-lemon-adapter-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
-          "sha256": "c0b80ef0eb01e5fa11764f0961bff0929b2a8207421e172525e63e2bee5ef9da"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
-          "sha256": "6d5c58d27e4bd1bba193210178270124ac8098a6143f85afd01b1133dce52b16"
-        },
-        {
-          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
-          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
-          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
-          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
-        }
-      ],
-      "slices": [
-        "synthetic-only",
-        "test-live-boundary",
-        "official-rest-get-only",
-        "canonical-parent-proof",
-        "signed-webhook-pointer",
-        "no-live-write-binding",
-        "owner-test-mode-proof-pending"
       ]
     }
   ],
