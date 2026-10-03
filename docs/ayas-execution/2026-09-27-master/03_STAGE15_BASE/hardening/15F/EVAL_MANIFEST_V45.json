@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v46",
+  "version": "15F.4-v45",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2679,94 +2679,6 @@
         "owner-reported-not-certified",
         "strict-owner-import",
         "no-external-write"
-      ]
-    },
-    {
-      "id": "course-production-plan",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-course-production-plan.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-course-production-plan.ts",
-          "sha256": "3dc36cf4ea53c8af960aa18f9b9af3d6b14b746163a5619cbac52cad65668b4c"
-        },
-        {
-          "file": "scripts/fixtures/ayas-course-fixture.ts",
-          "sha256": "c52976549a1fc88fbd24144dfca916ac01488cef3866d62ea15401927301ace5"
-        }
-      ],
-      "slices": [
-        "synthetic-only",
-        "owner-upload-only",
-        "course-quality-evidence",
-        "coarse-token-get-policy",
-        "partial-endpoint-qualification"
-      ]
-    },
-    {
-      "id": "revenue-udemy-adapter",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
-          "sha256": "dcfc41b49c23b355dbc920c0edf4b6ac8b359973c5436d250f78a11bf570dd2e"
-        },
-        {
-          "file": "scripts/fixtures/ayas-udemy-fixture.ts",
-          "sha256": "e298d5563246956895fa695c45799a0a0fa6eebbc621ca1d1d6fe9ddbed49ce2"
-        },
-        {
-          "file": "scripts/fixtures/ayas-course-fixture.ts",
-          "sha256": "c52976549a1fc88fbd24144dfca916ac01488cef3866d62ea15401927301ace5"
-        }
-      ],
-      "slices": [
-        "synthetic-only",
-        "owner-upload-only",
-        "course-quality-evidence",
-        "coarse-token-get-policy",
-        "partial-endpoint-qualification"
-      ]
-    },
-    {
-      "id": "revenue-udemy-course-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-udemy-course-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-udemy-course-mutations.ts",
-          "sha256": "2f20420bd70871b8e984bf47101bc9a647b603e5929418b9faba85559b8a1a17"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
-          "sha256": "dcfc41b49c23b355dbc920c0edf4b6ac8b359973c5436d250f78a11bf570dd2e"
-        },
-        {
-          "file": "scripts/smoke-ayas-course-production-plan.ts",
-          "sha256": "3dc36cf4ea53c8af960aa18f9b9af3d6b14b746163a5619cbac52cad65668b4c"
-        },
-        {
-          "file": "scripts/fixtures/ayas-udemy-fixture.ts",
-          "sha256": "e298d5563246956895fa695c45799a0a0fa6eebbc621ca1d1d6fe9ddbed49ce2"
-        },
-        {
-          "file": "scripts/fixtures/ayas-course-fixture.ts",
-          "sha256": "c52976549a1fc88fbd24144dfca916ac01488cef3866d62ea15401927301ace5"
-        }
-      ],
-      "slices": [
-        "synthetic-only",
-        "owner-upload-only",
-        "course-quality-evidence",
-        "coarse-token-get-policy",
-        "partial-endpoint-qualification"
       ]
     }
   ],

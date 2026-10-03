@@ -914,6 +914,18 @@ ayrı, kullanıcı-onaylı fazlar — bu sprintin `AyasVoicePlatform` abstractio
 
 ---
 
+# ADR-027
+
+## Stage16.7 — Udemy coarse read policy and inert course-production contracts
+
+Accepted source framework —2026-10-03 under the current autonomous Master continuation instruction. Udemy publicly documents a coarse instructor token; no granular scopes are invented and the existing16.0A scoped gate is unchanged. A platform-specific GET-only facade reuses strict metadata/time checks and requires code/owner-owned exact read-policy and zero-cost approval, false by default. It adds no general external-write authority or production registration. Two captured endpoints are qualified; other official read routes remain pending.
+
+Course plans/asset manifests reside in the existing revenue service layer as immutable advisory production inputs. They share canonical digests, JSON/privacy validation, operation/spend/result and patch/eval boundaries. They do not create independent workers or invoke production/provider execution. QA and owner handoff are digest-bound observations, not cryptographic attestations; trusted collector/owner integration and actual bytes must be verified later. This keeps owner upload/publication separate from course production and preserves no-direct-promotion.
+
+Stage16.7 andStage16 remain open pending documented route qualification; live policy/credential binding belongs to owner activation after foundation.
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;

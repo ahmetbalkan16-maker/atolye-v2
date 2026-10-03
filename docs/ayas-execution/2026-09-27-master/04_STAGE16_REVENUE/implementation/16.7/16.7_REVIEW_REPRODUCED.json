@@ -1,0 +1,1202 @@
+{
+  "schemaVersion": "1",
+  "state": "REPRODUCED_THEN_REPAIRED",
+  "course": {
+    "status": "FAIL",
+    "primary": {
+      "passed": 50,
+      "total": 52
+    },
+    "heldOut": {
+      "passed": 12,
+      "total": 12
+    },
+    "noLiveIO": true,
+    "results": [
+      {
+        "id": "P01",
+        "set": "primary",
+        "ok": true,
+        "detail": "immutable plan and upload handoff remain advisory"
+      },
+      {
+        "id": "P02",
+        "set": "primary",
+        "ok": true,
+        "detail": "schema exact"
+      },
+      {
+        "id": "P03",
+        "set": "primary",
+        "ok": true,
+        "detail": "neutral local course identifier"
+      },
+      {
+        "id": "P04",
+        "set": "primary",
+        "ok": true,
+        "detail": "version bounded"
+      },
+      {
+        "id": "P05",
+        "set": "primary",
+        "ok": true,
+        "detail": "source evidence mandatory and unique"
+      },
+      {
+        "id": "P06",
+        "set": "primary",
+        "ok": true,
+        "detail": "outcomes unique and bounded"
+      },
+      {
+        "id": "P07",
+        "set": "primary",
+        "ok": true,
+        "detail": "section order consecutive"
+      },
+      {
+        "id": "P08",
+        "set": "primary",
+        "ok": true,
+        "detail": "lesson order consecutive"
+      },
+      {
+        "id": "P09",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate lesson refused"
+      },
+      {
+        "id": "P10",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown learning outcome refused"
+      },
+      {
+        "id": "P11",
+        "set": "primary",
+        "ok": true,
+        "detail": "unmapped outcome remains draft"
+      },
+      {
+        "id": "P12",
+        "set": "primary",
+        "ok": true,
+        "detail": "duration bounded"
+      },
+      {
+        "id": "P13",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing script draft"
+      },
+      {
+        "id": "P14",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing visual plan draft"
+      },
+      {
+        "id": "P15",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing exercise draft"
+      },
+      {
+        "id": "P16",
+        "set": "primary",
+        "ok": true,
+        "detail": "rights unresolved visible"
+      },
+      {
+        "id": "P17",
+        "set": "primary",
+        "ok": true,
+        "detail": "generated media policy reviewed"
+      },
+      {
+        "id": "P18",
+        "set": "primary",
+        "ok": true,
+        "detail": "regulated claims need qualified review"
+      },
+      {
+        "id": "P19",
+        "set": "primary",
+        "ok": true,
+        "detail": "contact details refused"
+      },
+      {
+        "id": "P20",
+        "set": "primary",
+        "ok": true,
+        "detail": "untrusted accessors never invoked"
+      },
+      {
+        "id": "P21",
+        "set": "primary",
+        "ok": true,
+        "detail": "download resources unique"
+      },
+      {
+        "id": "P22",
+        "set": "primary",
+        "ok": true,
+        "detail": "plan digest covers commercial content/version"
+      },
+      {
+        "id": "P23",
+        "set": "primary",
+        "ok": true,
+        "detail": "manifest plan identity exact"
+      },
+      {
+        "id": "P24",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing lesson stops upload"
+      },
+      {
+        "id": "P25",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing video stops upload"
+      },
+      {
+        "id": "P26",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing audio stops upload"
+      },
+      {
+        "id": "P27",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing captions stops upload"
+      },
+      {
+        "id": "P28",
+        "set": "primary",
+        "ok": true,
+        "detail": "unvalidated media waits"
+      },
+      {
+        "id": "P29",
+        "set": "primary",
+        "ok": true,
+        "detail": "audio quality failure blocks"
+      },
+      {
+        "id": "P30",
+        "set": "primary",
+        "ok": true,
+        "detail": "caption coverage failure blocks"
+      },
+      {
+        "id": "P31",
+        "set": "primary",
+        "ok": true,
+        "detail": "visual and rights quality failure blocks"
+      },
+      {
+        "id": "P32",
+        "set": "primary",
+        "ok": true,
+        "detail": "quality receipt binds exact media"
+      },
+      {
+        "id": "P33",
+        "set": "primary",
+        "ok": true,
+        "detail": "script receipt binds exact content"
+      },
+      {
+        "id": "P34",
+        "set": "primary",
+        "ok": true,
+        "detail": "relative path traversal refused"
+      },
+      {
+        "id": "P35",
+        "set": "primary",
+        "ok": true,
+        "detail": "machine paths refused"
+      },
+      {
+        "id": "P36",
+        "set": "primary",
+        "ok": true,
+        "detail": "Udemy id cannot become asset directory"
+      },
+      {
+        "id": "P37",
+        "set": "primary",
+        "ok": true,
+        "detail": "foreign manifest lesson refused"
+      },
+      {
+        "id": "P38",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate manifest lesson refused"
+      },
+      {
+        "id": "P39",
+        "set": "primary",
+        "ok": true,
+        "detail": "download omitted stops upload"
+      },
+      {
+        "id": "P40",
+        "set": "primary",
+        "ok": true,
+        "detail": "asset rights must match plan"
+      },
+      {
+        "id": "P41",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner policy review required"
+      },
+      {
+        "id": "P42",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner refusal blocks readiness"
+      },
+      {
+        "id": "P43",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner review binds exact asset rows"
+      },
+      {
+        "id": "P44",
+        "set": "primary",
+        "ok": true,
+        "detail": "future media and owner review refused"
+      },
+      {
+        "id": "P45",
+        "set": "primary",
+        "ok": true,
+        "detail": "publication absent from readiness"
+      },
+      {
+        "id": "P46",
+        "set": "primary",
+        "ok": true,
+        "detail": "explicit owner publication observation"
+      },
+      {
+        "id": "P47",
+        "set": "primary",
+        "ok": true,
+        "detail": "model publication proof refused"
+      },
+      {
+        "id": "P48",
+        "set": "primary",
+        "ok": true,
+        "detail": "publication proof binds exact manifest"
+      },
+      {
+        "id": "P49",
+        "set": "primary",
+        "ok": true,
+        "detail": "future publication proof refused"
+      },
+      {
+        "id": "P50",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing quality cannot publish"
+      },
+      {
+        "id": "P51",
+        "set": "primary",
+        "ok": false,
+        "detail": "owner review cannot precede media validation:Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   authority: 'NONE',\n+   handoff: {\n+     checklist: [\n+       'VERIFY_EXACT_ASSET_BYTES',\n+       'VERIFY_RIGHTS_AND_GENERATED_MEDIA',\n+       'CURRENT_UDEMY_POLICY_AND_LANDING_PAGE',\n+       'OWNER_UPLOAD_AND_PUBLISH',\n+       'SEPARATE_PUBLICATION_OBSERVATION'\n+     ],\n+     manifestDigest: '0706625bc9c19842a900b4c77161bad4de453bafcb0430ec2122b718e6d1c446',\n+     ownerMustUpload: true,\n+     planDigest: '6e05072004a48225d14345e0b93b46aea9af927e7a0a418757e4e97f771b1644'\n+   },\n+   issues: [],\n+   manifestDigest: '0706625bc9c19842a900b4c77161bad4de453bafcb0430ec2122b718e6d1c446',\n+   opensFiles: false,\n+   planDigest: '6e05072004a48225d14345e0b93b46aea9af927e7a0a418757e4e97f771b1644',\n+   publication: 'CLOSED',\n+   publicationEvidence: null,\n+   state: 'OWNER_UPLOAD_READY'\n+ }\n- null\n"
+      },
+      {
+        "id": "P52",
+        "set": "primary",
+        "ok": false,
+        "detail": "publication cannot precede owner quality review:Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   authority: 'NONE',\n+   handoff: {\n+     checklist: [\n+       'VERIFY_EXACT_ASSET_BYTES',\n+       'VERIFY_RIGHTS_AND_GENERATED_MEDIA',\n+       'CURRENT_UDEMY_POLICY_AND_LANDING_PAGE',\n+       'OWNER_UPLOAD_AND_PUBLISH',\n+       'SEPARATE_PUBLICATION_OBSERVATION'\n+     ],\n+     manifestDigest: '0762c6673d30a0baab72269586df15133265c65db7fe7ab0dd92f919c8d72c44',\n+     ownerMustUpload: true,\n+     planDigest: '6e05072004a48225d14345e0b93b46aea9af927e7a0a418757e4e97f771b1644'\n+   },\n+   issues: [],\n+   manifestDigest: '0762c6673d30a0baab72269586df15133265c65db7fe7ab0dd92f919c8d72c44',\n+   opensFiles: false,\n+   planDigest: '6e05072004a48225d14345e0b93b46aea9af927e7a0a418757e4e97f771b1644',\n+   publication: 'CLOSED',\n+   publicationEvidence: {\n+     courseRefDigest: 'a6b5c7c2a42b88da5a58a6fc231bb97a0847ab8084447f819f7f621e2acdd36e',\n+     evidenceDigest: 'e1abf872e33dcd10ed6fe38962e93c99e8f294f14cb4981393a377c6bdbd1e85',\n+     manifestDigest: '0762c6673d30a0baab72269586df15133265c65db7fe7ab0dd92f919c8d72c44',\n+     observedAt: '2026-10-03T11:00:00.000Z',\n+     planDigest: '6e05072004a48225d14345e0b93b46aea9af927e7a0a418757e4e97f771b1644',\n+     source: 'OWNER_INPUT',\n+     verification: 'OWNER_REPORTED_UNVERIFIED'\n+   },\n+   state: 'OWNER_PUBLISHED_CONFIRMED'\n+ }\n- null\n"
+      },
+      {
+        "id": "H01",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "changed caller cannot mutate prepared plan"
+      },
+      {
+        "id": "H02",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "empty sections refused"
+      },
+      {
+        "id": "H03",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "noncanonical numeric duration refused"
+      },
+      {
+        "id": "H04",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "oversized script refused"
+      },
+      {
+        "id": "H05",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "invalid language refused"
+      },
+      {
+        "id": "H06",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "generated policy can be explicitly reviewed"
+      },
+      {
+        "id": "H07",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "rights uncertainty blocks manifest handoff"
+      },
+      {
+        "id": "H08",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "manifest shape exact"
+      },
+      {
+        "id": "H09",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "quality receipt source explicit"
+      },
+      {
+        "id": "H10",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "download unknown id refused"
+      },
+      {
+        "id": "H11",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "publication identity cannot rebind course plan"
+      },
+      {
+        "id": "H12",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "receipt output has no executable surface"
+      }
+    ]
+  },
+  "udemy": {
+    "status": "FAIL",
+    "primary": {
+      "passed": 50,
+      "total": 51
+    },
+    "heldOut": {
+      "passed": 12,
+      "total": 12
+    },
+    "fixture": "SYNTHETIC_ONLY_NO_OWNER_ACCOUNT",
+    "noLiveIO": true,
+    "results": [
+      {
+        "id": "P01",
+        "set": "primary",
+        "ok": true,
+        "detail": "standard adapter and empty production registry"
+      },
+      {
+        "id": "P02",
+        "set": "primary",
+        "ok": true,
+        "detail": "course route fixed GET minimal fields"
+      },
+      {
+        "id": "P03",
+        "set": "primary",
+        "ok": true,
+        "detail": "course PII and raw title discarded"
+      },
+      {
+        "id": "P04",
+        "set": "primary",
+        "ok": true,
+        "detail": "no revenue inference"
+      },
+      {
+        "id": "P05",
+        "set": "primary",
+        "ok": true,
+        "detail": "no publication transition from course fact"
+      },
+      {
+        "id": "P06",
+        "set": "primary",
+        "ok": true,
+        "detail": "coarse policy callback mandatory"
+      },
+      {
+        "id": "P07",
+        "set": "primary",
+        "ok": true,
+        "detail": "zero-cost qualification mandatory"
+      },
+      {
+        "id": "P08",
+        "set": "primary",
+        "ok": true,
+        "detail": "revoked owner policy refuses read"
+      },
+      {
+        "id": "P09",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown cost refuses read"
+      },
+      {
+        "id": "P10",
+        "set": "primary",
+        "ok": true,
+        "detail": "account mismatch refuses"
+      },
+      {
+        "id": "P11",
+        "set": "primary",
+        "ok": true,
+        "detail": "metadata has no synthetic platform scopes"
+      },
+      {
+        "id": "P12",
+        "set": "primary",
+        "ok": true,
+        "detail": "coarse mode does not loosen general scope gate"
+      },
+      {
+        "id": "P13",
+        "set": "primary",
+        "ok": true,
+        "detail": "reauth required refuses"
+      },
+      {
+        "id": "P14",
+        "set": "primary",
+        "ok": true,
+        "detail": "expired metadata refuses"
+      },
+      {
+        "id": "P15",
+        "set": "primary",
+        "ok": true,
+        "detail": "unverified metadata refuses"
+      },
+      {
+        "id": "P16",
+        "set": "primary",
+        "ok": true,
+        "detail": "stale and future verification refuse"
+      },
+      {
+        "id": "P17",
+        "set": "primary",
+        "ok": true,
+        "detail": "credential value cannot enter metadata"
+      },
+      {
+        "id": "P18",
+        "set": "primary",
+        "ok": true,
+        "detail": "account state is connector evidence only"
+      },
+      {
+        "id": "P19",
+        "set": "primary",
+        "ok": true,
+        "detail": "course analytics is bounded official facts"
+      },
+      {
+        "id": "P20",
+        "set": "primary",
+        "ok": true,
+        "detail": "Q&A route unqualified fails before transport"
+      },
+      {
+        "id": "P21",
+        "set": "primary",
+        "ok": true,
+        "detail": "review route unqualified fails before transport"
+      },
+      {
+        "id": "P22",
+        "set": "primary",
+        "ok": true,
+        "detail": "thread GET drops upstream content and learner"
+      },
+      {
+        "id": "P23",
+        "set": "primary",
+        "ok": true,
+        "detail": "individual message route is not guessed"
+      },
+      {
+        "id": "P24",
+        "set": "primary",
+        "ok": true,
+        "detail": "local support draft without account authorization"
+      },
+      {
+        "id": "P25",
+        "set": "primary",
+        "ok": true,
+        "detail": "reply digest binds every field"
+      },
+      {
+        "id": "P26",
+        "set": "primary",
+        "ok": true,
+        "detail": "contact and HTML reply refused"
+      },
+      {
+        "id": "P27",
+        "set": "primary",
+        "ok": true,
+        "detail": "reply identity and context required"
+      },
+      {
+        "id": "P28",
+        "set": "primary",
+        "ok": true,
+        "detail": "all external and money operations closed"
+      },
+      {
+        "id": "P29",
+        "set": "primary",
+        "ok": true,
+        "detail": "course draft local without connector"
+      },
+      {
+        "id": "P30",
+        "set": "primary",
+        "ok": true,
+        "detail": "host/path/method cannot be supplied"
+      },
+      {
+        "id": "P31",
+        "set": "primary",
+        "ok": true,
+        "detail": "page size own bound below official maximum"
+      },
+      {
+        "id": "P32",
+        "set": "primary",
+        "ok": true,
+        "detail": "opaque next page bound to operation"
+      },
+      {
+        "id": "P33",
+        "set": "primary",
+        "ok": true,
+        "detail": "cursor cross operation refuses"
+      },
+      {
+        "id": "P34",
+        "set": "primary",
+        "ok": true,
+        "detail": "page bound finite"
+      },
+      {
+        "id": "P35",
+        "set": "primary",
+        "ok": true,
+        "detail": "next remote URL never followed"
+      },
+      {
+        "id": "P36",
+        "set": "primary",
+        "ok": true,
+        "detail": "next private path refused"
+      },
+      {
+        "id": "P37",
+        "set": "primary",
+        "ok": true,
+        "detail": "next chronology cannot loop"
+      },
+      {
+        "id": "P38",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown or duplicate next query refused"
+      },
+      {
+        "id": "P39",
+        "set": "primary",
+        "ok": true,
+        "detail": "429 closes further calls for conservative backoff"
+      },
+      {
+        "id": "P40",
+        "set": "primary",
+        "ok": true,
+        "detail": "Retry-After integer honored"
+      },
+      {
+        "id": "P41",
+        "set": "primary",
+        "ok": true,
+        "detail": "503 halts for documented maintenance window"
+      },
+      {
+        "id": "P42",
+        "set": "primary",
+        "ok": true,
+        "detail": "400/401/403 fail closed"
+      },
+      {
+        "id": "P43",
+        "set": "primary",
+        "ok": true,
+        "detail": "ordinary limiter stops immediate duplicate read"
+      },
+      {
+        "id": "P44",
+        "set": "primary",
+        "ok": true,
+        "detail": "metadata revocation after await refuses data"
+      },
+      {
+        "id": "P45",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner revocation after await refuses data"
+      },
+      {
+        "id": "P46",
+        "set": "primary",
+        "ok": true,
+        "detail": "wire getter refused without invocation"
+      },
+      {
+        "id": "P47",
+        "set": "primary",
+        "ok": true,
+        "detail": "malformed ratings/counts refused"
+      },
+      {
+        "id": "P48",
+        "set": "primary",
+        "ok": true,
+        "detail": "wire collection bounded and duplicate IDs refused"
+      },
+      {
+        "id": "P49",
+        "set": "primary",
+        "ok": true,
+        "detail": "Q&A pure projection discards all raw student content"
+      },
+      {
+        "id": "P50",
+        "set": "primary",
+        "ok": true,
+        "detail": "review projection never realizes money"
+      },
+      {
+        "id": "P51",
+        "set": "primary",
+        "ok": false,
+        "detail": "credential holder change after await refuses old data:Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'AYAS_REVENUE_UDEMY_CONNECTION_CHANGED'\n"
+      },
+      {
+        "id": "H01",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "unsupported browser transport is absent"
+      },
+      {
+        "id": "H02",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "read callback receives code-owned exact policy"
+      },
+      {
+        "id": "H03",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "coarse credential missing refuses"
+      },
+      {
+        "id": "H04",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "connection platform mismatch refuses"
+      },
+      {
+        "id": "H05",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "future connection creation refuses"
+      },
+      {
+        "id": "H06",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "rate config cannot silently exceed conservative limits"
+      },
+      {
+        "id": "H07",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "HTTP-date Retry-After honored"
+      },
+      {
+        "id": "H08",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "error content never leaks"
+      },
+      {
+        "id": "H09",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "empty page has no raw payload"
+      },
+      {
+        "id": "H10",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "read cannot become financial operation"
+      },
+      {
+        "id": "H11",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "draft caller extras never authorize sending"
+      },
+      {
+        "id": "H12",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "support message draft bound to existing context"
+      }
+    ]
+  },
+  "duplicateIdentity": {
+    "status": "FAIL",
+    "primary": {
+      "passed": 51,
+      "total": 52
+    },
+    "heldOut": {
+      "passed": 12,
+      "total": 12
+    },
+    "fixture": "SYNTHETIC_ONLY_NO_OWNER_ACCOUNT",
+    "noLiveIO": true,
+    "results": [
+      {
+        "id": "P01",
+        "set": "primary",
+        "ok": true,
+        "detail": "standard adapter and empty production registry"
+      },
+      {
+        "id": "P02",
+        "set": "primary",
+        "ok": true,
+        "detail": "course route fixed GET minimal fields"
+      },
+      {
+        "id": "P03",
+        "set": "primary",
+        "ok": true,
+        "detail": "course PII and raw title discarded"
+      },
+      {
+        "id": "P04",
+        "set": "primary",
+        "ok": true,
+        "detail": "no revenue inference"
+      },
+      {
+        "id": "P05",
+        "set": "primary",
+        "ok": true,
+        "detail": "no publication transition from course fact"
+      },
+      {
+        "id": "P06",
+        "set": "primary",
+        "ok": true,
+        "detail": "coarse policy callback mandatory"
+      },
+      {
+        "id": "P07",
+        "set": "primary",
+        "ok": true,
+        "detail": "zero-cost qualification mandatory"
+      },
+      {
+        "id": "P08",
+        "set": "primary",
+        "ok": true,
+        "detail": "revoked owner policy refuses read"
+      },
+      {
+        "id": "P09",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown cost refuses read"
+      },
+      {
+        "id": "P10",
+        "set": "primary",
+        "ok": true,
+        "detail": "account mismatch refuses"
+      },
+      {
+        "id": "P11",
+        "set": "primary",
+        "ok": true,
+        "detail": "metadata has no synthetic platform scopes"
+      },
+      {
+        "id": "P12",
+        "set": "primary",
+        "ok": true,
+        "detail": "coarse mode does not loosen general scope gate"
+      },
+      {
+        "id": "P13",
+        "set": "primary",
+        "ok": true,
+        "detail": "reauth required refuses"
+      },
+      {
+        "id": "P14",
+        "set": "primary",
+        "ok": true,
+        "detail": "expired metadata refuses"
+      },
+      {
+        "id": "P15",
+        "set": "primary",
+        "ok": true,
+        "detail": "unverified metadata refuses"
+      },
+      {
+        "id": "P16",
+        "set": "primary",
+        "ok": true,
+        "detail": "stale and future verification refuse"
+      },
+      {
+        "id": "P17",
+        "set": "primary",
+        "ok": true,
+        "detail": "credential value cannot enter metadata"
+      },
+      {
+        "id": "P18",
+        "set": "primary",
+        "ok": true,
+        "detail": "account state is connector evidence only"
+      },
+      {
+        "id": "P19",
+        "set": "primary",
+        "ok": true,
+        "detail": "course analytics is bounded official facts"
+      },
+      {
+        "id": "P20",
+        "set": "primary",
+        "ok": true,
+        "detail": "Q&A route unqualified fails before transport"
+      },
+      {
+        "id": "P21",
+        "set": "primary",
+        "ok": true,
+        "detail": "review route unqualified fails before transport"
+      },
+      {
+        "id": "P22",
+        "set": "primary",
+        "ok": true,
+        "detail": "thread GET drops upstream content and learner"
+      },
+      {
+        "id": "P23",
+        "set": "primary",
+        "ok": true,
+        "detail": "individual message route is not guessed"
+      },
+      {
+        "id": "P24",
+        "set": "primary",
+        "ok": true,
+        "detail": "local support draft without account authorization"
+      },
+      {
+        "id": "P25",
+        "set": "primary",
+        "ok": true,
+        "detail": "reply digest binds every field"
+      },
+      {
+        "id": "P26",
+        "set": "primary",
+        "ok": true,
+        "detail": "contact and HTML reply refused"
+      },
+      {
+        "id": "P27",
+        "set": "primary",
+        "ok": true,
+        "detail": "reply identity and context required"
+      },
+      {
+        "id": "P28",
+        "set": "primary",
+        "ok": true,
+        "detail": "all external and money operations closed"
+      },
+      {
+        "id": "P29",
+        "set": "primary",
+        "ok": true,
+        "detail": "course draft local without connector"
+      },
+      {
+        "id": "P30",
+        "set": "primary",
+        "ok": true,
+        "detail": "host/path/method cannot be supplied"
+      },
+      {
+        "id": "P31",
+        "set": "primary",
+        "ok": true,
+        "detail": "page size own bound below official maximum"
+      },
+      {
+        "id": "P32",
+        "set": "primary",
+        "ok": true,
+        "detail": "opaque next page bound to operation"
+      },
+      {
+        "id": "P33",
+        "set": "primary",
+        "ok": true,
+        "detail": "cursor cross operation refuses"
+      },
+      {
+        "id": "P34",
+        "set": "primary",
+        "ok": true,
+        "detail": "page bound finite"
+      },
+      {
+        "id": "P35",
+        "set": "primary",
+        "ok": true,
+        "detail": "next remote URL never followed"
+      },
+      {
+        "id": "P36",
+        "set": "primary",
+        "ok": true,
+        "detail": "next private path refused"
+      },
+      {
+        "id": "P37",
+        "set": "primary",
+        "ok": true,
+        "detail": "next chronology cannot loop"
+      },
+      {
+        "id": "P38",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown or duplicate next query refused"
+      },
+      {
+        "id": "P39",
+        "set": "primary",
+        "ok": true,
+        "detail": "429 closes further calls for conservative backoff"
+      },
+      {
+        "id": "P40",
+        "set": "primary",
+        "ok": true,
+        "detail": "Retry-After integer honored"
+      },
+      {
+        "id": "P41",
+        "set": "primary",
+        "ok": true,
+        "detail": "503 halts for documented maintenance window"
+      },
+      {
+        "id": "P42",
+        "set": "primary",
+        "ok": true,
+        "detail": "400/401/403 fail closed"
+      },
+      {
+        "id": "P43",
+        "set": "primary",
+        "ok": true,
+        "detail": "ordinary limiter stops immediate duplicate read"
+      },
+      {
+        "id": "P44",
+        "set": "primary",
+        "ok": true,
+        "detail": "metadata revocation after await refuses data"
+      },
+      {
+        "id": "P45",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner revocation after await refuses data"
+      },
+      {
+        "id": "P46",
+        "set": "primary",
+        "ok": true,
+        "detail": "wire getter refused without invocation"
+      },
+      {
+        "id": "P47",
+        "set": "primary",
+        "ok": true,
+        "detail": "malformed ratings/counts refused"
+      },
+      {
+        "id": "P48",
+        "set": "primary",
+        "ok": true,
+        "detail": "wire collection bounded and duplicate IDs refused"
+      },
+      {
+        "id": "P49",
+        "set": "primary",
+        "ok": true,
+        "detail": "Q&A pure projection discards all raw student content"
+      },
+      {
+        "id": "P50",
+        "set": "primary",
+        "ok": true,
+        "detail": "review projection never realizes money"
+      },
+      {
+        "id": "P51",
+        "set": "primary",
+        "ok": true,
+        "detail": "credential holder change after await refuses old data"
+      },
+      {
+        "id": "P52",
+        "set": "primary",
+        "ok": false,
+        "failureKind": "ASSERTION",
+        "detail": "duplicate identity with changed fields refused:Expected values to be strictly equal:\n\n'OK' !== 'ERROR'\n"
+      },
+      {
+        "id": "H01",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "unsupported browser transport is absent"
+      },
+      {
+        "id": "H02",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "read callback receives code-owned exact policy"
+      },
+      {
+        "id": "H03",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "coarse credential missing refuses"
+      },
+      {
+        "id": "H04",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "connection platform mismatch refuses"
+      },
+      {
+        "id": "H05",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "future connection creation refuses"
+      },
+      {
+        "id": "H06",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "rate config cannot silently exceed conservative limits"
+      },
+      {
+        "id": "H07",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "HTTP-date Retry-After honored"
+      },
+      {
+        "id": "H08",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "error content never leaks"
+      },
+      {
+        "id": "H09",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "empty page has no raw payload"
+      },
+      {
+        "id": "H10",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "read cannot become financial operation"
+      },
+      {
+        "id": "H11",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "draft caller extras never authorize sending"
+      },
+      {
+        "id": "H12",
+        "set": "heldOut",
+        "ok": true,
+        "detail": "support message draft bound to existing context"
+      }
+    ]
+  },
+  "minimumQuality": "Initial2-lecture12-minute synthetic fixture passed original readiness. Official recheck required5 lectures/30min; fixture extended and independent minimum/measurement/resolution/stereo/dynamic probes added.",
+  "mutationProbeRepairs": [
+    "P16 stale verification was also older than connection creation; repair uses otherwise valid older connection metadata to isolate freshness.",
+    "P53 four lectures initially also missed minimum duration; repair uses1800 total measured seconds to isolate lecture-count refusal."
+  ],
+  "heldOutAssertionsChanged": false,
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT"
+}

@@ -1060,3 +1060,7 @@ Source73ebc8c,66+15/50 controls/21+6 regressions/165 committed pins/TS/lint/diff
 ## 2026-10-03T12:35:29.068Z —16.6 exact-source closure;16.7 active
 
 Exact source f7a5188:52+12 scenarios;48 controls (46 caught,2 verified equivalents);23 selected+6 extra exact-source regressions,168 committed pins,TS/lint/diff PASS. Graphify18422/52712 current/integrity clean; inheritedPARTIAL9/semanticPENDING. Fullv45 baseline NOT_RUN; last completev38/5cbb217. Manual drafts/owner-reported imports only; no external effect or live certification.16.5 official qualification remains pending; Stage16/Master OPEN. Next16.7 Udemy/Atolye, Graphify-first and official scope limitations. SeeACTIVE_CHECKPOINT.json andimplementation/16.6/16.6_EXACT_SOURCE_RECEIPT.json.
+
+## 2026-10-03T13:09:09.439Z —16.7 source implementation
+
+Course57+12/Udemy53+12 and56 assertion-caught controls PASS; TS/changed lint0 errors, full lint0 errors/13 inherited warnings. Manifestv46:141 suites/173 pins; fullbaseline NOT_RUN. Two captured official GET routes, other review/Q&A/individual-message routes unqualified; Stage16.7 not fully closed. Coarse token policy source default closed; global scoped gate unchanged. No live account, provider/job, publication, send, money or registration. Stage16.5 qualification remains pending; Stage16/Master OPEN. Next31+6 exact-source regressions/Graphify/receipt, then independent16.8 in order. SeeACTIVE_CHECKPOINT.json.

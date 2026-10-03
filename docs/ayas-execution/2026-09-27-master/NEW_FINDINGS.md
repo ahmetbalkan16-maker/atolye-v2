@@ -248,3 +248,19 @@ MANUAL_HANDOFF manifests permit only local drafts. Preserve16.0; owner account/o
 ## F68 — Fiverr completed-order cash timeline
 
 Source review added P50: cash movement before the reported completed-order time was accepted (51/52+12). Reproduced in16.6_REVIEW_REPRODUCED.json; bound cash time to completion; negative control proves refusal. No money/ledger write or external action.
+
+## F69 — Udemy coarse token versus the shared granular-scope gate
+
+Official InstructorAPI documents a coarse user token, no granular scope catalog. Do not fabricate grants or weaken16.0A. The Udemy-only GET policy reuses strict metadata/freshness, requires exact trusted owner policy and zero-cost qualification, and accepts empty scopes as NOT_APPLICABLE. Default reads closed; live connector/owner binding pending.
+
+## F70 — Official method tables unavailable in current retrieval
+
+Root examples qualify only courses and threads. Q&A/review/individual-message method index is present, tables absent; anonymous documentation fetch403, no bypass. Routes remain unqualified/blocked, synthetic projectors clearly separate. Stage16.7 not fully closed.
+
+## F71 — Course chronology, await-time connection identity and duplicate facts
+
+New courseP51/P52 andUdemyP51/P52 reproduce premature owner/publication timestamps, holder change after await, and duplicate course identity with different fields. Bind owner review after media, publication after review, exact connection digest before/after await, and duplicate IDs rather than whole-fact hashes.56 counterfactuals assertion-caught.
+
+## F72 — Udemy media minima and independent mutation probes
+
+Current official video-course rules require5 lectures/30min/HD/landscape/stereo/sync/dynamic visuals; original small fixture exposed readiness without these measured guards. Added reviewed versioned minima and measured QA, extended full synthetic course to5 lessons/30min. Freshness andlecture-count mutants initially survived due invalid metadata/short total duration masking the intended guards; corrected only primary fixtures to isolate each property. No equivalent or hidden PASS.

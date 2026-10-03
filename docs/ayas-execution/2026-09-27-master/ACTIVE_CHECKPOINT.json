@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
-  "currentHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+  "currentHead": "347913089d518ecd929a911cced4dcf6ac21ed0f",
   "stage": "STAGE_16_7",
-  "subtask": "16.7 Udemy official read boundary and Atolye course production; carry16.5 pending official qualification",
+  "subtask": "16.7 source implementation; exact-source validation pending; official review/Q&A/individual-message routes unresolved",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -299,8 +299,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "16.7 Udemy / Atolye source; Stage16 and Master remain OPEN",
-  "updatedAt": "2026-10-03T12:35:29.068Z",
+  "nextAction": "Commit16.7 source; exact31 selected+6 extra regressions, Graphify integrity and173 committed pins. Then independent16.8 in canonical order, carry unresolved16.5 and16.7. Stage16/Master remainOPEN.",
+  "updatedAt": "2026-10-03T13:09:09.439Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1407,7 +1407,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Graphify-first16.7 architecture and official Instructor API recheck; bounded source and local production plans. Do not invent Udemy granular scopes. Carry16.5 pending; no live activation.",
+  "resumeNextAction": "Run exact16.7 source validation before modifying further source.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -2126,5 +2126,38 @@
       "sha256": "5e50efb90dbf99744f8a048354ce07d679e98b9de48d8b6f83b76eacd1a6c2c5"
     },
     "exactReceipt": "04_STAGE16_REVENUE/implementation/16.6/16.6_EXACT_SOURCE_RECEIPT.json"
+  },
+  "stage16_7": {
+    "state": "IMPLEMENTED_PENDING_EXACT_SOURCE_VALIDATION_PARTIAL_ENDPOINT_QUALIFICATION",
+    "stageClosed": false,
+    "baseHead": "347913089d518ecd929a911cced4dcf6ac21ed0f",
+    "course": {
+      "primary": 57,
+      "heldOut": 12
+    },
+    "udemy": {
+      "primary": 53,
+      "heldOut": 12
+    },
+    "negativeControls": {
+      "total": 56,
+      "caught": 56,
+      "equivalents": 0
+    },
+    "manifestVersion": "15F.4-v46",
+    "declaredSuites": 141,
+    "uniquePins": 173,
+    "fullDeclaredBaseline": "NOT_RUN",
+    "qualifiedGetRoutes": 2,
+    "unqualifiedReadRoutes": [
+      "REVIEWS",
+      "QUESTIONS",
+      "INDIVIDUAL_MESSAGES"
+    ],
+    "coarseTokenPolicy": "SOURCE_DEFAULT_CLOSED_OWNER_AND_COST_BINDING_REQUIRED",
+    "productionRegistry": "EMPTY",
+    "authority": "NONE",
+    "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F71_FIXED",
+    "specRecheck": "04_STAGE16_REVENUE/implementation/16.7/16.7_OFFICIAL_SPEC_RECHECK.json"
   }
 }

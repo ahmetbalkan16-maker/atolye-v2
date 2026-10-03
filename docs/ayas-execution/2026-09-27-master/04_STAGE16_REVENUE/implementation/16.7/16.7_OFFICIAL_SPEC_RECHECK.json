@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1",
+  "checkedAt": "2026-10-03T13:06:01.197Z",
+  "sources": [
+    {
+      "url": "https://www.udemy.com/developers/instructor/",
+      "verified": [
+        "v1 HTTPS root",
+        "coarse instructor token; no granular scope catalog captured",
+        "course/thread GET examples",
+        "field selection and page bounds",
+        "429/backoff and503 maintenance"
+      ]
+    },
+    {
+      "url": "https://www.udemy.com/developers/instructor/models/course/",
+      "verified": [
+        "id,is_paid,is_published,num_reviews,rating"
+      ]
+    },
+    {
+      "url": "https://www.udemy.com/developers/instructor/models/question/",
+      "verified": [
+        "id,course,num_replies,is_read; raw title/body/user discarded"
+      ]
+    },
+    {
+      "url": "https://www.udemy.com/developers/instructor/models/message_thread/",
+      "verified": [
+        "id,is_read; other_user/last_message discarded"
+      ]
+    },
+    {
+      "url": "https://support.udemy.com/hc/en-us/articles/229604988-Udemy-course-quality-checklist",
+      "verified": [
+        "video-course minimum5 lectures/30min",
+        "stereo and synchronized audio",
+        "full landing-page/policy owner review"
+      ]
+    },
+    {
+      "url": "https://support.udemy.com/hc/en-us/articles/229232767-Video-standards",
+      "verified": [
+        "at least720p",
+        "16:9 landscape",
+        "dynamic relevant visuals"
+      ]
+    }
+  ],
+  "qualifiedRoutes": [
+    "/instructor-api/v1/taught-courses/courses/",
+    "/instructor-api/v1/message-threads/"
+  ],
+  "unqualifiedRoutes": [
+    "course reviews",
+    "Q&A",
+    "individual messages"
+  ],
+  "methodTableCapture": {
+    "web": "METHOD_INDEX_WITHOUT_ENDPOINT_TABLE",
+    "anonymousDirectHtml": "403_PUBLIC_DOCUMENTATION_CHALLENGE_NO_BYPASS"
+  },
+  "ownerAccountCalls": 0,
+  "credentialsUsed": 0,
+  "coarseTokenPolicy": "SOURCE_FRAMEWORK_DEFAULT_CLOSED_OWNER_BINDING_REQUIRED",
+  "stageClosed": false
+}

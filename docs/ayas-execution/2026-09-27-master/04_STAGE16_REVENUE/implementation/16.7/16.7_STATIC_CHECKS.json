@@ -1,0 +1,35 @@
+{
+  "state": "PASS",
+  "rows": [
+    {
+      "name": "TypeScript",
+      "exit": 0,
+      "status": "PASS",
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "changed-eslint",
+      "exit": 0,
+      "status": "PASS",
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "whole-eslint",
+      "exit": 0,
+      "status": "PASS",
+      "errors": 0,
+      "warnings": 13,
+      "stdoutDigest": "5e8e9b142f44afe725ae67aec8afbf7ba1fe0921611c1d606584c5c80f2d9528",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "diff-check",
+      "exit": 0,
+      "status": "PASS",
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e1882279de6102935dd1b07979b905ee8e735c3f86094eaebb1e111c55762496"
+    }
+  ]
+}

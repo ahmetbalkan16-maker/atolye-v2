@@ -1,0 +1,405 @@
+{
+  "status": "PASS",
+  "primary": {
+    "passed": 53,
+    "total": 53
+  },
+  "heldOut": {
+    "passed": 12,
+    "total": 12
+  },
+  "fixture": "SYNTHETIC_ONLY_NO_OWNER_ACCOUNT",
+  "noLiveIO": true,
+  "results": [
+    {
+      "id": "P01",
+      "set": "primary",
+      "ok": true,
+      "detail": "standard adapter and empty production registry"
+    },
+    {
+      "id": "P02",
+      "set": "primary",
+      "ok": true,
+      "detail": "course route fixed GET minimal fields"
+    },
+    {
+      "id": "P03",
+      "set": "primary",
+      "ok": true,
+      "detail": "course PII and raw title discarded"
+    },
+    {
+      "id": "P04",
+      "set": "primary",
+      "ok": true,
+      "detail": "no revenue inference"
+    },
+    {
+      "id": "P05",
+      "set": "primary",
+      "ok": true,
+      "detail": "no publication transition from course fact"
+    },
+    {
+      "id": "P06",
+      "set": "primary",
+      "ok": true,
+      "detail": "coarse policy callback mandatory"
+    },
+    {
+      "id": "P07",
+      "set": "primary",
+      "ok": true,
+      "detail": "zero-cost qualification mandatory"
+    },
+    {
+      "id": "P08",
+      "set": "primary",
+      "ok": true,
+      "detail": "revoked owner policy refuses read"
+    },
+    {
+      "id": "P09",
+      "set": "primary",
+      "ok": true,
+      "detail": "unknown cost refuses read"
+    },
+    {
+      "id": "P10",
+      "set": "primary",
+      "ok": true,
+      "detail": "account mismatch refuses"
+    },
+    {
+      "id": "P11",
+      "set": "primary",
+      "ok": true,
+      "detail": "metadata has no synthetic platform scopes"
+    },
+    {
+      "id": "P12",
+      "set": "primary",
+      "ok": true,
+      "detail": "coarse mode does not loosen general scope gate"
+    },
+    {
+      "id": "P13",
+      "set": "primary",
+      "ok": true,
+      "detail": "reauth required refuses"
+    },
+    {
+      "id": "P14",
+      "set": "primary",
+      "ok": true,
+      "detail": "expired metadata refuses"
+    },
+    {
+      "id": "P15",
+      "set": "primary",
+      "ok": true,
+      "detail": "unverified metadata refuses"
+    },
+    {
+      "id": "P16",
+      "set": "primary",
+      "ok": true,
+      "detail": "stale and future verification refuse"
+    },
+    {
+      "id": "P17",
+      "set": "primary",
+      "ok": true,
+      "detail": "credential value cannot enter metadata"
+    },
+    {
+      "id": "P18",
+      "set": "primary",
+      "ok": true,
+      "detail": "account state is connector evidence only"
+    },
+    {
+      "id": "P19",
+      "set": "primary",
+      "ok": true,
+      "detail": "course analytics is bounded official facts"
+    },
+    {
+      "id": "P20",
+      "set": "primary",
+      "ok": true,
+      "detail": "Q&A route unqualified fails before transport"
+    },
+    {
+      "id": "P21",
+      "set": "primary",
+      "ok": true,
+      "detail": "review route unqualified fails before transport"
+    },
+    {
+      "id": "P22",
+      "set": "primary",
+      "ok": true,
+      "detail": "thread GET drops upstream content and learner"
+    },
+    {
+      "id": "P23",
+      "set": "primary",
+      "ok": true,
+      "detail": "individual message route is not guessed"
+    },
+    {
+      "id": "P24",
+      "set": "primary",
+      "ok": true,
+      "detail": "local support draft without account authorization"
+    },
+    {
+      "id": "P25",
+      "set": "primary",
+      "ok": true,
+      "detail": "reply digest binds every field"
+    },
+    {
+      "id": "P26",
+      "set": "primary",
+      "ok": true,
+      "detail": "contact and HTML reply refused"
+    },
+    {
+      "id": "P27",
+      "set": "primary",
+      "ok": true,
+      "detail": "reply identity and context required"
+    },
+    {
+      "id": "P28",
+      "set": "primary",
+      "ok": true,
+      "detail": "all external and money operations closed"
+    },
+    {
+      "id": "P29",
+      "set": "primary",
+      "ok": true,
+      "detail": "course draft local without connector"
+    },
+    {
+      "id": "P30",
+      "set": "primary",
+      "ok": true,
+      "detail": "host/path/method cannot be supplied"
+    },
+    {
+      "id": "P31",
+      "set": "primary",
+      "ok": true,
+      "detail": "page size own bound below official maximum"
+    },
+    {
+      "id": "P32",
+      "set": "primary",
+      "ok": true,
+      "detail": "opaque next page bound to operation"
+    },
+    {
+      "id": "P33",
+      "set": "primary",
+      "ok": true,
+      "detail": "cursor cross operation refuses"
+    },
+    {
+      "id": "P34",
+      "set": "primary",
+      "ok": true,
+      "detail": "page bound finite"
+    },
+    {
+      "id": "P35",
+      "set": "primary",
+      "ok": true,
+      "detail": "next remote URL never followed"
+    },
+    {
+      "id": "P36",
+      "set": "primary",
+      "ok": true,
+      "detail": "next private path refused"
+    },
+    {
+      "id": "P37",
+      "set": "primary",
+      "ok": true,
+      "detail": "next chronology cannot loop"
+    },
+    {
+      "id": "P38",
+      "set": "primary",
+      "ok": true,
+      "detail": "unknown or duplicate next query refused"
+    },
+    {
+      "id": "P39",
+      "set": "primary",
+      "ok": true,
+      "detail": "429 closes further calls for conservative backoff"
+    },
+    {
+      "id": "P40",
+      "set": "primary",
+      "ok": true,
+      "detail": "Retry-After integer honored"
+    },
+    {
+      "id": "P41",
+      "set": "primary",
+      "ok": true,
+      "detail": "503 halts for documented maintenance window"
+    },
+    {
+      "id": "P42",
+      "set": "primary",
+      "ok": true,
+      "detail": "400/401/403 fail closed"
+    },
+    {
+      "id": "P43",
+      "set": "primary",
+      "ok": true,
+      "detail": "ordinary limiter stops immediate duplicate read"
+    },
+    {
+      "id": "P44",
+      "set": "primary",
+      "ok": true,
+      "detail": "metadata revocation after await refuses data"
+    },
+    {
+      "id": "P45",
+      "set": "primary",
+      "ok": true,
+      "detail": "owner revocation after await refuses data"
+    },
+    {
+      "id": "P46",
+      "set": "primary",
+      "ok": true,
+      "detail": "wire getter refused without invocation"
+    },
+    {
+      "id": "P47",
+      "set": "primary",
+      "ok": true,
+      "detail": "malformed ratings/counts refused"
+    },
+    {
+      "id": "P48",
+      "set": "primary",
+      "ok": true,
+      "detail": "wire collection bounded and duplicate IDs refused"
+    },
+    {
+      "id": "P49",
+      "set": "primary",
+      "ok": true,
+      "detail": "Q&A pure projection discards all raw student content"
+    },
+    {
+      "id": "P50",
+      "set": "primary",
+      "ok": true,
+      "detail": "review projection never realizes money"
+    },
+    {
+      "id": "P51",
+      "set": "primary",
+      "ok": true,
+      "detail": "credential holder change after await refuses old data"
+    },
+    {
+      "id": "P52",
+      "set": "primary",
+      "ok": true,
+      "detail": "duplicate identity with changed fields refused"
+    },
+    {
+      "id": "P53",
+      "set": "primary",
+      "ok": true,
+      "detail": "source and graders protected; no implicit IO/provider path"
+    },
+    {
+      "id": "H01",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "unsupported browser transport is absent"
+    },
+    {
+      "id": "H02",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "read callback receives code-owned exact policy"
+    },
+    {
+      "id": "H03",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "coarse credential missing refuses"
+    },
+    {
+      "id": "H04",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "connection platform mismatch refuses"
+    },
+    {
+      "id": "H05",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "future connection creation refuses"
+    },
+    {
+      "id": "H06",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "rate config cannot silently exceed conservative limits"
+    },
+    {
+      "id": "H07",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "HTTP-date Retry-After honored"
+    },
+    {
+      "id": "H08",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "error content never leaks"
+    },
+    {
+      "id": "H09",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "empty page has no raw payload"
+    },
+    {
+      "id": "H10",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "read cannot become financial operation"
+    },
+    {
+      "id": "H11",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "draft caller extras never authorize sending"
+    },
+    {
+      "id": "H12",
+      "set": "heldOut",
+      "ok": true,
+      "detail": "support message draft bound to existing context"
+    }
+  ]
+}

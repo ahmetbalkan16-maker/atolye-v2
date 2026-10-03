@@ -1,0 +1,1309 @@
+{
+  "status": "PASS",
+  "baselines": [
+    {
+      "status": "PASS",
+      "primary": {
+        "passed": 57,
+        "total": 57
+      },
+      "heldOut": {
+        "passed": 12,
+        "total": 12
+      },
+      "noLiveIO": true,
+      "results": [
+        {
+          "id": "P01",
+          "set": "primary",
+          "ok": true,
+          "detail": "immutable plan and upload handoff remain advisory"
+        },
+        {
+          "id": "P02",
+          "set": "primary",
+          "ok": true,
+          "detail": "schema exact"
+        },
+        {
+          "id": "P03",
+          "set": "primary",
+          "ok": true,
+          "detail": "neutral local course identifier"
+        },
+        {
+          "id": "P04",
+          "set": "primary",
+          "ok": true,
+          "detail": "version bounded"
+        },
+        {
+          "id": "P05",
+          "set": "primary",
+          "ok": true,
+          "detail": "source evidence mandatory and unique"
+        },
+        {
+          "id": "P06",
+          "set": "primary",
+          "ok": true,
+          "detail": "outcomes unique and bounded"
+        },
+        {
+          "id": "P07",
+          "set": "primary",
+          "ok": true,
+          "detail": "section order consecutive"
+        },
+        {
+          "id": "P08",
+          "set": "primary",
+          "ok": true,
+          "detail": "lesson order consecutive"
+        },
+        {
+          "id": "P09",
+          "set": "primary",
+          "ok": true,
+          "detail": "duplicate lesson refused"
+        },
+        {
+          "id": "P10",
+          "set": "primary",
+          "ok": true,
+          "detail": "unknown learning outcome refused"
+        },
+        {
+          "id": "P11",
+          "set": "primary",
+          "ok": true,
+          "detail": "unmapped outcome remains draft"
+        },
+        {
+          "id": "P12",
+          "set": "primary",
+          "ok": true,
+          "detail": "duration bounded"
+        },
+        {
+          "id": "P13",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing script draft"
+        },
+        {
+          "id": "P14",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing visual plan draft"
+        },
+        {
+          "id": "P15",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing exercise draft"
+        },
+        {
+          "id": "P16",
+          "set": "primary",
+          "ok": true,
+          "detail": "rights unresolved visible"
+        },
+        {
+          "id": "P17",
+          "set": "primary",
+          "ok": true,
+          "detail": "generated media policy reviewed"
+        },
+        {
+          "id": "P18",
+          "set": "primary",
+          "ok": true,
+          "detail": "regulated claims need qualified review"
+        },
+        {
+          "id": "P19",
+          "set": "primary",
+          "ok": true,
+          "detail": "contact details refused"
+        },
+        {
+          "id": "P20",
+          "set": "primary",
+          "ok": true,
+          "detail": "untrusted accessors never invoked"
+        },
+        {
+          "id": "P21",
+          "set": "primary",
+          "ok": true,
+          "detail": "download resources unique"
+        },
+        {
+          "id": "P22",
+          "set": "primary",
+          "ok": true,
+          "detail": "plan digest covers commercial content/version"
+        },
+        {
+          "id": "P23",
+          "set": "primary",
+          "ok": true,
+          "detail": "manifest plan identity exact"
+        },
+        {
+          "id": "P24",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing lesson stops upload"
+        },
+        {
+          "id": "P25",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing video stops upload"
+        },
+        {
+          "id": "P26",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing audio stops upload"
+        },
+        {
+          "id": "P27",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing captions stops upload"
+        },
+        {
+          "id": "P28",
+          "set": "primary",
+          "ok": true,
+          "detail": "unvalidated media waits"
+        },
+        {
+          "id": "P29",
+          "set": "primary",
+          "ok": true,
+          "detail": "audio quality failure blocks"
+        },
+        {
+          "id": "P30",
+          "set": "primary",
+          "ok": true,
+          "detail": "caption coverage failure blocks"
+        },
+        {
+          "id": "P31",
+          "set": "primary",
+          "ok": true,
+          "detail": "visual and rights quality failure blocks"
+        },
+        {
+          "id": "P32",
+          "set": "primary",
+          "ok": true,
+          "detail": "quality receipt binds exact media"
+        },
+        {
+          "id": "P33",
+          "set": "primary",
+          "ok": true,
+          "detail": "script receipt binds exact content"
+        },
+        {
+          "id": "P34",
+          "set": "primary",
+          "ok": true,
+          "detail": "relative path traversal refused"
+        },
+        {
+          "id": "P35",
+          "set": "primary",
+          "ok": true,
+          "detail": "machine paths refused"
+        },
+        {
+          "id": "P36",
+          "set": "primary",
+          "ok": true,
+          "detail": "Udemy id cannot become asset directory"
+        },
+        {
+          "id": "P37",
+          "set": "primary",
+          "ok": true,
+          "detail": "foreign manifest lesson refused"
+        },
+        {
+          "id": "P38",
+          "set": "primary",
+          "ok": true,
+          "detail": "duplicate manifest lesson refused"
+        },
+        {
+          "id": "P39",
+          "set": "primary",
+          "ok": true,
+          "detail": "download omitted stops upload"
+        },
+        {
+          "id": "P40",
+          "set": "primary",
+          "ok": true,
+          "detail": "asset rights must match plan"
+        },
+        {
+          "id": "P41",
+          "set": "primary",
+          "ok": true,
+          "detail": "owner policy review required"
+        },
+        {
+          "id": "P42",
+          "set": "primary",
+          "ok": true,
+          "detail": "owner refusal blocks readiness"
+        },
+        {
+          "id": "P43",
+          "set": "primary",
+          "ok": true,
+          "detail": "owner review binds exact asset rows"
+        },
+        {
+          "id": "P44",
+          "set": "primary",
+          "ok": true,
+          "detail": "future media and owner review refused"
+        },
+        {
+          "id": "P45",
+          "set": "primary",
+          "ok": true,
+          "detail": "publication absent from readiness"
+        },
+        {
+          "id": "P46",
+          "set": "primary",
+          "ok": true,
+          "detail": "explicit owner publication observation"
+        },
+        {
+          "id": "P47",
+          "set": "primary",
+          "ok": true,
+          "detail": "model publication proof refused"
+        },
+        {
+          "id": "P48",
+          "set": "primary",
+          "ok": true,
+          "detail": "publication proof binds exact manifest"
+        },
+        {
+          "id": "P49",
+          "set": "primary",
+          "ok": true,
+          "detail": "future publication proof refused"
+        },
+        {
+          "id": "P50",
+          "set": "primary",
+          "ok": true,
+          "detail": "missing quality cannot publish"
+        },
+        {
+          "id": "P51",
+          "set": "primary",
+          "ok": true,
+          "detail": "owner review cannot precede media validation"
+        },
+        {
+          "id": "P52",
+          "set": "primary",
+          "ok": true,
+          "detail": "publication cannot precede owner quality review"
+        },
+        {
+          "id": "P53",
+          "set": "primary",
+          "ok": true,
+          "detail": "Udemy video course minimum lecture count"
+        },
+        {
+          "id": "P54",
+          "set": "primary",
+          "ok": true,
+          "detail": "measured video duration cannot use plan target"
+        },
+        {
+          "id": "P55",
+          "set": "primary",
+          "ok": true,
+          "detail": "HD resolution required"
+        },
+        {
+          "id": "P56",
+          "set": "primary",
+          "ok": true,
+          "detail": "stereo and synchronized audio required"
+        },
+        {
+          "id": "P57",
+          "set": "primary",
+          "ok": true,
+          "detail": "dynamic landscape visuals required"
+        },
+        {
+          "id": "H01",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "changed caller cannot mutate prepared plan"
+        },
+        {
+          "id": "H02",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "empty sections refused"
+        },
+        {
+          "id": "H03",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "noncanonical numeric duration refused"
+        },
+        {
+          "id": "H04",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "oversized script refused"
+        },
+        {
+          "id": "H05",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "invalid language refused"
+        },
+        {
+          "id": "H06",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "generated policy can be explicitly reviewed"
+        },
+        {
+          "id": "H07",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "rights uncertainty blocks manifest handoff"
+        },
+        {
+          "id": "H08",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "manifest shape exact"
+        },
+        {
+          "id": "H09",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "quality receipt source explicit"
+        },
+        {
+          "id": "H10",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "download unknown id refused"
+        },
+        {
+          "id": "H11",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "publication identity cannot rebind course plan"
+        },
+        {
+          "id": "H12",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "receipt output has no executable surface"
+        }
+      ]
+    },
+    {
+      "status": "PASS",
+      "primary": {
+        "passed": 53,
+        "total": 53
+      },
+      "heldOut": {
+        "passed": 12,
+        "total": 12
+      },
+      "fixture": "SYNTHETIC_ONLY_NO_OWNER_ACCOUNT",
+      "noLiveIO": true,
+      "results": [
+        {
+          "id": "P01",
+          "set": "primary",
+          "ok": true,
+          "detail": "standard adapter and empty production registry"
+        },
+        {
+          "id": "P02",
+          "set": "primary",
+          "ok": true,
+          "detail": "course route fixed GET minimal fields"
+        },
+        {
+          "id": "P03",
+          "set": "primary",
+          "ok": true,
+          "detail": "course PII and raw title discarded"
+        },
+        {
+          "id": "P04",
+          "set": "primary",
+          "ok": true,
+          "detail": "no revenue inference"
+        },
+        {
+          "id": "P05",
+          "set": "primary",
+          "ok": true,
+          "detail": "no publication transition from course fact"
+        },
+        {
+          "id": "P06",
+          "set": "primary",
+          "ok": true,
+          "detail": "coarse policy callback mandatory"
+        },
+        {
+          "id": "P07",
+          "set": "primary",
+          "ok": true,
+          "detail": "zero-cost qualification mandatory"
+        },
+        {
+          "id": "P08",
+          "set": "primary",
+          "ok": true,
+          "detail": "revoked owner policy refuses read"
+        },
+        {
+          "id": "P09",
+          "set": "primary",
+          "ok": true,
+          "detail": "unknown cost refuses read"
+        },
+        {
+          "id": "P10",
+          "set": "primary",
+          "ok": true,
+          "detail": "account mismatch refuses"
+        },
+        {
+          "id": "P11",
+          "set": "primary",
+          "ok": true,
+          "detail": "metadata has no synthetic platform scopes"
+        },
+        {
+          "id": "P12",
+          "set": "primary",
+          "ok": true,
+          "detail": "coarse mode does not loosen general scope gate"
+        },
+        {
+          "id": "P13",
+          "set": "primary",
+          "ok": true,
+          "detail": "reauth required refuses"
+        },
+        {
+          "id": "P14",
+          "set": "primary",
+          "ok": true,
+          "detail": "expired metadata refuses"
+        },
+        {
+          "id": "P15",
+          "set": "primary",
+          "ok": true,
+          "detail": "unverified metadata refuses"
+        },
+        {
+          "id": "P16",
+          "set": "primary",
+          "ok": true,
+          "detail": "stale and future verification refuse"
+        },
+        {
+          "id": "P17",
+          "set": "primary",
+          "ok": true,
+          "detail": "credential value cannot enter metadata"
+        },
+        {
+          "id": "P18",
+          "set": "primary",
+          "ok": true,
+          "detail": "account state is connector evidence only"
+        },
+        {
+          "id": "P19",
+          "set": "primary",
+          "ok": true,
+          "detail": "course analytics is bounded official facts"
+        },
+        {
+          "id": "P20",
+          "set": "primary",
+          "ok": true,
+          "detail": "Q&A route unqualified fails before transport"
+        },
+        {
+          "id": "P21",
+          "set": "primary",
+          "ok": true,
+          "detail": "review route unqualified fails before transport"
+        },
+        {
+          "id": "P22",
+          "set": "primary",
+          "ok": true,
+          "detail": "thread GET drops upstream content and learner"
+        },
+        {
+          "id": "P23",
+          "set": "primary",
+          "ok": true,
+          "detail": "individual message route is not guessed"
+        },
+        {
+          "id": "P24",
+          "set": "primary",
+          "ok": true,
+          "detail": "local support draft without account authorization"
+        },
+        {
+          "id": "P25",
+          "set": "primary",
+          "ok": true,
+          "detail": "reply digest binds every field"
+        },
+        {
+          "id": "P26",
+          "set": "primary",
+          "ok": true,
+          "detail": "contact and HTML reply refused"
+        },
+        {
+          "id": "P27",
+          "set": "primary",
+          "ok": true,
+          "detail": "reply identity and context required"
+        },
+        {
+          "id": "P28",
+          "set": "primary",
+          "ok": true,
+          "detail": "all external and money operations closed"
+        },
+        {
+          "id": "P29",
+          "set": "primary",
+          "ok": true,
+          "detail": "course draft local without connector"
+        },
+        {
+          "id": "P30",
+          "set": "primary",
+          "ok": true,
+          "detail": "host/path/method cannot be supplied"
+        },
+        {
+          "id": "P31",
+          "set": "primary",
+          "ok": true,
+          "detail": "page size own bound below official maximum"
+        },
+        {
+          "id": "P32",
+          "set": "primary",
+          "ok": true,
+          "detail": "opaque next page bound to operation"
+        },
+        {
+          "id": "P33",
+          "set": "primary",
+          "ok": true,
+          "detail": "cursor cross operation refuses"
+        },
+        {
+          "id": "P34",
+          "set": "primary",
+          "ok": true,
+          "detail": "page bound finite"
+        },
+        {
+          "id": "P35",
+          "set": "primary",
+          "ok": true,
+          "detail": "next remote URL never followed"
+        },
+        {
+          "id": "P36",
+          "set": "primary",
+          "ok": true,
+          "detail": "next private path refused"
+        },
+        {
+          "id": "P37",
+          "set": "primary",
+          "ok": true,
+          "detail": "next chronology cannot loop"
+        },
+        {
+          "id": "P38",
+          "set": "primary",
+          "ok": true,
+          "detail": "unknown or duplicate next query refused"
+        },
+        {
+          "id": "P39",
+          "set": "primary",
+          "ok": true,
+          "detail": "429 closes further calls for conservative backoff"
+        },
+        {
+          "id": "P40",
+          "set": "primary",
+          "ok": true,
+          "detail": "Retry-After integer honored"
+        },
+        {
+          "id": "P41",
+          "set": "primary",
+          "ok": true,
+          "detail": "503 halts for documented maintenance window"
+        },
+        {
+          "id": "P42",
+          "set": "primary",
+          "ok": true,
+          "detail": "400/401/403 fail closed"
+        },
+        {
+          "id": "P43",
+          "set": "primary",
+          "ok": true,
+          "detail": "ordinary limiter stops immediate duplicate read"
+        },
+        {
+          "id": "P44",
+          "set": "primary",
+          "ok": true,
+          "detail": "metadata revocation after await refuses data"
+        },
+        {
+          "id": "P45",
+          "set": "primary",
+          "ok": true,
+          "detail": "owner revocation after await refuses data"
+        },
+        {
+          "id": "P46",
+          "set": "primary",
+          "ok": true,
+          "detail": "wire getter refused without invocation"
+        },
+        {
+          "id": "P47",
+          "set": "primary",
+          "ok": true,
+          "detail": "malformed ratings/counts refused"
+        },
+        {
+          "id": "P48",
+          "set": "primary",
+          "ok": true,
+          "detail": "wire collection bounded and duplicate IDs refused"
+        },
+        {
+          "id": "P49",
+          "set": "primary",
+          "ok": true,
+          "detail": "Q&A pure projection discards all raw student content"
+        },
+        {
+          "id": "P50",
+          "set": "primary",
+          "ok": true,
+          "detail": "review projection never realizes money"
+        },
+        {
+          "id": "P51",
+          "set": "primary",
+          "ok": true,
+          "detail": "credential holder change after await refuses old data"
+        },
+        {
+          "id": "P52",
+          "set": "primary",
+          "ok": true,
+          "detail": "duplicate identity with changed fields refused"
+        },
+        {
+          "id": "P53",
+          "set": "primary",
+          "ok": true,
+          "detail": "source and graders protected; no implicit IO/provider path"
+        },
+        {
+          "id": "H01",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "unsupported browser transport is absent"
+        },
+        {
+          "id": "H02",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "read callback receives code-owned exact policy"
+        },
+        {
+          "id": "H03",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "coarse credential missing refuses"
+        },
+        {
+          "id": "H04",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "connection platform mismatch refuses"
+        },
+        {
+          "id": "H05",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "future connection creation refuses"
+        },
+        {
+          "id": "H06",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "rate config cannot silently exceed conservative limits"
+        },
+        {
+          "id": "H07",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "HTTP-date Retry-After honored"
+        },
+        {
+          "id": "H08",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "error content never leaks"
+        },
+        {
+          "id": "H09",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "empty page has no raw payload"
+        },
+        {
+          "id": "H10",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "read cannot become financial operation"
+        },
+        {
+          "id": "H11",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "draft caller extras never authorize sending"
+        },
+        {
+          "id": "H12",
+          "set": "heldOut",
+          "ok": true,
+          "detail": "support message draft bound to existing context"
+        }
+      ]
+    }
+  ],
+  "negativeControls": {
+    "total": 56,
+    "caught": [
+      {
+        "name": "plan authority widened",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P01",
+        "failedAssertions": [
+          "P01"
+        ]
+      },
+      {
+        "name": "plan source missing",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P05",
+        "failedAssertions": [
+          "P05"
+        ]
+      },
+      {
+        "name": "plan version upper bound",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P04",
+        "failedAssertions": [
+          "P04"
+        ]
+      },
+      {
+        "name": "duplicate outcomes",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P06",
+        "failedAssertions": [
+          "P06"
+        ]
+      },
+      {
+        "name": "section chronology",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P07",
+        "failedAssertions": [
+          "P07"
+        ]
+      },
+      {
+        "name": "lesson chronology",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P08",
+        "failedAssertions": [
+          "P08"
+        ]
+      },
+      {
+        "name": "duplicate lessons",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P09",
+        "failedAssertions": [
+          "P09"
+        ]
+      },
+      {
+        "name": "unmapped outcome hidden",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P11",
+        "failedAssertions": [
+          "P11"
+        ]
+      },
+      {
+        "name": "duration bounds widened",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P12",
+        "failedAssertions": [
+          "P12"
+        ]
+      },
+      {
+        "name": "script gap hidden",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P13",
+        "failedAssertions": [
+          "P13"
+        ]
+      },
+      {
+        "name": "visual gap hidden",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P14",
+        "failedAssertions": [
+          "P14"
+        ]
+      },
+      {
+        "name": "exercise gap hidden",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P15",
+        "failedAssertions": [
+          "P15"
+        ]
+      },
+      {
+        "name": "rights gap hidden",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P16",
+        "failedAssertions": [
+          "P16"
+        ]
+      },
+      {
+        "name": "generated policy gap hidden",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P17",
+        "failedAssertions": [
+          "P17"
+        ]
+      },
+      {
+        "name": "regulated claim review bypass",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P18",
+        "failedAssertions": [
+          "P18"
+        ]
+      },
+      {
+        "name": "manifest plan rebound",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P23",
+        "failedAssertions": [
+          "P23"
+        ]
+      },
+      {
+        "name": "missing lesson hidden",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P24",
+        "failedAssertions": [
+          "P24"
+        ]
+      },
+      {
+        "name": "audio quality ignored",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P29",
+        "failedAssertions": [
+          "P29"
+        ]
+      },
+      {
+        "name": "caption coverage ignored",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P30",
+        "failedAssertions": [
+          "P30"
+        ]
+      },
+      {
+        "name": "visual quality ignored",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P31",
+        "failedAssertions": [
+          "P31"
+        ]
+      },
+      {
+        "name": "video receipt rebound",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P32",
+        "failedAssertions": [
+          "P32"
+        ]
+      },
+      {
+        "name": "script evidence rebound",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P33",
+        "failedAssertions": [
+          "P33"
+        ]
+      },
+      {
+        "name": "owner review removed",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P41",
+        "failedAssertions": [
+          "P41",
+          "P42"
+        ]
+      },
+      {
+        "name": "owner review payload rebound",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P43",
+        "failedAssertions": [
+          "P43"
+        ]
+      },
+      {
+        "name": "owner review before media accepted",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P51",
+        "failedAssertions": [
+          "P51"
+        ]
+      },
+      {
+        "name": "publication before owner review accepted",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P52",
+        "failedAssertions": [
+          "P52"
+        ]
+      },
+      {
+        "name": "model publication accepted",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P47",
+        "failedAssertions": [
+          "P47"
+        ]
+      },
+      {
+        "name": "publication manifest rebound",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P48",
+        "failedAssertions": [
+          "P48"
+        ]
+      },
+      {
+        "name": "owner upload requirement removed",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P01",
+        "failedAssertions": [
+          "P01"
+        ]
+      },
+      {
+        "name": "file effect falsely available",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "H12",
+        "failedAssertions": [
+          "P01",
+          "H12"
+        ]
+      },
+      {
+        "name": "owner read callback bypassed",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P06",
+        "failedAssertions": [
+          "P06",
+          "P08",
+          "P45",
+          "H02"
+        ]
+      },
+      {
+        "name": "zero-cost qualification bypassed",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P07",
+        "failedAssertions": [
+          "P07",
+          "P09"
+        ]
+      },
+      {
+        "name": "request account rebound",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P10",
+        "failedAssertions": [
+          "P10"
+        ]
+      },
+      {
+        "name": "invented platform scopes accepted",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P11",
+        "failedAssertions": [
+          "P11"
+        ]
+      },
+      {
+        "name": "reauth ignored",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P13",
+        "failedAssertions": [
+          "P13"
+        ]
+      },
+      {
+        "name": "expiration ignored",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P14",
+        "failedAssertions": [
+          "P14"
+        ]
+      },
+      {
+        "name": "verification freshness ignored",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P16",
+        "failedAssertions": [
+          "P16"
+        ]
+      },
+      {
+        "name": "unsupported endpoint payload accepted",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P20",
+        "failedAssertions": [
+          "P20",
+          "P21",
+          "P23"
+        ]
+      },
+      {
+        "name": "page bound widened",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P31",
+        "failedAssertions": [
+          "P31"
+        ]
+      },
+      {
+        "name": "page horizon widened",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P34",
+        "failedAssertions": [
+          "P34"
+        ]
+      },
+      {
+        "name": "next URL host ignored",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P35",
+        "failedAssertions": [
+          "P35"
+        ]
+      },
+      {
+        "name": "private next path accepted",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P36",
+        "failedAssertions": [
+          "P36"
+        ]
+      },
+      {
+        "name": "next loop accepted",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P37",
+        "failedAssertions": [
+          "P37"
+        ]
+      },
+      {
+        "name": "backoff ignored",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P39",
+        "failedAssertions": [
+          "P39",
+          "P40",
+          "P41",
+          "P43",
+          "H07"
+        ]
+      },
+      {
+        "name": "retry after ignored",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P40",
+        "failedAssertions": [
+          "P40",
+          "H07"
+        ]
+      },
+      {
+        "name": "maintenance halt shortened",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P41",
+        "failedAssertions": [
+          "P41"
+        ]
+      },
+      {
+        "name": "connection change after await ignored",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P51",
+        "failedAssertions": [
+          "P44",
+          "P45",
+          "P51"
+        ]
+      },
+      {
+        "name": "rating range widened",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P47",
+        "failedAssertions": [
+          "P47"
+        ]
+      },
+      {
+        "name": "reply owner review removed",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P25",
+        "failedAssertions": [
+          "P25"
+        ]
+      },
+      {
+        "name": "reply submission opened",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P24",
+        "failedAssertions": [
+          "P24",
+          "H12"
+        ]
+      },
+      {
+        "name": "minimum lecture count bypass",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P53",
+        "failedAssertions": [
+          "P53"
+        ]
+      },
+      {
+        "name": "measured video duration bypass",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P54",
+        "failedAssertions": [
+          "P54"
+        ]
+      },
+      {
+        "name": "HD minimum bypass",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P55",
+        "failedAssertions": [
+          "P55"
+        ]
+      },
+      {
+        "name": "stereo minimum bypass",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P56",
+        "failedAssertions": [
+          "P56"
+        ]
+      },
+      {
+        "name": "dynamic visuals bypass",
+        "grader": "scripts/smoke-ayas-course-production-plan.ts",
+        "assertion": "P57",
+        "failedAssertions": [
+          "P57"
+        ]
+      },
+      {
+        "name": "duplicate identity using whole fact hash",
+        "grader": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
+        "assertion": "P52",
+        "failedAssertions": [
+          "P52"
+        ]
+      }
+    ],
+    "equivalents": []
+  },
+  "noLiveIO": true
+}
