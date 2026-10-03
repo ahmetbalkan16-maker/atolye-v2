@@ -1,0 +1,100 @@
+{
+  "status": "PASS",
+  "sourceHead": "74b6c495813bbce9f6b405dc11f628900da99261",
+  "sourceDigest": "8f6371b2ee919e323fef8393597a7564d68c19d9e32d5007ff6919f50cf52d78",
+  "sourceUnchanged": true,
+  "evidenceClass": "EXACT_CLEAN_SOURCE_TEMP_LOCAL_CLONE_NO_REMOTE_SCRUBBED_ENV_STAGE9_FLAG",
+  "rows": [
+    {
+      "script": "smoke-ayas-patch-detectors.ts",
+      "exit": 0,
+      "durationMs": 542,
+      "stdout": "AYAS patch detectors smoke: PASS (37 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-patch-detectors\",\"scenarios\":37}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-brain-selfheal.ts",
+      "exit": 0,
+      "durationMs": 269,
+      "stdout": "Atölye Brain self-heal (pure core) smoke: PASS (41 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-brain-selfheal-security.ts",
+      "exit": 0,
+      "durationMs": 251,
+      "stdout": "Atölye Brain self-heal security smoke: PASS (14 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal-security\",\"scenarios\":14}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-adaptation-pipeline.ts",
+      "exit": 0,
+      "durationMs": 221,
+      "stdout": "AYAS adaptation pipeline smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-adaptation-pipeline\",\"scenarios\":7}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-eval-governance.ts",
+      "exit": 0,
+      "durationMs": 379,
+      "stdout": "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-eval-governance-mutations.ts",
+      "exit": 0,
+      "durationMs": 3491,
+      "stdout": "Stage 15F.4 mutation audit: PASS (8/8 caught; TEMP only)\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-chat-stream.ts",
+      "exit": 0,
+      "durationMs": 883,
+      "stdout": "AYAS chat stream smoke: PASS (31 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-chat-stream\",\"scenarios\":31}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-brain-security.ts",
+      "exit": 0,
+      "durationMs": 306,
+      "stdout": "Atölye Brain security smoke: PASS (11 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-security\",\"scenarios\":11}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-brain-report-security.ts",
+      "exit": 0,
+      "durationMs": 416,
+      "stdout": "Atölye Brain report-security smoke: PASS (9 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-report-security\",\"scenarios\":9}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-security-supply-chain.ts",
+      "exit": 0,
+      "durationMs": 271,
+      "stdout": "AYAS Stage 9 security smoke: PASS (17/17, held-out 7/7)\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-security-request-body-isolated.ts",
+      "exit": 0,
+      "durationMs": 651,
+      "stdout": "AYAS Stage 9 isolated request-body smoke: PASS (2/2 scenarios; status 413/413)\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-security-source-read-isolated.ts",
+      "exit": 0,
+      "durationMs": 421,
+      "stdout": "AYAS Stage 9 isolated source-read smoke: PASS (1 scenario)\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-stt-security.ts",
+      "exit": 0,
+      "durationMs": 521,
+      "stdout": "AYAS STT security smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-stt-security\",\"scenarios\":7}\n",
+      "stderr": ""
+    }
+  ]
+}
