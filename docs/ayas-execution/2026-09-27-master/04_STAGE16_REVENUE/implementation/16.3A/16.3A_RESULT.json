@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T09:28:00.000Z",
+  "state": "CLOSED_GREEN_SOURCE_ADVISORY_ONLY",
+  "sourceCommit": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
+  "exactReceipt": "16.3A_EXACT_SOURCE_RECEIPT.json",
+  "exactReceiptSha256": "225ee01c943d09aa134530ae03d7b7bc26bfc3f8c9818ff6545f1d888872ef0d",
+  "primary": {
+    "passed": 59,
+    "total": 59
+  },
+  "heldOut": {
+    "passed": 10,
+    "total": 10
+  },
+  "negativeControls": {
+    "total": 64,
+    "caught": 64,
+    "equivalents": 0
+  },
+  "manifestVersion": "15F.4-v41",
+  "declaredSuites": 130,
+  "uniquePins": 156,
+  "selectedRegressionSuites": 16,
+  "extraRegressionSuites": 6,
+  "review": "SAME_SESSION_REVIEW_F57_F58_FIXED",
+  "typeScript": "PASS",
+  "changedLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "wholeLint": {
+    "errors": 0,
+    "inheritedWarnings": 13
+  },
+  "diffCheck": "PASS",
+  "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+  "lastCompleteBaseline": {
+    "head": "5cbb21706eb12693555a9fefbc7554fadf175049",
+    "manifest": "15F.4-v38",
+    "suites": 124,
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS"
+  },
+  "liveRevenueRoot": "ABSENT",
+  "authority": "NONE",
+  "pushPolicy": "PUSH_AT_STAGE_16_CLOSURE",
+  "next": "16.3B Fulfillment & Delivery Quality Gate",
+  "graphify": {
+    "schemaVersion": "1",
+    "at": "2026-10-03T09:25:22.590Z",
+    "head": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
+    "nodes": 18157,
+    "edges": 51971,
+    "communities": 370,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "lastAnalyzedHead": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
+    "graphBuiltFrom": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
+    "stale": false,
+    "needsUpdate": false,
+    "worktreeState": "CLEAN",
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "8eb9c7b9e654a8e8dc63c73e3f7baaa75b8f21224400c783400ef8e5ed694f5e"
+  }
+}

@@ -1,0 +1,449 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T09:26:15.614Z",
+  "sourceHead": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
+  "worktreeCleanBefore": true,
+  "worktreeCleanAfter": true,
+  "manifestVersion": "15F.4-v41",
+  "declaredSuites": 130,
+  "uniquePins": 156,
+  "allCommittedAndWorktreePinsMatch": true,
+  "sourceInputCount": 10,
+  "sourceInputHashesMatch": true,
+  "mutationExit": 0,
+  "rawStdoutSha256": "2484418583e02e03c108268e270c0c7aff3e284eca186aa82e4bdb429ecf8efb",
+  "raw": {
+    "status": "PASS",
+    "baseline": {
+      "status": "PASS",
+      "primary": {
+        "passed": 59,
+        "total": 59
+      },
+      "heldOut": {
+        "passed": 10,
+        "total": 10
+      },
+      "authority": "NONE",
+      "results": [
+        {
+          "id": "P01",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P02",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P03",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P04",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P05",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P06",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P07",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P08",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P09",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P10",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P11",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P12",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P13",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P14",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P15",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P16",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P17",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P18",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P19",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P20",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P21",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P22",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P23",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P24",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P25",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P26",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P27",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P28",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P29",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P30",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P31",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P32",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P33",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P34",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P35",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P36",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P37",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P38",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P39",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P40",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P41",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P42",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P43",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P44",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P45",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P46",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P47",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P48",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P49",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P50",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P51",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P52",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P53",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P54",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P55",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P56",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P57",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P58",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "P59",
+          "set": "primary",
+          "ok": true
+        },
+        {
+          "id": "H01",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H02",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H03",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H04",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H05",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H06",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H07",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H08",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H09",
+          "set": "held-out",
+          "ok": true
+        },
+        {
+          "id": "H10",
+          "set": "held-out",
+          "ok": true
+        }
+      ]
+    },
+    "negativeControls": {
+      "total": 64,
+      "caught": [
+        "authority widened",
+        "offer sellable autonomously",
+        "external write claimed",
+        "spend authority widened",
+        "delivery slot claimed reserved",
+        "delivery scenario labelled observed",
+        "blocked validation ignored",
+        "negative economics ignored",
+        "weak validation status accepted",
+        "unproven rights dimension accepted",
+        "unproven deliverable dimension accepted",
+        "opportunity scope ignored",
+        "value proposition scope ignored",
+        "future offer accepted",
+        "capability outside opportunity accepted",
+        "any fulfillment blocker ignored",
+        "paid fulfillment accepted",
+        "blocked sample rights accepted",
+        "offer class can borrow proof",
+        "deliverable class can borrow proof",
+        "capability can borrow proof",
+        "model opinion proves fulfillment",
+        "unmeasured quality accepted",
+        "unknown sample rights accepted",
+        "missing attribution accepted",
+        "sample freshness ignored",
+        "future measurement accepted",
+        "declared expiry outlives age ceiling",
+        "capability proof binding dropped",
+        "unaccepted deliverable evidence used",
+        "unaccepted rights evidence used",
+        "deliverable evidence artifact binding dropped",
+        "rights evidence artifact binding dropped",
+        "deliverable evidence capability binding dropped",
+        "rights evidence capability binding dropped",
+        "deliverable fact not required",
+        "weak deliverable confidence accepted",
+        "rights fact not required",
+        "model-described portfolio accepted",
+        "portfolio artifact binding dropped",
+        "portfolio sample identity dropped",
+        "portfolio deliverable binding dropped",
+        "bundle coverage uses one deliverable",
+        "throughput extrapolated beyond sample",
+        "fastest contradictory sample chosen",
+        "time buffer dropped",
+        "partial minutes rounded down",
+        "support time omitted",
+        "revision time omitted",
+        "capacity freshness ignored",
+        "capacity window mismatch accepted",
+        "capacity beyond time horizon accepted",
+        "existing workload ignored",
+        "external operation mapped",
+        "unbounded revisions accepted",
+        "zero deliverable units accepted",
+        "zero measured units accepted",
+        "duplicated portfolio bytes accepted",
+        "raw directive accepted",
+        "getter preflight removed",
+        "hostile input exception escapes refusal",
+        "revision omits commercial terms",
+        "result snapshot not frozen",
+        "revision depends on property order"
+      ],
+      "equivalents": []
+    },
+    "noLiveIO": true
+  },
+  "status": "PASS"
+}

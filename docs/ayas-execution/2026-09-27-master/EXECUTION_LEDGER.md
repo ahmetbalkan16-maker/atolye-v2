@@ -1009,6 +1009,10 @@ F51-F56 repaired,66+12 scenarios and final39 controls to be sealed on clean sour
 
 Clean9ac825993d19ef7d5ffdd94d522f095fee100ac9:66+12/39caught/153pins/10sourcehashes;12selected+6extra TEMP regressions,review,TS/lint/diff PASS;Graphify18116/51862/368current/zeroanomalies/PARTIAL9/semanticPENDING. AdvisoryauthorityNONE,no liveledger/money/network/model/hostactivation. Lastcompletefullbaseline5cbb217/v38;NO fullv40claim. Next16.3A then16.3B;NO PUSH.
 
-### 2026-10-03T09:50:00.000Z — Claude takeover; 16.3A draft completed and validated before source commit
+### 2026-10-03T09:22:00.000Z — Claude takeover; 16.3A draft completed and validated before source commit
 
 Session start: branch `wip/ayas-graphify-final-execution`, HEAD `60153e3`, 7 ahead / 0 behind origin (expected local 16.0-16.3 commits after the Stage 15 push at `ea11283`), no live Codex process, uncommitted 16.3A draft last written 11:50. Graphify was bound to HEAD but did not cover the dirty worktree; AST update run first. The draft was reviewed and finished in place: F57 (capability scope of deliverable/rights evidence) and F58 (draft failed TypeScript) fixed; P52-P59 isolate transitively covered guards; 64-control mutation suite, document and manifest v41 (130 suites / 156 pins, v40 frozen) added. Focused 59+10, 64/64 caught, 16 selected declared suites and 6 extra TEMP regressions PASS; TS, changed lint, whole lint (0 errors / 13 inherited warnings) and diff check PASS. Review was same-session, not a separate agent. No full v41 baseline; last complete baseline remains `5cbb217` / v38. Push policy: the owner's 2026-10-03 continuation order authorizes push at major master stage boundaries; the next push is at Stage 16 closure. No account, money, network, model or host action.
+
+### 2026-10-03T09:28:00.000Z — 16.3A exact-source closure; 16.3B active
+
+Clean `3ccd2ab7e1b531f65e360720fc9c21c57aae284d`: 59+10, 64/64 controls, 156 committed pins and 10 source hashes exact; Graphify 18157/51971/370 at that commit, zero anomalies, PARTIAL 9 / semantic PENDING. 16 selected + 6 extra TEMP regressions, static checks and same-session review PASS. Authority NONE; no live revenue root, money, network, model or host action. No full v41 baseline; last complete remains `5cbb217` / v38. Next 16.3B. Push at Stage 16 closure.

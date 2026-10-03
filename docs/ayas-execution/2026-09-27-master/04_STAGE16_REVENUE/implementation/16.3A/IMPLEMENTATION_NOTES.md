@@ -31,3 +31,7 @@ Codex left an uncommitted draft at `60153e3` (source, digest helper, 50+10 smoke
 Earlier runs are kept: `16.3A_PRE_REPAIR_FOCUSED.json` (Codex, 48/50) and `16.3A_PRE_REVIEW_FOCUSED.json` (Codex, 50/50 before review).
 
 No full declared baseline was run for v41. The last complete baseline remains `5cbb217` / v38. No account, listing, money, network, model or host action took place.
+
+## Exact source closure — 2026-10-03T09:28:00.000Z
+
+Clean source `3ccd2ab`: the mutation suite reran 59+10 and caught 64/64; all 156 committed manifest pins and the 10 recorded source inputs match byte-for-byte. Graphify 18,157 nodes / 51,971 edges / 370 communities at that commit, no duplicate, dangling or self-loop, stale false; inherited PARTIAL (9 files without a grammar) and semantic PENDING. New symbols are consumed only by their tests. Stage 16.3A CLOSED_GREEN_SOURCE_ADVISORY_ONLY. Next: 16.3B.

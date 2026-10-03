@@ -1,3 +1,9 @@
+# AYAS current — 2026-10-03 / 16.3A source closed; 16.3B active
+
+16.3A offer factory, exact clean `3ccd2ab7e1b531f65e360720fc9c21c57aae284d`, CLOSED_GREEN_SOURCE_ADVISORY_ONLY: 59 primary + 10 held-out, 64 negative controls, 156 committed pins; 16 selected + 6 extra TEMP regressions; review findings F57/F58 fixed; TypeScript, lint (13 old warnings) and diff PASS; Graphify 18157/51971 current with zero anomalies (PARTIAL 9 / semantic PENDING). Closure: `04_STAGE16_REVENUE/implementation/16.3A/16.3A_RESULT.json`. Last complete baseline `5cbb217` / v38; no full v41 claim.
+
+Active: 16.3B Fulfillment & Delivery Quality Gate, then the rest of Stage 16 in master order. Claude took over from Codex on 2026-10-03; Stage 15 was pushed at `ea11283`, and the next push is at Stage 16 closure. Master NOT COMPLETE. Exact next action: `ACTIVE_CHECKPOINT.json`.
+
 # AYAS current —2026-10-03 /16.3 sourceclosed;16.3A active
 
 16.3 exactclean9ac825993d19ef7d5ffdd94d522f095fee100ac9 CLOSED_GREEN_SOURCE_ADVISORY_ONLY:66primary+12heldout/39negativecontrols/153committedpins;12selected+6extra TEMP regressions;independentF51-F56 reviewfixed;TS/lint/diffPASS(13oldwarnings);Graphify18116/51862current,zeroanomalies/PARTIAL9/semanticPENDING. Receipt/closure:04_STAGE16_REVENUE/implementation/16.3/16.3_RESULT.json. Lastcompletebaseline5cbb217/v38 124/124 with cognitive limitation;NO fullv40claim.

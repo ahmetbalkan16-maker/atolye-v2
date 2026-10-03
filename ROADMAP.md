@@ -1,3 +1,10 @@
+## AYAS current — 2026-10-03 / 16.3A source closure
+
+- [x] 16.3A offer factory: exact `3ccd2ab`, 59+10 / 64 controls / 156 pins / review F57-F58 fixed / Graphify.
+- [ ] 16.3B Fulfillment & Delivery Quality Gate active, then 16.4 onward in master order.
+
+Last complete full baseline `5cbb217` / v38. Next push at Stage 16 closure.
+
 ## AYAS current —2026-10-03 /16.3 sourceclosure
 
 - [x]16.3 pure free-first validation:exact9ac8259,66+12/39controls/153pins/independentreview/Graphify.
