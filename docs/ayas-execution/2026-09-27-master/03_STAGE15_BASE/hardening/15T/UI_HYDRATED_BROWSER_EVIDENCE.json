@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-03T00:20:00.000Z",
+  "recordedAtPrecision": "APPROXIMATE_10_MIN",
+  "evidenceClass": "REAL_HYDRATED_BROWSER_TEMP_BUILD",
+  "source": "uncommitted overlay on dd119b3 holding the same app/src/scripts files later committed at 2bebdba; only the eval manifest v35, its v34 archive and the 15T notes were added after this run",
+  "fixture": {
+    "build": "next build in a TEMP shared clone with a real node_modules copy",
+    "server": "next start on 127.0.0.1:3917",
+    "accessKey": "TEMP fixture key, not the owner key",
+    "runtimeRoot": "empty TEMP ATOLYE_RUNTIME_ROOT",
+    "browser": "installed Chrome, headless, driven over CDP",
+    "ownerServer": "untouched (:3000 kept serving its own build)"
+  },
+  "results": {
+    "server": "http://127.0.0.1:3917",
+    "fixtureKey": "TEMP_FIXTURE_ONLY",
+    "recordsBefore": 0,
+    "noSession": {
+      "url": "/login",
+      "hasPanel": false,
+      "records": 0
+    },
+    "ownerLoad": {
+      "hydratedVerified": true,
+      "url": "/brain/briefing",
+      "articles": [
+        "ACTION_REQUIRED | ACTION_REQUIRED — Depo: DURUM BELİRSİZ",
+        "MATERIAL_INFO | MATERIAL_INFO — Graphify YOK (GRAPH_MISSING)",
+        "CRITICAL | CRITICAL — Öz-gelişim döngüsü: DURDU",
+        "MATERIAL_INFO | MATERIAL_INFO — Araştırma döngüsünde sorun"
+      ],
+      "criticalRoleAlert": 1,
+      "sections": [
+        "Sistem sağlığı · OBSERVED",
+        "Gelişmeler · OBSERVED",
+        "Hatalar ve kurtarmalar · OBSERVED",
+        "Bekleyen owner kararları · OBSERVED",
+        "Üretim ve maliyet · OBSERVED",
+        "Gerçekleşen gelir, kesinti ve kâr · NOT_CONFIGURED",
+        "Güvenlik · OBSERVED",
+        "Model ve teknik fırsatlar · OBSERVED",
+        "Kapasite ve engeller · OBSERVED"
+      ],
+      "routineList": false,
+      "operations": [
+        "OBSERVE",
+        "DELIVERED",
+        "DELIVERED",
+        "DELIVERED",
+        "DELIVERED"
+      ],
+      "actors": [
+        "LOCAL_DIAGNOSTIC",
+        "OWNER_SESSION"
+      ]
+    },
+    "reload": {
+      "added": []
+    },
+    "acknowledge": {
+      "clicked": true,
+      "buttonShowsGorulduAfterRefresh": true,
+      "added": [
+        "ACKNOWLEDGE"
+      ]
+    },
+    "home": {
+      "compactHeading": true
+    },
+    "consoleErrors": [],
+    "finalRecords": 6,
+    "chainOk": true
+  },
+  "screenshotSha256": "6348a7c34e8755ff0487cf4b552944bd525ceb3be628e3183a3944a31aa1693a",
+  "screenshotStoredInRepository": false,
+  "verdict": {
+    "noSessionRedirectsToLogin": true,
+    "ownerHydratedVerified": true,
+    "deliveryRecordedOnce": true,
+    "acknowledgeOneRecord": true,
+    "homeCompactPanel": true,
+    "consoleErrors": 0,
+    "chainOk": true
+  },
+  "grantsAuthority": false
+}

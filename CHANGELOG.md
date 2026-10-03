@@ -1,3 +1,7 @@
+## 2026-10-03 — AYAS Stage 15T source closure and Stage 15 combined closure
+
+Owner executive briefing and alert priority (`src/lib/ayas/briefing/`, `/brain/briefing`, compact panel on the Control Center): four priorities, one key per issue, material fingerprint, owner acknowledgement bound to the exact fingerprint, cooldown from actual delivery, coverage-gated resolution, bounded state and windowed hash-chained history, ROUTINE audit-only, 15F reliability BREACH as CRITICAL, unreadable sources surfaced without lowering known conditions. Metadata only: no approval, execution, spend or external transport. Exact clean `2bebdba`: v35 baseline 118/118 PASS_WITH_KNOWN_LIMITATIONS; 30 scenarios, 68/68 negative controls, real hydrated browser in a TEMP build. Stage 15 combined closure recorded.
+
 ## 2026-10-03 — owner stop after15S
 
 15S source closure remains GREEN at e35c6f1 with exact clean cd435bc full v34 baseline116/116 and declared limitations. Latest owner instruction stops before15T integration/continuation. Previously started isolated15T candidate saved unmerged/incomplete as WIP03cddde on codex/ayas-stage15t-paused; no15T/Stage16 completion claim. Session-end checkpoint/commit/push only.

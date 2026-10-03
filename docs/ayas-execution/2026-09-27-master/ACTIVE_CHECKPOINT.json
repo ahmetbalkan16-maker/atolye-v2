@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
-  "currentHead": "e35c6f17b41c01478d8040643110015ec4693109",
-  "stage": "STAGE_15S",
-  "subtask": "15S-source-closed-owner-stop-no-15T-integration",
-  "status": "OWNER_STOPPED",
+  "lastGreenHead": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+  "currentHead": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+  "stage": "STAGE_15T",
+  "subtask": "15T-closed-stage15-closed-push-parity-then-16.0",
+  "status": "CLOSED_GREEN_SOURCE",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15S",
-    "status": "CLOSED_GREEN_SOURCE_WITH_DECLARED_MIGRATION_GAPS",
-    "closingCommit": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0"
+    "stage": "STAGE_15T",
+    "status": "CLOSED_GREEN_SOURCE_LOCAL_UI_DELIVERY",
+    "closingCommit": "2bebdbaf127e0136e486cf45fef78d83f9b76479"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -107,7 +107,9 @@
     "STAGE_15P_SOURCE",
     "STAGE_15Q_SOURCE",
     "STAGE_15R_SOURCE",
-    "STAGE_15S_SOURCE"
+    "STAGE_15S_SOURCE",
+    "STAGE_15T_SOURCE",
+    "STAGE_15_SOURCE_COMBINED"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -221,7 +223,11 @@
     "15Q.3-host-common-occupancy-and-consumer-binding-GREEN-not-live",
     "post-freeze-15Q-rows-re-evaluated",
     "15Q-closure-GREEN-source-with-declared-gaps",
-    "15R.0-existing-seam-inspection"
+    "15R.0-existing-seam-inspection",
+    "15T.0-candidate-recovery-and-as-found-reproduction",
+    "15T.1-review-hardening-and-integration",
+    "15T-closure-GREEN-source-local-ui-delivery",
+    "stage15-combined-closure"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -363,21 +369,21 @@
   ],
   "graphify": {
     "schemaVersion": "1",
-    "recordedAt": "2026-10-02T23:18:44.209Z",
-    "head": "cd435bc6e9bb75288c05a16d09be086a8fcabdf0",
+    "recordedAt": "2026-10-03T00:41:05.864Z",
+    "head": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17686,
-    "edges": 50621,
-    "communities": 335,
+    "nodes": 17793,
+    "edges": 51126,
+    "communities": 366,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "structuralCoverage": "PARTIAL_9_INHERITED",
     "semanticCoverage": "PENDING",
-    "graphSha256": "99c9a91498e09aa080aedc0ce04847fefb7de35abbcd488fe81f3c0c9bb2e70b",
-    "headSemantics": "Exact clean tested 15S source commit; documentation closure requires subsequent refresh.",
+    "graphSha256": "c8493b4dd8b0588e098ea2ff65e7f627f19db3cc85600058ce2729fea6c2b13b",
+    "headSemantics": "Exact clean tested 15T source commit; the documentation closure commit requires a subsequent refresh.",
     "semanticPending": true,
     "structuralPartialFiles": 9
   },
@@ -401,10 +407,12 @@
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only.",
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15Q.3. Until then production stages are not published to the shared resource occupancy, so discovery yields to production only through pressure.",
     "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
-    "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload."
+    "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload.",
+    "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
+    "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "STOP — owner requested stop after15S.15S source closure is complete; no15T integration/development or Stage16 continuation authorized. Existing isolated15T WIP is saved separately; no stage-completion claim.",
-  "updatedAt": "2026-10-02T23:27:22.652Z",
+  "nextAction": "Verify the Stage 15 closure push: local HEAD == origin, ahead/behind 0/0, worktree CLEAN, stash empty, Graphify bound to the final HEAD (stale=false). Then start Stage 16.0 Revenue Platform Adapter Standard (04_STAGE16_REVENUE/16.0) in canonical order: Graphify-first, src/lib/ayas/revenue/, empty production registry, fake adapter only, no network/credentials/financial execution.",
+  "updatedAt": "2026-10-03T01:25:00.000Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -714,8 +722,8 @@
     }
   },
   "pushPolicy": {
-    "state": "OWNER_AUTHORIZED_CURRENT_WIP_BRANCH",
-    "requires": "Normal git push, no force or canonical merge; verify remote parity after push.",
+    "state": "OWNER_AUTHORIZED_STAGE15_CLOSURE_PUSH",
+    "requires": "Normal git push, no force or canonical merge; verify local == origin, 0/0, clean, Graphify bound to final HEAD before Stage 16.",
     "correctedOn": "2026-10-01",
     "deviation": {
       "head": "36fa76b48662f491df59a21fe27cc434da02b876",
@@ -831,13 +839,14 @@
   },
   "executionControl": {
     "mode": "AUTONOMOUS_CANONICAL_MASTER_CONTINUATION",
-    "source": "OWNER_REQUEST_2026-10-03_STAGE15_THEN_MASTER_CONTINUATION",
+    "source": "OWNER_REQUEST_2026-10-03_COMPLETE_15T_CLOSE_STAGE15_PUSH_THEN_STAGE16",
     "startNextStage": true,
     "push": true,
     "priorStopRevoked": true,
     "prerequisite": "Met: the targeted post-freeze conformance audit is complete (post-freeze-audit/CLOSURE.md). Genuine owner-only gates stay in force.",
-    "resumedAt": "2026-10-02T18:36:00.000Z",
-    "resumeRecord": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
+    "resumedAt": "2026-10-03T00:00:00.000Z",
+    "resumeRecord": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json",
+    "pushScope": "normal push only; no force push or history rewrite"
   },
   "postFreezeAudit": {
     "status": "COMPLETE",
@@ -1512,15 +1521,10 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Only if the owner explicitly authorizes15T: recover codex/ayas-stage15t-paused at03cddde, read its IMPLEMENTATION_NOTES.md and primary15S closure, refresh Graphify, adjudicate the surviving mutation honestly, rerun focused/TypeScript/lint and real UI; integrate only a green packet, then exact-clean full baseline and combined Stage15 closure. Stage16 is not started.",
+  "resumeNextAction": "Verify the Stage 15 closure push: local HEAD == origin, ahead/behind 0/0, worktree CLEAN, stash empty, Graphify bound to the final HEAD (stale=false). Then start Stage 16.0 Revenue Platform Adapter Standard (04_STAGE16_REVENUE/16.0) in canonical order: Graphify-first, src/lib/ayas/revenue/, empty production registry, fake adapter only, no network/credentials/financial execution.",
   "ownerStop": {
-    "state": "OWNER_STOPPED",
-    "appliedAt": "2026-10-02T23:27:22.652Z",
-    "latestRequest": "15S yi bitirince dur 15T ye geçme",
-    "effectiveStopBoundary": "AFTER_15S_SOURCE_CLOSURE",
-    "requestedPacketComplete": true,
-    "nextStageAuthorized": false,
-    "record": "03_STAGE15_BASE/hardening/15S/OWNER_STOP_AFTER_15S.json"
+    "state": "NONE",
+    "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
   },
   "stage15R": {
     "state": "CLOSED_GREEN_SOURCE_WITH_DECLARED_LIVE_GAPS",
@@ -1661,30 +1665,92 @@
     "attachmentMatchesAdoptedSupplement": true
   },
   "stage15T": {
-    "state": "OWNER_STOPPED_UNMERGED_WIP_NOT_CLOSED",
+    "state": "CLOSED_GREEN_SOURCE_LOCAL_UI_DELIVERY",
     "openedOn": "2026-10-03",
-    "candidateWorktree": "ayas-stage15t",
-    "notes": "03_STAGE15_BASE/hardening/15T/IMPLEMENTATION_NOTES.md",
-    "initialFocused": "24_SCENARIOS_PASSED_BEFORE_LATER_HARDENING",
-    "negativeControls": "FAILED_UNRESOLVED_SURVIVING_FILENAME_GUARD_CONTROL",
-    "typeScript": "FIXTURE_ERROR_CORRECTED_NOT_RERUN",
-    "browserValidation": "NOT_RUN",
-    "fullBaseline": "NOT_RUN",
+    "canonicalSection": "final execution order 15T; freeze addendum 15T; post-freeze addendum 7; V3.2 revenue addendum briefing integration",
     "authority": "NONE",
-    "candidateBranch": "codex/ayas-stage15t-paused",
-    "candidateHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
-    "candidatePushed": true,
-    "integratedIntoPrimary": false,
-    "graphify": "NOT_CURRENT",
-    "notesLocation": "Only on codex/ayas-stage15t-paused; not integrated into this branch",
-    "candidateWorktreeState": "ARCHIVED_RECOVERABLE",
-    "candidateRemoteParity": {
-      "localHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
-      "originHead": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
-      "ahead": 0,
-      "behind": 0,
-      "worktreeBeforeArchive": "CLEAN"
-    }
+    "candidate": {
+      "branch": "codex/ayas-stage15t-paused",
+      "head": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+      "disposition": "INTEGRATED_AFTER_REVIEW_AND_HARDENING; branch kept unchanged as provenance"
+    },
+    "resume": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json",
+    "sourceCommit": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+    "testedSourceHead": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+    "notes": "03_STAGE15_BASE/hardening/15T/IMPLEMENTATION_NOTES.md",
+    "files": [
+      "src/lib/ayas/briefing/AyasExecutiveAlerts.ts",
+      "src/lib/ayas/briefing/AyasExecutiveAlertStore.ts",
+      "src/lib/ayas/briefing/AyasExecutiveBriefing.ts",
+      "src/lib/ayas/briefing/AyasExecutiveOwnerView.ts",
+      "src/lib/ayas/briefing/AyasExecutiveBriefingService.ts",
+      "app/brain/briefing/actions.ts",
+      "app/brain/briefing/page.tsx",
+      "src/components/brain/AyasExecutiveBriefingPanel.tsx",
+      "src/components/brain/AyasControlCenter.tsx",
+      "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "scripts/ayas-executive-alerts.ts",
+      "scripts/smoke-ayas-executive-briefing.ts",
+      "scripts/smoke-ayas-executive-briefing-mutations.ts",
+      "scripts/smoke-ayas-action-firewall-closure.ts"
+    ],
+    "focused": {
+      "scenarios": 30,
+      "negativeControls": "68/68",
+      "typeScript": "PASS",
+      "changedLint": "PASS",
+      "fullLint": "0 errors / 13 existing warnings",
+      "fixture": "OWNED_TEMP_ONLY"
+    },
+    "manifest": {
+      "version": "15F.4-v35",
+      "suites": 118,
+      "uniquePins": 139,
+      "archived": "03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V34.json"
+    },
+    "fullBaseline": {
+      "manifestVersion": "15F.4-v35",
+      "manifestDigest": "c9497ca835c7ab8c1dbeb9d0c145d802a5db2284728c17e59d3614933f97b9f2",
+      "sourceWorktreeDigest": "7d15b70d54d7ae854a4fbe3223bfb2029a8c0fe04d84ab98ff90a6556509ae9d",
+      "complete": true,
+      "suites": 118,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "rawReport": "15T_FULL_BASELINE_V35.json",
+      "rawSha256": "5a367ed29acbbec5d87f9c7f0452f95870112c0203714b481bfdddf920cdc526",
+      "sampledRamPeakPercent": 56.42
+    },
+    "browserValidation": {
+      "state": "PASS_REAL_HYDRATED_TEMP_BUILD",
+      "evidence": "03_STAGE15_BASE/hardening/15T/UI_HYDRATED_BROWSER_EVIDENCE.json"
+    },
+    "graphify": {
+      "state": "BOUND_TO_SOURCE",
+      "evidence": "03_STAGE15_BASE/hardening/15T/GRAPHIFY_15T_SOURCE_COMMIT.json",
+      "nodes": 17793,
+      "edges": 51126,
+      "stale": false,
+      "structuralCoverage": "PARTIAL_9_INHERITED",
+      "semanticCoverage": "PENDING"
+    },
+    "delivery": "LOCAL_OWNER_UI_ONLY",
+    "ownerGated": [
+      "Push/phone transport for CRITICAL alerts (new external transport)",
+      "Rebuild and restart the owner's Next server to load /brain/briefing"
+    ],
+    "knownLimits": [
+      "Delivery is the owner's open Brain UI; nothing observes in the background",
+      "Revenue, fees, profit and production cost NOT_CONFIGURED until Stage 16 and a live cost ledger bind into the briefing",
+      "Resource bounds (16 MiB window, 1.5 s read deadline, 100,000 records) are not exercised by tests",
+      "History files are append-only and never pruned",
+      "Briefing page uses unstyled native controls"
+    ],
+    "result": "03_STAGE15_BASE/hardening/15T/15T_RESULT.json",
+    "closure": "03_STAGE15_BASE/hardening/15T/CLOSURE.md",
+    "closedOn": "2026-10-03"
   },
   "ownerStopHistory": [
     {
@@ -1696,7 +1762,27 @@
       "nextStageAuthorized": true,
       "supersededAt": "2026-10-02T18:36:00.000Z",
       "supersededBy": "03_STAGE15_BASE/hardening/15Q/OWNER_RESUME_15Q3.json"
+    },
+    {
+      "state": "SUPERSEDED_BY_OWNER_RESUME",
+      "appliedAt": "2026-10-02T23:27:22.652Z",
+      "latestRequest": "15S yi bitirince dur 15T ye geçme",
+      "effectiveStopBoundary": "AFTER_15S_SOURCE_CLOSURE",
+      "requestedPacketComplete": true,
+      "nextStageAuthorized": false,
+      "record": "03_STAGE15_BASE/hardening/15S/OWNER_STOP_AFTER_15S.json",
+      "supersededAt": "2026-10-03T00:00:00.000Z",
+      "supersededBy": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
     }
   ],
-  "currentHeadSemantics": "Last completed stage-closure commit before this documentation-only owner-stop save; live Git HEAD is authoritative."
+  "currentHeadSemantics": "currentHead and lastGreenHead name the exact tested 15T source commit; the Stage 15 closure documentation commit follows it. Live Git HEAD is authoritative.",
+  "stage15Closure": {
+    "state": "CLOSED_SOURCE_COMBINED",
+    "closedOn": "2026-10-03",
+    "record": "03_STAGE15_BASE/STAGE15_CLOSURE.md",
+    "finalBaselineSource": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+    "finalBaseline": "15F.4-v35 118/118 PASS_WITH_KNOWN_LIMITATIONS",
+    "ownerGatesCarriedForward": 22,
+    "push": "PENDING_AT_RECORDING_VERIFY_IN_LEDGER"
+  }
 }

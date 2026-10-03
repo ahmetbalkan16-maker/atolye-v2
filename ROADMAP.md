@@ -2,10 +2,11 @@
 
 - [x] 15R source: exact clean `a00091f`, complete v32 baseline 114/114 with no failure; declared cognitive/held-out limitations retained. See `hardening/15R/CLOSURE.md` under the canonical execution documentation.
 - [x] 15S source: exact clean cd435bc, complete v34 baseline116/116 with no failure;24 TEMP scenarios/34 negative controls,136 committed pins, TypeScript/lint/diff PASS. Physical destination migration/qualification/activation remain NOT_RUN or owner-gated.
-- [ ] 15T Owner Executive Briefing / Alert Priority: OWNER_STOPPED. Earlier isolated candidate saved unmerged on codex/ayas-stage15t-paused at03cddde; incomplete/unverified, not closed. No continuation until owner resumes.
-- [ ] Stage 15 combined regression, Graphify/clean checkpoint, commit/push and remote parity, then Stage 16 in master order. Live qualification and F33 gaps remain visible; no synthetic PASS.
+- [x] 15T Owner Executive Briefing / Alert Priority: exact clean `2bebdba`, complete v35 baseline 118/118 with no failure; 30 TEMP scenarios / 68 negative controls, real hydrated browser in a TEMP build, TypeScript/lint/diff PASS. Codex candidate integrated after review (F36–F41 fixed). Delivery is the owner's open Brain UI only; push/phone transport and the live-server rebuild are owner items.
+- [x] Stage 15 combined closure: `03_STAGE15_BASE/STAGE15_CLOSURE.md` under the canonical execution documentation; every sub-stage keeps its recorded state (DEGRADED / NOT_WIRED / WITH_DECLARED_GAPS are not upgraded); 22 owner items carried forward. Live qualification and F33 gaps remain visible; no synthetic PASS.
+- [ ] Commit, normal push and remote parity of the Stage 15 closure, then Stage 16.0 Revenue Platform Adapter Standard in master order.
 
-Latest owner stop supersedes the preceding continuation command: STOP after15S source closure;15T/Stage16 not authorized. Session-end save/push remains required by AGENTS.md. Stage15 as a whole remains OPEN. Current continuation: `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json`.
+The 2026-10-03 owner order supersedes the stop after 15S (OWNER_RESUME_15T.json). Current continuation: `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json`.
 
 ## AYAS Stage 15C — Memory Integrity / Context-Poisoning Firewall — 2026-10-01
 

@@ -1,6 +1,6 @@
 ## AYAS canonical master continuation — 2026-10-03
 
-Canonical execution order remains docs/ayas-execution/2026-09-27-master/00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md. Stage15R and15S source closures have exact clean baseline evidence;15S cd435bc complete v34 116/116 with declared cognitive/held-out limits.Latest owner request stops after15S source closure.15T candidate is saved unmerged/incomplete on codex/ayas-stage15t-paused; no15T/Stage16 continuation authorized. Stage15 combined regression/closure remains open. Real migration, live activation and external/financial authority are not certified by source tests. ACTIVE_CHECKPOINT.json records the exact next step. Latest owner stop supersedes earlier continuation commands; NextAction STOP. AGENTS.md session-end commit/push authorization remains.
+Canonical execution order remains docs/ayas-execution/2026-09-27-master/00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md. Stage 15 (15A–15T) is closed at source level: 15T exact clean `2bebdba`, complete v35 baseline 118/118 with the declared cognitive limitation; combined record `03_STAGE15_BASE/STAGE15_CLOSURE.md`, where each sub-stage keeps its recorded state. The 2026-10-03 owner order superseded the stop after 15S and authorized the Stage 15 closure push; Stage 16 (Revenue Center) starts at 16.0 only after push parity is verified. Real migration, live activation and external/financial authority are not certified by source tests. ACTIVE_CHECKPOINT.json records the exact next step.
 
 # ATOLYE_MASTER_ROADMAP.md
 

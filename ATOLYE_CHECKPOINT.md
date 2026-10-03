@@ -1,3 +1,11 @@
+# AYAS Stage 15 closed — 2026-10-03 / 15T GREEN; push parity, then Stage 16.0
+
+Owner order (2026-10-03): complete 15T, close Stage 15, commit + normal push, verify parity, then Stage 16 and the canonical master. It supersedes the stop below (`03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json`).
+
+15T: the Codex candidate `codex/ayas-stage15t-paused` (`03cddde`) was reproduced as found (24/24, TypeScript PASS, mutation 33/34), reviewed and hardened (F36–F41: cooldown that never suppressed, unbounded state/history, ROUTINE churn, missing reliability link, silent unreadable sources, page crash paths, mutant adjudication, firewall map registration). Exact clean source `2bebdbaf127e0136e486cf45fef78d83f9b76479`: v35 baseline 118/118 PASS_WITH_KNOWN_LIMITATIONS (cognitive-quality); 30 TEMP scenarios, 68/68 negative controls, TypeScript, full lint 0 errors / 13 existing warnings, diff PASS; real hydrated browser in a TEMP build; Graphify bound, stale=false, PARTIAL 9 inherited, semantic PENDING.
+
+Stage 15 combined closure: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_CLOSURE.md`. Every sub-stage keeps its recorded state; 22 owner items carried forward (new: rebuild/restart the Next server for the briefing; decide on a push/phone channel for CRITICAL alerts). Next: verify the closure push (local == origin, 0/0, clean, Graphify on the final HEAD), then Stage 16.0 Revenue Platform Adapter Standard. Exact state: ACTIVE_CHECKPOINT.json.
+
 # AYAS OWNER STOP — 2026-10-03 /15S source closed;15T not integrated
 
 Latest owner instruction: '15S yi bitirince dur 15T ye geçme'. NextAction STOP;15T/Stage16 continuation requires a new explicit owner instruction.

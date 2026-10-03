@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-03T01:20:00.000Z",
+  "state": "CLOSED_GREEN_SOURCE_LOCAL_UI_DELIVERY",
+  "testedSourceHead": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+  "sourceWasClean": true,
+  "candidate": {
+    "branch": "codex/ayas-stage15t-paused",
+    "head": "03cddde74f90c5f0246c4ac1d4e09dba16489582",
+    "disposition": "INTEGRATED_AFTER_REVIEW_AND_HARDENING; branch kept unchanged as provenance",
+    "asFound": { "focused": "24/24", "typeScript": "PASS", "negativeControls": "33/34 (unexpected journal files ignored survived)" }
+  },
+  "baseline": {
+    "manifestVersion": "15F.4-v35",
+    "manifestDigest": "c9497ca835c7ab8c1dbeb9d0c145d802a5db2284728c17e59d3614933f97b9f2",
+    "sourceWorktreeDigest": "7d15b70d54d7ae854a4fbe3223bfb2029a8c0fe04d84ab98ff90a6556509ae9d",
+    "complete": true,
+    "suites": 118,
+    "failed": [],
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+    "knownLimitationSuites": ["cognitive-quality"],
+    "rawReport": "15T_FULL_BASELINE_V35.json",
+    "rawSha256": "5a367ed29acbbec5d87f9c7f0452f95870112c0203714b481bfdddf920cdc526",
+    "uniqueCommittedPins": 139,
+    "sampledRamPeakPercent": 56.42,
+    "preCommitOverlay": { "sourceHead": "dd119b31fedf96ee8e1aec2fa20275834591ddb2", "suites": 118, "failed": [], "outcome": "PASS_WITH_KNOWN_LIMITATIONS", "sampledRamPeakPercent": 54.21, "note": "overlay run; not the bound evidence" }
+  },
+  "focused": { "scenarios": 30, "negativeControls": "68/68", "fixture": "OWNED_TEMP_ONLY" },
+  "typeScript": "PASS_NO_EMIT_INCREMENTAL_FALSE",
+  "lint": { "changedFiles": "0 errors / 0 warnings", "full": { "errors": 0, "warnings": 13, "classification": "13_EXISTING_WARNINGS_IN_UNRELATED_SCRIPTS" } },
+  "diff": "PASS",
+  "affectedOutsideBaseline": {
+    "fixture": "TEMP clone of dd119b3 + overlay",
+    "brain-control-center": "PASS 22 primary + 13 held-out + integration",
+    "brain-core-ui": 43, "patch-detectors": 37, "brain-selfheal": 41, "brain-selfheal-security": 14,
+    "brain-selfheal-e2e-v2": 3, "adaptation-pipeline": 7, "autonomous-foundation-acceptance": 42
+  },
+  "repoWideGuards": {
+    "action-firewall-closure": "FAILED first (new briefing entry points unregistered); PASS after registering app/brain/briefing/actions.ts as a read-model surface and the page as a named entry (12 scenarios, 9 surfaces, 41 mapped modules); no guard widened",
+    "durable-task-recovery": "PASS", "discovery-registry": "PASS", "exact-proposal-safety": "PASS"
+  },
+  "productionPathChanged": false,
+  "productionRegression": "NOT_REQUIRED_NO_PRODUCTION_OR_PIPELINE_FILE_CHANGED",
+  "browser": "UI_HYDRATED_BROWSER_EVIDENCE.json",
+  "graphify": "GRAPHIFY_15T_SOURCE_COMMIT.json",
+  "delivery": "LOCAL_OWNER_UI_ONLY",
+  "pushOrPhoneTransport": "NOT_BUILT_OWNER_GATED",
+  "revenueAndCost": "NOT_CONFIGURED_UNTIL_STAGE_16_AND_A_LIVE_COST_LEDGER",
+  "liveServerActivation": "OWNER_ACTION_REBUILD_AND_RESTART",
+  "grantsAuthority": false,
+  "monetaryAuthority": "NONE",
+  "nextStage": "STAGE_15_CLOSURE_THEN_STAGE_16_0"
+}

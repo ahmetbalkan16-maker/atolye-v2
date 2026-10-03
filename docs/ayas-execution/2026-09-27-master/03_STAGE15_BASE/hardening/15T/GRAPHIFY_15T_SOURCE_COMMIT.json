@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-03T00:41:05.864Z",
+  "head": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+  "builtFrom": "2bebdbaf127e0136e486cf45fef78d83f9b76479",
+  "stale": false,
+  "needsUpdate": false,
+  "worktreeState": "CLEAN",
+  "nodes": 17793,
+  "edges": 51126,
+  "communities": 366,
+  "duplicateNodes": 0,
+  "duplicateEdges": 0,
+  "danglingEdges": 0,
+  "selfLoops": 0,
+  "structuralCoverage": "PARTIAL_9_INHERITED",
+  "semanticCoverage": "PENDING",
+  "graphSha256": "c8493b4dd8b0588e098ea2ff65e7f627f19db3cc85600058ce2729fea6c2b13b",
+  "command": "graphify update --scope all --no-description --no-label ."
+}

@@ -111,3 +111,11 @@ Canonical sources: final execution order, STAGE 15T; freeze addendum 15T; post-f
 - History files are never pruned (append-only); growth is bounded only by the record cap.
 - The live owner server keeps serving its old build until the owner rebuilds and restarts it
   (OWNER_ACTION, not blocking). The briefing page uses unstyled native controls (cosmetic).
+
+## Closure (2026-10-03)
+
+Source commit `2bebdbaf127e0136e486cf45fef78d83f9b76479`, exact clean bound baseline v35 118/118
+PASS_WITH_KNOWN_LIMITATIONS (`15T_FULL_BASELINE_V35.json`), full lint 0 errors / 13 existing warnings,
+Graphify bound (`GRAPHIFY_15T_SOURCE_COMMIT.json`). No production or pipeline file changed, so the
+production clean-HEAD comparison was not triggered. State: CLOSED_GREEN_SOURCE_LOCAL_UI_DELIVERY
+(`CLOSURE.md`, `15T_RESULT.json`). Stage 15 combined closure: `../../STAGE15_CLOSURE.md`.
