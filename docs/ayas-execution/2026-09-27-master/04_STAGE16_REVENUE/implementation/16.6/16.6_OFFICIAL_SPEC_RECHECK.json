@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-03T12:24:03.215Z",
+  "sources": [
+    "https://help.fiverr.com/hc/en-us/articles/360010451397-Creating-a-Gig",
+    "https://help.fiverr.com/hc/en-us/articles/360011421218-Requirements-and-guidelines-for-your-Gig",
+    "https://help.fiverr.com/hc/en-us/articles/9234443621137-Your-earnings-page",
+    "https://help.fiverr.com/hc/en-us/articles/37030193818257-Using-your-inbox-effectively",
+    "https://help.fiverr.com/hc/en-us/articles/47982844549905-Policy-Violations-Explained",
+    "https://help.fiverr.com/hc/en-us/articles/37554441398929-Our-Community-Standards",
+    "https://investors.fiverr.com/static-files/342e4729-6a76-467f-9a80-65f23d7d8deb"
+  ],
+  "sellerApiMcp": "NO_QUALIFIED_GENERAL_SELLER_CONTRACT_IDENTIFIED_IN_REVIEWED_OFFICIAL_SOURCES",
+  "inference": "INTERNAL_MCP_REFERENCE_IS_NOT_A_SELLER_API_CONTRACT",
+  "transport": "MANUAL_HANDOFF",
+  "livePlatformCalls": 0,
+  "sourceRules": {
+    "descriptionCharacters": 1200,
+    "faqMax": 10,
+    "packagesMax": 3,
+    "priceCurrency": "USD",
+    "generalStartingPriceMinor": 500,
+    "categoryMinimum": "OWNER_RECHECK",
+    "galleryImages": "1_TO_3_FOR_PUBLICATION",
+    "revisionOption": "AT_LEAST_ONE",
+    "sellerShare": "80_PERCENT_GENERAL_RULE_NOT_TRANSACTION_EVIDENCE"
+  },
+  "ownerPublicationChecks": "CURRENT_CATEGORY_MEDIA_ELIGIBILITY_RIGHTS_AND_POLICY",
+  "authority": "NONE"
+}

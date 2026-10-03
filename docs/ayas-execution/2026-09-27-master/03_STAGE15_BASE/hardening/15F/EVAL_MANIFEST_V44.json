@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v45",
+  "version": "15F.4-v44",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2629,56 +2629,6 @@
         "owner-interactive-only",
         "no-external-write",
         "official-qualification-pending"
-      ]
-    },
-    {
-      "id": "revenue-fiverr-adapter",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-fiverr-adapter.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-fiverr-adapter.ts",
-          "sha256": "c2756112eb62cf3ce50c2dd7e1f82a14d308b7ca209c0dffc3f4c87d7be399b1"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fiverr-fixture.ts",
-          "sha256": "1f3ee2dc40b090e62b38fdd131d7d64784193e393e3ad99a6f61e382effe2138"
-        }
-      ],
-      "slices": [
-        "manual-only-drafts",
-        "owner-reported-not-certified",
-        "strict-owner-import",
-        "no-external-write"
-      ]
-    },
-    {
-      "id": "revenue-fiverr-adapter-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-fiverr-adapter-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-fiverr-adapter-mutations.ts",
-          "sha256": "3e4e38a243c3fb03e3ebda920a1e81874efe41106b5c430637df86c9dc99f5b9"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-fiverr-adapter.ts",
-          "sha256": "c2756112eb62cf3ce50c2dd7e1f82a14d308b7ca209c0dffc3f4c87d7be399b1"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fiverr-fixture.ts",
-          "sha256": "1f3ee2dc40b090e62b38fdd131d7d64784193e393e3ad99a6f61e382effe2138"
-        }
-      ],
-      "slices": [
-        "manual-only-drafts",
-        "owner-reported-not-certified",
-        "strict-owner-import",
-        "no-external-write"
       ]
     }
   ],

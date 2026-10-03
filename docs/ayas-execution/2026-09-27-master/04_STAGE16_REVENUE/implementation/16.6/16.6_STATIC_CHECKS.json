@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-03T12:24:03.215Z",
+  "evidenceClass": "WORKTREE_PRE_SOURCE_COMMIT",
+  "typeScript": {
+    "exit": 0,
+    "incremental": false
+  },
+  "changedLint": {
+    "exit": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "fullLint": {
+    "exit": 0,
+    "errors": 0,
+    "warnings": 13,
+    "classification": "INHERITED"
+  },
+  "diffCheck": {
+    "exit": 0
+  },
+  "manifest": {
+    "version": "15F.4-v45",
+    "suites": 138,
+    "uniquePins": 168,
+    "drift": 0
+  },
+  "securityReview": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT",
+  "reviewFinding": "F68_REPRODUCED_AND_FIXED",
+  "exactSourceRegression": "PENDING",
+  "graphifyAfterSource": "PENDING",
+  "externalAuthority": "NONE"
+}

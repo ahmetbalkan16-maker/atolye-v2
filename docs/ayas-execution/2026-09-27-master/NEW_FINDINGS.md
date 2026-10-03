@@ -240,3 +240,11 @@ Real findings only. Each names where it was found and what became of it.
 ## F66 — Official MCP tool catalog cannot be qualified anonymously
 
 Initialize401 emptybody; no official schema/scope output. No fabricated tool identities. Framework tests use explicitlysyntheticpins. PENDING_OWNER_OAUTH_AFTER_FOUNDATION; reviewed official projectors/cost/scope/task evidence required before read activation. Stage16.5 notfullyclosed; independent Stage16 work remains authorized.
+
+## F67 —16.6 proposed manual reads versus16.0 closed standard
+
+MANUAL_HANDOFF manifests permit only local drafts. Preserve16.0; owner account/order/analytics facts use separate strict pure imports. Direct adapter read reports unavailable; common registry blocks unsupported operations. No authority/transport vocabulary widened.
+
+## F68 — Fiverr completed-order cash timeline
+
+Source review added P50: cash movement before the reported completed-order time was accepted (51/52+12). Reproduced in16.6_REVIEW_REPRODUCED.json; bound cash time to completion; negative control proves refusal. No money/ledger write or external action.

@@ -1,0 +1,466 @@
+{
+  "status": "PASS",
+  "baseline": {
+    "status": "PASS",
+    "primary": {
+      "passed": 52,
+      "total": 52
+    },
+    "heldOut": {
+      "passed": 12,
+      "total": 12
+    },
+    "noLiveIO": true,
+    "authority": "NONE",
+    "results": [
+      {
+        "id": "P01",
+        "set": "primary",
+        "ok": true,
+        "detail": "manual draft-only standard preserved"
+      },
+      {
+        "id": "P02",
+        "set": "primary",
+        "ok": true,
+        "detail": "production registry empty and no executor"
+      },
+      {
+        "id": "P03",
+        "set": "primary",
+        "ok": true,
+        "detail": "gig draft and handoff are local, never published"
+      },
+      {
+        "id": "P04",
+        "set": "primary",
+        "ok": true,
+        "detail": "ordered increasing tiers accepted"
+      },
+      {
+        "id": "P05",
+        "set": "primary",
+        "ok": true,
+        "detail": "USD minimum and integer money enforced"
+      },
+      {
+        "id": "P06",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate or skipped tiers refused"
+      },
+      {
+        "id": "P07",
+        "set": "primary",
+        "ok": true,
+        "detail": "bounded delivery and revisions"
+      },
+      {
+        "id": "P08",
+        "set": "primary",
+        "ok": true,
+        "detail": "gig text bounds match conservative local limits"
+      },
+      {
+        "id": "P09",
+        "set": "primary",
+        "ok": true,
+        "detail": "media and rights gaps visible"
+      },
+      {
+        "id": "P10",
+        "set": "primary",
+        "ok": true,
+        "detail": "FAQ and requirement bounds"
+      },
+      {
+        "id": "P11",
+        "set": "primary",
+        "ok": true,
+        "detail": "tags and media uniqueness"
+      },
+      {
+        "id": "P12",
+        "set": "primary",
+        "ok": true,
+        "detail": "gig owner-approved or completion claims cannot widen schema"
+      },
+      {
+        "id": "P13",
+        "set": "primary",
+        "ok": true,
+        "detail": "message is a reply draft with opaque references"
+      },
+      {
+        "id": "P14",
+        "set": "primary",
+        "ok": true,
+        "detail": "cold outreach purpose unsupported"
+      },
+      {
+        "id": "P15",
+        "set": "primary",
+        "ok": true,
+        "detail": "conversation must be digest not recipient identity"
+      },
+      {
+        "id": "P16",
+        "set": "primary",
+        "ok": true,
+        "detail": "order-related replies require order digest"
+      },
+      {
+        "id": "P17",
+        "set": "primary",
+        "ok": true,
+        "detail": "private contact and off-platform links refused"
+      },
+      {
+        "id": "P18",
+        "set": "primary",
+        "ok": true,
+        "detail": "delivery reuses shared quality gate"
+      },
+      {
+        "id": "P19",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing requirements cannot prepare delivery"
+      },
+      {
+        "id": "P20",
+        "set": "primary",
+        "ok": true,
+        "detail": "failed QA or late owner-review state cannot prepare delivery"
+      },
+      {
+        "id": "P21",
+        "set": "primary",
+        "ok": true,
+        "detail": "coherent other platform delivery refused"
+      },
+      {
+        "id": "P22",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown rights cannot prepare delivery"
+      },
+      {
+        "id": "P23",
+        "set": "primary",
+        "ok": true,
+        "detail": "exact delivery hashes enter manifest and draft digest"
+      },
+      {
+        "id": "P24",
+        "set": "primary",
+        "ok": true,
+        "detail": "draft/handoff never infers owner completion"
+      },
+      {
+        "id": "P25",
+        "set": "primary",
+        "ok": true,
+        "detail": "direct adapter reads honestly unavailable"
+      },
+      {
+        "id": "P26",
+        "set": "primary",
+        "ok": true,
+        "detail": "registry does not dispatch external actions"
+      },
+      {
+        "id": "P27",
+        "set": "primary",
+        "ok": true,
+        "detail": "no browser network cookie or automatic worker machinery"
+      },
+      {
+        "id": "P28",
+        "set": "primary",
+        "ok": true,
+        "detail": "handoff operation code-owned, exact digest and no completion"
+      },
+      {
+        "id": "P29",
+        "set": "primary",
+        "ok": true,
+        "detail": "tampered draft digest refused"
+      },
+      {
+        "id": "P30",
+        "set": "primary",
+        "ok": true,
+        "detail": "explicit observation remains owner report not certification"
+      },
+      {
+        "id": "P31",
+        "set": "primary",
+        "ok": true,
+        "detail": "completion binds exact draft"
+      },
+      {
+        "id": "P32",
+        "set": "primary",
+        "ok": true,
+        "detail": "completion binds handoff identity"
+      },
+      {
+        "id": "P33",
+        "set": "primary",
+        "ok": true,
+        "detail": "completion cannot be before handoff or in future"
+      },
+      {
+        "id": "P34",
+        "set": "primary",
+        "ok": true,
+        "detail": "completion not replayed or overwritten"
+      },
+      {
+        "id": "P35",
+        "set": "primary",
+        "ok": true,
+        "detail": "handoff monetary impact cannot be forged"
+      },
+      {
+        "id": "P36",
+        "set": "primary",
+        "ok": true,
+        "detail": "account import is explicit owner snapshot"
+      },
+      {
+        "id": "P37",
+        "set": "primary",
+        "ok": true,
+        "detail": "bounded analytics imported locally"
+      },
+      {
+        "id": "P38",
+        "set": "primary",
+        "ok": true,
+        "detail": "orders are reported observations"
+      },
+      {
+        "id": "P39",
+        "set": "primary",
+        "ok": true,
+        "detail": "HTML screenshots secret or private fields refused"
+      },
+      {
+        "id": "P40",
+        "set": "primary",
+        "ok": true,
+        "detail": "snapshot freshness and account identity enforced"
+      },
+      {
+        "id": "P41",
+        "set": "primary",
+        "ok": true,
+        "detail": "analytics counts/timeline fail closed"
+      },
+      {
+        "id": "P42",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate orders and unknown states refused"
+      },
+      {
+        "id": "P43",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner gross fee payout map separately to valid ledger inputs"
+      },
+      {
+        "id": "P44",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown fee remains unknown despite published 80 percent rule"
+      },
+      {
+        "id": "P45",
+        "set": "primary",
+        "ok": true,
+        "detail": "in progress order does not realize gross revenue"
+      },
+      {
+        "id": "P46",
+        "set": "primary",
+        "ok": true,
+        "detail": "available/clearance balance is not observed withdrawal"
+      },
+      {
+        "id": "P47",
+        "set": "primary",
+        "ok": true,
+        "detail": "currency mismatches refused"
+      },
+      {
+        "id": "P48",
+        "set": "primary",
+        "ok": true,
+        "detail": "unsafe negative and unbounded amounts refused"
+      },
+      {
+        "id": "P49",
+        "set": "primary",
+        "ok": true,
+        "detail": "event identity is idempotent and evidence conflicts stay visible"
+      },
+      {
+        "id": "P50",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner economic schema/identity/timestamps fail closed"
+      },
+      {
+        "id": "P51",
+        "set": "primary",
+        "ok": true,
+        "detail": "accessors not invoked and snapshots do not alias"
+      },
+      {
+        "id": "P52",
+        "set": "primary",
+        "ok": true,
+        "detail": "source/evaluator/manual documentation protected"
+      },
+      {
+        "id": "H01",
+        "set": "held-out",
+        "ok": true,
+        "detail": "three tiers with increasing explicit scenarios"
+      },
+      {
+        "id": "H02",
+        "set": "held-out",
+        "ok": true,
+        "detail": "missing optional FAQ and media still only a draft"
+      },
+      {
+        "id": "H03",
+        "set": "held-out",
+        "ok": true,
+        "detail": "requirements question may precede an order but needs conversation"
+      },
+      {
+        "id": "H04",
+        "set": "held-out",
+        "ok": true,
+        "detail": "Unicode local draft supported"
+      },
+      {
+        "id": "H05",
+        "set": "held-out",
+        "ok": true,
+        "detail": "future cash observation rejected"
+      },
+      {
+        "id": "H06",
+        "set": "held-out",
+        "ok": true,
+        "detail": "cancelled owner order has no realized gross"
+      },
+      {
+        "id": "H07",
+        "set": "held-out",
+        "ok": true,
+        "detail": "cash observation needs amount and time"
+      },
+      {
+        "id": "H08",
+        "set": "held-out",
+        "ok": true,
+        "detail": "unknown gross and fee do not contaminate known cash observation"
+      },
+      {
+        "id": "H09",
+        "set": "held-out",
+        "ok": true,
+        "detail": "already handed-off order not presented as fresh delivery"
+      },
+      {
+        "id": "H10",
+        "set": "held-out",
+        "ok": true,
+        "detail": "all gig commercial changes alter digest"
+      },
+      {
+        "id": "H11",
+        "set": "held-out",
+        "ok": true,
+        "detail": "nested array getter and symbols refused"
+      },
+      {
+        "id": "H12",
+        "set": "held-out",
+        "ok": true,
+        "detail": "missing external reference is unverified owner report only"
+      }
+    ]
+  },
+  "negativeControls": {
+    "total": 48,
+    "caught": [
+      "paid draft cost",
+      "publication opened",
+      "skipped tiers",
+      "currency unchecked",
+      "minimum price unchecked",
+      "delivery window extended",
+      "zero revision option",
+      "description unbounded",
+      "title bound widened",
+      "media gap hidden",
+      "rights gap hidden",
+      "offer proof gap hidden",
+      "FAQ bound widened",
+      "tags bound widened",
+      "duplicate media accepted",
+      "message cold outreach",
+      "message order binding omitted",
+      "wrong platform delivery allowed",
+      "draft commercial hash incomplete",
+      "handoff owner action removed",
+      "handoff digest unchecked",
+      "owner completion draft identity ignored",
+      "owner completion handoff identity ignored",
+      "owner completion future accepted",
+      "owner completion prehandoff accepted",
+      "owner completion overwritten",
+      "monetary impact forgery accepted",
+      "owner source certification falsely upgraded",
+      "snapshot extra fields",
+      "owner snapshot age unchecked",
+      "owner snapshot account ignored",
+      "owner snapshot future accepted",
+      "analytics negative counts",
+      "analytics window unbounded",
+      "analytics observed timeline unbound",
+      "duplicate owner orders accepted",
+      "unknown fee treated as zero",
+      "pending order realizes gross",
+      "available balance treated as withdrawn",
+      "cross currency money accepted",
+      "owner economics schema open",
+      "owner economics source forged",
+      "nested accessor preflight skipped",
+      "observed withdrawal lacks evidence amount",
+      "quality status ignored",
+      "cash observation precedes completed order"
+    ],
+    "equivalents": [
+      {
+        "name": "duplicate package tiers",
+        "reason": "consecutive tier validation independently refuses every duplicate",
+        "verifiedWholePrimaryHeldOutPass": true
+      },
+      {
+        "name": "delivery requirements bypassed",
+        "reason": "incomplete requirements never expose a manifest; the manifest-null refusal stays closed",
+        "verifiedWholePrimaryHeldOutPass": true
+      }
+    ]
+  },
+  "noLiveIO": true
+}
