@@ -225,10 +225,28 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       "src/lib/brain/ui/AyasControlCenterCollector.ts": "READ_ONLY_PROBE",
     },
   },
+  // Stage 15T: the same read models, plus the owner's acknowledgement and actual-delivery metadata (no approval, execution or tool).
+  "app/brain/briefing/actions.ts": {
+    what: "owner-session executive briefing: read models and alert acknowledgement/delivery metadata", agent: false,
+    allowed: ["READ_ONLY_PROBE", "LOCAL_MODEL", "IMPORT_ONLY"],
+    modules: {
+      ...PROBES, ...LOCAL_MODELS,
+      "src/lib/ayas/developer/AyasGraphifyStateCollector.ts": "READ_ONLY_PROBE",
+      "src/lib/ayas/developer/AyasRepositoryStateCollector.ts": "READ_ONLY_PROBE",
+      "src/lib/brain/autonomy/AyasBatchGraphifyCheck.ts": "IMPORT_ONLY",
+      "src/lib/brain/autonomy/AyasExactProposalSafety.ts": "READ_ONLY_PROBE",
+      "src/lib/brain/autonomy/AyasMutationValidators.ts": "IMPORT_ONLY",
+      "src/lib/brain/autonomy/AyasPatchSandbox.ts": "IMPORT_ONLY",
+      "src/lib/brain/autonomy/AyasPublicationActivity.ts": "READ_ONLY_PROBE",
+      "src/lib/brain/autonomy/AyasSelfImprovementHealthCollector.ts": "READ_ONLY_PROBE",
+      "src/lib/brain/ui/AyasControlCenterCollector.ts": "READ_ONLY_PROBE",
+    },
+  },
 };
 /** Entry points other than the surfaces that reach leased or owner-only modules, and who runs each. */
 const OTHER_ENTRIES: Readonly<Record<string, string>> = {
   "app/brain/page.tsx": "the Brain page; it imports the two owner-session action modules mapped above",
+  "app/brain/briefing/page.tsx": "the owner briefing page; a read-only GET that writes no metadata and imports the briefing action module mapped above",
   "scripts/ayas-crash-injection-worker.ts": "crash-injection worker; spawned only by scripts/smoke-ayas-crash-injection.ts against TEMP roots",
   "scripts/ayas-developer-handoff.ts": "operator CLI; read-only Graphify and repository state",
   "scripts/ayas-graphify-status.ts": "operator CLI; read-only Graphify state",

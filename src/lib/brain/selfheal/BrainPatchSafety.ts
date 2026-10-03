@@ -60,6 +60,9 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/ayas-safe-mode.ts",
   "scripts/smoke-ayas-safe-mode.ts",
   "scripts/smoke-ayas-safe-mode-mutations.ts",
+  "scripts/ayas-executive-alerts.ts",
+  "scripts/smoke-ayas-executive-briefing.ts",
+  "scripts/smoke-ayas-executive-briefing-mutations.ts",
   "scripts/ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain-mutations.ts",
@@ -71,6 +74,11 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
 /** Order matters: the FIRST matching rule wins, and FORBIDDEN rules come first. */
 const RULES: readonly Rule[] = Object.freeze([
   // ---- FORBIDDEN_AUTONOMOUS -------------------------------------------------
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
+    why: "owner notification priority, durable acknowledgement and delivery cannot rewrite themselves",
+    test: (p) => p.toLowerCase() === "src/components/brain/ayasexecutivebriefingpanel.tsx" || ["src/lib/ayas/briefing/", "app/brain/briefing/", "data/brain/execution/owner-alerts"].some(prefix => p.toLowerCase().startsWith(prefix)),
+  },
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "portable private state and migration qualification cannot export or activate themselves",

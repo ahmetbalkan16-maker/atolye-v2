@@ -14,6 +14,7 @@
  */
 
 import { Suspense, use, type ReactNode } from "react";
+import { AyasExecutiveBriefingPanel } from "./AyasExecutiveBriefingPanel";
 
 import {
   AYAS_CC_ACTION_LABEL,
@@ -114,6 +115,7 @@ function OwnerAttentionBody(props: StageProps) {
           {" · "}Yol haritası, sıradaki aşama: {view.roadmapNextStage ?? "—"}
         </p>
       </header>
+      <AyasExecutiveBriefingPanel compact />
       <h3 className="bc-cc__subtitle" id="bc-cc-attention-title">Sahibin dikkatine</h3>
       {view.attention.length === 0 ? (
         <p className="bc-empty" data-testid="bc-cc-attention-empty">Şu an kararını veya müdahaleni bekleyen bir şey yok.</p>

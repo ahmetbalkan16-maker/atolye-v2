@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v35",
+  "version": "15F.4-v34",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -129,7 +129,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-action-firewall-closure.ts",
-          "sha256": "c57403df5ba9d8817a27fbf6fc6843bbd12bd5bd4fcf1d39168b7725260b2547"
+          "sha256": "f66e7a95de8a1cfacea92f375d1409a871146316509b86986cf15e51eb7950f3"
         }
       ],
       "slices": [
@@ -2142,54 +2142,6 @@
       "slices": [
         "portable-state",
         "owner-activation-boundary",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "executive-briefing",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-executive-briefing.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-executive-briefing.ts",
-          "sha256": "1459cb94f89744c973fc83d972fb3f2d42e687e79021d1efd340f9dd7ed3721a"
-        },
-        {
-          "file": "scripts/ayas-executive-alerts.ts",
-          "sha256": "d91a8a79547e0011ce1a73748891d3cdd524edeb31e1c1549e395e6195725eb0"
-        }
-      ],
-      "slices": [
-        "owner-briefing",
-        "alert-priority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "executive-briefing-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-executive-briefing-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-executive-briefing.ts",
-          "sha256": "1459cb94f89744c973fc83d972fb3f2d42e687e79021d1efd340f9dd7ed3721a"
-        },
-        {
-          "file": "scripts/smoke-ayas-executive-briefing-mutations.ts",
-          "sha256": "c832e19083da7ff1264444f3ad4c289ca2d622e4f1c833fcdb5a8ac62ce18a96"
-        },
-        {
-          "file": "scripts/ayas-executive-alerts.ts",
-          "sha256": "d91a8a79547e0011ce1a73748891d3cdd524edeb31e1c1549e395e6195725eb0"
-        }
-      ],
-      "slices": [
-        "owner-briefing",
-        "alert-priority",
         "deterministic-outcome"
       ]
     }
