@@ -328,7 +328,7 @@
     },
     {
       "id": "P84",
-      "name": "missing processing fee means incomplete not zero",
+      "name": "missing or unallocated related fee means incomplete not zero",
       "ok": true
     },
     {
@@ -388,7 +388,7 @@
     },
     {
       "id": "P96",
-      "name": "signal or actual nonpassive ledger cost stops zero-spend pilot",
+      "name": "signal or allocated/unallocated nonpassive cost stops zero-spend pilot",
       "ok": true
     },
     {

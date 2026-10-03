@@ -18,7 +18,9 @@ export function evaluateAyasRevenuePilot(rawStore:unknown,planDigest:string,rawL
  const originalSales=ledger.entries.filter(e=>e.platform===p.platform&&e.offerDigest===p.offerDigest&&e.event==="GROSS_REVENUE"&&inWindow(e.occurredAt)),sales=originalSales.filter(e=>!reversed.has(e.entryId)),orders=new Set(originalSales.map(e=>e.orderDigest).filter((v):v is string=>v!==null));
  // Related order fees/refunds are retained regardless of their occurrence date. Direct pilot costs require exact activity identity.
  const facts=active.filter(e=>e.platform===p.platform&&(e.event==="GROSS_REVENUE"?sales.some(s=>s.entryId===e.entryId):(e.orderDigest!==null&&orders.has(e.orderDigest))||(e.activityDigest===p.planDigest&&e.offerDigest===p.offerDigest)));
- const economics=summarizeAyasRevenueEconomics({schemaVersion:"1",revision:facts.length,entries:facts});
+ const unallocatedRelatedFacts=active.filter(e=>e.platform===p.platform&&e.offerDigest===p.offerDigest&&e.event!=="GROSS_REVENUE"&&e.event!=="PAYOUT_OBSERVED"&&e.amount.valueMinor>0&&p.startAt!==null&&Date.parse(e.occurredAt)>=Date.parse(p.startAt)&&!facts.some(f=>f.entryId===e.entryId));
+ const computedEconomics=summarizeAyasRevenueEconomics({schemaVersion:"1",revision:facts.length,entries:facts});
+ const economics=unallocatedRelatedFacts.length?computedEconomics.map(e=>({...e,status:"INCOMPLETE" as const,incompleteEvidence:true,contributionProfitMinor:null,contributionMargin:null})):computedEconomics;
  const receipt=snapshotAyasRevenuePilotData(rawReconciliation,8192),r=isAyasRevenuePlainRecord(receipt)?receipt:null;
  const reconciled=!!r&&hasExactAyasRevenueKeys(r,["planDigest","ledgerDigest","ledgerRevision","from","to","observedAt","freshUntil","evidenceDigest","history","fees","refunds","disputes"])
   &&r.planDigest===p.planDigest&&r.ledgerDigest===ledgerDigest&&r.ledgerRevision===ledger.revision&&r.from===p.startAt&&r.to===p.stopAt
@@ -38,11 +40,11 @@ export function evaluateAyasRevenuePilot(rawStore:unknown,planDigest:string,rawL
  // Signals and failed/unknown actions survive revisions; choosing a later window cannot erase them.
  const signalSet=new Set(projection.observations.filter(o=>o.kind==="SIGNAL").map(o=>o.signal!));
  const historicalOrders=new Set(ledger.entries.filter(e=>e.platform===p.platform&&e.offerDigest===p.offerDigest&&e.event==="GROSS_REVENUE"&&projection.plans.some(plan=>plan.startAt!==null&&plan.stopAt!==null&&Date.parse(e.occurredAt)>=Date.parse(plan.startAt)&&Date.parse(e.occurredAt)<Date.parse(plan.stopAt))).map(e=>e.orderDigest).filter((v):v is string=>v!==null));
- const costEvidence=active.filter(e=>e.platform===p.platform&&(e.orderDigest!==null&&historicalOrders.has(e.orderDigest)||projection.plans.some(plan=>e.activityDigest===plan.planDigest&&e.offerDigest===plan.offerDigest)));
+ const costEvidence=active.filter(e=>e.platform===p.platform&&(e.orderDigest!==null&&historicalOrders.has(e.orderDigest)||projection.plans.some(plan=>e.activityDigest===plan.planDigest&&e.offerDigest===plan.offerDigest||e.offerDigest===plan.offerDigest&&plan.startAt!==null&&Date.parse(e.occurredAt)>=Date.parse(plan.startAt))));
  if(costEvidence.some(e=>["AD_SPEND","OTHER_COST","VARIABLE_DELIVERY_COST"].includes(e.event)&&e.amount.valueMinor>0))signalSet.add("MONETARY_COMMITMENT");
  const signals=[...signalSet].sort(),failed=projection.observations.some(o=>o.kind==="ACTION_RESULT"&&o.actionStatus!=="PERFORMED");
  const reasons:string[]=[];let verdict:AyasRevenuePilotVerdict;
- const complete=reconciled&&economics.length>0&&economics.every(e=>!e.incompleteEvidence)&&sales.every(e=>e.orderDigest!==null)&&p.currency!==null&&economics.every(e=>e.currency===p.currency);
+ const complete=reconciled&&unallocatedRelatedFacts.length===0&&economics.length>0&&economics.every(e=>!e.incompleteEvidence)&&sales.every(e=>e.orderDigest!==null)&&p.currency!==null&&economics.every(e=>e.currency===p.currency);
  if(signals.some(s=>s==="SECURITY_BLOCKER"||s==="MONETARY_COMMITMENT")){verdict="SECURITY_BLOCKED";reasons.push("SECURITY_OR_UNEXPECTED_COST");}
  else if(signals.some(s=>["RIGHTS_UNRESOLVED","ACCOUNT_RESTRICTION","POLICY_CONCERN"].includes(s))){verdict="POLICY_BLOCKED";reasons.push("POLICY_OR_RIGHTS_UNRESOLVED");}
  else if(["CANCELLED","INVALIDATED"].includes(p.state)||p.startAt===null){verdict="INVALID_PILOT";reasons.push("INVALID_OR_CANCELLED_WINDOW");}
@@ -53,6 +55,6 @@ export function evaluateAyasRevenuePilot(rawStore:unknown,planDigest:string,rawL
  return deepFreezeAyasRevenueValue({schemaVersion:"1",planDigest:p.planDigest,pilotId:p.pilotId,pilotState:p.state,startAt:p.startAt,stopAt:p.stopAt,asOf:now,verdict,reasons,
   primaryMetric:{metric,numerator,denominator,conversionBps,valid:metricValid,met},supportingMetrics:{views:count("VIEWS"),clicks:count("CLICKS"),likes:count("LIKES"),supportCases:count("SUPPORT_CASES"),deliveries:count("DELIVERIES")},
   realizedByCurrency:economics,economicsComplete:complete,reconciliation:"NORMALIZED_METADATA_NOT_LIVE_CERTIFICATION",ledgerDigest,ledgerRevision:ledger.revision,storeRevision:projection.state.revision,
-  selectedEntryDigests:facts.map(e=>e.entryId),globalReversalCount:reversed.size,retainedSignals:signals,retainedFailedOrUnknownAction:failed,
+  selectedEntryDigests:facts.map(e=>e.entryId),unallocatedRelatedEntryDigests:unallocatedRelatedFacts.map(e=>e.entryId),globalReversalCount:reversed.size,retainedSignals:signals,retainedFailedOrUnknownAction:failed,
   recommendation:signals.length?"OWNER_PAUSE_REVIEW":verdict==="PROMISING"?"STAGE16_13_OWNER_REVIEW":"OWNER_REVIEW",automaticScale:false,externalWrite:false,autonomousSpend:0,grantsAuthority:false,executionAuthority:"NONE",liveQualification:"UNBOUND_NOT_RUN"});
 }

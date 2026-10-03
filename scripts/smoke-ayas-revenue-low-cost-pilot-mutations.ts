@@ -39,6 +39,7 @@ const controls:readonly(readonly[string,string,string,string,string])[]=[
  ["failed/unknown action retry permitted",handoff,'if(projection.observations.some(o=>o.kind==="ACTION_RESULT"&&o.actionDigest===a.actionDigest))','if(false)',"P109"],
  ["handoff manufactures authority",handoff,'grantsAuthority:false','grantsAuthority:true',"P104"],
  ["actual nonpassive cost omitted from early stop",evaluation,'if(costEvidence.some(e=>["AD_SPEND","OTHER_COST","VARIABLE_DELIVERY_COST"].includes(e.event)&&e.amount.valueMinor>0))signalSet.add("MONETARY_COMMITMENT");',"","P96"],
+ ["unallocated related fee concealed",evaluation,'active.filter(e=>e.platform===p.platform&&e.offerDigest===p.offerDigest&&e.event!=="GROSS_REVENUE"&&e.event!=="PAYOUT_OBSERVED"&&e.amount.valueMinor>0&&p.startAt!==null&&Date.parse(e.occurredAt)>=Date.parse(p.startAt)&&!facts.some(f=>f.entryId===e.entryId))','[] as typeof facts',"P84"],
 ];
 const env:NodeJS.ProcessEnv={NODE_ENV:"test"};for(const key of ["SystemRoot","WINDIR","COMSPEC","PATH","PATHEXT","TEMP","TMP","USERPROFILE","APPDATA","LOCALAPPDATA","HOME"])if(process.env[key])env[key]=process.env[key];
 const run=(script:string,args:string[]=[])=>spawnSync(process.execPath,["--import","tsx",script,...args],{cwd:temp,env,encoding:"utf8",windowsHide:true,timeout:120000,maxBuffer:3e6});

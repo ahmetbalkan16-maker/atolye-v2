@@ -1,5 +1,9 @@
 # AYAS current —2026-10-04 /16.12 framework verified; exact source matrix pending
 
+16.12 bounded pilot framework focused verified:112 primary+31 held-out (original20 preserved)+31 independent assertion-caught controls; explicit-root TEMP append history/CAS/SAFE/corruption/replay, immutable window/metric, negative evidence retained across revisions, full16MiB realized ledger/per currency/global reversals/later fees/refunds, manual owner handoff/no executor. TS/lint/diff/pins/governance/protection/security/compliance/free-first PASS;198 pins/157 v52 declared suites, full baseline NOT_RUN. Owner/authenticated source, production store/journal and actual pilot actions UNBOUND/NOT_RUN. Exact source matrix/full Graphify pending. Homepage NOT_STARTED;STOP before redesign.
+
+# AYAS current —2026-10-04 /16.12 framework verified; exact source matrix pending
+
 16.12 bounded pilot framework focused verified:112 primary+31 held-out (original20 preserved)+30 independent assertion-caught controls; explicit-root TEMP append history/CAS/SAFE/corruption/replay, immutable window/metric, negative evidence retained across revisions, full16MiB realized ledger/per currency/global reversals/later fees/refunds, manual owner handoff/no executor. TS/lint/diff/pins/governance/protection/security/compliance/free-first PASS;198 pins/157 v52 declared suites, full baseline NOT_RUN. Owner/authenticated source, production store/journal and actual pilot actions UNBOUND/NOT_RUN. Exact source matrix/full Graphify pending. Homepage NOT_STARTED;STOP before redesign.
 
 # AYAS current —2026-10-04 /16.12 framework verified; exact source matrix pending

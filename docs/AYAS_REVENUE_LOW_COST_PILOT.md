@@ -1,6 +1,6 @@
 # AYAS bounded low-cost pilot framework — 16.12
 
-Model, admission policy, offline history store, realized evaluation and manual handoff are implemented. The full framework has112 primary and31 held-out cases;30 independent negative controls exercise named assertions with full baseline and recovered suites. Final registration, static checks and exact-source regression receipts remain pending until recorded in the canonical checkpoint. This document does not qualify an actual pilot or close Stage16.
+Model, admission policy, offline history store, realized evaluation and manual handoff are implemented. The full framework has112 primary and31 held-out cases;31 independent negative controls exercise named assertions with full baseline and recovered suites. Final registration, static checks and exact-source regression receipts remain pending until recorded in the canonical checkpoint. This document does not qualify an actual pilot or close Stage16.
 
 One platform, one offer, one acquisition path and one primary metric are fixed in a digest-bound plan. Defaults are 14 days, at most one external action and zero autonomous spend. The code ceiling is 30 days; financial operations and cross-platform action types are refused. A proposed operation comes from trusted application code; external/model text cannot select an executor, path or command. Views/clicks/likes cannot replace a sales metric. Conversion metrics use closed, bounded numerator/denominator types.
 
@@ -19,3 +19,7 @@ An ACTIVE window starts only in a reviewed local transition plan; its start/stop
 The owner instruction of2026-10-04 requires a complete stop before the Homepage/BrainUIV2 redesign sprint. This stage changes no homepage UI, controls, layout, avatar or speaking/listening animation.
 
 F86 review repaired a qualification gap before stage advancement: positive realized profit could previously hide a known ad spend in a zero-spend pilot. Any known positive advertising, other cost or variable delivery cost for the pilot's historical order/activity scope now derives an unexpected monetary commitment and SECURITY_BLOCKED with an owner pause recommendation. Passive platform/payment fees remain ledger economics. A new plan revision cannot erase this known cost; no automatic state mutation or real payment is performed. The earlier675cb39 focused receipt is historical; repaired source verification is recorded separately.
+
+Related offer costs/refunds with unknown order/activity allocation are retained as evidence digests. Their amounts are not arbitrarily attributed to a pilot: final contribution profit stays null and economics INCOMPLETE. Positive nonpassive offer costs across known started windows still derive the monetary stop. A normalized COMPLETE reconciliation flag cannot hide allocation uncertainty. The earlier5fd1073 matrix is historical and does not qualify the final allocation repair.
+
+Latest owner instruction: stop once16.12 is completed. Stage16.13 and all later Master implementation remain NOT_STARTED; the canonical stopped checkpoint and session-end Git verification record the final boundary.

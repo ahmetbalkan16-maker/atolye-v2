@@ -1,0 +1,8 @@
+{
+  "sourceHead": "5fd10733609e559aabba715fea16279e7b7a9793",
+  "selectedSuites": 40,
+  "status": "PASS",
+  "sourceUnchanged": true,
+  "findingScope": "Historical corpus did not cover same-offer positive cost with no order/activity allocation;not a final repaired-source receipt",
+  "finalReceipt": "16.12_REGRESSIONS.json requires repaired source"
+}

@@ -344,3 +344,7 @@ The first new compliance draft refused proxied input at structuredClone but its 
 ## 2026-10-03T22:29:32.075Z —16.12/F86 realized cost early-stop gap
 
 At675cb39 a synthetic reconciled ledger with1 minor unit AD_SPEND still returned PROMISING and positive profit, despite the zero-spend pilot policy. It granted no authority/spend and ran no platform action. Fixed inside16.12 before stage advancement: derive MONETARY_COMMITMENT from known positive nonpassive costs across historical pilot order/activity scope, recommend owner pause and preserve economics. P88/P96/H31 and a separate mutation cover the gap, including new plan revisions. Full source receipts must be regenerated; the675cb39 focused receipt is historical.
+
+## 2026-10-03T22:52:58.838Z —16.12/F86 allocation follow-up
+
+At5fd1073 all40 selected historical source suites passed, but a separate controlled same-offer AD_SPEND1 with null order/activity binding returned PROMISING and observed pilot ad spend0. No authority/action/spend was granted. Before16.12 closure, related unallocated positive costs/refunds now keep final profit null and economics incomplete; known nonpassive offer cost derives the stop signal even without order allocation. P84/P96/H31 strengthened and a separate assertion-caught control added. Historical5fd matrix is not the final repaired-source receipt. Latest owner instruction remains STOP after16.12;16.13 is not authorized to start.
