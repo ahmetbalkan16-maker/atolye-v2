@@ -1,3 +1,9 @@
+# AYAS current —2026-10-03 /16.2 sourceclosed;16.3 active
+
+16.2 exactclean source d901186e202dbe5a78482876ba93667d7dc03700 CLOSED_GREEN_SOURCE_OFFLINE_OBSERVATION_LEDGER:53primary+10heldout;29assertion-caught/1declared equivalent;14selected+9extra TEMP regressions;independent reviewF48/F49 fixed;TS/lint/diffPASS (13oldlintwarnings),150committedpins/sourcehashes exact;Graphify18052/51713 exactHEAD zeroanomalies/PARTIAL9/semanticPENDING.16.2_RESULT.json andexactreceipt holdproof. Lastcompletebaseline remains5cbb217/v38 124/124 with cognitive limitation;NO fullv39claim.
+
+Activecanonical16.3 Free-First Validation:pureopportunity/evidence/hypotheticalscenario engine,authorityNONE;then16.3A andremainingmaster. MasterNOTCOMPLETE. NO PUSH/localcommits only;liveledgerabsent,no money/network/model/hostactivation. ResolveactualGitHEAD;laterdocs-onlyclosurecommitcanfollowtestedsource. ExactnextACTIVE_CHECKPOINT.json.
+
 # AYAS current —2026-10-03 /16.2 source validated; exact HEAD gates pending
 
 16.1 source5cbb217 CLOSED_GREEN after independent review.16.2 durable digest-only ledger +pure economics implemented; independent review repairedF48/F49;UTC edgeF50;53primary/10heldout,30negativecontrols(29caught+1declared equivalent),14selected+9extra TEMP regressions PASS. TS/lint/diff/pins PASS;whole lint13 oldwarnings. v39 126suites/150pins,v38 frozen. Stage16.2 OPEN untilsourcecommit/Graphify/exactreceipt. Last completebaseline still5cbb217 v38 124/124, no newfullbaselineclaim. Nextcanonical16.3 after16.2 closure. NO PUSH/localcommits only, no liveledger/network/money/model/hostactivation. Exactstate ACTIVE_CHECKPOINT.json;master NOTCOMPLETE.

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1",
-  "recordedAt": "2026-10-03T07:35:04.388Z",
+  "recordedAt": "2026-10-03T07:44:10.120Z",
   "stage": "STAGE_16_2",
-  "state": "REVIEWED_VALIDATED_PENDING_EXACT_HEAD_GRAPHIFY",
-  "stageClosed": false,
+  "state": "CLOSED_GREEN_SOURCE_OFFLINE_OBSERVATION_LEDGER",
+  "stageClosed": true,
   "primary": 53,
   "heldOut": 10,
   "negativeControls": {
@@ -40,5 +40,29 @@
   "network": "NONE",
   "moneyMovement": "NONE",
   "productionBinding": "NONE",
-  "nextAction": "Exact source local commit, Graphify bound, final clean receipt, source closure then16.3;NO PUSH"
+  "nextAction": "Canonical16.3 free-first validation; local commits only /NO PUSH",
+  "sourceCommit": "d901186e202dbe5a78482876ba93667d7dc03700",
+  "exactReceipt": "16.2_EXACT_SOURCE_RECEIPT.json",
+  "exactReceiptSha256": "a95dc0b7ea7743a5379b96b0d5db5d6b244de82fcd60f38042d7190cf7e189ef",
+  "committedPins": "150_ALL_BYTE_EQUAL",
+  "graphify": {
+    "schemaVersion": "1",
+    "at": "2026-10-03T07:44:10.120Z",
+    "head": "d901186e202dbe5a78482876ba93667d7dc03700",
+    "nodes": 18052,
+    "edges": 51713,
+    "communities": 368,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "stale": false,
+    "needsUpdate": false,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "sha256": "0d9629627bbf3f9c4dd4f960b186499b3987b243f2103d288dbe314825a9fe0f"
+  }
 }
