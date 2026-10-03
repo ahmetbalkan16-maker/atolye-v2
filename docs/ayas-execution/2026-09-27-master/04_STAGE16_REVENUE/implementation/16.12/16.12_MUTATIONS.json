@@ -1,7 +1,7 @@
 {
   "status": "PASS",
-  "caught": 29,
-  "total": 29,
+  "caught": 30,
+  "total": 30,
   "equivalents": 0,
   "baselineAndRecovered": "PASS",
   "scope": "MODEL_OWNER_ADMISSION_STORE_ECONOMICS_HANDOFF_OWNED_GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY",
@@ -149,6 +149,11 @@
     {
       "name": "handoff manufactures authority",
       "assertion": "P104",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "actual nonpassive cost omitted from early stop",
+      "assertion": "P96",
       "status": "ASSERTION_CAUGHT"
     }
   ]

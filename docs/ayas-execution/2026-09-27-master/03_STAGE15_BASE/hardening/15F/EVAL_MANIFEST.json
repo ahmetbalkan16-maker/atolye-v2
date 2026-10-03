@@ -3156,7 +3156,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "64dd74f05e05cdac302fc06edd48a563e7e0124b2dac636551ed7ca0895612a9"
+          "sha256": "96252c4fc8bf405b65a826b600ddf4703aa0f1f3f2dc8c899a9fc8ce540ba2a2"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
@@ -3180,7 +3180,7 @@
         },
         {
           "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "61de138a9f7fdb71570eb317c70b8472df270948bdbe8beba2ac41935023f2e1"
+          "sha256": "0a7f8941055d27b1e40e4f269e31b4a399fde5fdbc05e9c05b4f38a646ab02f7"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
@@ -3200,15 +3200,15 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
-          "sha256": "3bd14f974bad80728ec3aa43872245f5858a27d6384929544e5555c253ee1d99"
+          "sha256": "cf9ef930633955a5130d189b1fca45baabb8c3756a99fb788eaa85b8660fc3cb"
         },
         {
           "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "64dd74f05e05cdac302fc06edd48a563e7e0124b2dac636551ed7ca0895612a9"
+          "sha256": "96252c4fc8bf405b65a826b600ddf4703aa0f1f3f2dc8c899a9fc8ce540ba2a2"
         },
         {
           "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
-          "sha256": "61de138a9f7fdb71570eb317c70b8472df270948bdbe8beba2ac41935023f2e1"
+          "sha256": "0a7f8941055d27b1e40e4f269e31b4a399fde5fdbc05e9c05b4f38a646ab02f7"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",

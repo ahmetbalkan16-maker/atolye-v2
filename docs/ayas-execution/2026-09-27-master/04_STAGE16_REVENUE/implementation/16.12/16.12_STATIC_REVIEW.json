@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-03T22:21:34.709Z",
+  "at": "2026-10-03T22:33:15.912Z",
   "state": "FRAMEWORK_FOCUSED_VERIFIED_EXACT_SOURCE_MATRIX_PENDING",
   "rows": [
     {
@@ -49,9 +49,9 @@
     }
   ],
   "primary": 112,
-  "frozenHeldOut": 30,
+  "frozenHeldOut": 31,
   "originalFrozenCasesPreserved": 20,
-  "negativeControls": 29,
+  "negativeControls": 30,
   "graderDefault": "FULL_112_CASES_ARGS_EMPTY",
   "mutationTrial": "ONE_NAMED_ASSERTION_PER_FAULT_FULL_BASELINE_AND_RECOVERED_PRIMARY_HELD_OUT_REQUIRED",
   "sourceInputs": [
@@ -69,7 +69,7 @@
     },
     {
       "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilotEvaluation.ts",
-      "sha256": "9b2b3af55bd4c1bc937fc331fd8e2a8e13c705c5e94c474fbbf7863e048c89cd"
+      "sha256": "d5b5234cf5b4824a5fa39fbbe40188fc3e4b7ec2a6b6f74847403c5fd8e94e10"
     },
     {
       "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilotHandoff.ts",
@@ -77,11 +77,11 @@
     },
     {
       "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
-      "sha256": "64dd74f05e05cdac302fc06edd48a563e7e0124b2dac636551ed7ca0895612a9"
+      "sha256": "96252c4fc8bf405b65a826b600ddf4703aa0f1f3f2dc8c899a9fc8ce540ba2a2"
     },
     {
       "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
-      "sha256": "61de138a9f7fdb71570eb317c70b8472df270948bdbe8beba2ac41935023f2e1"
+      "sha256": "0a7f8941055d27b1e40e4f269e31b4a399fde5fdbc05e9c05b4f38a646ab02f7"
     },
     {
       "file": "scripts/smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
@@ -89,7 +89,7 @@
     },
     {
       "file": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
-      "sha256": "3bd14f974bad80728ec3aa43872245f5858a27d6384929544e5555c253ee1d99"
+      "sha256": "cf9ef930633955a5130d189b1fca45baabb8c3756a99fb788eaa85b8660fc3cb"
     },
     {
       "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
@@ -115,14 +115,14 @@
   "declaredSuites": 157,
   "fullDeclaredBaseline": "NOT_RUN_V52_LAST_COMPLETE_V38",
   "graphAfter": {
-    "at": "2026-10-03T22:21:34.509Z",
-    "head": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
-    "lastAnalyzedHead": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
-    "graphBuiltFrom": "3ca22419e9f2886d1965fd9f3067f32c6873cb6d",
+    "at": "2026-10-03T22:33:15.736Z",
+    "head": "675cb39759b43f9e13ecb5c77f4b11981d567a2b",
+    "lastAnalyzedHead": "675cb39759b43f9e13ecb5c77f4b11981d567a2b",
+    "graphBuiltFrom": "675cb39759b43f9e13ecb5c77f4b11981d567a2b",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 18914,
-    "edges": 54211,
+    "nodes": 18915,
+    "edges": 54223,
     "communities": 0,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
@@ -135,7 +135,7 @@
     "semanticStatus": "PENDING",
     "worktreeState": "DIRTY",
     "classification": "GRAPH_PARTIAL",
-    "sha256": "0d9d1ce9f44cc6569e33fb925ac9900eb86915058bb34da3166db0b42c69ef3d",
+    "sha256": "dceb9feb1afaa301ae0335f25136e41b21ea33420c07203907986b9f40d3ed14",
     "incompleteCodeFiles": [
       ".github/workflows/ayas-safe-ci.yml",
       "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",

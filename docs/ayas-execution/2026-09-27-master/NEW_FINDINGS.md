@@ -340,3 +340,7 @@ The first new compliance draft refused proxied input at structuredClone but its 
 ## 2026-10-03T21:32:44.989Z —16.12 model packet qualification
 
 61 primary/20 frozen/15 independent assertion-caught controls verify the bounded model and owner-source/admission seam only. Actual owner authentication, real activation, durable store, realized pilot evaluation and manual handoff are not yet qualified. New graders are not registered until the full stage; existing193 pins are unchanged. No homepage implementation. Stage16.12 remains OPEN.
+
+## 2026-10-03T22:29:32.075Z —16.12/F86 realized cost early-stop gap
+
+At675cb39 a synthetic reconciled ledger with1 minor unit AD_SPEND still returned PROMISING and positive profit, despite the zero-spend pilot policy. It granted no authority/spend and ran no platform action. Fixed inside16.12 before stage advancement: derive MONETARY_COMMITMENT from known positive nonpassive costs across historical pilot order/activity scope, recommend owner pause and preserve economics. P88/P96/H31 and a separate mutation cover the gap, including new plan revisions. Full source receipts must be regenerated; the675cb39 focused receipt is historical.

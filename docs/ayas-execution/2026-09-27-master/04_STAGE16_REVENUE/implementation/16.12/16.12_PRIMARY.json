@@ -348,7 +348,7 @@
     },
     {
       "id": "P88",
-      "name": "late fees for selected order remain costs",
+      "name": "late nonpassive cost remains negative and stops zero-spend pilot",
       "ok": true
     },
     {
@@ -388,7 +388,7 @@
     },
     {
       "id": "P96",
-      "name": "unexpected monetary commitment security-blocks zero spend",
+      "name": "signal or actual nonpassive ledger cost stops zero-spend pilot",
       "ok": true
     },
     {

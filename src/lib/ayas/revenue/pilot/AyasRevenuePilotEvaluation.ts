@@ -36,7 +36,11 @@ export function evaluateAyasRevenuePilot(rawStore:unknown,planDigest:string,rawL
  const conversionBps=denominator!==null&&metricValid?Number(BigInt(numerator)*BigInt(10000)/BigInt(denominator)):null;
  const met=metricValid&&(metric.kind==="CONVERSION_RATE"?conversionBps!==null&&conversionBps>=metric.targetBps:numerator>=metric.target);
  // Signals and failed/unknown actions survive revisions; choosing a later window cannot erase them.
- const signals=[...new Set(projection.observations.filter(o=>o.kind==="SIGNAL").map(o=>o.signal!))].sort(),failed=projection.observations.some(o=>o.kind==="ACTION_RESULT"&&o.actionStatus!=="PERFORMED");
+ const signalSet=new Set(projection.observations.filter(o=>o.kind==="SIGNAL").map(o=>o.signal!));
+ const historicalOrders=new Set(ledger.entries.filter(e=>e.platform===p.platform&&e.offerDigest===p.offerDigest&&e.event==="GROSS_REVENUE"&&projection.plans.some(plan=>plan.startAt!==null&&plan.stopAt!==null&&Date.parse(e.occurredAt)>=Date.parse(plan.startAt)&&Date.parse(e.occurredAt)<Date.parse(plan.stopAt))).map(e=>e.orderDigest).filter((v):v is string=>v!==null));
+ const costEvidence=active.filter(e=>e.platform===p.platform&&(e.orderDigest!==null&&historicalOrders.has(e.orderDigest)||projection.plans.some(plan=>e.activityDigest===plan.planDigest&&e.offerDigest===plan.offerDigest)));
+ if(costEvidence.some(e=>["AD_SPEND","OTHER_COST","VARIABLE_DELIVERY_COST"].includes(e.event)&&e.amount.valueMinor>0))signalSet.add("MONETARY_COMMITMENT");
+ const signals=[...signalSet].sort(),failed=projection.observations.some(o=>o.kind==="ACTION_RESULT"&&o.actionStatus!=="PERFORMED");
  const reasons:string[]=[];let verdict:AyasRevenuePilotVerdict;
  const complete=reconciled&&economics.length>0&&economics.every(e=>!e.incompleteEvidence)&&sales.every(e=>e.orderDigest!==null)&&p.currency!==null&&economics.every(e=>e.currency===p.currency);
  if(signals.some(s=>s==="SECURITY_BLOCKER"||s==="MONETARY_COMMITMENT")){verdict="SECURITY_BLOCKED";reasons.push("SECURITY_OR_UNEXPECTED_COST");}

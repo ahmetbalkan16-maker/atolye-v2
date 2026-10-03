@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-03T22:29:32.074Z",
+  "sourceBefore": "675cb39759b43f9e13ecb5c77f4b11981d567a2b",
+  "reproduced": {
+    "reproduced": true,
+    "verdict": "PROMISING",
+    "observedAdSpend": 1,
+    "autonomousSpend": 0,
+    "grantsAuthority": false
+  },
+  "repair": "Actual positive AD_SPEND/OTHER_COST/VARIABLE_DELIVERY_COST for any known historical pilot order/activity derives MONETARY_COMMITMENT;security-blocked owner pause recommendation independent of positive profit. Known prior revision cost remains; no automatic mutation or spend authority.",
+  "contracts": [
+    "P88 late actual nonpassive cost retained with negative economics and security stop",
+    "P96 actual positive ad/other/delivery cost independently blocks",
+    "H31 positive realized profit and new draft revision cannot erase paid evidence",
+    "Independent removal of derived ledger cost signal must assertion-fail P96"
+  ],
+  "qualification": "FOCUSED_CASES_VERIFIED_FULL_STATIC_MUTATION_EXACT_SOURCE_PENDING"
+}

@@ -1,12 +1,12 @@
 {
   "status": "PASS",
   "heldOut": {
-    "pass": 30,
-    "total": 30
+    "pass": 31,
+    "total": 31
   },
   "frozen": true,
   "originalFrozenCases": 20,
-  "appendedStageCases": 10,
+  "appendedStageCases": 11,
   "scope": "MODEL_OWNER_ADMISSION_REALIZED_ECONOMICS_MANUAL_HANDOFF",
   "liveQualification": "NOT_RUN",
   "results": [
@@ -158,6 +158,11 @@
     {
       "id": "H30",
       "name": "source getter in handoff never executes",
+      "ok": true
+    },
+    {
+      "id": "H31",
+      "name": "realized nonpassive cost survives positive profit and new revision",
       "ok": true
     }
   ]
