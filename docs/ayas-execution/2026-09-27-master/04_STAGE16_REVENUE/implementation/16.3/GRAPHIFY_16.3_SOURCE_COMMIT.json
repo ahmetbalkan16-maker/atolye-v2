@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T08:33:54.229Z",
+  "head": "9ac825993d19ef7d5ffdd94d522f095fee100ac9",
+  "nodes": 18116,
+  "edges": 51862,
+  "communities": 368,
+  "duplicateNodes": 0,
+  "duplicateEdges": 0,
+  "danglingEdges": 0,
+  "selfLoops": 0,
+  "stale": false,
+  "needsUpdate": false,
+  "structuralStatus": "PARTIAL",
+  "structuralReasons": [
+    "INCOMPLETE_CODE_FILES:9"
+  ],
+  "semanticStatus": "PENDING",
+  "sha256": "c4e4771c89dc3d5f69f13ce68945eeb673f34a4c2105e909f5e26e234c3e203e"
+}

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T08:33:54.229Z",
+  "state": "CLOSED_GREEN_SOURCE_ADVISORY_ONLY",
+  "sourceCommit": "9ac825993d19ef7d5ffdd94d522f095fee100ac9",
+  "exactReceipt": "16.3_EXACT_SOURCE_RECEIPT.json",
+  "exactReceiptSha256": "10328807f9541737cbd1fc7bde81ca866053974abb03c7a871cdff74ce5dba2f",
+  "primary": {
+    "passed": 66,
+    "total": 66
+  },
+  "heldOut": {
+    "passed": 12,
+    "total": 12
+  },
+  "negativeControls": {
+    "total": 39,
+    "caught": 39,
+    "equivalents": 0
+  },
+  "manifestVersion": "15F.4-v40",
+  "declaredSuites": 128,
+  "uniquePins": 153,
+  "selectedRegressionSuites": 12,
+  "extraRegressionSuites": 6,
+  "independentReview": "PASS_AFTER_ALL_FINDINGS_FIXED",
+  "typeScript": "PASS",
+  "changedLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "wholeLint": {
+    "errors": 0,
+    "inheritedWarnings": 13
+  },
+  "diffCheck": "PASS",
+  "graphify": {
+    "schemaVersion": "1",
+    "at": "2026-10-03T08:33:54.229Z",
+    "head": "9ac825993d19ef7d5ffdd94d522f095fee100ac9",
+    "nodes": 18116,
+    "edges": 51862,
+    "communities": 368,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "stale": false,
+    "needsUpdate": false,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "sha256": "c4e4771c89dc3d5f69f13ce68945eeb673f34a4c2105e909f5e26e234c3e203e"
+  },
+  "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+  "lastCompleteBaseline": {
+    "head": "5cbb21706eb12693555a9fefbc7554fadf175049",
+    "manifest": "15F.4-v38",
+    "suites": 124,
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS"
+  },
+  "liveRevenueRoot": "ABSENT",
+  "authority": "NONE",
+  "pushPolicy": "NO_PUSH",
+  "next": "16.3A Offer/Product Factory"
+}
