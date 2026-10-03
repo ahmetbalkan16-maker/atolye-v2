@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-03T18:15:03.545Z",
+  "id": "F83_METADATA",
+  "reproduction": "isAyasEvalManifest rejected unsupported NEGATIVE_CONTROLS kind before source commit.",
+  "repair": "Declare the negative-control script as REGRESSION, consistent with all existing mutation suites. Validator and grading unchanged."
+}

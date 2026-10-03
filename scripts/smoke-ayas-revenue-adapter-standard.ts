@@ -18,8 +18,8 @@ import { createFakeRevenueAdapter, fakeRevenueAnswer, fakeRevenueManifest, type 
 
 const AT = "2026-10-03T12:00:00.000Z";
 /** Import/export syntax only: a field named "from" or an example in a comment is data. */
-function revenueModuleImports(source: string): readonly string[] {
-  const tree = ts.createSourceFile("revenue.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function revenueModuleImports(source: string, filename="revenue.ts"): readonly string[] {
+  const tree = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, filename.endsWith(".tsx")?ts.ScriptKind.TSX:ts.ScriptKind.TS);
   assert.equal((tree as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length, 0, "invalid source syntax");
   const imports: string[] = [];
   const literal = (node: ts.Node | undefined) => { assert.ok(node && ts.isStringLiteral(node), "nonliteral module import"); imports.push(node.text); };
@@ -330,7 +330,7 @@ async function main() {
     assert.equal(r.result?.status, "OK"); assert.equal(r.result?.operation, "LISTING_LIST_READ"); assert.equal(r.plan.operation, "LISTING_LIST_READ");
     for (const operation of [" PURCHASE", "purchase", "Purchase"]) assert.equal(decide({ operations: ALL_OPS }, req({ operation, mode: "EXECUTE" })).reason, "UNKNOWN_OPERATION");
   });
-  await scenario("primary", "P48", "pure adapter policy stays isolated; only explicit16.2 ledger store has local file access; no live consumer", () => {
+  await scenario("primary", "P48", "pure revenue policy stays isolated; explicit offline stores and one read-only chat context consumer", () => {
     const allowed = /^(?:\.\/AyasRevenue[A-Za-z]+|\.\.\/policy\/AyasZeroCostPolicy|\.\.\/\.\.\/brain\/BrainRedaction)$/;
     const files = fs.readdirSync(REVENUE_DIR).filter((f) => f.endsWith(".ts"));
     // Every file present obeys the rules below; the core standard files must be among them.
@@ -341,16 +341,21 @@ async function main() {
         "AyasRevenueLedger.ts": ["node:crypto"],
         "AyasRevenueDigest.ts": ["node:crypto", "../provenance/AyasReleaseProvenance"],
         "AyasRevenueLedgerStore.ts": ["node:fs", "node:path", "node:crypto", "../../runtime/RuntimeStoragePaths", "../../brain/autonomy/AyasExecutionAuthorityLock", "../safety/AyasSafeModeReader"],
+        "AyasRevenueMemoryStore.ts": ["node:fs", "node:path", "node:crypto", "../../runtime/RuntimeStoragePaths", "../../brain/autonomy/AyasExecutionAuthorityLock", "../safety/AyasSafeModeReader"],
       };
       for (const dependency of revenueModuleImports(source)) assert.ok(allowed.test(dependency) || extensions[file]?.includes(dependency), `${file} imports ${dependency}`);
       assert.doesNotMatch(source, /(?<![.\w])fetch\s*\(|https?:\/\/|child_process|process\.env|require\(|XMLHttpRequest|WebSocket/, file);
-      if (file !== "AyasRevenueLedgerStore.ts") assert.doesNotMatch(source, /node:fs/, file);
+      if (!["AyasRevenueLedgerStore.ts","AyasRevenueMemoryStore.ts"].includes(file)) assert.doesNotMatch(source, /node:fs/, file);
     }
     const redaction = fs.readFileSync("src/lib/brain/BrainRedaction.ts", "utf8"); assert.doesNotMatch(redaction, /^import /m);
     const outside: string[] = [];
-    const walk = (dir: string) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) { if (e.name !== "node_modules") walk(p); } else if (/\.tsx?$/.test(e.name) && !p.replace(/\\/g, "/").includes("src/lib/ayas/revenue/") && /(?:from|import)\s*\(?\s*["'][^"']*\brevenue\/AyasRevenue/.test(fs.readFileSync(p, "utf8"))) outside.push(p); } };
+    const walk = (dir: string) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) { if (e.name !== "node_modules") walk(p); } else if (/\.tsx?$/.test(e.name) && !p.replace(/\\/g, "/").includes("src/lib/ayas/revenue/")) {
+      const imports=revenueModuleImports(fs.readFileSync(p,"utf8"),p).filter(v=>/\brevenue\/AyasRevenue/.test(v));
+      if(imports.length){if(p.replace(/\\/g,"/")==="src/lib/ayas/AyasChatStream.ts")assert.deepEqual(imports,["./revenue/AyasRevenueContext"]);else outside.push(p);}
+    } } };
     for (const root of ["src", "app"]) if (fs.existsSync(root)) walk(root);
     assert.deepEqual(outside, []);
+    for(const file of ["AyasRevenueContext.ts","AyasRevenueIntelligence.ts","AyasRevenueRecall.ts","AyasRevenueTemporal.ts"]){const source=fs.readFileSync(path.join(REVENUE_DIR,file),"utf8");assert.doesNotMatch(source,/AyasRevenue(?:MemoryStore|LedgerStore|SpendPolicy|ReinvestmentPolicy|PlatformRegistry)|\.append\s*\(/,file);}
     assert.match(fs.readFileSync(path.join(REVENUE_DIR, "AyasRevenuePlatformRegistry.ts"), "utf8"), /AYAS_REVENUE_PRODUCTION_ADAPTERS: readonly AyasRevenuePlatformAdapter\[\] = Object\.freeze\(\[\]\);/);
   });
   await scenario("primary", "P55", "module audit distinguishes data and detects static, dynamic and export dependencies", () => {

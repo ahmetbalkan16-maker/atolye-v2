@@ -1,0 +1,66 @@
+{
+  "at": "2026-10-03T17:33:42.328Z",
+  "baseHead": "f2b3a0e7f1ca8e1313fe7959c33f0987633bc852",
+  "graphBefore": {
+    "at": "2026-10-03T17:33:42.244Z",
+    "head": "f2b3a0e7f1ca8e1313fe7959c33f0987633bc852",
+    "lastAnalyzedHead": "f2b3a0e7f1ca8e1313fe7959c33f0987633bc852",
+    "graphBuiltFrom": "f2b3a0e7f1ca8e1313fe7959c33f0987633bc852",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18611,
+    "edges": 53337,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "e6e172bcd95f8ec8553ee8a244a97083b6c386fcdf4730c1e8b0439aa8cb9c96",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "dependencyContext": {
+    "status": "ok",
+    "summary": "Review context for 5 changed file(s):\n  - Risk: high\n  - 58 impacted nodes in 22 files",
+    "risk": "high",
+    "changedFileCount": 5,
+    "impactedFileCount": 22,
+    "keyEntities": [
+      ".append()",
+      ".checkRoot()",
+      ".constructor()",
+      ".read()",
+      "AYAS_MEMORY_FACT_KEYS"
+    ],
+    "testGaps": 142,
+    "nextToolSuggestions": [
+      "detect-changes",
+      "affected-flows",
+      "review-context"
+    ]
+  },
+  "architecture": [
+    "Dedicated append-only intelligence/memory.json; explicit checkout/TEMP root; reuse contained-directory, authority-lock and SAFE_READ_ONLY primitives. No ledger writes or production writer binding.",
+    "Exact closed enum/digest/code schemas; no free text, raw payloads, private contacts or realized numeric money copies. Planned price is distinct from ledger economics.",
+    "Temporal v2 current/history/as-of/knownAt, closed exclusive slots, source precedence, explicit corrections, no resurrection and conflict refusal; existing conversation key registry unchanged.",
+    "Pure ledger-derived per-currency intelligence; optional bounded context through existing chat memoryLines/context budget; body-free trace counts. No action/payment/spend/approval modules."
+  ],
+  "qualification": "NORMALIZED_RECORDS_NOT_AUTHENTICATED_OWNER; no live source binding or actual business-data qualification",
+  "testPlan": ">=60 primary+15 frozen held-out, meaningful negative controls; TEMP storage and unchanged ledger proofs; memory/retrieval/cognitive/security/ledger/chat regressions; TS/lint/Graphify/pins; full current baseline status explicit."
+}

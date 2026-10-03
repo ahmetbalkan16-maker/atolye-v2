@@ -106,6 +106,7 @@ for (const key of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP",
 const run = (selected?: string) => spawnSync(process.execPath, ["--import", "tsx", test], { cwd: temp, env: selected === undefined ? env : { ...env, AYAS_REVENUE_MUTATION_CASE: selected }, encoding: "utf8", windowsHide: true, timeout: 120_000, maxBuffer: 1_000_000 });
 try {
   copy(test); for (const file of ["tsconfig.json", "package.json", ".gitignore"]) copy(file);
+  for(const file of fs.readdirSync(path.join(repo,"src/lib/ayas/revenue")).filter(f=>f.endsWith(".ts")))copy("src/lib/ayas/revenue/"+file);
   fs.symlinkSync(fs.realpathSync(path.join(repo, "node_modules")), link, process.platform === "win32" ? "junction" : "dir");
   const baseline = run(); assert.equal(baseline.status, 0, `${baseline.stderr}${baseline.stdout}`.slice(0, 2000));
   let caught = 0;

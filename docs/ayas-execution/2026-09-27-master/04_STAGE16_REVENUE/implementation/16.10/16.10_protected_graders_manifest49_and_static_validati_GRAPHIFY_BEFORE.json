@@ -1,0 +1,57 @@
+{
+  "at": "2026-10-03T17:59:21.688Z",
+  "graph": {
+    "at": "2026-10-03T17:59:21.603Z",
+    "head": "f2b3a0e7f1ca8e1313fe7959c33f0987633bc852",
+    "lastAnalyzedHead": "f2b3a0e7f1ca8e1313fe7959c33f0987633bc852",
+    "graphBuiltFrom": "f2b3a0e7f1ca8e1313fe7959c33f0987633bc852",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18698,
+    "edges": 53553,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "bf2b3cb1cee8416600ef78a3d280c207bbbffc0eb51cc9ec22068474571ef11f",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "context": {
+    "status": "ok",
+    "summary": "Review context for 4 changed file(s):\n  - Risk: high\n  - 151 impacted nodes in 71 files",
+    "risk": "high",
+    "changedFileCount": 4,
+    "impactedFileCount": 71,
+    "keyEntities": [
+      "ALL_OPS",
+      "BrainPatchSafety.ts",
+      "BrainPatchSafetyLevel",
+      "BrainPatchSetVerdict",
+      "BrainPatchTargetVerdict"
+    ],
+    "testGaps": 49,
+    "nextToolSuggestions": [
+      "detect-changes",
+      "affected-flows",
+      "review-context"
+    ]
+  }
+}

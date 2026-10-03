@@ -300,3 +300,15 @@ P48 dependency regex misread schema field "from" after F80 repair at6b6bc6e. AST
 ## 2026-10-03T17:32:01.651Z —16.9 exact-source framework verification
 
 16.9 framework exact-source verified at eee322cb8693a2fd8980d0c4a1d62ea924b17659:64+12/40 controls; adapter55+10/77 controls;35 selected+6 extra TEMP regressions;179 committed pins; TS/lint/diff PASS. F80 production digest isolation andF81 AST import grader repaired without broadening allowlists or weakening privacy/action gates. Graphify current/integrity0;PARTIAL9/semanticPENDING. Fullv48 NOT_RUN. Source policy disabled/0/emptycaps; no actual owner-reviewed source binding, financial authority, reservation or executor. Stage16/Master OPEN; next16.10.
+
+## 2026-10-03T17:53:40.239Z —F82 /16.10 stale plan evidence
+
+Fresh ledger observations masked stale current-plan evidence in market freshness warning. IntelligenceP23 failed31/32+8/8; memory64/64+15/15 PASS. Warn when any current business record exceeds7days independently of aggregate ledger freshness; warning stays advisory and does not authorize action.
+
+## 2026-10-03T18:11:42.144Z —16.10 focused/source validation
+
+16.10 dedicated business memory/source implemented: memory65+15 (includes actual captured chat prompt), intelligence32+8,15 assertion-caught controls; defaults unchanged, no writer/HTTP binding. F82 stale current plan masked by fresh ledger reproduced and fixed. Static/Graphify worktree checks PASS with inherited PARTIAL9/semanticPENDING; v49:148 suites/183 pins, full baseline NOT_RUN. Clean exact-source matrix/full clustered Graphify pending; no16.11 advancement.
+
+## 2026-10-03T18:15:03.545Z —16.10 manifest metadata repair
+
+isAyasEvalManifest rejected unsupported NEGATIVE_CONTROLS kind before source commit. Declare the negative-control script as REGRESSION, consistent with all existing mutation suites. Validator and grading unchanged.

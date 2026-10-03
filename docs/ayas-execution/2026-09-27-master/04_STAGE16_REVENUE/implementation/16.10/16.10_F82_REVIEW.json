@@ -1,0 +1,7 @@
+{
+  "id": "F82",
+  "at": "2026-10-03T17:53:40.239Z",
+  "problem": "Fresh ledger observations masked stale current-plan evidence in market freshness warning.",
+  "reproduction": "IntelligenceP23 failed31/32+8/8; memory64/64+15/15 PASS.",
+  "repair": "Warn when any current business record exceeds7days independently of aggregate ledger freshness; warning stays advisory and does not authorize action."
+}

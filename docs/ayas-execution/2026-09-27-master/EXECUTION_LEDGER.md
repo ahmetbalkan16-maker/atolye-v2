@@ -1092,3 +1092,15 @@ P48 dependency regex misread schema field "from" after F80 repair at6b6bc6e. AST
 ## 2026-10-03T17:32:01.651Z —16.9 exact-source framework verification
 
 16.9 framework exact-source verified at eee322cb8693a2fd8980d0c4a1d62ea924b17659:64+12/40 controls; adapter55+10/77 controls;35 selected+6 extra TEMP regressions;179 committed pins; TS/lint/diff PASS. F80 production digest isolation andF81 AST import grader repaired without broadening allowlists or weakening privacy/action gates. Graphify current/integrity0;PARTIAL9/semanticPENDING. Fullv48 NOT_RUN. Source policy disabled/0/emptycaps; no actual owner-reviewed source binding, financial authority, reservation or executor. Stage16/Master OPEN; next16.10.
+
+## 2026-10-03T17:33:42.328Z —16.10 Graphify-first architecture start
+
+Dedicated append-only intelligence/memory.json; explicit checkout/TEMP root; reuse contained-directory, authority-lock and SAFE_READ_ONLY primitives. No ledger writes or production writer binding.
+Exact closed enum/digest/code schemas; no free text, raw payloads, private contacts or realized numeric money copies. Planned price is distinct from ledger economics.
+Temporal v2 current/history/as-of/knownAt, closed exclusive slots, source precedence, explicit corrections, no resurrection and conflict refusal; existing conversation key registry unchanged.
+Pure ledger-derived per-currency intelligence; optional bounded context through existing chat memoryLines/context budget; body-free trace counts. No action/payment/spend/approval modules.
+NORMALIZED_RECORDS_NOT_AUTHENTICATED_OWNER; no live source binding or actual business-data qualification
+
+## 2026-10-03T18:11:42.144Z —16.10 focused/source validation
+
+16.10 dedicated business memory/source implemented: memory65+15 (includes actual captured chat prompt), intelligence32+8,15 assertion-caught controls; defaults unchanged, no writer/HTTP binding. F82 stale current plan masked by fresh ledger reproduced and fixed. Static/Graphify worktree checks PASS with inherited PARTIAL9/semanticPENDING; v49:148 suites/183 pins, full baseline NOT_RUN. Clean exact-source matrix/full clustered Graphify pending; no16.11 advancement.

@@ -53,6 +53,7 @@ import {
 } from "./memory/AyasMemoryRecall";
 import { stemAyasMemoryWord } from "./memory/AyasMemoryRetrieval";
 import type { AyasMemoryStoreOptions } from "./memory/AyasMemoryStore";
+import { buildAyasRevenueContext } from "./revenue/AyasRevenueContext";
 import { isAyasIdentityStatement } from "./memory/AyasMemoryCandidate";
 import { ayasMemoryNameKey, detectAyasMemoryTemporalQuery, readAyasIdentityStatement } from "./memory/AyasMemoryTemporal";
 import { shouldUseAyasReasoning, runAyasReasoning } from "./reasoning/AyasReasoningCore";
@@ -171,6 +172,8 @@ export interface StreamAyasChatInput {
    * without ever touching the operator's real memory file.
    */
   readonly memoryStore?: AyasMemoryStoreOptions;
+  /** Trusted optional read-only business snapshots; absent in production until qualified. No store writer or request-body binding. */
+  readonly revenueMemorySnapshots?: { readonly memory: unknown; readonly ledger: unknown };
 }
 
 function fold(text: string): string {
@@ -1116,8 +1119,12 @@ async function* streamAyasChatTurn(
     },
     memoryRecall.status === "ok" ? undefined : "MEMORY_UNREADABLE",
   );
-  const memoryLinesForPrompt = relevantMemoryLinesForTurn(memoryRecall.entries, text);
-  const memoryIdentityName = recalledIdentityNameFromMemory(memoryRecall.entries, memoryLinesForPrompt);
+  const conversationalMemoryLines = relevantMemoryLinesForTurn(memoryRecall.entries, text);
+  const memoryIdentityName = recalledIdentityNameFromMemory(memoryRecall.entries, conversationalMemoryLines);
+  const revenueSpan = input.revenueMemorySnapshots ? trace?.startSpan("memory", "ayas-revenue", "read-context", conversationSpan?.spanId) : undefined;
+  const revenueContext = input.revenueMemorySnapshots ? buildAyasRevenueContext({ ...input.revenueMemorySnapshots, userText: text, now: new Date().toISOString() }) : null;
+  revenueSpan?.end(revenueContext?.status === "UNAVAILABLE" ? "error" : "ok", { recordCount: revenueContext?.recordCount ?? 0, warningCount: revenueContext?.warningCount ?? 0, selectedCount: revenueContext?.lines.length ?? 0 }, revenueContext?.status === "UNAVAILABLE" ? "REVENUE_CONTEXT_UNAVAILABLE" : undefined);
+  const memoryLinesForPrompt = [...conversationalMemoryLines, ...(revenueContext?.lines ?? [])];
 
   // 1 — route: which model answers this turn (availability + complexity).
   const routingSpan = trace?.startSpan("model", "ayas-model", "route", conversationSpan?.spanId);

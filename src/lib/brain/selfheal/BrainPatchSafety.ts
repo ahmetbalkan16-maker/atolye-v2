@@ -103,6 +103,10 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
   "scripts/smoke-ayas-revenue-reinvestment-mutations.ts",
   "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
+  "scripts/smoke-ayas-revenue-memory.ts",
+  "scripts/smoke-ayas-revenue-intelligence.ts",
+  "scripts/smoke-ayas-revenue-memory-mutations.ts",
+  "scripts/fixtures/ayas-revenue-memory-fixture.ts",
   "scripts/ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain-mutations.ts",
@@ -117,7 +121,7 @@ const RULES: readonly Rule[] = Object.freeze([
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "the revenue platform standard (operation effects, owner-required writes, non-autonomous money) cannot rewrite itself",
-    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md" || p.toLowerCase() === "docs/ayas_revenue_unit_economics.md" || p.toLowerCase() === "docs/ayas_revenue_free_first_validation.md" || p.toLowerCase() === "docs/ayas_revenue_offer_factory.md" || p.toLowerCase() === "docs/ayas_revenue_fulfillment_gate.md" || p.toLowerCase() === "docs/ayas_revenue_etsy_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_upwork_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_fiverr_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_udemy_atolye.md" || p.toLowerCase() === "docs/ayas_revenue_lemon_squeezy.md" || p.toLowerCase() === "docs/ayas_revenue_reinvestment_policy.md",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md" || p.toLowerCase() === "docs/ayas_revenue_unit_economics.md" || p.toLowerCase() === "docs/ayas_revenue_free_first_validation.md" || p.toLowerCase() === "docs/ayas_revenue_offer_factory.md" || p.toLowerCase() === "docs/ayas_revenue_fulfillment_gate.md" || p.toLowerCase() === "docs/ayas_revenue_etsy_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_upwork_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_fiverr_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_udemy_atolye.md" || p.toLowerCase() === "docs/ayas_revenue_lemon_squeezy.md" || p.toLowerCase() === "docs/ayas_revenue_reinvestment_policy.md" || p.toLowerCase() === "docs/ayas_revenue_intelligence_memory.md",
   },
   {
     level: "FORBIDDEN_AUTONOMOUS",

@@ -1,0 +1,85 @@
+{
+  "status": "PASS",
+  "caught": 15,
+  "total": 15,
+  "equivalents": 0,
+  "baselineAndRecovered": "PASS",
+  "fixture": "GITLESS_TEMP_NO_AUTHORITY_OR_LIVE_DATA",
+  "rows": [
+    {
+      "name": "owner review receipt ignored",
+      "assertion": "P31",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "future observation accepted",
+      "assertion": "P32",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "duplicate event overwrites material",
+      "assertion": "P51",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "memory identity not checked",
+      "assertion": "P54",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "foreign slot admitted",
+      "assertion": "P53",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "model correction overrides owner",
+      "assertion": "H10",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "source rank inverted",
+      "assertion": "P41",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "future version made current",
+      "assertion": "P44",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "disputed current accepted",
+      "assertion": "P42",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "closed offer resurrected",
+      "assertion": "P06",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "model plan owner-promoted",
+      "assertion": "P05",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "ledger reference mismatch hidden",
+      "assertion": "P14",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "stale plan masked by fresh ledger",
+      "assertion": "P23",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "known-at ignored",
+      "assertion": "H02",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "context made authoritative",
+      "assertion": "P25",
+      "status": "ASSERTION_CAUGHT"
+    }
+  ]
+}

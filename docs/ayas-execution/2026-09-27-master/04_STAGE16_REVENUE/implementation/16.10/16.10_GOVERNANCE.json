@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "scenarios": 10,
+  "manifestVersion": "15F.4-v49",
+  "manifestDigest": "b890c842d5748170cd6e73af66eeda1df74fcc071a3f027bf461fadcc35c7fb2",
+  "definitionRepair": "Unsupported new kind refused; corrected to existing REGRESSION without validator/grading change",
+  "uniquePins": 183,
+  "pinDrift": [],
+  "modelNetworkProductionActions": 0
+}

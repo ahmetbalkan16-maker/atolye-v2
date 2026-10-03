@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v49",
+  "version": "15F.4-v48",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2202,7 +2202,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "11943669624bb8de3c27dd27aa03d9c5fa8c26c6e7bd21f3b5dfa7fb86c103b3"
+          "sha256": "2656c978fb1ed44e6e52c3ffdb59b6b685a01b01293ddf635bf762ad0d81b35d"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
@@ -2224,11 +2224,11 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "11943669624bb8de3c27dd27aa03d9c5fa8c26c6e7bd21f3b5dfa7fb86c103b3"
+          "sha256": "2656c978fb1ed44e6e52c3ffdb59b6b685a01b01293ddf635bf762ad0d81b35d"
         },
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
-          "sha256": "5a476691984ed0500d1a57f04fd712b1c8094c95e55a4c1509d69229f6a27757"
+          "sha256": "731ec6e059ca2c6a49f34428ee47b6e45d2ec994b374b73959ef79c5064dfef8"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
@@ -2909,82 +2909,6 @@
         "owner-source-policy-not-approval",
         "same-currency-settled-profit",
         "bounded-advisory-only"
-      ]
-    },
-    {
-      "id": "revenue-memory",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-memory.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-memory.ts",
-          "sha256": "0fad2426f25d854711cc817d49c2ffd3189db892cc14914ee7938d2f333d40df"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-memory-fixture.ts",
-          "sha256": "5173431a20a60159410d75a2f458d1ab84ffc9da000a953e361026130084d44a"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-intelligence",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-intelligence.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-intelligence.ts",
-          "sha256": "d8f3d4cb41b818ece0b510b6939e02594c41bf7aed72e426846c4572e9b1f81b"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-memory-fixture.ts",
-          "sha256": "5173431a20a60159410d75a2f458d1ab84ffc9da000a953e361026130084d44a"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
-          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-memory-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-memory-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-memory-mutations.ts",
-          "sha256": "42f432f9b9bcfc5e2c3e57085e552e147fd17a2e6cb9378c9481b4ab79db7275"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-memory-fixture.ts",
-          "sha256": "5173431a20a60159410d75a2f458d1ab84ffc9da000a953e361026130084d44a"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
-          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-memory.ts",
-          "sha256": "0fad2426f25d854711cc817d49c2ffd3189db892cc14914ee7938d2f333d40df"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-intelligence.ts",
-          "sha256": "d8f3d4cb41b818ece0b510b6939e02594c41bf7aed72e426846c4572e9b1f81b"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
       ]
     }
   ],
