@@ -1072,3 +1072,7 @@ e634a73: course57+12/Udemy53+12,56 caught controls,31 selected+6 extra regressio
 ## 2026-10-03T16:10:58.437Z — 16.8 session recovery
 
 Recovered 984dda2cb291e61f97a98bfe37b2904b6695f8c9 (19 ahead/0 behind). Preserved inherited 16.8 work; repaired stale continuity HEAD/lastGreenTests/previousStage from verified16.7 evidence. Graphify AST refreshed; exact-source closure pending. No live activation or money. Evidence: implementation/16.8/16.8_SESSION_RECOVERY.json.
+
+## 2026-10-03T16:29:53.749Z —16.8 exact-source framework verification
+
+Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33 selected+6 extra TEMP regressions,176 committed pins and TS/changed lint/diff PASS. Graphify18559/53182 current, integrity0;PARTIAL9/semanticPENDING retained. Fullv47 NOT_RUN. Owner Test-mode/durable ingress and16.5/16.7 qualification remain deferred; Stage16/Master OPEN. Next16.9 pure advisory reinvestment; no live effect, financial authority or production registration.

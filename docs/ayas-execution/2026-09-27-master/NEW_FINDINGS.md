@@ -280,3 +280,7 @@ Current object references specify integer cents; older webhook examples include 
 ## F76 — Lemon canonical refresh and honest control qualification
 
 Verified notification refresh now uses common read/spend/result gates and matches pointer store/type/ID/mode before inert mapping; no route, ACK, durable receipt or auto ledger commit.60 assertion-caught controls after rejecting a manifest mutation that produced runtime central-guard rejection, isolating redundant probes and fixing classification assertions to compare .level. Held-out assertions unchanged. Owner trusted binding/Test-mode proof remains pending after foundation.
+
+## 2026-10-03T16:29:53.749Z —16.8 exact-source framework verification
+
+Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33 selected+6 extra TEMP regressions,176 committed pins and TS/changed lint/diff PASS. Graphify18559/53182 current, integrity0;PARTIAL9/semanticPENDING retained. Fullv47 NOT_RUN. Owner Test-mode/durable ingress and16.5/16.7 qualification remain deferred; Stage16/Master OPEN. Next16.9 pure advisory reinvestment; no live effect, financial authority or production registration.

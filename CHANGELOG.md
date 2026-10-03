@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.8 framework verified;16.9 active
+
+Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33 selected+6 extra TEMP regressions,176 committed pins and TS/changed lint/diff PASS. Graphify18559/53182 current, integrity0;PARTIAL9/semanticPENDING retained. Fullv47 NOT_RUN. Owner Test-mode/durable ingress and16.5/16.7 qualification remain deferred; Stage16/Master OPEN. Next16.9 pure advisory reinvestment; no live effect, financial authority or production registration.
+
 # AYAS current —2026-10-03 /16.8 source implemented; exact validation pending
 
 Lemon Squeezy89+15 scenarios/60 assertion-caught controls PASS; TS/changed lint0/0, whole lint0 errors/13 inherited warnings. Manifestv47:143 suites/176 pins; fullbaseline NOT_RUN. Official GET/parent/mode, raw HMAC pointer→common-gated canonical refresh, inert ledger and local plans; all writes/money CLOSED. Actual owner Test-mode key/connection and durable HTTP ingress remain pending after foundation; no production binding. Carry16.5 official tool qualification and16.7 route gaps; Stage16/Master OPEN. Next33+6 exact-source regressions/Graphify, then independent16.9 in order. SeeACTIVE_CHECKPOINT.json.

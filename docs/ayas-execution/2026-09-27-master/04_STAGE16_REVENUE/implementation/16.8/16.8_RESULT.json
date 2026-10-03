@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T16:29:53.718Z",
+  "sourceCommit": "53180cb0920eac06bcb2a06280fdcbf823b160fc",
+  "testedSourceHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+  "testedSourceInitiallyClean": true,
+  "state": "FRAMEWORK_VERIFIED_PENDING_OWNER_TEST_MODE_AND_DURABLE_INGRESS",
+  "stageClosed": false,
+  "primary": 89,
+  "heldOut": 15,
+  "negativeControls": {
+    "total": 60,
+    "caught": 60,
+    "equivalents": 0
+  },
+  "manifestVersion": "15F.4-v47",
+  "declaredSuites": 143,
+  "uniquePins": 176,
+  "pinDrift": [],
+  "committed": true,
+  "archiveV46Exact": true,
+  "selectedExactSourceSuites": 33,
+  "extraExactSourceSuites": 6,
+  "fullDeclaredBaseline": "NOT_RUN_V47_LAST_COMPLETE_V38_5cbb217",
+  "staticChecks": {
+    "typeScript": "PASS_RERUN_DURING_RECOVERY",
+    "changedLint": "PASS_RERUN_DURING_RECOVERY",
+    "wholeLint": "PRIOR_SAME_SOURCE_PASS_0_ERRORS_13_INHERITED_WARNINGS",
+    "diffCheck": "PASS"
+  },
+  "graphify": {
+    "at": "2026-10-03T16:29:47.876Z",
+    "head": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "lastAnalyzedHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "graphBuiltFrom": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18559,
+    "edges": 53182,
+    "communities": 379,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "24a2700c3bacab2f134cbc7b1aad186c44730d33a4957e3ca9c339b1a1f0dfa5",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "sourceInputs": [
+    {
+      "file": "docs/AYAS_REVENUE_LEMON_SQUEEZY.md",
+      "sha256": "4e310dccd5797f7317419e411ae672a74fbfbd453089384c77b47d6dc4f9282d",
+      "committed": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "58dc56964fcdcfb0a0fe4b8875b0001f3acc5a2152644e7cebc22b0d9f53bd18",
+      "committed": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V46.json",
+      "sha256": "bb7f5f1e8554912087875d37982ed115b7685c96c01ea34021a7e91fbfbb0750",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-lemon-fixture.ts",
+      "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "f7356484e8725bfdef12c0c1c4fcdabc7385682b3982c1911b8c51cf30964850",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
+      "sha256": "c0b80ef0eb01e5fa11764f0961bff0929b2a8207421e172525e63e2bee5ef9da",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+      "sha256": "6d5c58d27e4bd1bba193210178270124ac8098a6143f85afd01b1133dce52b16",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonCheckoutPolicy.ts",
+      "sha256": "7c021579a62fa1c40d65c2d86039ea30fb1d0be3da49ac8bebe15ce826161c0b",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonMapper.ts",
+      "sha256": "e8d9a7e2ca802e6feed483f2e480c615dbf57289d999f7f19d68b2f179dac860",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonSchemas.ts",
+      "sha256": "5b06c774ac0225192f2d113cdac31c213cf8fb9c504dba44ca8ed5838a0a153b",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonSqueezyAdapter.ts",
+      "sha256": "fab388e95b4dbb1a05e2365607c92ef895309115b2175335f4f0b4c9f0300370",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonWebhook.ts",
+      "sha256": "46be5efa1451fed234de20d8de97d5ed4eb0ae8bb9404bfba10de628bb7354b2",
+      "committed": true
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "5de18b6c096dc136eb84321afece003e1530bfb176e0c0fe71a2d68105b4abba",
+      "committed": true
+    }
+  ],
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT; INHERITED_F73_F76_AND_RECOVERY_NO_NEW_SOURCE_DEFECT",
+  "productionRegistry": "EMPTY",
+  "authority": "NONE",
+  "externalWrites": "CLOSED",
+  "financialExecution": "NONE",
+  "ownerTestModeProof": "PENDING_OWNER_ACTION_AFTER_FOUNDATION",
+  "durableWebhookBinding": "PENDING_TRUSTED_CALLER_NO_HTTP_ACK_OR_ROUTE",
+  "deferred": [
+    "16.5 official MCP catalog/schema/scopes",
+    "16.7 reviews/Q&A/individual-message route qualification"
+  ],
+  "next": "16.9 in canonical order; Stage16/Master OPEN",
+  "receipt": "16.8_EXACT_SOURCE_RECEIPT.json"
+}

@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "e634a73a9613e25938cc3ef223519a36deb8ac05",
-  "currentHead": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
-  "stage": "STAGE_16_8",
-  "subtask": "16.8 recovery reconciled; inherited source validation/commit before exact-source regression and Graphify",
+  "lastGreenHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+  "currentHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+  "stage": "STAGE_16_9",
+  "subtask": "16.9 canonical design and Graphify dependency inspection; pure advisory source implementation",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -84,9 +84,10 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_16_7",
-    "status": "FRAMEWORK_VERIFIED_PARTIAL_ENDPOINT_QUALIFICATION_PENDING",
-    "sourceCommit": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+    "stage": "STAGE_16_8",
+    "status": "FRAMEWORK_VERIFIED_PENDING_OWNER_TEST_MODE_AND_DURABLE_INGRESS",
+    "sourceCommit": "53180cb0920eac06bcb2a06280fdcbf823b160fc",
+    "testedSourceHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
     "stageClosed": false
   },
   "completedStages": [
@@ -243,51 +244,27 @@
     "16.3 Free-First Validation",
     "16.3A Offer / Product Factory",
     "16.3B Fulfillment & Delivery Quality Gate",
-    "16.4 Etsy read-only/local-draft source closure"
+    "16.4 Etsy read-only/local-draft source closure",
+    "16.7 framework verified with route qualification deferred",
+    "16.8 framework verified with owner Test-mode/durable ingress deferred"
   ],
-  "currentFiles": [
-    "I_MEMORY.md",
-    "ATOLYE_CHECKPOINT.md",
-    "ATOLYE_MASTER_ROADMAP.md",
-    "CHANGELOG.md",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
-    "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
-    "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md",
-    "scripts/smoke-ayas-eval-governance.ts",
-    "src/lib/brain/selfheal/BrainPatchSafety.ts",
-    "docs/AYAS_REVENUE_LEMON_SQUEEZY.md",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V46.json",
-    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_FOCUSED.json",
-    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_MUTATIONS.json",
-    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_OFFICIAL_SPEC_RECHECK.json",
-    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_REVIEW_REPRODUCED.json",
-    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_STATIC_CHECKS.json",
-    "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/IMPLEMENTATION_NOTES.md",
-    "scripts/fixtures/ayas-lemon-fixture.ts",
-    "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
-    "scripts/smoke-ayas-revenue-lemon-adapter.ts",
-    "src/lib/ayas/revenue/adapters/lemon/AyasLemonCheckoutPolicy.ts",
-    "src/lib/ayas/revenue/adapters/lemon/AyasLemonMapper.ts",
-    "src/lib/ayas/revenue/adapters/lemon/AyasLemonSchemas.ts",
-    "src/lib/ayas/revenue/adapters/lemon/AyasLemonSqueezyAdapter.ts",
-    "src/lib/ayas/revenue/adapters/lemon/AyasLemonWebhook.ts"
-  ],
+  "currentFiles": [],
   "lastGreenTests": [
-    "16.7 course57+12/Udemy53+12;56 assertion-caught controls",
-    "31 selected+6 extra exact-source regressions PASS;173 committed pins",
-    "TypeScript/lint/diff PASS;13 inherited lint warnings",
-    "Graphify exact source current with PARTIAL9/semanticPENDING retained"
+    "16.8 89 primary+15 held-out;60 assertion-caught controls",
+    "33 selected+6 extra exact-source regressions PASS;176 committed pins",
+    "TypeScript/changed lint/diff PASS; prior whole lint13 inherited warnings",
+    "Graphify current exact tested HEAD; zero integrity anomalies; PARTIAL9/semanticPENDING"
   ],
   "graphify": {
-    "at": "2026-10-03T16:10:58.353Z",
-    "head": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
-    "lastAnalyzedHead": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
-    "graphBuiltFrom": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
+    "at": "2026-10-03T16:29:47.876Z",
+    "head": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "lastAnalyzedHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "graphBuiltFrom": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 18557,
-    "edges": 53168,
-    "communities": 378,
+    "nodes": 18559,
+    "edges": 53182,
+    "communities": 379,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -297,9 +274,9 @@
       "INCOMPLETE_CODE_FILES:9"
     ],
     "semanticStatus": "PENDING",
-    "worktreeState": "DIRTY",
+    "worktreeState": "CLEAN",
     "classification": "GRAPH_PARTIAL",
-    "sha256": "9d3f1fcfcfe8daedb24c934fcb786b6e4d40f2ef142643f05b63ea7a8d286773",
+    "sha256": "24a2700c3bacab2f134cbc7b1aad186c44730d33a4957e3ca9c339b1a1f0dfa5",
     "incompleteCodeFiles": [
       ".github/workflows/ayas-safe-ci.yml",
       "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
@@ -335,10 +312,11 @@
     "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload.",
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only.",
-    "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure."
+    "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
+    "STAGE16_CLOSURE_BLOCKER:16.8 actual owner Test-mode key/connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "Validate and commit inherited 16.8 source, then run 33 selected + 6 extra exact-source regressions; refresh Graphify and record framework receipt; continue canonical 16.9 with external qualification deferred.",
-  "updatedAt": "2026-10-03T16:10:58.437Z",
+  "nextAction": "Implement16.9 pure realized-ledger reinvestment eligibility/proposal using existing16.1/16.2/16.3 boundaries; default source policy disabled/bps0/caps empty. Run >=45+12 graders/negative controls, TS/lint/affected regressions/Graphify/pins; preserve16.5/16.7/16.8 deferred qualification. Then16.10 in canonical order. Push only authorized major stage GREEN boundary.",
+  "updatedAt": "2026-10-03T16:29:53.749Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1708,7 +1686,7 @@
       "supersededBy": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
     }
   ],
-  "currentHeadSemantics": "Tested16.7 source; later documentation-only descendant may follow. Resolve actual git HEAD.",
+  "currentHeadSemantics": "HEAD at this evidence save; resolve actual Git HEAD because later documentation-only commits may follow. Tested source and source commit are explicit.",
   "stage15Closure": {
     "state": "CLOSED_SOURCE_COMBINED",
     "closedOn": "2026-10-03",
@@ -2284,7 +2262,7 @@
     "result": "04_STAGE16_REVENUE/implementation/16.7/16.7_RESULT.json"
   },
   "stage16_8": {
-    "state": "IMPLEMENTED_PENDING_EXACT_SOURCE_VALIDATION_OWNER_TEST_MODE_PROOF",
+    "state": "FRAMEWORK_VERIFIED_PENDING_OWNER_TEST_MODE_AND_DURABLE_INGRESS",
     "stageClosed": false,
     "baseHead": "984dda2cb291e61f97a98bfe37b2904b6695f8c9",
     "primary": 89,
@@ -2297,13 +2275,145 @@
     "manifestVersion": "15F.4-v47",
     "declaredSuites": 143,
     "uniquePins": 176,
-    "fullDeclaredBaseline": "NOT_RUN",
+    "fullDeclaredBaseline": "NOT_RUN_V47_LAST_COMPLETE_V38_5cbb217",
     "productionRegistry": "EMPTY",
     "authority": "NONE",
     "externalWrites": "CLOSED",
     "ownerTestModeProof": "PENDING_OWNER_ACTION_AFTER_FOUNDATION",
     "durableWebhookBinding": "PENDING_TRUSTED_CALLER_NO_HTTP_ACK_OR_ROUTE",
-    "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F73_F76",
-    "specRecheck": "04_STAGE16_REVENUE/implementation/16.8/16.8_OFFICIAL_SPEC_RECHECK.json"
+    "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT; INHERITED_F73_F76_AND_RECOVERY_NO_NEW_SOURCE_DEFECT",
+    "specRecheck": "04_STAGE16_REVENUE/implementation/16.8/16.8_OFFICIAL_SPEC_RECHECK.json",
+    "schemaVersion": "1",
+    "at": "2026-10-03T16:29:53.718Z",
+    "sourceCommit": "53180cb0920eac06bcb2a06280fdcbf823b160fc",
+    "testedSourceHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "testedSourceInitiallyClean": true,
+    "pinDrift": [],
+    "committed": true,
+    "archiveV46Exact": true,
+    "selectedExactSourceSuites": 33,
+    "extraExactSourceSuites": 6,
+    "staticChecks": {
+      "typeScript": "PASS_RERUN_DURING_RECOVERY",
+      "changedLint": "PASS_RERUN_DURING_RECOVERY",
+      "wholeLint": "PRIOR_SAME_SOURCE_PASS_0_ERRORS_13_INHERITED_WARNINGS",
+      "diffCheck": "PASS"
+    },
+    "graphify": {
+      "at": "2026-10-03T16:29:47.876Z",
+      "head": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+      "lastAnalyzedHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+      "graphBuiltFrom": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+      "stale": false,
+      "needsUpdate": false,
+      "nodes": 18559,
+      "edges": 53182,
+      "communities": 379,
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0,
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "worktreeState": "CLEAN",
+      "classification": "GRAPH_PARTIAL",
+      "sha256": "24a2700c3bacab2f134cbc7b1aad186c44730d33a4957e3ca9c339b1a1f0dfa5",
+      "incompleteCodeFiles": [
+        ".github/workflows/ayas-safe-ci.yml",
+        "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+        "scripts/ayas-access-daemon.ps1",
+        "scripts/ayas-autonomy-daemon.ps1",
+        "scripts/register-ayas-autonomy-autostart.ps1",
+        "scripts/register-ayas-autostart.ps1",
+        "scripts/smoke-ayas-access-daemon.ps1",
+        "scripts/unregister-ayas-autonomy-autostart.ps1",
+        "scripts/unregister-ayas-autostart.ps1"
+      ]
+    },
+    "sourceInputs": [
+      {
+        "file": "docs/AYAS_REVENUE_LEMON_SQUEEZY.md",
+        "sha256": "4e310dccd5797f7317419e411ae672a74fbfbd453089384c77b47d6dc4f9282d",
+        "committed": true
+      },
+      {
+        "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+        "sha256": "58dc56964fcdcfb0a0fe4b8875b0001f3acc5a2152644e7cebc22b0d9f53bd18",
+        "committed": true
+      },
+      {
+        "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V46.json",
+        "sha256": "bb7f5f1e8554912087875d37982ed115b7685c96c01ea34021a7e91fbfbb0750",
+        "committed": true
+      },
+      {
+        "file": "scripts/fixtures/ayas-lemon-fixture.ts",
+        "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93",
+        "committed": true
+      },
+      {
+        "file": "scripts/smoke-ayas-eval-governance.ts",
+        "sha256": "f7356484e8725bfdef12c0c1c4fcdabc7385682b3982c1911b8c51cf30964850",
+        "committed": true
+      },
+      {
+        "file": "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
+        "sha256": "c0b80ef0eb01e5fa11764f0961bff0929b2a8207421e172525e63e2bee5ef9da",
+        "committed": true
+      },
+      {
+        "file": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+        "sha256": "6d5c58d27e4bd1bba193210178270124ac8098a6143f85afd01b1133dce52b16",
+        "committed": true
+      },
+      {
+        "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonCheckoutPolicy.ts",
+        "sha256": "7c021579a62fa1c40d65c2d86039ea30fb1d0be3da49ac8bebe15ce826161c0b",
+        "committed": true
+      },
+      {
+        "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonMapper.ts",
+        "sha256": "e8d9a7e2ca802e6feed483f2e480c615dbf57289d999f7f19d68b2f179dac860",
+        "committed": true
+      },
+      {
+        "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonSchemas.ts",
+        "sha256": "5b06c774ac0225192f2d113cdac31c213cf8fb9c504dba44ca8ed5838a0a153b",
+        "committed": true
+      },
+      {
+        "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonSqueezyAdapter.ts",
+        "sha256": "fab388e95b4dbb1a05e2365607c92ef895309115b2175335f4f0b4c9f0300370",
+        "committed": true
+      },
+      {
+        "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonWebhook.ts",
+        "sha256": "46be5efa1451fed234de20d8de97d5ed4eb0ae8bb9404bfba10de628bb7354b2",
+        "committed": true
+      },
+      {
+        "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+        "sha256": "5de18b6c096dc136eb84321afece003e1530bfb176e0c0fe71a2d68105b4abba",
+        "committed": true
+      }
+    ],
+    "financialExecution": "NONE",
+    "deferred": [
+      "16.5 official MCP catalog/schema/scopes",
+      "16.7 reviews/Q&A/individual-message route qualification"
+    ],
+    "next": "16.9 in canonical order; Stage16/Master OPEN",
+    "exactReceipt": "04_STAGE16_REVENUE/implementation/16.8/16.8_EXACT_SOURCE_RECEIPT.json",
+    "result": "04_STAGE16_REVENUE/implementation/16.8/16.8_RESULT.json"
+  },
+  "stage16_9": {
+    "state": "DESIGN_AND_GRAPHIFY_INSPECTED_PENDING_SOURCE",
+    "stageClosed": false,
+    "baseHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "defaultPolicy": "DISABLED_ZERO_EMPTY_CAPS",
+    "authority": "NONE"
   }
 }

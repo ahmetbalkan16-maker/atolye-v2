@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.8 framework verified;16.9 active
+
+Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33 selected+6 extra TEMP regressions,176 committed pins and TS/changed lint/diff PASS. Graphify18559/53182 current, integrity0;PARTIAL9/semanticPENDING retained. Fullv47 NOT_RUN. Owner Test-mode/durable ingress and16.5/16.7 qualification remain deferred; Stage16/Master OPEN. Next16.9 pure advisory reinvestment; no live effect, financial authority or production registration.
+
 # AYAS current — 2026-10-03 /16.6 implementation validation
 
 Fiverr manual source:52+12 scenarios/48 controls (46 caught,2 verified equivalents), TS/lint/diff and168 pins PASS; F68 timeline issue reproduced and repaired. Exact-source regressions and Graphify pending. Manifestv45 declares138 suites; full baseline NOT_RUN. No credentials, official/unofficial transport, automatic publishing/messages/delivery or money. Stage16/Master OPEN;16.5 official qualification remains pending. Next16.6 exact-source receipt, then16.7 in canonical order. SeeACTIVE_CHECKPOINT.json.
