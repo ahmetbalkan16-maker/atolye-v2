@@ -63,6 +63,9 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/ayas-executive-alerts.ts",
   "scripts/smoke-ayas-executive-briefing.ts",
   "scripts/smoke-ayas-executive-briefing-mutations.ts",
+  "scripts/smoke-ayas-revenue-adapter-standard.ts",
+  "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
+  "scripts/fixtures/ayas-revenue-fake-adapter.ts",
   "scripts/ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain-mutations.ts",
@@ -74,6 +77,11 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
 /** Order matters: the FIRST matching rule wins, and FORBIDDEN rules come first. */
 const RULES: readonly Rule[] = Object.freeze([
   // ---- FORBIDDEN_AUTONOMOUS -------------------------------------------------
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
+    why: "the revenue platform standard (operation effects, owner-required writes, non-autonomous money) cannot rewrite itself",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md",
+  },
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "owner notification priority, durable acknowledgement and delivery cannot rewrite themselves",
