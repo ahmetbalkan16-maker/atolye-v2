@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T12:35:29.068Z",
+  "testedSourceHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+  "testedSourceInitiallyClean": true,
+  "manifestVersion": "15F.4-v45",
+  "declaredSuites": 138,
+  "uniqueCommittedPins": 168,
+  "pinDrift": [],
+  "archiveV44Exact": true,
+  "sourceInputs": [
+    {
+      "file": "docs/AYAS_REVENUE_FIVERR_ADAPTER.md",
+      "sha256": "88fec282b49fa26442c890574e0923087b61347df9723336a71be0c6df042430",
+      "committed": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "ad44987d2bbd07627dac4920d4eba2e7a7c6e021d7c30c41b0c05fe9a834d6dd",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-fiverr-fixture.ts",
+      "sha256": "1f3ee2dc40b090e62b38fdd131d7d64784193e393e3ad99a6f61e382effe2138",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "550cfd7d71b661d8c5bc047fe01be5610b8dc4b81cdb5a930b8975645fa7dd4b",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-fiverr-adapter-mutations.ts",
+      "sha256": "3e4e38a243c3fb03e3ebda920a1e81874efe41106b5c430637df86c9dc99f5b9",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-fiverr-adapter.ts",
+      "sha256": "c2756112eb62cf3ce50c2dd7e1f82a14d308b7ca209c0dffc3f4c87d7be399b1",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/fiverr/AyasFiverrDrafts.ts",
+      "sha256": "168acaab69fe0daa3a616ceb6e54edd58c77caf94b050f8ea044e58175d87029",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/fiverr/AyasFiverrManualAdapter.ts",
+      "sha256": "7e8839cd73a62a54bc595247c386a991057eb63a44d946ef326b90b8e1b1d800",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/fiverr/AyasFiverrOwnerFacts.ts",
+      "sha256": "383cec756385c77d903a7f17cce6674c8c725101a4127b91a2397c3acd56243e",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/fiverr/AyasFiverrOwnerHandoff.ts",
+      "sha256": "c982814fec276c14ce7ee9e026d28d4051d33f22aa9523dc3158cb66d7739992",
+      "committed": true
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "3640c30bfa87b0ec54fc6f92310a18fcdd8ecf9c6d692f399d4f5fd0627e207f",
+      "committed": true
+    }
+  ],
+  "primary": 52,
+  "heldOut": 12,
+  "negativeControls": {
+    "total": 48,
+    "caught": 46,
+    "equivalents": 2,
+    "equivalentsVerified": true
+  },
+  "selectedExactSourceSuites": 23,
+  "extraExactSourceSuites": 6,
+  "fullDeclaredBaseline": "NOT_RUN_V45_LAST_COMPLETE_V38_5cbb217",
+  "graphify": {
+    "at": "2026-10-03T12:35:29.068Z",
+    "head": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "lastAnalyzedHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "graphBuiltFrom": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18422,
+    "edges": 52712,
+    "communities": 373,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "5e50efb90dbf99744f8a048354ce07d679e98b9de48d8b6f83b76eacd1a6c2c5"
+  },
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F68_FIXED",
+  "state": "CLOSED_GREEN_SOURCE_MANUAL_ONLY",
+  "stageClosed": true,
+  "productionRegistry": "EMPTY",
+  "authority": "NONE",
+  "externalWrites": "CLOSED",
+  "financialExecution": "NONE",
+  "ownerObservations": "OWNER_REPORTED_UNVERIFIED_NOT_LIVE_CERTIFICATION",
+  "deferred16_5": "OFFICIAL_TOOL_QUALIFICATION_PENDING_OWNER_OAUTH_AFTER_FOUNDATION",
+  "next": "16.7 Udemy / Atolye source; Stage16 and Master remain OPEN"
+}

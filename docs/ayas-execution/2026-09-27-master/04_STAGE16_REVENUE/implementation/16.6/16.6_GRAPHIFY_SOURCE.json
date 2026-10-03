@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-03T12:35:29.068Z",
+  "head": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+  "lastAnalyzedHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+  "graphBuiltFrom": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+  "stale": false,
+  "needsUpdate": false,
+  "nodes": 18422,
+  "edges": 52712,
+  "communities": 373,
+  "duplicateNodes": 0,
+  "duplicateEdges": 0,
+  "danglingEdges": 0,
+  "selfLoops": 0,
+  "structuralStatus": "PARTIAL",
+  "structuralReasons": [
+    "INCOMPLETE_CODE_FILES:9"
+  ],
+  "semanticStatus": "PENDING",
+  "worktreeState": "CLEAN",
+  "classification": "GRAPH_PARTIAL",
+  "sha256": "5e50efb90dbf99744f8a048354ce07d679e98b9de48d8b6f83b76eacd1a6c2c5"
+}

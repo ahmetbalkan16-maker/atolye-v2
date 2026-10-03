@@ -1,3 +1,7 @@
+# AYAS current — 2026-10-03 /16.6 source closed;16.7 active
+
+Exact source f7a5188:52+12 scenarios;48 controls (46 caught,2 verified equivalents);23 selected+6 extra exact-source regressions,168 committed pins,TS/lint/diff PASS. Graphify18422/52712 current/integrity clean; inheritedPARTIAL9/semanticPENDING. Fullv45 baseline NOT_RUN; last completev38/5cbb217. Manual drafts/owner-reported imports only; no external effect or live certification.16.5 official qualification remains pending; Stage16/Master OPEN. Next16.7 Udemy/Atolye, Graphify-first and official scope limitations. SeeACTIVE_CHECKPOINT.json andimplementation/16.6/16.6_EXACT_SOURCE_RECEIPT.json.
+
 # AYAS current — 2026-10-03 /16.6 implementation validation
 
 Fiverr manual source:52+12 scenarios/48 controls (46 caught,2 verified equivalents), TS/lint/diff and168 pins PASS; F68 timeline issue reproduced and repaired. Exact-source regressions and Graphify pending. Manifestv45 declares138 suites; full baseline NOT_RUN. No credentials, official/unofficial transport, automatic publishing/messages/delivery or money. Stage16/Master OPEN;16.5 official qualification remains pending. Next16.6 exact-source receipt, then16.7 in canonical order. SeeACTIVE_CHECKPOINT.json.

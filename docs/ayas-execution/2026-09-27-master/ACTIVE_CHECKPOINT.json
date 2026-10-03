@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "73ebc8c9cb60131a205eaef971bf2d446984b9f8",
-  "currentHead": "73ebc8c9cb60131a205eaef971bf2d446984b9f8",
-  "stage": "STAGE_16_6",
-  "subtask": "16.6 Fiverr manual drafts, owner handoff and strict local facts import;16.5 official qualification still deferred",
+  "lastGreenHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+  "currentHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+  "stage": "STAGE_16_7",
+  "subtask": "16.7 Udemy official read boundary and Atolye course production; carry16.5 pending official qualification",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -113,7 +113,8 @@
     "STAGE_16_0_SOURCE",
     "STAGE_16_0A_SOURCE",
     "STAGE_16_1_SOURCE",
-    "STAGE_16_2_SOURCE"
+    "STAGE_16_2_SOURCE",
+    "STAGE_16_6_SOURCE"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -252,16 +253,15 @@
     "Graphify current exact source; zero integrity anomalies; PARTIAL9 /semanticPENDING"
   ],
   "graphify": {
-    "schemaVersion": "1",
-    "at": "2026-10-03T11:20:00.634Z",
-    "head": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
-    "lastAnalyzedHead": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
-    "graphBuiltFrom": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
+    "at": "2026-10-03T12:35:29.068Z",
+    "head": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "lastAnalyzedHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "graphBuiltFrom": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 18305,
-    "edges": 52340,
-    "communities": 371,
+    "nodes": 18422,
+    "edges": 52712,
+    "communities": 373,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -271,10 +271,9 @@
       "INCOMPLETE_CODE_FILES:9"
     ],
     "semanticStatus": "PENDING",
-    "worktreeState": "DIRTY",
-    "worktreeFingerprint": null,
+    "worktreeState": "CLEAN",
     "classification": "GRAPH_PARTIAL",
-    "sha256": "67f94793db6d064675c2c63259a55ad4fd9e615fd9cd21070fc0c207c4c94cdc"
+    "sha256": "5e50efb90dbf99744f8a048354ce07d679e98b9de48d8b6f83b76eacd1a6c2c5"
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -300,8 +299,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Complete16.6 exact-source23 selected+6 extra regressions and Graphify integrity; then canonical16.7 Udemy/Atolye source. Carry16.5 official MCP qualification PENDING_OWNER_OAUTH_AFTER_FOUNDATION; no false Stage16/Master closure. Push at major boundary.",
-  "updatedAt": "2026-10-03T11:20:00.634Z",
+  "nextAction": "16.7 Udemy / Atolye source; Stage16 and Master remain OPEN",
+  "updatedAt": "2026-10-03T12:35:29.068Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -494,7 +493,7 @@
     ],
     "finalSecurityFollowup": "Reject unknown top-level record fields on append/load; integrity suite 27/27; memory 30/30; temporal 52/52; retrieval 74 + determinism/error/isolation/chat chain PASS; TypeScript and changed-file lint PASS."
   },
-  "headSemantics": "currentHead and lastGreenHead name the exact tested source commit; read Git for the actual documentation closure HEAD. No evidence is relabelled to a later HEAD.",
+  "headSemantics": "Resolve actual HEAD; lastGreenHead is exact tested source. Closure documentation-only descendant is not a full baseline.",
   "stage15D": {
     "state": "CLOSED_GREEN",
     "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
@@ -1408,7 +1407,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Implement canonical16.3 pure opportunity/evidence/scenario validation with independent-current-demand, code-owned freshness, unknown/paid prerequisite refusal, rights/capability/deliverable/economic checks, all statuses authority NONE;50+12 frozenheldout/security/review/TS/lint/Graphify/source closure;then16.3A. LOCALCOMMITS/NO PUSH.",
+  "resumeNextAction": "Graphify-first16.7 architecture and official Instructor API recheck; bounded source and local production plans. Do not invent Udemy granular scopes. Carry16.5 pending; no live activation.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -2079,8 +2078,8 @@
     "exactReceipt": "04_STAGE16_REVENUE/implementation/16.5/16.5_EXACT_SOURCE_RECEIPT.json"
   },
   "stage16_6": {
-    "state": "IMPLEMENTED_PENDING_EXACT_SOURCE_VALIDATION",
-    "stageClosed": false,
+    "state": "CLOSED_GREEN_SOURCE_MANUAL_ONLY",
+    "stageClosed": true,
     "baseHead": "af225c979a1eabfce7ff8033a6e9acd1ec0edb82",
     "primary": 52,
     "heldOut": 12,
@@ -2098,6 +2097,34 @@
     "authority": "NONE",
     "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT_F68_FIXED",
     "transport": "MANUAL_HANDOFF",
-    "result": "04_STAGE16_REVENUE/implementation/16.6/16.6_RESULT.json_PENDING"
+    "result": "04_STAGE16_REVENUE/implementation/16.6/16.6_RESULT.json",
+    "sourceCommit": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "testedSourceHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+    "selectedRegressionSuites": 23,
+    "extraRegressionSuites": 6,
+    "graphify": {
+      "at": "2026-10-03T12:35:29.068Z",
+      "head": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+      "lastAnalyzedHead": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+      "graphBuiltFrom": "f7a518856fcf1090cf994eebc7070ec1ee678d7b",
+      "stale": false,
+      "needsUpdate": false,
+      "nodes": 18422,
+      "edges": 52712,
+      "communities": 373,
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0,
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "worktreeState": "CLEAN",
+      "classification": "GRAPH_PARTIAL",
+      "sha256": "5e50efb90dbf99744f8a048354ce07d679e98b9de48d8b6f83b76eacd1a6c2c5"
+    },
+    "exactReceipt": "04_STAGE16_REVENUE/implementation/16.6/16.6_EXACT_SOURCE_RECEIPT.json"
   }
 }
