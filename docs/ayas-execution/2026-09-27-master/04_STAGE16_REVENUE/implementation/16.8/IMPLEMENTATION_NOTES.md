@@ -1,0 +1,7 @@
+# Stage16.8 implementation
+
+Base984dda2 Graphify18499/52950 current, inheritedPARTIAL9/semanticPENDING. Related existing source inspected with Graphify: first8 requested paths included two incorrect names (registry/fulfillment); actual6 plus corrected3 reviewed before their use. Yardstick/gov/manifest review182 impacted nodes/120 files. No claim that nonexistent paths were inspected. Reuse the standard registry/spend/result gate,16.0A strict metadata, existing16.3A offer/16.3B fulfillment,16.2 immutable ledger and descriptor-preflight/digest/redaction primitives.
+
+Five Lemon modules implement bounded official GETs, canonical parent/store/mode proof, false-by-default coarse-key owner/cost policy, conservative quota/backoff, local plans, raw HMAC pointers, common-gated canonical refresh and inert economic inputs. No production registration, real key/account, route/ACK, durable queue, auto ledger append, write API or money authority. HTTP/durable dedupe/secret-holder and authenticated owner/Test-mode proof await a trusted owner binding after foundation.
+
+F73-F76 same-session review and grader calibration recorded.89 primary+15 held-out,60 assertion-caught controls, no equivalents. TS/changed lint0/0; whole lint0 errors/13 inherited warnings. v47:143 suites/176 pins; v46 archive byte-preserved. Fullv47 baseline NOT_RUN. Exact-source regressions/Graphify/source commit still pending. Carry16.5 tool qualification and16.7 missing routes; Stage16/Master OPEN.
