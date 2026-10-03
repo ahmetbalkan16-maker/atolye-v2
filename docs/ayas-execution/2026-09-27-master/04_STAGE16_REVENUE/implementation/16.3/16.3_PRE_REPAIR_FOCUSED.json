@@ -1,0 +1,408 @@
+{
+  "status": "FAIL",
+  "primary": {
+    "passed": 52,
+    "total": 64
+  },
+  "heldOut": {
+    "passed": 11,
+    "total": 12
+  },
+  "authority": "NONE",
+  "noLiveIO": true,
+  "results": [
+    {
+      "id": "P01",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P02",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P03",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P04",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P05",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P06",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P07",
+      "set": "primary",
+      "ok": false,
+      "detail": "separate current missing-capability evidence defeats positive proof: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P08",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P09",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P10",
+      "set": "primary",
+      "ok": false,
+      "detail": "separate current unproven-deliverable evidence defeats positive proof: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P11",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P12",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P13",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P14",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P15",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P16",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P17",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P18",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P19",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P20",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P21",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P22",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P23",
+      "set": "primary",
+      "ok": false,
+      "detail": "mirrors of one original reference do not corroborate demand: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P24",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P25",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P26",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P27",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P28",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P29",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P30",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P31",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P32",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P33",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P34",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P35",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P36",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P37",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P38",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P39",
+      "set": "primary",
+      "ok": false,
+      "detail": "separate current rights uncertainty defeats clear proof: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P40",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P41",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P42",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P43",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P44",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P45",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P46",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P47",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P48",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P49",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P50",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P51",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P52",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P53",
+      "set": "primary",
+      "ok": false,
+      "detail": "economic equality is independent of JSON property insertion order: PRICE_SCENARIO_MISMATCH"
+    },
+    {
+      "id": "P54",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P55",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P56",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P57",
+      "set": "primary",
+      "ok": true
+    },
+    {
+      "id": "P58",
+      "set": "primary",
+      "ok": false,
+      "detail": "contradictory competition or differentiation cannot support pilot: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P59",
+      "set": "primary",
+      "ok": false,
+      "detail": "orphan READY prerequisite digest does not prove readiness: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P60",
+      "set": "primary",
+      "ok": false,
+      "detail": "stale prerequisite proof cannot support readiness: CONDITIONAL_FREE_PILOT_ADVICE,STALE_OR_FUTURE_EVIDENCE"
+    },
+    {
+      "id": "P61",
+      "set": "primary",
+      "ok": false,
+      "detail": "all valid opportunity ID forms can match evidence: INVALID_INPUT"
+    },
+    {
+      "id": "P62",
+      "set": "primary",
+      "ok": false,
+      "detail": "source-reference aliases are grouped transitively: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P63",
+      "set": "primary",
+      "ok": false,
+      "detail": "platform ceiling constrains otherwise fresh course signals: CONDITIONAL_FREE_PILOT_ADVICE"
+    },
+    {
+      "id": "P64",
+      "set": "primary",
+      "ok": false,
+      "detail": "pure modules and evaluators are protected from self-rewrite: Expected values to be strictly equal:"
+    },
+    {
+      "id": "H01",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H02",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H03",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H04",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H05",
+      "set": "held-out",
+      "ok": false,
+      "detail": "multi-platform opportunity cannot inherit single-platform market evidence: EVIDENCE_SCOPE_MISMATCH,UNKNOWN_FEES_OR_SCENARIO"
+    },
+    {
+      "id": "H06",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H07",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H08",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H09",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H10",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H11",
+      "set": "held-out",
+      "ok": true
+    },
+    {
+      "id": "H12",
+      "set": "held-out",
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T08:27:09.966Z",
+  "reviewer": "/root/revenue_review",
+  "mode": "EXPLICIT_OWNER_AUTHORIZED_READ_ONLY_NO_EDIT_NO_TEST",
+  "outcome": "PASS_AFTER_ALL_FINDINGS_FIXED",
+  "findings": [
+    "F51",
+    "F52",
+    "F53",
+    "F54",
+    "F55",
+    "F56"
+  ],
+  "remainingConcreteFindings": [],
+  "manifestVersion": "15F.4-v40",
+  "declaredSuites": 128,
+  "uniquePins": 153,
+  "allPinsVerified": true,
+  "archiveV39ByteEqualToPriorHead": true,
+  "exactReceipt": "PENDING_MAIN_FLOW",
+  "grantsAuthority": false
+}

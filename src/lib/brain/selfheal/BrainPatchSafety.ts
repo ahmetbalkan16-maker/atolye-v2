@@ -74,6 +74,9 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/smoke-ayas-revenue-ledger-mutations.ts",
   "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
   "scripts/fixtures/ayas-revenue-ledger-worker.ts",
+  "scripts/smoke-ayas-revenue-free-first-validation.ts",
+  "scripts/smoke-ayas-revenue-free-first-validation-mutations.ts",
+  "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
   "scripts/ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain-mutations.ts",
@@ -88,7 +91,7 @@ const RULES: readonly Rule[] = Object.freeze([
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "the revenue platform standard (operation effects, owner-required writes, non-autonomous money) cannot rewrite itself",
-    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md" || p.toLowerCase() === "docs/ayas_revenue_unit_economics.md",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md" || p.toLowerCase() === "docs/ayas_revenue_unit_economics.md" || p.toLowerCase() === "docs/ayas_revenue_free_first_validation.md",
   },
   {
     level: "FORBIDDEN_AUTONOMOUS",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v40",
+  "version": "15F.4-v39",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2377,56 +2377,6 @@
         "revenue-economics",
         "durable-observation",
         "privacy-bounded",
-        "no-spend-authority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-free-first-validation",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-free-first-validation.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-free-first-validation.ts",
-          "sha256": "84536db50fb6aa5e78c87fa8c45884de8b9f465315be74ac912442db60418bf8"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
-          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
-        }
-      ],
-      "slices": [
-        "free-first-evidence",
-        "hypothetical-economics",
-        "no-spend-authority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-free-first-validation-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-free-first-validation-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-free-first-validation-mutations.ts",
-          "sha256": "ad54a3779e86deb996478a8a58379322a534d0e1a4082aeefffd2b7526d65159"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-free-first-validation.ts",
-          "sha256": "84536db50fb6aa5e78c87fa8c45884de8b9f465315be74ac912442db60418bf8"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
-          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
-        }
-      ],
-      "slices": [
-        "free-first-evidence",
-        "hypothetical-economics",
         "no-spend-authority",
         "deterministic-outcome"
       ]

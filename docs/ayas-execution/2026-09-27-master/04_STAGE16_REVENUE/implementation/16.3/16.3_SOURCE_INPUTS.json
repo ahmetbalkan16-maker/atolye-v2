@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T08:27:09.966Z",
+  "files": [
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueOpportunity.ts",
+      "sha256": "a501aa500a28319962022a3a1a75e157c5059d5ebba2dc58b34150c9c448ecef"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueScenarioEconomics.ts",
+      "sha256": "9a46ebd2ba25e38c678ab22c4a2c2529715add432b983fe7e402170a63ce6d5f"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueValidation.ts",
+      "sha256": "f5144b55a92bea3afa62d1742686ce9d2630784b7dbcfcc96a95c8f2372358a7"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "6b858fcef8b93eb6612ddd39b66192f20c2f0622bd9537977b8049407880ee5a"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-free-first-validation.ts",
+      "sha256": "84536db50fb6aa5e78c87fa8c45884de8b9f465315be74ac912442db60418bf8"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-free-first-validation-mutations.ts",
+      "sha256": "ad54a3779e86deb996478a8a58379322a534d0e1a4082aeefffd2b7526d65159"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
+      "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "503f4262b17944488fe011d6152dfbbabb1f221b8311876e84245113e62c12ac"
+    },
+    {
+      "file": "docs/AYAS_REVENUE_FREE_FIRST_VALIDATION.md",
+      "sha256": "9c019b00aab1b500c8961e8e0ea0bc1f6c17476b59ec2e443400be89d58208f6"
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "c2d0998f1cd780d969f32e3fabef1a452a1af0ac32a54f15f6f0f55bf27cbb8f"
+    }
+  ]
+}

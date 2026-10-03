@@ -1,0 +1,377 @@
+{
+  "at": "2026-10-03T08:25:09.557Z",
+  "rows": [
+    {
+      "id": "TypeScript",
+      "exit": 0,
+      "signal": null,
+      "stderr": "",
+      "output": ""
+    },
+    {
+      "id": "changedLint",
+      "exit": 0,
+      "signal": null,
+      "stderr": "",
+      "output": ""
+    },
+    {
+      "id": "wholeLint",
+      "exit": 0,
+      "signal": null,
+      "stderr": "",
+      "errorCount": 0,
+      "warningCount": 13,
+      "warnings": [
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\apply-retry-admission-istanbul-1453.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'fs' is defined but never used.",
+              "line": 1,
+              "column": 8,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 1,
+              "endColumn": 10,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedImportDeclaration",
+                  "data": {
+                    "varName": "fs"
+                  },
+                  "fix": {
+                    "range": [
+                      0,
+                      26
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused import declaration."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\diagnose-global-terminal-quiescence-istanbul-1453-readonly.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'fs' is defined but never used.",
+              "line": 1,
+              "column": 8,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 1,
+              "endColumn": 10,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedImportDeclaration",
+                  "data": {
+                    "varName": "fs"
+                  },
+                  "fix": {
+                    "range": [
+                      0,
+                      26
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused import declaration."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\diagnose-retry-compensation-failed-root-cause-readonly.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'fs' is defined but never used.",
+              "line": 1,
+              "column": 8,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 1,
+              "endColumn": 10,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedImportDeclaration",
+                  "data": {
+                    "varName": "fs"
+                  },
+                  "fix": {
+                    "range": [
+                      0,
+                      26
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused import declaration."
+                }
+              ]
+            },
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'classifyProductionDurableAttemptLineage' is defined but never used.",
+              "line": 9,
+              "column": 10,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 9,
+              "endColumn": 49,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedImportDeclaration",
+                  "data": {
+                    "varName": "classifyProductionDurableAttemptLineage"
+                  },
+                  "fix": {
+                    "range": [
+                      363,
+                      488
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused import declaration."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\production-failed-stage-retry-with-authority-final-preflight-readonly.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'fingerprintPipelineJob' is defined but never used.",
+              "line": 7,
+              "column": 36,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 7,
+              "endColumn": 58,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedVar",
+                  "data": {
+                    "varName": "fingerprintPipelineJob"
+                  },
+                  "fix": {
+                    "range": [
+                      297,
+                      321
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused variable \"fingerprintPipelineJob\"."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\production-manifest-reconciliation-final-preflight-readonly.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'PipelineJobList' is defined but never used.",
+              "line": 12,
+              "column": 15,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 12,
+              "endColumn": 30,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedVar",
+                  "data": {
+                    "varName": "PipelineJobList"
+                  },
+                  "fix": {
+                    "range": [
+                      574,
+                      590
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused variable \"PipelineJobList\"."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-audio-compensation-descriptor-rebind.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'AudioCanonicalDescriptorRebind' is defined but never used.",
+              "line": 27,
+              "column": 8,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 27,
+              "endColumn": 38,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedVar",
+                  "data": {
+                    "varName": "AudioCanonicalDescriptorRebind"
+                  },
+                  "fix": {
+                    "range": [
+                      963,
+                      1002
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused variable \"AudioCanonicalDescriptorRebind\"."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-audio-publication-rebind.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'AudioPublicationDescriptorRebind' is defined but never used.",
+              "line": 24,
+              "column": 8,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 24,
+              "endColumn": 40,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedVar",
+                  "data": {
+                    "varName": "AudioPublicationDescriptorRebind"
+                  },
+                  "fix": {
+                    "range": [
+                      787,
+                      828
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused variable \"AudioPublicationDescriptorRebind\"."
+                }
+              ]
+            },
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'intentFilePath' is defined but never used.",
+              "line": 155,
+              "column": 10,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 155,
+              "endColumn": 24
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-isolated-e2e-audio-rebind-assembly.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'publicationRebind' is assigned a value but never used.",
+              "line": 254,
+              "column": 13,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 254,
+              "endColumn": 30
+            }
+          ]
+        },
+        {
+          "file": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-sprint-129-25c-1-runtime-backup.ts",
+          "messages": [
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'runtimeBackupFormatVersion' is defined but never used.",
+              "line": 14,
+              "column": 3,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 14,
+              "endColumn": 29,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedVar",
+                  "data": {
+                    "varName": "runtimeBackupFormatVersion"
+                  },
+                  "fix": {
+                    "range": [
+                      631,
+                      662
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused variable \"runtimeBackupFormatVersion\"."
+                }
+              ]
+            },
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'runtimeBackupManifestSchemaVersion' is defined but never used.",
+              "line": 18,
+              "column": 3,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 18,
+              "endColumn": 37,
+              "suggestions": [
+                {
+                  "messageId": "removeUnusedVar",
+                  "data": {
+                    "varName": "runtimeBackupManifestSchemaVersion"
+                  },
+                  "fix": {
+                    "range": [
+                      761,
+                      800
+                    ],
+                    "text": ""
+                  },
+                  "desc": "Remove unused variable \"runtimeBackupManifestSchemaVersion\"."
+                }
+              ]
+            },
+            {
+              "ruleId": "@typescript-eslint/no-unused-vars",
+              "severity": 1,
+              "message": "'relativePath' is assigned a value but never used.",
+              "line": 1401,
+              "column": 13,
+              "nodeType": "Identifier",
+              "messageId": "unusedVar",
+              "endLine": 1401,
+              "endColumn": 25
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

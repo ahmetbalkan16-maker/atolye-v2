@@ -5,7 +5,7 @@
   "lastGreenHead": "d901186e202dbe5a78482876ba93667d7dc03700",
   "currentHead": "d901186e202dbe5a78482876ba93667d7dc03700",
   "stage": "STAGE_16_3",
-  "subtask": "16.3-pure-free-first-validation-architecture-implementation",
+  "subtask": "16.3 pure free-first validation: focused/regressions/review/static PASS; sourcecommit/Graphify/exact receipt pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -423,8 +423,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Implement canonical16.3 pure opportunity/evidence/scenario validation with independent-current-demand, code-owned freshness, unknown/paid prerequisite refusal, rights/capability/deliverable/economic checks, all statuses authority NONE;50+12 frozenheldout/security/review/TS/lint/Graphify/source closure;then16.3A. LOCALCOMMITS/NO PUSH.",
-  "updatedAt": "2026-10-03T07:44:10.120Z",
+  "nextAction": "Local source commit, Graphify exact HEAD and clean source receipt; close16.3, then16.3A and16.3B in exact master order. NO PUSH.",
+  "updatedAt": "2026-10-03T08:27:09.966Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1913,12 +1913,7 @@
     },
     "stageClosed": true
   },
-  "ownerGate": {
-    "state": "NONE_BLOCKING_IMPLEMENTATION",
-    "required": false,
-    "independentReview": "04_STAGE16_REVENUE/implementation/16.2/16.2_INDEPENDENT_REVIEW.json",
-    "ownerOnlyActivationGapsPreserved": true
-  },
+  "ownerGate": "NONE_BLOCKING_IMPLEMENTATION",
   "sessionResume": {
     "at": "2026-10-03T06:51:20.587Z",
     "pull": "Already up to date",
@@ -1968,5 +1963,23 @@
       "semanticStatus": "PENDING",
       "sha256": "0d9629627bbf3f9c4dd4f960b186499b3987b243f2103d288dbe314825a9fe0f"
     }
+  },
+  "stage16_3": {
+    "state": "OPEN_PENDING_EXACT_SOURCE_GATES",
+    "stageClosed": false,
+    "primary": 66,
+    "heldOut": 12,
+    "negativeControls": {
+      "total": 39,
+      "exactSource": "PENDING"
+    },
+    "manifestVersion": "15F.4-v40",
+    "declaredSuites": 128,
+    "uniquePins": 153,
+    "selectedRegressionSuites": 12,
+    "extraRegressionSuites": 6,
+    "independentReview": "PASS_AFTER_ALL_FINDINGS_FIXED",
+    "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+    "notes": "04_STAGE16_REVENUE/implementation/16.3/IMPLEMENTATION_NOTES.md"
   }
 }
