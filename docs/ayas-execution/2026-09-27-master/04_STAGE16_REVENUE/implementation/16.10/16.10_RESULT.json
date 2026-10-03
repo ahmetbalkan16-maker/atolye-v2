@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T18:40:06.307Z",
+  "state": "FRAMEWORK_VERIFIED_WITH_KNOWN_COGNITIVE_LIMITATION_PRODUCTION_BINDING_PENDING",
+  "frameworkVerified": true,
+  "stageClosed": false,
+  "sourceCommit": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+  "testedSourceHead": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+  "sourceInitiallyClean": true,
+  "memory": {
+    "primary": 65,
+    "heldOut": 15,
+    "actualCapturedChatPrompt": "PASS_IN_PROCESS_PROVIDER_NO_NETWORK"
+  },
+  "intelligence": {
+    "primary": 32,
+    "heldOut": 8
+  },
+  "negativeControls": {
+    "caught": 15,
+    "total": 15,
+    "equivalents": 0
+  },
+  "manifestVersion": "15F.4-v49",
+  "declaredSuites": 148,
+  "uniquePins": 183,
+  "pinDrift": [],
+  "committed": true,
+  "archiveV48Exact": true,
+  "selectedExactSourceSuites": 46,
+  "selectedPlainPass": 45,
+  "selectedKnownLimitation": {
+    "suite": "cognitive-quality",
+    "status": "PASS_WITH_KNOWN_LIMITATIONS",
+    "quality": {
+      "passed": 54,
+      "total": 55,
+      "heldOutPassed": 4,
+      "heldOutTotal": 5
+    },
+    "limitation": "heldout-free-text / CF49, inherited; raw quality is NOT PASS"
+  },
+  "extraExactSourceSuites": 7,
+  "fullDeclaredBaseline": "NOT_RUN_V49_LAST_COMPLETE_V38_5cbb217",
+  "graphify": {
+    "at": "2026-10-03T18:39:59.289Z",
+    "head": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+    "lastAnalyzedHead": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+    "graphBuiltFrom": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18699,
+    "edges": 53574,
+    "communities": 376,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "b81dbf2b43388e8d33f80f1a3e8ee0bce2b4e5bc326fafee02f781c9b290d739",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "staticChecks": [
+    {
+      "name": "TypeScript",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "changed-eslint",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "whole-eslint",
+      "status": "PASS",
+      "exit": 0,
+      "stdoutDigest": "a53383bb9d1ece252a5a12f9702d10e04d18d8a662957dc12b616a1956fdd6ff",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "errors": 0,
+      "warnings": 13
+    }
+  ],
+  "diffCheck": "PASS",
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT",
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueMemory.ts",
+      "sha256": "34e37828c6feb2f175cfb5676e4ed28960a274b4f4247253f4ae719dd1a01de9",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueMemoryStore.ts",
+      "sha256": "4e1d8241c9f1d265595953f2f6915c178f0f2eff3a300b77c9e54a009122553c",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueTemporal.ts",
+      "sha256": "8b907b1701deb8a3b989f465ee52c6b88c845e21a674a6b705e71a2e307c9ec9",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueRecall.ts",
+      "sha256": "eb157c1160cecd1767cb687fe74528eac7c445c67eb2a17764312fcf0bfa5a39",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueIntelligence.ts",
+      "sha256": "7707da5b92f6b60a3323b55c2e51761c50e922fbad221b3d39839b8809f49cc4",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueContext.ts",
+      "sha256": "cc4c5dd1e337062397e1657ac63254630ebc40d264a575e4b72a4173e080ace1",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/AyasChatStream.ts",
+      "sha256": "ad0d4542cabb1ff656da57af308f70f57c0f432bf3453a865e0435d7eee6975c",
+      "committed": true
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "0362605952bc31e3c234cadeb2567184aab8f216f6c3f986a12f8e2c6466470a",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "af8c5627b5ec42e90f6dc519ea392b97cf5747e435b5393b94963ffa1a41e6f8",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
+      "sha256": "11943669624bb8de3c27dd27aa03d9c5fa8c26c6e7bd21f3b5dfa7fb86c103b3",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
+      "sha256": "5a476691984ed0500d1a57f04fd712b1c8094c95e55a4c1509d69229f6a27757",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-memory.ts",
+      "sha256": "0fad2426f25d854711cc817d49c2ffd3189db892cc14914ee7938d2f333d40df",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-intelligence.ts",
+      "sha256": "d8f3d4cb41b818ece0b510b6939e02594c41bf7aed72e426846c4572e9b1f81b",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-memory-mutations.ts",
+      "sha256": "42f432f9b9bcfc5e2c3e57085e552e147fd17a2e6cb9378c9481b4ab79db7275",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-memory-fixture.ts",
+      "sha256": "5173431a20a60159410d75a2f458d1ab84ffc9da000a953e361026130084d44a",
+      "committed": true
+    }
+  ],
+  "ledgerTruth": "16.2_ONLY_MEMORY_COPIES_NO_REALIZED_NUMERIC_TOTALS",
+  "productionWriter": "UNBOUND",
+  "httpSnapshotBinding": "NONE",
+  "ownerEvidence": "NORMALIZED_RECORDS_NOT_AUTHENTICATED_OWNER",
+  "authority": "NONE",
+  "financialExecution": "NONE",
+  "externalWrites": "CLOSED",
+  "productionRegistry": "EMPTY",
+  "next": "16.11 security/fraud in canonical order; Stage16/Master OPEN",
+  "receipt": "16.10_EXACT_SOURCE_RECEIPT.json"
+}

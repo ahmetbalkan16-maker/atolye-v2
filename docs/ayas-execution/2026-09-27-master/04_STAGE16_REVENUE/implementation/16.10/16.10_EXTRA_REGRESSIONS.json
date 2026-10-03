@@ -1,0 +1,58 @@
+{
+  "status": "PASS",
+  "sourceHead": "7195e96d1ae8345fb554391bc256012653a9ae5b",
+  "sourceDigest": "9a5c7eaf3ca286a243907757a5c6d6b107335c9d1d5693b2fe83d07347d991b6",
+  "sourceUnchanged": true,
+  "evidenceClass": "EXACT_CLEAN_SOURCE_TEMP_LOCAL_CLONE_NO_REMOTE_SCRUBBED_ENV",
+  "rows": [
+    {
+      "script": "smoke-ayas-patch-detectors.ts",
+      "exit": 0,
+      "durationMs": 542,
+      "stdout": "AYAS patch detectors smoke: PASS (37 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-patch-detectors\",\"scenarios\":37}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-brain-selfheal.ts",
+      "exit": 0,
+      "durationMs": 258,
+      "stdout": "Atölye Brain self-heal (pure core) smoke: PASS (41 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-brain-selfheal-security.ts",
+      "exit": 0,
+      "durationMs": 248,
+      "stdout": "Atölye Brain self-heal security smoke: PASS (14 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal-security\",\"scenarios\":14}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-adaptation-pipeline.ts",
+      "exit": 0,
+      "durationMs": 213,
+      "stdout": "AYAS adaptation pipeline smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-adaptation-pipeline\",\"scenarios\":7}\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-eval-governance.ts",
+      "exit": 0,
+      "durationMs": 357,
+      "stdout": "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-eval-governance-mutations.ts",
+      "exit": 0,
+      "durationMs": 3017,
+      "stdout": "Stage 15F.4 mutation audit: PASS (8/8 caught; TEMP only)\n",
+      "stderr": ""
+    },
+    {
+      "script": "smoke-ayas-chat-stream.ts",
+      "exit": 0,
+      "durationMs": 890,
+      "stdout": "AYAS chat stream smoke: PASS (31 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-chat-stream\",\"scenarios\":31}\n",
+      "stderr": ""
+    }
+  ]
+}

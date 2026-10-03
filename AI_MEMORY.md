@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.10 framework verified with limitations;16.11 active
+
+16.10 exact-source framework verified at 7195e96d1ae8345fb554391bc256012653a9ae5b: memory65+15/intelligence32+8/15 controls,183 committed pins, TS/lint/diff PASS (13 inherited warnings).46 selected:45 plainPASS and cognitive54/55+4/5 held-out PASS_WITH_KNOWN_LIMITATIONS(CF49);7 extra including chat-stream PASS. Fullv49 NOT_RUN. Graphify current/integrity0, structuralPARTIAL9/semanticPENDING. F82 stale-plan warning repaired; manifest kind corrected without validator changes. Ledger remains sole money truth; no production writer/HTTP snapshot binding or actual owner authentication. Stage16/Master OPEN; next16.11 security/fraud.
+
 # AYAS current —2026-10-03 /16.10 source implemented; exact validation pending
 
 16.10 dedicated business memory/source implemented: memory65+15 (includes actual captured chat prompt), intelligence32+8,15 assertion-caught controls; defaults unchanged, no writer/HTTP binding. F82 stale current plan masked by fresh ledger reproduced and fixed. Static/Graphify worktree checks PASS with inherited PARTIAL9/semanticPENDING; v49:148 suites/183 pins, full baseline NOT_RUN. Clean exact-source matrix/full clustered Graphify pending; no16.11 advancement.

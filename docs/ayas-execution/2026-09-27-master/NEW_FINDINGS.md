@@ -312,3 +312,7 @@ Fresh ledger observations masked stale current-plan evidence in market freshness
 ## 2026-10-03T18:15:03.545Z —16.10 manifest metadata repair
 
 isAyasEvalManifest rejected unsupported NEGATIVE_CONTROLS kind before source commit. Declare the negative-control script as REGRESSION, consistent with all existing mutation suites. Validator and grading unchanged.
+
+## 2026-10-03T18:40:06.307Z —16.10 exact-source framework receipt
+
+16.10 exact-source framework verified at 7195e96d1ae8345fb554391bc256012653a9ae5b: memory65+15/intelligence32+8/15 controls,183 committed pins, TS/lint/diff PASS (13 inherited warnings).46 selected:45 plainPASS and cognitive54/55+4/5 held-out PASS_WITH_KNOWN_LIMITATIONS(CF49);7 extra including chat-stream PASS. Fullv49 NOT_RUN. Graphify current/integrity0, structuralPARTIAL9/semanticPENDING. F82 stale-plan warning repaired; manifest kind corrected without validator changes. Ledger remains sole money truth; no production writer/HTTP snapshot binding or actual owner authentication. Stage16/Master OPEN; next16.11 security/fraud.
