@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v42",
+  "version": "15F.4-v41",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2477,56 +2477,6 @@
       "slices": [
         "offer-fulfillment-proof",
         "delivery-capacity",
-        "no-spend-authority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-fulfillment-gate",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-fulfillment-gate.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-fulfillment-gate.ts",
-          "sha256": "6e6520e3c9d0fc9276ed22c4586d8b117afdfb7f0bc05ed6d5c5bdc541996f82"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
-          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
-        }
-      ],
-      "slices": [
-        "fulfillment-quality",
-        "delivery-manifest",
-        "no-spend-authority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-fulfillment-gate-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-fulfillment-gate-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-fulfillment-gate-mutations.ts",
-          "sha256": "a315d838021e8aab7988d4236dd864757726b020cc0291ed9d3633b3456a4b58"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-fulfillment-gate.ts",
-          "sha256": "6e6520e3c9d0fc9276ed22c4586d8b117afdfb7f0bc05ed6d5c5bdc541996f82"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
-          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
-        }
-      ],
-      "slices": [
-        "fulfillment-quality",
-        "delivery-manifest",
         "no-spend-authority",
         "deterministic-outcome"
       ]

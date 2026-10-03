@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T09:40:04.006Z",
+  "files": [
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueFulfillment.ts",
+      "sha256": "9cf9bf6752019cdde93b5cec535126b196eb72cdc58d7443cc0423a75899a7da"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "476cb168e9e45a60421d0e40d9218a94c2ac691a03be605fc5e66ff71d73b9c8"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-fulfillment-gate.ts",
+      "sha256": "6e6520e3c9d0fc9276ed22c4586d8b117afdfb7f0bc05ed6d5c5bdc541996f82"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-fulfillment-gate-mutations.ts",
+      "sha256": "a315d838021e8aab7988d4236dd864757726b020cc0291ed9d3633b3456a4b58"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
+      "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "1333a154595a17f1503ee96de61c406b842afc512390d7dabf5daf7dfc701fcf"
+    },
+    {
+      "file": "docs/AYAS_REVENUE_FULFILLMENT_GATE.md",
+      "sha256": "1a3351311dd60d30b8a24581b03a306e80191db8c053f74d19cbc92c4699da21"
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "c5ecdd816cf502e810a2dd394ec11487b52d1d922b4d638286fbd8ef18b526bb"
+    }
+  ]
+}

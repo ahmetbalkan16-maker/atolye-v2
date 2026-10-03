@@ -5,7 +5,7 @@
   "lastGreenHead": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
   "currentHead": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
   "stage": "STAGE_16_3B",
-  "subtask": "16.3B Fulfillment & Delivery Quality Gate: pure gate over one accepted order of a provable offer",
+  "subtask": "16.3B fulfillment gate: focused/mutations/17 selected+6 extra regressions/static/review PASS; source commit, Graphify and exact receipt pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -429,8 +429,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Implement 16.3B pure fulfillment gate (requirements, rights, QA, file-hash manifest, promises, revisions, deadline, observed completion, ledger eligibility only); tests, mutations, regressions, Graphify, commit; then 16.4 Etsy. Push at Stage 16 closure.",
-  "updatedAt": "2026-10-03T09:28:00.000Z",
+  "nextAction": "Commit 16.3B source packet; Graphify at the commit; clean exact-source receipt; close 16.3B; then 16.4 Etsy adapter (official v3 surface re-checked 2026-10-03). Push at Stage 16 closure.",
+  "updatedAt": "2026-10-03T09:41:00.000Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -2059,5 +2059,24 @@
       "classification": "GRAPH_PARTIAL",
       "sha256": "8eb9c7b9e654a8e8dc63c73e3f7baaa75b8f21224400c783400ef8e5ed694f5e"
     }
+  },
+  "stage16_3B": {
+    "state": "OPEN_PENDING_SOURCE_COMMIT_AND_EXACT_RECEIPT",
+    "stageClosed": false,
+    "primary": 61,
+    "heldOut": 10,
+    "negativeControls": {
+      "total": 65,
+      "caught": 65,
+      "equivalents": 0
+    },
+    "manifestVersion": "15F.4-v42",
+    "declaredSuites": 132,
+    "uniquePins": 159,
+    "selectedRegressionSuites": 17,
+    "extraRegressionSuites": 6,
+    "review": "SAME_SESSION_REVIEW_F59_F60_FIXED_F61_HARDENING",
+    "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+    "notes": "04_STAGE16_REVENUE/implementation/16.3B/IMPLEMENTATION_NOTES.md"
   }
 }

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T09:40:00.000Z",
+  "reviewer": "Claude continuation session",
+  "independence": "SAME_SESSION_REVIEW_NOT_A_SEPARATE_AGENT",
+  "scope": "New 16.3B gate against the canonical master-order 16.3B flow and checks, and its use of the 16.3A factory.",
+  "findings": [
+    {
+      "id": "F59",
+      "severity": "DEFECT",
+      "summary": "First draft: a handed-off order skipped the requirements check, and a completion or handoff timestamp before acceptance was not refused.",
+      "reproduced": "Found by reading the draft before the first run.",
+      "fix": "Handoff now requires complete requirements (HANDOFF_BEFORE_QUALITY_GATE); handoff and completion times must not precede acceptance.",
+      "regression": ["P42", "P44", "negative controls: handoff before requirements accepted, records before acceptance accepted"]
+    },
+    {
+      "id": "F60",
+      "severity": "DEFECT",
+      "summary": "A complete order whose deadline passed got OWNER_REVIEW_REQUIRED with no manifest, so a late handoff the owner chose could not be bound to exact files.",
+      "reproduced": "Frozen held-out H05 and primary P43 failed on the first run (16.3B_PRE_REPAIR_FOCUSED.json).",
+      "fix": "A missed deadline still returns the gated manifest when requirements and every deliverable pass; status stays OWNER_REVIEW_REQUIRED. The test helper's intermediate expectation for a late handoff changed from HANDOFF_READY to OWNER_REVIEW_REQUIRED; H05's scenario and final assertion are unchanged.",
+      "regression": ["P61", "H05", "P43", "negative controls: late complete order loses its manifest, late manifest despite open requirements"]
+    },
+    {
+      "id": "F61",
+      "severity": "HARDENING",
+      "summary": "Paid or unknown production cost was checked only for the current revision round, so spend in an earlier round could disappear from view.",
+      "reproduced": "Design review.",
+      "fix": "Every recorded artifact's cost class is checked.",
+      "regression": ["H08", "negative control: earlier-round spend hidden"]
+    }
+  ],
+  "observationsNotDefects": [
+    "The plan step of the canonical flow is the 16.3A measured delivery scenario re-derived at acceptance; its work minutes drive AT_RISK.",
+    "AT_RISK is conservative: the full planned work minutes are compared with the time left while any deliverable is short.",
+    "Receipts identify bytes by digest; the gate does not read files. Byte checks belong to the caller that collects receipts."
+  ],
+  "result": "PASS_AFTER_FINDINGS_FIXED"
+}

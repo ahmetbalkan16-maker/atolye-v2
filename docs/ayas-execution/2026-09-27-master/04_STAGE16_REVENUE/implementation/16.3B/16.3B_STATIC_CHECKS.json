@@ -1,0 +1,108 @@
+{
+  "at": "2026-10-03T09:40:04.005Z",
+  "rows": [
+    {
+      "id": "TypeScript",
+      "command": "npx tsc --noEmit",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "id": "changedLint",
+      "command": "npx eslint --max-warnings 0 <changed source and test files>",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "id": "wholeLint",
+      "command": "npx eslint .",
+      "exit": 0,
+      "errorCount": 0,
+      "warningCount": 13,
+      "inheritedWarnings": [
+        {
+          "file": "scripts/apply-retry-admission-istanbul-1453.ts",
+          "errors": 0,
+          "warnings": 1,
+          "rules": [
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/diagnose-global-terminal-quiescence-istanbul-1453-readonly.ts",
+          "errors": 0,
+          "warnings": 1,
+          "rules": [
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/diagnose-retry-compensation-failed-root-cause-readonly.ts",
+          "errors": 0,
+          "warnings": 2,
+          "rules": [
+            "@typescript-eslint/no-unused-vars",
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/production-failed-stage-retry-with-authority-final-preflight-readonly.ts",
+          "errors": 0,
+          "warnings": 1,
+          "rules": [
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/production-manifest-reconciliation-final-preflight-readonly.ts",
+          "errors": 0,
+          "warnings": 1,
+          "rules": [
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/smoke-audio-compensation-descriptor-rebind.ts",
+          "errors": 0,
+          "warnings": 1,
+          "rules": [
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/smoke-audio-publication-rebind.ts",
+          "errors": 0,
+          "warnings": 2,
+          "rules": [
+            "@typescript-eslint/no-unused-vars",
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/smoke-isolated-e2e-audio-rebind-assembly.ts",
+          "errors": 0,
+          "warnings": 1,
+          "rules": [
+            "@typescript-eslint/no-unused-vars"
+          ]
+        },
+        {
+          "file": "scripts/smoke-sprint-129-25c-1-runtime-backup.ts",
+          "errors": 0,
+          "warnings": 3,
+          "rules": [
+            "@typescript-eslint/no-unused-vars",
+            "@typescript-eslint/no-unused-vars",
+            "@typescript-eslint/no-unused-vars"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diffCheck",
+      "command": "git diff --check (tracked) and a trailing-whitespace scan of new files",
+      "exit": 0,
+      "output": ""
+    }
+  ]
+}
