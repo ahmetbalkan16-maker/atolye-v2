@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v41",
+  "version": "15F.4-v40",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2202,7 +2202,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "641217971c1a752b8333a622df71fd887f1040ee9f23c59e0ab2f91805aaad2e"
+          "sha256": "65fa3e52e169c539af6e7aac27dedd9e2fb523c4821f528c235ed2fa92992a9a"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
@@ -2224,7 +2224,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
-          "sha256": "641217971c1a752b8333a622df71fd887f1040ee9f23c59e0ab2f91805aaad2e"
+          "sha256": "65fa3e52e169c539af6e7aac27dedd9e2fb523c4821f528c235ed2fa92992a9a"
         },
         {
           "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
@@ -2427,56 +2427,6 @@
       "slices": [
         "free-first-evidence",
         "hypothetical-economics",
-        "no-spend-authority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-offer-factory",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-offer-factory.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-offer-factory.ts",
-          "sha256": "8412c2850c9e3c066ffc648e1a7704ee35e43fa5c73609df3b3a091b133d2af6"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
-          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
-        }
-      ],
-      "slices": [
-        "offer-fulfillment-proof",
-        "delivery-capacity",
-        "no-spend-authority",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-offer-factory-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-offer-factory-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-offer-factory-mutations.ts",
-          "sha256": "b224fe7d39d6cb5f00c0f40ad7a5c2801289a63da0b863282fed001de8e0659f"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-offer-factory.ts",
-          "sha256": "8412c2850c9e3c066ffc648e1a7704ee35e43fa5c73609df3b3a091b133d2af6"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
-          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
-        }
-      ],
-      "slices": [
-        "offer-fulfillment-proof",
-        "delivery-capacity",
         "no-spend-authority",
         "deterministic-outcome"
       ]

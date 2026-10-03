@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T09:21:51.180Z",
+  "files": [
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueOfferFactory.ts",
+      "sha256": "a421a6b72f86cc8ba0aa8796748a93b4ea9821adebe9fe9f561c15342329f886"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueDigest.ts",
+      "sha256": "c22eea485147a13b7ccf63656c049a76a834188268413c0eadde99674e7a755f"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "e881e15fbf0d8ad92829372d3030fb8876800be44e7ba9657b45802042712d3d"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-offer-factory.ts",
+      "sha256": "8412c2850c9e3c066ffc648e1a7704ee35e43fa5c73609df3b3a091b133d2af6"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-offer-factory-mutations.ts",
+      "sha256": "b224fe7d39d6cb5f00c0f40ad7a5c2801289a63da0b863282fed001de8e0659f"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
+      "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
+      "sha256": "641217971c1a752b8333a622df71fd887f1040ee9f23c59e0ab2f91805aaad2e"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "9e365cc4c38a5834bc38e72fb6723237081484010751e449bd87fc257be70a70"
+    },
+    {
+      "file": "docs/AYAS_REVENUE_OFFER_FACTORY.md",
+      "sha256": "290c517acb81aab0d16cbc87862ba0a1b3c3d39d0d95e285b82f02b190575f6e"
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "f50df426c5fccc5f416fd998821031416f9364a285c5a57db2f9e963c767dbca"
+    }
+  ]
+}

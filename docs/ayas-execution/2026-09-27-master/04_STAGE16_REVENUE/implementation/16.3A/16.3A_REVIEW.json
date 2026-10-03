@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T09:45:00.000Z",
+  "reviewer": "Claude continuation session (took over the uncommitted Codex draft)",
+  "independence": "SAME_SESSION_REVIEW_NOT_A_SEPARATE_AGENT",
+  "scope": "Uncommitted Codex 16.3A draft against the canonical master-order 16.3A field list and the 16.3 validation contract it consumes.",
+  "findings": [
+    {
+      "id": "F57",
+      "severity": "DEFECT",
+      "summary": "A fulfillment sample's deliverable and rights evidence were bound to the sample artifact but not to the deliverable's capability, so a LOCAL_DELIVERABLE_PROOF record scoped to another capability could prove this deliverable.",
+      "reproduced": "P51 (split deliverable/rights records, each scoped to video.render) returned OWNER_REVIEW_READY before the fix.",
+      "fix": "Both evidence predicates now require capabilityKey to be null or equal to the deliverable's capability.",
+      "regression": ["P51", "negative controls: deliverable/rights evidence capability binding dropped"]
+    },
+    {
+      "id": "F58",
+      "severity": "DEFECT",
+      "summary": "The draft passed a JSON depth of 12 to isAyasRevenueBoundedJson, whose parameter type is the revenue-wide literal 8; npx tsc --noEmit failed with three TS2345 errors.",
+      "reproduced": "tsc exit 2 on the inherited draft.",
+      "fix": "Use the canonical revenue depth limit (default). The deepest path in the offer input is 6 levels, so no valid input is refused.",
+      "regression": ["TypeScript", "P01-P59 unchanged results"]
+    }
+  ],
+  "observationsNotDefects": [
+    "Platform mappings to platforms other than the validated opportunity platform yield OWNER_REVIEW_READY with reason LOCAL_OFFER_REQUIRES_OWNER_AND_PLATFORM_REVALIDATION. Revalidation per platform is enforced later (16.4-16.8 adapters, 16.12 pilot, 16.13 'new platform => new validation').",
+    "Several guards were only covered transitively (status, rights and deliverable dimensions; capability scope; accepted-evidence membership; portfolio identity; slowest-sample choice). Primary cases P52-P59 now isolate each one, and each has an assertion-caught negative control."
+  ],
+  "result": "PASS_AFTER_FINDINGS_FIXED"
+}

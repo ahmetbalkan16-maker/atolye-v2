@@ -323,6 +323,7 @@ async function main() {
       const source = fs.readFileSync(path.join(REVENUE_DIR, file), "utf8");
       const extensions: Record<string, readonly string[]> = {
         "AyasRevenueLedger.ts": ["node:crypto"],
+        "AyasRevenueDigest.ts": ["node:crypto", "../provenance/AyasReleaseProvenance"],
         "AyasRevenueLedgerStore.ts": ["node:fs", "node:path", "node:crypto", "../../runtime/RuntimeStoragePaths", "../../brain/autonomy/AyasExecutionAuthorityLock", "../safety/AyasSafeModeReader"],
       };
       for (const m of source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) assert.ok(allowed.test(m[1]!) || extensions[file]?.includes(m[1]!), `${file} imports ${m[1]}`);

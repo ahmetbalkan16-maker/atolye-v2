@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "sourceHead": "60153e31a356b68a17de981ab200ac310a050a59",
+  "evidenceClass": "TEMP_LOCAL_CLONE_NO_REMOTE_SCRUBBED_ENV",
+  "overlay": "HEAD_PLUS_DIRTY_WORKTREE",
+  "rows": [
+    {
+      "script": "smoke-ayas-patch-detectors.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 634,
+      "stdout": "AYAS patch detectors smoke: PASS (37 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-patch-detectors\",\"scenarios\":37}\n",
+      "stderr": "",
+      "ramPercent": 51.91559724407122
+    },
+    {
+      "script": "smoke-brain-selfheal.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 351,
+      "stdout": "Atölye Brain self-heal (pure core) smoke: PASS (41 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}\n",
+      "stderr": "",
+      "ramPercent": 51.880646866025835
+    },
+    {
+      "script": "smoke-brain-selfheal-security.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 338,
+      "stdout": "Atölye Brain self-heal security smoke: PASS (14 scenarios)\n{\"status\":\"PASS\",\"suite\":\"brain-selfheal-security\",\"scenarios\":14}\n",
+      "stderr": "",
+      "ramPercent": 51.88600255412163
+    },
+    {
+      "script": "smoke-ayas-adaptation-pipeline.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 306,
+      "stdout": "AYAS adaptation pipeline smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-adaptation-pipeline\",\"scenarios\":7}\n",
+      "stderr": "",
+      "ramPercent": 51.88710979750324
+    },
+    {
+      "script": "smoke-ayas-eval-governance.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 417,
+      "stdout": "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)\n",
+      "stderr": "",
+      "ramPercent": 51.87861290807485
+    },
+    {
+      "script": "smoke-ayas-eval-governance-mutations.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 3746,
+      "stdout": "Stage 15F.4 mutation audit: PASS (8/8 caught; TEMP only)\n",
+      "stderr": "",
+      "ramPercent": 51.89285061373177
+    }
+  ]
+}

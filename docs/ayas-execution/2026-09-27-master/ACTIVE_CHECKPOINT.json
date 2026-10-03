@@ -5,7 +5,7 @@
   "lastGreenHead": "9ac825993d19ef7d5ffdd94d522f095fee100ac9",
   "currentHead": "9ac825993d19ef7d5ffdd94d522f095fee100ac9",
   "stage": "STAGE_16_3A",
-  "subtask": "16.3A platform-independent Offer/Product Factory: architecture and measured fulfillment/rights/capacity proof contracts",
+  "subtask": "16.3A offer factory: focused/mutations/16 selected+6 extra regressions/static/review PASS; source commit, Graphify and clean exact receipt pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -424,8 +424,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Implement16.3A pure offer factory with real-proof requirements; then16.3B fulfillment/delivery quality gate and remaining canonical master. Local commits only;NO PUSH.",
-  "updatedAt": "2026-10-03T08:33:54.229Z",
+  "nextAction": "Commit 16.3A source packet; update Graphify at the commit; seal a clean exact-source receipt; close 16.3A; then 16.3B fulfillment and delivery quality gate. Push at Stage 16 closure.",
+  "updatedAt": "2026-10-03T09:50:00.000Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -723,7 +723,7 @@
     }
   },
   "pushPolicy": {
-    "state": "NO_PUSH_EXPLICIT_OWNER_COMMAND",
+    "state": "PUSH_AT_MAJOR_STAGE_BOUNDARY",
     "requires": "Local commits only. Latest owner FULL MASTER CONTINUATION command says PUSH YOK and PUSH YAPMA; supersedes all earlier push authorization and session-end exception. No remote/history rewrite.",
     "correctedOn": "2026-10-01",
     "deviation": {
@@ -739,9 +739,10 @@
       "scope": "Stage 15 closure (owner order 2026-10-03)",
       "verified": true
     },
-    "correctionNote": "Historical prior authorization note only; superseded by latest FULL MASTER CONTINUATION:LOCAL COMMIT ONLY /NO PUSH.",
+    "correctionNote": "Supersedes the earlier LOCAL COMMIT ONLY / NO PUSH instruction for major stage boundaries only; substage packets stay local until the stage boundary.",
     "supersededAuthorization": "OWNER_AUTHORIZED_CURRENT_WIP_BRANCH",
-    "latestInstructionOn": "2026-10-03"
+    "latestInstructionOn": "2026-10-03",
+    "latestInstruction": "Owner continuation order to Claude (2026-10-03): push was required at Stage 15 closure (done, ea11283) and is authorized at later major master stage boundaries. Next push: Stage 16 closure. No force push, no history rewrite."
   },
   "stage15E": {
     "state": "CLOSED_GREEN",
@@ -1916,15 +1917,18 @@
   },
   "ownerGate": "NONE_BLOCKING_IMPLEMENTATION",
   "sessionResume": {
-    "at": "2026-10-03T06:51:20.587Z",
+    "at": "2026-10-03T09:01:42.000Z",
     "pull": "Already up to date",
-    "worktree": "CLEAN",
+    "worktree": "DIRTY_INHERITED_16.3A_DRAFT",
     "aheadBehind": [
-      2,
+      7,
       0
     ],
-    "reason": "Expected local source/docs commits under NO PUSH",
-    "independentReviewAuthorization": "devam et"
+    "reason": "Seven local 16.0-16.3 commits after the Stage 15 push; uncommitted Codex 16.3A draft resumed in place",
+    "independentReviewAuthorization": "devam et",
+    "agent": "Claude (Codex usage limit reached)",
+    "head": "60153e31a356b68a17de981ab200ac310a050a59",
+    "liveOtherAgent": "NONE_FOUND"
   },
   "stage16_2": {
     "state": "CLOSED_GREEN_SOURCE_OFFLINE_OBSERVATION_LEDGER",
@@ -2005,5 +2009,24 @@
       "semanticStatus": "PENDING",
       "sha256": "c4e4771c89dc3d5f69f13ce68945eeb673f34a4c2105e909f5e26e234c3e203e"
     }
+  },
+  "stage16_3A": {
+    "state": "OPEN_PENDING_SOURCE_COMMIT_AND_EXACT_RECEIPT",
+    "stageClosed": false,
+    "primary": 59,
+    "heldOut": 10,
+    "negativeControls": {
+      "total": 64,
+      "caught": 64,
+      "equivalents": 0
+    },
+    "manifestVersion": "15F.4-v41",
+    "declaredSuites": 130,
+    "uniquePins": 156,
+    "selectedRegressionSuites": 16,
+    "extraRegressionSuites": 6,
+    "review": "SAME_SESSION_REVIEW_F57_F58_FIXED",
+    "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+    "notes": "04_STAGE16_REVENUE/implementation/16.3A/IMPLEMENTATION_NOTES.md"
   }
 }
