@@ -24,3 +24,7 @@ Post-freeze addendum: no section applies. The gate is a pure function: no model 
 | Review | F59, F60 fixed; F61 hardening; same-session review | `16.3B_REVIEW.json` |
 
 No full declared baseline was run for v42. The last complete baseline remains `5cbb217` / v38. No customer, order, file transfer, platform, money, network, model or host action.
+
+## Exact source closure — 2026-10-03T09:43:45.388Z
+
+Clean source `e20eb57`: the mutation suite reran 61+10 and caught 65/65; all 159 committed manifest pins and the 8 recorded source inputs match byte-for-byte. Graphify 18,202 nodes / 52,083 edges / 367 communities at that commit, no duplicate, dangling or self-loop, stale false; inherited PARTIAL 9 and semantic PENDING. The gate is consumed only by its tests. Stage 16.3B CLOSED_GREEN_SOURCE_ADVISORY_ONLY. Next: 16.4 Etsy.

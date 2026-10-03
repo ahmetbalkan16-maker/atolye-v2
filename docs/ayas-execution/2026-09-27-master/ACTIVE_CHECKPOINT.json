@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
-  "currentHead": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
-  "stage": "STAGE_16_3B",
-  "subtask": "16.3B fulfillment gate: focused/mutations/17 selected+6 extra regressions/static/review PASS; source commit, Graphify and exact receipt pending",
+  "lastGreenHead": "e20eb573e82873df50487125ea72859e345a6ed4",
+  "currentHead": "e20eb573e82873df50487125ea72859e345a6ed4",
+  "stage": "STAGE_16_4",
+  "subtask": "16.4 Etsy adapter: official Open API v3 read paths, local listing draft, verified webhook pointer, ledger mapping; external write closed",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -239,7 +239,8 @@
     "16.1-zero-spend-source-independent-review-closure",
     "16.2-offline-observation-ledger-source-closure",
     "16.3 Free-First Validation",
-    "16.3A Offer / Product Factory"
+    "16.3A Offer / Product Factory",
+    "16.3B Fulfillment & Delivery Quality Gate"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -383,11 +384,11 @@
   ],
   "graphify": {
     "schemaVersion": "1",
-    "at": "2026-10-03T09:25:22.590Z",
-    "head": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
-    "nodes": 18157,
-    "edges": 51971,
-    "communities": 370,
+    "at": "2026-10-03T09:42:58.271Z",
+    "head": "e20eb573e82873df50487125ea72859e345a6ed4",
+    "nodes": 18202,
+    "edges": 52083,
+    "communities": 367,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -399,9 +400,9 @@
       "INCOMPLETE_CODE_FILES:9"
     ],
     "semanticStatus": "PENDING",
-    "sha256": "8eb9c7b9e654a8e8dc63c73e3f7baaa75b8f21224400c783400ef8e5ed694f5e",
-    "lastAnalyzedHead": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
-    "graphBuiltFrom": "3ccd2ab7e1b531f65e360720fc9c21c57aae284d",
+    "sha256": "0097423cc658b764c29a6c050732f1ef15a88c904d71b6f52190dd7e60b10983",
+    "lastAnalyzedHead": "e20eb573e82873df50487125ea72859e345a6ed4",
+    "graphBuiltFrom": "e20eb573e82873df50487125ea72859e345a6ed4",
     "worktreeState": "CLEAN",
     "classification": "GRAPH_PARTIAL"
   },
@@ -429,8 +430,8 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Commit 16.3B source packet; Graphify at the commit; clean exact-source receipt; close 16.3B; then 16.4 Etsy adapter (official v3 surface re-checked 2026-10-03). Push at Stage 16 closure.",
-  "updatedAt": "2026-10-03T09:41:00.000Z",
+  "nextAction": "Implement 16.4 Etsy adapter under the 16.0 standard with an injected connector-managed transport (no credentials in AYAS); fixtures from the official v3 spec; >=50 primary + 12 held-out; mutations; regressions; Graphify; commit. Production registry stays empty. Push at Stage 16 closure.",
+  "updatedAt": "2026-10-03T09:43:45.388Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -2061,8 +2062,8 @@
     }
   },
   "stage16_3B": {
-    "state": "OPEN_PENDING_SOURCE_COMMIT_AND_EXACT_RECEIPT",
-    "stageClosed": false,
+    "state": "CLOSED_GREEN_SOURCE_ADVISORY_ONLY",
+    "stageClosed": true,
     "primary": 61,
     "heldOut": 10,
     "negativeControls": {
@@ -2077,6 +2078,32 @@
     "extraRegressionSuites": 6,
     "review": "SAME_SESSION_REVIEW_F59_F60_FIXED_F61_HARDENING",
     "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
-    "notes": "04_STAGE16_REVENUE/implementation/16.3B/IMPLEMENTATION_NOTES.md"
+    "notes": "04_STAGE16_REVENUE/implementation/16.3B/IMPLEMENTATION_NOTES.md",
+    "sourceCommit": "e20eb573e82873df50487125ea72859e345a6ed4",
+    "exactReceipt": "16.3B_EXACT_SOURCE_RECEIPT.json",
+    "graphify": {
+      "schemaVersion": "1",
+      "at": "2026-10-03T09:42:58.271Z",
+      "head": "e20eb573e82873df50487125ea72859e345a6ed4",
+      "nodes": 18202,
+      "edges": 52083,
+      "communities": 367,
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0,
+      "lastAnalyzedHead": "e20eb573e82873df50487125ea72859e345a6ed4",
+      "graphBuiltFrom": "e20eb573e82873df50487125ea72859e345a6ed4",
+      "stale": false,
+      "needsUpdate": false,
+      "worktreeState": "CLEAN",
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "classification": "GRAPH_PARTIAL",
+      "sha256": "0097423cc658b764c29a6c050732f1ef15a88c904d71b6f52190dd7e60b10983"
+    }
   }
 }

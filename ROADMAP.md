@@ -1,3 +1,10 @@
+## AYAS current — 2026-10-03 / 16.3B source closure
+
+- [x] 16.3B fulfillment gate: exact `e20eb57`, 61+10 / 65 controls / 159 pins / F59-F61 fixed / Graphify.
+- [ ] 16.4 Etsy adapter active, then 16.5 onward in master order.
+
+Last complete full baseline `5cbb217` / v38. Next push at Stage 16 closure.
+
 ## AYAS current — 2026-10-03 / 16.3A source closure
 
 - [x] 16.3A offer factory: exact `3ccd2ab`, 59+10 / 64 controls / 156 pins / review F57-F58 fixed / Graphify.

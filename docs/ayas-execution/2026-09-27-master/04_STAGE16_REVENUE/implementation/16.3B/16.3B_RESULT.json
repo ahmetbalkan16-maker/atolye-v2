@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T09:43:45.388Z",
+  "state": "CLOSED_GREEN_SOURCE_ADVISORY_ONLY",
+  "sourceCommit": "e20eb573e82873df50487125ea72859e345a6ed4",
+  "exactReceipt": "16.3B_EXACT_SOURCE_RECEIPT.json",
+  "exactReceiptSha256": "b4d32a7fb8558e4761eb15629ed2abc264ec20f7ceed11bb6e39132bbde55c0b",
+  "primary": {
+    "passed": 61,
+    "total": 61
+  },
+  "heldOut": {
+    "passed": 10,
+    "total": 10
+  },
+  "negativeControls": {
+    "total": 65,
+    "caught": 65,
+    "equivalents": 0
+  },
+  "manifestVersion": "15F.4-v42",
+  "declaredSuites": 132,
+  "uniquePins": 159,
+  "selectedRegressionSuites": 17,
+  "extraRegressionSuites": 6,
+  "review": "SAME_SESSION_REVIEW_F59_F60_FIXED_F61_HARDENING",
+  "typeScript": "PASS",
+  "changedLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "wholeLint": {
+    "errors": 0,
+    "inheritedWarnings": 13
+  },
+  "diffCheck": "PASS",
+  "fullDeclaredBaseline": "NOT_RUN_ON_NEW_SOURCE",
+  "lastCompleteBaseline": {
+    "head": "5cbb21706eb12693555a9fefbc7554fadf175049",
+    "manifest": "15F.4-v38",
+    "suites": 124,
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS"
+  },
+  "liveRevenueRoot": "ABSENT",
+  "authority": "NONE",
+  "pushPolicy": "PUSH_AT_STAGE_16_CLOSURE",
+  "next": "16.4 Etsy adapter",
+  "graphify": {
+    "schemaVersion": "1",
+    "at": "2026-10-03T09:42:58.271Z",
+    "head": "e20eb573e82873df50487125ea72859e345a6ed4",
+    "nodes": 18202,
+    "edges": 52083,
+    "communities": 367,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "lastAnalyzedHead": "e20eb573e82873df50487125ea72859e345a6ed4",
+    "graphBuiltFrom": "e20eb573e82873df50487125ea72859e345a6ed4",
+    "stale": false,
+    "needsUpdate": false,
+    "worktreeState": "CLEAN",
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "0097423cc658b764c29a6c050732f1ef15a88c904d71b6f52190dd7e60b10983"
+  }
+}

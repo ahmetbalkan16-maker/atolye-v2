@@ -1,3 +1,7 @@
+## 2026-10-03 — 16.3B fulfillment and delivery quality gate
+
+Pure order gate: offer re-proven at acceptance and bound by revision; unsupported promises refused; requirements, per-round files, QA receipts, rights, attribution and cost tracked; canonical file-hash delivery manifest bound to the owner's handoff; deadline and observed completion reported; lateness never hidden. Authority NONE; no delivery, message, spend or ledger write. Exact `e20eb57`: 61+10 / 65 controls / 159 pins, 17+6 regressions, static checks and Graphify PASS. 16.4 active.
+
 ## 2026-10-03 — 16.3A offer / product factory
 
 Pure platform-independent offer drafts from a validated opportunity: owner-review-ready only with current measured local fulfillment samples bound to accepted deliverable and rights evidence, a local portfolio artifact and current capacity for the promised window. Conservative delivery time (slowest covering sample, 1.5× buffer, revisions and support). Authority NONE; no listing, slot reservation, spend or ledger write. Exact `3ccd2ab`: 59+10 / 64 controls / 156 pins, 16+6 regressions, static checks and Graphify PASS. 16.3B active.

@@ -1,3 +1,9 @@
+# AYAS current — 2026-10-03 / 16.3B source closed; 16.4 active
+
+16.3B fulfillment and delivery quality gate, exact clean `e20eb573e82873df50487125ea72859e345a6ed4`, CLOSED_GREEN_SOURCE_ADVISORY_ONLY: 61 primary + 10 held-out, 65 negative controls, 159 committed pins; 17 selected + 6 extra TEMP regressions; findings F59-F61 fixed; TypeScript, lint (13 old warnings) and diff PASS; Graphify 18202/52083 current, zero anomalies (PARTIAL 9 / semantic PENDING). Closure: `04_STAGE16_REVENUE/implementation/16.3B/16.3B_RESULT.json`. Last complete baseline `5cbb217` / v38; no full v42 claim.
+
+Active: 16.4 Etsy adapter (read + local listing draft only; official Open API v3 re-checked on 2026-10-03), then 16.5 onward in master order. Next push at Stage 16 closure. Master NOT COMPLETE. Exact next action: `ACTIVE_CHECKPOINT.json`.
+
 # AYAS current — 2026-10-03 / 16.3A source closed; 16.3B active
 
 16.3A offer factory, exact clean `3ccd2ab7e1b531f65e360720fc9c21c57aae284d`, CLOSED_GREEN_SOURCE_ADVISORY_ONLY: 59 primary + 10 held-out, 64 negative controls, 156 committed pins; 16 selected + 6 extra TEMP regressions; review findings F57/F58 fixed; TypeScript, lint (13 old warnings) and diff PASS; Graphify 18157/51971 current with zero anomalies (PARTIAL 9 / semantic PENDING). Closure: `04_STAGE16_REVENUE/implementation/16.3A/16.3A_RESULT.json`. Last complete baseline `5cbb217` / v38; no full v41 claim.
