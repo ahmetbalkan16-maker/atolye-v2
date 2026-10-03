@@ -1,0 +1,9 @@
+# Stage16.5 — source framework, official qualification deferred
+
+Canonical16.5 followed without changing16.0 vocabulary. Graphify review before editing: shared adapter/connection/registry163 nodes/40 files; protected patch policy/evaluation182 nodes/123 files. Graph was current6bb6731, stale=false, nine inherited incomplete extractors/semantic PENDING. Three new modules implement schema-pinned owner-interactive read infrastructure and local proposal drafting. Global registry and actual official tool catalog remain empty. No live credentials, account read, registration, network adapter call, money, model or host activation.
+
+Current66+15 synthetic scenarios and50 assertion-caught mutations PASS. Negative controls exposed assertion gaps for extra safe annotations, same-name/different-operation pins, independent adapter account binding, and unrecognized private fields; strengthened general tests. No fixture-specific production behavior. TypeScript and changed lint clean; full lint retains13 warnings. Manifestv44 declares136 suites/165 pins; byte-exactv43 archive retained. Fullv44 baseline NOT_RUN. Exact-source regressions/Graphify closure still pending at this source commit.
+
+F65: canonical support wording has changed; currentterms impose stricter independent-ranking/model-use/retention constraints. Gate retained and no scoring implemented. F66: anonymous MCP initialize401, so official names/schemas/scopes and projectors cannot be certified. Stage16.5 official mapping remainsPENDING_OWNER_OAUTH_AFTER_FOUNDATION; source framework testing alone is not stage completion. Real Upwork output must not be evaluation data.
+
+Next: exact-source selected+extra regressions and Graphify; then independent16.6 source work in canonical order per current user instruction, carrying16.5 qualification openly. Stage16 remainsOPEN; no later mainStage may be falsely closed/promoted.

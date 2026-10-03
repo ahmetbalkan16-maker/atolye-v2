@@ -1,3 +1,7 @@
+# AYAS current — 2026-10-03 /16.5 source framework; official qualification pending
+
+16.4 source closed at6c96d07. Upwork framework66+15 synthetic scenarios/50 assertion-caught controls PASS; TS/changed lint clean/full lint13 inherited warnings. Manifestv44 declares136 suites/165 pins. Exact-source regressions and Graphify refresh pending. Official MCP catalog/schema/scopes require owner OAuth after foundation; no official mapping or Stage16.5 completion claim. Global registry empty; no live account, writes, Connects, money or host activation. Next exact-source framework qualification, then independent16.6 in canonical order while retaining16.5 deferred requirement. Stage16/master OPEN; major boundary push policy retained. SeeACTIVE_CHECKPOINT.json andimplementation/16.5.
+
 # AYAS current —2026-10-03 /16.4 source closed;16.5 active
 
 Exact source `6c96d07299eb743b45ff5474da6256f3a1c9a579`:72+12,89/89 controls,19 selected+6 extra TEMP regressions,162 committed pins andTS/lint/diff PASS (13 inherited lint warnings). Graphify18305/52340 current,stale=false,needs_update=false,zero anomalies;PARTIAL9/semanticPENDING retained. Fullv43 NOT_RUN; last completev38/5cbb217. F62–F64 repaired. No live account/network adapter/listing/money/host activation;production registry empty. Stage16/master OPEN. Next16.5 Upwork. Proof:implementation/16.4/16.4_EXACT_SOURCE_RECEIPT.json; exact nextACTIVE_CHECKPOINT.json. Push at majorStage16 boundary.

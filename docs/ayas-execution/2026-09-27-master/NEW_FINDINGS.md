@@ -232,3 +232,11 @@ Real findings only. Each names where it was found and what became of it.
 | F62 | Inherited16.4 normalized listings/payments without checking returned shop_id, and accepted a refund adjustment for another payment. | P68/P69 failed before repair. | RESOLVED: returned identities bind to configured shop/enclosing payment; separate negative controls. |
 | F63 | Direct ledger mapping omitted monetaryMutation validation, allowed foreign/unbounded amounts, and raw oversized adjustment amounts could become invalid ledger inputs. | P70/P72 failed before repair. | RESOLVED: both effect flags false; closed same currency and ledger bounds; oversized adjustment unknown. |
 | F64 | Mapper validated an accessor array and then read it again, allowing time-of-check/time-of-use changes. | P71 failed before repair. | RESOLVED: bounded descriptor preflight rejects nested getters before execution, then one stable clone. |
+
+## F65 — Upwork current terms and help differ from canonical description
+
+2026-10-03 recheck: support now refers workflows to terms; API&MCPv2.3 limits independent ranking, model use and retention. Keep canonical support gate and close ranking/model-memory use; do not reuse real output in graders. Recorded in16.5 official source receipt.
+
+## F66 — Official MCP tool catalog cannot be qualified anonymously
+
+Initialize401 emptybody; no official schema/scope output. No fabricated tool identities. Framework tests use explicitlysyntheticpins. PENDING_OWNER_OAUTH_AFTER_FOUNDATION; reviewed official projectors/cost/scope/task evidence required before read activation. Stage16.5 notfullyclosed; independent Stage16 work remains authorized.

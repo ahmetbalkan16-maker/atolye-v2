@@ -1044,3 +1044,7 @@ Exact source `6c96d07299eb743b45ff5474da6256f3a1c9a579`:72/72 primary +12/12 fro
 F62–F64 reproduced before correction and repaired without changing frozen held-out assertions. Official Etsy OpenAPI public re-fetch matches the inherited hash. Source is read-only plus local drafts; verified webhook remains a pointer, ledger mapper produces inert inputs. No live account, credential, external listing, money, model or host activation. Production registry empty. Review: inherited-source review plus same-session repair audit; no separate-agent review.
 
 Stage16 remains OPEN. Next canonical16.5 Upwork. Exact proof:16.4_EXACT_SOURCE_RECEIPT.json,16.4_REGRESSIONS.json,16.4_EXTRA_REGRESSIONS.json. Push remains at majorStage16 boundary.
+
+## 2026-10-03 —16.5 framework implementation
+
+66+15 synthetic scenarios/50 controls, TS/lint/pins PASS; exact regression and Graphify pending. Official tools not captured:401 unauthenticated initialize. Stage16.5 official qualificationPENDING_OWNER_OAUTH; catalogempty/draftonly by default. Continue independent16.6 source after exact framework packet; Stage16 staysOPEN.

@@ -1,0 +1,40 @@
+{
+  "at": "2026-10-03T11:48:34.976Z",
+  "evidenceClass": "WORKTREE_SOURCE_PRECOMMIT",
+  "typeScript": {
+    "command": "npx tsc --noEmit --incremental false",
+    "exit": 0
+  },
+  "changedLint": {
+    "exit": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "fullLint": {
+    "exit": 0,
+    "errors": 0,
+    "warnings": 13,
+    "classification": "INHERITED"
+  },
+  "diffCheck": {
+    "exit": 0
+  },
+  "pins": {
+    "version": "15F.4-v44",
+    "suites": 136,
+    "unique": 165,
+    "drift": 0
+  },
+  "securityReview": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT",
+  "boundaries": [
+    "NO_EXECUTOR_OR_PRODUCTION_REGISTRATION",
+    "IMMUTABLE_SOURCE_PINS;DISCOVERY_DATA_ONLY",
+    "CONNECTOR_MANAGED_CREDENTIALS",
+    "OWNER_AND_CONNECTION_RECHECK_AFTER_DISCOVERY",
+    "BOUNDED_DESCRIPTOR_SNAPSHOT_AND_EPHEMERAL_PROJECTION",
+    "NO_FALLBACK_RETRY_STORAGE_RANKING_MODEL_USE"
+  ],
+  "officialToolQualification": "PENDING_OWNER_OAUTH",
+  "exactSourceRegression": "PENDING",
+  "graphifyAfterSource": "PENDING"
+}

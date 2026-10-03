@@ -86,6 +86,9 @@ const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   "scripts/smoke-ayas-revenue-etsy-adapter.ts",
   "scripts/smoke-ayas-revenue-etsy-adapter-mutations.ts",
   "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
+  "scripts/smoke-ayas-revenue-upwork-adapter.ts",
+  "scripts/smoke-ayas-revenue-upwork-adapter-mutations.ts",
+  "scripts/fixtures/ayas-revenue-upwork-fixture.ts",
   "scripts/ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain.ts",
   "scripts/smoke-ayas-portable-brain-mutations.ts",
@@ -100,7 +103,7 @@ const RULES: readonly Rule[] = Object.freeze([
   {
     level: "FORBIDDEN_AUTONOMOUS",
     why: "the revenue platform standard (operation effects, owner-required writes, non-autonomous money) cannot rewrite itself",
-    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md" || p.toLowerCase() === "docs/ayas_revenue_unit_economics.md" || p.toLowerCase() === "docs/ayas_revenue_free_first_validation.md" || p.toLowerCase() === "docs/ayas_revenue_offer_factory.md" || p.toLowerCase() === "docs/ayas_revenue_fulfillment_gate.md" || p.toLowerCase() === "docs/ayas_revenue_etsy_adapter.md",
+    test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md" || p.toLowerCase() === "docs/ayas_revenue_unit_economics.md" || p.toLowerCase() === "docs/ayas_revenue_free_first_validation.md" || p.toLowerCase() === "docs/ayas_revenue_offer_factory.md" || p.toLowerCase() === "docs/ayas_revenue_fulfillment_gate.md" || p.toLowerCase() === "docs/ayas_revenue_etsy_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_upwork_adapter.md",
   },
   {
     level: "FORBIDDEN_AUTONOMOUS",

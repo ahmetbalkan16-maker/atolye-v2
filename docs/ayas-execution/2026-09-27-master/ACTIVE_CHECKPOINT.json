@@ -5,7 +5,7 @@
   "lastGreenHead": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
   "currentHead": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
   "stage": "STAGE_16_5",
-  "subtask": "16.5 Upwork official MCP reviewed-schema boundary and local proposal drafts; live tool qualification deferred",
+  "subtask": "16.5 source framework validation; official MCP qualification pending owner OAuth",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -300,7 +300,7 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
   ],
-  "nextAction": "Implement canonical16.5 Upwork under16.0: official MCP endpoint/schema discovery and code-reviewed allowlist (anonymous401 means live tool/schema capture requires owner OAuth after foundation), owner-triggered bounded reads, local proposal drafts; no automated submission/Connects/message/offer/payment or fallback. Re-check current official API & MCP terms; no independently determined ranking/scoring or model-improvement storage. Then16.6 in order. Stage16 OPEN; push at major boundary.",
+  "nextAction": "Verify exact-source16.5 framework regressions/security/Graphify; official qualification remains pendingOwnerOAuth after foundation. Continue independent16.6 Fiverr source in canonical order without declaring16.5 official mapping DONE. Stage16/masterOPEN; push atmajorStage16boundary.",
   "updatedAt": "2026-10-03T11:20:00.634Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -2028,5 +2028,26 @@
       "classification": "GRAPH_PARTIAL",
       "sha256": "67f94793db6d064675c2c63259a55ad4fd9e615fd9cd21070fc0c207c4c94cdc"
     }
+  },
+  "stage16_5": {
+    "state": "IMPLEMENTED_FRAMEWORK_PENDING_EXACT_SOURCE_REGRESSION_AND_OFFICIAL_QUALIFICATION",
+    "stageClosed": false,
+    "baseHead": "6bb673140c894124712bd26136fa0b4f70b6e165",
+    "primary": 66,
+    "heldOut": 15,
+    "negativeControls": {
+      "total": 50,
+      "caught": 50
+    },
+    "manifestVersion": "15F.4-v44",
+    "declaredSuites": 136,
+    "uniquePins": 165,
+    "fullDeclaredBaseline": "NOT_RUN",
+    "officialToolQualification": "PENDING_OWNER_OAUTH_AFTER_FOUNDATION",
+    "officialCatalog": "EMPTY",
+    "productionRegistry": "EMPTY",
+    "authority": "NONE",
+    "specRecheck": "04_STAGE16_REVENUE/implementation/16.5/16.5_OFFICIAL_SPEC_RECHECK.json",
+    "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT"
   }
 }

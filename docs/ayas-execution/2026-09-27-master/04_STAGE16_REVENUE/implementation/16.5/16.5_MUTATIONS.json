@@ -1,0 +1,562 @@
+{
+  "status": "PASS",
+  "baseline": {
+    "status": "PASS",
+    "primary": {
+      "passed": 66,
+      "total": 66
+    },
+    "heldOut": {
+      "passed": 15,
+      "total": 15
+    },
+    "officialToolQualification": "PENDING_OWNER_OAUTH",
+    "fixtureOnly": true,
+    "authority": "NONE",
+    "results": [
+      {
+        "id": "P01",
+        "set": "primary",
+        "ok": true,
+        "detail": "default exposes local draft only, unchanged standard"
+      },
+      {
+        "id": "P02",
+        "set": "primary",
+        "ok": true,
+        "detail": "production registry has no Upwork connection"
+      },
+      {
+        "id": "P03",
+        "set": "primary",
+        "ok": true,
+        "detail": "read requires three exact schema pins"
+      },
+      {
+        "id": "P04",
+        "set": "primary",
+        "ok": true,
+        "detail": "new tool is unsupported even with claimed owner approval"
+      },
+      {
+        "id": "P05",
+        "set": "primary",
+        "ok": true,
+        "detail": "reviewed writes require owner, no executor"
+      },
+      {
+        "id": "P06",
+        "set": "primary",
+        "ok": true,
+        "detail": "reviewed finance remains non autonomous"
+      },
+      {
+        "id": "P07",
+        "set": "primary",
+        "ok": true,
+        "detail": "unsafe read hints remain unsupported even when pinned"
+      },
+      {
+        "id": "P08",
+        "set": "primary",
+        "ok": true,
+        "detail": "input schema drift fails closed"
+      },
+      {
+        "id": "P09",
+        "set": "primary",
+        "ok": true,
+        "detail": "output schema drift fails closed"
+      },
+      {
+        "id": "P10",
+        "set": "primary",
+        "ok": true,
+        "detail": "annotation drift fails closed"
+      },
+      {
+        "id": "P11",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate reviewed names refused"
+      },
+      {
+        "id": "P12",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate read operations refused"
+      },
+      {
+        "id": "P13",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown operation cannot be pinned"
+      },
+      {
+        "id": "P14",
+        "set": "primary",
+        "ok": true,
+        "detail": "empty or duplicate scopes refused"
+      },
+      {
+        "id": "P15",
+        "set": "primary",
+        "ok": true,
+        "detail": "unknown transport cost is denied"
+      },
+      {
+        "id": "P16",
+        "set": "primary",
+        "ok": true,
+        "detail": "tool getters are not invoked"
+      },
+      {
+        "id": "P17",
+        "set": "primary",
+        "ok": true,
+        "detail": "nested array accessors refused before snapshot"
+      },
+      {
+        "id": "P18",
+        "set": "primary",
+        "ok": true,
+        "detail": "oversized metadata refused"
+      },
+      {
+        "id": "P19",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner read trigger mandatory"
+      },
+      {
+        "id": "P20",
+        "set": "primary",
+        "ok": true,
+        "detail": "SCHEDULED is blocked by source policy"
+      },
+      {
+        "id": "P21",
+        "set": "primary",
+        "ok": true,
+        "detail": "AI_RANKING is blocked by source policy"
+      },
+      {
+        "id": "P22",
+        "set": "primary",
+        "ok": true,
+        "detail": "RAW_STORAGE is blocked by source policy"
+      },
+      {
+        "id": "P23",
+        "set": "primary",
+        "ok": true,
+        "detail": "HOSTED_MULTI_USER is blocked by source policy"
+      },
+      {
+        "id": "P24",
+        "set": "primary",
+        "ok": true,
+        "detail": "CHAINED_WRITE is blocked by source policy"
+      },
+      {
+        "id": "P25",
+        "set": "primary",
+        "ok": true,
+        "detail": "ACCOUNT uses reviewed synthetic projection"
+      },
+      {
+        "id": "P26",
+        "set": "primary",
+        "ok": true,
+        "detail": "JOBS uses reviewed synthetic projection"
+      },
+      {
+        "id": "P27",
+        "set": "primary",
+        "ok": true,
+        "detail": "INVITATIONS uses reviewed synthetic projection"
+      },
+      {
+        "id": "P28",
+        "set": "primary",
+        "ok": true,
+        "detail": "PROPOSALS uses reviewed synthetic projection"
+      },
+      {
+        "id": "P29",
+        "set": "primary",
+        "ok": true,
+        "detail": "CONTRACTS uses reviewed synthetic projection"
+      },
+      {
+        "id": "P30",
+        "set": "primary",
+        "ok": true,
+        "detail": "gross fee and payout stay separate, unknown fee stays null"
+      },
+      {
+        "id": "P31",
+        "set": "primary",
+        "ok": true,
+        "detail": "invalid connection stops before discovery/transport"
+      },
+      {
+        "id": "P32",
+        "set": "primary",
+        "ok": true,
+        "detail": "invalid connection stops before discovery/transport"
+      },
+      {
+        "id": "P33",
+        "set": "primary",
+        "ok": true,
+        "detail": "invalid connection stops before discovery/transport"
+      },
+      {
+        "id": "P34",
+        "set": "primary",
+        "ok": true,
+        "detail": "invalid connection stops before discovery/transport"
+      },
+      {
+        "id": "P35",
+        "set": "primary",
+        "ok": true,
+        "detail": "invalid connection stops before discovery/transport"
+      },
+      {
+        "id": "P36",
+        "set": "primary",
+        "ok": true,
+        "detail": "observed scope drift denied"
+      },
+      {
+        "id": "P37",
+        "set": "primary",
+        "ok": true,
+        "detail": "adapter account bound independently of connection metadata"
+      },
+      {
+        "id": "P38",
+        "set": "primary",
+        "ok": true,
+        "detail": "fresh discovery required on every read"
+      },
+      {
+        "id": "P39",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate discovered names fail closed"
+      },
+      {
+        "id": "P40",
+        "set": "primary",
+        "ok": true,
+        "detail": "transport uses immutable official endpoint and fixed tool"
+      },
+      {
+        "id": "P41",
+        "set": "primary",
+        "ok": true,
+        "detail": "429 returns rate limited without retry"
+      },
+      {
+        "id": "P42",
+        "set": "primary",
+        "ok": true,
+        "detail": "auth/scope refused"
+      },
+      {
+        "id": "P43",
+        "set": "primary",
+        "ok": true,
+        "detail": "auth/scope refused"
+      },
+      {
+        "id": "P44",
+        "set": "primary",
+        "ok": true,
+        "detail": "upstream 503 unavailable"
+      },
+      {
+        "id": "P45",
+        "set": "primary",
+        "ok": true,
+        "detail": "MCP tool error cannot masquerade as success"
+      },
+      {
+        "id": "P46",
+        "set": "primary",
+        "ok": true,
+        "detail": "malformed status/flags refused"
+      },
+      {
+        "id": "P47",
+        "set": "primary",
+        "ok": true,
+        "detail": "transport throw never falls to GraphQL"
+      },
+      {
+        "id": "P48",
+        "set": "primary",
+        "ok": true,
+        "detail": "single bounded page, no cursor or bulk enumeration"
+      },
+      {
+        "id": "P49",
+        "set": "primary",
+        "ok": true,
+        "detail": "payload cannot choose tool/host or arbitrary arguments"
+      },
+      {
+        "id": "P50",
+        "set": "primary",
+        "ok": true,
+        "detail": "response account identity is checked"
+      },
+      {
+        "id": "P51",
+        "set": "primary",
+        "ok": true,
+        "detail": "duplicate projection facts refused"
+      },
+      {
+        "id": "P52",
+        "set": "primary",
+        "ok": true,
+        "detail": "private message or PII cannot enter normalized facts"
+      },
+      {
+        "id": "P53",
+        "set": "primary",
+        "ok": true,
+        "detail": "cross currency money refused"
+      },
+      {
+        "id": "P54",
+        "set": "primary",
+        "ok": true,
+        "detail": "unsafe minor amount is refused"
+      },
+      {
+        "id": "P55",
+        "set": "primary",
+        "ok": true,
+        "detail": "draft local even with no account and zero bindings"
+      },
+      {
+        "id": "P56",
+        "set": "primary",
+        "ok": true,
+        "detail": "draft digest binds all commercial fields"
+      },
+      {
+        "id": "P57",
+        "set": "primary",
+        "ok": true,
+        "detail": "URL/contact proposal payload refused"
+      },
+      {
+        "id": "P58",
+        "set": "primary",
+        "ok": true,
+        "detail": "extra proposal fields and bad attachments refused"
+      },
+      {
+        "id": "P59",
+        "set": "primary",
+        "ok": true,
+        "detail": "milestones require same currency and exact bid total"
+      },
+      {
+        "id": "P60",
+        "set": "primary",
+        "ok": true,
+        "detail": "missing rights/offer proof remains visible"
+      },
+      {
+        "id": "P61",
+        "set": "primary",
+        "ok": true,
+        "detail": "submit boost messages offers Connects and finance remain closed"
+      },
+      {
+        "id": "P62",
+        "set": "primary",
+        "ok": true,
+        "detail": "owner revocation during discovery stops invocation"
+      },
+      {
+        "id": "P63",
+        "set": "primary",
+        "ok": true,
+        "detail": "response accessor and oversized raw output refused"
+      },
+      {
+        "id": "P64",
+        "set": "primary",
+        "ok": true,
+        "detail": "configuration snapshots do not alias caller mutation"
+      },
+      {
+        "id": "P65",
+        "set": "primary",
+        "ok": true,
+        "detail": "attribution AI-origin and metering survive projection"
+      },
+      {
+        "id": "P66",
+        "set": "primary",
+        "ok": true,
+        "detail": "adapter and evaluator are selfheal protected"
+      },
+      {
+        "id": "H01",
+        "set": "held-out",
+        "ok": true,
+        "detail": "owner criteria only no automatic ranking"
+      },
+      {
+        "id": "H02",
+        "set": "held-out",
+        "ok": true,
+        "detail": "unknown tools coexist but never become callable"
+      },
+      {
+        "id": "H03",
+        "set": "held-out",
+        "ok": true,
+        "detail": "empty job set is EMPTY"
+      },
+      {
+        "id": "H04",
+        "set": "held-out",
+        "ok": true,
+        "detail": "wrong response kind refused"
+      },
+      {
+        "id": "H05",
+        "set": "held-out",
+        "ok": true,
+        "detail": "no fee inferred from payout difference"
+      },
+      {
+        "id": "H06",
+        "set": "held-out",
+        "ok": true,
+        "detail": "unknown state refused"
+      },
+      {
+        "id": "H07",
+        "set": "held-out",
+        "ok": true,
+        "detail": "payload secrets refused before call"
+      },
+      {
+        "id": "H08",
+        "set": "held-out",
+        "ok": true,
+        "detail": "read draft mode mix cannot invoke transport"
+      },
+      {
+        "id": "H09",
+        "set": "held-out",
+        "ok": true,
+        "detail": "discovery throw is error without live fallback"
+      },
+      {
+        "id": "H10",
+        "set": "held-out",
+        "ok": true,
+        "detail": "no bindings means read is unsupported"
+      },
+      {
+        "id": "H11",
+        "set": "held-out",
+        "ok": true,
+        "detail": "symbol and sparse arrays are refused"
+      },
+      {
+        "id": "H12",
+        "set": "held-out",
+        "ok": true,
+        "detail": "projection bigger than requested page refused"
+      },
+      {
+        "id": "H13",
+        "set": "held-out",
+        "ok": true,
+        "detail": "proposal draft cannot report monetary mutation"
+      },
+      {
+        "id": "H14",
+        "set": "held-out",
+        "ok": true,
+        "detail": "session expires while discovery pending"
+      },
+      {
+        "id": "H15",
+        "set": "held-out",
+        "ok": true,
+        "detail": "source contains no credential host or storage machinery"
+      }
+    ]
+  },
+  "negativeControls": {
+    "total": 50,
+    "caught": [
+      "workflow status env-like authority",
+      "default catalog fabricated",
+      "unknown name mapped by position",
+      "write tool read classification",
+      "financial tool read classification",
+      "input pin skipped",
+      "output pin skipped",
+      "annotations pin skipped",
+      "readOnly hint skipped",
+      "destructive hint skipped",
+      "open world hint skipped",
+      "metadata preflight skipped",
+      "array preflight skipped",
+      "duplicate pins accepted",
+      "duplicate operation pins accepted",
+      "empty scopes accepted",
+      "unknown cost hint accepted",
+      "owner callback gates removed",
+      "scheduled workflow gate removed",
+      "AI ranking workflow gate removed",
+      "raw storage workflow gate removed",
+      "connection gate removed",
+      "account binding removed",
+      "tool discovery drift ignored",
+      "duplicate discovered tools accepted",
+      "mutable transport parameters",
+      "429 handling removed",
+      "401 handling removed",
+      "403 handling removed",
+      "5xx handling removed",
+      "MCP error flag ignored",
+      "page size bound removed",
+      "projected owner identity ignored",
+      "duplicate facts accepted",
+      "unknown private fields preserved",
+      "cross currency facts accepted",
+      "money shape bypassed",
+      "draft publication opened",
+      "draft commercial digest incomplete",
+      "draft links accepted",
+      "duplicate draft attachments accepted",
+      "milestone sum mismatch accepted",
+      "missing rights hidden",
+      "second owner and connection check removed",
+      "second freshness check removed",
+      "response metadata raw snapshot bypass",
+      "attribution discarded",
+      "AI origin overwritten",
+      "state open vocabulary",
+      "projection pagination bound removed"
+    ],
+    "equivalents": []
+  },
+  "noLiveIO": true
+}

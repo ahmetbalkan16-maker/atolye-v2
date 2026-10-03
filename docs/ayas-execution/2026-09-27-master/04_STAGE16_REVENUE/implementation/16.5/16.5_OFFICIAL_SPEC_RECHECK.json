@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-03T11:46:36.093Z",
+  "sources": [
+    "https://www.upwork.com/ai/mcp",
+    "https://www.upwork.com/legal",
+    "https://support.upwork.com/hc/en-us/articles/55446516654611-How-to-use-Upwork-with-AI-agents-through-MCP",
+    "https://github.com/upwork/upwork-agent-plugin"
+  ],
+  "termsVersion": "2.3",
+  "termsEffective": "2026-08-13",
+  "anonymousInitialize": {
+    "endpoint": "https://mcp.upwork.com/mcp",
+    "status": 401,
+    "bodyBytes": 0,
+    "authenticated": false,
+    "accountRead": false,
+    "dynamicRegistration": false,
+    "toolsListCaptured": false,
+    "receipt": "Same-session anonymous initialize; earlier tool execution recorded in conversation, no raw trace saved"
+  },
+  "officialToolQualification": "PENDING_OWNER_OAUTH_AFTER_FOUNDATION",
+  "officialSchemas": "NOT_CAPTURED",
+  "scopes": "NOT_CAPTURED",
+  "fixtureCatalog": "SYNTHETIC_ONLY",
+  "supportWording": "CURRENT_HELP_REFERS_TO_TERMS;CANONICAL_GATE_RETAINED",
+  "additionalBoundaries": [
+    "NO_INDEPENDENT_AGENT_RANKING",
+    "NO_REAL_UPWORK_OUTPUT_IN_EVALUATION_OR_MODEL_MEMORY",
+    "TASK_SCOPED_EPHEMERAL_PROJECTION_ONLY"
+  ],
+  "authority": "NONE"
+}
