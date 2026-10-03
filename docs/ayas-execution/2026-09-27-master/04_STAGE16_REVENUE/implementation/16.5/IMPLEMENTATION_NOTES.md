@@ -7,3 +7,7 @@ Current66+15 synthetic scenarios and50 assertion-caught mutations PASS. Negative
 F65: canonical support wording has changed; currentterms impose stricter independent-ranking/model-use/retention constraints. Gate retained and no scoring implemented. F66: anonymous MCP initialize401, so official names/schemas/scopes and projectors cannot be certified. Stage16.5 official mapping remainsPENDING_OWNER_OAUTH_AFTER_FOUNDATION; source framework testing alone is not stage completion. Real Upwork output must not be evaluation data.
 
 Next: exact-source selected+extra regressions and Graphify; then independent16.6 source work in canonical order per current user instruction, carrying16.5 qualification openly. Stage16 remainsOPEN; no later mainStage may be falsely closed/promoted.
+
+## Exact-source framework receipt
+
+73ebc8c9cb60131a205eaef971bf2d446984b9f8:21 selected+6 extra PASS, source unchanged;165 committed pins/byte-exactv43 archive verified; Graphify current and integrity clean. Official qualification remains pending; no stage completion claim. See16.5_EXACT_SOURCE_RECEIPT.json. Next independent16.6.

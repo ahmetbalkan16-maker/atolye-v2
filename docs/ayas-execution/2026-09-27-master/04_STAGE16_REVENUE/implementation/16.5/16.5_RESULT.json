@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T11:59:32.834Z",
+  "testedSourceHead": "73ebc8c9cb60131a205eaef971bf2d446984b9f8",
+  "testedSourceInitiallyClean": true,
+  "manifestVersion": "15F.4-v44",
+  "declaredSuites": 136,
+  "uniqueCommittedPins": 165,
+  "pinDrift": [],
+  "sourceInputs": [
+    {
+      "file": "docs/AYAS_REVENUE_UPWORK_ADAPTER.md",
+      "sha256": "b91bc2602d34922678175b2dc7af95b20452b253a7491daf13d40ee16afa8fbc",
+      "committed": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "329656f629b44906ddda2dfe5cbbf0f7f9cc26aa7601b3dc739c57a231992b95",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-upwork-fixture.ts",
+      "sha256": "b2add520b957bae6e5d9ea6306bb33d0f83e2570f34cd30d3ea0889ae995d9d4",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-upwork-adapter.ts",
+      "sha256": "1db4117f36cecca16b0b1899dbfaa17b81f1eb5913ef65cb74d687f8428e1842",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-upwork-adapter-mutations.ts",
+      "sha256": "a4a56e6d1fe8165ffef43d12992523e711513288eb96147c0b73c95063cf9a1c",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "60edfe3a8668eb0681f77dd8a39d4b73eca2442f7dbedff9879e6a2e8107b5cc",
+      "committed": true
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "a7c531822fcd9d1d87b013af1e02976217ca16cfc191d1debbb118f80915a7f6",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/upwork/AyasUpworkAdapter.ts",
+      "sha256": "f1de0133688bbf984b4a9a6d72a23d0b32b1762b26672a975cfa6a1dcf728e32",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/upwork/AyasUpworkMapper.ts",
+      "sha256": "a84a9a9c8ef241cd6f1ffa9f15e8c0b9198b0e5c6fd5f245de83dc0a7b7a4fc9",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/upwork/AyasUpworkMcpPolicy.ts",
+      "sha256": "fbf82a115074c917396713fbe9e06c39c9745b8d8d19270c3470f5a604b788f6",
+      "committed": true
+    }
+  ],
+  "primary": 66,
+  "heldOut": 15,
+  "negativeControls": {
+    "total": 50,
+    "caught": 50,
+    "equivalents": 0
+  },
+  "selectedExactSourceSuites": 21,
+  "extraExactSourceSuites": 6,
+  "fullDeclaredBaseline": "NOT_RUN_V44_LAST_COMPLETE_V38_5cbb217",
+  "graphify": {
+    "at": "2026-10-03T11:59:27.216Z",
+    "head": "73ebc8c9cb60131a205eaef971bf2d446984b9f8",
+    "lastAnalyzedHead": "73ebc8c9cb60131a205eaef971bf2d446984b9f8",
+    "graphBuiltFrom": "73ebc8c9cb60131a205eaef971bf2d446984b9f8",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18364,
+    "edges": 52526,
+    "communities": 371,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "329396437b04044ed8d2c25b5c41273a27874da09131d1b24aa9181ba7e85eed"
+  },
+  "review": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT",
+  "state": "FRAMEWORK_VERIFIED_OFFICIAL_QUALIFICATION_PENDING",
+  "stageClosed": false,
+  "officialToolQualification": "PENDING_OWNER_OAUTH_AFTER_FOUNDATION",
+  "officialToolCatalog": "EMPTY",
+  "productionRegistry": "EMPTY",
+  "authority": "NONE",
+  "externalWrites": "CLOSED",
+  "financialExecution": "NONE",
+  "next": "16.6 independent manual source package; retain unresolved16.5 requirement"
+}

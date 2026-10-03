@@ -1,3 +1,7 @@
+# AYAS current — 2026-10-03 /16.5 framework verified;16.6 active
+
+Exact source73ebc8c:66+15 synthetic scenarios,50 controls,21 selected+6 extra regressions PASS; TS/lint/diff and165 committed pins verified. Graphify18364/52526 current, integrity clean; PARTIAL9/semantic PENDING retained. Full v44 baseline NOT_RUN. Official Upwork tool qualification remains PENDING_OWNER_OAUTH_AFTER_FOUNDATION; Stage16.5 is not fully closed. Current16.6 Fiverr manual source package proceeds under the user instruction to continue independent work with deferred owner actions. No production registration or live external action. Stage16/Master OPEN. Exact proof:implementation/16.5/16.5_EXACT_SOURCE_RECEIPT.json; nextACTIVE_CHECKPOINT.json.
+
 # AYAS current — 2026-10-03 /16.5 source framework; official qualification pending
 
 16.4 source closed at6c96d07. Upwork framework66+15 synthetic scenarios/50 assertion-caught controls PASS; TS/changed lint clean/full lint13 inherited warnings. Manifestv44 declares136 suites/165 pins. Exact-source regressions and Graphify refresh pending. Official MCP catalog/schema/scopes require owner OAuth after foundation; no official mapping or Stage16.5 completion claim. Global registry empty; no live account, writes, Connects, money or host activation. Next exact-source framework qualification, then independent16.6 in canonical order while retaining16.5 deferred requirement. Stage16/master OPEN; major boundary push policy retained. SeeACTIVE_CHECKPOINT.json andimplementation/16.5.

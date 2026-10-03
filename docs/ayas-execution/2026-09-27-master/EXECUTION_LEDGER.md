@@ -1048,3 +1048,7 @@ Stage16 remains OPEN. Next canonical16.5 Upwork. Exact proof:16.4_EXACT_SOURCE_R
 ## 2026-10-03 —16.5 framework implementation
 
 66+15 synthetic scenarios/50 controls, TS/lint/pins PASS; exact regression and Graphify pending. Official tools not captured:401 unauthenticated initialize. Stage16.5 official qualificationPENDING_OWNER_OAUTH; catalogempty/draftonly by default. Continue independent16.6 source after exact framework packet; Stage16 staysOPEN.
+
+## 2026-10-03 —16.5 framework exact source verified
+
+Source73ebc8c,66+15/50 controls/21+6 regressions/165 committed pins/TS/lint/diff PASS. Graphify current/integrity clean, inheritedPARTIAL9/semanticPENDING. Official qualification still deferred, stageClosed=false; no fullv44 claim. Continue independent16.6 source; Stage16/Master OPEN.
