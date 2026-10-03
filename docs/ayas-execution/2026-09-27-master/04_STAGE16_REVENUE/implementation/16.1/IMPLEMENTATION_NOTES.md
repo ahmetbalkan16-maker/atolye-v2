@@ -22,8 +22,16 @@ Current Codex reviewed the previous author's WIP against the canonical design, e
 
 40 primary + 10 frozen held-out PASS in the mutation audit's owned gitless TEMP copy; 36/36 negative controls PASS. TypeScript --noEmit --incremental false PASS; changed-file ESLint 0/0 PASS. Adapter-standard, account-boundary, global zero-cost, firewall closure PASS via the existing isolated baseline runner. Nine additional BrainPatchSafety/manifest regressions PASS in a TEMP local clone with no remote/credential environment (details in 16.1_FOCUSED.json). Eval-governance 10 scenarios and 8/8 mutants PASS.
 
-Manifest v38: 124 suites /146 unique grader pins; v37 archived byte-for-byte from HEAD. Full lint PASS (0 errors /13 inherited warnings), diff PASS. Graphify refresh, source commit and exact clean complete v38 baseline are pending. Stage 16.1 is OPEN until that evidence is recorded.
+Manifest v38: 124 suites /146 unique grader pins; v37 archived byte-for-byte from HEAD. Full lint PASS (0 errors /13 inherited warnings), diff PASS. Source commit 5cbb21706eb12693555a9fefbc7554fadf175049; Graphify bound to it, stale=false / needs_update=false, zero integrity anomalies. Exact clean v38 full baseline124/124 PASS_WITH_KNOWN_LIMITATIONS (cognitive-quality), no unexpected failure. Stage16.1 remains OPEN pending independent review of the repairs authored by this session.
 
 ## Limits and next
 
 Policy/source evidence only. No money movement, network, credential, owner activation, persistent loop or host changes. Existing inherited Graphify coverage (9 files) and semantic PENDING remain explicit. Next: complete source validation/commit, Graphify bound to that HEAD, then the complete declared baseline without source mutations; closure only on evidence. Canonical next stage: 16.2 Unit-Economics Ledger. No push.
+
+## Current handoff / review gate
+
+Full baseline SHA-256 ed7427231bb84921fb6bf921b7df2d601523831adf52ed3a59fe4f64370edd09; sampled RAM maximum 63.83%. All146 grader pins match committed and worktree bytes. Test/source/fixture integrity checks passed. No live revenue directory exists. The final repair delta has not been reviewed by a second reviewer; an explicit owner authorization request for read-only review subagents is pending. An unanswered/preselected option grants no permission. This is TESTED_SOURCE_PENDING_REVIEW, not a closed GREEN stage.
+
+The source commit is 5cbb21706eb12693555a9fefbc7554fadf175049. A following documentation-only WIP save may be the actual Git HEAD; resolve it with git rev-parse HEAD and verify the local worktree. No push. Required next action: obtain the reviewer authorization (or owner review), complete the final independent review, minimally repair any actual defect and run affected tests/Graphify, then close16.1 and continue16.2. Do not rerun the unchanged32.7-minute full baseline without a change/failure that justifies it.
+
+16.2 preparation was read-only: canonical16.2 pack, RuntimeStoragePaths ensureSafeContainedDirectory/requireContainedRealDirectory, AyasExecutionAuthorityLock, and existing atomic/fsync writer idioms were inspected. No16.2 source exists and no new stage was certified. Revenue and production ledgers must stay separate; any ledger write must respect SAFE_READ_ONLY and keep live data untouched by tests.

@@ -3,10 +3,10 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "6676c240f54f3a8812139410264335b792675022",
-  "currentHead": "ee2118452d9df58bb78fc1035419a7ae40a0df2a",
+  "currentHead": "5cbb21706eb12693555a9fefbc7554fadf175049",
   "stage": "STAGE_16_1",
-  "subtask": "16.1-source-implemented-focused-green-exact-clean-baseline-pending",
-  "status": "IN_PROGRESS",
+  "subtask": "16.1-exact-clean-v38-baseline-passed-independent-review-owner-authorization-pending",
+  "status": "BLOCKED_OWNER_ACTION",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -235,15 +235,7 @@
     "16.0A-account-connection-credential-boundary",
     "16.0+16.0A-closure-GREEN-source"
   ],
-  "currentFiles": [
-    "src/lib/ayas/revenue/AyasRevenueSpendPolicy.ts",
-    "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
-    "src/lib/brain/selfheal/BrainPatchSafety.ts",
-    "scripts/smoke-ayas-revenue-spend-policy.ts",
-    "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
-    "scripts/smoke-ayas-eval-governance.ts",
-    "docs/AYAS_REVENUE_SPEND_POLICY.md"
-  ],
+  "currentFiles": [],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -379,27 +371,26 @@
     "15Q.1 exact clean source `b381ed44ca5c1a8575130721af8929e9df36ce79`: v29 declared108/108 PASS_WITH_KNOWN_LIMITATIONS, failed0, cognitive54/55 and held-out4/5 unchanged; 127 grader pins match committed blobs. Focused19 resource scenarios/34 mutants plus affected regressions; TypeScript/lint/diff PASS (13 old warnings). Sampled host RAM maximum54.4%. Graphify17443/49941, zero integrity anomalies; PARTIAL9/semantic pending retained. Admission/capacity source primitives only, not a hardware benchmark or real production/runtime binding.",
     "15Q.2 source0763db5 exact clean validation8d1c28c: full declaredv30 110/110 PASS_WITH_KNOWN_LIMITATIONS, failed0;129 committed grader pins; cognitive54/55 and held-out4/5 unchanged. Controller11/24 negative controls, recovery22/runtime17, resource19/34, eval10/8, TypeScript/lint PASS (13 old warnings). Sampled RAM max55.11%. Graphify17492/50048, zero integrity anomalies; PARTIAL9/semantic pending retained. Injected source controller/image contract only; real backend/physical hardware not qualified. Stage15Q remains open. Owner instruction: finish15Q.2 then STOP.",
     "15Q.3 exact clean source `ab6e5312d7b8b8d8893b4dfca59bfe510bb29ef4`: full declared v31 112/112 PASS_WITH_KNOWN_LIMITATIONS, failed 0; 131 committed grader pins; cognitive 54/55 and held-out 4/5 unchanged. Occupancy 12 scenarios / 45 negative controls, resource 19 and 34/34, lifecycle 11 and 24/24, eval governance 10, recovery 22, registry 15, closure 12, Machine Health 20 and 36; TypeScript and lint PASS (13 old warnings); production build PASS in a TEMP clone. Sampled RAM max 55.55 %. Graphify 17551/50207, zero integrity anomalies; PARTIAL9/semantic pending. Production suites outside the declared baseline: 31 in an isolated clone, 22 PASS, 9 FAIL identical at clean HEAD (F33). Source occupancy binding only: no production stage, model, container or host change; not a hardware qualification. Stage 15Q closed as source with declared gaps.",
-    "Stage15S exact clean cd435bc: complete v34 116/116 PASS_WITH_KNOWN_LIMITATIONS, no failures; cognitive54/55 and held-out4/5 retained;136 committed pins,24 TEMP scenarios/34 negative controls, TypeScript/whole lint0 errors13 existing warnings/diff PASS; Graphify17686/50621 stale=false zero anomalies; PARTIAL9/semantic PENDING. Real destination migration/activation unmeasured."
+    "Stage15S exact clean cd435bc: complete v34 116/116 PASS_WITH_KNOWN_LIMITATIONS, no failures; cognitive54/55 and held-out4/5 retained;136 committed pins,24 TEMP scenarios/34 negative controls, TypeScript/whole lint0 errors13 existing warnings/diff PASS; Graphify17686/50621 stale=false zero anomalies; PARTIAL9/semantic PENDING. Real destination migration/activation unmeasured.",
+    "16.1 tested source 5cbb21706eb12693555a9fefbc7554fadf175049: complete v38 baseline124/124 PASS_WITH_KNOWN_LIMITATIONS, failed0;146 committed pins;40+10 scenarios,36/36 controls;TS/lint/diff/Graphify PASS. REVIEW_PENDING; not a closed GREEN packet."
   ],
   "graphify": {
     "schemaVersion": "1",
-    "recordedAt": "2026-10-03T02:50:11.087Z",
-    "head": "6676c240f54f3a8812139410264335b792675022",
+    "recordedAt": "2026-10-03T05:58:03.835Z",
+    "head": "5cbb21706eb12693555a9fefbc7554fadf175049",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17934,
-    "edges": 51452,
-    "communities": 368,
+    "nodes": 17970,
+    "edges": 51536,
+    "communities": 362,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "structuralCoverage": "PARTIAL_9_INHERITED",
     "semanticCoverage": "PENDING",
-    "graphSha256": "38248bb851daab10991d172cd32a795fd869de4415fcc5b93fd7c030b673542b",
-    "headSemantics": "Exact clean tested 16.0A source commit; the closure documentation commit requires a subsequent refresh.",
-    "semanticPending": true,
-    "structuralPartialFiles": 9
+    "graphSha256": "ecef03ecb7c412510f074244217971698b93b21015fd1cecb4ce31016ad68d7c",
+    "headSemantics": "Exact clean Stage16.1 source, before full baseline; captured without source mutation."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -423,10 +414,11 @@
     "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
     "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload.",
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
-    "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only."
+    "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only.",
+    "BLOCKED_OWNER_ACTION (16.1 review): explicit authorization for a read-only independent review agent is pending, or the owner can provide the independent review. This session authored the final repair delta; do not claim stage closure without that review."
   ],
-  "nextAction": "Finish 16.1 source validation/commit; bind Graphify to exact clean source; run complete v38 124-suite declared baseline without source edits; close truthfully, then canonical 16.2 Unit-Economics Ledger. LOCAL COMMIT ONLY / NO PUSH.",
-  "updatedAt": "2026-10-03T05:48:44.975Z",
+  "nextAction": "Complete the independent review gate, fix any real finding without weakening guards/graders, run affected regression and Graphify, record closure, then canonical16.2. LOCAL COMMIT ONLY / NO PUSH.",
+  "updatedAt": "2026-10-03T06:33:41.414Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -506,11 +498,11 @@
     "scripts/smoke-ayas-golden-sandbox-run.ts"
   ],
   "localClosure": {
-    "stage": "STAGE_15N",
-    "sourceCommit": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
-    "result": "GREEN_SOURCE_OWNER_CONSTITUTION_AND_RUN_BINDING_NOT_ADOPTED",
-    "evidence": "03_STAGE15_BASE/hardening/15N/15N_RESULT.json",
-    "next": "STAGE_15O"
+    "state": "TESTED_SOURCE_PENDING_REVIEW_NOT_CLOSED",
+    "sourceCommit": "5cbb21706eb12693555a9fefbc7554fadf175049",
+    "baselinePassed": true,
+    "reviewGatePassed": false,
+    "push": "PROHIBITED_BY_LATEST_OWNER_COMMAND"
   },
   "stageHistory": [
     {
@@ -1543,7 +1535,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Stage 16.1 Revenue Zero-Cost / Spend Gate (04_STAGE16_REVENUE/16.1): pure revenue-domain wrapper around AyasZeroCostPolicy in src/lib/ayas/revenue/AyasRevenueSpendPolicy.ts; literal zero budgets, every monetary commitment denied autonomously, passive fees accounting-only, no offsets; 35+ primary and 10 held-out cases; independent review before commit.",
+  "resumeNextAction": "Complete the independent review gate, fix any real finding without weakening guards/graders, run affected regression and Graphify, record closure, then canonical16.2. LOCAL COMMIT ONLY / NO PUSH.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -1806,7 +1798,7 @@
       "supersededBy": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
     }
   ],
-  "currentHeadSemantics": "Pre-source-commit HEAD; inherited and repaired 16.1 overlay, not a GREEN clean source.",
+  "currentHeadSemantics": "Exact clean tested source. Subsequent handoff documentation WIP commit may be the actual HEAD: resolve git rev-parse HEAD, repository truth wins.",
   "stage15Closure": {
     "state": "CLOSED_SOURCE_COMBINED",
     "closedOn": "2026-10-03",
@@ -1901,7 +1893,7 @@
     "closure": "04_STAGE16_REVENUE/implementation/16.0/CLOSURE.md"
   },
   "stage16_1": {
-    "state": "OPEN_FOCUSED_GREEN",
+    "state": "TESTED_CLEAN_SOURCE_PENDING_INDEPENDENT_REVIEW",
     "baseHead": "ee2118452d9df58bb78fc1035419a7ae40a0df2a",
     "notes": "04_STAGE16_REVENUE/implementation/16.1/IMPLEMENTATION_NOTES.md",
     "focusedEvidence": "04_STAGE16_REVENUE/implementation/16.1/16.1_FOCUSED.json",
@@ -1911,7 +1903,29 @@
     "manifestVersion": "15F.4-v38",
     "declaredSuites": 124,
     "uniquePins": 146,
-    "fullBaseline": "PENDING",
-    "financialExecution": "NONE"
+    "fullBaseline": "PASS_WITH_KNOWN_LIMITATIONS_124_OF_124_FAILED_0",
+    "financialExecution": "NONE",
+    "sourceCommit": "5cbb21706eb12693555a9fefbc7554fadf175049",
+    "fullBaselineEvidence": "04_STAGE16_REVENUE/implementation/16.1/16.1_FULL_BASELINE_V38.json",
+    "result": "04_STAGE16_REVENUE/implementation/16.1/16.1_RESULT.json",
+    "reviewGate": {
+      "state": "BLOCKED_OWNER_ACTION",
+      "required": true,
+      "action": "Authorize read-only independent review subagents, or provide the owner independent review. Pending asynchronous question is not authorization.",
+      "reason": "Canonical 16.1 owner-PC validation requires Independent review before commit/push. Inherited WIP was independently inspected by the current Codex, but this session authored repairs and has no independent reviewer for that final repair delta. No second agent is started without explicit user authorization.",
+      "source": "04_STAGE16_REVENUE/16.1/STAGE16_1_OWNER_PC_VALIDATION.md",
+      "requestedAt": "2026-10-03",
+      "status": "AWAITING_OWNER_RESPONSE"
+    },
+    "stageClosed": false
+  },
+  "ownerGate": {
+    "state": "BLOCKED_OWNER_ACTION",
+    "required": true,
+    "action": "Authorize read-only independent review subagents, or provide the owner independent review. Pending asynchronous question is not authorization.",
+    "reason": "Canonical 16.1 owner-PC validation requires Independent review before commit/push. Inherited WIP was independently inspected by the current Codex, but this session authored repairs and has no independent reviewer for that final repair delta. No second agent is started without explicit user authorization.",
+    "source": "04_STAGE16_REVENUE/16.1/STAGE16_1_OWNER_PC_VALIDATION.md",
+    "requestedAt": "2026-10-03",
+    "status": "AWAITING_OWNER_RESPONSE"
   }
 }

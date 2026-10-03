@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-03T05:58:03.835Z",
+  "head": "5cbb21706eb12693555a9fefbc7554fadf175049",
+  "stale": false,
+  "needsUpdate": false,
+  "nodes": 17970,
+  "edges": 51536,
+  "communities": 362,
+  "duplicateNodes": 0,
+  "duplicateEdges": 0,
+  "danglingEdges": 0,
+  "selfLoops": 0,
+  "structuralCoverage": "PARTIAL_9_INHERITED",
+  "semanticCoverage": "PENDING",
+  "graphSha256": "ecef03ecb7c412510f074244217971698b93b21015fd1cecb4ce31016ad68d7c",
+  "headSemantics": "Exact clean Stage16.1 source, before full baseline; captured without source mutation."
+}
