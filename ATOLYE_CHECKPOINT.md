@@ -1,3 +1,7 @@
+# AYAS current —2026-10-03 /16.4 source closed;16.5 active
+
+Exact source `6c96d07299eb743b45ff5474da6256f3a1c9a579`:72+12,89/89 controls,19 selected+6 extra TEMP regressions,162 committed pins andTS/lint/diff PASS (13 inherited lint warnings). Graphify18305/52340 current,stale=false,needs_update=false,zero anomalies;PARTIAL9/semanticPENDING retained. Fullv43 NOT_RUN; last completev38/5cbb217. F62–F64 repaired. No live account/network adapter/listing/money/host activation;production registry empty. Stage16/master OPEN. Next16.5 Upwork. Proof:implementation/16.4/16.4_EXACT_SOURCE_RECEIPT.json; exact nextACTIVE_CHECKPOINT.json. Push at majorStage16 boundary.
+
 # AYAS current — 2026-10-03 / Codex takeover, 16.4 post-review validation
 
 Claude’s valid Etsy WIP preserved at 1ba03b4eb1abcf0a79d1ac599fd16a1f7606306b. Last closed16.3B. Initial67+12/82 controls reproduced; F62–F64 reproduced and repaired;72+12 and89 controls PASS. 134 suites/162 pins, fullv43 baseline NOT_RUN. Static/selected regression/Graphify exact-source closure pending;16.4 andStage16 OPEN. Next16.5 after16.4 closure, master order unchanged. Normal push authorized at majorStage16 boundary. Exact next:ACTIVE_CHECKPOINT.json.

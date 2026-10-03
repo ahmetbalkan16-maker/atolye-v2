@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-03T11:20:00.634Z",
+  "testedSourceHead": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
+  "testedSourceInitiallyClean": true,
+  "currentWorktree": "DOCUMENTATION_EVIDENCE_ONLY",
+  "manifestVersion": "15F.4-v43",
+  "declaredSuites": 134,
+  "uniqueCommittedPins": 162,
+  "pinDrift": [],
+  "sourceInputs": [
+    {
+      "file": "docs/AYAS_REVENUE_ETSY_ADAPTER.md",
+      "sha256": "791500e3cec6466c392ac07e91b50f6438c59874165479dc331fafe40f355b2d",
+      "committed": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "62e46d0b4c6b1e4d186e18922a8d0875a6286b1feaeb56f9e215752fa7ec68fc",
+      "committed": true
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
+      "sha256": "99fba49229ecb707ec76b6ab2d232e7a7991334d62a587eba224cd1d15115440",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "105fd1d0b23842e8da26d5629a2e0ce344e0b9d5673c402c753fa612bcc5ad31",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-etsy-adapter-mutations.ts",
+      "sha256": "70642884b98c0ec77acf2427ba190e5222f5cead245ac8d9c0787e13940be7b2",
+      "committed": true
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
+      "sha256": "b626576cc88d2cee950896094f7f7ed6ad1561d6906680f4166068689cb35aae",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/etsy/AyasEtsyAdapter.ts",
+      "sha256": "99cdda911c3120389cac786823b0376b568e0dff3da28fddd714b88037d6aa81",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/etsy/AyasEtsyMapper.ts",
+      "sha256": "99a662477355325724892a6f037dc23b41d5f7a368593415b2c0ee6fc0a53f45",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/etsy/AyasEtsySchemas.ts",
+      "sha256": "10ee2999277b6bfa3de9b5414ae3c87d4a8e92afbb0eab1bf206c6e2362dc60a",
+      "committed": true
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/etsy/AyasEtsyWebhook.ts",
+      "sha256": "28ea467a7d49feacba1971eb4f8eb48fb0e2582b65ac98c9ecc2be4a20ec8f23",
+      "committed": true
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "5b6422603211c06f683ba161a96204cf6c5f411fcf37d8f1ad6602982c0e7904",
+      "committed": true
+    }
+  ],
+  "selectedExactSourceSuites": 19,
+  "extraExactSourceSuites": 6,
+  "primary": 72,
+  "heldOut": 12,
+  "negativeControls": {
+    "total": 89,
+    "caught": 89,
+    "equivalents": 0
+  },
+  "fullDeclaredBaseline": "NOT_RUN_V43_LAST_COMPLETE_V38_5cbb217",
+  "graphify": {
+    "schemaVersion": "1",
+    "at": "2026-10-03T11:20:00.634Z",
+    "head": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
+    "lastAnalyzedHead": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
+    "graphBuiltFrom": "6c96d07299eb743b45ff5474da6256f3a1c9a579",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18305,
+    "edges": 52340,
+    "communities": 371,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "worktreeFingerprint": null,
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "67f94793db6d064675c2c63259a55ad4fd9e615fd9cd21070fc0c207c4c94cdc"
+  },
+  "review": "INHERITED_SOURCE_REVIEW_PLUS_SAME_SESSION_REPAIR_AUDIT_NO_SEPARATE_AGENT"
+}
