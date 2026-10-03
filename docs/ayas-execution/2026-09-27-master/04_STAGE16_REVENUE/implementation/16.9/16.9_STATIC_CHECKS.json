@@ -1,0 +1,30 @@
+{
+  "state": "PASS",
+  "at": "2026-10-03T16:47:57.254Z",
+  "rows": [
+    {
+      "name": "TypeScript",
+      "exit": 0,
+      "status": "PASS",
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "changed-eslint",
+      "exit": 0,
+      "status": "PASS",
+      "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "whole-eslint",
+      "exit": 0,
+      "status": "PASS",
+      "stdoutDigest": "5d0cdbd456f3ba3092d4e2d427b7e16649530e21dd69730294ec0b1c0c6ccef8",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "errors": 0,
+      "warnings": 13
+    }
+  ],
+  "diffCheck": "PASS"
+}

@@ -284,3 +284,7 @@ Verified notification refresh now uses common read/spend/result gates and matche
 ## 2026-10-03T16:29:53.749Z —16.8 exact-source framework verification
 
 Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33 selected+6 extra TEMP regressions,176 committed pins and TS/changed lint/diff PASS. Graphify18559/53182 current, integrity0;PARTIAL9/semanticPENDING retained. Fullv47 NOT_RUN. Owner Test-mode/durable ingress and16.5/16.7 qualification remain deferred; Stage16/Master OPEN. Next16.9 pure advisory reinvestment; no live effect, financial authority or production registration.
+
+## 2026-10-03T16:47:57.267Z —16.9 source/review validation
+
+16.9 pure realized-ledger reinvestment advice implemented:63+12 and40/40 controls PASS; defaults disabled/0/emptycaps; exact-source closure pending. F77 expiry reproduced/fixed, F78 fixture false-positive isolated without scanner change, F79 independent prior-loss probe. No money/approval/reservation/executor or actual source-policy binding. v48:145 suites/179 pins; full baseline NOT_RUN.

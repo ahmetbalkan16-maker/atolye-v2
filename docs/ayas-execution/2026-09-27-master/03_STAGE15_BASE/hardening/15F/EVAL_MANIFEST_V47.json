@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v48",
+  "version": "15F.4-v47",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -2839,76 +2839,6 @@
         "signed-webhook-pointer",
         "no-live-write-binding",
         "owner-test-mode-proof-pending"
-      ]
-    },
-    {
-      "id": "revenue-reinvestment-policy",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
-          "sha256": "9690f0c488addf4c7a0e1f9d2bd1058cf3c94611fb2b0855d233fdf2d9a0df93"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
-          "sha256": "3c5db7b98b2423f5bf0b89fe67846c1e43871458b01b3c8b3d17585b5c6595b0"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
-          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
-          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
-        }
-      ],
-      "slices": [
-        "synthetic-only",
-        "realized-ledger-not-estimates",
-        "default-disabled-zero-spend",
-        "owner-source-policy-not-approval",
-        "same-currency-settled-profit",
-        "bounded-advisory-only"
-      ]
-    },
-    {
-      "id": "revenue-reinvestment-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-reinvestment-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-reinvestment-mutations.ts",
-          "sha256": "5194365cc200d8a22e8a43704d1111293bcc275703feb74d3c43421a49fc1b7e"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
-          "sha256": "3c5db7b98b2423f5bf0b89fe67846c1e43871458b01b3c8b3d17585b5c6595b0"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
-          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
-          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
-          "sha256": "9690f0c488addf4c7a0e1f9d2bd1058cf3c94611fb2b0855d233fdf2d9a0df93"
-        }
-      ],
-      "slices": [
-        "synthetic-only",
-        "realized-ledger-not-estimates",
-        "default-disabled-zero-spend",
-        "owner-source-policy-not-approval",
-        "same-currency-settled-profit",
-        "bounded-advisory-only"
       ]
     }
   ],

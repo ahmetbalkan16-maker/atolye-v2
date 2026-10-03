@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1",
+  "state": "SAME_SESSION_SOURCE_AUDIT_NO_SEPARATE_AGENT",
+  "at": "2026-10-03T16:47:25.293Z",
+  "findings": [
+    {
+      "id": "F77",
+      "problem": "Proposal expiry could outlive the code-owned24h reconciliation validity.",
+      "reproduction": "P62:62/63+12/12 before repair",
+      "repair": "Bound expiry to min(receipt expiry, observedAt+24h)",
+      "regression": "P62 + independent effective-ceiling mutant"
+    },
+    {
+      "id": "F78",
+      "problem": "Generic synthetic deliverable digest happened to match the unchanged card scanner.",
+      "reproduction": "Initial47/60+10/12; exact sensitive path only referenceDigest",
+      "repair": "Use a neutral alternate synthetic reference digest; privacy scanner unchanged",
+      "status": "FIXTURE_ONLY"
+    },
+    {
+      "id": "F79",
+      "problem": "A prior-loss mutant was masked by lifetime-profit cap in the original probe.",
+      "reproduction": "Control exited0 with originalP43",
+      "repair": "AddedP61 later positive sale beyond selected window isolates prior-loss carry; existingP43 unchanged",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "id": "ES2017",
+      "problem": "BigInt literals rejected by existing target",
+      "repair": "BigInt constructors; existing tsconfig unchanged"
+    }
+  ],
+  "defaultProductionPolicy": "DISABLED_ZERO_EMPTY_CAPS",
+  "ownerPolicyReader": "UNBOUND_TRUSTED_SOURCE_SEAM_SYNTHETIC_ONLY",
+  "authority": "NONE",
+  "noFinancialOrExternalExecution": true
+}

@@ -3,9 +3,9 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
-  "currentHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+  "currentHead": "821ecbd62c3a3bdeb35cdc97d294c108214ce1ad",
   "stage": "STAGE_16_9",
-  "subtask": "16.9 canonical design and Graphify dependency inspection; pure advisory source implementation",
+  "subtask": "16.9 source implemented/63+12 and40 controls; exact-source regression/Graphify pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -248,7 +248,15 @@
     "16.7 framework verified with route qualification deferred",
     "16.8 framework verified with owner Test-mode/durable ingress deferred"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/ayas/revenue/AyasRevenueReinvestmentPolicy.ts",
+    "src/lib/ayas/revenue/AyasRevenueReinvestmentProposal.ts",
+    "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
+    "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
+    "scripts/smoke-ayas-revenue-reinvestment-mutations.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "scripts/smoke-ayas-eval-governance.ts"
+  ],
   "lastGreenTests": [
     "16.8 89 primary+15 held-out;60 assertion-caught controls",
     "33 selected+6 extra exact-source regressions PASS;176 committed pins",
@@ -315,8 +323,8 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 actual owner Test-mode key/connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "Implement16.9 pure realized-ledger reinvestment eligibility/proposal using existing16.1/16.2/16.3 boundaries; default source policy disabled/bps0/caps empty. Run >=45+12 graders/negative controls, TS/lint/affected regressions/Graphify/pins; preserve16.5/16.7/16.8 deferred qualification. Then16.10 in canonical order. Push only authorized major stage GREEN boundary.",
-  "updatedAt": "2026-10-03T16:29:53.749Z",
+  "nextAction": "Commit16.9 source after TS/lint/diff; run35 selected+6 extra exact-source regressions,179 committed pins, full Graphify cluster/HEAD/integrity validation. Record source closure then16.10 in order; preserve external16.5/16.7/16.8 qualification and major-stage push policy.",
+  "updatedAt": "2026-10-03T16:47:57.267Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -2410,10 +2418,24 @@
     "result": "04_STAGE16_REVENUE/implementation/16.8/16.8_RESULT.json"
   },
   "stage16_9": {
-    "state": "DESIGN_AND_GRAPHIFY_INSPECTED_PENDING_SOURCE",
+    "state": "IMPLEMENTED_PENDING_EXACT_SOURCE_VALIDATION",
     "stageClosed": false,
-    "baseHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+    "baseHead": "821ecbd62c3a3bdeb35cdc97d294c108214ce1ad",
     "defaultPolicy": "DISABLED_ZERO_EMPTY_CAPS",
-    "authority": "NONE"
+    "authority": "NONE",
+    "primary": 63,
+    "heldOut": 12,
+    "negativeControls": {
+      "total": 40,
+      "caught": 40,
+      "equivalents": 0
+    },
+    "manifestVersion": "15F.4-v48",
+    "declaredSuites": 145,
+    "uniquePins": 179,
+    "pinDrift": [],
+    "committed": false,
+    "fullDeclaredBaseline": "NOT_RUN",
+    "sourcePolicy": "DEFAULT_DISABLED_ZERO_CAPS; TRUSTED_SOURCE_READER_UNBOUND"
   }
 }
