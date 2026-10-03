@@ -1,0 +1,112 @@
+{
+  "status": "PASS",
+  "heldOut": {
+    "pass": 20,
+    "total": 20
+  },
+  "frozen": true,
+  "scope": "MODEL_OWNER_ADMISSION_ONLY_STORE_ECONOMICS_PENDING",
+  "liveQualification": "NOT_RUN",
+  "results": [
+    {
+      "id": "H01",
+      "name": "Turkish owner claim cannot activate plan",
+      "ok": true
+    },
+    {
+      "id": "H02",
+      "name": "float duration refused",
+      "ok": true
+    },
+    {
+      "id": "H03",
+      "name": "negative zero write budget refused",
+      "ok": true
+    },
+    {
+      "id": "H04",
+      "name": "prototype and symbol approval data refused",
+      "ok": true
+    },
+    {
+      "id": "H05",
+      "name": "oversized goal cannot enter history",
+      "ok": true
+    },
+    {
+      "id": "H06",
+      "name": "crypto/payment action stays outside pilot plan",
+      "ok": true
+    },
+    {
+      "id": "H07",
+      "name": "bank details never become resource identity",
+      "ok": true
+    },
+    {
+      "id": "H08",
+      "name": "human-looking model receipt cannot replace default source reader",
+      "ok": true
+    },
+    {
+      "id": "H09",
+      "name": "unknown owner decision remains pending",
+      "ok": true
+    },
+    {
+      "id": "H10",
+      "name": "recovery-required state cannot masquerade as approval",
+      "ok": true
+    },
+    {
+      "id": "H11",
+      "name": "empty decision digest not a review proof",
+      "ok": true
+    },
+    {
+      "id": "H12",
+      "name": "malicious reader getter never executes",
+      "ok": true
+    },
+    {
+      "id": "H13",
+      "name": "revised action scope cannot retain old plan identity",
+      "ok": true
+    },
+    {
+      "id": "H14",
+      "name": "time extension cannot be disguised as normal pause",
+      "ok": true
+    },
+    {
+      "id": "H15",
+      "name": "subscription launch cost cannot become free fallback",
+      "ok": true
+    },
+    {
+      "id": "H16",
+      "name": "private admission body refused",
+      "ok": true
+    },
+    {
+      "id": "H17",
+      "name": "unknown security state stays blocking",
+      "ok": true
+    },
+    {
+      "id": "H18",
+      "name": "model claim does not establish professional review",
+      "ok": true
+    },
+    {
+      "id": "H19",
+      "name": "source seam always preserves zero execution authority",
+      "ok": true
+    },
+    {
+      "id": "H20",
+      "name": "no direct ACTIVE from unreviewed draft even supplied callback",
+      "ok": true
+    }
+  ]
+}

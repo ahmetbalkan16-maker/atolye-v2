@@ -336,3 +336,7 @@ The first new compliance draft refused proxied input at structuredClone but its 
 ## 2026-10-03T21:07:28.828Z —16.11A exact-source framework receipt
 
 16.11A framework verified at adae61647d79dc3fde26e883c0c20b2420dd5ba8:62 primary+20 frozen adversarial+16 assertion-caught controls;37 selected exact-source PASS;193 committed pins/v51 (full baseline NOT_RUN),TS/lint/diff PASS with13 inherited warnings. Graphify current/full373 communities/integrity0,structuralPARTIAL9/semanticPENDING. Actual owner/professional/account/platform permission and current terms reader remainUNBOUND; Fiverr/Udemy full terms body unqualified. No legal conclusion/activation/spend/write. Stage16/MasterOPEN;next16.12 bounded pilot FRAMEWORK_ONLY. Latest owner instruction2026-10-04:continue canonical order but STOP before Homepage/BrainUIV2 redesign; homepage changes/controls/avatar/animations NOT_STARTED; later certifications outside current continuation.
+
+## 2026-10-03T21:32:44.989Z —16.12 model packet qualification
+
+61 primary/20 frozen/15 independent assertion-caught controls verify the bounded model and owner-source/admission seam only. Actual owner authentication, real activation, durable store, realized pilot evaluation and manual handoff are not yet qualified. New graders are not registered until the full stage; existing193 pins are unchanged. No homepage implementation. Stage16.12 remains OPEN.

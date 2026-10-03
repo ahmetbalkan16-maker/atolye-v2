@@ -1,0 +1,85 @@
+{
+  "status": "PASS",
+  "caught": 15,
+  "total": 15,
+  "equivalents": 0,
+  "baselineAndRecovered": "PASS",
+  "scope": "MODEL_OWNER_ADMISSION_OWNED_GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY",
+  "rows": [
+    {
+      "name": "bounded integer ceilings lost",
+      "assertion": "P10",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "cross-platform action admitted",
+      "assertion": "P15",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "proxy reflection executes",
+      "assertion": "P52",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "rejected owner metadata accepted",
+      "assertion": "P27",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "plan decision rebound",
+      "assertion": "P25",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "transition decision rebound",
+      "assertion": "P26",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "stale review accepted",
+      "assertion": "P28",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "paid launch cost admitted",
+      "assertion": "P32",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "blocking risk ignored",
+      "assertion": "P35",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "professional review ignored",
+      "assertion": "P41",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "free-first failure ignored",
+      "assertion": "P61",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "metadata becomes authority",
+      "assertion": "P23",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "expired pilot resumes",
+      "assertion": "P49",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "foreign fee proof accepted",
+      "assertion": "P38",
+      "status": "ASSERTION_CAUGHT"
+    },
+    {
+      "name": "forbidden dynamic capability",
+      "assertion": "P56",
+      "status": "ASSERTION_CAUGHT"
+    }
+  ]
+}

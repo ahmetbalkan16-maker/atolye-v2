@@ -1,0 +1,142 @@
+{
+  "at": "2026-10-03T21:30:42.218Z",
+  "state": "MODEL_OWNER_ADMISSION_PACKET_VERIFIED_FULL_STAGE_OPEN",
+  "primary": 61,
+  "frozenHeldOut": 20,
+  "negativeControls": {
+    "caught": 15,
+    "total": 15,
+    "equivalents": 0
+  },
+  "rows": [
+    {
+      "name": "TypeScript",
+      "status": "PASS",
+      "invocation": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "evidence": "Parent tool session77946 exit0 after final source edits"
+    },
+    {
+      "name": "whole-eslint",
+      "status": "PASS",
+      "errors": 0,
+      "warnings": 13
+    },
+    {
+      "name": "smoke-ayas-eval-governance.ts",
+      "status": "PASS",
+      "stdoutDigest": "42a098df54dc9978c43fd51a7e582e8bb48a22206005006026c509b7d2a3fce3"
+    },
+    {
+      "name": "smoke-ayas-exact-patch-safety.ts",
+      "status": "PASS",
+      "stdoutDigest": "c9d700fc0afca8d61b3da67631fac8c865a2d39b9c443b61e9c214e2bc403822"
+    },
+    {
+      "name": "smoke-ayas-revenue-security.ts",
+      "status": "PASS",
+      "stdoutDigest": "83052320045ad7767e8428824ccbe183354f4d8b380eb643a461cae3757f527b"
+    },
+    {
+      "name": "smoke-ayas-revenue-spend-policy.ts",
+      "status": "PASS",
+      "stdoutDigest": "2b7d1905042fad58f0afcca894ff72917f43d93dcd3bbda013a4db17e3092182"
+    },
+    {
+      "name": "smoke-ayas-revenue-free-first-validation.ts",
+      "status": "PASS",
+      "stdoutDigest": "fcc004c98d146b032d397b8126bc5e98367ff92d3999a2cd49eaa7c487b59140"
+    }
+  ],
+  "diffCheck": "PASS",
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilot.ts",
+      "sha256": "0ce2be42d2b000fff917df5b4e4a268ce2bde4ca4f0862f3c60ae4e6f9c9a42c"
+    },
+    {
+      "file": "src/lib/ayas/revenue/pilot/AyasRevenuePilotPolicy.ts",
+      "sha256": "be96d5aa2fedca99da9eb990e972ebe315b79a4ecb39319e4f0b2751a60d8b9a"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "9b136ffbd41315598872f972760e7f50e41aa3ff31d6e85e877893ba16b67f6f"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
+      "sha256": "adf5effcf91736436a9e0df10dae8598ab5987c85498c027e893521746072651"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
+      "sha256": "50c78dc4251e3c254f38bc11179fd0a4241f0fd54401752d696a7b951770fc4a"
+    },
+    {
+      "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
+      "sha256": "5fb9fa91207dcf1dc53dad68837ac37bae6edc279827fcfcf0312f229dc7d511"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
+      "sha256": "6d920895bb0e8e7b9d9a8bec8cba84d7274dfc39245e3458163dd59f1098208c"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
+      "sha256": "92795dd9e0008926dd6a0df380982d7958c9442cec4dee690a0b0d4286bfd40a"
+    }
+  ],
+  "graphAfter": {
+    "at": "2026-10-03T21:30:20.654Z",
+    "head": "5065a89973b76f772f548e890103e19617c027bd",
+    "lastAnalyzedHead": "5065a89973b76f772f548e890103e19617c027bd",
+    "graphBuiltFrom": "5065a89973b76f772f548e890103e19617c027bd",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 18871,
+    "edges": 54036,
+    "communities": 0,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "worktreeState": "DIRTY",
+    "classification": "GRAPH_PARTIAL",
+    "sha256": "9b8bccf0f101af37a6ffff28517aab1a24e4f560d6771f464705ecc8bc50bfb0",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ]
+  },
+  "pins": {
+    "manifestVersion": "15F.4-v51",
+    "declaredSuites": 154,
+    "uniquePins": 193,
+    "pinDrift": [],
+    "committed": false
+  },
+  "modelGradersRegisteredInManifest": false,
+  "stageClosed": false,
+  "remaining": [
+    "DURABLE_APPEND_HISTORY_STORE_CAS_SAFE_MODE",
+    "REALIZED_LEDGER_PILOT_EVALUATION",
+    "MANUAL_HANDOFF_ACTION_JOURNAL",
+    "FULL_STAGE_MUTATION_CONTROLS_AST",
+    "V52_REGISTRATION_EXACT_SOURCE_REGRESSIONS_FULL_GRAPHIFY"
+  ],
+  "authority": "NONE",
+  "ownerSourceReader": "UNBOUND_NORMALIZED_METADATA_NOT_AUTHENTICATION",
+  "productionWriter": "UNBOUND",
+  "realPilotActions": "NOT_AUTHORIZED_NOT_RUN",
+  "homepageImplementation": "NOT_STARTED",
+  "review": "SAME_SESSION_SOURCE_REVIEW_PLUS_INDEPENDENT_AST_AND_MUTATION_GRADERS",
+  "typeAssemblyRepair": "Initial TS2352 spread of unknown fields corrected by explicit validated typed plan assembly, without broad unknown cast or validator weakening."
+}
