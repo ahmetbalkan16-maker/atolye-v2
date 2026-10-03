@@ -1,3 +1,10 @@
+## AYAS current — 2026-10-03
+
+- [x]16.1 source and independent review closed; exact5cbb217 v38 124/124 with existing cognitive limitation.
+- [ ]16.2 durable unit-economics ledger in progress, then remaining canonical master.
+
+Local commits only / NO PUSH.
+
 ## AYAS current gate — 2026-10-03
 
 - [x]16.1 source implementation and exact clean v38 validation:5cbb217,124/124, known cognitive limitation retained.

@@ -35,3 +35,7 @@ Full baseline SHA-256 ed7427231bb84921fb6bf921b7df2d601523831adf52ed3a59fe4f6437
 The source commit is 5cbb21706eb12693555a9fefbc7554fadf175049. A following documentation-only WIP save may be the actual Git HEAD; resolve it with git rev-parse HEAD and verify the local worktree. No push. Required next action: obtain the reviewer authorization (or owner review), complete the final independent review, minimally repair any actual defect and run affected tests/Graphify, then close16.1 and continue16.2. Do not rerun the unchanged32.7-minute full baseline without a change/failure that justifies it.
 
 16.2 preparation was read-only: canonical16.2 pack, RuntimeStoragePaths ensureSafeContainedDirectory/requireContainedRealDirectory, AyasExecutionAuthorityLock, and existing atomic/fsync writer idioms were inspected. No16.2 source exists and no new stage was certified. Revenue and production ledgers must stay separate; any ledger write must respect SAFE_READ_ONLY and keep live data untouched by tests.
+
+## Independent closure — 2026-10-03T06:51:20.587Z
+
+Owner devam et authorized the pending read-only independent review. Reviewer /root/revenue_review inspected ee21184..5cbb217, confirmed baseline digest/124 results/146 pins/v37 archive, and found no defect. No tests, edits, commit or push by reviewer. Repairs now independently reviewed; Stage16.1 source CLOSED_GREEN. Last exact full baseline remains5cbb217; docs-only review closure does not relabel it. Next canonical16.2, local commits only / NO PUSH.
