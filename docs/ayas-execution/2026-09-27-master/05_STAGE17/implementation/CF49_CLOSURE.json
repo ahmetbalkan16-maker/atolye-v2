@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1",
-  "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
-  "sourceSha256": "71e7a337cfe86d05f65e9d7d642ebf55950d0f70bee2e7eaf175caf2ae2887a6",
-  "startedAt": "2026-10-05T10:02:07.124Z",
-  "completedAt": "2026-10-05T10:03:37.659Z",
+  "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+  "sourceSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13",
+  "startedAt": "2026-10-05T10:20:23.150Z",
+  "completedAt": "2026-10-05T10:21:53.826Z",
   "status": "CLOSED_PASS",
   "scope": "CF49_BOUNDED_COMPUTER_PURCHASE_READER_ONLY",
   "frozenPinsUnchanged": true,
@@ -13,9 +13,9 @@
   "results": [
     {
       "file": "scripts/smoke-ayas-cognitive-quality.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 605,
+      "durationMs": 595,
       "stdoutSha256": "13274d9d515844d8a5e61355ad575129c205fa28a0943cab64f24c63c4cf4ff8",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
@@ -112,14 +112,14 @@
     },
     {
       "file": "scripts/smoke-ayas-cf49-remediation.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 711,
-      "stdoutSha256": "b35a11ad7cb568d87ed65a9cc12c9e34625b2819e45f4b8cf965fef345286c5d",
+      "durationMs": 683,
+      "stdoutSha256": "73998fc34aefcc0dd5340d7dbd901a1719eef704d39e6d59fae4a272b7533878",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
         "status": "PASS",
-        "primary": 28,
+        "primary": 30,
         "heldOut": 12,
         "endToEnd": 4,
         "fixture": "EXPLICIT_TEMP_EVALUATOR_NO_LIVE_MEMORY_NETWORK_MODEL_OR_AUTHORITY",
@@ -237,6 +237,14 @@
             "ok": true
           },
           {
+            "id": "P29",
+            "ok": true
+          },
+          {
+            "id": "P30",
+            "ok": true
+          },
+          {
             "id": "H01",
             "ok": true
           },
@@ -305,18 +313,18 @@
     },
     {
       "file": "scripts/smoke-ayas-cf49-frozen-review.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 17636,
-      "stdoutSha256": "976acf1b383e4becb2c4ce53b992eaa2173fb5901ddc3009e237211254540a66",
+      "durationMs": 17607,
+      "stdoutSha256": "fb00891f49b258e22cf2d5df7dbaca4ff56f69790171f6c9e9d6531a5731097c",
       "stderrSha256": "f95168d8aad217c16cbd39cc1f4b9e5754d55cd3144d488dfd36f80746f3422c",
       "report": {
         "schemaVersion": "1",
         "status": "PASS",
         "review": "CF49_EXPLICIT_EVIDENCE_SUPERSESSION_V1",
-        "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+        "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
         "worktreeDirty": false,
-        "sourceSha256": "71e7a337cfe86d05f65e9d7d642ebf55950d0f70bee2e7eaf175caf2ae2887a6",
+        "sourceSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13",
         "frozenGraderSha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e",
         "fixtureDigest": "81cbd81eba4b1fd92ac6f142efb4d74e3bd9ba2996165c3497940aa775a8c198",
         "historicalGate": {
@@ -335,7 +343,7 @@
             "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
             "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
           ],
-          "stdoutDigest": "b9325d32915923fab7681e0a89b72406826ac0acb6f7357483f2d24ec671351c",
+          "stdoutDigest": "f630b767f3506c6a00702584c3fc51cb64a1aec7f1c3db78c1a7124e802e4877",
           "stderrDigest": "24c08cb2be16c29e916afec00ca3b4e1c9aa99eb8139747ffc35005fd054a57e"
         },
         "historicalEvidencePreserved": true,
@@ -358,7 +366,7 @@
           "seed:identity-known-at-january"
         ],
         "cases": 12,
-        "guards": 204,
+        "guards": 228,
         "networkAttempts": 0,
         "results": [
           {
@@ -384,7 +392,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "para-pc-thinking",
@@ -409,7 +417,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "para-pc-plan",
@@ -434,7 +442,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "morph-pc-last-decision",
@@ -457,7 +465,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "morph-pc-card-accusative",
@@ -482,7 +490,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "order-pc-inverted",
@@ -507,7 +515,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "multi-pc-card-and-ram",
@@ -532,7 +540,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "tr-pc-capitals",
@@ -557,7 +565,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "tr-pc-punctuation",
@@ -582,7 +590,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "tr-pc-typo",
@@ -605,7 +613,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "heldout-pc-card-want",
@@ -630,7 +638,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           },
           {
             "id": "heldout-pc-switch",
@@ -654,7 +662,7 @@
                 "reason": "superseded-fact"
               }
             ],
-            "guards": 17
+            "guards": 19
           }
         ],
         "grantsAuthority": false
@@ -662,7 +670,7 @@
     },
     {
       "file": "scripts/smoke-ayas-cf49-review-contract.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
       "durationMs": 220,
       "stdoutSha256": "fe775f1ce00e85e7b1cc62aa49ae476281766a933a76833a02e069baeea634ff",
@@ -676,15 +684,15 @@
     },
     {
       "file": "scripts/smoke-ayas-cf49-remediation-mutations.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 26642,
-      "stdoutSha256": "81a9eca14cda15ae9f65000f29f022147cf6caa2d5b2ba6b8a087650b5ab3685",
+      "durationMs": 28062,
+      "stdoutSha256": "c77c874ea626c091b768033ec9c3cf3bc14a8b8ef114221cce2d5e50d5ebccb8",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
         "status": "PASS",
-        "controls": 11,
-        "caught": 11,
+        "controls": 12,
+        "caught": 12,
         "fixture": "EXPLICIT_TEMP_NO_REMOTE_NETWORK_MODEL_OR_CREDENTIAL_ENV",
         "results": [
           {
@@ -808,6 +816,8 @@
             "caught": true,
             "assertionCases": [
               "P19",
+              "P29",
+              "P30",
               "H04",
               "exact-pc-plan",
               "para-pc-thinking",
@@ -891,15 +901,35 @@
               "P25",
               "P26"
             ]
+          },
+          {
+            "id": "QUOTED_DECISION",
+            "caught": true,
+            "assertionCases": [
+              "P29",
+              "P30",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
           }
         ]
       }
     },
     {
       "file": "scripts/smoke-ayas-memory.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 307,
+      "durationMs": 316,
       "stdoutSha256": "c3a92c726c3acc2be10464223f1f208b017b5a6d62d8846be298b1f30861a92a",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
@@ -910,9 +940,9 @@
     },
     {
       "file": "scripts/smoke-ayas-memory-temporal.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 3207,
+      "durationMs": 3274,
       "stdoutSha256": "862a6a11d1b0ee6292ab7df8d4311ce255ff337a48a218f90cb8fc0376667bfb",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
@@ -924,17 +954,17 @@
     },
     {
       "file": "scripts/smoke-ayas-memory-integrity.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 1069,
+      "durationMs": 1037,
       "stdoutSha256": "44a4373048efe0457219bc59e1565bfa72f37570b9b92ca27dc7b33acbfaa4b8",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "file": "scripts/smoke-ayas-context.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 331,
+      "durationMs": 329,
       "stdoutSha256": "6972f01a885bb9a6c3e4f6b6d86d661ef61da25e34858ad1827d29fca01d9343",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
@@ -945,9 +975,9 @@
     },
     {
       "file": "scripts/smoke-ayas-chat-stream.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 650,
+      "durationMs": 565,
       "stdoutSha256": "307c937a3a6163b7b859f1ce785210dea1a8fb859fd08e7de5bf827e31eaf7a3",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
@@ -958,9 +988,9 @@
     },
     {
       "file": "scripts/smoke-ayas-revenue-memory.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 2889,
+      "durationMs": 2803,
       "stdoutSha256": "213eed0292bc4f1cacd08bdc442c3a723ef49623ba5b94aca0943b9ec75e0252",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {
@@ -1381,9 +1411,9 @@
     },
     {
       "file": "scripts/smoke-ayas-revenue-memory-mutations.ts",
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "exitCode": 0,
-      "durationMs": 36199,
+      "durationMs": 35097,
       "stdoutSha256": "fc1bec93ff563f97ac1059b317e024b4860cb1eaa43025433896f66cf0211865",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "report": {

@@ -1,0 +1,18 @@
+{
+  "status": "AYAS_SELF_IMPROVEMENT_HEALTH",
+  "checkedAt": "2026-10-05T10:25:10.620Z",
+  "verdict": "DEGRADED",
+  "ownerActionRecommended": false,
+  "findings": [
+    {
+      "code": "GRAPH_STALE_VS_HEAD",
+      "severity": "WARN",
+      "subject": "graph",
+      "message": "the Graphify graph was analyzed at a different commit than HEAD, so graph-dependent discovery is paused until `graphify update --scope all --no-description --no-label .` runs",
+      "evidence": {
+        "head": "6a9f49efa6c1",
+        "analyzedHead": "d3b956b1a4d5"
+      }
+    }
+  ]
+}

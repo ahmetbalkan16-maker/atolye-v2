@@ -3,10 +3,10 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+  "currentHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
   "currentHeadMeaning": "LAST_VERIFIED_CLEAN_SOURCE_HEAD_RESOLVE_GIT_FOR_FINAL_DOCS_HEAD",
   "stage": "STAGE_17",
-  "subtask": "CF49 reopened after additional quotation-boundary controls; repaired source awaiting clean qualification; Stage17 BLOCKED",
+  "subtask": "CF49 CLOSED_PASS after expanded quotation review; Stage17 actual Foundation BLOCKED by protection/domain/live qualification",
   "status": "FOUNDATION_QUALIFICATION_BLOCKED",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -1434,7 +1434,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "CF49 is CLOSED_PASS atd3b956b; preserve its exact evidence. Stage17 Foundation remains BLOCKED: complete protected/domain/live qualification and actual owner review through existing gates. Do not advance Infinity or homepage before real closure; see STAGE17_CURRENT_RESULT.md.",
+  "resumeNextAction": "CF49 is CLOSED_PASS at6a9f49e after d3b receipt supersession; preserve exact evidence/history. Stage17 remains BLOCKED: complete protected/domain/live qualification and actual owner review through existing gates. No Infinity/homepage advancement before real closure; see STAGE17_CURRENT_RESULT.md.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -3980,7 +3980,7 @@
   },
   "stage17": {
     "currentVerification": {
-      "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "result": "05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md",
       "registry": "05_STAGE17/implementation/STAGE17_EVIDENCE_REGISTRY.json",
       "framework": "151_PRIMARY_30_HELD_30_ADVERSARIAL_9_MUTATIONS_PASS",
@@ -4823,8 +4823,9 @@
   },
   "cf49Review": {
     "entryHead": "2e250cf3fbec608970dd601a513359aa3478f191",
-    "state": "REOPENED_QUOTATION_BOUNDARY_FRESH_CLOSURE_PENDING",
-    "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+    "state": "CLOSED_PASS",
+    "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+    "supersededClosure": "05_STAGE17/implementation/CF49_CLOSURE_d3b956b_HISTORICAL.json",
     "closureReceipt": "05_STAGE17/implementation/CF49_CLOSURE.json",
     "stage17CurrentResult": "05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md",
     "evidenceRegistry": "05_STAGE17/implementation/STAGE17_EVIDENCE_REGISTRY.json",

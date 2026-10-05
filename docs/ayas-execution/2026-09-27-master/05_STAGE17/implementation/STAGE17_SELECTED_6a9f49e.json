@@ -1,0 +1,777 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+  "cleanSource": true,
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "completeDeclaredBaseline": false,
+  "fixture": "TEMP_READ_ONLY_NO_MODEL_AUTHORITY_CREDENTIAL_ENV",
+  "observedAt": "2026-10-05T10:23:44.563Z",
+  "results": [
+    {
+      "id": "typescript",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "",
+      "report": null
+    },
+    {
+      "id": "lint",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "b7e9d94f59817cc3c255c11a74371953720db5014b71b94a15299d34b5dfcdd7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\apply-retry-admission-istanbul-1453.ts\n  1:8  warning  'fs' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\diagnose-global-terminal-quiescence-istanbul-1453-readonly.ts\n  1:8  warning  'fs' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\diagnose-retry-compensation-failed-root-cause-readonly.ts\n  1:8   warning  'fs' is defined but never used                                       @typescript-eslint/no-unused-vars\n  9:10  warning  'classifyProductionDurableAttemptLineage' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\production-failed-stage-retry-with-authority-final-preflight-readonly.ts\n  7:36  warning  'fingerprintPipelineJob' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\production-manifest-reconciliation-final-preflight-readonly.ts\n  12:15  warning  'PipelineJobList' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-audio-compensation-descriptor-rebind.ts\n  27:8  warning  'AudioCanonicalDescriptorRebind' is defined but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-audio-publication-rebind.ts\n   24:8   warning  'AudioPublicationDescriptorRebind' is defined but never used  @typescript-eslint/no-unused-vars\n  155:10  warning  'intentFilePath' is defined but never used                    @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-isolated-e2e-audio-rebind-assembly.ts\n  254:13  warning  'publicationRebind' is assigned a value but never used  @typescript-eslint/no-unused-vars\n\nC:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\smoke-sprint-129-25c-1-runtime-backup.ts\n    14:3   warning  'runtimeBackupFormatVersion' is defined but never used          @typescript-eslint/no-unused-vars\n    18:3   warning  'runtimeBackupManifestSchemaVersion' is defined but never used  @typescript-eslint/no-unused-vars\n  1401:13  warning  'relativePath' is assigned a value but never used               @typescript-eslint/no-unused-vars\n\n✖ 13 problems (0 errors, 13 warnings)\n\n",
+      "report": null
+    },
+    {
+      "id": "smoke-ayas-system-audit.ts",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "bd5f45c10941e8b6c454f497947c955f7b4df169ee5e484c23566c0a34720f60",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "{\"status\":\"PASS\",\"primary\":{\"passed\":151,\"total\":151},\"completePrimary\":true,\"fixture\":\"TEMP_READ_ONLY_NO_ACTIVATION\",\"results\":[{\"id\":\"P001\",\"ok\":true},{\"id\":\"P002\",\"ok\":true},{\"id\":\"P003\",\"ok\":true},{\"id\":\"P004\",\"ok\":true},{\"id\":\"P005\",\"ok\":true},{\"id\":\"P006\",\"ok\":true},{\"id\":\"P007\",\"ok\":true},{\"id\":\"P008\",\"ok\":true},{\"id\":\"P009\",\"ok\":true},{\"id\":\"P010\",\"ok\":true},{\"id\":\"P011\",\"ok\":true},{\"id\":\"P012\",\"ok\":true},{\"id\":\"P013\",\"ok\":true},{\"id\":\"P014\",\"ok\":true},{\"id\":\"P015\",\"ok\":true},{\"id\":\"P016\",\"ok\":true},{\"id\":\"P017\",\"ok\":true},{\"id\":\"P018\",\"ok\":true},{\"id\":\"P019\",\"ok\":true},{\"id\":\"P020\",\"ok\":true},{\"id\":\"P021\",\"ok\":true},{\"id\":\"P022\",\"ok\":true},{\"id\":\"P023\",\"ok\":true},{\"id\":\"P024\",\"ok\":true},{\"id\":\"P025\",\"ok\":true},{\"id\":\"P026\",\"ok\":true},{\"id\":\"P027\",\"ok\":true},{\"id\":\"P028\",\"ok\":true},{\"id\":\"P029\",\"ok\":true},{\"id\":\"P030\",\"ok\":true},{\"id\":\"P031\",\"ok\":true},{\"id\":\"P032\",\"ok\":true},{\"id\":\"P033\",\"ok\":true},{\"id\":\"P034\",\"ok\":true},{\"id\":\"P035\",\"ok\":true},{\"id\":\"P036\",\"ok\":true},{\"id\":\"P037\",\"ok\":true},{\"id\":\"P038\",\"ok\":true},{\"id\":\"P039\",\"ok\":true},{\"id\":\"P040\",\"ok\":true},{\"id\":\"P041\",\"ok\":true},{\"id\":\"P042\",\"ok\":true},{\"id\":\"P043\",\"ok\":true},{\"id\":\"P044\",\"ok\":true},{\"id\":\"P045\",\"ok\":true},{\"id\":\"P046\",\"ok\":true},{\"id\":\"P047\",\"ok\":true},{\"id\":\"P048\",\"ok\":true},{\"id\":\"P049\",\"ok\":true},{\"id\":\"P050\",\"ok\":true},{\"id\":\"P051\",\"ok\":true},{\"id\":\"P052\",\"ok\":true},{\"id\":\"P053\",\"ok\":true},{\"id\":\"P054\",\"ok\":true},{\"id\":\"P055\",\"ok\":true},{\"id\":\"P056\",\"ok\":true},{\"id\":\"P057\",\"ok\":true},{\"id\":\"P058\",\"ok\":true},{\"id\":\"P059\",\"ok\":true},{\"id\":\"P060\",\"ok\":true},{\"id\":\"P061\",\"ok\":true},{\"id\":\"P062\",\"ok\":true},{\"id\":\"P063\",\"ok\":true},{\"id\":\"P064\",\"ok\":true},{\"id\":\"P065\",\"ok\":true},{\"id\":\"P066\",\"ok\":true},{\"id\":\"P067\",\"ok\":true},{\"id\":\"P068\",\"ok\":true},{\"id\":\"P069\",\"ok\":true},{\"id\":\"P070\",\"ok\":true},{\"id\":\"P071\",\"ok\":true},{\"id\":\"P072\",\"ok\":true},{\"id\":\"P073\",\"ok\":true},{\"id\":\"P074\",\"ok\":true},{\"id\":\"P075\",\"ok\":true},{\"id\":\"P076\",\"ok\":true},{\"id\":\"P077\",\"ok\":true},{\"id\":\"P078\",\"ok\":true},{\"id\":\"P079\",\"ok\":true},{\"id\":\"P080\",\"ok\":true},{\"id\":\"P081\",\"ok\":true},{\"id\":\"P082\",\"ok\":true},{\"id\":\"P083\",\"ok\":true},{\"id\":\"P084\",\"ok\":true},{\"id\":\"P085\",\"ok\":true},{\"id\":\"P086\",\"ok\":true},{\"id\":\"P087\",\"ok\":true},{\"id\":\"P088\",\"ok\":true},{\"id\":\"P089\",\"ok\":true},{\"id\":\"P090\",\"ok\":true},{\"id\":\"P091\",\"ok\":true},{\"id\":\"P092\",\"ok\":true},{\"id\":\"P093\",\"ok\":true},{\"id\":\"P094\",\"ok\":true},{\"id\":\"P095\",\"ok\":true},{\"id\":\"P096\",\"ok\":true},{\"id\":\"P097\",\"ok\":true},{\"id\":\"P098\",\"ok\":true},{\"id\":\"P099\",\"ok\":true},{\"id\":\"P100\",\"ok\":true},{\"id\":\"P101\",\"ok\":true},{\"id\":\"P102\",\"ok\":true},{\"id\":\"P103\",\"ok\":true},{\"id\":\"P104\",\"ok\":true},{\"id\":\"P105\",\"ok\":true},{\"id\":\"P106\",\"ok\":true},{\"id\":\"P107\",\"ok\":true},{\"id\":\"P108\",\"ok\":true},{\"id\":\"P109\",\"ok\":true},{\"id\":\"P110\",\"ok\":true},{\"id\":\"P111\",\"ok\":true},{\"id\":\"P112\",\"ok\":true},{\"id\":\"P113\",\"ok\":true},{\"id\":\"P114\",\"ok\":true},{\"id\":\"P115\",\"ok\":true},{\"id\":\"P116\",\"ok\":true},{\"id\":\"P117\",\"ok\":true},{\"id\":\"P118\",\"ok\":true},{\"id\":\"P119\",\"ok\":true},{\"id\":\"P120\",\"ok\":true},{\"id\":\"P121\",\"ok\":true},{\"id\":\"P122\",\"ok\":true},{\"id\":\"P123\",\"ok\":true},{\"id\":\"P124\",\"ok\":true},{\"id\":\"P125\",\"ok\":true},{\"id\":\"P126\",\"ok\":true},{\"id\":\"P127\",\"ok\":true},{\"id\":\"P128\",\"ok\":true},{\"id\":\"P129\",\"ok\":true},{\"id\":\"P130\",\"ok\":true},{\"id\":\"P131\",\"ok\":true},{\"id\":\"P132\",\"ok\":true},{\"id\":\"P133\",\"ok\":true},{\"id\":\"P134\",\"ok\":true},{\"id\":\"P135\",\"ok\":true},{\"id\":\"P136\",\"ok\":true},{\"id\":\"P137\",\"ok\":true},{\"id\":\"P138\",\"ok\":true},{\"id\":\"P139\",\"ok\":true},{\"id\":\"P140\",\"ok\":true},{\"id\":\"P141\",\"ok\":true},{\"id\":\"P142\",\"ok\":true},{\"id\":\"P143\",\"ok\":true},{\"id\":\"P144\",\"ok\":true},{\"id\":\"P145\",\"ok\":true},{\"id\":\"P146\",\"ok\":true},{\"id\":\"P147\",\"ok\":true},{\"id\":\"P148\",\"ok\":true},{\"id\":\"P149\",\"ok\":true},{\"id\":\"P150\",\"ok\":true},{\"id\":\"P151\",\"ok\":true}]}\n",
+      "report": {
+        "status": "PASS",
+        "primary": {
+          "passed": 151,
+          "total": 151
+        },
+        "completePrimary": true,
+        "fixture": "TEMP_READ_ONLY_NO_ACTIVATION",
+        "results": [
+          {
+            "id": "P001",
+            "ok": true
+          },
+          {
+            "id": "P002",
+            "ok": true
+          },
+          {
+            "id": "P003",
+            "ok": true
+          },
+          {
+            "id": "P004",
+            "ok": true
+          },
+          {
+            "id": "P005",
+            "ok": true
+          },
+          {
+            "id": "P006",
+            "ok": true
+          },
+          {
+            "id": "P007",
+            "ok": true
+          },
+          {
+            "id": "P008",
+            "ok": true
+          },
+          {
+            "id": "P009",
+            "ok": true
+          },
+          {
+            "id": "P010",
+            "ok": true
+          },
+          {
+            "id": "P011",
+            "ok": true
+          },
+          {
+            "id": "P012",
+            "ok": true
+          },
+          {
+            "id": "P013",
+            "ok": true
+          },
+          {
+            "id": "P014",
+            "ok": true
+          },
+          {
+            "id": "P015",
+            "ok": true
+          },
+          {
+            "id": "P016",
+            "ok": true
+          },
+          {
+            "id": "P017",
+            "ok": true
+          },
+          {
+            "id": "P018",
+            "ok": true
+          },
+          {
+            "id": "P019",
+            "ok": true
+          },
+          {
+            "id": "P020",
+            "ok": true
+          },
+          {
+            "id": "P021",
+            "ok": true
+          },
+          {
+            "id": "P022",
+            "ok": true
+          },
+          {
+            "id": "P023",
+            "ok": true
+          },
+          {
+            "id": "P024",
+            "ok": true
+          },
+          {
+            "id": "P025",
+            "ok": true
+          },
+          {
+            "id": "P026",
+            "ok": true
+          },
+          {
+            "id": "P027",
+            "ok": true
+          },
+          {
+            "id": "P028",
+            "ok": true
+          },
+          {
+            "id": "P029",
+            "ok": true
+          },
+          {
+            "id": "P030",
+            "ok": true
+          },
+          {
+            "id": "P031",
+            "ok": true
+          },
+          {
+            "id": "P032",
+            "ok": true
+          },
+          {
+            "id": "P033",
+            "ok": true
+          },
+          {
+            "id": "P034",
+            "ok": true
+          },
+          {
+            "id": "P035",
+            "ok": true
+          },
+          {
+            "id": "P036",
+            "ok": true
+          },
+          {
+            "id": "P037",
+            "ok": true
+          },
+          {
+            "id": "P038",
+            "ok": true
+          },
+          {
+            "id": "P039",
+            "ok": true
+          },
+          {
+            "id": "P040",
+            "ok": true
+          },
+          {
+            "id": "P041",
+            "ok": true
+          },
+          {
+            "id": "P042",
+            "ok": true
+          },
+          {
+            "id": "P043",
+            "ok": true
+          },
+          {
+            "id": "P044",
+            "ok": true
+          },
+          {
+            "id": "P045",
+            "ok": true
+          },
+          {
+            "id": "P046",
+            "ok": true
+          },
+          {
+            "id": "P047",
+            "ok": true
+          },
+          {
+            "id": "P048",
+            "ok": true
+          },
+          {
+            "id": "P049",
+            "ok": true
+          },
+          {
+            "id": "P050",
+            "ok": true
+          },
+          {
+            "id": "P051",
+            "ok": true
+          },
+          {
+            "id": "P052",
+            "ok": true
+          },
+          {
+            "id": "P053",
+            "ok": true
+          },
+          {
+            "id": "P054",
+            "ok": true
+          },
+          {
+            "id": "P055",
+            "ok": true
+          },
+          {
+            "id": "P056",
+            "ok": true
+          },
+          {
+            "id": "P057",
+            "ok": true
+          },
+          {
+            "id": "P058",
+            "ok": true
+          },
+          {
+            "id": "P059",
+            "ok": true
+          },
+          {
+            "id": "P060",
+            "ok": true
+          },
+          {
+            "id": "P061",
+            "ok": true
+          },
+          {
+            "id": "P062",
+            "ok": true
+          },
+          {
+            "id": "P063",
+            "ok": true
+          },
+          {
+            "id": "P064",
+            "ok": true
+          },
+          {
+            "id": "P065",
+            "ok": true
+          },
+          {
+            "id": "P066",
+            "ok": true
+          },
+          {
+            "id": "P067",
+            "ok": true
+          },
+          {
+            "id": "P068",
+            "ok": true
+          },
+          {
+            "id": "P069",
+            "ok": true
+          },
+          {
+            "id": "P070",
+            "ok": true
+          },
+          {
+            "id": "P071",
+            "ok": true
+          },
+          {
+            "id": "P072",
+            "ok": true
+          },
+          {
+            "id": "P073",
+            "ok": true
+          },
+          {
+            "id": "P074",
+            "ok": true
+          },
+          {
+            "id": "P075",
+            "ok": true
+          },
+          {
+            "id": "P076",
+            "ok": true
+          },
+          {
+            "id": "P077",
+            "ok": true
+          },
+          {
+            "id": "P078",
+            "ok": true
+          },
+          {
+            "id": "P079",
+            "ok": true
+          },
+          {
+            "id": "P080",
+            "ok": true
+          },
+          {
+            "id": "P081",
+            "ok": true
+          },
+          {
+            "id": "P082",
+            "ok": true
+          },
+          {
+            "id": "P083",
+            "ok": true
+          },
+          {
+            "id": "P084",
+            "ok": true
+          },
+          {
+            "id": "P085",
+            "ok": true
+          },
+          {
+            "id": "P086",
+            "ok": true
+          },
+          {
+            "id": "P087",
+            "ok": true
+          },
+          {
+            "id": "P088",
+            "ok": true
+          },
+          {
+            "id": "P089",
+            "ok": true
+          },
+          {
+            "id": "P090",
+            "ok": true
+          },
+          {
+            "id": "P091",
+            "ok": true
+          },
+          {
+            "id": "P092",
+            "ok": true
+          },
+          {
+            "id": "P093",
+            "ok": true
+          },
+          {
+            "id": "P094",
+            "ok": true
+          },
+          {
+            "id": "P095",
+            "ok": true
+          },
+          {
+            "id": "P096",
+            "ok": true
+          },
+          {
+            "id": "P097",
+            "ok": true
+          },
+          {
+            "id": "P098",
+            "ok": true
+          },
+          {
+            "id": "P099",
+            "ok": true
+          },
+          {
+            "id": "P100",
+            "ok": true
+          },
+          {
+            "id": "P101",
+            "ok": true
+          },
+          {
+            "id": "P102",
+            "ok": true
+          },
+          {
+            "id": "P103",
+            "ok": true
+          },
+          {
+            "id": "P104",
+            "ok": true
+          },
+          {
+            "id": "P105",
+            "ok": true
+          },
+          {
+            "id": "P106",
+            "ok": true
+          },
+          {
+            "id": "P107",
+            "ok": true
+          },
+          {
+            "id": "P108",
+            "ok": true
+          },
+          {
+            "id": "P109",
+            "ok": true
+          },
+          {
+            "id": "P110",
+            "ok": true
+          },
+          {
+            "id": "P111",
+            "ok": true
+          },
+          {
+            "id": "P112",
+            "ok": true
+          },
+          {
+            "id": "P113",
+            "ok": true
+          },
+          {
+            "id": "P114",
+            "ok": true
+          },
+          {
+            "id": "P115",
+            "ok": true
+          },
+          {
+            "id": "P116",
+            "ok": true
+          },
+          {
+            "id": "P117",
+            "ok": true
+          },
+          {
+            "id": "P118",
+            "ok": true
+          },
+          {
+            "id": "P119",
+            "ok": true
+          },
+          {
+            "id": "P120",
+            "ok": true
+          },
+          {
+            "id": "P121",
+            "ok": true
+          },
+          {
+            "id": "P122",
+            "ok": true
+          },
+          {
+            "id": "P123",
+            "ok": true
+          },
+          {
+            "id": "P124",
+            "ok": true
+          },
+          {
+            "id": "P125",
+            "ok": true
+          },
+          {
+            "id": "P126",
+            "ok": true
+          },
+          {
+            "id": "P127",
+            "ok": true
+          },
+          {
+            "id": "P128",
+            "ok": true
+          },
+          {
+            "id": "P129",
+            "ok": true
+          },
+          {
+            "id": "P130",
+            "ok": true
+          },
+          {
+            "id": "P131",
+            "ok": true
+          },
+          {
+            "id": "P132",
+            "ok": true
+          },
+          {
+            "id": "P133",
+            "ok": true
+          },
+          {
+            "id": "P134",
+            "ok": true
+          },
+          {
+            "id": "P135",
+            "ok": true
+          },
+          {
+            "id": "P136",
+            "ok": true
+          },
+          {
+            "id": "P137",
+            "ok": true
+          },
+          {
+            "id": "P138",
+            "ok": true
+          },
+          {
+            "id": "P139",
+            "ok": true
+          },
+          {
+            "id": "P140",
+            "ok": true
+          },
+          {
+            "id": "P141",
+            "ok": true
+          },
+          {
+            "id": "P142",
+            "ok": true
+          },
+          {
+            "id": "P143",
+            "ok": true
+          },
+          {
+            "id": "P144",
+            "ok": true
+          },
+          {
+            "id": "P145",
+            "ok": true
+          },
+          {
+            "id": "P146",
+            "ok": true
+          },
+          {
+            "id": "P147",
+            "ok": true
+          },
+          {
+            "id": "P148",
+            "ok": true
+          },
+          {
+            "id": "P149",
+            "ok": true
+          },
+          {
+            "id": "P150",
+            "ok": true
+          },
+          {
+            "id": "P151",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "adversarial-ayas-system-audit.ts",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "3d2f8ea35ed876ef75d0fc88dc407303b5160a3e7dd9e867556ba29d26957374",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "{\"status\":\"PASS\",\"heldOut\":{\"passed\":30,\"total\":30},\"adversarial\":{\"passed\":30,\"total\":30},\"fixture\":\"FROZEN_HELD_METADATA_CORRUPTION_TEMP\",\"productionMutation\":false}\n",
+      "report": {
+        "status": "PASS",
+        "heldOut": {
+          "passed": 30,
+          "total": 30
+        },
+        "adversarial": {
+          "passed": 30,
+          "total": 30
+        },
+        "fixture": "FROZEN_HELD_METADATA_CORRUPTION_TEMP",
+        "productionMutation": false
+      }
+    },
+    {
+      "id": "smoke-ayas-system-audit-mutations.ts",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "2458c7581eb7dea86620eef23700a5514a53a3bb9ab7c6e2f58b416ad2a527c5",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "{\"status\":\"PASS\",\"caught\":9,\"total\":9,\"equivalents\":0,\"baselineAndRecovered\":\"PASS\",\"scope\":\"GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY\",\"rows\":[{\"name\":\"wrong proof class accepted\",\"assertion\":\"P008\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"old source HEAD accepted\",\"assertion\":\"P003\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"needs_update ignored\",\"assertion\":\"P121\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"technical failure ignored\",\"assertion\":\"P004\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"partial baseline closes foundation\",\"assertion\":\"P127\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"protected mutation ignored\",\"assertion\":\"P130\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"known limit silently promoted\",\"assertion\":\"P129\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"expired proof accepted\",\"assertion\":\"P133\",\"status\":\"ASSERTION_CAUGHT\"},{\"name\":\"source coverage absent\",\"assertion\":\"P002\",\"status\":\"ASSERTION_CAUGHT\"}]}\n",
+      "report": {
+        "status": "PASS",
+        "caught": 9,
+        "total": 9,
+        "equivalents": 0,
+        "baselineAndRecovered": "PASS",
+        "scope": "GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY",
+        "rows": [
+          {
+            "name": "wrong proof class accepted",
+            "assertion": "P008",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "old source HEAD accepted",
+            "assertion": "P003",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "needs_update ignored",
+            "assertion": "P121",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "technical failure ignored",
+            "assertion": "P004",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "partial baseline closes foundation",
+            "assertion": "P127",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "protected mutation ignored",
+            "assertion": "P130",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "known limit silently promoted",
+            "assertion": "P129",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "expired proof accepted",
+            "assertion": "P133",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "source coverage absent",
+            "assertion": "P002",
+            "status": "ASSERTION_CAUGHT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "smoke-ayas-system-audit-boundary.ts",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "06a5d01e24255ff6e5ef25472ed4d0306a3105eeb2e6b451c347129fd3666947",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "{\"status\":\"PASS\",\"checks\":10,\"scope\":\"TEMP_FIXED_READ_ONLY_PROBES_NO_AUTHORITY_NO_CREDENTIAL_BODY\",\"sourceExistenceDoesNotQualifyTestOrLive\":true}\n",
+      "report": {
+        "status": "PASS",
+        "checks": 10,
+        "scope": "TEMP_FIXED_READ_ONLY_PROBES_NO_AUTHORITY_NO_CREDENTIAL_BODY",
+        "sourceExistenceDoesNotQualifyTestOrLive": true
+      }
+    },
+    {
+      "id": "smoke-ayas-action-firewall-closure.ts",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "f3749ab04697c8c715412864a570ee25d1ada4cedb7ed4a1464e5b126bbde6c7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "Stage 15D firewall closure audit: PASS (12 scenarios; 9 surfaces; 41 mapped modules; TEMP only)\n",
+      "report": null
+    },
+    {
+      "id": "smoke-ayas-eval-governance.ts",
+      "head": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "exitCode": 0,
+      "error": null,
+      "stdoutSha256": "42a098df54dc9978c43fd51a7e582e8bb48a22206005006026c509b7d2a3fce3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output": "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)\n",
+      "report": null
+    }
+  ],
+  "grantsAuthority": false
+}

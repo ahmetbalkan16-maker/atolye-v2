@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1",
+  "observedAt": "2026-10-05T10:25:11.743Z",
+  "authority": "NONE",
+  "evidenceClass": "LIVE_READ_ONLY_HOST_OBSERVATION",
+  "policy": {
+    "maxRamAdmissionPercent": 90
+  },
+  "telemetry": {
+    "observedAt": "2026-10-05T10:25:11.743Z",
+    "cpuPercent": 5.57,
+    "gpuPercent": 0,
+    "ramUsedPercent": 46.97,
+    "totalRamBytes": 34033348608,
+    "freeRamBytes": 18046656512,
+    "vramUsedPercent": 5.35,
+    "diskFreePercent": 28.41,
+    "processRssMb": 132,
+    "unavailable": [
+      "process-list"
+    ]
+  },
+  "occupancy": {
+    "state": "READ",
+    "productionActive": false,
+    "records": [],
+    "prunedStale": 0
+  },
+  "context": {
+    "ownerInteractive": null,
+    "productionActive": false,
+    "heavyWorkloads": [],
+    "queueDepth": null,
+    "modelFootprintMb": null,
+    "thermalState": "UNKNOWN",
+    "hostProtection": "UNKNOWN",
+    "hardwareFingerprint": "b0be24b5f24058eac6f3d4b5d29f786040568439be6acc5c025270e876f73ae8",
+    "benchmarkedFingerprint": null
+  },
+  "decisions": {
+    "interactive": {
+      "action": "ALLOW",
+      "reasonCode": "RESOURCE_OWNER_INTERACTION_PRIORITY"
+    },
+    "productionRenderStage": {
+      "action": "ALLOW",
+      "reasonCode": "MACHINE_HEALTH_NOMINAL"
+    },
+    "heavySelfDevelopment": {
+      "action": "ALLOW",
+      "reasonCode": "MACHINE_HEALTH_NOMINAL"
+    },
+    "heavyLocalModelStart": {
+      "action": "DEFER",
+      "reasonCode": "RESOURCE_EXTERNAL_RENDER_OR_INVENTORY_UNKNOWN"
+    }
+  },
+  "onDemand": {
+    "status": "NOT_WIRED_ENGINE_UNREGISTERED",
+    "activation": "REQUIRES_EXISTING_OWNER_CAPABILITY_AND_PINNED_BACKEND",
+    "modelDigest": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+    "lazyDefault": true,
+    "startupPreload": false,
+    "automaticGlobalWslShutdown": false
+  },
+  "unmeasured": [
+    "ownerInteractive",
+    "queueDepth",
+    "modelFootprintMb",
+    "thermalState",
+    "hostProtection",
+    "benchmarkedFingerprint"
+  ]
+}

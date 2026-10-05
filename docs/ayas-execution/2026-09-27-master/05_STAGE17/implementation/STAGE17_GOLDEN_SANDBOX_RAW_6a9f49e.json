@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1",
+  "manifestVersion": "15F.4-v55",
+  "manifestDigest": "f60562144068b2d250c176a91bebcde2a23faa38e6e8b55a39132a297190c71a",
+  "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+  "sourceWorktreeDigest": "3c2cf75d5e77762102900ec41240d4f66fa9f7e806a8ddee6e691c80f421c04d",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+  "selectedSuites": 1,
+  "declaredSuites": 166,
+  "completeDeclaredBaseline": false,
+  "trials": 1,
+  "failed": [
+    "golden-sandbox-run"
+  ],
+  "knownLimitationSuites": [],
+  "outcome": "FAIL",
+  "results": [
+    {
+      "id": "golden-sandbox-run",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 34972,
+          "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrDigest": "b271365027a55b8fb5edc55fb95270996ef36215700917f11c0ff9769ca63345",
+          "exitCode": 1,
+          "outcome": "FAIL"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 0,
+        "passPowerK": 0,
+        "rawQualityPassedAllTrials": false,
+        "status": "FAIL"
+      }
+    }
+  ],
+  "resourceSamples": [
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18093232128
+    }
+  ],
+  "ownerCalibration": "PENDING",
+  "grantsAuthority": false,
+  "excluded": [
+    {
+      "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+      "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+    },
+    {
+      "scope": "local-coding qualification and model binaries",
+      "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+    },
+    {
+      "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+      "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+    },
+    {
+      "scope": "Model grading and owner/human benchmark calibration",
+      "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+    }
+  ]
+}

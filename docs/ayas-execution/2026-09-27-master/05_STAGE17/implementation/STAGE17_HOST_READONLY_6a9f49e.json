@@ -1,0 +1,64 @@
+{
+  "nativePowerShell": [
+    {
+      "file": "ayas-access-daemon.ps1",
+      "execution": "NOT_RUN",
+      "syntaxErrors": 0
+    },
+    {
+      "file": "ayas-autonomy-daemon.ps1",
+      "execution": "NOT_RUN",
+      "syntaxErrors": 0
+    },
+    {
+      "file": "register-ayas-autonomy-autostart.ps1",
+      "execution": "NOT_RUN",
+      "syntaxErrors": 0
+    },
+    {
+      "file": "register-ayas-autostart.ps1",
+      "execution": "NOT_RUN",
+      "syntaxErrors": 0
+    },
+    {
+      "file": "smoke-ayas-access-daemon.ps1",
+      "execution": "NOT_RUN",
+      "syntaxErrors": 0
+    },
+    {
+      "file": "unregister-ayas-autonomy-autostart.ps1",
+      "execution": "NOT_RUN",
+      "syntaxErrors": 0
+    },
+    {
+      "file": "unregister-ayas-autostart.ps1",
+      "execution": "NOT_RUN",
+      "syntaxErrors": 0
+    }
+  ],
+  "runtimeHealth": {
+    "status": "NOT_QUALIFIED",
+    "errorCategory": "InvalidOperation",
+    "httpStatus": 401,
+    "runningInstanceHead": "NOT_ESTABLISHED",
+    "rawBodyRetained": false
+  },
+  "scheduledTasks": [
+    {
+      "state": "Running",
+      "scope": "REGISTRATION_STATE_ONLY",
+      "name": "AYAS Access Online"
+    },
+    {
+      "state": "Running",
+      "scope": "REGISTRATION_STATE_ONLY",
+      "name": "AYAS Autonomy Observer"
+    }
+  ],
+  "evidenceClass": "LIVE_READ_ONLY",
+  "loadedProcessSourceHead": "NOT_ESTABLISHED",
+  "schemaVersion": "1",
+  "operatorSourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+  "grantsAuthority": false,
+  "observedAt": "2026-10-05T10:26:31.1871688Z"
+}
