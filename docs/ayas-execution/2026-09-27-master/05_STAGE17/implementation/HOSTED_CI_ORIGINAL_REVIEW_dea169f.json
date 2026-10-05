@@ -1,0 +1,356 @@
+{
+  "schemaVersion": "1",
+  "status": "PASS",
+  "review": "CF49_EXPLICIT_EVIDENCE_SUPERSESSION_V1",
+  "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+  "worktreeDirty": false,
+  "sourceSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13",
+  "frozenGraderSha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e",
+  "fixtureDigest": "81cbd81eba4b1fd92ac6f142efb4d74e3bd9ba2996165c3497940aa775a8c198",
+  "historicalGate": {
+    "exitCode": 1,
+    "gateFailures": [
+      "IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
+    ],
+    "stdoutDigest": "9ac13141b7bec3982b2a23bf7dff249b913a34c5a692416edcb124e8c527fab3",
+    "stderrDigest": "c03ed8ba7d022a3dec2950cd3b8788469518c0d34aeaae75535515c941bc3bb3"
+  },
+  "originalCiRawGate": {
+    "reviewed": true,
+    "exitCode": 1,
+    "rawReportSha256": "3bcebb304a78fba2e23da4b1db91488ef496a977cdb329d3d286fa907d46fa41",
+    "fixtureDigest": "81cbd81eba4b1fd92ac6f142efb4d74e3bd9ba2996165c3497940aa775a8c198",
+    "sameFixtureAsFreshGate": true
+  },
+  "historicalEvidencePreserved": true,
+  "remainingKnownLimitations": [
+    "syn-pc-colloquial",
+    "contradiction-free-text-coffee",
+    "asof-pc-july-detected",
+    "distractor-pc-heavy-current",
+    "para-length-how",
+    "syn-length-yanit",
+    "superseded-length-old-wording",
+    "history-length-used-to",
+    "heldout-voice-length",
+    "attribute-pc-ram",
+    "attribute-pc-current-card",
+    "heldout-ram-bellek",
+    "none-same-word-other-meaning",
+    "syn-edit-montaj",
+    "future-plan-question",
+    "seed:identity-known-at-january"
+  ],
+  "cases": 12,
+  "guards": 228,
+  "networkAttempts": 0,
+  "results": [
+    {
+      "id": "exact-pc-plan",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "para-pc-thinking",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "para-pc-plan",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "morph-pc-last-decision",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "morph-pc-card-accusative",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "pcSpecs",
+        "laptopPref"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "order-pc-inverted",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "multi-pc-card-and-ram",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "pcSpecs",
+        "laptopPref"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "tr-pc-capitals",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "tr-pc-punctuation",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "tr-pc-typo",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "heldout-pc-card-want",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcSpecs",
+        "pcPlanNew",
+        "laptopPref"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    },
+    {
+      "id": "heldout-pc-switch",
+      "ok": true,
+      "failures": [],
+      "selected": [
+        "pcPlanNew",
+        "pcSpecs"
+      ],
+      "quarantine": [
+        {
+          "key": "pcFuture",
+          "reason": "not-yet-effective"
+        },
+        {
+          "key": "pcHistory",
+          "reason": "historical-fact"
+        },
+        {
+          "key": "pcPlanOld",
+          "reason": "superseded-fact"
+        }
+      ],
+      "guards": 19
+    }
+  ],
+  "grantsAuthority": false
+}

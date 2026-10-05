@@ -3,16 +3,24 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
-  "currentHeadMeaning": "LAST_VERIFIED_CLEAN_SOURCE_HEAD_RESOLVE_GIT_FOR_FINAL_DOCS_HEAD",
+  "currentHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+  "currentHeadMeaning": "LAST_VERIFIED_CLEAN_CF49_AND_HOSTED_CI_HEAD_RESOLVE_GIT_FOR_FINAL_DOCS_HEAD",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
     "failure": "EXACT12_FROZEN_RETRIEVAL_IMPROVEMENT_REVIEW_REQUESTS_NO_NEW_REGRESSION",
     "remediation": "PRESERVE_ORIGINAL_RAW_EXIT_REPORT_REQUIRE_ORIGINAL_RESULT_REVIEW_AND_FULL_CLEAN_CF49_CLOSURE",
-    "qualification": "HOSTED_RERUN_PENDING",
+    "qualification": "SUCCESS_NAMED_HOSTED_GATES_ONLY",
     "frozenGraderAndPinsChanged": false,
-    "grantsAuthority": false
+    "grantsAuthority": false,
+    "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "run": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37299572060",
+    "receipt": "05_STAGE17/implementation/STAGE17_HOSTED_CI_dea169f.json",
+    "rawGateExit": 1,
+    "originalRawGatePreserved": true,
+    "originalRawReview": "PASS",
+    "cleanHeadClosure": "CLOSED_PASS_12_SUITES",
+    "foundationClosed": false
   },
   "stage": "STAGE_17",
   "subtask": "CF49 CLOSED_PASS after expanded quotation review; Stage17 actual Foundation BLOCKED by protection/domain/live qualification",
@@ -277,18 +285,13 @@
     "No actual owner/account/pilot/scaling/source-binding or external action qualification"
   ],
   "graphify": {
-    "at": "2026-10-05T04:24:47.316Z",
-    "head": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
-    "lastAnalyzedHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
-    "graphBuiltFrom": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
-    "stale": false,
-    "needsUpdate": false,
-    "worktreeState": "DIRTY",
+    "schemaVersion": "1",
+    "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "lastAnalyzedHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "builtFromHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
     "structuralStatus": "PARTIAL",
-    "structuralReasons": [
-      "INCOMPLETE_CODE_FILES:9"
-    ],
     "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
     "incompleteCodeFiles": [
       ".github/workflows/ayas-safe-ci.yml",
       "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
@@ -300,14 +303,18 @@
       "scripts/unregister-ayas-autonomy-autostart.ps1",
       "scripts/unregister-ayas-autostart.ps1"
     ],
-    "builtFromHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
-    "nodes": 18970,
-    "links": 54405,
-    "duplicateIds": 0,
-    "duplicateEdges": 0,
-    "dangling": 0,
-    "selfLoops": 0,
-    "communities": 379
+    "integrityViolations": 0,
+    "nodes": 19192,
+    "edges": 55045,
+    "communities": 387,
+    "stale": false,
+    "needsUpdate": false,
+    "grantsAuthority": false,
+    "at": "2026-10-05T11:08:34.801Z",
+    "head": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "lastSeenHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "graphBuiltFrom": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "evidenceHeadMeaning": "EXACT_OBSERVED_HEAD_FINAL_DOCS_DESCENDANT_REQUIRES_REFRESH"
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -336,7 +343,7 @@
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
   "nextAction": "Qualify complete protected scope and full canonical domain TEST/LIVE evidence through existing gates; authenticated runtime owner proof and bound final review remain absent. Preserve raw Golden promotion stops/16 retrieval limits. Do not advance until Foundation really closes; no homepage implementation.",
-  "updatedAt": "2026-10-05T06:30:54.710Z",
+  "updatedAt": "2026-10-05T11:08:34.801Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1443,7 +1450,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "CF49 is CLOSED_PASS at6a9f49e after d3b receipt supersession; preserve exact evidence/history. Stage17 remains BLOCKED: complete protected/domain/live qualification and actual owner review through existing gates. No Infinity/homepage advancement before real closure; see STAGE17_CURRENT_RESULT.md.",
+  "resumeNextAction": "CF49 CLOSED_PASS atdea169f with matching local and hosted12-suite closure. Existing Safe CI succeeded while original raw FAIL/exit1/exact12 review requests remain preserved. Stage17/Foundation remains BLOCKED: qualify complete protected/full canonical domain/live evidence and actual bound owner review through existing gates. Preserve16 retrieval limits and raw Golden promotion stops. No Infinity/homepage advancement before real closure.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -4003,7 +4010,30 @@
       "golden": "RAW_PROMOTION_STOPPED_PRESERVED",
       "historicalFieldsBelow": "INITIAL_71b53b_FRAMEWORK_EVIDENCE_NOT_CURRENT_QUALIFICATION",
       "homepageBoundaryReached": false,
-      "homepageImplementation": "NOT_STARTED"
+      "homepageImplementation": "NOT_STARTED",
+      "latestReadonlyAudit": {
+        "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+        "receipt": "STAGE17_CURRENT_AUDIT_dea169f.json",
+        "closure": "BLOCKED",
+        "protectedFiles": 5409,
+        "exclusions": {
+          "credentialFiles": 0,
+          "sizeOrByteBudgetFiles": 1586,
+          "linkOrSpecialEntries": 0,
+          "depthOrFileLimitStops": 0,
+          "unreadableRoots": 0
+        },
+        "measuredDigestUnchanged": true,
+        "complete": false,
+        "fullDomainsQualified": false
+      },
+      "hostedCi": {
+        "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+        "receipt": "STAGE17_HOSTED_CI_dea169f.json",
+        "conclusion": "SUCCESS_NAMED_GATES_ONLY",
+        "rawFrozenGate": "FAIL_EXIT1_PRESERVED_EXACT12_REVIEWED",
+        "foundationClosed": false
+      }
     },
     "at": "2026-10-05T06:14:06.564Z",
     "state": "FRAMEWORK_VERIFIED_FOUNDATION_BLOCKED_LIVE_OWNER_QUALIFICATION_OPEN",
@@ -4833,9 +4863,9 @@
   "cf49Review": {
     "entryHead": "2e250cf3fbec608970dd601a513359aa3478f191",
     "state": "CLOSED_PASS",
-    "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+    "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
     "supersededClosure": "05_STAGE17/implementation/CF49_CLOSURE_d3b956b_HISTORICAL.json",
-    "closureReceipt": "05_STAGE17/implementation/CF49_CLOSURE.json",
+    "closureReceipt": "05_STAGE17/implementation/CF49_CLOSURE_dea169f_LOCAL.json",
     "stage17CurrentResult": "05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md",
     "evidenceRegistry": "05_STAGE17/implementation/STAGE17_EVIDENCE_REGISTRY.json",
     "reviewedCases": 12,
@@ -4851,7 +4881,10 @@
     "review": "05_STAGE17/implementation/CF49_EVIDENCE_REVIEW.md",
     "closureOperator": "scripts/ayas-cf49-closure.ts",
     "homepageImplementation": "NOT_STARTED",
-    "foundationClosure": "BLOCKED"
+    "foundationClosure": "BLOCKED",
+    "previousQualifiedReceipt": "05_STAGE17/implementation/CF49_CLOSURE.json",
+    "previousQualifiedSourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+    "hostedClosureReceipt": "05_STAGE17/implementation/HOSTED_CI_CF49_CLOSURE_dea169f.json"
   },
   "infinityPreparation": {
     "state": "PREPARATION_FIXTURE_ONLY_IMPLEMENTATION_NOT_STARTED",

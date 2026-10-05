@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+  "runId": 37299572060,
+  "url": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37299572060",
+  "conclusion": "success",
+  "hostedPlatform": "UBUNTU_GITHUB_ACTIONS_NODE24",
+  "verifiedAt": "2026-10-05T11:08:34.798Z",
+  "scope": "EXISTING_SAFE_CI_NAMED_GATES_ONLY_NOT_FOUNDATION_OR_MODEL_PROMOTION",
+  "rawFrozenGate": {
+    "exitCode": 1,
+    "status": "FAIL",
+    "improvementRequests": 12,
+    "report": "HOSTED_CI_FROZEN_RAW_dea169f.json",
+    "originalCaptureByteSha256": "3bcebb304a78fba2e23da4b1db91488ef496a977cdb329d3d286fa907d46fa41"
+  },
+  "originalReview": {
+    "status": "PASS",
+    "receipt": "HOSTED_CI_ORIGINAL_REVIEW_dea169f.json",
+    "sameOriginalRawReportVerified": true
+  },
+  "cf49": {
+    "status": "CLOSED_PASS",
+    "hostedReceipt": "HOSTED_CI_CF49_CLOSURE_dea169f.json",
+    "localReceipt": "CF49_CLOSURE_dea169f_LOCAL.json",
+    "suites": 12,
+    "primary": 30,
+    "heldOut": 12,
+    "endToEnd": 4,
+    "reviewedCases": 12,
+    "negativeControls": 228,
+    "sourceMutations": 12,
+    "evidenceContracts": 16
+  },
+  "steps": [
+    {
+      "name": "Set up job",
+      "conclusion": "success"
+    },
+    {
+      "name": "Run actions/checkout@v4",
+      "conclusion": "success"
+    },
+    {
+      "name": "Run actions/setup-node@v4",
+      "conclusion": "success"
+    },
+    {
+      "name": "Run npm ci",
+      "conclusion": "success"
+    },
+    {
+      "name": "TypeScript",
+      "conclusion": "success"
+    },
+    {
+      "name": "ESLint",
+      "conclusion": "success"
+    },
+    {
+      "name": "Cognitive quality",
+      "conclusion": "success"
+    },
+    {
+      "name": "Prepare bounded retrieval evidence directory",
+      "conclusion": "success"
+    },
+    {
+      "name": "Frozen retrieval evaluation (raw result preserved)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Review the original frozen retrieval result",
+      "conclusion": "success"
+    },
+    {
+      "name": "Exact clean-HEAD CF49 closure and regression gates",
+      "conclusion": "success"
+    },
+    {
+      "name": "Preserve raw and reviewed CF49 evidence",
+      "conclusion": "success"
+    },
+    {
+      "name": "Developer intelligence",
+      "conclusion": "success"
+    },
+    {
+      "name": "Open-ended evolution",
+      "conclusion": "success"
+    },
+    {
+      "name": "Technology watch",
+      "conclusion": "success"
+    },
+    {
+      "name": "Post Run actions/setup-node@v4",
+      "conclusion": "success"
+    },
+    {
+      "name": "Post Run actions/checkout@v4",
+      "conclusion": "success"
+    },
+    {
+      "name": "Complete job",
+      "conclusion": "success"
+    }
+  ],
+  "historicalFailedRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
+  "frozenGraderAndPinsChanged": false,
+  "allRetrievalQualityClaim": false,
+  "foundation": "BLOCKED",
+  "full166AtThisHead": "NOT_RUN",
+  "grantsAuthority": false
+}

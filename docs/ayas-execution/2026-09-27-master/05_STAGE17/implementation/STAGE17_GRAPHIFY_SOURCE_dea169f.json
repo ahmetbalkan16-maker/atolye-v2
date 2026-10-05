@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+  "lastAnalyzedHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+  "builtFromHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+  "structuralStatus": "PARTIAL",
+  "semanticStatus": "PENDING",
+  "worktreeState": "CLEAN",
+  "incompleteCodeFiles": [
+    ".github/workflows/ayas-safe-ci.yml",
+    "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+    "scripts/ayas-access-daemon.ps1",
+    "scripts/ayas-autonomy-daemon.ps1",
+    "scripts/register-ayas-autonomy-autostart.ps1",
+    "scripts/register-ayas-autostart.ps1",
+    "scripts/smoke-ayas-access-daemon.ps1",
+    "scripts/unregister-ayas-autonomy-autostart.ps1",
+    "scripts/unregister-ayas-autostart.ps1"
+  ],
+  "integrityViolations": 0,
+  "nodes": 19192,
+  "edges": 55045,
+  "communities": 387,
+  "stale": false,
+  "needsUpdate": false,
+  "grantsAuthority": false
+}

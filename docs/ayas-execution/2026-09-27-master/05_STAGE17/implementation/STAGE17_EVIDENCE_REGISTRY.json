@@ -96,6 +96,69 @@
       "operatorSourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
       "scope": "BOUNDED_READ_ONLY_OBSERVATION",
       "runningProcessSourceQualified": false
+    },
+    {
+      "file": "HOSTED_CI_FROZEN_RAW_dea169f.json",
+      "sha256": "3bcebb304a78fba2e23da4b1db91488ef496a977cdb329d3d286fa907d46fa41",
+      "originalCaptureByteSha256": "3bcebb304a78fba2e23da4b1db91488ef496a977cdb329d3d286fa907d46fa41",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+      "scope": "FROZEN_RAW_FAIL_EXIT1_PRESERVED",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "HOSTED_CI_ORIGINAL_REVIEW_dea169f.json",
+      "sha256": "9928fc0322437cddf687b446e556a3be2ce45c96e50f92c220a8d9693c068f86",
+      "originalCaptureByteSha256": "4c3cf15e0f55743ed2b01e47a89ca61d65c2d0ea7e0354df72178f126059eaca",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+      "scope": "ORIGINAL_RAW_RESULT_REVIEW",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "HOSTED_CI_CF49_CLOSURE_dea169f.json",
+      "sha256": "5f5d608bc5667ef7fd765be6295e66cc409ec384ed31ef00b95a51f0d5375d4a",
+      "originalCaptureByteSha256": "5f5d608bc5667ef7fd765be6295e66cc409ec384ed31ef00b95a51f0d5375d4a",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+      "scope": "HOSTED_CLEAN_HEAD_BOUNDED_CF49_CLOSURE",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "CF49_CLOSURE_dea169f_LOCAL.json",
+      "sha256": "4d4b91dd1c5ac276e4f22d5b24e1b1a8894ed0bd2d91135bf9b183a64f0a05e2",
+      "originalCaptureByteSha256": "4d4b91dd1c5ac276e4f22d5b24e1b1a8894ed0bd2d91135bf9b183a64f0a05e2",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+      "scope": "LOCAL_CLEAN_HEAD_BOUNDED_CF49_CLOSURE",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_dea169f.json",
+      "sha256": "4b8cdd29a94d0721d5c534d8134f51a3c06c05c2a4625a9cf347efbefc53b1a9",
+      "originalCaptureByteSha256": "4b8cdd29a94d0721d5c534d8134f51a3c06c05c2a4625a9cf347efbefc53b1a9",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+      "scope": "DEFAULT_CANONICAL_SOURCE_PRESENCE_ONLY",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_HOSTED_CI_dea169f.json",
+      "sha256": "70146c402aaf702633100d23ae98d849c91ece5d914e06e2dffe40f5efc3d25c",
+      "originalCaptureByteSha256": null,
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+      "scope": "NAMED_HOSTED_CI_GATES_ONLY",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_GRAPHIFY_SOURCE_dea169f.json",
+      "sha256": "bbb7c57468b04bb0c879701e9f4c1cf28d64ebbe2316976355ecc1d9a0c7a1a8",
+      "originalCaptureByteSha256": null,
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+      "scope": "BOUNDED_READ_ONLY_OBSERVATION",
+      "runningProcessSourceQualified": false
     }
   ],
   "historicalClosure": {
@@ -150,5 +213,36 @@
     "boundaryReached": false,
     "reason": "FOUNDATION_NOT_CLOSED"
   },
-  "authority": "NONE"
+  "authority": "NONE",
+  "updatedAt": "2026-10-05T11:08:34.799Z",
+  "sourceHeadMeaning": "6a9_COMPONENT_FRAMEWORK_ANCHOR_EACH_LATER_ENTRY_HAS_ITS_OWN_EXACT_OPERATOR_SOURCE_HEAD",
+  "ciQualification": {
+    "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "receipt": "STAGE17_HOSTED_CI_dea169f.json",
+    "conclusion": "SUCCESS_NAMED_GATES_ONLY",
+    "rawFrozenGate": "FAIL_EXIT1_PRESERVED_EXACT12_REVIEWED",
+    "foundationClosed": false
+  },
+  "latestCf49Qualification": {
+    "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "local": "CF49_CLOSURE_dea169f_LOCAL.json",
+    "hosted": "HOSTED_CI_CF49_CLOSURE_dea169f.json",
+    "status": "CLOSED_PASS"
+  },
+  "latestReadonlyAudit": {
+    "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+    "receipt": "STAGE17_CURRENT_AUDIT_dea169f.json",
+    "closure": "BLOCKED",
+    "protectedFiles": 5409,
+    "exclusions": {
+      "credentialFiles": 0,
+      "sizeOrByteBudgetFiles": 1586,
+      "linkOrSpecialEntries": 0,
+      "depthOrFileLimitStops": 0,
+      "unreadableRoots": 0
+    },
+    "measuredDigestUnchanged": true,
+    "complete": false,
+    "fullDomainsQualified": false
+  }
 }
