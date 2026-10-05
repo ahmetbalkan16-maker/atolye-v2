@@ -297,6 +297,7 @@ const RULES: readonly Rule[] = Object.freeze([
       p === "src/components/brain/ayasChatStreamClient.ts",
   },
 
+  {level: "FORBIDDEN_AUTONOMOUS", why: "system audit and continuous evolution may not rewrite their evidence, policy or evaluators", test: p => ["src/lib/ayas/audit/", "src/lib/ayas/continuous/"].some(prefix => p.toLowerCase().startsWith(prefix)) || ["scripts/smoke-ayas-system-audit.ts", "scripts/adversarial-ayas-system-audit.ts", "scripts/smoke-ayas-system-audit-adversarial.ts", "scripts/smoke-ayas-system-audit-mutations.ts", "scripts/fixtures/ayas-system-audit-fixture.ts", "scripts/fixtures/ayas-system-audit-held.json", "scripts/fixtures/ayas-system-audit-held.ts", "scripts/ayas-system-audit.ts"].includes(p.toLowerCase())},
   // ---- SAFE -------------------------------------------------------------
   { level: "SAFE", why: "a test / smoke script", test: (p) => p.startsWith("scripts/smoke-") || p.endsWith(".test.ts") || p.endsWith(".spec.ts") },
   { level: "SAFE", why: "documentation", test: (p) => p.startsWith("docs/") || p.endsWith(".md") },

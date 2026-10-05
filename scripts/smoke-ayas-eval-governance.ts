@@ -17,7 +17,8 @@ const cognitiveReport = { caseCount: 55, passed: 54, heldOut: { passed: 4, total
 const developerReport = { flow: { mainPass: "39/39", heldOut: "10/10" }, components: { safety: "5/5" }, componentHeldOut: "2/2", integration: "3/3" };
 
 scenario("versioned manifest separates suite kinds, pins graders and exposes exclusions/calibration", () => {
-  assert.equal(manifest.suites.length, 163); assert.equal(new Set(manifest.suites.map((s) => s.kind)).size, 3);
+  assert.equal(manifest.suites.length, 166); assert.equal(new Set(manifest.suites.map((s) => s.kind)).size, 3);
+  for (const id of ["system-audit", "system-audit-adversarial", "system-audit-mutations"]) assert.ok(manifest.suites.some(s => s.id === id));
   for (const id of ["revenue-center-closure", "revenue-center-closure-adversarial", "revenue-center-closure-mutations"]) assert.ok(manifest.suites.some(s => s.id === id), `missing declared suite ${id}`);
   for (const id of ["revenue-profit-gated-scaling", "revenue-profit-gated-scaling-adversarial", "revenue-profit-gated-scaling-mutations"]) assert.ok(manifest.suites.some(s => s.id === id), `missing declared suite ${id}`);
   for (const id of ["revenue-udemy-adapter", "course-production-plan", "revenue-udemy-course-mutations", "revenue-lemon-adapter", "revenue-lemon-adapter-mutations", "revenue-reinvestment-policy", "revenue-reinvestment-mutations", "revenue-memory", "revenue-intelligence", "revenue-memory-mutations", "revenue-security", "revenue-security-adversarial", "revenue-security-mutations", "revenue-compliance", "revenue-compliance-adversarial", "revenue-compliance-mutations", "revenue-low-cost-pilot", "revenue-low-cost-pilot-adversarial", "revenue-low-cost-pilot-mutations"]) assert.ok(manifest.suites.some(s => s.id === id), `missing declared suite ${id}`);

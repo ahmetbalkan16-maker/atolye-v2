@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v55",
+  "version": "15F.4-v54",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -3357,86 +3357,6 @@
         {
           "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
           "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "system-audit",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-system-audit.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-system-audit.ts",
-          "sha256": "39f92de6d82a9199f547e22d7425aa84efff9d22505af59fd907582ee9d508ee"
-        },
-        {
-          "file": "scripts/fixtures/ayas-system-audit-fixture.ts",
-          "sha256": "57967945f7f619b10558ebb4ae8f277bd1ad7da0f1ddf221861235697ffbb580"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "system-audit-adversarial",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-system-audit-adversarial.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-system-audit-adversarial.ts",
-          "sha256": "9c8c13ac7e597da90dbc38bb113ecc5db29d70ba6d944a505666925d3b817661"
-        },
-        {
-          "file": "scripts/adversarial-ayas-system-audit.ts",
-          "sha256": "5e63a378e050117a91fedea7d8404a74fc4cde96232ac90307ef119063c8252e"
-        },
-        {
-          "file": "scripts/fixtures/ayas-system-audit-fixture.ts",
-          "sha256": "57967945f7f619b10558ebb4ae8f277bd1ad7da0f1ddf221861235697ffbb580"
-        },
-        {
-          "file": "scripts/fixtures/ayas-system-audit-held.ts",
-          "sha256": "bf21dc84288dba5b8d8d42201b8b4e376f400a77b4e22123acd9d16019bec6a7"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "system-audit-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-system-audit-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-system-audit-mutations.ts",
-          "sha256": "7670014a4ec4530a3e2ff71b2dc0a931412cd54bd72a9f5fcd862b488920567f"
-        },
-        {
-          "file": "scripts/smoke-ayas-system-audit.ts",
-          "sha256": "39f92de6d82a9199f547e22d7425aa84efff9d22505af59fd907582ee9d508ee"
-        },
-        {
-          "file": "scripts/adversarial-ayas-system-audit.ts",
-          "sha256": "5e63a378e050117a91fedea7d8404a74fc4cde96232ac90307ef119063c8252e"
-        },
-        {
-          "file": "scripts/fixtures/ayas-system-audit-fixture.ts",
-          "sha256": "57967945f7f619b10558ebb4ae8f277bd1ad7da0f1ddf221861235697ffbb580"
-        },
-        {
-          "file": "scripts/fixtures/ayas-system-audit-held.ts",
-          "sha256": "bf21dc84288dba5b8d8d42201b8b4e376f400a77b4e22123acd9d16019bec6a7"
         }
       ],
       "slices": [

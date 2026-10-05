@@ -1,0 +1,778 @@
+{
+  "at": "2026-10-05T06:07:11.976Z",
+  "state": "FOCUSED_FRAMEWORK_VERIFIED_EXACT_SOURCE_OPERATOR_PENDING",
+  "primary": 151,
+  "heldOut": 30,
+  "adversarial": 30,
+  "independentControls": 9,
+  "old208PinsUnchanged": true,
+  "manifestVersion": "15F.4-v55",
+  "declaredSuites": 166,
+  "uniquePins": 214,
+  "fullDeclaredBaseline": "NOT_RUN_V55",
+  "ownerReview": "NOT_RUN",
+  "liveDomainCollectors": "UNBOUND_NOT_RUN",
+  "productionMutation": "NONE_FROM_FRAMEWORK; fixed local inventories separately reported",
+  "frameworkNotAttestation": true,
+  "homepageImplementation": "NOT_STARTED",
+  "persistentActivation": false,
+  "heldFreeze": {
+    "count": 30,
+    "at": "2026-10-05T05:52:23.1082075Z",
+    "beforeStage17Implementation": true,
+    "sha256": "f89c75c6111099f189d26622b091a885700a939fc05888eedb1402afe24474cc",
+    "file": "scripts/fixtures/ayas-system-audit-held.json"
+  },
+  "focused": [
+    {
+      "file": "scripts/smoke-ayas-system-audit.ts",
+      "result": {
+        "status": "PASS",
+        "primary": {
+          "passed": 151,
+          "total": 151
+        },
+        "completePrimary": true,
+        "fixture": "TEMP_READ_ONLY_NO_ACTIVATION",
+        "results": [
+          {
+            "id": "P001",
+            "ok": true
+          },
+          {
+            "id": "P002",
+            "ok": true
+          },
+          {
+            "id": "P003",
+            "ok": true
+          },
+          {
+            "id": "P004",
+            "ok": true
+          },
+          {
+            "id": "P005",
+            "ok": true
+          },
+          {
+            "id": "P006",
+            "ok": true
+          },
+          {
+            "id": "P007",
+            "ok": true
+          },
+          {
+            "id": "P008",
+            "ok": true
+          },
+          {
+            "id": "P009",
+            "ok": true
+          },
+          {
+            "id": "P010",
+            "ok": true
+          },
+          {
+            "id": "P011",
+            "ok": true
+          },
+          {
+            "id": "P012",
+            "ok": true
+          },
+          {
+            "id": "P013",
+            "ok": true
+          },
+          {
+            "id": "P014",
+            "ok": true
+          },
+          {
+            "id": "P015",
+            "ok": true
+          },
+          {
+            "id": "P016",
+            "ok": true
+          },
+          {
+            "id": "P017",
+            "ok": true
+          },
+          {
+            "id": "P018",
+            "ok": true
+          },
+          {
+            "id": "P019",
+            "ok": true
+          },
+          {
+            "id": "P020",
+            "ok": true
+          },
+          {
+            "id": "P021",
+            "ok": true
+          },
+          {
+            "id": "P022",
+            "ok": true
+          },
+          {
+            "id": "P023",
+            "ok": true
+          },
+          {
+            "id": "P024",
+            "ok": true
+          },
+          {
+            "id": "P025",
+            "ok": true
+          },
+          {
+            "id": "P026",
+            "ok": true
+          },
+          {
+            "id": "P027",
+            "ok": true
+          },
+          {
+            "id": "P028",
+            "ok": true
+          },
+          {
+            "id": "P029",
+            "ok": true
+          },
+          {
+            "id": "P030",
+            "ok": true
+          },
+          {
+            "id": "P031",
+            "ok": true
+          },
+          {
+            "id": "P032",
+            "ok": true
+          },
+          {
+            "id": "P033",
+            "ok": true
+          },
+          {
+            "id": "P034",
+            "ok": true
+          },
+          {
+            "id": "P035",
+            "ok": true
+          },
+          {
+            "id": "P036",
+            "ok": true
+          },
+          {
+            "id": "P037",
+            "ok": true
+          },
+          {
+            "id": "P038",
+            "ok": true
+          },
+          {
+            "id": "P039",
+            "ok": true
+          },
+          {
+            "id": "P040",
+            "ok": true
+          },
+          {
+            "id": "P041",
+            "ok": true
+          },
+          {
+            "id": "P042",
+            "ok": true
+          },
+          {
+            "id": "P043",
+            "ok": true
+          },
+          {
+            "id": "P044",
+            "ok": true
+          },
+          {
+            "id": "P045",
+            "ok": true
+          },
+          {
+            "id": "P046",
+            "ok": true
+          },
+          {
+            "id": "P047",
+            "ok": true
+          },
+          {
+            "id": "P048",
+            "ok": true
+          },
+          {
+            "id": "P049",
+            "ok": true
+          },
+          {
+            "id": "P050",
+            "ok": true
+          },
+          {
+            "id": "P051",
+            "ok": true
+          },
+          {
+            "id": "P052",
+            "ok": true
+          },
+          {
+            "id": "P053",
+            "ok": true
+          },
+          {
+            "id": "P054",
+            "ok": true
+          },
+          {
+            "id": "P055",
+            "ok": true
+          },
+          {
+            "id": "P056",
+            "ok": true
+          },
+          {
+            "id": "P057",
+            "ok": true
+          },
+          {
+            "id": "P058",
+            "ok": true
+          },
+          {
+            "id": "P059",
+            "ok": true
+          },
+          {
+            "id": "P060",
+            "ok": true
+          },
+          {
+            "id": "P061",
+            "ok": true
+          },
+          {
+            "id": "P062",
+            "ok": true
+          },
+          {
+            "id": "P063",
+            "ok": true
+          },
+          {
+            "id": "P064",
+            "ok": true
+          },
+          {
+            "id": "P065",
+            "ok": true
+          },
+          {
+            "id": "P066",
+            "ok": true
+          },
+          {
+            "id": "P067",
+            "ok": true
+          },
+          {
+            "id": "P068",
+            "ok": true
+          },
+          {
+            "id": "P069",
+            "ok": true
+          },
+          {
+            "id": "P070",
+            "ok": true
+          },
+          {
+            "id": "P071",
+            "ok": true
+          },
+          {
+            "id": "P072",
+            "ok": true
+          },
+          {
+            "id": "P073",
+            "ok": true
+          },
+          {
+            "id": "P074",
+            "ok": true
+          },
+          {
+            "id": "P075",
+            "ok": true
+          },
+          {
+            "id": "P076",
+            "ok": true
+          },
+          {
+            "id": "P077",
+            "ok": true
+          },
+          {
+            "id": "P078",
+            "ok": true
+          },
+          {
+            "id": "P079",
+            "ok": true
+          },
+          {
+            "id": "P080",
+            "ok": true
+          },
+          {
+            "id": "P081",
+            "ok": true
+          },
+          {
+            "id": "P082",
+            "ok": true
+          },
+          {
+            "id": "P083",
+            "ok": true
+          },
+          {
+            "id": "P084",
+            "ok": true
+          },
+          {
+            "id": "P085",
+            "ok": true
+          },
+          {
+            "id": "P086",
+            "ok": true
+          },
+          {
+            "id": "P087",
+            "ok": true
+          },
+          {
+            "id": "P088",
+            "ok": true
+          },
+          {
+            "id": "P089",
+            "ok": true
+          },
+          {
+            "id": "P090",
+            "ok": true
+          },
+          {
+            "id": "P091",
+            "ok": true
+          },
+          {
+            "id": "P092",
+            "ok": true
+          },
+          {
+            "id": "P093",
+            "ok": true
+          },
+          {
+            "id": "P094",
+            "ok": true
+          },
+          {
+            "id": "P095",
+            "ok": true
+          },
+          {
+            "id": "P096",
+            "ok": true
+          },
+          {
+            "id": "P097",
+            "ok": true
+          },
+          {
+            "id": "P098",
+            "ok": true
+          },
+          {
+            "id": "P099",
+            "ok": true
+          },
+          {
+            "id": "P100",
+            "ok": true
+          },
+          {
+            "id": "P101",
+            "ok": true
+          },
+          {
+            "id": "P102",
+            "ok": true
+          },
+          {
+            "id": "P103",
+            "ok": true
+          },
+          {
+            "id": "P104",
+            "ok": true
+          },
+          {
+            "id": "P105",
+            "ok": true
+          },
+          {
+            "id": "P106",
+            "ok": true
+          },
+          {
+            "id": "P107",
+            "ok": true
+          },
+          {
+            "id": "P108",
+            "ok": true
+          },
+          {
+            "id": "P109",
+            "ok": true
+          },
+          {
+            "id": "P110",
+            "ok": true
+          },
+          {
+            "id": "P111",
+            "ok": true
+          },
+          {
+            "id": "P112",
+            "ok": true
+          },
+          {
+            "id": "P113",
+            "ok": true
+          },
+          {
+            "id": "P114",
+            "ok": true
+          },
+          {
+            "id": "P115",
+            "ok": true
+          },
+          {
+            "id": "P116",
+            "ok": true
+          },
+          {
+            "id": "P117",
+            "ok": true
+          },
+          {
+            "id": "P118",
+            "ok": true
+          },
+          {
+            "id": "P119",
+            "ok": true
+          },
+          {
+            "id": "P120",
+            "ok": true
+          },
+          {
+            "id": "P121",
+            "ok": true
+          },
+          {
+            "id": "P122",
+            "ok": true
+          },
+          {
+            "id": "P123",
+            "ok": true
+          },
+          {
+            "id": "P124",
+            "ok": true
+          },
+          {
+            "id": "P125",
+            "ok": true
+          },
+          {
+            "id": "P126",
+            "ok": true
+          },
+          {
+            "id": "P127",
+            "ok": true
+          },
+          {
+            "id": "P128",
+            "ok": true
+          },
+          {
+            "id": "P129",
+            "ok": true
+          },
+          {
+            "id": "P130",
+            "ok": true
+          },
+          {
+            "id": "P131",
+            "ok": true
+          },
+          {
+            "id": "P132",
+            "ok": true
+          },
+          {
+            "id": "P133",
+            "ok": true
+          },
+          {
+            "id": "P134",
+            "ok": true
+          },
+          {
+            "id": "P135",
+            "ok": true
+          },
+          {
+            "id": "P136",
+            "ok": true
+          },
+          {
+            "id": "P137",
+            "ok": true
+          },
+          {
+            "id": "P138",
+            "ok": true
+          },
+          {
+            "id": "P139",
+            "ok": true
+          },
+          {
+            "id": "P140",
+            "ok": true
+          },
+          {
+            "id": "P141",
+            "ok": true
+          },
+          {
+            "id": "P142",
+            "ok": true
+          },
+          {
+            "id": "P143",
+            "ok": true
+          },
+          {
+            "id": "P144",
+            "ok": true
+          },
+          {
+            "id": "P145",
+            "ok": true
+          },
+          {
+            "id": "P146",
+            "ok": true
+          },
+          {
+            "id": "P147",
+            "ok": true
+          },
+          {
+            "id": "P148",
+            "ok": true
+          },
+          {
+            "id": "P149",
+            "ok": true
+          },
+          {
+            "id": "P150",
+            "ok": true
+          },
+          {
+            "id": "P151",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "file": "scripts/adversarial-ayas-system-audit.ts",
+      "result": {
+        "status": "PASS",
+        "heldOut": {
+          "passed": 30,
+          "total": 30
+        },
+        "adversarial": {
+          "passed": 30,
+          "total": 30
+        },
+        "fixture": "FROZEN_HELD_METADATA_CORRUPTION_TEMP",
+        "productionMutation": false
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-system-audit-mutations.ts",
+      "result": {
+        "status": "PASS",
+        "caught": 9,
+        "total": 9,
+        "equivalents": 0,
+        "baselineAndRecovered": "PASS",
+        "scope": "GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY",
+        "rows": [
+          {
+            "name": "wrong proof class accepted",
+            "assertion": "P008",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "old source HEAD accepted",
+            "assertion": "P003",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "needs_update ignored",
+            "assertion": "P121",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "technical failure ignored",
+            "assertion": "P004",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "partial baseline closes foundation",
+            "assertion": "P127",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "protected mutation ignored",
+            "assertion": "P130",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "known limit silently promoted",
+            "assertion": "P129",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "expired proof accepted",
+            "assertion": "P133",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "source coverage absent",
+            "assertion": "P002",
+            "status": "ASSERTION_CAUGHT"
+          }
+        ]
+      }
+    }
+  ],
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/audit/AyasSystemAuditCollector.ts",
+      "sha256": "2ccaea8ee569b2d996e32f0f0f09c1c5cf4388bd07d58894fac6074efecca0b2"
+    },
+    {
+      "file": "src/lib/ayas/audit/AyasSystemAuditModel.ts",
+      "sha256": "eb3acced4785a2fd158a24db46ae82a3d268a23998b23a1b57079bdf09d8f949"
+    },
+    {
+      "file": "src/lib/ayas/audit/AyasSystemAuditPolicy.ts",
+      "sha256": "a3e3aa04fd42173accbacb2b161c0c55fdab2560d70b51fc4f167bcd89a9c6c3"
+    },
+    {
+      "file": "src/lib/ayas/audit/AyasSystemAuditRegistry.ts",
+      "sha256": "5e034073a8ab651e7970fa98eacb748c5cecb43ce19d6ff8738bad13f74460f6"
+    },
+    {
+      "file": "src/lib/ayas/audit/AyasSystemAuditReport.ts",
+      "sha256": "102e8f2ed3a35cfcfed338eea4f933f9191955c1f6e50fe1c468f3ebcae11ed2"
+    },
+    {
+      "file": "src/lib/ayas/audit/AyasSystemClosureGate.ts",
+      "sha256": "3bfa86179bcf916a9374e3b8ddba1965b31e2fdf09da4cd32f42c7f51be84ec9"
+    },
+    {
+      "file": "scripts/smoke-ayas-system-audit.ts",
+      "sha256": "39f92de6d82a9199f547e22d7425aa84efff9d22505af59fd907582ee9d508ee"
+    },
+    {
+      "file": "scripts/adversarial-ayas-system-audit.ts",
+      "sha256": "5e63a378e050117a91fedea7d8404a74fc4cde96232ac90307ef119063c8252e"
+    },
+    {
+      "file": "scripts/smoke-ayas-system-audit-mutations.ts",
+      "sha256": "7670014a4ec4530a3e2ff71b2dc0a931412cd54bd72a9f5fcd862b488920567f"
+    },
+    {
+      "file": "scripts/ayas-system-audit.ts",
+      "sha256": "a4c9897cb33eb61d7418ec7f370645f76f992fc2d4929fcc1c805b2d6ace789a"
+    },
+    {
+      "file": "scripts/smoke-ayas-system-audit-adversarial.ts",
+      "sha256": "9c8c13ac7e597da90dbc38bb113ecc5db29d70ba6d944a505666925d3b817661"
+    },
+    {
+      "file": "scripts/fixtures/ayas-system-audit-fixture.ts",
+      "sha256": "57967945f7f619b10558ebb4ae8f277bd1ad7da0f1ddf221861235697ffbb580"
+    },
+    {
+      "file": "scripts/fixtures/ayas-system-audit-held.ts",
+      "sha256": "bf21dc84288dba5b8d8d42201b8b4e376f400a77b4e22123acd9d16019bec6a7"
+    },
+    {
+      "file": "scripts/fixtures/ayas-system-audit-held.json",
+      "sha256": "f89c75c6111099f189d26622b091a885700a939fc05888eedb1402afe24474cc"
+    }
+  ]
+}
