@@ -5,7 +5,7 @@
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
   "currentHead": "b35cd634ce9e11f44d1666248cc585649fe8f509",
   "stage": "STAGE_17",
-  "subtask": "CF49 explicit12-case review implemented; clean same-HEAD closure and full baseline pending",
+  "subtask": "CF49 quote/multiple-statement scope and Stage17 operator boundary repaired; exact-source closure pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -325,7 +325,7 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "Commit bounded CF49 source; run clean same-HEAD closure and166-suite baseline; complete safe Stage17 technical audit. Preserve actual live/owner blockers and mandatory homepage stop.",
+  "nextAction": "Commit source; run clean same-HEAD CF49 closure and affected Stage17/firewall/Golden regressions; collect fresh Graphify/audit/health evidence. Full166 receipt belongs to9aa6661 only. Preserve live/owner blockers and mandatory homepage stop.",
   "updatedAt": "2026-10-05T06:30:54.710Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -4807,11 +4807,11 @@
     "entryHead": "2e250cf3fbec608970dd601a513359aa3478f191",
     "state": "EXPLICIT_REVIEW_IMPLEMENTED_EXACT_SOURCE_CLOSURE_PENDING",
     "reviewedCases": 12,
-    "perCaseSafetyControls": 180,
-    "primary": 24,
+    "perCaseSafetyControls": 204,
+    "primary": 28,
     "heldOut": 12,
     "endToEnd": 4,
-    "mutationsCaught": 10,
+    "mutationsCaught": 11,
     "evidenceNegativeControls": 16,
     "frozenPinsUnchanged": true,
     "historicalRawGate": "FAIL_EXACT12_IMPROVED_REVIEW_REQUESTS_PRESERVED",

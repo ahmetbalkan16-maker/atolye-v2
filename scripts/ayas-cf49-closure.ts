@@ -30,6 +30,7 @@ function main() {
     const start = performance.now();
     const r = spawnSync(process.execPath, ["--import", "tsx", file], { env, encoding: "utf8", windowsHide: true, timeout: 180000, maxBuffer: 1000000 });
     assert.ok(!r.error, "CF49_CHILD_EXECUTION_FAILED:" + file);
+    if (r.status !== 0) console.error(JSON.stringify({ finding: "CF49_CHILD_FAILED", file, head, exitCode: r.status, stdoutSha256: sha(r.stdout), stderrSha256: sha(r.stderr), diagnostic: r.stderr.split(/\r?\n/).find(line => line.startsWith("CF49_FROZEN_REVIEW_REFUSED:")) ?? null }));
     assert.equal(r.status, 0, "CF49_CHILD_FAILED:" + file);
     const json = r.stdout.trim().split(/\r?\n/).map(line => { try { return JSON.parse(line); } catch { return null; } }).find(x => x && (x.status === "PASS" || x.caseCount));
     if (file.includes("cognitive-quality")) {
@@ -37,7 +38,10 @@ function main() {
       assert.deepEqual(json?.heldOut, { passed: 5, total: 5 }); assert.deepEqual(json?.failures, []);
     }
     if (file.includes("cf49-")) assert.equal(json?.status, "PASS");
-    if (file.includes("frozen-review")) { assert.equal(json?.sourceHead, head); assert.equal(json?.worktreeDirty, false); assert.equal(json?.cases, 12); assert.equal(json?.guards, 180); }
+    if (file.endsWith("smoke-ayas-cf49-remediation.ts")) { assert.equal(json?.primary, 28); assert.equal(json?.heldOut, 12); assert.equal(json?.endToEnd, 4); assert.equal(json?.results.length, 44); assert.ok(json.results.every((row: { ok: boolean }) => row.ok === true)); }
+    if (file.endsWith("smoke-ayas-cf49-remediation-mutations.ts")) { assert.equal(json?.controls, 11); assert.equal(json?.caught, 11); }
+    if (file.endsWith("smoke-ayas-cf49-review-contract.ts")) assert.equal(json?.negativeControls, 16);
+    if (file.includes("frozen-review")) { assert.equal(json?.sourceHead, head); assert.equal(json?.worktreeDirty, false); assert.equal(json?.cases, 12); assert.equal(json?.guards, 204); }
     return { file, sourceHead: head, exitCode: r.status, durationMs: Math.round(performance.now() - start), stdoutSha256: sha(r.stdout), stderrSha256: sha(r.stderr), ...(json ? { report: json } : {}) };
   });
   assert.equal(git(["rev-parse", "HEAD"]), head); assert.equal(git(["status", "--porcelain"]), "");

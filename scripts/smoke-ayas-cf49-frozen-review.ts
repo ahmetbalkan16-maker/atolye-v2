@@ -87,4 +87,4 @@ async function main() {
     fs.rmSync(temp, { recursive: true, force: true });
   }
 }
-void main().catch(() => { console.error("CF49_FROZEN_REVIEW_REFUSED"); process.exitCode = 1; });
+void main().catch((e) => { console.error(e instanceof assert.AssertionError ? "CF49_FROZEN_REVIEW_REFUSED:" + e.message : "CF49_FROZEN_REVIEW_REFUSED"); process.exitCode = 1; });

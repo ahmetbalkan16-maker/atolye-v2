@@ -214,7 +214,9 @@ function deriveFactEvidence(input: {
     // The purchased object itself must be a computer. A mentioned computer,
     // component purchase, quotation, question or conditional grants no slot.
     const purchaseDecision = /\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc) (?:satin )?(?:almaya|toplamaya|kurmaya) karar verdim$/.test(value);
-    const indirect = /[?？"“”«»;\n]/.test(input.body) || /\b(?:eger|belki|olursa|varsayalim|farz|dedi|diyordu)\b/.test(value);
+    const quoted = /(?:^|\s)['‘’].*['‘’](?:\s|$)/u.test(input.body);
+    const multipleStatements = input.body.replace(/\d\.\d/g, "").split(/[.!;\n]/).filter(part => part.trim()).length > 1;
+    const indirect = quoted || multipleStatements || /[?？"“”«»;\n]/.test(input.body) || /\b(?:eger|belki|olursa|varsayalim|farz|dedi|diyordu)\b/.test(value);
     if (!purchaseDecision || indirect) return null;
     // The memory model permits only a <=40-character token; hash the full
     // normalized statement so distinct plans do not collide on a shared prefix.

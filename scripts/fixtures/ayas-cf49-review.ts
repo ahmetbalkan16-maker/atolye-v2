@@ -18,4 +18,6 @@ export const CF49_REJECTED_DECISIONS = [
   "Laptop almaya karar vermedim",
   "Bilgisayar hakkında konuşurken telefon almaya karar verdim",
   "Laptop almaya karar verdim; bilgisayar almaya karar verdim",
+  "'Laptop almaya karar verdim'",
+  "Laptop almaya karar verdim. Bilgisayar almaya karar verdim",
 ] as const;

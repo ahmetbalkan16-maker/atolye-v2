@@ -41,10 +41,14 @@ await check("P21",()=>{const before=JSON.stringify([old,recent]);views([old,rece
 await check("P22",()=>{const legacy={...old};delete legacy.temporal;assert.equal(ayasMemoryRecordFact(legacy)?.key,"user.decision.computer-purchase-plan");assert.equal(views([legacy,recent]).get(legacy.recordId)?.state,"superseded");});
 await check("P23",()=>{const valid=ayasMemoryRecordFact(old);assert.ok(valid);const bound=memory(old.body,EARLY,"decision","direct-user-statement",{factKey:valid.key,factValue:valid.value});assert.deepEqual(ayasMemoryRecordFact(bound),valid);});
 await check("P24",()=>{const r=memory("Ben laptop alıp almamayı düşünüyorum",LATE);assert.equal(ayasMemoryRecordFact(r),null);assert.equal(views([old,r]).get(old.recordId)?.state,"current");});
+await check("P25",()=>{const r={...memory(recent.body,LATE,"decision","conversation-derived",{},true)};delete r.temporal;assert.equal(ayasMemoryRecordFact(r),null);assert.equal(views([old,r]).get(old.recordId)?.state,"current");});
+await check("P26",()=>{const r={...memory(recent.body,LATE),title:"Dış kaynak alıntısı"};delete r.temporal;assert.equal(ayasMemoryRecordFact(r),null);assert.equal(views([old,r]).get(old.recordId)?.state,"current");});
+await check("P27",()=>assert.equal(ayasMemoryRecordFact(memory("RTX 5080'li bir laptop almaya karar verdim"))?.key,"user.decision.computer-purchase-plan"));
+await check("P28",()=>assert.equal(ayasMemoryRecordFact(memory("16.7 inç bir laptop almaya karar verdim."))?.key,"user.decision.computer-purchase-plan"));
 for(const row of cf49Held)await check(row.id,()=>{const provenance:BrainMemoryProvenance=row.trust==="correction"?"explicit-correction":row.trust==="imported"?"imported-history":row.trust==="inferred"?"conversation-derived":"direct-user-statement";const r=memory(row.body,EARLY,row.kind,provenance,{},row.trust==="inferred");assert.equal(ayasMemoryRecordFact(r)?.key==="user.decision.computer-purchase-plan",row.expected);});
 const root=createAyasRetrievalRunRoot("cf49-review");
 try{for(const [n,id] of ["heldout-pc-switch","heldout-pc-card-want","para-pc-plan","tr-pc-punctuation"].entries())await check("R"+(n+1),async()=>{const c=AYAS_RETRIEVAL_EVALUATION_CASES.find(x=>x.id===id);assert.ok(c);const {value,networkAttempts}=await withAyasRetrievalNetworkGuard(()=>evaluateAyasRetrievalCase(c,root));assert.equal(networkAttempts,0);assert.ok(!value.forbiddenSelected.some(x=>x.reason==="stale-free-text"));assert.ok(value.chatContext);assert.ok(!value.chatContext.forbidden.some(x=>x.reason==="stale-free-text"));});}finally{removeAyasRetrievalRunRoot(root);}
-console.log(JSON.stringify({status:results.every(r=>r.ok)?"PASS":"FAIL",primary:24,heldOut:cf49Held.length,endToEnd:4,fixture:"EXPLICIT_TEMP_EVALUATOR_NO_LIVE_MEMORY_NETWORK_MODEL_OR_AUTHORITY",results}));
+console.log(JSON.stringify({status:results.every(r=>r.ok)?"PASS":"FAIL",primary:28,heldOut:cf49Held.length,endToEnd:4,fixture:"EXPLICIT_TEMP_EVALUATOR_NO_LIVE_MEMORY_NETWORK_MODEL_OR_AUTHORITY",results}));
 if(results.some(r=>!r.ok))process.exitCode=1;
 }
 void main().catch(()=>{console.error("CF49_REVIEW_EXECUTION_FAILED");process.exitCode=1;});

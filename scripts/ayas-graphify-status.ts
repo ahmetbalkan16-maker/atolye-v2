@@ -16,6 +16,7 @@ import { evaluateAyasGraphifyState } from "../src/lib/ayas/developer/AyasGraphif
 async function main(): Promise<void> {
   const args = new Set(process.argv.slice(2));
   const facts = await collectAyasGraphifyFacts({ cwd: process.cwd(), includeUserConsumers: args.has("--user") });
+  if (args.has("--facts")) { console.log(JSON.stringify(facts)); return; }
   const status = evaluateAyasGraphifyState(facts, { consumer: args.has("--mcp") ? "mcp" : "local" });
   if (args.has("--json")) { console.log(JSON.stringify(status, null, 2)); return; }
   const lines = [
