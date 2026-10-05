@@ -1,0 +1,115 @@
+{
+  "at": "2026-10-05T05:50:00.326Z",
+  "scope": "Exact-source normalized framework evidence metadata; not an attestation or promotion. Graph receipt was captured on the clean tested source before final documentation.",
+  "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+  "graphReceiptObservedAt": "2026-10-05T05:35:32.685Z",
+  "rawQuality": {
+    "passed": 54,
+    "total": 55,
+    "heldOutPassed": 4,
+    "heldOutTotal": 5,
+    "knownLimitation": "CF49 / heldout-free-text"
+  },
+  "decision": {
+    "status": "BLOCKED",
+    "reasons": [
+      "REGRESSION_FAIL:COGNITIVE_QUALITY",
+      "GRAPHIFY_PARTIAL_DISCLOSED",
+      "GRAPHIFY_SEMANTIC_PENDING_DISCLOSED"
+    ],
+    "deferredQualifications": [
+      {
+        "id": "UPWORK_OFFICIAL_OAUTH_CATALOG_SCHEMA",
+        "stage": "16.5",
+        "status": "PENDING_LIVE",
+        "evidenceDigest": null,
+        "evidenceKind": null,
+        "sourceHead": null
+      },
+      {
+        "id": "UDEMY_REVIEWS_QA_MESSAGE_ROUTES",
+        "stage": "16.7",
+        "status": "UNKNOWN",
+        "evidenceDigest": null,
+        "evidenceKind": null,
+        "sourceHead": null
+      },
+      {
+        "id": "LEMON_TEST_KEY_CONNECTION_DURABLE_INGRESS",
+        "stage": "16.8",
+        "status": "PENDING_LIVE",
+        "evidenceDigest": null,
+        "evidenceKind": null,
+        "sourceHead": null
+      },
+      {
+        "id": "SECURITY_ACCOUNT_WEBHOOK_JOURNAL_EXECUTOR",
+        "stage": "16.11",
+        "status": "UNBOUND",
+        "evidenceDigest": null,
+        "evidenceKind": null,
+        "sourceHead": null
+      },
+      {
+        "id": "CURRENT_TERMS_ACCOUNT_PERMISSION_REVIEW",
+        "stage": "16.11A",
+        "status": "NOT_RUN",
+        "evidenceDigest": null,
+        "evidenceKind": null,
+        "sourceHead": null
+      },
+      {
+        "id": "AUTHENTICATED_PILOT_PLATFORM_STORE_JOURNAL",
+        "stage": "16.12",
+        "status": "UNBOUND",
+        "evidenceDigest": null,
+        "evidenceKind": null,
+        "sourceHead": null
+      }
+    ],
+    "platformLevels": [
+      {
+        "platform": "etsy",
+        "level": "FRAMEWORK_VALIDATED",
+        "evidenceDigest": "21813bcc8bc8a30c583534aa7c8c7ab53cbf28ea2647370b9478abda85349ce3",
+        "evidenceKind": "DETERMINISTIC_TEST",
+        "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b"
+      },
+      {
+        "platform": "upwork",
+        "level": "FRAMEWORK_VALIDATED",
+        "evidenceDigest": "3c72664edb87386ff7ef8f512518ba7ad55b5a137c8c69cd62f4613b1ecf153d",
+        "evidenceKind": "DETERMINISTIC_TEST",
+        "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b"
+      },
+      {
+        "platform": "fiverr",
+        "level": "FRAMEWORK_VALIDATED",
+        "evidenceDigest": "bfc091a77f23734ba8222c94f828b99be3716677c8d13d8804297a53b6f80fbc",
+        "evidenceKind": "DETERMINISTIC_TEST",
+        "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b"
+      },
+      {
+        "platform": "udemy",
+        "level": "FRAMEWORK_VALIDATED",
+        "evidenceDigest": "9fcd4232f7dbb7c417318233c2ece5705fc8bd7db455fa4ba7fbaa4091e49bcc",
+        "evidenceKind": "DETERMINISTIC_TEST",
+        "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b"
+      },
+      {
+        "platform": "lemon-squeezy",
+        "level": "FRAMEWORK_VALIDATED",
+        "evidenceDigest": "58dba6f5813969adbc1ad9d37fe8615878ab131899886d2594781e2962a3a46f",
+        "evidenceKind": "DETERMINISTIC_TEST",
+        "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b"
+      }
+    ],
+    "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+    "stage16Complete": false,
+    "evidenceVerification": "NORMALIZED_EVIDENCE_METADATA_NOT_ATTESTATION",
+    "ownerPromotion": "REQUIRED_NOT_GRANTED",
+    "grantsAuthority": false,
+    "executionAuthority": "NONE",
+    "autonomousSpend": 0
+  }
+}

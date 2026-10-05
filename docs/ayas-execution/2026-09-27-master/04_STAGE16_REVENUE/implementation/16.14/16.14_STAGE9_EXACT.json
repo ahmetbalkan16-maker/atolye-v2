@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-05T05:32:42.410Z",
+  "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+  "status": "PASS",
+  "fixture": "TEMP_GIT_ARCHIVE_EXACT_SOURCE_NO_REMOTE_OR_MODEL",
+  "rows": [
+    {
+      "file": "scripts/smoke-ayas-security-source-read-isolated.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "f745c58384c7823675a8560c9f0f3b3b8113e651e410302de246429c5814d575",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "scripts/smoke-ayas-security-request-body-isolated.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "1d873fb564952bc89195673e8e5ae161a12f6ab7b21f56814f071d6340928d67",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "scripts/smoke-ayas-security-supply-chain.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "d48acab13bd3f03ca5a8373f33da34a0f6318d02d84bb95fae46eb42e770ecf2",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "scripts/smoke-brain-security.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "c445640482543992703482f2a2f0c57848e1973c93b575c08ee7fbf98498ab29",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "at": "2026-10-05T05:48:51.453Z",
+  "state": "FRAMEWORK_VERIFIED_WITH_OPEN_QUALIFICATION_AND_QUALITY_DEBTS",
+  "primary": 131,
+  "heldOut": 25,
+  "adversarial": 25,
+  "independentControls": {
+    "caught": 14,
+    "total": 14,
+    "equivalents": 0,
+    "runtimeFailureNotCredit": true
+  },
+  "static": {
+    "typeScript": {
+      "status": "PASS",
+      "toolSession": 91495
+    },
+    "wholeLint": {
+      "status": "PASS",
+      "toolSession": 69025,
+      "errors": 0,
+      "inheritedWarnings": 13
+    },
+    "governance": "PASS",
+    "exactPatchSafety": "PASS",
+    "changedLint": {
+      "status": "PASS",
+      "path": "src/lib/ayas/briefing/AyasExecutiveBriefing.ts"
+    }
+  },
+  "manifestVersion": "15F.4-v54",
+  "declaredSuites": 163,
+  "uniquePins": 208,
+  "old203PinsUnchanged": true,
+  "fullDeclaredBaseline": "NOT_RUN_V54",
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueActivity.ts",
+      "sha256": "e7bb378434b8cc15f66b9e3d51eb2e75979f29fdf76a09279cd781d312b1636e"
+    },
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueActivityStore.ts",
+      "sha256": "de95e21ffa76bd55031074a6eb0e47af2ee1a7b6c333d9b58020ead2f619cf56"
+    },
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueActivityReport.ts",
+      "sha256": "a8b3c73e47d36047f26ba45babd4d5db0fe906956ddd520462eda29b4129c57b"
+    },
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueCenterClosure.ts",
+      "sha256": "f593dd9b16c1dd6e46991b278b61b154c1878aba49b6c2cf3b1ba87a01f9daef"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueContext.ts",
+      "sha256": "cc4c5dd1e337062397e1657ac63254630ebc40d264a575e4b72a4173e080ace1"
+    },
+    {
+      "file": "src/lib/ayas/AyasChatStream.ts",
+      "sha256": "c8d5e4cda82f540eb3e82c54d30a7734628fe1143e9d2a1a5e24a338b717b623"
+    },
+    {
+      "file": "src/lib/ayas/briefing/AyasExecutiveBriefing.ts",
+      "sha256": "e133409a94b510291de242201a8f8c27501574277e17e2290129d87afcd1a791"
+    },
+    {
+      "file": "src/lib/ayas/briefing/AyasExecutiveBriefingService.ts",
+      "sha256": "62852451197b36c256fb04a960c3c935e94087998d208c0610110ed964328171"
+    },
+    {
+      "file": "src/lib/ayas/safety/AyasSafeModeStore.ts",
+      "sha256": "ea98bd8db04d91abcadc9c854571330a8b91174871901019b8d010d4b60cff88"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "cd1e0c2847f901f61fdb7aa414a720e9b29660d3a3e6d5ce66cd3ffcc55afe40"
+    },
+    {
+      "file": "app/brain/revenue/page.tsx",
+      "sha256": "f06308200bdaec289eff0da159bf174a85cdfdf1a6a2d8d2588a571634f82144"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "3734ebe439d2ac3a6dee28db21c5e3aeb14e3a0447535a513904b2b4d0185a60"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-center-closure.ts",
+      "sha256": "98a873d126876836bb23af7ea8da28860db0cea073922685c76323f66f334cda"
+    },
+    {
+      "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
+      "sha256": "0262fd4561dfba826131e43f6255b2620f62e5b96b8e4d8bbe8cca8b5c56e0fb"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-center-closure-adversarial.ts",
+      "sha256": "f3cc6b6073330bb5aa1d5bea88ef4dfa547f55c9905713b6c2602532f7b1eb7b"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-center-closure-mutations.ts",
+      "sha256": "19370a0acae17af4cf27701ab96594ba4c02e054c5d3cd154d7f2d0df78fb023"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
+      "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
+    }
+  ],
+  "liveQualification": "UNBOUND_NOT_RUN",
+  "stage16Complete": false,
+  "homepageImplementation": "NOT_STARTED",
+  "persistentActivation": false,
+  "incident": "16.14_TEST_ISOLATION_INCIDENT.json",
+  "findings": [
+    "F88 documented and source guard repaired",
+    "F89 delayed historical gate masking repaired",
+    "F90 frozen business-memory import fence restored; separate read-only chat ingress projection",
+    "F91 frozen unknown-realized-money mutation anchor restored as an actual reachable unknown branch, not a comment; no grader/pin changes"
+  ],
+  "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+  "sourcePacketClosed": true,
+  "frameworkVerified": true,
+  "stageClosed": false,
+  "exactSelectedSuites": 62,
+  "exactStatus": "PASS_WITH_KNOWN_LIMITATIONS",
+  "rawCognitiveQuality": {
+    "primary": "54/55",
+    "heldOut": "4/5",
+    "knownLimitation": "heldout-free-text / CF49",
+    "rawQualityPassedAllTrials": false
+  },
+  "stage9": {
+    "at": "2026-10-05T05:32:42.410Z",
+    "sourceHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+    "status": "PASS",
+    "fixture": "TEMP_GIT_ARCHIVE_EXACT_SOURCE_NO_REMOTE_OR_MODEL",
+    "rows": [
+      {
+        "file": "scripts/smoke-ayas-security-source-read-isolated.ts",
+        "status": "PASS",
+        "exitCode": 0,
+        "stdoutDigest": "f745c58384c7823675a8560c9f0f3b3b8113e651e410302de246429c5814d575",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "file": "scripts/smoke-ayas-security-request-body-isolated.ts",
+        "status": "PASS",
+        "exitCode": 0,
+        "stdoutDigest": "1d873fb564952bc89195673e8e5ae161a12f6ab7b21f56814f071d6340928d67",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "file": "scripts/smoke-ayas-security-supply-chain.ts",
+        "status": "PASS",
+        "exitCode": 0,
+        "stdoutDigest": "d48acab13bd3f03ca5a8373f33da34a0f6318d02d84bb95fae46eb42e770ecf2",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "file": "scripts/smoke-brain-security.ts",
+        "status": "PASS",
+        "exitCode": 0,
+        "stdoutDigest": "c445640482543992703482f2a2f0c57848e1973c93b575c08ee7fbf98498ab29",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "graphify": {
+    "at": "2026-10-05T05:35:32.685Z",
+    "head": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+    "lastAnalyzedHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+    "graphBuiltFrom": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+    "stale": false,
+    "needsUpdate": false,
+    "worktreeState": "CLEAN",
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ],
+    "builtFromHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
+    "nodes": 19063,
+    "links": 54726,
+    "duplicateIds": 0,
+    "duplicateEdges": 0,
+    "dangling": 0,
+    "selfLoops": 0,
+    "communities": 385
+  },
+  "old208PinsUnchanged": true,
+  "deferredQualifications": "16.14_DEFERRED_QUALIFICATION_MATRIX.json",
+  "ownerSetupEvidence": "16.14_LEMON_OWNER_SETUP_EVIDENCE.json",
+  "revenueCenterProductionClosure": "OPEN_UNBOUND_OWNER_PROMOTION_NOT_GRANTED",
+  "next": "STAGE17_READ_ONLY_CURRENT_HEAD_AUDIT_FRAMEWORK",
+  "fiverrOwnerSetupEvidence": "16.14_FIVERR_OWNER_SETUP_EVIDENCE.json",
+  "frozenBriefingMutations": {
+    "status": "PASS",
+    "caught": 68,
+    "total": 68
+  },
+  "productionClosureDecision": "16.14_PRODUCTION_CLOSURE_DECISION.json",
+  "productionClosureStatus": "BLOCKED_RAW_CF49_AND_OPEN_LIVE_QUALIFICATION"
+}

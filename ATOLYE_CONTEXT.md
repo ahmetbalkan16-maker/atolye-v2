@@ -1,3 +1,9 @@
+# AYAS current — 2026-10-05 /16.14 source framework verified;17 active
+
+Fiverr owner evidence2026-10-05: account/identity/Gig OWNER_REPORTED_ACTIVE/VERIFIED/ACTIVE; startup spend OWNER_REPORTED $0. Orders/fulfillment/ledger/terms/E2E NOT_RUN; AYAS and official API/OAuth/tool binding UNBOUND; automated writes CLOSED. Inbound messages are not revenue proof.
+
+16.14 source c26075774762b54de1dc0a3f69c45f7de7a6b41b:131 primary,25 frozen held-out,25 adversarial and14 independent controls;62 selected canonical regressions PASS_WITH_KNOWN_LIMITATIONS, Stage9 additional4/4.208 pins unchanged/v54/163 declared; full baseline NOT_RUN. CF49 raw quality gap remains visible. Graphify current with385 communities/integrity0,PARTIAL9/semanticPENDING. Lemon store/test credential creation OWNER_REPORTED in TEST MODE; connection/ingress/journal/live activation UNBOUND/NOT_RUN/OWNER-GATED. Stage16/Master OPEN. Next Stage17 read-only framework/current audit and permitted infinity preparation; mandatory STOP before homepage/Brain UI V2 design. No persistent activation.
+
 ---
 Document: ATOLYE_CONTEXT.md
 Version: 1.0.0

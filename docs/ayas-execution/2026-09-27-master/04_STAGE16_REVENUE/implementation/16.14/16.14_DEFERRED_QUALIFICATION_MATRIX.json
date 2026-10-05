@@ -1,6 +1,6 @@
 {
   "at": "2026-10-05T04:53:49.699Z",
-  "auditedAtHead": "54ee42b24def11d690d5211475a5a37ba4d1138b",
+  "auditedAtHead": "c26075774762b54de1dc0a3f69c45f7de7a6b41b",
   "mode": "READ_ONLY_REPOSITORY_AUDIT",
   "platformValidationLevel": "FRAMEWORK_VALIDATED_ONLY",
   "closure": "OPEN_OWNER_PROMOTION_AND_LIVE_QUALIFICATION_NOT_GRANTED",
@@ -49,7 +49,7 @@
         "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
         "src/lib/ayas/revenue"
       ],
-      "remaining": "Owner reports account/store and TEST credential creation in TEST MODE; connection UNBOUND; no webhook or callback URL bound; signed ingress NOT_DEPLOYED; durable delivery/dedupe and journal/store qualification NOT_RUN. LIVE OFF; activation/financial actions OWNER-GATED. Setup is not live validation.",
+      "remaining": "Owner reports account/store and TEST credential creation in TEST MODE; connection UNBOUND; no webhook saved or callback URL bound; signed ingress NOT_DEPLOYED; durable delivery/dedupe, journal/store qualification NOT_RUN; live activation OWNER-GATED and OFF. Setup report is not live validation.",
       "evidenceDigest": null,
       "sourceHead": null,
       "livePass": false,
@@ -136,5 +136,47 @@
     "authority": "NONE",
     "ownerGate": "NO_ACTIVATION_OR_FINANCIAL_AUTHORITY"
   },
-  "updatedAt": "2026-10-05T05:30:26.349Z"
+  "updatedAt": "2026-10-05T05:48:51.451Z",
+  "ownerReportedFiverrSetup": {
+    "receivedAt": "2026-10-05",
+    "source": "DIRECT_OWNER_MESSAGE_2026-10-05",
+    "evidenceClass": "OWNER_REPORTED_SETUP_AND_PUBLICATION_NOT_ORDER_REVENUE_OR_AUTOMATION_QUALIFICATION",
+    "platform": "fiverr",
+    "account": "OWNER_REPORTED_ACTIVE",
+    "identityQualification": "OWNER_REPORTED_VERIFIED",
+    "firstListingPublication": "OWNER_REPORTED_ACTIVE",
+    "offerCategory": "AI_AUTOMATION_WORKFLOW_AND_AI_STRATEGY_CONSULTING",
+    "sellerPlusOrPaidSubscription": "OWNER_REPORTED_NONE",
+    "advertisingSpendAuthorized": false,
+    "ownerReportedStartupSpendUsd": 0,
+    "firstQualifiedOrder": "NOT_RUN",
+    "fulfillment": "NOT_RUN",
+    "paymentPayoutRefundLedgerEvidence": "NOT_RUN",
+    "realizedRevenue": "NO_VERIFIED_LEDGER_EVIDENCE",
+    "inboundMessages": "OWNER_REPORTED_PRESENT_NOT_ORDER_OR_REVENUE_EVIDENCE",
+    "ayasBinding": "UNBOUND",
+    "apiOAuthToolBinding": "UNBOUND",
+    "officialIntegrationQualification": "NOT_RUN",
+    "termsQualification": "NOT_RUN",
+    "endToEndProductionReadiness": "NOT_RUN",
+    "automatedExternalWrites": "CLOSED",
+    "scrapingOrBrowserWorkaroundAuthorized": false,
+    "automatedMessagesCustomOffersOrderAcceptanceExecutor": "DISABLED",
+    "authority": "NONE",
+    "recordedAt": "2026-10-05T05:49:03.987Z"
+  },
+  "fiverrQualification": {
+    "account": "OWNER_REPORTED_ACTIVE",
+    "identity": "OWNER_REPORTED_VERIFIED",
+    "listing": "OWNER_REPORTED_ACTIVE",
+    "firstQualifiedOrder": "NOT_RUN",
+    "fulfillment": "NOT_RUN",
+    "paymentPayoutRefundLedgerEvidence": "NOT_RUN",
+    "ayasBinding": "UNBOUND",
+    "automatedExternalWrites": "CLOSED",
+    "officialIntegrationQualification": "UNBOUND_NOT_RUN",
+    "termsQualification": "NOT_RUN",
+    "endToEndProductionReadiness": "NOT_RUN",
+    "authority": "NONE"
+  }
 }

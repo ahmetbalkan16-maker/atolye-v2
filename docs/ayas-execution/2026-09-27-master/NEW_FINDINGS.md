@@ -368,3 +368,7 @@ The frozen P48 root-policy dependency fence refused ActivityReport imported by A
 ## F91 —16.14 frozen executive briefing negative-control source seam
 
 The f883741 exact run passed60 suites but the frozen unknown-realized-money mutation could no longer apply to the new conditional property expression. The new observed branch remains, and the actual unknown branch again uses the frozen control's exact property form; zero substitution must still assertion-fail. Neither old grader nor any208 pins changed. Failed matrix retained separately; repaired-source exact qualification required before Stage17.
+
+## F91 final-source regression verification
+
+c26075774762b54de1dc0a3f69c45f7de7a6b41b: unchanged62 selected canonical suites PASS_WITH_KNOWN_LIMITATIONS, including executive briefing68/68 negative controls.208 pins unchanged. CF49 raw54/55, held4/5 remains. Initial failures retained; no production closure or owner promotion.
