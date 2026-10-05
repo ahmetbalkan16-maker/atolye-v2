@@ -1,0 +1,13 @@
+# Stage16.13 — Profit-Gated Scaling
+
+`createAyasRevenueScalingEvaluator` is a pure, bounded source-integration seam. Production has no current-evidence or owner-policy reader bound. The exported default returns no plan. Request fields cannot choose evidence, policy readers, approval, commands or execution. Normalized synthetic evidence can produce an immutable owner-review plan, never live certification, approval, reservation, spend or platform action.
+
+The engine revalidates the complete roster of pilot histories against source coverage digests, evaluates every started revision with16.12, retains failed/unknown windows, and recomputes money from the full16.2 ledger. Distinct, nonoverlapping windows and consistent primary metrics are required. One pilot permits only a next bounded volume repetition; material scale requires two positive results, broader channel scale three. These are observed evidence classes, without statistical certainty.
+
+16.12 conservatively marks later same-offer order fees as potentially unallocated. For repeated windows,16.13 partitions only exact sibling order facts proven by the full roster. It preserves relevant global reversals, unknown/unallocated fees, later refunds, the full source ledger identity and all sibling evaluations.16.12 remains unchanged. A failed sibling cannot be silently dropped. Lifetime/prior losses remain gates; currencies are never netted.
+
+Plans change one dimension, stay within the technical2x ceiling, and carry measured capacity/security/rights/account/free-first checks. Paid plans rerun16.9 with an exact ledger, amount, window, free-first input and trusted source-policy reader; default reinvestment remains disabled. Paid acquisition levels use currency minor units and the proposed level equals the required budget. Expiry cannot outlive a paid candidate. Price changes require an exact current price fact and separate after-change measurement.
+
+All nine rollback codes and bounded refund, backlog and metric thresholds are mandatory. Rollback actions remain owner-controlled. No new executor, store, scheduler, registry registration, endpoint, financial authority or production binding exists.
+
+Acceptance:73 primary assertions,20 frozen adversarial cases and13 independent load-valid assertion-caught controls in a gitless TEMP projection. Graders/fixtures are protected and registered in v53, with v52 retained unchanged. Actual owner authentication, live account history/coverage, readiness measurement and production reader qualification remain UNBOUND/NOT_RUN. Graphify structural PARTIAL9 and semantic PENDING are inherited limitations; they are never a full PASS.

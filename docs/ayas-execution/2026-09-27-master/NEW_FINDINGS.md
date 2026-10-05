@@ -348,3 +348,7 @@ At675cb39 a synthetic reconciled ledger with1 minor unit AD_SPEND still returned
 ## 2026-10-03T22:52:58.838Z —16.12/F86 allocation follow-up
 
 At5fd1073 all40 selected historical source suites passed, but a separate controlled same-offer AD_SPEND1 with null order/activity binding returned PROMISING and observed pilot ad spend0. No authority/action/spend was granted. Before16.12 closure, related unallocated positive costs/refunds now keep final profit null and economics incomplete; known nonpassive offer cost derives the stop signal even without order allocation. P84/P96/H31 strengthened and a separate assertion-caught control added. Historical5fd matrix is not the final repaired-source receipt. Latest owner instruction remains STOP after16.12;16.13 is not authorized to start.
+
+## 2026-10-05T04:16:16.550Z —F87 /16.13 repeated-window ledger attribution
+
+Two valid completed same-offer pilots sharing a full ledger made the earlier16.12 verdict INCONCLUSIVE because later sibling order fees were conservatively unallocated. Reproduced in controlled fixtures.16.13 now validates a complete exact roster, partitions only known sibling orders, preserves global reversals/full source binding/unknown costs, and evaluates every sibling and started revision.16.12 unchanged. P16/P18/P19/P27–P34/P72 and H07/H12 cover retention. No authority or live certification. Initial TS target/narrowing errors repaired without config changes; incidental synthetic digest card-scanner match repaired in fixtures without scanner change.

@@ -1,0 +1,75 @@
+{
+  "at": "2026-10-05T04:16:16.550Z",
+  "state": "FOCUSED_FRAMEWORK_VERIFIED_EXACT_SOURCE_PENDING",
+  "primary": 73,
+  "frozenHeldOut": 20,
+  "negativeControls": {
+    "caught": 13,
+    "total": 13,
+    "equivalents": 0
+  },
+  "focusedSuites": 16,
+  "typeScript": {
+    "status": "PASS",
+    "invocation": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+    "toolSession": 82601
+  },
+  "lint": {
+    "status": "PASS",
+    "errors": 0,
+    "warnings": 13,
+    "inherited": true,
+    "toolSession": 54092
+  },
+  "diffCheck": "PASS",
+  "manifestVersion": "15F.4-v53",
+  "declaredSuites": 160,
+  "uniquePins": 203,
+  "old198PinsUnchanged": true,
+  "fullDeclaredBaseline": "NOT_RUN_V53",
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/scaling/AyasRevenueScaling.ts",
+      "sha256": "8dd3acfc9ade9b891414a45ebdc96ef071064cbe350d56eba1e42e04734fd820"
+    },
+    {
+      "file": "src/lib/ayas/revenue/scaling/AyasRevenueScalingPolicy.ts",
+      "sha256": "cfffe27d5db74e5112c1b07938f0c0b4efd709ab8db1da0cc3eaa17fbac0f193"
+    },
+    {
+      "file": "src/lib/ayas/revenue/scaling/AyasRevenueScalingPlan.ts",
+      "sha256": "20297f62c48b81a7eb6354fc1b024adb94098181c89d6983a76813d9f3f76a73"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "a47e981b3a2e9a1b5229b92d8481edd5f630285f2b21cc4229b90b76300bca3c"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "62b04ec1a90ad49c91b28a715878d169ca0845e9da9ea1f3d63a2b40a8317667"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-profit-gated-scaling.ts",
+      "sha256": "d839f6cc1673697d80a5b508b2a9b1ef51a2b7a089ee47d6e9922b8d811bfc18"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
+      "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-profit-gated-scaling-adversarial.ts",
+      "sha256": "c7b7bde8e3297b2df0f0abb3d50b9695a26d5f05dc48cbe6e4ff4104d6d46add"
+    },
+    {
+      "file": "scripts/adversarial-ayas-revenue-profit-gated-scaling.ts",
+      "sha256": "43d731c2e443a2d79010e40dbe54ee4c8abe119dbfcb80b1349591faef31e0bd"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-profit-gated-scaling-mutations.ts",
+      "sha256": "2c876a6d9d6eee34d6422004e5f2b3a0b7f62090d9fc78bd765bc1ec56d6fe59"
+    }
+  ],
+  "authority": "NONE",
+  "liveQualification": "UNBOUND_NOT_RUN",
+  "review": "SAME_SESSION_SOURCE_REVIEW_PLUS_AST_AND_INDEPENDENT_ASSERTION_CONTROLS_NO_SEPARATE_AGENT"
+}

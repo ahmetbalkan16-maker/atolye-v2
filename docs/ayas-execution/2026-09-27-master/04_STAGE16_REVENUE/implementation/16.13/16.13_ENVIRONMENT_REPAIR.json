@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-05T04:14:12.147Z",
+  "reason": "Stripped child env removed workspace safe.directory; exact-patch suite Git read failed before assertions",
+  "sourceChanged": false,
+  "fix": "Process-scoped exact workspace safe.directory and empty git configs; resume from first uncompleted suite",
+  "priorFailure": {
+    "script": "smoke-ayas-exact-patch-safety.ts",
+    "status": "FAIL",
+    "exitCode": 1,
+    "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrDigest": "f09709c26fb7934b822eaf51c681cd6771b8b2d34a99723a81b205ec321adbe3",
+    "summary": null
+  }
+}

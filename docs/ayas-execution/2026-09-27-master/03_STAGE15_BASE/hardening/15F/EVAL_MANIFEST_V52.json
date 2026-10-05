@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v53",
+  "version": "15F.4-v52",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -3213,78 +3213,6 @@
         {
           "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
           "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-profit-gated-scaling",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-profit-gated-scaling.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling.ts",
-          "sha256": "d839f6cc1673697d80a5b508b2a9b1ef51a2b7a089ee47d6e9922b8d811bfc18"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
-          "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-profit-gated-scaling-adversarial",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-profit-gated-scaling-adversarial.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling-adversarial.ts",
-          "sha256": "c7b7bde8e3297b2df0f0abb3d50b9695a26d5f05dc48cbe6e4ff4104d6d46add"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-profit-gated-scaling.ts",
-          "sha256": "43d731c2e443a2d79010e40dbe54ee4c8abe119dbfcb80b1349591faef31e0bd"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
-          "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-profit-gated-scaling-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-profit-gated-scaling-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling-mutations.ts",
-          "sha256": "2c876a6d9d6eee34d6422004e5f2b3a0b7f62090d9fc78bd765bc1ec56d6fe59"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling.ts",
-          "sha256": "d839f6cc1673697d80a5b508b2a9b1ef51a2b7a089ee47d6e9922b8d811bfc18"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-profit-gated-scaling.ts",
-          "sha256": "43d731c2e443a2d79010e40dbe54ee4c8abe119dbfcb80b1349591faef31e0bd"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
-          "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
         }
       ],
       "slices": [

@@ -1,0 +1,254 @@
+{
+  "at": "2026-10-05T04:15:01.315Z",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "scope": "Focused source WORKTREE, owned TEMP fixtures for storage/mutations; no live model/account/network",
+  "liveQualification": "NOT_RUN",
+  "rows": [
+    {
+      "script": "smoke-ayas-revenue-profit-gated-scaling.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "e568cdb5d28e5df1dc886ebdc53bf53ee4ee52e9d2dfff4d9143988086efe82f",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "primary": {
+          "pass": 73,
+          "total": 73
+        },
+        "completePrimary": true,
+        "liveQualification": "NOT_RUN",
+        "network": "NONE"
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-profit-gated-scaling-adversarial.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "cdf046372a700fd345925a92f7d2362ca5fb7027f3c5c00fe36e199a6cd1228b",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "heldOut": {
+          "pass": 20,
+          "total": 20
+        },
+        "frozen": true,
+        "liveQualification": "NOT_RUN"
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-profit-gated-scaling-mutations.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "bdedd966d78cc85e90e391c8369af4581d727a9625080354534e135631228988",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "caught": 13,
+        "total": 13,
+        "equivalents": 0,
+        "baselineAndRecovered": "PASS",
+        "scope": "GITLESS_TEMP_NO_LIVE_DATA_OR_AUTHORITY"
+      }
+    },
+    {
+      "script": "smoke-ayas-eval-governance.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "42a098df54dc9978c43fd51a7e582e8bb48a22206005006026c509b7d2a3fce3",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": null
+    },
+    {
+      "script": "smoke-ayas-exact-patch-safety.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "c9d700fc0afca8d61b3da67631fac8c865a2d39b9c443b61e9c214e2bc403822",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "suite": "ayas-exact-patch-safety",
+        "scenarios": 23,
+        "changedLines": 15
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-ledger.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "aa04a4068aa3cbde798cf73317d6c0494cad248d87db739309bfe219a93807c5",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": null
+    },
+    {
+      "script": "smoke-ayas-revenue-reinvestment-policy.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "27d679e13c4827ec92beee4d671bbbb4381ed1e7aa0098a6a12150a1f02d3551",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "primary": {
+          "passed": 64,
+          "total": 64
+        },
+        "heldOut": {
+          "passed": 12,
+          "total": 12
+        },
+        "fixture": "SYNTHETIC_ONLY_NO_OWNER_POLICY_OR_PAYMENT"
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-low-cost-pilot.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "58ba0db887cc9dee7db356c75a47a38db109b6a8d9ffb36ca3e788416da1f67e",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "primary": {
+          "pass": 112,
+          "total": 112
+        },
+        "scope": "MODEL_OWNER_SOURCE_ADMISSION_OWNED_TEMP_STORE_REALIZED_ECONOMICS_MANUAL_HANDOFF",
+        "selectedAssertion": null,
+        "completePrimary": true,
+        "liveQualification": "NOT_RUN",
+        "ownerAuthentication": "UNBOUND",
+        "network": "NONE"
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "594f86777ec4f50f556161d44e29bbbb59397297baffe78244c9e99ea56a8cd3",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "heldOut": {
+          "pass": 31,
+          "total": 31
+        },
+        "frozen": true,
+        "originalFrozenCases": 20,
+        "appendedStageCases": 11,
+        "scope": "MODEL_OWNER_ADMISSION_REALIZED_ECONOMICS_MANUAL_HANDOFF",
+        "liveQualification": "NOT_RUN"
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-spend-policy.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "2b7d1905042fad58f0afcca894ff72917f43d93dcd3bbda013a4db17e3092182",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "suite": "ayas-revenue-spend-policy",
+        "primary": {
+          "pass": 40,
+          "total": 40
+        },
+        "heldOut": {
+          "pass": 10,
+          "total": 10
+        },
+        "budgetUsd": 0,
+        "moneyMovement": "NONE"
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-security.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "83052320045ad7767e8428824ccbe183354f4d8b380eb643a461cae3757f527b",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "suite": "ayas-revenue-security",
+        "primary": {
+          "pass": 105,
+          "total": 105
+        },
+        "network": "NONE",
+        "ownerAuthentication": "NONE",
+        "liveQualification": "NOT_RUN",
+        "productionAdapters": 0
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-compliance.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "d11b77e239a848a114ae183a273f5217cc699cc77012776fe8e429daae65d806",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "primary": {
+          "pass": 62,
+          "total": 62
+        },
+        "liveQualification": "NOT_RUN",
+        "network": "NONE",
+        "authority": "NONE"
+      }
+    },
+    {
+      "script": "smoke-ayas-revenue-free-first-validation.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "fcc004c98d146b032d397b8126bc5e98367ff92d3999a2cd49eaa7c487b59140",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": null
+    },
+    {
+      "script": "smoke-ayas-revenue-intelligence.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "31be803788abb59f3ca6c1aa39b215ff14e2546ba8249775cc8a51d51cdf06e7",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "primary": {
+          "passed": 32,
+          "total": 32
+        },
+        "heldOut": {
+          "passed": 8,
+          "total": 8
+        },
+        "fixture": "SYNTHETIC_NO_MODEL_OR_LIVE_DATA"
+      }
+    },
+    {
+      "script": "smoke-ayas-autonomy-approval.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "8208584b36140ebdf7280153094989551d1c6e6581e6203f49bb399955b0ca87",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "suite": "ayas-autonomy-approval",
+        "scenarios": 29
+      }
+    },
+    {
+      "script": "smoke-ayas-golden-vault.ts",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutDigest": "54b468aea39e68d37ceb96ee8613a8fbb1eb51a7869a51dd23af5dd69c01db37",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": {
+        "status": "PASS",
+        "suite": "ayas-golden-vault",
+        "scenarios": 13,
+        "vaultVersion": 2,
+        "gaps": 2,
+        "modelRuns": 0
+      }
+    }
+  ]
+}

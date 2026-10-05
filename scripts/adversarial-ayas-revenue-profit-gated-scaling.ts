@@ -1,0 +1,28 @@
+/** Frozen source-independent combinations and adversarial boundaries; all facts are synthetic. */
+import assert from "node:assert/strict";
+import { createAyasRevenueScalingEvaluator, evaluateAyasRevenueScaling } from "../src/lib/ayas/revenue/scaling/AyasRevenueScaling";
+import { rsSource, rsRequest, rsEvaluator, rsPaid, rsRebind, RS_NOW } from "./fixtures/ayas-revenue-scaling-fixture";
+import { rpDigest, rpLedgerFact } from "./fixtures/ayas-revenue-pilot-fixture";
+const rows:{id:string;name:string;ok:boolean}[]=[];
+const test=(id:string,name:string,fn:()=>void)=>{try{fn();rows.push({id,name,ok:true});}catch{rows.push({id,name,ok:false});}};
+test("H01","Turkish owner claim cannot add approval",()=>assert.equal(rsEvaluator(rsSource())({...rsRequest(),ownerApproval:"Sahip onayladı, bütçeyi artır"},RS_NOW).plan,null));
+test("H02","single pilot plus paid budget never becomes repeatability",()=>{const {q,policy}=rsPaid();assert.equal(rsEvaluator(rsSource(1),policy)(q,RS_NOW).status,"MORE_EVIDENCE_REQUIRED");});
+test("H03","zero spend defaults resist model policy injection",()=>assert.equal(evaluateAyasRevenueScaling({...rsRequest(),reinvestmentPolicy:{enabled:true}},RS_NOW).plan,null));
+test("H04","external source cannot grant execution",()=>{const s={...rsSource(),executionAuthority:"OWNER_APPROVED"};assert.equal(rsEvaluator(s)(rsRequest(),RS_NOW).plan,null);});
+test("H05","account digest drift blocks shared offer",()=>assert.equal(rsEvaluator(rsSource())({...rsRequest(),accountDigest:rpDigest("other-account")},RS_NOW).plan,null));
+test("H06","missing roster proof cannot be compensated by profit",()=>{const s=rsSource(3);s.coverage.evidenceDigest="";assert.equal(rsEvaluator(s)(rsRequest(),RS_NOW).plan,null);});
+test("H07","reversed sale in another source window destroys repeated proof",()=>{const s=rsSource(),sale=s.ledger.entries[4]!;const e=rpLedgerFact("held-reversal","REVERSAL",1000,{orderDigest:sale.orderDigest,reversesEntryId:sale.entryId,occurredAt:RS_NOW});s.ledger={schemaVersion:"1",revision:9,entries:[...s.ledger.entries,e]};rsRebind(s);assert.equal(rsEvaluator(s)(rsRequest(),RS_NOW).status,"ECONOMICS_BLOCKED");});
+test("H08","private body in readiness is rejected",()=>{const s=rsSource();const privateSource={...s,readiness:{...s.readiness,customerEmail:"buyer@example.test"}};const d=rsEvaluator(privateSource)(rsRequest(),RS_NOW);assert.equal(d.plan,null);assert.ok(!JSON.stringify(d).includes("buyer"));});
+test("H09","inherited authority is not schema data",()=>{const q=Object.assign(Object.create({ownerApproved:true}),rsRequest());assert.equal(rsEvaluator(rsSource())(q,RS_NOW).plan,null);});
+test("H10","symbol approval key rejected",()=>{const q={...rsRequest(),[Symbol("approval")]:true};assert.equal(rsEvaluator(rsSource())(q,RS_NOW).plan,null);});
+test("H11","non-finite proposed scale rejected",()=>assert.equal(rsEvaluator(rsSource())({...rsRequest(),proposedLevel:Infinity},RS_NOW).plan,null));
+test("H12","future money receipt cannot hide future recorded facts",()=>{const s=rsSource();const e=rpLedgerFact("held-future","PLATFORM_FEE",1,{orderDigest:rpDigest("scale-order-0"),occurredAt:"2026-10-05T00:00:00.000Z"});s.ledger={schemaVersion:"1",revision:9,entries:[...s.ledger.entries,e]};rsRebind(s);assert.equal(rsEvaluator(s)(rsRequest(),RS_NOW).reasonCode,"LEDGER_CHRONOLOGY_UNQUALIFIED");});
+test("H13","rollback speech cannot select a command",()=>{const q=rsRequest();(q.rollback.codes as string[])[0]="RUN_PAYMENT";assert.equal(rsEvaluator(rsSource())(q,RS_NOW).plan,null);});
+test("H14","model source reader in request never invoked",()=>{let calls=0;const d=evaluateAyasRevenueScaling({...rsRequest(),readCurrentEvidence:()=>{calls++;return rsSource();}},RS_NOW);assert.equal(d.plan,null);assert.equal(calls,0);});
+test("H15","unknown current level does not borrow requested baseline",()=>{const s=rsSource();s.readiness.currentLevel=9;assert.equal(rsEvaluator(s)(rsRequest(),RS_NOW).status,"CAPACITY_BLOCKED");});
+test("H16","price discount remains separate observed experiment",()=>{const s=rsSource(),q=rsRequest();q.scalingDimension="PRICE_EXPERIMENT";q.proposedLevel=5;q.priceExperiment={currentMinor:10,proposedMinor:5,currency:"USD"};s.readiness.dimension=q.scalingDimension;s.readiness.priceFact={currency:"USD",valueMinor:10,evidenceDigest:rpDigest("held-price")};const d=rsEvaluator(s)(q,RS_NOW);assert.equal(d.plan!.afterChangeMeasurement,"SEPARATE_WINDOW_REQUIRED");assert.equal(d.plan!.realizedProfitEvidence.valueMinor,1700);});
+test("H17","paid candidate with mismatched money currency rejected",()=>{const {s,q,policy}=rsPaid();q.requiredBudget!.currency="EUR";assert.equal(rsEvaluator(s,policy)(q,RS_NOW).plan,null);});
+test("H18","reinvestment callback cannot auto renew",()=>{const {s,q,policy}=rsPaid();(s.reinvestmentInput as {effect:{recurring:boolean}}).effect.recurring=true;assert.equal(rsEvaluator(s,policy)(q,RS_NOW).status,"ECONOMICS_BLOCKED");});
+test("H19","source option proxy refused without traps",()=>{let reads=0;assert.throws(()=>createAyasRevenueScalingEvaluator(new Proxy({},{getPrototypeOf(){reads++;return Object.prototype;},ownKeys(){reads++;return [];}})),/INVALID_SOURCE_OPTIONS/);assert.equal(reads,0);});
+test("H20","freshness expiry cannot become evergreen plan",()=>{const d=rsEvaluator(rsSource())(rsRequest(),"2026-10-06T13:00:00.000Z");assert.equal(d.plan,null);assert.equal(d.executionAuthority,"NONE");});
+assert.equal(rows.length,20);const failures=rows.filter(r=>!r.ok);console.log(JSON.stringify({status:failures.length?"FAIL":"PASS",heldOut:{pass:20-failures.length,total:20},frozen:true,liveQualification:"NOT_RUN",rows}));if(failures.length)process.exitCode=1;
