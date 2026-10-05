@@ -1,0 +1,183 @@
+{
+  "at": "2026-10-05T06:14:06.563Z",
+  "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+  "readOnly": true,
+  "findings": [
+    {
+      "id": "GRAPH_FRESHNESS",
+      "domain": "B",
+      "state": "CURRENT_NEEDS_UPDATE_ABSENT",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/ayas/developer/AyasGraphifyState.ts",
+      "evidenceDigest": "cd95509544820fd90880822a38e99dd0f47028ff485d8c567caa41e89f5b3f8d",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "SameHEAD Graph receipt current/integrity0; source freshness is not full parser coverage.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "GRAPH_POWERSHELL_COVERAGE",
+      "domain": "B",
+      "state": "PARTIAL_KNOWN_9",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/ayas/developer/AyasGraphifyStateCollector.ts",
+      "evidenceDigest": "5303de121e60fb32f85f485cb8cf77fa7668126a7c9ee548bc018971bd1f49b0",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "7 PowerShell parsers unavailable plus2 inherited extraction gaps; semantic enrichment PENDING.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "CF49_FREE_TEXT_SUPERSESSION",
+      "domain": "D",
+      "state": "RAW_NOT_PASS_CURRENT",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+      "evidenceDigest": "09f3f8630ef1895c0c038ad787fbf08fd136052f4a3ac0aab8cca402fec92955",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Canonical cognitive trial current54/55,held4/5; typed fact slots exist, broad free-text decision gap remains.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "WINDOWS_OBSERVER_TASK_ISOLATION",
+      "domain": "F",
+      "state": "NOT_RUN_OWNER_SUPERVISED_PROOF_REQUIRED",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "scripts/smoke-ayas-observer-autostart.ts",
+      "evidenceDigest": "0e8d23bfadbd402b11b45167ad557e43975eb3596682a6dbc7798fb0d9be39a9",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "UniqueTaskName static remediation present; no real ScheduledTask XML/state proof; unsafe live smoke not run.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "PHONE_MODEL_PINNING",
+      "domain": "E",
+      "state": "IMMUTABLE_SOURCE_PINS_PRESENT_LIVE_NOT_RUN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/components/brain/voice/localLlm/phoneLlmModelResources.ts",
+      "evidenceDigest": "2aefd5cf5faa9207b8b9ac71783a7f41e952b3521136072a7e572ae8d8bb574a",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Three immutable revisions and published weight digests present; Worker deployment/real phone/pinned Range proof remains NOT_RUN.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "BUNDLED_RUNTIME_HEALTH_IDENTITY",
+      "domain": "J",
+      "state": "STATIC_REMEDIATION_PRESENT_CURRENT_BUNDLE_NOT_RUN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/runtime/ProductionRuntimeStatusProjection.ts",
+      "evidenceDigest": "deee67656081c366b92d6abbbac1712a057069329bae0fb689a6b3923f04759d",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Shared read-only Symbol.for projection exists; historical bundled live proof retained in ledger, not silently currentHEAD qualification.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "HOSTED_CI",
+      "domain": "A",
+      "state": "WORKFLOW_COMMITTED_CURRENT_GREEN_UNKNOWN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": ".github/workflows/ayas-safe-ci.yml",
+      "evidenceDigest": "1522a1c6f3ec7984ff89125abd75eb8490206b1b6d420859d02c1e721f973661",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Workflow exists; hosted currentHEAD green not checked/claimed.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "PERSISTED_TECHNOLOGY_WATCH",
+      "domain": "L",
+      "state": "NOT_RUN_CONTINUITY_UNQUALIFIED",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/ayas/technology/AyasTechnologyWatch.ts",
+      "evidenceDigest": "4ae592b4b8071776b2fd9187f5799e48631cdf4779a201628cfbf01ea91c745b",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Pure advisory watch present; durable register/daemon continuity unqualified; no persistent activation.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "PRODUCTION_STRATEGY_REGISTRY",
+      "domain": "L",
+      "state": "REVIEWED_SOURCE_STRATEGY_PRESENT_LIVE_NOT_RUN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/brain/autonomy/AyasResearchExperimentRegistry.ts",
+      "evidenceDigest": "9e2428f4506241d24d0cad68666f7226d66eaf23dd56eed8fe96a33aa79cfaca",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Registry no longer empty; one reviewed exact render-tool source strategy exists. Current registered sandbox/owner execution qualification not inferred.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "LIVE_CLAUDE_CODEX_DISPATCH",
+      "domain": "M",
+      "state": "NOT_RUN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/ayas/developer/AyasDeveloperHandoff.ts",
+      "evidenceDigest": "e23d2666d70fe322aeef2a74f9f93a14ccace621cddac102c0ab12382092e86c",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Read-side handoff machinery exists; no actual external developer-agent dispatch proof.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "DIRECTOR_PIXEL_AUDIO",
+      "domain": "K",
+      "state": "NOT_RUN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/ayas/director/AyasProductionDirectorCollector.ts",
+      "evidenceDigest": "ed8ec6a38cea90b517270f492437c5e46942a62a58fd795998b008618aa835fb",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Source/director framework is not current real pixel/audio output qualification.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "REAL_MEDIA_STOCK_SELECTION",
+      "domain": "K",
+      "state": "NOT_RUN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "src/lib/ayas/director/AyasProductionDirectorSession.ts",
+      "evidenceDigest": "cb5d2e63ba901b5c8ed3aeb8b21c9dee256b1e1f1e3547fe505d9baae0b3f2c7",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Real media/source/stock-video and selection quality qualification remains deferred.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "ONLINE_DEPENDENCY_ADVISORIES",
+      "domain": "G",
+      "state": "UNKNOWN_NOT_RUN",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "package-lock.json",
+      "evidenceDigest": "bd863aed704fcf68ecadfc3cb3aad1c99c7ecf8c19245bcc906085c454943fde",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "No owner-approved current online advisory scan performed; dependency presence is not current advisory clearance.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "LEMON_OWNER_SETUP",
+      "domain": "N",
+      "state": "OWNER_REPORTED_SETUP_CONNECTION_UNBOUND",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.14/16.14_LEMON_OWNER_SETUP_EVIDENCE.json",
+      "evidenceDigest": "8919cb49e4db0cb3b9ff92f7434a8d74224b0e69d060f55dfb004fe1c9d9ab55",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "TEST store/credential created per owner; live mode OFF; signed ingress/delivery/dedupe/journal unqualified, no secret handled.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "FIVERR_OWNER_SETUP",
+      "domain": "N",
+      "state": "OWNER_REPORTED_SETUP_GIG_ONLY_BINDING_UNBOUND",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.14/16.14_FIVERR_OWNER_SETUP_EVIDENCE.json",
+      "evidenceDigest": "5b90b4cfeeaf4e03680e29d1639f7e6114176a0f524094e3b56651760de94b31",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Account/identity/Gig reported active/verified; no qualified order/fulfillment/ledger/terms/E2E or automated writes.",
+      "grantsAuthority": false
+    },
+    {
+      "id": "PROTECTED_MUTATION_SCOPE",
+      "domain": "H",
+      "state": "BLOCKED_INCOMPLETE_FIXED_SCOPE",
+      "sourceHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
+      "sourceRef": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/17_CURRENT_AUDIT.json",
+      "evidenceDigest": "d53d1429d4c0fb2254e1a81e0fb26f9713b18c396cf9d107bf3101d35345cbde",
+      "evidenceClass": "STATIC_SOURCE_PLUS_EXPLICIT_QUALIFICATION_DEBT",
+      "remaining": "Measured fixed-root digest unchanged; excluded credentials/links/media/size/unreadable and external runtime scope unqualified. No full mutation proof claimed.",
+      "grantsAuthority": false
+    }
+  ]
+}

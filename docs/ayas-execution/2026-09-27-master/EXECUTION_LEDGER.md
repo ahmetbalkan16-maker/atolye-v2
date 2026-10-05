@@ -1187,3 +1187,7 @@ Stage16.6 completed manual-only source closure unchanged. No official automation
 ## Stage17 read-only framework source packet
 
 151 primary+30 pre-frozen held+30 adversarial+9 independent controls pass.15 mandatory domains distinguish presence/test/live.214 pins/v55/166 declared; all old208 unchanged/full baseline NOT_RUN. No audit-induced activation, owner review or financial/write authority. Current-source operator receipt and live qualification pending. No completed stage reopened.
+
+## Stage17 framework exact qualification / current read-only audit
+
+71b53b9 source:151 primary+30 frozen held+30 adversarial+9 independent faults;9 selected exact canonical suites PASS_WITH_KNOWN_LIMITATIONS;214 pins unchanged/v55/166 declared/full baseline NOT_RUN. Actual read-only audit BLOCKED: protected scope incomplete under credential/link/media/bounds (measured subset digest unchanged); current CF49 raw54/55 held4/5; test/live aggregate qualification and owner review missing. Seed remediations checked, phone pins/strategy registry no longer reported absent. No actual scope repaired in this audit. Next permitted infinity preparation only, activation OFF, homepage NOT_STARTED.

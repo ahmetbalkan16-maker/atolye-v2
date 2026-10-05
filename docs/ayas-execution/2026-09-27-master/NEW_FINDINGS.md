@@ -372,3 +372,7 @@ The f883741 exact run passed60 suites but the frozen unknown-realized-money muta
 ## F91 final-source regression verification
 
 c26075774762b54de1dc0a3f69c45f7de7a6b41b: unchanged62 selected canonical suites PASS_WITH_KNOWN_LIMITATIONS, including executive briefing68/68 negative controls.208 pins unchanged. CF49 raw54/55, held4/5 remains. Initial failures retained; no production closure or owner promotion.
+
+## F92 — Stage17 measured protected-state inventory is incomplete
+
+Read-only default collector at71b53b9 reports unchanged before/after measured digest, but strict credential/link/size/unreadable guards and external runtime scope prevent full protected mutation qualification. Actual foundation closure BLOCKED. No private body or credential copied to evidence, no attribution to unrelated writers, no scope broadened in the audit commit.
