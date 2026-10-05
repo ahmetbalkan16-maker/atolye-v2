@@ -8,7 +8,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import manifest from "../docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json";
 import { isAyasEvalManifest, verifyAyasEvalPins } from "../src/lib/ayas/observability/AyasEvalGovernance";
 const sha = (v: string | Uint8Array) => createHash("sha256").update(v).digest("hex");
-const git = (args: string[]) => execFileSync("git", args, { encoding: "utf8", windowsHide: true }).trim();
+const git = (args: string[]) => execFileSync("git", ["-c", `safe.directory=${path.resolve(process.cwd())}`, "-c", "core.fsmonitor=false", ...args], { encoding: "utf8", windowsHide: true }).trim();
 const env: NodeJS.ProcessEnv = { NODE_ENV: "test" };
 for (const key of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOME"])
   if (process.env[key]) env[key] = process.env[key];

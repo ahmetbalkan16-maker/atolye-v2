@@ -11,11 +11,11 @@ export function createAyasAuditOperatorProbes(root: string): Pick<AyasAuditColle
   const env: NodeJS.ProcessEnv = { NODE_ENV: process.env.NODE_ENV ?? "test", GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0" };
   for (const key of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOME"])
     if (process.env[key]) env[key] = process.env[key];
-  const git = (args: string[]) => { try { return execFileSync("git", ["-c", "core.fsmonitor=false", "-c", "core.quotePath=false", ...args], { cwd, env, encoding: "utf8", windowsHide: true, timeout: 15000, maxBuffer: 2e6 }).trim(); } catch { return null; } };
+  const git = (args: string[]) => { try { return execFileSync("git", ["-c", `safe.directory=${cwd}`, "-c", "core.fsmonitor=false", "-c", "core.quotePath=false", ...args], { cwd, env, encoding: "utf8", windowsHide: true, timeout: 15000, maxBuffer: 2e6 }).trim(); } catch { return null; } };
   // Resolve the trusted operator's sibling, never executable code from --repo.
   const graphOperator = path.resolve(__dirname, "../ayas-graphify-status.ts");
   return {
     repository: () => { const head = git(["rev-parse", "--verify", "HEAD"]); return { head: auditHead(head) ? head : null, branch: git(["rev-parse", "--abbrev-ref", "HEAD"]) ?? "UNKNOWN" }; },
-    graph: async () => JSON.parse(execFileSync(process.execPath, ["--import", pathToFileURL(require.resolve("tsx")).href, graphOperator, "--facts"], { cwd, env, encoding: "utf8", windowsHide: true, timeout: 120000, maxBuffer: 2e6 })),
+    graph: async () => JSON.parse(execFileSync(process.execPath, ["--import", pathToFileURL(require.resolve("tsx")).href, graphOperator, "--facts"], { cwd, env: { ...env, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "safe.directory", GIT_CONFIG_VALUE_0: cwd }, encoding: "utf8", windowsHide: true, timeout: 120000, maxBuffer: 2e6 })),
   };
 }

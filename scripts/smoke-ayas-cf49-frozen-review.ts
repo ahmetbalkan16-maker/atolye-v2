@@ -15,6 +15,7 @@ import { assertCf49HistoricalReview } from "./lib/AyasCf49EvidenceReview";
 const digest = (s: string | Uint8Array) => createHash("sha256").update(s).digest("hex");
 const sourceFile = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
 const rawGate = "scripts/smoke-ayas-retrieval-evaluation.ts";
+const git = (args: string[]) => execFileSync("git", ["-c", `safe.directory=${path.resolve(process.cwd())}`, "-c", "core.fsmonitor=false", ...args], { encoding: "utf8", windowsHide: true }).trim();
 const rows: { id: string; ok: boolean; failures: string[]; selected?: readonly string[]; quarantine?: unknown; guards?: number }[] = [];
 const env: NodeJS.ProcessEnv = { NODE_ENV: "test" };
 for (const key of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOME"])
@@ -73,8 +74,8 @@ async function main() {
     assert.ok(!run.error, "FROZEN_EXECUTION_ERROR");
     const raw = JSON.parse(fs.readFileSync(file, "utf8"));
     assertCf49HistoricalReview(raw, run.status);
-    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true }).trim();
-    const dirty = execFileSync("git", ["status", "--porcelain"], { encoding: "utf8", windowsHide: true }).trim().length > 0;
+    const head = git(["rev-parse", "HEAD"]);
+    const dirty = git(["status", "--porcelain"]).length > 0;
     console.log(JSON.stringify({ schemaVersion: "1", status: rows.every(r => r.ok) ? "PASS" : "FAIL", review: "CF49_EXPLICIT_EVIDENCE_SUPERSESSION_V1", sourceHead: head, worktreeDirty: dirty,
       sourceSha256: digest(fs.readFileSync(sourceFile)), frozenGraderSha256: digest(fs.readFileSync(rawGate)), fixtureDigest: raw.fixtureDigest,
       historicalGate: { exitCode: run.status, gateFailures: raw.gateFailures, stdoutDigest: digest(run.stdout), stderrDigest: digest(run.stderr) },

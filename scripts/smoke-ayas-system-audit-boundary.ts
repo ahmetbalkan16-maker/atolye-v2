@@ -35,6 +35,8 @@ async function main() {
     fs.mkdirSync(path.join(root, "scripts"));
     fs.writeFileSync(path.join(root, "scripts/ayas-graphify-status.ts"), 'throw Error("UNTRUSTED_REPO_CODE_RAN")');
     const facts = await createAyasAuditOperatorProbes(root).graph(); assert.equal(facts.sourceHead, null); checks++;
+    const current = createAyasAuditOperatorProbes(process.cwd()).repository(); assert.match(current.head ?? "", /^[a-f0-9]{40}$/); checks++;
+    const currentGraph = await createAyasAuditOperatorProbes(process.cwd()).graph(); assert.equal(currentGraph.sourceHead, current.head); checks++;
     console.log(JSON.stringify({ status: "PASS", checks, scope: "TEMP_FIXED_READ_ONLY_PROBES_NO_AUTHORITY_NO_CREDENTIAL_BODY", sourceExistenceDoesNotQualifyTestOrLive: true }));
   } finally {
     assert.equal(path.dirname(fs.realpathSync.native(root)).toLowerCase(), fs.realpathSync.native(os.tmpdir()).toLowerCase());
