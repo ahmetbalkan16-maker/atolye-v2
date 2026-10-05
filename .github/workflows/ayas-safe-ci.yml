@@ -18,6 +18,11 @@ jobs:
   static-and-deterministic:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      TMPDIR: /tmp
+      TEMP: /tmp
+      TMP: /tmp
+      AYAS_CI_EVIDENCE_DIR: /tmp/ayas-ci-evidence-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,8 +36,38 @@ jobs:
         run: npm run lint
       - name: Cognitive quality
         run: npx tsx scripts/smoke-ayas-cognitive-quality.ts
-      - name: Retrieval evaluation
-        run: npx tsx scripts/smoke-ayas-retrieval-evaluation.ts
+      - name: Prepare bounded retrieval evidence directory
+        run: mkdir "$AYAS_CI_EVIDENCE_DIR"
+      # Preserve the original grader's raw exit/report. The next mandatory
+      # review refuses anything except the exact 12 reviewed improvements.
+      - name: Frozen retrieval evaluation (raw result preserved)
+        id: frozen_retrieval
+        continue-on-error: true
+        run: |
+          set +e
+          npx tsx scripts/smoke-ayas-retrieval-evaluation.ts --report "$AYAS_CI_EVIDENCE_DIR/frozen.json"
+          raw_exit=$?
+          printf 'exit_code=%s\n' "$raw_exit" >> "$GITHUB_OUTPUT"
+          exit "$raw_exit"
+      - name: Review the original frozen retrieval result
+        run: >-
+          npx tsx scripts/smoke-ayas-cf49-frozen-review.ts
+          --ci-raw-report "$AYAS_CI_EVIDENCE_DIR/frozen.json"
+          --ci-raw-exit "${{ steps.frozen_retrieval.outputs.exit_code }}"
+          > "$AYAS_CI_EVIDENCE_DIR/original-review.json"
+      - name: Exact clean-HEAD CF49 closure and regression gates
+        run: npx tsx scripts/ayas-cf49-closure.ts --output "$AYAS_CI_EVIDENCE_DIR/closure.json"
+      - name: Preserve raw and reviewed CF49 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ayas-cf49-evidence-${{ github.sha }}
+          path: |
+            ${{ env.AYAS_CI_EVIDENCE_DIR }}/frozen.json
+            ${{ env.AYAS_CI_EVIDENCE_DIR }}/original-review.json
+            ${{ env.AYAS_CI_EVIDENCE_DIR }}/closure.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Developer intelligence
         run: npx tsx scripts/smoke-ayas-developer-intelligence.ts --gate
       - name: Open-ended evolution

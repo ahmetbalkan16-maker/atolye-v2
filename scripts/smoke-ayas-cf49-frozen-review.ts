@@ -58,11 +58,34 @@ function review(result: AyasRetrievalCaseResult) {
 }
 
 async function main() {
+  const args = process.argv.slice(2);
+  const scopeOnly = args.length === 1 && args[0] === "--scope-only";
+  const ciMode = args.length === 4 && args[0] === "--ci-raw-report" && args[2] === "--ci-raw-exit";
+  assert.ok(args.length === 0 || scopeOnly || ciMode, "REVIEW_ARGUMENT_INVALID");
+  let originalCiRaw: unknown = null, originalCiRawDigest: string | null = null;
+  if (ciMode) {
+    assert.equal(args[3], "1", "ORIGINAL_CI_GATE_MUST_REQUIRE_EXACT_REVIEW");
+    assert.ok(path.isAbsolute(args[1]!) && args[1]!.endsWith(".json"), "CI_REPORT_INVALID");
+    const file = args[1]!, parent = fs.realpathSync(path.dirname(file)), temp = fs.realpathSync(os.tmpdir()), relative = path.relative(temp, parent);
+    assert.ok(relative !== ".." && !relative.startsWith(".." + path.sep) && !path.isAbsolute(relative), "CI_REPORT_OUTSIDE_TEMP");
+    assert.ok(!fs.lstatSync(path.dirname(file)).isSymbolicLink(), "CI_REPORT_LINK_REFUSED");
+    const stat = fs.lstatSync(file);
+    assert.ok(stat.isFile() && stat.nlink === 1 && !stat.isSymbolicLink() && stat.size <= 4 * 1024 * 1024, "CI_REPORT_INVALID");
+    const fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0));
+    try { const opened = fs.fstatSync(fd); assert.equal(opened.ino, stat.ino); assert.equal(opened.size, stat.size); assert.equal(opened.nlink, 1);
+      const bytes = Buffer.alloc(opened.size); let offset = 0;
+      while (offset < bytes.length) { const count = fs.readSync(fd, bytes, offset, bytes.length - offset, offset); if (count === 0) break; offset += count; }
+      assert.equal(offset, bytes.length, "CI_REPORT_SHORT_READ");
+      const after = fs.fstatSync(fd); assert.equal(after.size, opened.size); assert.equal(after.mtimeMs, opened.mtimeMs);
+      originalCiRaw = JSON.parse(bytes.toString("utf8")); originalCiRawDigest = digest(bytes);
+    } finally { fs.closeSync(fd); }
+    assertCf49HistoricalReview(originalCiRaw, 1);
+  }
   const cases = CF49_REVIEW_IDS.map(id => { const c = AYAS_RETRIEVAL_EVALUATION_CASES.find(x => x.id === id); assert.ok(c); return c; });
   const evaluated = await evaluateAyasRetrieval(cases);
   assert.equal(evaluated.networkAttempts, 0);
   evaluated.results.forEach(review);
-  if (process.argv.includes("--scope-only")) {
+  if (scopeOnly) {
     console.log(JSON.stringify({ status: rows.every(r => r.ok) ? "PASS" : "FAIL", cases: rows.length, results: rows }));
     if (rows.some(r => !r.ok)) process.exitCode = 1;
     return;
@@ -74,11 +97,13 @@ async function main() {
     assert.ok(!run.error, "FROZEN_EXECUTION_ERROR");
     const raw = JSON.parse(fs.readFileSync(file, "utf8"));
     assertCf49HistoricalReview(raw, run.status);
+    if (ciMode) assert.equal((originalCiRaw as { fixtureDigest: string }).fixtureDigest, raw.fixtureDigest, "ORIGINAL_CI_FIXTURE_MISMATCH");
     const head = git(["rev-parse", "HEAD"]);
     const dirty = git(["status", "--porcelain"]).length > 0;
     console.log(JSON.stringify({ schemaVersion: "1", status: rows.every(r => r.ok) ? "PASS" : "FAIL", review: "CF49_EXPLICIT_EVIDENCE_SUPERSESSION_V1", sourceHead: head, worktreeDirty: dirty,
       sourceSha256: digest(fs.readFileSync(sourceFile)), frozenGraderSha256: digest(fs.readFileSync(rawGate)), fixtureDigest: raw.fixtureDigest,
       historicalGate: { exitCode: run.status, gateFailures: raw.gateFailures, stdoutDigest: digest(run.stdout), stderrDigest: digest(run.stderr) },
+      originalCiRawGate: ciMode ? { reviewed: true, exitCode: 1, rawReportSha256: originalCiRawDigest, fixtureDigest: raw.fixtureDigest, sameFixtureAsFreshGate: true } : null,
       historicalEvidencePreserved: true, remainingKnownLimitations: Object.keys(raw.knownLimitations).filter(id => !(CF49_REVIEW_IDS as readonly string[]).includes(id)),
       cases: rows.length, guards: rows.reduce((n, r) => n + (r.guards ?? 0), 0), networkAttempts: 0, results: rows, grantsAuthority: false }));
     if (rows.some(r => !r.ok)) process.exitCode = 1;

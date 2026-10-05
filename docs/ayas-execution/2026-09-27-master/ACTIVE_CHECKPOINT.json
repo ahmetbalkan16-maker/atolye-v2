@@ -5,6 +5,15 @@
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
   "currentHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
   "currentHeadMeaning": "LAST_VERIFIED_CLEAN_SOURCE_HEAD_RESOLVE_GIT_FOR_FINAL_DOCS_HEAD",
+  "hostedCiFollowup": {
+    "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
+    "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
+    "failure": "EXACT12_FROZEN_RETRIEVAL_IMPROVEMENT_REVIEW_REQUESTS_NO_NEW_REGRESSION",
+    "remediation": "PRESERVE_ORIGINAL_RAW_EXIT_REPORT_REQUIRE_ORIGINAL_RESULT_REVIEW_AND_FULL_CLEAN_CF49_CLOSURE",
+    "qualification": "HOSTED_RERUN_PENDING",
+    "frozenGraderAndPinsChanged": false,
+    "grantsAuthority": false
+  },
   "stage": "STAGE_17",
   "subtask": "CF49 CLOSED_PASS after expanded quotation review; Stage17 actual Foundation BLOCKED by protection/domain/live qualification",
   "status": "FOUNDATION_QUALIFICATION_BLOCKED",

@@ -1,3 +1,7 @@
+# Current CI follow-up — original raw failure preserved; hosted rerun pending
+
+The real hosted AYAS Safe CI atf5effbd297af9e8297d04678cce6de5761f0b183 failed only at frozen retrieval's exact12 IMPROVED review requests (run37297397885). Source/build/lint/cognitive steps passed; later steps were skipped. The workflow now retains that original raw report/exit, requires explicit review of that same original result plus fresh same-fixture proof, and runs the full clean-HEAD CF49 closure gate before allowing subsequent checks. Three bounded synthetic evidence JSON files are archived. Wrong exit0 and an extra original regression were independently refused; no frozen grader/expectation/pin changes. Hosted rerun is PENDING, not assumed green. Foundation remainsBLOCKED; no production/model/platform promotion follows from CI review.
+
 # AYAS current — 2026-10-05 /CF49 CLOSED_PASS; Stage17/Foundation BLOCKED
 
 Final qualified clean source:6a9f49efa6c1246e6391ea4533d0e77170255a4d. CF49 gate12/12 suites PASS; cognitive55/55+held5/5,30 primary+12 inherited held+4 E2E,12 unchanged frozen-case reviews+228 negative controls,12 source mutations and16 review-contract controls. The d3b956b receipt was explicitly reopened after two extra quotation defects, preserved in CF49_CLOSURE_d3b956b_HISTORICAL.json, repaired and requalified. Frozen grader/fixture/214 pins remain unchanged; raw retrieval FAIL/exact12 improvement requests and Golden PROMOTION_STOPPED remain exposed;16 unrelated retrieval limits remain.
