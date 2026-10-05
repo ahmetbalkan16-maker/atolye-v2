@@ -1191,3 +1191,7 @@ Stage16.6 completed manual-only source closure unchanged. No official automation
 ## Stage17 framework exact qualification / current read-only audit
 
 71b53b9 source:151 primary+30 frozen held+30 adversarial+9 independent faults;9 selected exact canonical suites PASS_WITH_KNOWN_LIMITATIONS;214 pins unchanged/v55/166 declared/full baseline NOT_RUN. Actual read-only audit BLOCKED: protected scope incomplete under credential/link/media/bounds (measured subset digest unchanged); current CF49 raw54/55 held4/5; test/live aggregate qualification and owner review missing. Seed remediations checked, phone pins/strategy registry no longer reported absent. No actual scope repaired in this audit. Next permitted infinity preparation only, activation OFF, homepage NOT_STARTED.
+
+## Lemon Stage16.8 current-HEAD re-audit
+
+b35cd634ce9e11f44d1666248cc585649fe8f509: canonical adapter already present since53180cb; no source recreation or external binding.9 selected exact suites passed with CF49 limitation preserved;214 frozen pins unchanged, full166 baseline NOT_RUN. TS/lint/governance pass. Public official docs reviewed only. Real TEST connector/ingress/durable receipt/dedupe/journal-store qualification remain owner-gated after Foundation. Owner setup evidence does not close debt. Unfinished infinity20-case fixture preserved with freeze receipt; implementation NOT_STARTED, activation OFF, homepage mandatory stop preserved.

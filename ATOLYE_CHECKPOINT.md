@@ -1,3 +1,9 @@
+# AYAS current — 2026-10-05 /Lemon Stage16.8 re-audit verified; Foundation BLOCKED
+
+Existing canonical five-file Lemon adapter confirmed, first commit53180cb (2026-10-03), source/frozen Lemon tests unchanged. Exact sourceb35cd634ce9e11f44d1666248cc585649fe8f509:9 selected suites PASS_WITH_KNOWN_LIMITATIONS, TS/focused lint/governance PASS; all214 pins/v55/166 declared unchanged, full baseline NOT_RUN. CF49 raw54/55 held4/5 remains open. Owner TEST store/credential creation remains OWNER_REPORTED; real connector/ingress/durable dedupe/production journal-store qualification UNBOUND/NOT_RUN/OWNER ACTION after Foundation. No secret/account/activation/financial write. Evidence: docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_CURRENT_HEAD_REAUDIT.json.
+
+Resume exact infinity preparation:20 admission cases frozen only; implementation NOT_STARTED, persistent activation OFF. Stage17/Foundation BLOCKED; no homepage/Brain UI V2 work. Mandatory owner stop before design remains in force. Current Git HEAD may be a later documentation/session-save commit; resolve Git rather than promoting the tested-source hash to final HEAD.
+
 # AYAS current —2026-10-05 /Stage17 framework verified; infinity preparation active
 
 71b53b94654453223b7ca9d51750047f5ac49fc7:151 primary+30 frozen held+30 adversarial+9 independent controls;9 selected exact suites PASS_WITH_KNOWN_LIMITATIONS,214 pins/v55/166 declared,full baseline NOT_RUN. Current read-only audit BLOCKED: CF49 raw54/55 held4/5, complete protected scope and live/owner domain qualification missing. Measured fixed-root digest unchanged; external/private scope not presumed covered. Lemon/Fiverr owner setup reported; integration/ingress/orders/ledger/terms remain UNBOUND/NOT_RUN. Stage16/Master/Foundation OPEN. Next permitted infinity preparation only, persistent activation OFF; mandatory STOP before homepage/Brain UI V2 design.

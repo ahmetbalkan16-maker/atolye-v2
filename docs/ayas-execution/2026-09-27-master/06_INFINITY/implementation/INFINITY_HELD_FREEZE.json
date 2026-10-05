@@ -1,0 +1,10 @@
+{
+  "sha256": "86d6f2e78519a513a77ef4c251b4d075f4e6dbafd98bcf35b149f66e01300ab4",
+  "at": "2026-10-05T06:18:08.5910616Z",
+  "count": 20,
+  "file": "scripts/fixtures/ayas-continuous-held.ts",
+  "beforeImplementation": true,
+  "state": "PREPARATION_FIXTURE_ONLY_IMPLEMENTATION_NOT_STARTED",
+  "frozenFixturePreservedAt": "2026-10-05T06:30:54.710Z",
+  "persistentActivation": false
+}

@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "1",
+  "at": "2026-10-05T06:30:54.710Z",
+  "testedSourceHead": "b35cd634ce9e11f44d1666248cc585649fe8f509",
+  "branch": "wip/ayas-graphify-final-execution",
+  "sourceWorktreeDigest": "0f0f183277454838bdbd60d2e96712101b8f19eba1e1695aad41a6ad6b5432b2",
+  "testedWorktreeInitiallyClean": false,
+  "testedOverlay": [
+    "scripts/fixtures/ayas-continuous-held.ts"
+  ],
+  "state": "FRAMEWORK_REVERIFIED_PENDING_OWNER_ACTION_AFTER_FOUNDATION",
+  "stageClosed": false,
+  "folderPreviouslyPresent": true,
+  "firstCreationCommit": "53180cb0920eac06bcb2a06280fdcbf823b160fc",
+  "firstCreationDate": "2026-10-03",
+  "historicalVerifiedHead": "8b55182062fd00576ffed6ecec1c2f3030c351c2",
+  "canonicalLemonSourceAndFrozenTestsUnchangedSinceHistoricalVerifiedHead": true,
+  "duplicateAdapterCreated": false,
+  "expectedCanonicalFilesAllPresent": true,
+  "sourceChangesForThisReaudit": [],
+  "files": [
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonSqueezyAdapter.ts",
+      "sha256": "fab388e95b4dbb1a05e2365607c92ef895309115b2175335f4f0b4c9f0300370"
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonSchemas.ts",
+      "sha256": "5b06c774ac0225192f2d113cdac31c213cf8fb9c504dba44ca8ed5838a0a153b"
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonWebhook.ts",
+      "sha256": "46be5efa1451fed234de20d8de97d5ed4eb0ae8bb9404bfba10de628bb7354b2"
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonMapper.ts",
+      "sha256": "e8d9a7e2ca802e6feed483f2e480c615dbf57289d999f7f19d68b2f179dac860"
+    },
+    {
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonCheckoutPolicy.ts",
+      "sha256": "7c021579a62fa1c40d65c2d86039ea30fb1d0be3da49ac8bebe15ce826161c0b"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
+      "sha256": "1555f8c91e9255e69b45f1f18cd0915db9064662295756ed46610811dddf7e41"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueAccountConnection.ts",
+      "sha256": "42ef40ecf84c9e8d4e95c0f36b454e5fd91bf8cbeed415490ad34c2b9f4888aa"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueLedger.ts",
+      "sha256": "23361c6d7b71a2b793ef62e5fe108132f95cbf74519a8b985fe72aa0bf510dc8"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueLedgerStore.ts",
+      "sha256": "289d5ac9f7764a635c114c1a6f9e37498a8699e056d0e40ace7f05e5ee3f258e"
+    },
+    {
+      "file": "src/lib/ayas/revenue/security/AyasRevenueWebhookVerifier.ts",
+      "sha256": "96776e528f14a03e64f3d4d2bf7c857760355ba7935afab403afac9ca8633930"
+    },
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueActivityReport.ts",
+      "sha256": "a8b3c73e47d36047f26ba45babd4d5db0fe906956ddd520462eda29b4129c57b"
+    },
+    {
+      "file": "app/brain/revenue/page.tsx",
+      "sha256": "f06308200bdaec289eff0da159bf174a85cdfdf1a6a2d8d2588a571634f82144"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
+      "sha256": "6d5c58d27e4bd1bba193210178270124ac8098a6143f85afd01b1133dce52b16"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
+      "sha256": "c0b80ef0eb01e5fa11764f0961bff0929b2a8207421e172525e63e2bee5ef9da"
+    },
+    {
+      "file": "scripts/fixtures/ayas-lemon-fixture.ts",
+      "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
+    },
+    {
+      "file": "docs/AYAS_REVENUE_LEMON_SQUEEZY.md",
+      "sha256": "1463e2f137aa331784448b2566df68f677ec96f69ecfa1d9e85e4d81305f2ccb"
+    }
+  ],
+  "contracts": {
+    "officialRest": "HTTPS_OFFICIAL_HOST_V1_JSON_API_GET_ONLY",
+    "testFirst": "TRUSTED_TEST_CONNECTED_REQUIRED; NOT_PRODUCTION_BOUND",
+    "signedWebhook": "RAW_HMAC_SHA256_CONSTANT_TIME_BEFORE_JSON",
+    "canonicalReread": "STORE_RESOURCE_MODE_BOUND; NOTIFICATION_IS_NOT_MONEY",
+    "reconciliation": "CHANGED_FACTS_FOR_SAME_ECONOMIC_IDENTITY_REQUIRE_RECONCILIATION; NO_DUPLICATE_REVENUE",
+    "ledger": "INERT_STAGE16_2_INPUTS_AND_TEMP_IDEMPOTENT_APPEND_PROOF; NO_PRODUCTION_WRITER",
+    "revenueCenter": "READ_ONLY_DEFAULT_UNBOUND",
+    "ordersAndSales": "ONLY_CANONICAL_PAID_LIVE_FACTS_MAP_INFORMATIONAL_GROSS; TEST_EXCLUDED",
+    "feeNetPayout": "UNKNOWN_WITHOUT_EXPLICIT_EVIDENCE; NO_ZERO_FEE_OR_NET_INFERENCE",
+    "failClosed": "MISSING_TRUSTED_POLICY_CREDENTIAL_OR_COST_CALLBACKS_REFUSED; MUTATIONS_CLOSED",
+    "credentialSafety": "NO_OWNER_SECRET_READ_REQUEST_LOG_DOCUMENT_COMMIT_OR_HANDLING; MINIMAL_PROJECTIONS"
+  },
+  "qualification": {
+    "storeCreation": "OWNER_REPORTED_CREATED",
+    "testCredentialCreation": "OWNER_REPORTED_CREATED",
+    "setupEvidenceClass": "OWNER_REPORTED_SETUP_NOT_CONNECTION_OR_LIVE_VALIDATION",
+    "accountConnection": "UNBOUND",
+    "authenticatedTestApiRead": "NOT_RUN",
+    "httpWebhookRoute": "NOT_IMPLEMENTED_NOT_DEPLOYED_OWNER_GATED",
+    "callbackUrl": "UNBOUND_NONE_INVENTED",
+    "webhookSaved": "OWNER_REPORTED_NO",
+    "signedIngress": "NOT_DEPLOYED",
+    "durableDeliveryAndDedupe": "NOT_RUN_UNBOUND",
+    "journalStoreQualification": "NOT_RUN_UNBOUND",
+    "sharedAccountQuotaAndRestartBackoff": "UNBOUND",
+    "productionRegistry": "EMPTY",
+    "productionLedgerWriter": "UNBOUND",
+    "realOrderSaleFeeNetPayoutRefundEvidence": "NOT_RUN",
+    "liveActivation": "OWNER_GATED_OFF",
+    "externalWrites": "CLOSED",
+    "foundationClosure": "BLOCKED",
+    "homepageDesign": "NOT_STARTED"
+  },
+  "deterministicEvidence": {
+    "canonicalSelected": 9,
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+    "lemonPrimary": 89,
+    "lemonHeldOut": 15,
+    "lemonAssertionCaughtMutations": 60,
+    "typeScript": "PASS_NO_EMIT_NO_INCREMENTAL",
+    "focusedLint": "PASS",
+    "governance": "PASS_10_SCENARIOS",
+    "manifestVersion": "15F.4-v55",
+    "manifestSha256": "4d2ed383b675b27942835f5247e9adc8d896a9838ed5bc72e9535ea2cd130040",
+    "declared": 166,
+    "uniqueFrozenPins": 214,
+    "pinDrift": [],
+    "fullDeclaredBaseline": "NOT_RUN",
+    "regressionReceipt": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_CURRENT_HEAD_REAUDIT_REGRESSIONS.json",
+    "cf49": {
+      "id": "cognitive-quality",
+      "kind": "CAPABILITY",
+      "trials": [
+        {
+          "durationMs": 969,
+          "stdoutDigest": "1cd748763c7f30d7bd691f13c14bfaa1e7659620bd39efe681bb203696add489",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+          "quality": {
+            "passed": 54,
+            "total": 55,
+            "heldOutPassed": 4,
+            "heldOutTotal": 5,
+            "knownLimitations": [
+              "heldout-free-text"
+            ]
+          }
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": false,
+        "status": "PASS_WITH_KNOWN_LIMITATIONS"
+      }
+    }
+  },
+  "operatorInvocation": {
+    "attemptedAdditionalSuite": "eval-governance",
+    "result": "SUITE_UNKNOWN_BEFORE_SUITE_EXECUTION",
+    "resolution": "EXISTING_GOVERNANCE_SCRIPT_RUN_DIRECTLY_PASS; MANIFEST_UNCHANGED"
+  },
+  "graphify": {
+    "at": "2026-10-05T06:23:59.192Z",
+    "head": "b35cd634ce9e11f44d1666248cc585649fe8f509",
+    "lastAnalyzedHead": "b35cd634ce9e11f44d1666248cc585649fe8f509",
+    "graphBuiltFrom": "b35cd634ce9e11f44d1666248cc585649fe8f509",
+    "stale": false,
+    "needsUpdate": false,
+    "worktreeState": "DIRTY",
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "semanticStatus": "PENDING",
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ],
+    "builtFromHead": "b35cd634ce9e11f44d1666248cc585649fe8f509",
+    "nodes": 19142,
+    "links": 54902,
+    "duplicateIds": 0,
+    "duplicateEdges": 0,
+    "dangling": 0,
+    "selfLoops": 0
+  },
+  "officialDocsRecheckedAt": "2026-10-05T06:30:54.710Z",
+  "officialDocs": [
+    "https://docs.lemonsqueezy.com/api/getting-started/requests",
+    "https://docs.lemonsqueezy.com/help/webhooks/signing-requests",
+    "https://docs.lemonsqueezy.com/guides/developer-guide/webhooks",
+    "https://docs.lemonsqueezy.com/api/orders/the-order-object",
+    "https://docs.lemonsqueezy.com/guides/developer-guide/testing-going-live"
+  ],
+  "officialRecheckScope": "PUBLIC_DOCUMENTATION_ONLY_NOT_AUTHENTICATED_API_OR_PLATFORM_QUALIFICATION",
+  "ownerSetupReceipt": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.14/16.14_LEMON_OWNER_SETUP_EVIDENCE.json",
+  "nextOwnerInputsAfterFoundation": [
+    "NON_SECRET_STORE_ID_AND_TEST_PRODUCT_VARIANT_IDS_IF_NEEDED",
+    "EXACT_TEST_READ_POLICY_ZERO_COST_AND_VALIDATION_AUTHORIZATION",
+    "OWNER_CONTROLLED_SERVER_SECRET_HOLDER_CONFIGURATION_AND_NON_SECRET_REFERENCE_ONLY",
+    "REVIEWED_HTTPS_HOSTING_INGRESS_AND_EVENT_ALLOWLIST_AFTER_SCOPE_IS_OPEN",
+    "APPROVAL_FOR_CONTROLLED_TEST_READ_AND_SIGNED_DELIVERY_RESTART_REPLAY_LEDGER_QUALIFICATION"
+  ],
+  "secretSharing": "NEVER_PASTE_API_KEY_OR_WEBHOOK_SECRET_IN_CHAT_OR_REPOSITORY; OWNER_CONFIGURES_SECURE_HOLDER",
+  "authority": "NONE",
+  "financialOrExternalWrite": false
+}

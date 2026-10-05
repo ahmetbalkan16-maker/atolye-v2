@@ -1,10 +1,14 @@
+## Current-HEAD re-audit — 2026-10-05
+
+The canonical five-file Stage16.8 adapter already exists and remains unchanged. Nine selected exact-source suites at b35cd634ce9e11f44d1666248cc585649fe8f509 pass with CF49 retained; all214 frozen pins unchanged, full166 baseline NOT_RUN. Synthetic TEST/read/signing/reread/ledger mapping is verified; real TEST connector/HTTP ingress/durable dedupe/production journal-store binding remains UNBOUND/NOT_RUN and OWNER ACTION after Foundation qualification. Public official documentation was rechecked; no account or secret was accessed. See [detailed re-audit](ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_CURRENT_HEAD_REAUDIT.md).
+
 ## Owner setup evidence — 2026-10-05
 
 The owner reports that the Atölye store and a TEST API credential have been created in Lemon Squeezy TEST MODE. This is OWNER_REPORTED setup evidence, not an authenticated connection test. No credential secret was requested or handled. LIVE MODE remains OFF; no webhook is saved, no callback URL is bound, signed ingress is NOT_DEPLOYED, durable delivery/dedupe and journal/store qualification are NOT_RUN. Connection remains UNBOUND; activation and financial actions remain OWNER-GATED. No sale, payout, refund or live write occurred.
 
 # Stage 16.8 — Lemon Squeezy source boundary
 
-This is a source framework with synthetic tests, an empty production registry and no HTTP webhook route or real account binding. The trusted API transport and secret-holder callbacks are absent in production. No key was created/read, no account was connected and no live or test-mode API request was made. Actual owner Test-mode read/webhook/connector proof is PENDING_OWNER_ACTION_AFTER_FOUNDATION; this packet cannot certify live onboarding or close all Stage16 requirements.
+This is a source framework with synthetic tests, an empty production registry and no HTTP webhook route or real account binding. The trusted API transport and secret-holder callbacks are absent in production. This source packet did not create or read a key; no account was connected and no live or test-mode API request was made. Actual owner Test-mode read/webhook/connector proof is PENDING_OWNER_ACTION_AFTER_FOUNDATION; this packet cannot certify live onboarding or close all Stage16 requirements.
 
 The [official REST reference](https://docs.lemonsqueezy.com/api) and [request contract](https://docs.lemonsqueezy.com/api/getting-started/requests) were checked on 2026-10-03. The GET facade uses the official HTTPS host, v1 JSON:API, bounded responses, store filters and code-owned numeric resource paths. It reads store, products, orders, subscriptions and subscription invoices; individual variants, prices and license metadata require canonical parent GETs. It never follows response/relationship URLs. Pagination must match page size, total, last page, resource path, store, next page and opaque cursor scope; page size is at most25 and horizon40. No SDK installation or browser/scraper fallback.
 
