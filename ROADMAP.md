@@ -1,3 +1,7 @@
+# AYAS current —2026-10-05 /16.13 framework verified;16.14 active
+
+16.13 framework verified at a625b7e24a27bf78ad3c2413f1b33529f4e58a6f:73 primary+20 frozen held-out+13 independent controls;19 selected exact-source PASS,203 pins/v53/160 declared (full baseline NOT_RUN),TS/lint/diff PASS with13 inherited warnings. Graphify source current/379 communities/integrity0;PARTIAL9/semanticPENDING. Actual owner/account/pilot/scaling qualification UNBOUND/NOT_RUN; Stage16/Master OPEN. Next16.14 Revenue Center closure and deferred qualification debts. Then17 current-HEAD audit and permitted infinity preparation; mandatory STOP before homepage/Brain UI V2 design; no persistent activation.
+
 # AYAS current —2026-10-05 /16.12 recovery;16.13 active
 
 16.12 recovered and framework verified at ce160ed: primary112/112+held-out31/31 rechecked,198 pins unchanged. Current task16.13 Profit-Gated Scaling; prior stop revoked by direct owner continuation2026-10-05. Real account/pilot/platform/store qualification stays UNBOUND/NOT_RUN; Stage16/MasterOPEN. Graphify metadata HEAD matched but six dirty documentation paths required refresh; inheritedPARTIAL9/semanticPENDING remain. No restart, reset, clean, stash or live action.

@@ -1,0 +1,1380 @@
+{
+  "at": "2026-10-05T04:22:20.433Z",
+  "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+  "status": "PASS",
+  "scope": "Selected canonical baseline suites; isolated TEMP local clones; no remote/model/credential environment",
+  "fullDeclaredBaseline": false,
+  "declaredSuites": 160,
+  "selectedTarget": 19,
+  "completed": 19,
+  "reports": [
+    {
+      "id": "revenue-profit-gated-scaling",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "aaf605a14fa493170cff49381faa2eb36cdad77041473a0cde8305b6b2f4af78",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "043c9c07cbecfdbbb4074bae4f1e590d533d0e193dc8c8c80420def0bcbe1c0a",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-profit-gated-scaling",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 1462,
+                "stdoutDigest": "e568cdb5d28e5df1dc886ebdc53bf53ee4ee52e9d2dfff4d9143988086efe82f",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 16564551680
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-profit-gated-scaling-adversarial",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "232a8a0a6cf7d3e21f79b0d5c448dc42afb4c975f88bdc4437e539c79ba1c7c3",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "c0d15255b3e5936f8c6c8f1b591787e21e841055b518073d4d92cbc167eb53fa",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-profit-gated-scaling-adversarial",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 510,
+                "stdoutDigest": "cdf046372a700fd345925a92f7d2362ca5fb7027f3c5c00fe36e199a6cd1228b",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 16648851456
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-profit-gated-scaling-mutations",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "4f02c280d537d1be9ccd9d868fef828dba2660d4699974597d442b6c2f1f08f9",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "e8f4f5b77afd67a45876e464e25c30af3876d299c242bf2d2f4d6bdce29707e2",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-profit-gated-scaling-mutations",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 11032,
+                "stdoutDigest": "bdedd966d78cc85e90e391c8369af4581d727a9625080354534e135631228988",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 16628219904
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-ledger",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "60d2f53806e0a6f3c532b355c1e61057336552727777b6b1e3e333875ec2ce88",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "6111ccfff98228187f3cb0aebb703582d93a8a19b4c2af06fb725a9b481c03df",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-ledger",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 19797,
+                "stdoutDigest": "aa04a4068aa3cbde798cf73317d6c0494cad248d87db739309bfe219a93807c5",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 16516587520
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-reinvestment-policy",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "3210f44ed162e296221a55d43e07ce614589d23e645e1cbb3501247c9b3f8763",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "28130598166b1b6e183b589a9e85126d4def7f0c32157076fb6a790a1aa7be2a",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-reinvestment-policy",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 587,
+                "stdoutDigest": "27d679e13c4827ec92beee4d671bbbb4381ed1e7aa0098a6a12150a1f02d3551",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 16504041472
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-low-cost-pilot",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "2660881ef14a404c73a7407a14cfb033e225f475807b89f538442dd16844c708",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "7004a97f367f55a6cb3cf32e23f93836fd35868dd24e347802544f729effae07",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-low-cost-pilot",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 25716,
+                "stdoutDigest": "58ba0db887cc9dee7db356c75a47a38db109b6a8d9ffb36ca3e788416da1f67e",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 16439353344
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-low-cost-pilot-adversarial",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "e2fb72a432aca60653ef03ee8dbb84e8df7e1a231deaaf88ca5a33e6362117bd",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "0f793d3ef710a68f15c4d4e068f20cdc651366835907a986e5c694cae6d593f7",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-low-cost-pilot-adversarial",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 396,
+                "stdoutDigest": "594f86777ec4f50f556161d44e29bbbb59397297baffe78244c9e99ea56a8cd3",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17728241664
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-security",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "decc0aff0577e1d1e9ab797a47b0a08b8db73687f8bc62cba35494b0b094a7d5",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "b416847e4c0330d8cc01cd476a1c5d078e44a481ad317c44e36df5d78174b03b",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-security",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 722,
+                "stdoutDigest": "83052320045ad7767e8428824ccbe183354f4d8b380eb643a461cae3757f527b",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17721847808
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-security-adversarial",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "ac2e3a5f69f50aef48535a98be184dba4468a1fc9c6141cd74e8a2cd98071ca3",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "ff4956988acf4a01c08b8d523dcfa4883bf075c9c5db58230cd188c2922abbc6",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-security-adversarial",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 284,
+                "stdoutDigest": "2518f2ce0b4b564727fafc7c9bc2021b878b51cae8d05f125b877ed8ce4d4a49",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17711554560
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-compliance",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "e0505876170192a9fb36142a593fb2e36a4ca109187c1f84fac2c7740d8cac4e",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "fc6a9ba3394304df342e049c8ab914fbc4871d0644e57e1f80b033cfb99c9a2e",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-compliance",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 507,
+                "stdoutDigest": "d11b77e239a848a114ae183a273f5217cc699cc77012776fe8e429daae65d806",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17694117888
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-compliance-adversarial",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "91877fa51fb41ca939b44ad8189621a19420505b263f5f3059519c7d4d1ea638",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "c9746f9fe942424ba77be3fcb5be62e9826ba06ca897587d16dce33ad993db92",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-compliance-adversarial",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 264,
+                "stdoutDigest": "9f11b08c9621b70348bbc67df27650088fad0c563e1a444a240cd805659b61c1",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17708998656
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-free-first-validation",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "d697754201a8a47e82547e9c9cdb71606cf56d4ca3345ac977dc3a25d92ef484",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "1d415f78edb86be57dbb7a65e1e05e52e79894e57577f8c558b6cde415f65418",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-free-first-validation",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 319,
+                "stdoutDigest": "fcc004c98d146b032d397b8126bc5e98367ff92d3999a2cd49eaa7c487b59140",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17652887552
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-spend-policy",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "77de03c3987bb20882d0735677044eb741cf54ee3a07f5b97de43ad9baa4d897",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "5fe0fa1b1fa229572bfaeb9fad5b485f090dd13fad33ffd02ff930d80285a307",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-spend-policy",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 363,
+                "stdoutDigest": "2b7d1905042fad58f0afcca894ff72917f43d93dcd3bbda013a4db17e3092182",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17625550848
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "revenue-intelligence",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "3495cc738a4ecc80848e1f371f6a9d2e696e587206f9fa07016c9fdff5124c48",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "3e7ece48369a25db52677ca1c46016c059a7cfba73a6b1299b868683c43c8f42",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "revenue-intelligence",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 332,
+                "stdoutDigest": "31be803788abb59f3ca6c1aa39b215ff14e2546ba8249775cc8a51d51cdf06e7",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17611673600
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-patch-safety",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "c0ac2a96e5ccea076ec719b85bf54dbd8404a5b7fa4625ec6243d82a228623d3",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "cacc1df842f96a17d76f0ad87b4371c17a18b51134d53c2113c70372c7cf4f14",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "exact-patch-safety",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 356,
+                "stdoutDigest": "c9d700fc0afca8d61b3da67631fac8c865a2d39b9c443b61e9c214e2bc403822",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17575993344
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "graphify-integration",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "d526dd03d7644c278d5828548ed3904cd883042c8b4db00629069f91d523c9b7",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "0b72ecc32f43b4d199e35bb9c66e9353a48fb66e9fc2fa85bb28b53d868bc584",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "graphify-integration",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 5264,
+                "stdoutDigest": "e742f5cc2f51be22770f343d1193f98c30c58670e0318a0b1652bbf8fc83be07",
+                "stderrDigest": "1ff1f3d2d5ba91371bcdc7b0855284714afa88a554320164416052d414bc11fd",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17560924160
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "execution-gate",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "2796e5419f4f57c0a3588a7244a2f7275ba93c8393098fc84cbaf06a19f1f4fe",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "f04a824ef6403fcfa40104cfcf72ac07b3dda4d88d71d0a6132e846a63e60504",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "execution-gate",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 386,
+                "stdoutDigest": "3ed5e87639d55c6fe2c7d8dc976e496c7ef1fa8f3c239fad8bebf242cd36f879",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17499262976
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "approval-durable-state-compatibility",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "0f7d94ca31ac26f7c592fe719a0436fb61f2e12e13d4980de636f002e57c3296",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "6024ddd187a6b6c0a82b31299c1b4a041f52f01c0376d5d5796ea98f0cfbc26e",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "approval-durable-state-compatibility",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 656,
+                "stdoutDigest": "cf96e5a6215ffd841a3318b41b4e61e2e37fc30af27c4c4e38a130df400cdd68",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17476763648
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "zero-cost-policy",
+      "status": "PASS",
+      "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+      "stdoutDigest": "786ff2fcbdb78839fb612bb5b31494c6093311a299ab557ab8412495d924d8a9",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "manifestVersion": "15F.4-v53",
+        "manifestDigest": "774663325d840bfa784610856b1ed1041f731c9d7524fd292e1dfa0877a12fb2",
+        "sourceHead": "a625b7e24a27bf78ad3c2413f1b33529f4e58a6f",
+        "sourceWorktreeDigest": "f572b5b543ca16233f31fd4d26993b0f27ee33224c6057a6ad8650f79cd100a5",
+        "evidenceClass": "DETERMINISTIC_TEST",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "selectedSuites": 1,
+        "declaredSuites": 160,
+        "completeDeclaredBaseline": false,
+        "trials": 1,
+        "failed": [],
+        "knownLimitationSuites": [],
+        "outcome": "PASS",
+        "results": [
+          {
+            "id": "zero-cost-policy",
+            "kind": "REGRESSION",
+            "trials": [
+              {
+                "durationMs": 236,
+                "stdoutDigest": "37851844c601ee016b7bab6e232d29e2f1685e88e635a6c09d5cf6d9d959bdc8",
+                "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "exitCode": 0,
+                "outcome": "PASS"
+              }
+            ],
+            "summary": {
+              "trials": 1,
+              "requiredTrials": 1,
+              "passAt1": 1,
+              "passPowerK": 1,
+              "rawQualityPassedAllTrials": true,
+              "status": "PASS"
+            }
+          }
+        ],
+        "resourceSamples": [
+          {
+            "totalBytes": 34033348608,
+            "freeBytes": 17380941824
+          }
+        ],
+        "ownerCalibration": "PENDING",
+        "grantsAuthority": false,
+        "excluded": [
+          {
+            "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+            "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+          },
+          {
+            "scope": "local-coding qualification and model binaries",
+            "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+          },
+          {
+            "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+            "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+          },
+          {
+            "scope": "Model grading and owner/human benchmark calibration",
+            "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+          }
+        ]
+      }
+    }
+  ]
+}
