@@ -1164,3 +1164,11 @@ Preserve ongoing16.13; then16.14 includes all deferred qualification debt,17 cur
 ## 2026-10-05T04:53:49.699Z —16.14 source packet
 
 128 primary+25 frozen held-out+25 adversarial+14 assertion-caught controls; ledger-derived activity/approval/why/reporting framework and optional Brain/15T inputs; production source unbound. Six deferred qualification debts explicitly preserved. TS/whole lint/governance/protection PASS with13 inherited warnings. 163 v54/208 pins; old203 unchanged, full baseline NOT_RUN. F88 incident archived/rollback/root guard; F89 occurrence ordering fixed. Exact source closure pending; no Stage17 advancement/homepage/persistent activation.
+
+##16.14/F91 repair in active regression sequence
+
+f883741 exact run FAIL at frozen executive briefing mutation anchor (60 preceding suites pass; CF49 known limitation visible). Repaired only the actual unknown-value property branch; no test/pin weakening, no Stage restart or Stage17 advancement. Primary131+held25+adversarial25 and TypeScript/changed lint pass; frozen negative controls then final-source matrix pending.
+
+## Owner setup evidence in active16.14 audit
+
+Owner reports Lemon TEST store/credential created. Evidence separated from UNBOUND connection, absent webhook/callback/signed ingress and NOT_RUN durable delivery/dedupe/journal/store qualification. LIVE OFF, no financial/external write, authority NONE. Secret never requested or handled.

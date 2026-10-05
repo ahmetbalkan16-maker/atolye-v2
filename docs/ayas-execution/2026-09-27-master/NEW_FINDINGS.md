@@ -364,3 +364,7 @@ Report selected append order rather than occurrence order. Current action/invent
 ## F90 —16.14 initial exact adapter regression rejected a new business-memory import
 
 The frozen P48 root-policy dependency fence refused ActivityReport imported by AyasRevenueContext. Removed that dependency and restored16.10 source byte-for-byte. Activity now has a separate pure projection at existing chat ingress, with131 primary cases including actual in-process chat prompt capture, today/history bounds and explicit nested reporting source purity. No old grader/fence/pin changed. Initial c0a0b52 exact failure preserved; new source commit and fresh exact matrix required.
+
+## F91 —16.14 frozen executive briefing negative-control source seam
+
+The f883741 exact run passed60 suites but the frozen unknown-realized-money mutation could no longer apply to the new conditional property expression. The new observed branch remains, and the actual unknown branch again uses the frozen control's exact property form; zero substitution must still assertion-fail. Neither old grader nor any208 pins changed. Failed matrix retained separately; repaired-source exact qualification required before Stage17.

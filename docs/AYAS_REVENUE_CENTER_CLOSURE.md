@@ -1,3 +1,7 @@
+## Owner setup evidence — 2026-10-05
+
+The owner reports that the Atölye store and a TEST API credential have been created in Lemon Squeezy TEST MODE. This is OWNER_REPORTED setup evidence, not an authenticated connection test. No credential secret was requested or handled. LIVE MODE remains OFF; no webhook is saved, no callback URL is bound, signed ingress is NOT_DEPLOYED, durable delivery/dedupe and journal/store qualification are NOT_RUN. Connection remains UNBOUND; activation and financial actions remain OWNER-GATED. No sale, payout, refund or live write occurred.
+
 # Stage 16.14 Revenue Center closure framework
 
 The closure evaluator checks one source HEAD, all 18 framework scopes and 11 regression groups, Graphify freshness/integrity, zero-cost defaults, unresolved findings, five platform validation levels and six mandatory deferred qualification debts. Unknown, stale, missing, duplicate or failed evidence blocks. Fixture evidence cannot discharge a live qualification debt. Digests identify evidence; they are not authentication or attestation. Every verdict requires owner review/promotion and grants no approval, write, spend or Stage 16 completion.

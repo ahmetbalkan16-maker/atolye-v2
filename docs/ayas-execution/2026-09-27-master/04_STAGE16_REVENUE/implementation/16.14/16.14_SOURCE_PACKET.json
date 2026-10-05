@@ -1,6 +1,6 @@
 {
-  "at": "2026-10-05T05:01:54.255Z",
-  "state": "FOCUSED_FRAMEWORK_SOURCE_PACKET_EXACT_PENDING",
+  "at": "2026-10-05T05:29:44.009Z",
+  "state": "F91_FROZEN_BRIEFING_CONTROL_REPAIR_FOCUSED_PASS_EXACT_PENDING",
   "primary": 131,
   "heldOut": 25,
   "adversarial": 25,
@@ -13,7 +13,7 @@
   "static": {
     "typeScript": {
       "status": "PASS",
-      "toolSession": 38026
+      "toolSession": 91495
     },
     "wholeLint": {
       "status": "PASS",
@@ -22,7 +22,11 @@
       "inheritedWarnings": 13
     },
     "governance": "PASS",
-    "exactPatchSafety": "PASS"
+    "exactPatchSafety": "PASS",
+    "changedLint": {
+      "status": "PASS",
+      "path": "src/lib/ayas/briefing/AyasExecutiveBriefing.ts"
+    }
   },
   "manifestVersion": "15F.4-v54",
   "declaredSuites": 163,
@@ -56,7 +60,7 @@
     },
     {
       "file": "src/lib/ayas/briefing/AyasExecutiveBriefing.ts",
-      "sha256": "252c424c4add33c469381628b20bdeeefae31750beba8c9871ee4692bf60b511"
+      "sha256": "e133409a94b510291de242201a8f8c27501574277e17e2290129d87afcd1a791"
     },
     {
       "file": "src/lib/ayas/briefing/AyasExecutiveBriefingService.ts",
@@ -107,6 +111,7 @@
   "findings": [
     "F88 documented and source guard repaired",
     "F89 delayed historical gate masking repaired",
-    "F90 frozen business-memory import fence restored; separate read-only chat ingress projection"
+    "F90 frozen business-memory import fence restored; separate read-only chat ingress projection",
+    "F91 frozen unknown-realized-money mutation anchor restored as an actual reachable unknown branch, not a comment; no grader/pin changes"
   ]
 }

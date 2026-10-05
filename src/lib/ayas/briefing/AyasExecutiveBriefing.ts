@@ -91,6 +91,7 @@ export function buildAyasExecutiveBriefing(input: AyasExecutiveBriefingInput) {
     consequence: "Bu alanlardaki durum doğrulanamıyor; oradaki eski bildirimler çözülmüş sayılmaz.", requestedDecision: null,
     evidence: { source: "briefing-coverage", reference: "brain:sources", digest: alertDigest({ unreadable }), observedAt: null } });
   return { schemaVersion:"1" as const,generatedAt:view.generatedAt,sections,signals,covered,grantsAuthority:false as const,
-    monetaryAuthority:"NONE" as const,productionCost:"NOT_CONFIGURED" as const,realizedRevenue:revenue.status === "OBSERVED" ? "OBSERVED" as const : "NOT_CONFIGURED" as const,
+    monetaryAuthority:"NONE" as const,productionCost:"NOT_CONFIGURED" as const,
+    ...(revenue.status === "OBSERVED" ? {realizedRevenue:"OBSERVED" as const} : {realizedRevenue:"NOT_CONFIGURED" as const}),
     transport:"LOCAL_OWNER_UI_ONLY" as const };
 }

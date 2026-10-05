@@ -1,3 +1,7 @@
+## Owner setup evidence — 2026-10-05
+
+The owner reports that the Atölye store and a TEST API credential have been created in Lemon Squeezy TEST MODE. This is OWNER_REPORTED setup evidence, not an authenticated connection test. No credential secret was requested or handled. LIVE MODE remains OFF; no webhook is saved, no callback URL is bound, signed ingress is NOT_DEPLOYED, durable delivery/dedupe and journal/store qualification are NOT_RUN. Connection remains UNBOUND; activation and financial actions remain OWNER-GATED. No sale, payout, refund or live write occurred.
+
 # Stage 16.8 — Lemon Squeezy source boundary
 
 This is a source framework with synthetic tests, an empty production registry and no HTTP webhook route or real account binding. The trusted API transport and secret-holder callbacks are absent in production. No key was created/read, no account was connected and no live or test-mode API request was made. Actual owner Test-mode read/webhook/connector proof is PENDING_OWNER_ACTION_AFTER_FOUNDATION; this packet cannot certify live onboarding or close all Stage16 requirements.

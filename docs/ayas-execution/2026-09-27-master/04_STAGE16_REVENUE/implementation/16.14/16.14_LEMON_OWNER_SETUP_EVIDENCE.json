@@ -1,0 +1,20 @@
+{
+  "receivedAt": "2026-10-05T05:08:11.0804586Z",
+  "source": "DIRECT_OWNER_MESSAGE_2026-10-05",
+  "evidenceClass": "OWNER_REPORTED_SETUP_NOT_CONNECTION_OR_LIVE_VALIDATION",
+  "platform": "lemon-squeezy",
+  "storeCreation": "OWNER_REPORTED_CREATED",
+  "mode": "OWNER_REPORTED_TEST_ONLY",
+  "testCredentialCreation": "OWNER_REPORTED_CREATED",
+  "credentialSecretHandled": false,
+  "connection": "UNBOUND",
+  "webhookSaved": "OWNER_REPORTED_NO",
+  "callbackUrlBound": "OWNER_REPORTED_NO",
+  "signedIngress": "NOT_DEPLOYED",
+  "durableDeliveryAndDedupe": "NOT_RUN",
+  "journalAndStoreQualification": "NOT_RUN",
+  "liveMode": "OWNER_REPORTED_OFF",
+  "financialOrLiveWrite": "OWNER_REPORTED_NONE",
+  "authority": "NONE",
+  "ownerGate": "NO_ACTIVATION_OR_FINANCIAL_AUTHORITY"
+}
