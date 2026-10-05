@@ -4,8 +4,8 @@
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
   "currentHead": "b35cd634ce9e11f44d1666248cc585649fe8f509",
-  "stage": "INFINITY_PREPARATION",
-  "subtask": "Lemon Stage16.8 current-HEAD re-audit complete; infinity preparation has frozen20 admission cases only, implementation not started",
+  "stage": "STAGE_17",
+  "subtask": "CF49 explicit12-case review implemented; clean same-HEAD closure and full baseline pending",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -325,7 +325,7 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "Continue exact saved permitted infinity preparation from the frozen20 admission cases; implementation NOT_STARTED, persistent activation OFF. Preserve Foundation BLOCKED/CF49 and then mandatory OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN.",
+  "nextAction": "Commit bounded CF49 source; run clean same-HEAD closure and166-suite baseline; complete safe Stage17 technical audit. Preserve actual live/owner blockers and mandatory homepage stop.",
   "updatedAt": "2026-10-05T06:30:54.710Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -1433,7 +1433,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Continue exact saved permitted infinity preparation from the frozen20 admission cases; implementation NOT_STARTED, persistent activation OFF. Preserve Foundation BLOCKED/CF49 and then mandatory OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN.",
+  "resumeNextAction": "Commit bounded CF49 source; run clean same-HEAD closure and166-suite baseline; complete safe Stage17 technical audit. Preserve actual live/owner blockers and mandatory homepage stop.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -4802,6 +4802,24 @@
     "foundationClosure": "BLOCKED",
     "protectedCompleteScope": false,
     "next": "INFINITY_PERMITTED_PREPARATION_ONLY_ACTIVATION_OFF"
+  },
+  "cf49Review": {
+    "entryHead": "2e250cf3fbec608970dd601a513359aa3478f191",
+    "state": "EXPLICIT_REVIEW_IMPLEMENTED_EXACT_SOURCE_CLOSURE_PENDING",
+    "reviewedCases": 12,
+    "perCaseSafetyControls": 180,
+    "primary": 24,
+    "heldOut": 12,
+    "endToEnd": 4,
+    "mutationsCaught": 10,
+    "evidenceNegativeControls": 16,
+    "frozenPinsUnchanged": true,
+    "historicalRawGate": "FAIL_EXACT12_IMPROVED_REVIEW_REQUESTS_PRESERVED",
+    "remainingRetrievalLimitations": 16,
+    "review": "05_STAGE17/implementation/CF49_EVIDENCE_REVIEW.md",
+    "closureOperator": "scripts/ayas-cf49-closure.ts",
+    "homepageImplementation": "NOT_STARTED",
+    "foundationClosure": "BLOCKED"
   },
   "infinityPreparation": {
     "state": "PREPARATION_FIXTURE_ONLY_IMPLEMENTATION_NOT_STARTED",

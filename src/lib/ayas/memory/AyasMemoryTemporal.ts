@@ -211,10 +211,11 @@ function deriveFactEvidence(input: {
     const value = fold(input.body).replace(/\s+/g, " ").trim();
     const render = /^(?:artik )?render icin ([a-z][a-z0-9]{1,39}) kullanacagiz$/.exec(value);
     if (render) return { fact: { key: "user.decision.render-tool", value: render[1]! }, clause: null };
-    const computer = /\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc)\b/.test(value);
-    // A generic PC-related decision or hardware specification is not an exclusive purchase plan.
-    const purchaseDecision = /\b(?:almaya|toplamaya|kurmaya|satin almaya) karar\b/.test(value);
-    if (!computer || !purchaseDecision) return null;
+    // The purchased object itself must be a computer. A mentioned computer,
+    // component purchase, quotation, question or conditional grants no slot.
+    const purchaseDecision = /\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc) (?:satin )?(?:almaya|toplamaya|kurmaya) karar verdim$/.test(value);
+    const indirect = /[?？"“”«»;\n]/.test(input.body) || /\b(?:eger|belki|olursa|varsayalim|farz|dedi|diyordu)\b/.test(value);
+    if (!purchaseDecision || indirect) return null;
     // The memory model permits only a <=40-character token; hash the full
     // normalized statement so distinct plans do not collide on a shared prefix.
     return { fact: { key: "user.decision.computer-purchase-plan", value: createHash("sha256").update(value).digest("hex").slice(0, 40) }, clause: null };
@@ -247,15 +248,19 @@ export function ayasMemoryRecordFact(record: BrainMemoryRecord): AyasMemoryFact 
   if (record.temporal) {
     const { factKey, factValue } = record.temporal;
     if (isAyasMemoryFactKey(factKey) && typeof factValue === "string") {
-      if (factKey !== "user.decision.render-tool") return { key: factKey, value: factValue };
+      if (factKey !== "user.decision.render-tool" && factKey !== "user.decision.computer-purchase-plan") return { key: factKey, value: factValue };
       const derived = deriveAyasMemoryFact(record);
       return isAuthoritative(record) && derived?.key === factKey && derived.value === factValue ? derived : null;
     }
     if (factKey !== undefined || factValue !== undefined) return null;
     const derived = deriveAyasMemoryFact(record);
-    return derived?.key === "user.decision.render-tool" && isAuthoritative(record) ? derived : null;
+    // Existing v2 records may predate the writer's typed purchase slot. Derive
+    // only the same closed decision types, with direct authoritative content.
+    // Arbitrary free text remains independent; metadata cannot forge a value.
+    return (derived?.key === "user.decision.render-tool" || derived?.key === "user.decision.computer-purchase-plan") && isAuthoritative(record) ? derived : null;
   }
-  return deriveAyasMemoryFact(record);
+  const derived = deriveAyasMemoryFact(record);
+  return derived?.key === "user.decision.computer-purchase-plan" && !isAuthoritative(record) ? null : derived;
 }
 
 /* ------------------------------------------------------------------ */

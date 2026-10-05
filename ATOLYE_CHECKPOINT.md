@@ -1,4 +1,10 @@
-# AYAS current — 2026-10-05 /Lemon Stage16.8 re-audit verified; Foundation BLOCKED
+# AYAS current — 2026-10-05 /CF49 explicit review implemented; exact-source closure pending
+
+Resumed from HEAD/origin `2e250cf3fbec608970dd601a513359aa3478f191`, preserving inherited reader patch/tests. All 12 frozen retrieval improvements individually reviewed; 180 per-case safety controls PASS. Wrong-object/component/quoted/conditional purchase scope reproduced and repaired. Existing frozen graders, labels and all214 manifest pins unchanged. New explicit supersession review retains the raw historical gate FAIL (exactly12 IMPROVED requests);16 other retrieval limitations remain open. Focused24 primary+12 held+4 E2E,10 source mutations and16 evidence negative controls PASS;TypeScript and lint PASS (13 inherited warnings). CF49 remains CLOSURE_PENDING until clean same-HEAD operator evidence.
+
+Next: commit source, run `scripts/ayas-cf49-closure.ts`, full declared166 deterministic baseline, then Stage17 read-only audit/protected coverage/health/evidence inventory. Stage17/Foundation BLOCKED pending actual qualification; no account binding/activation, production action or Homepage/Brain UI V2 work. Latest owner request permits all safe technical work and requires STOP before homepage redesign. Resolve actual Git HEAD rather than treating evidence source hash as final HEAD.
+
+# Historical AYAS current — 2026-10-05 /Lemon Stage16.8 re-audit verified; Foundation BLOCKED
 
 Existing canonical five-file Lemon adapter confirmed, first commit53180cb (2026-10-03), source/frozen Lemon tests unchanged. Exact sourceb35cd634ce9e11f44d1666248cc585649fe8f509:9 selected suites PASS_WITH_KNOWN_LIMITATIONS, TS/focused lint/governance PASS; all214 pins/v55/166 declared unchanged, full baseline NOT_RUN. CF49 raw54/55 held4/5 remains open. Owner TEST store/credential creation remains OWNER_REPORTED; real connector/ingress/durable dedupe/production journal-store qualification UNBOUND/NOT_RUN/OWNER ACTION after Foundation. No secret/account/activation/financial write. Evidence: docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_CURRENT_HEAD_REAUDIT.json.
 
