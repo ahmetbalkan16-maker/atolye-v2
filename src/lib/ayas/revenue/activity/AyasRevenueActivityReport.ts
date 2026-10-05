@@ -7,6 +7,8 @@ import { AYAS_REVENUE_PLATFORMS, AYAS_REVENUE_OPERATION_EFFECT, type AyasRevenue
 import { isAyasRevenueDigest } from "../AyasRevenueOpportunity";
 import { deepFreezeAyasRevenueValue, hasExactAyasRevenueKeys, isAyasRevenuePlainRecord, isAyasRevenuePlatform, isAyasRevenueTimestamp } from "../AyasRevenueRedaction";
 import { validateAyasRevenueActivity, type AyasRevenueActivityRecord } from "./AyasRevenueActivity";
+import { detectAyasRevenueRecall } from "../AyasRevenueRecall";
+import { isAyasRevenueContextRelevant } from "../AyasRevenueContext";
 export const AYAS_REVENUE_CONNECTION_STATES = Object.freeze(["UNBOUND", "CONNECTED", "EXPIRED", "REVOKED", "BLOCKED"] as const);
 export interface AyasRevenueActivitySource {
   readonly schemaVersion: "1"; readonly observedAt: string; readonly freshUntil: string;
@@ -88,10 +90,22 @@ export function summarizeAyasRevenueActivity(raw: unknown, now: string, platform
   const r = buildAyasRevenueActivityReport(raw, now);
   if (r.status !== "OBSERVED") return { status: r.status, lines: ["Gelir faaliyet kaynağı " + r.status + "; faaliyet, onay veya kazanç çıkarılamaz."], grantsAuthority: false };
   if(window&&(!isAyasRevenueTimestamp(window.at)||Date.parse(window.at)>Date.parse(now)||window.from!==null&&!isAyasRevenueTimestamp(window.from)||window.until!==null&&!isAyasRevenueTimestamp(window.until)))return {status:"UNAVAILABLE",lines:["Gelir faaliyet sorgusu UNAVAILABLE; tarih kanıtı çıkarılamaz."],grantsAuthority:false};
+  let money=platform?r.platforms.find(v=>v.platform===platform)?.realized??[]:r.realized;
+  if(window){const copy=snapshotAyasRevenuePilotData(raw,24*1024*1024,500000);if(!isAyasRevenuePlainRecord(copy))return {status:"UNAVAILABLE",lines:["Gelir tarih kanıtı UNAVAILABLE."],grantsAuthority:false};
+    const ledger=validateAyasRevenueLedgerState(copy.ledger),visible=ledger.entries.filter(e=>Date.parse(e.occurredAt)<=Date.parse(window.at)),reversed=new Set(visible.filter(e=>e.event==="REVERSAL").map(e=>e.reversesEntryId));
+    const entries=visible.filter(e=>e.event!=="REVERSAL"&&!reversed.has(e.entryId)&&(!platform||e.platform===platform)&&(window.from===null||Date.parse(e.occurredAt)>=Date.parse(window.from))&&(window.until===null||Date.parse(e.occurredAt)<Date.parse(window.until)));
+    money=summarizeAyasRevenueEconomics({schemaVersion:"1",revision:entries.length,entries});}
   const queue = r.approvalQueue.filter(v => !platform || v.platform === platform), timeline = r.timeline.filter(v => (!platform || v.platform === platform)
     &&(!window||Date.parse(v.occurredAt)<=Date.parse(window.at)&&(window.from===null||Date.parse(v.occurredAt)>=Date.parse(window.from))&&(window.until===null||Date.parse(v.occurredAt)<Date.parse(window.until))));
   return { status: r.status, grantsAuthority: false, lines: ["Salt okunur gelir gözlemleri; yürütme/onay yetkisi NONE; spend 0. Para ledger kaynağından, tahminler ayrı.",
-    "Owner incelemesi bekleyen gözlem=" + queue.length + "; bu kuyruk onay vermez.",
+    "Güncel owner incelemesi bekleyen gözlem=" + queue.length + "; bu kuyruk onay vermez.",
     ...timeline.slice(-3).map(v => v.occurredAt + " " + v.platform + " " + v.operation + "/" + v.phase + ": " + v.reasonCode + "; rule=" + v.ruleCode + "; evidence=" + v.evidenceDigest),
-    ...(window&&window.at!==now?[]:platform ? r.platforms.find(v => v.platform === platform)?.realized ?? [] : r.realized).slice(0, 3).map(e => "Current full ledger "+e.currency + ": gross=" + e.grossRevenueMinor + "; fees=" + (e.platformFeesMinor + e.paymentProcessingFeesMinor) + "; refunds=" + e.refundsMinor + "; spend=" + (e.adSpendMinor + e.otherCostMinor + e.variableDeliveryCostMinor) + "; net profit=" + (e.contributionProfitMinor ?? "UNKNOWN") + " minor")].slice(0, 8) };
+    ...money.slice(0, 3).map(e => (window?"Window ledger ":"Current full ledger ")+e.currency + ": gross=" + e.grossRevenueMinor + "; fees=" + (e.platformFeesMinor + e.paymentProcessingFeesMinor) + "; refunds=" + e.refundsMinor + "; spend=" + (e.adSpendMinor + e.otherCostMinor + e.variableDeliveryCostMinor) + "; net profit=" + (e.contributionProfitMinor ?? "UNKNOWN") + " minor")].slice(0, 8) };
+}
+/** A separate observation projection at chat ingress preserves the existing business-memory dependency fence. */
+export function buildAyasRevenueActivityChatContext(source:unknown,userText:string,now:string) {
+  if(!isAyasRevenueContextRelevant(userText))return {status:"NOT_RELEVANT",lines:[],grantsAuthority:false};
+  try{const q=detectAyasRevenueRecall(userText,now),today=/\bbugün\b|\bbugun\b/i.test(userText),window=today?{...q,from:now.slice(0,10)+"T00:00:00.000Z",until:new Date(Date.parse(now.slice(0,10)+"T00:00:00.000Z")+86400000).toISOString()}:q,r=summarizeAyasRevenueActivity(source,now,isAyasRevenuePlatform(q.platform)?q.platform:undefined,window);
+    if(r.lines.length>8||r.lines.join("\n").length>3072)throw Error();return r;
+  }catch{return {status:"UNAVAILABLE",lines:["Gelir faaliyet kanıtı UNAVAILABLE; faaliyet veya kazanç çıkarılamaz."],grantsAuthority:false};}
 }

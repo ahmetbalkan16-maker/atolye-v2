@@ -4,10 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { evaluateAyasRevenueCenterClosure, AYAS_REVENUE_CLOSURE_SCOPES, AYAS_REVENUE_CLOSURE_REGRESSIONS } from "../src/lib/ayas/revenue/activity/AyasRevenueCenterClosure";
-import { buildAyasRevenueActivityReport, loadAyasRevenueActivityReport, summarizeAyasRevenueActivity } from "../src/lib/ayas/revenue/activity/AyasRevenueActivityReport";
+import { buildAyasRevenueActivityReport, loadAyasRevenueActivityReport, summarizeAyasRevenueActivity, buildAyasRevenueActivityChatContext } from "../src/lib/ayas/revenue/activity/AyasRevenueActivityReport";
 import { emptyAyasRevenueActivity, planAyasRevenueActivityAppend, snapshotAyasRevenueActivityInput, validateAyasRevenueActivity } from "../src/lib/ayas/revenue/activity/AyasRevenueActivity";
 import { AyasRevenueActivityStore } from "../src/lib/ayas/revenue/activity/AyasRevenueActivityStore";
-import { buildAyasRevenueContext } from "../src/lib/ayas/revenue/AyasRevenueContext";
 import { buildAyasExecutiveBriefing } from "../src/lib/ayas/briefing/AyasExecutiveBriefing";
 import { decideAyasRevenueOperation, ayasRevenueModeFor } from "../src/lib/ayas/revenue/AyasRevenueActionPolicy";
 import { AYAS_REVENUE_OPERATIONS, AYAS_REVENUE_OPERATION_EFFECT } from "../src/lib/ayas/revenue/AyasRevenuePlatformTypes";
@@ -17,9 +16,9 @@ import { evaluateAyasRevenueScaling } from "../src/lib/ayas/revenue/scaling/Ayas
 import { classifyAyasRevenueRisk } from "../src/lib/ayas/revenue/security/AyasRevenueRiskClassifier";
 import { enterAyasSafeMode } from "../src/lib/ayas/safety/AyasSafeModeStore";
 import { fakeRevenueManifest } from "./fixtures/ayas-revenue-fake-adapter";
-import { rcActivitySource, rcClosure, rcEvent, rcLedger, rcDigest, rcClone, RC_NOW, RC_AT, RC_HEAD } from "./fixtures/ayas-revenue-closure-fixture";
-import { revenueLedgerFixtureFact as fact, revenueLedgerFixtureState as ledger } from "./fixtures/ayas-revenue-ledger-fixture";
+import { rcActivitySource, rcClosure, rcEvent, rcDigest, rcClone, RC_NOW, RC_AT, RC_HEAD } from "./fixtures/ayas-revenue-closure-fixture";
 import { rmState } from "./fixtures/ayas-revenue-memory-fixture";
+import { revenueLedgerFixtureFact as fact, revenueLedgerFixtureState as ledger } from "./fixtures/ayas-revenue-ledger-fixture";
 import { rsRequest } from "./fixtures/ayas-revenue-scaling-fixture";
 const args = process.argv.slice(2), only = args.length === 2 && args[0] === "--case" ? args[1] : null;
 assert.ok(args.length === 0 || only !== null);
@@ -74,8 +73,8 @@ async function main() {
   await primary("reinvestment remains disabled zero", () => { assert.equal(AYAS_REVENUE_DEFAULT_REINVESTMENT_POLICY.enabled, false); assert.equal(AYAS_REVENUE_DEFAULT_REINVESTMENT_POLICY.basisPoints, 0); });
   await primary("default scaling cannot invent realized source", () => { const r = evaluateAyasRevenueScaling(rsRequest(), RC_NOW); assert.equal(r.plan, null); assert.equal(r.autonomousSpend, 0); });
   await primary("unknown security blocks readiness", () => assert.equal(classifyAyasRevenueRisk(["UNKNOWN_INJECTION_APPROVAL"]).severity, "BLOCKING"));
-  await primary("Brain activity comes from durable why", () => { const c = buildAyasRevenueContext({ memory: rmState(), ledger: rcLedger(), activitySource: rcActivitySource(), userText: "Bugün gelir için ne yaptın?", now: RC_NOW }); assert.equal(c.status, "OK"); assert.match(c.lines.join("\n"), /OWNER_GATE/); assert.match(c.lines.join("\n"), /850/); });
-  await primary("Brain unavailable activity never guesses", () => { const c = buildAyasRevenueContext({ memory: rmState(), ledger: rcLedger(), activitySource: { invalid: true }, userText: "Gelir faaliyeti", now: RC_NOW }); assert.match(c.lines.join("\n"), /UNAVAILABLE/); });
+  await primary("Brain activity comes from durable why", () => { const c = buildAyasRevenueActivityChatContext(rcActivitySource(),"Bugün gelir için ne yaptın?",RC_NOW); assert.equal(c.status, "OBSERVED"); assert.match(c.lines.join("\n"), /OWNER_GATE/); assert.match(c.lines.join("\n"), /850/); });
+  await primary("Brain unavailable activity never guesses", () => { const c = buildAyasRevenueActivityChatContext({invalid:true},"Gelir faaliyeti",RC_NOW); assert.match(c.lines.join("\n"), /UNAVAILABLE/); });
   await primary("briefing material revenue uses canonical ledger", () => {
     const unavailable = { kind: "unavailable", observedAt: RC_NOW, code: "FIXTURE" }, server = { schemaVersion: "1", generatedAt: RC_NOW, ...Object.fromEntries(["health", "development", "graphify", "experiments", "memory", "capabilities", "security", "atolye", "roadmap"].map(k => [k, unavailable])) };
     const v = buildAyasExecutiveBriefing({ server, revenueActivitySource: rcActivitySource() } as unknown as Parameters<typeof buildAyasExecutiveBriefing>[0]);
@@ -101,6 +100,13 @@ async function main() {
   await primary("delayed old cancellation cannot hide newer owner gate",()=>{const s=rcActivitySource();s.observedAt=RC_NOW;s.activity=rcClone(planAyasRevenueActivityAppend(s.activity,rcEvent("older-cancel",{occurredAt:"2026-10-03T11:00:00.000Z",phase:"CANCELLED",requestedDecision:null,nextAction:"NONE",inventory:null}),RC_NOW).state);s.accounts[0]!.activityHeadDigest=s.activity.records.at(-1)!.recordDigest;assert.equal(report(s).approvalQueue.length,1);});
   await primary("historical why filters date without showing future current money",()=>{const r=summarizeAyasRevenueActivity(rcActivitySource(),RC_NOW,undefined,{at:"2026-10-03T11:00:00.000Z",from:null,until:null});assert.ok(!r.lines.some(l=>l.includes("OWNER_GATE")||l.includes("850")));});
   await primary("source snapshot cannot predate its own activity",()=>{const s=rcActivitySource();s.observedAt="2026-10-03T11:00:00.000Z";assert.equal(report(s).status,"UNAVAILABLE");});
+  await primary("actual chat ingress receives activity evidence without network",async()=>{const {streamAyasChat}=await import("../src/lib/ayas/AyasChatStream"),p=root(),prompts:string[]=[],reply="Faaliyet kanıtını kayıtlardan inceleyebiliriz.",now=new Date().toISOString(),source=rcActivitySource();source.observedAt=now;source.freshUntil=new Date(Date.parse(now)+3600000).toISOString();source.accounts[0]!.observedAt=now;
+    const provider:import("../src/lib/ayas/model/AyasModelTypes").AyasModelProvider={id:"ollama",kind:"local",model:"fixture-closure",configured:true,contextWindowTokens:8192,health:async()=>({available:true,detail:"in-process",checkedAtMs:0}),chat:async r=>{prompts.push(r.prompt);return {text:reply,finishReason:"stop"};},async *stream(r){prompts.push(r.prompt);yield {type:"delta",text:reply};yield {type:"done",text:reply,finishReason:"stop"};}};
+    const snapshot:import("../src/lib/brain/ui/BrainConsoleSnapshot").BrainConsoleSnapshot={generatedAt:now,executionGate:"CLOSED",connected:{tasks:false,cycles:false,experience:false},errors:[],tasks:{total:0,byStatus:{queued:0,running:0,"blocked-on-dependency":0,"blocked-on-approval":0,succeeded:0,failed:0,cancelled:0,"skipped-unsafe":0},pendingApproval:0,skippedUnsafe:0,items:[]},cyclesRecorded:0,experience:{total:0},safety:{decision:"proceed-with-constraints",snapshotSource:"unavailable",reasons:[],hardwareProfileId:"gtx-1650-4gb"}};
+    const events=[];for await(const event of streamAyasChat({text:"Gelir faaliyeti ve bekleyen onayları göster",seq:0,snapshot,env:{NODE_ENV:"test"},fetcher:async()=>{throw Error("NETWORK_MUST_NOT_RUN");},memoryStore:{rootDir:p},route:{decision:{complexity:"NORMAL",providerId:"ollama",providerKind:"local",model:provider.model,reason:"in-process"},provider},revenueMemorySnapshots:{memory:rmState(),ledger:source.ledger,activitySource:source}}))events.push(event);
+    assert.ok(events.some(e=>e.type==="done"));assert.match(prompts.join("\n"),/OWNER_GATE/);assert.match(prompts.join("\n"),/850/);assert.equal(fs.existsSync(path.join(p,"data/brain/revenue")),false);});
+  await primary("today query excludes prior day activity and money",()=>{const s=rcActivitySource();s.observedAt="2026-10-04T13:00:00.000Z";s.freshUntil="2026-10-05T12:00:00.000Z";s.accounts[0]!.observedAt=s.observedAt;const r=buildAyasRevenueActivityChatContext(s,"Bugün gelir için ne yaptın?",s.observedAt);assert.equal(r.status,"OBSERVED");assert.ok(!r.lines.some(l=>l.includes("OWNER_GATE")||l.includes("850")));});
+  await primary("new reporting modules cannot introduce authority imports",()=>{for(const f of ["AyasRevenueActivity.ts","AyasRevenueActivityReport.ts","AyasRevenueCenterClosure.ts"]){const source=fs.readFileSync("src/lib/ayas/revenue/activity/"+f,"utf8");assert.doesNotMatch(source,/node:fs|node:child_process|fetch\s*\(|process\.env|AyasRevenuePlatformRegistry|ExecutionGateStore|ApprovalService|\.append\s*\(/);}});
   assert.ok(only ? rows.length === 1 : rows.length >= 100);
   console.log(JSON.stringify({ status: rows.every(r => r.ok) ? "PASS" : "FAIL", primary: { passed: rows.filter(r => r.ok).length, total: rows.length }, completePrimary: !only, fixture: "SYNTHETIC_EXPLICIT_TEMP_NO_PRODUCTION_BINDING", results: rows }));
   if (rows.some(r => !r.ok)) process.exitCode = 1;

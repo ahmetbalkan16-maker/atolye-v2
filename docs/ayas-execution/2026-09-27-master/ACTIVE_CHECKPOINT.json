@@ -325,7 +325,7 @@
     "STAGE16_CLOSURE_BLOCKER:16.8 actual owner Test-mode key/connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
   "nextAction": "Exact-source all Stage16 dedicated and required regression matrix; no Stage17 source before this packet closes",
-  "updatedAt": "2026-10-05T04:53:49.699Z",
+  "updatedAt": "2026-10-05T05:01:54.255Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -3691,9 +3691,9 @@
     }
   },
   "stage16_14": {
-    "at": "2026-10-05T04:53:49.699Z",
+    "at": "2026-10-05T05:01:54.255Z",
     "state": "FOCUSED_FRAMEWORK_SOURCE_PACKET_EXACT_PENDING",
-    "primary": 128,
+    "primary": 131,
     "heldOut": 25,
     "adversarial": 25,
     "independentControls": {
@@ -3705,11 +3705,11 @@
     "static": {
       "typeScript": {
         "status": "PASS",
-        "toolSession": 29380
+        "toolSession": 38026
       },
       "wholeLint": {
         "status": "PASS",
-        "toolSession": 22092,
+        "toolSession": 60389,
         "errors": 0,
         "inheritedWarnings": 13
       },
@@ -3732,7 +3732,7 @@
       },
       {
         "file": "src/lib/ayas/revenue/activity/AyasRevenueActivityReport.ts",
-        "sha256": "436fc147494749c80827ffa9d765f50b48f8fb30c523ba962a7b135d4c487efd"
+        "sha256": "a8b3c73e47d36047f26ba45babd4d5db0fe906956ddd520462eda29b4129c57b"
       },
       {
         "file": "src/lib/ayas/revenue/activity/AyasRevenueCenterClosure.ts",
@@ -3740,11 +3740,11 @@
       },
       {
         "file": "src/lib/ayas/revenue/AyasRevenueContext.ts",
-        "sha256": "069a2f92c73b595689fb3dd34e7e30655925cc3b247222ee41738b3c0eb627de"
+        "sha256": "cc4c5dd1e337062397e1657ac63254630ebc40d264a575e4b72a4173e080ace1"
       },
       {
         "file": "src/lib/ayas/AyasChatStream.ts",
-        "sha256": "cb2f6129bb4c1482c489df0672b1f3889c101c97cd5a0b1101494a795b4c1bc1"
+        "sha256": "c8d5e4cda82f540eb3e82c54d30a7734628fe1143e9d2a1a5e24a338b717b623"
       },
       {
         "file": "src/lib/ayas/briefing/AyasExecutiveBriefing.ts",
@@ -3772,7 +3772,7 @@
       },
       {
         "file": "scripts/smoke-ayas-revenue-center-closure.ts",
-        "sha256": "8b1a748d984569331208b450145157c77617e95531abd7a2eb197df97ccdd21e"
+        "sha256": "98a873d126876836bb23af7ea8da28860db0cea073922685c76323f66f334cda"
       },
       {
         "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
@@ -3798,11 +3798,13 @@
     "incident": "16.14_TEST_ISOLATION_INCIDENT.json",
     "findings": [
       "F88 documented and source guard repaired",
-      "F89 delayed historical gate masking repaired"
+      "F89 delayed historical gate masking repaired",
+      "F90 frozen business-memory import fence restored; separate read-only chat ingress projection"
     ],
     "stageClosed": false,
     "frameworkVerified": false,
     "qualificationDebtMatrix": "04_STAGE16_REVENUE/implementation/16.14/16.14_DEFERRED_QUALIFICATION_MATRIX.json",
-    "next": "Exact-source all Stage16 dedicated and required regression matrix; no Stage17 source before this packet closes"
+    "next": "Exact-source all Stage16 dedicated and required regression matrix; no Stage17 source before this packet closes",
+    "initialExactFailure": "04_STAGE16_REVENUE/implementation/16.14/16.14_INITIAL_EXACT_FAILURE.json"
   }
 }

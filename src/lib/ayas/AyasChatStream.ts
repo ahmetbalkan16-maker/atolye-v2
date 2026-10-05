@@ -54,6 +54,7 @@ import {
 import { stemAyasMemoryWord } from "./memory/AyasMemoryRetrieval";
 import type { AyasMemoryStoreOptions } from "./memory/AyasMemoryStore";
 import { buildAyasRevenueContext } from "./revenue/AyasRevenueContext";
+import { buildAyasRevenueActivityChatContext } from "./revenue/activity/AyasRevenueActivityReport";
 import { isAyasIdentityStatement } from "./memory/AyasMemoryCandidate";
 import { ayasMemoryNameKey, detectAyasMemoryTemporalQuery, readAyasIdentityStatement } from "./memory/AyasMemoryTemporal";
 import { shouldUseAyasReasoning, runAyasReasoning } from "./reasoning/AyasReasoningCore";
@@ -1124,7 +1125,8 @@ async function* streamAyasChatTurn(
   const revenueSpan = input.revenueMemorySnapshots ? trace?.startSpan("memory", "ayas-revenue", "read-context", conversationSpan?.spanId) : undefined;
   const revenueContext = input.revenueMemorySnapshots ? buildAyasRevenueContext({ ...input.revenueMemorySnapshots, userText: text, now: new Date().toISOString() }) : null;
   revenueSpan?.end(revenueContext?.status === "UNAVAILABLE" ? "error" : "ok", { recordCount: revenueContext?.recordCount ?? 0, warningCount: revenueContext?.warningCount ?? 0, selectedCount: revenueContext?.lines.length ?? 0 }, revenueContext?.status === "UNAVAILABLE" ? "REVENUE_CONTEXT_UNAVAILABLE" : undefined);
-  const memoryLinesForPrompt = [...conversationalMemoryLines, ...(revenueContext?.lines ?? [])];
+  const revenueActivityContext = input.revenueMemorySnapshots?.activitySource === undefined ? null : buildAyasRevenueActivityChatContext(input.revenueMemorySnapshots.activitySource,text,new Date().toISOString());
+  const memoryLinesForPrompt = [...conversationalMemoryLines, ...(revenueContext?.lines ?? []), ...(revenueActivityContext?.lines ?? [])];
 
   // 1 — route: which model answers this turn (availability + complexity).
   const routingSpan = trace?.startSpan("model", "ayas-model", "route", conversationSpan?.spanId);

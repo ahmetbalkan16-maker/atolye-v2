@@ -360,3 +360,7 @@ Self-created sole LOCAL_OPERATOR ENTER identified and rollback evidence preserve
 ## F89 — 2026-10-05T04:53:49.699Z — Delayed historical terminal observation masked current owner gate
 
 Report selected append order rather than occurrence order. Current action/inventory selection now uses occurredAt, own snapshot chronology checked; P126–P128 and independent load-valid control pass.
+
+## F90 —16.14 initial exact adapter regression rejected a new business-memory import
+
+The frozen P48 root-policy dependency fence refused ActivityReport imported by AyasRevenueContext. Removed that dependency and restored16.10 source byte-for-byte. Activity now has a separate pure projection at existing chat ingress, with131 primary cases including actual in-process chat prompt capture, today/history bounds and explicit nested reporting source purity. No old grader/fence/pin changed. Initial c0a0b52 exact failure preserved; new source commit and fresh exact matrix required.

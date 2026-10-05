@@ -3300,7 +3300,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-revenue-center-closure.ts",
-          "sha256": "8b1a748d984569331208b450145157c77617e95531abd7a2eb197df97ccdd21e"
+          "sha256": "98a873d126876836bb23af7ea8da28860db0cea073922685c76323f66f334cda"
         },
         {
           "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
@@ -3348,7 +3348,7 @@
         },
         {
           "file": "scripts/smoke-ayas-revenue-center-closure.ts",
-          "sha256": "8b1a748d984569331208b450145157c77617e95531abd7a2eb197df97ccdd21e"
+          "sha256": "98a873d126876836bb23af7ea8da28860db0cea073922685c76323f66f334cda"
         },
         {
           "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
