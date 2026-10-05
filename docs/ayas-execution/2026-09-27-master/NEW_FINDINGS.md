@@ -352,3 +352,11 @@ At5fd1073 all40 selected historical source suites passed, but a separate control
 ## 2026-10-05T04:16:16.550Z —F87 /16.13 repeated-window ledger attribution
 
 Two valid completed same-offer pilots sharing a full ledger made the earlier16.12 verdict INCONCLUSIVE because later sibling order fees were conservatively unallocated. Reproduced in controlled fixtures.16.13 now validates a complete exact roster, partitions only known sibling orders, preserves global reversals/full source binding/unknown costs, and evaluates every sibling and started revision.16.12 unchanged. P16/P18/P19/P27–P34/P72 and H07/H12 cover retention. No authority or live certification. Initial TS target/narrowing errors repaired without config changes; incidental synthetic digest card-scanner match repaired in fixtures without scanner change.
+
+## F88 — 2026-10-05T04:53:49.699Z — Incorrect safe-mode test API defaulted to source checkout
+
+Self-created sole LOCAL_OPERATOR ENTER identified and rollback evidence preserved. Correct explicit-root awaited fixture plus entrypoint runtime root/schema preflight; no policy/grader weakening or owner EXIT. Historical isolation failure remains recorded.
+
+## F89 — 2026-10-05T04:53:49.699Z — Delayed historical terminal observation masked current owner gate
+
+Report selected append order rather than occurrence order. Current action/inventory selection now uses occurredAt, own snapshot chronology checked; P126–P128 and independent load-valid control pass.

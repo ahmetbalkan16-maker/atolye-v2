@@ -173,7 +173,7 @@ export interface StreamAyasChatInput {
    */
   readonly memoryStore?: AyasMemoryStoreOptions;
   /** Trusted optional read-only business snapshots; absent in production until qualified. No store writer or request-body binding. */
-  readonly revenueMemorySnapshots?: { readonly memory: unknown; readonly ledger: unknown };
+  readonly revenueMemorySnapshots?: { readonly memory: unknown; readonly ledger: unknown; readonly activitySource?: unknown };
 }
 
 function fold(text: string): string {

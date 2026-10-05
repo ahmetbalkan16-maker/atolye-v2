@@ -1,20 +1,23 @@
 /** Only code-generated compact facts reach chat. No writer binding, raw message, owner authentication or action authority. */
 import { buildAyasRevenueIntelligence } from "./AyasRevenueIntelligence";
 import { detectAyasRevenueRecall } from "./AyasRevenueRecall";
-import { containsAyasRevenueSensitiveData, deepFreezeAyasRevenueValue } from "./AyasRevenueRedaction";
+import { summarizeAyasRevenueActivity } from "./activity/AyasRevenueActivityReport";
+import { containsAyasRevenueSensitiveData, deepFreezeAyasRevenueValue, isAyasRevenuePlatform } from "./AyasRevenueRedaction";
 export const AYAS_REVENUE_CONTEXT_MAX_LINES=12,AYAS_REVENUE_CONTEXT_MAX_CHARS=3072;
 export function isAyasRevenueContextRelevant(text:string):boolean {
   if(typeof text!=="string"||text.length>8192)return false;
   const t=text.toLocaleLowerCase("tr").normalize("NFD").replace(/\p{M}/gu,"").replace(/ı/g,"i");
   return /etsy|upwork|fiverr|udemy|lemon|sat[iı]|satiyor|teklif|gelir|kazand|kanal|fiyat|deney|follow.?up|takip|urun|kar\b/.test(t);
 }
-export function buildAyasRevenueContext(input:{readonly memory:unknown;readonly ledger:unknown;readonly userText:string;readonly now:string}) {
+export function buildAyasRevenueContext(input:{readonly memory:unknown;readonly ledger:unknown;readonly activitySource?:unknown;readonly userText:string;readonly now:string}) {
   const done=(status:"OK"|"UNAVAILABLE"|"NOT_RELEVANT",lines:readonly string[],records:number,warnings:number)=>deepFreezeAyasRevenueValue({status,lines,recordCount:records,warningCount:warnings,grantsAuthority:false,autonomousBudgetUsd:0});
   if(!isAyasRevenueContextRelevant(input.userText))return done("NOT_RELEVANT",[],0,0);
   try{
     const query=detectAyasRevenueRecall(input.userText,input.now),s=buildAyasRevenueIntelligence(input.memory,input.ledger,query);
     const selected=s.views.filter(v=>(query.mode==="history"?v.state!=="future":v.isCurrent)&&(!query.platform||v.record.platform===query.platform));
+    const activity=input.activitySource===undefined?null:summarizeAyasRevenueActivity(input.activitySource,input.now,isAyasRevenuePlatform(query.platform)?query.platform:undefined,query);
     const lines=["[Gelir iş bağlamı: salt okunur gözlemler; owner kaydı doğrulanmış onay değildir; yürütme yetkisi NONE; bütçe 0.]",
+      ...(activity?.lines??[]),
       `Zaman: ${query.mode}; asOf=${s.asOf}; evidence=${s.evidenceFreshness}.`,
       ...(s.currentPrimaryOffer?[`Owner-source plan digest=${s.currentPrimaryOffer}; normalized/unverified.`]:["Geçerli tek owner-source ana teklif planı: UNKNOWN."]),
       ...s.realizedEconomicsByCurrency.slice(0,3).map(e=>`Ledger ${e.currency}: net=${e.netRevenueMinor} minor; katkı=${e.contributionProfitMinor??"UNKNOWN"} minor; ${e.status}; observations unverified.`),

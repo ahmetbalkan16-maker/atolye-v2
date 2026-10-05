@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-05T04:42:09.3455837Z",
+  "finding": "F88",
+  "origin": "Incorrect unawaited positional test call to enterAyasSafeMode",
+  "unexpectedPath": "data/brain/execution/safe-mode/000001.json",
+  "event": {
+    "schemaVersion": "1",
+    "sequence": 1,
+    "event": "ENTER",
+    "at": "2026-10-05T04:39:55.331Z",
+    "actor": "LOCAL_OPERATOR",
+    "previousDigest": null,
+    "healthChecks": null
+  },
+  "sha256": "6e007d4ae458a5382fc08cae32f7b880762de92e6e3946da99ffb53ec9b7544d",
+  "ownershipChecks": "Exact sequence1/actor/time/previousDigest and sole directory entry verified",
+  "remediation": "Removed only self-created event to restore pre-test NORMAL; no owner EXIT, daemon, execution, credential or revenue state touched"
+}

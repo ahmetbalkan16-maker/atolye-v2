@@ -1,0 +1,111 @@
+{
+  "at": "2026-10-05T04:53:49.699Z",
+  "state": "FOCUSED_FRAMEWORK_SOURCE_PACKET_EXACT_PENDING",
+  "primary": 128,
+  "heldOut": 25,
+  "adversarial": 25,
+  "independentControls": {
+    "caught": 14,
+    "total": 14,
+    "equivalents": 0,
+    "runtimeFailureNotCredit": true
+  },
+  "static": {
+    "typeScript": {
+      "status": "PASS",
+      "toolSession": 29380
+    },
+    "wholeLint": {
+      "status": "PASS",
+      "toolSession": 22092,
+      "errors": 0,
+      "inheritedWarnings": 13
+    },
+    "governance": "PASS",
+    "exactPatchSafety": "PASS"
+  },
+  "manifestVersion": "15F.4-v54",
+  "declaredSuites": 163,
+  "uniquePins": 208,
+  "old203PinsUnchanged": true,
+  "fullDeclaredBaseline": "NOT_RUN_V54",
+  "sourceInputs": [
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueActivity.ts",
+      "sha256": "e7bb378434b8cc15f66b9e3d51eb2e75979f29fdf76a09279cd781d312b1636e"
+    },
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueActivityStore.ts",
+      "sha256": "de95e21ffa76bd55031074a6eb0e47af2ee1a7b6c333d9b58020ead2f619cf56"
+    },
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueActivityReport.ts",
+      "sha256": "436fc147494749c80827ffa9d765f50b48f8fb30c523ba962a7b135d4c487efd"
+    },
+    {
+      "file": "src/lib/ayas/revenue/activity/AyasRevenueCenterClosure.ts",
+      "sha256": "f593dd9b16c1dd6e46991b278b61b154c1878aba49b6c2cf3b1ba87a01f9daef"
+    },
+    {
+      "file": "src/lib/ayas/revenue/AyasRevenueContext.ts",
+      "sha256": "069a2f92c73b595689fb3dd34e7e30655925cc3b247222ee41738b3c0eb627de"
+    },
+    {
+      "file": "src/lib/ayas/AyasChatStream.ts",
+      "sha256": "cb2f6129bb4c1482c489df0672b1f3889c101c97cd5a0b1101494a795b4c1bc1"
+    },
+    {
+      "file": "src/lib/ayas/briefing/AyasExecutiveBriefing.ts",
+      "sha256": "252c424c4add33c469381628b20bdeeefae31750beba8c9871ee4692bf60b511"
+    },
+    {
+      "file": "src/lib/ayas/briefing/AyasExecutiveBriefingService.ts",
+      "sha256": "62852451197b36c256fb04a960c3c935e94087998d208c0610110ed964328171"
+    },
+    {
+      "file": "src/lib/ayas/safety/AyasSafeModeStore.ts",
+      "sha256": "ea98bd8db04d91abcadc9c854571330a8b91174871901019b8d010d4b60cff88"
+    },
+    {
+      "file": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "cd1e0c2847f901f61fdb7aa414a720e9b29660d3a3e6d5ce66cd3ffcc55afe40"
+    },
+    {
+      "file": "app/brain/revenue/page.tsx",
+      "sha256": "f06308200bdaec289eff0da159bf174a85cdfdf1a6a2d8d2588a571634f82144"
+    },
+    {
+      "file": "scripts/smoke-ayas-eval-governance.ts",
+      "sha256": "3734ebe439d2ac3a6dee28db21c5e3aeb14e3a0447535a513904b2b4d0185a60"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-center-closure.ts",
+      "sha256": "8b1a748d984569331208b450145157c77617e95531abd7a2eb197df97ccdd21e"
+    },
+    {
+      "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
+      "sha256": "0262fd4561dfba826131e43f6255b2620f62e5b96b8e4d8bbe8cca8b5c56e0fb"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-center-closure-adversarial.ts",
+      "sha256": "f3cc6b6073330bb5aa1d5bea88ef4dfa547f55c9905713b6c2602532f7b1eb7b"
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-center-closure-mutations.ts",
+      "sha256": "19370a0acae17af4cf27701ab96594ba4c02e054c5d3cd154d7f2d0df78fb023"
+    },
+    {
+      "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
+      "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
+    }
+  ],
+  "liveQualification": "UNBOUND_NOT_RUN",
+  "stage16Complete": false,
+  "homepageImplementation": "NOT_STARTED",
+  "persistentActivation": false,
+  "incident": "16.14_TEST_ISOLATION_INCIDENT.json",
+  "findings": [
+    "F88 documented and source guard repaired",
+    "F89 delayed historical gate masking repaired"
+  ]
+}

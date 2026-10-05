@@ -12,6 +12,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { types } from "node:util";
 import { resolveAccessGate, verifySession } from "../../auth/accessGate";
 import { AyasExecutionGateStore } from "../execution/AyasExecutionGateStore";
 import { readAyasOwnerConstitution } from "../governance/AyasOwnerConstitutionReader";
@@ -47,6 +48,12 @@ async function ownerSessionValid(ownerSession: string | undefined, env: Env, now
  * The actor is derived here from the verified session, never taken from the caller.
  */
 export async function enterAyasSafeMode(input: { readonly repoRoot: string; readonly ownerSession?: string; readonly env?: Env; readonly nowMs?: () => number }): Promise<AyasSafeModeState> {
+  // A malformed JS/operator call must never silently default to the live checkout.
+  if (!input || typeof input !== "object" || types.isProxy(input) || Object.getPrototypeOf(input) !== Object.prototype
+    || Reflect.ownKeys(input).some(k => typeof k !== "string" || !["repoRoot", "ownerSession", "env", "nowMs"].includes(k))
+    || !Object.values(Object.getOwnPropertyDescriptors(input)).every(d => Object.hasOwn(d, "value"))
+    || typeof input.repoRoot !== "string" || !path.isAbsolute(input.repoRoot) || input.repoRoot.includes("\0") || input.repoRoot.length > 4096
+    || input.nowMs !== undefined && typeof input.nowMs !== "function") throw new Error("AYAS_SAFE_MODE_INPUT_INVALID");
   const now = input.nowMs ?? Date.now;
   const actor: AyasSafeModeActor = await ownerSessionValid(input.ownerSession, input.env ?? process.env, now()) ? "OWNER_SESSION" : "LOCAL_OPERATOR";
   const current = readAyasSafeMode(input.repoRoot);

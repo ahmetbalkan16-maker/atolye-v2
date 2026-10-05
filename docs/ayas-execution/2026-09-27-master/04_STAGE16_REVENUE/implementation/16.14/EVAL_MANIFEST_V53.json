@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v54",
+  "version": "15F.4-v53",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -3285,78 +3285,6 @@
         {
           "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
           "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-center-closure",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-center-closure.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-center-closure.ts",
-          "sha256": "8b1a748d984569331208b450145157c77617e95531abd7a2eb197df97ccdd21e"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
-          "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-center-closure-adversarial",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-center-closure-adversarial.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-center-closure-adversarial.ts",
-          "sha256": "f3cc6b6073330bb5aa1d5bea88ef4dfa547f55c9905713b6c2602532f7b1eb7b"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
-          "sha256": "0262fd4561dfba826131e43f6255b2620f62e5b96b8e4d8bbe8cca8b5c56e0fb"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
-          "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "revenue-center-closure-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-revenue-center-closure-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-revenue-center-closure-mutations.ts",
-          "sha256": "19370a0acae17af4cf27701ab96594ba4c02e054c5d3cd154d7f2d0df78fb023"
-        },
-        {
-          "file": "scripts/smoke-ayas-revenue-center-closure.ts",
-          "sha256": "8b1a748d984569331208b450145157c77617e95531abd7a2eb197df97ccdd21e"
-        },
-        {
-          "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
-          "sha256": "0262fd4561dfba826131e43f6255b2620f62e5b96b8e4d8bbe8cca8b5c56e0fb"
-        },
-        {
-          "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
-          "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
         }
       ],
       "slices": [

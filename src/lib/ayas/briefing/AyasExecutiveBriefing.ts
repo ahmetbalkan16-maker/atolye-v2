@@ -11,12 +11,15 @@
 import { buildAyasControlCenterView, type AyasControlCenterInput, type AyasCcDomainId } from "../../brain/ui/AyasControlCenterModel";
 import type { AyasReliabilitySloReport } from "../observability/AyasReliabilitySlo";
 import { alertDigest, briefingText, type AyasExecutiveSignal, type AyasBriefingDomain } from "./AyasExecutiveAlerts";
+import { buildAyasRevenueActivityReport } from "../revenue/activity/AyasRevenueActivityReport";
 export interface AyasBriefingSection { readonly domain: AyasBriefingDomain; readonly title: string; readonly status: "OBSERVED" | "NOT_CONFIGURED" | "UNAVAILABLE"; readonly summary: string; readonly evidence: readonly string[] }
 export type AyasBriefingReliabilityFact = { readonly kind: "ok"; readonly value: AyasReliabilitySloReport } | { readonly kind: "unavailable" };
 export interface AyasExecutiveBriefingInput extends AyasControlCenterInput {
   readonly reliability?: AyasBriefingReliabilityFact;
   /** The Control Center shows a failed report-center read as NO_DATA; the briefing reports it as unreadable. */
   readonly reportCenterUnavailable?: boolean;
+  /** Optional trusted SOURCE snapshot. The production binding remains absent. */
+  readonly revenueActivitySource?: unknown;
 }
 const titles: Readonly<Record<AyasBriefingDomain,string>> = { health:"Sistem sağlığı", improvements:"Gelişmeler", failures:"Hatalar ve kurtarmalar", decisions:"Bekleyen owner kararları",
   production:"Üretim ve maliyet", revenue:"Gerçekleşen gelir, kesinti ve kâr", security:"Güvenlik", technology:"Model ve teknik fırsatlar", capacity:"Kapasite ve engeller" };
@@ -28,6 +31,11 @@ const counters = [["unauthorizedWrites","unauthorized-writes","Yetkisiz yazma"],
   ["regressionGateBypass","regression-gate-bypass","Regresyon kapısı atlatma"]] as const;
 export function buildAyasExecutiveBriefing(input: AyasExecutiveBriefingInput) {
   const view = buildAyasControlCenterView(input), sections: AyasBriefingSection[] = [], covered: AyasBriefingDomain[] = [];
+  const revenue = buildAyasRevenueActivityReport(input.revenueActivitySource, view.generatedAt ?? "INVALID_CLOCK");
+  const revenueLine = revenue.status === "OBSERVED" ? "Gelir gözlemleri: " + revenue.realized.map(e => e.currency + " gross=" + e.grossRevenueMinor + ", fees=" + (e.platformFeesMinor + e.paymentProcessingFeesMinor) + ", refunds=" + e.refundsMinor + ", spend=" + (e.adSpendMinor + e.otherCostMinor + e.variableDeliveryCostMinor) + ", net=" + (e.contributionProfitMinor ?? "UNKNOWN") + " minor").join(" · ")
+    + "; owner incelemesi=" + revenue.approvalQueue.length + "; aktif iş=" + revenue.platforms.map(p => p.activeWork ?? "UNKNOWN").join(",") + ". Kaynak gözlemdir, finansal yetki NONE."
+    : revenue.status === "UNAVAILABLE" ? "Gelir faaliyet kaynağı okunamadı; gelir/onay durumu bilinmiyor." : "Gelir ledger'i henüz bağlı değil; gerçekleşen gelir, kesinti ve kâr ölçülmedi.";
+  if (revenue.status === "OBSERVED") covered.push("revenue");
   const reliability = input.reliability?.kind === "ok" ? input.reliability.value : null;
   const validDomains = view.domains.filter(d => d.availability === "OK");
   for (const [domain,title] of Object.entries(titles) as [AyasBriefingDomain,string][]) {
@@ -37,14 +45,21 @@ export function buildAyasExecutiveBriefing(input: AyasExecutiveBriefingInput) {
     if (valid.length && valid.length === rows.length && !extraUnavailable) covered.push(domain);
     const reliabilityLine = !reliability ? "Güvenilirlik sayaçları okunamadı."
       : "Güvenilirlik: " + counters.map(([key,,label]) => label + " " + (reliability[key].status === "UNKNOWN" ? "ölçülemedi" : reliability[key].status === "BREACH" ? reliability[key].observedViolations + " ihlal" : "0 (kapsamlı)")).join(" · ") + ". Küresel SLO sertifikalı değil.";
-    sections.push({ domain,title,status: domain === "revenue" ? "NOT_CONFIGURED" : rows.some(d => d.availability === "UNAVAILABLE") || extraUnavailable ? "UNAVAILABLE" : valid.length ? "OBSERVED" : "NOT_CONFIGURED",
-      summary: domain === "revenue" ? "Gelir ledger'i henüz bağlı değil; gerçekleşen gelir, kesinti ve kâr ölçülmedi."
+    sections.push({ domain,title,status: domain === "revenue" ? revenue.status === "OBSERVED" ? "OBSERVED" : revenue.status === "UNAVAILABLE" ? "UNAVAILABLE" : "NOT_CONFIGURED" : rows.some(d => d.availability === "UNAVAILABLE") || extraUnavailable ? "UNAVAILABLE" : valid.length ? "OBSERVED" : "NOT_CONFIGURED",
+      summary: domain === "revenue" ? briefingText(revenueLine, 480)
         : domain === "production" ? briefingText(rows.map(d => d.summary).join(" · ")) + " Maliyet ledger'i bağlı değil; maliyet bilinmiyor."
         : domain === "failures" ? briefingText([...rows.map(d => d.summary), reliabilityLine].join(" · "), 480)
         : briefingText(rows.map(d => d.summary).join(" · ") || "Henüz veri yok."),
-      evidence: domain === "failures" ? [...rows.map(d => d.source), RELIABILITY_SOURCE] : rows.map(d => d.source) });
+      evidence: domain === "revenue" && revenue.status === "OBSERVED" ? ["revenue-ledger:" + revenue.ledgerDigest, "revenue-activity:" + (revenue.activityHeadDigest ?? "EMPTY")] : domain === "failures" ? [...rows.map(d => d.source), RELIABILITY_SOURCE] : rows.map(d => d.source) });
   }
   const signals: AyasExecutiveSignal[] = [];
+  if (revenue.status === "OBSERVED" && (revenue.approvalQueue.length > 0 || revenue.platforms.some(p => p.connection === "BLOCKED" || (p.activeWork ?? 0) > 0 || (p.opportunities ?? 0) > 0)
+    || revenue.realized.some(e => e.grossRevenueMinor > 0 || e.refundsMinor > 0 || e.variableCostsMinor > 0))) {
+    signals.push({ issueKey: "revenue:material-condition", domain: "revenue", priority: revenue.approvalQueue.length ? "ACTION_REQUIRED" : "MATERIAL_INFO",
+      summary: briefingText(revenueLine, 480), consequence: "Ledger ve faaliyet kanıtını Gelir Merkezi'nde incele; bu bildirim yürütme veya finansal onay vermez.",
+      requestedDecision: revenue.approvalQueue.length ? "Gelir Merkezi'ndeki tam eylem, maliyet ve risk gözlemini mevcut owner onay yolunda incele." : null,
+      evidence: { source: "revenue-activity-ledger", reference: "brain:revenue", digest: alertDigest({ ledger: revenue.ledgerDigest, queue: revenue.approvalQueue.map(r => r.recordDigest), inventory: revenue.platforms.map(p => [p.platform, p.opportunities, p.activeWork, p.connection]) }), observedAt: revenue.observedAt } });
+  }
   for (const item of view.attention) {
     // Only readable domains raise issues. An unreadable source is reported once, below, under its own key,
     // so its WARNING item never replaces or lowers a known condition.
@@ -70,12 +85,12 @@ export function buildAyasExecutiveBriefing(input: AyasExecutiveBriefingInput) {
         digest: alertDigest({ counter: key, status: counter.status, observedViolations: counter.observedViolations }), observedAt: null } });
   }
   const unreadable = [...view.domains.filter(d => d.availability === "UNAVAILABLE").map(d => d.title), ...(reliability ? [] : ["Güvenilirlik sayaçları"]),
-    ...(input.reportCenterUnavailable === true ? ["AYAS Raporları"] : [])].sort((a,b) => a.localeCompare(b, "tr"));
+    ...(input.reportCenterUnavailable === true ? ["AYAS Raporları"] : []), ...(revenue.status === "UNAVAILABLE" ? ["Gelir faaliyet kaynağı"] : [])].sort((a,b) => a.localeCompare(b, "tr"));
   if (unreadable.length) signals.push({ issueKey: "health:sources-unavailable", domain: "health", priority: "MATERIAL_INFO",
     summary: briefingText(unreadable.length + " kaynak okunamadı: " + unreadable.join(", ")),
     consequence: "Bu alanlardaki durum doğrulanamıyor; oradaki eski bildirimler çözülmüş sayılmaz.", requestedDecision: null,
     evidence: { source: "briefing-coverage", reference: "brain:sources", digest: alertDigest({ unreadable }), observedAt: null } });
   return { schemaVersion:"1" as const,generatedAt:view.generatedAt,sections,signals,covered,grantsAuthority:false as const,
-    monetaryAuthority:"NONE" as const,productionCost:"NOT_CONFIGURED" as const,realizedRevenue:"NOT_CONFIGURED" as const,
+    monetaryAuthority:"NONE" as const,productionCost:"NOT_CONFIGURED" as const,realizedRevenue:revenue.status === "OBSERVED" ? "OBSERVED" as const : "NOT_CONFIGURED" as const,
     transport:"LOCAL_OWNER_UI_ONLY" as const };
 }

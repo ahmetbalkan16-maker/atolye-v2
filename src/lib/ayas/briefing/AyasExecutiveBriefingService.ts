@@ -11,7 +11,7 @@ import { readAyasReliabilityState } from "../observability/AyasReliabilityState"
 import { buildAyasExecutiveBriefing, type AyasBriefingReliabilityFact } from "./AyasExecutiveBriefing";
 import { projectAyasExecutiveOwnerView, type AyasExecutiveOwnerView } from "./AyasExecutiveOwnerView";
 export type { AyasExecutiveOwnerView, AyasExecutiveAlertView } from "./AyasExecutiveOwnerView";
-export async function loadAyasExecutiveOwnerView(input: { readonly synchronize: boolean; readonly ownerAuthenticated: boolean }): Promise<AyasExecutiveOwnerView> {
+export async function loadAyasExecutiveOwnerView(input: { readonly synchronize: boolean; readonly ownerAuthenticated: boolean; readonly revenueActivitySource?: unknown }): Promise<AyasExecutiveOwnerView> {
   const [server,approvalInbox,microBatch,ownerRecommendations,researchEngineStatus,goalDevelopment,autonomous] = await Promise.all([
     // Same last resort as /brain: a failed read model renders every server domain unavailable.
     loadAyasControlCenterFacts().catch(() => null),loadAyasApprovalInboxView(),loadAyasMicroBatchDevelopmentView(),loadAyasOwnerRecommendationsView(),
@@ -20,6 +20,6 @@ export async function loadAyasExecutiveOwnerView(input: { readonly synchronize: 
   let reliability: AyasBriefingReliabilityFact;
   try { reliability = { kind: "ok", value: readAyasReliabilityState() }; } catch { reliability = { kind: "unavailable" }; }
   const selfHeal = loadBrainSelfHealSnapshot(), briefing = buildAyasExecutiveBriefing({server,approvalInbox,microBatch,ownerRecommendations,researchEngineStatus,goalDevelopment,autonomous,
-    reportCenter:selfHeal.error ? null : selfHeal.reportCenter, reportCenterUnavailable:selfHeal.error !== null, reliability});
+    reportCenter:selfHeal.error ? null : selfHeal.reportCenter, reportCenterUnavailable:selfHeal.error !== null, reliability,revenueActivitySource:input.revenueActivitySource});
   return projectAyasExecutiveOwnerView({ briefing, repoRoot: process.cwd(), now: new Date().toISOString(), synchronize: input.synchronize, ownerAuthenticated: input.ownerAuthenticated });
 }

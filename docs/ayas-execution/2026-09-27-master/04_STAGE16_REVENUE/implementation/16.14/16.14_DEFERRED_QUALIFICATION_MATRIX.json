@@ -1,0 +1,113 @@
+{
+  "at": "2026-10-05T04:53:49.699Z",
+  "auditedAtHead": "54ee42b24def11d690d5211475a5a37ba4d1138b",
+  "mode": "READ_ONLY_REPOSITORY_AUDIT",
+  "platformValidationLevel": "FRAMEWORK_VALIDATED_ONLY",
+  "closure": "OPEN_OWNER_PROMOTION_AND_LIVE_QUALIFICATION_NOT_GRANTED",
+  "rows": [
+    {
+      "stage": "16.5",
+      "id": "UPWORK_OFFICIAL_OAUTH_CATALOG_SCHEMA",
+      "status": "PENDING_LIVE",
+      "evidenceKind": "REPOSITORY_STATE_NOT_LIVE_QUALIFICATION",
+      "priorSourceCommit": "73ebc8c9cb60131a205eaef971bf2d446984b9f8",
+      "evidencePaths": [
+        "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+        "src/lib/ayas/revenue"
+      ],
+      "remaining": "Official OAuth account and source-reviewed tool catalog/input/output schema/scopes unqualified; reviewed catalog and production registry EMPTY",
+      "evidenceDigest": null,
+      "sourceHead": null,
+      "livePass": false,
+      "ownerActionRequired": true,
+      "authority": "NONE"
+    },
+    {
+      "stage": "16.7",
+      "id": "UDEMY_REVIEWS_QA_MESSAGE_ROUTES",
+      "status": "UNKNOWN",
+      "evidenceKind": "REPOSITORY_STATE_NOT_LIVE_QUALIFICATION",
+      "priorSourceCommit": "e634a73a9613e25938cc3ef223519a36deb8ac05",
+      "evidencePaths": [
+        "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+        "src/lib/ayas/revenue"
+      ],
+      "remaining": "Reviews/Q&A/individual message routes not qualified; only two GET routes qualified; owner upload/publish remains manual",
+      "evidenceDigest": null,
+      "sourceHead": null,
+      "livePass": false,
+      "ownerActionRequired": true,
+      "authority": "NONE"
+    },
+    {
+      "stage": "16.8",
+      "id": "LEMON_TEST_KEY_CONNECTION_DURABLE_INGRESS",
+      "status": "PENDING_LIVE",
+      "evidenceKind": "REPOSITORY_STATE_NOT_LIVE_QUALIFICATION",
+      "priorSourceCommit": "53180cb0920eac06bcb2a06280fdcbf823b160fc",
+      "evidencePaths": [
+        "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+        "src/lib/ayas/revenue"
+      ],
+      "remaining": "Owner TEST key/account/connection not tested; trusted durable ingress/dedupe/ACK binding absent",
+      "evidenceDigest": null,
+      "sourceHead": null,
+      "livePass": false,
+      "ownerActionRequired": true,
+      "authority": "NONE"
+    },
+    {
+      "stage": "16.11",
+      "id": "SECURITY_ACCOUNT_WEBHOOK_JOURNAL_EXECUTOR",
+      "status": "UNBOUND",
+      "evidenceKind": "REPOSITORY_STATE_NOT_LIVE_QUALIFICATION",
+      "priorSourceCommit": "74b6c495813bbce9f6b405dc11f628900da99261",
+      "evidencePaths": [
+        "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+        "src/lib/ayas/revenue"
+      ],
+      "remaining": "Actual account reader, attachment ingress, webhook ingress/durable dedupe/ACK, write journal/nonce and executor unbound; signatures tested synthetically only",
+      "evidenceDigest": null,
+      "sourceHead": null,
+      "livePass": false,
+      "ownerActionRequired": true,
+      "authority": "NONE"
+    },
+    {
+      "stage": "16.11A",
+      "id": "CURRENT_TERMS_ACCOUNT_PERMISSION_REVIEW",
+      "status": "NOT_RUN",
+      "evidenceKind": "REPOSITORY_STATE_NOT_LIVE_QUALIFICATION",
+      "priorSourceCommit": "adae61647d79dc3fde26e883c0c20b2420dd5ba8",
+      "evidencePaths": [
+        "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+        "src/lib/ayas/revenue"
+      ],
+      "remaining": "Current terms reader, real account standing/individual permission/owner/professional review unbound; Fiverr/Udemy full terms body unqualified",
+      "evidenceDigest": null,
+      "sourceHead": null,
+      "livePass": false,
+      "ownerActionRequired": true,
+      "authority": "NONE"
+    },
+    {
+      "stage": "16.12",
+      "id": "AUTHENTICATED_PILOT_PLATFORM_STORE_JOURNAL",
+      "status": "UNBOUND",
+      "evidenceKind": "REPOSITORY_STATE_NOT_LIVE_QUALIFICATION",
+      "priorSourceCommit": "ce160ed18fcb2979054a65aaae2d921e0587c5d1",
+      "evidencePaths": [
+        "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+        "src/lib/ayas/revenue"
+      ],
+      "remaining": "Actual authenticated owner/pilot/platform/production store/journal qualification not performed; no real pilot action authorized",
+      "evidenceDigest": null,
+      "sourceHead": null,
+      "livePass": false,
+      "ownerActionRequired": true,
+      "authority": "NONE"
+    }
+  ],
+  "credentialsOAuthKeysLoaded": false,
+  "accountOrPilotActivation": false
+}
