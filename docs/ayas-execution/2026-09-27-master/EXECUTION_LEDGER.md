@@ -1140,3 +1140,11 @@ NORMALIZED_RECORDS_NOT_AUTHENTICATED_OWNER; no live source binding or actual bus
 ## 2026-10-03T22:55:12.286Z —16.12 focused full framework
 
 16.12 bounded pilot framework focused verified:112 primary+31 held-out (original20 preserved)+31 independent assertion-caught controls; explicit-root TEMP append history/CAS/SAFE/corruption/replay, immutable window/metric, negative evidence retained across revisions, full16MiB realized ledger/per currency/global reversals/later fees/refunds, manual owner handoff/no executor. TS/lint/diff/pins/governance/protection/security/compliance/free-first PASS;198 pins/157 v52 declared suites, full baseline NOT_RUN. Owner/authenticated source, production store/journal and actual pilot actions UNBOUND/NOT_RUN. Exact source matrix/full Graphify pending. Homepage NOT_STARTED;STOP before redesign.
+
+## 2026-10-03T23:12:57.040Z —16.12 exact source framework verified;OWNER STOP
+
+16.12 framework verified at ce160ed18fcb2979054a65aaae2d921e0587c5d1:112 primary+31 held-out+31 independent controls;40 selected exact-source PASS,198 committed pins/157 v52 declared (full baseline NOT_RUN),TS/lint/diff PASS with13 inherited warnings. Graphify current/full382 communities/integrity0;structuralPARTIAL9/semanticPENDING. Store append history/CAS/SAFE, negative revisions/refunds, realized ledger economics and manual handoff/no executor verified;F86 nonpassive realized cost early-stop repaired/source verified. Actual authenticated owner/pilot/platform/store/journal qualification UNBOUND/NOT_RUN;Stage16/MasterOPEN. Latest owner instruction2026-10-04:16.12 bitince dur. STATUS STOPPED_AS_REQUESTED after16.12;16.13 and homepage implementation NOT_STARTED;await owner. Session-end recording uses ordinary commit/push/parity and current Graphify only; no subsequent Stage implementation is authorized.
+
+## 2026-10-05T03:47:34.131Z — SESSION RECOVERY /16.13 resume
+
+16.12 recovered and framework verified at ce160ed: primary112/112+held-out31/31 rechecked,198 pins unchanged. Current task16.13 Profit-Gated Scaling; prior stop revoked by direct owner continuation2026-10-05. Real account/pilot/platform/store qualification stays UNBOUND/NOT_RUN; Stage16/MasterOPEN. Graphify metadata HEAD matched but six dirty documentation paths required refresh; inheritedPARTIAL9/semanticPENDING remain. No restart, reset, clean, stash or live action.

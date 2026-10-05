@@ -15,7 +15,7 @@
     "H31 positive realized profit and new draft revision cannot erase paid evidence",
     "Independent removal of derived ledger cost signal must assertion-fail P96"
   ],
-  "qualification": "FOCUSED_CASES_VERIFIED_FULL_STATIC_MUTATION_EXACT_SOURCE_PENDING",
+  "qualification": "FRAMEWORK_EXACT_SOURCE_VERIFIED",
   "allocationFollowUp": {
     "at": "2026-10-03T22:52:58.837Z",
     "sourceBefore": "5fd10733609e559aabba715fea16279e7b7a9793",
@@ -33,6 +33,11 @@
       "H31 allocation uncertainty refuses positive qualified profit",
       "Independent omission of unallocated related fee must assertion-fail P84"
     ],
-    "qualification": "FOCUSED_VERIFIED_FINAL_SOURCE_PENDING"
-  }
+    "qualification": "FRAMEWORK_EXACT_SOURCE_VERIFIED",
+    "testedSourceHead": "ce160ed18fcb2979054a65aaae2d921e0587c5d1",
+    "selectedExactSourceSuites": 40
+  },
+  "testedSourceHead": "ce160ed18fcb2979054a65aaae2d921e0587c5d1",
+  "selectedExactSourceSuites": 40,
+  "authority": "NONE"
 }
