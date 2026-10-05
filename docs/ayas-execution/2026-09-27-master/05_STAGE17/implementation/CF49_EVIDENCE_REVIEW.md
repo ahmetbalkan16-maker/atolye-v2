@@ -1,4 +1,10 @@
+# Current correction — CF49 REOPENED; quotation-boundary source repair pending clean proof
+
+After the d3b956b receipt, two independent synthetic controls reproduced slot acquisition by an unterminated single quote and a parenthesized single-quoted statement. The previous closure is preserved as CF49_CLOSURE_d3b956b_HISTORICAL.json and is superseded for current qualification. Word-boundary quotation guards are repaired; new scope has30 primary/228 negative controls/12 source mutations. Fresh clean-source closure is required before CF49 is called closed again. Foundation remains BLOCKED; no homepage/master advancement. Historical d3b results below are not current closure proof.
+
 # CF49 explicit evidence supersession review — 2026-10-05
+
+Final bounded result: **CLOSED_PASS**, clean source `d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e`, all12 closure suites passed. [CF49_CLOSURE.json](CF49_CLOSURE.json) preserves exact source hash, child digests and structured results:55/55 cognitive+5/5 held,28 primary+12 inherited held+4 E2E,12 reviewed cases+204 safety controls,11 mutations,16 review-contract controls. Earlier180/24/10 counts below are explicitly historical preparation. Actual Foundation remains BLOCKED; raw retrieval and Golden FAIL results are retained separately.
 
 The f97e944 failed formal run was reproduced under the exact stripped environment: Git refused repository ownership because sandbox-injected safe-directory config was absent. The operator/reviewer now use an exact-root command-local option; no global trust or credential environment is added. A direct passing reviewer was insufficient to close CF49; a fresh full clean-source operator run remains mandatory.
 

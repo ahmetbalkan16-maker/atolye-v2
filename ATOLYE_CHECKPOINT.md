@@ -1,4 +1,16 @@
-# AYAS current — 2026-10-05 /CF49 scope and audit boundary repaired; clean closure pending
+# Current correction — CF49 REOPENED; quotation-boundary source repair pending clean proof
+
+After the d3b956b receipt, two independent synthetic controls reproduced slot acquisition by an unterminated single quote and a parenthesized single-quoted statement. The previous closure is preserved as CF49_CLOSURE_d3b956b_HISTORICAL.json and is superseded for current qualification. Word-boundary quotation guards are repaired; new scope has30 primary/228 negative controls/12 source mutations. Fresh clean-source closure is required before CF49 is called closed again. Foundation remains BLOCKED; no homepage/master advancement. Historical d3b results below are not current closure proof.
+
+# AYAS current — 2026-10-05 /CF49 CLOSED_PASS; Stage17/Foundation BLOCKED
+
+Clean tested source `d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e`: CF49 closure12/12 suites PASS, cognitive55/55+held5/5,28 primary+12 inherited held+4 E2E,12 frozen-case reviews+204 negative controls,11 mutations and16 review-contract controls. Historical retrieval raw FAIL/exact12 improvement requests preserved;16 other limits remain open. Frozen graders/fixtures/all214 pins unchanged. Stage17 audit process boundary and scoped sandbox Git reads repaired; unchanged firewall12 and supplemental boundary10 PASS. TypeScript/lint/governance and Stage17 primary151+held30+adversarial30+mutation9 PASS. Full166 at9aa6661:162 PASS/4 FAIL; later source has selected receipts only, no false full-baseline rebind. Fresh Golden runs retain PROMOTION_STOPPED solely for raw retrieval review.
+
+Actual canonical audit atd3b956b BLOCKED(PROTECTED_SCOPE_INCOMPLETE):5372 entries,1667 size/budget exclusions, measured before/after digest unchanged; external/private/runtime full scope not qualified.15 source-present and30 aggregate TEST/LIVE NOT_RUN; whole-domain PASS not inferred from smokes. Both AYAS tasks Running and loopHEALTHY read-only, loaded process source unknown; authenticated runtime endpoint401. Graphify current at tested source,391 communities/integrity0,PARTIAL9/semanticPENDING. No task/runtime/platform activation or secret handling. Lemon canonical16.8 preserved UNBOUND; Fiverr remains owner reports without order/revenue/ledger proof.
+
+Canonical result/index: `docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md` and `STAGE17_EVIDENCE_REGISTRY.json`. Next: complete actual protected/domain/live qualification and bound final review through existing gates. Foundation must really close before master advancement. Infinity20-case preparation preserved only, activation OFF. Homepage/Brain UI V2 NOT_STARTED; boundary NOT_REACHED because Stage17 remains blocked. Latest owner permits safe technical work/commit/push; STOP before homepage design remains mandatory. Final Git HEAD may be a later docs checkpoint; do not rebind tested receipts.
+
+# Historical preparation — CF49 closure pending atf97e944
 
 The f97e944 formal closure attempt refused HEAD collection in the stripped subprocess environment: sandbox Git safe-directory settings were intentionally not inherited. Exact-root command-local `safe.directory` fixes the read-only probe without changing global config or restoring credential environment. Fresh committed-source closure still required. Historical failed attempts retained.
 

@@ -376,3 +376,13 @@ c26075774762b54de1dc0a3f69c45f7de7a6b41b: unchanged62 selected canonical suites 
 ## F92 — Stage17 measured protected-state inventory is incomplete
 
 Read-only default collector at71b53b9 reports unchanged before/after measured digest, but strict credential/link/size/unreadable guards and external runtime scope prevent full protected mutation qualification. Actual foundation closure BLOCKED. No private body or credential copied to evidence, no attribution to unrelated writers, no scope broadened in the audit commit.
+
+## 2026-10-05 — CF49 bounded review scope / F93 audit import boundary / F94 isolated Git read refusal
+
+Before formal closure, independent wrong-object/component and single-quoted/multi-sentence controls reproduced over-broad purchase-slot derivation. Reader remains bounded to the existing slot; object adjacency, authoritative content and conservative indirect-statement guards repaired the defects. Twelve original reviewed cases catch keyless recovery removal and widened object behavior;204 negative controls/11 mutations pass. Failed initial9aa andf97 formal attempts are historical, not hidden. Exactd3b source finally closes CF49 with12 suites;16 other retrieval limits remain open.
+
+F93: full clean9aa baseline exposed Stage17 audit/adversarial entry points reaching the leased Graphify collector and an unmapped process-capable source collector. Removed those imports/capabilities from the audit collector; fixed probes belong to the existing operator. The unchanged frozen action-firewall closure now passes12 scenarios;10 supplemental controls prove fail-closed probes, source fence, credential exclusion, incomplete scope, HEAD drift and trusted operator resolution. No allowlist or pin changed.
+
+F94: stripping provider/credential environment also removed sandbox Git ownership trust; formal frozen-review refused its HEAD read. Exact-root command-local trust and one fixed exact-root Git setting for the existing Graphify subprocess repair the read boundary without global config changes or environment restoration. The exact stripped run succeeds atd3b. Original failed attempt preserved.
+
+F92 remains OPEN:5372 fixed-root entries,1667 size/budget exclusions and unqualified external/private runtime scope; measured subset unchanged is not full mutation proof. The fresh canonical audit remainsBLOCKED;15 source-present and30 aggregate test/live NOT_RUN are not concealed by representative component PASS. Unauthenticated runtime endpoint401 requires owner session; taskRunning/loopHEALTHY do not establish loaded-source identity. Golden promotion remains stopped solely at frozen retrieval review; no silent grader succession. No homepage work or later master advancement.

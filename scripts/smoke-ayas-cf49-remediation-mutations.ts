@@ -14,6 +14,7 @@ const mutations=[
   ["TIE_NOT_DISPUTED",'if (last && last.observedMs === observedMs) {','if (false) {'],
   ["WRONG_PURCHASE_OBJECT",'if (!purchaseDecision || indirect) return null;','if (!/\\b(?:almaya|toplamaya|kurmaya) karar verdim$/.test(value) || indirect) return null;'],
   ["UNTRUSTED_LEGACY",'return derived?.key === "user.decision.computer-purchase-plan" && !isAuthoritative(record) ? null : derived;','return derived;'],
+  ["QUOTED_DECISION",'const quoted = /(?:^|[^\\p{L}\\p{N}])[\'‘’]|[\'‘’](?:$|[^\\p{L}\\p{N}])/u.test(input.body);','const quoted = false;'],
 ] as const;
 const env:NodeJS.ProcessEnv={NODE_ENV:"test"};for(const key of ["SystemRoot","WINDIR","COMSPEC","PATH","PATHEXT","TEMP","TMP","USERPROFILE","APPDATA","LOCALAPPDATA","HOME"])if(process.env[key])env[key]=process.env[key];
 const results:{id:string;caught:boolean;assertionCases:string[]}[]=[];

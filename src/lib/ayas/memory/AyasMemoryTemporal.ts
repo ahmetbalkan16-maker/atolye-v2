@@ -214,7 +214,7 @@ function deriveFactEvidence(input: {
     // The purchased object itself must be a computer. A mentioned computer,
     // component purchase, quotation, question or conditional grants no slot.
     const purchaseDecision = /\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc) (?:satin )?(?:almaya|toplamaya|kurmaya) karar verdim$/.test(value);
-    const quoted = /(?:^|\s)['‘’].*['‘’](?:\s|$)/u.test(input.body);
+    const quoted = /(?:^|[^\p{L}\p{N}])['‘’]|['‘’](?:$|[^\p{L}\p{N}])/u.test(input.body);
     const multipleStatements = input.body.replace(/\d\.\d/g, "").split(/[.!;\n]/).filter(part => part.trim()).length > 1;
     const indirect = quoted || multipleStatements || /[?？"“”«»;\n]/.test(input.body) || /\b(?:eger|belki|olursa|varsayalim|farz|dedi|diyordu)\b/.test(value);
     if (!purchaseDecision || indirect) return null;

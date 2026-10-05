@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+  "entryHead": "2e250cf3fbec608970dd601a513359aa3478f191",
+  "createdAt": "2026-10-05T10:11:30.574Z",
+  "cf49": "CLOSED_PASS",
+  "foundation": "BLOCKED",
+  "entries": [
+    {
+      "file": "CF49_CLOSURE.json",
+      "sha256": "6d1dc66d574ff3e1393b83d97e08741aa4d802b62eef4cd86387a46709df0ef0",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "CF49_BOUNDED_READER_CLOSURE",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_SELECTED_d3b956b.json",
+      "sha256": "d31027715c2f8b03bf39354e7a639c174011d76db45d3bc84df3a1a4115ccb84",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "NAMED_COMPONENT_TESTS_ONLY",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_GOLDEN_VAULT_RAW_d3b956b.json",
+      "sha256": "aad7c94078501697da8fc450aba657ca3b3624076d6ea88e6d51c0fec154659b",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "FROZEN_RAW_FAIL_PRESERVED",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_GOLDEN_SANDBOX_RAW_d3b956b.json",
+      "sha256": "0d33bd6351814ac0e827c7de51a5da18d7d7da435827f92e59e30dbcbe9a55e0",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "FROZEN_RAW_FAIL_PRESERVED",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_NATIVE_READONLY_d3b956b.json",
+      "sha256": "5254d38f8123acc04b3776d2cad1a96505bae11a4cd5a5d0f809e1e22c2e48c0",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "BOUNDED_READ_ONLY_OBSERVATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_TASKS_READONLY_d3b956b.json",
+      "sha256": "0ac889e265708b3ccc34e4a867b5e5202698fd9e7fe2e9b44f924b152d12d21f",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "BOUNDED_READ_ONLY_OBSERVATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_RUNTIME_ENDPOINT_d3b956b.json",
+      "sha256": "b60ee5d9ff871f106f34d990bd369c8c96707312e4c8fa8c5da6de49afeb13f9",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "BOUNDED_READ_ONLY_OBSERVATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_LOOP_HEALTH_d3b956b.json",
+      "sha256": "36d0db944dd074942d3be65d43909f1d13a622f02f6471397e0d2de8eb6c10e2",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "BOUNDED_READ_ONLY_OBSERVATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_RESOURCES_d3b956b.json",
+      "sha256": "2cf6cf354f16beed0ed62b2d65dd80015704a4f7c0dd4b3cea6a77b3a0b8398d",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "BOUNDED_READ_ONLY_OBSERVATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_d3b956b.json",
+      "sha256": "2a35b0bbc0c7e4481710bce882023b3127f66119d4f0e5fd62f4c693edf57e62",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "DEFAULT_CANONICAL_AUDIT_SOURCE_PRESENCE_ONLY",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_GRAPHIFY_SOURCE_d3b956b.json",
+      "sha256": "a2d203c522f49e6930ea48c6fff1f51cac547ab2b6d5a721ae058cb4ae290eda",
+      "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+      "scope": "BOUNDED_READ_ONLY_OBSERVATION",
+      "runningProcessSourceQualified": false
+    }
+  ],
+  "historicalFullBaseline": {
+    "file": "STAGE17_9aa6661_FULL166.json",
+    "sourceHead": "9aa6661af3dc8290155a17f4d520e1bd108a003d",
+    "sha256": "56eabfb64fa5aed3fb0d51182ae995e2ca1caeeeaf9f5f7a0024d3e7930e67a9",
+    "executed": 166,
+    "passed": 162,
+    "failed": 4,
+    "reboundToCurrentSource": false
+  },
+  "frozenManifest": {
+    "version": 55,
+    "suites": 166,
+    "pins": 214,
+    "changed": false
+  },
+  "domainAggregation": {
+    "sourcePresence": 15,
+    "testAndLiveNotRun": 30,
+    "representativeSmokesQualifyWholeDomain": false
+  },
+  "protectedScope": {
+    "files": 5372,
+    "complete": false,
+    "exclusions": {
+      "credentialFiles": 0,
+      "sizeOrByteBudgetFiles": 1667,
+      "linkOrSpecialEntries": 0,
+      "depthOrFileLimitStops": 0,
+      "unreadableRoots": 0
+    },
+    "measuredDigestUnchanged": true,
+    "externalRuntimeQualified": false
+  },
+  "golden": {
+    "rawDecision": "PROMOTION_STOPPED",
+    "soleFailingCase": "golden.memory.retrieval-evaluation",
+    "caseTimedOut": false,
+    "expectationsOrPinsChanged": false
+  },
+  "remainingRetrievalLimits": 16,
+  "homepage": {
+    "started": false,
+    "boundaryReached": false,
+    "reason": "FOUNDATION_NOT_CLOSED"
+  },
+  "authority": "NONE"
+}

@@ -1,0 +1,19 @@
+{
+  "scope": "TASK_REGISTRATION_STATE_ONLY",
+  "observedAt": "2026-10-05T10:08:32.4152088Z",
+  "schemaVersion": "1",
+  "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+  "evidenceClass": "LIVE_READ_ONLY",
+  "loadedSourceHead": "NOT_ESTABLISHED",
+  "grantsAuthority": false,
+  "tasks": [
+    {
+      "state": "Running",
+      "name": "AYAS Access Online"
+    },
+    {
+      "state": "Running",
+      "name": "AYAS Autonomy Observer"
+    }
+  ]
+}

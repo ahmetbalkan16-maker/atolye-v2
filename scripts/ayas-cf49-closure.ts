@@ -38,10 +38,10 @@ function main() {
       assert.deepEqual(json?.heldOut, { passed: 5, total: 5 }); assert.deepEqual(json?.failures, []);
     }
     if (file.includes("cf49-")) assert.equal(json?.status, "PASS");
-    if (file.endsWith("smoke-ayas-cf49-remediation.ts")) { assert.equal(json?.primary, 28); assert.equal(json?.heldOut, 12); assert.equal(json?.endToEnd, 4); assert.equal(json?.results.length, 44); assert.ok(json.results.every((row: { ok: boolean }) => row.ok === true)); }
-    if (file.endsWith("smoke-ayas-cf49-remediation-mutations.ts")) { assert.equal(json?.controls, 11); assert.equal(json?.caught, 11); }
+    if (file.endsWith("smoke-ayas-cf49-remediation.ts")) { assert.equal(json?.primary, 30); assert.equal(json?.heldOut, 12); assert.equal(json?.endToEnd, 4); assert.equal(json?.results.length, 46); assert.ok(json.results.every((row: { ok: boolean }) => row.ok === true)); }
+    if (file.endsWith("smoke-ayas-cf49-remediation-mutations.ts")) { assert.equal(json?.controls, 12); assert.equal(json?.caught, 12); }
     if (file.endsWith("smoke-ayas-cf49-review-contract.ts")) assert.equal(json?.negativeControls, 16);
-    if (file.includes("frozen-review")) { assert.equal(json?.sourceHead, head); assert.equal(json?.worktreeDirty, false); assert.equal(json?.cases, 12); assert.equal(json?.guards, 204); }
+    if (file.includes("frozen-review")) { assert.equal(json?.sourceHead, head); assert.equal(json?.worktreeDirty, false); assert.equal(json?.cases, 12); assert.equal(json?.guards, 228); }
     return { file, sourceHead: head, exitCode: r.status, durationMs: Math.round(performance.now() - start), stdoutSha256: sha(r.stdout), stderrSha256: sha(r.stderr), ...(json ? { report: json } : {}) };
   });
   assert.equal(git(["rev-parse", "HEAD"]), head); assert.equal(git(["status", "--porcelain"]), "");

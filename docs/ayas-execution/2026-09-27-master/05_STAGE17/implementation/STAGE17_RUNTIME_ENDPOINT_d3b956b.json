@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1",
+  "evidenceClass": "LIVE_READ_ONLY",
+  "status": "UNAVAILABLE",
+  "errorCategory": "InvalidOperation",
+  "httpStatus": 401,
+  "operatorSourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+  "grantsAuthority": false,
+  "observedAt": "2026-10-05T10:08:37.4424732Z",
+  "runningInstanceHead": "NOT_ESTABLISHED"
+}

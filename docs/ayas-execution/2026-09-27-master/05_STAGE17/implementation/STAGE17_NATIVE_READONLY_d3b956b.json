@@ -1,0 +1,61 @@
+{
+  "observedAt": "2026-10-05T10:06:55.1810847Z",
+  "sourceHead": "d3b956b1a4d5f38c698981e6b4f4cb82cc5a7d5e",
+  "nativePowerShell": [
+    {
+      "execution": "NOT_RUN",
+      "file": "ayas-access-daemon.ps1",
+      "syntaxErrors": 0
+    },
+    {
+      "execution": "NOT_RUN",
+      "file": "ayas-autonomy-daemon.ps1",
+      "syntaxErrors": 0
+    },
+    {
+      "execution": "NOT_RUN",
+      "file": "register-ayas-autonomy-autostart.ps1",
+      "syntaxErrors": 0
+    },
+    {
+      "execution": "NOT_RUN",
+      "file": "register-ayas-autostart.ps1",
+      "syntaxErrors": 0
+    },
+    {
+      "execution": "NOT_RUN",
+      "file": "smoke-ayas-access-daemon.ps1",
+      "syntaxErrors": 0
+    },
+    {
+      "execution": "NOT_RUN",
+      "file": "unregister-ayas-autonomy-autostart.ps1",
+      "syntaxErrors": 0
+    },
+    {
+      "execution": "NOT_RUN",
+      "file": "unregister-ayas-autostart.ps1",
+      "syntaxErrors": 0
+    }
+  ],
+  "evidenceClass": "LIVE_READ_ONLY",
+  "schemaVersion": "1",
+  "grantsAuthority": false,
+  "runtimeHealth": {
+    "state": "UNAVAILABLE",
+    "rawBodyRetained": false,
+    "sourceQualification": "RUNNING_INSTANCE_NOT_QUALIFIED"
+  },
+  "scheduledTasks": [
+    {
+      "state": "UNAVAILABLE",
+      "name": "AYAS Autonomy Observer",
+      "evidence": "READ_QUERY_REFUSED_OR_ABSENT"
+    },
+    {
+      "state": "UNAVAILABLE",
+      "name": "AYAS Access Online",
+      "evidence": "READ_QUERY_REFUSED_OR_ABSENT"
+    }
+  ]
+}
