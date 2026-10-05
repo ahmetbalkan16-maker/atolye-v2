@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1",
+  "scope": "FROZEN_BEFORE_STREAMING_PROTECTED_INVENTORY_IMPLEMENTATION",
+  "cases": [
+    { "id": "H01", "scenario": "per-file limit remains 16 MiB", "localComplete": false },
+    { "id": "H02", "scenario": "credential file is never opened", "localComplete": false },
+    { "id": "H03", "scenario": "link boundary is never followed", "localComplete": false },
+    { "id": "H04", "scenario": "129 MiB ordinary files qualify only local hash coverage", "localComplete": true, "foundationComplete": false },
+    { "id": "H05", "scenario": "opened file growth is refused before body read", "localComplete": false },
+    { "id": "H06", "scenario": "mutation during bounded read is refused", "localComplete": false }
+  ]
+}
