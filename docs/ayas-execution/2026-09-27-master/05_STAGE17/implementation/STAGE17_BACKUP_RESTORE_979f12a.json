@@ -1,0 +1,9 @@
+{
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "fixture": "SYNTHETIC_PROJECT_MARKER_PREREQUISITE_REAL_TEMP_BACKUP_AND_RESTORE_TEST",
+  "startedAt": "2026-10-05T12:07:03.627Z",
+  "completedAt": "2026-10-05T12:07:21.616Z",
+  "exit": 0,
+  "productionBackupQualified": false,
+  "outputTail": "tore preserves marker metadata binary and durable files\nPASS restore missing extra modified and nonempty targets fail closed\nPASS restore destination link swap fails and leaves no outside bytes\nPASS post-publication cleanup faults remove operation-owned final and all residues\nPASS manifest and digest write faults fail before publication with zero residue\nPASS transient operation-created container cleanup failure retries to zero residue\nPASS post-publication standalone verification failure removes owned final\nPASS controlled child-process barrier source drift blocks publication with zero residue\nPASS restore cleanup faults remove materialized tree lock and container\nPASS exact 190-character production shape inventories creates verifies and restores\nPASS audio-compensation journal-staging partial files are excluded from backup while permanent records and the general length ceiling stay enforced\nPASS project-level backup remains reusable\nPASS independent exact 259 public chain passes and 260 rejects before mutation\nPASS manifest digest is deterministic and production boundary remains closed\nSprint 129.25C.1 runtime backup smoke: PASS (39 scenarios; production-provider-worker-calls=0)\n"
+}

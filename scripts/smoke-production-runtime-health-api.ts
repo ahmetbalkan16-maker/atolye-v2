@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { createProductionRuntimeHealthResponse, GET } from "../app/api/runtime/health/route";
+import { GET } from "../app/api/runtime/health/route";
+import { createProductionRuntimeHealthResponse } from "../src/lib/runtime/ProductionRuntimeHealthResponse";
 import type { ProductionRuntimeHealthResponse } from "../src/types/productionRuntimeHealth";
 import type { ProductionRuntimeStatus } from "../src/types/productionRuntimeStatus";
 import { registerProductionRuntimeStatusReader } from "../src/lib/runtime/ProductionRuntimeStatusProjection";

@@ -1,0 +1,390 @@
+{
+  "schemaVersion": "1",
+  "baseSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE_PREPARATION_NOT_CLEAN_HEAD_QUALIFICATION",
+  "auditAfter": {
+    "auditReportVersion": 2,
+    "vulnerabilities": {
+      "@next/eslint-plugin-next": {
+        "name": "@next/eslint-plugin-next",
+        "severity": "high",
+        "isDirect": false,
+        "via": [
+          "fast-glob"
+        ],
+        "effects": [
+          "eslint-config-next"
+        ],
+        "range": ">=14.3.0-canary.0",
+        "nodes": [
+          "node_modules/@next/eslint-plugin-next"
+        ],
+        "fixAvailable": {
+          "name": "eslint-config-next",
+          "version": "14.2.35",
+          "isSemVerMajor": true
+        }
+      },
+      "braces": {
+        "name": "braces",
+        "severity": "high",
+        "isDirect": false,
+        "via": [
+          {
+            "source": 1240992,
+            "name": "braces",
+            "dependency": "braces",
+            "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+            "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+            "severity": "high",
+            "cwe": [
+              "CWE-674"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": "<=3.0.3"
+          }
+        ],
+        "effects": [
+          "micromatch"
+        ],
+        "range": "*",
+        "nodes": [
+          "node_modules/braces"
+        ],
+        "fixAvailable": {
+          "name": "eslint-config-next",
+          "version": "14.2.35",
+          "isSemVerMajor": true
+        }
+      },
+      "eslint-config-next": {
+        "name": "eslint-config-next",
+        "severity": "high",
+        "isDirect": true,
+        "via": [
+          "@next/eslint-plugin-next"
+        ],
+        "effects": [],
+        "range": ">=14.3.0-canary.0",
+        "nodes": [
+          "node_modules/eslint-config-next"
+        ],
+        "fixAvailable": {
+          "name": "eslint-config-next",
+          "version": "14.2.35",
+          "isSemVerMajor": true
+        }
+      },
+      "fast-glob": {
+        "name": "fast-glob",
+        "severity": "high",
+        "isDirect": false,
+        "via": [
+          "micromatch"
+        ],
+        "effects": [
+          "@next/eslint-plugin-next"
+        ],
+        "range": "*",
+        "nodes": [
+          "node_modules/fast-glob"
+        ],
+        "fixAvailable": {
+          "name": "eslint-config-next",
+          "version": "14.2.35",
+          "isSemVerMajor": true
+        }
+      },
+      "micromatch": {
+        "name": "micromatch",
+        "severity": "high",
+        "isDirect": false,
+        "via": [
+          "braces"
+        ],
+        "effects": [
+          "fast-glob"
+        ],
+        "range": ">=0.2.0",
+        "nodes": [
+          "node_modules/micromatch"
+        ],
+        "fixAvailable": {
+          "name": "eslint-config-next",
+          "version": "14.2.35",
+          "isSemVerMajor": true
+        }
+      }
+    },
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 5,
+        "critical": 0,
+        "total": 5
+      },
+      "dependencies": {
+        "prod": 60,
+        "dev": 462,
+        "optional": 149,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 556
+      }
+    }
+  },
+  "productionAuditAfter": {
+    "auditReportVersion": 2,
+    "vulnerabilities": {},
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 60,
+        "dev": 462,
+        "optional": 149,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 556
+      }
+    }
+  },
+  "receipts": [
+    {
+      "file": "final-static.receipt.json",
+      "value": {
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE",
+        "results": [
+          {
+            "name": "health-response",
+            "exit": 0
+          },
+          {
+            "name": "health-response-mutations",
+            "exit": 0
+          },
+          {
+            "name": "tsc-final",
+            "exit": 0
+          },
+          {
+            "name": "lint-final",
+            "exit": 0
+          }
+        ]
+      }
+    },
+    {
+      "file": "health-api.receipt.json",
+      "value": {
+        "name": "health-api",
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE",
+        "startedAt": "2026-10-05T12:11:03.706Z",
+        "completedAt": "2026-10-05T12:11:05.063Z",
+        "exit": 0
+      }
+    },
+    {
+      "file": "webpack-health-fixed.receipt.json",
+      "value": {
+        "name": "webpack-health-fixed",
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE",
+        "startedAt": "2026-10-05T12:11:05.064Z",
+        "completedAt": "2026-10-05T12:11:36.128Z",
+        "exit": 0
+      }
+    },
+    {
+      "file": "health-bundle-webpack.receipt.json",
+      "value": {
+        "name": "health-bundle-webpack",
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE",
+        "startedAt": "2026-10-05T12:11:36.128Z",
+        "completedAt": "2026-10-05T12:11:36.747Z",
+        "exit": 0
+      }
+    },
+    {
+      "file": "default-final.receipt.json",
+      "value": {
+        "name": "default-final",
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE",
+        "startedAt": "2026-10-05T12:11:36.748Z",
+        "completedAt": "2026-10-05T12:11:46.689Z",
+        "exit": 0
+      }
+    },
+    {
+      "file": "health-bundle-turbopack.receipt.json",
+      "value": {
+        "name": "health-bundle-turbopack",
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE",
+        "startedAt": "2026-10-05T12:11:46.690Z",
+        "completedAt": "2026-10-05T12:11:47.288Z",
+        "exit": 0
+      }
+    },
+    {
+      "file": "health-supplemental-mutations.receipt.json",
+      "value": {
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_CANDIDATE_REAL_SOURCE_MUTATIONS_SUPPLEMENTAL_20_ASSERTIONS",
+        "primary": {
+          "status": "PASS",
+          "suite": "production-runtime-health-response",
+          "scenarios": 20,
+          "fixture": "SYNTHETIC_SNAPSHOT_NO_LIVE_RUNTIME_OR_AUTHORITY"
+        },
+        "mutations": [
+          {
+            "id": "inconsistent-ready-accepted",
+            "exit": 1,
+            "caughtByAssertions": true
+          },
+          {
+            "id": "invalid-snapshot-accepted",
+            "exit": 1,
+            "caughtByAssertions": true
+          },
+          {
+            "id": "unsafe-failure-shape-accepted",
+            "exit": 1,
+            "caughtByAssertions": true
+          },
+          {
+            "id": "cache-policy-weakened",
+            "exit": 1,
+            "caughtByAssertions": true
+          },
+          {
+            "id": "fault-body-leaked",
+            "exit": 1,
+            "caughtByAssertions": true
+          }
+        ],
+        "allCaught": true,
+        "helperRestored": true,
+        "original25AssertionsUnchanged": true
+      }
+    },
+    {
+      "file": "mobile/mobile.json",
+      "value": {
+        "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+        "evidenceClass": "UNCOMMITTED_ISOLATED_CANDIDATE_SYNTHETIC_BROWSER",
+        "realPhoneOrMicrophoneQualified": false,
+        "results": [
+          {
+            "file": "scripts/smoke-ayas-phone-llm-capability.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:22.196Z",
+            "completedAt": "2026-10-05T12:11:22.634Z",
+            "stdoutTail": "AYAS phone LLM capability smoke: PASS (11 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-capability\",\"scenarios\":11}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-phone-llm-diagnostic-tests.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:22.634Z",
+            "completedAt": "2026-10-05T12:11:25.644Z",
+            "stdoutTail": "AYAS phone LLM diagnostic-tests smoke: PASS (5 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-diagnostic-tests\",\"scenarios\":5}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-phone-llm-diagnostics.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:25.644Z",
+            "completedAt": "2026-10-05T12:11:26.082Z",
+            "stdoutTail": "AYAS phone LLM diagnostics smoke: PASS (11 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-diagnostics\",\"scenarios\":11}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-phone-llm-idb-storage.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:26.082Z",
+            "completedAt": "2026-10-05T12:11:26.570Z",
+            "stdoutTail": "AYAS phone LLM IndexedDB storage smoke: PASS (13 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-idb-storage\",\"scenarios\":13}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-phone-llm-memory-probe.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:26.570Z",
+            "completedAt": "2026-10-05T12:11:27.030Z",
+            "stdoutTail": "AYAS phone LLM memory-probe smoke: PASS (8 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-memory-probe\",\"scenarios\":8}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-phone-llm-precache.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:27.030Z",
+            "completedAt": "2026-10-05T12:11:30.540Z",
+            "stdoutTail": "erified and marked complete (2 bytes, 1 chunks)\n[ayas phone-llm] idb: \"tokenizer.json\" verified and marked complete (3 bytes, 1 chunks)\n[ayas phone-llm] idb: \"tokenizer_config.json\" verified and marked complete (4 bytes, 1 chunks)\n[ayas phone-llm] idb: \"onnx/model_q4f16.onnx\" verified and marked complete (8392929 bytes, 2 chunks)\nAYAS phone LLM precache smoke: PASS (23 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-precache\",\"scenarios\":23}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-phone-llm-range-diagnostic.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:30.540Z",
+            "completedAt": "2026-10-05T12:11:31.310Z",
+            "stdoutTail": "AYAS phone LLM Range diagnostic smoke: PASS (8 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-range-diagnostic\",\"scenarios\":8}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-phone-llm-runner.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:31.310Z",
+            "completedAt": "2026-10-05T12:11:32.061Z",
+            "stdoutTail": "AYAS phone LLM runner smoke: PASS (10 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-runner\",\"scenarios\":10}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-stt-security.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:32.061Z",
+            "completedAt": "2026-10-05T12:11:32.865Z",
+            "stdoutTail": "AYAS STT security smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-stt-security\",\"scenarios\":7}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-stt.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:32.865Z",
+            "completedAt": "2026-10-05T12:11:33.328Z",
+            "stdoutTail": "   SKIP real integration (AYAS_WHISPER_EXECUTABLE=unset, model=unset, config.enabled=false)\nAYAS STT smoke: PASS (17 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-stt\",\"scenarios\":17}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-wake-adapter.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:11:33.329Z",
+            "completedAt": "2026-10-05T12:12:47.965Z",
+            "stdoutTail": "AYAS wake adapter smoke: PASS (54 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-wake-adapter\",\"scenarios\":54}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-wake-multi-model.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:12:47.965Z",
+            "completedAt": "2026-10-05T12:12:52.333Z",
+            "stdoutTail": "AYAS wake multi-model smoke: PASS (8 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-wake-multi-model\",\"scenarios\":8}\n"
+          },
+          {
+            "file": "scripts/smoke-ayas-wake-runner.ts",
+            "exit": 0,
+            "startedAt": "2026-10-05T12:12:52.333Z",
+            "completedAt": "2026-10-05T12:12:53.057Z",
+            "stdoutTail": "SKIP real-ONNX integration (bin/piper, ffmpeg, or public/wake/ayas.onnx absent)\nAYAS wake runner smoke: PASS (15 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-wake-runner\",\"scenarios\":15}\n"
+          }
+        ]
+      }
+    }
+  ],
+  "grantsAuthority": false
+}

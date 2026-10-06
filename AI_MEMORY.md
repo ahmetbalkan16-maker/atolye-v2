@@ -454,3 +454,13 @@ Eski kayıtlar silinmemelidir.
 
 Bu belge Atölye V2'nin kurumsal hafızasıdır.
 
+
+## 2026-10-06 — Stage17 protected hash and bounded security source repair
+
+# Current Stage17 continuation — 2026-10-06 / security source repair; clean-HEAD qualification pending
+
+Entry checkpoint68747ae40f53ce2358e1499363f66c999243d584 preserved. Protection source979f12a4a12d3a4fb456cce289d66fe50aa00c8c has real named component/Windows/media receipts under05_STAGE17/implementation. Streaming inventory covers all fixed local roots:623,539,744/623,541,535 bytes,0 exclusions,localComplete=true before/after. A concurrent extra file changed the digest:PROTECTED_CHANGE_UNATTRIBUTED retained; external runtime/authority remains unqualified. No durable final full166 receipt exists for979f12a, so that run is NOT_QUALIFIED rather than an invented full PASS. All old evidence remains separately bound.
+
+Official online npm audit at979f12a found19 vulnerable packages (1critical/15high/3moderate). Reviewed isolated compatible update selects Next/eslint-config-next16.3.8 and non-force lock repairs; production advisory result0,all-dependency result5high dev-only braces-chain warnings with no published patched version. No framework downgrade, install script execution or lint weakening. Sharp default-export typing corrected. Runtime health response logic moved unchanged into its existing runtime layer so the route exports only supported Next entries; explicit Node instrumentation guard allows both webpack/Turbopack. Existing25 health cases retained;20 supplemental adversarial+5 assertion-caught mutations added. Candidate TS/lint0errors/13 inherited warnings,both actual builds/bundled health and13 synthetic mobile/wake/STT suites PASS. These are preparation receipts, not new clean-HEAD qualification. Running service/main installed dependencies were not migrated or restarted; authenticated runtime identity remains OWNER_ACTION_REQUIRED.
+
+CF49 CLOSED_PASS retained;214 frozen pins/v55/166 suites unchanged. Raw retrieval FAIL,Golden promotion stop and16 remaining limitations stay visible. LemonUNBOUND/FiverrOWNER_REPORTED unchanged. Stage17/FoundationBLOCKED; Infinity/next master stages not advanced; Homepage/Brain UI V2NOT_STARTED/boundaryNOT_REACHED. Next: commit/push this bounded source repair,refresh Graphify,qualify exact clean source in a credential-free TEMP clone with matching dependency lock and a durable166 report,then refresh actual protected/domain/live findings and final owner-review prerequisites.

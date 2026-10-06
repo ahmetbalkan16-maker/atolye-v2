@@ -1,0 +1,20 @@
+{
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "observedAt": "2026-10-05T11:43:43.553Z",
+  "tools": [
+    {
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0-full_build\\bin\\ffprobe.exe",
+      "bytes": 222044160,
+      "sha256": "51e0780cd881f83749b029ed716cbb841c2eac6289f418050f2f2961b158896b",
+      "version": "ffprobe version 9.0-full_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers\r"
+    },
+    {
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0-full_build\\bin\\ffmpeg.exe",
+      "bytes": 222248960,
+      "sha256": "05f4251bce9293c2ab492cb17ca7724a0ffd0d06c881ba2ee83b82a89c2fc740",
+      "version": "ffmpeg version 9.0-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers\r"
+    }
+  ],
+  "scope": "READ_ONLY_EXISTING_WINGET_EXECUTABLE_METADATA_VERSION_ONLY_NO_INSTALL_OR_RENDER",
+  "grantsAuthority": false
+}

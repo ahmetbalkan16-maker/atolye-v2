@@ -4898,8 +4898,8 @@
   },
   "stage17Continuation": {
     "entryHead": "68747ae40f53ce2358e1499363f66c999243d584",
-    "at": "2026-10-05T11:36:21.396Z",
-    "state": "PROTECTION_SOURCE_IMPLEMENTED_CLEAN_HEAD_QUALIFICATION_PENDING",
+    "at": "2026-10-06T03:47:04.899Z",
+    "state": "SECURITY_SOURCE_REPAIR_IMPLEMENTED_CLEAN_HEAD_QUALIFICATION_PENDING",
     "protectedHashMode": "EXPLICIT_OPERATOR_STREAMING_LOCAL_HASH_ONLY",
     "defaultBudgetsUnchanged": true,
     "operatorCaps": "256_KIB_BUFFER_16_MIB_FILE_1_GIB_TOTAL_120_SECONDS_20000_FILES_DEPTH20",
@@ -4919,6 +4919,29 @@
     "authenticatedRuntime": "OWNER_ACTION_REQUIRED_HEALTH401_BROWSER_POLICY_UNAVAILABLE",
     "cf49": "CLOSED_PASS_UNCHANGED",
     "foundation": "BLOCKED",
-    "homepage": "NOT_STARTED"
+    "homepage": "NOT_STARTED",
+    "lastQualifiedProtectionHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+    "localProtection": {
+      "completeBefore": true,
+      "completeAfter": true,
+      "bytesBefore": 623539744,
+      "bytesAfter": 623541535,
+      "exclusions": 0,
+      "globalComplete": false,
+      "drift": "PROTECTED_CHANGE_UNATTRIBUTED"
+    },
+    "full166At979f12a": "NO_DURABLE_FINAL_RECEIPT_NOT_QUALIFIED",
+    "securityCandidate": {
+      "next": "16.3.8",
+      "productionAuditVulnerabilities": 0,
+      "devOnlyHighVulnerabilities": 5,
+      "qualification": "PREPARATION_ONLY",
+      "installScriptsExecuted": false,
+      "mainInstalledDependenciesMigrated": false,
+      "healthPrimary": 25,
+      "healthSupplemental": 20,
+      "healthMutations": 5
+    },
+    "next": "CLEAN_HEAD_MATCHING_LOCK_TEMP_QUALIFICATION_FULL166_DURABLE_REPORT_THEN_REAL_AUDIT_OWNER_REVIEW"
   }
 }

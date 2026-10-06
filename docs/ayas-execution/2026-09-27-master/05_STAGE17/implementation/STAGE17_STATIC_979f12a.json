@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "status": "PASS",
+  "checks": [
+    {
+      "file": "node_modules/typescript/bin/tsc",
+      "exitCode": 0,
+      "warningSummary": null
+    },
+    {
+      "file": "node_modules/eslint/bin/eslint.js",
+      "exitCode": 0,
+      "warningSummary": "✖ 13 problems (0 errors, 13 warnings)"
+    }
+  ],
+  "packageLockRootConsistency": true,
+  "grantsAuthority": false
+}

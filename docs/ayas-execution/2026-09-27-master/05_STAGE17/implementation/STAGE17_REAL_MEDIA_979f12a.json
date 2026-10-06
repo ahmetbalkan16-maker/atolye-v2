@@ -1,0 +1,9 @@
+{
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "startedAt": "2026-10-05T11:57:31.577Z",
+  "completedAt": "2026-10-05T11:58:31.020Z",
+  "evidenceClass": "REAL_BINARY_SYNTHETIC_INPUT_ISOLATED_RUNTIME_TEST",
+  "exit": 0,
+  "stdout": "live pipeline produced 46.933333s h264/aac 1920x1080 MP4 (1400545 bytes)\nATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"isolated-e2e-live-pipeline-ffmpeg\",\"scenarios\":4}\n",
+  "productionRuntimeQualified": false
+}

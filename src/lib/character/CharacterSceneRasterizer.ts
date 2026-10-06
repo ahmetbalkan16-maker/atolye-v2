@@ -25,7 +25,7 @@ export function isRasterizableCharacterSceneSvg(svg: string): boolean {
 
 export async function rasterizeCharacterSceneSvg(svg: string): Promise<CharacterSceneRasterResult> {
   if (!isRasterizableCharacterSceneSvg(svg)) return { ok: false, reason: "SVG_REJECTED" };
-  let sharp: typeof import("sharp");
+  let sharp: typeof import("sharp").default;
   try { sharp = (await import("sharp")).default; } catch { return { ok: false, reason: "RASTERIZER_UNAVAILABLE" }; }
   try {
     const png = await sharp(Buffer.from(svg, "utf8")).resize(CHARACTER_SCENE_WIDTH, CHARACTER_SCENE_HEIGHT, { fit: "fill" }).png().toBuffer();

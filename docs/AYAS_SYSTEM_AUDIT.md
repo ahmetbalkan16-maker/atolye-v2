@@ -19,3 +19,7 @@ Current audit must carry Graphify parser gaps, CF49 raw quality, real Windows ta
 ## Explicit local hash-only coverage operator
 
 `--protected-hash` extends only the existing operator/collector. Default128MiB inventory remains frozen. This explicit path keeps16MiB per-file/depth20/20k-file limits, reads with256KiB buffers up to1GiB/120 seconds, refuses changed/replaced descriptors and persists hashes only. Credentials and links remain excluded. `protectedLocalCompleteBefore/After` describe only the fixed repository roots; global complete remains false and external runtime/authority/private scope unqualified. No gate/schema/frozen grader is weakened. A local complete inventory cannot grant Foundation closure or an owner attestation. Supplemental14 primary/6 pre-frozen held/6 source mutations cover budget/time/race/credential/link boundaries.
+
+## 2026-10-06 security/source follow-up
+
+The real protected local scan has zero exclusions while global runtime scope remains unqualified and concurrent drift stays UNKNOWN. Exact source979 receipts are independently indexed. Compatible dependency repair, explicit nodejs instrumentation guard and unchanged health response extraction address actual advisory/build failures. Existing health25 assertions retained; additional20 adversarial/5 source mutations are supplemental,unregistered in the unchanged166 frozen baseline. Qualify the next clean source with its actual locked dependency tree. Current running runtime identity/dependencies are separate and unqualified; no restart/activation is implied.

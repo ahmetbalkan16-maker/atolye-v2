@@ -1,0 +1,9 @@
+{
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "observedAt": "2026-10-05T11:39:52.4614705Z",
+  "exitCode": 0,
+  "summary": "AYAS access daemon smoke: 43 scenarios PASS",
+  "fixture": "TEMP_INJECTED_CYCLE_REAL_OWNED_WINDOWS_CHILD_NO_SERVICE_ACTIVATION",
+  "actualTasksModified": false,
+  "grantsAuthority": false
+}

@@ -1,0 +1,25 @@
+{
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "observedAt": "2026-10-05T11:44:47.038Z",
+  "url": "https://ayas-phone-gateway.ahmet-balkan16.workers.dev",
+  "discovery": "EXISTING_PUBLIC_BUILD_ASSET",
+  "rows": [
+    {
+      "path": "/api/ayas/chat/stream",
+      "status": 405,
+      "bodyStored": false,
+      "authorizationSent": false
+    },
+    {
+      "path": "/health",
+      "status": 404,
+      "bodyStored": false,
+      "authorizationSent": false
+    }
+  ],
+  "deploymentSourceHead": "NOT_ESTABLISHED",
+  "authenticatedFunctionality": "OWNER_ACTION_REQUIRED",
+  "modelInvoked": false,
+  "providerOrPlatformBindingChanged": false,
+  "grantsAuthority": false
+}

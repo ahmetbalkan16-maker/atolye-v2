@@ -1,0 +1,36 @@
+{
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "observedAt": "2026-10-05T12:14:08.709Z",
+  "evidenceClass": "LIVE_READ_ONLY_HOST_OBSERVATION",
+  "observations": [
+    {
+      "endpoint": "http://127.0.0.1:3000/api/runtime/health",
+      "httpStatus": 401
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "httpStatus": 200,
+      "installedModels": [
+        "qwen2.5:7b",
+        "qwen2.5:3b"
+      ],
+      "selectedRuntimeModelQualified": false
+    }
+  ],
+  "operatorRootEnvironmentPresence": {
+    "ATOLYE_RUNTIME_ROOT": false,
+    "ATOLYE_RUNTIME_AUTHORITY_ROOT": false
+  },
+  "localBuildStamp": {
+    "schemaVersion": "1",
+    "gitHead": "ce160ed18fcb2979054a65aaae2d921e0587c5d1",
+    "treeState": "DIRTY",
+    "lockfileSha256": "bd863aed704fcf68ecadfc3cb3aad1c99c7ecf8c19245bcc906085c454943fde",
+    "stampedAt": "2026-10-05T03:42:33.390Z"
+  },
+  "runningProcessSourceQualified": false,
+  "authenticatedRuntime": "OWNER_ACTION_REQUIRED",
+  "browserInput": "ENDED_BY_URL_CONFIDENCE_GUARD",
+  "rawResponseRetained": false,
+  "grantsAuthority": false
+}

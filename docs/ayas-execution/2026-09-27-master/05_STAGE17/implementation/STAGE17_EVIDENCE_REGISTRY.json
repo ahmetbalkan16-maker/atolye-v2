@@ -159,6 +159,132 @@
       "operatorSourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
       "scope": "BOUNDED_READ_ONLY_OBSERVATION",
       "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_SELECTED_979f12a.json",
+      "sha256": "a2feab1a28bfeecc00f105a54a498811b366b85a06623824ec94044fbb287219",
+      "originalCaptureByteSha256": "a2feab1a28bfeecc00f105a54a498811b366b85a06623824ec94044fbb287219",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "NAMED_COMPONENT_TESTS_NOT_WHOLE_DOMAIN",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_STATIC_979f12a.json",
+      "sha256": "dca1b1f4206e996217f9228ae1d4909eed5a010ceb4e5e49bf69a6013c0c10f7",
+      "originalCaptureByteSha256": "dca1b1f4206e996217f9228ae1d4909eed5a010ceb4e5e49bf69a6013c0c10f7",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "TYPESCRIPT_LINT_LOCK_CONSISTENCY",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_LOCAL_PROTECTION_979f12a.json",
+      "sha256": "a0c5b8a685ad8443ae5e0e134c34e0c3ca30fe3694a8178a9415196f3dc3e3b4",
+      "originalCaptureByteSha256": "a0c5b8a685ad8443ae5e0e134c34e0c3ca30fe3694a8178a9415196f3dc3e3b4",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "FULL_LOCAL_FIXED_ROOT_HASH_EXTERNAL_UNQUALIFIED",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_NATIVE_WINDOWS_979f12a.json",
+      "sha256": "6f2266cc422af145462f28dd73c3ca9e58b5d17e256a494d7076e5731bcaa78e",
+      "originalCaptureByteSha256": "46a8cc0936ddf2e2472b66cafd6bf1daee752f14bf00e485b39a5d58fc83a757",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "ACTUAL_WINDOWS_OWNED_CHILD_43_SCENARIOS",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_PLATFORM_TESTS_979f12a.json",
+      "sha256": "2a19aee55ea296e1db2f4755ea747ae9ad913a91703986cc2bd47386e5442a83",
+      "originalCaptureByteSha256": "2a19aee55ea296e1db2f4755ea747ae9ad913a91703986cc2bd47386e5442a83",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "TEMP_WINDOWS_RUNTIME_PWA_TESTS_INITIAL_BACKUP_PREREQUISITE_FAILURE_RETAINED",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_BACKUP_RESTORE_979f12a.json",
+      "sha256": "9a3b7e5c3ad75e790bf1348d3b3c2ae1d5bb429e0efb87ddef49f34ba49521d1",
+      "originalCaptureByteSha256": "9a3b7e5c3ad75e790bf1348d3b3c2ae1d5bb429e0efb87ddef49f34ba49521d1",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "TEMP_SYNTHETIC_MARKER_BACKUP_RESTORE_39_SCENARIOS",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_REAL_MEDIA_979f12a.json",
+      "sha256": "1b268b6caa75216461df731b17ad5c0fa26ff16e639fd89ce02d7d2c01d6490e",
+      "originalCaptureByteSha256": "1b268b6caa75216461df731b17ad5c0fa26ff16e639fd89ce02d7d2c01d6490e",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "REAL_FFMPEG_SYNTHETIC_MEDIA_FOUR_CHECKS",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_MEDIA_BINARIES_979f12a.json",
+      "sha256": "dae30685d2329ae0cc2d8c3e21caf5ee61ebb382c18e14c91ade7bfe39a46aac",
+      "originalCaptureByteSha256": "dae30685d2329ae0cc2d8c3e21caf5ee61ebb382c18e14c91ade7bfe39a46aac",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "EXISTING_PINNED_INSTALLED_TOOLS_METADATA",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_WORKER_READONLY_979f12a.json",
+      "sha256": "7c99df77019f8f1dbb0bcf017f570258a2bb478a61b28219204a60179a323e00",
+      "originalCaptureByteSha256": "7c99df77019f8f1dbb0bcf017f570258a2bb478a61b28219204a60179a323e00",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "UNAUTHENTICATED_PUBLIC_GET_ONLY_DEPLOYMENT_HEAD_UNKNOWN",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_HOST_READONLY_979f12a.json",
+      "sha256": "22c845e6212cb6fb3cd8f412040188af66eefed01e8562e739c53174085fc94f",
+      "originalCaptureByteSha256": "22c845e6212cb6fb3cd8f412040188af66eefed01e8562e739c53174085fc94f",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "AUTH401_RUNTIME_HEAD_NOT_ESTABLISHED",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_RESOURCE_979f12a.json",
+      "sha256": "e4b967eb49efaa331055003950d1a45cbe862e4ae3258fa4856b09e3afdbe697",
+      "originalCaptureByteSha256": "e4b967eb49efaa331055003950d1a45cbe862e4ae3258fa4856b09e3afdbe697",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "LIVE_READ_ONLY_GOVERNOR_METADATA_NO_MODEL_START",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_GRAPHIFY_979f12a.json",
+      "sha256": "dbf8c56db0a5eeee0b952c5f82dc098425bef98cefbb2495626f913409fa4400",
+      "originalCaptureByteSha256": "dbf8c56db0a5eeee0b952c5f82dc098425bef98cefbb2495626f913409fa4400",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "CURRENT_PARTIAL9_PENDING_NO_WHOLE_ARCHITECTURE_ATTESTATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_ADVISORY_BEFORE_979f12a.json",
+      "sha256": "fe7fd388b733593f7eef3f470f1b20f0470d6b693d1526d77f85aaad9582645a",
+      "originalCaptureByteSha256": "fe7fd388b733593f7eef3f470f1b20f0470d6b693d1526d77f85aaad9582645a",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "ONLINE_OFFICIAL_REGISTRY_AUDIT_19_VULNERABILITIES",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_DEPENDENCY_CANDIDATE_979f12a.json",
+      "sha256": "f3e154ed9cae98128f1a39f6c716a9a5921050082b619105036f9cd2eef1a6c2",
+      "originalCaptureByteSha256": "f3e154ed9cae98128f1a39f6c716a9a5921050082b619105036f9cd2eef1a6c2",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+      "scope": "CANDIDATE_ONLY_NEVER_REBIND_AS_NEW_CLEAN_HEAD_PROOF",
+      "runningProcessSourceQualified": false
     }
   ],
   "historicalClosure": {
@@ -244,5 +370,7 @@
     "measuredDigestUnchanged": true,
     "complete": false,
     "fullDomainsQualified": false
-  }
+  },
+  "continuationSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "full166At979f12a": "NO_DURABLE_FINAL_RECEIPT_NOT_QUALIFIED"
 }

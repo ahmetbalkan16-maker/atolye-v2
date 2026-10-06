@@ -1,0 +1,87 @@
+{
+  "sourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
+  "scope": "ISOLATED_TEMP_NO_RUNTIME_AUTHENTICATION_OR_REAL_PHONE",
+  "actualTasksBefore": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running",
+      "definitionHash": "3a80ab819ddc11081a909eb1fef9667a8a3f985843067c09f762c9b7e2cea59b"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running",
+      "definitionHash": "4b77d8edced037be090b041fd93e6062fc78bf3b3e1ff7f42395c1c4c4e026a0"
+    }
+  ],
+  "actualTasksAfter": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running",
+      "definitionHash": "3a80ab819ddc11081a909eb1fef9667a8a3f985843067c09f762c9b7e2cea59b"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running",
+      "definitionHash": "4b77d8edced037be090b041fd93e6062fc78bf3b3e1ff7f42395c1c4c4e026a0"
+    }
+  ],
+  "actualTaskDefinitionsUnchanged": true,
+  "results": [
+    {
+      "file": "scripts/smoke-ayas-observer-autostart.ts",
+      "startedAt": "2026-10-05T12:03:00.019Z",
+      "completedAt": "2026-10-05T12:03:27.104Z",
+      "exit": 0,
+      "outputTail": "un makes no registration either way, and honestly reports an existing one on the mechanism this session actually uses\nPASS 35: unregister removes whichever mechanism is installed (dry-run first, then -Apply, then idempotent re-run)\nAYAS observer autostart smoke: PASS (35 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-observer-autostart\",\"scenarios\":35}\n"
+    },
+    {
+      "file": "scripts/smoke-canonical-smoke-runtime-foundation.ts",
+      "startedAt": "2026-10-05T12:03:27.105Z",
+      "completedAt": "2026-10-05T12:03:29.089Z",
+      "exit": 0,
+      "outputTail": "ion\nPASS 27: descriptor existing root deletion is identity changed\nPASS 28: descriptor existing root replacement is identity changed\nPASS 29: descriptor existing root reparse is identity changed\nCanonical smoke runtime foundation: PASS (29 invariants)\nATOLYE_SMOKE_RESULT {\"status\":\"PASS\",\"suite\":\"canonical-smoke-runtime-foundation\",\"scenarios\":29}\n"
+    },
+    {
+      "file": "scripts/smoke-sprint-129-25c-1-runtime-backup.ts",
+      "startedAt": "2026-10-05T12:03:29.089Z",
+      "completedAt": "2026-10-05T12:03:29.661Z",
+      "exit": 1,
+      "outputTail": ""
+    },
+    {
+      "file": "scripts/smoke-production-runtime-health-api.ts",
+      "startedAt": "2026-10-05T12:03:29.661Z",
+      "completedAt": "2026-10-05T12:03:30.663Z",
+      "exit": 0,
+      "outputTail": "Sprint 112 production runtime health API smoke: PASS (25/25 scenarios)\n"
+    },
+    {
+      "file": "scripts/smoke-production-runtime-status.ts",
+      "startedAt": "2026-10-05T12:03:30.663Z",
+      "completedAt": "2026-10-05T12:03:31.485Z",
+      "exit": 0,
+      "outputTail": "Sprint 111 production runtime status smoke: PASS (15/15 scenarios)\n"
+    },
+    {
+      "file": "scripts/smoke-ayas-pwa-manifest.ts",
+      "startedAt": "2026-10-05T12:03:31.486Z",
+      "completedAt": "2026-10-05T12:03:31.913Z",
+      "exit": 0,
+      "outputTail": "ple-touch-icon (180) + favicons exist as opaque PNGs\nPASS 6: layout — emits the manifest link + apple-touch-icon\nPASS 7: routing — /icons/ is open pre-auth (browser fetches icons before a session)\nPASS 8: build script — deterministic + committed\nAYAS PWA manifest smoke: PASS (8 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-pwa-manifest\",\"scenarios\":8}\n"
+    },
+    {
+      "file": "scripts/smoke-ayas-pwa-sw.ts",
+      "startedAt": "2026-10-05T12:03:31.913Z",
+      "completedAt": "2026-10-05T12:03:32.356Z",
+      "exit": 0,
+      "outputTail": " the lab route cached still falls back to the generic shell — never redirects to a dead cache entry\nPASS 11: offline page exists and is static, no execution\nPASS 12: PwaRegister — OFF by default; on, SW-update reload is DEFERRED, never mid-use\nAYAS PWA service worker smoke: PASS (12 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-pwa-sw\",\"scenarios\":12}\n"
+    },
+    {
+      "file": "scripts/smoke-ayas-phone-runtime.ts",
+      "startedAt": "2026-10-05T12:03:32.356Z",
+      "completedAt": "2026-10-05T12:03:32.875Z",
+      "exit": 0,
+      "outputTail": "SAFE ABORT)\nPASS 41: model proxy — the Qwen route (MODEL_PROXY_PATH) and the SmolLM2 route (SMOLLM2_MODEL_PROXY_PATH) are distinct paths, both independently reachable\nPASS 42: runAyasChatStream (no fallback wrapper) behaves exactly as before\nAYAS phone runtime smoke: PASS (42 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-runtime\",\"scenarios\":42}\n"
+    }
+  ]
+}
