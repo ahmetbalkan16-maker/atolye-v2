@@ -1,0 +1,5 @@
+import fs from 'node:fs'; import path from 'node:path'; import os from 'node:os'; import {spawnSync} from 'node:child_process';
+const root=process.cwd(),work=fs.mkdtempSync(path.join(os.tmpdir(),'ayas-ayaz-phonemes-'));fs.cpSync(path.join(root,'bin/piper'),path.join(work,'piper'),{recursive:true});
+for(const text of ['AYAS','ayaz','ayas','AYAZ']){const log=spawnSync(path.join(work,'piper/piper.exe'),['--model',path.join(work,'piper/tr_TR-dfki-medium.onnx'),'--espeak_data',path.join(work,'piper/espeak-ng-data'),'--output_file',path.join(work,text+'.wav'),'--noise_scale','0','--noise_w','0','--debug'],{input:text,cwd:path.join(work,'piper'),encoding:'utf8',stdio:['pipe','pipe','pipe']}); console.log(JSON.stringify({text,stdout:log.stdout,stderr:log.stderr}));}
+console.log(JSON.stringify({work}));
+

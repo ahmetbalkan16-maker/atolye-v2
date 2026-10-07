@@ -1,0 +1,75 @@
+PASS: first-wake independent 1/10
+PASS: first-wake independent 2/10
+PASS: first-wake independent 3/10
+PASS: first-wake independent 4/10
+PASS: first-wake independent 5/10
+PASS: first-wake independent 6/10
+PASS: first-wake independent 7/10
+PASS: first-wake independent 8/10
+PASS: first-wake independent 9/10
+PASS: first-wake independent 10/10
+FAIL: held-out deterministic AYAZ: zero decisions
+PASS: deterministic baseline/candidate sensitivity preserved
+PASS: stochastic pair 1 AYAS
+PASS: same-PCM baseline/candidate 1 AYAS
+FAIL: stochastic pair 1 ayaz
+PASS: same-PCM baseline/candidate 1 ayaz
+PASS: stochastic pair 2 AYAS
+PASS: same-PCM baseline/candidate 2 AYAS
+FAIL: stochastic pair 2 ayaz
+PASS: same-PCM baseline/candidate 2 ayaz
+PASS: stochastic pair 3 AYAS
+PASS: same-PCM baseline/candidate 3 AYAS
+FAIL: stochastic pair 3 ayaz
+PASS: same-PCM baseline/candidate 3 ayaz
+PASS: stochastic pair 4 AYAS
+PASS: same-PCM baseline/candidate 4 AYAS
+FAIL: stochastic pair 4 ayaz
+PASS: same-PCM baseline/candidate 4 ayaz
+PASS: stochastic pair 5 AYAS
+PASS: same-PCM baseline/candidate 5 AYAS
+FAIL: stochastic pair 5 ayaz
+PASS: same-PCM baseline/candidate 5 ayaz
+PASS: stochastic pair 6 AYAS
+PASS: same-PCM baseline/candidate 6 AYAS
+PASS: stochastic pair 6 ayaz
+PASS: same-PCM baseline/candidate 6 ayaz
+PASS: stochastic pair 7 AYAS
+PASS: same-PCM baseline/candidate 7 AYAS
+PASS: stochastic pair 7 ayaz
+PASS: same-PCM baseline/candidate 7 ayaz
+PASS: stochastic pair 8 AYAS
+PASS: same-PCM baseline/candidate 8 AYAS
+FAIL: stochastic pair 8 ayaz
+PASS: same-PCM baseline/candidate 8 ayaz
+PASS: stochastic pair 9 AYAS
+PASS: same-PCM baseline/candidate 9 AYAS
+FAIL: stochastic pair 9 ayaz
+PASS: same-PCM baseline/candidate 9 ayaz
+PASS: stochastic pair 10 AYAS
+PASS: same-PCM baseline/candidate 10 AYAS
+PASS: stochastic pair 10 ayaz
+PASS: same-PCM baseline/candidate 10 ayaz
+PASS: additional negative: merhaba
+PASS: additional negative: teşekkür ederim
+PASS: additional negative: kapıyı kapat
+PASS: additional negative: bugün hava çok güzel
+PASS: additional negative: nasılsın
+PASS: additional negative: saat kaç
+PASS: additional negative: yavaş
+PASS: additional negative: hayat
+PASS: additional negative: beyaz
+PASS: additional negative: yaz
+PASS: additional negative: ayak
+PASS: additional negative: ayran
+FAIL: additional negative: hayas
+PASS: additional negative: a
+PASS: additional negative: ya
+PASS: additional negative: ay
+PASS: additional negative: as
+PASS: additional negative: merhaba merhaba merhaba
+FAIL: additional negative: ayaz ayaz ayaz
+PASS: additional negative: silence
+PASS: additional negative: noise-low
+PASS: additional negative: noise-medium
+PASS: additional negative: noise-loud

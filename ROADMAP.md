@@ -1,3 +1,7 @@
+# 2026-10-07 AYAS / AYAZ discrimination — WIP negative gate FAIL
+
+First-wake10/10 preserved; strictAYAZ stillFAIL, stochastic7/10 falsewake, extendednegative21/23. No safe bounded second-stage qualified; no production/source/threshold/deploy change. Next verifier needs independent diverse-voice qualification before activation changes. Evidence docs/ayas-ayaz-discrimination/2026-10-07/RESULT.md and checkpoint; FoundationBLOCKED, ownerUI/PWA/tunnel/tasks preserved.
+
 # 2026-10-07 bounded first-wake continuation — WIP / negative gate open
 
 Prepared acoustic startup and per-chunk catch-up score delivery validated; deterministic AYAS10/10 synthetic fresh sessions. Absolute ayaz negative remains FAIL in both baseline and candidate; no live rollout or completion/next-stage claim. Strict regression, validation and exact next step: docs/ayas-first-wake-reliability/2026-10-07/RESULT.md and ATOLYE_CHECKPOINT.md. Foundation BLOCKED; owner UI/PWA/tunnel/tasks preserved.

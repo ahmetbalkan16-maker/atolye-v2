@@ -1,0 +1,24 @@
+Node: BrowserVoiceAdapter
+  ID:        voice_browservoiceadapter_browservoiceadapter
+  Source:    src/components/brain/voice/browserVoiceAdapter.ts L93
+  Type:      code
+  Community: 15
+  Degree:    16
+
+Connections (16):
+  --> smoke-ayas-voice.ts [imports] [EXTRACTED]
+  --> wakeWordVoiceAdapter.ts [imports] [EXTRACTED]
+  --> useAyasVoice.ts [imports] [EXTRACTED]
+  --> browserVoiceAdapter.ts [contains] [EXTRACTED]
+  --> smoke-ayas-first-wake-reliability.ts [imports] [EXTRACTED]
+  --> smoke-ayas-mobile-voice-regression.ts [imports] [EXTRACTED]
+  --> .speak() [method] [EXTRACTED]
+  --> .cancelSpeech() [method] [EXTRACTED]
+  --> .detectCapability() [method] [EXTRACTED]
+  --> .listVoices() [method] [EXTRACTED]
+  --> .onVoicesChanged() [method] [EXTRACTED]
+  --> .recognitionMode() [method] [EXTRACTED]
+  --> .startListening() [method] [EXTRACTED]
+  --> AyasVoicePlatform [implements] [EXTRACTED]
+  --> .queryMicPermission() [method] [EXTRACTED]
+  --> .requestMicrophonePermission() [method] [EXTRACTED]

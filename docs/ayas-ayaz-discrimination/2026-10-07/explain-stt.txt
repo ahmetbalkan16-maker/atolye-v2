@@ -1,0 +1,15 @@
+Node: transcribeAyasAudio()
+  ID:        stt_ayassttservice_transcribeayasaudio
+  Source:    src/lib/ayas/stt/AyasSttService.ts L189
+  Type:      code
+  Community: 159
+  Degree:    7
+
+Connections (7):
+  --> AyasSttService.ts [contains] [EXTRACTED]
+  --> route.ts [imports] [EXTRACTED]
+  --> smoke-ayas-stt.ts [imports] [EXTRACTED]
+  --> smoke-ayas-stt-security.ts [imports] [EXTRACTED]
+  --> normaliseAyasTranscript() [calls] [EXTRACTED]
+  --> asciiArgPath() [calls] [EXTRACTED]
+  --> parseWhisperJson() [calls] [EXTRACTED]

@@ -1,0 +1,29 @@
+Node: WakeWordVoiceAdapter
+  ID:        voice_wakewordvoiceadapter_wakewordvoiceadapter
+  Source:    src/components/brain/voice/wakeWordVoiceAdapter.ts L521
+  Type:      code
+  Community: 91
+  Degree:    41
+
+Connections (41):
+  --> wakeWordVoiceAdapter.ts [contains] [EXTRACTED]
+  --> smoke-ayas-wake-adapter.ts [imports] [EXTRACTED]
+  --> smoke-ayas-first-wake-reliability.ts [imports] [EXTRACTED]
+  --> smoke-ayas-wake-multi-model.ts [imports] [EXTRACTED]
+  --> .emit() [method] [EXTRACTED]
+  --> .ensureWakeReady() [method] [EXTRACTED]
+  --> .attemptUnpause() [method] [EXTRACTED]
+  --> .armWatchdog() [method] [EXTRACTED]
+  --> .finishCommand() [method] [EXTRACTED]
+  --> .rearmAfterRecovery() [method] [EXTRACTED]
+  --> .rebuildAudio() [method] [EXTRACTED]
+  --> .resumeOrRebuild() [method] [EXTRACTED]
+  --> .armConversationTimer() [method] [EXTRACTED]
+  --> .resetCommand() [method] [EXTRACTED]
+  --> .ensureAudio() [method] [EXTRACTED]
+  --> .enterPaused() [method] [EXTRACTED]
+  --> .resetConversation() [method] [EXTRACTED]
+  --> .clearConversationTimer() [method] [EXTRACTED]
+  --> .endConversation() [method] [EXTRACTED]
+  --> .onConversationIdle() [method] [EXTRACTED]
+  ... and 21 more

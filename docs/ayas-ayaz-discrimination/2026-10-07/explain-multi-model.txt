@@ -1,0 +1,14 @@
+Node: .ensureAudio()
+  ID:        voice_wakewordvoiceadapter_wakewordvoiceadapter_ensureaudio
+  Source:    src/components/brain/voice/wakeWordVoiceAdapter.ts L1044
+  Type:      code
+  Community: 91
+  Degree:    6
+
+Connections (6):
+  --> WakeWordVoiceAdapter [method] [EXTRACTED]
+  --> .ensureWakeReady() [calls] [EXTRACTED]
+  --> .attemptUnpause() [calls] [EXTRACTED]
+  --> .rebuildAudio() [calls] [EXTRACTED]
+  --> .startListening() [calls] [EXTRACTED]
+  --> .retryNow() [calls] [EXTRACTED]

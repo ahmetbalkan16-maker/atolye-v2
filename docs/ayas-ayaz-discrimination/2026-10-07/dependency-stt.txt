@@ -1,0 +1,33 @@
+transcribeAyasAudio() [src/lib/ayas/stt/AyasSttService.ts]
+├─ calls -> asciiArgPath() [src/lib/ayas/stt/AyasSttService.ts]
+│  └─ contains -> AyasSttService.ts [src/lib/ayas/stt/AyasSttService.ts]
+├─ contains -> AyasSttService.ts [src/lib/ayas/stt/AyasSttService.ts] (seen)
+├─ calls -> normaliseAyasTranscript() [src/lib/ayas/stt/AyasSttService.ts]
+│  ├─ contains -> AyasSttService.ts [src/lib/ayas/stt/AyasSttService.ts] (seen)
+│  └─ imports -> smoke-ayas-stt.ts [scripts/smoke-ayas-stt.ts]
+├─ calls -> parseWhisperJson() [src/lib/ayas/stt/AyasSttService.ts]
+│  └─ contains -> AyasSttService.ts [src/lib/ayas/stt/AyasSttService.ts] (seen)
+├─ imports -> route.ts [app/api/ayas/stt/route.ts]
+│  ├─ MODIFIES -> 6020b7c feat(ayas): whisper.cpp CUDA STT service + POST /api/ayas/stt [git]
+│  ├─ MODIFIES -> 64b130c fix(ayas): iPhone voice forensic — whisper anti-hallucination guards, STT confidence, wake/runner/AudioContext metrics [git]
+│  ├─ imports_from -> accessGate.ts [src/lib/auth/accessGate.ts]
+│  ├─ imports -> AttemptLimiterState [src/lib/auth/accessGate.ts]
+│  ├─ contains -> attempts [app/api/ayas/stt/route.ts]
+│  ├─ imports_from -> AyasSttConfig.ts [src/lib/ayas/stt/AyasSttConfig.ts]
+│  ├─ imports -> AyasSttFailureCode [src/lib/ayas/stt/AyasSttService.ts]
+│  ├─ imports_from -> AyasSttService.ts [src/lib/ayas/stt/AyasSttService.ts] (seen)
+│  ├─ imports_from -> AyasSttThermal.ts [src/lib/ayas/stt/AyasSttThermal.ts]
+│  └─ imports -> ayasSttThermalHold() [src/lib/ayas/stt/AyasSttThermal.ts]
+│  └─ ... and 10 more
+├─ imports -> smoke-ayas-stt-security.ts [scripts/smoke-ayas-stt-security.ts]
+│  ├─ MODIFIES -> 04c1c5b feat(ayas): browser wake-word (openWakeWord) + WakeWordVoiceAdapter [git]
+│  ├─ imports_from -> AyasSttConfig.ts [src/lib/ayas/stt/AyasSttConfig.ts] (seen)
+│  ├─ imports_from -> AyasSttService.ts [src/lib/ayas/stt/AyasSttService.ts] (seen)
+│  ├─ imports -> POST() [app/api/ayas/stt/route.ts]
+│  ├─ contains -> req() [scripts/smoke-ayas-stt-security.ts]
+│  ├─ imports -> resolveAyasSttConfig() [src/lib/ayas/stt/AyasSttConfig.ts]
+│  ├─ imports_from -> route.ts [app/api/ayas/stt/route.ts] (seen)
+│  ├─ contains -> run() [scripts/smoke-ayas-stt-security.ts]
+│  ├─ contains -> scenario() [scripts/smoke-ayas-stt-security.ts]
+│  └─ contains -> WAV [scripts/smoke-ayas-stt-security.ts]
+└─ imports -> smoke-ayas-stt.ts [scripts/smoke-ayas-stt.ts] (seen)

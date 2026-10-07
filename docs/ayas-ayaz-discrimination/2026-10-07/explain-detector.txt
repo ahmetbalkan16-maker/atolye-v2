@@ -1,0 +1,17 @@
+Node: WakeScoreDetector
+  ID:        voice_wakewordvoiceadapter_wakescoredetector
+  Source:    src/components/brain/voice/wakeWordVoiceAdapter.ts L173
+  Type:      code
+  Community: 91
+  Degree:    9
+
+Connections (9):
+  --> wakeWordVoiceAdapter.ts [contains] [EXTRACTED]
+  --> smoke-ayas-wake-adapter.ts [imports] [EXTRACTED]
+  --> smoke-ayas-first-wake-reliability.ts [imports] [EXTRACTED]
+  --> .rearm() [method] [EXTRACTED]
+  --> .constructor() [calls] [EXTRACTED]
+  --> .fire() [method] [EXTRACTED]
+  --> .observe() [method] [EXTRACTED]
+  --> .constructor() [method] [EXTRACTED]
+  --> .stats() [method] [EXTRACTED]

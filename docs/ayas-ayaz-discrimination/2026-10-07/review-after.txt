@@ -1,0 +1,44 @@
+Graphify Review Analysis
+Changed files: 4
+Blast radius: high (score 156)
+Impacted files: 10
+Impacted communities: 6
+Bridge nodes: 8
+Test-gap hints: 4
+Multimodal safety: none
+
+Blast rationale:
+  - graph expands review beyond changed files
+  - multiple communities are impacted
+  - bridge nodes connect this change across communities
+  - high-risk chains are present
+  - test-gap hints are present
+
+Impacted communities:
+  - Community 91 (high, 58 impacted nodes, 58 changed nodes)
+  - Community 51 (high, 19 impacted nodes, 17 changed nodes)
+  - Community 15 (high, 18 impacted nodes, 12 changed nodes)
+  - Community 159 (high, 16 impacted nodes, 9 changed nodes)
+  - Community 11 (medium, 7 impacted nodes, 0 changed nodes)
+  - Community 78 (low, 2 impacted nodes, 1 changed nodes)
+
+Bridge nodes:
+  - 23e504c fix(ayas): harden mobile voice and brain runtime (degree 22, community 15, git)
+  - 04c1c5b feat(ayas): browser wake-word (openWakeWord) + WakeWordVoiceAdapter (degree 16, community 15, git)
+  - 4c1f30c fix(brain): iPhone voice — stop re-introductions, adaptive VAD, contiguous wake audio (degree 18, community 51, git)
+  - 64b130c fix(ayas): iPhone voice forensic — whisper anti-hallucination guards, STT confidence, wake/runner/AudioContext metrics (degree 13, community 11, git)
+  - 3dbd28e fix(ayas): conversation session survives the iOS post-TTS AudioContext rebuild (degree 11, community 15, git)
+  - 12e9126 fix(ayas): iPhone voice — stop the "DİNLİYOR → HAZIR" early close; make Voice Lab reachable (degree 10, community 11, git)
+  - 24e6df8 fix(brain): single-flight wake inference + prove the iPhone reload mechanism (degree 15, community 51, git)
+  - 570b8c6 feat(ayas): conversation session mode — follow-up commands skip the wake word (degree 12, community 15, git)
+
+Test-gap hints:
+  - scripts/smoke-ayas-ayaz-discrimination.ts: no related test file surfaced in the impacted graph
+  - src/components/brain/voice/wake/openWakeWordRunner.ts: no related test file surfaced in the impacted graph
+  - src/components/brain/voice/wakeWordVoiceAdapter.ts: no related test file surfaced in the impacted graph
+  - src/lib/ayas/stt/AyasSttService.ts: no related test file surfaced in the impacted graph
+
+Multimodal/doc safety:
+  - no multimodal/doc artifact surfaced in the impacted graph
+
+Next best action: Start with bridge nodes and high-risk chains before reviewing individual files.

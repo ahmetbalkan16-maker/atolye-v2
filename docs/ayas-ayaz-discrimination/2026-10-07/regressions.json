@@ -1,0 +1,166 @@
+[
+  {
+    "suite": "ayas-first-wake-reliability",
+    "exitCode": 1,
+    "status": "FAIL",
+    "scenarios": 38,
+    "failures": [
+      "REAL negative / near-match: ayaz"
+    ],
+    "ms": 9870,
+    "error": null
+  },
+  {
+    "suite": "ayas-wake-runner",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 17,
+    "failures": null,
+    "ms": 2598,
+    "error": null
+  },
+  {
+    "suite": "ayas-wake-adapter",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 54,
+    "failures": null,
+    "ms": 55376,
+    "error": null
+  },
+  {
+    "suite": "ayas-wake-multi-model",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 8,
+    "failures": null,
+    "ms": 3414,
+    "error": null
+  },
+  {
+    "suite": "ayas-voice",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 79,
+    "failures": null,
+    "ms": 606,
+    "error": null
+  },
+  {
+    "suite": "ayas-mobile-voice-regression",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 36,
+    "failures": null,
+    "ms": 599,
+    "error": null
+  },
+  {
+    "suite": "ayas-chat-stream-client",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 11,
+    "failures": null,
+    "ms": 752,
+    "error": null
+  },
+  {
+    "suite": "ayas-chat-stream",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 31,
+    "failures": null,
+    "ms": 775,
+    "error": null
+  },
+  {
+    "suite": "ayas-voice-turn-state-mutations",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": null,
+    "failures": null,
+    "ms": 19485,
+    "error": null
+  },
+  {
+    "suite": "brain-conversation",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 8,
+    "failures": null,
+    "ms": 531,
+    "error": null
+  },
+  {
+    "suite": "brain-lifecycle",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 16,
+    "failures": null,
+    "ms": 570,
+    "error": null
+  },
+  {
+    "suite": "ayas-homepage-v2",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 11,
+    "failures": null,
+    "ms": 1605,
+    "error": null
+  },
+  {
+    "suite": "ayas-owner-ui-v2",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 36,
+    "failures": null,
+    "ms": 1580,
+    "error": null
+  },
+  {
+    "suite": "ayas-stt",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 17,
+    "failures": null,
+    "ms": 516,
+    "error": null
+  },
+  {
+    "suite": "ayas-stt-security",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 7,
+    "failures": null,
+    "ms": 874,
+    "error": null
+  },
+  {
+    "suite": "brain-core-ui",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 43,
+    "failures": null,
+    "ms": 1682,
+    "error": null
+  },
+  {
+    "suite": "ayas-pwa-sw",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 16,
+    "failures": null,
+    "ms": 553,
+    "error": null
+  },
+  {
+    "suite": "ayas-pwa-manifest",
+    "exitCode": 0,
+    "status": "PASS",
+    "scenarios": 8,
+    "failures": null,
+    "ms": 537,
+    "error": null
+  }
+]

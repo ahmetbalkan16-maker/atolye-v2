@@ -1,0 +1,17 @@
+Node: detectAyasWakeWord()
+  ID:        brain_ayasvoice_detectayaswakeword
+  Source:    src/components/brain/ayasVoice.ts L179
+  Type:      code
+  Community: 15
+  Degree:    9
+
+Connections (9):
+  --> ayasVoice.ts [contains] [EXTRACTED]
+  --> smoke-ayas-voice.ts [imports] [EXTRACTED]
+  --> ayasVoiceEngine.ts [imports] [EXTRACTED]
+  --> smoke-ayas-first-wake-reliability.ts [imports] [EXTRACTED]
+  --> smoke-ayas-mobile-voice-regression.ts [imports] [EXTRACTED]
+  --> stripLeadingWakeWord() [calls] [EXTRACTED]
+  --> normalize() [calls] [EXTRACTED]
+  --> hasAtolyeLeadingBoundary() [calls] [EXTRACTED]
+  --> trimLeadingFiller() [calls] [EXTRACTED]

@@ -1,0 +1,14 @@
+FAILED: REAL negative / near-match: ayaz AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+5 !== 0
+
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-first-wake-reliability.ts:211:463)
+    at async scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-first-wake-reliability.ts:20:80)
+    at async main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-first-wake-reliability.ts:210:173) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 5,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

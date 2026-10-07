@@ -1,0 +1,39 @@
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+⚠ Compiled with warnings in 12.0s
+
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+module.createRequire failed parsing argument.
+
+Import trace for requested module:
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+./src/lib/brain/ui/AyasControlCenterCollector.ts
+./src/lib/ayas/briefing/AyasExecutiveBriefingService.ts
+./app/brain/briefing/actions.ts
+
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+module.createRequire failed parsing argument.
+
+Import trace for requested module:
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+./src/lib/brain/ui/AyasControlCenterCollector.ts
+./src/lib/ayas/briefing/AyasExecutiveBriefingService.ts
+./app/brain/briefing/actions.ts
+
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+module.createRequire failed parsing argument.
+
+Import trace for requested module:
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+./src/lib/brain/ui/AyasControlCenterCollector.ts
+./src/components/brain/AyasConsolePage.tsx
+./app/page.tsx
+
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+module.createRequire failed parsing argument.
+
+Import trace for requested module:
+./src/lib/ayas/developer/AyasGraphifyStateCollector.ts
+./src/lib/brain/ui/AyasControlCenterCollector.ts
+./src/components/brain/AyasConsolePage.tsx
+./app/page.tsx
+

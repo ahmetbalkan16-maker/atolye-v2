@@ -1,0 +1,38 @@
+WakeWordVoiceAdapter [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+├─ method -> .armConversationTimer() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .clearConversationTimer() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .ensureWakeReady() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .enterPaused() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .finishCommand() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .onFrame() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  └─ calls -> .rearmAfterRecovery() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+├─ method -> .armWatchdog() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .attemptUnpause() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .clearWatchdog() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .ensureWakeReady() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+│  ├─ calls -> .onConversationIdle() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .rearmAfterRecovery() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+│  ├─ calls -> .rebuildAudio() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  └─ calls -> .watchdogTick() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+├─ method -> .attemptUnpause() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+├─ method -> .cancelSpeech() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+├─ method -> .clearConversationTimer() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+├─ method -> .clearWatchdog() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+├─ method -> .constructor() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> MediaStreamWorkletBackend [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  └─ calls -> WakeScoreDetector [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+├─ method -> .detectCapability() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+├─ method -> .dispose() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+│  ├─ calls -> .clearConversationTimer() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+│  └─ calls -> .clearWatchdog() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+└─ method -> .emit() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+   ├─ calls -> .attemptUnpause() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+   ├─ calls -> .endConversation() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+   ├─ calls -> .ensureWakeReady() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+   ├─ calls -> .enterPaused() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+   ├─ calls -> .finishCommand() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+   ├─ calls -> .getStatus() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+   ├─ calls -> .onConversationIdle() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+   ├─ calls -> .resumeOrRebuild() [src/components/brain/voice/wakeWordVoiceAdapter.ts]
+   └─ calls -> .watchdogTick() [src/components/brain/voice/wakeWordVoiceAdapter.ts] (seen)
+└─ ... and 31 more

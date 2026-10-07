@@ -1,0 +1,12 @@
+PASS 1: fixed six-area dock and existing navigation survive
+PASS 2: all real brain states retain accessible text and distinct state attributes
+PASS 3: unconnected sources are unknown, never green fabricated health
+PASS 4: state reducer still prioritizes actual offline, tool and speech evidence
+PASS 5: streaming stop and error fallback remain available
+PASS 6: voice opt-in, mute, replay, interrupt and text survive
+PASS 7: tasks switch renders the original tasks view
+PASS 8: homepage policy fails closed including case/slash variants
+PASS 9: presentational shell has no polling, authority calls or capability enumeration
+PASS 10: original production dashboard preserved and fake timed stage labels removed
+PASS 11: delayed facts stream without blocking chat; absent result stays truthful
+{"suite":"ayas-homepage-v2","status":"PASS","scenarios":11}

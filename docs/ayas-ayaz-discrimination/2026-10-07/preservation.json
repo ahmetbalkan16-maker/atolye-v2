@@ -1,0 +1,19 @@
+{
+  "base": "67113e5765d3e911c2f29288b221f3bc8936d225",
+  "protectedPaths": [
+    "src",
+    "app",
+    "public",
+    "package.json",
+    "package-lock.json",
+    "scripts/smoke-ayas-first-wake-reliability.ts",
+    "docs/ayas-first-wake-reliability",
+    "docs/ayas-execution",
+    "scripts/ayas-access-daemon.ps1"
+  ],
+  "status": "BYTE_CONTENT_DIFF_ZERO",
+  "immutableFirstWakeEvidence": "UNCHANGED",
+  "models": "UNCHANGED",
+  "productionSource": "UNCHANGED",
+  "canonicalNextBuildId": "W69b9LVZicew-R1jk70Ql"
+}

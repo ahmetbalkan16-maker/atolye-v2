@@ -1,0 +1,3 @@
+   SKIP real integration (AYAS_WHISPER_EXECUTABLE=unset, model=unset, config.enabled=false)
+AYAS STT smoke: PASS (17 scenarios)
+{"status":"PASS","suite":"ayas-stt","scenarios":17}

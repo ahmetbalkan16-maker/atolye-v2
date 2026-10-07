@@ -1,0 +1,25 @@
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import {execFile,execFileSync} from 'node:child_process';
+import {resolveAyasSttConfig} from '../../src/lib/ayas/stt/AyasSttConfig';
+import {transcribeAyasAudio} from '../../src/lib/ayas/stt/AyasSttService';
+import {ayasSttThermalHold} from '../../src/lib/ayas/stt/AyasSttThermal';
+process.loadEnvFile('.env.local');
+const root=process.cwd(), config=resolveAyasSttConfig(), work=fs.mkdtempSync(path.join(os.tmpdir(),'ayas-ayaz-stt-probe-'));
+async function main(){
+ fs.cpSync(path.join(root,'bin/piper'),path.join(work,'piper'),{recursive:true});
+ for(const text of ['AYAS','ayaz']){
+  const raw=path.join(work,'raw.wav'),wav=path.join(work,'clip.wav');
+  execFileSync(path.join(work,'piper/piper.exe'),['--model',path.join(work,'piper/tr_TR-dfki-medium.onnx'),'--espeak_data',path.join(work,'piper/espeak-ng-data'),'--output_file',raw,'--noise_scale','0','--noise_w','0'],{input:text,cwd:path.join(work,'piper'),windowsHide:true,stdio:['pipe','ignore','ignore']});
+  execFileSync(config.ffmpegPath,['-nostdin','-loglevel','error','-y','-i',raw,'-af','apad=pad_dur=2','-ac','1','-ar','16000','-c:a','pcm_s16le',wav],{windowsHide:true,stdio:'ignore'});
+  for(const prompt of ['existing','none']){
+   let rawTranscript:unknown=null;
+   const result=await transcribeAyasAudio(fs.readFileSync(wav),{config,thermalHold:ayasSttThermalHold,run:async(exe,args,timeout,cwd)=>{
+    const argv=[...args];if(prompt==='none'&&argv.includes('--prompt'))argv.splice(argv.indexOf('--prompt'),2);
+    const out=await new Promise<{code:number;stdout:string;stderr:string;timedOut:boolean}>(resolve=>execFile(exe,argv,{timeout,windowsHide:true,cwd,maxBuffer:8*1024*1024},(err,stdout,stderr)=>resolve({code:err?1:0,stdout,stderr,timedOut:Boolean((err as {killed?:boolean}|null)?.killed)})));
+    if(argv.includes('-ojf')&&out.code===0){const base=argv[argv.indexOf('-of')+1];try{const doc=JSON.parse(fs.readFileSync(path.resolve(cwd||root,base+'.json'),'utf8'));rawTranscript=doc.transcription;}catch{}}
+    return out;
+   }});
+   console.log(JSON.stringify({text,prompt,configEnabled:config.enabled,rawTranscript,result,diagnosticOnly:true}));
+  }
+ }
+}
+main().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>{const resolved=path.resolve(work);if(resolved.startsWith(path.resolve(os.tmpdir())+path.sep)&&path.basename(resolved).startsWith('ayas-ayaz-stt-probe-'))fs.rmSync(resolved,{recursive:true,force:true});});

@@ -1,0 +1,23 @@
+Node: OpenWakeWordRunner
+  ID:        wake_openwakewordrunner_openwakewordrunner
+  Source:    src/components/brain/voice/wake/openWakeWordRunner.ts L121
+  Type:      code
+  Community: 51
+  Degree:    15
+
+Connections (15):
+  --> wakeWordVoiceAdapter.ts [imports] [EXTRACTED]
+  --> smoke-ayas-first-wake-reliability.ts [imports] [EXTRACTED]
+  --> smoke-ayas-wake-runner.ts [imports] [EXTRACTED]
+  --> openWakeWordRunner.ts [contains] [EXTRACTED]
+  --> .runChunk() [method] [EXTRACTED]
+  --> .accept() [method] [EXTRACTED]
+  --> .recordScore() [method] [EXTRACTED]
+  --> .scoreDistribution() [method] [EXTRACTED]
+  --> .stats() [method] [EXTRACTED]
+  --> .constructor() [method] [EXTRACTED]
+  --> .dispose() [method] [EXTRACTED]
+  --> .init() [method] [EXTRACTED]
+  --> .ready() [method] [EXTRACTED]
+  --> .reset() [method] [EXTRACTED]
+  --> .warmUp() [method] [EXTRACTED]

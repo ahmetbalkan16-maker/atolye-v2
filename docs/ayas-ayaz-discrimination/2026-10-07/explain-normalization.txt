@@ -1,0 +1,11 @@
+Node: normaliseAyasTranscript()
+  ID:        stt_ayassttservice_normaliseayastranscript
+  Source:    src/lib/ayas/stt/AyasSttService.ts L136
+  Type:      code
+  Community: 159
+  Degree:    3
+
+Connections (3):
+  --> AyasSttService.ts [contains] [EXTRACTED]
+  --> smoke-ayas-stt.ts [imports] [EXTRACTED]
+  --> transcribeAyasAudio() [calls] [EXTRACTED]
