@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-07T18:38:58.3497808Z",
+  "deployment": "NOT_RUN_NEGATIVE_GATE_FAIL",
+  "snapshot": {
+    "origin": "healthy",
+    "listenerPid": 19960,
+    "wrapperPid": 16892,
+    "tunnel": "healthy",
+    "tunnelPid": 30200,
+    "expectedAppCount": 1,
+    "expectedTunnelCount": 1
+  },
+  "localHealth": true,
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "path": "\\",
+      "state": "Running",
+      "xmlSha256": "4b8979e399dd2ddef08e7bbc899519ef9a454d2814317e58e124f421bb68aba3"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "path": "\\",
+      "state": "Running",
+      "xmlSha256": "c2b6b3f3971c4b00f2f5465f20973a2056527589b1a757eefff9a42bf461a2df"
+    }
+  ],
+  "tunnelConfigSha256": "a909cbb9a9b0979cb23507cc83ab39496188f661e7178ece6d58a2555e2e74d9",
+  "buildId": "W69b9LVZicew-R1jk70Ql"
+}

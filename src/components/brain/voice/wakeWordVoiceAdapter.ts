@@ -436,9 +436,13 @@ export interface WakeRunnerLike {
     readonly lastError: string | null;
   };
   init(): Promise<void>;
+  /** Optional real-model silence preparation before microphone capture. */
+  warmUp?(): Promise<void>;
+  /** Real runner emits each catch-up score through accept's callback. */
+  readonly emitsScores?: boolean;
   reset(): void;
   dispose(): void;
-  accept(frame: Float32Array): Promise<number | null>;
+  accept(frame: Float32Array, onScore?: (score: number) => void): Promise<number | null>;
 }
 
 /** The mic + worklet, abstracted so tests can drive frames synchronously. */
@@ -1043,8 +1047,12 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       for (this.startAttempts = 1; this.startAttempts <= MAX_START_ATTEMPTS; this.startAttempts += 1) {
         try {
           const inits: Promise<void>[] = [];
-          if (!this.runner.ready) inits.push(this.runner.init());
-          if (this.runnerAlias && !this.runnerAlias.ready) inits.push(this.runnerAlias.init());
+          const prepare = async (runner: WakeRunnerLike) => {
+            if (!runner.ready) await runner.init();
+            await runner.warmUp?.();
+          };
+          inits.push(prepare(this.runner));
+          if (this.runnerAlias) inits.push(prepare(this.runnerAlias));
           if (inits.length) {
             try {
               await withTimeout(Promise.all(inits).then(() => undefined), AUDIO_START_TIMEOUT_MS, "runner-init");
@@ -1401,11 +1409,8 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       // no shared mutable state with the primary, so running both concurrently
       // is safe. `Promise.resolve(null)` stands in when there is no alias,
       // which reproduces the original single-model timing/behavior exactly.
-      void Promise.all([
-        this.runner.accept(frame),
-        this.runnerAlias ? this.runnerAlias.accept(frame) : Promise.resolve(null),
-      ]).then(([primaryScore, aliasScore]) => {
-        if (this.phase !== "wake") return;
+      const observe = (primaryScore: number | null, aliasScore: number | null) => {
+        if (this.phase !== "wake" || this.handlers !== handlers) return;
         const primaryHit = primaryScore !== null && this.detector.observe(primaryScore);
         const aliasHit = Boolean(this.detectorAlias) && aliasScore !== null && this.detectorAlias!.observe(aliasScore);
         if (primaryHit || aliasHit) {
@@ -1445,6 +1450,15 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
           this.emit();
           handlers.onFinalTranscript("AYAS");
         }
+      };
+      // Slow phones process several contiguous chunks in one accept(). A brief
+      // high score or soft votes must not be overwritten by its last quiet chunk.
+      // Older injected runners retain the single-return-score contract.
+      void Promise.all([
+        this.runner.accept(frame, (score) => observe(score, null)),
+        this.runnerAlias ? this.runnerAlias.accept(frame, (score) => observe(null, score)) : Promise.resolve(null),
+      ]).then(([primaryScore, aliasScore]) => {
+        observe(this.runner.emitsScores ? null : primaryScore, this.runnerAlias?.emitsScores ? null : aliasScore);
       });
       return;
     }

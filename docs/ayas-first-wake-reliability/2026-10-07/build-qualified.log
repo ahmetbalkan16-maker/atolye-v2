@@ -1,0 +1,75 @@
+▲ Next.js 16.2.10 (webpack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.1s
+  Running TypeScript ...
+  Finished TypeScript in 15.7s ...
+  Collecting page data using 31 workers ...
+  Generating static pages using 31 workers (0/28) ...
+  Generating static pages using 31 workers (7/28)
+  Generating static pages using 31 workers (14/28)
+  Generating static pages using 31 workers (21/28)
+✓ Generating static pages using 31 workers (28/28) in 209ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /api/animations
+├ ƒ /api/assembly
+├ ƒ /api/assets
+├ ƒ /api/assets/audio/[slug]/[fileName]
+├ ƒ /api/assets/images/[slug]/[fileName]
+├ ƒ /api/assets/thumbnails/[slug]/[fileName]
+├ ƒ /api/assets/videos/[slug]/[fileName]
+├ ƒ /api/audio
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/ayas/chat/stream
+├ ƒ /api/ayas/intake
+├ ƒ /api/ayas/phone-access
+├ ƒ /api/ayas/stt
+├ ƒ /api/ayas/trace/[traceId]
+├ ƒ /api/brain/snapshot
+├ ƒ /api/export
+├ ƒ /api/pipeline
+├ ƒ /api/production/health/[slug]
+├ ƒ /api/projects
+├ ƒ /api/projects/[slug]/ai-usage
+├ ƒ /api/projects/[slug]/pipeline/history
+├ ƒ /api/projects/[slug]/pipeline/jobs
+├ ƒ /api/projects/[slug]/pipeline/jobs/[jobId]
+├ ƒ /api/projects/[slug]/pipeline/resume
+├ ƒ /api/projects/[slug]/pipeline/retry
+├ ƒ /api/research
+├ ƒ /api/runtime/health
+├ ƒ /api/seo
+├ ƒ /api/thumbnail
+├ ƒ /api/thumbnails
+├ ƒ /api/video
+├ ƒ /api/visuals
+├ ƒ /api/youtube
+├ ƒ /brain
+├ ƒ /brain/briefing
+├ ƒ /brain/constitution
+├ ƒ /brain/revenue
+├ ƒ /brain/safe-mode
+├ ○ /brain/voice-lab
+├ ○ /brain/voice-lab/phone-llm
+├ ○ /brain/voice-lab/wake
+├ ƒ /login
+├ ○ /manifest.webmanifest
+├ ○ /offline
+├ ƒ /project/[slug]
+├ ○ /research
+├ ○ /scenes
+├ ○ /script
+├ ○ /studio
+└ ○ /visuals
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

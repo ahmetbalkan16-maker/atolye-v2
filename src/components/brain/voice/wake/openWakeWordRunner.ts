@@ -119,6 +119,12 @@ export interface WakeRunnerStats {
 }
 
 export class OpenWakeWordRunner {
+  /** Adapter seam: every catch-up score is delivered, not only the last one. */
+  readonly emitsScores = true;
+  private epoch = 0;
+  private warming = false;
+  private warmup: Promise<void> | null = null;
+  private silenceContext: { raw: Float32Array; mel: Float32Array; emb: Float32Array } | null = null;
   private mel!: WakeSession;
   private emb!: WakeSession;
   private ww!: WakeSession;
@@ -244,15 +250,60 @@ export class OpenWakeWordRunner {
   }
 
   reset(): void {
-    this.rawLen = 0;
+    this.epoch += 1;
+    this.rawLen = this.silenceContext?.raw.length ?? 0;
     this.pending = [];
-    this.melFrames = 0;
-    this.embCount = 0;
-    this.inFlight = false;
+    this.melFrames = this.silenceContext ? MEL_WINDOW : 0;
+    this.embCount = this.silenceContext ? EMB_WINDOW : 0;
+    if (this.silenceContext) {
+      this.raw.set(this.silenceContext.raw);
+      this.melBuf.set(this.silenceContext.mel);
+      this.embBuf.set(this.silenceContext.emb);
+    }
+    // An old inference still owns single-flight until its finally runs. Epoch
+    // checks discard its outputs; reset must never permit overlapping kernels.
+  }
+
+  /**
+   * Build real model features from silence BEFORE connecting the microphone.
+   * A cold 76-mel / 16-embedding window otherwise cannot score the first ~2 s.
+   * Cache only silence, never user audio; reset restores this small baseline.
+   * At most 32 x 80 ms synthetic chunks, under the adapter's startup timeout.
+   * Synthetic work is excluded from live score/frame diagnostics.
+   */
+  warmUp(): Promise<void> {
+    if (this.silenceContext) return Promise.resolve();
+    if (this.warmup) return this.warmup;
+    this.warmup = (async () => {
+      if (!this._ready || this.disposed || this.inFlight) throw new Error("wake-warmup-not-ready");
+      this.reset();
+      this.warming = true;
+      try {
+        const silence = new Array<number>(CHUNK).fill(0);
+        for (let n = 0; n < 32; n += 1) {
+          const score = await this.runChunk(silence);
+          if (this.disposed || this.lastError) throw new Error(this.lastError ?? "wake-warmup-disposed");
+          if (score !== null) {
+            this.silenceContext = {
+              raw: this.raw.slice(this.rawLen - MEL_LOOKBACK, this.rawLen),
+              mel: this.melBuf.slice((this.melFrames - MEL_WINDOW) * MEL_BINS, this.melFrames * MEL_BINS),
+              emb: this.embBuf.slice((this.embCount - EMB_WINDOW) * EMB_DIM, this.embCount * EMB_DIM),
+            };
+            this.reset();
+            return;
+          }
+        }
+        throw new Error("wake-warmup-context-incomplete");
+      } finally {
+        this.warming = false;
+      }
+    })().finally(() => { this.warmup = null; });
+    return this.warmup;
   }
 
   dispose(): void {
     this.disposed = true;
+    this.epoch += 1;
     void this.mel?.release?.();
     void this.emb?.release?.();
     void this.ww?.release?.();
@@ -267,8 +318,8 @@ export class OpenWakeWordRunner {
    * path shows up as a visible error string rather than an unhandled rejection
    * that silently freezes the pipeline.
    */
-  async accept(frame: Float32Array): Promise<number | null> {
-    if (!this._ready || this.disposed) return null;
+  async accept(frame: Float32Array, onScore?: (score: number) => void): Promise<number | null> {
+    if (!this._ready || this.disposed || this.warming) return null;
 
     // Always buffer the samples (bounded). When inference falls behind on a
     // phone, the audio stays CONTIGUOUS — a delayed-but-gapless chunk scores far
@@ -287,6 +338,7 @@ export class OpenWakeWordRunner {
     if (this.pending.length < CHUNK) return null;
 
     this.inFlight = true;
+    const epoch = this.epoch;
     this.concurrent += 1;
     if (this.concurrent > this.maxConcurrent) this.maxConcurrent = this.concurrent;
     try {
@@ -295,6 +347,9 @@ export class OpenWakeWordRunner {
       let batch = 0;
       for (let n = 0; n < MAX_CATCHUP && this.pending.length >= CHUNK; n += 1) {
         score = await this.runChunk(this.pending.splice(0, CHUNK));
+        if (this.disposed || epoch !== this.epoch) return null;
+        if (score !== null) onScore?.(score);
+        if (this.disposed || epoch !== this.epoch) return null;
         batch += 1;
       }
       if (batch > 1) this.nCatchupBatches += 1;
@@ -311,7 +366,8 @@ export class OpenWakeWordRunner {
 
   /** Run one 1280-sample chunk through mel → transform → embedding → wakeword. */
   private async runChunk(chunk: number[]): Promise<number | null> {
-    this.nFrames += 1;
+    const epoch = this.epoch;
+    if (!this.warming) this.nFrames += 1;
     try {
       // roll the raw buffer, keep the last CHUNK + lookback samples
       const keep = CHUNK + MEL_LOOKBACK;
@@ -331,6 +387,7 @@ export class OpenWakeWordRunner {
           [1, melSlice.length],
         ),
       });
+      if (this.disposed || epoch !== this.epoch) return null;
       const melData = melOut[this.mel.outputNames[0]].data as Float32Array; // (time, 1, ?, 32) row-major
       const newFrames = melData.length / MEL_BINS;
       for (let f = 0; f < newFrames; f += 1) {
@@ -342,7 +399,7 @@ export class OpenWakeWordRunner {
           this.melBuf[this.melFrames * MEL_BINS + b] = melData[f * MEL_BINS + b] / 10 + 2;
         }
         this.melFrames += 1;
-        this.nMelFrames += 1;
+        if (!this.warming) this.nMelFrames += 1;
       }
       if (this.melFrames < MEL_WINDOW) return null;
 
@@ -353,6 +410,7 @@ export class OpenWakeWordRunner {
       const embOut = await this.emb.run({
         [this.emb.inputNames[0]]: new ort.Tensor("float32", this.embInBuf, [1, MEL_WINDOW, MEL_BINS, 1]),
       });
+      if (this.disposed || epoch !== this.epoch) return null;
       const embData = embOut[this.emb.outputNames[0]].data as Float32Array; // (1,1,1,96)
       if (this.embCount >= EMB_BUFFER_MAX) {
         this.embBuf.copyWithin(0, EMB_DIM, this.embCount * EMB_DIM);
@@ -360,19 +418,22 @@ export class OpenWakeWordRunner {
       }
       for (let d = 0; d < EMB_DIM; d += 1) this.embBuf[this.embCount * EMB_DIM + d] = embData[d];
       this.embCount += 1;
-      this.nEmb += 1;
+      if (!this.warming) this.nEmb += 1;
       if (this.embCount < EMB_WINDOW) return null;
 
       this.wwInBuf.set(this.embBuf.subarray((this.embCount - EMB_WINDOW) * EMB_DIM, this.embCount * EMB_DIM));
       const wwOut = await this.ww.run({
         [this.ww.inputNames[0]]: new ort.Tensor("float32", this.wwInBuf, [1, EMB_WINDOW, EMB_DIM]),
       });
+      if (this.disposed || epoch !== this.epoch) return null;
       const score = (wwOut[this.ww.outputNames[0]].data as Float32Array)[0];
-      this.nInfer += 1;
+      if (!this.warming) this.nInfer += 1;
       if (Number.isFinite(score)) {
-        this.lastScore = score;
-        if (score > this.maxScore) this.maxScore = score;
-        this.recordScore(score);
+        if (!this.warming) {
+          this.lastScore = score;
+          if (score > this.maxScore) this.maxScore = score;
+          this.recordScore(score);
+        }
         return score;
       }
       this.lastError = "wakeword output was not finite";

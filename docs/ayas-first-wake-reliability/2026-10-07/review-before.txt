@@ -1,0 +1,38 @@
+Graphify Review Analysis
+Changed files: 2
+Blast radius: high (score 89)
+Impacted files: 2
+Impacted communities: 3
+Bridge nodes: 8
+Test-gap hints: 2
+Multimodal safety: none
+
+Blast rationale:
+  - multiple communities are impacted
+  - bridge nodes connect this change across communities
+  - high-risk chains are present
+  - test-gap hints are present
+
+Impacted communities:
+  - Community 91 (high, 47 impacted nodes, 58 changed nodes)
+  - Community 51 (high, 10 impacted nodes, 16 changed nodes)
+  - Community 18 (high, 3 impacted nodes, 12 changed nodes)
+
+Bridge nodes:
+  - WakeWordVoiceAdapter (degree 40, community 91, src/components/brain/voice/wakeWordVoiceAdapter.ts)
+  - MediaStreamWorkletBackend (degree 15, community 91, src/components/brain/voice/wakeWordVoiceAdapter.ts)
+  - OpenWakeWordRunner (degree 13, community 51, src/components/brain/voice/wake/openWakeWordRunner.ts)
+  - WakeScoreDetector (degree 8, community 91, src/components/brain/voice/wakeWordVoiceAdapter.ts)
+  - WakeAudioBackend (degree 4, community 18, src/components/brain/voice/wakeWordVoiceAdapter.ts)
+  - WakeRunnerStats (degree 3, community 51, src/components/brain/voice/wake/openWakeWordRunner.ts)
+  - delay() (degree 2, community 91, src/components/brain/voice/wakeWordVoiceAdapter.ts)
+  - frameRms() (degree 2, community 91, src/components/brain/voice/wakeWordVoiceAdapter.ts)
+
+Test-gap hints:
+  - src/components/brain/voice/wake/openWakeWordRunner.ts: no related test file surfaced in the impacted graph
+  - src/components/brain/voice/wakeWordVoiceAdapter.ts: no related test file surfaced in the impacted graph
+
+Multimodal/doc safety:
+  - no multimodal/doc artifact surfaced in the impacted graph
+
+Next best action: Start with bridge nodes and high-risk chains before reviewing individual files.

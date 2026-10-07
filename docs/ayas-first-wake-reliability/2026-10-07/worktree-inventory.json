@@ -1,0 +1,51 @@
+[
+  {
+    "worktree": "C:/Users/Metod/Desktop/solid/SW2020.x64.SP4.0/Program/Atölye/atolye-v2",
+    "entries": 3,
+    "modified": 2,
+    "deleted": 0,
+    "untracked": 1
+  },
+  {
+    "worktree": "C:/Users/Metod/AppData/Local/Temp/AYAS-Holographic-Preview",
+    "entries": 1252,
+    "modified": 0,
+    "deleted": 1252,
+    "untracked": 0
+  },
+  {
+    "worktree": "C:/Users/Metod/AppData/Local/Temp/ayas-micro-batch-worktree",
+    "entries": 1,
+    "modified": 0,
+    "deleted": 0,
+    "untracked": 1
+  },
+  {
+    "worktree": "C:/Users/Metod/AppData/Local/Temp/ayas-patch-sandbox-18ad21d1-6714-4f72-91c1-1958cb36c0b1",
+    "entries": 1,
+    "modified": 1,
+    "deleted": 0,
+    "untracked": 0
+  },
+  {
+    "worktree": "C:/Users/Metod/AppData/Local/Temp/ayas-patch-sandbox-a5c4407a-73de-453d-9f11-dbc034b1ef5a",
+    "entries": 1,
+    "modified": 1,
+    "deleted": 0,
+    "untracked": 0
+  },
+  {
+    "worktree": "C:/Users/Metod/AppData/Local/Temp/claude/c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2/bccfde54-8e59-4ba3-92a8-55a7b96b2a0b/scratchpad/ayas-regen-sandbox",
+    "entries": 1254,
+    "modified": 0,
+    "deleted": 1254,
+    "untracked": 0
+  },
+  {
+    "worktree": "C:/Users/Metod/AppData/Local/Temp/claude/c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2/e3a1b2cb-9794-4c2a-b2ed-a35ff69538e5/scratchpad/ayas-owner-approval-validation",
+    "entries": 1230,
+    "modified": 0,
+    "deleted": 1230,
+    "untracked": 0
+  }
+]

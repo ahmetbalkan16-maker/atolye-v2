@@ -1,0 +1,159 @@
+{
+  "at": "2026-10-07T18:45:30.521Z",
+  "initialHead": "de9a825bb72a61647886bf35a26177e092f10d52",
+  "branch": "wip/ayas-graphify-final-execution",
+  "recoveredChanges": "NONE_IN_ACTIVE_WORKTREE",
+  "provider404": "EXTERNAL_PROVIDER_MODEL_ACCESS_ERROR",
+  "status": "WIP_NOT_READY_NEGATIVE_GATE_FAIL",
+  "regressions": [
+    {
+      "suite": "ayas-wake-runner",
+      "status": "PASS",
+      "scenarios": 17,
+      "controls": null
+    },
+    {
+      "suite": "ayas-wake-adapter",
+      "status": "PASS",
+      "scenarios": 54,
+      "controls": null
+    },
+    {
+      "suite": "ayas-wake-multi-model",
+      "status": "PASS",
+      "scenarios": 8,
+      "controls": null
+    },
+    {
+      "suite": "ayas-voice",
+      "status": "PASS",
+      "scenarios": 79,
+      "controls": null
+    },
+    {
+      "suite": "ayas-mobile-voice-regression",
+      "status": "PASS",
+      "scenarios": 36,
+      "controls": null
+    },
+    {
+      "suite": "ayas-chat-stream-client",
+      "status": "PASS",
+      "scenarios": 11,
+      "controls": null
+    },
+    {
+      "suite": "ayas-chat-stream",
+      "status": "PASS",
+      "scenarios": 31,
+      "controls": null
+    },
+    {
+      "suite": "ayas-voice-turn-state-mutations",
+      "status": "PASS",
+      "scenarios": null,
+      "controls": 12
+    },
+    {
+      "suite": "brain-conversation",
+      "status": "PASS",
+      "scenarios": 8,
+      "controls": null
+    },
+    {
+      "suite": "brain-lifecycle",
+      "status": "PASS",
+      "scenarios": 16,
+      "controls": null
+    },
+    {
+      "suite": "ayas-homepage-v2",
+      "status": "PASS",
+      "scenarios": 11,
+      "controls": null
+    },
+    {
+      "suite": "ayas-owner-ui-v2",
+      "status": "PASS",
+      "scenarios": 36,
+      "controls": null
+    },
+    {
+      "suite": "ayas-stt",
+      "status": "PASS",
+      "scenarios": 17,
+      "controls": null
+    },
+    {
+      "suite": "ayas-stt-security",
+      "status": "PASS",
+      "scenarios": 7,
+      "controls": null
+    },
+    {
+      "suite": "brain-core-ui",
+      "status": "PASS",
+      "scenarios": 43,
+      "controls": null
+    }
+  ],
+  "firstWake": {
+    "status": "FAIL",
+    "total": 38,
+    "passed": 37,
+    "failed": [
+      "REAL negative / near-match: ayaz"
+    ],
+    "syntheticIndependentStarts": "10/10",
+    "deterministicNegativeUtterances": "9/10",
+    "nearMatchAyaz": "FAIL_IN_BOTH_BASELINE_AND_CANDIDATE",
+    "physicalPhone": "OWNER_ACTION_NOT_RUN"
+  },
+  "typescript": {
+    "exit": 0,
+    "log": "tsc-qualified.log"
+  },
+  "lint": {
+    "exit": 0,
+    "errors": 0,
+    "inheritedWarnings": 13,
+    "log": "lint-qualified.log"
+  },
+  "build": {
+    "exit": 0,
+    "mode": "ISOLATED_WEBPACK_PRODUCTION_BUILD",
+    "installedNext": "16.2.10",
+    "lockNext": "16.3.8",
+    "dependencyAlignment": "OPEN_UNCHANGED",
+    "runtimeAccepted": false,
+    "workspace": "C:/Users/Metod/AppData/Local/Temp/ayas-first-wake-build-0T5SFs",
+    "log": ".next-first-wake-qualified.log",
+    "durableLog": "build-qualified.log"
+  },
+  "diffCheck": "PASS",
+  "models": [
+    {
+      "file": "public/wake/ayas.onnx",
+      "sha256": "37aaab151f88fbd2fe795593176718aa10067a5526b8e41c94784aa08a80539c"
+    },
+    {
+      "file": "public/wake/melspectrogram.onnx",
+      "sha256": "ba2b0e0f8b7b875369a2c89cb13360ff53bac436f2895cced9f479fa65eb176f"
+    },
+    {
+      "file": "public/wake/embedding_model.onnx",
+      "sha256": "70d164290c1d095d1d4ee149bc5e00543250a7316b59f31d056cff7bd3075c1f"
+    }
+  ],
+  "graphify": {
+    "initialHead": "de9a825bb72a61647886bf35a26177e092f10d52",
+    "preChangeExplainReviewDependency": "DONE",
+    "postSourceRefresh": "DONE",
+    "finalHeadRefresh": "RUN_AFTER_SESSION_SAVE",
+    "structural": "PARTIAL9_INHERITED",
+    "semantic": "PENDING"
+  },
+  "deployment": "NOT_RUN_NEGATIVE_GATE_FAIL",
+  "foundation": "BLOCKED",
+  "protectedAreas": "UNCHANGED"
+}
