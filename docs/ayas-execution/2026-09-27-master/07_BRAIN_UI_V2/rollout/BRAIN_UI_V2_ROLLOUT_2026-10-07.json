@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-07",
+  "deployedSourceHead": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
+  "branch": "wip/ayas-graphify-final-execution",
+  "status": "DEPLOYED_PUBLIC_ARTIFACTS_VERIFIED_AUTHENTICATED_DEVICE_OWNER_ACTION",
+  "rootCause": {
+    "oldOriginPid": 3416,
+    "oldBuildSource": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "oldBuildId": "J9KXmeFgSmXyyFBnusnXZ",
+    "oldBuildHadHomeClient": true,
+    "oldBuildHadHomepage": false,
+    "oldBuildHadStudio": false,
+    "directoryAndIngress": "CORRECT",
+    "duplicateListener": "NONE",
+    "primaryFailure": "OLD_RUNNING_PRODUCTION_PROCESS_AND_BUILD",
+    "browserCache": "PHYSICAL_DEVICE_NOT_INSPECTED_NOT_NEEDED_TO_EXPLAIN_OLD_SERVER",
+    "nextCache": "NO_INDEPENDENT_CACHE_FAILURE_DEMONSTRATED"
+  },
+  "method": "Stopped only exact verified canonical old origin; existing Running Access daemon invoked unchanged Start-Origin npm run build and npm run start -- -p 3000. No task/tunnel/config/port/domain/credentials edits.",
+  "after": {
+    "originPid": 11472,
+    "tunnelPid": 30200,
+    "accessSupervisorPid": 2496,
+    "observerPid": 31556,
+    "buildId": "U2nNI8e-5Yn3t1fi7A5dQ",
+    "buildStamp": {
+      "schemaVersion": "1",
+      "gitHead": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+      "stampedAt": "2026-10-07T14:42:11.404Z"
+    },
+    "taskXmlUnchanged": true,
+    "tunnelConfigUnchanged": true,
+    "scheduledTasks": "Both Running",
+    "cloudflaredReady": 200,
+    "publicArtifacts": "12 responses 200 with hashes matching deployed build; actual Brain UI V2 JS and responsive/reduced-motion CSS markers verified",
+    "protectedPages": "307 to expected login",
+    "protectedApis": "401",
+    "login": "local/public200",
+    "fatalRuntimeLog": "NONE_IN_RESTARTED_ORIGIN_OBSERVED_LOG"
+  },
+  "tests": {
+    "accessGate": 19,
+    "phoneAccessHealth": 13,
+    "homepage": 11,
+    "chatStream": 31,
+    "chatStreamClient": 11,
+    "total": 85,
+    "status": "ALL_PASS",
+    "canonicalProductionBuild": "PASS_EXISTING_NEXT16.2.10",
+    "typescript": "PASS_AS_PART_OF_ACTUAL_BUILD",
+    "turbopackWarnings": 104,
+    "middlewareDeprecation": true,
+    "sourceChanged": false,
+    "priorLint": "Same-source0errors13inheritedwarnings; not redundantly rerun"
+  },
+  "asset": {
+    "path": "public/ayas/brain/ayas-brain-core-v2.webp",
+    "exists": true,
+    "bytes": 233150,
+    "sha256": "ce658939ed0254ec4b94a0c65d2dcde78759aa990cead1c5dd12a07492049884",
+    "http": "Auth gated307 without cookies; authenticated200/visual404 sanity remains owner check"
+  },
+  "phone": {
+    "entry": "https://ayas.atolyeayas.com/",
+    "pwaStartUrl": "/brain?source=pwa",
+    "homepageVisual": "OWNER_NOT_RUN",
+    "voice": "OWNER_NOT_RUN",
+    "auth": "No credentials/session tokens requested, read, minted or sent; normal canonical Next runtime loads its existing environment"
+  },
+  "foundation": "BLOCKED_UNCHANGED",
+  "frozenStage17EvidenceEdited": false,
+  "dependenciesMigrated": false,
+  "installedNextVsLock": "16.2.10_vs16.3.8_OPEN_PRESERVED",
+  "rollback": {
+    "buildBackup": "C:/Users/Metod/AppData/Local/Temp/ayas-brain-v2-rollout-20261007/previous-next",
+    "used": false
+  },
+  "rawCanonicalBuildLogs": {
+    "stdout": "C:/Users/Metod/AppData/Local/Temp/ayas-brain-v2-rollout-20261007/canonical-build.stdout.log",
+    "stderr": "C:/Users/Metod/AppData/Local/Temp/ayas-brain-v2-rollout-20261007/canonical-build.stderr.log"
+  },
+  "sessionSaveHead": "Following documentation-only commit; resolve actual Git HEAD. Production build stays bound to d931a18, with identical code on the evidence descendant."
+}

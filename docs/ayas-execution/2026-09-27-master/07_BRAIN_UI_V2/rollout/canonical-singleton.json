@@ -1,0 +1,9 @@
+{
+  "origin": "healthy",
+  "listenerPid": 11472,
+  "wrapperPid": 31048,
+  "tunnel": "healthy",
+  "tunnelPid": 30200,
+  "expectedAppCount": 1,
+  "expectedTunnelCount": 1
+}

@@ -1,0 +1,222 @@
+[
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/login",
+    "status": 200,
+    "location": null,
+    "gate": null,
+    "cache": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "cfCache": null,
+    "type": "text/html; charset=utf-8"
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/",
+    "status": 307,
+    "location": "/login?next=%2F",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": null,
+    "type": null
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/studio",
+    "status": 307,
+    "location": "/login?next=%2Fstudio",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": null,
+    "type": null
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/brain",
+    "status": 307,
+    "location": "/login?next=%2Fbrain",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": null,
+    "type": null
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/brain?panel=system",
+    "status": 307,
+    "location": "/login?next=%2Fbrain%3Fpanel%3Dsystem",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": null,
+    "type": null
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/brain?panel=development",
+    "status": 307,
+    "location": "/login?next=%2Fbrain%3Fpanel%3Ddevelopment",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": null,
+    "type": null
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/brain?panel=autonomous",
+    "status": 307,
+    "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": null,
+    "type": null
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/api/runtime/health",
+    "status": 401,
+    "location": null,
+    "gate": null,
+    "cache": null,
+    "cfCache": null,
+    "type": "application/json"
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/api/ayas/chat/stream",
+    "status": 401,
+    "location": null,
+    "gate": null,
+    "cache": null,
+    "cfCache": null,
+    "type": "application/json"
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/sw.js",
+    "status": 200,
+    "location": null,
+    "gate": null,
+    "cache": "no-cache, no-store, must-revalidate",
+    "cfCache": null,
+    "type": "application/javascript; charset=UTF-8"
+  },
+  {
+    "base": "http://127.0.0.1:3000",
+    "path": "/ayas/brain/ayas-brain-core-v2.webp",
+    "status": 307,
+    "location": "/login?next=%2Fayas%2Fbrain%2Fayas-brain-core-v2.webp",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": null,
+    "type": null
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/login",
+    "status": 200,
+    "location": null,
+    "gate": null,
+    "cache": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "cfCache": "DYNAMIC",
+    "type": "text/html; charset=utf-8"
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/",
+    "status": 307,
+    "location": "/login?next=%2F",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": null
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/studio",
+    "status": 307,
+    "location": "/login?next=%2Fstudio",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": null
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/brain",
+    "status": 307,
+    "location": "/login?next=%2Fbrain",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": null
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/brain?panel=system",
+    "status": 307,
+    "location": "/login?next=%2Fbrain%3Fpanel%3Dsystem",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": null
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/brain?panel=development",
+    "status": 307,
+    "location": "/login?next=%2Fbrain%3Fpanel%3Ddevelopment",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": null
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/brain?panel=autonomous",
+    "status": 307,
+    "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": null
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/api/runtime/health",
+    "status": 401,
+    "location": null,
+    "gate": null,
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": "application/json"
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/api/ayas/chat/stream",
+    "status": 401,
+    "location": null,
+    "gate": null,
+    "cache": null,
+    "cfCache": "DYNAMIC",
+    "type": "application/json"
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/sw.js",
+    "status": 200,
+    "location": null,
+    "gate": null,
+    "cache": "no-cache, no-store, must-revalidate",
+    "cfCache": "BYPASS",
+    "type": "application/javascript; charset=UTF-8"
+  },
+  {
+    "base": "https://ayas.atolyeayas.com",
+    "path": "/ayas/brain/ayas-brain-core-v2.webp",
+    "status": 307,
+    "location": "/login?next=%2Fayas%2Fbrain%2Fayas-brain-core-v2.webp",
+    "gate": "enforced",
+    "cache": null,
+    "cfCache": "BYPASS",
+    "type": null
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "origin": {
+    "ProcessId": 11472,
+    "ParentProcessId": 10480,
+    "Name": "node.exe",
+    "CreationDate": "2026-10-07T17:42:12.035193+03:00",
+    "CommandLine": "\"node\"   \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\.bin\\\\..\\next\\dist\\bin\\next\" start -p 3000"
+  },
+  "listeners": [
+    {
+      "LocalAddress": "::",
+      "LocalPort": 3000,
+      "OwningProcess": 11472
+    }
+  ],
+  "tunnel": {
+    "ProcessId": 30200,
+    "CreationDate": "2026-10-07T09:27:18.976959+03:00"
+  },
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running",
+      "xmlSha256": "4B8979E399DD2DDEF08E7BBC899519EF9A454D2814317E58E124F421BB68ABA3"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running",
+      "xmlSha256": "C2B6B3F3971C4B00F2F5465F20973A2056527589B1A757EEFFF9A42BF461A2DF"
+    }
+  ],
+  "supervisor": {
+    "ProcessId": 2496,
+    "CreationDate": "2026-10-07T09:26:30.668963+03:00"
+  },
+  "observer": {
+    "ProcessId": 31556,
+    "CreationDate": "2026-10-07T06:46:13.233889+03:00"
+  },
+  "tunnelConfigSha256": "A909CBB9A9B0979CB23507CC83AB39496188F661E7178ECE6D58A2555E2E74D9"
+}

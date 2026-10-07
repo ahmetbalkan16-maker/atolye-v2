@@ -1,0 +1,126 @@
+{
+  "checkedAt": "2026-10-07T14:44:54.659Z",
+  "stamp": {
+    "schemaVersion": "1",
+    "gitHead": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-07T14:42:11.404Z"
+  },
+  "buildId": "U2nNI8e-5Yn3t1fi7A5dQ",
+  "clientModules": [
+    "[project]/src/components/brain/BrainCoreConsole.tsx <module evaluation>",
+    "[project]/src/components/brain/BrainCoreConsole.tsx"
+  ],
+  "deployedRoutes": [
+    "/brain/page",
+    "/page",
+    "/studio/page"
+  ],
+  "publicBundleMarkers": {
+    "homepage": true,
+    "dock": true,
+    "brainAsset": true,
+    "responsive640": true,
+    "reducedMotion": true
+  },
+  "rows": [
+    {
+      "base": "http://127.0.0.1:3000",
+      "path": "/_next/static/chunks/0wj7afalhxn8h.js",
+      "status": 200,
+      "bytes": 4590,
+      "sha256": "9841ff85a422ba7402d90c568f968f76b715fbfff64bdfbe625657725a1ed5e9",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/0wj7afalhxn8h.js",
+      "status": 200,
+      "bytes": 4590,
+      "sha256": "9841ff85a422ba7402d90c568f968f76b715fbfff64bdfbe625657725a1ed5e9",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "http://127.0.0.1:3000",
+      "path": "/_next/static/chunks/1ntn7efqc-iiw.js",
+      "status": 200,
+      "bytes": 54763,
+      "sha256": "32e9576b2b87cbc03075cbfde10797120b73b5c6e486723cd9e58a66d99c585d",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/1ntn7efqc-iiw.js",
+      "status": 200,
+      "bytes": 54763,
+      "sha256": "32e9576b2b87cbc03075cbfde10797120b73b5c6e486723cd9e58a66d99c585d",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "http://127.0.0.1:3000",
+      "path": "/_next/static/chunks/1sdnt-v6a570p.js",
+      "status": 200,
+      "bytes": 33353,
+      "sha256": "e98d0a057d975379db3e674c9dfb8e617b3d5b16d807517be6358a59d72fe30c",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/1sdnt-v6a570p.js",
+      "status": 200,
+      "bytes": 33353,
+      "sha256": "e98d0a057d975379db3e674c9dfb8e617b3d5b16d807517be6358a59d72fe30c",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "http://127.0.0.1:3000",
+      "path": "/_next/static/chunks/1rncrhde8sr9c.js",
+      "status": 200,
+      "bytes": 228941,
+      "sha256": "7a37c426b8dc7d967016fa2df86a8a4aab31734c95a7e7bacdd4957e0bdf06c0",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/1rncrhde8sr9c.js",
+      "status": 200,
+      "bytes": 228941,
+      "sha256": "7a37c426b8dc7d967016fa2df86a8a4aab31734c95a7e7bacdd4957e0bdf06c0",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "http://127.0.0.1:3000",
+      "path": "/_next/static/chunks/0_n4jvhfze686.css",
+      "status": 200,
+      "bytes": 40936,
+      "sha256": "1599b3a559a54c339008f76f870e06564240859234b13ffd708b82e6d680d520",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/0_n4jvhfze686.css",
+      "status": 200,
+      "bytes": 40936,
+      "sha256": "1599b3a559a54c339008f76f870e06564240859234b13ffd708b82e6d680d520",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "http://127.0.0.1:3000",
+      "path": "/_next/static/chunks/2mc9geh0_g3yd.css",
+      "status": 200,
+      "bytes": 16243,
+      "sha256": "522272682a9636f32846c98f0ab4503c1aa32dc0c8df141f0ee88a9bbb6d60d2",
+      "matchDeployedBuild": true
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/2mc9geh0_g3yd.css",
+      "status": 200,
+      "bytes": 16243,
+      "sha256": "522272682a9636f32846c98f0ab4503c1aa32dc0c8df141f0ee88a9bbb6d60d2",
+      "matchDeployedBuild": true
+    }
+  ],
+  "auth": "No credentials or session cookies used; authenticated HTML/image/chat UI remains owner manual qualification"
+}

@@ -1,0 +1,53 @@
+{
+  "checkedAt": "2026-10-07T14:39:58.0777875Z",
+  "head": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
+  "listeners": [
+    {
+      "LocalAddress": "::",
+      "LocalPort": 3000,
+      "OwningProcess": 3416
+    }
+  ],
+  "origin": {
+    "ProcessId": 3416,
+    "ParentProcessId": 20340,
+    "Name": "node.exe",
+    "CreationDate": "2026-10-07T09:27:15.851726+03:00",
+    "CommandLine": "\"node\"   \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\.bin\\\\..\\next\\dist\\bin\\next\" start -p 3000"
+  },
+  "tunnel": {
+    "ProcessId": 30200,
+    "ParentProcessId": 2496,
+    "Name": "cloudflared.exe",
+    "CreationDate": "2026-10-07T09:27:18.976959+03:00"
+  },
+  "supervisor": {
+    "ProcessId": 2496,
+    "CreationDate": "2026-10-07T09:26:30.668963+03:00"
+  },
+  "observer": {
+    "ProcessId": 31556,
+    "CreationDate": "2026-10-07T06:46:13.233889+03:00"
+  },
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running",
+      "xmlSha256": "4B8979E399DD2DDEF08E7BBC899519EF9A454D2814317E58E124F421BB68ABA3"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running",
+      "xmlSha256": "C2B6B3F3971C4B00F2F5465F20973A2056527589B1A757EEFFF9A42BF461A2DF"
+    }
+  ],
+  "tunnelConfigSha256": "A909CBB9A9B0979CB23507CC83AB39496188F661E7178ECE6D58A2555E2E74D9",
+  "oldBuildStamp": {
+    "schemaVersion": "1",
+    "gitHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-07T06:27:14.116Z"
+  },
+  "oldBuildId": "J9KXmeFgSmXyyFBnusnXZ"
+}

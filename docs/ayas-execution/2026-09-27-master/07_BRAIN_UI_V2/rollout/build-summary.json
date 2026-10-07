@@ -1,0 +1,11 @@
+{
+  "nextVersion": "16.2.10_existing_install_preserved",
+  "standardCanonicalNpmBuild": true,
+  "typescriptPassed": true,
+  "stampedHead": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
+  "stampedTree": "CLEAN",
+  "middlewareDeprecation": true,
+  "noBuildFailure": true,
+  "turbopackWarningCount": 104,
+  "warningQualification": "Existing dynamic filesystem tracing modules; not a no-warning build and no new-feature source change"
+}

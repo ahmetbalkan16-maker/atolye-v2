@@ -1,3 +1,7 @@
+# 2026-10-07 — Brain UI V2 canonical live rollout
+
+Rebuilt and restarted production d931a18 via unchanged Access daemon; single origin11472, same tunnel30200, task/config hashes unchanged. Public bundle verification PASS, access boundary preserved,85 relevant scenarios PASS. Phone owner tests pending, Foundation BLOCKED. No feature/source/dependency/task/config changes. Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/rollout/BRAIN_UI_V2_ROLLOUT_2026-10-07.md.
+
 # 2026-10-07 — AYAS Brain UI V2
 
 Owner-approved homepage with state-driven brain/voice visuals, fixed seven-item navigation and six-item dock; original studio moved to /studio; /brain panels safely deep-linked. Existing chat/voice/status/actions reused. Removed invented timed production stage labels. Permanent owner homepage policy enforced in AGENTS and autonomous patch classifier. TypeScript/lint/build and309 focused scenarios PASS; live phone/runtime deployment unverified. Details: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_RESULT.md.

@@ -1224,3 +1224,8 @@ CF49 CLOSED_PASS retained;214 frozen pins/v55/166 suites unchanged. Raw retrieva
 ## 2026-10-07 — Brain UI V2, direct owner final visual
 
 Base9f8f591; implementation under explicit owner homepage instruction. Existing runtime/action boundaries preserved, central brain and fixed nav/dock rendered from real state. Permanent homepage policy enforced. TypeScript/lint/build PASS (13 inherited lint warnings),13 focused suites309 scenarios PASS. Isolated browser5 sizes plus320px: no horizontal overflow; tasks/draft/focus/Memory link verified. Physical voice and live rollout NOT_RUN; installed Next mismatch OPEN; Foundation BLOCKED; frozen history untouched. Source byte digests, logs, screenshots and Graphify pre/post/final receipt:07_BRAIN_UI_V2/implementation. Final saved HEAD is resolved from Git, not invented in a self-referential document.
+
+
+## 2026-10-07 — Owner-authorized canonical Brain UI V2 live rollout
+
+Root cause old34ecb66 build/PID3416. Unchanged Access daemon rebuilt CLEAN d931a18 and started one origin11472 on3000; same tunnel30200/supervisor2496/observer31556, both tasks Running and task/config digests unchanged. No credentials, new features, source/dependency changes, port/domain changes or frozen evidence edits. Local/public login200/gated pages307/API401, tunnel ready200, public homepage bundles/CSS12 responses200/hash match,85 regression scenarios PASS. Authenticated homepage/image/chat and physical phone voice remain owner action. PWA launches /brain; verify homepage at /. Foundation BLOCKED. Evidence:07_BRAIN_UI_V2/rollout.

@@ -1,3 +1,5 @@
+> 2026-10-07 live update: CLEAN d931a18 deployed by unchanged Access daemon. Public homepage JS/CSS verified; localhost/public auth gate healthy; both AYAS tasks preserved. Phone owner validation pending; open https://ayas.atolyeayas.com/ (PWA starts /brain). Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/rollout/BRAIN_UI_V2_ROLLOUT_2026-10-07.md. Foundation BLOCKED.
+
 > 2026-10-07: AYAS Brain UI V2 source implemented. Homepage /; original studio /studio; detail console /brain. Permanent owner homepage rule: docs/AYAS_HOMEPAGE_POLICY.md. Qualified test evidence and live-rollout limitations: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_RESULT.md. Foundation remains BLOCKED. Current session checkpoint: ATOLYE_CHECKPOINT.md.
 
 # 🎬 Atölye V2
