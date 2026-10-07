@@ -1,6 +1,7 @@
 # Brain UI V2 — implementation and qualified evidence
 
 Date: 2026-10-07. Session base: `9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee`.
+Implementation source/final code HEAD: `4ca7e66c9070d41dd727477a710c736ced59acf9`. The evidence-only session-save commit retains the same production source.
 Branch: `wip/ayas-graphify-final-execution`. Final source/save commits are resolved from Git; the follow-up receipt binds the implementation commit without claiming its own self-referential hash.
 
 Status: **IMPLEMENTED / ISOLATED VALIDATION PASS / LIVE OWNER VALIDATION NOT_RUN**. Foundation remains **BLOCKED**. This is not a new all166 qualification or a deployment receipt.
@@ -64,3 +65,5 @@ The original owner reference is retained above. ImageGen generated the transpare
 ## Remaining qualification
 
 Runtime deployment/restart and installed Next16.2.10 versus lock16.3.8 alignment stay with the existing Stage17 coordination process. No actual release, owner-device acceptance, microphone permission grant, Foundation closure or autonomous execution authority was produced by this sprint. Isolated preview is stopped after screenshots. Continue with coordinated rollout and authenticated desktop/physical phone voice-continuity checks, preserving all original blockers.
+
+Saved logs normalize trailing whitespace only; the raw final build log remains in the isolated TEMP directory. Final session Git/Graphify checks are performed after the evidence-only save commit and recorded locally under `.graphify/2026-10-07/BRAIN_UI_V2_FINAL_HEAD.json`; final commit identity is also recoverable from Git.
