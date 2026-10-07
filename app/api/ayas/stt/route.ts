@@ -11,7 +11,7 @@ import {
 import { resolveAyasSttConfig } from "@/lib/ayas/stt/AyasSttConfig";
 import { transcribeAyasAudio, type AyasSttFailureCode } from "@/lib/ayas/stt/AyasSttService";
 import { ayasSttThermalHold } from "@/lib/ayas/stt/AyasSttThermal";
-import { AYAS_OWNER_WAKE_POLICY_V2 } from "@/lib/ayas/voice/AyasWakePolicy";
+import { AYAS_OWNER_WAKE_POLICY_V3 } from "@/lib/ayas/voice/AyasWakePolicy";
 
 /**
  * `POST /api/ayas/stt` — one audio clip → one Turkish transcript.
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "audio-too-large" }, { status: 413 });
   }
 
-  const result = await transcribeAyasAudio(audio, { config, thermalHold: ayasSttThermalHold, wakePolicy: AYAS_OWNER_WAKE_POLICY_V2 });
+  const result = await transcribeAyasAudio(audio, { config, thermalHold: ayasSttThermalHold, wakePolicy: AYAS_OWNER_WAKE_POLICY_V3 });
   if (!result.ok) {
     return NextResponse.json(
       { error: result.code, detail: result.detail },

@@ -24,7 +24,7 @@ import path from "node:path";
 
 import { resolveAyasSttConfig, type AyasSttConfig } from "./AyasSttConfig";
 import { sniffAudioContainer } from "./AyasSttAudio";
-import { AYAS_OWNER_WAKE_POLICY_V2, normaliseOwnerWakeNames, type AyasWakePolicyVersion } from "../voice/AyasWakePolicy";
+import { AYAS_OWNER_WAKE_POLICY_V2, AYAS_OWNER_WAKE_POLICY_V3, normaliseOwnerWakeNames, normaliseOwnerWakeNamesV3, type AyasWakePolicyVersion } from "../voice/AyasWakePolicy";
 
 export type AyasSttFailureCode =
   | "stt-not-configured"
@@ -137,6 +137,7 @@ const AYAS_STT_PROMPT = "AYAS, Atolye, Graphify.";
  * "runtime" as "Grundtime" (not a Turkish word). Both are deterministic.
  */
 export function normaliseAyasTranscript(text: string, policy: AyasWakePolicyVersion = "legacy-v1"): string {
+  if (policy === AYAS_OWNER_WAKE_POLICY_V3) return normaliseOwnerWakeNamesV3(text).replace(/\bgrundtime\b/gi, "runtime");
   if (policy === AYAS_OWNER_WAKE_POLICY_V2) return normaliseOwnerWakeNames(text).replace(/\bgrundtime\b/gi, "runtime");
   if (policy !== "legacy-v1") return "";
   return text

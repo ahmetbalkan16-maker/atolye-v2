@@ -1,0 +1,206 @@
+{
+  "at": "2026-10-07T21:05:54.486Z",
+  "policy": "owner-v3",
+  "initialHead": "2c7fb7b944e12cd2da7f233eec10e163f14fc5a9",
+  "v2ArchiveHead": "41af9eee43b8a38cea5fafaacb2f30af885f5dd2",
+  "sourceState": "V3 working source; final session commit resolved by Git/exact final Graphify receipt",
+  "files": [
+    {
+      "source": "acoustic-current.json",
+      "artifact": "acoustic-current.json.gz",
+      "rawBytes": 146525,
+      "rawSha256": "efcef6a39b19c8cb5c4d3e55acb6f9695733c55f74752bf68f8c72dbc68b9144",
+      "gzipSha256": "c6be29616e4af8f65ba2205b628a8a055dabccd0abfc4a205881ececdad50261"
+    },
+    {
+      "source": "acoustic-expanded-original.json",
+      "artifact": "acoustic-expanded-original.json.gz",
+      "rawBytes": 152848,
+      "rawSha256": "8b65721ebc2b2bbb328a94ee5568e5a2c96ce5867de3fc5482e5e2a3466b5383",
+      "gzipSha256": "b55fe0ab137efd6cd901ec394fd9639d7850884c47ab6443f3007666b7e2a942"
+    },
+    {
+      "source": "sapi-original.json",
+      "artifact": "sapi-original.json.gz",
+      "rawBytes": 576111,
+      "rawSha256": "a91632e276860c49aef2671e283207a0642824565cbe17553d8f28304105e10e",
+      "gzipSha256": "dd756d75d5d586b09005a6ce2e686b89405d6b430a11a322104e7435e63f3d1c"
+    },
+    {
+      "source": "fixture-overlap.json",
+      "artifact": "fixture-overlap.json.gz",
+      "rawBytes": 105637,
+      "rawSha256": "9a7af3620788fbef70395b40a3c6958ac8dbaab673a06a774b478151c32b696e",
+      "gzipSha256": "630ab74d77cf6f8ef124b325dc7f13897d60cfca94328bab816cce2ae3eda6c5"
+    },
+    {
+      "source": "text-expanded.log",
+      "artifact": "text-expanded.log.gz",
+      "rawBytes": 2550,
+      "rawSha256": "3bb3fbbb8814c184c25e19c192344f54935aaff31408edec65ad29bad36c5169",
+      "gzipSha256": "20f1dd75f66a1fc67be5d0b94efc940d0248b538565cca5dd6a83573afaf4d4c"
+    },
+    {
+      "source": "regressions.json",
+      "artifact": "regressions.json.gz",
+      "rawBytes": 2953,
+      "rawSha256": "4c1f47ad5ec8dab6b46ce46753238b1d4854491eb81a95c7554f8f6978a2e516",
+      "gzipSha256": "eb05d7737ee1b5b7d0739f390a2b2d57fdd233d14415040aa14bc6b10b5c48e2"
+    },
+    {
+      "source": "ayas-first-wake-reliability.log",
+      "artifact": "ayas-first-wake-reliability.log.gz",
+      "rawBytes": 5488,
+      "rawSha256": "777246cf0b455ca7f1aea2013e71259cc7241a2963983e7e23496c2994ee9d8b",
+      "gzipSha256": "1d505fe58411ebead11c93e99a0773a61254c2d8d18a5c7dbb0040915a881094"
+    },
+    {
+      "source": "ayas-voice-turn-state-mutations.log",
+      "artifact": "ayas-voice-turn-state-mutations.log.gz",
+      "rawBytes": 96,
+      "rawSha256": "0dcbfd35ecf080bd66365946f9d9a4bbe4ad2c67a2c9e951b552a5a4d0b1d008",
+      "gzipSha256": "26d60c25fff50d668ba8533cc3f1e96e4b27acea5a0dcbeb93419cb54e44c7dd"
+    },
+    {
+      "source": "static-checks.json",
+      "artifact": "static-checks.json.gz",
+      "rawBytes": 39,
+      "rawSha256": "7325ed82cd57f1e070bb78c6c0eecc6c7d7ee3477931ada192d7b48072b00e88",
+      "gzipSha256": "e2de0d9bfdcbf7b74b89292bd96207d0d9517fc40d578c36a184067623f4e6a1"
+    },
+    {
+      "source": "lint.log",
+      "artifact": "lint.log.gz",
+      "rawBytes": 2673,
+      "rawSha256": "7f4d5c507b67f14a7eba00e638990b989b9fda72850bb72093a3c01d791c567c",
+      "gzipSha256": "4e3cbead2a2a213faae71e2587ace9c281f2d383f4d49bd2bf5964f098d08f7b"
+    },
+    {
+      "source": "build.json",
+      "artifact": "build.json.gz",
+      "rawBytes": 284,
+      "rawSha256": "92e383d4ec815611f39ed0faa02cdd61969013d4d6874b50a1e8692c7683c86d",
+      "gzipSha256": "7a9093b9cf4e773c77a0ce63152768c6320bfdb88f7c315bd0e06832d698167d"
+    },
+    {
+      "source": "build.log",
+      "artifact": "build.log.gz",
+      "rawBytes": 2073,
+      "rawSha256": "fb87823ca3b97cdacdb6b2a84a10c5f6bbcb78511d5684b9da4457960c4e4614",
+      "gzipSha256": "f5b5d90520ec388faf2b08f528cac71d09c4d6dc519934e89a1bc21a810feb59"
+    },
+    {
+      "source": "build.stderr.log",
+      "artifact": "build.stderr.log.gz",
+      "rawBytes": 1442,
+      "rawSha256": "8914d7f52f1a488123643157ac54f3b721bdd728b8d0aa2090573083e2399664",
+      "gzipSha256": "0f2ee46e333400934c3cf5c218a7566321993b8b97f9f717ab48b581c09bdd44"
+    },
+    {
+      "source": "pins.json",
+      "artifact": "pins.json.gz",
+      "rawBytes": 89,
+      "rawSha256": "1fc389ecfd8270565a37b0a762f56a352548b9409140024e2fc1899b095e5660",
+      "gzipSha256": "e6d692f19b931e029e89866bb1f5e81159d0c1b28a667b134cb88237c0dfac55"
+    },
+    {
+      "source": "live-preserved.json",
+      "artifact": "live-preserved.json.gz",
+      "rawBytes": 882,
+      "rawSha256": "3a2a1cf84f4e679e22a3b0377ff6032d6a4c8ba325cded3b0a57d3fd25ee0d7f",
+      "gzipSha256": "887084e0267e18ca461a19d9cf1507fd20fc14d144df111233dba498aa944f26"
+    },
+    {
+      "source": "review-before.txt",
+      "artifact": "review-before.txt.gz",
+      "rawBytes": 2547,
+      "rawSha256": "f9c888ff2b26b772837058b4035689ec8da0309d062d21a4d0b04255be7930d8",
+      "gzipSha256": "6e26a830bcaaa30df4dbb99234be3225a70f1962cd8de09e17fdd518523b4329"
+    },
+    {
+      "source": "review-after.txt",
+      "artifact": "review-after.txt.gz",
+      "rawBytes": 2427,
+      "rawSha256": "bf29bc3c4aa3759f0dd4bdd7166a2a6eb71e250fe351eb74201642d6bd0b6dea",
+      "gzipSha256": "b38eddca515ab3907559971295f8abd827796ae3eed3e049c744471688c8a7c4"
+    },
+    {
+      "source": "graph-status-worktree.json",
+      "artifact": "graph-status-worktree.json.gz",
+      "rawBytes": 1383,
+      "rawSha256": "8a043a8f78f96a53a9ca33f87085c5b7c802c7940b06a823d082dfd14538b042",
+      "gzipSha256": "f25b14f36613a273242c5a7c70713d1e073e692cde2096c5a7ad0ae25b45fdc3"
+    },
+    {
+      "source": "graph-update-worktree.log",
+      "artifact": "graph-update-worktree.log.gz",
+      "rawBytes": 811,
+      "rawSha256": "616e13606f424a2b80559e0a165f0b32d36f4409d4854562f8791cd967c5ed56",
+      "gzipSha256": "95bfe2583042e8541ce5a0a41f5442ab4566fc8ca8873016204624882b1314cf"
+    },
+    {
+      "source": "remaining-first-attempt-interrupted.json",
+      "artifact": "remaining-first-attempt-interrupted.json.gz",
+      "rawBytes": 287,
+      "rawSha256": "044f1ed1485de8490ecdfb11bc0f9e553486c56e6aa36ab19eb3efbe85aa8589",
+      "gzipSha256": "6dd02fa86ab22dad207f67611c333fdff22cc229a76040a47943588abb1c3f3d"
+    },
+    {
+      "source": "remaining-fit-bounded.log",
+      "artifact": "remaining-fit-bounded.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63"
+    },
+    {
+      "source": "remaining-fit-bounded.stderr.log",
+      "artifact": "remaining-fit-bounded.stderr.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63"
+    },
+    {
+      "source": "fit-remaining.py",
+      "artifact": "fit-remaining.py.gz",
+      "rawBytes": 6391,
+      "rawSha256": "d814cf5312fe88e2f42bbb43b002d955b2d3b3b8045f333ec5e0c46174ac4865",
+      "gzipSha256": "01ba22605923354c757389b52de39f08914ffaa34c74e9947aff729af0452e54"
+    },
+    {
+      "source": "replay-sapi.ts",
+      "artifact": "replay-sapi.ts.gz",
+      "rawBytes": 2870,
+      "rawSha256": "0beeeb0668ffcf79f6c84e8f79e50d82ce5bfc701327dd1eb6803739eb985a05",
+      "gzipSha256": "16ee8868ae8dfef89633e0889b548a1f4ede31293675a17841a4a13f627ad6b8"
+    },
+    {
+      "source": "fixture-overlap.cjs",
+      "artifact": "fixture-overlap.cjs.gz",
+      "rawBytes": 1089,
+      "rawSha256": "ae3450936c9967f52bbf7077fc70569729aca7d81c95dda6cfaefe94d14b609e",
+      "gzipSha256": "1908096842cac3cc2f849bc0693cbc68882269d438058ed4dcc3ff7b59d6a942"
+    }
+  ],
+  "model": null,
+  "datasets": [
+    {
+      "file": ".graphify/wake-policy-v2/multi/prototype-features.f32",
+      "bytes": 148592640,
+      "sha256": "e7242b7ca6a63b93af03b98701d13b999b8d8c0bb2cd74412ef9291f9f5b74d8"
+    },
+    {
+      "file": ".graphify/wake-policy-v2/multi/prototype-clips.json",
+      "bytes": 539654,
+      "sha256": "ee25e08cf34659e6b18efd70cac71690f0e341b045245f38cabb7d2f7e578a72"
+    },
+    {
+      "file": ".venv-wake/wake-data/validation_set_features.npy",
+      "bytes": 184836608,
+      "sha256": "a56a8a0f8e0efb91900acc6de4c0cdf4c564842e8475a7d49b36c039e17a690f"
+    }
+  ],
+  "historicalV2": "UNCHANGED",
+  "qualification": "No compressed receipt changes its original status. Only final full V3 acceptance can authorize rollout.",
+  "ownerPhone": "NOT_RUN",
+  "maleVoicePhase": "NOT_STARTED_UNTIL_PHASE_A_PASS_AND_ROLLOUT"
+}

@@ -1,3 +1,7 @@
+# 2026-10-08 Wake policy V3 WIP — exact three-family binding; no rollout
+
+Explicit owner update accepts AYAS/AYAZ/HAYAS only. Versioned normalizer/resolver and sole production hook/STT-route select V3; V1/V2 contracts and raw FAILs are preserved. Text71PASS, existing398 regressions plus12mutations/static/buildPASS. Original acoustic model still misses stochastic AYAZ and wakes on genuine suffix/ordinary negatives. No threshold/model/public-asset/UI/PWA/tunnel/task changes, no rollout or Phase B. Bounded existing-feature candidate qualification is pending; checkpoint and docs/ayas-wake-policy-v3/2026-10-07 carry exact resume state. FoundationBLOCKED.
+
 # Current — 2026-10-07 / AYAS–AYAZ continuation WIP; negative gate FAIL; no deployment; Foundation BLOCKED
 
 Continued preserved HEAD67113e5765d3e911c2f29288b221f3bc8936d225 on wip/ayas-graphify-final-execution; pull current/origin0/0/CLEAN. Graphify-first runner/detector/adapter/browser/text/STT explain, dependency/blast review completed. No production code/model/threshold edit: bounded first-wake warm-up/catch-up preserved. Earlier immutable docs/ayas-first-wake-reliability and original script unchanged. HTTP404 is provider/model access, not AYAS defect.

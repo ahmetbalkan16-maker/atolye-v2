@@ -1,3 +1,7 @@
+# 2026-10-07 owner wake V3 continuation — Phase A open
+
+Owner-approved exact AYAS/AYAZ/HAYAS contract supersedes V2 acceptance only; old raw failures remain historical. V3 text71PASS; original acoustic stochastic AYAZ and genuine suffix/ordinary negatives still FAIL. No Phase A completion or Phase B male voice start/rollout. Current bounded qualification/checkpoint evidence: docs/ayas-wake-policy-v3/2026-10-07. Foundation BLOCKED, no master-stage advancement; homepage/PWA/tunnel/task scope preserved.
+
 # 2026-10-07 AYAS / AYAZ discrimination — WIP negative gate FAIL
 
 First-wake10/10 preserved; strictAYAZ stillFAIL, stochastic7/10 falsewake, extendednegative21/23. No safe bounded second-stage qualified; no production/source/threshold/deploy change. Next verifier needs independent diverse-voice qualification before activation changes. Evidence docs/ayas-ayaz-discrimination/2026-10-07/RESULT.md and checkpoint; FoundationBLOCKED, ownerUI/PWA/tunnel/tasks preserved.

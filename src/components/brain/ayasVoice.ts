@@ -31,7 +31,7 @@
  *    none by itself grants any execution authority.
  */
 
-import { AYAS_OWNER_WAKE_POLICY_V2, AYAS_WAKE_POLICY_V2_ALIASES, type AyasWakePolicyVersion } from "@/lib/ayas/voice/AyasWakePolicy";
+import { AYAS_OWNER_WAKE_POLICY_V2, AYAS_OWNER_WAKE_POLICY_V3, AYAS_WAKE_POLICY_V2_ALIASES, AYAS_WAKE_POLICY_V3_ALIASES, type AyasWakePolicyVersion } from "@/lib/ayas/voice/AyasWakePolicy";
 
 export type AyasVoiceState =
   | "off"        // voice mode disabled
@@ -179,7 +179,7 @@ const NO_WAKE_MATCH: AyasWakeMatch = Object.freeze({ woke: false, command: "", a
  * wakes AYAS.
  */
 export function detectAyasWakeWord(transcript: string, policy: AyasWakePolicyVersion = "legacy-v1"): AyasWakeMatch {
-  if (policy !== "legacy-v1" && policy !== AYAS_OWNER_WAKE_POLICY_V2) return NO_WAKE_MATCH;
+  if (policy !== "legacy-v1" && policy !== AYAS_OWNER_WAKE_POLICY_V2 && policy !== AYAS_OWNER_WAKE_POLICY_V3) return NO_WAKE_MATCH;
   const leading = trimLeadingFiller(transcript);
   const words = normalize(leading).split(" ").filter(Boolean);
   if (words.length === 0) return NO_WAKE_MATCH;
@@ -194,7 +194,7 @@ export function detectAyasWakeWord(transcript: string, policy: AyasWakePolicyVer
     };
   }
 
-  const aliases = policy === AYAS_OWNER_WAKE_POLICY_V2 ? AYAS_WAKE_POLICY_V2_ALIASES : WAKE_SINGLE_WORD_ALIASES;
+  const aliases = policy === AYAS_OWNER_WAKE_POLICY_V3 ? AYAS_WAKE_POLICY_V3_ALIASES : policy === AYAS_OWNER_WAKE_POLICY_V2 ? AYAS_WAKE_POLICY_V2_ALIASES : WAKE_SINGLE_WORD_ALIASES;
   if (aliases.includes(words[0])) {
     if (ATOLYE_LEADING_TOKENS.includes(words[0]) && !hasAtolyeLeadingBoundary(leading)) {
       return NO_WAKE_MATCH;

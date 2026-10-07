@@ -1,0 +1,17 @@
+# V3 original acoustic model baseline
+
+Source continuation: initial2c7fb7b944e12cd2da7f233eec10e163f14fc5a9; V2 archive41af9eee43b8a38cea5fafaacb2f30af885f5dd2. Same branch/worktree; no reset or rollback. The new owner V3 contract accepts AYAS/AYAZ/HAYAS. These results do not rewrite V2 or older negatives.
+
+Initial V3 original-model test:117 checks112PASS/5FAIL. Deterministic independent fresh sessions:AYAS10/10, AYAZ10/10, HAYAS10/10, first score80ms. First detector decision1280ms for AYAS/HAYAS and1360ms for AYAZ. Stochastic freshly synthesized:Piper AYAS10/10, AYAZ6/10, HAYAS10/10. The four missed AYAZ clips peak0.608305/0.652435/0.676873/0.678287 and each has only one soft frame. Additional ayaslı incorrectly wakes. Same-PCM naturally warmed baseline/prepared candidate30/30 equivalent; model SHA25637aaab151f88fbd2fe795593176718aa10067a5526b8e41c94784aa08a80539c. No threshold change.
+
+Extra full real-WASM replay of384 installed Microsoft Tolga Turkish synthetic clips:328PASS/56FAIL. Bare AYAS7/16, AYAZ16/16, HAYAS3/16 wake. Genuine unintended wakes occur for HAYAZ9/16, ayasız4/16, ayaslı4/16, beyaz8/16 and hayır4/16. Command-bearing positive ayas merhaba16/16, ayaz merhaba11/16, hayas merhaba16/16. These are distinct-engine synthetic probes, not independent human voices or owner phone tests.
+
+Separate expanded original-model run adds5 genuine negatives without removing earlier gates:122 checks118PASS/4FAIL. Fresh stochastic AYAS10/10, AYAZ9/10, HAYAS10/10; unintended wake for ayaslı, hayaslı and repeated HAYAZ. The new stochastic sample is not substituted for the earlier6/10 AYAZ result; both raw runs are preserved. Original-model Phase A still fails.
+
+Fixture overlap audit:384 source WAV files contain200 distinct byte waveforms; all96 clips in the nominal held-out source-variant portion overlap source waveforms from its training portion. Therefore no independent held-out-source or speaker PASS is claimed from that split. Actual augmentation and raw replay differ, but that does not remove the source overlap. Fresh separately synthesized full-Piper qualification and independent negative embedding-validation must be reported separately.
+
+V3 text/engine/STT contract71/71PASS. Existing17 suites398 scenariosPASS plus12/12 mutation controls. Historical first-wake suite remains37/38 rawFAIL for its AYAZ-negative contract. TypeScript0/lint0 errors13 inherited warnings; isolated installed Next16.2.10 webpack buildPASS. Installed/lock16.3.8 mismatch remains OPEN.323 frozen pin references/214 files match. No historical grader/fixture/model/receipt changes.
+
+Read-only live preservation at20:47UTC:single origin19960/wrapper16892 and tunnel30200 healthy, both tasks Running, local/public health true. XML/config hashes and deployed buildW69b9LVZicew-R1jk70Ql unchanged. No deployment/recovery/restart/OS voice preference change; canonical .next untouched. Brain UI V2/homepage/PWA/Cloudflare/tasks/Foundation/frozen Stage17 scope unchanged.
+
+Conclusion for this original-model baseline:Phase A NOT_READY, because stochastic positive reliability and genuine negatives fail. Phase B NOT_STARTED. A separate bounded private V3 candidate uses existing features/data and the accepted three-name labels to address actual remaining false positives and AYAZ misses; no HAYAS discriminator is pursued. Its result must be qualified independently before any production selection or rollout. Foundation remains BLOCKED; owner phone acceptance NOT_RUN.
