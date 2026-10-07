@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 const menuItems = [
-  { name: "Kontrol Paneli", href: "/" },
+  { name: "AYAS Ana Sayfa", href: "/" },
+  { name: "Kontrol Paneli", href: "/studio" },
   { name: "Araştırma", href: "/research" },
   { name: "Senaryo", href: "/script" },
   { name: "Sahneler", href: "/scenes" },

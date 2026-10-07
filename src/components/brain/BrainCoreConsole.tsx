@@ -88,6 +88,9 @@ export interface RecordSelfHealDecisionFn {
 }
 
 export interface BrainCoreConsoleProps {
+  /** Owner-fixed homepage shell; the full console stays on /brain. */
+  readonly homepage?: boolean;
+  readonly initialPanel?: BrainPanelId;
   readonly initialSnapshot: BrainConsoleSnapshot;
   readonly initialAutonomous?: AyasAutonomousView;
   readonly initialApprovalInbox?: AyasApprovalInboxView;
@@ -140,6 +143,8 @@ export interface BrainCoreConsoleProps {
 }
 
 export function BrainCoreConsole({
+  homepage = false,
+  initialPanel = "chat",
   initialSnapshot,
   initialAutonomous,
   initialApprovalInbox,
@@ -168,7 +173,7 @@ export function BrainCoreConsole({
   streaming = true,
 }: BrainCoreConsoleProps) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [activePanel, setActivePanel] = useState<BrainPanelId>("chat");
+  const [activePanel, setActivePanel] = useState<BrainPanelId>(initialPanel);
   const [draft, setDraft] = useState("");
 
   // AYAS Report Center: the self-heal / report snapshot + the operator's
@@ -772,6 +777,7 @@ export function BrainCoreConsole({
   return (
     <>
       <BrainConsoleView
+      homepage={homepage}
       snapshot={snapshot}
       coreState={coreState}
       activePanel={activePanel}

@@ -1,4 +1,14 @@
-# Current — 2026-10-07 / fde898f v57 full166163PASS /3 preserved raw FAIL;Foundation BLOCKED
+# Current — 2026-10-07 / Brain UI V2 implemented; isolated validation PASS; Foundation BLOCKED
+
+Owner's final visual supersedes previous alternatives. Homepage now has the central cyan/gold brain, fixed navigation/dock, real status rail and existing streaming chat/voice/tasks. Existing detail console stays at /brain; original production dashboard/pipeline at /studio. Explicit owner homepage instruction is required for all future homepage changes; BrainPatchSafety prevents automatic patches to its protected surfaces and policy.
+
+TypeScript PASS, lint 0 errors/13 inherited warnings; 13 relevant suites/309 scenarios PASS including 11 new homepage cases. Standard Next16.3.8 lock-based isolated build PASS. Five browser sizes (1920x1080,1440x900,1366x768,1024x768,390x844) and 320px check show no horizontal overflow; 1920 fits one screen, smaller screens scroll vertically. Tasks, text draft/reducer, keyboard focus and Memory deep link verified. Screenshots are from an isolated loopback candidate with synthetic Git identity, not authenticated owner runtime. No actual microphone permission, physical phone speech/barge-in, deploy/restart or installed-lock migration performed. Running installed Next16.2.10 vs lock16.3.8 remains OPEN.
+
+Foundation remains BLOCKED. Frozen Stage17 graders/fixtures/pins/raw receipts unchanged; historical fde898f full166163PASS/3FAIL remains historical and is not rebound to this changed source. No new all166 or Foundation-closure claim. Graphify must be refreshed at session-end HEAD; existing structural PARTIAL9/semantic PENDING remains disclosed. Current evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_RESULT.md. Resolve final Git HEAD and origin status after the session-save commits.
+
+Next: coordinate runtime deployment/dependency alignment through the existing Stage17 process, then verify authenticated desktop and real phone voice continuity. Homepage implementation is complete; live owner validation remains NOT_RUN. Preserve all existing Foundation blockers.
+
+# Historical snapshot — 2026-10-07 / fde898f v57 full166163PASS /3 preserved raw FAIL;Foundation BLOCKED
 
 Approved occupancy barrier passes12 scenarios/45 unchanged controls on new source;v56 archive/two affected pins only. Original34ecb66 162/4 preserved. Fresh TS/lint PASS (13 inherited warnings), hosted named CI and local/hosted boundedCF49 PASS. Four historical SHA findings resolved by original canonical algorithm without frozen-field edits. Phone owner-confirmed/login200/single healthy origin-tunnel; authenticated runtime/real reboot unqualified. Actual backup inventory/manifest PASS only, no restore.15 domains/152criteria/30TEST-LIVE still not qualified; combined protection/real platform-device/final owner review open. Homepage NOT_STARTED,boundary NOT_REACHED. Exact evidence and remaining work: ATOLYE_CHECKPOINT.md and docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md.
 

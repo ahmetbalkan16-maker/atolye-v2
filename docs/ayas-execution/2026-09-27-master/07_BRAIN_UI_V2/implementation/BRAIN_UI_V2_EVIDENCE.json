@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-07",
+  "baseHead": "9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee",
+  "branch": "wip/ayas-graphify-final-execution",
+  "status": "IMPLEMENTED_ISOLATED_VALIDATION_PASS_LIVE_OWNER_NOT_RUN",
+  "changedSourceFiles": [
+    {
+      "path": "app/brain/page.tsx",
+      "sha256": "64a06bc844ff5a84ed2a868b2a2ba21e5da1854c7ee573906457c951839f8d14"
+    },
+    {
+      "path": "app/page.tsx",
+      "sha256": "c6b2e6147586702fb5e5ccd1e348dffcf6bf44ac3a9155a07197617668331fe1"
+    },
+    {
+      "path": "src/components/HomeClient.tsx",
+      "sha256": "f632df795b855c74611407c49b77c80cf30a6bb2b8624deab98168a1341cc076"
+    },
+    {
+      "path": "src/components/Sidebar.tsx",
+      "sha256": "b23e74a3f99e816bd5a0eae436ba53db4c51f0557002f375cce943a6768837dc"
+    },
+    {
+      "path": "src/components/brain/BrainConsoleView.tsx",
+      "sha256": "9af6d85f57b7493fa912f37d92256c40ae5a03316030195e4c470a39dcdeecb4"
+    },
+    {
+      "path": "src/components/brain/BrainCoreConsole.tsx",
+      "sha256": "1087bc25560ceba1e644875e894098c45511278ef953fff08876fd4366414b90"
+    },
+    {
+      "path": "src/lib/brain/selfheal/BrainPatchSafety.ts",
+      "sha256": "35550f545d6f1115f8fbfd824c7b017e10f3d19fdca68db1c79aeb492baa522e"
+    },
+    {
+      "path": "app/studio/page.tsx",
+      "sha256": "790364580e94ca0b0416e67476ac9aa800dc4ca5d05315cfc176ebb117a2c607"
+    },
+    {
+      "path": "public/ayas/brain/ayas-brain-core-v2.webp",
+      "sha256": "ce658939ed0254ec4b94a0c65d2dcde78759aa990cead1c5dd12a07492049884"
+    },
+    {
+      "path": "scripts/smoke-ayas-homepage-v2.ts",
+      "sha256": "6c55909e2dddfc13d8826cbd6fe355ad2c510a67d46b0701ba158c199a931d30"
+    },
+    {
+      "path": "src/components/brain/AyasConsolePage.tsx",
+      "sha256": "11bc49f71d0889e9e215fc52ca6a0cd794eb5684ba0f19287bb3761a8c04eb19"
+    },
+    {
+      "path": "src/components/homepage/AyasHomepage.css",
+      "sha256": "c57460d2d3c617d98eedc0da04264d217d9568438e1b712194945d87e9af8a8d"
+    },
+    {
+      "path": "src/components/homepage/AyasHomepage.tsx",
+      "sha256": "4fda321633237e2ba8234d0d88682e249d0db9ab4a088360d3a7fe8f6b3b63e2"
+    }
+  ],
+  "verification": {
+    "typescript": "PASS",
+    "lint": {
+      "errors": 0,
+      "inheritedWarnings": 13
+    },
+    "build": "PASS_isolated_lock_Next16.3.8",
+    "focusedSuites": 13,
+    "focusedScenarios": 309,
+    "newHomepageScenarios": 11,
+    "frozenHistoricalFilesChanged": []
+  },
+  "limitations": [
+    "Foundation BLOCKED",
+    "Historical full166 not rebound and not rerun",
+    "Physical phone microphone/audio/barge-in NOT_RUN",
+    "Authenticated live runtime and release NOT_RUN",
+    "Installed Next16.2.10 vs lock16.3.8 remains OPEN",
+    "Graphify structural PARTIAL9 semantic PENDING",
+    "Credential-free old /brain executive briefing owner auth unqualified"
+  ],
+  "finalHead": "Resolve Git HEAD after session-save commits; implementation source commit bound in final receipt",
+  "designZip": "Absent at supplied path; canonical three design documents used",
+  "finalReference": {
+    "path": "../OWNER_FINAL_VISUAL_2026-10-07.png",
+    "sha256": "90a97773fe5cb5ed6ab1e5d2b23aa59c5c6771b8203acca01c4250f229bbeb90"
+  },
+  "brainAsset": {
+    "path": "public/ayas/brain/ayas-brain-core-v2.webp",
+    "sha256": "ce658939ed0254ec4b94a0c65d2dcde78759aa990cead1c5dd12a07492049884",
+    "bytes": 233150
+  },
+  "changedFiles": [
+    "AGENTS.md",
+    "AI_MEMORY.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ATOLYE_CHECKPOINT.md",
+    "ATOLYE_CONTEXT.md",
+    "ATOLYE_MASTER_ROADMAP.md",
+    "CHANGELOG.md",
+    "README.md",
+    "ROADMAP.md",
+    "app/brain/page.tsx",
+    "app/page.tsx",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/AYAS_BRAIN_UI_V2_CODEX_CLOUD_TASK.md",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/AYAS_BRAIN_UI_V2_IMPLEMENTATION_PLAN.md",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/AYAS_BRAIN_UI_V2_OWNER_PC_VALIDATION.md",
+    "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+    "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
+    "src/components/HomeClient.tsx",
+    "src/components/Sidebar.tsx",
+    "src/components/brain/BrainConsoleView.tsx",
+    "src/components/brain/BrainCoreConsole.tsx",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "app/studio/page.tsx",
+    "docs/AYAS_HOMEPAGE_POLICY.md",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/OWNER_FINAL_VISUAL_2026-10-07.png",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_EVIDENCE.json",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_RESULT.md",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/GRAPHIFY_POST_INTEGRITY.json",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/GRAPHIFY_PRE.json",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/build.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/graphify-update.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/lint.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/screenshots/1024x768.png",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/screenshots/1366x768.png",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/screenshots/1440x900.png",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/screenshots/1920x1080.png",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/screenshots/390x844.png",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/screenshots/responsive-check.json",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-ayas-brain-control-center.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-ayas-chat-stream-client.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-ayas-chat-stream.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-ayas-exact-patch-safety.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-ayas-exact-proposal-safety.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-ayas-homepage-v2.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-ayas-mobile-voice-regression.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-brain-conversation.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-brain-core-ui.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-brain-lifecycle.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-brain-selfheal-security.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-brain-selfheal.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/smoke-pipeline-start-outcome.log",
+    "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/typescript.log",
+    "public/ayas/brain/ayas-brain-core-v2.webp",
+    "scripts/smoke-ayas-homepage-v2.ts",
+    "src/components/brain/AyasConsolePage.tsx",
+    "src/components/homepage/AyasHomepage.css",
+    "src/components/homepage/AyasHomepage.tsx"
+  ],
+  "isolatedCandidateSourceDigestMatches": 13
+}

@@ -1,5 +1,7 @@
-import HomeClient from "@/components/HomeClient";
+import { AyasConsolePage } from "@/components/brain/AyasConsolePage";
+import "@/components/homepage/AyasHomepage.css";
 
+export const dynamic = "force-dynamic";
 export default function Page() {
-  return <HomeClient />;
+  return <AyasConsolePage homepage />;
 }

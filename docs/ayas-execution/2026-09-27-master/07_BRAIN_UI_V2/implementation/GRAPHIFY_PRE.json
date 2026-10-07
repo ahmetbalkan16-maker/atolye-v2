@@ -1,0 +1,33 @@
+{
+  "phase": "pre_change_session_observation",
+  "sourceHead": "9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee",
+  "lastAnalyzedHead": "9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee",
+  "stale": false,
+  "worktree": "CLEAN_COVERED",
+  "nodes": 19244,
+  "links": 55163,
+  "integrity": {
+    "duplicateNodeIds": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "structural": "PARTIAL",
+  "incompleteCodeFiles": 9,
+  "semantic": "PENDING",
+  "graphGuidedReview": {
+    "ui": {
+      "blastScore": 82,
+      "communities": 4,
+      "bridges": 0,
+      "testGaps": 6
+    },
+    "sharedConsoleAndClassifier": {
+      "blastScore": 93,
+      "communities": 6,
+      "bridges": 5,
+      "testGaps": 4
+    }
+  },
+  "qualification": "Recorded session observations; no complete semantic coverage or Foundation closure claimed"
+}

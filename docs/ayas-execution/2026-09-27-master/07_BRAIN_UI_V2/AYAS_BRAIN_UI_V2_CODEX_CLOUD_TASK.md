@@ -1,3 +1,5 @@
+> Owner update — 2026-10-07: OWNER_FINAL_VISUAL_2026-10-07.png is the sole final visual reference; all earlier alternatives are superseded. The historical plan below remains context. Implementation and qualified validation: implementation/BRAIN_UI_V2_RESULT.md. Homepage changes require explicit owner homepage instructions; see ../../../AYAS_HOMEPAGE_POLICY.md. Foundation and physical owner-device validation remain open.
+
 # Codex / Claude Task — AYAS Brain Control Center Visual V2
 
 Use `ayas_yapay_zekâ_kontrol_merkezi.png` as the approved VISUAL REFERENCE.

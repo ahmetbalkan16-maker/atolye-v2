@@ -13,6 +13,7 @@
  */
 
 import { BrainCoreOrb } from "./BrainCoreOrb";
+import { AyasHomepage } from "../homepage/AyasHomepage";
 import {
   BRAIN_PANELS,
   deriveAyasPresence,
@@ -102,6 +103,7 @@ export interface BrainConsoleVoiceView {
 }
 
 export interface BrainConsoleViewProps {
+  readonly homepage?: boolean;
   readonly snapshot: BrainConsoleSnapshot;
   readonly coreState: BrainCoreState;
   readonly activePanel: BrainPanelId;
@@ -181,6 +183,12 @@ export interface BrainConsoleViewProps {
 
 export function BrainConsoleView(props: BrainConsoleViewProps) {
   const { snapshot, coreState, activePanel } = props;
+
+  if (props.homepage) {
+    return <AyasHomepage {...props} inputs={controlCenterInputs(props)}>
+      {activePanel === "tasks" ? <TasksPanel snapshot={snapshot} /> : <ChatPanel {...props} />}
+    </AyasHomepage>;
+  }
 
   return (
     <div className="bc-shell">

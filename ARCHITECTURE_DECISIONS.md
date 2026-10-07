@@ -933,3 +933,8 @@ Yeni önemli mimari kararlar;
 ADR numarası verilerek bu belgeye eklenmelidir.
 
 Mevcut ADR'ler mümkün olduğunca değiştirilmemelidir.
+
+
+## 2026-10-07 — Owner-fixed AYAS homepage with shared console runtime
+
+Explicit owner final visual authorizes the Brain UI V2 shell at /. Move the existing HomeClient studio to /studio and reuse the former /brain server loader and existing BrainCoreConsole state/actions in both presentations. Keep /brain's detail panels and style independent; validate panel deep links against BRAIN_PANELS. No new execution, approval, voice engine, data root or polling. Fixed navigation cannot enumerate newly developed capabilities. BrainPatchSafety prohibits autonomous homepage/policy/shared-shell edits; future homepage changes require explicit owner homepage instructions. Foundation qualification and deployed runtime remain separate. Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_RESULT.md.

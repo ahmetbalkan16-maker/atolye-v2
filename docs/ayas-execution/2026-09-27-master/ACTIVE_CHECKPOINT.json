@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
-  "currentHeadMeaning": "SESSION_EVIDENCE_HEAD_DOCS_ONLY_DESCENDANT_OF_QUALIFIED_SOURCE_fde898f; resolve actual Git HEAD after this session-save commit",
+  "currentHead": "9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee",
+  "currentHeadMeaning": "BRAIN_UI_V2_SESSION_BASE; resolve actual Git HEAD after session-save commits; historical Stage17 source receipts remain historical",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Foundation closure evidence complete at59e83cd:152-criterion matrix,30-slot real-evidence binding,unified scope,owner register,readiness;Foundation BLOCKED fail-closed;BrainUIV2 Codex handoff at boundary",
-  "status": "FOUNDATION_CLOSURE_EVIDENCE_COMPLETE_BLOCKED_OWNER_ACTIONS_OPEN",
+  "subtask": "Brain UI V2 homepage implemented under explicit owner final visual; focused checks PASS; real owner runtime/device qualification pending; Foundation BLOCKED",
+  "status": "BRAIN_UI_V2_IMPLEMENTED_ISOLATED_VALIDATION_PASS_LIVE_NOT_RUN_FOUNDATION_BLOCKED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -3573,15 +3573,15 @@
     }
   },
   "ownerStopBoundary": {
-    "status": "MANDATORY_STOP_BEFORE_IMPLEMENTATION",
+    "status": "EXPLICIT_OWNER_HOMEPAGE_INSTRUCTION_RECEIVED",
     "name": "AYAS Homepage / Brain UI V2 visual redesign",
     "canonicalPosition": "After Stage17/infinity permitted preparation",
-    "requiredStatus": "OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN",
-    "exactNextAction": "AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN",
-    "receivedClientDate": "2026-10-05",
-    "source": "C:/Users/Metod/.codex/attachments/4ffcfcef-3250-4249-a0b3-cee296f7d05c/Yapıştırılan metin.txt",
-    "sha256": "2ac2549835dc1899b13ed917e36845cc7116406b3b3ff67fd137393aa0dc41f4",
-    "homepageImplementation": "NOT_STARTED"
+    "requiredStatus": "OWNER_AUTHORIZATION_RECEIVED_FOR_THIS_DESIGN_ONLY",
+    "exactNextAction": "COORDINATE_RUNTIME_ROLLOUT_THEN_REAL_OWNER_DEVICE_VALIDATION",
+    "receivedClientDate": "2026-10-07",
+    "source": "Direct owner final visual and permanent homepage rule, 2026-10-07; prior stop retained in Git history",
+    "sha256": null,
+    "homepageImplementation": "IMPLEMENTED_LIVE_OWNER_VALIDATION_NOT_RUN"
   },
   "stage16_13": {
     "state": "FRAMEWORK_VERIFIED_PENDING_REAL_OWNER_PLATFORM_QUALIFICATION",
@@ -5170,5 +5170,26 @@
       "handoff": "05_STAGE17/implementation/STAGE17_BRAIN_UI_V2_CODEX_HANDOFF.md",
       "reservedFor": "CODEX"
     }
+  },
+  "brainUiV2": {
+    "date": "2026-10-07",
+    "status": "IMPLEMENTED_ISOLATED_VALIDATION_PASS",
+    "finalVisual": "07_BRAIN_UI_V2/OWNER_FINAL_VISUAL_2026-10-07.png",
+    "policy": "docs/AYAS_HOMEPAGE_POLICY.md",
+    "report": "07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_RESULT.md",
+    "focusedSuites": 13,
+    "focusedScenarios": 309,
+    "newHomepageScenarios": 11,
+    "typeScript": "PASS",
+    "lint": {
+      "errors": 0,
+      "inheritedWarnings": 13
+    },
+    "isolatedBuild": "PASS_NEXT_16.3.8_LOCK",
+    "browser": "PASS_5_SIZES_PLUS_320PX_NO_HORIZONTAL_OVERFLOW",
+    "physicalPhoneVoice": "NOT_RUN",
+    "liveRollout": "NOT_RUN",
+    "foundationClosed": false,
+    "frozenHistoricalEvidenceChanged": false
   }
 }

@@ -151,6 +151,18 @@ const RULES: readonly Rule[] = Object.freeze([
   // ---- FORBIDDEN_AUTONOMOUS -------------------------------------------------
   {
     level: "FORBIDDEN_AUTONOMOUS",
+    why: "owner-fixed AYAS homepage: changes require an explicit owner instruction; new features belong on subpages",
+    test: (p) => {
+      const target = p.toLowerCase();
+      return ["src/components/homepage/", "public/ayas/brain/"].some(prefix => target.startsWith(prefix))
+        || ["app/page.tsx", "app/layout.tsx", "app/globals.css",
+          "src/components/brain/ayasconsolepage.tsx", "src/components/brain/braincoreconsole.tsx",
+          "src/components/brain/brainconsoleview.tsx", "docs/ayas_homepage_policy.md",
+          "agents.md", "scripts/smoke-ayas-homepage-v2.ts"].includes(target);
+    },
+  },
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
     why: "the revenue platform standard (operation effects, owner-required writes, non-autonomous money) cannot rewrite itself",
     test: (p) => p.toLowerCase().startsWith("src/lib/ayas/revenue/") || p.toLowerCase() === "docs/ayas_revenue_adapter_standard.md" || p.toLowerCase() === "docs/ayas_revenue_spend_policy.md" || p.toLowerCase() === "docs/ayas_revenue_unit_economics.md" || p.toLowerCase() === "docs/ayas_revenue_free_first_validation.md" || p.toLowerCase() === "docs/ayas_revenue_offer_factory.md" || p.toLowerCase() === "docs/ayas_revenue_fulfillment_gate.md" || p.toLowerCase() === "docs/ayas_revenue_etsy_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_upwork_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_fiverr_adapter.md" || p.toLowerCase() === "docs/ayas_revenue_udemy_atolye.md" || p.toLowerCase() === "docs/ayas_revenue_lemon_squeezy.md" || p.toLowerCase() === "docs/ayas_revenue_reinvestment_policy.md" || p.toLowerCase() === "docs/ayas_revenue_intelligence_memory.md",
   },

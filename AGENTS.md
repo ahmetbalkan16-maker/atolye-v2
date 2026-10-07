@@ -88,3 +88,13 @@ Her geliştirme aşağıdaki sırayla yapılmalıdır.
 En güncel geliştirme durumu:
 
 ATOLYE_CHECKPOINT.md
+
+---
+
+## Kalıcı AYAS Homepage Kuralı — owner talimatı, 2026-10-07
+
+Brain UI V2 ana sayfasının son görseli `docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/OWNER_FINAL_VISUAL_2026-10-07.png` dosyasıdır. Önceki görsel alternatifleri geçersizdir.
+
+AYAS self-development / Gelişim Merkezi süreçleri homepage'e otomatik olarak hiçbir yeni kart, yazı, buton, panel, widget veya özellik ekleyemez. Yeni işlevler konuya uygun mevcut veya yeni alt sayfa/sekmede yer alır. Homepage değişikliği yalnız owner'ın homepage hakkında açık talimatıyla yapılabilir; genel otonomi veya öneri onayı bu yetkiyi vermez.
+
+Kod sınırı ve doğrulama: `docs/AYAS_HOMEPAGE_POLICY.md`. Mevcut çalışan fonksiyonlar ve gerçek durum kaynakları korunur; sahte durum veya metrik üretilemez.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Dashboard from "@/components/Dashboard";
 import Sidebar from "@/components/Sidebar";
@@ -10,38 +10,15 @@ import {
   type PipelineStartResponseBody,
 } from "@/lib/pipeline/pipelineStartOutcome";
 
-const loadingMessages = [
-  "Araştırma yapılıyor...",
-  "Senaryo hazırlanıyor...",
-  "Sahneler oluşturuluyor...",
-  "Görsel plan hazırlanıyor...",
-];
-
 export default function HomeClient() {
   const router = useRouter();
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!loading) {
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      setLoadingStep((step) =>
-        step >= loadingMessages.length - 1 ? step : step + 1,
-      );
-    }, 3500);
-
-    return () => window.clearInterval(interval);
-  }, [loading]);
 
   const startPipeline = async () => {
     if (!topic.trim() || loading) return;
 
-    setLoadingStep(0);
     setLoading(true);
     setError("");
 
@@ -91,7 +68,7 @@ export default function HomeClient() {
 
         {loading && (
           <p className="mt-6 text-yellow-400">
-            {loadingMessages[loadingStep]}
+            Üretim isteğinin sunucu yanıtı bekleniyor…
           </p>
         )}
 

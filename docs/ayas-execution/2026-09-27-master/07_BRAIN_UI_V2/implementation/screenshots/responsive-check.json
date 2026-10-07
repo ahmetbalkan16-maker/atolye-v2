@@ -1,0 +1,106 @@
+{
+  "environment": "isolated loopback Next16.3.8 preview, synthetic git identity; not live owner runtime",
+  "sizes": [
+    {
+      "clientWidth": 1920,
+      "command": {
+        "bottom": 824.3125,
+        "height": 704.09375,
+        "left": 1465,
+        "right": 1870,
+        "top": 120.21875,
+        "width": 405,
+        "x": 1465,
+        "y": 120.21875
+      },
+      "dock": 6,
+      "height": 1080,
+      "pageHeight": 1080,
+      "scrollWidth": 1920,
+      "width": 1920
+    },
+    {
+      "clientWidth": 1425,
+      "command": {
+        "bottom": 807.09375,
+        "height": 704.09375,
+        "left": 992,
+        "right": 1397,
+        "top": 103,
+        "width": 405,
+        "x": 992,
+        "y": 103
+      },
+      "dock": 6,
+      "height": 900,
+      "pageHeight": 1044,
+      "scrollWidth": 1425,
+      "width": 1440
+    },
+    {
+      "clientWidth": 1351,
+      "command": {
+        "bottom": 807.09375,
+        "height": 704.09375,
+        "left": 918,
+        "right": 1323,
+        "top": 103,
+        "width": 405,
+        "x": 918,
+        "y": 103
+      },
+      "dock": 6,
+      "height": 768,
+      "pageHeight": 1044,
+      "scrollWidth": 1351,
+      "width": 1366
+    },
+    {
+      "clientWidth": 1009,
+      "command": {
+        "bottom": 880.5,
+        "height": 730.5,
+        "left": 565.4375,
+        "right": 989,
+        "top": 150,
+        "width": 423.5625,
+        "x": 565.4375,
+        "y": 150
+      },
+      "dock": 6,
+      "height": 768,
+      "pageHeight": 1613,
+      "scrollWidth": 1009,
+      "width": 1024
+    },
+    {
+      "clientWidth": 375,
+      "command": {
+        "bottom": 1346.78125,
+        "height": 730.09375,
+        "left": 14,
+        "right": 361,
+        "top": 616.6875,
+        "width": 347,
+        "x": 14,
+        "y": 616.6875
+      },
+      "dock": 6,
+      "height": 844,
+      "pageHeight": 2268,
+      "scrollWidth": 375,
+      "width": 390
+    }
+  ],
+  "narrow320": {
+    "clientWidth": 305,
+    "scrollWidth": 305
+  },
+  "interactions": {
+    "tasks": "empty real queue shown",
+    "draft": "active then idle on clear",
+    "keyboard": "Send has solid focus outline",
+    "memory": "see navigation snapshot"
+  },
+  "physicalPhoneVoice": "NOT_RUN"
+}

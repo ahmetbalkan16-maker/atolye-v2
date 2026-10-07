@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-07",
+  "phase": "post_implementation_graph_before_final_doc_refresh",
+  "nodes": 19262,
+  "links": 55249,
+  "integrity": {
+    "duplicateNodeIds": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "structuralIncomplete9": [
+    "existing PowerShell parser7",
+    "existing YAML1",
+    "existing dynamic thumbnail route1"
+  ],
+  "semantic": "PENDING",
+  "source": "Graphify graph parsed independently",
+  "allNewSourceNodesPresent": [
+    {
+      "file": "app/studio/page.tsx",
+      "nodes": 2
+    },
+    {
+      "file": "src/components/brain/AyasConsolePage.tsx",
+      "nodes": 2
+    },
+    {
+      "file": "src/components/homepage/AyasHomepage.tsx",
+      "nodes": 11
+    },
+    {
+      "file": "scripts/smoke-ayas-homepage-v2.ts",
+      "nodes": 2
+    }
+  ]
+}

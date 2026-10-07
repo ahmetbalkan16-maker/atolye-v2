@@ -1,0 +1,25 @@
+{
+  "phase": "post_implementation_precommit",
+  "sourceHead": "9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee",
+  "lastAnalyzedHead": "9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee",
+  "graphBuiltFromHead": "9f8f591a13a85e99f849ccc7cc3a2ea66e39cfee",
+  "stale": false,
+  "worktree": "DIRTY",
+  "worktreeCovered": true,
+  "structural": "PARTIAL",
+  "reasons": [
+    "INCOMPLETE_CODE_FILES:9"
+  ],
+  "incompleteCodeFiles": [
+    ".github/workflows/ayas-safe-ci.yml",
+    "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+    "scripts/ayas-access-daemon.ps1",
+    "scripts/ayas-autonomy-daemon.ps1",
+    "scripts/register-ayas-autonomy-autostart.ps1",
+    "scripts/register-ayas-autostart.ps1",
+    "scripts/smoke-ayas-access-daemon.ps1",
+    "scripts/unregister-ayas-autonomy-autostart.ps1",
+    "scripts/unregister-ayas-autostart.ps1"
+  ],
+  "semantic": "PENDING"
+}
