@@ -938,3 +938,8 @@ Mevcut ADR'ler mümkün olduğunca değiştirilmemelidir.
 ## 2026-10-07 — Owner-fixed AYAS homepage with shared console runtime
 
 Explicit owner final visual authorizes the Brain UI V2 shell at /. Move the existing HomeClient studio to /studio and reuse the former /brain server loader and existing BrainCoreConsole state/actions in both presentations. Keep /brain's detail panels and style independent; validate panel deep links against BRAIN_PANELS. No new execution, approval, voice engine, data root or polling. Fixed navigation cannot enumerate newly developed capabilities. BrainPatchSafety prohibits autonomous homepage/policy/shared-shell edits; future homepage changes require explicit owner homepage instructions. Foundation qualification and deployed runtime remain separate. Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/implementation/BRAIN_UI_V2_RESULT.md.
+
+
+## 2026-10-07 — PWA launch and application identity
+
+Owner requests Brain UI V2 homepage / as PWA start_url. Preserve the original explicit id=/brain: application identity is independent of its launch URL; changing identity would risk a separate installed app. Preserve scope=/ and all routes, including detailed /brain console and /studio. Manifest network-first prevents stale install metadata from shadowing a deployed launch update; genuine offline fallback and legacy launch handling stay compatible. No new framework/dependency. Reference: https://www.w3.org/TR/appmanifest/#id-member.

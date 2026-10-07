@@ -1,0 +1,692 @@
+{
+  "observedAt": "2026-10-07T15:26:43.927Z",
+  "status": "PASS",
+  "stamp": {
+    "schemaVersion": "1",
+    "gitHead": "a4c807b714417071d8779583112b218ac52b7b3f",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-07T15:25:33.032Z"
+  },
+  "buildId": "e01CCfxz2bnAWR2khpcpt",
+  "manifests": [
+    {
+      "base": "http://localhost:3000",
+      "path": "/manifest.webmanifest",
+      "status": 200,
+      "location": null,
+      "contentType": "application/manifest+json",
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "677c296cbd211844d9c4bcd0b970e254cd088609bbce0d7dfb1c567a52e15f77",
+      "manifest": {
+        "id": "/brain",
+        "name": "Atölye AYAS",
+        "short_name": "AYAS",
+        "description": "Atölye'nin yapay zekâ çekirdeği — Brain Core.",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#04050a",
+        "theme_color": "#04050a",
+        "lang": "tr",
+        "dir": "ltr",
+        "categories": [
+          "productivity",
+          "utilities"
+        ],
+        "icons": [
+          {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/ayas-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+          }
+        ]
+      }
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/manifest.webmanifest",
+      "status": 200,
+      "location": null,
+      "contentType": "application/manifest+json",
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": null,
+      "sha256": "677c296cbd211844d9c4bcd0b970e254cd088609bbce0d7dfb1c567a52e15f77",
+      "manifest": {
+        "id": "/brain",
+        "name": "Atölye AYAS",
+        "short_name": "AYAS",
+        "description": "Atölye'nin yapay zekâ çekirdeği — Brain Core.",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#04050a",
+        "theme_color": "#04050a",
+        "lang": "tr",
+        "dir": "ltr",
+        "categories": [
+          "productivity",
+          "utilities"
+        ],
+        "icons": [
+          {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/ayas-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+          }
+        ]
+      }
+    }
+  ],
+  "results": [
+    {
+      "base": "http://localhost:3000",
+      "path": "/login",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8",
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "3c20122422f8f44ffe2ab16decd152cae40777194ea2fefee72c9c75fc131d1f"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/",
+      "status": 307,
+      "location": "/login?next=%2F",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": null,
+      "accessGate": "enforced",
+      "sha256": "98a022a9e9f2d8b08e3083b7865acf30dba6d02b65a087f7d07c99af429694ee"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/brain",
+      "status": 307,
+      "location": "/login?next=%2Fbrain",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": null,
+      "accessGate": "enforced",
+      "sha256": "3c0021bd2173697b974b8fb36392c59f59eac71c46ab70bdcabddbfe25cae854"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/brain?source=pwa",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fsource%3Dpwa",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": null,
+      "accessGate": "enforced",
+      "sha256": "716b6c1b8005b6dc7c33c85a5207e8a6d2e5b674f6ced91865ac3b728e5df2f0"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/studio",
+      "status": 307,
+      "location": "/login?next=%2Fstudio",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": null,
+      "accessGate": "enforced",
+      "sha256": "469cec9cc41814242537603219302372d669eebb97abd24ff5b67dac5f5469b9"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/api/runtime/health",
+      "status": 401,
+      "location": null,
+      "contentType": "application/json",
+      "cacheControl": null,
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "94f52329fae0081ae8bc88617360b2c4d80e8c0ea3d8916d3c8d526cdf81d889"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/api/ayas/chat/stream",
+      "status": 401,
+      "location": null,
+      "contentType": "application/json",
+      "cacheControl": null,
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "94f52329fae0081ae8bc88617360b2c4d80e8c0ea3d8916d3c8d526cdf81d889"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/offline",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8",
+      "cacheControl": "s-maxage=31536000",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "73adef51891389fffb734b74542f5af5280abf3f95940530cafe7155cdf700f1"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/brain/voice-lab/phone-llm",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8",
+      "cacheControl": "s-maxage=31536000",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "b868297eb531cc01bd3deb015a6f1960b198d2a3ba3a8adf30fd1f7d879ae708"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/sw.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "no-cache, no-store, must-revalidate",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "8cb16e76e83e68c5eec710573c3918dab4f01b45ba5642c1615002baa74f809f"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/icons/icon-192.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=0",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "154110550a3de9bc8d0ff712fa9a04f43009b20279da9937c022af42b93cd6f8"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/icons/icon-512.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=0",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "f1f0f022901d9577a750b765c8c700c2e94ef47d603dd6ad3cf6f655f75bb119"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/icons/icon-maskable-192.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=0",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "80acc5758c0abf86f229dec2bfa1c8c2a10421776a3a84d6a8fa00746b3682b3"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/icons/icon-maskable-512.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=0",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "29c8865c7f3c3ba368cfebf28bd148101120603080cac895f861ea628f7d8498"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/ayas-icon.svg",
+      "status": 200,
+      "location": null,
+      "contentType": "image/svg+xml",
+      "cacheControl": "public, max-age=0",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "fecdb6b3f39cd40a2674f71269d61160097ce3c98b4565901d48c5224c7afc7e"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/icons/apple-touch-icon.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=0",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "ba64b99904a52e3489df3e4e55c1b5e2f4e2ac6236c1aae6b72c39a068c81eb4"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/login",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8",
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": null,
+      "sha256": "3c20122422f8f44ffe2ab16decd152cae40777194ea2fefee72c9c75fc131d1f"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/",
+      "status": 307,
+      "location": "/login?next=%2F",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": "enforced",
+      "sha256": "98a022a9e9f2d8b08e3083b7865acf30dba6d02b65a087f7d07c99af429694ee"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/brain",
+      "status": 307,
+      "location": "/login?next=%2Fbrain",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": "enforced",
+      "sha256": "3c0021bd2173697b974b8fb36392c59f59eac71c46ab70bdcabddbfe25cae854"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/brain?source=pwa",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fsource%3Dpwa",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": "enforced",
+      "sha256": "716b6c1b8005b6dc7c33c85a5207e8a6d2e5b674f6ced91865ac3b728e5df2f0"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/studio",
+      "status": 307,
+      "location": "/login?next=%2Fstudio",
+      "contentType": null,
+      "cacheControl": null,
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": "enforced",
+      "sha256": "469cec9cc41814242537603219302372d669eebb97abd24ff5b67dac5f5469b9"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/api/runtime/health",
+      "status": 401,
+      "location": null,
+      "contentType": "application/json",
+      "cacheControl": null,
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": null,
+      "sha256": "94f52329fae0081ae8bc88617360b2c4d80e8c0ea3d8916d3c8d526cdf81d889"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/api/ayas/chat/stream",
+      "status": 401,
+      "location": null,
+      "contentType": "application/json",
+      "cacheControl": null,
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": null,
+      "sha256": "94f52329fae0081ae8bc88617360b2c4d80e8c0ea3d8916d3c8d526cdf81d889"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/offline",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8",
+      "cacheControl": "s-maxage=31536000",
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": null,
+      "sha256": "73adef51891389fffb734b74542f5af5280abf3f95940530cafe7155cdf700f1"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/brain/voice-lab/phone-llm",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8",
+      "cacheControl": "s-maxage=31536000",
+      "cfCacheStatus": "DYNAMIC",
+      "accessGate": null,
+      "sha256": "b868297eb531cc01bd3deb015a6f1960b198d2a3ba3a8adf30fd1f7d879ae708"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/sw.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "no-cache, no-store, must-revalidate",
+      "cfCacheStatus": "BYPASS",
+      "accessGate": null,
+      "sha256": "8cb16e76e83e68c5eec710573c3918dab4f01b45ba5642c1615002baa74f809f"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/icons/icon-192.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=14400",
+      "cfCacheStatus": "MISS",
+      "accessGate": null,
+      "sha256": "154110550a3de9bc8d0ff712fa9a04f43009b20279da9937c022af42b93cd6f8"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/icons/icon-512.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=14400",
+      "cfCacheStatus": "MISS",
+      "accessGate": null,
+      "sha256": "f1f0f022901d9577a750b765c8c700c2e94ef47d603dd6ad3cf6f655f75bb119"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/icons/icon-maskable-192.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=14400",
+      "cfCacheStatus": "MISS",
+      "accessGate": null,
+      "sha256": "80acc5758c0abf86f229dec2bfa1c8c2a10421776a3a84d6a8fa00746b3682b3"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/icons/icon-maskable-512.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=14400",
+      "cfCacheStatus": "MISS",
+      "accessGate": null,
+      "sha256": "29c8865c7f3c3ba368cfebf28bd148101120603080cac895f861ea628f7d8498"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/ayas-icon.svg",
+      "status": 200,
+      "location": null,
+      "contentType": "image/svg+xml",
+      "cacheControl": "public, max-age=14400",
+      "cfCacheStatus": "MISS",
+      "accessGate": null,
+      "sha256": "fecdb6b3f39cd40a2674f71269d61160097ce3c98b4565901d48c5224c7afc7e"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/icons/apple-touch-icon.png",
+      "status": 200,
+      "location": null,
+      "contentType": "image/png",
+      "cacheControl": "public, max-age=14400",
+      "cfCacheStatus": "MISS",
+      "accessGate": null,
+      "sha256": "ba64b99904a52e3489df3e4e55c1b5e2f4e2ac6236c1aae6b72c39a068c81eb4"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/brain?panel=autonomous",
+      "purpose": "health",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+      "accessGate": "enforced"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/brain?panel=autonomous",
+      "purpose": "autonomy",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+      "accessGate": "enforced"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/brain?panel=development",
+      "purpose": "approvals",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fpanel%3Ddevelopment",
+      "accessGate": "enforced"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/brain?panel=autonomous",
+      "purpose": "health",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+      "accessGate": "enforced"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/brain?panel=autonomous",
+      "purpose": "autonomy",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+      "accessGate": "enforced"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/brain?panel=development",
+      "purpose": "approvals",
+      "status": 307,
+      "location": "/login?next=%2Fbrain%3Fpanel%3Ddevelopment",
+      "accessGate": "enforced"
+    }
+  ],
+  "bundles": [
+    {
+      "base": "http://localhost:3000",
+      "path": "/_next/static/chunks/0wj7afalhxn8h.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "9841ff85a422ba7402d90c568f968f76b715fbfff64bdfbe625657725a1ed5e9"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/0wj7afalhxn8h.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": "HIT",
+      "accessGate": null,
+      "sha256": "9841ff85a422ba7402d90c568f968f76b715fbfff64bdfbe625657725a1ed5e9"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/_next/static/chunks/1ntn7efqc-iiw.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "32e9576b2b87cbc03075cbfde10797120b73b5c6e486723cd9e58a66d99c585d"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/1ntn7efqc-iiw.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": "HIT",
+      "accessGate": null,
+      "sha256": "32e9576b2b87cbc03075cbfde10797120b73b5c6e486723cd9e58a66d99c585d"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/_next/static/chunks/1sdnt-v6a570p.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "e98d0a057d975379db3e674c9dfb8e617b3d5b16d807517be6358a59d72fe30c"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/1sdnt-v6a570p.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": "HIT",
+      "accessGate": null,
+      "sha256": "e98d0a057d975379db3e674c9dfb8e617b3d5b16d807517be6358a59d72fe30c"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/_next/static/chunks/1rncrhde8sr9c.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "7a37c426b8dc7d967016fa2df86a8a4aab31734c95a7e7bacdd4957e0bdf06c0"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/1rncrhde8sr9c.js",
+      "status": 200,
+      "location": null,
+      "contentType": "application/javascript; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": "HIT",
+      "accessGate": null,
+      "sha256": "7a37c426b8dc7d967016fa2df86a8a4aab31734c95a7e7bacdd4957e0bdf06c0"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/_next/static/chunks/0_n4jvhfze686.css",
+      "status": 200,
+      "location": null,
+      "contentType": "text/css; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "1599b3a559a54c339008f76f870e06564240859234b13ffd708b82e6d680d520"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/0_n4jvhfze686.css",
+      "status": 200,
+      "location": null,
+      "contentType": "text/css; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": "HIT",
+      "accessGate": null,
+      "sha256": "1599b3a559a54c339008f76f870e06564240859234b13ffd708b82e6d680d520"
+    },
+    {
+      "base": "http://localhost:3000",
+      "path": "/_next/static/chunks/2mc9geh0_g3yd.css",
+      "status": 200,
+      "location": null,
+      "contentType": "text/css; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": null,
+      "accessGate": null,
+      "sha256": "522272682a9636f32846c98f0ab4503c1aa32dc0c8df141f0ee88a9bbb6d60d2"
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "path": "/_next/static/chunks/2mc9geh0_g3yd.css",
+      "status": 200,
+      "location": null,
+      "contentType": "text/css; charset=UTF-8",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cfCacheStatus": "HIT",
+      "accessGate": null,
+      "sha256": "522272682a9636f32846c98f0ab4503c1aa32dc0c8df141f0ee88a9bbb6d60d2"
+    }
+  ],
+  "homepageBundlePresent": true,
+  "responsiveCssPresent": true,
+  "cloudflaredReady": {
+    "base": "http://127.0.0.1:20241",
+    "path": "/ready",
+    "status": 200,
+    "location": null,
+    "contentType": "text/plain; charset=utf-8",
+    "cacheControl": null,
+    "cfCacheStatus": null,
+    "accessGate": null,
+    "sha256": "099f6cacd0b4ad385f7dd0f36aa0df1c635e37f2d92f0f419f1c62d31ef90fec"
+  },
+  "phoneInstallAndAuthenticatedVoice": "OWNER_ACTION_NOT_RUN",
+  "credentialsUsed": false,
+  "checkedHomepagePanelLinks": {
+    "health": "/brain?panel=autonomous",
+    "autonomy": "/brain?panel=autonomous",
+    "approvals": "/brain?panel=development"
+  }
+}

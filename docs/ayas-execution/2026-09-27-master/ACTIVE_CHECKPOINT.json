@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
-  "currentHeadMeaning": "DEPLOYED_CLEAN_BUILD_SOURCE_d931a18; following evidence-only save is source-identical; resolve final session Git HEAD",
+  "currentHead": "a4c807b714417071d8779583112b218ac52b7b3f",
+  "currentHeadMeaning": "DEPLOYED_CLEAN_PWA_SOURCE_a4c807b; following documentation save is runtime-source-identical; resolve final Git HEAD",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Brain UI V2 deployed through existing canonical Access daemon; public artifacts/machine gate healthy; phone owner action pending; Foundation BLOCKED",
-  "status": "BRAIN_UI_V2_DEPLOYED_MACHINE_VERIFIED_PHONE_OWNER_NOT_RUN_FOUNDATION_BLOCKED",
+  "subtask": "PWA start_url=/ deployed and public manifest verified; existing installed-device metadata owner check pending; Foundation BLOCKED",
+  "status": "PWA_HOMEPAGE_DEPLOYED_MACHINE_VERIFIED_PHONE_INSTALL_OWNER_NOT_RUN_FOUNDATION_BLOCKED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -5195,6 +5195,27 @@
     "deployedSourceHead": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
     "rolloutReceipt": "07_BRAIN_UI_V2/rollout/BRAIN_UI_V2_ROLLOUT_2026-10-07.json",
     "liveRuntimeNext": "16.2.10",
-    "installedLockMismatch": "OPEN"
+    "installedLockMismatch": "OPEN",
+    "pwaLaunch": {
+      "sourceHead": "a4c807b714417071d8779583112b218ac52b7b3f",
+      "startUrl": "/",
+      "scope": "/",
+      "id": "/brain",
+      "idPreserved": true,
+      "manifestNetworkFirst": true,
+      "legacyBrainOfflineFallbackPreserved": true,
+      "sourceRoutesChanged": false,
+      "canonicalRollout": "PASS",
+      "originPid": 10192,
+      "tunnelPid": 30200,
+      "tasksPreserved": true,
+      "manifestLocalPublicVerified": true,
+      "smokeScenarios": 145,
+      "buildWarnings": 105,
+      "phoneInstall": "OWNER_ACTION_NOT_RUN",
+      "phoneVoice": "OWNER_ACTION_NOT_RUN",
+      "foundation": "BLOCKED",
+      "evidence": "07_BRAIN_UI_V2/pwa-start-url/PWA_START_URL_2026-10-07.md"
+    }
   }
 }

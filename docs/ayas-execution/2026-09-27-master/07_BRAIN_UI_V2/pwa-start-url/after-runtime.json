@@ -1,0 +1,120 @@
+{
+  "observedAt": "2026-10-07T15:28:10.7334285Z",
+  "snapshot": {
+    "origin": "healthy",
+    "listenerPid": 10192,
+    "wrapperPid": 14864,
+    "tunnel": "healthy",
+    "tunnelPid": 30200,
+    "expectedAppCount": 1,
+    "expectedTunnelCount": 1
+  },
+  "origin": {
+    "ProcessId": 10192,
+    "ParentProcessId": 35496,
+    "CreationDate": "2026-10-07T18:25:33.89297+03:00",
+    "CommandLine": "\"node\"   \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\.bin\\\\..\\next\\dist\\bin\\next\" start -p 3000"
+  },
+  "listeners": [
+    {
+      "LocalAddress": "::",
+      "LocalPort": 3000,
+      "OwningProcess": 10192
+    }
+  ],
+  "nextInstances": [
+    {
+      "ProcessId": 10192,
+      "CreationDate": "2026-10-07T18:25:33.89297+03:00",
+      "CommandLine": "\"node\"   \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\.bin\\\\..\\next\\dist\\bin\\next\" start -p 3000"
+    }
+  ],
+  "preserved": [
+    {
+      "component": "tunnel",
+      "pid": 30200,
+      "creationDate": "2026-10-07T09:27:18.976959+03:00",
+      "preserved": true
+    },
+    {
+      "component": "supervisor",
+      "pid": 2496,
+      "creationDate": "2026-10-07T09:26:30.668963+03:00",
+      "preserved": true
+    },
+    {
+      "component": "observer",
+      "pid": 31556,
+      "creationDate": "2026-10-07T06:46:13.233889+03:00",
+      "preserved": true
+    }
+  ],
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running",
+      "sha256": "4B8979E399DD2DDEF08E7BBC899519EF9A454D2814317E58E124F421BB68ABA3",
+      "definitionPreserved": true
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running",
+      "sha256": "C2B6B3F3971C4B00F2F5465F20973A2056527589B1A757EEFFF9A42BF461A2DF",
+      "definitionPreserved": true
+    }
+  ],
+  "tunnelConfigSha": "A909CBB9A9B0979CB23507CC83AB39496188F661E7178ECE6D58A2555E2E74D9",
+  "tunnelConfigPreserved": true,
+  "recoveryState": {
+    "schema": 1,
+    "observedAt": "2026-10-07T15:27:38.0581299Z",
+    "mode": "continuous",
+    "origin": {
+      "attempts": 22,
+      "consecutiveFailures": 0,
+      "lastAttemptAt": "2026-10-07T15:24:53.6369709Z",
+      "lastSuccessAt": "2026-10-07T15:27:38.0581299Z",
+      "nextEligibleAt": null,
+      "failureStage": null
+    },
+    "tunnel": {
+      "attempts": 15,
+      "consecutiveFailures": 0,
+      "lastAttemptAt": "2026-10-07T06:26:31.3989978Z",
+      "lastSuccessAt": "2026-10-07T15:27:38.0581299Z",
+      "nextEligibleAt": null,
+      "failureStage": null
+    },
+    "originStatus": "healthy",
+    "tunnelStatus": "healthy",
+    "localHealth": true,
+    "publicHealth": "healthy",
+    "lastHealthyAt": "2026-10-07T15:27:39.0451991Z",
+    "ownerActionRecommended": false,
+    "failureType": null,
+    "recoveryAction": "none",
+    "result": "healthy",
+    "listenerPid": 10192,
+    "wrapperPid": 14864,
+    "tunnelPid": 30200
+  },
+  "runtimeErrorLogBytes": 0,
+  "build": {
+    "installedNext": "16.2.10",
+    "lockNext": "16.3.8",
+    "stamp": {
+      "schemaVersion": "1",
+      "gitHead": "a4c807b714417071d8779583112b218ac52b7b3f",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+      "stampedAt": "2026-10-07T15:25:33.032Z"
+    },
+    "compilerSuccess": true,
+    "typescriptSuccess": true,
+    "warnings": 105,
+    "middlewareDeprecation": true,
+    "rawStdoutSha": "BCC114F0457492FAD2A8F51E9B0327FBBC110E0F191E8F08B1FE307C566665CB",
+    "rawStderrSha": "A93EB57887EDF492568DBE02E8CB07526CFD7561F9855E1F39389D65EC20FE1A",
+    "rawLogsDirectory": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-pwa-homepage-rollout-20261007"
+  }
+}

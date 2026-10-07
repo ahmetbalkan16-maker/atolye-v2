@@ -1,3 +1,7 @@
+# 2026-10-07 — PWA icon opens Brain UI V2 homepage
+
+Manifest start_url changed from /brain?source=pwa to /, with scope=/ and stable id=/brain. Manifest fetch is network-first; new / and legacy /brain retain offline fallback.145 focused scenarios/TS/lint/build PASS; canonical deployment/public manifest verified. All routes, access tasks/tunnel and Foundation BLOCKED preserved. Existing installed metadata may require reinstall from /. Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/pwa-start-url/PWA_START_URL_2026-10-07.md.
+
 # 2026-10-07 — Brain UI V2 canonical live rollout
 
 Rebuilt and restarted production d931a18 via unchanged Access daemon; single origin11472, same tunnel30200, task/config hashes unchanged. Public bundle verification PASS, access boundary preserved,85 relevant scenarios PASS. Phone owner tests pending, Foundation BLOCKED. No feature/source/dependency/task/config changes. Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/rollout/BRAIN_UI_V2_ROLLOUT_2026-10-07.md.
