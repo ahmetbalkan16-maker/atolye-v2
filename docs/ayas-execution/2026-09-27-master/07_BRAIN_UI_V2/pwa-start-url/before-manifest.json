@@ -1,0 +1,118 @@
+{
+  "observedAt": "2026-10-07T15:20:20.960Z",
+  "results": [
+    {
+      "base": "http://localhost:3000",
+      "status": 200,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "cfCacheStatus": null,
+      "manifest": {
+        "id": "/brain",
+        "name": "Atölye AYAS",
+        "short_name": "AYAS",
+        "description": "Atölye'nin yapay zekâ çekirdeği — Brain Core.",
+        "start_url": "/brain?source=pwa",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#04050a",
+        "theme_color": "#04050a",
+        "lang": "tr",
+        "dir": "ltr",
+        "categories": [
+          "productivity",
+          "utilities"
+        ],
+        "icons": [
+          {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/ayas-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+          }
+        ]
+      }
+    },
+    {
+      "base": "https://ayas.atolyeayas.com",
+      "status": 200,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "cfCacheStatus": "DYNAMIC",
+      "manifest": {
+        "id": "/brain",
+        "name": "Atölye AYAS",
+        "short_name": "AYAS",
+        "description": "Atölye'nin yapay zekâ çekirdeği — Brain Core.",
+        "start_url": "/brain?source=pwa",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#04050a",
+        "theme_color": "#04050a",
+        "lang": "tr",
+        "dir": "ltr",
+        "categories": [
+          "productivity",
+          "utilities"
+        ],
+        "icons": [
+          {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+          },
+          {
+            "src": "/icons/icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+          },
+          {
+            "src": "/ayas-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+          }
+        ]
+      }
+    }
+  ],
+  "frozenPinReferencesToChangedFiles": []
+}

@@ -1,4 +1,8 @@
-# Current — 2026-10-07 / Brain UI V2 live rollout complete; phone owner validation pending; Foundation BLOCKED
+# Current — 2026-10-07 / PWA launch source verified; canonical rollout pending; Foundation BLOCKED
+
+Owner requested installed AYAS launch at /. Manifest start_url=/, scope=/, stable id=/brain; worker manifest network-first, legacy /brain offline fallback preserved.145 relevant scenarios/TypeScript/lint/diff PASS (13 inherited lint warnings). Current production still d931a18 at source-save time; next: canonical Access daemon rebuild/restart and public manifest verification, then final docs/Graphify/commit/push. Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/pwa-start-url/PWA_START_URL_2026-10-07.md. Foundation BLOCKED; frozen Stage17 untouched.
+
+# Historical snapshot — 2026-10-07 / Brain UI V2 live rollout complete; phone owner validation pending; Foundation BLOCKED
 
 Canonical Access daemon rebuilt CLEAN d931a18 and restarted the single localhost:3000 origin from old34ecb66/PID3416 to PID11472. Existing cloudflared30200, Access supervisor2496, observer31556 and both Running scheduled tasks are preserved; task XML and tunnel config hashes unchanged. Local/public login200, protected pages307, health/chat APIs401, cloudflared readiness200. Twelve public/local homepage JS/CSS responses200 match actual deployed build hashes. No credentials used for probes; authenticated homepage/image/chat/voice/device UI remains owner qualification. Source/features/ports/domain/tunnel/task configuration unchanged.85 relevant scenarios PASS; actual Next16.2.10 canonical build and its TypeScript PASS (104 tracing warnings plus middleware deprecation); installed16.2.10/lock16.3.8 mismatch remains OPEN.
 

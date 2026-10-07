@@ -1,0 +1,52 @@
+{
+  "observedAt": "2026-10-07T15:22:54.6538303Z",
+  "snapshot": {
+    "origin": "healthy",
+    "listenerPid": 11472,
+    "wrapperPid": 31048,
+    "tunnel": "healthy",
+    "tunnelPid": 30200,
+    "expectedAppCount": 1,
+    "expectedTunnelCount": 1
+  },
+  "origin": {
+    "ProcessId": 11472,
+    "ParentProcessId": 10480,
+    "CreationDate": "2026-10-07T17:42:12.035193+03:00",
+    "CommandLine": "\"node\"   \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\.bin\\\\..\\next\\dist\\bin\\next\" start -p 3000"
+  },
+  "tunnel": {
+    "ProcessId": 30200,
+    "CreationDate": "2026-10-07T09:27:18.976959+03:00"
+  },
+  "supervisor": {
+    "ProcessId": 2496,
+    "CreationDate": "2026-10-07T09:26:30.668963+03:00"
+  },
+  "observer": {
+    "ProcessId": 31556,
+    "CreationDate": "2026-10-07T06:46:13.233889+03:00"
+  },
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running",
+      "sha256": "4B8979E399DD2DDEF08E7BBC899519EF9A454D2814317E58E124F421BB68ABA3"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running",
+      "sha256": "C2B6B3F3971C4B00F2F5465F20973A2056527589B1A757EEFFF9A42BF461A2DF"
+    }
+  ],
+  "tunnelConfigSha": "A909CBB9A9B0979CB23507CC83AB39496188F661E7178ECE6D58A2555E2E74D9",
+  "buildId": "U2nNI8e-5Yn3t1fi7A5dQ",
+  "stamp": {
+    "schemaVersion": "1",
+    "gitHead": "d931a189ec6813c86ddbb480ca4075951b1a0dd3",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-07T14:42:11.404Z"
+  },
+  "backupDirectory": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-pwa-homepage-rollout-20261007"
+}

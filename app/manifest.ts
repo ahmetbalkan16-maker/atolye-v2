@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 /**
  * PWA manifest (spec §12). Served at `/manifest.webmanifest` — the path
- * `accessGate.ts` already lists as open. Makes `/brain` installable on a phone
+ * `accessGate.ts` already lists as open. Opens the Brain UI V2 homepage `/`
  * as "Atölye AYAS". Colors match `BrainCore.css` (`--bc-bg`).
  *
  * Icons are real PNGs (`public/icons/`, built by `scripts/build-pwa-icons.ts`):
@@ -17,11 +17,12 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    // Keep the installed identity stable when changing the launch URL.
     id: "/brain",
     name: "Atölye AYAS",
     short_name: "AYAS",
     description: "Atölye'nin yapay zekâ çekirdeği — Brain Core.",
-    start_url: "/brain?source=pwa",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

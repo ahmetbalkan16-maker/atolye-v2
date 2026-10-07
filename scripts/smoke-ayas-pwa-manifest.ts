@@ -39,8 +39,8 @@ scenario("manifest — required install fields", () => {
   assert.equal(m.name, "Atölye AYAS");
   assert.ok(m.short_name && m.short_name.length <= 12);
   assert.equal(m.display, "standalone");
-  assert.ok(typeof m.start_url === "string" && m.start_url.startsWith("/brain"));
-  assert.ok(m.id, "an explicit id keeps the installed app identity stable");
+  assert.equal(m.start_url, "/", "the installed icon launches the Brain UI V2 homepage");
+  assert.equal(m.id, "/brain", "preserve the installed identity independently of start_url");
   assert.equal(m.scope, "/");
   assert.ok(m.theme_color && m.background_color);
 });
@@ -92,6 +92,8 @@ scenario("routing — /icons/ is open pre-auth (browser fetches icons before a s
   assert.equal(isProtectedPath("/sw.js"), false);
   // the app itself stays protected
   assert.equal(isProtectedPath("/brain"), true);
+  assert.equal(isProtectedPath("/"), true);
+  assert.equal(isProtectedPath("/studio"), true);
 });
 
 scenario("build script — deterministic + committed", () => {

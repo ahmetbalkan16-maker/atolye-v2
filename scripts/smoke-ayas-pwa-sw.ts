@@ -110,7 +110,7 @@ await scenario("sw.js — the ONE offline-capable route (phone-llm lab) is named
 // in this file's own top comment). This actually EXECUTES the real fetch
 // handler against two navigations while "offline" (fetch always rejects) and
 // asserts the two routes get genuinely different treatment.
-function makeFetchSandbox(cacheStore: Map<string, Response>) {
+function makeFetchSandbox(cacheStore: Map<string, Response>, networkFetch = () => Promise.reject<Response>(new Error("offline"))) {
   let fetchHandler:
     | ((event: { request: { method: string; url: string; mode?: string }; respondWith: (p: Promise<Response>) => void }) => void)
     | null = null;
@@ -137,7 +137,7 @@ function makeFetchSandbox(cacheStore: Map<string, Response>) {
       delete: () => Promise.resolve(true),
       match: (req: { url: string } | string) => Promise.resolve(cacheStore.get(typeof req === "string" ? req : req.url)),
     },
-    fetch: () => Promise.reject(new Error("offline")),
+    fetch: networkFetch,
     URL,
     Response,
     Promise,
@@ -208,6 +208,51 @@ await scenario(
     assert.equal(await brain.text(), "generic offline shell");
   },
 );
+
+await scenario("sw.js executed: homepage launch keeps the cached lab fallback on genuine network failure", async () => {
+  const cacheStore = new Map<string, Response>([
+    ["/brain/voice-lab/phone-llm", new Response("cached lab")],
+    ["/offline", new Response("generic offline shell")],
+  ]);
+  const { dispatch } = makeFetchSandbox(cacheStore);
+  const response = await dispatch("https://example.test/");
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("location"), "https://example.test/brain/voice-lab/phone-llm");
+});
+
+await scenario("sw.js executed: homepage offline without a cached lab uses the generic shell", async () => {
+  const { dispatch } = makeFetchSandbox(new Map([["/offline", new Response("generic offline shell")]]));
+  const response = await dispatch("https://example.test/");
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "generic offline shell");
+});
+
+await scenario("sw.js executed: online homepage and legacy launch preserve responses, never cached HTML or forced redirects", async () => {
+  for (const route of ["/", "/brain?source=pwa"]) {
+    for (const status of [200, 307]) {
+      const networkResponse = new Response(status === 200 ? "live page" : null, {
+        status, headers: status === 307 ? { location: "/login?next=" + encodeURIComponent(route) } : {},
+      });
+      const cacheStore = new Map([
+        ["https://example.test" + route, new Response("STALE HTML")],
+        ["/brain/voice-lab/phone-llm", new Response("cached lab")],
+      ]);
+      const { dispatch } = makeFetchSandbox(cacheStore, () => Promise.resolve(networkResponse));
+      assert.equal(await dispatch("https://example.test" + route), networkResponse);
+    }
+  }
+});
+
+await scenario("sw.js executed: install metadata uses the live manifest over stale cached start_url", async () => {
+  const route = "https://example.test/manifest.webmanifest";
+  const stale = new Response(JSON.stringify({ start_url: "/brain?source=pwa" }));
+  const current = new Response(JSON.stringify({ start_url: "/" }));
+  const cacheStore = new Map([[route, stale]]);
+  const online = makeFetchSandbox(cacheStore, () => Promise.resolve(current));
+  assert.equal(await online.dispatch(route), current);
+  const offline = makeFetchSandbox(cacheStore);
+  assert.equal(await offline.dispatch(route), stale, "keep the offline shell metadata fallback");
+});
 
 await scenario("offline page exists and is static, no execution", () => {
   const src = fs.readFileSync(path.join(REPO, "app/offline/page.tsx"), "utf8");

@@ -1,0 +1,65 @@
+{
+  "observedAt": "2026-10-07T15:23:49.884Z",
+  "basis": "candidate source before rollout; production build pending",
+  "typescript": {
+    "status": "PASS",
+    "command": "npx.cmd tsc --noEmit --incremental false"
+  },
+  "lint": {
+    "status": "PASS",
+    "errors": 0,
+    "inheritedWarnings": 13,
+    "command": "npx.cmd eslint .",
+    "changedFilesLint": "PASS"
+  },
+  "suites": [
+    {
+      "suite": "ayas-pwa-manifest",
+      "scenarios": 8,
+      "status": "PASS"
+    },
+    {
+      "suite": "ayas-pwa-sw",
+      "scenarios": 16,
+      "status": "PASS"
+    },
+    {
+      "suite": "ayas-homepage-v2",
+      "scenarios": 11,
+      "status": "PASS"
+    },
+    {
+      "suite": "ayas-access-gate",
+      "scenarios": 19,
+      "status": "PASS"
+    },
+    {
+      "suite": "ayas-phone-access-health",
+      "scenarios": 13,
+      "status": "PASS"
+    },
+    {
+      "suite": "ayas-chat-stream",
+      "scenarios": 31,
+      "status": "PASS"
+    },
+    {
+      "suite": "ayas-chat-stream-client",
+      "scenarios": 11,
+      "status": "PASS"
+    },
+    {
+      "suite": "ayas-mobile-voice-regression",
+      "scenarios": 36,
+      "status": "PASS"
+    }
+  ],
+  "scenarios": 145,
+  "limitedSandboxChatRun": {
+    "status": "FAIL",
+    "assertion": "memoryPersisted must be true",
+    "qualification": "Same unchanged chat source passed 31 scenarios under elevated runner; TEMP write restriction in limited execution context. Initial failure preserved here, not reported as a code repair."
+  },
+  "frozenPwaPins": 0,
+  "foundation": "BLOCKED"
+}
