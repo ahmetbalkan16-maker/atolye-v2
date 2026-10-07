@@ -1,3 +1,7 @@
+# Current checkpoint — 2026-10-07 / Wake V2 WIP archived; owner V3 continuation active
+
+Resumed exact2c7fb7b, same branch and original first-wake gains retained. V2 text55PASS; acoustic117 checks92PASS/25FAIL; rejected four classifier prototypes and partial mel extraction preserved. Owner now explicitly accepts AYAS/AYAZ/HAYAS in V3; HAYAS-discrimination research STOPPED, no model selected/deployed. Next: bind versioned V3 exact text policy, qualify all three first wakes plus genuine remaining negatives/stochastic misses, then automated regression/Graphify/commit/push and canonical rollout only if all gates PASS. Phase B male persona must wait for Phase A PASS + push + healthy rollout. Evidence docs/ayas-wake-policy-v2/2026-10-07/ARCHIVE_RESULT.md. Brain UI/PWA/tunnel/tasks/frozen evidence unchanged; Foundation BLOCKED. Git resolves session-save HEAD.
+
 # Current — 2026-10-07 / AYAS–AYAZ continuation WIP; negative gate FAIL; no deployment; Foundation BLOCKED
 
 Continued preserved HEAD67113e5765d3e911c2f29288b221f3bc8936d225 on wip/ayas-graphify-final-execution; pull current/origin0/0/CLEAN. Graphify-first runner/detector/adapter/browser/text/STT explain, dependency/blast review completed. No production code/model/threshold edit: bounded first-wake warm-up/catch-up preserved. Earlier immutable docs/ayas-first-wake-reliability and original script unchanged. HTTP404 is provider/model access, not AYAS defect.

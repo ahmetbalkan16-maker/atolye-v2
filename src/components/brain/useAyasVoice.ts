@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import { AyasVoiceEngine, type AyasVoicePlatform } from "./voice/ayasVoiceEngine";
 import { BrowserVoiceAdapter } from "./voice/browserVoiceAdapter";
+import { AYAS_OWNER_WAKE_POLICY_V2 } from "@/lib/ayas/voice/AyasWakePolicy";
 import { isAyasPushToTalkHotkey, isWakeEngineCapable, resolveAyasVoiceReadiness, selectAyasVoicePlatform } from "./ayasVoice";
 import type { AyasMicPermissionState, AyasRecognitionMode, AyasVoiceCapability, AyasVoiceReadiness, AyasVoiceState } from "./ayasVoice";
 
@@ -270,7 +271,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
         // user grants access, instead of leaving the UI stuck on the earlier
         // "prompt" read forever.
         onListening: () => setMicPermission("granted"),
-      });
+      }, { wakePolicy: AYAS_OWNER_WAKE_POLICY_V2 });
       engineRef.current = engine;
       setAdapterKind(kind);
       setCapability(engine.capabilities);
@@ -335,10 +336,9 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
         .then(({ WakeWordVoiceAdapter }) => {
           if (wakeEngineTimedOut || cancelled) return;
           const adapter = new WakeWordVoiceAdapter({
-            // The staged, physically validated acoustic asset is AYAS. UYAN and
-            // the other aliases remain fully supported by BrowserVoiceAdapter's
-            // text resolver, but must not be advertised or loaded as an acoustic
-            // model until a real `uyan.onnx` is actually installed and validated.
+            // Owner V2 accepts only AYAS/AYAZ. Acoustic HAYAS qualification is
+            // separate; text normalization alone cannot reject acoustic hits.
+            wakePolicy: AYAS_OWNER_WAKE_POLICY_V2,
             wakewordUrl: "/wake/ayas.onnx",
             primaryWakeLabel: "ayas-acoustic",
             // Fires ONLY when the wake engine has never worked on this device —

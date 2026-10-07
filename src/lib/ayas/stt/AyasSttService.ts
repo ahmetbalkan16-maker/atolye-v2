@@ -24,6 +24,7 @@ import path from "node:path";
 
 import { resolveAyasSttConfig, type AyasSttConfig } from "./AyasSttConfig";
 import { sniffAudioContainer } from "./AyasSttAudio";
+import { AYAS_OWNER_WAKE_POLICY_V2, normaliseOwnerWakeNames, type AyasWakePolicyVersion } from "../voice/AyasWakePolicy";
 
 export type AyasSttFailureCode =
   | "stt-not-configured"
@@ -81,6 +82,8 @@ function asciiArgPath(absolute: string, cwd: string): string | null {
 }
 
 export interface AyasSttDeps {
+  /** Versioned normalization; production route explicitly selects owner V2. */
+  readonly wakePolicy?: AyasWakePolicyVersion;
   readonly config?: AyasSttConfig;
   /** Injectable process runner (tests). */
   readonly run?: (
@@ -133,7 +136,9 @@ const AYAS_STT_PROMPT = "AYAS, Atolye, Graphify.";
  * voice says "AYAS" as "ayaz", and whisper renders the English loanword
  * "runtime" as "Grundtime" (not a Turkish word). Both are deterministic.
  */
-export function normaliseAyasTranscript(text: string): string {
+export function normaliseAyasTranscript(text: string, policy: AyasWakePolicyVersion = "legacy-v1"): string {
+  if (policy === AYAS_OWNER_WAKE_POLICY_V2) return normaliseOwnerWakeNames(text).replace(/\bgrundtime\b/gi, "runtime");
+  if (policy !== "legacy-v1") return "";
   return text
     .replace(/\b(?:aya[zsş]|ayes|aias|hayas)\b/gi, "AYAS")
     .replace(/\bgrundtime\b/gi, "runtime")
@@ -272,7 +277,7 @@ export async function transcribeAyasAudio(
 
     const jsonRaw = await fsp.readFile(`${outBase}.json`, "utf-8").catch(() => "");
     const parsed = jsonRaw ? parseWhisperJson(jsonRaw) : null;
-    const text = normaliseAyasTranscript((parsed?.text ?? "").trim());
+    const text = normaliseAyasTranscript((parsed?.text ?? "").trim(), deps.wakePolicy);
     if (!text) return { ok: false, code: "empty-transcript" };
 
     const processingMs = now() - started;

@@ -40,6 +40,7 @@ import type {
 import { BrowserVoiceAdapter } from "./browserVoiceAdapter";
 import { OpenWakeWordRunner, type WakeRunnerStats } from "./wake/openWakeWordRunner";
 import { encodeWav16kMono } from "./wake/wav";
+import type { AyasWakePolicyVersion } from "@/lib/ayas/voice/AyasWakePolicy";
 
 const FRAME = 1280; // 80 ms @ 16 kHz — matches the worklet + openWakeWord
 /** Hard cap on one spoken command — a long question still fits. */
@@ -367,6 +368,7 @@ export interface WakeAdapterStatus {
 }
 
 export interface WakeWordAdapterOptions {
+  readonly wakePolicy?: AyasWakePolicyVersion;
   readonly wakewordUrl?: string;
   readonly melspectrogramUrl?: string;
   readonly embeddingUrl?: string;
@@ -526,6 +528,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private readonly o: Required<
     Omit<
       WakeWordAdapterOptions,
+      | "wakePolicy"
       | "audioBackend"
       | "runner"
       | "transcribe"
@@ -554,6 +557,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private readonly conversationIdleMs: number;
   private readonly audio: WakeAudioBackend;
   private readonly runner: WakeRunnerLike;
+  private readonly wakePolicy: AyasWakePolicyVersion;
   private readonly transcribe: (wav: Uint8Array) => Promise<string>;
   private readonly onUnavailable?: (reason: "not-allowed" | "start-blocked" | "runner-init") => void;
   private readonly onStatus?: (status: WakeAdapterStatus) => void;
@@ -666,6 +670,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   };
 
   constructor(options: WakeWordAdapterOptions = {}) {
+    this.wakePolicy = options.wakePolicy ?? "legacy-v1";
     this.tts = options.tts ?? new BrowserVoiceAdapter();
     this.o = {
       wakewordUrl: options.wakewordUrl ?? DEFAULTS.wakewordUrl,
@@ -921,7 +926,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
    * command exactly as if "AYAS <command>" had been spoken — zero engine change.
    */
   private withSessionWakePrefix(text: string): string {
-    const bare = stripLeadingWakeWord(text).trim();
+    const bare = stripLeadingWakeWord(text, this.wakePolicy).trim();
     return bare ? `AYAS ${bare}` : "AYAS";
   }
 

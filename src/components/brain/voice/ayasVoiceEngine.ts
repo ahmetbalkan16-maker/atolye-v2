@@ -18,6 +18,8 @@
  * "speaking".
  */
 
+import type { AyasWakePolicyVersion } from "@/lib/ayas/voice/AyasWakePolicy";
+
 import {
   AYAS_TTS_AUTOPLAY_BLOCKED,
   AYAS_VOICE_TAP_FOR_COMMAND,
@@ -169,6 +171,8 @@ const WAKE_TIMEOUT_MS = 12_000;
 const SPEAK_START_TIMEOUT_MS = 1_600;
 
 export interface AyasVoiceEngineOptions {
+  /** Explicit version seam; old callers retain V1, production hook selects V2. */
+  readonly wakePolicy?: AyasWakePolicyVersion;
   /** Debounce before restarting the recogniser after it stops itself. */
   readonly restartDebounceMs?: number;
   /** How long a bare "AYAS" stays "awake" waiting for a follow-up command. */
@@ -178,6 +182,7 @@ export interface AyasVoiceEngineOptions {
 }
 
 export class AyasVoiceEngine {
+  private readonly wakePolicy: AyasWakePolicyVersion;
   private readonly platform: AyasVoicePlatform;
   private readonly cb: AyasVoiceEngineCallbacks;
   private readonly restartDebounceMs: number;
@@ -207,6 +212,7 @@ export class AyasVoiceEngine {
     options: AyasVoiceEngineOptions = {},
   ) {
     this.platform = platform;
+    this.wakePolicy = options.wakePolicy ?? "legacy-v1";
     this.cb = callbacks;
     this.restartDebounceMs = options.restartDebounceMs ?? RESTART_DEBOUNCE_MS;
     this.wakeTimeoutMs = options.wakeTimeoutMs ?? WAKE_TIMEOUT_MS;
@@ -389,7 +395,7 @@ export class AyasVoiceEngine {
     if (this._state === "speaking" || this._state === "thinking") return;
 
     if (!this.woke) {
-      const match = detectAyasWakeWord(transcript);
+      const match = detectAyasWakeWord(transcript, this.wakePolicy);
       if (!match.woke) return;
       this.woke = true;
       this.cb.onWake();
@@ -402,7 +408,7 @@ export class AyasVoiceEngine {
     }
 
     // Already awake — this utterance is the command.
-    this.dispatchCommand(stripLeadingWakeWord(transcript));
+    this.dispatchCommand(stripLeadingWakeWord(transcript, this.wakePolicy));
   }
 
   private dispatchCommand(command: string): void {

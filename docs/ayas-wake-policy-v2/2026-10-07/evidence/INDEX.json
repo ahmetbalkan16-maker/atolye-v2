@@ -1,0 +1,142 @@
+{
+  "status": "V2_FAIL_RAW_PRESERVED",
+  "archivedAt": "2026-10-07T20:38:48.172Z",
+  "initialHead": "2c7fb7b944e12cd2da7f233eec10e163f14fc5a9",
+  "files": [
+    {
+      "source": "acoustic-current.json",
+      "artifact": "acoustic-current.json.gz",
+      "rawBytes": 147128,
+      "rawSha256": "50da0265d9e77f35be79c5c4067907d1915abe38218df0dea9628129e4fb3fe0",
+      "gzipSha256": "e4e8ce2484e9c8d69533fe488b484f4d30252c7bd81c7459c510c683fb6356f8"
+    },
+    {
+      "source": "prototype-fit.json",
+      "artifact": "prototype-fit.json.gz",
+      "rawBytes": 26485,
+      "rawSha256": "9d67530f8b8a4d08963ae746f292ccb6a322230dddfa5f9732b1c5857e6d92ef",
+      "gzipSha256": "ea1112f00902a5953f29162525b40ea15b74106a69029f9d8e8f2f946f06b986"
+    },
+    {
+      "source": "mlp-prototype-fit.json",
+      "artifact": "mlp-prototype-fit.json.gz",
+      "rawBytes": 26784,
+      "rawSha256": "39de0f4c4423cc70dd1a998a3acdb087d89e51bb45c3099d29b68c0d9618a452",
+      "gzipSha256": "3e4c5ab22af679b7c1167ef91640011021f200a4fcb80b45a93a59ebfa3978c3"
+    },
+    {
+      "source": "broad/mlp-prototype-fit.json",
+      "artifact": "broad--mlp-prototype-fit.json.gz",
+      "rawBytes": 144802,
+      "rawSha256": "5fcc1b9fede3796314ea2f136a431d77712658f55cff644bba208d28975ee640",
+      "gzipSha256": "94e5ad804eab5ad9a8cabbc595b9c9136943f4361259635d991cb5ac3cf2e2a7"
+    },
+    {
+      "source": "multi/mlp-prototype-fit.json",
+      "artifact": "multi--mlp-prototype-fit.json.gz",
+      "rawBytes": 195322,
+      "rawSha256": "f84beba8ac84f7dcfcea399c1afb4227c659c5f578fede40fb8f5e7446297718",
+      "gzipSha256": "dadda3c9ce23a728d4c0ac58793fa86e035c1a8195de4c61bad886d5eabe22c7"
+    },
+    {
+      "source": "regressions.json",
+      "artifact": "regressions.json.gz",
+      "rawBytes": 2950,
+      "rawSha256": "12f0962332ea480d1792138b20ff385a8387afb9c72b78d95463661bce464902",
+      "gzipSha256": "321b3dad5749f0a30ae223f5d72a6e992c44d553291db2b37a8500a86bc321c2"
+    },
+    {
+      "source": "static-checks.json",
+      "artifact": "static-checks.json.gz",
+      "rawBytes": 39,
+      "rawSha256": "e4a513e3e821fecd43b536823152178ec2ad02125658d6cb7b5319587eae7a95",
+      "gzipSha256": "b2af76861568c08cd9ae1d3d7c2a289a7e2a6bf0f9709b88d6c847f31236cce4"
+    },
+    {
+      "source": "build.json",
+      "artifact": "build.json.gz",
+      "rawBytes": 284,
+      "rawSha256": "d066df9d8319ebf25c606cd74be6a390b8c5dcc70ed423c13cf5077fd48d5131",
+      "gzipSha256": "e08e9ad307774500aba5aa2197674a98500b7410b305a3176e93715000fbbdd2"
+    },
+    {
+      "source": "stt-v2-probe.jsonl",
+      "artifact": "stt-v2-probe.jsonl.gz",
+      "rawBytes": 2819,
+      "rawSha256": "b2c2b0e6e92806c238d81dda4e4bcf0d0a9a7675df3b94f6fe080bb04cd98337",
+      "gzipSha256": "046d9ccc6b1efd5f80362dfd2a870238c901735864336f7cb8504388d7175495"
+    },
+    {
+      "source": "onset-probe.jsonl",
+      "artifact": "onset-probe.jsonl.gz",
+      "rawBytes": 63378,
+      "rawSha256": "e34dd1215291c4b125b4925b6e411517300cfc9b2d88dbcca87966f759d40fe5",
+      "gzipSha256": "9ca5ef67b5891e4d034b19a04f50866da971a127ef5c82eb990f646ba882cea5"
+    },
+    {
+      "source": "mel/stopped-owner-v3.json",
+      "artifact": "mel--stopped-owner-v3.json.gz",
+      "rawBytes": 539,
+      "rawSha256": "1214c107a1d6be34b8063d184e0b0b93577f650e2da22490488bec11d6fbe7ad",
+      "gzipSha256": "333c19bab7a11b684871911507b8984450d07a5d82cc1aeb38043d4eef665421"
+    },
+    {
+      "source": "policy-text-final.log",
+      "artifact": "policy-text-final.log.gz",
+      "rawBytes": 1881,
+      "rawSha256": "ed7fdc64483f6bc56b4d7eacaf821609612a378567b0fcc8698be777ff4e76ca",
+      "gzipSha256": "8253c7cb44a8dc90dcac611d34434b47a1506409e23c81bda6fd6bda4f2b2df3"
+    },
+    {
+      "source": "pins.json",
+      "artifact": "pins.json.gz",
+      "rawBytes": 89,
+      "rawSha256": "1fc389ecfd8270565a37b0a762f56a352548b9409140024e2fc1899b095e5660",
+      "gzipSha256": "e6d692f19b931e029e89866bb1f5e81159d0c1b28a667b134cb88237c0dfac55"
+    },
+    {
+      "source": "review-before.txt",
+      "artifact": "review-before.txt.gz",
+      "rawBytes": 2247,
+      "rawSha256": "9032bfd4184ec4b1a58e0fb0c9fe39bc8952bef114c7d79ddd0aba4c3b6a30f8",
+      "gzipSha256": "aa0d4721dc8f813cddc24bc7b592ffda27d0a1236bc36e2567eaa78e8f13f77c"
+    },
+    {
+      "source": "dependencies.txt",
+      "artifact": "dependencies.txt.gz",
+      "rawBytes": 4112,
+      "rawSha256": "1233924eda50d445051eaf1da581dc97001a8596391293e0c6cf8ef4c1cec314",
+      "gzipSha256": "207f8d71579c4ec42aa8db54cc0270197ce086c28e4ef7ce918cc98ee476f70a"
+    }
+  ],
+  "models": [
+    {
+      "file": "prototype.onnx",
+      "bytes": 6426,
+      "sha256": "3cacf4dff122b192cb4ac4e6e406f219a443509a094774cc188ae1a45190a22b",
+      "productionInstalled": false
+    },
+    {
+      "file": "mlp-prototype.onnx",
+      "bytes": 394114,
+      "sha256": "f3f4fa36d5a6e69a694c579f22355cd974b0c84ff4ce6cd421adfed647df7aaa",
+      "productionInstalled": false
+    },
+    {
+      "file": "broad/mlp-prototype.onnx",
+      "bytes": 394114,
+      "sha256": "c866a3c6eb342244e765551e2b86754b1fbc6ea8775279743f0f7accae7541d4",
+      "productionInstalled": false
+    },
+    {
+      "file": "multi/mlp-prototype.onnx",
+      "bytes": 394114,
+      "sha256": "fbaa08dc8e688a71c81e94dea10aa391b22ec7e222cbbd933a5cef3e3e5b03b8",
+      "productionInstalled": false
+    }
+  ],
+  "partialMelResearch": "STOPPED_OWNER_V3; files retained locally; no fit, no production asset",
+  "decodingNote": "Older Python receipt text labels may show mojibake from default Windows decoding. Numeric labels, features, failures remain unaltered; no historical rewrite.",
+  "policy": "AYAS/AYAZ accepted; HAYAS negative at time of V2 evaluation",
+  "supersededBy": "Owner V3 accepts AYAS/AYAZ/HAYAS. V2 raw failures remain failures under their original contract."
+}

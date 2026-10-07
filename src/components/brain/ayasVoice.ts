@@ -31,6 +31,8 @@
  *    none by itself grants any execution authority.
  */
 
+import { AYAS_OWNER_WAKE_POLICY_V2, AYAS_WAKE_POLICY_V2_ALIASES, type AyasWakePolicyVersion } from "@/lib/ayas/voice/AyasWakePolicy";
+
 export type AyasVoiceState =
   | "off"        // voice mode disabled
   | "idle"       // voice mode on, waiting for the wake word
@@ -176,12 +178,13 @@ const NO_WAKE_MATCH: AyasWakeMatch = Object.freeze({ woke: false, command: "", a
  * checked — a real alias word appearing later in an unrelated sentence never
  * wakes AYAS.
  */
-export function detectAyasWakeWord(transcript: string): AyasWakeMatch {
+export function detectAyasWakeWord(transcript: string, policy: AyasWakePolicyVersion = "legacy-v1"): AyasWakeMatch {
+  if (policy !== "legacy-v1" && policy !== AYAS_OWNER_WAKE_POLICY_V2) return NO_WAKE_MATCH;
   const leading = trimLeadingFiller(transcript);
   const words = normalize(leading).split(" ").filter(Boolean);
   if (words.length === 0) return NO_WAKE_MATCH;
 
-  const pair = WAKE_TWO_WORD_ALIASES.find(([a, b]) => words[0] === a && words[1] === b);
+  const pair = policy === "legacy-v1" ? WAKE_TWO_WORD_ALIASES.find(([a, b]) => words[0] === a && words[1] === b) : undefined;
   if (pair) {
     return {
       woke: true,
@@ -191,7 +194,8 @@ export function detectAyasWakeWord(transcript: string): AyasWakeMatch {
     };
   }
 
-  if (WAKE_SINGLE_WORD_ALIASES.includes(words[0])) {
+  const aliases = policy === AYAS_OWNER_WAKE_POLICY_V2 ? AYAS_WAKE_POLICY_V2_ALIASES : WAKE_SINGLE_WORD_ALIASES;
+  if (aliases.includes(words[0])) {
     if (ATOLYE_LEADING_TOKENS.includes(words[0]) && !hasAtolyeLeadingBoundary(leading)) {
       return NO_WAKE_MATCH;
     }
@@ -202,8 +206,8 @@ export function detectAyasWakeWord(transcript: string): AyasWakeMatch {
 }
 
 /** Strip a leading wake word from a command captured while already listening. */
-export function stripLeadingWakeWord(transcript: string): string {
-  const match = detectAyasWakeWord(transcript);
+export function stripLeadingWakeWord(transcript: string, policy: AyasWakePolicyVersion = "legacy-v1"): string {
+  const match = detectAyasWakeWord(transcript, policy);
   return match.woke ? match.command : normalize(transcript);
 }
 
