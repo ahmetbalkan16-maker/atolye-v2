@@ -1,0 +1,1165 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "observedAt": "2026-10-07T07:45:20.284Z",
+  "sourceMeaning": "EXACT_CLEAN_APPROVED_BARRIER_COMMIT",
+  "install": {
+    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "fixture": "FRESH_CREDENTIAL_FREE_TEMP_CLONE_WITH_EMPTY_DISTINCT_NPM_USER_GLOBAL_CONFIG_AND_ALLOWLIST_ENV",
+    "startedAt": "2026-10-07T07:38:23.948Z",
+    "completedAt": "2026-10-07T07:38:38.792Z",
+    "exit": 0,
+    "error": null,
+    "installScriptsExecuted": false,
+    "grantsAuthority": false
+  },
+  "sourceChecks": {
+    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "manifest": "15F.4-v57",
+    "fixture": "EXACT_CLEAN_SOURCE_CREDENTIAL_FREE_FRESH_LOCK_TEMP",
+    "results": [
+      {
+        "id": "typescript",
+        "startedAt": "2026-10-07T07:39:53.277Z",
+        "completedAt": "2026-10-07T07:40:05.927Z",
+        "exit": 0,
+        "error": null,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "tail": [
+          ""
+        ]
+      },
+      {
+        "id": "lint",
+        "startedAt": "2026-10-07T07:40:05.928Z",
+        "completedAt": "2026-10-07T07:40:46.654Z",
+        "exit": 0,
+        "error": null,
+        "stdoutSha256": "705d398ee8a5773249759f81d42ed596015acff9385b89b97cfa954c928d158c",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "tail": [
+          "  1401:13  warning  'relativePath' is assigned a value but never used               @typescript-eslint/no-unused-vars",
+          "",
+          "✖ 13 problems (0 errors, 13 warnings)"
+        ]
+      }
+    ],
+    "grantsAuthority": false
+  },
+  "graphify": {
+    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "observedAt": "2026-10-07T07:41:07.795Z",
+    "status": {
+      "graphSource": ".graphify/graph.json",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "lastSeenHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "lastAnalyzedHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "graphBuiltFromHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "worktreeState": "CLEAN",
+      "worktreeFingerprint": null,
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "classification": "GRAPH_PARTIAL",
+      "localCli": "AVAILABLE",
+      "localMcp": "AVAILABLE",
+      "remoteMcp": "CONFIGURED_UNVERIFIED",
+      "incompleteCodeFiles": [
+        ".github/workflows/ayas-safe-ci.yml",
+        "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+        "scripts/ayas-access-daemon.ps1",
+        "scripts/ayas-autonomy-daemon.ps1",
+        "scripts/register-ayas-autonomy-autostart.ps1",
+        "scripts/register-ayas-autostart.ps1",
+        "scripts/smoke-ayas-access-daemon.ps1",
+        "scripts/unregister-ayas-autonomy-autostart.ps1",
+        "scripts/unregister-ayas-autostart.ps1"
+      ],
+      "criticalIncompleteFiles": [
+        "scripts/ayas-access-daemon.ps1",
+        "scripts/ayas-autonomy-daemon.ps1",
+        "scripts/register-ayas-autonomy-autostart.ps1",
+        "scripts/register-ayas-autostart.ps1",
+        "scripts/smoke-ayas-access-daemon.ps1",
+        "scripts/unregister-ayas-autonomy-autostart.ps1",
+        "scripts/unregister-ayas-autostart.ps1"
+      ],
+      "coverageNotes": [
+        {
+          "path": ".vscode/mcp.json",
+          "kind": "HOST_SCHEMA_NOT_INGESTED"
+        },
+        {
+          "path": "ATOLYE_CHECKPOINT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "AUTONOMOUS_BRAIN_V2_FINAL_REPORT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "AYAS_CONVERSATION_SESSION_FINAL_REPORT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "AYAS_MOBILE_VOICE_DIAGNOSTIC_FINAL_REPORT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "AYAS_MOBILE_WAKE_RELIABILITY_REPORT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "AYAS_OPTIMIZATION_LOOP_FINAL_REPORT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "AYAS_REPORT_CENTER_FINAL_REPORT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "cloudflare/ayas-phone-gateway/README.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "data/brain/README.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/audio/214ff993-9f05-484c-bc3e-0bafec892fdf.wav",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/audio/25bc15cd-324d-4ecf-a94b-0b9fab10b449.wav",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/audio/438f9cbf-fc9d-47c6-8893-b2a3446f7fad.wav",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/audio/5bf6ecd2-73e5-494a-ba4f-fc85d850cd47.wav",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/audio/618db963-b754-49b9-860f-7cae537975d3.wav",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/audio/9b935d3b-65d2-4f12-bb6b-c08fe1db6870.wav",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/audio/b64c1ece-c695-4cd9-b4fb-07b888ae812c.wav",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/thumbnails/fa60aec0-1cc3-4a66-ad8c-731d1142b46d.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/8c57c980-f4f3-4942-9e76-90fbdc4edb01.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/scene-1-81ac86ed-3e0f-496e-804d-c6108ee684d7.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/scene-2-9f334e9d-6b28-4963-9147-7b3a91668d53.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/scene-3-30cf7b11-93cb-478b-8be0-e676c9c99285.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/scene-4-7f78c3ea-5d2d-4554-a3f4-4993b7059423.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/scene-5-64c30837-0f81-47b3-a355-7f9944a6c285.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/scene-6-0c081dc2-92d9-46a2-af63-6fb84ff7df85.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/export/bundle/thumbnail.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/export/bundle/video.mp4",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "deploy/README.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ACCESS_GATE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_ACTIVATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_AGENTIC_INTELLIGENCE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_ATOLYE_DIRECTOR_READINESS.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_BRAIN_CONTROL_CENTER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_COGNITIVE_SELF_IMPROVEMENT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_CONTROLLED_SELF_EVOLUTION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_DEVELOPER_INTELLIGENCE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_GRAPHIFY_INTEGRATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_INTENT_INTAKE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_IPHONE_TEST_PROTOCOL.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_MEMORY_TEMPORAL.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_MODEL_ROUTING.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_PC_OFF_SAFE_RESEARCH.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_PHONE_RUNTIME_DECISION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REMOTE_ACCESS.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_RESEARCH_IMPROVEMENT_LOOP.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_RETRIEVAL_EVALUATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_ADAPTER_STANDARD.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_CENTER_CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_COMPLIANCE_BOUNDARY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_ETSY_ADAPTER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_FIVERR_ADAPTER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_FREE_FIRST_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_FULFILLMENT_GATE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_INTELLIGENCE_MEMORY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_LEMON_SQUEEZY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_LOW_COST_PILOT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_OFFER_FACTORY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_PROFIT_GATED_SCALING.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_REINVESTMENT_POLICY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_SECURITY_FRAUD.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_SPEND_POLICY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_UDEMY_ATOLYE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_UNIT_ECONOMICS.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_REVENUE_UPWORK_ADAPTER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_SECURITY_SUPPLY_CHAIN.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_SYSTEM_AUDIT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_TECHNOLOGY_WATCH.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/AYAS_UNIFIED_TRACE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_2026-09-27_SUNDAY_MASTER_CHECKPOINT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_CONTINUATION_PROTOCOL_V1.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_MASTER_EXECUTION_DIRECTIVE_V3_2.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_MASTER_EXECUTION_ORDER_V3.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_MASTER_SOURCE_MAP_V3_2.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_V3_2_REVENUE_ACTIVITY_DASHBOARD_ADDENDUM.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/01_CANONICAL_SPECS/AYAS_V3_RESEARCH_FINDINGS.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/02_REMEDIATION/AYAS_MONDAY_MASTER_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/02_REMEDIATION/AYAS_PC_VALIDATION_CHECKLIST.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/QUALIFICATION_PREPARATION_REPORT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15B/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15B/LIVE_BINDING_REVIEW_PACKET.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15C/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15D/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15D/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15D/INSPECTION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15E/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15G/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15G/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15H/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15H/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15I/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15I/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15J/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15J/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15K/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15K/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15L/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15L/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15M/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15M/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15N/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15N/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15N/V20_RECOVERY_INVENTORY_FAILURE.txt",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15O/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15O/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15P/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15P/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15Q/15Q1_DURABLE_RECOVERY_FAILED.stderr.txt",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15Q/15Q1_DURABLE_RECOVERY_FAILED.stdout.txt",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15Q/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15Q/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15R/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15R/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15S/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15S/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15T/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15T/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_7_OWNER_REVIEW_PACKET.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_CONTROLLED_SELF_EVOLUTION_DESIGN.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.0/STAGE16_0_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.0/STAGE16_0_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.0/STAGE16_0_REVENUE_ADAPTER_STANDARD.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.1/STAGE16_1_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.1/STAGE16_1_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.1/STAGE16_1_REVENUE_SPEND_GATE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.10/STAGE16_10_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.10/STAGE16_10_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.10/STAGE16_10_REVENUE_INTELLIGENCE_MEMORY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.11/STAGE16_11_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.11/STAGE16_11_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.11/STAGE16_11_REVENUE_SECURITY_FRAUD.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.12/STAGE16_12_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.12/STAGE16_12_LOW_COST_PILOT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.12/STAGE16_12_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.13/STAGE16_13_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.13/STAGE16_13_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.13/STAGE16_13_PROFIT_GATED_SCALING.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.14/STAGE16_14_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.14/STAGE16_14_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.14/STAGE16_14_REVENUE_CENTER_CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.2/STAGE16_2_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.2/STAGE16_2_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.2/STAGE16_2_UNIT_ECONOMICS_LEDGER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.3/STAGE16_3_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.3/STAGE16_3_FREE_FIRST_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.3/STAGE16_3_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.4/STAGE16_4_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.4/STAGE16_4_ETSY_ADAPTER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.4/STAGE16_4_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.5/STAGE16_5_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.5/STAGE16_5_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.5/STAGE16_5_UPWORK_MCP_ADAPTER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.6/STAGE16_6_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.6/STAGE16_6_FIVERR_MANUAL_ADAPTER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.6/STAGE16_6_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.7/STAGE16_7_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.7/STAGE16_7_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.7/STAGE16_7_UDEMY_ATOLYE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.8/STAGE16_8_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.8/STAGE16_8_LEMON_SQUEEZY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.8/STAGE16_8_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.9/STAGE16_9_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.9/STAGE16_9_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/16.9/STAGE16_9_REINVESTMENT_POLICY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.0/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.0/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.0A/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.1/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.2/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.3/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.3A/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.3B/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.4/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.4/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.5/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.5/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.6/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.6/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.7/16.7_FRAMEWORK_CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.7/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_CURRENT_HEAD_REAUDIT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/IMPLEMENTATION_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/CF49_EVIDENCE_REVIEW.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_d3b956b_REVIEW_HISTORY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_DOMAIN_SCOPE_34ecb66.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_OCCUPANCY_BARRIER_REVIEW_34ecb66.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/STAGE17_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/STAGE17_FULL_SYSTEM_AUDIT.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/STAGE17_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/06_INFINITY/INFINITY_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/06_INFINITY/INFINITY_CONTINUOUS_EVOLUTION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/06_INFINITY/INFINITY_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/AYAS_BRAIN_UI_V2_CODEX_CLOUD_TASK.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/AYAS_BRAIN_UI_V2_IMPLEMENTATION_PLAN.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/AYAS_BRAIN_UI_V2_OWNER_PC_VALIDATION.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/ayas_yapay_zekâ_kontrol_merkezi.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/08_REFERENCE_ONLY/AYAS_2026-09-27_EVENING_MASTER_RECORD.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/08_REFERENCE_ONLY/AYAS_GLOBAL_RESEARCH_BASIS_2026-09-27.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/08_REFERENCE_ONLY/AYAS_PRE_ATOLYE_GLOBAL_READINESS_PLAN.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/post-freeze-audit/CLOSURE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/post-freeze-audit/CONFORMANCE_MATRIX.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/post-freeze-audit/VOICE_AND_TURN_STATE_NOTES.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/ayas-execution/2026-09-27-master/README_FIRST.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/brain/ATOLYE_BRAIN_SERVER.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/brain/ATOLYE_BRAIN.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/brain/AYAS_EXTERNAL_ARCHITECTURE_INTEGRATION_REVIEW.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/brain/AYAS_PHASE1_GAP_MATRIX.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/DURABLE_REPLAY_MANIFEST_DESYNC.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/DURATION_AUTHORITY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/GIT_UNTRACKING_PLAN.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/H8_LEGACY_COPY_INVENTORY.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/PROJECT_STORAGE.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "docs/RUNTIME_AUTHORITY_GENERATION_BINDING.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "public/ayas-icon-maskable.svg",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/ayas-icon.svg",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/icons/apple-touch-icon.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/icons/favicon-16.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/icons/favicon-32.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/icons/icon-192.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/icons/icon-512.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/icons/icon-maskable-192.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/icons/icon-maskable-512.png",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/music/calm/atolye-bed-01.mp3",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/music/dramatic/atolye-bed-01.mp3",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/music/epic/atolye-bed-01.mp3",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/music/historical/atolye-bed-01.mp3",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/music/README.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        },
+        {
+          "path": "public/music/tense/atolye-bed-01.mp3",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "public/sfx/ambience/atolye-room-tone-01.mp3",
+          "kind": "NON_CODE_ASSET"
+        },
+        {
+          "path": "sandbox/ayas-local-coding/README.md",
+          "kind": "DOCUMENT_WITHOUT_NODES"
+        }
+      ],
+      "consumers": [
+        {
+          "id": "vscode-workspace-mcp:graphify",
+          "host": "vscode",
+          "location": ".vscode/mcp.json",
+          "mode": "remote-mcp",
+          "findings": [
+            "GRAPHIFY_INGEST_UNSUPPORTED_HOST_SCHEMA",
+            "REMOTE_ENDPOINT_NOT_LOCAL_SOURCE_TRUTH"
+          ],
+          "status": "LIMITED"
+        },
+        {
+          "id": "claude-project-instructions",
+          "host": "claude",
+          "location": "CLAUDE.md",
+          "mode": "cli-rules",
+          "findings": [],
+          "status": "OK"
+        },
+        {
+          "id": "cursor-rule",
+          "host": "cursor",
+          "location": ".cursor/rules/graphify.mdc",
+          "mode": "cli-rules",
+          "findings": [],
+          "status": "OK"
+        },
+        {
+          "id": "codex-project-hooks:0",
+          "host": "codex",
+          "location": ".codex/hooks.json",
+          "mode": "hook",
+          "findings": [],
+          "status": "OK"
+        },
+        {
+          "id": "claude-local-hooks:0",
+          "host": "claude",
+          "location": ".claude/settings.local.json",
+          "mode": "hook",
+          "findings": [
+            "HOOK_BINARY_MISSING"
+          ],
+          "status": "BROKEN"
+        },
+        {
+          "id": "claude-local-hooks:1",
+          "host": "claude",
+          "location": ".claude/settings.local.json",
+          "mode": "hook",
+          "findings": [
+            "HOOK_BINARY_MISSING"
+          ],
+          "status": "BROKEN"
+        }
+      ],
+      "recoveryCommand": null,
+      "nextAction": "Graph is current but has no nodes for some code files; review those files directly — refreshing cannot add them."
+    },
+    "integrity": {
+      "duplicateIds": 0,
+      "duplicateEdges": 0,
+      "dangling": 0,
+      "selfLoops": 0
+    },
+    "factsFields": [
+      "sourceHead",
+      "dirtyPaths",
+      "dirtyUncoveredPaths",
+      "worktreeFingerprint",
+      "branch",
+      "graph",
+      "needsUpdateFlag",
+      "semanticPendingMarker",
+      "extractionGaps",
+      "projectConfig",
+      "cli",
+      "localMcpServerAvailable",
+      "consumers"
+    ],
+    "needsUpdateFlag": false,
+    "graphMetadataCopiedVerbatim": true,
+    "grantsAuthority": false
+  },
+  "full166": {
+    "state": "RUNNING_NOT_FINAL_QUALIFICATION",
+    "manifest": "15F.4-v57",
+    "declared": 166,
+    "expectedDurableReceipt": "STAGE17_fde898f_FULL166.json",
+    "tempRoot": "C:/Users/Metod/AppData/Local/Temp/ayas-codex-fde898f-20261007",
+    "runnerLog": "C:/Users/Metod/AppData/Local/Temp/ayas-codex-fde898f-20261007/FULL166_RUN.log",
+    "prior34RawReportPreserved": true
+  },
+  "hostedCi": {
+    "run": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37588433930",
+    "state": "SUCCESS_NAMED_GATES_ONLY_ARTIFACT_RAW_DIGEST_REVIEW_PENDING"
+  },
+  "authority": "NONE",
+  "foundationClosed": false,
+  "homepageBoundaryReached": false
+}

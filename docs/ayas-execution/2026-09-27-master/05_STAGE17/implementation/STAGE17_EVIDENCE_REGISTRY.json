@@ -710,6 +710,22 @@
       "operatorSourceHead": "1daa107c154af6395e8b8340ff661c1a963c57fe",
       "scope": "OWNER_APPROVED_BARRIER_CANDIDATE_NOT_NEW_CLEAN_SOURCE_QUALIFICATION",
       "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_fde898f.json",
+      "sha256": "871d8b82eab60c1c78c0353d8531959902541d4cd4ed80855ac8b65363c8f8b5",
+      "originalCaptureSha256": "871d8b82eab60c1c78c0353d8531959902541d4cd4ed80855ac8b65363c8f8b5",
+      "operatorSourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "scope": "EXACT_SOURCE_FRESH_PREPARATION_AND_ACTUAL_READ_ONLY_AUDIT_FULL166_STILL_RUNNING",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "sha256": "adde53b2017c038eed4a360891190331944aa0068b390da8d3e11079db6a3a70",
+      "originalCaptureSha256": "adde53b2017c038eed4a360891190331944aa0068b390da8d3e11079db6a3a70",
+      "operatorSourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "scope": "EXACT_SOURCE_FRESH_PREPARATION_AND_ACTUAL_READ_ONLY_AUDIT_FULL166_STILL_RUNNING",
+      "grantsAuthority": false
     }
   ],
   "historicalClosure": {
@@ -768,7 +784,7 @@
     "reason": "FOUNDATION_NOT_CLOSED"
   },
   "authority": "NONE",
-  "updatedAt": "2026-10-07T07:33:27.360Z",
+  "updatedAt": "2026-10-07T07:45:20.304Z",
   "sourceHeadMeaning": "6a9_COMPONENT_FRAMEWORK_ANCHOR_EACH_LATER_ENTRY_HAS_ITS_OWN_EXACT_OPERATOR_SOURCE_HEAD",
   "ciQualification": {
     "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
@@ -785,11 +801,11 @@
     "scope": "BOUNDED_CF49_READER_ONLY"
   },
   "latestReadonlyAudit": {
-    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
-    "receipt": "STAGE17_CURRENT_AUDIT_34ecb66.json",
+    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "receipt": "STAGE17_CURRENT_AUDIT_fde898f.json",
     "closure": "BLOCKED",
-    "protectedFiles": 6073,
-    "localBytes": 624405392,
+    "protectedFiles": 6112,
+    "localBytes": 624508549,
     "localComplete": true,
     "localExclusions": 0,
     "measuredDigestUnchanged": true,
@@ -872,5 +888,12 @@
     "manifest": "15F.4-v57",
     "newCleanFull166": "NOT_RUN",
     "prior34RawReceiptImmutable": true
+  },
+  "full166AtFde898f": {
+    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "manifest": "15F.4-v57",
+    "state": "RUNNING_NOT_PASS",
+    "expectedReceipt": "STAGE17_fde898f_FULL166.json",
+    "prior34RawReportPreserved": true
   }
 }
