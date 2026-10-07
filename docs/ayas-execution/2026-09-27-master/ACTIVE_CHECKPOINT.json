@@ -4898,8 +4898,8 @@
   },
   "stage17Continuation": {
     "entryHead": "68747ae40f53ce2358e1499363f66c999243d584",
-    "at": "2026-10-06T03:47:04.899Z",
-    "state": "SECURITY_SOURCE_REPAIR_IMPLEMENTED_CLEAN_HEAD_QUALIFICATION_PENDING",
+    "at": "2026-10-07T00:00:00.000Z",
+    "state": "PROVENANCE_REGRESSION_ROOT_CAUSED_REPAIRED_EOD_EVIDENCE_PRESERVED_CLEAN_HEAD_RERUN_PENDING",
     "protectedHashMode": "EXPLICIT_OPERATOR_STREAMING_LOCAL_HASH_ONLY",
     "defaultBudgetsUnchanged": true,
     "operatorCaps": "256_KIB_BUFFER_16_MIB_FILE_1_GIB_TOTAL_120_SECONDS_20000_FILES_DEPTH20",
@@ -4942,6 +4942,67 @@
       "healthSupplemental": 20,
       "healthMutations": 5
     },
-    "next": "CLEAN_HEAD_MATCHING_LOCK_TEMP_QUALIFICATION_FULL166_DURABLE_REPORT_THEN_REAL_AUDIT_OWNER_REVIEW"
+    "next": "DURABLE_CREDENTIAL_FREE_TEMP_CLONE_FULL166_RERUN_AT_NEW_HEAD_WITH_MATCHING_LOCK_THEN_ACTUAL_PROTECTED_DOMAIN_LIVE_FINDINGS_AND_OWNER_REVIEW",
+    "full166At36e794f": {
+      "receipt": "05_STAGE17/implementation/STAGE17_36e794f_FULL166.json",
+      "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+      "suites": 166,
+      "passed": 161,
+      "failed": 5,
+      "failures": [
+        "retrieval-evaluation",
+        "release-provenance",
+        "release-provenance-mutations",
+        "golden-vault-run",
+        "golden-sandbox-run"
+      ],
+      "knownFrozenLimitations": 3,
+      "genuineRegressionsRootCausedAndRepaired": 2,
+      "reboundToLaterSource": false
+    },
+    "provenanceRepair": {
+      "scope": "src/lib/ayas/provenance/AyasSbom.ts only",
+      "installScriptPinsReReviewed": {
+        "workerd": "1.20261001.1",
+        "onnxruntime-node": "1.30.0"
+      },
+      "sharpPinRemoved": "0.35.5 declares no install-time script",
+      "bundledChildVouching": "parent must exist, not be link/inBundle, declare the child in bundleDependencies, be registry-resolved with a well-formed hash; all other BLOCK behavior unchanged",
+      "suites": {
+        "releaseProvenanceScenarios": 19,
+        "mutationContracts": 34
+      },
+      "advisoriesRetainedOpen": {
+        "production": 0,
+        "devOnlyHigh": 8,
+        "note": "braces/micromatch, eslint-config-next, wrangler/miniflare/sharp chains; only semver-major downgrade fixes published"
+      }
+    },
+    "eodCleanup": {
+      "untrackedFiles": 57572,
+      "durableEvidencePreserved": [
+        "STAGE17_36e794f_FULL166.json",
+        "STAGE17_36e794f_FULL166_RUN.log",
+        "STAGE17_36e794f_NPM_CI.log",
+        "STAGE17_AUDIT_PRODUCTION_36e794f.json",
+        "STAGE17_AUDIT_ALL_36e794f.json",
+        "STAGE17_SANITY_ACCESS_GATE_36e794f.json"
+      ],
+      "removed": [
+        "two TEMP repo clones with node_modules",
+        "git-state snapshots",
+        "duplicate graphify manifest/worktree copies",
+        "lock-9aa.json and diff-locks.cjs (reproducible from 9aa6661 git history)"
+      ],
+      "opencodeJson": "live API key; never committed; /opencode.json now gitignored",
+      "appdataOriginals": true
+    },
+    "evalManifest": {
+      "version": "15F.4-v56",
+      "archived": "EVAL_MANIFEST_V55.json",
+      "pinsRecomputed": 2,
+      "pinReferencesVerified": 323,
+      "frozenGradersFixturesTouched": false
+    }
   }
 }

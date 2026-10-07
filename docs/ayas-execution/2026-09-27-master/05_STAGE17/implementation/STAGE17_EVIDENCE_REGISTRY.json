@@ -285,6 +285,42 @@
       "operatorSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
       "scope": "CANDIDATE_ONLY_NEVER_REBIND_AS_NEW_CLEAN_HEAD_PROOF",
       "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_36e794f_FULL166.json",
+      "sha256": "7c84e598ecd572a731e00e541139741c9460b10e66998e5baeb9b0e3ce71a074",
+      "originalCaptureByteSha256": "795d7f63711d07bd54b30e9e18563d15b55a17856ba5f25b36e367d1035a63be",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "scope": "TEMP_CLONE_CLEAN_HEAD_BASELINE_161_PASS_5_FAIL_BOUND_TO_36e794f_ONLY",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_AUDIT_PRODUCTION_36e794f.json",
+      "sha256": "202f8300b78e42316551b7a7de29aa0e855d43c0d704c0dc7ebca37ddeca2e19",
+      "originalCaptureByteSha256": "e0ff594193a47bb43cb1848cf21c3bbce65d14b28eedd7531eef655dfe0bf78d",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "scope": "PRODUCTION_ADVISORY_ZERO_VULNERABILITIES",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_AUDIT_ALL_36e794f.json",
+      "sha256": "0bfa5c8a82a8358a41087dc4172bb6da83f4e386eb8d9eacbac37191a438ea49",
+      "originalCaptureByteSha256": "69d9c35d5bbb4c411645a90e0aaf90bf9eed44bb260359e0a9af4e727778f4f0",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "scope": "ALL_DEPENDENCY_8_HIGH_DEV_ONLY_UNPATCHED_ADVISORIES_RETAINED_OPEN",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_SANITY_ACCESS_GATE_36e794f.json",
+      "sha256": "19e8b98833a9e4a06b83c07ad4f3279c38bbb1a6143875ae507140b8828be028",
+      "originalCaptureByteSha256": "c55edc17a318a3f6fd6c666dbfacbac8172dbc512c51308c11fbe15ee38cf381",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "scope": "TEMP_CLONE_ACCESS_GATE_SANITY_ONLY",
+      "runningProcessSourceQualified": false
     }
   ],
   "historicalClosure": {
@@ -304,10 +340,12 @@
     "reboundToCurrentSource": false
   },
   "frozenManifest": {
-    "version": 55,
+    "version": 56,
     "suites": 166,
     "pins": 214,
-    "changed": false
+    "changed": true,
+    "changedFrom": "15F.4-v55",
+    "changeNote": "release-provenance suites strengthened (bundled-dependency vouching contracts); two suite pins recomputed; V55 archived; no grader/fixture touched"
   },
   "domainAggregation": {
     "sourcePresence": 15,
@@ -340,7 +378,7 @@
     "reason": "FOUNDATION_NOT_CLOSED"
   },
   "authority": "NONE",
-  "updatedAt": "2026-10-05T11:08:34.799Z",
+  "updatedAt": "2026-10-07T05:54:03.392Z",
   "sourceHeadMeaning": "6a9_COMPONENT_FRAMEWORK_ANCHOR_EACH_LATER_ENTRY_HAS_ITS_OWN_EXACT_OPERATOR_SOURCE_HEAD",
   "ciQualification": {
     "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
@@ -371,6 +409,21 @@
     "complete": false,
     "fullDomainsQualified": false
   },
-  "continuationSourceHead": "979f12a4a12d3a4fb456cce289d66fe50aa00c8c",
-  "full166At979f12a": "NO_DURABLE_FINAL_RECEIPT_NOT_QUALIFIED"
+  "continuationSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+  "full166At979f12a": "NO_DURABLE_FINAL_RECEIPT_NOT_QUALIFIED",
+  "full166At36e794f": {
+    "receipt": "STAGE17_36e794f_FULL166.json",
+    "sourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+    "suites": 166,
+    "passed": 161,
+    "failed": 5,
+    "failures": [
+      "retrieval-evaluation",
+      "release-provenance",
+      "release-provenance-mutations",
+      "golden-vault-run",
+      "golden-sandbox-run"
+    ],
+    "note": "TWO_RELEASE_PROVENANCE_FAILURES_ROOT_CAUSED_AND_REPAIRED_AT_NEXT_SOURCE_NOT_REBOUND"
+  }
 }

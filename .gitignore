@@ -195,3 +195,8 @@ graphify-out/
 # AyasRuntimeStabilityTransaction state (stability-transactions.json) — per-machine
 # runtime state, anchored like every other data/brain/self-improvement/ rule.
 /data/brain/self-improvement/stability/
+
+# OpenCode CLI local config (opencode.json) — per-machine tool configuration that
+# embeds a live provider API key. Never commit: the key is a secret, and the file
+# is regenerated per machine by the OpenCode harness.
+/opencode.json

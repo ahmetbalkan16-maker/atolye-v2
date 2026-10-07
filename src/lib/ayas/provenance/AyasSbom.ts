@@ -31,6 +31,8 @@ export interface AyasNpmLockPackage {
   readonly peer?: boolean;
   readonly link?: boolean;
   readonly inBundle?: boolean;
+  /** `true` or the explicit list: these dependencies ship inside this package's own registry tarball. */
+  readonly bundleDependencies?: boolean | readonly string[];
   readonly license?: unknown;
   readonly hasInstallScript?: boolean;
   readonly dependencies?: Readonly<Record<string, string>>;
@@ -53,11 +55,10 @@ export interface AyasNpmLockfile {
 export const AYAS_REVIEWED_INSTALL_SCRIPTS: readonly { readonly name: string; readonly version: string; readonly note: string }[] = Object.freeze([
   { name: "esbuild", version: "0.28.1", note: "development build tool; has a registry binary-download fallback" },
   { name: "fsevents", version: "2.3.3", note: "optional, macOS only, development tree" },
-  { name: "onnxruntime-node", version: "1.24.3", note: "postinstall fetches native packages from NuGet" },
+  { name: "onnxruntime-node", version: "1.30.0", note: "postinstall fetches native packages from NuGet; the 1.30.0 install script differs from the reviewed 1.24.3 one by a comment line only" },
   { name: "protobufjs", version: "7.6.6", note: "declares a lifecycle script" },
-  { name: "sharp", version: "0.34.5", note: "declares a lifecycle script" },
   { name: "unrs-resolver", version: "1.12.2", note: "development tree; declares a lifecycle script" },
-  { name: "workerd", version: "1.20260910.1", note: "development tree; has a registry binary-download fallback" },
+  { name: "workerd", version: "1.20261001.1", note: "development tree; registry binary-download fallback; the 1.20261001.1 install.js differs from the reviewed 1.20260910.1 one in its own version constants only" },
 ]);
 
 export type AyasInstallScriptClass = "NONE" | "REVIEWED" | "REVIEWED_AT_ANOTHER_VERSION" | "UNREVIEWED";
@@ -190,6 +191,27 @@ function resolveDependency(packages: Readonly<Record<string, AyasNpmLockPackage>
   }
 }
 
+/**
+ * The tarball that shipped a bundled package, when the lockfile can vouch for that tarball: the bundling parent must
+ * itself be a plain registry entry (no link, not bundled in turn), must name this child in its `bundleDependencies`,
+ * and must carry a well-formed integrity hash from the npm registry. A bundled child has no tarball of its own — its
+ * bytes are inside the parent's — so a vouched parent vouches them. Anything else stays a BLOCK finding.
+ */
+function vouchedBundlerOf(packages: Readonly<Record<string, AyasNpmLockPackage>>, lockPath: string, childName: string): { path: string; ref: string } | null {
+  const index = lockPath.lastIndexOf("/node_modules/");
+  if (index === -1) return null;
+  const parentPath = lockPath.slice(0, index);
+  const parent = packages[parentPath];
+  if (!parent || parent.link || parent.inBundle) return null;
+  if (typeof parent.version !== "string" || !parent.version) return null;
+  const parentName = packageNameOf(parentPath, parent);
+  if (!NAME.test(parentName)) return null;
+  if (parent.bundleDependencies !== true && !(Array.isArray(parent.bundleDependencies) && parent.bundleDependencies.includes(childName))) return null;
+  if (typeof parent.resolved !== "string" || !parent.resolved.startsWith(AYAS_NPM_REGISTRY_PREFIX)) return null;
+  if (typeof parent.integrity !== "string" || ayasIntegrityHashes(parent.integrity) === null) return null;
+  return { path: parentPath, ref: ayasNpmPurl(parentName, parent.version) };
+}
+
 export function buildAyasSbom(input: {
   readonly lockfile: unknown;
   /** SHA-256 of the lockfile text with line endings normalized to LF. */
@@ -214,11 +236,26 @@ export function buildAyasSbom(input: {
   interface Group { name: string; version: string; ref: string; entries: AyasNpmLockPackage[]; paths: string[] }
   const groups = new Map<string, Group>();
   const refOfPath = new Map<string, string>();
+  const bundledInside = new Map<string, { name: string; version: string }[]>();
+  const coveredByParent = new Set<string>();
   const lockPaths = Object.keys(packages).filter((lockPath) => lockPath !== "").sort();
   for (const lockPath of lockPaths) {
     const entry = packages[lockPath]!;
     const name = packageNameOf(lockPath, entry);
     if (!NAME.test(name)) { add("PACKAGE_NAME_INVALID", "BLOCK", lockPath, "not an npm package name"); continue; }
+    // A bundled package covered by its bundling parent's vouched registry tarball: reported for review, disclosed on
+    // the parent's component, and never treated as a component in its own right. It still has no standalone identity.
+    const version = typeof entry.version === "string" && entry.version ? entry.version : null;
+    const bundler = entry.inBundle && !entry.link && entry.hasInstallScript !== true ? vouchedBundlerOf(packages, lockPath, name) : null;
+    if (bundler && version) {
+      add("LINKED_OR_BUNDLED_PACKAGE", "REVIEW", lockPath, `bundled inside ${bundler.ref}; covered by that tarball's registry integrity`);
+      refOfPath.set(lockPath, bundler.ref);
+      const list = bundledInside.get(bundler.path) ?? [];
+      list.push({ name, version });
+      bundledInside.set(bundler.path, list);
+      coveredByParent.add(lockPath);
+      continue;
+    }
     if (entry.link || entry.inBundle) add("LINKED_OR_BUNDLED_PACKAGE", "BLOCK", lockPath, entry.link ? "a link to a local directory has no registry identity" : "bundled inside another tarball; it has no integrity of its own");
     if (typeof entry.version !== "string" || !entry.version) { add("VERSION_MISSING", "BLOCK", lockPath, "no exact version"); continue; }
     const ref = ayasNpmPurl(name, entry.version);
@@ -269,6 +306,7 @@ export function buildAyasSbom(input: {
     }
 
     const slash = group.name.startsWith("@") ? group.name.indexOf("/") : -1;
+    const bundles = [...new Set(group.paths.flatMap((lockPath) => bundledInside.get(lockPath) ?? []).map((item) => `${item.name}@${item.version}`))].sort();
     components.push({
       type: "library",
       "bom-ref": group.ref,
@@ -284,6 +322,7 @@ export function buildAyasSbom(input: {
         { name: "ayas:npm:development", value: String(scope === "excluded") },
         { name: "ayas:npm:installScript", value: scriptClass },
         { name: "ayas:npm:lockPaths", value: String(group.paths.length) },
+        ...(bundles.length ? [{ name: "ayas:npm:bundles", value: bundles.join(", ") }] : []),
       ],
     });
   }
@@ -307,7 +346,7 @@ export function buildAyasSbom(input: {
     }
   };
   link(rootRef, "", rootEntry, `${rootName}@${rootVersion}`);
-  for (const lockPath of lockPaths) { const ref = refOfPath.get(lockPath); if (ref) link(ref, lockPath, packages[lockPath]!, lockPath); }
+  for (const lockPath of lockPaths) { const ref = refOfPath.get(lockPath); if (ref && !coveredByParent.has(lockPath)) link(ref, lockPath, packages[lockPath]!, lockPath); }
   const dependencies = [...dependsOn.entries()].map(([ref, set]) => ({ ref, dependsOn: [...set].filter((item) => item !== ref).sort() })).sort((a, b) => (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0));
 
   const rootComponent: AyasCycloneDxComponent = { type: "application", "bom-ref": rootRef, name: rootName, version: rootVersion, purl: rootRef };

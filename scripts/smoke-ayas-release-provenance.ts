@@ -140,15 +140,46 @@ async function main() {
       for (const lockfile of [null, "text", [], { lockfileVersion: 3 }]) assert.ok(codes(buildAyasSbom({ lockfile, lockfileDigest: "a".repeat(64) })).includes("LOCKFILE_INVALID"));
     });
 
+    await scenario("bundled dependencies — vouched by the bundling tarball's registry identity, or BLOCK", () => {
+      const inside = (over: AyasNpmLockPackage = {}): AyasNpmLockPackage => ({ version: "1.0.0", inBundle: true, dev: true, optional: true, license: "MIT", ...over });
+      const bundler = (over: AyasNpmLockPackage = {}, bundles: boolean | readonly string[] = ["inner"]): AyasNpmLockPackage =>
+        pkg("bundler", "2.0.0", { dev: true, bundleDependencies: bundles, dependencies: { inner: "^1.0.0" }, ...over });
+      // A parent the lockfile fully vouches (registry tarball, SHA-512) covers the packages bundled inside it: the
+      // child is disclosed for review and on the parent's component, and is never a component in its own right.
+      const covered = build({ "node_modules/bundler": bundler(), "node_modules/bundler/node_modules/inner": inside() }, { devDependencies: { bundler: "^2.0.0" } });
+      assert.deepEqual(covered.findings, [{ code: "LINKED_OR_BUNDLED_PACKAGE", severity: "REVIEW", subject: "node_modules/bundler/node_modules/inner", detail: "bundled inside pkg:npm/bundler@2.0.0; covered by that tarball's registry integrity" }]);
+      assert.deepEqual(covered.sbom.components.map((item) => item["bom-ref"]), ["pkg:npm/bundler@2.0.0"], "no standalone component for a bundled package");
+      assert.deepEqual(component(covered, "pkg:npm/bundler@2.0.0").properties![3], { name: "ayas:npm:bundles", value: "inner@1.0.0" });
+      assert.equal(covered.summary.blockingFindings, 0); assert.equal(covered.summary.reviewFindings, 1);
+      assert.equal(covered.summary.components, 1); assert.equal(covered.summary.lockEntries, 2);
+      const edges = Object.fromEntries(covered.sbom.dependencies.map((item) => [item.ref, item.dependsOn]));
+      assert.deepEqual(edges["pkg:npm/bundler@2.0.0"], [], "the bundle's own dependencies do not dangle");
+      // `bundleDependencies: true` covers without an explicit list; two bundled children are both disclosed.
+      const trueListed = build({ "node_modules/bundler": bundler({}, true), "node_modules/bundler/node_modules/inner": inside(), "node_modules/bundler/node_modules/more": inside({ version: "2.0.0" }) }, {});
+      assert.equal(trueListed.summary.blockingFindings, 0);
+      assert.deepEqual(component(trueListed, "pkg:npm/bundler@2.0.0").properties![3], { name: "ayas:npm:bundles", value: "inner@1.0.0, more@2.0.0" });
+      // Anything else keeps every BLOCK: no parent in the lockfile, a parent that is itself bundled, a parent that
+      // does not declare the bundle, a parent from outside the registry, a parent without a usable hash, a bundled
+      // package that declares an install-time script, and a bundled package with no exact version.
+      const bare = (packages: Record<string, AyasNpmLockPackage>) => codes(build(packages));
+      assert.deepEqual(bare({ "node_modules/stray/node_modules/inner": inside() }), ["INTEGRITY_MISSING", "LINKED_OR_BUNDLED_PACKAGE", "RESOLVED_MISSING"]);
+      assert.deepEqual(bare({ "node_modules/bundler": bundler({ inBundle: true }), "node_modules/bundler/node_modules/inner": inside() }), ["INTEGRITY_MISSING", "LINKED_OR_BUNDLED_PACKAGE", "LINKED_OR_BUNDLED_PACKAGE", "RESOLVED_MISSING"]);
+      assert.deepEqual(bare({ "node_modules/bundler": bundler({}, false), "node_modules/bundler/node_modules/inner": inside() }), ["INTEGRITY_MISSING", "LINKED_OR_BUNDLED_PACKAGE", "RESOLVED_MISSING"]);
+      assert.deepEqual(bare({ "node_modules/bundler": bundler({ resolved: "file:../bundler" }), "node_modules/bundler/node_modules/inner": inside() }), ["INTEGRITY_MISSING", "LINKED_OR_BUNDLED_PACKAGE", "RESOLVED_MISSING", "RESOLVED_NOT_NPM_REGISTRY"]);
+      assert.deepEqual(bare({ "node_modules/bundler": bundler({ integrity: "sha512-not base64!" }), "node_modules/bundler/node_modules/inner": inside() }), ["INTEGRITY_MISSING", "INTEGRITY_UNSUPPORTED", "LINKED_OR_BUNDLED_PACKAGE", "RESOLVED_MISSING"]);
+      assert.deepEqual(bare({ "node_modules/bundler": bundler(), "node_modules/bundler/node_modules/inner": inside({ hasInstallScript: true }) }), ["INSTALL_SCRIPT_UNREVIEWED", "INTEGRITY_MISSING", "LINKED_OR_BUNDLED_PACKAGE", "RESOLVED_MISSING"]);
+      assert.deepEqual(bare({ "node_modules/bundler": bundler(), "node_modules/bundler/node_modules/inner": inside({ version: "" }) }), ["DEPENDENCY_UNRESOLVED", "LINKED_OR_BUNDLED_PACKAGE", "VERSION_MISSING"]);
+    });
+
     await scenario("install-time scripts — reviewed at this exact version, reviewed at another, or never reviewed", () => {
       const esbuild = AYAS_REVIEWED_INSTALL_SCRIPTS.find((item) => item.name === "esbuild")!;
       const result = build({
         "node_modules/esbuild": pkg("esbuild", esbuild.version, { hasInstallScript: true, dev: true }),
-        "node_modules/sharp": pkg("sharp", "9.9.9", { hasInstallScript: true }),
+        "node_modules/protobufjs": pkg("protobufjs", "9.9.9", { hasInstallScript: true }),
         "node_modules/surprise": pkg("surprise", "1.0.0", { hasInstallScript: true }),
         "node_modules/quiet": pkg("quiet", "1.0.0"),
       });
-      assert.deepEqual(result.summary.installScripts.map((item) => [item.component, item.class, item.scope]), [[`esbuild@${esbuild.version}`, "REVIEWED", "excluded"], ["sharp@9.9.9", "REVIEWED_AT_ANOTHER_VERSION", "required"], ["surprise@1.0.0", "UNREVIEWED", "required"]]);
+      assert.deepEqual(result.summary.installScripts.map((item) => [item.component, item.class, item.scope]), [[`esbuild@${esbuild.version}`, "REVIEWED", "excluded"], ["protobufjs@9.9.9", "REVIEWED_AT_ANOTHER_VERSION", "required"], ["surprise@1.0.0", "UNREVIEWED", "required"]]);
       assert.deepEqual(codes(result), ["INSTALL_SCRIPT_UNREVIEWED", "INSTALL_SCRIPT_VERSION_CHANGED"]);
       assert.equal(result.summary.blockingFindings, 2);
       assert.equal(component(result, "pkg:npm/quiet@1.0.0").properties![1]!.value, "NONE");
