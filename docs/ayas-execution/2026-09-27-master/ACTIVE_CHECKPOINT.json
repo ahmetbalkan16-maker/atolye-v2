@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
-  "currentHeadMeaning": "EXACT_APPROVED_BARRIER_SOURCE_FRESH_LOCK_FULL166_RUNNING_NOT_FINAL_DOCS_HEAD",
+  "currentHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+  "currentHeadMeaning": "SESSION_EVIDENCE_HEAD_DOCS_ONLY_DESCENDANT_OF_QUALIFIED_SOURCE_fde898f; resolve actual Git HEAD after this session-save commit",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Exactfde898f/v57 full166RUNNING;fresh TS/lint PASS;hosted named CI SUCCESS;canonical actual audit refreshed FoundationBLOCKED",
-  "status": "FOUNDATION_QUALIFICATION_BLOCKED",
+  "subtask": "Foundation closure evidence complete at59e83cd:152-criterion matrix,30-slot real-evidence binding,unified scope,owner register,readiness;Foundation BLOCKED fail-closed;BrainUIV2 Codex handoff at boundary",
+  "status": "FOUNDATION_CLOSURE_EVIDENCE_COMPLETE_BLOCKED_OWNER_ACTIONS_OPEN",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -286,35 +286,16 @@
   ],
   "graphify": {
     "schemaVersion": "1",
-    "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-    "lastAnalyzedHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-    "builtFromHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-    "structuralStatus": "PARTIAL",
-    "semanticStatus": "PENDING",
-    "worktreeState": "CLEAN",
-    "incompleteCodeFiles": [
-      ".github/workflows/ayas-safe-ci.yml",
-      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
-      "scripts/ayas-access-daemon.ps1",
-      "scripts/ayas-autonomy-daemon.ps1",
-      "scripts/register-ayas-autonomy-autostart.ps1",
-      "scripts/register-ayas-autostart.ps1",
-      "scripts/smoke-ayas-access-daemon.ps1",
-      "scripts/unregister-ayas-autonomy-autostart.ps1",
-      "scripts/unregister-ayas-autostart.ps1"
-    ],
-    "integrityViolations": 0,
-    "nodes": 19192,
-    "edges": 55045,
-    "communities": 387,
+    "sourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "lastSeenHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "lastAnalyzedHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "builtFromHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
     "stale": false,
     "needsUpdate": false,
-    "grantsAuthority": false,
-    "at": "2026-10-05T11:08:34.801Z",
-    "head": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-    "lastSeenHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-    "graphBuiltFrom": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-    "evidenceHeadMeaning": "EXACT_OBSERVED_HEAD_FINAL_DOCS_DESCENDANT_REQUIRES_REFRESH"
+    "integrityViolations": 0,
+    "structural": "PARTIAL",
+    "semantic": "PENDING",
+    "note": "PARTIAL9 = 7 .ps1 + CI yml + 1 route without graph nodes (parser coverage, disclosed); post-session graphify update re-verifies at final HEAD"
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -342,8 +323,8 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "Await new durable exactfde898f v57 full166,verify source/completeness/failures;preserve34ecb66 raw162PASS4FAIL;then register exact-source evidence and continue canonical domain/protected/live/owner prerequisites.No homepage.",
-  "updatedAt": "2026-10-07T07:59:41.127Z",
+  "nextAction": "Owner actions per STAGE17_OWNER_ACTION_REGISTER_59e83cd.json;OpenCode-completable: bounded combined-scope implementation + collector binding + installed-lock migration;frozen evaluator succession needs owner-approved versioned review;NO homepage/BrainUIV2 implementation by OpenCode — reserved for Codex",
+  "updatedAt": "2026-10-07T12:27:42.844Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1450,7 +1431,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Await new durable exactfde898f v57 full166,verify source/completeness/failures;preserve34ecb66 raw162PASS4FAIL;then register exact-source evidence and continue canonical domain/protected/live/owner prerequisites.No homepage.",
+  "resumeNextAction": "Owner actions per STAGE17_OWNER_ACTION_REGISTER_59e83cd.json;OpenCode-completable: bounded combined-scope implementation + collector binding + installed-lock migration;frozen evaluator succession needs owner-approved versioned review;NO homepage/BrainUIV2 implementation by OpenCode — reserved for Codex",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -3996,48 +3977,18 @@
   },
   "stage17": {
     "currentVerification": {
-      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "operatorHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "srcUnchangedQualifiedSourceToOperatorHead": true,
       "result": "05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md",
       "registry": "05_STAGE17/implementation/STAGE17_EVIDENCE_REGISTRY.json",
-      "full166": {
-        "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
-        "manifest": "15F.4-v57",
-        "state": "COMPLETE_RAW_FAIL_KNOWN_THREE",
-        "receipt": "STAGE17_fde898f_FULL166.json",
-        "qualification": "STAGE17_FULL166_QUALIFICATION_fde898f.json",
-        "selectedSuites": 166,
-        "declaredSuites": 166,
-        "completeDeclaredBaseline": true,
-        "passed": 163,
-        "failed": [
-          "retrieval-evaluation",
-          "golden-vault-run",
-          "golden-sandbox-run"
-        ],
-        "rawOutcome": "FAIL",
-        "full166AllGreen": false,
-        "prior34RawReportPreserved": true
-      },
-      "framework": "SYSTEM_AUDIT_PRIMARY_ADVERSARIAL_MUTATIONS_PASS_IN_CURRENT_FULL166",
-      "sourcePresent": 15,
-      "aggregateTestLiveNotRun": 30,
-      "latestReadonlyAudit": {
-        "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
-        "receipt": "STAGE17_CURRENT_AUDIT_fde898f.json",
-        "closure": "BLOCKED",
-        "localComplete": true,
-        "complete": false,
-        "externalRuntimeQualified": false
-      },
-      "hostedCi": {
-        "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
-        "receipt": "STAGE17_HOSTED_CI_fde898f.json",
-        "conclusion": "SUCCESS_NAMED_GATES_ONLY",
-        "rawFrozenGate": "FAIL_EXIT1_PRESERVED_EXACT12_REVIEWED"
-      },
-      "foundation": "BLOCKED_PROTECTED_SCOPE_INCOMPLETE_DOMAIN_LIVE_QUALIFICATION_MISSING",
-      "homepageBoundaryReached": false,
-      "homepageImplementation": "NOT_STARTED"
+      "foundationEvidenceMatrix": "05_STAGE17/implementation/STAGE17_FOUNDATION_EVIDENCE_MATRIX_59e83cd.json",
+      "unifiedScopeClassification": "05_STAGE17/implementation/STAGE17_UNIFIED_SCOPE_CLASSIFICATION_59e83cd.json",
+      "ownerActionRegister": "05_STAGE17/implementation/STAGE17_OWNER_ACTION_REGISTER_59e83cd.json",
+      "finalOwnerReviewReadiness": "05_STAGE17/implementation/STAGE17_FINAL_OWNER_REVIEW_READINESS_59e83cd.json",
+      "foundation": "BLOCKED",
+      "full166": "163 PASS / 3 preserved raw FAIL (fde898f, source-bound)",
+      "aggregateSlots": "30 canonical NOT_RUN/COLLECTOR_NOT_BOUND, each bound to real evidence class"
     },
     "at": "2026-10-05T06:14:06.564Z",
     "state": "FRAMEWORK_VERIFIED_FOUNDATION_BLOCKED_LIVE_OWNER_QUALIFICATION_OPEN",
@@ -5201,5 +5152,23 @@
     "integrityReview": "RESOLVED_ALL_FOUR_LEGACY_CANONICAL_AND_CAPTURE_DIGESTS",
     "homepageBoundaryReached": false,
     "next": "Continue Stage17 with the bounded combined protected-scope integration review (STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md), preserve default fail-closed collector/frozen graders/pins, then qualify all152 criteria and30 TEST/LIVE slots through exact-source evidence. Authenticated current runtime, real phone voice/continuity, Lemon TEST binding, Fiverr order/revenue/ledger and final digest-bound owner review remain separately unqualified. Do not migrate running dependencies merely for tests; no production execute/restore/financial writes, no homepage implementation."
+  },
+  "foundationClosure20261007": {
+    "operatorHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "foundationDecision": "BLOCKED",
+    "failClosed": true,
+    "noBlockerHidden": true,
+    "ownerOnlyActionsOpen": 6,
+    "openCodeCompletableItemsOpen": 4,
+    "interval1Finding": "PROTECTED_CHANGE_UNATTRIBUTED preserved",
+    "quiescentInterval2": true,
+    "exclusionsAcrossCitedIntervals": 0,
+    "homepageBrainUiV2": {
+      "implementationStarted": false,
+      "boundaryReachedForHandoff": true,
+      "handoff": "05_STAGE17/implementation/STAGE17_BRAIN_UI_V2_CODEX_HANDOFF.md",
+      "reservedFor": "CODEX"
+    }
   }
 }

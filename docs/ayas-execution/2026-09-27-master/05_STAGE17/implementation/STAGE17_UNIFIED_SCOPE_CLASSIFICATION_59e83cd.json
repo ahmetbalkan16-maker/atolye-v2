@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "1",
+  "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+  "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "srcUnchangedBetweenQualifiedSourceAndOperatorHead": true,
+  "srcDiffEvidence": "git diff --name-only fde898f..59e83cd lists only checkpoint/docs/Stage17 evidence files (AI_MEMORY.md, ATOLYE_*.md, ROADMAP.md, CHANGELOG.md, docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/*, ACTIVE_CHECKPOINT.json); no src/, scripts/ or config changes",
+  "observedAt": "2026-10-07T11:21:45Z",
+  "purpose": "UNIFIED_PROTECTED_EXTERNAL_RUNTIME_SCOPE_CLASSIFICATION_AND_EXCLUSION_RECEIPT_NOT_A_COMBINED_PASS",
+  "scopeCategories": {
+    "A_LOCAL_PROTECTED": {
+      "rootDefinition": "AyasSystemAuditRegistry.ts fixed repository-relative protected roots",
+      "roots": [
+        "data/brain",
+        "data/projects",
+        "runtime",
+        "authority",
+        "projects",
+        ".atolye"
+      ],
+      "presentInCurrentCheckout": [
+        "data/brain",
+        "data/projects"
+      ],
+      "absentInCurrentCheckout": [
+        "runtime",
+        "authority",
+        "projects",
+        ".atolye"
+      ],
+      "intervalObservations": [
+        {
+          "receipt": "STAGE17_CURRENT_AUDIT_fde898f.json",
+          "at": "2026-10-07T07:42:51.958Z",
+          "operatorHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+          "files": 6112,
+          "bytes": 624508549,
+          "exclusions": {
+            "credentialFiles": 0,
+            "sizeOrByteBudgetFiles": 0,
+            "linkOrSpecialEntries": 0,
+            "depthOrFileLimitStops": 0,
+            "unreadableRoots": 0
+          },
+          "completeBeforeAfter": true,
+          "digestUnchangedOwnInterval": true,
+          "digest": "3a98c51201bf7dcde2ec8a3a5b8dc6a4b78cf0436e0150b2a66aa41c6d3db3fb"
+        },
+        {
+          "receipt": "STAGE17_CURRENT_AUDIT_59e83cd.json",
+          "at": "2026-10-07T09:51:26.328Z",
+          "operatorHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+          "files": 6166,
+          "bytes": 624730995,
+          "exclusions": {
+            "credentialFiles": 0,
+            "sizeOrByteBudgetFiles": 0,
+            "linkOrSpecialEntries": 0,
+            "depthOrFileLimitStops": 0,
+            "unreadableRoots": 0
+          },
+          "completeBeforeAfter": true,
+          "digestUnchangedOwnInterval": false,
+          "finding": "PROTECTED_CHANGE_UNATTRIBUTED",
+          "beforeDigest": "d4a6794af0255a4f2da5f85641131afaf426d67a9eab01349cb59aef7eb13ee4",
+          "afterDigest": "bb92b995eab01d76545dc611025236965bec889f24f5c539876064cbacfaec6d",
+          "attribution": "UNKNOWN_REQUIRES_ACTUAL_BOUNDED_WRITER_RECEIPT_DIGEST",
+          "mutationSurfaceContext": "STAGE17_HOST_READONLY_59e83cd.json protectedRootsRecentMutationSurface (102 files under data/brain/Users in preceding 2h)"
+        },
+        {
+          "receipt": "STAGE17_CURRENT_AUDIT_59e83cd_INTERVAL2.json",
+          "at": "2026-10-07T11:21:36.755Z",
+          "operatorHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+          "files": 6198,
+          "bytes": 624918068,
+          "exclusions": {
+            "credentialFiles": 0,
+            "sizeOrByteBudgetFiles": 0,
+            "linkOrSpecialEntries": 0,
+            "depthOrFileLimitStops": 0,
+            "unreadableRoots": 0
+          },
+          "completeBeforeAfter": true,
+          "digestUnchangedOwnInterval": true,
+          "digest": "3cefab339275b63fd2d498466f948d46462c7aa96c5bc43df2da7864d3f98b30",
+          "note": "QUIESCENT_WINDOW_CAPTURE; deterministic clean own-interval rerun with the unchanged read-only operator; interval1 finding remains preserved, not erased"
+        }
+      ],
+      "growthBetweenObservations": "6112->6166->6198 files across same-day intervals; live AYAS brain memory writes under data/brain/Users; protected roots are protected-against-audit-mutation by design, not immutable"
+    },
+    "B_CONFIGURED_EXTERNAL_RUNTIME": {
+      "root": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeRuntime",
+      "resolution": "ATOLYE_RUNTIME_ROOT from repo .env.local; explicit-external classification through RuntimeStoragePaths validators; distinct from all repository-relative roots",
+      "intervalObservations": [
+        {
+          "receipt": "STAGE17_RUNTIME_INVENTORY_fde898f.json",
+          "at": "2026-10-07T08:13:15.587Z",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "files": 2372,
+          "bytes": 611011778,
+          "projects": 17,
+          "manifestValidation": "PASS",
+          "identicalBeforeAfter": true,
+          "aggregateFingerprint": "1278386829fa86d6721a7a5f2130fed39251f850dec951616d4a13ce012e47ca"
+        },
+        {
+          "receipt": "STAGE17_EXTERNAL_SCOPE_34ecb66.json",
+          "at": "2026-10-07T06:32:43.940Z",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "scope": "CONFIGURED_RUNTIME_AND_AUTHORITY_BOUNDED_HASH_ONLY",
+          "files": 2374,
+          "bytesHashed": 611013585,
+          "complete": true,
+          "digest": "403e39806a0c0c1799f75c74673bdb72267636519a2df5cb886d3198aa6bb91d",
+          "digestsUnchanged": true
+        }
+      ],
+      "fileCountDifferenceNote": "2372 vs 2374 = two separate same-day capture moments of a live growing runtime; both preserved, not reconciled or merged"
+    },
+    "C_AUTHORITY_GOVERNANCE": {
+      "root": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeAuthority",
+      "resolution": "ATOLYE_RUNTIME_AUTHORITY_ROOT from repo .env.local; authority bootstrap/generation remains outside any audit action",
+      "intervalObservations": [
+        {
+          "receipt": "STAGE17_EXTERNAL_SCOPE_34ecb66.json",
+          "at": "2026-10-07T06:32:43.940Z",
+          "files": 4,
+          "bytes": 11113,
+          "bytesHashed": 11113,
+          "complete": true,
+          "digest": "ab8ef7708392e23e0bb52745ac591374f7c7b6c159bc0fc23d1121ddb2b43466",
+          "digestsUnchanged": true
+        }
+      ],
+      "notRemeasuredThisSession": true
+    }
+  },
+  "evidenceClassDispositionSummary": {
+    "D_TEST_EVIDENCE": "166-suite full166 corpus bound to unchanged qualified source fde898f: 163 PASS / 3 preserved raw FAIL (retrieval-evaluation, golden-vault-run, golden-sandbox-run); exact12 IMPROVED review requests and 16 known limits retained; 45 occupancy mutation controls PASS",
+    "E_LIVE_EVIDENCE": "fresh unauthenticated read-only host probes at 59e83cd (local/public gate 200/401, Ollama 200 with 2 models, single origin PID 3416 / tunnel PID 30200, both hidden tasks Running, graphify current at HEAD with integrity 0) plus same-day external runtime/authority interval inventories",
+    "F_OWNER_REPORTED_EVIDENCE": "phone login reachability (earlier session owner reply), Lemon Squeezy TEST-mode store creation (2026-10-05), Fiverr account/identity/Gig active (2026-10-05), $0 startup spend; OWNER_REPORTED class is never treated as machine proof",
+    "G_OWNER_ACTION_REQUIRED": "6 items enumerated in STAGE17_OWNER_ACTION_REGISTER_59e83cd.json",
+    "H_NOT_APPLICABLE": "0 criteria dispositioned NOT_APPLICABLE; registry allowNotApplicable=false respected; no informal deferment converted to N/A"
+  },
+  "exclusionsReceipt": {
+    "A_localProtected_allIntervals": {
+      "credentialFiles": 0,
+      "sizeOrByteBudgetFiles": 0,
+      "linkOrSpecialEntries": 0,
+      "depthOrFileLimitStops": 0,
+      "unreadableRoots": 0
+    },
+    "B_externalRuntime_34ecb66Interval": {
+      "credentials": 0,
+      "perFileOrTotalBudget": 0,
+      "linkOrSpecial": 0,
+      "depthOrFileLimit": 0,
+      "unreadableOrChanged": 0,
+      "timeBound": 0
+    },
+    "C_authority_34ecb66Interval": {
+      "credentials": 0,
+      "perFileOrTotalBudget": 0,
+      "linkOrSpecial": 0,
+      "depthOrFileLimit": 0,
+      "unreadableOrChanged": 0,
+      "timeBound": 0
+    },
+    "totalExclusionsAcrossCitedIntervals": 0,
+    "statement": "Exclusions are explicitly zero in every cited interval; completeness was not achieved by excluding anything"
+  },
+  "unifiedQualification": {
+    "combinedCanonicalProtectedScopeQualified": false,
+    "separateIntervalMeasurementsCombinedIntoUnifiedPass": false,
+    "reason": "A combined qualification requires one audit execution surrounded by combined before/after inventories carrying the same coverage-manifest digest over local protected + configured external runtime + authority roots; separate interval observations cannot supply this boolean",
+    "interval1UnattributedChangePreserved": true,
+    "quiescentInterval2Exists": true,
+    "openTechnicalItem": {
+      "id": "CANONICAL_COMBINED_PROTECTED_SCOPE",
+      "class": "TECHNICAL_INTEGRATION",
+      "ownerOnly": false,
+      "spec": "STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md required bounded implementation items 1-5"
+    }
+  },
+  "grantsAuthority": false
+}

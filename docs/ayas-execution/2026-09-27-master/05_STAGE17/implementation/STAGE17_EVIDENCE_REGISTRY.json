@@ -947,6 +947,78 @@
       "operatorSourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
       "scope": "FINAL_ARTIFACT_HASH_AND_SINGLE_APPROVED_GRADER_PIN_EXCEPTION_REVIEW",
       "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_59e83cd.json",
+      "sha256": "74733eb4937d7a3a748d1c2e8d71d81faf00613551771116c3abffa36dbceda5",
+      "originalCaptureSha256": "74733eb4937d7a3a748d1c2e8d71d81faf00613551771116c3abffa36dbceda5",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "CANONICAL_READONLY_AUDIT_AT_59e83cd_INTERVAL1_PROTECTED_CHANGE_UNATTRIBUTED_PRESERVED",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_59e83cd_INTERVAL2.json",
+      "sha256": "ccddc863829b09b882d3c28bfdfc4b36103f8015ca8e48aff938eb062b1bfed4",
+      "originalCaptureSha256": "ccddc863829b09b882d3c28bfdfc4b36103f8015ca8e48aff938eb062b1bfed4",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "CANONICAL_READONLY_AUDIT_AT_59e83cd_QUIESCENT_INTERVAL2_IDENTICAL_DIGESTS",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_PHONE_STABILITY_59e83cd.json",
+      "sha256": "dbf87256ebdb1982107bdc2b3576626f4d48682ad9f3bf1871a057bebefed0ea",
+      "originalCaptureSha256": "dbf87256ebdb1982107bdc2b3576626f4d48682ad9f3bf1871a057bebefed0ea",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "ACTUAL_HOST_UNAUTHENTICATED_READ_ONLY_PROBES_AT_59e83cd",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_HOST_READONLY_59e83cd.json",
+      "sha256": "33ce89e023e1b385f885deaa1f65d0e515066114812dac93fc316de22f19e045",
+      "originalCaptureSha256": "33ce89e023e1b385f885deaa1f65d0e515066114812dac93fc316de22f19e045",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "HOST_READONLY_GRAPHIFY_OLLAMA_MUTATION_SURFACE_RUNTIME_ROOTS_AT_59e83cd",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_UNIFIED_SCOPE_CLASSIFICATION_59e83cd.json",
+      "sha256": "0e7727d793ec0703ee7910f72ac2fe42c0bd7e0d6397b3bf2103327e7f82dd23",
+      "originalCaptureSha256": "0e7727d793ec0703ee7910f72ac2fe42c0bd7e0d6397b3bf2103327e7f82dd23",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "UNIFIED_PROTECTED_EXTERNAL_RUNTIME_SCOPE_CLASSIFICATION_EXCLUSIONS_ZERO_NOT_A_COMBINED_PASS",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_OWNER_ACTION_REGISTER_59e83cd.json",
+      "sha256": "001c0a3871f9d6c8447dec6137dd51db1a890ee12c1eda39560250c85b18efc9",
+      "originalCaptureSha256": "001c0a3871f9d6c8447dec6137dd51db1a890ee12c1eda39560250c85b18efc9",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "OWNER_ONLY_VS_OPENCODE_COMPLETABLE_DEFINITIVE_SEPARATION",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_FOUNDATION_EVIDENCE_MATRIX_59e83cd.json",
+      "sha256": "d1ffa3ac987ace38fec65af635b10f1eb1185c391806f83b37e4d812949aa3aa",
+      "originalCaptureSha256": "d1ffa3ac987ace38fec65af635b10f1eb1185c391806f83b37e4d812949aa3aa",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "FINAL_FOUNDATION_EVIDENCE_MATRIX_152_CRITERIA_30_SLOTS_HONEST_DISPOSITION",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_FOUNDATION_EVIDENCE_MATRIX_59e83cd.md",
+      "sha256": "84faf5197a8501f808348e2b59ff1d12f4987b20c23b8af9aae8d7975d1afdd9",
+      "originalCaptureSha256": "84faf5197a8501f808348e2b59ff1d12f4987b20c23b8af9aae8d7975d1afdd9",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "FINAL_FOUNDATION_EVIDENCE_MATRIX_MARKDOWN_SUMMARY",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_FINAL_OWNER_REVIEW_READINESS_59e83cd.json",
+      "sha256": "3532b0745942eba4c736d1c945f9a94928f693fc3ce156e18507fa729f9ee35a",
+      "originalCaptureSha256": "3532b0745942eba4c736d1c945f9a94928f693fc3ce156e18507fa729f9ee35a",
+      "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+      "scope": "FINAL_OWNER_REVIEW_READINESS_NOT_READY_OWNER_REVIEW_DIGEST_NULL",
+      "grantsAuthority": false
     }
   ],
   "historicalClosure": {
@@ -1005,7 +1077,7 @@
     "reason": "FOUNDATION_NOT_CLOSED"
   },
   "authority": "NONE",
-  "updatedAt": "2026-10-07T08:39:19.543Z",
+  "updatedAt": "2026-10-07T12:09:22.834Z",
   "sourceHeadMeaning": "6a9_COMPONENT_FRAMEWORK_ANCHOR_EACH_LATER_ENTRY_HAS_ITS_OWN_EXACT_OPERATOR_SOURCE_HEAD",
   "ciQualification": {
     "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
@@ -1022,17 +1094,18 @@
     "scope": "BOUNDED_CF49_READER_ONLY"
   },
   "latestReadonlyAudit": {
-    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
-    "receipt": "STAGE17_CURRENT_AUDIT_fde898f.json",
+    "sourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "receipt": "STAGE17_CURRENT_AUDIT_59e83cd_INTERVAL2.json",
     "closure": "BLOCKED",
-    "protectedFiles": 6112,
-    "localBytes": 624508549,
+    "protectedFiles": 6198,
+    "localBytes": 624918068,
     "localComplete": true,
     "localExclusions": 0,
     "measuredDigestUnchanged": true,
     "complete": false,
     "canonicalExternalRuntimeQualified": false,
-    "fullDomainsQualified": false
+    "fullDomainsQualified": false,
+    "priorIntervalFinding": "PROTECTED_CHANGE_UNATTRIBUTED preserved in STAGE17_CURRENT_AUDIT_59e83cd.json"
   },
   "continuationSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
   "full166At979f12a": "NO_DURABLE_FINAL_RECEIPT_NOT_QUALIFIED",
@@ -1056,7 +1129,7 @@
     "state": "OWNER_REPORTED_PHONE_LOGIN_REACHABLE",
     "hostPath": "PASS_HTTP200_SINGLE_ORIGIN_SINGLE_NAMED_TUNNEL",
     "authenticatedRuntimeIdentity": "OWNER_ACTION_REQUIRED",
-    "latestStability": "STAGE17_PHONE_STABILITY_fde898f.json",
+    "latestStability": "STAGE17_PHONE_STABILITY_59e83cd.json",
     "authenticatedRuntimeQualified": false
   },
   "currentAudit34ecb66": {
@@ -1178,5 +1251,46 @@
     "legacyCanonicalRows": 4,
     "pinReferences": 323,
     "pinViolations": 0
+  },
+  "currentAudit59e83cd": {
+    "receipt": "STAGE17_CURRENT_AUDIT_59e83cd.json",
+    "interval2Receipt": "STAGE17_CURRENT_AUDIT_59e83cd_INTERVAL2.json",
+    "foundation": "BLOCKED",
+    "localComplete": true,
+    "localFiles": 6198,
+    "localBytes": 624918068,
+    "interval1DigestUnchanged": false,
+    "interval1Finding": "PROTECTED_CHANGE_UNATTRIBUTED",
+    "quiescentInterval2DigestUnchanged": true,
+    "localExclusions": 0,
+    "canonicalExternalScopeQualified": false,
+    "wholeDomainTestLiveNotRun": true
+  },
+  "unifiedScopeClassification": {
+    "receipt": "STAGE17_UNIFIED_SCOPE_CLASSIFICATION_59e83cd.json",
+    "combinedCanonicalProtectedScopeQualified": false,
+    "totalExclusionsAcrossCitedIntervals": 0,
+    "separateIntervalsCombinedIntoUnifiedPass": false
+  },
+  "foundationEvidenceMatrix": {
+    "receipt": "STAGE17_FOUNDATION_EVIDENCE_MATRIX_59e83cd.json",
+    "markdown": "STAGE17_FOUNDATION_EVIDENCE_MATRIX_59e83cd.md",
+    "criteria": 152,
+    "domains": 15,
+    "testLiveAggregateSlots": 30,
+    "canonicalSlotStates": "NOT_RUN_COLLECTOR_NOT_BOUND_PRESERVED",
+    "ownerOnlyActions": 6,
+    "openCodeCompletableItems": 4,
+    "foundation": "BLOCKED"
+  },
+  "ownerActionRegister": {
+    "receipt": "STAGE17_OWNER_ACTION_REGISTER_59e83cd.json",
+    "ownerOnlyActions": 6,
+    "openCodeCompletableItems": 4
+  },
+  "finalOwnerReviewReadiness": {
+    "receipt": "STAGE17_FINAL_OWNER_REVIEW_READINESS_59e83cd.json",
+    "ready": false,
+    "ownerReviewDigest": null
   }
 }

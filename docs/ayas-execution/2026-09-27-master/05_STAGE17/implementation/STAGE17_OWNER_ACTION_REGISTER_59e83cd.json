@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "1",
+  "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+  "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "srcUnchangedBetweenQualifiedSourceAndOperatorHead": true,
+  "observedAt": "2026-10-07T11:30:00Z",
+  "purpose": "DEFINITIVE_OWNER_ONLY_VS_OPENCODE_COMPLETABLE_SEPARATION",
+  "rule": "OWNER_REPORTED_IS_NOT_MACHINE_PROOF; no owner-only action is simulated, synthesized or replaced by agent-generated evidence; owner action found does not halt other bounded work",
+  "ownerOnlyActions": [
+    {
+      "id": "AUTHENTICATED_RUNTIME_IDENTITY",
+      "class": "OWNER_ACTION_REQUIRED",
+      "state": "UNQUALIFIED",
+      "blocks": [
+        "criterion J02 (health endpoint identity)",
+        "live part of F02/F10 (approval provenance with authenticated owner session)",
+        "J_LIVE whole-domain aggregate",
+        "final owner-review prerequisite"
+      ],
+      "whatExactlyIsRequired": "Owner performs an authenticated session against the running AYAS instance (phone or PC browser) and confirms the authenticated runtime identity; owner may capture an authenticated health/identity response themselves and share only the non-secret result",
+      "whyNotAutomatable": "Authenticated identity requires owner-held credentials/session; the agent must never request, receive, store or handle owner credentials (no credential harvesting)",
+      "postOwnerVerification": "Owner-captured authenticated health/identity receipt bound to current source closes J02 and the authenticated part of the J live slot; unauthenticated probes remain separately labeled"
+    },
+    {
+      "id": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+      "class": "LIVE_QUALIFICATION_WITH_OWNER_DEVICE",
+      "state": "NOT_QUALIFIED",
+      "blocks": [
+        "criteria E07 (wake/session continuity) and E08 (voice/TTS path) live parts",
+        "E06 whole-criterion (device-level access health)",
+        "K11/K12/K14 live media/pixel/audio/E2E parts",
+        "E_LIVE whole-domain aggregate"
+      ],
+      "whatExactlyIsRequired": "Physical-phone voice/STT/wake/session-continuity tests and approved live media/pixel/audio/continuity evidence captured on the owner device through designated safe gates",
+      "whyNotAutomatable": "Requires the physical device in the owner's hands, owner accounts, and owner-approved live execution under production gates",
+      "postOwnerVerification": "Device-captured receipts validated against the existing production/media/wake gates; isolated TEMP suites (39 restore / 35 autostart) never certified this and are not retroactively promoted"
+    },
+    {
+      "id": "ACTUAL_REBOOT_CONTINUITY",
+      "class": "OWNER_ACTION_REQUIRED",
+      "state": "NOT_RUN",
+      "blocks": [
+        "criterion I07 (recovery test freshness with real reboot)",
+        "depth of J04 (post-reboot task continuity)"
+      ],
+      "whatExactlyIsRequired": "A real Windows reboot of the owner host followed by post-reboot continuity observation (gate healthy, single origin/tunnel, both hidden tasks Running, observer continuity)",
+      "whyNotAutomatable": "Rebooting the live owner machine disrupts the running production service; a physical, owner-owned operational decision",
+      "postOwnerVerification": "Post-reboot probe receipt with the same unauthenticated read-only probe set; isolated synthetic reboots remain explicitly synthetic"
+    },
+    {
+      "id": "LEMON_TEST_BINDING",
+      "class": "OWNER_ACTION_REQUIRED",
+      "state": "UNBOUND",
+      "blocks": [
+        "criterion N05 (platform live validation levels) Lemon part",
+        "N_LIVE whole-domain aggregate"
+      ],
+      "whatExactlyIsRequired": "Owner creates/uses a TEST-mode Lemon Squeezy store and credential in the owner-approved secret store and binds the connector/ingress through Stage16.8 gates; agent never sees secret values",
+      "whyNotAutomatable": "External account ownership and secret custody belong to the owner; adapter TEST suites passing never proves a real binding",
+      "postOwnerVerification": "TEST-mode ingress receipt + durable dedupe/journal validation through existing Stage16.8 qualification gates"
+    },
+    {
+      "id": "FIVERR_ORDER_REVENUE_LEDGER",
+      "class": "OWNER_PLATFORM_EVIDENCE_REQUIRED",
+      "state": "ACCOUNT_GIG_OWNER_REPORTED_ONLY",
+      "blocks": [
+        "criterion N05 (platform live validation levels) Fiverr part",
+        "N_LIVE whole-domain aggregate"
+      ],
+      "whatExactlyIsRequired": "Official Fiverr order/delivery/revenue/ledger evidence export from the owner account, or an explicit reviewed deferment decision recorded by the owner",
+      "whyNotAutomatable": "Platform data is only accessible from the owner's account; inbound messages or owner setup reports are not order/revenue proof",
+      "postOwnerVerification": "Platform-export evidence validated against the ledger contract; empty production revenue registry never fabricated into CLOSED"
+    },
+    {
+      "id": "FINAL_BOUND_OWNER_REVIEW",
+      "class": "OWNER_ACTION_REQUIRED_AFTER_TECHNICAL_PREREQUISITES",
+      "state": "NOT_READY",
+      "blocks": [
+        "O_LIVE whole-domain aggregate",
+        "FOUNDATION_CLOSED decision"
+      ],
+      "whatExactlyIsRequired": "Owner reviews the final Stage17 audit packet (its actual digest) and records the closure decision after the technical prerequisites resolve",
+      "whyNotAutomatable": "OWNER_DECISION evidence class cannot be produced by the system itself; continuation authorization is not a final review",
+      "postOwnerVerification": "ownerReviewDigest bound to the final packet; Foundation closure state changes only on that recorded decision"
+    }
+  ],
+  "openCodeCompletableItems": [
+    {
+      "id": "CANONICAL_COMBINED_PROTECTED_SCOPE",
+      "class": "TECHNICAL_INTEGRATION",
+      "state": "NOT_QUALIFIED",
+      "blocks": [
+        "combined canonical protected scope boolean",
+        "PROTECTED_SCOPE_INCOMPLETE audit reason"
+      ],
+      "whatExactlyIsRequired": "Bounded combined inventory implementation per STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md items 1-5: opt-in combined path resolving explicit runtime/authority roots through existing validators, coverage manifest, both combined inventories around the same audit execution, same-coverage-digest in both, writer attribution receipts",
+      "whyNotOwnerOnly": "Pure source/test implementation work with existing primitives; no owner account, device or credential involved",
+      "verificationPlan": "New independent adversarial tests enumerated in the review (root escape, junction boundaries, symlink replacement, credential exclusion, changed manifest, wrong source, truncated full166, mismatched capture hashes, background writes, forged attribution, duplicate criteria, partial-domain PASS, owner-statement-override); frozen graders/fixtures/pins untouched"
+    },
+    {
+      "id": "CANONICAL_30_SLOT_COLLECTOR_BINDING",
+      "class": "TECHNICAL_QUALIFICATION",
+      "state": "COLLECTOR_NOT_BOUND",
+      "blocks": [
+        "all 30 TEST/LIVE aggregate slots (canonical NOT_RUN)"
+      ],
+      "whatExactlyIsRequired": "Complete all 152 canonical criteria review (or specifically reviewed N/A where genuinely justified), then bind whole-scope evidence through AyasAuditCollectorDeps.trustedEvidence",
+      "whyNotOwnerOnly": "Collector binding is source work; caveat: the LIVE slot parts still depend on the owner-only evidence items in this register (mixed dependency, honestly separated)",
+      "verificationPlan": "Canonical audit re-run with executed>0 and bound slots; representative smokes never promoted to whole-domain PASS"
+    },
+    {
+      "id": "INSTALLED_RUNTIME_LOCK_MIGRATION",
+      "class": "TECHNICAL_MAINTENANCE_REQUIRES_OWNER_COORDINATED_RESTART",
+      "state": "NOT_FULL_LOCK_MATCHED",
+      "blocks": [
+        "criterion G09 (dependency drift)",
+        "full installed-runtime lock qualification"
+      ],
+      "whatExactlyIsRequired": "Canonical dependency maintenance migrating the installed main-tree runtime to the fresh-lock versions (Next 16.3.8) through existing recovery gates; sharp already repaired to locked 0.35.5; running dependencies are never migrated merely for tests",
+      "whyNotOwnerOnly": "Technical migration itself is agent-executable; the service restart window needs owner coordination because the live phone/public gate runs on this machine",
+      "verificationPlan": "Post-migration TS/build/native raster/access suites + fresh installed-lock receipt; production advisory scan0 does not certify installed dependencies"
+    },
+    {
+      "id": "RETRIEVAL_GOLDEN_EVALUATOR_SUCCESSION",
+      "class": "FROZEN_EVALUATOR_REVIEW_REQUIRES_OWNER_APPROVED_VERSIONED_REVIEW",
+      "state": "RAW_FAIL_PRESERVED_WITH_EXACT12_IMPROVED_REQUESTS",
+      "blocks": [
+        "criterion D06 (retrieval metrics) and the two Golden promotion stops"
+      ],
+      "whatExactlyIsRequired": "Any evaluator change for the 12 IMPROVED requests requires an explicit immutable versioned review with owner approval; no silent expectation/pin edit; 16 remaining limits stay disclosed",
+      "whyNotOwnerOnly": "The technical review work is agent-executable, but the frozen grader/fixture/pin area is owner-gated by the master order",
+      "verificationPlan": "Versioned evaluator manifest archive + owner approval record + fresh full166 at the new source preserving all other frozen results"
+    }
+  ],
+  "ownerReportedEvidenceHeld": [
+    {
+      "item": "phone login screen opens",
+      "receivedAt": "2026-10-07 (earlier session)",
+      "class": "OWNER_REPORTED",
+      "recordedAs": "OWNER_REPORTED_PHONE_LOGIN_REACHABLE",
+      "notMachineProofOf": "authenticated runtime identity"
+    },
+    {
+      "item": "Lemon Squeezy TEST-mode store/credential creation",
+      "receivedAt": "2026-10-05",
+      "class": "OWNER_REPORTED",
+      "recordedAs": "OWNER_REPORTED_SETUP",
+      "notMachineProofOf": "connector/ingress binding or live validation"
+    },
+    {
+      "item": "Fiverr account/identity verified, Gig active",
+      "receivedAt": "2026-10-05",
+      "class": "OWNER_REPORTED",
+      "recordedAs": "OWNER_REPORTED_ACTIVE",
+      "notMachineProofOf": "orders, revenue, ledger or automation binding"
+    },
+    {
+      "item": "startup spend $0",
+      "receivedAt": "2026-10-05",
+      "class": "OWNER_REPORTED",
+      "recordedAs": "OWNER_REPORTED",
+      "notMachineProofOf": "ledger transactions"
+    }
+  ],
+  "grantsAuthority": false
+}

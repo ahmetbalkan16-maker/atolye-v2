@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1",
+  "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+  "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "srcUnchangedBetweenQualifiedSourceAndOperatorHead": true,
+  "observedAt": "2026-10-07T09:52:00Z",
+  "observedAtPrecision": "MINUTE",
+  "fixture": "ACTUAL_HOST_UNAUTHENTICATED_READ_ONLY_CANONICAL_PROBES",
+  "snapshot": {
+    "origin": "healthy",
+    "listenerPid": 3416,
+    "tunnel": "healthy",
+    "tunnelPid": 30200,
+    "expectedAppCount": 1,
+    "expectedTunnelCount": 1
+  },
+  "localGateHealthy": true,
+  "publicGateHealthy": true,
+  "localLoginStatus": 200,
+  "localProtectedHealthStatus": 401,
+  "publicLoginStatus": 200,
+  "publicProtectedHealthStatus": 401,
+  "ollamaStatus": 200,
+  "ollamaModels": [
+    "qwen2.5:7b",
+    "qwen2.5:3b"
+  ],
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running"
+    }
+  ],
+  "ownerPhoneEvidence": "OWNER_REPORTED_PHONE_LOGIN_REACHABLE_2026_10_07_EARLIER_SESSION; EVIDENCE_CLASS_OWNER_REPORTED_NOT_MACHINE_PROOF",
+  "ownerPhoneEvidenceNotReconfirmedThisSession": true,
+  "authenticatedRuntimeQualified": false,
+  "actualRebootTest": "NOT_RUN",
+  "serviceDependenciesFullyLockMatched": false,
+  "probeBoundary": "UNAUTHENTICATED_READ_ONLY; no credentials requested, received or used; no login performed by the agent",
+  "priorReceipt": "STAGE17_PHONE_STABILITY_fde898f.json",
+  "grantsAuthority": false
+}

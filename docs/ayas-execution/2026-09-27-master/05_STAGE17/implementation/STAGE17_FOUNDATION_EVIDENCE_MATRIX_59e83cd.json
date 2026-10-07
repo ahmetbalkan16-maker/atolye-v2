@@ -1,0 +1,4541 @@
+{
+  "schemaVersion": "1",
+  "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+  "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "srcUnchangedBetweenQualifiedSourceAndOperatorHead": true,
+  "observedAt": "2026-10-07T11:30:00Z",
+  "purpose": "FINAL_FOUNDATION_EVIDENCE_MATRIX_HONEST_DISPOSITION_OF_152_CRITERIA_AND_30_TEST_LIVE_SLOTS",
+  "invariants": {
+    "TEST_EVIDENCE_RECORDED_AS_TEST_ONLY": true,
+    "LIVE_CRITERIA_ONLY_CLOSEABLE_BY_REAL_LIVE_EVIDENCE": true,
+    "NO_SYNTHETIC_OR_SIMULATED_OWNER_EVIDENCE": true,
+    "OWNER_REPORTED_IS_NOT_MACHINE_PROOF": true,
+    "SOURCE_FILE_PRESENCE_IS_NOT_EXECUTION_PROOF": true,
+    "ADAPTER_TEST_PASS_IS_NOT_ORDER_REVENUE_LEDGER_PROOF": true,
+    "LOGIN_PAGE_REACHABLE_IS_NOT_AUTHENTICATED_IDENTITY": true,
+    "SEPARATE_HASH_MEASUREMENTS_NOT_COMBINED_INTO_UNIFIED_PASS": true,
+    "NO_PROMOTION_FROM_NAMED_OBSERVATIONS_TO_WHOLE_CRITERION_OR_DOMAIN_PASS": true,
+    "REPRESENTATIVE_SMOKES_DO_NOT_QUALIFY_WHOLE_DOMAINS": true,
+    "FROZEN_GRADERS_FIXTURES_PINS_AND_HISTORICAL_EVIDENCE_PRESERVED": true
+  },
+  "stateLegend": {
+    "PASS_CURRENT_VERIFIED": "whole criterion directly verified read-only at current HEAD this session",
+    "PASS_SAME_SOURCE_TEST": "whole criterion established by the deterministic test itself at identical source fde898f (src unchanged to 59e83cd)",
+    "PASS_DISCLOSED_LIMITATION": "criterion satisfied as a disclosure/documentation contract with known limits explicitly retained",
+    "PASS_DOCUMENTED_STATUS": "criterion is a status/invariant check and the truthful status is documented and witnessed",
+    "FAIL_RAW_PRESERVED": "raw evaluator FAIL preserved exactly; no grader/expectation/pin edit",
+    "OPEN_FINDING": "unresolved finding, honestly retained, neither PASS nor hidden",
+    "BLOCKED_OWNER_ACTION": "cannot be closed without the named owner action; never synthesized",
+    "NOT_RUN": "no whole-criterion qualification yet; named witnesses/observations remain partial evidence only"
+  },
+  "criterionStateCounts": {
+    "PASS_CURRENT_VERIFIED": 27,
+    "PASS_SAME_SOURCE_TEST": 3,
+    "PASS_DISCLOSED_LIMITATION": 5,
+    "NOT_RUN": 94,
+    "BLOCKED_OWNER_ACTION": 7,
+    "FAIL_RAW_PRESERVED": 1,
+    "PASS_DOCUMENTED_STATUS": 9,
+    "OPEN_FINDING": 6
+  },
+  "criteriaTotal": 152,
+  "domains": [
+    {
+      "domain": "A",
+      "label": "Repository / Build / CI",
+      "canonicalCriteriaCount": 10,
+      "criteria": [
+        {
+          "id": "A01",
+          "criterion": "current branch + full HEAD",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "branch wip/ayas-graphify-final-execution; HEAD 59e83cd92211278b52dbbd94a856862d086c57bf resolved; audit receipt head matches",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json + STAGE17_CURRENT_AUDIT_59e83cd_INTERVAL2.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "A02",
+          "criterion": "local/remote ahead-behind",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "git fetch origin; ahead/behind 0/0; status -sb in sync",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json git block",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "A03",
+          "criterion": "clean worktree",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "porcelain 0 lines at session start and before evidence write; graphify worktreeState CLEAN",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Post-commit cleanliness re-verified at session end"
+        },
+        {
+          "id": "A04",
+          "criterion": "TypeScript",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_SAME_SOURCE_TEST",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "TypeScript exit0 in credential-free fresh-lock clone at fde898f; src unchanged fde898f..59e83cd",
+              "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Whole criterion established by the deterministic test itself at identical source"
+        },
+        {
+          "id": "A05",
+          "criterion": "lint",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_SAME_SOURCE_TEST",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "lint 0 errors / 13 inherited warnings at fde898f same source",
+              "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "A06",
+          "criterion": "`git diff --check`",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "git diff --check exit 0",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json git.diffCheckExit",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "A07",
+          "criterion": "package-lock/package consistency",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_SAME_SOURCE_TEST",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "npm ci matched package/lock in credential-free clone",
+              "evidence": "STAGE17_fde898f_NPM_CI.log",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "A08",
+          "criterion": "CI presence/status",
+          "evidenceClass": "EXTERNAL_OFFICIAL",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "hosted Ubuntu/Node24 named CI run37588433930 SUCCESS at exact source fde898f; raw gate FAIL exit1 preserved visible in the same workflow",
+              "evidence": "STAGE17_HOSTED_CI_fde898f.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "CI presence and status qualified at exact source; raw all-green NOT claimed"
+        },
+        {
+          "id": "A09",
+          "criterion": "untracked source/test files",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "no untracked source/test files; session evidence files are the only additions and are committed",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json git.porcelainLineCountBeforeEvidenceWrite",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "A10",
+          "criterion": "stale generated docs/reports",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "canonical checkpoint/result/registry docs refreshed at current HEAD this session; .graphify needs_update absent",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphify block",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "A_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "A_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "LIVE_READ_ONLY",
+            "evidence": "fresh git/host state observations at 59e83cd (branch/HEAD, ahead/behind 0/0, clean worktree, diff-check exit0)",
+            "missingForWholeQualification": "collector-bound whole-domain aggregate"
+          }
+        }
+      }
+    },
+    {
+      "domain": "B",
+      "label": "Graphify / Architecture",
+      "canonicalCriteriaCount": 11,
+      "criteria": [
+        {
+          "id": "B01",
+          "criterion": "graph exists",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "graph exists: 19242 nodes / 55159 links at HEAD",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphIntegrity",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B02",
+          "criterion": "analyzed HEAD == current HEAD",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "sourceHead == lastSeenHead == lastAnalyzedHead == graphBuiltFromHead == 59e83cd",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphify",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B03",
+          "criterion": "`stale=false`",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "stale=false",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphify",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B04",
+          "criterion": "`.graphify/needs_update` absent",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "needs_update file absent; needsUpdate=false",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphify",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B05",
+          "criterion": "duplicate node IDs / duplicate edges / dangling edges / self-loops = 0",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "duplicateNodeIds=0, duplicateEdges=0, danglingEdges=0, selfLoops=0 (fresh computation)",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphIntegrity",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B06",
+          "criterion": "current structural extraction after source changes",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "structural extraction current at HEAD; graph rebuilt after HEAD commit; docs-only session commit gets another refresh before session end",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphify",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B07",
+          "criterion": "known parser coverage gaps (including PowerShell)",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_DISCLOSED_LIMITATION",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "INCOMPLETE_CODE_FILES:9 (7 .ps1 startup scripts, CI workflow yml, one thumbnail route) have no graph nodes; PowerShell grammar not installed; disclosed; those files reviewed directly",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphify",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B08",
+          "criterion": "phantom edge/node risk classification",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "No dedicated phantom edge/node risk classification run at this HEAD; dangling-edge counter 0 partially covers; honest gap retained"
+        },
+        {
+          "id": "B09",
+          "criterion": "high-impact bridge review",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "no source changes this session (docs-only evidence work); last source-change bridge review bound to approved barrier at 1daa107; docs changes reviewed directly",
+              "evidence": "STAGE17_BARRIER_GRAPH_REVIEW.log + STAGE17_OCCUPANCY_BARRIER_APPROVED.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "B10",
+          "criterion": "forbidden authority paths",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "No dedicated graph forbidden-authority-path scan this session; F-domain firewall witnesses cover authority boundaries at test level; graph-level check remains NOT_RUN"
+        },
+        {
+          "id": "B11",
+          "criterion": "critical changed-file scope review",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "changed-file scope this session = docs/evidence files only, reviewed directly; graphify refresh covers them",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json graphify",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "graphify-integration",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "discovery-registry",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "B_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "graphify-integration",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "discovery-registry",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "B_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "LIVE_READ_ONLY",
+            "evidence": "fresh graphify status at HEAD (analyzed/built/stale=false/CLEAN/integrity 0/0/0/0)",
+            "missingForWholeQualification": "collector-bound whole-domain aggregate"
+          }
+        }
+      }
+    },
+    {
+      "domain": "C",
+      "label": "Conversation / Intent / Context",
+      "canonicalCriteriaCount": 9,
+      "criteria": [
+        {
+          "id": "C01",
+          "criterion": "intent routing",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "chat-quality",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "context",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "C02",
+          "criterion": "reference resolution",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "chat-quality",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "context",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "C03",
+          "criterion": "long-session compression",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "context-budget",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "C04",
+          "criterion": "clarification behavior",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "chat-quality",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "C05",
+          "criterion": "Turkish nuance fixtures",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "cognitive-quality",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "conversation-quality-master",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "C06",
+          "criterion": "answer relevance/completeness",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "cognitive-quality",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "C07",
+          "criterion": "verbosity/instruction following",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "chat-quality",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "C08",
+          "criterion": "live Ollama comparison status",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "BLOCKED_OWNER_ACTION",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "AUTHENTICATED_RUNTIME_IDENTITY",
+          "note": "Matched live owner context/model benchmark requires owner-run live evaluation; Ollama reachability alone is not a comparison"
+        },
+        {
+          "id": "C09",
+          "criterion": "remaining cognitive known limits",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DISCLOSED_LIMITATION",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "16 retrieval limits + exact12 IMPROVED review requests + CF49 raw fail + two Golden stops documented and preserved; roadmap names them truthfully",
+              "evidence": "STAGE17_FULL166_QUALIFICATION_fde898f.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "cognitive-quality",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "conversation-quality-master",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "chat-quality",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "context",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "context-budget",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "context-budget-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "C_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "cognitive-quality",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "conversation-quality-master",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "chat-quality",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "context",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "context-budget",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "context-budget-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "C_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "Ollama reachability 200 with 2 models only; matched live comparison absent (owner-gated)",
+            "missingForWholeQualification": "owner-run live comparison benchmark"
+          }
+        }
+      }
+    },
+    {
+      "domain": "D",
+      "label": "Memory / Retrieval / Temporal",
+      "canonicalCriteriaCount": 10,
+      "criteria": [
+        {
+          "id": "D01",
+          "criterion": "store integrity",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory-integrity",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "D02",
+          "criterion": "current/history/as-of behavior",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory-temporal",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "D03",
+          "criterion": "supersession",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "D04",
+          "criterion": "stale/future quarantine",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory-temporal",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "D05",
+          "criterion": "conflict behavior",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "D06",
+          "criterion": "retrieval metrics",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "FAIL_RAW_PRESERVED",
+          "currentObservations": [
+            {
+              "state": "FAIL",
+              "observation": "retrieval-evaluation raw FAIL exit1 with exact12 IMPROVED review requests preserved; golden PROMOTION_STOPPED solely for golden.memory.retrieval-evaluation; 16 limits remain; no grader/expectation/pin edit",
+              "evidence": "STAGE17_fde898f_RAW_retrieval-evaluation_stdout.log + STAGE17_FULL166_QUALIFICATION_fde898f.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "retrieval-evaluation",
+              "status": "FAIL_RAW_PRESERVED",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "golden-vault-run",
+              "status": "FAIL_RAW_PRESERVED",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "golden-sandbox-run",
+              "status": "FAIL_RAW_PRESERVED",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "FAIL preserved as the honest raw result; improvement requires the frozen evaluator succession item"
+        },
+        {
+          "id": "D07",
+          "criterion": "chat delivery gate",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "No dedicated suite witness mapped at criterion granularity; domain witnesses cover adjacent behavior only"
+        },
+        {
+          "id": "D08",
+          "criterion": "known limitation map",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DISCLOSED_LIMITATION",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "known-limitation map enforced by evaluator contract: unexpectedly-passing limit tests forced the exact12 IMPROVED requests into explicit review instead of silently disappearing",
+              "evidence": "STAGE17_FULL166_QUALIFICATION_fde898f.json rawRetrieval",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "D09",
+          "criterion": "free-text decision correction",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Historical free-text decision supersession finding; prior-stage repair receipts exist; not re-witnessed as a dedicated current-source check"
+        },
+        {
+          "id": "D10",
+          "criterion": "privacy/memory governance",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory-integrity",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "memory-integrity",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "memory",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "memory-temporal",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "retrieval-evaluation",
+          "status": "FAIL_RAW_PRESERVED",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "golden-vault-run",
+          "status": "FAIL_RAW_PRESERVED",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "golden-sandbox-run",
+          "status": "FAIL_RAW_PRESERVED",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "D_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "memory-integrity",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "memory",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "memory-temporal",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "retrieval-evaluation",
+                "status": "FAIL_RAW_PRESERVED",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "golden-vault-run",
+                "status": "FAIL_RAW_PRESERVED",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "golden-sandbox-run",
+                "status": "FAIL_RAW_PRESERVED",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "D_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "no current live retrieval benchmark; raw evaluator result preserved as TEST evidence",
+            "missingForWholeQualification": "live retrieval qualification separate from frozen evaluator review"
+          }
+        }
+      }
+    },
+    {
+      "domain": "E",
+      "label": "Model / Provider / Voice / Mobile",
+      "canonicalCriteriaCount": 9,
+      "criteria": [
+        {
+          "id": "E01",
+          "criterion": "Ollama health/current selected model",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "Ollama health 200; installed models qwen2.5:7b, qwen2.5:3b (fresh probe); reachability/inventory only, no live inference comparison",
+              "evidence": "STAGE17_HOST_READONLY_59e83cd.json ollama",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Health+installed models verified fresh; selected-model routing is source config (model-router witness)"
+        },
+        {
+          "id": "E02",
+          "criterion": "no unexpected paid cloud fallback",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "zero-cost-policy",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "independence-certification",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "independence-certification-mutations",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "E03",
+          "criterion": "model-routing docs match code",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "model-router",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "E04",
+          "criterion": "STT path/config",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "voice-turn-state-mutations",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "E05",
+          "criterion": "phone local-LLM model artifact revision/digest pinning",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Prior-stage immutable pinning receipts exist; no dedicated current-source witness among E domain suites; honest NOT_RUN"
+        },
+        {
+          "id": "E06",
+          "criterion": "phone access health",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "local+public login 200, gate healthy, owner-reported reachable (OWNER_REPORTED class, earlier session)",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Unauthenticated access-path health verified fresh; device-level access health remains owner-gated; login reachability is not authenticated identity"
+        },
+        {
+          "id": "E07",
+          "criterion": "wake/session continuity",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "BLOCKED_OWNER_ACTION",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "voice-turn-state-mutations",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+          "note": "Turn-state test PASS at source; live wake/session continuity requires owner device"
+        },
+        {
+          "id": "E08",
+          "criterion": "voice/TTS path",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "BLOCKED_OWNER_ACTION",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "voice-turn-state-mutations",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+          "note": "TTS path test-covered at source; live device TTS owner-gated"
+        },
+        {
+          "id": "E09",
+          "criterion": "current runtime evidence versus historical reports",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "fresh current runtime evidence captured this session (gate/Ollama/graphify/git) distinct from historical reports; historical reports remain labeled historical",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json + STAGE17_HOST_READONLY_59e83cd.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "model-router",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "zero-cost-policy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "voice-turn-state-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "independence-certification",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "independence-certification-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "E_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "model-router",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "zero-cost-policy",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "voice-turn-state-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "independence-certification",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "independence-certification-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "E_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "LIVE_READ_ONLY",
+            "evidence": "fresh gate probes (200/401 local+public), Ollama 200/2 models, single origin/tunnel, tasks Running",
+            "missingForWholeQualification": "authenticated runtime identity, real phone voice/wake/TTS/continuity (owner)"
+          }
+        }
+      }
+    },
+    {
+      "domain": "F",
+      "label": "Autonomy / Approval / Execution",
+      "canonicalCriteriaCount": 13,
+      "criteria": [
+        {
+          "id": "F01",
+          "criterion": "proposal discovery authority = none",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "proposal discovery authority = NONE enforced and witnessed at same source",
+              "evidence": "STAGE17_fde898f_FULL166.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "owner-constitution",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "owner-capability-firewall",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "F02",
+          "criterion": "approval provenance",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "owner-session-admission",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": "AUTHENTICATED_RUNTIME_IDENTITY",
+          "note": "Approval provenance test-covered at source; authenticated live provenance owner-gated"
+        },
+        {
+          "id": "F03",
+          "criterion": "exact proposal hash binding",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "constitution-run-binding",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "F04",
+          "criterion": "patch artifact hash binding",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "patch-artifact",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Cross-domain M witness cited at criterion level"
+        },
+        {
+          "id": "F05",
+          "criterion": "stale-head reconciliation",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Domain-level F witnesses PASS; dedicated criterion mapping not established"
+        },
+        {
+          "id": "F06",
+          "criterion": "execution gate",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "execution-gate",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "F07",
+          "criterion": "execution journal recovery",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "durable-task-recovery",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "execution-journal",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "execution-journal is an I-domain witness, cross-referenced"
+        },
+        {
+          "id": "F08",
+          "criterion": "Runtime Stability Guard",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "runtime-stability-guard",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "J-domain witness, cross-referenced"
+        },
+        {
+          "id": "F09",
+          "criterion": "no direct mutation bypass",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "action-firewall",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "action-firewall-runtime",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "action-firewall-bridge",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "action-firewall-closure",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "F10",
+          "criterion": "owner approval required",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "owner-constitution",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "owner-session-admission",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": "AUTHENTICATED_RUNTIME_IDENTITY",
+          "note": "Owner approval requirement enforced/witnessed at source; live authenticated approval owner-gated"
+        },
+        {
+          "id": "F11",
+          "criterion": "observer/discovery daemon isolation",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Observer/discovery daemon isolation: isolated Windows observer-autostart 35 PASS bound to 34ecb66 session; no dedicated current-source suite among F witnesses"
+        },
+        {
+          "id": "F12",
+          "criterion": "autostart smoke safety",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Autostart smoke safety: isolated 35 PASS (34ecb66 session); the real-task smoke is in AYAS_KNOWN_UNSAFE_TESTS and is NEVER run on the real host - safety invariant preserved"
+        },
+        {
+          "id": "F13",
+          "criterion": "controlled self-evolution Stage 15 status",
+          "evidenceClass": "STATIC_SOURCE",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "Stage15 CLOSED_SOURCE_COMBINED documented; infinity preparation fixture-only, activation OFF",
+              "evidence": "STAGE15_CLOSURE.md + ACTIVE_CHECKPOINT.json infinityPreparation",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "action-runtime",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "action-firewall",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "action-firewall-runtime",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "action-firewall-bridge",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "action-firewall-closure",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "owner-session-admission",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "owner-capability-firewall",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "execution-gate",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "execution-authority",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "durable-task-runtime",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "durable-task-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "owner-constitution",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "constitution-run-binding",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "F_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "action-runtime",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "action-firewall",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "action-firewall-runtime",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "action-firewall-bridge",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "action-firewall-closure",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "owner-session-admission",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "owner-capability-firewall",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "execution-gate",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "execution-authority",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "durable-task-runtime",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "durable-task-recovery",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "owner-constitution",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "constitution-run-binding",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "F_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "no live authenticated owner-session/approval provenance evidence",
+            "missingForWholeQualification": "AUTHENTICATED_RUNTIME_IDENTITY (owner)"
+          }
+        }
+      }
+    },
+    {
+      "domain": "G",
+      "label": "Security / Supply Chain",
+      "canonicalCriteriaCount": 13,
+      "criteria": [
+        {
+          "id": "G01",
+          "criterion": "safe public fetch / SSRF",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "safe-public-fetch",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "G02",
+          "criterion": "secret leakage",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "exact-key secret scan 0 hits / 0 errors across reachable Git blobs, index, canonical evidence and logs; opencode.json ignored/untracked; no rotation",
+              "evidence": "STAGE17_FINAL_SECRET_SCAN_fde898f.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "G03",
+          "criterion": "bounded body/file writes",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "bounded-request-body",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "bounded-file-write",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "G04",
+          "criterion": "symlink/junction boundaries",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "audit collector rejects links/hardlinks/descriptor replacement; 0 link/special exclusions in all cited intervals",
+              "evidence": "STAGE17_UNIFIED_SCOPE_CLASSIFICATION_59e83cd.json exclusionsReceipt",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "G05",
+          "criterion": "command/process fixed-argument paths",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Domain-level witnesses PASS; dedicated criterion mapping not established"
+        },
+        {
+          "id": "G06",
+          "criterion": "package install scripts risk",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "release-provenance",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "release-provenance-mutations",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Install-script review pins re-recorded at actually re-read versions in the owner-approved bounded change"
+        },
+        {
+          "id": "G07",
+          "criterion": "current advisory scan status",
+          "evidenceClass": "EXTERNAL_OFFICIAL",
+          "wholeCriterionState": "PASS_DISCLOSED_LIMITATION",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "production advisories 0; 8 high dev-only advisories retained open (only semver-major downgrade 'fixes' available); no fix applied, no downgrade",
+              "evidence": "STAGE17_AUDIT_ALL_fde898f.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "G08",
+          "criterion": "model artifact pinning",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "all 323 frozen pin references verified; 100 registered entries validated, 0 violations",
+              "evidence": "STAGE17_FINAL_INTEGRITY_REVIEW_fde898f.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "G09",
+          "criterion": "dependency drift",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "OPEN_FINDING",
+          "currentObservations": [
+            {
+              "state": "OPEN",
+              "observation": "installed Next 16.2.10 vs fresh-lock 16.3.8; sharp repaired to locked 0.35.5; running service deliberately not migrated merely for tests; production audit0 does not certify installed dependencies",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json serviceDependenciesFullyLockMatched=false",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "G10",
+          "criterion": "MCP/plugin/tool authority boundaries",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Domain-level witnesses PASS; dedicated criterion mapping not established"
+        },
+        {
+          "id": "G11",
+          "criterion": "prompt injection",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Adjacent adversarial coverage exists (revenue-security-adversarial); dedicated prompt-injection criterion mapping not established"
+        },
+        {
+          "id": "G12",
+          "criterion": "archive/file safety",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Domain-level witnesses PASS; dedicated criterion mapping not established"
+        },
+        {
+          "id": "G13",
+          "criterion": "revenue security if Stage 16 exists",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "revenue-security",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "revenue-security-adversarial",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "revenue-security-mutations",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "bounded-request-body",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "bounded-file-write",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "safe-public-fetch",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "release-provenance",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "release-provenance-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-security",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-security-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-security-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "G_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "bounded-request-body",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "bounded-file-write",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "safe-public-fetch",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "release-provenance",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "release-provenance-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-security",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-security-adversarial",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-security-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "G_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "EXTERNAL_OFFICIAL",
+            "evidence": "same-day official advisory observation bound to fde898f interval (production 0 / 8 high dev-only open)",
+            "missingForWholeQualification": "running-service installed dependency certification (lock migration item)"
+          }
+        }
+      }
+    },
+    {
+      "domain": "H",
+      "label": "Data Governance / Privacy",
+      "canonicalCriteriaCount": 10,
+      "criteria": [
+        {
+          "id": "H01",
+          "criterion": "memory data classification",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory-integrity",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "H02",
+          "criterion": "retention/deletion semantics",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "memory-integrity",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "H03",
+          "criterion": "secrets separation",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "credentials never opened; audit collector excludes credential-named files (0 excluded); secrets separation maintained",
+              "evidence": "STAGE17_UNIFIED_SCOPE_CLASSIFICATION_59e83cd.json exclusionsReceipt",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "H04",
+          "criterion": "personal/private data minimization",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "unified-trace",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "H05",
+          "criterion": "raw provider/platform payload persistence",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "unified-trace",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "H06",
+          "criterion": "redaction",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "unified-trace",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "H07",
+          "criterion": "trace privacy",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "unified-trace",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "H08",
+          "criterion": "revenue PII boundaries",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "revenue-security",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "H09",
+          "criterion": "backup contents/policy",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "runtime inventory hash-only; privateFileNamesOrBodiesPersisted=false; backup contents policy maintained",
+              "evidence": "STAGE17_RUNTIME_INVENTORY_fde898f.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "H10",
+          "criterion": "connected-app data boundaries",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Domain-level witnesses PASS; dedicated criterion mapping not established"
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "memory-integrity",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "unified-trace",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "source-evidence",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "source-evidence-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-security",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "H_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "memory-integrity",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "unified-trace",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "source-evidence",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "source-evidence-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-security",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "H_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "no current live privacy review re-run; prior read-only host checks preserved",
+            "missingForWholeQualification": "current whole-domain live privacy review"
+          }
+        }
+      }
+    },
+    {
+      "domain": "I",
+      "label": "Backup / Disaster Recovery",
+      "canonicalCriteriaCount": 10,
+      "criteria": [
+        {
+          "id": "I01",
+          "criterion": "current runtime backup inventory",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "two same-day interval inventories: 2372 files / 17 projects manifest PASS (08:13UTC) and 2374 files hash-complete (06:32UTC); both preserved unreconciled",
+              "evidence": "STAGE17_RUNTIME_INVENTORY_fde898f.json + STAGE17_EXTERNAL_SCOPE_34ecb66.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "I02",
+          "criterion": "manifest verification",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "manifest validation PASS against the actual external runtime at the 08:13UTC interval",
+              "evidence": "STAGE17_RUNTIME_INVENTORY_fde898f.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Same-day interval-bound verification; runtime grows by design"
+        },
+        {
+          "id": "I03",
+          "criterion": "restore/candidate verification",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "BLOCKED_OWNER_ACTION",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+          "note": "Real-runtime restore/candidate proof requires approved live execution through designated safe gates; isolated TEMP restore 39 PASS is synthetic and never promoted"
+        },
+        {
+          "id": "I04",
+          "criterion": "path policy",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "portable-brain",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "I05",
+          "criterion": "durable recovery",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "durable-task-recovery",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "workflow-recovery",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "I06",
+          "criterion": "crash/interruption handling",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "workflow-recovery",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "I07",
+          "criterion": "recovery test freshness",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "ACTUAL_REBOOT_CONTINUITY",
+          "note": "Isolated 39 restore recent but synthetic; real-reboot recovery freshness NOT_RUN (owner)"
+        },
+        {
+          "id": "I08",
+          "criterion": "authority generation binding",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "no authority bootstrap/generation called in any audit receipt; authorityBootstrapCalled=false",
+              "evidence": "STAGE17_RUNTIME_INVENTORY_fde898f.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "I09",
+          "criterion": "old-root/quarantine/rollback semantics where applicable",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "portable-brain-mutations",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "I10",
+          "criterion": "restore test, not merely backup creation",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "BLOCKED_OWNER_ACTION",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+          "note": "A backup without a verified real restore is not a recovery PASS; synthetic isolated restore preserved as synthetic"
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "portable-brain",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "portable-brain-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "durable-task-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "execution-journal",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "workflow-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "I_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "portable-brain",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "portable-brain-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "durable-task-recovery",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "execution-journal",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "workflow-recovery",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "I_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "LIVE_READ_ONLY",
+            "evidence": "same-day runtime inventory + manifest PASS (08:13UTC) and bounded hash-only external scan (06:32UTC)",
+            "missingForWholeQualification": "real restore proof (owner/production gates)"
+          }
+        }
+      }
+    },
+    {
+      "domain": "J",
+      "label": "Runtime / Remote Access / Operability",
+      "canonicalCriteriaCount": 11,
+      "criteria": [
+        {
+          "id": "J01",
+          "criterion": "runtime composition root",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "single listener PID 3416 on :3000",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "J02",
+          "criterion": "health endpoint identity",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "BLOCKED_OWNER_ACTION",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "AUTHENTICATED_RUNTIME_IDENTITY",
+          "note": "Known bundled-instance identity issue OPEN until live proof/fix; unauthenticated 401 response is correct fail-closed behavior"
+        },
+        {
+          "id": "J03",
+          "criterion": "runtime authority root",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "ATOLYE_RUNTIME_AUTHORITY_ROOT resolves through validators; authority bounded 4 files / 11,113 bytes unchanged in the 06:32UTC interval",
+              "evidence": "STAGE17_EXTERNAL_SCOPE_34ecb66.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "J04",
+          "criterion": "scheduled tasks/autostart status",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "both hidden Scheduled Tasks Running (read-only); no reboot exercised",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "J05",
+          "criterion": "observer heartbeat",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "tasks Running fresh; LoopHEALTHY from prior receipts; dedicated heartbeat probe not re-run this session",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "J06",
+          "criterion": "access daemon",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "local login 200; access path healthy unauthenticated",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "full166 suite access-gate PASS at same source (not assigned to the J witness bucket)"
+        },
+        {
+          "id": "J07",
+          "criterion": "Cloudflare/remote access health where owner chooses to test",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "public login 200 / protected health 401; single named tunnel PID 30200; deeper tests are owner's choice",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "J08",
+          "criterion": "background process mutation accounting",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "OPEN_FINDING",
+          "currentObservations": [
+            {
+              "state": "OPEN",
+              "observation": "interval1 audit caught PROTECTED_CHANGE_UNATTRIBUTED (beforeDigest != afterDigest, attribution UNKNOWN by contract); quiescent interval2 identical; mutation surface = active brain memory writes under data/brain/Users; accounting fail-closed works; attribution debt open until bounded writer receipts exist",
+              "evidence": "STAGE17_CURRENT_AUDIT_59e83cd.json + STAGE17_CURRENT_AUDIT_59e83cd_INTERVAL2.json + STAGE17_HOST_READONLY_59e83cd.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "J09",
+          "criterion": "logs/recovery state",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Private host journals preserved outside Git; .git/info/exclude local-only; no bodies staged; logs not re-probed this session"
+        },
+        {
+          "id": "J10",
+          "criterion": "single-instance/process ownership",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "exactly one listener on :3000 (PID 3416); expectedAppCount 1",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "J11",
+          "criterion": "no hidden duplicate runtime",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "single origin + single named tunnel; no duplicate runtime found on the canonical probe surface",
+              "evidence": "STAGE17_PHONE_STABILITY_59e83cd.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "on-demand-lifecycle",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "on-demand-lifecycle-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "runtime-stability-guard",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "operation-telemetry",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "resource-occupancy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "resource-governor",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "safe-mode",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "J_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "on-demand-lifecycle",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "on-demand-lifecycle-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "runtime-stability-guard",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "operation-telemetry",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "resource-occupancy",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "resource-governor",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "safe-mode",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "J_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "LIVE_READ_ONLY",
+            "evidence": "fresh unauthenticated gate/PID/task probes; single origin/tunnel; no hidden duplicate on canonical surface",
+            "missingForWholeQualification": "authenticated runtime identity (owner)"
+          }
+        }
+      }
+    },
+    {
+      "domain": "K",
+      "label": "Production Pipeline / Storage / Media",
+      "canonicalCriteriaCount": 14,
+      "criteria": [
+        {
+          "id": "K01",
+          "criterion": "production authority generation",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Domain-level K witnesses PASS; dedicated criterion mapping not established"
+        },
+        {
+          "id": "K02",
+          "criterion": "execution gate",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Domain-level K witnesses PASS; production execution gate authority not granted"
+        },
+        {
+          "id": "K03",
+          "criterion": "durable recovery",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "production-fault-repair",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "K04",
+          "criterion": "storage relocation/cutover state",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Storage cutover to explicit-external runtime completed in prior stages and is active (external root resolves); no dedicated current witness re-run"
+        },
+        {
+          "id": "K05",
+          "criterion": "ffmpeg/ffprobe",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "golden-video-projects",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "K06",
+          "criterion": "scene-video/assembly/audio gates",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "production-quality-collector",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "youtube-ready-export",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "K07",
+          "criterion": "real-media source selection",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Real-media source selection live/E2E part requires owner/production gates"
+        },
+        {
+          "id": "K08",
+          "criterion": "media rights audit",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Media rights audit not re-run this session"
+        },
+        {
+          "id": "K09",
+          "criterion": "visual depiction/classification",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Visual depiction/classification not re-run this session"
+        },
+        {
+          "id": "K10",
+          "criterion": "director readiness",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "production-director",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "K11",
+          "criterion": "pixel-level evaluation status",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+          "note": "Pixel-level evaluation live proof owner/production-gated"
+        },
+        {
+          "id": "K12",
+          "criterion": "audio-level evaluation status",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+          "note": "Audio-level evaluation live proof owner/production-gated"
+        },
+        {
+          "id": "K13",
+          "criterion": "Wikimedia/stock-video known limitations",
+          "evidenceClass": "STATIC_SOURCE",
+          "wholeCriterionState": "PASS_DISCLOSED_LIMITATION",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "Wikimedia/stock-video known limitations documented truthfully in canonical docs",
+              "evidence": "docs/AYAS_SECURITY_SUPPLY_CHAIN.md + Stage17 audit spec mandatory-findings list",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "K14",
+          "criterion": "production E2E readiness and current smoke",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "REAL_PHONE_VOICE_MEDIA_CONTINUITY",
+          "note": "Production E2E requires existing production gates; no execute/resume authorization"
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "production-director",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "historical-storytelling",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "production-quality-gate",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "production-quality-collector",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "production-fault-repair",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "production-cost-governor",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "youtube-ready-export",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "golden-video-projects",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "K_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "production-director",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "historical-storytelling",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "production-quality-gate",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "production-quality-collector",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "production-fault-repair",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "production-cost-governor",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "youtube-ready-export",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "golden-video-projects",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "K_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "no live production E2E/media/pixel/audio evidence this session",
+            "missingForWholeQualification": "owner-approved production gate execution"
+          }
+        }
+      }
+    },
+    {
+      "domain": "L",
+      "label": "Research / Evolution / Technology Watch",
+      "canonicalCriteriaCount": 9,
+      "criteria": [
+        {
+          "id": "L01",
+          "criterion": "PC-off research recovery",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "research-source-resilience",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "L02",
+          "criterion": "source resilience",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "research-source-resilience",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "L03",
+          "criterion": "research improvement loop",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "research-improvement-loop",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "L04",
+          "criterion": "Stage 13 opportunity lifecycle",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "research-scheduler",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "L05",
+          "criterion": "Stage 14 technology watch persistence/daemon state",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "OPEN_FINDING",
+          "currentObservations": [
+            {
+              "state": "OPEN",
+              "observation": "Stage14 technology watch TEST witness PASS at same source; the persisted register/daemon follow-up remains an open mandatory finding",
+              "evidence": "Stage17 audit spec mandatory findings + STAGE17_fde898f_FULL166.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "technology-watch",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "L06",
+          "criterion": "Stage 15 controlled self-evolution status",
+          "evidenceClass": "STATIC_SOURCE",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "Stage15 controlled self-evolution CLOSED_SOURCE_COMBINED documented; witnessed at source",
+              "evidence": "STAGE15_CLOSURE.md + STAGE17_fde898f_FULL166.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "L07",
+          "criterion": "production strategy registry",
+          "evidenceClass": "STATIC_SOURCE",
+          "wholeCriterionState": "OPEN_FINDING",
+          "currentObservations": [
+            {
+              "state": "OPEN",
+              "observation": "production strategy registry empty until a reviewed strategy exists (mandatory finding preserved, not fabricated)",
+              "evidence": "Stage17 audit spec mandatory findings",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "L08",
+          "criterion": "bounded experiment policy",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "controlled-self-evolution-cycle",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "open-ended-evolution",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "L09",
+          "criterion": "owner authority remains external to research/evolution",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "owner authority remains external to research/evolution; authority NONE enforced",
+              "evidence": "STAGE17_fde898f_FULL166.json + STAGE17_OWNER_ACTION_REGISTER_59e83cd.json rule",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "research-scheduler",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "research-improvement-loop",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "research-source-resilience",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "controlled-self-evolution-cycle",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "controlled-self-evolution-artifact",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "open-ended-evolution",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "technology-watch",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "L_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "research-scheduler",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "research-improvement-loop",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "research-source-resilience",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "controlled-self-evolution-cycle",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "controlled-self-evolution-artifact",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "open-ended-evolution",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "technology-watch",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "L_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "no current live daemon/persistence state probe",
+            "missingForWholeQualification": "live persisted scheduler/watch/strategy continuity"
+          }
+        }
+      }
+    },
+    {
+      "domain": "M",
+      "label": "Developer Intelligence / Skills / Agents",
+      "canonicalCriteriaCount": 8,
+      "criteria": [
+        {
+          "id": "M01",
+          "criterion": "task classifier",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "developer-intelligence",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "M02",
+          "criterion": "Graphify evidence",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "source-evidence",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "graphify-integration",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Cross-domain witnesses (H/B) cited at criterion level"
+        },
+        {
+          "id": "M03",
+          "criterion": "skill registry",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "developer-workflow",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "M04",
+          "criterion": "Claude/Codex descriptive vs live adapter status",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "OPEN_FINDING",
+          "currentObservations": [
+            {
+              "state": "OPEN",
+              "observation": "live Claude/Codex dispatch absent; descriptive metadata and manual handoff only; documented debt, never presented as a live adapter",
+              "evidence": "Stage17 audit spec mandatory findings + STAGE17_OWNER_ACTION_REGISTER_59e83cd.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "M05",
+          "criterion": "manual handoff vs live dispatch",
+          "evidenceClass": "NONE",
+          "wholeCriterionState": "OPEN_FINDING",
+          "currentObservations": [
+            {
+              "state": "OPEN",
+              "observation": "manual handoff active; live dispatch not implemented",
+              "evidence": "Stage17 audit spec mandatory findings",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "M06",
+          "criterion": "no model-selected executable adapter",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "no model-selected executable adapter; invariant enforced and witnessed",
+              "evidence": "STAGE17_fde898f_FULL166.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "M07",
+          "criterion": "developer held-out evaluator",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "developer-intelligence",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "M08",
+          "criterion": "repository recovery behavior",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "workflow-recovery",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "workflow-store",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "developer-intelligence",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "developer-workflow",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "workflow-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "workflow-store",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "patch-artifact",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "guided-repair",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "M_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "developer-intelligence",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "developer-workflow",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "workflow-recovery",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "workflow-store",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "patch-artifact",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "guided-repair",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "M_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "no live dispatch evidence; manual handoff only",
+            "missingForWholeQualification": "live Claude/Codex dispatch implementation (open technical debt)"
+          }
+        }
+      }
+    },
+    {
+      "domain": "N",
+      "label": "Revenue Center",
+      "canonicalCriteriaCount": 9,
+      "criteria": [
+        {
+          "id": "N01",
+          "criterion": "default spend = 0",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "default spend = 0 verified at source; zero-cost-policy and revenue spend suites PASS at same source",
+              "evidence": "STAGE17_fde898f_FULL166.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "N02",
+          "criterion": "adapter transport truth",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "45 revenue-center suite witnesses PASS at same source (domain-level); adapter transport truth held at test level"
+        },
+        {
+          "id": "N03",
+          "criterion": "ledger integrity",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Ledger contract tests PASS at source (domain-level); production registry empty; real ledger integrity with real entries unproven"
+        },
+        {
+          "id": "N04",
+          "criterion": "free-first validation",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": "Free-first validation suites PASS at same source (domain-level)"
+        },
+        {
+          "id": "N05",
+          "criterion": "platform live validation levels",
+          "evidenceClass": "OWNER_ACTION_REQUIRED",
+          "wholeCriterionState": "BLOCKED_OWNER_ACTION",
+          "currentObservations": [
+            {
+              "state": "BLOCKED",
+              "observation": "production revenue registry empty; Lemon UNBOUND (owner TEST binding pending); Fiverr account/Gig OWNER_REPORTED_ONLY; no orders/revenue/ledger proof",
+              "evidence": "STAGE17_OWNER_ACTION_REGISTER_59e83cd.json",
+              "extent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": "LEMON_TEST_BINDING",
+          "note": null
+        },
+        {
+          "id": "N06",
+          "criterion": "reinvestment disabled/default",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "reinvestment disabled by default verified at source",
+              "evidence": "STAGE17_fde898f_FULL166.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "N07",
+          "criterion": "privacy/security",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "NOT_RUN",
+          "currentObservations": [],
+          "sameSourceTestWitnesses": [
+            {
+              "suite": "revenue-security",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            },
+            {
+              "suite": "revenue-security-adversarial",
+              "status": "PASS",
+              "receipt": "STAGE17_fde898f_FULL166.json",
+              "extent": "NAMED_SUITE_WITNESS_AT_IDENTICAL_SOURCE_ONLY; WHOLE_CRITERION_NOT_QUALIFIED_BY_REPRESENTATIVE_WITNESS"
+            }
+          ],
+          "ownerAction": null,
+          "note": "Partial coverage only"
+        },
+        {
+          "id": "N08",
+          "criterion": "pilot/scaling authority",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "no pilot/scaling authority granted; authority NONE",
+              "evidence": "STAGE17_EVIDENCE_REGISTRY.json authority=NONE",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "N09",
+          "criterion": "no unapproved financial/external write",
+          "evidenceClass": "DETERMINISTIC_TEST",
+          "wholeCriterionState": "PASS_DOCUMENTED_STATUS",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "no unapproved financial/external write; automated platform writes CLOSED",
+              "evidence": "STAGE17_fde898f_FULL166.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [
+        {
+          "suite": "revenue-adapter-standard",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-adapter-standard-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-account-boundary",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-account-boundary-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-spend-policy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-spend-policy-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-ledger",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-ledger-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-free-first-validation",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-free-first-validation-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-offer-factory",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-offer-factory-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-fulfillment-gate",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-fulfillment-gate-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-etsy-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-etsy-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-upwork-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-upwork-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-fiverr-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-fiverr-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "course-production-plan",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-udemy-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-udemy-course-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-lemon-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-lemon-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-reinvestment-policy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-reinvestment-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-memory",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-intelligence",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-memory-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-security",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-security-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-security-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-compliance",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-compliance-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-compliance-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-low-cost-pilot",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-low-cost-pilot-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-low-cost-pilot-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-profit-gated-scaling",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-profit-gated-scaling-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-profit-gated-scaling-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-center-closure",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-center-closure-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "suite": "revenue-center-closure-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "N_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [
+              {
+                "suite": "revenue-adapter-standard",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-adapter-standard-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-account-boundary",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-account-boundary-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-spend-policy",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-spend-policy-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-ledger",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-ledger-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-free-first-validation",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-free-first-validation-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-offer-factory",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-offer-factory-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-fulfillment-gate",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-fulfillment-gate-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-etsy-adapter",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-etsy-adapter-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-upwork-adapter",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-upwork-adapter-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-fiverr-adapter",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-fiverr-adapter-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "course-production-plan",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-udemy-adapter",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-udemy-course-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-lemon-adapter",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-lemon-adapter-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-reinvestment-policy",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-reinvestment-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-memory",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-intelligence",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-memory-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-security",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-security-adversarial",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-security-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-compliance",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-compliance-adversarial",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-compliance-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-low-cost-pilot",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-low-cost-pilot-adversarial",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-low-cost-pilot-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-profit-gated-scaling",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-profit-gated-scaling-adversarial",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-profit-gated-scaling-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-center-closure",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-center-closure-adversarial",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              },
+              {
+                "suite": "revenue-center-closure-mutations",
+                "status": "PASS",
+                "receipt": "STAGE17_fde898f_FULL166.json"
+              }
+            ],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "N_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "no live platform evidence; Lemon UNBOUND, Fiverr OWNER_REPORTED_ONLY",
+            "missingForWholeQualification": "LEMON_TEST_BINDING + FIVERR_ORDER_REVENUE_LEDGER (owner)"
+          }
+        }
+      }
+    },
+    {
+      "domain": "O",
+      "label": "Documentation / Roadmap Consistency",
+      "canonicalCriteriaCount": 6,
+      "criteria": [
+        {
+          "id": "O01",
+          "criterion": "ROADMAP status matches code/evidence",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "canonical checkpoint/result/roadmap/registry docs refreshed at current HEAD this session to match evidence",
+              "evidence": "ATOLYE_CHECKPOINT.md + ROADMAP.md + STAGE17_CURRENT_RESULT.md",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "O02",
+          "criterion": "docs do not claim a cloud fallback that code denies",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "canonical docs reviewed; no cloud-fallback claim contradicted by code; model routing docs match code per model-router witness",
+              "evidence": "docs/AYAS_MODEL_ROUTING.md + STAGE17_fde898f_FULL166.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "O03",
+          "criterion": "historical reports clearly labeled historical",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "historical reports labeled 'Historical snapshot' throughout CURRENT_RESULT/CHECKPOINT/ROADMAP structure",
+              "evidence": "STAGE17_CURRENT_RESULT.md + ATOLYE_CHECKPOINT.md",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "O04",
+          "criterion": "completed stages have closure evidence",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "completed stages have closure records (ACTIVE_CHECKPOINT stageHistory; STAGE15_CLOSURE.md; Stage16 closure docs)",
+              "evidence": "ACTIVE_CHECKPOINT.json",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "O05",
+          "criterion": "deferred work is still represented",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "deferred work explicitly represented (owner action register, open technical items, checkpoint next sections)",
+              "evidence": "STAGE17_OWNER_ACTION_REGISTER_59e83cd.json + ATOLYE_CHECKPOINT.md",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        },
+        {
+          "id": "O06",
+          "criterion": "no \"PASS\" or \"complete\" claim is based only on design files",
+          "evidenceClass": "LIVE_READ_ONLY",
+          "wholeCriterionState": "PASS_CURRENT_VERIFIED",
+          "currentObservations": [
+            {
+              "state": "PASS",
+              "observation": "no PASS/complete claim based only on design files; this matrix preserves NOT_RUN/COLLECTOR_NOT_BOUND states",
+              "evidence": "STAGE17_FOUNDATION_EVIDENCE_MATRIX_59e83cd.json invariants",
+              "extent": "WHOLE_CRITERION_DIRECTLY_VERIFIED"
+            }
+          ],
+          "sameSourceTestWitnesses": [],
+          "ownerAction": null,
+          "note": null
+        }
+      ],
+      "domainWitnesses": [],
+      "testLiveSlots": {
+        "TEST": {
+          "checkId": "O_TEST",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "DETERMINISTIC_TEST",
+            "witnesses": [],
+            "coverageExtent": "NAMED_SUITE_WITNESSES_ONLY_NOT_WHOLE_DOMAIN",
+            "sourceBinding": "same-source fde898f full166 corpus (163 PASS / 3 raw FAIL preserved)"
+          }
+        },
+        "LIVE": {
+          "checkId": "O_LIVE",
+          "canonicalState": "NOT_RUN",
+          "finding": "COLLECTOR_NOT_BOUND",
+          "scopeQualified": false,
+          "realEvidenceBinding": {
+            "class": "NONE",
+            "evidence": "final bound owner review absent",
+            "missingForWholeQualification": "FINAL_BOUND_OWNER_REVIEW (owner, after technical prerequisites)"
+          }
+        }
+      }
+    }
+  ],
+  "aggregateSlotBindings": [
+    {
+      "checkId": "A_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "A_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "LIVE_READ_ONLY"
+    },
+    {
+      "checkId": "B_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "B_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "LIVE_READ_ONLY"
+    },
+    {
+      "checkId": "C_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "C_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "D_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "D_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "E_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "E_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "LIVE_READ_ONLY"
+    },
+    {
+      "checkId": "F_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "F_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "G_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "G_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "EXTERNAL_OFFICIAL"
+    },
+    {
+      "checkId": "H_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "H_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "I_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "I_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "LIVE_READ_ONLY"
+    },
+    {
+      "checkId": "J_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "J_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "LIVE_READ_ONLY"
+    },
+    {
+      "checkId": "K_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "K_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "L_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "L_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "M_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "M_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "N_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "N_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    },
+    {
+      "checkId": "O_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "DETERMINISTIC_TEST"
+    },
+    {
+      "checkId": "O_LIVE",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "boundRealEvidenceClass": "NONE"
+    }
+  ],
+  "closureDecision": {
+    "foundationDecision": "BLOCKED",
+    "failClosed": true,
+    "technicalGatesAllPass": false,
+    "reasons": [
+      "COMBINED_CANONICAL_PROTECTED_SCOPE_NOT_QUALIFIED (PROTECTED_SCOPE_INCOMPLETE; separate intervals cannot combine)",
+      "ALL_30_TEST_LIVE_AGGREGATE_SLOTS_CANONICAL_NOT_RUN_COLLECTOR_NOT_BOUND",
+      "RETRIEVAL_GOLDEN_RAW_FAIL_PRESERVED (frozen evaluator review debt, 16 limits)",
+      "INSTALLED_RUNTIME_LOCK_MISMATCH (Next 16.2.10 vs lock 16.3.8)",
+      "PROTECTED_CHANGE_UNATTRIBUTED_IN_INTERVAL1_PRESERVED_WITH_QUIESCENT_INTERVAL2",
+      "SIX_OWNER_ONLY_ACTIONS_OPEN (see STAGE17_OWNER_ACTION_REGISTER_59e83cd.json)",
+      "FINAL_BOUND_OWNER_REVIEW_ABSENT (ownerReviewDigest=null)"
+    ],
+    "historicalEvidencePreserved": true,
+    "currentHeadQualificationSourceBound": true,
+    "graphifyBoundToHead": true,
+    "graphifyIntegrity": {
+      "duplicateNodeIds": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0
+    },
+    "noBlockerHidden": true,
+    "homepageBrainUiV2": {
+      "implementationStarted": false,
+      "boundaryReachedForHandoff": true,
+      "handoff": "STAGE17_BRAIN_UI_V2_CODEX_HANDOFF.md",
+      "note": "Brain UI V2 implementation is reserved for Codex; OpenCode stops at the boundary"
+    }
+  },
+  "grantsAuthority": false
+}

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1",
+  "operatorSourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+  "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "srcUnchangedBetweenQualifiedSourceAndOperatorHead": true,
+  "observedAt": "2026-10-07T09:50:00Z",
+  "observedAtPrecision": "MINUTE",
+  "evidenceClass": "LIVE_READ_ONLY",
+  "ollama": {
+    "status": 200,
+    "models": [
+      "qwen2.5:7b",
+      "qwen2.5:3b"
+    ],
+    "probe": "GET http://localhost:11434/api/tags",
+    "reachabilityOnlyNotInferenceComparison": true
+  },
+  "graphify": {
+    "check": "npx tsx scripts/ayas-graphify-status.ts --json",
+    "graphSource": ".graphify/graph.json",
+    "sourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "lastSeenHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "lastAnalyzedHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "graphBuiltFromHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "worktreeState": "CLEAN",
+    "stale": false,
+    "needsUpdate": false,
+    "needsUpdateFilePresent": false,
+    "structuralStatus": "PARTIAL",
+    "structuralReasons": [
+      "INCOMPLETE_CODE_FILES:9"
+    ],
+    "incompleteCodeFiles": [
+      ".github/workflows/ayas-safe-ci.yml",
+      "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "scripts/ayas-access-daemon.ps1",
+      "scripts/ayas-autonomy-daemon.ps1",
+      "scripts/register-ayas-autonomy-autostart.ps1",
+      "scripts/register-ayas-autostart.ps1",
+      "scripts/smoke-ayas-access-daemon.ps1",
+      "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "scripts/unregister-ayas-autostart.ps1"
+    ],
+    "powerShellParserGrammar": "tree-sitter-powershell NOT installed; .ps1 startup scripts have no graph nodes; review those files directly (known limitation, honestly disclosed)",
+    "semanticStatus": "PENDING",
+    "classification": "GRAPH_PARTIAL"
+  },
+  "graphIntegrity": {
+    "nodes": 19242,
+    "links": 55159,
+    "duplicateNodeIds": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "method": "direct read-only computation over .graphify/graph.json at this HEAD"
+  },
+  "protectedRootsRecentMutationSurface": {
+    "observedAt": "2026-10-07T11:21:36.1787560Z",
+    "windowHours": 2,
+    "roots": [
+      {
+        "root": "data/brain",
+        "totalFiles": 3799,
+        "modifiedInWindow": 102,
+        "topDirsModified": [
+          "Users:102"
+        ]
+      },
+      {
+        "root": "data/projects",
+        "totalFiles": 2399,
+        "modifiedInWindow": 0,
+        "topDirsModified": []
+      },
+      {
+        "root": "runtime",
+        "exists": false
+      },
+      {
+        "root": "authority",
+        "exists": false
+      },
+      {
+        "root": "projects",
+        "exists": false
+      },
+      {
+        "root": ".atolye",
+        "exists": false
+      }
+    ],
+    "interpretation": "ACTIVE_BRAIN_MEMORY_WRITES_UNDER_data/brain/Users_BY_THE_RUNNING_AYAS_SYSTEM; THIS_IS_OBSERVATIONAL_CONTEXT_NOT_ATTRIBUTION - the canonical model requires an actual bounded writer receipt digest for attribution; no private file names or bodies were read",
+    "consistentWith": "interval1 PROTECTED_CHANGE_UNATTRIBUTED finding and prior checkpoint background-journal disclosures"
+  },
+  "runtimeRootResolution": {
+    "ATOLYE_RUNTIME_ROOT": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeRuntime",
+    "ATOLYE_RUNTIME_AUTHORITY_ROOT": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeAuthority",
+    "resolutionSource": "REPO .env.local PATH VALUES ONLY; NO CREDENTIAL BODIES READ; OS ENVIRONMENT VARIABLES NOT SET IN THIS SHELL"
+  },
+  "git": {
+    "diffCheckExit": 0,
+    "porcelainLineCountBeforeEvidenceWrite": 0,
+    "aheadBehind": "0/0",
+    "branch": "wip/ayas-graphify-final-execution"
+  },
+  "grantsAuthority": false
+}
