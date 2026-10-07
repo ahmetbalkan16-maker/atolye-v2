@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "finding": "UNEXPECTED_FULL166_RESOURCE_OCCUPANCY_MUTATIONS_FAILURE",
+  "rootCause": "UNSYNCHRONIZED_FIXED_50MS_TEST_CALLBACKS_RECORD_RELEASE_BEFORE_SECOND_ASSERT",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "frozenGraderSha256": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5",
+  "productionSourceSha256": "c52a9a5c73f6117223075ec7296bf5660c74d99398c8e948ea0dca9818b5fec8",
+  "rawFailure": {
+    "suite": "resource-occupancy-mutations",
+    "phase": "UNCHANGED_BASELINE_PRECONDITION_BEFORE_MUTANTS",
+    "assertion": "1 !== 2",
+    "scenario": 5,
+    "line": 175,
+    "canonicalRawFailurePreserved": true
+  },
+  "diagnostic": {
+    "file": "STAGE17_OCCUPANCY_RACE_DIAGNOSTIC_34ecb66.json",
+    "sha256": "f8cf17f871e0959b621fdef22021f945ce87098a6f33d8a22085cc6951279cf2",
+    "sourceUnchanged": true,
+    "uncoordinatedNoGap": 5,
+    "staggeredSameFailure": 5,
+    "barrierDiagnosticPass": 10,
+    "qualifiesCanonicalGrader": false
+  },
+  "proposedCorrection": {
+    "file": "STAGE17_OCCUPANCY_BARRIER_REVIEW_34ecb66.md",
+    "status": "OWNER_OVERRIDE_PENDING",
+    "canonicalGraderEdited": false,
+    "pinsEdited": false,
+    "fixturesEdited": false,
+    "expectationsWeakened": false,
+    "productionBehaviorDelayAdded": false
+  },
+  "stageAdvancement": "BLOCKED",
+  "ownerReviewReady": false,
+  "grantsAuthority": false,
+  "unchangedCanonicalReplay": {
+    "file": "STAGE17_OCCUPANCY_UNCHANGED_REPLAY_34ecb66.json",
+    "exit": 0,
+    "mutationControlsCaught": "45/45",
+    "supersedesFull166RawFailure": false
+  }
+}

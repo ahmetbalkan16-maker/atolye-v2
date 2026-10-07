@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "observedAt": "2026-10-07T06:46:15.656Z",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "fixture": "REAL_HOSTED_UBUNTU_NODE24_NAMED_CI_GATES_ONLY",
+  "run": {
+    "id": 37579834830,
+    "url": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37579834830",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "rawGate": {
+    "exit": 1,
+    "gateFailures": [
+      "IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
+    ],
+    "reportSha256": "b3100757d206ce9c995e49ffdafd74012480da7229e0e001ef6be1a7e91e8b67",
+    "preserved": true
+  },
+  "originalRawReview": {
+    "status": "PASS",
+    "sameOriginalRawDigestVerified": true,
+    "fixtureDigest": "81cbd81eba4b1fd92ac6f142efb4d74e3bd9ba2996165c3497940aa775a8c198",
+    "remainingKnownLimitations": 16
+  },
+  "cf49": {
+    "status": "CLOSED_PASS",
+    "boundedScope": "CF49_BOUNDED_COMPUTER_PURCHASE_READER_ONLY",
+    "suites": 12,
+    "frozenPinsUnchanged": true
+  },
+  "artifactFiles": [
+    {
+      "source": "frozen.json",
+      "file": "STAGE17_HOSTED_RAW_34ecb66.json",
+      "sha256": "b3100757d206ce9c995e49ffdafd74012480da7229e0e001ef6be1a7e91e8b67"
+    },
+    {
+      "source": "original-review.json",
+      "file": "STAGE17_HOSTED_REVIEW_34ecb66.json",
+      "sha256": "59c14ef8b881b113a915b7bcda35d0f7bcd2898b8ce6ce0e7318d0072b49895f"
+    },
+    {
+      "source": "closure.json",
+      "file": "STAGE17_HOSTED_CF49_34ecb66.json",
+      "sha256": "c4b297c003a022791b34511cadd73e9356c8144a8bd5c9cca6cab2d93302cab2"
+    }
+  ],
+  "archiveDigestFromGitHubApi": "sha256:56d6d6f2bf01de39d40c3c5b6527d839614c9d791023c0a45a47353a3896ad3c",
+  "archiveDigestIndependentlyVerified": false,
+  "foundationClosed": false,
+  "authenticatedRuntimeQualified": false,
+  "grantsAuthority": false
+}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "observedAt": "2026-10-07T07:21:06.102Z",
+  "checkedEntries": 69,
+  "directByteDigestsVerified": 65,
+  "new34ecb66DirectDigestViolations": 0,
+  "historicalFindings": [
+    {
+      "file": "STAGE17_36e794f_FULL166.json",
+      "declaredCanonicalSha256": "7c84e598ecd572a731e00e541139741c9460b10e66998e5baeb9b0e3ce71a074",
+      "actualCapturedByteSha256": "795d7f63711d07bd54b30e9e18563d15b55a17856ba5f25b36e367d1035a63be",
+      "recordedOriginalCaptureSha256": "795d7f63711d07bd54b30e9e18563d15b55a17856ba5f25b36e367d1035a63be",
+      "originalCaptureBytesVerified": true,
+      "recomputedUtf8JsonLfSha256": "795d7f63711d07bd54b30e9e18563d15b55a17856ba5f25b36e367d1035a63be",
+      "canonicalShaMatches": false,
+      "sourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "classification": "HISTORICAL_REGISTRY_DIGEST_BASIS_MISMATCH_ORIGINAL_CAPTURE_INTACT",
+      "frozenBodyChanged": false,
+      "frozenEntryShaOverwritten": false
+    },
+    {
+      "file": "STAGE17_AUDIT_PRODUCTION_36e794f.json",
+      "declaredCanonicalSha256": "202f8300b78e42316551b7a7de29aa0e855d43c0d704c0dc7ebca37ddeca2e19",
+      "actualCapturedByteSha256": "e0ff594193a47bb43cb1848cf21c3bbce65d14b28eedd7531eef655dfe0bf78d",
+      "recordedOriginalCaptureSha256": "e0ff594193a47bb43cb1848cf21c3bbce65d14b28eedd7531eef655dfe0bf78d",
+      "originalCaptureBytesVerified": true,
+      "recomputedUtf8JsonLfSha256": "9422f8d8490999861b46064f0133952bff00d4186cc9f194554ece69f856eac1",
+      "canonicalShaMatches": false,
+      "sourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "classification": "HISTORICAL_REGISTRY_DIGEST_BASIS_MISMATCH_ORIGINAL_CAPTURE_INTACT",
+      "frozenBodyChanged": false,
+      "frozenEntryShaOverwritten": false
+    },
+    {
+      "file": "STAGE17_AUDIT_ALL_36e794f.json",
+      "declaredCanonicalSha256": "0bfa5c8a82a8358a41087dc4172bb6da83f4e386eb8d9eacbac37191a438ea49",
+      "actualCapturedByteSha256": "69d9c35d5bbb4c411645a90e0aaf90bf9eed44bb260359e0a9af4e727778f4f0",
+      "recordedOriginalCaptureSha256": "69d9c35d5bbb4c411645a90e0aaf90bf9eed44bb260359e0a9af4e727778f4f0",
+      "originalCaptureBytesVerified": true,
+      "recomputedUtf8JsonLfSha256": "52586c6c0ef141dd4d8d60fdcceb557cc618d86077aef0ef07ed792cab2ba919",
+      "canonicalShaMatches": false,
+      "sourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "classification": "HISTORICAL_REGISTRY_DIGEST_BASIS_MISMATCH_ORIGINAL_CAPTURE_INTACT",
+      "frozenBodyChanged": false,
+      "frozenEntryShaOverwritten": false
+    },
+    {
+      "file": "STAGE17_SANITY_ACCESS_GATE_36e794f.json",
+      "declaredCanonicalSha256": "19e8b98833a9e4a06b83c07ad4f3279c38bbb1a6143875ae507140b8828be028",
+      "actualCapturedByteSha256": "c55edc17a318a3f6fd6c666dbfacbac8172dbc512c51308c11fbe15ee38cf381",
+      "recordedOriginalCaptureSha256": "c55edc17a318a3f6fd6c666dbfacbac8172dbc512c51308c11fbe15ee38cf381",
+      "originalCaptureBytesVerified": true,
+      "recomputedUtf8JsonLfSha256": "c55edc17a318a3f6fd6c666dbfacbac8172dbc512c51308c11fbe15ee38cf381",
+      "canonicalShaMatches": false,
+      "sourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "classification": "HISTORICAL_REGISTRY_DIGEST_BASIS_MISMATCH_ORIGINAL_CAPTURE_INTACT",
+      "frozenBodyChanged": false,
+      "frozenEntryShaOverwritten": false
+    }
+  ],
+  "status": "NEW_SOURCE_RECEIPTS_VERIFIED_HISTORICAL_CANONICAL_SHA_BASIS_REVIEW_OPEN",
+  "allEvidenceIntegrityClosed": false,
+  "rawFull166DigestVerified": true,
+  "frozenPinsVerified": "323_REFERENCES_214_UNIQUE_ZERO_DRIFT",
+  "grantsAuthority": false
+}

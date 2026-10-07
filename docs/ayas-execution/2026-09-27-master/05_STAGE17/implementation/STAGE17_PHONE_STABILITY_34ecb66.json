@@ -1,0 +1,33 @@
+{
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "operatorHead": "6bd32b9afd48a8658ee5af62cc2de78d321dab71",
+  "observedAt": "2026-10-07T07:12:24.0065685Z",
+  "fixture": "ACTUAL_HOST_UNAUTHENTICATED_READ_ONLY_CANONICAL_PROBES",
+  "snapshot": {
+    "origin": "healthy",
+    "listenerPid": 3416,
+    "wrapperPid": 440,
+    "tunnel": "healthy",
+    "tunnelPid": 30200,
+    "expectedAppCount": 1,
+    "expectedTunnelCount": 1
+  },
+  "localGateHealthy": true,
+  "publicGateHealthy": true,
+  "publicLoginStatus": 200,
+  "publicProtectedHealthStatus": 401,
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running"
+    }
+  ],
+  "ownerPhoneEvidence": "OWNER_REPORTED_PHONE_LOGIN_REACHABLE",
+  "authenticatedRuntimeQualified": false,
+  "actualRebootTest": "NOT_RUN",
+  "grantsAuthority": false
+}

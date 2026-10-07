@@ -1,0 +1,18 @@
+{
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "fixture": "UNCHANGED_CANONICAL_SUITE_SEPARATE_TEMP_REPLAY_NOT_FULL166_REPLACEMENT",
+  "startedAt": "2026-10-07T07:03:35.188Z",
+  "completedAt": "2026-10-07T07:04:45.408Z",
+  "exit": 0,
+  "error": null,
+  "stdoutSha256": "a6dcbf9f7ad08a08e8bd3e3bdde76c0b099fc4dba26dfdcf9602bf4176625be4",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "outputTail": [
+    "CAUGHT discovery ignores the shared inventory",
+    "CAUGHT status read prunes without being asked",
+    "Stage15Q resource occupancy mutation audit: PASS (45/45 caught)"
+  ],
+  "canonicalRawFull166FailurePreserved": true,
+  "frozenFilesChanged": false,
+  "grantsAuthority": false
+}

@@ -1,0 +1,464 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "observedAt": "2026-10-07T06:55:53.663Z",
+  "scope": "EXACT_SOURCE_COMPONENT_WITNESSES_NOT_WHOLE_DOMAIN_OR_AUTHORITY",
+  "freshBuild": {
+    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "startedAt": "2026-10-07T06:39:32.458Z",
+    "completedAt": "2026-10-07T06:40:10.721Z",
+    "fixture": "FRESH_LOCK_TEMP_NO_CREDENTIAL_ENV_NO_SERVER_STARTED",
+    "buildExit": 0,
+    "buildError": null,
+    "bundle": {
+      "exit": 0,
+      "stdout": "Production runtime health bundle: PASS",
+      "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "authenticatedRuntimeQualified": false,
+    "grantsAuthority": false
+  },
+  "supplemental": {
+    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "fixture": "DETERMINISTIC_TEMP_OR_SYNTHETIC_NO_REAL_PHONE_NO_RUNTIME_AUTHENTICATION_NO_CREDENTIAL_ENV",
+    "results": [
+      {
+        "script": "scripts/smoke-production-runtime-health-api.ts",
+        "scriptSha256": "320dd74b1cc5728c3ae6d8da8e97132e831f400ec20782c0eef812c54f8df704",
+        "startedAt": "2026-10-07T06:42:39.878Z",
+        "completedAt": "2026-10-07T06:42:41.307Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "1d77df62aa48a59da519506324d4cfbcb5b1be38a2ecb2788277cdda305d6ce2",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "Sprint 112 production runtime health API smoke: PASS (25/25 scenarios)"
+      },
+      {
+        "script": "scripts/smoke-production-runtime-health-response.ts",
+        "scriptSha256": "7051c1feb98949efbb2c97c485a92c1283b001fa850a8adb3bef323276f984da",
+        "startedAt": "2026-10-07T06:42:41.308Z",
+        "completedAt": "2026-10-07T06:42:41.982Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "d411d6bd28f3d1accedc9f133dbda4a471bd3bcb57f3bac403e592e92c759e74",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "{\"status\":\"PASS\",\"suite\":\"production-runtime-health-response\",\"scenarios\":20,\"fixture\":\"SYNTHETIC_SNAPSHOT_NO_LIVE_RUNTIME_OR_AUTHORITY\"}"
+      },
+      {
+        "script": "scripts/smoke-production-runtime-health-response-mutations.ts",
+        "scriptSha256": "f939f616bef665df7e4ad89eb089b9816f4bc9f7b0b269854003eed98c0f6219",
+        "startedAt": "2026-10-07T06:42:41.982Z",
+        "completedAt": "2026-10-07T06:42:45.489Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "a0f8ae28de5340be495eb2d4b886f6bfadaf3bae708df5b4ff8d67e8cc53d912",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "{\"status\":\"PASS\",\"suite\":\"production-runtime-health-response-mutations\",\"controls\":5,\"assertionCaught\":5,\"originalSourceUnchanged\":true,\"fixture\":\"OWNED_TEMP_ONLY_NO_RUNTIME_AUTHORITY_OR_CREDENTIAL_ENV\"}"
+      },
+      {
+        "script": "scripts/smoke-ayas-system-audit-protection.ts",
+        "scriptSha256": "4ba47b27d32902d59304a4e2e43e96c9bb592731a2e34eea57bae068ea63d490",
+        "startedAt": "2026-10-07T06:42:45.489Z",
+        "completedAt": "2026-10-07T06:42:46.961Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "d1c60ceed28d102bbafa43339513a43b0f5ad27dca4114de11c4b2240db930ea",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "{\"status\":\"PASS\",\"primary\":14,\"held\":6,\"heldSha256\":\"dbc02353c8022cfd3fd51462ebbe07d830f79bc84cb10ab13bdd45eb9d4dc323\",\"fixture\":\"TEMP_HASH_ONLY_NO_AUTHORITY_OR_CREDENTIAL_BODY\",\"results\":[{\"id\":\"P01\",\"ok\":true},{\"id\":\"P02\",\"ok\":true},{\"id\":\"P03\",\"ok\":true},{\"id\":\"P04\",\"ok\":true},{\"id\":\"P05\",\"ok\":true},{\"id\":\"P06\",\"ok\":true},{\"id\":\"P07\",\"ok\":true},{\"id\":\"P08\",\"ok\":true},{\"id\":\"P09\",\"ok\":true},{\"id\":\"P10\",\"ok\":true},{\"id\":\"P11\",\"ok\":true},{\"id\":\"P12\",\"ok\":true},{\"id\":\"P13\",\"ok\":true},{\"id\":\"P14\",\"ok\":true},{\"id\":\"H01\",\"ok\":true},{\"id\":\"H02\",\"ok\":true},{\"id\":\"H03\",\"ok\":true},{\"id\":\"H04\",\"ok\":true},{\"id\":\"H05\",\"ok\":true},{\"id\":\"H06\",\"ok\":true}]}"
+      },
+      {
+        "script": "scripts/smoke-ayas-phone-access-health.ts",
+        "scriptSha256": "203f50014294293d71533d2a4cb1f12a9ed646881496d20a87cdce75de40c66f",
+        "startedAt": "2026-10-07T06:42:46.961Z",
+        "completedAt": "2026-10-07T06:42:47.607Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "f982f29ff0be4efb7d6f17e06649debf400d846e452acdf1b3fbe4e180382aa9",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS phone access health smoke: PASS (13 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-access-health\",\"scenarios\":13}"
+      },
+      {
+        "script": "scripts/smoke-ayas-phone-runtime.ts",
+        "scriptSha256": "fe099d6d3705e7e1fc7efbfb45a12c1b2bd73897423368510e010efa468b1b86",
+        "startedAt": "2026-10-07T06:42:47.608Z",
+        "completedAt": "2026-10-07T06:42:48.194Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "38f7604350f6e4a9c0f27955137188a236f3526e537a5d50aecd72e8615e7fe4",
+        "stderrDigest": "b961548d335a597a6d06d1fe36794847be28b4486b9eae524a38a00dae1a05fc",
+        "outputTail": "AYAS phone runtime smoke: PASS (42 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-runtime\",\"scenarios\":42}"
+      },
+      {
+        "script": "scripts/smoke-ayas-mobile-voice-regression.ts",
+        "scriptSha256": "8cf96ed26f5f2d85bec9d65ef8d7a7215408302bca1beca66195d33bed8de67f",
+        "startedAt": "2026-10-07T06:42:48.194Z",
+        "completedAt": "2026-10-07T06:42:48.827Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "af6f5dd8a6c190c495d6ccb1aa23a610c67496538d31904dcc976095d318f29f",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS mobile voice regression smoke: PASS (36 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-mobile-voice-regression\",\"scenarios\":36}"
+      },
+      {
+        "script": "scripts/smoke-ayas-voice.ts",
+        "scriptSha256": "16b405d8c9133b8ac08a64d374b577ea04f24b6eb3d0f3b648446144237603af",
+        "startedAt": "2026-10-07T06:42:48.827Z",
+        "completedAt": "2026-10-07T06:42:49.460Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "99e533eb7d86b25fc310ebd7072042a03b8f076ccc1f1ed653637639c580794b",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS voice smoke: PASS (79 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-voice\",\"scenarios\":79}"
+      },
+      {
+        "script": "scripts/smoke-ayas-stt.ts",
+        "scriptSha256": "d053c567b416ef742a9e3ea152d1d5a36606c8cc8cf707edebad6efe08f57bc1",
+        "startedAt": "2026-10-07T06:42:49.460Z",
+        "completedAt": "2026-10-07T06:42:49.958Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "141b21c202240d7f8f97335fca983a128aad8e220e8d58dfbf50b36123625d17",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "SKIP real integration (AYAS_WHISPER_EXECUTABLE=unset, model=unset, config.enabled=false)\nAYAS STT smoke: PASS (17 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-stt\",\"scenarios\":17}"
+      },
+      {
+        "script": "scripts/smoke-ayas-stt-security.ts",
+        "scriptSha256": "fd5f11273490edb03b5e21b11742974fc8007eee01f2f773762669876a3e7807",
+        "startedAt": "2026-10-07T06:42:49.958Z",
+        "completedAt": "2026-10-07T06:42:50.821Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "169e14b9fe7097fcd305b5ed6f63ab887e7d8adbb3eedec96e6a545984c6fc0c",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS STT security smoke: PASS (7 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-stt-security\",\"scenarios\":7}"
+      },
+      {
+        "script": "scripts/smoke-ayas-wake-runner.ts",
+        "scriptSha256": "bbb2b9ef1350465bcb5368a640dfce9e85e8bd01cab25077d20edd1bd57a3c72",
+        "startedAt": "2026-10-07T06:42:50.821Z",
+        "completedAt": "2026-10-07T06:42:51.800Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "ab4bc714e42306b94edee884fd921869340710ceb44d279a305cc25ac2de00fa",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "SKIP real-ONNX integration (bin/piper, ffmpeg, or public/wake/ayas.onnx absent)\nAYAS wake runner smoke: PASS (15 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-wake-runner\",\"scenarios\":15}"
+      },
+      {
+        "script": "scripts/smoke-ayas-wake-multi-model.ts",
+        "scriptSha256": "d423f4da7483de092ec3ee3467f030451968cbb8d39587fa8034200e821ee8a8",
+        "startedAt": "2026-10-07T06:42:51.800Z",
+        "completedAt": "2026-10-07T06:42:56.150Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "29885b14263a64d967bf6deb11aaa85b670c950297a6e4eb99a095fa43e08a83",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS wake multi-model smoke: PASS (8 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-wake-multi-model\",\"scenarios\":8}"
+      },
+      {
+        "script": "scripts/smoke-ayas-wake-adapter.ts",
+        "scriptSha256": "f530623efe23a2e4b51aa6615875c1d2cb457285056b90dc19e2964233128b75",
+        "startedAt": "2026-10-07T06:42:56.150Z",
+        "completedAt": "2026-10-07T06:44:12.473Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "8fd2c5ab02a582f223d90631d78950716588073ab6f57c159292493a8cb3d998",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS wake adapter smoke: PASS (54 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-wake-adapter\",\"scenarios\":54}"
+      },
+      {
+        "script": "scripts/smoke-ayas-phone-llm-precache.ts",
+        "scriptSha256": "d20ea125df26402c925869f80e5f7413069d8e1dad10a6cef72981ad5021c2ae",
+        "startedAt": "2026-10-07T06:44:12.473Z",
+        "completedAt": "2026-10-07T06:44:15.984Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "143088f1a3c22f2e377559ca213a062f01fa3ebe8a5082ebb9ebc8a91c28b194",
+        "stderrDigest": "cec4009fbaac4a5ed44514cedf365c3c5086cf7fe6fefb0fa50545dfc150c038",
+        "outputTail": "[ayas phone-llm] idb: \"onnx/model_q4f16.onnx\" verified and marked complete (8392929 bytes, 2 chunks)\nAYAS phone LLM precache smoke: PASS (23 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-precache\",\"scenarios\":23}"
+      },
+      {
+        "script": "scripts/smoke-ayas-phone-llm-range-diagnostic.ts",
+        "scriptSha256": "d87bd03a3335b5a210ba044fcc7730066636516b574cf71c66fcdd56805b09fe",
+        "startedAt": "2026-10-07T06:44:15.984Z",
+        "completedAt": "2026-10-07T06:44:16.677Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "c1d6e261a1230d21b5bb6051c49224ca603e1582abc31ad2fe61119467e6355f",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS phone LLM Range diagnostic smoke: PASS (8 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-range-diagnostic\",\"scenarios\":8}"
+      },
+      {
+        "script": "scripts/smoke-ayas-phone-llm-diagnostic-tests.ts",
+        "scriptSha256": "259337f1cf047fabc7521e62285567a923efb64e449105ce48f7e77cf06fe6da",
+        "startedAt": "2026-10-07T06:44:16.677Z",
+        "completedAt": "2026-10-07T06:44:18.291Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "a50c69db5896aca600195b4d6c7617f8b8de773cf78697063fcc6d2712d49c6b",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS phone LLM diagnostic-tests smoke: PASS (5 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-diagnostic-tests\",\"scenarios\":5}"
+      },
+      {
+        "script": "scripts/smoke-ayas-phone-llm-idb-storage.ts",
+        "scriptSha256": "57990b5edde89aa2ea5321140c5e62045d148ea6181c1e7d8d42c2f471ad2a61",
+        "startedAt": "2026-10-07T06:44:18.291Z",
+        "completedAt": "2026-10-07T06:44:18.765Z",
+        "exit": 0,
+        "error": null,
+        "stdoutDigest": "248f226483f47edd4559fc04227bc05e89ba729b23fd26bffe6df3228c99cc10",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "outputTail": "AYAS phone LLM IndexedDB storage smoke: PASS (13 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-phone-llm-idb-storage\",\"scenarios\":13}"
+      }
+    ],
+    "livePhoneOrAuthenticatedRuntimeQualified": false,
+    "grantsAuthority": false
+  },
+  "runtimeInventory": {
+    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "evidenceClass": "LIVE_READ_ONLY",
+    "startedAt": "2026-10-07T06:42:55.539Z",
+    "completedAt": "2026-10-07T06:42:59.343Z",
+    "grantsAuthority": false,
+    "status": "PASS_INVENTORY_ONLY",
+    "runtimeClassification": "explicit-external",
+    "projectsRoot": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeRuntime\\projects",
+    "authorityRoot": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeAuthority",
+    "inventory": {
+      "files": 2372,
+      "bytes": 611011778,
+      "projects": 17,
+      "tracked": 0,
+      "untracked": 2372,
+      "classifications": {
+        "project-metadata": 32,
+        "pipeline-state": 24,
+        "ai-usage": 13,
+        "asset-metadata": 9,
+        "generated-asset": 271,
+        "acceptance-marker": 10,
+        "durable-execution": 1856,
+        "legacy-project-file": 100,
+        "other-runtime": 57
+      }
+    },
+    "aggregateFingerprint": "1278386829fa86d6721a7a5f2130fed39251f850dec951616d4a13ce012e47ca",
+    "restoreQualified": false,
+    "backupCreated": false,
+    "authorityBootstrapCalled": false
+  },
+  "ollama": {
+    "operatorHead": "6bd32b9afd48a8658ee5af62cc2de78d321dab71",
+    "observedAt": "2026-10-07T06:47:39.0881939Z",
+    "evidenceClass": "LIVE_READ_ONLY",
+    "status": 200,
+    "models": [
+      {
+        "name": "qwen2.5:7b",
+        "size": 4683087332,
+        "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e"
+      },
+      {
+        "name": "qwen2.5:3b",
+        "size": 1929912432,
+        "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b"
+      }
+    ],
+    "inferenceRun": false,
+    "grantsAuthority": false
+  },
+  "machineObservation": {
+    "sourceHead": "6bd32b9afd48a8658ee5af62cc2de78d321dab71",
+    "observedAt": "2026-10-07T06:46:54.352Z",
+    "host": {
+      "totalMemoryBytes": 34033348608,
+      "freeMemoryBytes": 16966062080,
+      "logicalProcessors": 32,
+      "processor": "13th Gen Intel(R) Core(TM) i9-13900"
+    },
+    "platformEnvPresenceOnly": [],
+    "mainModules": {
+      "next": "16.2.10",
+      "sharp": "0.35.5"
+    },
+    "modelInferenceRun": false,
+    "authenticatedRuntimeIdentity": "OWNER_ACTION_REQUIRED",
+    "grantsAuthority": false
+  },
+  "revenue": {
+    "schemaVersion": "1",
+    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "evidenceClass": "STATIC_SOURCE",
+    "observedAt": "2026-10-07T06:48:31.747Z",
+    "codeOwnedProductionAdapterRegistryEmpty": true,
+    "lemonDefaultApprovalClosed": true,
+    "transportConnected": "UNBOUND",
+    "fiverr": "OWNER_REPORTED_ACCOUNT_IDENTITY_GIG_NO_ORDER_REVENUE_LEDGER_PROOF",
+    "lemon": "UNBOUND_ACTUAL_TEST_CONNECTION_AND_DURABLE_INGRESS_NOT_QUALIFIED",
+    "externalCalls": 0,
+    "credentialValuesReadOrPrinted": false,
+    "sourceDigests": [
+      {
+        "file": "src/lib/ayas/revenue/AyasRevenuePlatformRegistry.ts",
+        "sha256": "1555f8c91e9255e69b45f1f18cd0915db9064662295756ed46610811dddf7e41"
+      },
+      {
+        "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonSqueezyAdapter.ts",
+        "sha256": "fab388e95b4dbb1a05e2365607c92ef895309115b2175335f4f0b4c9f0300370"
+      },
+      {
+        "file": "src/lib/ayas/revenue/adapters/fiverr/AyasFiverrOwnerFacts.ts",
+        "sha256": "383cec756385c77d903a7f17cce6674c8c725101a4127b91a2397c3acd56243e"
+      }
+    ],
+    "grantsAuthority": false
+  },
+  "runtimeBackupTest": {
+    "status": "PASS_39_ISOLATED_SCENARIOS",
+    "initialAttempt": "FIXTURE_PRECONDITION_MISSING_IGNORED_PRODUCTION_ACCEPTANCE_SENTINEL_ENOENT",
+    "fixture": "SEPARATE_CREDENTIAL_FREE_EXACT_SOURCE_TEMP_CLONE",
+    "sentinel": {
+      "synthetic": true,
+      "ignored": true,
+      "productionAccepted": false,
+      "grantsAuthority": false,
+      "purpose": "HASH_BEFORE_AFTER_PRECONDITION_ONLY_NOT_REAL_PRODUCTION_ACCEPTANCE"
+    },
+    "graderChanged": false,
+    "frozenFixtureChanged": false,
+    "productionProviderWorkerCalls": 0,
+    "liveProductionBackupCreated": false,
+    "liveProductionRestoreQualified": false,
+    "output": "PASS empty tree inventory is deterministic\r\nPASS multi-project binary zero-byte nested and Git metadata inventory\r\nPASS same byte tree on another root has identical aggregate\r\nPASS manifest is exact and Windows-portable\r\nPASS runtime authority persists across restart and relocation and differs independently\r\nPASS malformed authority marker fails closed\r\nPASS v3 backup path policy enforces exact UTF-16 UTF-8 and portable boundaries\r\nPASS manifest v1 remains old-policy-bound and v3 identity is explicit\r\nPASS public inventory cannot select, downgrade, or expose a raw verifier scan\r\nPASS v2 materialization budget accepts 259 and rejects 260 UTF-16\r\nPASS source exports no general create facade or scoped mutation handle\r\nPASS forged publication inputs are absent and failed atomic create has zero residue\r\nPASS strict DTO rejects proxy accessor prototype symbol and exotic objects before mutation\r\nPASS symlink or junction in source fails closed\r\nPASS source mutation during hash and unreadable hook propagate\r\nPASS source partial verified final publish succeeds\r\nPASS strict DTO rejects exotic same-authority restore requests\r\nPASS same-authority restore binds runtime and project while portable verification stays unbound\r\nPASS existing v1 backup verifies and restores under the legacy 180/240 contract\r\nPASS backup target validation and overwrite are fail closed\r\nPASS two processes with different markers publish one same-id winner without overwrite\r\nPASS failed or tampered copy never publishes a final backup\r\nPASS destination parent link swap fails and leaves no outside bytes\r\nPASS partial directory is never accepted as a valid backup\r\nPASS payload layout manifest and digest tampering fail closed\r\nPASS exact temp restore preserves marker metadata binary and durable files\r\nPASS restore missing extra modified and nonempty targets fail closed\r\nPASS restore destination link swap fails and leaves no outside bytes\r\nPASS post-publication cleanup faults remove operation-owned final and all residues\r\nPASS manifest and digest write faults fail before publication with zero residue\r\nPASS transient operation-created container cleanup failure retries to zero residue\r\nPASS post-publication standalone verification failure removes owned final\r\nPASS controlled child-process barrier source drift blocks publication with zero residue\r\nPASS restore cleanup faults remove materialized tree lock and container\r\nPASS exact 190-character production shape inventories creates verifies and restores\r\nPASS audio-compensation journal-staging partial files are excluded from backup while permanent records and the general length ceiling stay enforced\r\nPASS project-level backup remains reusable\r\nPASS independent exact 259 public chain passes and 260 rejects before mutation\r\nPASS manifest digest is deterministic and production boundary remains closed\r\nSprint 129.25C.1 runtime backup smoke: PASS (39 scenarios; production-provider-worker-calls=0)\r\n"
+  },
+  "artifacts": [
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\NPM_CI.log",
+      "bytes": 29,
+      "sha256": "b5ac0210731d15ee6e945302626ad1ad56f64143ff63e557db13a67fb24c3b7c"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\TSC.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\LINT.log",
+      "bytes": 2628,
+      "sha256": "8d060723138496f1dc9e78b665394dea479b63c578d072155443af98f847e42e"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\FRESH_BUILD.log",
+      "bytes": 245140,
+      "sha256": "31cfc3c017e2095a27c8166e97da4ed60be512cda618af55d63abe43edfcafe1"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\FRESH_HEALTH_BUNDLE.log",
+      "bytes": 39,
+      "sha256": "8509e7b0ec22b3082892ba930141daea5bc7ac6d55c05cd5a69b0cf1ffcebc55"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\BACKUP_RESTORE_TEST.log",
+      "bytes": 1606,
+      "sha256": "69882d19809a6099f28018d8d650169ba7ea05ffd6d4290bc4f3c3c29b8e46f4"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\BACKUP_RESTORE_ISOLATED.log",
+      "bytes": 2946,
+      "sha256": "054fbf16ffaffd952fa78d8a79403fdb2018cac8f199e12aca1df952ad2705a2"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\RUNTIME_INVENTORY.json",
+      "bytes": 1144,
+      "sha256": "04f0647adc38e47887dd1f8da353f12151db6561d29c0a70642707a7680ecd38"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\OLLAMA_READONLY.json",
+      "bytes": 558,
+      "sha256": "02fa749be9a86062609f122129b22b97cc39bc8420d3e54f364971236c65c73c"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\HOST_FACTS.json",
+      "bytes": 500,
+      "sha256": "21f8b50cc2139ba1bac9dc510bc0c469899b4b3b26d6daf79e24871610826607"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\REVENUE_STATE.json",
+      "bytes": 1083,
+      "sha256": "ecfcf747bd400b2047ce2f41f682f749af697d9a897b356373c097fbedadfb26"
+    },
+    {
+      "temporaryFile": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-codex-34ecb66-20261007\\ACCESS_DAEMON_SMOKE.log",
+      "bytes": 1963,
+      "sha256": "9dcf82cd464e54b97867f80a787a61cc2beec7259f055e43fc83bd43a334d8a2"
+    }
+  ],
+  "productionAudit": {
+    "file": "STAGE17_AUDIT_PRODUCTION_34ecb66.json",
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "scope": "FRESH_LOCK_PRODUCTION_DEPENDENCIES_ONLY_NOT_INSTALLED_MAIN_RUNTIME"
+  },
+  "allDependencyAudit": {
+    "file": "STAGE17_AUDIT_ALL_34ecb66.json",
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 8,
+      "critical": 0,
+      "total": 8
+    },
+    "disposition": "EIGHT_HIGH_DEV_ONLY_OPEN_NO_AUDIT_FIX_OR_SEMVER_MAJOR_DOWNGRADE"
+  },
+  "fullDomainQualification": false,
+  "authenticatedRuntimeQualified": false,
+  "foundationClosed": false,
+  "grantsAuthority": false,
+  "observerAutostart": {
+    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "scriptSha256": "0e8d23bfadbd402b11b45167ad557e43975eb3596682a6dbc7798fb0d9be39a9",
+    "startedAt": "2026-10-07T06:58:50.733Z",
+    "completedAt": "2026-10-07T06:59:18.567Z",
+    "exit": 0,
+    "error": null,
+    "fixture": "ACTUAL_WINDOWS_UNIQUE_TEMP_TASK_NAMES_AND_STARTUP_DIRS_NOT_CANONICAL_TASK_ACTIVATION",
+    "stdoutSha256": "abdff7cdb9624647012b40d8f4e899158ff8d0cc5f0239ade9869e2ef21c7b9f",
+    "stderrSha256": "3593c8e7270765ad75bbf48f2b097fc4172ae3fb22bd803b914c0b7532f511f2",
+    "outputTail": "PASS 35: unregister removes whichever mechanism is installed (dry-run first, then -Apply, then idempotent re-run)\nAYAS observer autostart smoke: PASS (35 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-observer-autostart\",\"scenarios\":35}",
+    "canonicalTasksBefore": [
+      {
+        "name": "AYAS Access Online",
+        "state": "Running",
+        "xmlSha256": "3a80ab819ddc11081a909eb1fef9667a8a3f985843067c09f762c9b7e2cea59b"
+      },
+      {
+        "name": "AYAS Autonomy Observer",
+        "state": "Running",
+        "xmlSha256": "4b77d8edced037be090b041fd93e6062fc78bf3b3e1ff7f42395c1c4c4e026a0"
+      }
+    ],
+    "canonicalTasksAfter": [
+      {
+        "name": "AYAS Access Online",
+        "state": "Running",
+        "xmlSha256": "3a80ab819ddc11081a909eb1fef9667a8a3f985843067c09f762c9b7e2cea59b"
+      },
+      {
+        "name": "AYAS Autonomy Observer",
+        "state": "Running",
+        "xmlSha256": "4b77d8edced037be090b041fd93e6062fc78bf3b3e1ff7f42395c1c4c4e026a0"
+      }
+    ],
+    "canonicalTaskDefinitionsUnchanged": true,
+    "actualRebootTest": "NOT_RUN",
+    "grantsAuthority": false,
+    "testTaskResidues": 0,
+    "testTaskResiduesObservedAt": "2026-10-07T07:05:55.938Z"
+  }
+}

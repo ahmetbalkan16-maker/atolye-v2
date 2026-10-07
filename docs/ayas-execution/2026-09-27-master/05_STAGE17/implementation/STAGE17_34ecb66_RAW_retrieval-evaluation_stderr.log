@@ -1,0 +1,13 @@
+FAIL (12 gate failure(s))
+  - IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS
+  - IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS

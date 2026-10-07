@@ -1,0 +1,459 @@
+{
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "fixture": "OWNED_TEMP_IMPORTS_UNCHANGED_SOURCE_NO_MODELS_PRODUCTION_OR_CANONICAL_GRADER_EDITS",
+  "canonicalRawFailureStillPreserved": true,
+  "diagnosticOnly": true,
+  "results": [
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 0,
+      "launchGapMs": 0,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "PASS"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 580.6755,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 580.9733,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 637.7639,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 638.0099,
+          "records": 2
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 1,
+      "launchGapMs": 0,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "PASS"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 645.7613,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 646.3548,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 701.3904,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 701.5119,
+          "records": 2
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 2,
+      "launchGapMs": 0,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "PASS"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 707.1939,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 709.5055,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 764.219,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 764.3354,
+          "records": 2
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 3,
+      "launchGapMs": 0,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "PASS"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 769.809,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 772.3799,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 827.8787,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 827.991,
+          "records": 2
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 4,
+      "launchGapMs": 0,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "PASS"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 833.7204,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 835.7688,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 891.0396,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 891.1819,
+          "records": 2
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 5,
+      "launchGapMs": 20,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "Expected values to be strictly equal:\n\n1 !== 2\n"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 897.0448,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 928.2039,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 957.6553,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 989.9938,
+          "records": 1
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 6,
+      "launchGapMs": 20,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "Expected values to be strictly equal:\n\n1 !== 2\n"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 998.188,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 1027.1845,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 1053.8054,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 1085.7714,
+          "records": 1
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 7,
+      "launchGapMs": 20,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "Expected values to be strictly equal:\n\n1 !== 2\n"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 1092.9935,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 1121.9814,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 1149.1602,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 1180.9872,
+          "records": 1
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 8,
+      "launchGapMs": 20,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "Expected values to be strictly equal:\n\n1 !== 2\n"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 1187.1066,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 1217.5195,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 1244.0447,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 1275.8406,
+          "records": 1
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "UNCOORDINATED_50MS_DIAGNOSTIC_REPRO_NOT_FROZEN_SUITE",
+      "iteration": 9,
+      "launchGapMs": 20,
+      "peak": 2,
+      "outcomes": [
+        "PASS",
+        "Expected values to be strictly equal:\n\n1 !== 2\n"
+      ],
+      "events": [
+        {
+          "label": "first",
+          "event": "entered",
+          "at": 1282.9009,
+          "records": 1
+        },
+        {
+          "label": "second",
+          "event": "entered",
+          "at": 1313.5168,
+          "records": 2
+        },
+        {
+          "label": "first",
+          "event": "check",
+          "at": 1338.9271,
+          "records": 2
+        },
+        {
+          "label": "second",
+          "event": "check",
+          "at": 1370.4726,
+          "records": 1
+        }
+      ],
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 0,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 1,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 2,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 3,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 4,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 5,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 6,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 7,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 8,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    },
+    {
+      "kind": "SEPARATE_BARRIER_DIAGNOSTIC_NOT_CANONICAL_GRADER",
+      "iteration": 9,
+      "status": "PASS",
+      "peak": 2,
+      "checked": 2,
+      "residues": 0
+    }
+  ],
+  "grantsAuthority": false
+}

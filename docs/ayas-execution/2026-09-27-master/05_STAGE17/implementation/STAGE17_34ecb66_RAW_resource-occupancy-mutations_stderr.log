@@ -1,0 +1,44 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 2
+
+    at stage (C:\Users\Metod\AppData\Local\Temp\ayas-occupancy-audit-gHhOfj\scripts\smoke-ayas-resource-occupancy.ts:175:158)
+    at async withAyasProductionStageOccupancy (C:\Users\Metod\AppData\Local\Temp\ayas-occupancy-audit-gHhOfj\src\lib\ayas\machine\AyasResourceOccupancy.ts:164:12)
+    at async Promise.all (index 1)
+    at async <anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-occupancy-audit-gHhOfj\scripts\smoke-ayas-resource-occupancy.ts:176:22)
+    at async scenario (C:\Users\Metod\AppData\Local\Temp\ayas-occupancy-audit-gHhOfj\scripts\smoke-ayas-resource-occupancy.ts:52:3)
+    at async main (C:\Users\Metod\AppData\Local\Temp\ayas-occupancy-audit-gHhOfj\scripts\smoke-ayas-resource-occupancy.ts:164:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 2,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+
+1 !== 0
+
+    at fs (C:\Users\Metod\AppData\Local\Temp\ayas-eval-baseline-redZZP\repo\scripts\smoke-ayas-resource-occupancy-mutations.ts:80:34)
+    at Object.<anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-eval-baseline-redZZP\repo\scripts\smoke-ayas-resource-occupancy-mutations.ts:93:1)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object.transformer (C:\Users\Metod\AppData\Local\Temp\ayas-codex-34ecb66-20261007\repo\node_modules\tsx\dist\register-BoI6-WNn.cjs:9:3252)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

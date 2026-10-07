@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "observedAt": "2026-10-07T07:14:22.954Z",
+  "receipt": "STAGE17_34ecb66_FULL166.json",
+  "receiptSha256": "b3b5a425ee4bbc6d252386c8082ff9a10d67d88019d55f8c5246fd7ff49048f0",
+  "manifestVersion": "15F.4-v56",
+  "manifestDigest": "3805ea89a22ee19a0f40b810f582cb16f22b120cbc41a5c6b87a6d26a9f0a458",
+  "selectedSuites": 166,
+  "declaredSuites": 166,
+  "completeDeclaredBaseline": true,
+  "passed": 162,
+  "failed": [
+    "retrieval-evaluation",
+    "golden-vault-run",
+    "golden-sandbox-run",
+    "resource-occupancy-mutations"
+  ],
+  "rawOutcome": "FAIL",
+  "rawRetrieval": {
+    "requests": [
+      "IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
+    ],
+    "reviewOfSameOriginalHostedRaw": "PASS",
+    "remainingKnownLimits": 16,
+    "expectationsChanged": false
+  },
+  "golden": {
+    "decision": "PROMOTION_STOPPED",
+    "soleFailingCase": "golden.memory.retrieval-evaluation",
+    "sandboxTimedOut": false,
+    "pinsUnchanged": true
+  },
+  "newFailure": {
+    "suite": "resource-occupancy-mutations",
+    "finding": "STAGE17_OCCUPANCY_FINDING_34ecb66.json",
+    "rootCause": "50MS_GRADER_CALLBACK_LIFETIME_RACE",
+    "unchangedReplay": "STAGE17_OCCUPANCY_UNCHANGED_REPLAY_34ecb66.json",
+    "rawFailureNotErased": true,
+    "canonicalCorrection": "OWNER_OVERRIDE_PENDING"
+  },
+  "rawFailureArtifacts": [
+    {
+      "suite": "retrieval-evaluation",
+      "stream": "stdout",
+      "file": "STAGE17_34ecb66_RAW_retrieval-evaluation_stdout.log",
+      "bytes": 1063,
+      "sha256": "21f1795694af989750baf5e057cdaa424d5bc0a8d6966da539c61cca3b10943b",
+      "originalCaptureSha256": "21f1795694af989750baf5e057cdaa424d5bc0a8d6966da539c61cca3b10943b",
+      "captureBytes": 1063,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    },
+    {
+      "suite": "retrieval-evaluation",
+      "stream": "stderr",
+      "file": "STAGE17_34ecb66_RAW_retrieval-evaluation_stderr.log",
+      "bytes": 985,
+      "sha256": "c03ed8ba7d022a3dec2950cd3b8788469518c0d34aeaae75535515c941bc3bb3",
+      "originalCaptureSha256": "c03ed8ba7d022a3dec2950cd3b8788469518c0d34aeaae75535515c941bc3bb3",
+      "captureBytes": 985,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    },
+    {
+      "suite": "golden-vault-run",
+      "stream": "stdout",
+      "file": "STAGE17_34ecb66_RAW_golden-vault-run_stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalCaptureSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "captureBytes": 0,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    },
+    {
+      "suite": "golden-vault-run",
+      "stream": "stderr",
+      "file": "STAGE17_34ecb66_RAW_golden-vault-run_stderr.log",
+      "bytes": 2440,
+      "sha256": "c95b81848d0be0a565a224be0e2c22371769f4938eef077e7057aeb53e8b2234",
+      "originalCaptureSha256": "82fdad8dcb5215d9cc3e8d9e77655ceba1fcf92fc3227a70ed9ed3789de6ebfe",
+      "captureBytes": 2476,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    },
+    {
+      "suite": "golden-sandbox-run",
+      "stream": "stdout",
+      "file": "STAGE17_34ecb66_RAW_golden-sandbox-run_stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalCaptureSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "captureBytes": 0,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    },
+    {
+      "suite": "golden-sandbox-run",
+      "stream": "stderr",
+      "file": "STAGE17_34ecb66_RAW_golden-sandbox-run_stderr.log",
+      "bytes": 614,
+      "sha256": "f1a7c7d7fa7f7d147f6e826bc72d33dc51aa1cc635ce0f44de5d40f5407aebe1",
+      "originalCaptureSha256": "f1a7c7d7fa7f7d147f6e826bc72d33dc51aa1cc635ce0f44de5d40f5407aebe1",
+      "captureBytes": 614,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    },
+    {
+      "suite": "resource-occupancy-mutations",
+      "stream": "stdout",
+      "file": "STAGE17_34ecb66_RAW_resource-occupancy-mutations_stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalCaptureSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "captureBytes": 0,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    },
+    {
+      "suite": "resource-occupancy-mutations",
+      "stream": "stderr",
+      "file": "STAGE17_34ecb66_RAW_resource-occupancy-mutations_stderr.log",
+      "bytes": 2099,
+      "sha256": "0e0120d04d89dd21739a97520c3884d124331082facf26b73d928c1d98253220",
+      "originalCaptureSha256": "431838a201e1fa28e376319555ed975386473f4c30bd4e31ccce95aa7531c4b1",
+      "captureBytes": 2143,
+      "canonicalEncoding": "UTF8_LF",
+      "originalRawDigestMatchesFull166Trial": true
+    }
+  ],
+  "fixtureRoot": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-eval-baseline-redZZP",
+  "full166AllGreen": false,
+  "foundationClosed": false,
+  "homepageBoundaryReached": false,
+  "grantsAuthority": false,
+  "canonicalRawLogs": "UTF8_LF_PER_EXISTING_ATTRIBUTES_ORIGINAL_CAPTURE_HASHES_AND_TEMP_BYTES_PRESERVED"
+}
