@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1",
+  "reviewOperatorHead": "096381113716dbd80efa0f1bd31c0a5df7b61d22",
+  "qualifiedSourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "historicalEvidenceSource": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+  "observedAt": "2026-10-07T07:58:17.935Z",
+  "status": "PASS_ALL_FOUR_LEGACY_CANONICAL_AND_CAPTURE_DIGESTS_VERIFIED",
+  "canonicalBasis": {
+    "encoding": "UTF8_JSON",
+    "decodeCaptureBom": true,
+    "objectKeys": "RECURSIVELY_SORTED",
+    "arrays": "ORIGINAL_ORDER",
+    "serialization": "COMPACT_JSON_STRINGIFY_NO_INDENT_NO_FINAL_NEWLINE",
+    "normalization": "JSON_SEMANTIC_NOT_PRETTY_PRINT_FILE_BYTE_DIGEST"
+  },
+  "priorFinding": "STAGE17_REGISTRY_VALIDATION_34ecb66.json",
+  "correction": "Earlier byte/pretty-JSON verifier wrongly treated semantic canonical digest as a file/pretty-JSON digest. Earlier finding snapshot remains preserved;this review corrects that assumption.",
+  "rows": [
+    {
+      "file": "STAGE17_36e794f_FULL166.json",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "recordedCanonicalSha256": "7c84e598ecd572a731e00e541139741c9460b10e66998e5baeb9b0e3ce71a074",
+      "recomputedCanonicalSha256": "7c84e598ecd572a731e00e541139741c9460b10e66998e5baeb9b0e3ce71a074",
+      "canonicalDigestVerified": true,
+      "recordedCaptureByteSha256": "795d7f63711d07bd54b30e9e18563d15b55a17856ba5f25b36e367d1035a63be",
+      "recomputedCaptureByteSha256": "795d7f63711d07bd54b30e9e18563d15b55a17856ba5f25b36e367d1035a63be",
+      "originalCaptureDigestVerified": true,
+      "originalTempFile": "C:/Users/Metod/AppData/Local/Temp/opencode/stage17-36e794f-qual/full166-36e794f.json",
+      "canonicalCaptureByteIdenticalToOriginalTemp": true,
+      "historicalFileOrShaFieldModified": false
+    },
+    {
+      "file": "STAGE17_AUDIT_PRODUCTION_36e794f.json",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "recordedCanonicalSha256": "202f8300b78e42316551b7a7de29aa0e855d43c0d704c0dc7ebca37ddeca2e19",
+      "recomputedCanonicalSha256": "202f8300b78e42316551b7a7de29aa0e855d43c0d704c0dc7ebca37ddeca2e19",
+      "canonicalDigestVerified": true,
+      "recordedCaptureByteSha256": "e0ff594193a47bb43cb1848cf21c3bbce65d14b28eedd7531eef655dfe0bf78d",
+      "recomputedCaptureByteSha256": "e0ff594193a47bb43cb1848cf21c3bbce65d14b28eedd7531eef655dfe0bf78d",
+      "originalCaptureDigestVerified": true,
+      "originalTempFile": "C:/Users/Metod/AppData/Local/Temp/opencode/stage17-36e794f-qual/audit-production.json",
+      "canonicalCaptureByteIdenticalToOriginalTemp": true,
+      "historicalFileOrShaFieldModified": false
+    },
+    {
+      "file": "STAGE17_AUDIT_ALL_36e794f.json",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "recordedCanonicalSha256": "0bfa5c8a82a8358a41087dc4172bb6da83f4e386eb8d9eacbac37191a438ea49",
+      "recomputedCanonicalSha256": "0bfa5c8a82a8358a41087dc4172bb6da83f4e386eb8d9eacbac37191a438ea49",
+      "canonicalDigestVerified": true,
+      "recordedCaptureByteSha256": "69d9c35d5bbb4c411645a90e0aaf90bf9eed44bb260359e0a9af4e727778f4f0",
+      "recomputedCaptureByteSha256": "69d9c35d5bbb4c411645a90e0aaf90bf9eed44bb260359e0a9af4e727778f4f0",
+      "originalCaptureDigestVerified": true,
+      "originalTempFile": "C:/Users/Metod/AppData/Local/Temp/opencode/stage17-36e794f-qual/audit-all.json",
+      "canonicalCaptureByteIdenticalToOriginalTemp": true,
+      "historicalFileOrShaFieldModified": false
+    },
+    {
+      "file": "STAGE17_SANITY_ACCESS_GATE_36e794f.json",
+      "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
+      "recordedCanonicalSha256": "19e8b98833a9e4a06b83c07ad4f3279c38bbb1a6143875ae507140b8828be028",
+      "recomputedCanonicalSha256": "19e8b98833a9e4a06b83c07ad4f3279c38bbb1a6143875ae507140b8828be028",
+      "canonicalDigestVerified": true,
+      "recordedCaptureByteSha256": "c55edc17a318a3f6fd6c666dbfacbac8172dbc512c51308c11fbe15ee38cf381",
+      "recomputedCaptureByteSha256": "c55edc17a318a3f6fd6c666dbfacbac8172dbc512c51308c11fbe15ee38cf381",
+      "originalCaptureDigestVerified": true,
+      "originalTempFile": "C:/Users/Metod/AppData/Local/Temp/opencode/stage17-36e794f-qual/sanity-access-gate.json",
+      "canonicalCaptureByteIdenticalToOriginalTemp": true,
+      "historicalFileOrShaFieldModified": false
+    }
+  ],
+  "historicalCanonicalShaConflicts": 0,
+  "originalCaptureDrift": 0,
+  "frozenFieldsChanged": false,
+  "foundationClosed": false,
+  "grantsAuthority": false
+}

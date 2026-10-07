@@ -1,0 +1,543 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "operatorHead": "096381113716dbd80efa0f1bd31c0a5df7b61d22",
+  "observedAt": "2026-10-07T08:39:19.539Z",
+  "status": "PASS_ALL_REGISTERED_ARTIFACTS_AND_APPROVED_PIN_SCOPE",
+  "registryDigestBeforeAddingSelf": "f4e9b9e014a33a44099ceecfc780a193f70d2cf4ebbb61b5762b7922e7f442c6",
+  "validatedEntries": 100,
+  "violations": 0,
+  "legacyCanonicalRows": 4,
+  "legacyScopeDefinedBy": "STAGE17_REGISTRY_CANONICAL_BASIS_REVIEW_fde898f.json",
+  "entries": [
+    {
+      "file": "CF49_CLOSURE.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_SELECTED_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_GOLDEN_VAULT_RAW_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_GOLDEN_SANDBOX_RAW_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOST_READONLY_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_LOOP_HEALTH_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_RESOURCES_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_GRAPHIFY_SOURCE_6a9f49e.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "HOSTED_CI_FROZEN_RAW_dea169f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "HOSTED_CI_ORIGINAL_REVIEW_dea169f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "HOSTED_CI_CF49_CLOSURE_dea169f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "CF49_CLOSURE_dea169f_LOCAL.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_dea169f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_CI_dea169f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_GRAPHIFY_SOURCE_dea169f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_SELECTED_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_STATIC_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_LOCAL_PROTECTION_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_NATIVE_WINDOWS_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_PLATFORM_TESTS_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_BACKUP_RESTORE_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_REAL_MEDIA_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_MEDIA_BINARIES_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_WORKER_READONLY_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOST_READONLY_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_RESOURCE_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_GRAPHIFY_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_ADVISORY_BEFORE_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_DEPENDENCY_CANDIDATE_979f12a.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_36e794f_FULL166.json",
+      "basis": "LEGACY_FOUR_RECURSIVELY_SORTED_COMPACT_UTF8_NO_FINAL_NEWLINE",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_AUDIT_PRODUCTION_36e794f.json",
+      "basis": "LEGACY_FOUR_RECURSIVELY_SORTED_COMPACT_UTF8_NO_FINAL_NEWLINE",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_AUDIT_ALL_36e794f.json",
+      "basis": "LEGACY_FOUR_RECURSIVELY_SORTED_COMPACT_UTF8_NO_FINAL_NEWLINE",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_SANITY_ACCESS_GATE_36e794f.json",
+      "basis": "LEGACY_FOUR_RECURSIVELY_SORTED_COMPACT_UTF8_NO_FINAL_NEWLINE",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HANDOFF_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_PHONE_REPAIR_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_SECRET_SCAN_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_EXTERNAL_SCOPE_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_FULL166.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_FULL166_RUN.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_NPM_CI.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_golden-sandbox-run_stderr.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_golden-sandbox-run_stdout.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_golden-vault-run_stderr.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_golden-vault-run_stdout.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_resource-occupancy-mutations_stderr.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_resource-occupancy-mutations_stdout.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_retrieval-evaluation_stderr.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_34ecb66_RAW_retrieval-evaluation_stdout.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_AUDIT_ALL_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_AUDIT_PRODUCTION_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_CF49_34ecb66_LOCAL.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_COMPONENTS_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_DOMAIN_SCOPE_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_DOMAIN_SCOPE_34ecb66.md",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_FINAL_SECRET_SCAN_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_FULL166_QUALIFICATION_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_CF49_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_CI_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_RAW_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_REVIEW_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_OCCUPANCY_BARRIER_REVIEW_34ecb66.md",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_OCCUPANCY_FINDING_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_OCCUPANCY_RACE_DIAGNOSTIC_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_OCCUPANCY_UNCHANGED_REPLAY_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_OWNER_REVIEW_PREREQUISITES_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_PHONE_STABILITY_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_POST_REPAIR_SECRET_SCAN_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_REGISTRY_VALIDATION_34ecb66.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_OCCUPANCY_BARRIER_APPROVED.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_BARRIER_CANDIDATE_TESTS.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_BARRIER_GRAPH_REVIEW.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_REGISTRY_CANONICAL_BASIS_REVIEW_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_CI_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_RAW_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_REVIEW_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_HOSTED_CF49_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_CF49_fde898f_LOCAL.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_PHONE_STABILITY_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_RUNTIME_INVENTORY_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_AUDIT_PRODUCTION_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_AUDIT_ALL_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_FULL166.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_FULL166_RUN.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_NPM_CI.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_FULL166_QUALIFICATION_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_DOMAIN_SCOPE_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_DOMAIN_SCOPE_fde898f.md",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_OWNER_REVIEW_PREREQUISITES_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_RAW_retrieval-evaluation_stdout.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_RAW_retrieval-evaluation_stderr.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_RAW_golden-vault-run_stdout.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_RAW_golden-vault-run_stderr.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_RAW_golden-sandbox-run_stdout.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_fde898f_RAW_golden-sandbox-run_stderr.log",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    },
+    {
+      "file": "STAGE17_FINAL_SECRET_SCAN_fde898f.json",
+      "basis": "CANONICAL_CAPTURE_FILE_BYTES",
+      "status": "PASS"
+    }
+  ],
+  "manifest": {
+    "version": "15F.4-v57",
+    "fileByteSha256": "35434c51a4704ab7e9937f35ae7a093c0fa3cf622b6656e6e89f5e131b38fba4",
+    "runnerCompactJsonDigest": "40160af1e7ac2868b405b89a74976a91e496da14772aba65e32c73f77b5e84b9",
+    "pinReferences": 323,
+    "uniquePinnedFiles": 214,
+    "pinViolations": 0,
+    "changedReferences": [
+      {
+        "suite": "resource-occupancy",
+        "file": "scripts/smoke-ayas-resource-occupancy.ts",
+        "before": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5",
+        "after": "dba38d133bafe71d56147d907f0ae840905fc1d67290fd8424958c4e129574ba"
+      },
+      {
+        "suite": "resource-occupancy-mutations",
+        "file": "scripts/smoke-ayas-resource-occupancy.ts",
+        "before": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5",
+        "after": "dba38d133bafe71d56147d907f0ae840905fc1d67290fd8424958c4e129574ba"
+      }
+    ],
+    "unchangedUniqueFiles": 213,
+    "v56ArchiveByteIdenticalTo34": true,
+    "v56ArchiveSha256": "eec834808b24815b634faa17b94430942814f22da1248d68373d9cf51c1118ce"
+  },
+  "prior34Full166ByteDigestUnchanged": true,
+  "newFull166CaptureByteDigest": "d4632dd05ee5233db72a9276963f861a353707ab2cb4c709f607f41f4021616d",
+  "noWholeDomainClosureImplied": true,
+  "grantsAuthority": false
+}

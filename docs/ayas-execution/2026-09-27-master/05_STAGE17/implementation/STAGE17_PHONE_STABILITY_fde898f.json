@@ -1,0 +1,35 @@
+{
+  "operatorSourceHead": "096381113716dbd80efa0f1bd31c0a5df7b61d22",
+  "qualifiedTestSource": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "observedAt": "2026-10-07T08:06:38.5341088Z",
+  "fixture": "ACTUAL_HOST_UNAUTHENTICATED_READ_ONLY_CANONICAL_PROBES",
+  "snapshot": {
+    "origin": "healthy",
+    "listenerPid": 3416,
+    "wrapperPid": 440,
+    "tunnel": "healthy",
+    "tunnelPid": 30200,
+    "expectedAppCount": 1,
+    "expectedTunnelCount": 1
+  },
+  "localGateHealthy": true,
+  "publicGateHealthy": true,
+  "publicLoginStatus": 200,
+  "publicProtectedHealthStatus": 401,
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running"
+    }
+  ],
+  "ownerPhoneEvidence": "OWNER_REPORTED_PHONE_LOGIN_REACHABLE",
+  "authenticatedRuntimeQualified": false,
+  "actualRebootTest": "NOT_RUN",
+  "serviceDependenciesFullyLockMatched": false,
+  "oldRepairReceipt": "STAGE17_PHONE_REPAIR_34ecb66.json",
+  "grantsAuthority": false
+}

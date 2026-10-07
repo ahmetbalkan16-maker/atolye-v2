@@ -13,9 +13,9 @@
     "qualification": "SUCCESS_NAMED_HOSTED_GATES_ONLY",
     "frozenGraderAndPinsChanged": false,
     "grantsAuthority": false,
-    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
-    "run": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37579834830",
-    "receipt": "05_STAGE17/implementation/STAGE17_HOSTED_CI_34ecb66.json",
+    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "run": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37588433930",
+    "receipt": "05_STAGE17/implementation/STAGE17_HOSTED_CI_fde898f.json",
     "rawGateExit": 1,
     "originalRawGatePreserved": true,
     "originalRawReview": "PASS",
@@ -343,7 +343,7 @@
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
   "nextAction": "Await new durable exactfde898f v57 full166,verify source/completeness/failures;preserve34ecb66 raw162PASS4FAIL;then register exact-source evidence and continue canonical domain/protected/live/owner prerequisites.No homepage.",
-  "updatedAt": "2026-10-07T07:45:20.301Z",
+  "updatedAt": "2026-10-07T07:59:41.127Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -3996,44 +3996,48 @@
   },
   "stage17": {
     "currentVerification": {
-      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
       "result": "05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md",
       "registry": "05_STAGE17/implementation/STAGE17_EVIDENCE_REGISTRY.json",
-      "framework": "151_PRIMARY_30_HELD_30_ADVERSARIAL_9_MUTATIONS_PASS",
-      "firewall": "12_PASS_UNCHANGED_FROZEN_GRADER",
-      "operatorBoundary": "10_PASS",
-      "cf49": "CLOSED_PASS_BOUNDED_READER_ONLY",
-      "foundation": "BLOCKED_PROTECTED_SCOPE_INCOMPLETE_DOMAIN_LIVE_QUALIFICATION_MISSING",
+      "full166": {
+        "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+        "manifest": "15F.4-v57",
+        "state": "COMPLETE_RAW_FAIL_KNOWN_THREE",
+        "receipt": "STAGE17_fde898f_FULL166.json",
+        "qualification": "STAGE17_FULL166_QUALIFICATION_fde898f.json",
+        "selectedSuites": 166,
+        "declaredSuites": 166,
+        "completeDeclaredBaseline": true,
+        "passed": 163,
+        "failed": [
+          "retrieval-evaluation",
+          "golden-vault-run",
+          "golden-sandbox-run"
+        ],
+        "rawOutcome": "FAIL",
+        "full166AllGreen": false,
+        "prior34RawReportPreserved": true
+      },
+      "framework": "SYSTEM_AUDIT_PRIMARY_ADVERSARIAL_MUTATIONS_PASS_IN_CURRENT_FULL166",
       "sourcePresent": 15,
       "aggregateTestLiveNotRun": 30,
-      "selectedSourceIsFull166Baseline": false,
-      "golden": "RAW_PROMOTION_STOPPED_PRESERVED",
-      "historicalFieldsBelow": "INITIAL_71b53b_FRAMEWORK_EVIDENCE_NOT_CURRENT_QUALIFICATION",
-      "homepageBoundaryReached": false,
-      "homepageImplementation": "NOT_STARTED",
       "latestReadonlyAudit": {
-        "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-        "receipt": "STAGE17_CURRENT_AUDIT_dea169f.json",
+        "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+        "receipt": "STAGE17_CURRENT_AUDIT_fde898f.json",
         "closure": "BLOCKED",
-        "protectedFiles": 5409,
-        "exclusions": {
-          "credentialFiles": 0,
-          "sizeOrByteBudgetFiles": 1586,
-          "linkOrSpecialEntries": 0,
-          "depthOrFileLimitStops": 0,
-          "unreadableRoots": 0
-        },
-        "measuredDigestUnchanged": true,
+        "localComplete": true,
         "complete": false,
-        "fullDomainsQualified": false
+        "externalRuntimeQualified": false
       },
       "hostedCi": {
-        "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
-        "receipt": "STAGE17_HOSTED_CI_dea169f.json",
+        "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+        "receipt": "STAGE17_HOSTED_CI_fde898f.json",
         "conclusion": "SUCCESS_NAMED_GATES_ONLY",
-        "rawFrozenGate": "FAIL_EXIT1_PRESERVED_EXACT12_REVIEWED",
-        "foundationClosed": false
-      }
+        "rawFrozenGate": "FAIL_EXIT1_PRESERVED_EXACT12_REVIEWED"
+      },
+      "foundation": "BLOCKED_PROTECTED_SCOPE_INCOMPLETE_DOMAIN_LIVE_QUALIFICATION_MISSING",
+      "homepageBoundaryReached": false,
+      "homepageImplementation": "NOT_STARTED"
     },
     "at": "2026-10-05T06:14:06.564Z",
     "state": "FRAMEWORK_VERIFIED_FOUNDATION_BLOCKED_LIVE_OWNER_QUALIFICATION_OPEN",
@@ -4858,7 +4862,47 @@
     },
     "foundationClosure": "BLOCKED",
     "protectedCompleteScope": false,
-    "next": "QUALIFY_STAGE17_FOUNDATION_FIRST_NO_MASTER_ADVANCEMENT_OR_HOMEPAGE_IMPLEMENTATION"
+    "next": "Continue Stage17 with the bounded combined protected-scope integration review (STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md), preserve default fail-closed collector/frozen graders/pins, then qualify all152 criteria and30 TEST/LIVE slots through exact-source evidence. Authenticated current runtime, real phone voice/continuity, Lemon TEST binding, Fiverr order/revenue/ledger and final digest-bound owner review remain separately unqualified. Do not migrate running dependencies merely for tests; no production execute/restore/financial writes, no homepage implementation.",
+    "historicalVerificationBefore20261007": {
+      "sourceHead": "6a9f49efa6c1246e6391ea4533d0e77170255a4d",
+      "result": "05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md",
+      "registry": "05_STAGE17/implementation/STAGE17_EVIDENCE_REGISTRY.json",
+      "framework": "151_PRIMARY_30_HELD_30_ADVERSARIAL_9_MUTATIONS_PASS",
+      "firewall": "12_PASS_UNCHANGED_FROZEN_GRADER",
+      "operatorBoundary": "10_PASS",
+      "cf49": "CLOSED_PASS_BOUNDED_READER_ONLY",
+      "foundation": "BLOCKED_PROTECTED_SCOPE_INCOMPLETE_DOMAIN_LIVE_QUALIFICATION_MISSING",
+      "sourcePresent": 15,
+      "aggregateTestLiveNotRun": 30,
+      "selectedSourceIsFull166Baseline": false,
+      "golden": "RAW_PROMOTION_STOPPED_PRESERVED",
+      "historicalFieldsBelow": "INITIAL_71b53b_FRAMEWORK_EVIDENCE_NOT_CURRENT_QUALIFICATION",
+      "homepageBoundaryReached": false,
+      "homepageImplementation": "NOT_STARTED",
+      "latestReadonlyAudit": {
+        "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+        "receipt": "STAGE17_CURRENT_AUDIT_dea169f.json",
+        "closure": "BLOCKED",
+        "protectedFiles": 5409,
+        "exclusions": {
+          "credentialFiles": 0,
+          "sizeOrByteBudgetFiles": 1586,
+          "linkOrSpecialEntries": 0,
+          "depthOrFileLimitStops": 0,
+          "unreadableRoots": 0
+        },
+        "measuredDigestUnchanged": true,
+        "complete": false,
+        "fullDomainsQualified": false
+      },
+      "hostedCi": {
+        "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
+        "receipt": "STAGE17_HOSTED_CI_dea169f.json",
+        "conclusion": "SUCCESS_NAMED_GATES_ONLY",
+        "rawFrozenGate": "FAIL_EXIT1_PRESERVED_EXACT12_REVIEWED",
+        "foundationClosed": false
+      }
+    }
   },
   "cf49Review": {
     "entryHead": "2e250cf3fbec608970dd601a513359aa3478f191",
@@ -5068,7 +5112,7 @@
       "finding": "05_STAGE17/implementation/STAGE17_OCCUPANCY_FINDING_34ecb66.json",
       "rootCause": "UNSYNCHRONIZED_50MS_FROZEN_GRADER_RECORD_RELEASE_RACE",
       "unchangedReplay": "45/45_MUTANTS_CAUGHT_PASS_DOES_NOT_ERASE_FULL166_FAIL",
-      "correction": "OWNER_APPROVED_IMPLEMENTED_CANDIDATE_VALIDATED_NEW_CLEAN_QUALIFICATION_PENDING",
+      "correction": "RESOLVED_ON_FDE898F_ONLY_12_SCENARIOS_45_CONTROLS_UNCHANGED_OLD162_4_PRESERVED",
       "graderFixturePinSourceEdits": "ONLY_APPROVED_SINGLE_GRADER_TWO_PIN_REFERENCES_V57_V56_ARCHIVE_NO_FIXTURE_MUTATOR_PRODUCTION_CHANGE",
       "implementation": "05_STAGE17/implementation/STAGE17_OCCUPANCY_BARRIER_APPROVED.json"
     },
@@ -5086,30 +5130,33 @@
     },
     "homepageBoundary": "NOT_REACHED",
     "homepageImplementation": "NOT_STARTED",
-    "next": "Review explicit owner exception for frozen resource-occupancy.ts line175 synchronization correction. Raw exact34ecb66 full166 complete162 PASS/4 FAIL must remain unchanged. If approved, validate strengthened barrier/all45 controls, archive v56 and update only affected pins, then fresh-lock new-source qualification. If not approved, retain blocker. Continue reviewed canonical combined protection and all152 domain criteria/30 TEST-LIVE bindings; authenticated runtime, real platform/device evidence and final bound owner review remain separate. No homepage implementation.",
+    "next": "Continue Stage17 with the bounded combined protected-scope integration review (STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md), preserve default fail-closed collector/frozen graders/pins, then qualify all152 criteria and30 TEST/LIVE slots through exact-source evidence. Authenticated current runtime, real phone voice/continuity, Lemon TEST binding, Fiverr order/revenue/ledger and final digest-bound owner review remain separately unqualified. Do not migrate running dependencies merely for tests; no production execute/restore/financial writes, no homepage implementation.",
     "evidenceIntegrityReview": {
-      "receipt": "STAGE17_REGISTRY_VALIDATION_34ecb66.json",
-      "currentSourceReceiptDigestsVerified": true,
-      "historicalCanonicalShaConflicts": 4,
+      "receipt": "STAGE17_REGISTRY_CANONICAL_BASIS_REVIEW_fde898f.json",
+      "status": "RESOLVED_VERIFIER_BASIS_ASSUMPTION_NO_DATA_DRIFT",
+      "historicalCanonicalShaConflicts": 0,
+      "canonicalSemanticDigestsVerified": 4,
       "originalCaptureBytesVerified": 4,
+      "originalTempsByteIdentical": 4,
       "historicalEntriesOrBodiesChanged": false,
-      "status": "REVIEW_OPEN"
+      "priorFindingSnapshot": "STAGE17_REGISTRY_VALIDATION_34ecb66.json"
     }
   },
   "approvedBarrier20261007": {
     "baseHead": "1daa107c154af6395e8b8340ff661c1a963c57fe",
     "manifest": "15F.4-v57",
     "candidateTests": "PASS_12_45_10_TSC_LINT",
-    "newCleanSourceFull166": "RUNNING",
+    "newCleanSourceFull166": "COMPLETE_163_PASS_3_RAW_FROZEN_FAIL",
     "receipt": "05_STAGE17/implementation/STAGE17_SOURCE_PREPARATION_fde898f.json",
     "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
-    "tempRoot": "C:/Users/Metod/AppData/Local/Temp/ayas-codex-fde898f-20261007"
+    "tempRoot": "C:/Users/Metod/AppData/Local/Temp/ayas-codex-fde898f-20261007",
+    "qualification": "05_STAGE17/implementation/STAGE17_FULL166_QUALIFICATION_fde898f.json"
   },
-  "latestQualifiedSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "latestQualifiedSourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
   "currentQualificationFde898f": {
     "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
     "manifest": "15F.4-v57",
-    "full166": "RUNNING_NOT_PASS",
+    "full166": "COMPLETE_RAW_FAIL_KNOWN_THREE",
     "tempRoot": "C:/Users/Metod/AppData/Local/Temp/ayas-codex-fde898f-20261007",
     "expectedReceipt": "STAGE17_fde898f_FULL166.json",
     "sourceChecks": "TSC_LINT_PASS_13_INHERITED_WARNINGS",
@@ -5121,6 +5168,38 @@
     "localDigestUnchanged": true,
     "canonicalCombinedScope": false,
     "fullDomainSlotsNotRun": 30,
-    "foundation": "BLOCKED"
+    "foundation": "BLOCKED",
+    "cf49": {
+      "local": "05_STAGE17/implementation/STAGE17_CF49_fde898f_LOCAL.json",
+      "hosted": "05_STAGE17/implementation/STAGE17_HOSTED_CF49_fde898f.json",
+      "status": "CLOSED_PASS",
+      "boundedOnly": true
+    },
+    "hostedCi": {
+      "run": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37588433930",
+      "conclusion": "SUCCESS_NAMED_GATES_ONLY",
+      "sameOriginalRawDigestVerified": true,
+      "rawExit": 1,
+      "improvementRequests": 12
+    },
+    "receipt": "05_STAGE17/implementation/STAGE17_fde898f_FULL166.json",
+    "qualification": "05_STAGE17/implementation/STAGE17_FULL166_QUALIFICATION_fde898f.json",
+    "passed": 163,
+    "failed": [
+      "retrieval-evaluation",
+      "golden-vault-run",
+      "golden-sandbox-run"
+    ],
+    "completeDeclaredBaseline": true,
+    "full166AllGreen": false,
+    "domainScope": "05_STAGE17/implementation/STAGE17_DOMAIN_SCOPE_fde898f.json",
+    "ownerReview": "05_STAGE17/implementation/STAGE17_OWNER_REVIEW_PREREQUISITES_fde898f.json",
+    "ownerReviewReady": false,
+    "ownerReviewDigest": null,
+    "phone": "05_STAGE17/implementation/STAGE17_PHONE_STABILITY_fde898f.json",
+    "runtimeInventory": "05_STAGE17/implementation/STAGE17_RUNTIME_INVENTORY_fde898f.json",
+    "integrityReview": "RESOLVED_ALL_FOUR_LEGACY_CANONICAL_AND_CAPTURE_DIGESTS",
+    "homepageBoundaryReached": false,
+    "next": "Continue Stage17 with the bounded combined protected-scope integration review (STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md), preserve default fail-closed collector/frozen graders/pins, then qualify all152 criteria and30 TEST/LIVE slots through exact-source evidence. Authenticated current runtime, real phone voice/continuity, Lemon TEST binding, Fiverr order/revenue/ledger and final digest-bound owner review remain separately unqualified. Do not migrate running dependencies merely for tests; no production execute/restore/financial writes, no homepage implementation."
   }
 }

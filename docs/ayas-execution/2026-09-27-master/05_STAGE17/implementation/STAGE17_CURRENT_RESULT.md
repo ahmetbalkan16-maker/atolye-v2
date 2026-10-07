@@ -1,4 +1,26 @@
-# Current — 2026-10-07 /exactfde898f v57 full166 RUNNING; fresh-source TS/lint and hosted named CI PASS
+# Current — 2026-10-07 / exact fde898f v57 full166 complete: 163 PASS / 3 preserved raw FAIL
+
+Tested source: fde898f9305f4fd4d57c0f5c8230f50712b30374. Fresh credential-free TEMP clone/npm ci, matching lock, TypeScript0 and lint0 errors/13 inherited warnings. The durable full166 report selected/executed166 of166 declared suites and completed; raw outcome FAIL. Only retrieval-evaluation, golden-vault-run and golden-sandbox-run fail. Exact12 frozen retrieval improvement requests,16 known limits and Golden PROMOTION_STOPPED solely for golden.memory.retrieval-evaluation remain preserved; sandbox timedOut=false. No all-green or Foundation closure claim.
+
+Owner-approved barrier and v57 pins are verified on this new source: resource-occupancy PASS, resource-occupancy-mutations PASS with unchanged45 controls. Production implementation/other scenarios/fixtures remain unchanged. V56 is archived byte-for-byte; only two references for one grader changed,213 other unique pinned files unchanged. Original34ecb66 full166 remains immutable162 PASS/4 raw FAIL; no old receipt was rebound or erased.
+
+Hosted Ubuntu/Node24 named CI run37588433930 SUCCESS; hosted and Windows bounded CF49 each12/12 CLOSED_PASS, same original raw result digest verified, raw gate exit1 remains visible. Four historical36e794f canonical SHA findings are resolved as a verifier-basis assumption: sorted-key compact UTF8 JSON with no final newline verifies all4 digests; all4 original capture byte hashes and TEMP originals match. No frozen field/body/hash changed.
+
+Actual host recheck08:06UTC: single originPID3416/tunnelPID30200, both existing hidden tasksRunning, local/public gate healthy, login200/protected health401. Owner confirmed phone login opens. Authenticated runtime identity and real reboot remain unqualified; installed Next16.2.10 differs from fresh-lock16.3.8 (sharp repaired0.35.5). Actual runtime inventory at08:13UTC:17 projects/2372 files/611011778 bytes, two inventories identical, manifest validation PASS; no backup creation/restore/authority bootstrap.
+
+Canonical protected local audit atfde898f:6112 files/624508549 bytes,0 exclusions,localComplete=true before/after,identical own-interval digest. Combined external protection remains unqualified,complete=false. Background private host journals grew later and remain preserved/outside Git; no across-session unchanged-state claim.15 domains/152 criteria/30 TEST-LIVE aggregate slots remain NOT_RUN/COLLECTOR_NOT_BOUND. Final owner-review packet NOT_READY,ownerReviewDigest=null. Fresh production advisory scan0;8 high dev-only advisories remain open.
+
+Foundation BLOCKED; Infinity/next stages not advanced; Homepage/BrainUIV2 NOT_STARTED; boundary NOT_REACHED. Current tested-source receipts are separate from the final documentation HEAD; resolve git rev-parse HEAD and local/origin status. Evidence root: docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation. Full receipt STAGE17_fde898f_FULL166.json; qualification STAGE17_FULL166_QUALIFICATION_fde898f.json; domain gaps STAGE17_DOMAIN_SCOPE_fde898f.json; owner prerequisites STAGE17_OWNER_REVIEW_PREREQUISITES_fde898f.json. TEMP originals: C:/Users/Metod/AppData/Local/Temp/ayas-codex-fde898f-20261007; original34 TEMP and logs remain preserved.
+
+Next exact work: Continue Stage17 with the bounded combined protected-scope integration review (STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md), preserve default fail-closed collector/frozen graders/pins, then qualify all152 criteria and30 TEST/LIVE slots through exact-source evidence. Authenticated current runtime, real phone voice/continuity, Lemon TEST binding, Fiverr order/revenue/ledger and final digest-bound owner review remain separately unqualified. Do not migrate running dependencies merely for tests; no production execute/restore/financial writes, no homepage implementation.
+
+# Historical snapshot integrity clarification — 2026-10-07 /four legacy canonical SHA entries verified;no capture drift
+
+The earlier four36e794f SHA-basis mismatch finding was a verifier assumption error. Existing canonical hashes use recursively sorted object keys/compact JSON/UTF8/no final newline, separately from original capture byte digests. All4 canonical digests match exactly;all4 stored captures match their original TEMP files byte-for-byte. No frozen file or SHA field was changed. New review:05_STAGE17/implementation/STAGE17_REGISTRY_CANONICAL_BASIS_REVIEW_fde898f.json;the earlier finding snapshot remains historical and corrected.
+
+Exactfde898f/v57 full166 still RUNNING in its fresh credential-free clone;named hosted and Windows boundedCF49 12/12PASS,raw original retrievalFAIL/exit1/exact12 review preserved,16 limits remain. FoundationBLOCKED/30canonical TEST-LIVE NOT_RUN;no homepage. Current source/next step follows below.
+
+# Historical snapshot — 2026-10-07 /exactfde898f v57 full166 RUNNING; fresh-source TS/lint and hosted named CI PASS
 
 Owner-approved synchronization fix committed/pushed as fde898f9305f4fd4d57c0f5c8230f50712b30374. Fresh credential-free TEMP clone/npm ci415 packages with ignored install scripts/empty npm configs;TS0/lint0errors/13 inherited warnings. Graph source/analyzed/built exactfde898f,clean,needs_update=false,integrity0,PARTIAL9/semanticPENDING. New serial bounded166 started in C:/Users/Metod/AppData/Local/Temp/ayas-codex-fde898f-20261007/repo; durable STAGE17_fde898f_FULL166.json pending,NOT_PASS. Preserve34ecb66 full166162PASS4FAIL without rebind. Hosted run37588433930 completedSUCCESS for named gates; raw original-result artifacts still require digest review.
 
@@ -6,7 +28,7 @@ Actual canonical audit atfde898f:6,112files/624,508,549bytes,0 exclusions,localC
 
 Next:await durable exactfde898f full166;inspect any failure,preserve frozen retrieval/Golden stops,register own exact-source receipt;refresh named CI/actual domain-global protected/live findings and final owner-review prerequisites. Existing4 historical canonical SHA-basis conflicts remain OPEN; do not overwrite old bodies/SHA fields.
 
-# Current Stage17 continuation — 2026-10-07 /owner-approved frozen occupancy barrier fixed;v57;new clean-source full166 pending
+# Historical snapshot Stage17 continuation — 2026-10-07 /owner-approved frozen occupancy barrier fixed;v57;new clean-source full166 pending
 
 Direct owner approval: “Evet, yalnız bu bariyer düzeltmesine ve sürümlü pin güncellemesine onay veriyorum”. Implemented only the reviewed synchronization correction in scripts/smoke-ayas-resource-occupancy.ts:175: both callbacks enter before asserting2 records, both checks finish before either returns;5000ms rendezvous timeout fails with AssertionError. The results/peak2 assertions, all12 scenarios and45 source mutations remain unchanged. Production implementation unchanged; no added runtime delay. V56 archived byte-for-byte at03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V56.json;v57 recomputes only this grader’s two pin references (213 other unique pinned files unchanged,214 unique/323 references total).
 
@@ -14,7 +36,7 @@ Credential-free TEMP candidate with fresh-lock dependencies:primary12/12,mutatio
 
 Original exact34ecb66 full166 remains immutable162PASS/4rawFAIL, including the now root-caused time race; do not convert it to163/3 or rebind it to the next commit. Next:commit/push this bounded fix,refresh Graphify at exact new clean HEAD,create a fresh credential-free TEMP clone/npm ci and take a separate durable full166 at that HEAD/v57. Investigate any new failure before advancement. Phone access remains owner-confirmed/single healthy origin-tunnel; authenticated runtime identity unqualified. Existing30 canonical TEST/LIVE slots/152 criteria/global protection,16 retrieval limits/raw Golden stops,4 historical canonical SHA-basis conflicts and platform/final-review prerequisites remain separately open. Actual server trace appeared later than the early protected audit; its private body was preserved, not staged/deleted, and locally excluded through .git/info/exclude only; no global unchanged claim. FoundationBLOCKED,Homepage/BrainUIV2NOT_STARTED,boundaryNOT_REACHED.
 
-# Current Stage17 continuation — 2026-10-07 / exact34ecb66 full166 complete162 PASS /4 raw FAIL; frozen timing correction pending
+# Historical snapshot Stage17 continuation — 2026-10-07 / exact34ecb66 full166 complete162 PASS /4 raw FAIL; frozen timing correction pending
 
 Historical evidence integrity review: four36e794f registry canonical SHA fields do not match either present bytes or recomputed canonical UTF8/JSON/LF; all four present files match their recorded original-capture digests. Old receipt bodies and SHA fields remain unchanged; reconciliation OPEN, captured in STAGE17_REGISTRY_VALIDATION_34ecb66.json. New34ecb66 receipt hashes and all323 frozen pin references verify.
 
@@ -44,7 +66,7 @@ Current canonical hash-only audit:6,073 files/624,405,392 bytes before/after,0 e
 
 Next: finish durable166 at34ecb66, preserve raw retrieval/Golden failures and investigate any other failures, register exact-source receipt, then continue real domain/global protection/live qualification and final owner-review prerequisites. Evidence:05_STAGE17/implementation/STAGE17_PHONE_REPAIR_34ecb66.json,STAGE17_SECRET_SCAN_34ecb66.json,STAGE17_EXTERNAL_SCOPE_34ecb66.json,STAGE17_CURRENT_AUDIT_34ecb66.json,STAGE17_HANDOFF_34ecb66.json.
 
-# Current Stage17 continuation — 2026-10-07 / release-provenance regressions root-caused and repaired; EOD artifacts classified; clean-HEAD 166 rerun pending
+# Historical snapshot Stage17 continuation — 2026-10-07 / release-provenance regressions root-caused and repaired; EOD artifacts classified; clean-HEAD 166 rerun pending
 
 Resumed exact36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1, clean/origin0/0, Graphify current at36e794f. The 2026-10-06 EOD left57,572 untracked files: two full repository clones with node_modules, byte-identical duplicated evidence copies, reproducible git-state snapshots, and an opencode.json holding a live provider API key. Every durable artifact was preserved canonically before anything was removed: the credential-free TEMP-clone full166 receipt (STAGE17_36e794f_FULL166.json,166 suites,161 PASS/5 FAIL), its run and npm-ci logs, STAGE17_AUDIT_PRODUCTION_36e794f.json (0 production advisories), STAGE17_AUDIT_ALL_36e794f.json (8 high dev-only advisories — braces/micromatch, eslint-config-next and wrangler/miniflare/sharp chains including the newly disclosed sharp CVE-2026-96889 — with only semver-major downgrade "fixes" available, retained open, never closed as fixed) and the access-gate sanity receipt, all under 05_STAGE17/implementation. The temp clones, snapshots and duplicate copies were then removed from the working tree; AppData originals of every removed artifact still exist; opencode.json was never committed and a narrow /opencode.json rule in .gitignore now keeps the API key out of history.
 
@@ -54,7 +76,7 @@ Verified at this source: release-provenance19 scenarios PASS (one new bundled-de
 
 full166 at this NEW source NOT_RUN: next is the durable credential-free TEMP-clone rerun with matching dependency lock, then refreshed actual protected/domain/live findings and final owner-review prerequisites. CF49 CLOSED_PASS retained;16 retrieval limitations and both Golden raw stops stay visible; Lemon UNBOUND/Fiverr OWNER_REPORTED unchanged. Stage17/Foundation remains BLOCKED; Infinity/next master stages not advanced; Homepage/Brain UI V2 NOT_STARTED, boundary NOT_REACHED.
 
-# Current Stage17 continuation — 2026-10-06 / security source repair; clean-HEAD qualification pending
+# Historical snapshot Stage17 continuation — 2026-10-06 / security source repair; clean-HEAD qualification pending
 
 Entry checkpoint68747ae40f53ce2358e1499363f66c999243d584 preserved. Protection source979f12a4a12d3a4fb456cce289d66fe50aa00c8c has real named component/Windows/media receipts under05_STAGE17/implementation. Streaming inventory covers all fixed local roots:623,539,744/623,541,535 bytes,0 exclusions,localComplete=true before/after. A concurrent extra file changed the digest:PROTECTED_CHANGE_UNATTRIBUTED retained; external runtime/authority remains unqualified. No durable final full166 receipt exists for979f12a, so that run is NOT_QUALIFIED rather than an invented full PASS. All old evidence remains separately bound.
 
@@ -66,7 +88,7 @@ CF49 CLOSED_PASS retained;214 frozen pins/v55/166 suites unchanged. Raw retrieva
 
 ## Historical source qualifications below (unchanged)
 
-# Current CF49 / Stage17 result — 2026-10-05
+# Historical snapshot CF49 / Stage17 result — 2026-10-05
 
 Latest CI/source qualification: [real hosted run37299572060](https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37299572060) at exact clean dea169fe7636eae9124eccf45dae896e18fd92a5 completed SUCCESS. [CI receipt](STAGE17_HOSTED_CI_dea169f.json) links the unchanged raw FAIL/exit1 report, explicit review of that SAME original report and matching hosted/local12-suite CLOSED_PASS receipts. CF49 closure is qualified on Windows and Ubuntu; the original-result CI step passed on Ubuntu. This closes the hosted pipeline wiring debt; it does not close full canonical domains,16 retrieval limits, raw Golden promotion stops, protected scope or Foundation. Full166 atdea169f NOT_RUN. [Current bounded audit](STAGE17_CURRENT_AUDIT_dea169f.json) remains BLOCKED:5409 entries/1586 size-or-byte-budget exclusions, measured digest unchanged, complete scope false. No authority, loaded-process identity or owner attestation granted. [Graph receipt](STAGE17_GRAPHIFY_SOURCE_dea169f.json) matches source/analyzed/built HEAD,387 communities/integrity0/PARTIAL9/PENDING. Previous6a9/d3b/9aa receipts remain unchanged and separately bound.
 

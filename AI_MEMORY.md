@@ -1,108 +1,112 @@
-# Current — 2026-10-07 /approved occupancy synchronization correction;v57;clean-source qualification pending
+# Current — 2026-10-07 / fde898f v57 full166163PASS /3 preserved raw FAIL;Foundation BLOCKED
+
+Approved occupancy barrier passes12 scenarios/45 unchanged controls on new source;v56 archive/two affected pins only. Original34ecb66 162/4 preserved. Fresh TS/lint PASS (13 inherited warnings), hosted named CI and local/hosted boundedCF49 PASS. Four historical SHA findings resolved by original canonical algorithm without frozen-field edits. Phone owner-confirmed/login200/single healthy origin-tunnel; authenticated runtime/real reboot unqualified. Actual backup inventory/manifest PASS only, no restore.15 domains/152criteria/30TEST-LIVE still not qualified; combined protection/real platform-device/final owner review open. Homepage NOT_STARTED,boundary NOT_REACHED. Exact evidence and remaining work: ATOLYE_CHECKPOINT.md and docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md.
+
+# Historical snapshot — 2026-10-07 /approved occupancy synchronization correction;v57;clean-source qualification pending
 
 Owner approved one frozen grader synchronization fix and versioned pins. Both2-record/results/peak assertions remain; v56 archived, only two references to the changed grader updated. Candidate12 scenarios/45 mutants/10 governance/TS/lintPASS (13 inherited warnings). Original34ecb66 full166162PASS4rawFAIL preserved. Next exact-new-HEAD credential-free full166 after commit/Graphify. FoundationBLOCKED; no homepage. See ATOLYE_CHECKPOINT.md.
 
-# AYAS current — 2026-10-07 /phone reachable;exact34ecb66 full166162PASS4FAIL;FoundationBLOCKED
+# Historical snapshot — 2026-10-07 /phone reachable;exact34ecb66 full166162PASS4FAIL;FoundationBLOCKED
 
 Fresh-lock166/166 complete at34ecb66(v56):162PASS/4rawFAIL; release-provenance regressions repaired. Frozen retrieval/Golden3 stops retained; additional frozen occupancy50ms timing race root-caused, unchanged45-control replayPASS, proposed barrier correction requires explicit owner exception and remains unapplied. Phone login owner-confirmed/HTTP200/single canonical origin-tunnel, task definitions unchanged; auth identity and real reboot unqualified. Local protected hashes complete/unchanged, separate external scans do not bind global scope;15domains/152criteria/30TEST-LIVE NOT_RUN. LemonUNBOUND/FiverrOWNER_REPORTED_ONLY/final owner reviewNOT_READY. No homepage boundary or implementation. Resolve final Git HEAD; tested-source receipts are not rebound to docs commits. Current evidence and exact next step: ATOLYE_CHECKPOINT.md and05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md.
 
-# AYAS current — 2026-10-07 /release-provenance repair;EOD evidence preserved;Foundation BLOCKED
+# Historical snapshot — 2026-10-07 /release-provenance repair;EOD evidence preserved;Foundation BLOCKED
 
 HEAD36e794f full166 TEMP-clone receipt preserved canonically:166 suites,161 PASS,5 FAIL. Three fails are the known frozen limitations; the two release-provenance fails were root-caused to the0c325e1 lockfile regeneration and repaired bounded at AyasSbom.ts: install-script pins re-recorded at the re-read workerd1.20261001.1/onnxruntime-node1.30.0 (sharp pin dropped —0.35.5 declares no script), and bundled lockfile children are vouched only by a fully vouched bundling parent, disclosed as REVIEW, never standalone components; all other BLOCK behavior unchanged. Suites: provenance19 PASS, mutations34/34, governance10+8/8, firewall closure12, lint0/13 inherited. Manifestv55 archived and bumped tov56 (two suite pins only;323/323 verified). EOD cleanup:57,572 untracked files classified; durable evidence kept under05_STAGE17/implementation; temp clones/snapshots removed; opencode.json (live API key) ignored, never committed. tsc sharp error proven pre-existing (stale main node_modules vs locked0.35.5; clean under npm ci). Next: credential-free TEMP-clone full166 rerun at the new HEAD with matching lock, then actual protected/domain/live findings and owner-review prerequisites. Stage17/Foundation BLOCKED; homepage NOT_STARTED, boundary NOT_REACHED.
 
-# AYAS current — 2026-10-05 /Lemon Stage16.8 re-audit verified; Foundation BLOCKED
+# Historical snapshot — 2026-10-05 /Lemon Stage16.8 re-audit verified; Foundation BLOCKED
 
 Existing canonical five-file Lemon adapter confirmed, first commit53180cb (2026-10-03), source/frozen Lemon tests unchanged. Exact sourceb35cd634ce9e11f44d1666248cc585649fe8f509:9 selected suites PASS_WITH_KNOWN_LIMITATIONS, TS/focused lint/governance PASS; all214 pins/v55/166 declared unchanged, full baseline NOT_RUN. CF49 raw54/55 held4/5 remains open. Owner TEST store/credential creation remains OWNER_REPORTED; real connector/ingress/durable dedupe/production journal-store qualification UNBOUND/NOT_RUN/OWNER ACTION after Foundation. No secret/account/activation/financial write. Evidence: docs/ayas-execution/2026-09-27-master/04_STAGE16_REVENUE/implementation/16.8/16.8_CURRENT_HEAD_REAUDIT.json.
 
 Resume exact infinity preparation:20 admission cases frozen only; implementation NOT_STARTED, persistent activation OFF. Stage17/Foundation BLOCKED; no homepage/Brain UI V2 work. Mandatory owner stop before design remains in force. Current Git HEAD may be a later documentation/session-save commit; resolve Git rather than promoting the tested-source hash to final HEAD.
 
-# AYAS current —2026-10-05 /Stage17 framework verified; infinity preparation active
+# Historical snapshot —2026-10-05 /Stage17 framework verified; infinity preparation active
 
 71b53b94654453223b7ca9d51750047f5ac49fc7:151 primary+30 frozen held+30 adversarial+9 independent controls;9 selected exact suites PASS_WITH_KNOWN_LIMITATIONS,214 pins/v55/166 declared,full baseline NOT_RUN. Current read-only audit BLOCKED: CF49 raw54/55 held4/5, complete protected scope and live/owner domain qualification missing. Measured fixed-root digest unchanged; external/private scope not presumed covered. Lemon/Fiverr owner setup reported; integration/ingress/orders/ledger/terms remain UNBOUND/NOT_RUN. Stage16/Master/Foundation OPEN. Next permitted infinity preparation only, persistent activation OFF; mandatory STOP before homepage/Brain UI V2 design.
 
-# AYAS current — 2026-10-05 /16.14 source framework verified;17 active
+# Historical snapshot — 2026-10-05 /16.14 source framework verified;17 active
 
 Fiverr owner evidence2026-10-05: account/identity/Gig OWNER_REPORTED_ACTIVE/VERIFIED/ACTIVE; startup spend OWNER_REPORTED $0. Orders/fulfillment/ledger/terms/E2E NOT_RUN; AYAS and official API/OAuth/tool binding UNBOUND; automated writes CLOSED. Inbound messages are not revenue proof.
 
 16.14 source c26075774762b54de1dc0a3f69c45f7de7a6b41b:131 primary,25 frozen held-out,25 adversarial and14 independent controls;62 selected canonical regressions PASS_WITH_KNOWN_LIMITATIONS, Stage9 additional4/4.208 pins unchanged/v54/163 declared; full baseline NOT_RUN. CF49 raw quality gap remains visible. Graphify current with385 communities/integrity0,PARTIAL9/semanticPENDING. Lemon store/test credential creation OWNER_REPORTED in TEST MODE; connection/ingress/journal/live activation UNBOUND/NOT_RUN/OWNER-GATED. Stage16/Master OPEN. Next Stage17 read-only framework/current audit and permitted infinity preparation; mandatory STOP before homepage/Brain UI V2 design. No persistent activation.
 
-# AYAS current —2026-10-05 /16.13 framework verified;16.14 active
+# Historical snapshot —2026-10-05 /16.13 framework verified;16.14 active
 
 16.13 framework verified at a625b7e24a27bf78ad3c2413f1b33529f4e58a6f:73 primary+20 frozen held-out+13 independent controls;19 selected exact-source PASS,203 pins/v53/160 declared (full baseline NOT_RUN),TS/lint/diff PASS with13 inherited warnings. Graphify source current/379 communities/integrity0;PARTIAL9/semanticPENDING. Actual owner/account/pilot/scaling qualification UNBOUND/NOT_RUN; Stage16/Master OPEN. Next16.14 Revenue Center closure and deferred qualification debts. Then17 current-HEAD audit and permitted infinity preparation; mandatory STOP before homepage/Brain UI V2 design; no persistent activation.
 
-# AYAS current —2026-10-05 /16.12 recovery;16.13 active
+# Historical snapshot —2026-10-05 /16.12 recovery;16.13 active
 
 16.12 recovered and framework verified at ce160ed: primary112/112+held-out31/31 rechecked,198 pins unchanged. Current task16.13 Profit-Gated Scaling; prior stop revoked by direct owner continuation2026-10-05. Real account/pilot/platform/store qualification stays UNBOUND/NOT_RUN; Stage16/MasterOPEN. Graphify metadata HEAD matched but six dirty documentation paths required refresh; inheritedPARTIAL9/semanticPENDING remain. No restart, reset, clean, stash or live action.
 
-# AYAS current —2026-10-04 /16.12 framework verified;STOPPED AS REQUESTED
+# Historical snapshot —2026-10-04 /16.12 framework verified;STOPPED AS REQUESTED
 
 16.12 framework verified at ce160ed18fcb2979054a65aaae2d921e0587c5d1:112 primary+31 held-out+31 independent controls;40 selected exact-source PASS,198 committed pins/157 v52 declared (full baseline NOT_RUN),TS/lint/diff PASS with13 inherited warnings. Graphify current/full382 communities/integrity0;structuralPARTIAL9/semanticPENDING. Store append history/CAS/SAFE, negative revisions/refunds, realized ledger economics and manual handoff/no executor verified;F86 nonpassive realized cost early-stop repaired/source verified. Actual authenticated owner/pilot/platform/store/journal qualification UNBOUND/NOT_RUN;Stage16/MasterOPEN. Latest owner instruction2026-10-04:16.12 bitince dur. STATUS STOPPED_AS_REQUESTED after16.12;16.13 and homepage implementation NOT_STARTED;await owner. Session-end recording uses ordinary commit/push/parity and current Graphify only; no subsequent Stage implementation is authorized.
 
-# AYAS current —2026-10-04 /16.12 framework verified; exact source matrix pending
+# Historical snapshot —2026-10-04 /16.12 framework verified; exact source matrix pending
 
 16.12 bounded pilot framework focused verified:112 primary+31 held-out (original20 preserved)+31 independent assertion-caught controls; explicit-root TEMP append history/CAS/SAFE/corruption/replay, immutable window/metric, negative evidence retained across revisions, full16MiB realized ledger/per currency/global reversals/later fees/refunds, manual owner handoff/no executor. TS/lint/diff/pins/governance/protection/security/compliance/free-first PASS;198 pins/157 v52 declared suites, full baseline NOT_RUN. Owner/authenticated source, production store/journal and actual pilot actions UNBOUND/NOT_RUN. Exact source matrix/full Graphify pending. Homepage NOT_STARTED;STOP before redesign.
 
-# AYAS current —2026-10-04 /16.12 framework verified; exact source matrix pending
+# Historical snapshot —2026-10-04 /16.12 framework verified; exact source matrix pending
 
 16.12 bounded pilot framework focused verified:112 primary+31 held-out (original20 preserved)+30 independent assertion-caught controls; explicit-root TEMP append history/CAS/SAFE/corruption/replay, immutable window/metric, negative evidence retained across revisions, full16MiB realized ledger/per currency/global reversals/later fees/refunds, manual owner handoff/no executor. TS/lint/diff/pins/governance/protection/security/compliance/free-first PASS;198 pins/157 v52 declared suites, full baseline NOT_RUN. Owner/authenticated source, production store/journal and actual pilot actions UNBOUND/NOT_RUN. Exact source matrix/full Graphify pending. Homepage NOT_STARTED;STOP before redesign.
 
-# AYAS current —2026-10-04 /16.12 framework verified; exact source matrix pending
+# Historical snapshot —2026-10-04 /16.12 framework verified; exact source matrix pending
 
 16.12 bounded pilot framework focused verified:112 primary+30 held-out (original20 preserved)+29 independent assertion-caught controls; explicit-root TEMP append history/CAS/SAFE/corruption/replay, immutable window/metric, negative evidence retained across revisions, full16MiB realized ledger/per currency/global reversals/later fees/refunds, manual owner handoff/no executor. TS/lint/diff/pins/governance/protection/security/compliance/free-first PASS;198 pins/157 v52 declared suites, full baseline NOT_RUN. Owner/authenticated source, production store/journal and actual pilot actions UNBOUND/NOT_RUN. Exact source matrix/full Graphify pending. Homepage NOT_STARTED;STOP before redesign.
 
-# AYAS current —2026-10-04 /16.12 model packet verified;store/economics/handoff pending;STOP before Homepage Redesign
+# Historical snapshot —2026-10-04 /16.12 model packet verified;store/economics/handoff pending;STOP before Homepage Redesign
 
 16.12 model/owner/admission packet verified:61 primary+20 frozen held-out+15 assertion-caught controls;TS/changed and whole lint/diff,governance/protection/security/spend/free-first PASS;193 old pins unchanged, new pilot graders NOT_REGISTERED until fullstage. Wholelint13 inherited warnings. Graphify quickcurrent/integrity0,PARTIAL9/semanticPENDING,clusteringSKIPPED—not finalstageGraphPASS. Durable store/economics/handoff and fullstage/exact-source qualification pending. No real pilot/platform action,approval authority or homepage change.
 
-# AYAS current —2026-10-04 /16.11A framework verified;16.12 active; mandatory stop before Homepage Redesign
+# Historical snapshot —2026-10-04 /16.11A framework verified;16.12 active; mandatory stop before Homepage Redesign
 
 16.11A framework verified at adae61647d79dc3fde26e883c0c20b2420dd5ba8:62 primary+20 frozen adversarial+16 assertion-caught controls;37 selected exact-source PASS;193 committed pins/v51 (full baseline NOT_RUN),TS/lint/diff PASS with13 inherited warnings. Graphify current/full373 communities/integrity0,structuralPARTIAL9/semanticPENDING. Actual owner/professional/account/platform permission and current terms reader remainUNBOUND; Fiverr/Udemy full terms body unqualified. No legal conclusion/activation/spend/write. Stage16/MasterOPEN;next16.12 bounded pilot FRAMEWORK_ONLY. Latest owner instruction2026-10-04:continue canonical order but STOP before Homepage/BrainUIV2 redesign; homepage changes/controls/avatar/animations NOT_STARTED; later certifications outside current continuation.
 
-# AYAS current —2026-10-03 /16.11A exact-source verification pending
+# Historical snapshot —2026-10-03 /16.11A exact-source verification pending
 
 16.11A focused framework verified:62 primary/20 frozen held-out/16 independent assertion-caught controls; TypeScript, changed/whole lint (0 errors,13 inherited warnings), diff, governance, exact patch safety and revenue security PASS. v51:154 declared suites/193 pins; full baseline NOT_RUN. F85 proxy preflight repaired. Actual review/permission/account qualification UNBOUND. Source commit, exact-source selected matrix and final clustered Graphify pending; Stage16/Master OPEN.
 
-# AYAS current —2026-10-03 /16.11 framework verified with limitations;16.11A active
+# Historical snapshot —2026-10-03 /16.11 framework verified with limitations;16.11A active
 
 16.11 exact-source framework verified at 74b6c495813bbce9f6b405dc11f628900da99261:105 primary+20 frozen adversarial+17 assertion-caught controls;53 selected (52 plainPASS, cognitive CF49 known limitation),13 extra including Stage9 isolated/security PASS;188 committed pins,TS/lint/diff PASS (13 inherited warnings). Fullv50 NOT_RUN. Graphify current/integrity0/full clustering, structuralPARTIAL9/semanticPENDING. Historical metadata doc-stale checkpoint orchestration gap explicit; not retroactive Graphify-first PASS. No actual owner/platform qualification, production attachment/account-reader, webhook durable ingress/dedupe/ACK or write journal/executor. Stage16/Master OPEN; next16.11A terms/compliance.
 
-# AYAS current —2026-10-03 /16.11 focused security verified; exact source checks pending
+# Historical snapshot —2026-10-03 /16.11 focused security verified; exact source checks pending
 
 16.11 source implemented;105 primary+20 frozen adversarial+17 independent assertion-caught controls PASS. TS/changedlint/wholelint/diff PASS (13 inherited warnings). v50/151 suites/188 pins; full baseline NOT_RUN. F84 closed owner-requirement metadata false-positive fixed with P105, strict instruction/unknown-link rejection contracts preserved. Exact clean-source matrix and full clustered Graphify pending; no16.11A advancement. No actual owner auth, production attachment/account/HTTP webhook/journal qualification. One governance-metadata checkpoint step rejected a doc-only stale graph, but the following edit in the same orchestration cell was not stopped. Relevant code dependency context was already captured; subsequent refresh/current integrity checks and AST audit recover source truth. This historical process gap is recorded, not retroactively declared a Graphify-first PASS.
 
-# AYAS current —2026-10-03 /16.10 framework verified with limitations;16.11 active
+# Historical snapshot —2026-10-03 /16.10 framework verified with limitations;16.11 active
 
 16.10 exact-source framework verified at 7195e96d1ae8345fb554391bc256012653a9ae5b: memory65+15/intelligence32+8/15 controls,183 committed pins, TS/lint/diff PASS (13 inherited warnings).46 selected:45 plainPASS and cognitive54/55+4/5 held-out PASS_WITH_KNOWN_LIMITATIONS(CF49);7 extra including chat-stream PASS. Fullv49 NOT_RUN. Graphify current/integrity0, structuralPARTIAL9/semanticPENDING. F82 stale-plan warning repaired; manifest kind corrected without validator changes. Ledger remains sole money truth; no production writer/HTTP snapshot binding or actual owner authentication. Stage16/Master OPEN; next16.11 security/fraud.
 
-# AYAS current —2026-10-03 /16.10 source implemented; exact validation pending
+# Historical snapshot —2026-10-03 /16.10 source implemented; exact validation pending
 
 16.10 dedicated business memory/source implemented: memory65+15 (includes actual captured chat prompt), intelligence32+8,15 assertion-caught controls; defaults unchanged, no writer/HTTP binding. F82 stale current plan masked by fresh ledger reproduced and fixed. Static/Graphify worktree checks PASS with inherited PARTIAL9/semanticPENDING; v49:148 suites/183 pins, full baseline NOT_RUN. Clean exact-source matrix/full clustered Graphify pending; no16.11 advancement.
 
-# AYAS current —2026-10-03 /16.9 framework verified;16.10 active
+# Historical snapshot —2026-10-03 /16.9 framework verified;16.10 active
 
 16.9 framework exact-source verified at eee322cb8693a2fd8980d0c4a1d62ea924b17659:64+12/40 controls; adapter55+10/77 controls;35 selected+6 extra TEMP regressions;179 committed pins; TS/lint/diff PASS. F80 production digest isolation andF81 AST import grader repaired without broadening allowlists or weakening privacy/action gates. Graphify current/integrity0;PARTIAL9/semanticPENDING. Fullv48 NOT_RUN. Source policy disabled/0/emptycaps; no actual owner-reviewed source binding, financial authority, reservation or executor. Stage16/Master OPEN; next16.10.
 
-# AYAS current —2026-10-03 /16.9 source implemented; exact validation pending
+# Historical snapshot —2026-10-03 /16.9 source implemented; exact validation pending
 
 16.9 pure realized-ledger reinvestment advice implemented:63+12 and40/40 controls PASS; defaults disabled/0/emptycaps; exact-source closure pending. F77 expiry reproduced/fixed, F78 fixture false-positive isolated without scanner change, F79 independent prior-loss probe. No money/approval/reservation/executor or actual source-policy binding. v48:145 suites/179 pins; full baseline NOT_RUN.
 
-# AYAS current —2026-10-03 /16.8 framework verified;16.9 active
+# Historical snapshot —2026-10-03 /16.8 framework verified;16.9 active
 
 Exact 8b55182062fd00576ffed6ecec1c2f3030c351c2: Lemon89+15/60 caught controls,33 selected+6 extra TEMP regressions,176 committed pins and TS/changed lint/diff PASS. Graphify18559/53182 current, integrity0;PARTIAL9/semanticPENDING retained. Fullv47 NOT_RUN. Owner Test-mode/durable ingress and16.5/16.7 qualification remain deferred; Stage16/Master OPEN. Next16.9 pure advisory reinvestment; no live effect, financial authority or production registration.
 
-# AYAS current —2026-10-03 /16.8 source implemented; exact validation pending
+# Historical snapshot —2026-10-03 /16.8 source implemented; exact validation pending
 
 Lemon Squeezy89+15 scenarios/60 assertion-caught controls PASS; TS/changed lint0/0, whole lint0 errors/13 inherited warnings. Manifestv47:143 suites/176 pins; fullbaseline NOT_RUN. Official GET/parent/mode, raw HMAC pointer→common-gated canonical refresh, inert ledger and local plans; all writes/money CLOSED. Actual owner Test-mode key/connection and durable HTTP ingress remain pending after foundation; no production binding. Carry16.5 official tool qualification and16.7 route gaps; Stage16/Master OPEN. Next33+6 exact-source regressions/Graphify, then independent16.9 in order. SeeACTIVE_CHECKPOINT.json.
 
-# AYAS current — 2026-10-03 /16.7 framework verified;16.8 active
+# Historical snapshot — 2026-10-03 /16.7 framework verified;16.8 active
 
 Exact source e634a73: course57+12/Udemy53+12,56 controls,31 selected+6 extra regressions and173 committed pins PASS. Graphify18498/52948 current, integrity clean; inheritedPARTIAL9/semanticPENDING. Fullv46 NOT_RUN. Udemy reviews/Q&A/individual-message route qualification remains pending;16.7 stageClosed=false.16.5 official tool qualification also pending. Independent16.8 Lemon Squeezy source proceeds in order. No live account, publication, send, money, provider/job or registration. Stage16/Master OPEN. Evidence:implementation/16.7/16.7_EXACT_SOURCE_RECEIPT.json; exact next ACTIVE_CHECKPOINT.json.
 
-# AYAS current —2026-10-03 /16.7 source implemented; exact validation pending
+# Historical snapshot —2026-10-03 /16.7 source implemented; exact validation pending
 
 Course57+12/Udemy53+12 and56 assertion-caught controls PASS; TS/changed lint0 errors, full lint0 errors/13 inherited warnings. Manifestv46:141 suites/173 pins; fullbaseline NOT_RUN. Two captured official GET routes, other review/Q&A/individual-message routes unqualified; Stage16.7 not fully closed. Coarse token policy source default closed; global scoped gate unchanged. No live account, provider/job, publication, send, money or registration. Stage16.5 qualification remains pending; Stage16/Master OPEN. Next31+6 exact-source regressions/Graphify/receipt, then independent16.8 in order. SeeACTIVE_CHECKPOINT.json.
 
-# AYAS current — 2026-10-03 /16.6 source closed;16.7 active
+# Historical snapshot — 2026-10-03 /16.6 source closed;16.7 active
 
 Exact source f7a5188:52+12 scenarios;48 controls (46 caught,2 verified equivalents);23 selected+6 extra exact-source regressions,168 committed pins,TS/lint/diff PASS. Graphify18422/52712 current/integrity clean; inheritedPARTIAL9/semanticPENDING. Fullv45 baseline NOT_RUN; last completev38/5cbb217. Manual drafts/owner-reported imports only; no external effect or live certification.16.5 official qualification remains pending; Stage16/Master OPEN. Next16.7 Udemy/Atolye, Graphify-first and official scope limitations. SeeACTIVE_CHECKPOINT.json andimplementation/16.6/16.6_EXACT_SOURCE_RECEIPT.json.
 
@@ -469,7 +473,7 @@ Bu belge Atölye V2'nin kurumsal hafızasıdır.
 
 ## 2026-10-06 — Stage17 protected hash and bounded security source repair
 
-# Current Stage17 continuation — 2026-10-06 / security source repair; clean-HEAD qualification pending
+# Historical snapshot Stage17 continuation — 2026-10-06 / security source repair; clean-HEAD qualification pending
 
 Entry checkpoint68747ae40f53ce2358e1499363f66c999243d584 preserved. Protection source979f12a4a12d3a4fb456cce289d66fe50aa00c8c has real named component/Windows/media receipts under05_STAGE17/implementation. Streaming inventory covers all fixed local roots:623,539,744/623,541,535 bytes,0 exclusions,localComplete=true before/after. A concurrent extra file changed the digest:PROTECTED_CHANGE_UNATTRIBUTED retained; external runtime/authority remains unqualified. No durable final full166 receipt exists for979f12a, so that run is NOT_QUALIFIED rather than an invented full PASS. All old evidence remains separately bound.
 

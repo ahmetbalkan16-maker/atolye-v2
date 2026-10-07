@@ -1,0 +1,36 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"decision":{"decision":"PROMOTION_STOPPED","vaultVersion":2,"vaultDigest":"5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f","cases":18,"gapDomains":["REVENUE_DRY_RUN","HISTORICAL_VIDEO"],"reasonCodes":["GOLDEN_CASE_FAILED","BASELINE_NOT_SUPPLIED"],"authority":"NONE","failingCaseIds":["golden.memory.retrieval-evaluation"],"regressedCaseIds":[]},"durationsMs":{"golden.conversation.quality-master":680,"golden.conversation.chat-quality":702,"golden.memory.temporal-correction":3554,"golden.memory.integrity":1531,"golden.memory.retrieval-evaluation":16704,"golden.coding.historical-repair-vault":893,"golden.coding.guided-repair":1247,"golden.security.action-firewall":1028,"golden.security.exact-patch-safety":485,"golden.security.access-gate":437,"golden.production.fault-repair":2651,"golden.production.workflow-recovery":578,"golden.production.durable-task-runtime":1456,"golden.video.historical-storytelling":4218,"golden.video.quality-gate":401,"golden.video.historical-projects":535,"golden.ui.brain-core":1472,"golden.ui.voice":609}}
++ actual - expected
+
+  [
++   'PROMOTION_STOPPED',
++   [
++     'golden.memory.retrieval-evaluation'
++   ],
+-   'GOLDEN_HELD',
+    [],
+-   []
+  ]
+
+    at assert (C:\Users\Metod\AppData\Local\Temp\ayas-eval-baseline-1IvjCn\repo\scripts\smoke-ayas-golden-vault-run.ts:16:8)
+    at Object.<anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-eval-baseline-1IvjCn\repo\scripts\smoke-ayas-golden-vault-run.ts:19:121)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object.transformer (C:\Users\Metod\AppData\Local\Temp\ayas-codex-fde898f-20261007\repo\node_modules\tsx\dist\register-BoI6-WNn.cjs:9:3252)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [ 'PROMOTION_STOPPED', [ 'golden.memory.retrieval-evaluation' ], [] ],
+  expected: [ 'GOLDEN_HELD', [], [] ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

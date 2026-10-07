@@ -1,0 +1,1508 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "sourceSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13",
+  "startedAt": "2026-10-07T07:38:55.740Z",
+  "completedAt": "2026-10-07T07:39:36.133Z",
+  "status": "CLOSED_PASS",
+  "scope": "CF49_BOUNDED_COMPUTER_PURCHASE_READER_ONLY",
+  "frozenPinsUnchanged": true,
+  "historicalGate": "RAW_FAIL_PRESERVED_EXACT_12_IMPROVEMENTS_EXPLICITLY_REVIEWED",
+  "allRetrievalQualityClaim": false,
+  "fixture": "TEMP_LOCAL_NO_MODEL_NETWORK_LIVE_MEMORY_AUTHORITY_OR_CREDENTIAL_ENV",
+  "results": [
+    {
+      "file": "scripts/smoke-ayas-cognitive-quality.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 391,
+      "stdoutSha256": "13274d9d515844d8a5e61355ad575129c205fa28a0943cab64f24c63c4cf4ff8",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": 1,
+        "fixtureVersion": 1,
+        "evaluatorSha256": "6957b64c99b49457655880ef7d0f73815a0e8d203e18c976e8c9eca546558385",
+        "caseCount": 55,
+        "passed": 55,
+        "heldOut": {
+          "passed": 5,
+          "total": 5
+        },
+        "dimensions": {
+          "INTENT_ACCURACY": {
+            "passed": 3,
+            "total": 3
+          },
+          "CONTEXT_CONTINUITY": {
+            "passed": 5,
+            "total": 5
+          },
+          "REFERENCE_RESOLUTION": {
+            "passed": 3,
+            "total": 3
+          },
+          "MEMORY_RELEVANCE": {
+            "passed": 2,
+            "total": 2
+          },
+          "TEMPORAL_CORRECTNESS": {
+            "passed": 7,
+            "total": 7
+          },
+          "RETRIEVAL_USEFULNESS": {
+            "passed": 1,
+            "total": 1
+          },
+          "STALE_CONTEXT_LEAKAGE": {
+            "passed": 4,
+            "total": 4
+          },
+          "CLARIFICATION_QUALITY": {
+            "passed": 3,
+            "total": 3
+          },
+          "REASONING_CONSISTENCY": {
+            "passed": 3,
+            "total": 3
+          },
+          "ANSWER_RELEVANCE": {
+            "passed": 2,
+            "total": 2
+          },
+          "ANSWER_COMPLETENESS": {
+            "passed": 2,
+            "total": 2
+          },
+          "INSTRUCTION_FOLLOWING": {
+            "passed": 4,
+            "total": 4
+          },
+          "TURKISH_NATURALNESS": {
+            "passed": 2,
+            "total": 2
+          },
+          "CONTRADICTION_AVOIDANCE": {
+            "passed": 4,
+            "total": 4
+          },
+          "UNCERTAINTY_CALIBRATION": {
+            "passed": 4,
+            "total": 4
+          },
+          "TOOL_DECISION_CORRECTNESS": {
+            "passed": 2,
+            "total": 2
+          },
+          "VERBOSITY_CALIBRATION": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        "failures": [],
+        "unexpectedFailures": [],
+        "knownLimitations": [],
+        "qualityGaps": [],
+        "layers": {
+          "decision": "real deterministic decision",
+          "context": "real context assembly",
+          "prompt": "prompt delivery only",
+          "guard": "output safety guard only"
+        }
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-cf49-remediation.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 487,
+      "stdoutSha256": "73998fc34aefcc0dd5340d7dbd901a1719eef704d39e6d59fae4a272b7533878",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "primary": 30,
+        "heldOut": 12,
+        "endToEnd": 4,
+        "fixture": "EXPLICIT_TEMP_EVALUATOR_NO_LIVE_MEMORY_NETWORK_MODEL_OR_AUTHORITY",
+        "results": [
+          {
+            "id": "P01",
+            "ok": true
+          },
+          {
+            "id": "P02",
+            "ok": true
+          },
+          {
+            "id": "P03",
+            "ok": true
+          },
+          {
+            "id": "P04",
+            "ok": true
+          },
+          {
+            "id": "P05",
+            "ok": true
+          },
+          {
+            "id": "P06",
+            "ok": true
+          },
+          {
+            "id": "P07",
+            "ok": true
+          },
+          {
+            "id": "P08",
+            "ok": true
+          },
+          {
+            "id": "P09",
+            "ok": true
+          },
+          {
+            "id": "P10",
+            "ok": true
+          },
+          {
+            "id": "P11",
+            "ok": true
+          },
+          {
+            "id": "P12",
+            "ok": true
+          },
+          {
+            "id": "P13",
+            "ok": true
+          },
+          {
+            "id": "P14",
+            "ok": true
+          },
+          {
+            "id": "P15",
+            "ok": true
+          },
+          {
+            "id": "P16",
+            "ok": true
+          },
+          {
+            "id": "P17",
+            "ok": true
+          },
+          {
+            "id": "P18",
+            "ok": true
+          },
+          {
+            "id": "P19",
+            "ok": true
+          },
+          {
+            "id": "P20",
+            "ok": true
+          },
+          {
+            "id": "P21",
+            "ok": true
+          },
+          {
+            "id": "P22",
+            "ok": true
+          },
+          {
+            "id": "P23",
+            "ok": true
+          },
+          {
+            "id": "P24",
+            "ok": true
+          },
+          {
+            "id": "P25",
+            "ok": true
+          },
+          {
+            "id": "P26",
+            "ok": true
+          },
+          {
+            "id": "P27",
+            "ok": true
+          },
+          {
+            "id": "P28",
+            "ok": true
+          },
+          {
+            "id": "P29",
+            "ok": true
+          },
+          {
+            "id": "P30",
+            "ok": true
+          },
+          {
+            "id": "H01",
+            "ok": true
+          },
+          {
+            "id": "H02",
+            "ok": true
+          },
+          {
+            "id": "H03",
+            "ok": true
+          },
+          {
+            "id": "H04",
+            "ok": true
+          },
+          {
+            "id": "H05",
+            "ok": true
+          },
+          {
+            "id": "H06",
+            "ok": true
+          },
+          {
+            "id": "H07",
+            "ok": true
+          },
+          {
+            "id": "H08",
+            "ok": true
+          },
+          {
+            "id": "H09",
+            "ok": true
+          },
+          {
+            "id": "H10",
+            "ok": true
+          },
+          {
+            "id": "H11",
+            "ok": true
+          },
+          {
+            "id": "H12",
+            "ok": true
+          },
+          {
+            "id": "R1",
+            "ok": true
+          },
+          {
+            "id": "R2",
+            "ok": true
+          },
+          {
+            "id": "R3",
+            "ok": true
+          },
+          {
+            "id": "R4",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-cf49-frozen-review.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 10252,
+      "stdoutSha256": "55642a820d60dad91115b654e08520f2cef47e933e652b19e41f11b1203f9390",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "schemaVersion": "1",
+        "status": "PASS",
+        "review": "CF49_EXPLICIT_EVIDENCE_SUPERSESSION_V1",
+        "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+        "worktreeDirty": false,
+        "sourceSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13",
+        "frozenGraderSha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e",
+        "fixtureDigest": "81cbd81eba4b1fd92ac6f142efb4d74e3bd9ba2996165c3497940aa775a8c198",
+        "historicalGate": {
+          "exitCode": 1,
+          "gateFailures": [
+            "IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
+            "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
+          ],
+          "stdoutDigest": "58815f35f087581c28e9f044c88d8910a5fb2f3ab149bbb1c2366ccaa48b30af",
+          "stderrDigest": "c03ed8ba7d022a3dec2950cd3b8788469518c0d34aeaae75535515c941bc3bb3"
+        },
+        "originalCiRawGate": null,
+        "historicalEvidencePreserved": true,
+        "remainingKnownLimitations": [
+          "syn-pc-colloquial",
+          "contradiction-free-text-coffee",
+          "asof-pc-july-detected",
+          "distractor-pc-heavy-current",
+          "para-length-how",
+          "syn-length-yanit",
+          "superseded-length-old-wording",
+          "history-length-used-to",
+          "heldout-voice-length",
+          "attribute-pc-ram",
+          "attribute-pc-current-card",
+          "heldout-ram-bellek",
+          "none-same-word-other-meaning",
+          "syn-edit-montaj",
+          "future-plan-question",
+          "seed:identity-known-at-january"
+        ],
+        "cases": 12,
+        "guards": 228,
+        "networkAttempts": 0,
+        "results": [
+          {
+            "id": "exact-pc-plan",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "laptopPref",
+              "pcSpecs"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "para-pc-thinking",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "laptopPref",
+              "pcSpecs"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "para-pc-plan",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "laptopPref",
+              "pcSpecs"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "morph-pc-last-decision",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "morph-pc-card-accusative",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "pcSpecs",
+              "laptopPref"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "order-pc-inverted",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "laptopPref",
+              "pcSpecs"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "multi-pc-card-and-ram",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "pcSpecs",
+              "laptopPref"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "tr-pc-capitals",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "laptopPref",
+              "pcSpecs"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "tr-pc-punctuation",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "laptopPref",
+              "pcSpecs"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "tr-pc-typo",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "heldout-pc-card-want",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcSpecs",
+              "pcPlanNew",
+              "laptopPref"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          },
+          {
+            "id": "heldout-pc-switch",
+            "ok": true,
+            "failures": [],
+            "selected": [
+              "pcPlanNew",
+              "pcSpecs"
+            ],
+            "quarantine": [
+              {
+                "key": "pcFuture",
+                "reason": "not-yet-effective"
+              },
+              {
+                "key": "pcHistory",
+                "reason": "historical-fact"
+              },
+              {
+                "key": "pcPlanOld",
+                "reason": "superseded-fact"
+              }
+            ],
+            "guards": 19
+          }
+        ],
+        "grantsAuthority": false
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-cf49-review-contract.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 131,
+      "stdoutSha256": "fe775f1ce00e85e7b1cc62aa49ae476281766a933a76833a02e069baeea634ff",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "negativeControls": 16,
+        "baseline": "PASS",
+        "noIO": true
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-cf49-remediation-mutations.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 16749,
+      "stdoutSha256": "c77c874ea626c091b768033ec9c3cf3bc14a8b8ef114221cce2d5e50d5ebccb8",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "controls": 12,
+        "caught": 12,
+        "fixture": "EXPLICIT_TEMP_NO_REMOTE_NETWORK_MODEL_OR_CREDENTIAL_ENV",
+        "results": [
+          {
+            "id": "KEYLESS_V2_GAP",
+            "caught": true,
+            "assertionCases": [
+              "P01",
+              "P02",
+              "P03",
+              "P05",
+              "P06",
+              "P07",
+              "P22",
+              "P23",
+              "P27",
+              "P28",
+              "H01",
+              "H02",
+              "R1",
+              "R2",
+              "R3",
+              "R4",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "UNTRUSTED_DERIVATION",
+            "caught": true,
+            "assertionCases": [
+              "P12",
+              "P13",
+              "H10",
+              "H11",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "FORGED_VALUE",
+            "caught": true,
+            "assertionCases": [
+              "P15",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "UNBOUND_COMPUTER_METADATA",
+            "caught": true,
+            "assertionCases": [
+              "P15",
+              "P16",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "NEGATED_PURCHASE",
+            "caught": true,
+            "assertionCases": [
+              "P18",
+              "H03",
+              "H05",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "QUESTION_AS_DECISION",
+            "caught": true,
+            "assertionCases": [
+              "P19",
+              "P29",
+              "P30",
+              "H04",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "FUTURE_SUPERSESSION",
+            "caught": true,
+            "assertionCases": [
+              "P09"
+            ]
+          },
+          {
+            "id": "OLDER_WINS",
+            "caught": true,
+            "assertionCases": [
+              "P03",
+              "P04",
+              "P05",
+              "P06",
+              "P20",
+              "P22",
+              "R1",
+              "R2",
+              "R3",
+              "R4",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "TIE_NOT_DISPUTED",
+            "caught": true,
+            "assertionCases": [
+              "P07"
+            ]
+          },
+          {
+            "id": "WRONG_PURCHASE_OBJECT",
+            "caught": true,
+            "assertionCases": [
+              "H09",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          },
+          {
+            "id": "UNTRUSTED_LEGACY",
+            "caught": true,
+            "assertionCases": [
+              "P25",
+              "P26"
+            ]
+          },
+          {
+            "id": "QUOTED_DECISION",
+            "caught": true,
+            "assertionCases": [
+              "P29",
+              "P30",
+              "exact-pc-plan",
+              "para-pc-thinking",
+              "para-pc-plan",
+              "morph-pc-last-decision",
+              "morph-pc-card-accusative",
+              "order-pc-inverted",
+              "multi-pc-card-and-ram",
+              "tr-pc-capitals",
+              "tr-pc-punctuation",
+              "tr-pc-typo",
+              "heldout-pc-card-want",
+              "heldout-pc-switch"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-memory.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 208,
+      "stdoutSha256": "c3a92c726c3acc2be10464223f1f208b017b5a6d62d8846be298b1f30861a92a",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "suite": "ayas-memory",
+        "scenarios": 30
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-memory-temporal.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 2866,
+      "stdoutSha256": "862a6a11d1b0ee6292ab7df8d4311ce255ff337a48a218f90cb8fc0376667bfb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "suite": "ayas-memory-temporal",
+        "scenarios": 52,
+        "fixtures": 13
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-memory-integrity.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 729,
+      "stdoutSha256": "44a4373048efe0457219bc59e1565bfa72f37570b9b92ca27dc7b33acbfaa4b8",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "scripts/smoke-ayas-context.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 295,
+      "stdoutSha256": "396e10302d7ef850baacdbd911e8dc5558b3551ba862fbdda462ca2ce2650d8e",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "suite": "ayas-context",
+        "scenarios": 34
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-chat-stream.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 434,
+      "stdoutSha256": "307c937a3a6163b7b859f1ce785210dea1a8fb859fd08e7de5bf827e31eaf7a3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "suite": "ayas-chat-stream",
+        "scenarios": 31
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-memory.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 513,
+      "stdoutSha256": "213eed0292bc4f1cacd08bdc442c3a723ef49623ba5b94aca0943b9ec75e0252",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "primary": {
+          "passed": 65,
+          "total": 65
+        },
+        "heldOut": {
+          "passed": 15,
+          "total": 15
+        },
+        "ledgerUnchanged": true,
+        "fixture": "TEMP_SYNTHETIC_NO_OWNER_AUTHENTICATION",
+        "results": [
+          {
+            "id": "P01",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P02",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P03",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P04",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P05",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P06",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P07",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P08",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P09",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P10",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P11",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P12",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P13",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P14",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P15",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P16",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P17",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P18",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P19",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P20",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P21",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P22",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P23",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P24",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P25",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P26",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P27",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P28",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P29",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P30",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P31",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P32",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P33",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P34",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P35",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P36",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P37",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P38",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P39",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P40",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P41",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P42",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P43",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P44",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P45",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P46",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P47",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P48",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P49",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P50",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P51",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P52",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P53",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P54",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P55",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P56",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P57",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P58",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P59",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P60",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P61",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P62",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P63",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P64",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "P65",
+            "set": "primary",
+            "ok": true
+          },
+          {
+            "id": "H01",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H02",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H03",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H04",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H05",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H06",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H07",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H08",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H09",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H10",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H11",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H12",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H13",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H14",
+            "set": "heldOut",
+            "ok": true
+          },
+          {
+            "id": "H15",
+            "set": "heldOut",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "file": "scripts/smoke-ayas-revenue-memory-mutations.ts",
+      "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+      "exitCode": 0,
+      "durationMs": 7309,
+      "stdoutSha256": "fc1bec93ff563f97ac1059b317e024b4860cb1eaa43025433896f66cf0211865",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report": {
+        "status": "PASS",
+        "caught": 15,
+        "total": 15,
+        "equivalents": 0,
+        "baselineAndRecovered": "PASS",
+        "fixture": "GITLESS_TEMP_NO_AUTHORITY_OR_LIVE_DATA",
+        "rows": [
+          {
+            "name": "owner review receipt ignored",
+            "assertion": "P31",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "future observation accepted",
+            "assertion": "P32",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "duplicate event overwrites material",
+            "assertion": "P51",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "memory identity not checked",
+            "assertion": "P54",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "foreign slot admitted",
+            "assertion": "P53",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "model correction overrides owner",
+            "assertion": "H10",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "source rank inverted",
+            "assertion": "P41",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "future version made current",
+            "assertion": "P44",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "disputed current accepted",
+            "assertion": "P42",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "closed offer resurrected",
+            "assertion": "P06",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "model plan owner-promoted",
+            "assertion": "P05",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "ledger reference mismatch hidden",
+            "assertion": "P14",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "stale plan masked by fresh ledger",
+            "assertion": "P23",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "known-at ignored",
+            "assertion": "H02",
+            "status": "ASSERTION_CAUGHT"
+          },
+          {
+            "name": "context made authoritative",
+            "assertion": "P25",
+            "status": "ASSERTION_CAUGHT"
+          }
+        ]
+      }
+    }
+  ],
+  "grantsAuthority": false
+}

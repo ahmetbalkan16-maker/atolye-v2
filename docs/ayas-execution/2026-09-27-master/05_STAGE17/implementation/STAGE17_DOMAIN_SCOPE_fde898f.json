@@ -1,0 +1,2874 @@
+{
+  "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "spec": "docs/ayas-execution/2026-09-27-master/05_STAGE17/STAGE17_FULL_SYSTEM_AUDIT.md",
+  "canonicalSpecSha256": "361c1cc2db1c839cd07405a96d6fde6759e3cc00ee91eb2b6c555079b44fb289",
+  "domains": [
+    {
+      "domain": "A",
+      "label": "Repository / Build / CI",
+      "canonicalCriteria": [
+        "current branch + full HEAD",
+        "local/remote ahead-behind",
+        "clean worktree",
+        "TypeScript",
+        "lint",
+        "`git diff --check`",
+        "package-lock/package consistency",
+        "CI presence/status",
+        "untracked source/test files",
+        "stale generated docs/reports"
+      ],
+      "relatedDeclaredSuites": [],
+      "knownRemainingScope": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched.",
+      "declaredSuiteWitnesses": [],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "A01",
+          "criterion": "current branch + full HEAD",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A02",
+          "criterion": "local/remote ahead-behind",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A03",
+          "criterion": "clean worktree",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A04",
+          "criterion": "TypeScript",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A05",
+          "criterion": "lint",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A06",
+          "criterion": "`git diff --check`",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A07",
+          "criterion": "package-lock/package consistency",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A08",
+          "criterion": "CI presence/status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A09",
+          "criterion": "untracked source/test files",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        },
+        {
+          "id": "A10",
+          "criterion": "stale generated docs/reports",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Whole-scope manifest/build/CI/Git qualification review; raw full166 is not all-green; service dependencies are not fully lock-matched."
+        }
+      ]
+    },
+    {
+      "domain": "B",
+      "label": "Graphify / Architecture",
+      "canonicalCriteria": [
+        "graph exists",
+        "analyzed HEAD == current HEAD",
+        "`stale=false`",
+        "`.graphify/needs_update` absent",
+        "duplicate node IDs / duplicate edges / dangling edges / self-loops = 0",
+        "current structural extraction after source changes",
+        "known parser coverage gaps (including PowerShell)",
+        "phantom edge/node risk classification",
+        "high-impact bridge review",
+        "forbidden authority paths",
+        "critical changed-file scope review"
+      ],
+      "relatedDeclaredSuites": [
+        "graphify-integration",
+        "discovery-registry"
+      ],
+      "knownRemainingScope": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "graphify-integration",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "discovery-registry",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "B01",
+          "criterion": "graph exists",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B02",
+          "criterion": "analyzed HEAD == current HEAD",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B03",
+          "criterion": "`stale=false`",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B04",
+          "criterion": "`.graphify/needs_update` absent",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B05",
+          "criterion": "duplicate node IDs / duplicate edges / dangling edges / self-loops = 0",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B06",
+          "criterion": "current structural extraction after source changes",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B07",
+          "criterion": "known parser coverage gaps (including PowerShell)",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B08",
+          "criterion": "phantom edge/node risk classification",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B09",
+          "criterion": "high-impact bridge review",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B10",
+          "criterion": "forbidden authority paths",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        },
+        {
+          "id": "B11",
+          "criterion": "critical changed-file scope review",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Direct review of PARTIAL9 parser coverage and architecture subchecks; semantic PENDING remains disclosed."
+        }
+      ]
+    },
+    {
+      "domain": "C",
+      "label": "Conversation / Intent / Context",
+      "canonicalCriteria": [
+        "intent routing",
+        "reference resolution",
+        "long-session compression",
+        "clarification behavior",
+        "Turkish nuance fixtures",
+        "answer relevance/completeness",
+        "verbosity/instruction following",
+        "live Ollama comparison status",
+        "remaining cognitive known limits"
+      ],
+      "relatedDeclaredSuites": [
+        "cognitive-quality",
+        "conversation-quality-master",
+        "chat-quality",
+        "context",
+        "context-budget",
+        "context-budget-mutations"
+      ],
+      "knownRemainingScope": "Matched live owner context/model benchmark and remaining quality limitation review absent.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "cognitive-quality",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "conversation-quality-master",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "chat-quality",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "context",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "context-budget",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "context-budget-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "C01",
+          "criterion": "intent routing",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C02",
+          "criterion": "reference resolution",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C03",
+          "criterion": "long-session compression",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C04",
+          "criterion": "clarification behavior",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C05",
+          "criterion": "Turkish nuance fixtures",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C06",
+          "criterion": "answer relevance/completeness",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C07",
+          "criterion": "verbosity/instruction following",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C08",
+          "criterion": "live Ollama comparison status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        },
+        {
+          "id": "C09",
+          "criterion": "remaining cognitive known limits",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Matched live owner context/model benchmark and remaining quality limitation review absent."
+        }
+      ]
+    },
+    {
+      "domain": "D",
+      "label": "Memory / Retrieval / Temporal",
+      "canonicalCriteria": [
+        "store integrity",
+        "current/history/as-of behavior",
+        "supersession",
+        "stale/future quarantine",
+        "conflict behavior",
+        "retrieval metrics",
+        "chat delivery gate",
+        "known limitation map",
+        "free-text decision correction",
+        "privacy/memory governance"
+      ],
+      "relatedDeclaredSuites": [
+        "memory-integrity",
+        "memory",
+        "memory-temporal",
+        "retrieval-evaluation",
+        "golden-vault-run",
+        "golden-sandbox-run"
+      ],
+      "knownRemainingScope": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "memory-integrity",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "memory",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "memory-temporal",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "retrieval-evaluation",
+          "status": "FAIL",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "golden-vault-run",
+          "status": "FAIL",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "golden-sandbox-run",
+          "status": "FAIL",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "D01",
+          "criterion": "store integrity",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D02",
+          "criterion": "current/history/as-of behavior",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D03",
+          "criterion": "supersession",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D04",
+          "criterion": "stale/future quarantine",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D05",
+          "criterion": "conflict behavior",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D06",
+          "criterion": "retrieval metrics",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D07",
+          "criterion": "chat delivery gate",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D08",
+          "criterion": "known limitation map",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D09",
+          "criterion": "free-text decision correction",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        },
+        {
+          "id": "D10",
+          "criterion": "privacy/memory governance",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Raw retrieval and two Golden promotion stops remain;16 known limits need explicit bounded treatment, not grader edits."
+        }
+      ]
+    },
+    {
+      "domain": "E",
+      "label": "Model / Provider / Voice / Mobile",
+      "canonicalCriteria": [
+        "Ollama health/current selected model",
+        "no unexpected paid cloud fallback",
+        "model-routing docs match code",
+        "STT path/config",
+        "phone local-LLM model artifact revision/digest pinning",
+        "phone access health",
+        "wake/session continuity",
+        "voice/TTS path",
+        "current runtime evidence versus historical reports"
+      ],
+      "relatedDeclaredSuites": [
+        "model-router",
+        "zero-cost-policy",
+        "voice-turn-state-mutations",
+        "independence-certification",
+        "independence-certification-mutations"
+      ],
+      "knownRemainingScope": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "model-router",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "zero-cost-policy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "voice-turn-state-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "independence-certification",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "independence-certification-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "E01",
+          "criterion": "Ollama health/current selected model",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E02",
+          "criterion": "no unexpected paid cloud fallback",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E03",
+          "criterion": "model-routing docs match code",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E04",
+          "criterion": "STT path/config",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E05",
+          "criterion": "phone local-LLM model artifact revision/digest pinning",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E06",
+          "criterion": "phone access health",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E07",
+          "criterion": "wake/session continuity",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E08",
+          "criterion": "voice/TTS path",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        },
+        {
+          "id": "E09",
+          "criterion": "current runtime evidence versus historical reports",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real authenticated phone voice/STT/wake/session and selected-model inference comparison not run; login reachability alone insufficient."
+        }
+      ]
+    },
+    {
+      "domain": "F",
+      "label": "Autonomy / Approval / Execution",
+      "canonicalCriteria": [
+        "proposal discovery authority = none",
+        "approval provenance",
+        "exact proposal hash binding",
+        "patch artifact hash binding",
+        "stale-head reconciliation",
+        "execution gate",
+        "execution journal recovery",
+        "Runtime Stability Guard",
+        "no direct mutation bypass",
+        "owner approval required",
+        "observer/discovery daemon isolation",
+        "autostart smoke safety",
+        "controlled self-evolution Stage 15 status"
+      ],
+      "relatedDeclaredSuites": [
+        "action-runtime",
+        "action-firewall",
+        "action-firewall-runtime",
+        "action-firewall-bridge",
+        "action-firewall-closure",
+        "owner-session-admission",
+        "owner-capability-firewall",
+        "execution-gate",
+        "execution-authority",
+        "durable-task-runtime",
+        "durable-task-recovery",
+        "owner-constitution",
+        "constitution-run-binding"
+      ],
+      "knownRemainingScope": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "action-runtime",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "action-firewall",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "action-firewall-runtime",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "action-firewall-bridge",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "action-firewall-closure",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "owner-session-admission",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "owner-capability-firewall",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "execution-gate",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "execution-authority",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "durable-task-runtime",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "durable-task-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "owner-constitution",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "constitution-run-binding",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "F01",
+          "criterion": "proposal discovery authority = none",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F02",
+          "criterion": "approval provenance",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F03",
+          "criterion": "exact proposal hash binding",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F04",
+          "criterion": "patch artifact hash binding",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F05",
+          "criterion": "stale-head reconciliation",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F06",
+          "criterion": "execution gate",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F07",
+          "criterion": "execution journal recovery",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F08",
+          "criterion": "Runtime Stability Guard",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F09",
+          "criterion": "no direct mutation bypass",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F10",
+          "criterion": "owner approval required",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F11",
+          "criterion": "observer/discovery daemon isolation",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F12",
+          "criterion": "autostart smoke safety",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        },
+        {
+          "id": "F13",
+          "criterion": "controlled self-evolution Stage 15 status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Actual authenticated owner-session/approval provenance and live execution journal identity proof missing; no gate activation authorized."
+        }
+      ]
+    },
+    {
+      "domain": "G",
+      "label": "Security / Supply Chain",
+      "canonicalCriteria": [
+        "safe public fetch / SSRF",
+        "secret leakage",
+        "bounded body/file writes",
+        "symlink/junction boundaries",
+        "command/process fixed-argument paths",
+        "package install scripts risk",
+        "current advisory scan status",
+        "model artifact pinning",
+        "dependency drift",
+        "MCP/plugin/tool authority boundaries",
+        "prompt injection",
+        "archive/file safety",
+        "revenue security if Stage 16 exists"
+      ],
+      "relatedDeclaredSuites": [
+        "bounded-request-body",
+        "bounded-file-write",
+        "safe-public-fetch",
+        "release-provenance",
+        "release-provenance-mutations",
+        "revenue-security",
+        "revenue-security-adversarial",
+        "revenue-security-mutations"
+      ],
+      "knownRemainingScope": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "bounded-request-body",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "bounded-file-write",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "safe-public-fetch",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "release-provenance",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "release-provenance-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-security",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-security-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-security-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "G01",
+          "criterion": "safe public fetch / SSRF",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G02",
+          "criterion": "secret leakage",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G03",
+          "criterion": "bounded body/file writes",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G04",
+          "criterion": "symlink/junction boundaries",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G05",
+          "criterion": "command/process fixed-argument paths",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G06",
+          "criterion": "package install scripts risk",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G07",
+          "criterion": "current advisory scan status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G08",
+          "criterion": "model artifact pinning",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G09",
+          "criterion": "dependency drift",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G10",
+          "criterion": "MCP/plugin/tool authority boundaries",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G11",
+          "criterion": "prompt injection",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G12",
+          "criterion": "archive/file safety",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        },
+        {
+          "id": "G13",
+          "criterion": "revenue security if Stage 16 exists",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "8 high dev-only advisories retained; source lock audit0 does not qualify the older running Next install; prompt/tool/archive scope review still required."
+        }
+      ]
+    },
+    {
+      "domain": "H",
+      "label": "Data Governance / Privacy",
+      "canonicalCriteria": [
+        "memory data classification",
+        "retention/deletion semantics",
+        "secrets separation",
+        "personal/private data minimization",
+        "raw provider/platform payload persistence",
+        "redaction",
+        "trace privacy",
+        "revenue PII boundaries",
+        "backup contents/policy",
+        "connected-app data boundaries"
+      ],
+      "relatedDeclaredSuites": [
+        "memory-integrity",
+        "unified-trace",
+        "source-evidence",
+        "source-evidence-mutations",
+        "revenue-security"
+      ],
+      "knownRemainingScope": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "memory-integrity",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "unified-trace",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "source-evidence",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "source-evidence-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-security",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "H01",
+          "criterion": "memory data classification",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H02",
+          "criterion": "retention/deletion semantics",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H03",
+          "criterion": "secrets separation",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H04",
+          "criterion": "personal/private data minimization",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H05",
+          "criterion": "raw provider/platform payload persistence",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H06",
+          "criterion": "redaction",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H07",
+          "criterion": "trace privacy",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H08",
+          "criterion": "revenue PII boundaries",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H09",
+          "criterion": "backup contents/policy",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        },
+        {
+          "id": "H10",
+          "criterion": "connected-app data boundaries",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Complete privacy/retention/connected-app and backup contents review not qualified by representative memory smokes."
+        }
+      ]
+    },
+    {
+      "domain": "I",
+      "label": "Backup / Disaster Recovery",
+      "canonicalCriteria": [
+        "current runtime backup inventory",
+        "manifest verification",
+        "restore/candidate verification",
+        "path policy",
+        "durable recovery",
+        "crash/interruption handling",
+        "recovery test freshness",
+        "authority generation binding",
+        "old-root/quarantine/rollback semantics where applicable",
+        "restore test, not merely backup creation"
+      ],
+      "relatedDeclaredSuites": [
+        "portable-brain",
+        "portable-brain-mutations",
+        "durable-task-recovery",
+        "execution-journal",
+        "workflow-recovery"
+      ],
+      "knownRemainingScope": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "portable-brain",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "portable-brain-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "durable-task-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "execution-journal",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "workflow-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "I01",
+          "criterion": "current runtime backup inventory",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I02",
+          "criterion": "manifest verification",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I03",
+          "criterion": "restore/candidate verification",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I04",
+          "criterion": "path policy",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I05",
+          "criterion": "durable recovery",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I06",
+          "criterion": "crash/interruption handling",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I07",
+          "criterion": "recovery test freshness",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I08",
+          "criterion": "authority generation binding",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I09",
+          "criterion": "old-root/quarantine/rollback semantics where applicable",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        },
+        {
+          "id": "I10",
+          "criterion": "restore test, not merely backup creation",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real-runtime restore/candidate proof absent; TEMP backup39 and real inventory are separately bounded."
+        }
+      ]
+    },
+    {
+      "domain": "J",
+      "label": "Runtime / Remote Access / Operability",
+      "canonicalCriteria": [
+        "runtime composition root",
+        "health endpoint identity",
+        "runtime authority root",
+        "scheduled tasks/autostart status",
+        "observer heartbeat",
+        "access daemon",
+        "Cloudflare/remote access health where owner chooses to test",
+        "background process mutation accounting",
+        "logs/recovery state",
+        "single-instance/process ownership",
+        "no hidden duplicate runtime"
+      ],
+      "relatedDeclaredSuites": [
+        "on-demand-lifecycle",
+        "on-demand-lifecycle-mutations",
+        "runtime-stability-guard",
+        "operation-telemetry",
+        "resource-occupancy",
+        "resource-governor",
+        "safe-mode"
+      ],
+      "knownRemainingScope": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "on-demand-lifecycle",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "on-demand-lifecycle-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "runtime-stability-guard",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "operation-telemetry",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "resource-occupancy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "resource-governor",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "safe-mode",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "J01",
+          "criterion": "runtime composition root",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J02",
+          "criterion": "health endpoint identity",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J03",
+          "criterion": "runtime authority root",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J04",
+          "criterion": "scheduled tasks/autostart status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J05",
+          "criterion": "observer heartbeat",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J06",
+          "criterion": "access daemon",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J07",
+          "criterion": "Cloudflare/remote access health where owner chooses to test",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J08",
+          "criterion": "background process mutation accounting",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J09",
+          "criterion": "logs/recovery state",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J10",
+          "criterion": "single-instance/process ownership",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        },
+        {
+          "id": "J11",
+          "criterion": "no hidden duplicate runtime",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Authenticated bundled runtime identity missing; actual access/hidden task health and owner-reported login now present; reboot not exercised."
+        }
+      ]
+    },
+    {
+      "domain": "K",
+      "label": "Production Pipeline / Storage / Media",
+      "canonicalCriteria": [
+        "production authority generation",
+        "execution gate",
+        "durable recovery",
+        "storage relocation/cutover state",
+        "ffmpeg/ffprobe",
+        "scene-video/assembly/audio gates",
+        "real-media source selection",
+        "media rights audit",
+        "visual depiction/classification",
+        "director readiness",
+        "pixel-level evaluation status",
+        "audio-level evaluation status",
+        "Wikimedia/stock-video known limitations",
+        "production E2E readiness and current smoke"
+      ],
+      "relatedDeclaredSuites": [
+        "production-director",
+        "historical-storytelling",
+        "production-quality-gate",
+        "production-quality-collector",
+        "production-fault-repair",
+        "production-cost-governor",
+        "youtube-ready-export",
+        "golden-video-projects"
+      ],
+      "knownRemainingScope": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "production-director",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "historical-storytelling",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "production-quality-gate",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "production-quality-collector",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "production-fault-repair",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "production-cost-governor",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "youtube-ready-export",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "golden-video-projects",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "K01",
+          "criterion": "production authority generation",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K02",
+          "criterion": "execution gate",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K03",
+          "criterion": "durable recovery",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K04",
+          "criterion": "storage relocation/cutover state",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K05",
+          "criterion": "ffmpeg/ffprobe",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K06",
+          "criterion": "scene-video/assembly/audio gates",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K07",
+          "criterion": "real-media source selection",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K08",
+          "criterion": "media rights audit",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K09",
+          "criterion": "visual depiction/classification",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K10",
+          "criterion": "director readiness",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K11",
+          "criterion": "pixel-level evaluation status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K12",
+          "criterion": "audio-level evaluation status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K13",
+          "criterion": "Wikimedia/stock-video known limitations",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        },
+        {
+          "id": "K14",
+          "criterion": "production E2E readiness and current smoke",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Production generation/rights/real-media/pixel/audio/E2E qualifications require existing production gates; no execute/resume authorization."
+        }
+      ]
+    },
+    {
+      "domain": "L",
+      "label": "Research / Evolution / Technology Watch",
+      "canonicalCriteria": [
+        "PC-off research recovery",
+        "source resilience",
+        "research improvement loop",
+        "Stage 13 opportunity lifecycle",
+        "Stage 14 technology watch persistence/daemon state",
+        "Stage 15 controlled self-evolution status",
+        "production strategy registry",
+        "bounded experiment policy",
+        "owner authority remains external to research/evolution"
+      ],
+      "relatedDeclaredSuites": [
+        "research-scheduler",
+        "research-improvement-loop",
+        "research-source-resilience",
+        "controlled-self-evolution-cycle",
+        "controlled-self-evolution-artifact",
+        "open-ended-evolution",
+        "technology-watch"
+      ],
+      "knownRemainingScope": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "research-scheduler",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "research-improvement-loop",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "research-source-resilience",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "controlled-self-evolution-cycle",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "controlled-self-evolution-artifact",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "open-ended-evolution",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "technology-watch",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "L01",
+          "criterion": "PC-off research recovery",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L02",
+          "criterion": "source resilience",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L03",
+          "criterion": "research improvement loop",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L04",
+          "criterion": "Stage 13 opportunity lifecycle",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L05",
+          "criterion": "Stage 14 technology watch persistence/daemon state",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L06",
+          "criterion": "Stage 15 controlled self-evolution status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L07",
+          "criterion": "production strategy registry",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L08",
+          "criterion": "bounded experiment policy",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        },
+        {
+          "id": "L09",
+          "criterion": "owner authority remains external to research/evolution",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Real persisted scheduler/watch/strategy continuity and qualified live opportunity lifecycle require status proofs beyond TEMP tests."
+        }
+      ]
+    },
+    {
+      "domain": "M",
+      "label": "Developer Intelligence / Skills / Agents",
+      "canonicalCriteria": [
+        "task classifier",
+        "Graphify evidence",
+        "skill registry",
+        "Claude/Codex descriptive vs live adapter status",
+        "manual handoff vs live dispatch",
+        "no model-selected executable adapter",
+        "developer held-out evaluator",
+        "repository recovery behavior"
+      ],
+      "relatedDeclaredSuites": [
+        "developer-intelligence",
+        "developer-workflow",
+        "workflow-recovery",
+        "workflow-store",
+        "patch-artifact",
+        "guided-repair"
+      ],
+      "knownRemainingScope": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "developer-intelligence",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "developer-workflow",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "workflow-recovery",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "workflow-store",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "patch-artifact",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "guided-repair",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "M01",
+          "criterion": "task classifier",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        },
+        {
+          "id": "M02",
+          "criterion": "Graphify evidence",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        },
+        {
+          "id": "M03",
+          "criterion": "skill registry",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        },
+        {
+          "id": "M04",
+          "criterion": "Claude/Codex descriptive vs live adapter status",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        },
+        {
+          "id": "M05",
+          "criterion": "manual handoff vs live dispatch",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        },
+        {
+          "id": "M06",
+          "criterion": "no model-selected executable adapter",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        },
+        {
+          "id": "M07",
+          "criterion": "developer held-out evaluator",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        },
+        {
+          "id": "M08",
+          "criterion": "repository recovery behavior",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Live Claude/Codex dispatch not qualified; do not infer a live adapter from descriptive metadata or local handoff."
+        }
+      ]
+    },
+    {
+      "domain": "N",
+      "label": "Revenue Center",
+      "canonicalCriteria": [
+        "default spend = 0",
+        "adapter transport truth",
+        "ledger integrity",
+        "free-first validation",
+        "platform live validation levels",
+        "reinvestment disabled/default",
+        "privacy/security",
+        "pilot/scaling authority",
+        "no unapproved financial/external write"
+      ],
+      "relatedDeclaredSuites": [
+        "revenue-adapter-standard",
+        "revenue-adapter-standard-mutations",
+        "revenue-account-boundary",
+        "revenue-account-boundary-mutations",
+        "revenue-spend-policy",
+        "revenue-spend-policy-mutations",
+        "revenue-ledger",
+        "revenue-ledger-mutations",
+        "revenue-free-first-validation",
+        "revenue-free-first-validation-mutations",
+        "revenue-offer-factory",
+        "revenue-offer-factory-mutations",
+        "revenue-fulfillment-gate",
+        "revenue-fulfillment-gate-mutations",
+        "revenue-etsy-adapter",
+        "revenue-etsy-adapter-mutations",
+        "revenue-upwork-adapter",
+        "revenue-upwork-adapter-mutations",
+        "revenue-fiverr-adapter",
+        "revenue-fiverr-adapter-mutations",
+        "course-production-plan",
+        "revenue-udemy-adapter",
+        "revenue-udemy-course-mutations",
+        "revenue-lemon-adapter",
+        "revenue-lemon-adapter-mutations",
+        "revenue-reinvestment-policy",
+        "revenue-reinvestment-mutations",
+        "revenue-memory",
+        "revenue-intelligence",
+        "revenue-memory-mutations",
+        "revenue-security",
+        "revenue-security-adversarial",
+        "revenue-security-mutations",
+        "revenue-compliance",
+        "revenue-compliance-adversarial",
+        "revenue-compliance-mutations",
+        "revenue-low-cost-pilot",
+        "revenue-low-cost-pilot-adversarial",
+        "revenue-low-cost-pilot-mutations",
+        "revenue-profit-gated-scaling",
+        "revenue-profit-gated-scaling-adversarial",
+        "revenue-profit-gated-scaling-mutations",
+        "revenue-center-closure",
+        "revenue-center-closure-adversarial",
+        "revenue-center-closure-mutations"
+      ],
+      "knownRemainingScope": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof.",
+      "declaredSuiteWitnesses": [
+        {
+          "id": "revenue-adapter-standard",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-adapter-standard-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-account-boundary",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-account-boundary-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-spend-policy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-spend-policy-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-ledger",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-ledger-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-free-first-validation",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-free-first-validation-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-offer-factory",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-offer-factory-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-fulfillment-gate",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-fulfillment-gate-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-etsy-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-etsy-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-upwork-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-upwork-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-fiverr-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-fiverr-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "course-production-plan",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-udemy-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-udemy-course-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-lemon-adapter",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-lemon-adapter-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-reinvestment-policy",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-reinvestment-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-memory",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-intelligence",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-memory-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-security",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-security-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-security-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-compliance",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-compliance-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-compliance-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-low-cost-pilot",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-low-cost-pilot-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-low-cost-pilot-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-profit-gated-scaling",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-profit-gated-scaling-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-profit-gated-scaling-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-center-closure",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-center-closure-adversarial",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        },
+        {
+          "id": "revenue-center-closure-mutations",
+          "status": "PASS",
+          "receipt": "STAGE17_fde898f_FULL166.json"
+        }
+      ],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "N01",
+          "criterion": "default spend = 0",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N02",
+          "criterion": "adapter transport truth",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N03",
+          "criterion": "ledger integrity",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N04",
+          "criterion": "free-first validation",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N05",
+          "criterion": "platform live validation levels",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N06",
+          "criterion": "reinvestment disabled/default",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N07",
+          "criterion": "privacy/security",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N08",
+          "criterion": "pilot/scaling authority",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        },
+        {
+          "id": "N09",
+          "criterion": "no unapproved financial/external write",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Empty production registry; Lemon realTEST/durable ingressUNBOUND; Fiverr account/GigOWNER_REPORTED, no orders/revenue/ledger proof."
+        }
+      ]
+    },
+    {
+      "domain": "O",
+      "label": "Documentation / Roadmap Consistency",
+      "canonicalCriteria": [
+        "ROADMAP status matches code/evidence",
+        "docs do not claim a cloud fallback that code denies",
+        "historical reports clearly labeled historical",
+        "completed stages have closure evidence",
+        "deferred work is still represented",
+        "no \"PASS\" or \"complete\" claim is based only on design files"
+      ],
+      "relatedDeclaredSuites": [],
+      "knownRemainingScope": "Current source/docs consistency and final bound owner review missing; continuation authorization is not final closure approval.",
+      "declaredSuiteWitnesses": [],
+      "notMatchedDeclaredSuiteLabels": [],
+      "fullCriteriaReviewedAndQualified": false,
+      "sourcePresenceOnly": true,
+      "criterionFindings": [
+        {
+          "id": "O01",
+          "criterion": "ROADMAP status matches code/evidence",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Current source/docs consistency and final bound owner review missing; continuation authorization is not final closure approval."
+        },
+        {
+          "id": "O02",
+          "criterion": "docs do not claim a cloud fallback that code denies",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Current source/docs consistency and final bound owner review missing; continuation authorization is not final closure approval."
+        },
+        {
+          "id": "O03",
+          "criterion": "historical reports clearly labeled historical",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Current source/docs consistency and final bound owner review missing; continuation authorization is not final closure approval."
+        },
+        {
+          "id": "O04",
+          "criterion": "completed stages have closure evidence",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Current source/docs consistency and final bound owner review missing; continuation authorization is not final closure approval."
+        },
+        {
+          "id": "O05",
+          "criterion": "deferred work is still represented",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Current source/docs consistency and final bound owner review missing; continuation authorization is not final closure approval."
+        },
+        {
+          "id": "O06",
+          "criterion": "no \"PASS\" or \"complete\" claim is based only on design files",
+          "wholeCriterionQualification": "NOT_RUN",
+          "testAggregate": "NOT_RUN",
+          "liveAggregate": "NOT_RUN",
+          "reason": "NAMED_COMPONENT_WITNESSES_DO_NOT_ESTABLISH_ALL_CANONICAL_SUBCHECKS",
+          "requiredReview": "Current source/docs consistency and final bound owner review missing; continuation authorization is not final closure approval."
+        }
+      ]
+    }
+  ],
+  "aggregateSlots": [
+    {
+      "checkId": "A_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "A_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "B_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "B_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "C_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "C_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "D_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "D_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "E_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "E_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "F_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "F_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "G_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "G_LIVE",
+      "evidenceClass": "EXTERNAL_OFFICIAL",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "H_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "H_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "I_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "I_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "J_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "J_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "K_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "K_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "L_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "L_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "M_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "M_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "N_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "N_LIVE",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "O_TEST",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    },
+    {
+      "checkId": "O_LIVE",
+      "evidenceClass": "OWNER_DECISION",
+      "canonicalState": "NOT_RUN",
+      "finding": "COLLECTOR_NOT_BOUND",
+      "scopeQualified": false
+    }
+  ],
+  "representativeComponentsMayQualifyWholeDomain": false,
+  "foundation": "BLOCKED",
+  "homepageBoundaryReached": false,
+  "grantsAuthority": false,
+  "schemaVersion": "2",
+  "observedAt": "2026-10-07T08:31:26.854Z",
+  "criteriaCount": 152,
+  "full166": {
+    "file": "STAGE17_fde898f_FULL166.json",
+    "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+    "executed": 166,
+    "passed": 163,
+    "failed": [
+      "retrieval-evaluation",
+      "golden-vault-run",
+      "golden-sandbox-run"
+    ],
+    "outcome": "FAIL",
+    "complete": true,
+    "qualifiesAll152Criteria": false
+  },
+  "resolvedFindings": [
+    {
+      "id": "FROZEN_OCCUPANCY_TIME_RACE",
+      "state": "RESOLVED_ON_NEW_SOURCE_ONLY",
+      "evidence": "STAGE17_FULL166_QUALIFICATION_fde898f.json"
+    },
+    {
+      "id": "HISTORICAL_CANONICAL_SHA_BASIS",
+      "state": "RESOLVED_VERIFIER_ASSUMPTION_NO_DATA_DRIFT",
+      "evidence": "STAGE17_REGISTRY_CANONICAL_BASIS_REVIEW_fde898f.json"
+    }
+  ],
+  "technicalBlockers": [
+    "EXTERNAL_COMBINED_PROTECTION_NOT_BOUND",
+    "WHOLE_CANONICAL_CRITERIA_NOT_QUALIFIED",
+    "INSTALLED_RUNTIME_NOT_FULL_LOCK_MATCHED"
+  ],
+  "namedCriterionObservations": [
+    {
+      "criterionId": "A04",
+      "state": "PASS",
+      "observation": "TypeScript exit0",
+      "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "A05",
+      "state": "PASS",
+      "observation": "Lint0 errors;13 inherited warnings",
+      "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "A07",
+      "state": "PASS",
+      "observation": "npm ci matched package/lock in credential-free clone",
+      "evidence": "STAGE17_fde898f_NPM_CI.log",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "A08",
+      "state": "PASS",
+      "observation": "Current exact-source hosted named gates SUCCESS;raw gate FAIL remains",
+      "evidence": "STAGE17_HOSTED_CI_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "B01",
+      "state": "PASS",
+      "observation": "Fresh-source graph exists",
+      "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "B02",
+      "state": "PASS",
+      "observation": "Fresh-source analyzed/built heads equal fde898f",
+      "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "B03",
+      "state": "PASS",
+      "observation": "Fresh-source graph not stale;PARTIAL9 disclosed",
+      "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "B04",
+      "state": "PASS",
+      "observation": "Fresh-source needs_update absent",
+      "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "B05",
+      "state": "PASS",
+      "observation": "Four graph integrity counters0",
+      "evidence": "STAGE17_SOURCE_PREPARATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "D06",
+      "state": "BLOCKED",
+      "observation": "Raw retrieval exact12 requests;two Golden stops;not all quality PASS",
+      "evidence": "STAGE17_FULL166_QUALIFICATION_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "E06",
+      "state": "PASS",
+      "observation": "Actual public login200;owner-reported phone reachability only;authentication unqualified",
+      "evidence": "STAGE17_PHONE_STABILITY_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "G07",
+      "state": "PASS",
+      "observation": "Current official advisory query0 production/8 high dev;risks remain open",
+      "evidence": "STAGE17_AUDIT_ALL_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "I01",
+      "state": "PASS",
+      "observation": "Actual runtime2372 files/17 projects;manifest validation and two inventories identical;restore unqualified",
+      "evidence": "STAGE17_RUNTIME_INVENTORY_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "J04",
+      "state": "PASS",
+      "observation": "Both existing hidden tasksRunning;no real reboot proof",
+      "evidence": "STAGE17_PHONE_STABILITY_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    },
+    {
+      "criterionId": "J07",
+      "state": "PASS",
+      "observation": "Single named tunnel/public reachability;not authenticated runtime proof",
+      "evidence": "STAGE17_PHONE_STABILITY_fde898f.json",
+      "qualificationExtent": "ONLY_THIS_NAMED_OBSERVATION_NOT_ENTIRE_CANONICAL_DOMAIN_OR_LIVE_PATH",
+      "wholeCriterionOrAggregatePassImplied": false
+    }
+  ],
+  "ownerPrerequisites": "STAGE17_OWNER_REVIEW_PREREQUISITES_fde898f.json"
+}

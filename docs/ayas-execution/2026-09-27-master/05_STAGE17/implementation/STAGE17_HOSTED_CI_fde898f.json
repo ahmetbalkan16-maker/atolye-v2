@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "observedAt": "2026-10-07T07:50:32.030Z",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "fixture": "REAL_HOSTED_UBUNTU_NODE24_NAMED_CI_GATES_ONLY",
+  "run": {
+    "id": 37588433930,
+    "url": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37588433930",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "rawGate": {
+    "exit": 1,
+    "gateFailures": [
+      "IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
+    ],
+    "reportSha256": "346291e09ce545c4678c4c85fba57c431fe59df5e494b02a8e50247e23ec97fd",
+    "preserved": true
+  },
+  "originalRawReview": {
+    "status": "PASS",
+    "sameOriginalRawDigestVerified": true,
+    "fixtureDigest": "81cbd81eba4b1fd92ac6f142efb4d74e3bd9ba2996165c3497940aa775a8c198",
+    "remainingKnownLimitations": 16,
+    "remainingKnownLimitationIds": [
+      "syn-pc-colloquial",
+      "contradiction-free-text-coffee",
+      "asof-pc-july-detected",
+      "distractor-pc-heavy-current",
+      "para-length-how",
+      "syn-length-yanit",
+      "superseded-length-old-wording",
+      "history-length-used-to",
+      "heldout-voice-length",
+      "attribute-pc-ram",
+      "attribute-pc-current-card",
+      "heldout-ram-bellek",
+      "none-same-word-other-meaning",
+      "syn-edit-montaj",
+      "future-plan-question",
+      "seed:identity-known-at-january"
+    ]
+  },
+  "cf49": {
+    "status": "CLOSED_PASS",
+    "boundedScope": "CF49_BOUNDED_COMPUTER_PURCHASE_READER_ONLY",
+    "suites": 12,
+    "frozenPinsUnchanged": true
+  },
+  "artifactFiles": [
+    {
+      "source": "frozen.json",
+      "file": "STAGE17_HOSTED_RAW_fde898f.json",
+      "sha256": "346291e09ce545c4678c4c85fba57c431fe59df5e494b02a8e50247e23ec97fd"
+    },
+    {
+      "source": "original-review.json",
+      "file": "STAGE17_HOSTED_REVIEW_fde898f.json",
+      "sha256": "156b44030ae934871138c0bd59db33fe27f0adec5e5e478fb36eec5e393a947a"
+    },
+    {
+      "source": "closure.json",
+      "file": "STAGE17_HOSTED_CF49_fde898f.json",
+      "sha256": "b6970ada8e13de8e9690586197ad0348cf70e7fd2d855553c0bd9e11cb491463"
+    }
+  ],
+  "archiveDigestFromGitHubApi": "sha256:1c1e7abb69b4a574205183e667cfc7095f5ef41c51025b1f353745fd9bc44835",
+  "archiveDigestIndependentlyVerified": false,
+  "full166Qualification": "INDEPENDENT_RUN_STILL_RUNNING",
+  "foundationClosed": false,
+  "authenticatedRuntimeQualified": false,
+  "grantsAuthority": false
+}

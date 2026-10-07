@@ -1,0 +1,1435 @@
+{
+  "schemaVersion": "1",
+  "generatedAt": "2026-10-07T07:38:44.453Z",
+  "commit": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "fixtureVersion": "2",
+  "fixtureDigest": "81cbd81eba4b1fd92ac6f142efb4d74e3bd9ba2996165c3497940aa775a8c198",
+  "caseCounts": {
+    "cases": 74,
+    "seed": 13,
+    "new": 61,
+    "heldOut": 8,
+    "withRelevant": 62,
+    "abstain": 12,
+    "passed": 58
+  },
+  "metrics": {
+    "counts": {
+      "cases": 74,
+      "seed": 13,
+      "new": 61,
+      "heldOut": 8,
+      "withRelevant": 62,
+      "abstain": 12,
+      "passed": 58
+    },
+    "overall": {
+      "cases": 74,
+      "passRate": 0.7837837837837838,
+      "candidateRecall": 0.9838709677419355,
+      "hitRateAtK": 0.967741935483871,
+      "recallAtK": 0.967741935483871,
+      "mrr": 0.924731182795699,
+      "chatDeliveryRate": 0.8333333333333334
+    },
+    "layerPassRate": {
+      "query": 0.9864864864864865,
+      "candidate": 0.9864864864864865,
+      "ranking": 0.8783783783783784,
+      "recall-context": 0.8783783783783784,
+      "chat-context": 0.7972972972972973
+    },
+    "candidate": {
+      "recall": 0.9838709677419355,
+      "hitRate": 0.9838709677419355,
+      "medianCandidateCount": 2,
+      "medianPoolSize": 4
+    },
+    "ranking": {
+      "k": 4,
+      "recallAt1": 0.8629032258064516,
+      "recallAtK": 0.967741935483871,
+      "hitRateAt1": 0.9032258064516129,
+      "hitRateAtK": 0.967741935483871,
+      "mrr": 0.924731182795699,
+      "precisionAt1": 0.9180327868852459,
+      "selectionPrecision": 0.784153005464481,
+      "medianFirstRelevantRank": 1,
+      "meanSelectedCount": 1.4054054054054055
+    },
+    "temporal": {
+      "queryModeAccuracy": 0.9861111111111112,
+      "currentCorrectRate": 0.8653846153846154,
+      "historyCorrectRate": 1,
+      "asOfCorrectRate": 0.7777777777777778,
+      "explicitAsOfCorrectRate": 1,
+      "staleSelectionRate": 0.044444444444444446,
+      "supersededSelectionRate": 0,
+      "freeTextStaleSelectionRate": 0.0625,
+      "futureAsCurrentRate": 0,
+      "historicalAsCurrentRate": 0,
+      "conflictCorrectRate": 0.8,
+      "deletedResurrectionRate": 0,
+      "cases": {
+        "current": 52,
+        "history": 1,
+        "asOf": 9,
+        "explicitAsOf": 8,
+        "superseded": 18,
+        "freeTextStale": 16,
+        "future": 19,
+        "historical": 19,
+        "conflict": 5,
+        "deleted": 2
+      }
+    },
+    "negative": {
+      "abstentionCorrectRate": 0.9166666666666666,
+      "strictNegativeCorrectRate": 1,
+      "falsePositiveSelectionRate": 0.08333333333333333,
+      "falsePositiveChatDeliveryRate": 0.08333333333333333,
+      "distractorSelectionRate": 0.09090909090909091,
+      "strictNegativeCases": 4
+    },
+    "context": {
+      "recall": {
+        "cases": 74,
+        "requiredDeliveredRate": 0.967741935483871,
+        "relevantRecall": 0.967741935483871,
+        "STALE_CONTEXT_RATE": 0.044444444444444446,
+        "STALE_CONTEXT_RATE_CLEAN_EXCLUSIVE": 0,
+        "CONTRADICTORY_CONTEXT_RATE": 0.02631578947368421,
+        "distractorDeliveryRate": 0.09090909090909091,
+        "duplicateRate": 0,
+        "abstainLeakRate": 0.08333333333333333,
+        "staleLabelledCases": 45,
+        "cleanExclusiveCases": 25,
+        "contradictionLabelledCases": 38
+      },
+      "chat": {
+        "cases": 72,
+        "requiredDeliveredRate": 0.8333333333333334,
+        "relevantRecall": 0.8416666666666667,
+        "STALE_CONTEXT_RATE": 0.06818181818181818,
+        "STALE_CONTEXT_RATE_CLEAN_EXCLUSIVE": 0,
+        "CONTRADICTORY_CONTEXT_RATE": 0,
+        "distractorDeliveryRate": 0.07272727272727272,
+        "duplicateRate": 0,
+        "abstainLeakRate": 0.08333333333333333,
+        "staleLabelledCases": 44,
+        "cleanExclusiveCases": 25,
+        "contradictionLabelledCases": 38
+      }
+    },
+    "byCategory": {
+      "contradiction": {
+        "cases": 3,
+        "passRate": 0.6666666666666666,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 0.8333333333333334,
+        "chatDeliveryRate": 0.6666666666666666
+      },
+      "current-preference": {
+        "cases": 2,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "disputed": {
+        "cases": 2,
+        "passRate": 1,
+        "candidateRecall": null,
+        "hitRateAtK": null,
+        "recallAtK": null,
+        "mrr": null,
+        "chatDeliveryRate": null
+      },
+      "distractor": {
+        "cases": 2,
+        "passRate": 0.5,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 0.75,
+        "chatDeliveryRate": 1
+      },
+      "exact": {
+        "cases": 3,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "explicit-correction": {
+        "cases": 5,
+        "passRate": 0.8,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 0.8
+      },
+      "future-intent": {
+        "cases": 4,
+        "passRate": 0.75,
+        "candidateRecall": 1,
+        "hitRateAtK": 0.5,
+        "recallAtK": 0.5,
+        "mrr": 0.5,
+        "chatDeliveryRate": 0
+      },
+      "historical-as-of": {
+        "cases": 9,
+        "passRate": 0.6666666666666666,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 0.9375,
+        "chatDeliveryRate": 0.7142857142857143
+      },
+      "identity": {
+        "cases": 4,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "legacy-v1": {
+        "cases": 5,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "morphology": {
+        "cases": 7,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "multi-relevant": {
+        "cases": 2,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "no-relevant": {
+        "cases": 7,
+        "passRate": 0.8571428571428571,
+        "candidateRecall": null,
+        "hitRateAtK": null,
+        "recallAtK": null,
+        "mrr": null,
+        "chatDeliveryRate": null
+      },
+      "paraphrase": {
+        "cases": 8,
+        "passRate": 0.875,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 0.9375,
+        "chatDeliveryRate": 0.875
+      },
+      "same-topic-other-attribute": {
+        "cases": 2,
+        "passRate": 0,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "superseded-preference": {
+        "cases": 3,
+        "passRate": 0.6666666666666666,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 0.6666666666666666
+      },
+      "synonym": {
+        "cases": 4,
+        "passRate": 0,
+        "candidateRecall": 0.75,
+        "hitRateAtK": 0.75,
+        "recallAtK": 0.75,
+        "mrr": 0.5833333333333334,
+        "chatDeliveryRate": 0.25
+      },
+      "word-order": {
+        "cases": 2,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      }
+    },
+    "byLanguageTag": {
+      "capitalization": {
+        "cases": 1,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "colloquial": {
+        "cases": 2,
+        "passRate": 0.5,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 0.5
+      },
+      "omitted-pronoun": {
+        "cases": 7,
+        "passRate": 0.8571428571428571,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 0.8571428571428571
+      },
+      "possessive": {
+        "cases": 4,
+        "passRate": 0.75,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 0.8333333333333334,
+        "chatDeliveryRate": 1
+      },
+      "punctuation": {
+        "cases": 1,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "suffix": {
+        "cases": 8,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 0.9375,
+        "chatDeliveryRate": 1
+      },
+      "synonym": {
+        "cases": 5,
+        "passRate": 0.2,
+        "candidateRecall": 0.8,
+        "hitRateAtK": 0.8,
+        "recallAtK": 0.8,
+        "mrr": 0.6666666666666667,
+        "chatDeliveryRate": 0.4
+      },
+      "tense": {
+        "cases": 7,
+        "passRate": 0.2857142857142857,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 0.8571428571428571,
+        "chatDeliveryRate": 0.42857142857142855
+      },
+      "typo": {
+        "cases": 1,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      },
+      "word-order": {
+        "cases": 2,
+        "passRate": 1,
+        "candidateRecall": 1,
+        "hitRateAtK": 1,
+        "recallAtK": 1,
+        "mrr": 1,
+        "chatDeliveryRate": 1
+      }
+    },
+    "heldOut": {
+      "cases": 8,
+      "passRate": 0.75,
+      "candidateRecall": 1,
+      "hitRateAtK": 1,
+      "recallAtK": 1,
+      "mrr": 0.8333333333333334,
+      "chatDeliveryRate": 0.8571428571428571
+    },
+    "inSample": {
+      "cases": 66,
+      "passRate": 0.7878787878787878,
+      "candidateRecall": 0.9818181818181818,
+      "hitRateAtK": 0.9636363636363636,
+      "recallAtK": 0.9636363636363636,
+      "mrr": 0.9363636363636364,
+      "chatDeliveryRate": 0.8301886792452831
+    }
+  },
+  "networkAttempts": 0,
+  "determinism": {
+    "repeatRun": true,
+    "shuffledWriteOrder": true,
+    "tz:America/Los_Angeles": true,
+    "tz:Asia/Tokyo": true
+  },
+  "failures": [
+    {
+      "caseId": "seed:identity-known-at-january",
+      "category": "historical-as-of",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "as-of",
+        "naturalQueryMode": "as-of",
+        "relevant": [
+          "ahmet"
+        ],
+        "required": [
+          "ahmet"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "ahmet"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 1,
+      "recallContext": [
+        "ahmet"
+      ],
+      "chatContext": [
+        "mehmet"
+      ],
+      "failedLayers": [
+        "query",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "query",
+          "code": "QUERY_MODE_CURRENT_NOT_AS-OF",
+          "keys": [],
+          "suggested": "QUERY_NORMALIZATION"
+        },
+        {
+          "layer": "chat-context",
+          "code": "RELEVANT_DROPPED_BY_CHAT_GATE",
+          "keys": [
+            "ahmet"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        },
+        {
+          "layer": "chat-context",
+          "code": "FORBIDDEN_DELIVERED_BY_CHAT:out-of-window",
+          "keys": [
+            "mehmet"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        }
+      ]
+    },
+    {
+      "caseId": "para-length-how",
+      "category": "paraphrase",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "lenLong"
+        ],
+        "required": [
+          "lenLong"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "lenLong"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 2,
+      "recallContext": [
+        "lenLong"
+      ],
+      "chatContext": [],
+      "failedLayers": [
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "chat-context",
+          "code": "RELEVANT_DROPPED_BY_CHAT_GATE",
+          "keys": [
+            "lenLong"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        }
+      ]
+    },
+    {
+      "caseId": "syn-pc-colloquial",
+      "category": "synonym",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "pcPlanNew"
+        ],
+        "required": [
+          "pcPlanNew"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "pcPlanNew"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 3,
+      "recallContext": [
+        "pcPlanNew"
+      ],
+      "chatContext": [],
+      "failedLayers": [
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "chat-context",
+          "code": "RELEVANT_DROPPED_BY_CHAT_GATE",
+          "keys": [
+            "pcPlanNew"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        }
+      ]
+    },
+    {
+      "caseId": "syn-length-yanit",
+      "category": "synonym",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "lenLong"
+        ],
+        "required": [
+          "lenLong"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "lenLong"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 3,
+      "recallContext": [
+        "lenLong"
+      ],
+      "chatContext": [],
+      "failedLayers": [
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "chat-context",
+          "code": "RELEVANT_DROPPED_BY_CHAT_GATE",
+          "keys": [
+            "lenLong"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        }
+      ]
+    },
+    {
+      "caseId": "syn-edit-montaj",
+      "category": "synonym",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "editTool"
+        ],
+        "required": [
+          "editTool"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [],
+      "firstRelevantRank": null,
+      "candidateCount": 0,
+      "recallContext": [],
+      "chatContext": [],
+      "failedLayers": [
+        "candidate",
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "candidate",
+          "code": "RELEVANT_NOT_MATCHED",
+          "keys": [
+            "editTool"
+          ],
+          "suggested": "CANDIDATE_GENERATION"
+        }
+      ]
+    },
+    {
+      "caseId": "superseded-length-old-wording",
+      "category": "superseded-preference",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "lenLong"
+        ],
+        "required": [
+          "lenLong"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "lenLong"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 3,
+      "recallContext": [
+        "lenLong"
+      ],
+      "chatContext": [],
+      "failedLayers": [
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "chat-context",
+          "code": "RELEVANT_DROPPED_BY_CHAT_GATE",
+          "keys": [
+            "lenLong"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        }
+      ]
+    },
+    {
+      "caseId": "asof-pc-july-detected",
+      "category": "historical-as-of",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "as-of",
+        "naturalQueryMode": "as-of",
+        "relevant": [
+          "pcPlanOld"
+        ],
+        "required": [
+          "pcPlanOld"
+        ]
+      },
+      "detectedQueryMode": "as-of",
+      "selected": [
+        "pcPlanOld",
+        "pcPlanNew",
+        "pcSpecs",
+        "pcHistory"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 6,
+      "recallContext": [
+        "pcPlanOld",
+        "pcPlanNew",
+        "pcSpecs",
+        "pcHistory"
+      ],
+      "chatContext": [
+        "pcPlanOld",
+        "pcPlanNew",
+        "pcSpecs",
+        "pcHistory"
+      ],
+      "failedLayers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:out-of-window",
+          "keys": [
+            "pcPlanNew"
+          ],
+          "suggested": "TEMPORAL_FILTER"
+        }
+      ]
+    },
+    {
+      "caseId": "history-length-used-to",
+      "category": "historical-as-of",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "history",
+        "naturalQueryMode": "history",
+        "relevant": [
+          "lenShort",
+          "lenLong"
+        ],
+        "required": [
+          "lenShort"
+        ]
+      },
+      "detectedQueryMode": "history",
+      "selected": [
+        "lenLong",
+        "lenShort"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 3,
+      "recallContext": [
+        "lenLong",
+        "lenShort"
+      ],
+      "chatContext": [
+        "lenLong"
+      ],
+      "failedLayers": [
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "chat-context",
+          "code": "RELEVANT_DROPPED_BY_CHAT_GATE",
+          "keys": [
+            "lenShort"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        }
+      ]
+    },
+    {
+      "caseId": "future-plan-question",
+      "category": "future-intent",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "pcFuture"
+        ],
+        "required": [
+          "pcFuture"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "pcPlanNew"
+      ],
+      "firstRelevantRank": null,
+      "candidateCount": 3,
+      "recallContext": [
+        "pcPlanNew"
+      ],
+      "chatContext": [],
+      "failedLayers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "RELEVANT_QUARANTINED:not-yet-effective",
+          "keys": [
+            "pcFuture"
+          ],
+          "suggested": "TEMPORAL_FILTER"
+        }
+      ]
+    },
+    {
+      "caseId": "contradiction-free-text-coffee",
+      "category": "contradiction",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "sugarNo"
+        ],
+        "required": [
+          "sugarNo"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "sugarYes",
+        "sugarNo"
+      ],
+      "firstRelevantRank": 2,
+      "candidateCount": 2,
+      "recallContext": [
+        "sugarYes",
+        "sugarNo"
+      ],
+      "chatContext": [
+        "sugarYes"
+      ],
+      "failedLayers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:stale-free-text",
+          "keys": [
+            "sugarYes"
+          ],
+          "suggested": "TEMPORAL_FILTER"
+        }
+      ]
+    },
+    {
+      "caseId": "distractor-pc-heavy-current",
+      "category": "distractor",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "pcPlanNew"
+        ],
+        "required": [
+          "pcPlanNew"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "pcSpecs",
+        "pcPlanNew",
+        "laptopPref"
+      ],
+      "firstRelevantRank": 2,
+      "candidateCount": 6,
+      "recallContext": [
+        "pcSpecs",
+        "pcPlanNew",
+        "laptopPref"
+      ],
+      "chatContext": [
+        "pcSpecs",
+        "pcPlanNew",
+        "laptopPref"
+      ],
+      "failedLayers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "laptopPref"
+          ],
+          "suggested": "RANKING"
+        }
+      ]
+    },
+    {
+      "caseId": "attribute-pc-ram",
+      "category": "same-topic-other-attribute",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "pcSpecs"
+        ],
+        "required": [
+          "pcSpecs"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "pcSpecs",
+        "pcPlanNew",
+        "laptopPref"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 6,
+      "recallContext": [
+        "pcSpecs",
+        "pcPlanNew",
+        "laptopPref"
+      ],
+      "chatContext": [
+        "pcSpecs",
+        "pcPlanNew",
+        "laptopPref"
+      ],
+      "failedLayers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "pcPlanNew"
+          ],
+          "suggested": "RANKING"
+        },
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "laptopPref"
+          ],
+          "suggested": "RANKING"
+        }
+      ]
+    },
+    {
+      "caseId": "attribute-pc-current-card",
+      "category": "same-topic-other-attribute",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "pcSpecs"
+        ],
+        "required": [
+          "pcSpecs"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "pcSpecs",
+        "pcPlanNew"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 3,
+      "recallContext": [
+        "pcSpecs",
+        "pcPlanNew"
+      ],
+      "chatContext": [
+        "pcSpecs"
+      ],
+      "failedLayers": [
+        "ranking",
+        "recall-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "pcPlanNew"
+          ],
+          "suggested": "RANKING"
+        }
+      ]
+    },
+    {
+      "caseId": "none-same-word-other-meaning",
+      "category": "no-relevant",
+      "heldOut": false,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [],
+        "required": []
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "firstRelevantRank": null,
+      "candidateCount": 6,
+      "recallContext": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "chatContext": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "failedLayers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "pcPlanNew"
+          ],
+          "suggested": "RANKING"
+        },
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "laptopPref"
+          ],
+          "suggested": "RANKING"
+        },
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "pcSpecs"
+          ],
+          "suggested": "RANKING"
+        },
+        {
+          "layer": "ranking",
+          "code": "FALSE_POSITIVE_SELECTION",
+          "keys": [
+            "pcPlanNew",
+            "laptopPref",
+            "pcSpecs"
+          ],
+          "suggested": "CANDIDATE_GENERATION"
+        }
+      ]
+    },
+    {
+      "caseId": "heldout-ram-bellek",
+      "category": "synonym",
+      "heldOut": true,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "pcSpecs"
+        ],
+        "required": [
+          "pcSpecs"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "firstRelevantRank": 3,
+      "candidateCount": 6,
+      "recallContext": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "chatContext": [
+        "pcPlanNew",
+        "laptopPref",
+        "pcSpecs"
+      ],
+      "failedLayers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "ranking",
+          "code": "FORBIDDEN_SELECTED:distractor",
+          "keys": [
+            "pcPlanNew"
+          ],
+          "suggested": "RANKING"
+        }
+      ]
+    },
+    {
+      "caseId": "heldout-voice-length",
+      "category": "explicit-correction",
+      "heldOut": true,
+      "expected": {
+        "queryMode": "current",
+        "naturalQueryMode": "current",
+        "relevant": [
+          "voiceLong"
+        ],
+        "required": [
+          "voiceLong"
+        ]
+      },
+      "detectedQueryMode": "current",
+      "selected": [
+        "voiceLong"
+      ],
+      "firstRelevantRank": 1,
+      "candidateCount": 3,
+      "recallContext": [
+        "voiceLong"
+      ],
+      "chatContext": [],
+      "failedLayers": [
+        "chat-context"
+      ],
+      "failures": [
+        {
+          "layer": "chat-context",
+          "code": "RELEVANT_DROPPED_BY_CHAT_GATE",
+          "keys": [
+            "voiceLong"
+          ],
+          "suggested": "CONTEXT_ASSEMBLY"
+        }
+      ]
+    }
+  ],
+  "latency": {
+    "medianRetrievalMs": 1.1718534999999974,
+    "medianRecallMs": 1.0260330000000408,
+    "medianChatMs": 2.130725500000011,
+    "scale": [
+      {
+        "records": 50,
+        "medianTemporalMs": 0.57950400000027,
+        "medianRetrievalMs": 1.9567130000004909,
+        "medianRecallMs": 3.7153269999998884,
+        "targetRank": 1,
+        "targetSelected": true,
+        "staleSelected": false
+      },
+      {
+        "records": 200,
+        "medianTemporalMs": 1.9743100000005143,
+        "medianRetrievalMs": 7.072683000000325,
+        "medianRecallMs": 13.42086399999971,
+        "targetRank": 1,
+        "targetSelected": true,
+        "staleSelected": false
+      },
+      {
+        "records": 500,
+        "medianTemporalMs": 4.7191619999994145,
+        "medianRetrievalMs": 17.266386999999668,
+        "medianRecallMs": 33.09180000000015,
+        "targetRank": 1,
+        "targetSelected": true,
+        "staleSelected": false
+      },
+      {
+        "records": 2000,
+        "medianTemporalMs": 18.865281000000323,
+        "medianRetrievalMs": 71.61527800000022,
+        "medianRecallMs": null,
+        "targetRank": 1,
+        "targetSelected": true,
+        "staleSelected": false
+      }
+    ]
+  },
+  "knownLimitations": {
+    "exact-pc-plan": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "para-pc-thinking": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "para-pc-plan": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "morph-pc-last-decision": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "morph-pc-card-accusative": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "order-pc-inverted": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "syn-pc-colloquial": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "contradiction-free-text-coffee": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "multi-pc-card-and-ram": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "tr-pc-capitals": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "tr-pc-punctuation": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "tr-pc-typo": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "heldout-pc-card-want": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "heldout-pc-switch": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)"
+    },
+    "asof-pc-july-detected": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap); its unknown start makes it \"possible\" in an earlier window"
+    },
+    "distractor-pc-heavy-current": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap); lexical retrieval cannot tell attributes of one topic apart; the right record ranks first but top-K fills with same-topic records"
+    },
+    "para-length-how": {
+      "classification": "CONTEXT_ASSEMBLY",
+      "layers": [
+        "chat-context"
+      ],
+      "reason": "the chat relevance gate needs two shared roots (or one of 7+ letters) before memory reaches the prompt — deliberate anti-leak design, unchanged"
+    },
+    "syn-length-yanit": {
+      "classification": "CONTEXT_ASSEMBLY",
+      "layers": [
+        "chat-context"
+      ],
+      "reason": "the chat relevance gate needs two shared roots (or one of 7+ letters) before memory reaches the prompt — deliberate anti-leak design, unchanged"
+    },
+    "superseded-length-old-wording": {
+      "classification": "CONTEXT_ASSEMBLY",
+      "layers": [
+        "chat-context"
+      ],
+      "reason": "the chat relevance gate needs two shared roots (or one of 7+ letters) before memory reaches the prompt — deliberate anti-leak design, unchanged"
+    },
+    "history-length-used-to": {
+      "classification": "CONTEXT_ASSEMBLY",
+      "layers": [
+        "chat-context"
+      ],
+      "reason": "the chat relevance gate needs two shared roots (or one of 7+ letters) before memory reaches the prompt — deliberate anti-leak design, unchanged"
+    },
+    "heldout-voice-length": {
+      "classification": "CONTEXT_ASSEMBLY",
+      "layers": [
+        "chat-context"
+      ],
+      "reason": "the chat relevance gate needs two shared roots (or one of 7+ letters) before memory reaches the prompt — deliberate anti-leak design, unchanged"
+    },
+    "attribute-pc-ram": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "lexical retrieval cannot tell attributes of one topic apart; the right record ranks first but top-K fills with same-topic records"
+    },
+    "attribute-pc-current-card": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "lexical retrieval cannot tell attributes of one topic apart; the right record ranks first but top-K fills with same-topic records"
+    },
+    "heldout-ram-bellek": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "lexical retrieval cannot tell attributes of one topic apart; the right record ranks first but top-K fills with same-topic records; retrieval ranking still lacks \"bellek\"/\"RAM\" synonymy"
+    },
+    "none-same-word-other-meaning": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "a general question sharing a word with personal memories is indistinguishable lexically"
+    },
+    "syn-edit-montaj": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "candidate",
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "no synonym lexicon (montaj/kurgu); no embeddings by design"
+    },
+    "future-plan-question": {
+      "classification": "EXPECTED_LIMITATION",
+      "layers": [
+        "ranking",
+        "recall-context",
+        "chat-context"
+      ],
+      "reason": "plans are reachable only through as-of/history; current recall never presents a plan (by design)"
+    },
+    "seed:identity-known-at-january": {
+      "classification": "QUERY_NORMALIZATION",
+      "layers": [
+        "query",
+        "chat-context"
+      ],
+      "reason": "the temporal detector does not read \"<month> sonunda … biliniyordu\" (explicit query is correct)"
+    }
+  },
+  "resolvedKnownLimitations": [],
+  "gateFailures": [
+    "IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
+    "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
+  ]
+}

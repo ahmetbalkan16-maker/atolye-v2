@@ -1,0 +1,55 @@
+{
+  "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "evidenceClass": "LIVE_READ_ONLY",
+  "startedAt": "2026-10-07T08:13:15.587Z",
+  "completedAt": "2026-10-07T08:13:23.238Z",
+  "status": "PASS_INVENTORY_AND_MANIFEST_ONLY",
+  "workspaceContext": "ACTUAL_MAIN_REPOSITORY_NOT_TEMP_LEGACY_ROOT",
+  "runtimeClassification": "explicit-external",
+  "inventoryBefore": {
+    "files": 2372,
+    "bytes": 611011778,
+    "projects": 17,
+    "tracked": 0,
+    "untracked": 2372,
+    "classifications": {
+      "project-metadata": 32,
+      "pipeline-state": 24,
+      "ai-usage": 13,
+      "asset-metadata": 9,
+      "generated-asset": 271,
+      "acceptance-marker": 10,
+      "durable-execution": 1856,
+      "legacy-project-file": 100,
+      "other-runtime": 57
+    }
+  },
+  "inventoryAfter": {
+    "files": 2372,
+    "bytes": 611011778,
+    "projects": 17,
+    "tracked": 0,
+    "untracked": 2372,
+    "classifications": {
+      "project-metadata": 32,
+      "pipeline-state": 24,
+      "ai-usage": 13,
+      "asset-metadata": 9,
+      "generated-asset": 271,
+      "acceptance-marker": 10,
+      "durable-execution": 1856,
+      "legacy-project-file": 100,
+      "other-runtime": 57
+    }
+  },
+  "aggregateFingerprintBefore": "1278386829fa86d6721a7a5f2130fed39251f850dec951616d4a13ce012e47ca",
+  "aggregateFingerprintAfter": "1278386829fa86d6721a7a5f2130fed39251f850dec951616d4a13ce012e47ca",
+  "fileRecordsUnchanged": true,
+  "manifestValidation": "PASS",
+  "restoreQualified": false,
+  "backupCreated": false,
+  "authorityBootstrapCalled": false,
+  "combinedCanonicalProtectedScopeQualified": false,
+  "privateFileNamesOrBodiesPersisted": false,
+  "grantsAuthority": false
+}

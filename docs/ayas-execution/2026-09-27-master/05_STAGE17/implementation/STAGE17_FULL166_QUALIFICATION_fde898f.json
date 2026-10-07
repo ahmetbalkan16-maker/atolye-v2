@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "fde898f9305f4fd4d57c0f5c8230f50712b30374",
+  "observedAt": "2026-10-07T08:31:26.852Z",
+  "receipt": "STAGE17_fde898f_FULL166.json",
+  "receiptSha256": "d4632dd05ee5233db72a9276963f861a353707ab2cb4c709f607f41f4021616d",
+  "manifestVersion": "15F.4-v57",
+  "manifestDigest": "40160af1e7ac2868b405b89a74976a91e496da14772aba65e32c73f77b5e84b9",
+  "selectedSuites": 166,
+  "declaredSuites": 166,
+  "completeDeclaredBaseline": true,
+  "passed": 163,
+  "failed": [
+    "retrieval-evaluation",
+    "golden-vault-run",
+    "golden-sandbox-run"
+  ],
+  "rawOutcome": "FAIL",
+  "rawRetrieval": {
+    "requests": [
+      "IMPROVED exact-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-thinking: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED para-pc-plan: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-last-decision: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED morph-pc-card-accusative: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED order-pc-inverted: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED multi-pc-card-and-ram: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-capitals: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-punctuation: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-card-want: now passes — remove it from KNOWN_LIMITATIONS",
+      "IMPROVED heldout-pc-switch: now passes — remove it from KNOWN_LIMITATIONS"
+    ],
+    "reviewOfSameOriginalHostedRaw": "PASS",
+    "remainingKnownLimits": 16,
+    "expectationsChanged": false
+  },
+  "golden": {
+    "decision": "PROMOTION_STOPPED",
+    "soleFailingCase": "golden.memory.retrieval-evaluation",
+    "sandboxTimedOut": false,
+    "pinsUnchanged": true
+  },
+  "approvedBarrier": {
+    "approval": "EXPLICIT_OWNER_EXCEPTION_FOR_ONLY_BARRIER_AND_VERSIONED_PIN_UPDATE",
+    "implementation": "STAGE17_OCCUPANCY_BARRIER_APPROVED.json",
+    "oldRawReport": "STAGE17_34ecb66_FULL166.json",
+    "oldRawPasses": 162,
+    "oldRawFails": 4,
+    "oldRawFailureNotErased": true,
+    "newSourceOccupancy": "PASS",
+    "newSourceOccupancyMutations": "PASS",
+    "assertionsAnd45ControlsUnchanged": true,
+    "productionImplementationUnchanged": true
+  },
+  "captureArtifacts": [
+    {
+      "file": "STAGE17_fde898f_FULL166.json",
+      "sha256": "d4632dd05ee5233db72a9276963f861a353707ab2cb4c709f607f41f4021616d",
+      "originalCaptureSha256": "d4632dd05ee5233db72a9276963f861a353707ab2cb4c709f607f41f4021616d",
+      "normalizedCRLFToLF": false,
+      "bytes": 112819,
+      "originalBytes": 112819
+    },
+    {
+      "file": "STAGE17_fde898f_FULL166_RUN.log",
+      "sha256": "c5e4a2f609329540f37064177807eba007924db13877e9165622cd138680e517",
+      "originalCaptureSha256": "ad5223a71956e68d5a4b62d9d6a7c9f484b4f541fc357706ce1a84d4e5608978",
+      "normalizedCRLFToLF": true,
+      "bytes": 6789,
+      "originalBytes": 6957
+    },
+    {
+      "file": "STAGE17_fde898f_NPM_CI.log",
+      "sha256": "aa3e492465dcc3f25023b763bc232254dbc5baeabce05e0ffe4b54bbd678a341",
+      "originalCaptureSha256": "aa3e492465dcc3f25023b763bc232254dbc5baeabce05e0ffe4b54bbd678a341",
+      "normalizedCRLFToLF": true,
+      "bytes": 27,
+      "originalBytes": 27
+    }
+  ],
+  "rawFailureArtifacts": [
+    {
+      "suite": "retrieval-evaluation",
+      "stream": "stdout",
+      "file": "STAGE17_fde898f_RAW_retrieval-evaluation_stdout.log",
+      "sha256": "8e0dac4da3c35c5faf02824d234ab3be1c2a28fe3276aa6393ce78cff5baa5aa",
+      "originalCaptureSha256": "8e0dac4da3c35c5faf02824d234ab3be1c2a28fe3276aa6393ce78cff5baa5aa",
+      "normalizedCRLFToLF": true,
+      "bytes": 1062,
+      "originalBytes": 1062
+    },
+    {
+      "suite": "retrieval-evaluation",
+      "stream": "stderr",
+      "file": "STAGE17_fde898f_RAW_retrieval-evaluation_stderr.log",
+      "sha256": "c03ed8ba7d022a3dec2950cd3b8788469518c0d34aeaae75535515c941bc3bb3",
+      "originalCaptureSha256": "c03ed8ba7d022a3dec2950cd3b8788469518c0d34aeaae75535515c941bc3bb3",
+      "normalizedCRLFToLF": true,
+      "bytes": 985,
+      "originalBytes": 985
+    },
+    {
+      "suite": "golden-vault-run",
+      "stream": "stdout",
+      "file": "STAGE17_fde898f_RAW_golden-vault-run_stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalCaptureSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "normalizedCRLFToLF": true,
+      "bytes": 0,
+      "originalBytes": 0
+    },
+    {
+      "suite": "golden-vault-run",
+      "stream": "stderr",
+      "file": "STAGE17_fde898f_RAW_golden-vault-run_stderr.log",
+      "sha256": "bc350a41ffa153117d11cc605e0c542885938b070d9693c682b130b4e5a4be76",
+      "originalCaptureSha256": "438e72ced604353d52623c3d4b8e20ffdc8f444f0cda40fcbd77925063f5ec36",
+      "normalizedCRLFToLF": true,
+      "bytes": 2441,
+      "originalBytes": 2477
+    },
+    {
+      "suite": "golden-sandbox-run",
+      "stream": "stdout",
+      "file": "STAGE17_fde898f_RAW_golden-sandbox-run_stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalCaptureSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "normalizedCRLFToLF": true,
+      "bytes": 0,
+      "originalBytes": 0
+    },
+    {
+      "suite": "golden-sandbox-run",
+      "stream": "stderr",
+      "file": "STAGE17_fde898f_RAW_golden-sandbox-run_stderr.log",
+      "sha256": "2ca58e02b776115472b59b3e32ff042ab84f68e420c675b4ebd63477b85a9eba",
+      "originalCaptureSha256": "2ca58e02b776115472b59b3e32ff042ab84f68e420c675b4ebd63477b85a9eba",
+      "normalizedCRLFToLF": true,
+      "bytes": 614,
+      "originalBytes": 614
+    }
+  ],
+  "fixtureRoot": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-eval-baseline-1IvjCn",
+  "full166AllGreen": false,
+  "foundationClosed": false,
+  "homepageBoundaryReached": false,
+  "grantsAuthority": false
+}

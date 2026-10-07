@@ -1,16 +1,20 @@
-# Current — 2026-10-07 /approved occupancy synchronization correction;v57;clean-source qualification pending
+# Current — 2026-10-07 / fde898f v57 full166163PASS /3 preserved raw FAIL;Foundation BLOCKED
+
+Approved occupancy barrier passes12 scenarios/45 unchanged controls on new source;v56 archive/two affected pins only. Original34ecb66 162/4 preserved. Fresh TS/lint PASS (13 inherited warnings), hosted named CI and local/hosted boundedCF49 PASS. Four historical SHA findings resolved by original canonical algorithm without frozen-field edits. Phone owner-confirmed/login200/single healthy origin-tunnel; authenticated runtime/real reboot unqualified. Actual backup inventory/manifest PASS only, no restore.15 domains/152criteria/30TEST-LIVE still not qualified; combined protection/real platform-device/final owner review open. Homepage NOT_STARTED,boundary NOT_REACHED. Exact evidence and remaining work: ATOLYE_CHECKPOINT.md and docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md.
+
+# Historical snapshot — 2026-10-07 /approved occupancy synchronization correction;v57;clean-source qualification pending
 
 Owner approved one frozen grader synchronization fix and versioned pins. Both2-record/results/peak assertions remain; v56 archived, only two references to the changed grader updated. Candidate12 scenarios/45 mutants/10 governance/TS/lintPASS (13 inherited warnings). Original34ecb66 full166162PASS4rawFAIL preserved. Next exact-new-HEAD credential-free full166 after commit/Graphify. FoundationBLOCKED; no homepage. See ATOLYE_CHECKPOINT.md.
 
-# AYAS current — 2026-10-07 /phone reachable;exact34ecb66 full166162PASS4FAIL;FoundationBLOCKED
+# Historical snapshot — 2026-10-07 /phone reachable;exact34ecb66 full166162PASS4FAIL;FoundationBLOCKED
 
 Fresh-lock166/166 complete at34ecb66(v56):162PASS/4rawFAIL; release-provenance regressions repaired. Frozen retrieval/Golden3 stops retained; additional frozen occupancy50ms timing race root-caused, unchanged45-control replayPASS, proposed barrier correction requires explicit owner exception and remains unapplied. Phone login owner-confirmed/HTTP200/single canonical origin-tunnel, task definitions unchanged; auth identity and real reboot unqualified. Local protected hashes complete/unchanged, separate external scans do not bind global scope;15domains/152criteria/30TEST-LIVE NOT_RUN. LemonUNBOUND/FiverrOWNER_REPORTED_ONLY/final owner reviewNOT_READY. No homepage boundary or implementation. Resolve final Git HEAD; tested-source receipts are not rebound to docs commits. Current evidence and exact next step: ATOLYE_CHECKPOINT.md and05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md.
 
-# AYAS current —2026-10-05 /Stage17 framework verified; infinity preparation active
+# Historical snapshot —2026-10-05 /Stage17 framework verified; infinity preparation active
 
 71b53b94654453223b7ca9d51750047f5ac49fc7:151 primary+30 frozen held+30 adversarial+9 independent controls;9 selected exact suites PASS_WITH_KNOWN_LIMITATIONS,214 pins/v55/166 declared,full baseline NOT_RUN. Current read-only audit BLOCKED: CF49 raw54/55 held4/5, complete protected scope and live/owner domain qualification missing. Measured fixed-root digest unchanged; external/private scope not presumed covered. Lemon/Fiverr owner setup reported; integration/ingress/orders/ledger/terms remain UNBOUND/NOT_RUN. Stage16/Master/Foundation OPEN. Next permitted infinity preparation only, persistent activation OFF; mandatory STOP before homepage/Brain UI V2 design.
 
-# AYAS current — 2026-10-05 /16.14 source framework verified;17 active
+# Historical snapshot — 2026-10-05 /16.14 source framework verified;17 active
 
 Fiverr owner evidence2026-10-05: account/identity/Gig OWNER_REPORTED_ACTIVE/VERIFIED/ACTIVE; startup spend OWNER_REPORTED $0. Orders/fulfillment/ledger/terms/E2E NOT_RUN; AYAS and official API/OAuth/tool binding UNBOUND; automated writes CLOSED. Inbound messages are not revenue proof.
 
