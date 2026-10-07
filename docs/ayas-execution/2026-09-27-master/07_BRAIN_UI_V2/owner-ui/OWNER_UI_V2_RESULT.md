@@ -18,7 +18,11 @@ PWA source unchanged: start_url=/, scope=/, stable id=/brain. BrainPatchSafety b
 
 ## Live rollout
 
-PENDING canonical Access daemon rollout after source commit/push. Deployment evidence will be added in rollout.json and this report after machine verification. No credential use; protected owner UI renders are separately owner-qualified.
+Canonical singleton Access daemon deployed CLEAN 59e585ab4ac9acfcaedeaebf75099568c28512f3, npm run build / npm run start -- -p3000. Old PID10192/build a4c807b replaced by one origin19960; build ID W69b9LVZicew-R1jk70Ql. Next16.2.10 Turbopack and production TypeScript PASS;105 inherited tracing warnings plus middleware deprecation, installed/lock mismatch stays OPEN. Tunnel30200, supervisor2496, observer31556 identities/start times retained. Both tasks Running and XML hashes identical; tunnel config hash identical; readiness200; recovery healthy with zero consecutive failures; app-server error log0bytes; no preview3141 or duplicate origin listener. Previous .next and raw logs preserved in C:/Users/Metod/AppData/Local/Temp/ayas-owner-ui-v2-rollout-20261007/.
+
+52 local/public route responses and30 actual JS/CSS/PWA assets verify expected contracts and exact disk SHA. Local/public login200, protected /,/brain,/studio and actual panel targets307 to login; health/chat APIs401. Public/local manifest200 start_url=/ scope=/ id=/brain; sw/icons200 exact source bytes. /offline and phone-LLM lab remain200 by preexisting OPEN_PATH policy (initial probe expectation corrected; no app/security change). Public helper and login V2 frames visually rendered with zero recorded warn/error in that browser check; screenshots public-lab-v2.jpg/public-login-v2.jpg. Protected central brain/detail console visual acceptance and real phone voice remain OWNER_ACTION_NOT_RUN; asset/hash proof is not a fabricated authenticated render.
+
+Source Graphify analyzed/built59e585a, stale=false, CLEAN, integrity0; final documentation HEAD will be refreshed and bound in .graphify/2026-10-07/OWNER_UI_V2_FINAL_HEAD.json. Inherited PARTIAL9/semanticPENDING remain open. Foundation BLOCKED. Following documentation save is production-source-identical; exact session HEAD resolved from Git.
 
 ## Owner phone checks
 

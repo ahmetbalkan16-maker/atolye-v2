@@ -1,6 +1,6 @@
 ## 2026-10-07 — Owner UI V2 integration
 
-All owner subpages use shared Brain UI V2 navigation/presentation; existing chat/voice/project/approval functionality preserved. HOME fixed composition retained and autonomous policy expanded. 24 suites/587 scenarios and isolated build PASS; canonical rollout follows.
+All owner subpages use shared Brain UI V2 navigation/presentation; existing chat/voice/project/approval functionality preserved. HOME fixed composition retained and autonomous policy expanded. 24 suites/587 scenarios and isolated build PASS; canonical Access rollout PASS at CLEAN59e585a; protected phone acceptance remains owner action.
 
 # 2026-10-07 — PWA icon opens Brain UI V2 homepage
 

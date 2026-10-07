@@ -1,0 +1,1147 @@
+{
+  "sourceHead": "59e585ab4ac9acfcaedeaebf75099568c28512f3",
+  "initialHead": "98c36b294bbcec59ca6db70bb1504bfe68792954",
+  "method": "EXISTING_SINGLETON_CANONICAL_ACCESS_DAEMON_NPM_BUILD_START",
+  "rootCause": "HOME already V2 but detail console/studio/other owner pages used legacy independent layouts; before runtime PID10192/build a4c807b had no shared V2 owner system",
+  "before": {
+    "head": "59e585ab4ac9acfcaedeaebf75099568c28512f3",
+    "branch": "wip/ayas-graphify-final-execution",
+    "access": {
+      "origin": "healthy",
+      "listenerPid": 10192,
+      "wrapperPid": 14864,
+      "tunnel": "healthy",
+      "tunnelPid": 30200,
+      "expectedAppCount": 1,
+      "expectedTunnelCount": 1
+    },
+    "origin": {
+      "ProcessId": 10192,
+      "ParentProcessId": 35496,
+      "CreationDate": "2026-10-07T18:25:33.89297+03:00",
+      "CommandLine": "\"node\"   \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\.bin\\\\..\\next\\dist\\bin\\next\" start -p 3000"
+    },
+    "tasks": [
+      {
+        "name": "AYAS Access Online",
+        "state": "Running",
+        "xmlSHA256": "4B8979E399DD2DDEF08E7BBC899519EF9A454D2814317E58E124F421BB68ABA3"
+      },
+      {
+        "name": "AYAS Autonomy Observer",
+        "state": "Running",
+        "xmlSHA256": "C2B6B3F3971C4B00F2F5465F20973A2056527589B1A757EEFFF9A42BF461A2DF"
+      }
+    ],
+    "tunnelConfigSHA256": "A909CBB9A9B0979CB23507CC83AB39496188F661E7178ECE6D58A2555E2E74D9",
+    "buildId": "e01CCfxz2bnAWR2khpcpt",
+    "stamp": {
+      "schemaVersion": "1",
+      "gitHead": "a4c807b714417071d8779583112b218ac52b7b3f",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+      "stampedAt": "2026-10-07T15:25:33.032Z"
+    }
+  },
+  "after": {
+    "observedAt": "2026-10-07T16:25:01.8059709Z",
+    "access": {
+      "origin": "healthy",
+      "listenerPid": 19960,
+      "wrapperPid": 16892,
+      "tunnel": "healthy",
+      "tunnelPid": 30200,
+      "expectedAppCount": 1,
+      "expectedTunnelCount": 1
+    },
+    "tasks": [
+      {
+        "name": "AYAS Access Online",
+        "state": "Running",
+        "xmlSHA256": "4B8979E399DD2DDEF08E7BBC899519EF9A454D2814317E58E124F421BB68ABA3"
+      },
+      {
+        "name": "AYAS Autonomy Observer",
+        "state": "Running",
+        "xmlSHA256": "C2B6B3F3971C4B00F2F5465F20973A2056527589B1A757EEFFF9A42BF461A2DF"
+      }
+    ],
+    "taskHashesUnchanged": true,
+    "tunnelConfigSHA256": "A909CBB9A9B0979CB23507CC83AB39496188F661E7178ECE6D58A2555E2E74D9",
+    "tunnelConfigUnchanged": true,
+    "processes": [
+      {
+        "ProcessId": 19960,
+        "ParentProcessId": 35480,
+        "CreationDate": "2026-10-07T19:23:15.737975+03:00",
+        "CommandLine": "\"node\"   \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\.bin\\\\..\\next\\dist\\bin\\next\" start -p 3000"
+      },
+      {
+        "ProcessId": 30200,
+        "ParentProcessId": 2496,
+        "CreationDate": "2026-10-07T09:27:18.976959+03:00",
+        "CommandLine": "\"C:\\Program Files (x86)\\cloudflared\\cloudflared.exe\" tunnel --config C:\\Users\\Metod\\.cloudflared\\config.yml run ayas "
+      },
+      {
+        "ProcessId": 2496,
+        "ParentProcessId": 33320,
+        "CreationDate": "2026-10-07T09:26:30.668963+03:00",
+        "CommandLine": "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\ayas-access-daemon.ps1\" -Continuous -IntervalSeconds 60"
+      },
+      {
+        "ProcessId": 31556,
+        "ParentProcessId": 6956,
+        "CreationDate": "2026-10-07T06:46:13.233889+03:00",
+        "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" --require C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\tsx\\dist\\preflight.cjs --import file:///C:/Users/Metod/Desktop/solid/SW2020.x64.SP4.0/Program/At%C3%B6lye/atolye-v2/node_modules/tsx/dist/loader.mjs scripts/ayas-autonomy-daemon.ts --continuous --interval-ms 300000"
+      }
+    ],
+    "runtimeErrorLogBytes": 0,
+    "recovery": {
+      "schema": 1,
+      "observedAt": "2026-10-07T16:24:19.4539773Z",
+      "mode": "continuous",
+      "origin": {
+        "attempts": 23,
+        "consecutiveFailures": 0,
+        "lastAttemptAt": "2026-10-07T16:22:34.5019199Z",
+        "lastSuccessAt": "2026-10-07T16:24:19.4539773Z",
+        "nextEligibleAt": null,
+        "failureStage": null
+      },
+      "tunnel": {
+        "attempts": 15,
+        "consecutiveFailures": 0,
+        "lastAttemptAt": "2026-10-07T06:26:31.3989978Z",
+        "lastSuccessAt": "2026-10-07T16:24:19.4539773Z",
+        "nextEligibleAt": null,
+        "failureStage": null
+      },
+      "originStatus": "healthy",
+      "tunnelStatus": "healthy",
+      "localHealth": true,
+      "publicHealth": "healthy",
+      "lastHealthyAt": "2026-10-07T16:24:20.9047905Z",
+      "ownerActionRecommended": false,
+      "failureType": null,
+      "recoveryAction": "none",
+      "result": "healthy",
+      "listenerPid": 19960,
+      "wrapperPid": 16892,
+      "tunnelPid": 30200
+    },
+    "preview3141Listeners": 0
+  },
+  "proof": {
+    "observedAt": "2026-10-07T16:24:28.718Z",
+    "qualification": "MACHINE_UNAUTHENTICATED_GATE_AND_ACTUAL_LOCAL_PUBLIC_ASSET_PROOF; OWNER_RENDER_AND_PHONE_NOT_RUN",
+    "stamp": {
+      "schemaVersion": "1",
+      "gitHead": "59e585ab4ac9acfcaedeaebf75099568c28512f3",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+      "stampedAt": "2026-10-07T16:23:14.787Z"
+    },
+    "buildId": "W69b9LVZicew-R1jk70Ql",
+    "routes": [
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/login",
+        "status": 200,
+        "location": null,
+        "access": null,
+        "cache": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "cfCache": null,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/",
+        "status": 307,
+        "location": "/login?next=%2F",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain",
+        "status": 307,
+        "location": "/login?next=%2Fbrain",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/studio",
+        "status": 307,
+        "location": "/login?next=%2Fstudio",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/research",
+        "status": 307,
+        "location": "/login?next=%2Fresearch",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/script",
+        "status": 307,
+        "location": "/login?next=%2Fscript",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/scenes",
+        "status": 307,
+        "location": "/login?next=%2Fscenes",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/visuals",
+        "status": 307,
+        "location": "/login?next=%2Fvisuals",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain/briefing",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fbriefing",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain/constitution",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fconstitution",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain/revenue",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Frevenue",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain/safe-mode",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fsafe-mode",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain/voice-lab",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fvoice-lab",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain/voice-lab/wake",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fvoice-lab%2Fwake",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain/voice-lab/phone-llm",
+        "status": 200,
+        "location": null,
+        "access": null,
+        "cache": "s-maxage=31536000",
+        "cfCache": null,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/project/owner-ui-fixture",
+        "status": 307,
+        "location": "/login?next=%2Fproject%2Fowner-ui-fixture",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain?panel=memory",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dmemory",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain?panel=development",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Ddevelopment",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain?panel=autonomous",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain?panel=system",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dsystem",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain?panel=research",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dresearch",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/brain?panel=production",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dproduction",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": null,
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/api/runtime/health",
+        "status": 401,
+        "location": null,
+        "access": null,
+        "cache": null,
+        "cfCache": null,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/api/brain/chat",
+        "status": 401,
+        "location": null,
+        "access": null,
+        "cache": null,
+        "cfCache": null,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/offline",
+        "status": 200,
+        "location": null,
+        "access": null,
+        "cache": "s-maxage=31536000",
+        "cfCache": null,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/login",
+        "status": 200,
+        "location": null,
+        "access": null,
+        "cache": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "cfCache": "DYNAMIC",
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/",
+        "status": 307,
+        "location": "/login?next=%2F",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain",
+        "status": 307,
+        "location": "/login?next=%2Fbrain",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/studio",
+        "status": 307,
+        "location": "/login?next=%2Fstudio",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/research",
+        "status": 307,
+        "location": "/login?next=%2Fresearch",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/script",
+        "status": 307,
+        "location": "/login?next=%2Fscript",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/scenes",
+        "status": 307,
+        "location": "/login?next=%2Fscenes",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/visuals",
+        "status": 307,
+        "location": "/login?next=%2Fvisuals",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain/briefing",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fbriefing",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain/constitution",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fconstitution",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain/revenue",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Frevenue",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain/safe-mode",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fsafe-mode",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain/voice-lab",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fvoice-lab",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain/voice-lab/wake",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%2Fvoice-lab%2Fwake",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain/voice-lab/phone-llm",
+        "status": 200,
+        "location": null,
+        "access": null,
+        "cache": "s-maxage=31536000",
+        "cfCache": "DYNAMIC",
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/project/owner-ui-fixture",
+        "status": 307,
+        "location": "/login?next=%2Fproject%2Fowner-ui-fixture",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain?panel=memory",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dmemory",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain?panel=development",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Ddevelopment",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain?panel=autonomous",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dautonomous",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain?panel=system",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dsystem",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain?panel=research",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dresearch",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/brain?panel=production",
+        "status": 307,
+        "location": "/login?next=%2Fbrain%3Fpanel%3Dproduction",
+        "access": "enforced",
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 307,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/api/runtime/health",
+        "status": 401,
+        "location": null,
+        "access": null,
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/api/brain/chat",
+        "status": 401,
+        "location": null,
+        "access": null,
+        "cache": null,
+        "cfCache": "DYNAMIC",
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/offline",
+        "status": 200,
+        "location": null,
+        "access": null,
+        "cache": "s-maxage=31536000",
+        "cfCache": "DYNAMIC",
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/manifest.webmanifest",
+        "status": 200,
+        "manifest": {
+          "id": "/brain",
+          "name": "Atölye AYAS",
+          "short_name": "AYAS",
+          "description": "Atölye'nin yapay zekâ çekirdeği — Brain Core.",
+          "start_url": "/",
+          "scope": "/",
+          "display": "standalone",
+          "orientation": "portrait",
+          "background_color": "#04050a",
+          "theme_color": "#04050a",
+          "lang": "tr",
+          "dir": "ltr",
+          "categories": [
+            "productivity",
+            "utilities"
+          ],
+          "icons": [
+            {
+              "src": "/icons/icon-192.png",
+              "sizes": "192x192",
+              "type": "image/png",
+              "purpose": "any"
+            },
+            {
+              "src": "/icons/icon-512.png",
+              "sizes": "512x512",
+              "type": "image/png",
+              "purpose": "any"
+            },
+            {
+              "src": "/icons/icon-maskable-192.png",
+              "sizes": "192x192",
+              "type": "image/png",
+              "purpose": "maskable"
+            },
+            {
+              "src": "/icons/icon-maskable-512.png",
+              "sizes": "512x512",
+              "type": "image/png",
+              "purpose": "maskable"
+            },
+            {
+              "src": "/ayas-icon.svg",
+              "sizes": "any",
+              "type": "image/svg+xml",
+              "purpose": "any"
+            }
+          ]
+        },
+        "pass": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/manifest.webmanifest",
+        "status": 200,
+        "manifest": {
+          "id": "/brain",
+          "name": "Atölye AYAS",
+          "short_name": "AYAS",
+          "description": "Atölye'nin yapay zekâ çekirdeği — Brain Core.",
+          "start_url": "/",
+          "scope": "/",
+          "display": "standalone",
+          "orientation": "portrait",
+          "background_color": "#04050a",
+          "theme_color": "#04050a",
+          "lang": "tr",
+          "dir": "ltr",
+          "categories": [
+            "productivity",
+            "utilities"
+          ],
+          "icons": [
+            {
+              "src": "/icons/icon-192.png",
+              "sizes": "192x192",
+              "type": "image/png",
+              "purpose": "any"
+            },
+            {
+              "src": "/icons/icon-512.png",
+              "sizes": "512x512",
+              "type": "image/png",
+              "purpose": "any"
+            },
+            {
+              "src": "/icons/icon-maskable-192.png",
+              "sizes": "192x192",
+              "type": "image/png",
+              "purpose": "maskable"
+            },
+            {
+              "src": "/icons/icon-maskable-512.png",
+              "sizes": "512x512",
+              "type": "image/png",
+              "purpose": "maskable"
+            },
+            {
+              "src": "/ayas-icon.svg",
+              "sizes": "any",
+              "type": "image/svg+xml",
+              "purpose": "any"
+            }
+          ]
+        },
+        "pass": true
+      }
+    ],
+    "assets": [
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/sw.js",
+        "status": 200,
+        "cache": "no-cache, no-store, must-revalidate",
+        "sha256": "8cb16e76e83e68c5eec710573c3918dab4f01b45ba5642c1615002baa74f809f",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/icons/icon-192.png",
+        "status": 200,
+        "cache": "public, max-age=0",
+        "sha256": "154110550a3de9bc8d0ff712fa9a04f43009b20279da9937c022af42b93cd6f8",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/icons/icon-512.png",
+        "status": 200,
+        "cache": "public, max-age=0",
+        "sha256": "f1f0f022901d9577a750b765c8c700c2e94ef47d603dd6ad3cf6f655f75bb119",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/icons/icon-maskable-192.png",
+        "status": 200,
+        "cache": "public, max-age=0",
+        "sha256": "80acc5758c0abf86f229dec2bfa1c8c2a10421776a3a84d6a8fa00746b3682b3",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/icons/icon-maskable-512.png",
+        "status": 200,
+        "cache": "public, max-age=0",
+        "sha256": "29c8865c7f3c3ba368cfebf28bd148101120603080cac895f861ea628f7d8498",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/ayas-icon.svg",
+        "status": 200,
+        "cache": "public, max-age=0",
+        "sha256": "fecdb6b3f39cd40a2674f71269d61160097ce3c98b4565901d48c5224c7afc7e",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/icons/apple-touch-icon.png",
+        "status": 200,
+        "cache": "public, max-age=0",
+        "sha256": "ba64b99904a52e3489df3e4e55c1b5e2f4e2ac6236c1aae6b72c39a068c81eb4",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/sw.js",
+        "status": 200,
+        "cache": "no-cache, no-store, must-revalidate",
+        "sha256": "8cb16e76e83e68c5eec710573c3918dab4f01b45ba5642c1615002baa74f809f",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/icons/icon-192.png",
+        "status": 200,
+        "cache": "public, max-age=14400",
+        "sha256": "154110550a3de9bc8d0ff712fa9a04f43009b20279da9937c022af42b93cd6f8",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/icons/icon-512.png",
+        "status": 200,
+        "cache": "public, max-age=14400",
+        "sha256": "f1f0f022901d9577a750b765c8c700c2e94ef47d603dd6ad3cf6f655f75bb119",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/icons/icon-maskable-192.png",
+        "status": 200,
+        "cache": "public, max-age=14400",
+        "sha256": "80acc5758c0abf86f229dec2bfa1c8c2a10421776a3a84d6a8fa00746b3682b3",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/icons/icon-maskable-512.png",
+        "status": 200,
+        "cache": "public, max-age=14400",
+        "sha256": "29c8865c7f3c3ba368cfebf28bd148101120603080cac895f861ea628f7d8498",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/ayas-icon.svg",
+        "status": 200,
+        "cache": "public, max-age=14400",
+        "sha256": "fecdb6b3f39cd40a2674f71269d61160097ce3c98b4565901d48c5224c7afc7e",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/icons/apple-touch-icon.png",
+        "status": 200,
+        "cache": "public, max-age=14400",
+        "sha256": "ba64b99904a52e3489df3e4e55c1b5e2f4e2ac6236c1aae6b72c39a068c81eb4",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/3bz38ujeyftlb.js",
+        "status": 200,
+        "sha256": "a309241706dba71c9b7739285a0823d4a3c23da1282bbedac971e4364cecac6d",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/3bz38ujeyftlb.js",
+        "status": 200,
+        "sha256": "a309241706dba71c9b7739285a0823d4a3c23da1282bbedac971e4364cecac6d",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/1ntn7efqc-iiw.js",
+        "status": 200,
+        "sha256": "32e9576b2b87cbc03075cbfde10797120b73b5c6e486723cd9e58a66d99c585d",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/1ntn7efqc-iiw.js",
+        "status": 200,
+        "sha256": "32e9576b2b87cbc03075cbfde10797120b73b5c6e486723cd9e58a66d99c585d",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/1gjtq241ma_2k.js",
+        "status": 200,
+        "sha256": "48de0d1bd17702074268332a0dc96ff63488584b442c30c14385088ed1a499c3",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/1gjtq241ma_2k.js",
+        "status": 200,
+        "sha256": "48de0d1bd17702074268332a0dc96ff63488584b442c30c14385088ed1a499c3",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/0yyh3kuaz6ac6.js",
+        "status": 200,
+        "sha256": "e4fe4569448bd09dc4f3bf8c6f8876cb44c63720c9c1a465c7e290ae031f0cfb",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/0yyh3kuaz6ac6.js",
+        "status": 200,
+        "sha256": "e4fe4569448bd09dc4f3bf8c6f8876cb44c63720c9c1a465c7e290ae031f0cfb",
+        "matchesDisk": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/3g339emeswme5.css",
+        "status": 200,
+        "sha256": "38080ae0930819870acca807637c15687db660f7ca757c5cf40ca7e122c2820e",
+        "matchesDisk": true,
+        "hasV2Css": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/3g339emeswme5.css",
+        "status": 200,
+        "sha256": "38080ae0930819870acca807637c15687db660f7ca757c5cf40ca7e122c2820e",
+        "matchesDisk": true,
+        "hasV2Css": true
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/2mc9geh0_g3yd.css",
+        "status": 200,
+        "sha256": "522272682a9636f32846c98f0ab4503c1aa32dc0c8df141f0ee88a9bbb6d60d2",
+        "matchesDisk": true,
+        "hasV2Css": false
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/2mc9geh0_g3yd.css",
+        "status": 200,
+        "sha256": "522272682a9636f32846c98f0ab4503c1aa32dc0c8df141f0ee88a9bbb6d60d2",
+        "matchesDisk": true,
+        "hasV2Css": false
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/0dsb0jkocxoye.css",
+        "status": 200,
+        "sha256": "a8041d62d76adb55382d1000c8c010cb9d8f85089b99cc0120686a5cbbeebb91",
+        "matchesDisk": true,
+        "hasV2Css": false
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/0dsb0jkocxoye.css",
+        "status": 200,
+        "sha256": "a8041d62d76adb55382d1000c8c010cb9d8f85089b99cc0120686a5cbbeebb91",
+        "matchesDisk": true,
+        "hasV2Css": false
+      },
+      {
+        "origin": "http://127.0.0.1:3000",
+        "path": "/_next/static/chunks/1ioehhzbin03g.js",
+        "status": 200,
+        "sha256": "48ecaff82583b15e2da651ee59abf0efb9b95cb7727fd2b981e6801dd6081b47",
+        "matchesDisk": true
+      },
+      {
+        "origin": "https://ayas.atolyeayas.com",
+        "path": "/_next/static/chunks/1ioehhzbin03g.js",
+        "status": 200,
+        "sha256": "48ecaff82583b15e2da651ee59abf0efb9b95cb7727fd2b981e6801dd6081b47",
+        "matchesDisk": true
+      }
+    ],
+    "moduleNames": [
+      {
+        "route": "/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx <module evaluation>"
+      },
+      {
+        "route": "/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx"
+      },
+      {
+        "route": "/page",
+        "module": "[project]/src/components/brain/BrainCoreConsole.tsx <module evaluation>"
+      },
+      {
+        "route": "/page",
+        "module": "[project]/src/components/brain/BrainCoreConsole.tsx"
+      },
+      {
+        "route": "/brain/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx <module evaluation>"
+      },
+      {
+        "route": "/brain/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx"
+      },
+      {
+        "route": "/brain/page",
+        "module": "[project]/src/components/brain/BrainCoreConsole.tsx <module evaluation>"
+      },
+      {
+        "route": "/brain/page",
+        "module": "[project]/src/components/brain/BrainCoreConsole.tsx"
+      },
+      {
+        "route": "/studio/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx <module evaluation>"
+      },
+      {
+        "route": "/studio/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx"
+      },
+      {
+        "route": "/studio/page",
+        "module": "[project]/src/components/HomeClient.tsx <module evaluation>"
+      },
+      {
+        "route": "/studio/page",
+        "module": "[project]/src/components/HomeClient.tsx"
+      },
+      {
+        "route": "/project/[slug]/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx <module evaluation>"
+      },
+      {
+        "route": "/project/[slug]/page",
+        "module": "[project]/src/components/workspace/AyasWorkspaceShell.tsx"
+      }
+    ],
+    "ready": 200,
+    "failedRoutes": 0,
+    "failedAssets": 0
+  },
+  "sourceGraphify": {
+    "sourceHead": "59e585ab4ac9acfcaedeaebf75099568c28512f3",
+    "lastAnalyzedHead": "59e585ab4ac9acfcaedeaebf75099568c28512f3",
+    "graphBuiltFromHead": "59e585ab4ac9acfcaedeaebf75099568c28512f3",
+    "structuralStatus": "PARTIAL",
+    "semanticStatus": "PENDING",
+    "worktreeState": "CLEAN",
+    "stale": false,
+    "nodes": 19277,
+    "links": 55326,
+    "duplicateNodeIds": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "canonicalBuild": {
+    "status": "PASS",
+    "typescript": "PASS",
+    "installedNext": "16.2.10",
+    "lockNext": "16.3.8",
+    "installedLockMismatch": "OPEN",
+    "tracingWarnings": 105,
+    "middlewareDeprecation": true
+  },
+  "isolatedPreflight": {
+    "status": "PASS",
+    "compiler": "webpack",
+    "qualification": "TEMP_SYNTHETIC_GIT_FIXTURE_NOT_PRODUCTION_STAMP"
+  },
+  "publicBrowser": {
+    "routes": [
+      "/brain/voice-lab/phone-llm",
+      "/login?next=%2F"
+    ],
+    "v2SharedFrameRendered": true,
+    "consoleWarnOrError": 0,
+    "authenticatedProtectedRender": "OWNER_ACTION_NOT_RUN"
+  },
+  "phone": "OWNER_ACTION_NOT_RUN",
+  "foundation": "BLOCKED",
+  "frozenPins": "323 references /214 unique files /0 mismatch",
+  "rawLogsAndRollback": "C:/Users/Metod/AppData/Local/Temp/ayas-owner-ui-v2-rollout-20261007/",
+  "finalHeadMeaning": "following documentation-only save; source identity remains this clean deployed source; final Graphify exact-head receipt in ignored .graphify/2026-10-07/OWNER_UI_V2_FINAL_HEAD.json",
+  "initialProbeFinding": "Phone local LLM lab200 is existing OPEN_PATH contract; temporary probe expectation corrected from307 to200; original observation preserved in TEMP; no accessGate change"
+}
