@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "expectedHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "branch": "wip/ayas-graphify-final-execution",
+  "entryWorktree": "CLEAN_VERIFIED_BEFORE_EVIDENCE_WRITES",
+  "entryAheadBehind": "0/0_FETCH_VERIFIED",
+  "graphify": {
+    "branch": {
+      "lastSeenHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "lastAnalyzedHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "stale": false,
+      "staleReason": null
+    },
+    "graph": {
+      "builtFromHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "nodes": 19237,
+      "links": 55148,
+      "duplicateIds": 0,
+      "duplicateEdges": 0,
+      "dangling": 0,
+      "selfLoops": 0
+    },
+    "needsUpdate": false,
+    "structural": "PARTIAL9",
+    "semantic": "PENDING",
+    "entryFingerprint": null
+  },
+  "eval": {
+    "version": "15F.4-v56",
+    "suites": 166,
+    "uniquePins": 214,
+    "pinReferences": 323,
+    "pinErrors": 0,
+    "changedFromV55": [
+      "release-provenance",
+      "release-provenance-mutations"
+    ],
+    "gradersAndFixturesChanged": false
+  },
+  "freshDependencies": {
+    "npmCiExit": 0,
+    "installScriptsExecuted": false,
+    "credentialOrEnvFileCopied": false,
+    "remoteRemoved": true
+  },
+  "full166": {
+    "state": "RUNNING",
+    "receiptExpected": "STAGE17_34ecb66_FULL166.json",
+    "historicalReceiptRebound": false
+  },
+  "observedAt": "2026-10-07T06:35:42.908Z",
+  "grantsAuthority": false
+}

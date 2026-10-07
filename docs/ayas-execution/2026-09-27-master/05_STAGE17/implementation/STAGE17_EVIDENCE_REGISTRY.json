@@ -321,6 +321,51 @@
       "operatorSourceHead": "36e794fafe6e79c27536d8ab98d62d7a3b1eb1f1",
       "scope": "TEMP_CLONE_ACCESS_GATE_SANITY_ONLY",
       "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_HANDOFF_34ecb66.json",
+      "sha256": "ee706ca9b491c1ac9bf015acbb3118a87b881d5c7cba0d0be391b892c5277b94",
+      "originalCaptureByteSha256": "ee706ca9b491c1ac9bf015acbb3118a87b881d5c7cba0d0be391b892c5277b94",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "scope": "EXACT_HANDOFF_AND_FRESH_DEPENDENCY_PREPARATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_PHONE_REPAIR_34ecb66.json",
+      "sha256": "bff054293bc5639e61ce637a3e1e7a3ddf78320962d1c86b8c958a85d6502136",
+      "originalCaptureByteSha256": "bff054293bc5639e61ce637a3e1e7a3ddf78320962d1c86b8c958a85d6502136",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "scope": "REAL_RUNTIME_REPAIR_AND_OWNER_REPORTED_PHONE_LOGIN_ONLY",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_SECRET_SCAN_34ecb66.json",
+      "sha256": "d8b7aa72552dcaee06c2c307e8f74fb11fd9e6b86f498f8605d6aa93dece8708",
+      "originalCaptureByteSha256": "d8b7aa72552dcaee06c2c307e8f74fb11fd9e6b86f498f8605d6aa93dece8708",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "scope": "EXACT_KEY_BYTES_HISTORY_INDEX_EVIDENCE_ACCESS_LOG_SCAN",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_EXTERNAL_SCOPE_34ecb66.json",
+      "sha256": "4f392201a237c44370730727272fcd72d7e94bf44a4c0413be9558e2d14494ef",
+      "originalCaptureByteSha256": "4f392201a237c44370730727272fcd72d7e94bf44a4c0413be9558e2d14494ef",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "scope": "BOUNDED_CONFIGURED_EXTERNAL_HASH_OBSERVATION_NOT_CANONICAL_GLOBAL_QUALIFICATION",
+      "runningProcessSourceQualified": false
+    },
+    {
+      "file": "STAGE17_CURRENT_AUDIT_34ecb66.json",
+      "sha256": "94b2153a18e77976e51f3652761a6b3ccef5229404995c5313e49828e1981bcd",
+      "originalCaptureByteSha256": "94b2153a18e77976e51f3652761a6b3ccef5229404995c5313e49828e1981bcd",
+      "digestBasis": "CANONICAL_UTF8_JSON_LF",
+      "operatorSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+      "scope": "CURRENT_CANONICAL_READ_ONLY_AUDIT_FOUNDATION_BLOCKED",
+      "runningProcessSourceQualified": false
     }
   ],
   "historicalClosure": {
@@ -378,7 +423,7 @@
     "reason": "FOUNDATION_NOT_CLOSED"
   },
   "authority": "NONE",
-  "updatedAt": "2026-10-07T05:54:03.392Z",
+  "updatedAt": "2026-10-07T06:35:42.908Z",
   "sourceHeadMeaning": "6a9_COMPONENT_FRAMEWORK_ANCHOR_EACH_LATER_ENTRY_HAS_ITS_OWN_EXACT_OPERATOR_SOURCE_HEAD",
   "ciQualification": {
     "sourceHead": "dea169fe7636eae9124eccf45dae896e18fd92a5",
@@ -425,5 +470,21 @@
       "golden-sandbox-run"
     ],
     "note": "TWO_RELEASE_PROVENANCE_FAILURES_ROOT_CAUSED_AND_REPAIRED_AT_NEXT_SOURCE_NOT_REBOUND"
+  },
+  "phoneAccess": {
+    "receipt": "STAGE17_PHONE_REPAIR_34ecb66.json",
+    "state": "OWNER_REPORTED_PHONE_LOGIN_REACHABLE",
+    "hostPath": "PASS_HTTP200_SINGLE_ORIGIN_SINGLE_NAMED_TUNNEL",
+    "authenticatedRuntimeIdentity": "OWNER_ACTION_REQUIRED"
+  },
+  "currentAudit34ecb66": {
+    "receipt": "STAGE17_CURRENT_AUDIT_34ecb66.json",
+    "foundation": "BLOCKED",
+    "localComplete": true,
+    "localFiles": 6073,
+    "localBytes": 624405392,
+    "localDigestUnchanged": true,
+    "canonicalExternalScopeQualified": false,
+    "wholeDomainTestLiveNotRun": 30
   }
 }

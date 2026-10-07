@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+  "evidenceClass": "LIVE_READ_ONLY",
+  "startedAt": "2026-10-07T06:32:43.940Z",
+  "completedAt": "2026-10-07T06:32:46.965Z",
+  "caps": {
+    "fileBytes": 16777216,
+    "totalBytes": 1073741824,
+    "bufferBytes": 262144,
+    "files": 20000,
+    "depth": 20,
+    "ms": 120000
+  },
+  "scope": "CONFIGURED_RUNTIME_AND_AUTHORITY_BOUNDED_HASH_ONLY",
+  "before": [
+    {
+      "role": "RUNTIME",
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeRuntime",
+      "exists": true,
+      "files": 2374,
+      "totalBytes": 611013585,
+      "bytesHashed": 611013585,
+      "exclusions": {
+        "credentials": 0,
+        "perFileOrTotalBudget": 0,
+        "linkOrSpecial": 0,
+        "depthOrFileLimit": 0,
+        "unreadableOrChanged": 0,
+        "timeBound": 0
+      },
+      "complete": true,
+      "digest": "403e39806a0c0c1799f75c74673bdb72267636519a2df5cb886d3198aa6bb91d"
+    },
+    {
+      "role": "AUTHORITY",
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeAuthority",
+      "exists": true,
+      "files": 4,
+      "totalBytes": 11113,
+      "bytesHashed": 11113,
+      "exclusions": {
+        "credentials": 0,
+        "perFileOrTotalBudget": 0,
+        "linkOrSpecial": 0,
+        "depthOrFileLimit": 0,
+        "unreadableOrChanged": 0,
+        "timeBound": 0
+      },
+      "complete": true,
+      "digest": "ab8ef7708392e23e0bb52745ac591374f7c7b6c159bc0fc23d1121ddb2b43466"
+    }
+  ],
+  "after": [
+    {
+      "role": "RUNTIME",
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeRuntime",
+      "exists": true,
+      "files": 2374,
+      "totalBytes": 611013585,
+      "bytesHashed": 611013585,
+      "exclusions": {
+        "credentials": 0,
+        "perFileOrTotalBudget": 0,
+        "linkOrSpecial": 0,
+        "depthOrFileLimit": 0,
+        "unreadableOrChanged": 0,
+        "timeBound": 0
+      },
+      "complete": true,
+      "digest": "403e39806a0c0c1799f75c74673bdb72267636519a2df5cb886d3198aa6bb91d"
+    },
+    {
+      "role": "AUTHORITY",
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\runtime\\AtolyeAuthority",
+      "exists": true,
+      "files": 4,
+      "totalBytes": 11113,
+      "bytesHashed": 11113,
+      "exclusions": {
+        "credentials": 0,
+        "perFileOrTotalBudget": 0,
+        "linkOrSpecial": 0,
+        "depthOrFileLimit": 0,
+        "unreadableOrChanged": 0,
+        "timeBound": 0
+      },
+      "complete": true,
+      "digest": "ab8ef7708392e23e0bb52745ac591374f7c7b6c159bc0fc23d1121ddb2b43466"
+    }
+  ],
+  "digestsUnchanged": true,
+  "canonicalCollectorExternalScopeQualified": false,
+  "authenticatedRuntimeIdentity": "OWNER_ACTION_REQUIRED",
+  "grantsAuthority": false,
+  "rawPrivateBodiesPersisted": false
+}
