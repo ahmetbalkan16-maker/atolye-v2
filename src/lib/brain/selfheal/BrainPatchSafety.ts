@@ -154,11 +154,11 @@ const RULES: readonly Rule[] = Object.freeze([
     why: "owner-fixed AYAS homepage: changes require an explicit owner instruction; new features belong on subpages",
     test: (p) => {
       const target = p.toLowerCase();
-      return ["src/components/homepage/", "public/ayas/brain/"].some(prefix => target.startsWith(prefix))
+      return ["src/components/homepage/", "src/components/workspace/", "public/ayas/brain/"].some(prefix => target.startsWith(prefix))
         || ["app/page.tsx", "app/layout.tsx", "app/globals.css",
           "src/components/brain/ayasconsolepage.tsx", "src/components/brain/braincoreconsole.tsx",
           "src/components/brain/brainconsoleview.tsx", "docs/ayas_homepage_policy.md",
-          "agents.md", "scripts/smoke-ayas-homepage-v2.ts"].includes(target);
+          "agents.md", "scripts/smoke-ayas-homepage-v2.ts", "scripts/smoke-ayas-owner-ui-v2.ts"].includes(target);
     },
   },
   {

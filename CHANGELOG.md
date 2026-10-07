@@ -1,3 +1,7 @@
+## 2026-10-07 — Owner UI V2 integration
+
+All owner subpages use shared Brain UI V2 navigation/presentation; existing chat/voice/project/approval functionality preserved. HOME fixed composition retained and autonomous policy expanded. 24 suites/587 scenarios and isolated build PASS; canonical rollout follows.
+
 # 2026-10-07 — PWA icon opens Brain UI V2 homepage
 
 Manifest start_url changed from /brain?source=pwa to /, with scope=/ and stable id=/brain. Manifest fetch is network-first; new / and legacy /brain retain offline fallback.145 focused scenarios/TS/lint/build PASS; canonical deployment/public manifest verified. All routes, access tasks/tunnel and Foundation BLOCKED preserved. Existing installed metadata may require reinstall from /. Evidence: docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/pwa-start-url/PWA_START_URL_2026-10-07.md.

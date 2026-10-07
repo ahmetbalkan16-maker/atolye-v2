@@ -114,7 +114,7 @@ export default async function ProjectStudioPage({
     >
       <div className="space-y-6">
         <Link
-          href="/"
+          href="/studio"
           className="inline-flex text-sm font-medium text-yellow-400 hover:text-yellow-300"
         >
           Projelere dön

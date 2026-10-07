@@ -1,0 +1,62 @@
+[
+  {
+    "label": "Ana Sayfa",
+    "href": "/",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Sistemler/Graphify",
+    "href": "/brain?panel=system",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Bilgi/Bellek",
+    "href": "/brain?panel=memory",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Araştırma",
+    "href": "/brain?panel=research",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Gelişim/Onaylar",
+    "href": "/brain?panel=development",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Üretim(top)/Atölye",
+    "href": "/studio",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Üretim(dock)",
+    "href": "/brain?panel=production",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Otonom Gelir",
+    "href": "/brain/revenue",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Ayarlar",
+    "href": "/brain/constitution",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Sağlık/Otonomi",
+    "href": "/brain?panel=autonomous",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Görevler/plan",
+    "href": "/brain?panel=tasks",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  },
+  {
+    "label": "Kontrol Merkezi",
+    "href": "/brain",
+    "status": "PRESERVED_FUNCTION_MIGRATED_V2_DESTINATION"
+  }
+]

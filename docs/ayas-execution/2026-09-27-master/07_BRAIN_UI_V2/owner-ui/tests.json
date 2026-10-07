@@ -1,0 +1,191 @@
+{
+  "suites": 24,
+  "scenarios": 587,
+  "results": [
+    {
+      "suite": "smoke-brain-core-ui.ts",
+      "exit": 0,
+      "summary": [
+        "Atölye Brain Core UI smoke: PASS (43 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"brain-core-ui\",\"scenarios\":43}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-brain-control-center.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS Brain Control Center smoke: PASS (39 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-brain-control-center\",\"mode\":\"final\",\"primary\":{\"pass\":22,\"fail\":0,\"missing\":0,\"total\":22},\"heldOut\":{\"pass\":13,\"fail\":0,\"missing\":0,\"total\":13},\"integration\":{\"pass\":4,\"fail\":0,\"missing\":0,\"total\":4}}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-homepage-v2.ts",
+      "exit": 0,
+      "summary": [
+        "PASS 11: delayed facts stream without blocking chat; absent result stays truthful",
+        "{\"suite\":\"ayas-homepage-v2\",\"status\":\"PASS\",\"scenarios\":11}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-owner-ui-v2.ts",
+      "exit": 0,
+      "summary": [
+        "PASS 36: CSS has scoped responsive, safe-area, focus and reduced-motion contracts",
+        "{\"suite\":\"ayas-owner-ui-v2\",\"status\":\"PASS\",\"scenarios\":36}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-pwa-manifest.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS PWA manifest smoke: PASS (8 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-pwa-manifest\",\"scenarios\":8}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-pwa-sw.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS PWA service worker smoke: PASS (16 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-pwa-sw\",\"scenarios\":16}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-chat-stream.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS chat stream smoke: PASS (31 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-chat-stream\",\"scenarios\":31}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-chat-stream-client.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS chat stream client smoke: PASS (11 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-chat-stream-client\",\"scenarios\":11}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-mobile-voice-regression.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS mobile voice regression smoke: PASS (36 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-mobile-voice-regression\",\"scenarios\":36}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-voice.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS voice smoke: PASS (79 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-voice\",\"scenarios\":79}"
+      ]
+    },
+    {
+      "suite": "smoke-brain-conversation.ts",
+      "exit": 0,
+      "summary": [
+        "Brain conversation smoke: PASS (8 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"brain-conversation\",\"scenarios\":8}"
+      ]
+    },
+    {
+      "suite": "smoke-brain-lifecycle.ts",
+      "exit": 0,
+      "summary": [
+        "Brain lifecycle smoke: PASS (16 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"brain-lifecycle\",\"scenarios\":16}"
+      ]
+    },
+    {
+      "suite": "smoke-pipeline-start-outcome.ts",
+      "exit": 0,
+      "summary": "Pipeline start outcome smoke: PASS (8 cases)"
+    },
+    {
+      "suite": "smoke-ayas-autonomy-approval.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS autonomy approval smoke: PASS (29 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-autonomy-approval\",\"scenarios\":29}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-approval-durable-state-compatibility.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS approval durable-state compatibility smoke: PASS (24 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-approval-durable-state-compatibility\",\"scenarios\":24}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-proposal-approval-service.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS proposal approval service smoke: PASS (28 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-proposal-approval-service\",\"scenarios\":28}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-micro-batch-approval-service.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS micro batch approval service smoke: PASS (15 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-micro-batch-approval-service\",\"scenarios\":15}"
+      ]
+    },
+    {
+      "suite": "smoke-brain-selfheal-security.ts",
+      "exit": 0,
+      "summary": [
+        "Atölye Brain self-heal security smoke: PASS (14 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"brain-selfheal-security\",\"scenarios\":14}"
+      ]
+    },
+    {
+      "suite": "smoke-brain-selfheal.ts",
+      "exit": 0,
+      "summary": [
+        "Atölye Brain self-heal (pure core) smoke: PASS (41 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"brain-selfheal\",\"scenarios\":41}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-exact-patch-safety.ts",
+      "exit": 0,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-exact-patch-safety\",\"scenarios\":23,\"changedLines\":15}"
+    },
+    {
+      "suite": "smoke-ayas-exact-proposal-safety.ts",
+      "exit": 0,
+      "summary": "{\"status\":\"PASS\",\"suite\":\"ayas-exact-proposal-safety\",\"scenarios\":28}"
+    },
+    {
+      "suite": "smoke-ayas-access-gate.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS access gate: PASS (19 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-access-gate\",\"scenarios\":19}"
+      ]
+    },
+    {
+      "suite": "smoke-ayas-phone-access-health.ts",
+      "exit": 0,
+      "summary": [
+        "AYAS phone access health smoke: PASS (13 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-phone-access-health\",\"scenarios\":13}"
+      ]
+    },
+    {
+      "suite": "smoke-project-storage-hygiene.ts",
+      "exit": 0,
+      "summary": [
+        "Project storage hygiene: PASS (11 scenarios)",
+        "{\"status\":\"PASS\",\"suite\":\"project-storage-hygiene\",\"scenarios\":11}"
+      ]
+    }
+  ],
+  "typescript": "PASS",
+  "lint": "0 errors / 13 inherited warnings"
+}

@@ -9,19 +9,28 @@ type Project = {
 
 export default function DashboardStats() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     async function loadProjects() {
-      const res = await fetch("/api/projects");
-      const data = await res.json();
-
-      if (data.success) {
+      try {
+        const res = await fetch("/api/projects");
+        const data = await res.json();
+        if (!res.ok || !data.success || !Array.isArray(data.projects)) throw new Error("PROJECTS_UNAVAILABLE");
         setProjects(data.projects);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
       }
     }
 
     loadProjects();
   }, []);
+
+  if (loading) return <p className="aw-muted" role="status">Proje sayıları okunuyor…</p>;
+  if (error) return <p className="aw-muted" role="alert">Proje sayıları okunamadı.</p>;
 
   const total = projects.length;
   const research = projects.filter((p) => p.status === "research").length;

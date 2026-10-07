@@ -1,0 +1,50 @@
+Graphify Review Analysis
+Changed files: 8
+Blast radius: high (score 271)
+Impacted files: 29
+Impacted communities: 16
+Bridge nodes: 8
+Test-gap hints: 8
+Multimodal safety: none
+
+Blast rationale:
+  - graph expands review beyond changed files
+  - multiple communities are impacted
+  - bridge nodes connect this change across communities
+  - high-risk chains are present
+  - test-gap hints are present
+
+Impacted communities:
+  - Community 17 (high, 49 impacted nodes, 35 changed nodes)
+  - Community 38 (high, 14 impacted nodes, 4 changed nodes)
+  - Community 33 (medium, 13 impacted nodes, 0 changed nodes)
+  - Community 61 (high, 8 impacted nodes, 7 changed nodes)
+  - Community 19 (low, 7 impacted nodes, 0 changed nodes)
+  - Community 27 (high, 7 impacted nodes, 4 changed nodes)
+  - Community 49 (low, 6 impacted nodes, 0 changed nodes)
+  - Community 107 (low, 4 impacted nodes, 0 changed nodes)
+
+Bridge nodes:
+  - BrainConsoleSnapshot (degree 23, community 33, src/lib/brain/ui/BrainConsoleSnapshot.ts)
+  - 91ba270 Atölye V2 checkpoint - pipeline base + client/server separation + research API (degree 51, community 61, git)
+  - 06b134e feat(brain): Self-Healing Brain v1 — detect → diagnose → sandbox-fix → test → verify → learn (degree 33, community 40, git)
+  - 04c1c5b feat(ayas): browser wake-word (openWakeWord) + WakeWordVoiceAdapter (degree 16, community 9, git)
+  - 6c1ae5a Sprint 15 - Multi AI Provider Architecture (degree 22, community 20, git)
+  - e68910b feat(ayas): AYAS chat model profile + PWA manifest (degree 12, community 27, git)
+  - BrainChatMessage (degree 15, community 33, src/components/brain/brainCore.ts)
+  - 1d890ad feat(pwa): real PNG icon set + IP-first Caddy + phone install runbook (degree 12, community 27, git)
+
+Test-gap hints:
+  - app/brain/page.tsx: no related test file surfaced in the impacted graph
+  - app/layout.tsx: no related test file surfaced in the impacted graph
+  - app/page.tsx: no related test file surfaced in the impacted graph
+  - app/studio/page.tsx: no related test file surfaced in the impacted graph
+  - src/components/HomeClient.tsx: no related test file surfaced in the impacted graph
+  - src/components/Sidebar.tsx: no related test file surfaced in the impacted graph
+  - src/components/brain/BrainConsoleView.tsx: no related test file surfaced in the impacted graph
+  - src/components/homepage/AyasHomepage.tsx: no related test file surfaced in the impacted graph
+
+Multimodal/doc safety:
+  - no multimodal/doc artifact surfaced in the impacted graph
+
+Next best action: Start with bridge nodes and high-risk chains before reviewing individual files.

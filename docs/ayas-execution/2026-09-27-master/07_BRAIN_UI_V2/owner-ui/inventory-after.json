@@ -1,0 +1,337 @@
+{
+  "baseline": "98c36b294bbcec59ca6db70bb1504bfe68792954",
+  "routes": [
+    {
+      "route": "/brain/briefing",
+      "file": "app/brain/briefing/page.tsx",
+      "classification": "B",
+      "functions": "executive owner briefing and acknowledgement actions",
+      "components": [
+        "import { AyasExecutiveBriefingPanel } from \"@/components/brain/AyasExecutiveBriefingPanel\";"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/brain/constitution",
+      "file": "app/brain/constitution/page.tsx",
+      "classification": "B",
+      "functions": "constitution digest,read and owner adoption action",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/brain",
+      "file": "app/brain/page.tsx",
+      "classification": "B",
+      "functions": "all BRAIN_PANELS: chat,tasks,memory,system,autonomous,development,research,production and approvals",
+      "components": [
+        "import { AyasConsolePage } from \"@/components/brain/AyasConsolePage\";",
+        "import { BRAIN_PANELS } from \"@/components/brain/brainCore\";"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/brain/revenue",
+      "file": "app/brain/revenue/page.tsx",
+      "classification": "B",
+      "functions": "real revenue activity report read-only",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/brain/safe-mode",
+      "file": "app/brain/safe-mode/page.tsx",
+      "classification": "B",
+      "functions": "real safe-mode state,health,enter/exit actions",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/brain/voice-lab",
+      "file": "app/brain/voice-lab/page.tsx",
+      "classification": "B",
+      "functions": "audio permission,capture/worklet,start/stop diagnostics",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/brain/voice-lab/phone-llm",
+      "file": "app/brain/voice-lab/phone-llm/page.tsx",
+      "classification": "B",
+      "functions": "isolated local-model capability/download/cache/inference diagnostics",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/brain/voice-lab/wake",
+      "file": "app/brain/voice-lab/wake/page.tsx",
+      "classification": "B",
+      "functions": "wake engine lifecycle/calibration/audio diagnostics",
+      "components": [
+        "import type { WakeRunnerStats, WakeScoreDistribution } from \"@/components/brain/voice/wake/openWakeWordRunner\";",
+        "import { useBrainLifecycle } from \"@/components/brain/useBrainLifecycle\";"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/login",
+      "file": "app/login/page.tsx",
+      "classification": "C",
+      "functions": "existing access form,next handling,error/misconfiguration and POST /api/auth/login",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/offline",
+      "file": "app/offline/page.tsx",
+      "classification": "C",
+      "functions": "static genuine offline/degraded notice",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/",
+      "file": "app/page.tsx",
+      "classification": "A",
+      "functions": "chat,stream,stop,voice,wake,TTS,interrupt,tasks,status and fixed menus",
+      "components": [
+        "import { AyasConsolePage } from \"@/components/brain/AyasConsolePage\";",
+        "import \"@/components/homepage/AyasHomepage.css\";"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "PRESERVED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "owner-fixed composition; shared shell explicitly excluded",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/project/[slug]",
+      "file": "app/project/[slug]/page.tsx",
+      "classification": "B",
+      "functions": "project persistence read,asset gallery,research/script/scenes/visuals/animation/audio/assembly/export/thumbnail/SEO/YouTube panels",
+      "components": [
+        "import AssetGallery from \"@/components/assets/AssetGallery\";\r"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/research",
+      "file": "app/research/page.tsx",
+      "classification": "B",
+      "functions": "topic input,research POST,result lists and project link",
+      "components": [
+        "import DashboardLayout from \"@/components/dashboard/DashboardLayout\";\r"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/scenes",
+      "file": "app/scenes/page.tsx",
+      "classification": "B",
+      "functions": "existing coming-soon state; no generation action exists here",
+      "components": [],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/script",
+      "file": "app/script/page.tsx",
+      "classification": "B",
+      "functions": "script POST,input,loading,error and chapters",
+      "components": [
+        "import Sidebar from \"@/components/Sidebar\";\r"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/studio",
+      "file": "app/studio/page.tsx",
+      "classification": "B",
+      "functions": "project list,real dashboard counts,topic,pipeline POST,outcome navigation",
+      "components": [
+        "import HomeClient from \"@/components/HomeClient\";"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    },
+    {
+      "route": "/visuals",
+      "file": "app/visuals/page.tsx",
+      "classification": "B",
+      "functions": "visual provider form/API,result/error",
+      "components": [
+        "import { StudioCard, StudioLayout } from \"@/components/studio\";\r"
+      ],
+      "normalNavigation": true,
+      "finalClassification": "A",
+      "status": "MIGRATED",
+      "functionsStatus": "PRESERVED",
+      "mechanism": "existing route and loader inside Brain UI V2 frame; controls retained",
+      "physicalDevice": "OWNER_ACTION_NOT_RUN"
+    }
+  ],
+  "apiRoutes": "34 existing API files; unchanged",
+  "functions": [
+    {
+      "name": "chat,stream,stop",
+      "status": "PRESERVED",
+      "evidence": "existing BrainCoreConsole, ChatPanel and abort callbacks; chat-stream/client suites"
+    },
+    {
+      "name": "listening,thinking,speaking",
+      "status": "PRESERVED",
+      "evidence": "same reducer and semantic hues; core UI and owner-ui tests"
+    },
+    {
+      "name": "wake,STT,TTS,mute,replay,interrupt,continuity",
+      "status": "PRESERVED",
+      "evidence": "same voice engine/disclosure/audio lifecycle; voice79 plus mobile36 scenarios"
+    },
+    {
+      "name": "tasks,queue,worker state",
+      "status": "PRESERVED",
+      "evidence": "same PanelBody and task components; Brain core43/lifecycle16"
+    },
+    {
+      "name": "approvals,proposal,micro-batch,durable state",
+      "status": "PRESERVED",
+      "evidence": "same actions; four approval suites96 scenarios"
+    },
+    {
+      "name": "health,autonomy,system,memory,learning,safety",
+      "status": "PRESERVED",
+      "evidence": "all existing panel bodies and source status/error behavior unchanged"
+    },
+    {
+      "name": "development,selfheal,reports",
+      "status": "PRESERVED",
+      "evidence": "same gate and panels; homepage autonomous protection expanded"
+    },
+    {
+      "name": "project generation,pipeline outcome,resume,retry,history",
+      "status": "PRESERVED",
+      "evidence": "same HomeClient pipeline API and project workspace components; outcome8/storage11"
+    },
+    {
+      "name": "research,script,visual prompt generation",
+      "status": "PRESERVED",
+      "evidence": "same POST bodies, endpoints and outputs; labels/focus and layout only"
+    },
+    {
+      "name": "animation,video,audio,thumbnail,SEO,YouTube,export,assembly,usage/assets",
+      "status": "PRESERVED",
+      "evidence": "existing project/[slug] imports/loaders and actions; contextual project access"
+    },
+    {
+      "name": "constitution,safe-mode,briefing,revenue",
+      "status": "PRESERVED",
+      "evidence": "existing loaders/actions; new shared appearance/navigation only"
+    },
+    {
+      "name": "audio,wake,phone-LLM diagnostic labs",
+      "status": "PRESERVED",
+      "evidence": "same lab implementations; no microphone granted/model downloaded"
+    },
+    {
+      "name": "API/auth/security,persistence,Cloudflare/tasks",
+      "status": "PRESERVED",
+      "evidence": "no API/auth/daemon/task/config source edits"
+    },
+    {
+      "name": "BrainCoreOrb isolated pure component",
+      "status": "INTENTIONALLY_INTERNAL",
+      "evidence": "owner render removed; retained unchanged for frozen tests, never replaced grader expectations"
+    }
+  ],
+  "unknown": 0,
+  "panelBodyAndHandlersByteEquivalentAfterNewlineNormalization": true,
+  "removedLegacyViews": [
+    "owner BrainCoreOrb mount/stage/header",
+    "old Sidebar ATOLYE/yellow navigation",
+    "legacy white/gray dashboard layout",
+    "constant Sistem Hazır/OpenAI presentation badges"
+  ],
+  "deletedFiles": [],
+  "retainedInternal": "BrainCoreOrb remains for frozen contract tests",
+  "legacyBrokenDestinations": [
+    "/animation",
+    "/audio",
+    "/youtube",
+    "/settings"
+  ],
+  "brokenLinkResolution": "three media functions accessed in project/[slug]; settings at existing /brain/constitution; no page route existed at those four old URLs"
+}

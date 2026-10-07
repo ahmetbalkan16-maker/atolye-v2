@@ -53,18 +53,19 @@ export default function ResearchPage() {
       <div className="max-w-6xl">
         <div>
           <p className="text-sm font-medium text-yellow-400">Research Engine</p>
-          <h2 className="mt-2 text-3xl font-bold text-white">
+          <h1 className="mt-2 text-3xl font-bold text-white">
             Araştırma Motoru
-          </h2>
+          </h1>
           <p className="mt-2 text-neutral-400">
             Tarih belgeseli için kapsamlı araştırma üret ve projeye kaydet.
           </p>
         </div>
 
         <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-          <label className="text-sm text-neutral-300">Konu</label>
+          <label htmlFor="ayas-research-topic" className="text-sm text-neutral-300">Konu</label>
 
           <input
+            id="ayas-research-topic"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="Örn: Hunların Doğuşu"
@@ -79,9 +80,9 @@ export default function ResearchPage() {
             {loading ? "Araştırılıyor..." : "Araştırmayı Başlat"}
           </button>
 
-          {message && <p className="mt-4 text-sm text-green-400">{message}</p>}
+          {message && <p role="status" className="mt-4 text-sm text-green-400">{message}</p>}
 
-          {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+          {error && <p role="alert" className="mt-4 text-sm text-red-400">{error}</p>}
         </div>
 
         {research && (

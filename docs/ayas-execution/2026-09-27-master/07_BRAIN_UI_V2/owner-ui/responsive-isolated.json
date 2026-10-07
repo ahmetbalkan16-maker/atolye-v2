@@ -1,0 +1,327 @@
+{
+  "qualification": "ISOLATED_CREDENTIAL_FREE_FIXTURE_NOT_AUTHENTICATED_LIVE_OWNER",
+  "measurements": [
+    {
+      "bodyWidth": 305,
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "Proje Stüdyosu"
+      ],
+      "legacyOrb": false,
+      "paddingBottom": "110px",
+      "url": "/studio",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "bodyWidth": 305,
+      "documentWidth": 305,
+      "error": false,
+      "headings": [],
+      "legacyOrb": false,
+      "paddingBottom": "110px",
+      "url": "/research",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "bodyWidth": 305,
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "AI Belgesel Senaryosu"
+      ],
+      "legacyOrb": false,
+      "paddingBottom": "110px",
+      "url": "/script",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "bodyWidth": 320,
+      "documentWidth": 320,
+      "error": false,
+      "headings": [
+        "Sahneler"
+      ],
+      "legacyOrb": false,
+      "paddingBottom": "110px",
+      "url": "/scenes",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "bodyWidth": 305,
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "Visual Studio"
+      ],
+      "legacyOrb": false,
+      "paddingBottom": "110px",
+      "url": "/visuals",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "bodyWidth": 305,
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "Proje Stüdyosu"
+      ],
+      "legacyOrb": false,
+      "paddingBottom": "110px",
+      "url": "/project/owner-ui-fixture",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "legacyOrb": false,
+      "url": "/brain/briefing",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "Owner Constitution"
+      ],
+      "legacyOrb": false,
+      "url": "/brain/constitution",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "Gelir Merkezi"
+      ],
+      "legacyOrb": false,
+      "url": "/brain/revenue",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "Güvenli Salt-Okunur Mod (SAFE_READ_ONLY)"
+      ],
+      "legacyOrb": false,
+      "url": "/brain/safe-mode",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "D2 AUDIO LAB"
+      ],
+      "legacyOrb": false,
+      "url": "/brain/voice-lab",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "D2 WAKE LAB"
+      ],
+      "legacyOrb": false,
+      "url": "/brain/voice-lab/wake",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 320,
+      "error": false,
+      "headings": [],
+      "legacyOrb": false,
+      "url": "/brain/voice-lab/phone-llm",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "AYAS"
+      ],
+      "legacyOrb": false,
+      "url": "/login",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "error": false,
+      "headings": [
+        "AYAS çevrimdışı"
+      ],
+      "legacyOrb": false,
+      "url": "/offline",
+      "v2": true,
+      "width": 320
+    },
+    {
+      "documentWidth": 305,
+      "home": false,
+      "legacyOrb": false,
+      "url": "/",
+      "width": 320
+    },
+    {
+      "documentWidth": 375,
+      "error": false,
+      "height": 844,
+      "legacyOrb": false,
+      "url": "/brain",
+      "v2": true,
+      "width": 390
+    },
+    {
+      "documentWidth": 375,
+      "error": false,
+      "height": 844,
+      "legacyOrb": false,
+      "url": "/studio",
+      "v2": true,
+      "width": 390
+    },
+    {
+      "documentWidth": 375,
+      "error": false,
+      "height": 844,
+      "legacyOrb": false,
+      "url": "/project/owner-ui-fixture",
+      "v2": true,
+      "width": 390
+    },
+    {
+      "documentWidth": 829,
+      "error": false,
+      "height": 390,
+      "legacyOrb": false,
+      "url": "/brain",
+      "v2": true,
+      "width": 844
+    },
+    {
+      "documentWidth": 829,
+      "error": false,
+      "height": 390,
+      "legacyOrb": false,
+      "url": "/studio",
+      "v2": true,
+      "width": 844
+    },
+    {
+      "documentWidth": 829,
+      "error": false,
+      "height": 390,
+      "legacyOrb": false,
+      "url": "/project/owner-ui-fixture",
+      "v2": true,
+      "width": 844
+    },
+    {
+      "documentWidth": 1009,
+      "error": false,
+      "height": 768,
+      "legacyOrb": false,
+      "url": "/brain",
+      "v2": true,
+      "width": 1024
+    },
+    {
+      "documentWidth": 1009,
+      "error": false,
+      "height": 768,
+      "legacyOrb": false,
+      "url": "/studio",
+      "v2": true,
+      "width": 1024
+    },
+    {
+      "documentWidth": 1009,
+      "error": false,
+      "height": 768,
+      "legacyOrb": false,
+      "url": "/project/owner-ui-fixture",
+      "v2": true,
+      "width": 1024
+    },
+    {
+      "documentWidth": 1351,
+      "error": false,
+      "height": 768,
+      "legacyOrb": false,
+      "url": "/brain",
+      "v2": true,
+      "width": 1366
+    },
+    {
+      "documentWidth": 1351,
+      "error": false,
+      "height": 768,
+      "url": "/studio",
+      "v2": true,
+      "width": 1366
+    },
+    {
+      "documentWidth": 1351,
+      "url": "/project/owner-ui-fixture",
+      "v2": true,
+      "width": 1366
+    },
+    {
+      "documentWidth": 1920,
+      "error": false,
+      "height": 1080,
+      "legacyOrb": false,
+      "url": "/studio",
+      "v2": true,
+      "width": 1920
+    },
+    {
+      "documentWidth": 1905,
+      "error": false,
+      "height": 1080,
+      "legacyOrb": false,
+      "url": "/brain",
+      "v2": true,
+      "width": 1920
+    },
+    {
+      "documentWidth": 1905,
+      "error": false,
+      "height": 1080,
+      "legacyOrb": false,
+      "url": "/project/owner-ui-fixture",
+      "v2": true,
+      "width": 1920
+    },
+    {
+      "documentWidth": 305,
+      "loadedPhoneLab": true,
+      "url": "/brain/voice-lab/phone-llm",
+      "v2": true,
+      "whitePanels": 0,
+      "width": 320
+    }
+  ],
+  "navigation": "HOME Atölye -> studio -> Bellek -> Memory; unsent chat draft; ArrowRight selected/focused Tasks; mobile Alanlar -> Ana Sayfa returns central brain with no workspace shell",
+  "voice": "NO_REAL_MIC_PERMISSION_OR_PHYSICAL_PHONE_TEST",
+  "fixtureLimitations": [
+    "missing observer/graph/authority disclosed",
+    "collector TIMEOUT and unbound briefing refresh fail closed; not production fatal-error qualification"
+  ]
+}

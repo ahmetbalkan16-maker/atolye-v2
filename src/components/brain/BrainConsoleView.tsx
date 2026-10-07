@@ -12,10 +12,10 @@
  * honest "Not connected" / empty state.
  */
 
-import { BrainCoreOrb } from "./BrainCoreOrb";
 import { AyasHomepage } from "../homepage/AyasHomepage";
 import {
   BRAIN_PANELS,
+  describeBrainCoreState,
   deriveAyasPresence,
   findBrainPanel,
   mapTaskStatusToDisplay,
@@ -192,100 +192,55 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
 
   return (
     <div className="bc-shell">
-      <header className="bc-topbar">
-        <div className="bc-brand">
-          <p className="bc-brand__eyebrow">Atölye</p>
-          <h1 className="bc-brand__title">AYAS</h1>
-          <p className="bc-brand__sub">
-            <span className={`bc-online bc-online--${coreState}`} aria-hidden="true" />
-            {onlineLabel(coreState)} · Brain Core
-          </p>
-        </div>
-        <span className="bc-gate" title="AYAS has no production / GPU / model-execution authority.">
-          <span className="bc-gate__lock" aria-hidden="true" />
-          ⛨ Yürütme kapısı: {snapshot.executionGate}
-        </span>
-      </header>
-
-      <div className="bc-main">
-        <section className="bc-stage" aria-label="AYAS Core">
-          <div className="bc-stage__orb">
-            <BrainCoreOrb state={coreState} showLabel={false} />
-          </div>
-
-          <div className="bc-stateline">
-            <span className="bc-stateline__label">{stateLabel(coreState)}</span>
-            <span className="bc-stateline__sep" aria-hidden="true">·</span>
-            <span className="bc-stateline__tr">{stateTr(coreState)}</span>
-          </div>
-          <p className="bc-character">{stateCharacter(coreState)}</p>
-
-          <AyasOwnerAttention sources={props.controlCenter} inputs={controlCenterInputs(props)} onOpenPanel={openPanelHandler(props)} />
-
-          <AyasPresenceCard {...props} />
-
-          {snapshot.errors.length > 0 ? (
-            <div className="bc-alert" role="alert">
-              {snapshot.errors.map((error, index) => (
-                <div key={index}>⚠ {error}</div>
-              ))}
-            </div>
-          ) : null}
-
-          <AyasDomainTiles sources={props.controlCenter} inputs={controlCenterInputs(props)} onOpenPanel={openPanelHandler(props)} />
-
-          <button
-            type="button"
-            className="bc-btn bc-btn--ghost"
-            onClick={props.onRefresh}
-            disabled={props.refreshing}
-            data-testid="bc-refresh"
-          >
-            {props.refreshing ? "Yenileniyor…" : "Durumu yenile"}
-          </button>
-        </section>
-
-        <section className="bc-panel" id="bc-command-center" aria-label="AYAS command center">
-          <div className="bc-panel__head">
-            <p className="bc-panel__title">Command Center</p>
-            <span className="bc-panel__title" aria-hidden="true">{activePanel}</span>
-          </div>
-
-          <nav className="bc-tabs" role="tablist" aria-label="AYAS panels">
-            {BRAIN_PANELS.map((panel) => (
-              <button
-                key={panel.id}
-                type="button"
-                role="tab"
-                aria-selected={panel.id === activePanel}
-                className="bc-tab"
-                onClick={() => props.onSelectPanel?.(panel.id)}
-                data-testid={`bc-tab-${panel.id}`}
-              >
-                <span className="bc-tab__icon" aria-hidden="true">{panel.icon}</span>
-                {panel.label}
+      <div className="aw-console">
+        <header className="aw-page-heading">
+          <div><h1 className="bc-brand__title">AYAS</h1><p>Kontrol Merkezi · {findBrainPanel(activePanel).label}</p></div>
+          <span className="bc-gate" title="AYAS has no production / GPU / model-execution authority.">⛨ Yürütme kapısı: {snapshot.executionGate}</span>
+        </header>
+        <div className="aw-console-layout">
+          <section className="bc-panel" id="bc-command-center" aria-label="AYAS command center">
+            <nav className="bc-tabs" role="tablist" aria-label="AYAS panels" onKeyDown={(event) => {
+              const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+              if (!keys.includes(event.key)) return;
+              event.preventDefault();
+              const index = BRAIN_PANELS.findIndex(panel => panel.id === activePanel);
+              const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? BRAIN_PANELS.length - 1 :
+                (index + (event.key === "ArrowRight" ? 1 : -1) + BRAIN_PANELS.length) % BRAIN_PANELS.length;
+              props.onSelectPanel?.(BRAIN_PANELS[nextIndex].id);
+              event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
+            }}>
+              {BRAIN_PANELS.map(panel => <button key={panel.id} type="button" role="tab"
+                id={`ayas-panel-${panel.id}`} aria-controls="ayas-panel-content" tabIndex={panel.id === activePanel ? 0 : -1}
+                aria-selected={panel.id === activePanel} className="bc-tab" onClick={() => props.onSelectPanel?.(panel.id)} data-testid={`bc-tab-${panel.id}`}>
+                <span className="bc-tab__icon" aria-hidden="true">{panel.icon}</span>{panel.label}
                 {panel.connected ? null : <span className="bc-tab__off">off</span>}
-              </button>
-            ))}
-          </nav>
-
-          <div className="bc-tabpanel" role="tabpanel" data-panel={activePanel}>
-            <PanelBody {...props} />
-          </div>
-        </section>
+              </button>)}
+            </nav>
+            <div className="bc-tabpanel" role="tabpanel" id="ayas-panel-content" aria-labelledby={`ayas-panel-${activePanel}`} data-panel={activePanel}><PanelBody {...props} /></div>
+          </section>
+          <aside className="aw-console-status" aria-label="AYAS canlı durum">
+            <AyasOwnerAttention sources={props.controlCenter} inputs={controlCenterInputs(props)} onOpenPanel={openPanelHandler(props)} />
+            <section className="aw-card">
+              <span className="aw-state" role="img" aria-label={`AYAS — ${stateTr(coreState)}`} data-state={coreState} data-hue={describeBrainCoreState(coreState).hue}>
+                <span className={`bc-online bc-online--${coreState}`} aria-hidden="true" />{stateTr(coreState)}
+              </span>
+              <p className="aw-muted">{onlineLabel(coreState)} · <span className="bc-stateline__label">{stateLabel(coreState)}</span></p>
+              <p className="aw-muted">{stateCharacter(coreState)}</p>
+              <button type="button" className="bc-btn bc-btn--ghost" onClick={props.onRefresh} disabled={props.refreshing} data-testid="bc-refresh">{props.refreshing ? "Yenileniyor…" : "Durumu yenile"}</button>
+            </section>
+            <AyasPresenceCard {...props} />
+            {snapshot.errors.length > 0 && <div className="bc-alert" role="alert">{snapshot.errors.map((error,index) => <div key={index}>⚠ {error}</div>)}</div>}
+            <AyasDomainTiles sources={props.controlCenter} inputs={controlCenterInputs(props)} onOpenPanel={openPanelHandler(props)} />
+          </aside>
+        </div>
       </div>
-
-      {/* Operator diagnostics — kept clearly secondary but genuinely reachable
-          from the installed PWA (no URL bar). Inside `.bc-shell` so it follows
-          the dark theme + is in the scroll flow, never dark-on-dark or off-fold. */}
       <footer className="bc-labs" data-testid="bc-labs">
         <span className="bc-labs__title">Operatör tanılama</span>
-        <a className="bc-labs__link" href="/brain/voice-lab/wake" data-testid="bc-labs-wake">
-          AYAS Voice Lab
-        </a>
-        <a className="bc-labs__link" href="/brain/voice-lab" data-testid="bc-labs-audio">
-          Audio Lab
-        </a>
+        <a className="bc-labs__link" href="/brain/voice-lab/wake" data-testid="bc-labs-wake">AYAS Voice Lab</a>
+        <a className="bc-labs__link" href="/brain/voice-lab" data-testid="bc-labs-audio">Audio Lab</a>
+        <a className="bc-labs__link" href="/brain/voice-lab/phone-llm">Yerel Model Lab</a>
+        <a className="bc-labs__link" href="/brain/briefing">Brifing</a>
+        <a className="bc-labs__link" href="/brain/safe-mode">Güvenli Mod</a>
       </footer>
     </div>
   );

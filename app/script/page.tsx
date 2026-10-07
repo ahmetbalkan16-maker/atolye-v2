@@ -44,10 +44,10 @@ export default function ScriptPage() {
   }
 
   return (
-    <main className="flex min-h-screen bg-black text-white">
+    <main className="aw-studio">
       <Sidebar />
 
-      <section className="flex-1 p-10">
+      <section className="aw-studio-main">
         <div className="max-w-6xl">
           <p className="text-sm font-bold tracking-[0.4em] text-yellow-400">
             SENARYO MOTORU
@@ -61,11 +61,12 @@ export default function ScriptPage() {
           </p>
 
           <div className="mt-10 rounded-3xl border border-yellow-500/20 bg-zinc-900/80 p-6">
-            <label className="text-sm font-semibold text-zinc-300">
+            <label htmlFor="ayas-script-topic" className="text-sm font-semibold text-zinc-300">
               Belgesel Konusu
             </label>
 
             <input
+              id="ayas-script-topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Örn: Atilla'nın yükselişi"
@@ -82,7 +83,7 @@ export default function ScriptPage() {
           </div>
 
           {error && (
-            <div className="mt-8 rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-red-300">
+            <div role="alert" className="mt-8 rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-red-300">
               {error}
             </div>
           )}

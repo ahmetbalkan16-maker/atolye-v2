@@ -1,0 +1,193 @@
+{
+  "sourceHead": "98c36b294bbcec59ca6db70bb1504bfe68792954",
+  "capturedBeforeSourceEdits": true,
+  "observedAt": "2026-10-07T15:46:02.562Z",
+  "classificationLegend": {
+    "A": "Brain UI V2",
+    "B": "legacy presentation",
+    "C": "mixed compatible isolated gate/offline",
+    "D": "backend/API; no visual migration"
+  },
+  "routes": [
+    {
+      "route": "/brain/briefing",
+      "file": "app/brain/briefing/page.tsx",
+      "classification": "B",
+      "functions": "executive owner briefing and acknowledgement actions",
+      "components": [
+        "import { AyasExecutiveBriefingPanel } from \"@/components/brain/AyasExecutiveBriefingPanel\";"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/brain/constitution",
+      "file": "app/brain/constitution/page.tsx",
+      "classification": "B",
+      "functions": "constitution digest,read and owner adoption action",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/brain",
+      "file": "app/brain/page.tsx",
+      "classification": "B",
+      "functions": "all BRAIN_PANELS: chat,tasks,memory,system,autonomous,development,research,production and approvals",
+      "components": [
+        "import { AyasConsolePage } from \"@/components/brain/AyasConsolePage\";",
+        "import { BRAIN_PANELS } from \"@/components/brain/brainCore\";"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/brain/revenue",
+      "file": "app/brain/revenue/page.tsx",
+      "classification": "B",
+      "functions": "real revenue activity report read-only",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/brain/safe-mode",
+      "file": "app/brain/safe-mode/page.tsx",
+      "classification": "B",
+      "functions": "real safe-mode state,health,enter/exit actions",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/brain/voice-lab",
+      "file": "app/brain/voice-lab/page.tsx",
+      "classification": "B",
+      "functions": "audio permission,capture/worklet,start/stop diagnostics",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/brain/voice-lab/phone-llm",
+      "file": "app/brain/voice-lab/phone-llm/page.tsx",
+      "classification": "B",
+      "functions": "isolated local-model capability/download/cache/inference diagnostics",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/brain/voice-lab/wake",
+      "file": "app/brain/voice-lab/wake/page.tsx",
+      "classification": "B",
+      "functions": "wake engine lifecycle/calibration/audio diagnostics",
+      "components": [
+        "import type { WakeRunnerStats, WakeScoreDistribution } from \"@/components/brain/voice/wake/openWakeWordRunner\";",
+        "import { useBrainLifecycle } from \"@/components/brain/useBrainLifecycle\";"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/login",
+      "file": "app/login/page.tsx",
+      "classification": "C",
+      "functions": "existing access form,next handling,error/misconfiguration and POST /api/auth/login",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/offline",
+      "file": "app/offline/page.tsx",
+      "classification": "C",
+      "functions": "static genuine offline/degraded notice",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/",
+      "file": "app/page.tsx",
+      "classification": "A",
+      "functions": "chat,stream,stop,voice,wake,TTS,interrupt,tasks,status and fixed menus",
+      "components": [
+        "import { AyasConsolePage } from \"@/components/brain/AyasConsolePage\";",
+        "import \"@/components/homepage/AyasHomepage.css\";"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/project/[slug]",
+      "file": "app/project/[slug]/page.tsx",
+      "classification": "B",
+      "functions": "project persistence read,asset gallery,research/script/scenes/visuals/animation/audio/assembly/export/thumbnail/SEO/YouTube panels",
+      "components": [
+        "import AssetGallery from \"@/components/assets/AssetGallery\";\r"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/research",
+      "file": "app/research/page.tsx",
+      "classification": "B",
+      "functions": "topic input,research POST,result lists and project link",
+      "components": [
+        "import DashboardLayout from \"@/components/dashboard/DashboardLayout\";\r"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/scenes",
+      "file": "app/scenes/page.tsx",
+      "classification": "B",
+      "functions": "existing coming-soon state; no generation action exists here",
+      "components": [],
+      "normalNavigation": true
+    },
+    {
+      "route": "/script",
+      "file": "app/script/page.tsx",
+      "classification": "B",
+      "functions": "script POST,input,loading,error and chapters",
+      "components": [
+        "import Sidebar from \"@/components/Sidebar\";\r"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/studio",
+      "file": "app/studio/page.tsx",
+      "classification": "B",
+      "functions": "project list,real dashboard counts,topic,pipeline POST,outcome navigation",
+      "components": [
+        "import HomeClient from \"@/components/HomeClient\";"
+      ],
+      "normalNavigation": true
+    },
+    {
+      "route": "/visuals",
+      "file": "app/visuals/page.tsx",
+      "classification": "B",
+      "functions": "visual provider form/API,result/error",
+      "components": [
+        "import { StudioCard, StudioLayout } from \"@/components/studio\";\r"
+      ],
+      "normalNavigation": true
+    }
+  ],
+  "apiRouteCount": 34,
+  "backendClassification": "D",
+  "sharedLegacyComponents": [
+    "Sidebar",
+    "HomeClient presentation",
+    "Dashboard",
+    "DashboardLayout",
+    "StudioLayout",
+    "StudioSidebar",
+    "StudioHeader",
+    "StudioCard",
+    "BrainConsoleView outer console presentation",
+    "BrainCore.css legacy shell rules"
+  ],
+  "retainedBehaviorOwners": [
+    "BrainCoreConsole",
+    "AyasConsolePage",
+    "existing PanelBody/ChatPanel/TasksPanel",
+    "voice hooks/adapters",
+    "existing approval/server actions",
+    "pipeline outcome routing and project readers"
+  ],
+  "deadCleanup": "No component deletion before behavior and reference checks"
+}

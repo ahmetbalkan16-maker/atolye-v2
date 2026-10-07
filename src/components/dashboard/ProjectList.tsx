@@ -34,6 +34,7 @@ type ProjectProgressStageSummary = {
 export default function ProjectList() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     async function loadProjects() {
@@ -41,11 +42,14 @@ export default function ProjectList() {
         const res = await fetch("/api/projects");
         const data = await res.json();
 
-        if (data.success) {
+        if (res.ok && data.success && Array.isArray(data.projects)) {
           setProjects(data.projects);
+        } else {
+          setError(true);
         }
       } catch (error) {
         console.error("Project loading error:", error);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -61,6 +65,8 @@ export default function ProjectList() {
       </div>
     );
   }
+
+  if (error) return <p className="aw-muted" role="alert">Proje listesi okunamadı. Sayfayı yenileyerek tekrar deneyin.</p>;
 
   if (projects.length === 0) {
     return (

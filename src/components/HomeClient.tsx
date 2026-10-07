@@ -53,10 +53,10 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="flex min-h-screen bg-black text-white">
+    <main className="aw-studio">
       <Sidebar />
 
-      <div className="flex-1 p-6">
+      <div className="aw-studio-main">
         <Dashboard />
 
         <TopicInput

@@ -55,6 +55,7 @@ export default function VisualsPage() {
         <StudioCard title="Sahne Bilgileri">
           <div className="space-y-5">
             <input
+              aria-label="Sahne Başlığı"
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-white outline-none placeholder:text-zinc-500"
               placeholder="Sahne Başlığı"
               value={title}
@@ -62,6 +63,7 @@ export default function VisualsPage() {
             />
 
             <textarea
+              aria-label="Sahne Açıklaması"
               className="h-40 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-white outline-none placeholder:text-zinc-500"
               placeholder="Sahne Açıklaması"
               value={description}
@@ -69,6 +71,7 @@ export default function VisualsPage() {
             />
 
             <select
+              aria-label="Görsel stili"
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-white outline-none"
               value={style}
               onChange={(e) => setStyle(e.target.value)}
@@ -93,6 +96,7 @@ export default function VisualsPage() {
 
         <StudioCard title="Oluşan Prompt">
           <textarea
+            aria-label="Oluşan Prompt"
             className="h-96 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm text-zinc-200 outline-none"
             value={prompt}
             readOnly

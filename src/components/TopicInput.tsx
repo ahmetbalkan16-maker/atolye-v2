@@ -13,11 +13,12 @@ export default function TopicInput({
 }: TopicInputProps) {
   return (
     <div className="mt-10 w-full max-w-2xl rounded-3xl border border-yellow-500/20 bg-zinc-950/70 p-6 shadow-2xl shadow-yellow-900/20 backdrop-blur">
-      <label className="mb-3 block text-left text-sm text-zinc-400">
+      <label htmlFor="ayas-studio-topic" className="mb-3 block text-left text-sm text-zinc-400">
         Bugün hangi belgeseli hazırlıyoruz?
       </label>
 
       <input
+        id="ayas-studio-topic"
         value={topic}
         onChange={(e) => setTopic(e.target.value)}
         type="text"

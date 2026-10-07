@@ -23,3 +23,7 @@ Brain animation consumes the existing live-state reducer. Listening, thinking an
 Voice permission/disclosure, conversation persistence, streaming abort, audio interruption, mute/replay and text fallback keep the existing contracts. A visual state never grants execution or approval authority. Foundation remains BLOCKED; Stage17 frozen graders, fixtures, pins and historical raw evidence are unchanged.
 
 Regression: `scripts/smoke-ayas-homepage-v2.ts` is an independent new suite. Do not modify frozen historical evaluators to make this design appear accepted.
+
+## Shared owner workspace (2026-10-07)
+
+The owner-approved shared `src/components/workspace/` frame applies only to subpages; `/` returns the existing central-brain composition. Explicit navigation is never generated from capabilities. The entire shared workspace directory and `scripts/smoke-ayas-owner-ui-v2.ts` are also FORBIDDEN_AUTONOMOUS, since the root layout imports its stylesheet. Automatic development cannot add homepage features through shared code.

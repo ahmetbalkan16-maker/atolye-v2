@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/components/PwaRegister";
+import { AyasWorkspaceShell } from "@/components/workspace/AyasWorkspaceShell";
+import "@/components/workspace/AyasWorkspace.css";
 
 export const metadata: Metadata = {
   title: "Atölye",
@@ -35,7 +37,7 @@ export default function RootLayout({
     <html lang="tr" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <PwaRegister />
-        {children}
+        <AyasWorkspaceShell>{children}</AyasWorkspaceShell>
       </body>
     </html>
   );

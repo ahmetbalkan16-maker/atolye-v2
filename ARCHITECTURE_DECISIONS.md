@@ -943,3 +943,7 @@ Explicit owner final visual authorizes the Brain UI V2 shell at /. Move the exis
 ## 2026-10-07 — PWA launch and application identity
 
 Owner requests Brain UI V2 homepage / as PWA start_url. Preserve the original explicit id=/brain: application identity is independent of its launch URL; changing identity would risk a separate installed app. Preserve scope=/ and all routes, including detailed /brain console and /studio. Manifest network-first prevents stale install metadata from shadowing a deployed launch update; genuine offline fallback and legacy launch handling stay compatible. No new framework/dependency. Reference: https://www.w3.org/TR/appmanifest/#id-member.
+
+## 2026-10-07 — shared Brain UI V2 owner experience
+
+Use a pure presentational frame selected by pathname in the root layout. HOME excludes the frame; existing server children retain loaders/actions. Detail console prioritizes the selected functional panel, with a compact real-state aside. Existing project/voice engines and authority remain unchanged; no new router, dependency, polling or data owner. Protect shared root-affecting presentation against autonomous homepage patches.

@@ -1,0 +1,74 @@
+/* Brain UI V2 workspace system. HOME keeps its own owner-fixed composition. */
+:root { --aw-bg: #020810; --aw-surface: #061420; --aw-raised: #091d2c; --aw-border: #1c4056; --aw-text: #eef6ff; --aw-muted: #afc4d4; --aw-cyan: #40d6ff; }
+html, body { background: var(--aw-bg); color-scheme: dark; }
+.aw-root { min-height: 100dvh; color: var(--aw-text); background: radial-gradient(ellipse at 40% 0, #082a40 0, transparent 52%), var(--aw-bg); font-family: Arial, Helvetica, sans-serif; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(110px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.aw-root *, .aw-root *::before, .aw-root *::after { box-sizing: border-box; }
+.aw-root :where(a,button,input,textarea,select,summary):focus-visible { outline: 2px solid var(--aw-cyan); outline-offset: 4px; }
+.aw-root :where(a,button,summary) { -webkit-tap-highlight-color: transparent; }
+.aw-header { display: flex; align-items: center; gap: 20px; max-width: 1440px; margin: 0 auto 28px; min-width: 0; }
+.aw-brand { font-size: 32px; letter-spacing: .12em; color: #effbff; text-decoration: none; text-shadow: 0 0 16px #00a5ff; flex-shrink: 0; }
+.aw-wide-nav { flex: 1; min-width: 0; }
+.aw-header nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; border: 1px solid var(--aw-border); border-radius: 24px; background: #020d17cc; padding: 5px; }
+.aw-header nav a { min-height: 44px; display: flex; align-items: center; padding: 10px 14px; border: 1px solid transparent; border-radius: 18px; text-decoration: none; font-size: 13px; color: var(--aw-text); }
+.aw-header nav a:hover, .aw-header nav [aria-current] { border-color: #159de0; background: #083451; box-shadow: inset 0 0 12px #078dda30; }
+.aw-session { min-height: 44px; padding: 10px 14px; border: 1px solid var(--aw-border); border-radius: 16px; background: var(--aw-surface); color: var(--aw-text); cursor: pointer; }
+.aw-mobile-menu { display: none; }
+.aw-content { max-width: 1440px; min-width: 0; margin: auto; overflow-wrap: anywhere; }
+.aw-content :where(main,section,article,div,form,fieldset) { min-width: 0; }
+.aw-content :where(img,video,canvas,svg) { max-width: 100%; }
+.aw-content :where(pre,table) { max-width: 100%; overflow: auto; }
+.aw-content pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.aw-content :where(button,input,select,textarea) { font: inherit; max-width: 100%; min-height: 44px; border-radius: 10px; }
+.aw-content :where(button) { cursor: pointer; }
+.aw-content :where(button:disabled) { cursor: not-allowed; }
+.aw-content :where(input,select,textarea) { color: var(--aw-text); border: 1px solid var(--aw-border); background: #020d17; padding: 12px; }
+.aw-content input[type="checkbox"], .aw-content input[type="radio"] { min-height: auto; }
+.aw-card { border: 1px solid var(--aw-border); border-radius: 16px; padding: clamp(16px, 2.5vw, 28px); background: linear-gradient(145deg, #082032d9, #04111fd9); }
+.aw-page-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 24px; }
+.aw-page-heading h1 { font-size: clamp(24px, 3vw, 34px); letter-spacing: -.025em; margin: 0; color: var(--aw-text); }
+.aw-page-heading p, .aw-muted { color: var(--aw-muted); font-size: 14px; line-height: 1.6; }
+.aw-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border: 1px solid #1db8f4; border-radius: 10px; background: linear-gradient(180deg, #075280, #072b49); color: var(--aw-text); padding: 10px 18px; text-decoration: none; }
+.aw-studio { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 24px; }
+.aw-studio-main { min-width: 0; }
+.aw-studio-nav { display: flex; flex-direction: column; align-self: start; gap: 6px; border: 1px solid var(--aw-border); border-radius: 16px; padding: 12px; background: #04121dcc; }
+.aw-studio-nav > p { color: var(--aw-muted); margin: 8px 10px; font-size: 12px; }
+.aw-studio-nav a { display: flex; align-items: center; min-height: 44px; padding: 10px; border-radius: 10px; color: var(--aw-text); text-decoration: none; }
+.aw-studio-nav a:hover { background: #0a334b; }
+.aw-return { display: inline-flex; align-items: center; margin-top: 24px; min-height: 44px; color: #83e3ff; }
+.aw-dock { position: fixed; z-index: 30; display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; bottom: max(12px, env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); margin: auto; max-width: 1200px; padding: 8px; border: 1px solid var(--aw-border); border-radius: 18px; background: #020a13f5; box-shadow: 0 -8px 24px #0008; }
+.aw-dock a { --tone: #43bdff; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 54px; padding: 10px 6px; border: 1px solid var(--aw-border); border-radius: 11px; font-size: 13px; text-decoration: none; color: var(--aw-text); background: linear-gradient(145deg,#0b233a,#04111d); }
+.aw-dock [data-tone="violet"] { --tone: #b090ff; }.aw-dock [data-tone="cyan"] { --tone: #3cdefc; }.aw-dock [data-tone="amber"] { --tone: #ffc46c; }.aw-dock [data-tone="green"] { --tone: #23edbe; }.aw-dock [data-tone="pink"] { --tone: #ee8bdf; }
+.aw-dock a:hover { border-color: var(--tone); box-shadow: inset 0 0 16px color-mix(in srgb,var(--tone) 15%,transparent); }
+.aw-dock-mark { width: 9px; height: 9px; border-radius: 3px; background: var(--tone); box-shadow: 0 0 10px var(--tone); flex-shrink: 0; }
+.aw-skip { position: fixed; left: 20px; top: -100px; z-index: 100; padding: 12px; background: var(--aw-raised); color: var(--aw-text); border: 1px solid var(--aw-cyan); }
+.aw-skip:focus { top: 12px; }
+/* The existing stateful controls use V2 tokens; no new state or fetching. */
+.aw-content .bc-shell { --bc-bg: var(--aw-bg); --bc-bg-2: var(--aw-surface); --bc-surface: #082032; --bc-surface-2: #0c2a3d; --bc-border: var(--aw-border); --bc-text: var(--aw-text); --bc-text-dim: var(--aw-muted); --bc-text-faint: #97aec0; --bc-accent: var(--aw-cyan); --bc-hue: 190; min-height: auto; padding: 0; background: transparent; gap: 20px; overflow-x: hidden; }
+.aw-content .bc-shell::before, .aw-content .bc-shell::after { display: none; }
+.aw-console-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 22px; align-items: start; }
+.aw-console-status { display: grid; gap: 18px; }
+.aw-content .bc-panel { width: 100%; border-color: var(--aw-border); background: #04121dcc; border-radius: 16px; min-width: 0; }
+.aw-content .bc-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; }
+.aw-content .bc-tab { min-height: 44px; padding: 10px 14px; border-radius: 10px; color: var(--aw-muted); }
+.aw-content .bc-tab[aria-selected="true"] { color: var(--aw-text); border-color: #29bff4; background: #083c5b; }
+.aw-state { display: flex; align-items: center; gap: 10px; color: var(--aw-cyan); }
+.aw-state[data-hue="amber"] { color: #ffc46c; }.aw-state[data-hue="rose"] { color: #ffa4b3; }.aw-state[data-hue="violet"] { color: #bf9fff; }.aw-state[data-hue="emerald"] { color: #39edbd; }
+.aw-console-status .bc-stateline__label { font-size: 12px; letter-spacing: .04em; }
+.aw-content .bc-labs { border: 1px solid var(--aw-border); border-radius: 14px; padding: 14px; background: var(--aw-surface); }
+/* Existing project/voice panels keep content, actions and status colors. */
+.aw-content :is(.bg-white,.bg-gray-100,.bg-neutral-900,.bg-zinc-900,.bg-zinc-950,.bg-neutral-950,.bg-slate-900,.bg-black) { background-color: var(--aw-surface); }
+.aw-content :is(.text-gray-500,.text-gray-600,.text-neutral-400,.text-zinc-400,.text-zinc-500) { color: var(--aw-muted); }
+.aw-content :is(.bg-yellow-400,.bg-yellow-500,.bg-blue-600) { background-color: #07517b; color: var(--aw-text); border: 1px solid #23b9ed; }
+.aw-content :is(.text-yellow-400,.text-yellow-600,.text-blue-600) { color: #74dcff; }
+.aw-content .text-black { color: var(--aw-text); }
+.aw-content [style*="background:#fff"], .aw-content [style*="background: rgb(255, 255, 255)"] { background: var(--aw-surface) !important; }
+.aw-content [style*="color:#a33"], .aw-content [style*="color: rgb(170, 51, 51)"] { color: #ff9fae !important; }
+.aw-content [style*="color:#a70"] { color: #ffc46c !important; }.aw-content [style*="color:#2a2"] { color: #39edbd !important; }
+.aw-content [style*="padding:40px"] { padding: 16px !important; }
+.aw-content .bc-shell [style*="grid-template-columns"] { grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)) !important; }
+.aw-content .bc-shell [style*="min-width"] { min-width: 0 !important; }
+@media (max-width: 1100px) { .aw-console-layout { grid-template-columns: minmax(0,1fr); }.aw-console-status { grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); } }
+@media (max-width: 850px) { .aw-wide-nav { display: none; }.aw-mobile-menu { display: block; flex: 1; min-width: 0; }.aw-mobile-menu summary { min-height: 44px; padding: 12px; border: 1px solid var(--aw-border); border-radius: 12px; cursor: pointer; }.aw-mobile-menu nav { position: absolute; z-index: 50; top: 76px; left: 16px; right: 16px; background: #03111f; padding: 12px; border-radius: 14px; }.aw-mobile-menu nav a { flex: 1 0 40%; }.aw-studio { grid-template-columns: minmax(0,1fr); }.aw-studio-nav { flex-direction: row; flex-wrap: wrap; }.aw-studio-nav > p { width: 100%; }.aw-dock { grid-template-columns: repeat(6,minmax(84px,1fr)); overflow-x: auto; }.aw-dock a { font-size: 11px; min-height: 52px; }.aw-dock-mark { display: none; } }
+@media (max-width: 480px) { .aw-root { padding-left: max(12px,env(safe-area-inset-left)); padding-right: max(12px,env(safe-area-inset-right)); }.aw-header { gap: 10px; }.aw-brand { font-size: 24px; }.aw-content .p-10, .aw-content .p-8 { padding: 16px; }.aw-page-heading h1 { font-size: 25px; }.aw-content .text-5xl { font-size: 30px; }.aw-dock { left: 8px; right: 8px; }.aw-content .bc-tabpanel { padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { .aw-root *, .aw-root *::before, .aw-root *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media (max-width: 480px) { .aw-content .bc-tabs { flex-wrap: nowrap; overflow-x: auto; }.aw-content .bc-tab { flex-shrink: 0; } }
