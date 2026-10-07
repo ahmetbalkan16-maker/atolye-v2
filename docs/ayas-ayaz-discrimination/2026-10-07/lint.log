@@ -31,4 +31,3 @@ C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\
   1401:13  warning  'relativePath' is assigned a value but never used               @typescript-eslint/no-unused-vars
 
 ✖ 13 problems (0 errors, 13 warnings)
-

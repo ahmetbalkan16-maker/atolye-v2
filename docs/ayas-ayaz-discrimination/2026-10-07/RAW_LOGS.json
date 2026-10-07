@@ -1,0 +1,26 @@
+[
+  {
+    "file": "build.log",
+    "raw": "build.log.raw.gz",
+    "sha256": "8a499ca45da3057ba868fc83c8309720cb0cdcc5855ee0021fb2000441a25202",
+    "formatting": "trailing whitespace and final blank lines removed from review copy only"
+  },
+  {
+    "file": "build.stderr.log",
+    "raw": "build.stderr.log.raw.gz",
+    "sha256": "df843bf549d9a20dcc11957006334e36b8b6ffbfc987aa4d540ea0261fd63323",
+    "formatting": "trailing whitespace and final blank lines removed from review copy only"
+  },
+  {
+    "file": "lint.log",
+    "raw": "lint.log.raw.gz",
+    "sha256": "7f4d5c507b67f14a7eba00e638990b989b9fda72850bb72093a3c01d791c567c",
+    "formatting": "trailing whitespace and final blank lines removed from review copy only"
+  },
+  {
+    "file": "phonemes.source.txt",
+    "raw": "phonemes.source.txt.raw.gz",
+    "sha256": "62617f684777f9506b8c5b4dd71dc1a22101287899860451e7de034539e293f5",
+    "formatting": "trailing whitespace and final blank lines removed from review copy only"
+  }
+]

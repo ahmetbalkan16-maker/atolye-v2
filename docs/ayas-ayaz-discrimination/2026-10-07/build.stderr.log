@@ -36,4 +36,3 @@ Import trace for requested module:
 ./src/lib/brain/ui/AyasControlCenterCollector.ts
 ./src/components/brain/AyasConsolePage.tsx
 ./app/page.tsx
-
