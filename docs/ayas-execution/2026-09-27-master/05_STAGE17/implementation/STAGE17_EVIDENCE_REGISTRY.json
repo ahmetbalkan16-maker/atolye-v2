@@ -686,6 +686,30 @@
       "operatorSourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
       "scope": "HISTORICAL_DIGEST_BASIS_FINDINGS_ORIGINAL_BYTES_INTACT_NOT_WAIVED",
       "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_OCCUPANCY_BARRIER_APPROVED.json",
+      "sha256": "f9deb079040e0a39eb08e9fa379fc09017384e8429bb8838bfaa841d3a4821e1",
+      "originalCaptureSha256": "f9deb079040e0a39eb08e9fa379fc09017384e8429bb8838bfaa841d3a4821e1",
+      "operatorSourceHead": "1daa107c154af6395e8b8340ff661c1a963c57fe",
+      "scope": "OWNER_APPROVED_BARRIER_CANDIDATE_NOT_NEW_CLEAN_SOURCE_QUALIFICATION",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_BARRIER_CANDIDATE_TESTS.json",
+      "sha256": "fedd05f4471857d27f3de8fafd639bdb9d1a42f81a5fcb960c18413ae5853f24",
+      "originalCaptureSha256": "fedd05f4471857d27f3de8fafd639bdb9d1a42f81a5fcb960c18413ae5853f24",
+      "operatorSourceHead": "1daa107c154af6395e8b8340ff661c1a963c57fe",
+      "scope": "OWNER_APPROVED_BARRIER_CANDIDATE_NOT_NEW_CLEAN_SOURCE_QUALIFICATION",
+      "grantsAuthority": false
+    },
+    {
+      "file": "STAGE17_BARRIER_GRAPH_REVIEW.log",
+      "sha256": "e8c8806eab05946c3468abfb128215db1d59bbe91e4483e8f25d4bea0392897c",
+      "originalCaptureSha256": "42231088d5a9f8b26798bf56f73f0d905330e80cbd7f6c08fcaae89ffcab2aa5",
+      "operatorSourceHead": "1daa107c154af6395e8b8340ff661c1a963c57fe",
+      "scope": "OWNER_APPROVED_BARRIER_CANDIDATE_NOT_NEW_CLEAN_SOURCE_QUALIFICATION",
+      "grantsAuthority": false
     }
   ],
   "historicalClosure": {
@@ -705,12 +729,13 @@
     "reboundToCurrentSource": false
   },
   "frozenManifest": {
-    "version": 56,
+    "version": 57,
     "suites": 166,
     "pins": 214,
+    "pinReferences": 323,
     "changed": true,
-    "changedFrom": "15F.4-v55",
-    "changeNote": "release-provenance suites strengthened (bundled-dependency vouching contracts); two suite pins recomputed; V55 archived; no grader/fixture touched"
+    "changedFrom": "15F.4-v56",
+    "changeNote": "Explicit owner-approved one frozen grader synchronization correction;v56 archived;only two pin references for that single grader recomputed;fixtures/expectations/45 mutator controls/213 other unique pinned files untouched"
   },
   "domainAggregation": {
     "sourcePresence": 15,
@@ -743,7 +768,7 @@
     "reason": "FOUNDATION_NOT_CLOSED"
   },
   "authority": "NONE",
-  "updatedAt": "2026-10-07T07:21:47.535Z",
+  "updatedAt": "2026-10-07T07:33:27.360Z",
   "sourceHeadMeaning": "6a9_COMPONENT_FRAMEWORK_ANCHOR_EACH_LATER_ENTRY_HAS_ITS_OWN_EXACT_OPERATOR_SOURCE_HEAD",
   "ciQualification": {
     "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
@@ -841,5 +866,11 @@
     "originalCaptureBytesVerified": 4,
     "historicalEntriesOrBodiesChanged": false,
     "status": "REVIEW_OPEN"
+  },
+  "approvedBarrier": {
+    "receipt": "STAGE17_OCCUPANCY_BARRIER_APPROVED.json",
+    "manifest": "15F.4-v57",
+    "newCleanFull166": "NOT_RUN",
+    "prior34RawReceiptImmutable": true
   }
 }

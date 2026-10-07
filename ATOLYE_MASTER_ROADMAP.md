@@ -1,3 +1,7 @@
+# Current — 2026-10-07 /approved occupancy synchronization correction;v57;clean-source qualification pending
+
+Owner approved one frozen grader synchronization fix and versioned pins. Both2-record/results/peak assertions remain; v56 archived, only two references to the changed grader updated. Candidate12 scenarios/45 mutants/10 governance/TS/lintPASS (13 inherited warnings). Original34ecb66 full166162PASS4rawFAIL preserved. Next exact-new-HEAD credential-free full166 after commit/Graphify. FoundationBLOCKED; no homepage. See ATOLYE_CHECKPOINT.md.
+
 # AYAS current — 2026-10-07 /phone reachable;exact34ecb66 full166162PASS4FAIL;FoundationBLOCKED
 
 Fresh-lock166/166 complete at34ecb66(v56):162PASS/4rawFAIL; release-provenance regressions repaired. Frozen retrieval/Golden3 stops retained; additional frozen occupancy50ms timing race root-caused, unchanged45-control replayPASS, proposed barrier correction requires explicit owner exception and remains unapplied. Phone login owner-confirmed/HTTP200/single canonical origin-tunnel, task definitions unchanged; auth identity and real reboot unqualified. Local protected hashes complete/unchanged, separate external scans do not bind global scope;15domains/152criteria/30TEST-LIVE NOT_RUN. LemonUNBOUND/FiverrOWNER_REPORTED_ONLY/final owner reviewNOT_READY. No homepage boundary or implementation. Resolve final Git HEAD; tested-source receipts are not rebound to docs commits. Current evidence and exact next step: ATOLYE_CHECKPOINT.md and05_STAGE17/implementation/STAGE17_CURRENT_RESULT.md.

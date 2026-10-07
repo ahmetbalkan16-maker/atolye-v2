@@ -172,7 +172,28 @@ async function main() {
     await assert.rejects(withAyasProductionStageOccupancy("video", async () => { assert.equal(names(root).length, 1); throw Error("EXPECTED_STAGE_FAILURE"); }, root), /EXPECTED_STAGE_FAILURE/);
     assert.deepEqual(names(root), []);
     // Two production stages never exclude each other.
-    let open = 0, peak = 0; const stage = async () => { open++; peak = Math.max(peak, open); await new Promise((resolve) => setTimeout(resolve, 50)); assert.equal(names(root).length, 2); open--; return true; };
+    let open = 0, peak = 0, entered = 0, checked = 0;
+    let releaseEntered!: () => void, releaseChecked!: () => void;
+    const bothEntered = new Promise<void>((resolve) => { releaseEntered = resolve; });
+    const bothChecked = new Promise<void>((resolve) => { releaseChecked = resolve; });
+    const rendezvous = async (barrier: Promise<void>) => {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([barrier, new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => reject(new assert.AssertionError({ message: "parallel production stage rendezvous timed out" })), 5_000);
+        })]);
+      } finally { if (timeout !== undefined) clearTimeout(timeout); }
+    };
+    const stage = async () => {
+      open++; peak = Math.max(peak, open); entered++; if (entered === 2) releaseEntered();
+      try {
+        await rendezvous(bothEntered);
+        assert.equal(names(root).length, 2);
+        checked++; if (checked === 2) releaseChecked();
+        await rendezvous(bothChecked);
+        return true;
+      } finally { open--; }
+    };
     assert.deepEqual(await Promise.all([withAyasProductionStageOccupancy("video", stage, root), withAyasProductionStageOccupancy("assembly", stage, root)]), [true, true]); assert.equal(peak, 2);
     // A stage is never refused because its record could not be written or the inventory could not be read.
     const blocked = freshRoot(); fs.mkdirSync(blocked, { recursive: true }); fs.writeFileSync(path.join(blocked, "occupancy"), "not a directory");

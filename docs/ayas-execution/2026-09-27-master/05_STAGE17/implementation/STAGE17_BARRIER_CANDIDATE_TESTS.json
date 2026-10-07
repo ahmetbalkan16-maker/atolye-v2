@@ -1,0 +1,107 @@
+{
+  "source": "UNCOMMITTED_APPROVED_BARRIER_CANDIDATE_BASE_1daa107",
+  "fixture": "SEPARATE_CREDENTIAL_FREE_TEMP_CLONE_LOCK_MATCHED_NO_REAL_RUNTIME",
+  "manifest": "15F.4-v57",
+  "results": [
+    {
+      "id": "primary",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-resource-occupancy.ts"
+      ],
+      "startedAt": "2026-10-07T07:30:01.019Z",
+      "completedAt": "2026-10-07T07:30:14.189Z",
+      "exit": 0,
+      "error": null,
+      "stdoutSha256": "9b6798cfe3cbddca549c25f8f0d3f77f87ac67234ec322f8469cca47423099d0",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": [
+        "PASS 11: the discovery child pauses while a production stage is published and resumes when it is released",
+        "PASS 12: the operator CLI is read-only, reports unmeasured signals as unmeasured and prunes only on request",
+        "{\"status\":\"PASS\",\"suite\":\"ayas-resource-occupancy\",\"scenarios\":12,\"selectedMutationCase\":null,\"physicalStarts\":0,\"evidenceClass\":\"TEMP_OCCUPANCY_AND_SOURCE_BINDING_NOT_HARDWARE_QUALIFICATION\"}"
+      ]
+    },
+    {
+      "id": "mutations",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-resource-occupancy-mutations.ts"
+      ],
+      "startedAt": "2026-10-07T07:30:14.191Z",
+      "completedAt": "2026-10-07T07:31:18.266Z",
+      "exit": 0,
+      "error": null,
+      "stdoutSha256": "a6dcbf9f7ad08a08e8bd3e3bdde76c0b099fc4dba26dfdcf9602bf4176625be4",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": [
+        "CAUGHT discovery ignores the shared inventory",
+        "CAUGHT status read prunes without being asked",
+        "Stage15Q resource occupancy mutation audit: PASS (45/45 caught)"
+      ]
+    },
+    {
+      "id": "governance",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-eval-governance.ts"
+      ],
+      "startedAt": "2026-10-07T07:31:18.266Z",
+      "completedAt": "2026-10-07T07:31:18.863Z",
+      "exit": 0,
+      "error": null,
+      "stdoutSha256": "25f3d8a7ff39bba2aa695caef4ad27f4e3ec2f55fd95f3f793e85c7beab220d6",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": [
+        "PASS 9: known-limitation gate results never become raw quality PASS",
+        "PASS 10: governance is pure and the runner is an isolated developer operator only",
+        "Stage 15F.4 eval governance: PASS (10 scenarios; model/network/production actions 0)"
+      ]
+    },
+    {
+      "id": "typescript",
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "startedAt": "2026-10-07T07:31:18.863Z",
+      "completedAt": "2026-10-07T07:31:34.596Z",
+      "exit": 0,
+      "error": null,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": [
+        ""
+      ]
+    },
+    {
+      "id": "lint",
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        "."
+      ],
+      "startedAt": "2026-10-07T07:31:34.596Z",
+      "completedAt": "2026-10-07T07:31:57.701Z",
+      "exit": 0,
+      "error": null,
+      "stdoutSha256": "e181e995bf691ae7f6cf8275a08bbc67ab31fc5b29a99e366ab13caa3ce75dcb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tail": [
+        "  1401:13  warning  'relativePath' is assigned a value but never used               @typescript-eslint/no-unused-vars",
+        "",
+        "✖ 13 problems (0 errors, 13 warnings)"
+      ]
+    }
+  ],
+  "exactCleanSourceQualification": false,
+  "grantsAuthority": false
+}

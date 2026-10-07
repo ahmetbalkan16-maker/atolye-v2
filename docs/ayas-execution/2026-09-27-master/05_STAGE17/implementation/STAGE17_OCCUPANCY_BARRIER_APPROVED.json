@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1",
+  "sourceBeforeChange": "1daa107c154af6395e8b8340ff661c1a963c57fe",
+  "sourceMeaning": "APPROVED_DIRTY_CANDIDATE_NOT_NEW_CLEAN_HEAD_QUALIFICATION",
+  "implementedAt": "2026-10-07T07:33:27.339Z",
+  "ownerApproval": {
+    "question": "Exception only for frozen resource occupancy overlap synchronization and versioned affected pins",
+    "answer": "Evet, yalnız bu bariyer düzeltmesine ve sürümlü pin güncellemesine onay veriyorum",
+    "scope": "ONLY_THIS_BARRIER_AND_VERSIONED_PIN_UPDATE",
+    "evidence": "DIRECT_USER_ASYNC_REPLY_IN_THIS_SESSION"
+  },
+  "grader": {
+    "file": "scripts/smoke-ayas-resource-occupancy.ts",
+    "beforeSha256": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5",
+    "afterSha256": "dba38d133bafe71d56147d907f0ae840905fc1d67290fd8424958c4e129574ba",
+    "change": "REPLACE_50MS_SLEEP_WITH_TWO_ENTRY_TWO_CHECK_RENDEZVOUS_FAILING_ASSERT_TIMEOUT_5000MS",
+    "twoRecordAssertionPreserved": true,
+    "parallelResultsAssertionPreserved": true,
+    "peak2AssertionPreserved": true,
+    "allOtherScenariosPreserved": true
+  },
+  "manifest": {
+    "archivedVersion": "15F.4-v56",
+    "archive": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V56.json",
+    "archiveSha256": "eec834808b24815b634faa17b94430942814f22da1248d68373d9cf51c1118ce",
+    "version": "15F.4-v57",
+    "manifestSha256": "35434c51a4704ab7e9937f35ae7a093c0fa3cf622b6656e6e89f5e131b38fba4",
+    "uniquePinnedFiles": 214,
+    "pinReferences": 323,
+    "changedReferences": [
+      {
+        "suite": "resource-occupancy",
+        "old": {
+          "file": "scripts/smoke-ayas-resource-occupancy.ts",
+          "sha256": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5"
+        },
+        "new": {
+          "file": "scripts/smoke-ayas-resource-occupancy.ts",
+          "sha256": "dba38d133bafe71d56147d907f0ae840905fc1d67290fd8424958c4e129574ba"
+        }
+      },
+      {
+        "suite": "resource-occupancy-mutations",
+        "old": {
+          "file": "scripts/smoke-ayas-resource-occupancy.ts",
+          "sha256": "28945551c8838240f286513ec89180ada19fca705cc8ed9579076154d4dfbad5"
+        },
+        "new": {
+          "file": "scripts/smoke-ayas-resource-occupancy.ts",
+          "sha256": "dba38d133bafe71d56147d907f0ae840905fc1d67290fd8424958c4e129574ba"
+        }
+      }
+    ],
+    "unchangedUniquePinnedFiles": 213,
+    "frozenFixturesChanged": false,
+    "mutator45ControlsChanged": false
+  },
+  "candidateTests": {
+    "receipt": "STAGE17_BARRIER_CANDIDATE_TESTS.json",
+    "primary": 12,
+    "mutantsCaught": 45,
+    "governance": 10,
+    "typescriptExit": 0,
+    "lintErrors": 0,
+    "inheritedLintWarnings": 13,
+    "fixture": "CREDENTIAL_FREE_TEMP_CLONE_LOCK_MATCHED_UNCOMMITTED_CANDIDATE",
+    "newCleanFull166": "NOT_RUN_YET"
+  },
+  "graphReview": {
+    "file": "STAGE17_BARRIER_GRAPH_REVIEW.log",
+    "sourceBeforeChange": "1daa107c154af6395e8b8340ff661c1a963c57fe",
+    "blastRadius": "HIGH",
+    "score": 145,
+    "impactedFiles": 10,
+    "bridgeNodes": 8,
+    "testGapHints": 1,
+    "review": "Existing12-scenario grader/45 mutation controls cover the unchanged admission/publish/release/production-priority/patch-protection bindings. Graph hint does not surface the adjacent mutation test; actual immutable mutator ran45/45. Production and governance implementation files unchanged."
+  },
+  "backgroundHostObservation": {
+    "path": "data/brain/observability/evidence/2026-10-07.jsonl",
+    "bytes": 468,
+    "observedCaptureSha256": "b747ba1d22ae7ae00a82d0cf4f62c7cb47f35e5f633cd048e29b21cbd9b687c6",
+    "source": "trace",
+    "agent": "ayas-server",
+    "startedAt": "2026-10-07T07:13:22.779Z",
+    "endedAt": "2026-10-07T07:14:00.392Z",
+    "privateTaskModelBodiesOmitted": true,
+    "dataModifiedOrDeletedByAgent": false,
+    "localGitInfoExcludeAdded": "/data/brain/observability/evidence/",
+    "projectGitignoreChanged": false,
+    "classification": "OBSERVED_ACTUAL_SERVER_TRACE_LATER_THAN_EARLY_AUDIT_INTERVAL_NOT_GLOBAL_NO_MUTATION_PROOF"
+  },
+  "priorRaw166": {
+    "sourceHead": "34ecb66d6ff1575d9c44e1819cd80c6cff58f53c",
+    "receipt": "STAGE17_34ecb66_FULL166.json",
+    "passed": 162,
+    "failed": 4,
+    "rawReceiptChanged": false,
+    "diagnosticAndApprovalDoNotRewriteThisResult": true
+  },
+  "productionSourceChanged": false,
+  "newCleanSourceQualification": false,
+  "foundationClosed": false,
+  "homepageBoundaryReached": false,
+  "grantsAuthority": false
+}
