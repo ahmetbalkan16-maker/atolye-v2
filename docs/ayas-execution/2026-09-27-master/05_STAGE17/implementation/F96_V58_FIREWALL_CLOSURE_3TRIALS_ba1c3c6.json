@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1",
+  "manifestVersion": "15F.4-v58",
+  "manifestDigest": "d7a6583f37a92523966fd54d849a8ec8d5ba781b2fb95569d4f11aad0c5d9e5a",
+  "sourceHead": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597",
+  "sourceWorktreeDigest": "3ef3f505f599671ff02b52029b7396da03a3691535f7316012bf0f79c964ca08",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+  "selectedSuites": 1,
+  "declaredSuites": 166,
+  "completeDeclaredBaseline": false,
+  "trials": 3,
+  "failed": [],
+  "knownLimitationSuites": [],
+  "outcome": "PASS",
+  "results": [
+    {
+      "id": "action-firewall-closure",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 2444,
+          "stdoutDigest": "9df60d3cd7b242f16e0bf830b42588d6d41f2628092f3bc0e445987a1cdb2723",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        },
+        {
+          "durationMs": 1765,
+          "stdoutDigest": "9df60d3cd7b242f16e0bf830b42588d6d41f2628092f3bc0e445987a1cdb2723",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        },
+        {
+          "durationMs": 1765,
+          "stdoutDigest": "9df60d3cd7b242f16e0bf830b42588d6d41f2628092f3bc0e445987a1cdb2723",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 3,
+        "requiredTrials": 3,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    }
+  ],
+  "resourceSamples": [
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 16997666816
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17063313408
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17116033024
+    }
+  ],
+  "ownerCalibration": "PENDING",
+  "grantsAuthority": false,
+  "excluded": [
+    {
+      "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+      "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+    },
+    {
+      "scope": "local-coding qualification and model binaries",
+      "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+    },
+    {
+      "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+      "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+    },
+    {
+      "scope": "Model grading and owner/human benchmark calibration",
+      "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+    }
+  ]
+}

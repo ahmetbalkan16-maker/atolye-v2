@@ -462,3 +462,18 @@ Receipt: `05_STAGE17/implementation/STAGE17_COMBINED_AUDIT_f8143e2.json`.
 - The `f8143e2` receipt therefore stays unpromoted.
 - Fixing it needs an owner/design decision on how legitimately missing roots and stores count.
 - Record: `05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md`.
+
+## 2026-10-08 — F96 applied under the owner's conditional approval; F98 policy decided
+
+**F96 — APPLIED (manifest v58).**
+- The owner's conditions were checked in order:
+  - The reach equivalence holds on the real source: 325/325, 15 and 33 modules equal.
+  - The manifest pin was read directly (`c57403df…2547`).
+  - The one `OTHER_ENTRIES` line was applied (`a7824b99…1308`).
+  - The manifest is v58, with v57 archived.
+  - The grader passes 12/12 in TEMP (3/3 baseline trials and a separate archive run). The negative control still fails without the line.
+- No other pin, suite or fixture changed.
+- Closure in a full declared baseline is pending the full166 run at this commit.
+- Record: `05_STAGE17/implementation/F96_APPLIED_V58_ba1c3c6.json`.
+
+**F98 — owner policy decided, implementation open.** A missing required root or store is `INCOMPLETE_WITH_REASON`, never COVERED. An explicit exception applies only to a root proven optional, with its scope and reason recorded, and it never counts toward a full-scope PASS. External runtime/authority roots must match the configured real paths. F98 stays OPEN until the HIGH findings are fixed and re-reviewed.

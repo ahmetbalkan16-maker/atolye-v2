@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "1",
+  "finding": "F96",
+  "appliedOn": "2026-10-08",
+  "ownerDecision": "CONDITIONAL_APPROVAL (Stage 17 owner decision and continuation order, section 2)",
+  "sourceHeadBeforeChange": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597",
+  "sourceIdenticalTo": "e97461495391a5d287b7505dc6b41e01a8b88acc (ba1c3c6 is documentation only)",
+  "conditions": {
+    "1_reachEquivalenceOnRealSource": {
+      "result": "PASS",
+      "method": "the grader's own import-graph rules, copied into a read-only probe, run against the real clean worktree",
+      "homeClosureSize": 325,
+      "brainClosureSize": 325,
+      "closureDifference": "the entry file only (app/page.tsx vs app/brain/page.tsx)",
+      "sensitiveModules": 15,
+      "sensitiveEqual": true,
+      "effectfulModules": 33,
+      "effectfulEqual": true,
+      "studioReachesSensitive": false,
+      "homepageBehindAccessGate": "\"/\" is in neither OPEN_EXACT nor OPEN_PREFIXES (src/lib/auth/accessGate.ts)",
+      "record": "F96_V58_REACH_PROBE_ba1c3c6.json"
+    },
+    "2_oneLineGraderChange": {
+      "result": "APPLIED",
+      "file": "scripts/smoke-ayas-action-firewall-closure.ts",
+      "linesAdded": 1,
+      "linesRemoved": 0,
+      "line": "\"app/page.tsx\": \"the owner homepage; it renders the same AyasConsolePage as the Brain page and imports the same two owner-session action modules mapped above\",",
+      "sha256Before": "c57403df5ba9d8817a27fbf6fc6843bbd12bd5bd4fcf1d39168b7725260b2547",
+      "sha256After": "a7824b99374826a4145894215182fe0ffe4aac3b87778b1c2eec60e9f4531308",
+      "sha256AfterEqualsReviewPrediction": true,
+      "lineEndings": "LF, unchanged"
+    },
+    "3_manifestPinReadDirectly": {
+      "result": "PASS",
+      "manifest": "03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "versionRead": "15F.4-v57",
+      "pinRead": "c57403df5ba9d8817a27fbf6fc6843bbd12bd5bd4fcf1d39168b7725260b2547",
+      "pinOccurrences": 1,
+      "pinEqualsGraderBytesBeforeChange": true,
+      "note": "Replaces the review's INFERRED_FROM_BASELINE_START basis: the manifest was opened and the pin read."
+    },
+    "4_manifestV58": {
+      "result": "APPLIED",
+      "archive": "03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V57.json",
+      "archiveSha256": "35434c51a4704ab7e9937f35ae7a093c0fa3cf622b6656e6e89f5e131b38fba4",
+      "archiveByteIdenticalToV57": true,
+      "manifestSha256After": "588013da3981a91a2f8663cfe3d955c7b84d2206048e2017aec460762e987e4d",
+      "changedLeaves": [
+        "/version: 15F.4-v57 -> 15F.4-v58",
+        "/suites/7/pins/0/sha256 (action-firewall-closure): c57403df…2547 -> a7824b99…1308"
+      ],
+      "otherSuitesOrPinsChanged": false,
+      "byteLength": "108239 before and after"
+    },
+    "5_tempGraderVerification": {
+      "result": "PASS",
+      "baselineRunner": {
+        "command": "scripts/ayas-eval-baseline.ts --suite action-firewall-closure --trials 3",
+        "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+        "manifestVersion": "15F.4-v58",
+        "pinDrift": "none (runner refuses on AYAS_EVAL_PIN_DRIFT before and after every trial)",
+        "trials": "3/3 PASS, exit 0",
+        "stdoutDigests": ["9df60d3cd7b242f16e0bf830b42588d6d41f2628092f3bc0e445987a1cdb2723"],
+        "report": "F96_V58_FIREWALL_CLOSURE_3TRIALS_ba1c3c6.json"
+      },
+      "separateArchiveRun": {
+        "fixture": "git archive of ba1c3c6 in OS TEMP + the two changed files + node_modules junction",
+        "exit": 0,
+        "summary": "Stage 15D firewall closure audit: PASS (12 scenarios; 9 surfaces; 41 mapped modules; TEMP only)",
+        "stdoutSha256": "9df60d3cd7b242f16e0bf830b42588d6d41f2628092f3bc0e445987a1cdb2723",
+        "stdoutDigestEqualsBaselineTrials": true,
+        "stderrBytes": 0,
+        "record": "F96_V58_ARCHIVE_RUN_ba1c3c6_stdout.log"
+      },
+      "negativeControl": {
+        "change": "the old grader (c57403df…2547) put back into the same archive copy",
+        "exit": 1,
+        "scenariosPassedBeforeFailure": 8,
+        "failure": "scenario 9: a new entry point reaches leased or owner-only work + ['app/page.tsx']",
+        "meaning": "the one added line is what makes scenario 9 pass; nothing else differs",
+        "records": ["F96_V58_NEGATIVE_CONTROL_ba1c3c6_stdout.log", "F96_V58_NEGATIVE_CONTROL_ba1c3c6_stderr.log"]
+      },
+      "tempCleanup": "junction unlinked first, then the copy removed; repository node_modules intact"
+    }
+  },
+  "unchanged": [
+    "every other suite, pin and scenario in the manifest",
+    "all other OTHER_ENTRIES, SURFACES, OFF_SURFACE and PACKAGE_SCRIPTS entries",
+    "the frozen retrieval/golden fixtures and their preserved raw FAILs",
+    "app/page.tsx, Brain UI V2, voice and command wiring"
+  ],
+  "staticChecks": { "typescript": "PASS (tsc --noEmit, exit 0)", "eslintChangedFile": "PASS (0 warnings)", "diffCheck": "PASS" },
+  "residualRisk": "Same as /brain today: if the homepage later imports a different owner-only module, this suite catches it only through the module maps of app/brain/actions.ts and app/brain/observerActions.ts, not through a /-specific map.",
+  "fullBaselineAtCommit": "PENDING (run after this commit; expected 163/166 with only the three preserved raw FAILs)",
+  "grantsAuthority": false,
+  "foundation": "BLOCKED"
+}

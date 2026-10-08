@@ -1,0 +1,50 @@
+{
+  "repo": "<repository root at ba1c3c6, clean worktree>",
+  "homeClosureSize": 325,
+  "brainClosureSize": 325,
+  "onlyInHome": [
+    "app/page.tsx"
+  ],
+  "onlyInBrain": [
+    "app/brain/page.tsx"
+  ],
+  "sensitiveCount": 15,
+  "sensitiveEqual": true,
+  "sensitiveModules": [
+    "src/lib/ayas/developer/AyasGraphifyStateCollector.ts [DURABLE_LEASE,TOOL_LEASE]",
+    "src/lib/ayas/execution/AyasDeveloperEvidence.ts [TOOL_LEASE]",
+    "src/lib/brain/autonomy/AyasAutonomyDaemon.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+    "src/lib/brain/autonomy/AyasBatchGraphifyCheck.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+    "src/lib/brain/autonomy/AyasDeferredPublicationFinalizer.ts [OWNER_PUBLICATION]",
+    "src/lib/brain/autonomy/AyasGuardedPublication.ts [OWNER_PUBLICATION]",
+    "src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts [OWNER_PUBLICATION]",
+    "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts [OWNER_LEASE]",
+    "src/lib/brain/autonomy/AyasMutationValidators.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+    "src/lib/brain/autonomy/AyasPatchArtifactMutation.ts [OWNER_LEASE]",
+    "src/lib/brain/autonomy/AyasPatchSandbox.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+    "src/lib/brain/autonomy/AyasPostPublicationClosure.ts [OWNER_PUBLICATION]",
+    "src/lib/brain/autonomy/AyasProposalApprovalService.ts [OWNER_PUBLICATION]",
+    "src/lib/brain/autonomy/AyasProposalExecutionService.ts [OWNER_LEASE]",
+    "src/lib/brain/autonomy/AyasSafePublicFetch.ts [DISCOVERY_LEASE]"
+  ],
+  "effectfulCount": 33,
+  "effectfulEqual": true,
+  "studioReachesSensitive": false,
+  "appEntriesReachingSensitive": [
+    "app/api/ayas/chat/stream/route.ts",
+    "app/api/ayas/stt/route.ts",
+    "app/brain/actions.ts",
+    "app/brain/briefing/actions.ts",
+    "app/brain/briefing/page.tsx",
+    "app/brain/observerActions.ts",
+    "app/brain/page.tsx",
+    "app/page.tsx"
+  ],
+  "homeDirectImports": [
+    "src/components/brain/AyasConsolePage.tsx"
+  ],
+  "brainDirectImports": [
+    "src/components/brain/AyasConsolePage.tsx",
+    "src/components/brain/brainCore.ts"
+  ]
+}

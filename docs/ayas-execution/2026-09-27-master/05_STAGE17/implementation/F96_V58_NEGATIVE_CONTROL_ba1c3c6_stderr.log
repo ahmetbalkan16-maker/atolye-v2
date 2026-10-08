@@ -1,0 +1,18 @@
+AssertionError [ERR_ASSERTION]: a new entry point reaches leased or owner-only work: add it to SURFACES with its map, or to OTHER_ENTRIES with who runs it
++ actual - expected
+
++ [
++   'app/page.tsx'
++ ]
+- []
+
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\f96-archive-H3RY\scripts\smoke-ayas-action-firewall-closure.ts:405:12)
+    at scenario (C:\Users\Metod\AppData\Local\Temp\f96-archive-H3RY\scripts\smoke-ayas-action-firewall-closure.ts:39:81)
+    at main (C:\Users\Metod\AppData\Local\Temp\f96-archive-H3RY\scripts\smoke-ayas-action-firewall-closure.ts:399:9) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

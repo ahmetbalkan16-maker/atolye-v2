@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Owner review 2026-10-08: push done; F95 deployed live after a clean-regression full166; F96 reviewed (owner decision pending); combined-budget-v1 independently reviewed (conditions open, not promoted); Foundation BLOCKED",
-  "status": "OWNER_REVIEW_APPLIED_F95_LIVE_F96_REVIEWED_COMBINED_SCOPE_NOT_PROMOTED_FOUNDATION_BLOCKED",
+  "subtask": "Owner decision and continuation order 2026-10-08: ba1c3c6 pushed; F96 applied (grader line + manifest v58, 12/12 TEMP); full166 at the F96 commit next; F98 owner policy INCOMPLETE_WITH_REASON to implement; Foundation BLOCKED",
+  "status": "F96_APPLIED_V58_FULL166_PENDING_F98_POLICY_DECIDED_FOUNDATION_BLOCKED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -324,11 +324,10 @@
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only.",
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification.",
-    "OWNER_DECISION (blocks a clean full166): F96 — approve or reject the one-line OTHER_ENTRIES registration of app/page.tsx in the pinned firewall grader and the v58 pin refresh (05_STAGE17/implementation/F96_FROZEN_GRADER_REVIEW_e974614.md).",
-    "OWNER_DECISION (blocks qualified combined protected scope): F98 condition 1 — whether a missing protected root/store is an incompleteness reason or an explicit per-store acceptance; then conditions 2-5 (05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md)."
+    "F98 (blocks qualified combined protected scope): owner decided 2026-10-08 that a missing required root or store is INCOMPLETE_WITH_REASON; explicit exceptions only for roots proven optional, recorded with scope and reason, never counted as full-scope PASS. Implementation of conditions 2-5 under that policy is open (05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md)."
   ],
-  "nextAction": "Owner: decide F96 (v58 grader registration) and F98 condition 1; approve push of the 2026-10-08 documentation commit. Technical next: F98 conditions 2-5 (receipt binding, root validation, budget boundary tests) once condition 1 is decided, then Stage17 review step 4 (same-source full166 receipt import; e974614 receipt available) and step 5 (TEST/LIVE binding). F97 conversation quality open. No Brain UI V2 redesign, no voice work.",
-  "updatedAt": "2026-10-08T10:01:03.162Z",
+  "nextAction": "Run the declared full166 at the F96 commit (expected: only the three preserved raw FAILs). Then F98 under the owner policy (missing required root/store = INCOMPLETE_WITH_REASON; bind external roots to configured roots; dangling junction; budget boundary tests), with an independent re-review. Then review step 4 (full166 receipt import) and step 5 (TEST/LIVE binding), F97 conversation quality, Next.js/lockfile analysis, retrieval-golden succession. Stop before any Brain UI V2 homepage design work.",
+  "updatedAt": "2026-10-08T10:19:42.560Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1435,7 +1434,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Owner: decide F96 (v58 grader registration) and F98 condition 1; approve push of the 2026-10-08 documentation commit. Technical next: F98 conditions 2-5 (receipt binding, root validation, budget boundary tests) once condition 1 is decided, then Stage17 review step 4 (same-source full166 receipt import; e974614 receipt available) and step 5 (TEST/LIVE binding). F97 conversation quality open. No Brain UI V2 redesign, no voice work.",
+  "resumeNextAction": "Run the declared full166 at the F96 commit (expected: only the three preserved raw FAILs). Then F98 under the owner policy (missing required root/store = INCOMPLETE_WITH_REASON; bind external roots to configured roots; dangling junction; budget boundary tests), with an independent re-review. Then review step 4 (full166 receipt import) and step 5 (TEST/LIVE binding), F97 conversation quality, Next.js/lockfile analysis, retrieval-golden succession. Stop before any Brain UI V2 homepage design work.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -5273,11 +5272,11 @@
   },
   "homepageFirewallRegistration": {
     "finding": "F96",
-    "state": "REVIEWED_OWNER_DECISION_PENDING_FROZEN_GRADER",
+    "state": "APPLIED_V58_OWNER_CONDITIONAL_APPROVAL",
     "suite": "action-firewall-closure",
     "introducedBy": "4ca7e66",
     "requiredChange": "Register app/page.tsx in OTHER_ENTRIES of scripts/smoke-ayas-action-firewall-closure.ts and refresh the pin as manifest v58",
-    "frozenPinsChanged": false,
+    "frozenPinsChanged": true,
     "review": {
       "at": "2026-10-08",
       "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
@@ -5288,7 +5287,19 @@
       "tempCopyResult": "unchanged FAIL at scenario 9; with the line PASS 12/12",
       "record": "05_STAGE17/implementation/F96_FROZEN_GRADER_REVIEW_e974614.md"
     },
-    "applied": false
+    "applied": true,
+    "application": {
+      "at": "2026-10-08",
+      "ownerDecision": "conditional approval, continuation order section 2",
+      "reachRecheckedOnRealSource": "ba1c3c6 (source-identical to e974614): closures 325/325, 15 sensitive equal, 33 effectful equal, studio reaches none, / behind the access gate",
+      "manifestPinReadDirectly": "15F.4-v57, pin c57403df…2547 (1 occurrence) = grader bytes before the change",
+      "graderSha256": "a7824b99374826a4145894215182fe0ffe4aac3b87778b1c2eec60e9f4531308",
+      "manifest": "15F.4-v58 (two leaves: version and the action-firewall-closure pin); v57 archived byte-identical as EVAL_MANIFEST_V57.json",
+      "tempVerification": "baseline runner --suite action-firewall-closure --trials 3: 3/3 PASS; separate git-archive run PASS 12 scenarios (same stdout digest 9df60d3c…); negative control with the old grader fails scenario 9 on app/page.tsx only",
+      "staticChecks": "tsc PASS; ESLint changed file 0 warnings; diff check PASS",
+      "record": "05_STAGE17/implementation/F96_APPLIED_V58_ba1c3c6.json",
+      "fullBaselineAtCommit": "PENDING"
+    }
   },
   "stage17CombinedScope": {
     "reviewSteps": "1-3 of 05_STAGE17/implementation/STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md",
@@ -5348,8 +5359,19 @@
     }
   },
   "pushState": {
-    "state": "PUSHED_THROUGH_e974614_DOCUMENTATION_COMMIT_LOCAL",
+    "state": "PUSHED_THROUGH_ba1c3c6",
     "pushed": {
+      "range": "e974614..ba1c3c6",
+      "commits": [
+        "ba1c3c6"
+      ],
+      "at": "2026-10-08",
+      "force": false,
+      "ownerApproval": "Stage 17 owner decision and continuation order, section 1 (only ba1c3c6)",
+      "checks": "documentation-only paths; fast-forward from e974614; secret scan of added lines: no key/token/credential values",
+      "verifiedRemoteHead": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597"
+    },
+    "previous": {
       "range": "462f9f7..e974614",
       "commits": [
         "1f76faa",
@@ -5362,7 +5384,7 @@
       "verifiedRemoteHead": "e97461495391a5d287b7505dc6b41e01a8b88acc"
     },
     "localCommits": [
-      "2026-10-08 Stage 17 owner-review documentation commit (push needs separate owner approval)"
+      "F96 application commit (2026-10-08); push needs a separate owner approval"
     ]
   },
   "full166AtE974614": {

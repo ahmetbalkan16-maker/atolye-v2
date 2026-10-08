@@ -4,6 +4,8 @@ Date: 2026-10-08. Source: clean `e974614` (branch `wip/ayas-graphify-final-execu
 
 **Status: REVIEWED, NOT APPLIED.** The pinned grader, the eval manifest and every test are unchanged. The suite keeps failing until the owner decides.
 
+> **Update 2026-10-08: APPLIED under the owner's conditional approval.** The reach equivalence was re-checked on the real source, the manifest pin was read directly (it was `c57403df…2547`), and the one line below was applied. The manifest is now v58 (pin `a7824b99…1308`, v57 archived), and the grader passes 12/12 in TEMP (3/3 baseline trials, plus a separate archive run and a negative control). Record: `F96_APPLIED_V58_ba1c3c6.json`. The text below is the review as it was before the decision.
+
 ## What fails
 
 - Suite `action-firewall-closure` = `scripts/smoke-ayas-action-firewall-closure.ts`, scenario 9 of 12: "every entry point that reaches leased or owner-only work is a mapped surface or a named operator script".

@@ -1,0 +1,8 @@
+PASS 1: the decision vocabulary is closed: four decisions, no autonomous financial state
+PASS 2: every tool classifies and has one executor; reserved and owner actions need the owner; the rest is denied
+PASS 3: tool executors are dispatched from two places only, each after the firewall admits
+PASS 4: owner-approved work admits its lease before it mutates, validates or publishes
+PASS 5: the durable activity and the discovery run admit before their work
+PASS 6: product context reads the catalogue through the guarded tool; no MCP client exists
+PASS 7: the adapter map: every effectful module a surface reaches is classified, and nothing else is reachable
+PASS 8: no AYAS surface reaches a production provider, a paid model, the pipeline runner, a publisher or the dormant write bridge

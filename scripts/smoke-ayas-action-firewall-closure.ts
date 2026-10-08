@@ -246,6 +246,7 @@ const SURFACES: Readonly<Record<string, Surface>> = {
 /** Entry points other than the surfaces that reach leased or owner-only modules, and who runs each. */
 const OTHER_ENTRIES: Readonly<Record<string, string>> = {
   "app/brain/page.tsx": "the Brain page; it imports the two owner-session action modules mapped above",
+  "app/page.tsx": "the owner homepage; it renders the same AyasConsolePage as the Brain page and imports the same two owner-session action modules mapped above",
   "app/brain/briefing/page.tsx": "the owner briefing page; a read-only GET that writes no metadata and imports the briefing action module mapped above",
   "scripts/ayas-crash-injection-worker.ts": "crash-injection worker; spawned only by scripts/smoke-ayas-crash-injection.ts against TEMP roots",
   "scripts/ayas-developer-handoff.ts": "operator CLI; read-only Graphify and repository state",

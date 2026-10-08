@@ -1302,3 +1302,19 @@ Canonical Access daemon deployed CLEAN 59e585ab4ac9acfcaedeaebf75099568c28512f3.
   - Receipt: `docs/ayas-runtime-recovery/2026-10-08/LIVE_ROLLOUT_F95_e974614.(md|json)`.
 - **Evidence matrix.** New delta `STAGE17_EVIDENCE_MATRIX_DELTA_e974614.json`, with candidate states only; the bound `59e83cd` matrix is unchanged.
 - **Foundation BLOCKED.** Open: F96 and F98 owner decisions, review steps 4–5, six owner gates, Next 16.2.10 vs lock 16.3.8, retrieval-golden succession. This documentation commit stays local until the owner approves its push.
+
+## 2026-10-08 — Stage 17 owner decision and continuation order: ba1c3c6 pushed, F96 applied (v58)
+
+- **Start.** Branch `wip/ayas-graphify-final-execution` at `ba1c3c6`, clean, ahead 1; `origin` = `e974614` (`ls-remote`). No other agent process in the worktree; the observer daemon and `next start -p 3000` are the owner's live services. Graphify current at `ba1c3c6` (PARTIAL9, semantic pending).
+- **Push (order section 1).**
+  - Checks: `ba1c3c6` touches only documentation paths, is a fast-forward from `e974614`, and has no key, token or credential values in its added lines (long strings are SHA-256 hashes and paths; one line describes how the access key is handled).
+  - Pushed exactly `e974614..ba1c3c6` without force; `ls-remote` = `ba1c3c6`.
+- **F96 (order section 2, conditional approval) — applied.**
+  - Reach re-checked on the real clean source: a read-only probe that copies the grader's own import-graph rules. `/` and `/brain` have closures of 325/325 that differ only by the entry file, the same 15 leased/owner-only modules and the same 33 effectful modules. `/studio` reaches none. `/` is in neither `OPEN_EXACT` nor `OPEN_PREFIXES`.
+  - Manifest pin read directly: `15F.4-v57`, `c57403df…2547`, one occurrence, equal to the grader bytes.
+  - One line added to `OTHER_ENTRIES`. The grader SHA-256 is `a7824b99…1308`, as the review predicted.
+  - Manifest v58: two leaves changed (`version`, suite 7 pin). v57 archived byte-identical as `EVAL_MANIFEST_V57.json`.
+  - TEMP: the baseline runner (`--suite action-firewall-closure --trials 3`) passes 3/3. A separate `git archive` run prints `PASS (12 scenarios; 9 surfaces; 41 mapped modules; TEMP only)`, with the same stdout digest `9df60d3c…`. The negative control (the old grader in the same copy) fails scenario 9 on `app/page.tsx` only.
+  - tsc PASS; ESLint on the changed file 0 warnings; diff check PASS.
+  - Record: `05_STAGE17/implementation/F96_APPLIED_V58_ba1c3c6.json`.
+- **Next.** The declared full166 at this commit; then F98 under the owner policy (missing required root/store = INCOMPLETE_WITH_REASON). Foundation BLOCKED.

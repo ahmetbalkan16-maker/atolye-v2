@@ -1,3 +1,27 @@
+# Current — 2026-10-08 / Stage17 continuation: ba1c3c6 pushed; F96 applied (grader line + manifest v58); F98 policy decided; Foundation BLOCKED
+**Owner decision and continuation order, sections 1–3:**
+1. **Push — done.** Exactly `e974614..ba1c3c6` was pushed without force. Before the push: documentation paths only, a fast-forward, and a secret scan of the added lines. `origin` = `ba1c3c6`.
+2. **F96 — applied under the owner's conditional approval.**
+   - Reach re-checked on the real source: `/` and `/brain` give 325/325 closures and the same 15 owner-only and 33 effectful modules, behind the same gate.
+   - Manifest pin read directly: v57, `c57403df…2547`.
+   - One `OTHER_ENTRIES` line added: grader `a7824b99…1308`.
+   - Manifest v58 (v57 archived byte-identical).
+   - TEMP: 3/3 baseline trials PASS; a separate archive run PASS 12/12; the negative control without the line still fails scenario 9.
+   - tsc, ESLint and diff check PASS.
+   - Record: `05_STAGE17/implementation/F96_APPLIED_V58_ba1c3c6.json`.
+3. **F98 — owner policy decided:** a missing required root or store is `INCOMPLETE_WITH_REASON`. Exceptions only for roots proven optional, recorded, and never part of a full-scope PASS. Implementation of conditions 2–5 is open.
+
+**Open:**
+- full166 at the F96 commit.
+- F98 implementation and re-review.
+- Review steps 4–5.
+- F97.
+- Next 16.2.10 vs lock 16.3.8.
+- Retrieval-golden succession.
+- Six owner gates.
+
+No Brain UI V2, homepage design, voice or command wiring change.
+
 # Current — 2026-10-08 / Stage17 owner review: push done, F95 live, F96 reviewed, combined budget not promoted; Foundation BLOCKED
 **Owner review, four decisions:**
 1. **Push — done.** `462f9f7..e974614` (exactly the three approved commits) pushed to `origin/wip/ayas-graphify-final-execution` without force, after branch, diff and secret checks.
