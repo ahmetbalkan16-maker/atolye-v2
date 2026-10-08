@@ -1,0 +1,27 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Otomatik yürütme şu anda devre dışı/. Input:
+
+'<section class="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center"><header class="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header><section class="bc-dev__section" aria-labelledby="ayas-owner-pending-execution" data-testid="ayas-owner-pending-execution"><h3 id="ayas-owner-pending-execution">Onaylandı — Yürütme Bekleniyor <span>1</span></h3><div class="bc-dev__timeline"><article class="bc-dev__proposal bc-dev__owner-rec" data-testid="ayas-owner-pending-execution-ayas-proposal-4da7b35f-a84b-487f-9045-94129455da5c"><header class="bc-dev__proposal-head"><div><span class="bc-dev__status">ONAYLANDI</span><h3>assert çağrılarına teşhis mesajı ekle</h3></div></header><div class="bc-dev__confirm" role="status"><p>Bu onay doğrulanmış bir owner oturumuna bağlı değil (eski ya da kimliği doğrulanamayan kayıt). AYAS bunu yürütmez ve YÜRÜT sunulmaz; değişiklik hâlâ gerekiyorsa yeni bir öneri ve yeni onay gerekir.</p><p><small>Onaylandı: 18.09.2026 03:00:01</small></p></div></article></div></section><section class="bc-dev__section" aria-labelledby="ayas-dev-pending"><h3 id="ayas-dev-pending">Onay Bekleyenler <span>0</span></h3><p class="bc-empty">Onay bekleyen gerçek bir öneri yok.</p></section><section class="bc-dev__section" aria-labelledby="ayas-dev-today"><h3 id="ayas-dev-today">Bugün Neleri Geliştirmeye Çalıştı? <span>0</span></h3><p class="bc-empty">Bugün değerlendirilmiş bir gelişim adayı yok.</p></section><section class="bc-dev__section" aria-labelledby="ayas-dev-history"><h3 id="ayas-dev-history">Geçmiş Kararlar <span>0</span></h3><p class="bc-empty">Henüz kalıcı bir karar veya yürütme sonucu yok.</p></section></section>'
+
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-owner-recommendations-view.ts:173:12)
+    at scenario (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-owner-recommendations-view.ts:22:51)
+    at main (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-owner-recommendations-view.ts:161:3)
+    at assert (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-owner-recommendations-view.ts:190:1)
+    at Object.<anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-owner-recommendations-view.ts:190:6)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object.transformer (c:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\node_modules\tsx\dist\register-BoI6-WNn.cjs:9:3252)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '<section class="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center"><header class="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header><section class="bc-dev__section" aria-labelledby="ayas-owner-pending-execution" data-testid="ayas-owner-pending-execution"><h3 id="ayas-owner-pending-execution">Onaylandı — Yürütme Bekleniyor <span>1</span></h3><div class="bc-dev__timeline"><article class="bc-dev__proposal bc-dev__owner-rec" data-testid="ayas-owner-pending-execution-ayas-proposal-4da7b35f-a84b-487f-9045-94129455da5c"><header class="bc-dev__proposal-head"><div><span class="bc-dev__status">ONAYLANDI</span><h3>assert çağrılarına teşhis mesajı ekle</h3></div></header><div class="bc-dev__confirm" role="status"><p>Bu onay doğrulanmış bir owner oturumuna bağlı değil (eski ya da kimliği doğrulanamayan kayıt). AYAS bunu yürütmez ve YÜRÜT sunulmaz; değişiklik hâlâ gerekiyorsa yeni bir öneri ve yeni onay gerekir.</p><p><small>Onaylandı: 18.09.2026 03:00:01</small></p></div></article></div></section><section class="bc-dev__section" aria-labelledby="ayas-dev-pending"><h3 id="ayas-dev-pending">Onay Bekleyenler <span>0</span></h3><p class="bc-empty">Onay bekleyen gerçek bir öneri yok.</p></section><section class="bc-dev__section" aria-labelledby="ayas-dev-today"><h3 id="ayas-dev-today">Bugün Neleri Geliştirmeye Çalıştı? <span>0</span></h3><p class="bc-empty">Bugün değerlendirilmiş bir gelişim adayı yok.</p></section><section class="bc-dev__section" aria-labelledby="ayas-dev-history"><h3 id="ayas-dev-history">Geçmiş Kararlar <span>0</span></h3><p class="bc-empty">Henüz kalıcı bir karar veya yürütme sonucu yok.</p></section></section>',
+  expected: /Otomatik yürütme şu anda devre dışı/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

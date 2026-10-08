@@ -1,0 +1,2 @@
+AYAS Brain Control Center smoke: PASS (39 scenarios)
+{"status":"PASS","suite":"ayas-brain-control-center","mode":"final","primary":{"pass":22,"fail":0,"missing":0,"total":22},"heldOut":{"pass":13,"fail":0,"missing":0,"total":13},"integration":{"pass":4,"fail":0,"missing":0,"total":4}}

@@ -52,3 +52,9 @@ docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-push-morning-
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-evening-cleanup-20261008/*.raw.log -text -diff
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-evening-cleanup-20261008/*.raw.json -text -diff
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-evening-cleanup-20261008/*.txt -text -diff
+
+# Night 2026-10-09 Gelisim Merkezi / V2 review packet: capture bytes and candidate patches as-is.
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009/*.raw.log -text -diff
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009/*.raw.json -text -diff
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009/*.patch -text -diff
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009/*.txt -text -diff

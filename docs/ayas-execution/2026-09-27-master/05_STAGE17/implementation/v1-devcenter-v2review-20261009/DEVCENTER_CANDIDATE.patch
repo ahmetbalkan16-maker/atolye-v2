@@ -1,0 +1,625 @@
+diff --git a/scripts/smoke-ayas-development-center-owner-execute.ts b/scripts/smoke-ayas-development-center-owner-execute.ts
+new file mode 100644
+index 0000000..7ad6640
+--- /dev/null
++++ b/scripts/smoke-ayas-development-center-owner-execute.ts
+@@ -0,0 +1,352 @@
++import assert from "node:assert/strict";
++import { execFileSync } from "node:child_process";
++import crypto from "node:crypto";
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
++import { createElement } from "react";
++import { renderToStaticMarkup } from "react-dom/server";
++
++import { issueSession, resolveAccessGate } from "../src/lib/auth/accessGate";
++import { admitAyasOwnerApproval, isAyasApprovalDecisionOwnerAdmitted, type AyasOwnerAdmission, type AyasOwnerAdmissionAction } from "../src/lib/brain/autonomy/AyasOwnerApprovalAdmission";
++import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
++import { readAyasApprovalInboxState } from "../src/lib/brain/autonomy/AyasApprovalInboxReader";
++import { buildAyasApprovalInboxView } from "../src/lib/brain/autonomy/AyasApprovalInboxView";
++import { ayasOwnerAfterApproval, isAyasLiveExecutionEnabledForDisplay, loadAyasOwnerRecommendationsView } from "../src/lib/brain/autonomy/AyasOwnerRecommendationsView";
++import { AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON } from "../src/lib/brain/autonomy/AyasOwnerApprovalProvenance";
++import { AYAS_AUTONOMOUS_EXECUTION_ENV_VAR, isAyasAutonomousExecutionEnabled } from "../src/lib/brain/autonomy/AyasAutonomousExecutionGate";
++import { executeAyasApprovedProposalWith } from "../src/lib/brain/autonomy/AyasProposalExecutionService";
++import { createAyasExecutionJournal } from "../src/lib/brain/autonomy/AyasExecutionJournal";
++import type { AyasMutationImplementation } from "../src/lib/brain/autonomy/AyasMutationRegistry";
++import { AyasDevelopmentCenter } from "../src/components/brain/AyasDevelopmentCenter";
++
++/**
++ * Gelişim Merkezi — the owner-model "Onaylandı — Yürütme Bekleniyor" card
++ * after the owner's K3 policy (2026-10-08: no automatic resume, a fresh
++ * manual EXECUTE is required). Before this fix the card told the owner AYAS
++ * would continue automatically and offered no control, while nothing would
++ * ever resume it (an exact reviewed patch is excluded from resume, and resume
++ * itself needs a manual action). The card now states the real situation and
++ * offers the ordinary manual YÜRÜT only for a sealed owner APPROVE.
++ *
++ * D-cases render the real component. S-cases run the real execution service
++ * (`executeAyasApprovedProposalWith`, which the YÜRÜT server action calls)
++ * against a throwaway Git repo, a TEMP approval inbox, a TEMP gate root and
++ * an in-process synthetic access key, with a test-only mutation. Nothing
++ * reads or writes `data/brain`, the live runtime, the network or a model.
++ * The run root is removed at the end.
++ */
++
++const KEY = "devcenter-owner-execute-synthetic-key";
++process.env.AYAS_ACCESS_KEY = KEY;
++delete process.env[AYAS_AUTONOMOUS_EXECUTION_ENV_VAR];
++const gate = resolveAccessGate({ AYAS_ACCESS_KEY: KEY, NODE_ENV: "production" });
++const HISTORICAL_MS = 2 * 60 * 60 * 1000;
++const RUN_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-devcenter-owner-execute-"));
++const COMPONENT = path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx");
++const VIEW = path.join(process.cwd(), "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts");
++const FALSE_AUTO_CONTINUE = /otomatik olarak sürdürecek|yürütme etkinleştirildiğinde|Otomatik yürütme şu anda devre dışı/;
++
++let count = 0;
++const rows: Record<string, unknown>[] = [];
++async function scenario(id: string, name: string, fn: () => Promise<Record<string, unknown> | void> | Record<string, unknown> | void) {
++  const observed = await fn();
++  count += 1;
++  rows.push({ id, name, outcome: "PASS", ...(observed ?? {}) });
++  if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${id} ${name}`);
++}
++
++function git(cwd: string, ...args: string[]) { return execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim(); }
++function sha256(bytes: Buffer | string) { return crypto.createHash("sha256").update(bytes).digest("hex"); }
++function dir(label: string) { return fs.mkdtempSync(path.join(RUN_ROOT, `${label}-`)); }
++function occurrences(haystack: string, needle: RegExp) { return (haystack.match(new RegExp(needle.source, "g")) ?? []).length; }
++
++const testMutation: AyasMutationImplementation = {
++  exactFiles: ["src/fixture.ts"],
++  run: async (repoRoot: string) => {
++    fs.writeFileSync(path.join(repoRoot, "src/fixture.ts"), "export const value = 2;\n");
++    return { changedFiles: ["src/fixture.ts"], testsRun: ["fixture-check"], testResults: ["PASS"] };
++  },
++};
++const testRegistry = new Map<string, AyasMutationImplementation>([["fixture-mutation", testMutation]]);
++
++interface Fixture {
++  readonly repoRoot: string;
++  readonly gateRoot: string;
++  readonly inboxRoot: string;
++  /** Opened like the live default root: every decision and reservation needs an owner admission. */
++  readonly strict: AyasApprovalInboxHandle;
++  /** Writes the shapes a pre-K3 store could hold (no admission). Used only to seed fixtures. */
++  readonly legacy: AyasApprovalInboxHandle;
++  readonly proposal: AyasInboxProposal;
++}
++
++function makeFixture(overrides: Record<string, unknown> = {}): Fixture {
++  const repoRoot = dir("repo");
++  git(repoRoot, "init", "-q");
++  git(repoRoot, "config", "user.email", "smoke@example.invalid");
++  git(repoRoot, "config", "user.name", "Smoke");
++  fs.mkdirSync(path.join(repoRoot, "src"), { recursive: true });
++  fs.writeFileSync(path.join(repoRoot, "src/fixture.ts"), "export const value = 1;\n");
++  git(repoRoot, "add", "src/fixture.ts");
++  git(repoRoot, "commit", "-qm", "base");
++  const head = git(repoRoot, "rev-parse", "HEAD");
++  const inboxRoot = path.join(dir("inbox"), "brain");
++  const legacy = createAyasApprovalInboxStore({ rootDir: inboxRoot });
++  const proposal = legacy.createProposal({
++    createdAt: "2026-10-08T09:00:00.000Z", baseBranch: "master", baseHead: head,
++    objective: "assert çağrılarına teşhis mesajı ekle", currentProblem: "fixture problem", selectionReason: "fixture selection reason",
++    expectedUserBenefit: "a regression is caught before it reaches the owner", expectedBehaviorChange: "one more assertion",
++    unchangedBehavior: "production execution does not change", riskIfNotDone: "the regression stays hidden", technicalRisk: "low",
++    productionImpact: "none", rationale: "fixture rationale", evidence: ["fixture evidence"], graphifyEvidence: ["fixture graphify evidence"],
++    candidateRank: 1, risk: "low and reversible", safetyClassification: "SAFE", exactFiles: ["src/fixture.ts"], expectedDiffScope: "+1 assertion",
++    testsPlanned: ["fixture-check"], estimatedCost: "zero-cost", mutationKind: "fixture-mutation", ...overrides,
++  } as never);
++  return { repoRoot, gateRoot: path.join(dir("gate"), "self-improvement"), inboxRoot, strict: createAyasApprovalInboxStore({ rootDir: inboxRoot, requireOwnerAdmission: true }), legacy, proposal };
++}
++
++const subject = (p: Pick<AyasInboxProposal, "proposalId" | "proposalHash">, decision: "APPROVE" | "EXECUTE") => ({ kind: "proposal" as const, proposalId: p.proposalId, proposalHash: p.proposalHash, decision });
++
++async function admit(p: AyasInboxProposal, decision: "APPROVE" | "EXECUTE", at: number, action: AyasOwnerAdmissionAction = decision === "APPROVE" ? "ayasOwnerApprovalDecision" : "executeAyasApprovedProposal"): Promise<AyasOwnerAdmission> {
++  return admitAyasOwnerApproval({ gate, token: await issueSession(KEY, at - 1000), action, subject: subject(p, decision), now: at });
++}
++
++/** The owner-model APPROVE the gate records with live execution off (or for an exact patch): sealed, two hours ago. */
++async function sealedOwnerApprove(f: Fixture, at = Date.now() - HISTORICAL_MS): Promise<AyasOwnerAdmission> {
++  const ownerAdmission = await admit(f.proposal, "APPROVE", at);
++  f.strict.decide(f.proposal.proposalId, "APPROVE", new Date(at + 1000).toISOString(), AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON, ownerAdmission);
++  return ownerAdmission;
++}
++/** The same reason prefix with no owner admission at all — a pre-K3 or unattributed owner-model record. */
++function unattributedOwnerApprove(f: Fixture) {
++  f.legacy.decide(f.proposal.proposalId, "APPROVE", "2026-10-08T09:05:00.000Z", AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON);
++}
++
++function render(f: Fixture, extra: Record<string, unknown> = {}) {
++  const recommendations = loadAyasOwnerRecommendationsView(f.strict);
++  assert.equal(recommendations.connected, true, recommendations.error);
++  const inbox = buildAyasApprovalInboxView(readAyasApprovalInboxState({ rootDir: f.inboxRoot }), new Date().toISOString());
++  const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox, ownerApprovalPendingExecution: recommendations.pendingExecution, onExecute: () => undefined, ...extra }));
++  return { html, recommendations, inbox };
++}
++function pendingCard(html: string, proposalId: string): string {
++  const start = html.indexOf(`data-testid="ayas-owner-pending-execution-${proposalId}"`);
++  assert.ok(start >= 0, "the pending-execution card is rendered");
++  return html.slice(start, html.indexOf("</article>", start));
++}
++
++interface Snapshot { readonly head: string; readonly status: string; readonly inbox: string; readonly journal: number; readonly file: string }
++function snapshot(f: Fixture): Snapshot {
++  return {
++    head: git(f.repoRoot, "rev-parse", "HEAD"),
++    status: git(f.repoRoot, "status", "--porcelain"),
++    inbox: sha256(fs.readFileSync(f.strict.stateFile)),
++    journal: fs.existsSync(f.gateRoot) ? createAyasExecutionJournal({ rootDir: f.gateRoot }).list().length : 0,
++    file: fs.readFileSync(path.join(f.repoRoot, "src/fixture.ts"), "utf8"),
++  };
++}
++function assertNoEffect(f: Fixture, before: Snapshot, label: string) {
++  assert.deepEqual(snapshot(f), before, `${label}: repository, worktree, inbox bytes and journal unchanged`);
++  const approve = [...f.strict.load().decisions].reverse().find((d) => d.proposalId === f.proposal.proposalId && d.decision === "APPROVE");
++  assert.equal(approve?.reservationId, undefined, `${label}: the approval was never reserved`);
++}
++function execute(f: Fixture, executionOwnerAdmission: AyasOwnerAdmission | undefined) {
++  return executeAyasApprovedProposalWith(f.proposal.proposalId, { repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.strict, registry: testRegistry, ...(executionOwnerAdmission ? { executionOwnerAdmission } : {}) });
++}
++const refused = (code: string) => (error: unknown) => error instanceof Error && error.message === code;
++
++async function main(): Promise<void> {
++  // --- D: what the owner sees ---
++
++  await scenario("D01", "a sealed owner-model APPROVE shows the truth and exactly one YÜRÜT, on its pending card, behind a confirmation", async () => {
++    const f = makeFixture();
++    await sealedOwnerApprove(f);
++    const { html, recommendations } = render(f);
++    assert.equal(recommendations.pendingExecution[0]?.manualExecution, "AVAILABLE");
++    const card = pendingCard(html, f.proposal.proposalId);
++    assert.match(card, /AYAS bunu kendiliğinden yürütmez/);
++    assert.match(card, />YÜRÜT</);
++    assert.doesNotMatch(html, FALSE_AUTO_CONTINUE);
++    assert.equal(occurrences(html, />YÜRÜT</), 1, "no second YÜRÜT on the timeline card for the same proposal");
++    assert.doesNotMatch(html, /YÜRÜTMEYİ BAŞLAT/, "the first click only opens the confirmation");
++    return { yurutControls: 1 };
++  });
++
++  await scenario("D02", "an unattributed owner-model APPROVE (no admission) never gets YÜRÜT and says why", () => {
++    const f = makeFixture();
++    unattributedOwnerApprove(f);
++    const { html, recommendations } = render(f);
++    assert.equal(recommendations.pendingExecution[0]?.manualExecution, "OWNER_ADMISSION_MISSING");
++    assert.match(pendingCard(html, f.proposal.proposalId), /doğrulanmış bir owner oturumuna bağlı değil/);
++    assert.doesNotMatch(html, />YÜRÜT</);
++    assert.doesNotMatch(html, FALSE_AUTO_CONTINUE);
++  });
++
++  await scenario("D03", "tampered APPROVE records are OWNER_ADMISSION_MISSING: forged admission seal, forged decision seal, other-hash admission", async () => {
++    const results: Record<string, string> = {};
++    for (const [label, tamper] of [
++      ["forged-admission-seal", (d: Record<string, unknown>) => ({ ...d, ownerAdmission: { ...(d.ownerAdmission as object), seal: "0".repeat(64) } })],
++      ["forged-decision-seal", (d: Record<string, unknown>) => ({ ...d, ownerDecisionSeal: "f".repeat(64) })],
++      ["admission-for-other-hash", (d: Record<string, unknown>) => ({ ...d, proposalHash: "e".repeat(64) })],
++      ["admission-removed", (d: Record<string, unknown>) => { const { ownerAdmission: _a, ownerDecisionSeal: _s, ...rest } = d; void _a; void _s; return rest; }],
++    ] as const) {
++      const f = makeFixture();
++      await sealedOwnerApprove(f);
++      const state = f.legacy.load();
++      f.legacy.save({ ...state, decisions: state.decisions.map((d) => (d.proposalId === f.proposal.proposalId ? tamper(d as never) : d)) as never });
++      const { html, recommendations } = render(f);
++      assert.equal(recommendations.pendingExecution[0]?.manualExecution, "OWNER_ADMISSION_MISSING", label);
++      assert.doesNotMatch(html, />YÜRÜT</, label);
++      results[label] = "NO_YURUT";
++    }
++    return results;
++  });
++
++  await scenario("D04", "after the proposal leaves APPROVED (RESERVED, COMPLETED, RECOVERY_REQUIRED, STALE) the card offers no YÜRÜT and shows the current state", async () => {
++    for (const status of ["RESERVED", "COMPLETED", "RECOVERY_REQUIRED", "STALE"] as const) {
++      const f = makeFixture({ createdAt: new Date().toISOString() }); // today, so a terminal status is still in the daily projection
++      await sealedOwnerApprove(f);
++      // The recommendations list was read while still APPROVED, the inbox afterwards (the client refreshes them separately).
++      const stalePending = loadAyasOwnerRecommendationsView(f.strict).pendingExecution;
++      assert.equal(stalePending[0]?.manualExecution, "AVAILABLE");
++      const state = f.legacy.load();
++      f.legacy.save({ ...state, proposals: state.proposals.map((p) => (p.proposalId === f.proposal.proposalId ? { ...p, status } : p)) });
++      const inbox = buildAyasApprovalInboxView(readAyasApprovalInboxState({ rootDir: f.inboxRoot }), new Date().toISOString());
++      const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox, ownerApprovalPendingExecution: stalePending, onExecute: () => undefined }));
++      const card = pendingCard(html, f.proposal.proposalId);
++      assert.match(card, /Güncel durum:/, status);
++      assert.doesNotMatch(html, />YÜRÜT</, status);
++      if (status === "RECOVERY_REQUIRED") { assert.match(card, /Yürütme sonucu belirsiz olabilir/); assert.doesNotMatch(html, /TEKRAR ÇALIŞTIR|YENİDEN DENE/); }
++    }
++  });
++
++  await scenario("D05", "a pending entry whose proposal is missing from the inbox view offers no YÜRÜT", () => {
++    const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, {
++      inbox: { connected: true, pending: [], today: [], history: [] },
++      ownerApprovalPendingExecution: [{ proposalId: "ayas-proposal-missing", wantsTo: "x", approvedAt: "2026-10-08T09:00:00.000Z", manualExecution: "AVAILABLE" }],
++      onExecute: () => undefined,
++    }));
++    assert.match(pendingCard(html, "ayas-proposal-missing"), /güncel listede bulunamadı/);
++    assert.doesNotMatch(html, />YÜRÜT</);
++  });
++
++  await scenario("D06", "a legacy APPROVE (no owner-model reason) keeps its YÜRÜT on the timeline card and gets no pending card", async () => {
++    const f = makeFixture();
++    f.strict.decide(f.proposal.proposalId, "APPROVE", new Date().toISOString(), undefined, await admit(f.proposal, "APPROVE", Date.now(), "decideAyasApproval"));
++    const { html, recommendations } = render(f);
++    assert.equal(recommendations.pendingExecution.length, 0);
++    assert.doesNotMatch(html, /ayas-owner-pending-execution/);
++    assert.equal(occurrences(html, />YÜRÜT</), 1);
++  });
++
++  await scenario("D07", "busy and refusal states reach the pending card: YÜRÜTÜLÜYOR…, and OWNER_ADMISSION_REQUIRED in plain words", async () => {
++    const f = makeFixture();
++    await sealedOwnerApprove(f);
++    assert.match(pendingCard(render(f, { executingId: f.proposal.proposalId }).html, f.proposal.proposalId), /YÜRÜTÜLÜYOR…/);
++    const failed = pendingCard(render(f, { executionError: { proposalId: f.proposal.proposalId, code: "OWNER_ADMISSION_REQUIRED" } }).html, f.proposal.proposalId);
++    assert.match(failed, /Doğrulanmış owner oturumu gerekiyor/);
++    assert.match(failed, /role="alert"/);
++  });
++
++  await scenario("D08", "ONAYLA text matches what the click does: exact patch or execution off waits for YÜRÜT; only live non-exact publishes at once", () => {
++    const on = { [AYAS_AUTONOMOUS_EXECUTION_ENV_VAR]: "1" };
++    assert.equal(ayasOwnerAfterApproval({}, on), "EXECUTES_AND_PUBLISHES");
++    assert.equal(ayasOwnerAfterApproval({}, {}), "WAITS_FOR_MANUAL_EXECUTE");
++    assert.equal(ayasOwnerAfterApproval({ exactPatchSafetyProof: { kind: "fixture" } }, on), "WAITS_FOR_MANUAL_EXECUTE");
++    assert.equal(ayasOwnerAfterApproval({ exactPatchSafetyProof: { kind: "fixture" } }, {}), "WAITS_FOR_MANUAL_EXECUTE");
++    for (const value of [undefined, "", "0", "1", " 1", "1 ", "true", "TRUE", "yes", "01"]) {
++      const env = value === undefined ? {} : { [AYAS_AUTONOMOUS_EXECUTION_ENV_VAR]: value };
++      assert.equal(isAyasLiveExecutionEnabledForDisplay(env), isAyasAutonomousExecutionEnabled(env), `display flag agrees with the gate for ${JSON.stringify(value)}`);
++    }
++    const src = fs.readFileSync(COMPONENT, "utf8");
++    const card = src.slice(src.indexOf("function AyasOwnerRecommendationCard"), src.indexOf("function AyasOwnerPendingExecutionCard"));
++    assert.match(card, /executesNow\s*\n?\s*\? <p>AYAS bu değişikliği kendisi uygulayacak[^<]*İkinci bir onay istenmeyecek\.<\/p>/);
++    assert.match(card, /: <p>Onayın kalıcı olarak kaydedilir; AYAS bu değişikliği kendiliğinden yürütmez\./);
++    return { flagValuesCompared: 10 };
++  });
++
++  await scenario("D09", "the recommendations view carries afterApproval from its env, read-only", () => {
++    const f = makeFixture({ mutationKind: "patch-artifact:v1", exactFiles: ["scripts/smoke-fixture-generated.ts"], patchArtifactId: "ayas-patch-artifact-fixture", patchHash: "fixture-hash" });
++    const before = sha256(fs.readFileSync(f.strict.stateFile));
++    const off = loadAyasOwnerRecommendationsView(f.strict, {});
++    const on = loadAyasOwnerRecommendationsView(f.strict, { [AYAS_AUTONOMOUS_EXECUTION_ENV_VAR]: "1" });
++    assert.equal(off.recommendations.length, 1, off.error);
++    assert.equal(off.recommendations[0]?.afterApproval, "WAITS_FOR_MANUAL_EXECUTE");
++    assert.equal(on.recommendations[0]?.afterApproval, "EXECUTES_AND_PUBLISHES");
++    assert.equal(sha256(fs.readFileSync(f.strict.stateFile)), before, "a view load never writes the inbox");
++  });
++
++  await scenario("D10", "source contract: one dispatch site, no false text, no resume or gate import in the view", () => {
++    const src = fs.readFileSync(COMPONENT, "utf8");
++    assert.equal(occurrences(src, /onExecute\?\.\(/), 1, "ExecuteControl's YÜRÜTMEYİ BAŞLAT stays the only call of onExecute");
++    assert.doesNotMatch(src, FALSE_AUTO_CONTINUE);
++    const pendingCardSrc = src.slice(src.indexOf("function AyasOwnerPendingExecutionCard"), src.indexOf("const AYAS_NON_ACTIONABLE_DISPLAY_STATES"));
++    assert.match(pendingCardSrc, /<ExecuteControl proposal=\{proposal\} placement="owner-pending"/);
++    assert.match(pendingCardSrc, /admitted && approved && proposal \?/);
++    const view = fs.readFileSync(VIEW, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
++    for (const forbidden of ["AyasAutonomousExecutionGate", "AyasOwnerApprovalResume", "AyasProposalApprovalService", "AyasProposalExecutionService", ".decide("]) assert.ok(!view.includes(forbidden), `view must not reference ${forbidden}`);
++  });
++
++  // --- S: what the server does with the same records ---
++
++  await scenario("S01", "unattributed owner-model APPROVE + a valid fresh EXECUTE: the execution service refuses, zero effect", async () => {
++    const f = makeFixture();
++    unattributedOwnerApprove(f);
++    const approve = [...f.strict.load().decisions].reverse().find((d) => d.decision === "APPROVE");
++    assert.equal(isAyasApprovalDecisionOwnerAdmitted(approve, f.proposal), false, "the YÜRÜT server action refuses here before calling the service");
++    const before = snapshot(f);
++    await assert.rejects(() => execute(f, undefined), refused("OWNER_ADMISSION_REQUIRED"));
++    await assert.rejects(() => execute(f, undefined), refused("OWNER_ADMISSION_REQUIRED"));
++    assertNoEffect(f, before, "S01");
++    const fresh = await admit(f.proposal, "EXECUTE", Date.now());
++    await assert.rejects(() => execute(f, fresh), refused("OWNER_ADMISSION_REQUIRED"));
++    assertNoEffect(f, before, "S01-fresh");
++    assert.equal(f.strict.load().proposals[0]?.status, "APPROVED");
++    return { attempts: 0, commits: 0, mutations: 0 };
++  });
++
++  await scenario("S02", "sealed APPROVE without a fresh EXECUTE, or with the APPROVE admission replayed as EXECUTE: refused, zero effect", async () => {
++    const f = makeFixture();
++    const approval = await sealedOwnerApprove(f);
++    const before = snapshot(f);
++    await assert.rejects(() => execute(f, undefined), refused("OWNER_ADMISSION_REQUIRED"));
++    await assert.rejects(() => execute(f, approval), refused("OWNER_ADMISSION_REQUIRED"));
++    const staleExecute = await admit(f.proposal, "EXECUTE", Date.now() - 10 * 60 * 1000);
++    await assert.rejects(() => execute(f, staleExecute), refused("OWNER_ADMISSION_REQUIRED"));
++    assertNoEffect(f, before, "S02");
++    return { refused: ["no-execute", "approve-replayed-as-execute", "stale-execute"] };
++  });
++
++  await scenario("S03", "positive control: sealed APPROVE from two hours ago + a fresh EXECUTE runs the change locally once — no commit; the same EXECUTE cannot run it again", async () => {
++    const f = makeFixture();
++    const approval = await sealedOwnerApprove(f);
++    assert.equal(render(f).recommendations.pendingExecution[0]?.manualExecution, "AVAILABLE");
++    const before = snapshot(f);
++    const execution = await admit(f.proposal, "EXECUTE", Date.now());
++    await execute(f, execution);
++    const after = snapshot(f);
++    assert.equal(after.head, before.head, "no commit");
++    assert.equal(after.file, "export const value = 2;\n", "applied in the working copy");
++    assert.equal(after.status, "M src/fixture.ts");
++    assert.equal(after.journal, 1);
++    const state = f.strict.load();
++    assert.equal(state.proposals[0]?.status, "COMPLETED");
++    const decision = state.decisions.find((d) => d.decision === "APPROVE")!;
++    assert.deepEqual(decision.ownerAdmission, approval);
++    assert.deepEqual(decision.executionOwnerAdmission, execution);
++    assert.notEqual(approval.sessionRef, execution.sessionRef, "two verified logins");
++    await assert.rejects(() => execute(f, execution));
++    assert.equal(snapshot(f).journal, 1, "no second execution");
++    const { html } = render(f);
++    assert.doesNotMatch(html, /ayas-owner-pending-execution/, "a completed proposal leaves the pending list");
++    assert.doesNotMatch(html, />YÜRÜT</);
++    return { executions: 1, commits: 0, pushes: 0, distinctSessions: true };
++  });
++
++  console.log(`AYAS Gelişim Merkezi owner execute smoke: PASS (${count} scenarios)`);
++  console.log(JSON.stringify({ status: "PASS", suite: "ayas-development-center-owner-execute", scenarios: count, rows }));
++}
++
++main()
++  .catch((error) => { console.error(error); process.exitCode = 1; })
++  .finally(() => { fs.rmSync(RUN_ROOT, { recursive: true, force: true }); });
+diff --git a/scripts/smoke-ayas-owner-recommendations-view.ts b/scripts/smoke-ayas-owner-recommendations-view.ts
+index e8d7f27..4cb7807 100644
+--- a/scripts/smoke-ayas-owner-recommendations-view.ts
++++ b/scripts/smoke-ayas-owner-recommendations-view.ts
+@@ -170,7 +170,7 @@ function main(): void {
+     assert.match(html, /Onaylandı — Yürütme Bekleniyor/);
+     assert.match(html, />ONAYLANDI</);
+     assert.match(html, /assert çağrılarına teşhis mesajı ekle/);
+-    assert.match(html, /Otomatik yürütme şu anda devre dışı/);
++    assert.match(html, /doğrulanmış bir owner oturumuna bağlı değil/); // unattributed fixture APPROVE: no automatic continuation, no YÜRÜT
+     assert.doesNotMatch(html, />ONAYLA</);
+     assert.doesNotMatch(html, />REDDET</);
+     assert.doesNotMatch(html, />VAZGEÇ</);
+diff --git a/src/components/brain/AyasDevelopmentCenter.tsx b/src/components/brain/AyasDevelopmentCenter.tsx
+index 3affd6b..c71da03 100644
+--- a/src/components/brain/AyasDevelopmentCenter.tsx
++++ b/src/components/brain/AyasDevelopmentCenter.tsx
+@@ -207,10 +207,12 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
+   readonly onDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void;
+ }) {
+   const [confirming, setConfirming] = useState(false);
+-  const { request, binding } = recommendation;
++  const { request, binding, afterApproval } = recommendation;
+   const busy = pendingId === binding.proposalId;
+   const errorMessage = error?.proposalId === binding.proposalId ? (ayasOwnerDecisionErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
+   const decide = (decision: AyasOwnerDecisionLiteral) => onDecision?.({ binding, decision });
++  const executesNow = afterApproval === "EXECUTES_AND_PUBLISHES";
++  const busyLabel = executesNow ? "UYGULANIYOR…" : "KAYDEDİLİYOR…";
+ 
+   return (
+     <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-rec-${binding.proposalId}`}>
+@@ -240,15 +242,17 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
+       {confirming ? (
+         <div className="bc-dev__confirm" role="group" aria-label="Onaylarsam ne olacak?">
+           <strong>ONAYLA — onaylarsam ne olacak?</strong>
+-          <p>AYAS bu değişikliği kendisi uygulayacak, test edecek ve başarılı olursa tek bir commit olarak yayınlayacak. İkinci bir onay istenmeyecek.</p>
++          {executesNow
++            ? <p>AYAS bu değişikliği kendisi uygulayacak, test edecek ve başarılı olursa tek bir commit olarak yayınlayacak. İkinci bir onay istenmeyecek.</p>
++            : <p>Onayın kalıcı olarak kaydedilir; AYAS bu değişikliği kendiliğinden yürütmez. Yürütmek için &quot;Onaylandı — Yürütme Bekleniyor&quot; bölümünde ayrıca YÜRÜT&apos;e basman gerekir.</p>}
+           <div className="bc-dev__actions">
+-            <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
++            <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>{busy ? busyLabel : "ONAYLA"}</button>
+             <button type="button" className="bc-btn bc-btn--ghost" disabled={busy} onClick={() => setConfirming(false)}>VAZGEÇ</button>
+           </div>
+         </div>
+       ) : (
+         <div className="bc-dev__actions">
+-          <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
++          <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>{busy ? busyLabel : "ONAYLA"}</button>
+           <button type="button" className="bc-btn bc-btn--ghost" disabled={busy || !onDecision} onClick={() => decide("REJECT")}>REDDET</button>
+         </div>
+       )}
+@@ -257,26 +261,36 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
+ }
+ 
+ /**
+- * Durable one-click correction (Step 3/4). A proposal the owner already
+- * durably APPROVED while live execution was off — read entirely from the
++ * An owner-model APPROVE that has not run yet — read entirely from the
+  * server's `pendingExecution` list, never from client memory, so it reads
+- * "ONAYLANDI" exactly the same after a hard reload or a server restart as it
+- * did the moment the owner clicked. Deliberately has NO button at all: the
+- * owner's decision already happened once and is already durably recorded;
+- * offering ONAYLA again here would be the exact duplicate-authorization this
+- * correction rules out. `AyasOwnerApprovalResume.ts` is what later turns
+- * this into a real execution once live execution is enabled.
++ * "ONAYLANDI" exactly the same after a hard reload or a server restart. It
++ * never offers ONAYLA again: the decision is already durably recorded.
++ * Nothing resumes it automatically (owner policy 2026-10-08). It runs only
++ * through the ordinary manual YÜRÜT (`ExecuteControl`), shown here only when
++ * the server verified a sealed owner APPROVE for exactly this proposal
++ * (`manualExecution === "AVAILABLE"`) and the inbox still reads APPROVED;
++ * the server then requires a freshly verified EXECUTE before anything runs.
+  */
+-function AyasOwnerPendingExecutionCard({ entry }: { readonly entry: AyasOwnerPendingExecutionEntry }) {
++function AyasOwnerPendingExecutionCard({ entry, proposal, executingId, executionError, onExecute }: { readonly entry: AyasOwnerPendingExecutionEntry; readonly proposal?: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
++  const admitted = entry.manualExecution === "AVAILABLE";
++  const approved = proposal?.status === "APPROVED";
+   return (
+     <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-pending-execution-${entry.proposalId}`}>
+       <header className="bc-dev__proposal-head">
+         <div><span className="bc-dev__status">ONAYLANDI</span><h3>{entry.wantsTo}</h3></div>
+       </header>
+       <div className="bc-dev__confirm" role="status">
+-        <p>Otomatik yürütme şu anda devre dışı. AYAS, yürütme etkinleştirildiğinde bu onayı yeniden doğrulayıp işlemi otomatik olarak sürdürecek.</p>
++        {!admitted
++          ? <p>Bu onay doğrulanmış bir owner oturumuna bağlı değil (eski ya da kimliği doğrulanamayan kayıt). AYAS bunu yürütmez ve YÜRÜT sunulmaz; değişiklik hâlâ gerekiyorsa yeni bir öneri ve yeni onay gerekir.</p>
++          : approved
++            ? <p>Onayın kayıtlı. AYAS bunu kendiliğinden yürütmez; yürütme yalnız senin YÜRÜT eyleminle ve doğrulanmış owner oturumunla başlar.</p>
++            : proposal
++              ? <p>Güncel durum: {statusLabel[proposal.status]}. Bu öneri için YÜRÜT sunulmaz.</p>
++              : <p>Bu öneri güncel listede bulunamadı; sayfayı yenile. YÜRÜT sunulmaz.</p>}
+         <p><small>Onaylandı: {new Date(entry.approvedAt).toLocaleString("tr-TR")}</small></p>
+       </div>
++      {proposal?.status === "RECOVERY_REQUIRED" ? <RecoveryNotice /> : null}
++      {admitted && approved && proposal ? <ExecuteControl proposal={proposal} placement="owner-pending" executingId={executingId} executionError={executionError} onExecute={onExecute} /> : null}
+     </article>
+   );
+ }
+@@ -371,13 +385,16 @@ const executionErrorLabel: Record<string, string> = {
+   AYAS_MUTATION_SCOPE_MISMATCH: "Uygulamanın dosya kapsamı öneriyle eşleşmiyor.",
+   STALE_APPROVAL: "Onay durumu değişti — sayfayı yenile.",
+   INVALID_INPUT: "Geçersiz istek.",
++  OWNER_ADMISSION_REQUIRED: "Doğrulanmış owner oturumu gerekiyor — yeniden giriş yap ve kartın güncel durumuna bak.",
++  OWNER_ADMISSION_GATE_UNAVAILABLE: "Owner doğrulaması bu sunucuda kullanılamıyor — yürütme başlatılmadı.",
++  AYAS_DAEMON_DIRTY_REPO: "Çalışma ağacında kaydedilmemiş değişiklikler var — yürütme başlatılmadı.",
+   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
+ };
+ 
+-/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. A proposal APPROVED via the owner-approval model (`ownerApprovedPendingExecution`) also renders nothing here — it already has its own durable "ONAYLANDI" card (`AyasOwnerPendingExecutionCard`) and resumes automatically via `AyasOwnerApprovalResume.ts`, never via this manual YÜRÜT control. */
+-function ExecuteControl({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
++/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. A proposal APPROVED via the owner-approval model (`ownerApprovedPendingExecution`) gets this control only on its "Onaylandı — Yürütme Bekleniyor" card (`placement="owner-pending"`), which renders it only after the server verified a sealed owner APPROVE; it is never resumed automatically. Every other APPROVED proposal keeps it on its timeline card. Either way the server requires a fresh verified EXECUTE before anything runs. */
++function ExecuteControl({ proposal, executingId, executionError, onExecute, placement = "timeline" }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly placement?: "timeline" | "owner-pending" }) {
+   const [confirming, setConfirming] = useState(false);
+-  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution) return null;
++  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution !== (placement === "owner-pending")) return null;
+   const busy = executingId === proposal.proposalId;
+   const error = executionError?.proposalId === proposal.proposalId ? executionError : null;
+   const errorMessage = error ? executionErrorLabel[error.code] ?? `Yürütme başarısız oldu (${error.code}).` : null;
+@@ -391,6 +408,7 @@ function ExecuteControl({ proposal, executingId, executionError, onExecute }: {
+         <p><b>Test planı:</b> {proposal.testsPlanned.join(" · ")}</p>
+         <p><b>Üretim etkisi:</b> {proposal.productionImpact}</p>
+         <p><b>Uygulama kimliği:</b> <code>{proposal.mutationKind || "—"}</code></p>
++        <p>AYAS değişikliği bu bilgisayardaki çalışma kopyasında uygular ve testleri çalıştırır; commit veya push yapmaz. Doğrulanmış owner oturumu gerekir.</p>
+         <p>Bu onay tek kullanımlıktır; yürütme başladıktan sonra aynı onay tekrar kullanılamaz.</p>
+         {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
+         <div className="bc-dev__actions">
+@@ -530,6 +548,7 @@ export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision
+   const pendingOwnerApprovals = selectAyasPendingOwnerApprovals(inbox);
+   const pendingIds = new Set(pendingOwnerApprovals.map((proposal) => proposal.proposalId));
+   const pendingReview = inbox.pending.filter((proposal) => !pendingIds.has(proposal.proposalId));
++  const inboxProposalById = new Map([...inbox.history, ...inbox.today, ...inbox.pending].map((proposal) => [proposal.proposalId, proposal] as const));
+   return (
+     <section className="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center">
+       <header className="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header>
+@@ -553,7 +572,7 @@ export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision
+         <section className="bc-dev__section" aria-labelledby="ayas-owner-pending-execution" data-testid="ayas-owner-pending-execution">
+           <h3 id="ayas-owner-pending-execution">Onaylandı — Yürütme Bekleniyor <span>{ownerApprovalPendingExecution.length}</span></h3>
+           <div className="bc-dev__timeline">
+-            {ownerApprovalPendingExecution.map((entry) => <AyasOwnerPendingExecutionCard key={entry.proposalId} entry={entry} />)}
++            {ownerApprovalPendingExecution.map((entry) => <AyasOwnerPendingExecutionCard key={entry.proposalId} entry={entry} proposal={inboxProposalById.get(entry.proposalId)} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}
+           </div>
+         </section>
+       ) : null}
+diff --git a/src/lib/brain/autonomy/AyasApprovalInboxView.ts b/src/lib/brain/autonomy/AyasApprovalInboxView.ts
+index 76d6f33..8191bb9 100644
+--- a/src/lib/brain/autonomy/AyasApprovalInboxView.ts
++++ b/src/lib/brain/autonomy/AyasApprovalInboxView.ts
+@@ -80,11 +80,12 @@ export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
+   /**
+    * True only for an `APPROVED` proposal whose APPROVE came from the
+    * owner-approval model (`AyasAutonomousExecutionGate.decideAyasOwnerApproval`)
+-   * while live execution was disabled — durably resumable by
+-   * `AyasOwnerApprovalResume.ts`, never by a second manual click. A legacy
+-   * `decideAyasApproval`-approved proposal is `false` here and keeps its
+-   * ordinary manual "YÜRÜT" control; this flag is what lets the UI show the
+-   * two differently without a client-side flag of its own.
++   * without executing (an exact reviewed patch, or live execution off). It
++   * is never resumed automatically; its manual "YÜRÜT" is shown on the
++   * "Onaylandı — Yürütme Bekleniyor" card, and only for a sealed owner
++   * APPROVE. A legacy `decideAyasApproval`-approved proposal is `false` here
++   * and keeps its ordinary "YÜRÜT" on its timeline card; this flag is what
++   * lets the UI place the two differently without a client-side flag.
+    */
+   readonly ownerApprovedPendingExecution: boolean;
+ }
+diff --git a/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts b/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts
+index 0c84e7a..abc1a34 100644
+--- a/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts
++++ b/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts
+@@ -18,25 +18,53 @@ import { evaluateAyasInternalDecision } from "./AyasInternalDecision";
+ import { buildAyasOwnerApprovalRequest, type AyasOwnerApprovalRequest } from "./AyasOwnerApprovalRequest";
+ import { bindAyasOwnerApproval, type AyasApprovalBindingSnapshot } from "./AyasApprovalBinding";
+ import { isAyasOwnerApprovedDecisionReason } from "./AyasOwnerApprovalProvenance";
++import { isAyasApprovalDecisionOwnerAdmitted } from "./AyasOwnerApprovalAdmission";
++
++/**
++ * What the owner's ONAYLA will actually do, so the confirmation text never
++ * promises more than happens. Mirrors the branch order of
++ * `AyasAutonomousExecutionGate.decideAyasOwnerApproval`: an exact reviewed
++ * patch is only ever recorded for local governed execution, and with live
++ * execution off every APPROVE is only recorded. Display only — the gate
++ * re-decides on the click and remains the authority.
++ */
++export type AyasOwnerAfterApproval = "EXECUTES_AND_PUBLISHES" | "WAITS_FOR_MANUAL_EXECUTE";
+ 
+ export interface AyasOwnerRecommendation {
+   readonly request: AyasOwnerApprovalRequest;
+   readonly binding: AyasApprovalBindingSnapshot;
++  readonly afterApproval: AyasOwnerAfterApproval;
+ }
+ 
+ /**
+- * A proposal the owner already durably APPROVED while live execution was
+- * off — Step 3/4 of the durable one-click correction. Shown as a plain,
+- * non-actionable "ONAYLANDI" card: no ONAYLA, no REJECT, no VAZGEÇ, because
+- * the owner's decision already happened and is already durably recorded.
+- * `AyasOwnerApprovalResume.ts` is what later turns this into a real
+- * execution once `AYAS_AUTONOMOUS_EXECUTION_ENABLED` is set — never a second
+- * click here.
++ * Same test as `AyasAutonomousExecutionGate.isAyasAutonomousExecutionEnabled`,
++ * kept local so this read-only view does not import the gate and, through
++ * it, the execution/publication services. A smoke compares the two.
++ */
++export function isAyasLiveExecutionEnabledForDisplay(env: Record<string, string | undefined> = process.env): boolean {
++  return env.AYAS_AUTONOMOUS_EXECUTION_ENABLED === "1";
++}
++
++export function ayasOwnerAfterApproval(proposal: { readonly exactPatchSafetyProof?: unknown }, env: Record<string, string | undefined> = process.env): AyasOwnerAfterApproval {
++  return !proposal.exactPatchSafetyProof && isAyasLiveExecutionEnabledForDisplay(env) ? "EXECUTES_AND_PUBLISHES" : "WAITS_FOR_MANUAL_EXECUTE";
++}
++
++/**
++ * A proposal the owner durably APPROVED through the owner-approval model that
++ * has not run yet: an exact reviewed patch (always local governed execution),
++ * or any APPROVE recorded while live execution was off. Nothing resumes it
++ * automatically (owner policy 2026-10-08: no automatic resume, a fresh manual
++ * EXECUTE is required). The card offers the manual YÜRÜT only when
++ * `manualExecution` is `AVAILABLE`, i.e. the APPROVE carries a sealed owner
++ * admission for exactly this proposal and hash — the same check
++ * `executeAyasApprovedProposal` makes before executing. An older or
++ * unattributed APPROVE is `OWNER_ADMISSION_MISSING` and is never offered.
+  */
+ export interface AyasOwnerPendingExecutionEntry {
+   readonly proposalId: string;
+   readonly wantsTo: string;
+   readonly approvedAt: string;
++  readonly manualExecution: "AVAILABLE" | "OWNER_ADMISSION_MISSING";
+ }
+ 
+ export interface AyasOwnerRecommendationsView {
+@@ -46,7 +74,12 @@ export interface AyasOwnerRecommendationsView {
+   readonly pendingExecution: readonly AyasOwnerPendingExecutionEntry[];
+ }
+ 
+-export function loadAyasOwnerRecommendationsView(inbox: AyasApprovalInboxHandle = createAyasApprovalInboxStore()): AyasOwnerRecommendationsView {
++/** A verification error must not disconnect the whole view; it only withholds YÜRÜT. */
++function ownerAdmittedForDisplay(...args: Parameters<typeof isAyasApprovalDecisionOwnerAdmitted>): boolean {
++  try { return isAyasApprovalDecisionOwnerAdmitted(...args); } catch { return false; }
++}
++
++export function loadAyasOwnerRecommendationsView(inbox: AyasApprovalInboxHandle = createAyasApprovalInboxStore(), env: Record<string, string | undefined> = process.env): AyasOwnerRecommendationsView {
+   try {
+     const now = new Date().toISOString();
+     const state = inbox.load();
+@@ -56,14 +89,19 @@ export function loadAyasOwnerRecommendationsView(inbox: AyasApprovalInboxHandle
+       if (proposal.status === "APPROVED") {
+         const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposal.proposalId && d.decision === "APPROVE");
+         if (isAyasOwnerApprovedDecisionReason(decision?.reason)) {
+-          pendingExecution.push({ proposalId: proposal.proposalId, wantsTo: proposal.objective || "belirtilmemiş bir geliştirme", approvedAt: decision?.decidedAt ?? proposal.lastUpdatedAt });
++          pendingExecution.push({
++            proposalId: proposal.proposalId,
++            wantsTo: proposal.objective || "belirtilmemiş bir geliştirme",
++            approvedAt: decision?.decidedAt ?? proposal.lastUpdatedAt,
++            manualExecution: ownerAdmittedForDisplay(decision, proposal) ? "AVAILABLE" : "OWNER_ADMISSION_MISSING",
++          });
+         }
+         continue;
+       }
+       if (proposal.status !== "PENDING") continue;
+       const decision = evaluateAyasInternalDecision(proposal);
+       if (decision.decision !== "RECOMMEND_FOR_APPROVAL" || !decision.executable) continue;
+-      recommendations.push({ request: buildAyasOwnerApprovalRequest(proposal, decision), binding: bindAyasOwnerApproval(proposal, now) });
++      recommendations.push({ request: buildAyasOwnerApprovalRequest(proposal, decision), binding: bindAyasOwnerApproval(proposal, now), afterApproval: ayasOwnerAfterApproval(proposal, env) });
+     }
+     return { connected: true, recommendations, pendingExecution };
+   } catch (error) {

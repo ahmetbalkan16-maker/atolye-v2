@@ -1,0 +1,238 @@
+{
+  "at": "2026-10-08T21:28:10.013Z",
+  "baseHead": "ad6c2a99a6c49e7e3c11b02c441a01138542db53",
+  "isolation": "TEMP git clone (--shared) of ad6c2a9 with node_modules junction; TEMP/TMP pointed into the TEMP workspace; no data/brain, live runtime, network, model or access key from the environment",
+  "suites": [
+    {
+      "file": "CLEAN_smoke-ayas-autonomy-observer.raw.log",
+      "suite": "smoke-ayas-autonomy-observer",
+      "tree": "CLEAN_HEAD_ad6c2a9",
+      "result": "FAIL",
+      "line": "AYAS autonomy observer smoke FAILED: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from\\s+\"\\.\\/observerActions\"/. Input:",
+      "sha256": "1b62a08869e59901dfc94ec96de4256899ddcf78b5acaf51ff0ed0639bee2c0e"
+    },
+    {
+      "file": "CLEAN_smoke-ayas-publication-activity.raw.log",
+      "suite": "smoke-ayas-publication-activity",
+      "tree": "CLEAN_HEAD_ad6c2a9",
+      "result": "FAIL",
+      "line": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "sha256": "145f42d0bac2539fcdbc20d3af82495b7035dae0a3b3aa4d607adbf9b127ad55"
+    },
+    {
+      "file": "REG_smoke-ayas-action-firewall-closure.raw.log",
+      "suite": "smoke-ayas-action-firewall-closure",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "Stage 15D firewall closure audit: PASS (12 scenarios; 9 surfaces; 41 mapped modules; TEMP only)",
+      "sha256": "f3749ab04697c8c715412864a570ee25d1ada4cedb7ed4a1464e5b126bbde6c7"
+    },
+    {
+      "file": "REG_smoke-ayas-approval-durable-state-compatibility.raw.log",
+      "suite": "smoke-ayas-approval-durable-state-compatibility",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-approval-durable-state-compatibility\",\"scenarios\":24}",
+      "sha256": "cf96e5a6215ffd841a3318b41b4e61e2e37fc30af27c4c4e38a130df400cdd68"
+    },
+    {
+      "file": "REG_smoke-ayas-autonomous-execution-gate-v2.raw.log",
+      "suite": "smoke-ayas-autonomous-execution-gate-v2",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-autonomous-execution-gate-v2\",\"scenarios\":6}",
+      "sha256": "ce9c5a19283fcbbcd4dca6d6be608cfc698d0b352940a0ab524c2532aa1fca44"
+    },
+    {
+      "file": "REG_smoke-ayas-autonomy-observer.raw.log",
+      "suite": "smoke-ayas-autonomy-observer",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "FAIL",
+      "line": "AYAS autonomy observer smoke FAILED: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from\\s+\"\\.\\/observerActions\"/. Input:",
+      "sha256": "cc4658cd4be1c265909ed1a47dd201818f4dd88cf6453e7eef27d0db4c4d77c1"
+    },
+    {
+      "file": "REG_smoke-ayas-brain-control-center.raw.log",
+      "suite": "smoke-ayas-brain-control-center",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-brain-control-center\",\"mode\":\"final\",\"primary\":{\"pass\":22,\"fail\":0,\"missing\":0,\"total\":22},\"heldOut\":{\"pass\":13,\"fail\":0,\"missing\":0,\"total\":13},\"integration\":{\"pass\":4,",
+      "sha256": "779f0efa5bf2b92f139891347ad8eba699468ed2988c02235c0c6d505cdb4053"
+    },
+    {
+      "file": "REG_smoke-ayas-daemon-authority-boundary.raw.log",
+      "suite": "smoke-ayas-daemon-authority-boundary",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-daemon-authority-boundary\",\"scenarios\":23}",
+      "sha256": "db336fa5de10dd3cdbe0bdf0d70d75fc56e0a5e3b305848425982463e8dfd2c7"
+    },
+    {
+      "file": "REG_smoke-ayas-development-center-owner-execute.raw.log",
+      "suite": "smoke-ayas-development-center-owner-execute",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-development-center-owner-execute\",\"scenarios\":13,\"rows\":[{\"id\":\"D01\",\"name\":\"a sealed owner-model APPROVE shows the truth and exactly one YÜRÜT, on its pending card, beh",
+      "sha256": "1fc1ffa4265f5d4e3e6d86556f16ff9e1390efe09da5dd1841012864e8df04e2"
+    },
+    {
+      "file": "REG_smoke-ayas-development-center.raw.log",
+      "suite": "smoke-ayas-development-center",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-development-center\",\"scenarios\":59}",
+      "sha256": "4b95b94018f7a9933dea7f46ed50e7fc47f1779b4922163a39baa5201ca314ac"
+    },
+    {
+      "file": "REG_smoke-ayas-durable-task-recovery.raw.log",
+      "suite": "smoke-ayas-durable-task-recovery",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-durable-task-recovery\",\"scenarios\":22,\"journalRoots\":36}",
+      "sha256": "6a35df283f926ddce183ece0a2e956bf9dedb1fe62663a0d0c7e0119c4e65e3f"
+    },
+    {
+      "file": "REG_smoke-ayas-homepage-v2.raw.log",
+      "suite": "smoke-ayas-homepage-v2",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"suite\":\"ayas-homepage-v2\",\"status\":\"PASS\",\"scenarios\":11}",
+      "sha256": "6d822ca38d1729bd26bd89cbe848516cc9be964c6aa1efbf759371d0c7684e2f"
+    },
+    {
+      "file": "REG_smoke-ayas-lifecycle.raw.log",
+      "suite": "smoke-ayas-lifecycle",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "Stage 15E lifecycle: PASS (14 scenarios; 19 registry entries; offline; no model, network or install)",
+      "sha256": "8d33edcb7400dfc957a794c3475737948e5980bde231312c2bcb1c0d5e573b4d"
+    },
+    {
+      "file": "REG_smoke-ayas-micro-batch-development-center.raw.log",
+      "suite": "smoke-ayas-micro-batch-development-center",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-micro-batch-development-center\",\"scenarios\":27}",
+      "sha256": "380209a0eacc256339228a9513719f260e6ede622cb25f73f20c4e7a5d9c6367"
+    },
+    {
+      "file": "REG_smoke-ayas-owner-approval-admission.raw.log",
+      "suite": "smoke-ayas-owner-approval-admission",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "AYAS owner approval admission smoke: PASS (35 scenarios)",
+      "sha256": "b6809c5913405ccceb743a9b948b068a3c9fa1de9d51be8e188e26dec59cfd7d"
+    },
+    {
+      "file": "REG_smoke-ayas-owner-approval-resume-v2.raw.log",
+      "suite": "smoke-ayas-owner-approval-resume-v2",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "AYAS owner-approval resume V2 smoke: PASS (20 scenarios)",
+      "sha256": "c6636827265ddbf1da063eb84f3238592bb649aa87988373f74dcc1cc1295d49"
+    },
+    {
+      "file": "REG_smoke-ayas-owner-recommendations-view.after-edit.raw.log",
+      "suite": "smoke-ayas-owner-recommendations-view",
+      "tree": "CANDIDATE_WITH_ONE_LINE_TEST_UPDATE",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-owner-recommendations-view\",\"scenarios\":13}",
+      "sha256": "584f33d267771ee64a3abb6c3e3b7d12029a263ef4070aa609a42c67b6be4a97"
+    },
+    {
+      "file": "REG_smoke-ayas-owner-recommendations-view.raw.log",
+      "suite": "smoke-ayas-owner-recommendations-view",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "FAIL",
+      "line": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Otomatik yürütme şu anda devre dışı/. Input:",
+      "sha256": "6c8baa4440789c4d21bb278f2cd547f68af43d26f3ac6faf3113c861868de499"
+    },
+    {
+      "file": "REG_smoke-ayas-owner-ui-v2.raw.log",
+      "suite": "smoke-ayas-owner-ui-v2",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"suite\":\"ayas-owner-ui-v2\",\"status\":\"PASS\",\"scenarios\":36}",
+      "sha256": "b1e26791edbd42d18286ce84a499adfb0f6ef7ccaf1dd50b10ff8f5dae96127d"
+    },
+    {
+      "file": "REG_smoke-ayas-proposal-execution-service.raw.log",
+      "suite": "smoke-ayas-proposal-execution-service",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"ayas-proposal-execution-service\",\"scenarios\":29}",
+      "sha256": "c5aaccdec310328acb46474856f6ee6ad8a5af763c6a849b3900bae2d3e6b32c"
+    },
+    {
+      "file": "REG_smoke-ayas-publication-activity.raw.log",
+      "suite": "smoke-ayas-publication-activity",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "FAIL",
+      "line": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "sha256": "2e1128fcade84fa5a4aa9b0f2765f45a977e029acd91c1b9c74cdf503150c513"
+    },
+    {
+      "file": "REG_smoke-ayas-reply-fallback-truth.raw.log",
+      "suite": "smoke-ayas-reply-fallback-truth",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "PASS (11 scenarios)",
+      "sha256": "2387ff541e52f3b8118959b255fc323c36bfc985d943c40b58cb13b3c11a833d"
+    },
+    {
+      "file": "REG_smoke-ayas-voice-turn-state-mutations.raw.log",
+      "suite": "smoke-ayas-voice-turn-state-mutations",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "Post-freeze voice and turn-state mutation audit: PASS (12/12 caught; 467 files in TEMP overlay)",
+      "sha256": "dacb1915024a709b4a42e55eb5a2c8f698f7a28981397197dfb7d5fa8fa5cfbe"
+    },
+    {
+      "file": "REG_smoke-brain-core-ui.raw.log",
+      "suite": "smoke-brain-core-ui",
+      "tree": "CANDIDATE_OVERLAY_ON_ad6c2a9",
+      "result": "PASS",
+      "line": "{\"status\":\"PASS\",\"suite\":\"brain-core-ui\",\"scenarios\":43}",
+      "sha256": "6aec04f48f9372c9f0660b66c3ca3d19b259cf810971ffe444d41915d022181e"
+    }
+  ],
+  "expectedFlip": {
+    "suite": "smoke-ayas-owner-recommendations-view",
+    "line": 173,
+    "reason": "asserted the false automatic-continue text; candidate updates that one assertion",
+    "afterUpdate": "PASS"
+  },
+  "preExistingFailures": [
+    {
+      "suite": "smoke-ayas-publication-activity",
+      "candidate": "FAIL",
+      "cleanHead": "FAIL",
+      "sameAssertion": true
+    },
+    {
+      "suite": "smoke-ayas-autonomy-observer",
+      "candidate": "FAIL",
+      "cleanHead": "FAIL",
+      "sameAssertion": true
+    }
+  ],
+  "tsc": "EXIT0_EMPTY_OUTPUT",
+  "eslintChangedFiles": "EXIT0_MAX_WARNINGS_0_EMPTY_OUTPUT",
+  "mutations": {
+    "devcenter": {
+      "mutants": 10,
+      "killed": 10
+    },
+    "v2Hardening": {
+      "mutants": 5,
+      "killed": 5
+    }
+  },
+  "notRun": [
+    "real browser hydration of the changed card (TEMP build + CDP)",
+    "real phone/PC device check",
+    "cross-process race",
+    "real server restart",
+    "Full166 for any new HEAD"
+  ]
+}

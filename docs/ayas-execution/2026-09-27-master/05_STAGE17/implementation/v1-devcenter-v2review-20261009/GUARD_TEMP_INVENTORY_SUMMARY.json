@@ -1,0 +1,75 @@
+{
+  "inventoriedAt": "2026-10-09 (read-only, before any cleanup)",
+  "total": 13552,
+  "byKind": {
+    "inbox": {
+      "count": 1064,
+      "files": 0,
+      "bytes": 0,
+      "selfReparse": 0,
+      "innerReparse": 0,
+      "empty": 1064,
+      "oldestCreated": "2026-09-18T16:58:01.9883427+03:00",
+      "newestWrite": "2026-10-08T19:59:34.3472021+03:00"
+    },
+    "sched": {
+      "count": 6244,
+      "files": 4024,
+      "bytes": 812848,
+      "selfReparse": 0,
+      "innerReparse": 0,
+      "empty": 2220,
+      "oldestCreated": "2026-09-18T16:57:40.7031451+03:00",
+      "newestWrite": "2026-10-08T23:18:09.1983133+03:00"
+    },
+    "tx": {
+      "count": 6244,
+      "files": 2710,
+      "bytes": 12056434,
+      "selfReparse": 0,
+      "innerReparse": 0,
+      "empty": 3534,
+      "oldestCreated": "2026-09-18T16:57:40.7031451+03:00",
+      "newestWrite": "2026-10-08T23:18:09.1983133+03:00"
+    }
+  },
+  "fileNames": {
+    "scheduler-state.json": 4024,
+    "stability-transactions.json": 2710
+  },
+  "contentReferencesToRealPaths": 0,
+  "reportedByOwner": 12398,
+  "explanation": "owner figure counted sched+tx at an earlier time; now 6244 sched + 6244 tx + 1064 inbox",
+  "source": "scripts/ayas-isolated-stability-guard.ts creates ayas-guard-sched-*/tx-*/inbox-* directly under os.tmpdir(); no suite removes them. The helper is pinned in the Full166 manifest (sha256 844aff67...), so the root-cause fix needs a separate manifest/pin decision.",
+  "dryRun": {
+    "at": "2026-10-09T00:24:53.5817527+03:00",
+    "mode": "DRY_RUN",
+    "tempRoot": "C:\\Users\\Metod\\AppData\\Local\\Temp\\",
+    "minAgeHours": 2,
+    "runningTestProcesses": 0,
+    "total": 13552,
+    "byOutcome": [
+      {
+        "outcome": "WOULD_DELETE",
+        "count": 13184
+      },
+      {
+        "outcome": "KEPT",
+        "count": 368
+      }
+    ],
+    "keptReasons": [
+      {
+        "reason": "TOO_RECENT",
+        "count": 368
+      }
+    ]
+  },
+  "classification": {
+    "SAFE_TO_DELETE_AFTER_REVERIFY": 13184,
+    "KEEP_TOO_RECENT": 368,
+    "KEEP_REPARSE_OR_UNEXPECTED": 0
+  },
+  "scriptBugCaughtInDryRun": "first dry run used PowerShell -notmatch, which is case-insensitive under the tr-TR culture: 'I' folds to dotless 'ı' and 1,269 valid names (those containing 'I') fell outside [A-Za-z]. Fixed with -cnotmatch/-clike before any deletion.",
+  "deleted": 0
+}

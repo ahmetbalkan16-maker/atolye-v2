@@ -1,0 +1,2 @@
+AYAS daemon authority boundary smoke: PASS (23 scenarios)
+{"status":"PASS","suite":"ayas-daemon-authority-boundary","scenarios":23}

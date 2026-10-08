@@ -1,3 +1,15 @@
+## 9 Ekim 2026 gece - V2 PASS_WITH_FINDINGS; Gelişim Merkezi çıkmazı; geçici klasör sızıntısı
+
+**F109 — MEDIUM, owner akışı / doğruluk (aday TEMP'te, kaynak açık).** `AyasDevelopmentCenter.tsx` owner-model onayı için "yürütme etkinleştirildiğinde otomatik olarak sürdürecek" der ve kontrol sunmaz; `ExecuteControl` bu onayları gizler. K3 sonrası otomatik resume yok; exact patch onayı (canlıda bayrak açıkken bile) her zaman bu karta düşer ve hiçbir yoldan yürütülemez. Aday: mühürlü owner APPROVE için mevcut YÜRÜT, admission'sız onayda YÜRÜT yok, metinler gerçek davranışı söyler. Kapsam ve kanıt: `05_STAGE17/implementation/v1-devcenter-v2review-20261009/`.
+
+**F110 — LOW, test gücü (aday TEMP'te).** V2 R05c/d "≤1 yayın" kabul eder (ikisi de başarısızsa da geçer) ve kayıtlı koşuda ikinci tık servise hiç ulaşmamış; R07 B'nin durumunu gevşek bırakır; R10a/b red nedenini sabitlemez; K3 actionRef replay kontrolü durum geçişlerinden bağımsız hiç sınanmamış. Sıkılaştırma suite'i 8/8, 5/5 mutant KILLED. Süreçler arası yarış ve gerçek restart NOT_RUN.
+
+**F111 — LOW, hijyen.** `%TEMP%` altında 13.552 `ayas-guard-*` klasörü (Full166'da pin'li `scripts/ayas-isolated-stability-guard.ts` her çağrıda iki-üç klasör sızdırır) ve diğer suite'lerden on binlerce `ayas-*` klasörü. Guard klasörlerinde junction 0; doğrulamalı silme planı hazır, çalıştırılmadı. Diğer önekler junction taşıyabilir; ayrı plan. Kök düzeltme pin kararı ister.
+
+**F112 — LOW, araç güvenliği (düzeltildi).** PowerShell `-match/-notmatch/-like` Türkçe kültürde büyük `I`'yı `ı`'ya katlar; `[A-Za-z]` deseni `I` içeren adları dışlar. Temizlik script'inin kuru çalıştırmasında 1.269 yanlış dışlama görüldü; `-cnotmatch`/`-clike` kullanıldı. Toplu dosya işlemlerinde ad desenleri büyük/küçük harf duyarlı yazılmalı.
+
+**F113 — LOW, önceden var.** `smoke-ayas-publication-activity.ts` (STALE_SUPERSEDED beklenir, undefined gelir) ve `smoke-ayas-autonomy-observer.ts` (`app/brain/page.tsx`'te `./observerActions` importu beklenir) temiz `ad6c2a9`'da aynı assertion'la FAIL. Manifest dışı; Gelişim Merkezi adayından bağımsız.
+
 ## 8 Ekim 2026 - akşam son hata temizliği; resume V2 eklendi, push yok
 
 **Kapanan boşluk:** iki eski auto-resume FAIL'inin çalıştıramadığı kapsam, yerel f37d0e7'deki sürümlü V2 suite'leriyle geçerli manuel yetki altında yeniden çalışıyor (20/20 + 6/6, 5/5 mutant KILLED). Eski suite'ler ve raw FAIL değişmedi. Bağımsız inceleme NOT_RUN.

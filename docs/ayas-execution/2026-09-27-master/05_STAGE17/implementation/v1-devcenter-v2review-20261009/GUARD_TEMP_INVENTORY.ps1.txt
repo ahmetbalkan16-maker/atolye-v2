@@ -1,0 +1,33 @@
+# Read-only inventory of %TEMP%\ayas-guard-* directories. Deletes nothing.
+# Classifies each directory by kind, age, size, file names, and reparse points (junction/symlink) anywhere inside.
+param([string]$OutJson)
+$ErrorActionPreference = 'Stop'
+$tempRoot = [System.IO.Path]::GetTempPath()
+$dirs = Get-ChildItem -LiteralPath $tempRoot -Directory -Filter 'ayas-guard-*' -Force
+$now = Get-Date
+$rows = foreach ($d in $dirs) {
+  $kind = if ($d.Name -like 'ayas-guard-sched-*') { 'sched' } elseif ($d.Name -like 'ayas-guard-tx-*') { 'tx' } elseif ($d.Name -like 'ayas-guard-inbox-*') { 'inbox' } else { 'other' }
+  $selfReparse = [bool]($d.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
+  $items = @(Get-ChildItem -LiteralPath $d.FullName -Recurse -Force -Attributes !ReparsePoint -ErrorAction SilentlyContinue)
+  $reparse = @(Get-ChildItem -LiteralPath $d.FullName -Recurse -Force -Attributes ReparsePoint -ErrorAction SilentlyContinue)
+  $files = @($items | Where-Object { -not $_.PSIsContainer })
+  $latest = ($items + $d | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime
+  [pscustomobject]@{
+    name = $d.Name; kind = $kind; created = $d.CreationTime.ToString('o'); latestWrite = $latest.ToString('o')
+    ageHours = [math]::Round(($now - $latest).TotalHours, 2)
+    selfReparse = $selfReparse; innerReparse = $reparse.Count
+    files = $files.Count; bytes = ($files | Measure-Object Length -Sum).Sum
+    fileNames = (($files | ForEach-Object { $_.FullName.Substring($d.FullName.Length + 1) }) -join '|')
+  }
+}
+$rows | ConvertTo-Json -Depth 3 | Out-File -LiteralPath $OutJson -Encoding utf8
+$summary = $rows | Group-Object kind | ForEach-Object {
+  $g = $_.Group
+  [pscustomobject]@{ kind = $_.Name; count = $g.Count; files = ($g | Measure-Object files -Sum).Sum; bytes = ($g | Measure-Object bytes -Sum).Sum
+    selfReparse = @($g | Where-Object selfReparse).Count; innerReparse = ($g | Measure-Object innerReparse -Sum).Sum
+    youngerThan1h = @($g | Where-Object { $_.ageHours -lt 1 }).Count
+    oldest = ($g | Sort-Object created | Select-Object -First 1).created; newest = ($g | Sort-Object created -Descending | Select-Object -First 1).created }
+}
+$summary | Format-Table -AutoSize | Out-String -Width 220
+'distinct file-name patterns:'
+$rows | Group-Object { ($_.fileNames -replace '[0-9a-f]{8}-[0-9a-f-]{27}', '<uuid>') } | Sort-Object Count -Descending | Select-Object -First 8 Count, Name | Format-Table -AutoSize | Out-String -Width 220

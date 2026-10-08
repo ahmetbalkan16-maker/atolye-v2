@@ -1,0 +1,54 @@
+﻿# Verified cleanup of leaked %TEMP%\ayas-guard-{sched,tx,inbox}-XXXXXX test directories.
+# Dry run by default; pass -Execute to delete. Every directory is re-verified immediately before deletion:
+#   - exact leaked-name pattern, directly under %TEMP%
+#   - no reparse point (junction/symlink) on the directory or anywhere inside
+#   - only the files the isolated stability guard writes (or empty), at depth 1, no subdirectories
+#   - nothing written for at least -MinAgeHours
+#   - no running test process (smoke / eval baseline / tsx) and no process command line naming the directory
+# Deletion never recurses: files are removed one by one, then the directory with a non-recursive delete,
+# which fails rather than follow or remove anything unexpected. A JSON receipt lists every decision.
+param([switch]$Execute, [double]$MinAgeHours = 2, [string]$Receipt)
+$ErrorActionPreference = 'Stop'
+$tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+$allowedFiles = @{ sched = @('scheduler-state.json'); tx = @('stability-transactions.json'); inbox = @() }
+$namePattern = '^ayas-guard-(sched|tx|inbox)-[A-Za-z0-9]{6}$'
+
+$busy = @(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'smoke-ayas|ayas-eval-baseline|ayas-guard-' -and $_.ProcessId -ne $PID })
+if ($busy.Count -gt 0 -and $Execute) { throw "Refusing to run: $($busy.Count) test process(es) are running." }
+
+$now = Get-Date
+$decisions = foreach ($d in Get-ChildItem -LiteralPath $tempRoot -Directory -Filter 'ayas-guard-*' -Force) {
+  $reason = $null; $kind = $null
+  if ($d.Name -cnotmatch $namePattern) { $reason = 'NAME_PATTERN' } else { $kind = $Matches[1] }
+  if (-not $reason -and ([System.IO.Path]::GetFullPath($d.Parent.FullName + '\') -ne $tempRoot)) { $reason = 'NOT_DIRECTLY_UNDER_TEMP' }
+  if (-not $reason -and ($d.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { $reason = 'DIRECTORY_IS_REPARSE_POINT' }
+  $children = @()
+  if (-not $reason) {
+    $children = @(Get-ChildItem -LiteralPath $d.FullName -Force)
+    if (@($children | Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint }).Count) { $reason = 'CONTAINS_REPARSE_POINT' }
+    elseif (@($children | Where-Object PSIsContainer).Count) { $reason = 'CONTAINS_SUBDIRECTORY' }
+    elseif (@($children | Where-Object { $allowedFiles[$kind] -notcontains $_.Name }).Count) { $reason = 'UNEXPECTED_FILE' }
+  }
+  if (-not $reason) {
+    $latest = (@($children) + $d | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime
+    if (($now - $latest).TotalHours -lt $MinAgeHours) { $reason = 'TOO_RECENT' }
+  }
+  if (-not $reason -and @($busy | Where-Object { $_.CommandLine -clike "*$($d.Name)*" }).Count) { $reason = 'NAMED_BY_RUNNING_PROCESS' }
+  $outcome = if ($reason) { 'KEPT' } elseif ($Execute) { 'DELETED' } else { 'WOULD_DELETE' }
+  if ($outcome -eq 'DELETED') {
+    try {
+      foreach ($f in $children) { Remove-Item -LiteralPath $f.FullName -Force }
+      [System.IO.Directory]::Delete($d.FullName, $false)
+    } catch { $outcome = 'FAILED'; $reason = $_.Exception.Message }
+  }
+  [pscustomobject]@{ name = $d.Name; kind = $kind; files = $children.Count; outcome = $outcome; reason = $reason }
+}
+$summary = [pscustomobject]@{
+  at = $now.ToString('o'); mode = $(if ($Execute) { 'EXECUTE' } else { 'DRY_RUN' }); tempRoot = $tempRoot; minAgeHours = $MinAgeHours
+  runningTestProcesses = $busy.Count; total = @($decisions).Count
+  byOutcome = @($decisions | Group-Object outcome | ForEach-Object { [pscustomobject]@{ outcome = $_.Name; count = $_.Count } })
+  keptReasons = @($decisions | Where-Object outcome -eq 'KEPT' | Group-Object reason | ForEach-Object { [pscustomobject]@{ reason = $_.Name; count = $_.Count } })
+}
+if ($Receipt) { [pscustomobject]@{ summary = $summary; decisions = $decisions } | ConvertTo-Json -Depth 4 | Out-File -LiteralPath $Receipt -Encoding utf8 }
+$summary | ConvertTo-Json -Depth 4
+

@@ -1,0 +1,6 @@
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\tmp\ayas-gate-v2-98DNQC\remote-VDg3O1
+   8a244fc..02ebf17  master -> master
+AYAS autonomous execution gate V2 smoke: PASS (6 scenarios)
+{"status":"PASS","suite":"ayas-autonomous-execution-gate-v2","scenarios":6}

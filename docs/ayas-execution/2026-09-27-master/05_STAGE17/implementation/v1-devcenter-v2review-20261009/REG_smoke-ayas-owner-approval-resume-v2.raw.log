@@ -1,0 +1,243 @@
+warning: in the working copy of 'scripts/smoke-fixture-r04.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-r04.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\tmp\ayas-resume-v2-d5oJ5e\remote-ZRv4ZB
+   547f847..9496d4e  master -> master
+warning: in the working copy of 'scripts/smoke-fixture-r05c.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-r05c.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\tmp\ayas-resume-v2-d5oJ5e\remote-82Xi4N
+   2741642..f7a4189  master -> master
+warning: in the working copy of 'scripts/smoke-fixture-r05d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-r05d.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\tmp\ayas-resume-v2-d5oJ5e\remote-kTm3y4
+   3b39cc5..eeca41f  master -> master
+warning: in the working copy of 'scripts/smoke-fixture-r05e.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-r05e.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\tmp\ayas-resume-v2-d5oJ5e\remote-EDdmtZ
+   9c67684..ab79cfa  master -> master
+warning: in the working copy of 'scripts/smoke-fixture-r07a.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-r07a.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\tmp\ayas-resume-v2-d5oJ5e\remote-ZSvSN7
+   c125f6b..3f41748  master -> master
+{
+  "status": "PASS",
+  "suite": "ayas-owner-approval-resume-v2",
+  "scenarios": 20,
+  "scope": "TEMP Git repositories with local bare remotes; synthetic in-process access key; isolated stability guard; no network, model, live runtime or data/brain",
+  "rows": [
+    {
+      "id": "R01a",
+      "name": "flag on, sealed historical APPROVE, neither manual action nor EXECUTE: zero attempts, zero state loads, zero effect",
+      "outcome": "PASS",
+      "attempts": 0,
+      "inboxLoads": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R01b",
+      "name": "flag on, fresh EXECUTE present, no explicit manual action: zero attempts, zero state loads, zero effect",
+      "outcome": "PASS",
+      "attempts": 0,
+      "inboxLoads": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R02a",
+      "name": "flag on, explicit manual action, no EXECUTE: zero attempts, zero state loads, zero effect",
+      "outcome": "PASS",
+      "attempts": 0,
+      "inboxLoads": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R02b",
+      "name": "explicit manual action and fresh EXECUTE, flag off: zero attempts, zero state loads, zero effect",
+      "outcome": "PASS",
+      "attempts": 0,
+      "inboxLoads": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R03",
+      "name": "every invalid EXECUTE admission is refused by the manual resume path with zero effect",
+      "outcome": "PASS",
+      "refused": [
+        "approve-admission-replayed-as-execute",
+        "execute-subject-under-approve-action",
+        "malformed-missing-seal",
+        "forged-seal",
+        "session-expired-before-use",
+        "future-verification",
+        "stale-verification",
+        "cross-subject-hash",
+        "legacy-nonce-less-session"
+      ],
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R04",
+      "name": "valid historical APPROVE, fresh EXECUTE from a different session and an explicit manual action publish exactly once",
+      "outcome": "PASS",
+      "attempts": 1,
+      "isolatedCommits": 1,
+      "isolatedBarePushes": 1,
+      "journalPhase": "RESULT_RECORDED",
+      "distinctSessions": true,
+      "distinctActions": true
+    },
+    {
+      "id": "R05a",
+      "name": "the same EXECUTE replayed after completion yields no attempt and no second commit",
+      "outcome": "PASS",
+      "attempts": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R05b",
+      "name": "after a simulated restart (fresh inbox handle) a brand-new EXECUTE still cannot re-publish a completed proposal",
+      "outcome": "PASS",
+      "attempts": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R05c",
+      "name": "two back-to-back manual resumes with the SAME EXECUTE: at most one publication",
+      "outcome": "PASS",
+      "attempts": 1,
+      "successful": 1,
+      "commits": 1,
+      "reservations": 1,
+      "refusedCodes": [],
+      "finalStatus": "COMPLETED"
+    },
+    {
+      "id": "R05d",
+      "name": "two back-to-back manual resumes with two DIFFERENT fresh EXECUTEs (two tabs): at most one publication",
+      "outcome": "PASS",
+      "attempts": 1,
+      "successful": 1,
+      "commits": 1,
+      "reservations": 1,
+      "refusedCodes": [],
+      "finalStatus": "COMPLETED"
+    },
+    {
+      "id": "R05e",
+      "name": "interleaved race: a second manual resume starts after the first passed eligibility and authentication but before its reservation — one publication",
+      "outcome": "PASS",
+      "firstOk": true,
+      "secondCode": "AYAS_PROPOSAL_STABILITY_GUARD_REFUSED",
+      "secondStage": "STABILITY_GUARD",
+      "commits": 1,
+      "pushes": 1,
+      "reservations": 1
+    },
+    {
+      "id": "R06a",
+      "name": "stale HEAD under valid manual authorization: reconciled to STALE, never published, approval not reserved",
+      "outcome": "PASS",
+      "attempts": 1,
+      "code": "STALE_APPROVAL",
+      "finalStatus": "STALE",
+      "reserved": false,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R06b",
+      "name": "dirty repository under valid manual authorization: refused before reservation, dirty bytes untouched, approval kept",
+      "outcome": "PASS",
+      "attempts": 1,
+      "code": "AYAS_PROPOSAL_STABILITY_GUARD_REFUSED",
+      "stage": "STABILITY_GUARD",
+      "reserved": false,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R06c",
+      "name": "exact scope drift with the hash kept (tampered record): refused by the artifact scope binding before reservation",
+      "outcome": "PASS",
+      "attempts": 1,
+      "code": "AYAS_PATCH_ARTIFACT_MUTATION_SCOPE_MISMATCH",
+      "reserved": false,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R06d",
+      "name": "content drift that changes the proposal hash: the sealed APPROVE no longer binds, so nothing is attempted",
+      "outcome": "PASS",
+      "attempts": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R07",
+      "name": "two approved proposals share a baseHead: an EXECUTE for A publishes only A; B needs its own action and is then stale",
+      "outcome": "PASS",
+      "firstAction": {
+        "attempted": [
+          "A"
+        ],
+        "commits": 1
+      },
+      "bStatusAfterA": "APPROVED",
+      "secondAction": {
+        "attempts": 1,
+        "codes": [
+          "STALE_APPROVAL"
+        ],
+        "commits": 0
+      },
+      "bFinal": "STALE"
+    },
+    {
+      "id": "R08",
+      "name": "unattributed, legacy and manual-ONAYLA approvals are not resumable even with a fresh EXECUTE; no actor is backfilled",
+      "outcome": "PASS",
+      "owner-reason-without-admission": "NO_ATTEMPT_NO_BACKFILL",
+      "legacy-onayla-no-reason": "NO_ATTEMPT_NO_BACKFILL",
+      "admitted-manual-onayla-without-owner-reason": "NO_ATTEMPT_NO_BACKFILL"
+    },
+    {
+      "id": "R09",
+      "name": "a proposal carrying an exact-patch safety proof marker is never handed to the publication resume",
+      "outcome": "PASS",
+      "attempts": 0,
+      "serviceCode": "EXACT_PATCH_LOCAL_EXECUTION_ONLY",
+      "limitation": "presence marker only; real exact-proof construction not exercised"
+    },
+    {
+      "id": "R10a",
+      "name": "the EXECUTE session expires after reservation: refused before any file is written, nothing committed or pushed",
+      "outcome": "PASS",
+      "attempts": 1,
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "stage": "EXECUTION",
+      "journalPhase": "RECOVERY_REQUIRED",
+      "finalStatus": "RECOVERY_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "R10b",
+      "name": "the sealed APPROVE decision is altered after reservation: refused before any file is written, nothing committed or pushed",
+      "outcome": "PASS",
+      "attempts": 1,
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "stage": "EXECUTION",
+      "journalPhase": "RECOVERY_REQUIRED",
+      "finalStatus": "RECOVERY_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    }
+  ]
+}
+AYAS owner-approval resume V2 smoke: PASS (20 scenarios)

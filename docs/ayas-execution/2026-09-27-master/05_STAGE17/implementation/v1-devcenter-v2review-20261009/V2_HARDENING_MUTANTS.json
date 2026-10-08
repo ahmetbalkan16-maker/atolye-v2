@@ -1,0 +1,13 @@
+[
+  { "id": "HM1", "what": "resume eligibility forgets recorded actionRefs (K3 replay filter removed)", "file": "RESUME",
+    "from": "new Date().toISOString(), new Set(state.decisions.flatMap(d => [d.ownerAdmission?.actionRef, d.executionOwnerAdmission?.actionRef]).filter((v): v is string => !!v)));",
+    "to": "new Date().toISOString(), new Set<string>());" },
+  { "id": "HM2", "what": "daemon drops the post-reservation owner re-check", "file": "DAEMON",
+    "from": "        assertOwnerExecution(reservation);\n", "to": "        void reservation;\n" },
+  { "id": "HM3", "what": "daemon ignores recorded actionRefs (K3 replay check at the service removed)", "file": "DAEMON",
+    "from": "checkAyasOwnerExecutionAdmission(decision, input.executionOwnerAdmission, subject, now(), used)", "to": "checkAyasOwnerExecutionAdmission(decision, input.executionOwnerAdmission, subject, now(), new Set<string>())" },
+  { "id": "HM4", "what": "resume eligibility no longer requires the fresh EXECUTE for this subject", "file": "RESUME",
+    "from": "&& !!decision && checkAyasOwnerExecutionAdmission(", "to": "&& !!decision && (() => true)() || checkAyasOwnerExecutionAdmission(" },
+  { "id": "HM5", "what": "execution service stops reconciling stale proposals before executing", "file": "EXEC",
+    "from": "  reconcileAyasStaleProposals(deps.inbox, currentHead, new Date().toISOString());\n", "to": "  void reconcileAyasStaleProposals;\n" }
+]

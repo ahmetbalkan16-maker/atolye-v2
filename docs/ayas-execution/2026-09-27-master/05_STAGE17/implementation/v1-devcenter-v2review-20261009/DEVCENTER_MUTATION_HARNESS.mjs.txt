@@ -1,0 +1,62 @@
+// Mutation check for the Gelişim Merkezi owner-execute candidate. Runs only in the TEMP clone given as argv[2].
+// Each mutant removes one protection (or restores the old defect); the suite must fail (KILLED).
+// Original bytes are restored and SHA-verified after every mutant.
+import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+const repo = argv2();
+function argv2() { const r = process.argv[2]; if (!r || !fs.existsSync(path.join(r, "package.json"))) throw new Error("usage: node harness.mjs <temp-repo>"); return r; }
+const COMPONENT = "src/components/brain/AyasDevelopmentCenter.tsx";
+const VIEW = "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts";
+const SUITE = "scripts/smoke-ayas-development-center-owner-execute.ts";
+
+const mutants = [
+  { id: "MD1", what: "restore the false auto-continue text", file: COMPONENT,
+    from: "<p>Onayın kayıtlı. AYAS bunu kendiliğinden yürütmez; yürütme yalnız senin YÜRÜT eyleminle ve doğrulanmış owner oturumunla başlar.</p>",
+    to: "<p>Otomatik yürütme şu anda devre dışı. AYAS, yürütme etkinleştirildiğinde bu onayı yeniden doğrulayıp işlemi otomatik olarak sürdürecek.</p>" },
+  { id: "MD2", what: "view marks every owner-model APPROVE as AVAILABLE (no admission check)", file: VIEW,
+    from: 'manualExecution: ownerAdmittedForDisplay(decision, proposal) ? "AVAILABLE" : "OWNER_ADMISSION_MISSING",',
+    to: 'manualExecution: "AVAILABLE",' },
+  { id: "MD3", what: "pending card renders YÜRÜT without the admission condition", file: COMPONENT,
+    from: "{admitted && approved && proposal ? <ExecuteControl", to: "{approved && proposal ? <ExecuteControl" },
+  { id: "MD4", what: "pending card ignores the current inbox status", file: COMPONENT,
+    from: 'const approved = proposal?.status === "APPROVED";', to: "const approved = !!proposal;" },
+  { id: "MD5", what: "ExecuteControl old guard: never for owner-model proposals (the invisible YÜRÜT)", file: COMPONENT,
+    from: 'proposal.ownerApprovedPendingExecution !== (placement === "owner-pending")) return null;', to: "proposal.ownerApprovedPendingExecution) return null;" },
+  { id: "MD6", what: "ExecuteControl ignores placement (owner-model YÜRÜT also on the timeline card)", file: COMPONENT,
+    from: 'if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution !== (placement === "owner-pending")) return null;', to: 'if (proposal.status !== "APPROVED") return null;' },
+  { id: "MD7", what: "ONAYLA always promises immediate publication", file: VIEW,
+    from: 'return !proposal.exactPatchSafetyProof && isAyasLiveExecutionEnabledForDisplay(env) ? "EXECUTES_AND_PUBLISHES"', to: 'return true ? "EXECUTES_AND_PUBLISHES"' },
+  { id: "MD8", what: "ONAYLA ignores the exact-patch branch", file: VIEW,
+    from: "return !proposal.exactPatchSafetyProof && isAyasLiveExecutionEnabledForDisplay(env)", to: "return isAyasLiveExecutionEnabledForDisplay(env)" },
+  { id: "MD9", what: "display flag drifts from the gate", file: VIEW,
+    from: 'return env.AYAS_AUTONOMOUS_EXECUTION_ENABLED === "1";', to: 'return env.AYAS_AUTONOMOUS_EXECUTION_ENABLED === "1" || env.AYAS_AUTONOMOUS_EXECUTION_ENABLED === "true";' },
+  { id: "MD10", what: "a verification error disconnects nothing but also no longer fails closed", file: VIEW,
+    from: "try { return isAyasApprovalDecisionOwnerAdmitted(...args); } catch { return false; }", to: "try { return isAyasApprovalDecisionOwnerAdmitted(...args) || args[0]?.reason?.startsWith(\"owner-approved:\") === true; } catch { return true; }" },
+];
+
+const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
+const results = [];
+for (const m of mutants) {
+  const abs = path.join(repo, m.file);
+  const original = fs.readFileSync(abs);
+  const before = sha(original);
+  const text = original.toString("utf8");
+  if (text.split(m.from).length !== 2) { results.push({ id: m.id, what: m.what, outcome: "NOT_APPLIED_PATTERN_COUNT_" + (text.split(m.from).length - 1) }); continue; }
+  fs.writeFileSync(abs, text.replace(m.from, m.to));
+  let outcome = "SURVIVED"; let tail = "";
+  try {
+    execFileSync(process.execPath, [path.join(repo, "node_modules", "tsx", "dist", "cli.mjs"), SUITE], { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 300_000, env: process.env });
+  } catch (error) {
+    outcome = "KILLED";
+    tail = String(error.stderr || error.stdout || error.message).split("\n").find((l) => /AssertionError|Error:|PASS \d+/.test(l))?.slice(0, 160) ?? "";
+  } finally {
+    fs.writeFileSync(abs, original);
+  }
+  const restored = sha(fs.readFileSync(abs)) === before;
+  results.push({ id: m.id, what: m.what, file: m.file, outcome, restored, firstFailure: tail });
+  if (!restored) throw new Error(`restore failed for ${m.id}`);
+}
+console.log(JSON.stringify({ suite: SUITE, mutants: results.length, killed: results.filter((r) => r.outcome === "KILLED").length, results }, null, 1));

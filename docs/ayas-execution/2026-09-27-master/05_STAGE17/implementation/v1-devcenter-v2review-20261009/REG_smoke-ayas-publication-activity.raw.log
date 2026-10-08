@@ -1,0 +1,29 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ undefined
+- 'STALE_SUPERSEDED'
+
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-publication-activity.ts:140:10)
+    at scenario (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-publication-activity.ts:20:51)
+    at assert (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-publication-activity.ts:130:1)
+    at Object.<anonymous> (C:\Users\Metod\AppData\Local\Temp\ayas-devcenter-exec-20261009\repo\scripts\smoke-ayas-publication-activity.ts:157:101)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object.transformer (c:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\node_modules\tsx\dist\register-BoI6-WNn.cjs:9:3252)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: 'STALE_SUPERSEDED',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
