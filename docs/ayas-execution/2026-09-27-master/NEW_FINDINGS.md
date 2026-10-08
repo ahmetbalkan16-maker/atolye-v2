@@ -406,3 +406,22 @@ Entry checkpoint68747ae40f53ce2358e1499363f66c999243d584 preserved. Protection s
 Official online npm audit at979f12a found19 vulnerable packages (1critical/15high/3moderate). Reviewed isolated compatible update selects Next/eslint-config-next16.3.8 and non-force lock repairs; production advisory result0,all-dependency result5high dev-only braces-chain warnings with no published patched version. No framework downgrade, install script execution or lint weakening. Sharp default-export typing corrected. Runtime health response logic moved unchanged into its existing runtime layer so the route exports only supported Next entries; explicit Node instrumentation guard allows both webpack/Turbopack. Existing25 health cases retained;20 supplemental adversarial+5 assertion-caught mutations added. Candidate TS/lint0errors/13 inherited warnings,both actual builds/bundled health and13 synthetic mobile/wake/STT suites PASS. These are preparation receipts, not new clean-HEAD qualification. Running service/main installed dependencies were not migrated or restarted; authenticated runtime identity remains OWNER_ACTION_REQUIRED.
 
 CF49 CLOSED_PASS retained;214 frozen pins/v55/166 suites unchanged. Raw retrieval FAIL,Golden promotion stop and16 remaining limitations stay visible. LemonUNBOUND/FiverrOWNER_REPORTED unchanged. Stage17/FoundationBLOCKED; Infinity/next master stages not advanced; Homepage/Brain UI V2NOT_STARTED/boundaryNOT_REACHED. Next: commit/push this bounded source repair,refresh Graphify,qualify exact clean source in a credential-free TEMP clone with matching dependency lock and a durable166 report,then refresh actual protected/domain/live findings and final owner-review prerequisites.
+
+## 2026-10-08 — F95 / F96 / F97 — local-model fallback, homepage firewall registration, small-model status claims
+
+**F95 — FIXED in source (not deployed).** On the live screen, "merhaba" got "Anladım." under the note "Yerel modele ulaşılamadı". Ollama was reachable: the live turn evidence shows `outcome: fallback`, `errorCode: null`, model `qwen2.5-3b` PINNED/MATCH, one retry.
+- Cause: `replyNeedsContextCorrection` rejected a greeting reply whenever history existed, even when the user greeted. The bounded correction forbids greetings and the short-turn fallback is "Anladım.".
+- Isolated real-model probe: 7 of 9 greeting turns fell back before the fix; 15 of 15 were model replies after it.
+- The UI note called every `fallback` "unreachable"; it now uses the stream `reason` (guarded / deterministic / unreachable).
+- Evidence: `docs/ayas-runtime-recovery/2026-10-08/LOCAL_MODEL_FALLBACK.md`. Live rollout needs an owner-approved rebuild/restart window.
+
+**F96 — OPEN, owner approval required (frozen grader).** The declared suite `action-firewall-closure` fails at clean HEAD `462f9f7`: "a new entry point reaches leased or owner-only work: `app/page.tsx`". It passed in the `fde898f` full166.
+- Introduced by `4ca7e66` (Brain UI V2 homepage). `/` now renders the same `AyasConsolePage` and owner action modules as `/brain`, which the grader registers in `OTHER_ENTRIES`.
+- The source behaviour is the intended owner console, not a new capability.
+- The fix is one `OTHER_ENTRIES` line in the pinned grader, which needs a versioned v58 manifest pin refresh. This session did not change it: frozen pins stay unchanged without explicit owner approval.
+- Until then, every full166 run reports 4 FAILs (this one plus the three preserved raw FAILs).
+
+**F97 — OPEN, model quality.** In the post-fix probe, `qwen2.5:3b` once added an unverified status claim to a greeting reply ("Sisteminiz tam olarak çalışmaktadır.") and produced Turkish suffix errors ("AYAS'nın").
+- No reply guard covers unverified system-status claims.
+- The live AYAS model is `qwen2.5:3b` although `qwen2.5:7b` is installed. The model choice was not changed.
+- Conversation quality is not qualified by the F95 fix.

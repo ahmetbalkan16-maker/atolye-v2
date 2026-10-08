@@ -21,6 +21,7 @@ import {
   mapTaskStatusToDisplay,
   type AyasConnectivity,
   type AyasPresenceRow,
+  type AyasReplyFallbackKind,
   type BrainChatMessage,
   type BrainCoreState,
   type BrainPanelId,
@@ -121,6 +122,8 @@ export interface BrainConsoleViewProps {
   readonly modelConfigured?: boolean;
   /** Where the last chat reply came from. */
   readonly lastReplySource?: "llm" | "fallback";
+  /** Why the last reply was a fallback; omitted = unknown, shown as unreachable. */
+  readonly lastReplyFallbackKind?: AyasReplyFallbackKind;
   readonly autonomous?: AyasAutonomousView;
   readonly approvalInbox?: AyasApprovalInboxView;
   /** M18 — the Lane A (MICRO_SAFE) accumulating batch, for the "Küçük Geliştirme Paketi" section. */
@@ -655,7 +658,11 @@ function ChatPanel(props: BrainConsoleViewProps) {
         {llmLive
           ? "AYAS yerel model (Ollama) üzerinden yanıtlıyor. Modele ulaşılamazsa deterministik özet devreye girer."
           : props.lastReplySource === "fallback"
-            ? "Yerel modele ulaşılamadı — şu an deterministik özet yanıt veriliyor."
+            ? props.lastReplyFallbackKind === "guarded"
+              ? "Yerel model yanıt verdi; yanıt kalite/güvenlik denetiminden geçmediği için güvenli kısa yanıt verildi."
+              : props.lastReplyFallbackKind === "deterministic"
+                ? "Bu yanıt modelden değil, AYAS'ın kural/rapor katmanından (deterministik) geldi."
+                : "Yerel modele ulaşılamadı — şu an deterministik özet yanıt veriliyor."
             : "AYAS yerel model (Ollama) üzerinden yanıtlar; yapılandırılmamış/ulaşılamazsa deterministik özet kullanılır."}
         {voice?.capability.tts
           ? " Yanıtlar tarayıcının yerel sesiyle otomatik seslendirilir."

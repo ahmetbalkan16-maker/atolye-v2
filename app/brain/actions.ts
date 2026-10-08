@@ -125,7 +125,11 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
     if (event.type === "done") terminal = event;
   }
   const text = terminal?.text ?? "AYAS şu an yanıt veremiyor; metin sohbeti çalışıyor.";
-  return { message: ayasReplyMessage(text, input.seq), source: terminal?.source ?? "fallback" };
+  return {
+    message: ayasReplyMessage(text, input.seq),
+    source: terminal?.source ?? "fallback",
+    ...(terminal ? (terminal.reason !== undefined ? { reason: terminal.reason } : {}) : { reason: "no-terminal-event" }),
+  };
 }
 
 /* --------------------------------------------- AYAS Report Center (§7–§15) --- */

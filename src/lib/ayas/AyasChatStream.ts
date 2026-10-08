@@ -277,6 +277,25 @@ function isLowInformationTurn(text: string): boolean {
   return normalized.length > 0 && normalized.split(/\s+/).length <= 2 && !/[?？]\s*$/.test(text);
 }
 
+const GREETING_REPLIES: readonly (readonly [RegExp, string])[] = [
+  [/^selam\b/, "Selam."],
+  [/^merhaba\b/, "Merhaba."],
+  [/^gunaydin\b/, "Günaydın."],
+  [/^iyi aksamlar\b/, "İyi akşamlar."],
+  [/^iyi geceler\b/, "İyi geceler."],
+];
+
+/**
+ * The user opened the turn with a greeting. Returning the greeting is then the
+ * natural answer, at any point in the conversation — not a stale re-greeting.
+ * Live 2026-10-08: "merhaba" after earlier turns had every greeting reply
+ * rejected and the turn ended with the low-information "Anladım.".
+ */
+function greetingReplyFor(text: string): string | null {
+  const user = fold(text).trim();
+  return GREETING_REPLIES.find(([pattern]) => pattern.test(user))?.[1] ?? null;
+}
+
 /**
  * Sequencing language is a conversational continuation signal, not a new
  * topic. Keep the list to discourse roles (ordinal, temporal and procedural)
@@ -365,7 +384,7 @@ function replyNeedsContextCorrection(input: {
     return tokens.some((token) => reply.includes(token));
   });
   if (memorySatisfied) return false;
-  const userIsGreeting = /^(selam|merhaba|gunaydin|iyi aksamlar|iyi geceler)\b/.test(user);
+  const userIsGreeting = greetingReplyFor(input.userText) !== null;
   if (userIsGreeting && /\b(benim adim ayas|ben ayas)\b/.test(reply)) return true;
   if (!userIsGreeting && /^(selam|merhaba)\b/.test(reply)) return true;
   // Only a GENERIC, near-empty "how can I help?" reply is the failure mode
@@ -379,9 +398,11 @@ function replyNeedsContextCorrection(input: {
   // real content.
   const isBareHelpOffer = reply.length <= GENERIC_HELP_OFFER_MAX_CHARS && /\b(nasil|ne sekilde) yardimci olabilirim\b/.test(reply);
   if (!userIsGreeting && !/[?？]\s*$/.test(input.userText) && isBareHelpOffer) return true;
-  if (input.hasHistory && /^(selam|merhaba|sagol\w*)\b/.test(reply)) return true;
+  // A greeting back is stale mid-conversation only when the user did not greet.
+  if (input.hasHistory && !userIsGreeting && /^(selam|merhaba)\b/.test(reply)) return true;
+  if (input.hasHistory && /^sagol\w*\b/.test(reply)) return true;
   if (input.hasHistory && /^nasilsin\b/.test(reply)) return true;
-  if (input.hasHistory && isBareHelpOffer) return true;
+  if (input.hasHistory && !userIsGreeting && isBareHelpOffer) return true;
   if (/kacinilacak ilk taslak|ilk yanit taslagi/.test(reply)) return true;
   if (input.selectedOption) {
     const anchors = fold(input.selectedOption).split(/\s+/).filter((token) => token.length >= 4);
@@ -806,6 +827,8 @@ function buildSafeContextFallback(input: {
   if (/\b(mutluyum|sevindim|keyfim yerinde)\b/.test(user)) {
     return "Buna sevindim. İstersen bu iyi hissi koruyarak konuşmaya devam edebiliriz.";
   }
+  const greeting = greetingReplyFor(input.userText);
+  if (greeting) return greeting;
   const focus = input.selectedOption ?? input.activeTopic;
   const preservesTopic = shouldPreserveActiveTopic({
     userText: input.userText,

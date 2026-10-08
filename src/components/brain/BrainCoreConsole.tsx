@@ -26,8 +26,10 @@ import {
   AYAS_HISTORY_TURNS,
   brainDeterministicReply,
   brainWelcomeMessage,
+  classifyAyasReplyFallback,
   deriveBrainCoreLiveState,
   deriveBrainCoreState,
+  type AyasReplyFallbackKind,
   type BrainChatMessage,
   type BrainCoreState,
   type BrainPanelId,
@@ -286,6 +288,12 @@ export function BrainCoreConsole({
     };
   }, [messages, persistConversation]);
   const [lastReplySource, setLastReplySource] = useState<"llm" | "fallback" | undefined>(undefined);
+  const [lastReplyFallbackKind, setLastReplyFallbackKind] = useState<AyasReplyFallbackKind | undefined>(undefined);
+  // `fallbackKind` is read only for a fallback reply; an LLM reply clears it.
+  const recordReplySource = useCallback((source: "llm" | "fallback", fallbackKind: AyasReplyFallbackKind = "unreachable") => {
+    setLastReplySource(source);
+    setLastReplyFallbackKind(source === "fallback" ? fallbackKind : undefined);
+  }, []);
   const [pending, startTransition] = useTransition();
   const [chatPending, startChat] = useTransition();
   // The read-only tool the turn in flight is running, as the chat stream reports it ("" = running, id not given).
@@ -431,7 +439,7 @@ export function BrainCoreConsole({
 
       if (!askAyas) {
         const reply = brainDeterministicReply(text, snapshot, seq + 1);
-        setLastReplySource("fallback");
+        recordReplySource("fallback");
         deliverReply(reply);
         return;
       }
@@ -471,7 +479,7 @@ export function BrainCoreConsole({
           if (chatAbortRef.current === controller) chatAbortRef.current = null;
           setTurnTool(null);
           if (streamResult.ok) {
-            setLastReplySource(streamResult.source);
+            recordReplySource(streamResult.source, classifyAyasReplyFallback(streamResult.reason));
             const current = messagesRef.current;
             const exists = current.some((m) => m.id === replyId);
             const msg: BrainChatMessage = { id: replyId, role: "brain", text: streamResult.text };
@@ -493,7 +501,7 @@ export function BrainCoreConsole({
               const next = messagesRef.current.map((m) => (m.id === replyId ? { ...m, text: streamText } : m));
               messagesRef.current = next;
               setMessages(next);
-              setLastReplySource("llm");
+              recordReplySource("llm");
             } else if (opened) {
               const next = messagesRef.current.filter((m) => m.id !== replyId);
               messagesRef.current = next;
@@ -511,17 +519,17 @@ export function BrainCoreConsole({
         }
 
         // 2 — fall back to the Server Action.
-        let result: { message: BrainChatMessage; source: "llm" | "fallback" };
+        let result: { message: BrainChatMessage; source: "llm" | "fallback"; reason?: string };
         try {
           result = await askAyas({ text, history, seq: seq + 1 });
         } catch {
-          result = { message: brainDeterministicReply(text, snapshot, seq + 1), source: "fallback" };
+          result = { message: brainDeterministicReply(text, snapshot, seq + 1), source: "fallback", reason: "server-action-failed" };
         }
-        setLastReplySource(result.source);
+        recordReplySource(result.source, classifyAyasReplyFallback(result.reason));
         deliverReply(result.message);
       });
     },
-    [askAyas, snapshot, startChat, streaming],
+    [askAyas, recordReplySource, snapshot, startChat, streaming],
   );
 
   useEffect(() => {
@@ -788,6 +796,7 @@ export function BrainCoreConsole({
       turnTool={chatPending ? turnTool : null}
       modelConfigured={modelConfigured}
       lastReplySource={lastReplySource}
+      lastReplyFallbackKind={lastReplyFallbackKind}
       autonomous={initialAutonomous}
       approvalInbox={approvalInbox}
       ownerRecommendations={ownerRecommendations.recommendations}

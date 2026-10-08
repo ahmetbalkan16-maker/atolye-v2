@@ -1,3 +1,18 @@
+# Current — 2026-10-08 / local-model fallback fixed in source (not deployed); voice FROZEN_BY_OWNER; Foundation BLOCKED
+Claude continuation V4 started from clean `462f9f7` (origin 0/0, no live Codex process). Graphify was already at HEAD: structural PARTIAL 9, semantic PENDING.
+
+**Local model.** Ollama was reachable throughout. The "Yerel modele ulaşılamadı" + "Anladım." screen had two causes (F95):
+- A context-quality guard rejected the model's greeting reply whenever the conversation had history.
+- The chat note labelled every fallback as "model unreachable".
+
+Bounded source fix plus a new suite, `scripts/smoke-ayas-reply-fallback-truth.ts` (11 scenarios; it fails on the unfixed code). Isolated real-model probe: 15/15 model replies after the fix versus 2/9 before. Overlay full166: 162 PASS. The three preserved raw FAILs are unchanged. `action-firewall-closure` already fails at clean HEAD since the homepage commit `4ca7e66` (F96: pinned grader, owner approval needed for a v58 pin refresh). **Not deployed:** the live server still runs the previous build; rollout needs an owner-approved restart window. Small-model reply quality (F97) remains open. Evidence: `docs/ayas-runtime-recovery/2026-10-08/LOCAL_MODEL_FALLBACK.md`.
+
+**Brain UI V2.** The working UI is preserved: no redesign and no homepage, layout or command-wiring change. Only the existing note text is now truthful.
+
+**Voice: FROZEN_BY_OWNER.** No cloning, Chatterbox, model downloads, training or CALM/PROFESSIONAL/INTELLIGENT work. The existing assistant voice, Piper and browser TTS are untouched.
+
+**Stage17/Foundation: BLOCKED.** Next is the opt-in combined protected-scope packet.
+
 # Current — 2026-10-08 / voice freeze and cleanup; Stage17/Foundation BLOCKED
 Owner indefinitely froze personal cloning and CALM/PROFESSIONAL/INTELLIGENT development. Do not resume generation, downloads, training, ASR/model optimization or paid API requests from previous voice orders. Latest Chatterbox trial stopped; only its verified private root and new untracked prototype removed (5,862,758,182 logical bytes, approximately 5.86 GB). Audio-free technical evidence retained privately outside Git; original owner recording/hash and all Program/Ses files preserved. Prior V2 model/env/samples preserved: automatic review rejected prior weight deletion outside inspection scope. Shared caches/global Python/CUDA/drivers/Piper/browser TTS/runtime/tunnel/tasks untouched.
 

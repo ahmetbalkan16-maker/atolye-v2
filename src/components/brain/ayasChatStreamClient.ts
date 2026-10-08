@@ -37,7 +37,7 @@ export interface RunAyasChatStreamInput {
 }
 
 export type RunAyasChatStreamResult =
-  | { readonly ok: true; readonly text: string; readonly source: "llm" | "fallback"; readonly corrected: boolean; readonly streamed: boolean }
+  | { readonly ok: true; readonly text: string; readonly source: "llm" | "fallback"; readonly corrected: boolean; readonly streamed: boolean; readonly reason?: string }
   | { readonly ok: false; readonly reason: string };
 
 export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<RunAyasChatStreamResult> {
@@ -142,6 +142,7 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
     source: terminal.source,
     corrected: terminal.corrected,
     streamed: sawDelta && !terminal.corrected,
+    ...(typeof terminal.reason === "string" ? { reason: terminal.reason } : {}),
   };
 }
 

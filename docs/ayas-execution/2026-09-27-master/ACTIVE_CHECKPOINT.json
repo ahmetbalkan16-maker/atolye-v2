@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "59e585ab4ac9acfcaedeaebf75099568c28512f3",
-  "currentHeadMeaning": "DEPLOYED_CLEAN_OWNER_UI_V2_SOURCE_59e585a; following documentation save source-identical; resolve final Git HEAD",
+  "currentHead": "462f9f7dd0b30160853c4ee3cdaca413a0c60a0e",
+  "currentHeadMeaning": "ENTRY_HEAD_OF_CLAUDE_CONTINUATION_V4_2026-10-08; packet commits follow; resolve the final HEAD from Git",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "All owner routes Brain UI V2 deployed; authenticated/real-phone owner acceptance pending; Foundation BLOCKED",
-  "status": "OWNER_UI_V2_DEPLOYED_MACHINE_VERIFIED_PHONE_OWNER_NOT_RUN_FOUNDATION_BLOCKED",
+  "subtask": "Local-model fallback fixed in source (F95, not deployed); combined protected-scope packet next; Foundation BLOCKED",
+  "status": "LOCAL_MODEL_FALLBACK_FIXED_SOURCE_NOT_DEPLOYED_FOUNDATION_BLOCKED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -286,16 +286,15 @@
   ],
   "graphify": {
     "schemaVersion": "1",
-    "sourceHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
-    "lastSeenHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
-    "lastAnalyzedHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
-    "builtFromHead": "59e83cd92211278b52dbbd94a856862d086c57bf",
+    "sourceHead": "462f9f7dd0b30160853c4ee3cdaca413a0c60a0e",
+    "lastSeenHead": "462f9f7dd0b30160853c4ee3cdaca413a0c60a0e",
+    "lastAnalyzedHead": "462f9f7dd0b30160853c4ee3cdaca413a0c60a0e",
+    "builtFromHead": "462f9f7dd0b30160853c4ee3cdaca413a0c60a0e",
     "stale": false,
-    "needsUpdate": false,
-    "integrityViolations": 0,
+    "worktree": "CLEAN_AT_SESSION_START",
     "structural": "PARTIAL",
     "semantic": "PENDING",
-    "note": "PARTIAL9 = 7 .ps1 + CI yml + 1 route without graph nodes (parser coverage, disclosed); post-session graphify update re-verifies at final HEAD"
+    "note": "PARTIAL9 = 7 .ps1 (no PowerShell grammar) + CI yml + bracketed thumbnails route. Packet commits refresh the graph locally (.graphify is gitignored); resolve exact-HEAD state with scripts/ayas-graphify-status.ts"
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -323,8 +322,8 @@
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
   ],
-  "nextAction": "Owner actions per STAGE17_OWNER_ACTION_REGISTER_59e83cd.json;OpenCode-completable: bounded combined-scope implementation + collector binding + installed-lock migration;frozen evaluator succession needs owner-approved versioned review;NO homepage/BrainUIV2 implementation by OpenCode — reserved for Codex",
-  "updatedAt": "2026-10-07T12:27:42.844Z",
+  "nextAction": "Stage17 opt-in combined protected-scope packet (review steps 1-3), then a real read-only combined interval. Owner: approve the F96 v58 grader registration and a restart window to deploy F95. Owner-only Stage17 gates per STAGE17_OWNER_ACTION_REGISTER_59e83cd.json. No Brain UI V2 redesign, no voice work.",
+  "updatedAt": "2026-10-08T09:10:00.000Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1431,7 +1430,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Owner actions per STAGE17_OWNER_ACTION_REGISTER_59e83cd.json;OpenCode-completable: bounded combined-scope implementation + collector binding + installed-lock migration;frozen evaluator succession needs owner-approved versioned review;NO homepage/BrainUIV2 implementation by OpenCode — reserved for Codex",
+  "resumeNextAction": "Stage17 opt-in combined protected-scope packet (review steps 1-3), then a real read-only combined interval. Owner: approve the F96 v58 grader registration and a restart window to deploy F95. Owner-only Stage17 gates per STAGE17_OWNER_ACTION_REGISTER_59e83cd.json. No Brain UI V2 redesign, no voice work.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -5235,5 +5234,35 @@
       "foundation": "BLOCKED",
       "evidence": "07_BRAIN_UI_V2/owner-ui/OWNER_UI_V2_RESULT.md"
     }
+  },
+  "voiceWorkstream": {
+    "state": "FROZEN_BY_OWNER",
+    "since": "2026-10-08",
+    "scope": "No personal cloning, Chatterbox reinstall, new voice model download, CALM/PROFESSIONAL/INTELLIGENT development or voice training. The removed ~5.86 GB of trial files are not restored.",
+    "preserved": "Owner original recordings, the working AYAS assistant voice (browser speech synthesis), Piper narration, frozen evidence and technical metadata",
+    "cleanupEvidence": "docs/ayas-voice-freeze/2026-10-08/CLEANUP_RESULT.md",
+    "resumeRequires": "A new explicit owner order"
+  },
+  "localModelFallback20261008": {
+    "finding": "F95",
+    "state": "FIXED_IN_SOURCE_NOT_DEPLOYED",
+    "rootCause": "Context-quality guard rejected greeting replies once history existed; the short-turn fallback is 'Anladım.'; the chat note labelled every fallback as an unreachable model",
+    "liveEvidence": "data/brain/observability/evidence/2026-10-08.jsonl turn 07:51:14Z: outcome fallback, errorCode null, qwen2.5-3b PINNED/MATCH, retries 1",
+    "ollama": "REACHABLE; qwen2.5:3b resident; qwen2.5:7b installed; model choice unchanged",
+    "probe": "isolated real local model: before 2/9 model replies, after 15/15",
+    "tests": "scripts/smoke-ayas-reply-fallback-truth.ts PASS 11 (FAIL on unfixed HEAD); tsc PASS; ESLint changed files 0",
+    "overlayBaseline": "162/166; failures = 3 preserved raw FAILs (same reasons) + action-firewall-closure pre-existing at HEAD (F96)",
+    "brainUiV2": "PRESERVED; only the existing chat-note text is reason-accurate",
+    "deployment": "OWNER_APPROVED_RESTART_WINDOW_REQUIRED",
+    "openQuality": "F97",
+    "evidence": "docs/ayas-runtime-recovery/2026-10-08/LOCAL_MODEL_FALLBACK.md"
+  },
+  "homepageFirewallRegistration": {
+    "finding": "F96",
+    "state": "OPEN_OWNER_APPROVAL_REQUIRED_FROZEN_GRADER",
+    "suite": "action-firewall-closure",
+    "introducedBy": "4ca7e66",
+    "requiredChange": "Register app/page.tsx in OTHER_ENTRIES of scripts/smoke-ayas-action-firewall-closure.ts and refresh the pin as manifest v58",
+    "frozenPinsChanged": false
   }
 }

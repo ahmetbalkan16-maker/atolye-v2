@@ -1409,6 +1409,50 @@ export interface ResolveAyasReplyInput {
 export interface AyasReplyOutcome {
   readonly message: BrainChatMessage;
   readonly source: "llm" | "fallback";
+  /** The terminal stream event's `reason`, when the governed pipeline gave one. */
+  readonly reason?: string;
+}
+
+/**
+ * Why a `fallback` reply was shown, for the chat note. `guarded`: the model
+ * answered but a quality/safety guard replaced the reply. `deterministic`: the
+ * turn was answered by a rule/report path that does not use the model.
+ * `unreachable`: no model reply could be obtained (transport, routing or
+ * unavailable model). Unknown reasons count as `unreachable`; an absent reason
+ * means the server answered deliberately without the model.
+ */
+export type AyasReplyFallbackKind = "guarded" | "deterministic" | "unreachable";
+
+/** Reasons `AyasChatStream` gives when a received model reply is replaced (finalizer issues and reasoning-answer guards). */
+export const AYAS_GUARDED_FALLBACK_REASONS: readonly string[] = [
+  "unusable-reply",
+  "execution-claim",
+  "fake-tool-claim",
+  "script-mixing",
+  "context-quality",
+  "personal-statement-drift",
+  "studio-drift",
+  "read-only-constraint",
+  "unexpected-pictograph",
+  "reasoning-unusable-answer",
+  "reasoning-execution-claim",
+];
+
+/** Reasons for rule-based answers that do not depend on reaching the model. */
+export const AYAS_DETERMINISTIC_FALLBACK_REASONS: readonly string[] = [
+  "empty-input",
+  "clarification-required",
+  "required-fresh-tool-unavailable",
+  "CONTEXT_BUDGET_UNSAFE",
+  "memory-identity-correction",
+  "unknown-identity",
+];
+
+export function classifyAyasReplyFallback(reason: string | undefined): AyasReplyFallbackKind {
+  if (reason === undefined) return "deterministic";
+  if (AYAS_GUARDED_FALLBACK_REASONS.includes(reason) || reason.startsWith("reasoning-parse-failed:")) return "guarded";
+  if (AYAS_DETERMINISTIC_FALLBACK_REASONS.includes(reason)) return "deterministic";
+  return "unreachable";
 }
 
 /**
