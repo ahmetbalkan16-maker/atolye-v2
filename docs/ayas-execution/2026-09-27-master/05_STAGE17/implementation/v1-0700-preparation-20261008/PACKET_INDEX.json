@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1",
+  "kind": "OWNER_0700_PREPARATION",
+  "entryHead": "c2c444d6350932e5adf00287e4f6630053cf0361",
+  "technicalBaselineHead": "dbf9542e352e149cbc6a5552894050ca33e4359a",
+  "files": [
+    {
+      "file": "ESLINT_SCOPE_CONTROLS.json",
+      "sha256": "fa2d3f3aa99f3bbfcc9d4e0be382385220650d4cd6604aa323c246eff4cd9dff"
+    },
+    {
+      "file": "GIT_SOURCE_EVIDENCE_AUDIT.json",
+      "sha256": "810c18d7986a483671512f2b777fb638ddf90dfa44543c6d487d87a1c7b47621"
+    },
+    {
+      "file": "GRAPHIFY_ENTRY_RECEIPT.json",
+      "sha256": "629b9522e344e9d681b215f69fc82daa6cf07cda7074e8d9a66ff908013cac6e"
+    },
+    {
+      "file": "K3_35_RECHECK.raw.log",
+      "sha256": "f1eb5ac0797dea4e31d492393b4272c67e560a2a05af1d3f326823964180bd77"
+    },
+    {
+      "file": "LEGACY_RESUME_FAIL_ANALYSIS.json",
+      "sha256": "a779f4e4d40ab5f42a5f8b2d00d8ba5ead3608e57cf30318f572e9fdb153b64a"
+    },
+    {
+      "file": "OWNER_0700_ONE_PAGE.md",
+      "sha256": "d11a57c213de3bebb2f6fda3c32ac5e0380a5c5781603f6fa15f7c6bd3b8512f"
+    },
+    {
+      "file": "PREPARATION_REPORT.md",
+      "sha256": "d0aa4218d2a21729124ccdf7f7b0eb665a461fc2935443d704e51cc728808774"
+    },
+    {
+      "file": "PUBLICATION_CHAIN_9.raw.log",
+      "sha256": "3056a6602ee41318ab539220a6a64b2240df5ffaabd4d7516dddf395f9aea98b"
+    },
+    {
+      "file": "PUBLICATION_CHAIN_PROBE.ts.txt",
+      "sha256": "7b5ba074389e8ab5a3672f369299488ee3ea9d7c85578cc7d7709102f8d07c00"
+    },
+    {
+      "file": "REPO_ESLINT_AFTER.raw.log",
+      "sha256": "7f4d5c507b67f14a7eba00e638990b989b9fda72850bb72093a3c01d791c567c"
+    },
+    {
+      "file": "RESUME_REGRESSION_V2_CONTRACT.md",
+      "sha256": "62ca12bbcbe922d1fdbfceeeb25954c01e6948bbe10c764a99706319b8f2ef08"
+    },
+    {
+      "file": "TSC_AFTER.raw.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

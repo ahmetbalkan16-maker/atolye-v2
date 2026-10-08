@@ -1,0 +1,100 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-proposal-approval-zp03Rb
+   11c8000..4ae5b41  master -> master
+{
+  "status": "PASS",
+  "scope": "TEMP repositories and local bare remotes only; no network/model/live actions",
+  "scenarios": 9,
+  "rows": [
+    {
+      "id": "missing-APPROVE",
+      "outcome": "PASS",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "historical-APPROVE-no-manual",
+      "outcome": "PASS",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "missing-EXECUTE",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "APPROVE-as-EXECUTE",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "forged-seal",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "expired-session",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "cross-subject",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "tampered-decision-seal",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "fresh-manual-different-session-and-duplicate",
+      "outcome": "PASS",
+      "isolatedCommits": 1,
+      "isolatedBarePushes": 1,
+      "duplicateCommits": 0,
+      "duplicatePushes": 0
+    }
+  ]
+}

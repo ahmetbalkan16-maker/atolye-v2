@@ -1,0 +1,22 @@
+{
+  "archive": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-k3-security-20261008/K3_RELEVANT_REGRESSIONS.raw.json",
+  "archiveSha256": "3c5ef4b016ab9efa4d47110572272c4923b4738287c1304b30a7aa5034869c6e",
+  "cases": [
+    {
+      "id": "autonomous-execution-gate-current",
+      "script": "scripts/smoke-ayas-autonomous-execution-gate.ts",
+      "exit": 1,
+      "errorExcerpt": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 1\n\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-autonomous-execution-gate.ts:362:12)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-autonomous-execution-gate.ts:348:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: 0,\n  expected: 1,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "historicalStatus": "RAW_FAIL_PRESERVED_NOT_RERUN",
+      "currentReason": "NO_EXPLICIT_MANUAL_ACTION_OR_FRESH_EXECUTE_ADMISSION"
+    },
+    {
+      "id": "owner-approval-resume-current",
+      "script": "scripts/smoke-ayas-owner-approval-resume.ts",
+      "exit": 1,
+      "errorExcerpt": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 1\n\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-resume.ts:111:12)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-resume.ts:103:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: 0,\n  expected: 1,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "historicalStatus": "RAW_FAIL_PRESERVED_NOT_RERUN",
+      "currentReason": "NO_EXPLICIT_MANUAL_ACTION_OR_FRESH_EXECUTE_ADMISSION"
+    }
+  ]
+}

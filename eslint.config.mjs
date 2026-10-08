@@ -5,6 +5,15 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Immutable, hash-indexed CommonJS review evidence. Keep all other rules
+  // active; only these two archived .cjs helpers need their native require().
+  {
+    files: [
+      "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K3_SECURITY_PROBES.cjs",
+      "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K4_LEMON_INGRESS_CONTRACT.cjs",
+    ],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

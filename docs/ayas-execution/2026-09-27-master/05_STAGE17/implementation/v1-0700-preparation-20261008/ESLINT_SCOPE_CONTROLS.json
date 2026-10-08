@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "scope": "Only two exact archived CJS paths; no blanket ignore or general CommonJS exemption",
+  "controls": [
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K3_SECURITY_PROBES.cjs",
+      "requireRule": 0,
+      "requireErrors": 0,
+      "otherRulesActive": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K4_LEMON_INGRESS_CONTRACT.cjs",
+      "requireRule": 0,
+      "requireErrors": 0,
+      "otherRulesActive": true
+    },
+    {
+      "file": "scripts/0700-config-control.cjs",
+      "requireRule": 2,
+      "requireErrors": 1,
+      "otherRulesActive": true
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/NEW_UNARCHIVED.cjs",
+      "requireRule": 2,
+      "requireErrors": 1,
+      "otherRulesActive": true
+    }
+  ]
+}
