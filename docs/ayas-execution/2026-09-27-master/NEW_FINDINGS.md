@@ -441,3 +441,24 @@ Not closed:
 - The six owner gates are open.
 
 Receipt: `05_STAGE17/implementation/STAGE17_COMBINED_AUDIT_f8143e2.json`.
+
+## 2026-10-08 — Stage 17 owner review: F95 deployed, F96 reviewed, F97 observed live, F98 new
+
+**F95 — DEPLOYED live at `e974614`.** The deployment followed a bound full166 run with no new regression. Rollback point: the previous `.next` backup. The restart went through the Access daemon (about 70 s down). Live result: 8/8 real Ollama replies through the live route, 0 fallbacks; the greeting case answers from the model. Physical phone, audible voice and reboot were not run. Receipt: `docs/ayas-runtime-recovery/2026-10-08/LIVE_ROLLOUT_F95_e974614.md`.
+
+**F96 — REVIEWED, owner decision pending (frozen grader unchanged).**
+- `app/page.tsx` reaches the same 15 leased/owner-only and 33 effectful modules as `app/brain/page.tsx`. Its import closure differs only by the entry file, and it sits behind the same access gate.
+- One `OTHER_ENTRIES` line makes the grader pass 12/12 in a TEMP copy.
+- Grader SHA-256 would change from `c57403df…2547` to `a7824b99…1308` (manifest v58).
+- Record: `05_STAGE17/implementation/F96_FROZEN_GRADER_REVIEW_e974614.md`.
+
+**F97 — still OPEN, now seen live.** With history present, `qwen2.5:3b` repeated a status sentence from the history in 4 of 5 replies, repeated the previous user line, and once answered a direct question with a question. No reply guard covers echoed or unverified status claims. The model choice was not changed.
+
+**F98 — OPEN (independent review of `combined-budget-v1`).**
+- The combined protected-scope inventory reports an ABSENT protected repository root, or a missing store, as covered without any incompleteness reason. In this repository, `runtime`, `authority`, `projects`, `.atolye` and `data/brain/revenue` do not exist.
+- External runtime/authority roots are not bound to the configured roots: any two existing, link-free, non-overlapping directories pass.
+- A dangling junction reads as ABSENT.
+- The smoke never reaches the maxFiles or total maxBytes boundary.
+- The `f8143e2` receipt therefore stays unpromoted.
+- Fixing it needs an owner/design decision on how legitimately missing roots and stores count.
+- Record: `05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md`.

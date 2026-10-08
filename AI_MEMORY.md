@@ -1,3 +1,35 @@
+# Current — 2026-10-08 / Stage17 owner review: push done, F95 live, F96 reviewed, combined budget not promoted; Foundation BLOCKED
+**Owner review, four decisions:**
+1. **Push — done.** `462f9f7..e974614` (exactly the three approved commits) pushed to `origin/wip/ayas-graphify-final-execution` without force, after branch, diff and secret checks.
+2. **F95 live — done.** Bound full166 at clean `e974614`: 162/166, only the four known FAILs (F96 + three preserved raw FAILs), no new regression.
+   - Rollback point: the live `.next` (built from `5b657e1`) backed up outside the repository.
+   - Build proved in TEMP: routes, proxy and the 25 server actions identical to the live build.
+   - Restart through the singleton Access daemon, about 70 s down. New build at `e974614` CLEAN.
+   - Live: local and public gates PASS; 8/8 real Ollama replies, 0 fallbacks; voice assets reachable over the tunnel. Rollback not needed.
+   - Brain UI V2, voice and command wiring unchanged.
+   - Not run: physical phone, audible voice, reboot.
+   - Conversation quality not qualified (F97, seen live).
+3. **F96 — reviewed, not applied.** `/` reaches exactly the same 15 leased/owner-only and 33 effectful modules as `/brain`, behind the same gate. One `OTHER_ENTRIES` line passes the grader 12/12 in a TEMP copy; its SHA-256 would change from `c57403df…` to `a7824b99…` (v58). Frozen pins unchanged; owner decision pending.
+4. **`combined-budget-v1` — independent review: QUALIFIED_PASS_WITH_CONDITIONS, not promoted.** The limits fail closed. However, absent roots and stores count as covered (F98), and the external roots are not bound to the configured ones. Five conditions are recorded.
+
+Records:
+- `05_STAGE17/implementation/F96_FROZEN_GRADER_REVIEW_e974614.md`
+- `STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md`
+- `STAGE17_e974614_FULL166.json` (+ RAW stderr)
+- `STAGE17_EVIDENCE_MATRIX_DELTA_e974614.json`
+- `docs/ayas-runtime-recovery/2026-10-08/LIVE_ROLLOUT_F95_e974614.md`
+
+**Open:**
+- Owner decisions on F96 (v58) and on F98 condition 1 (how missing roots and stores count).
+- Review steps 4–5 (executed 0/166; 30 TEST/LIVE slots unbound).
+- Six owner gates.
+- Next 16.2.10 vs lock 16.3.8.
+- Retrieval-golden succession.
+
+Foundation **BLOCKED**.
+
+**Git.** This documentation commit is local; its push needs separate owner approval. Graphify is at `e974614` (PARTIAL 9 / semantic PENDING) and is refreshed after the commit.
+
 # Current — 2026-10-08 / Stage17 combined protected scope measured; TEST/LIVE unbound; Foundation BLOCKED
 **Stage17 packet `f8143e2`.** Implements steps 1–3 of the protected-scope integration review:
 - New opt-in combined inventory `AyasSystemAuditCombinedScope.ts`: the repository protected roots plus the explicit runtime and authority roots under one coverage manifest; resolution and validation only, fail-closed reasons.

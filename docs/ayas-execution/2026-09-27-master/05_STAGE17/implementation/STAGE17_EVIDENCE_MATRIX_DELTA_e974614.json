@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1",
+  "baseMatrix": "05_STAGE17/implementation/STAGE17_FOUNDATION_EVIDENCE_MATRIX_59e83cd.json",
+  "baseMatrixModified": false,
+  "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+  "observedAt": "2026-10-08T09:58:00.000Z",
+  "purpose": "New observations at e974614 for criteria of the bound 59e83cd matrix. Candidate states are proposals for the final digest-bound owner review; no matrix state is promoted here.",
+  "grantsAuthority": false,
+  "noDirectPromotion": true,
+  "observations": [
+    {
+      "criterion": "A (repository/build)",
+      "observation": "Declared full166 at clean e974614 (manifest 15F.4-v57): 162 PASS / 4 FAIL. Failures: action-firewall-closure (F96), retrieval-evaluation (preserved raw, exactly 12 IMPROVED, no regression), golden-vault-run and golden-sandbox-run (preserved raw, promotion stopped only for golden.memory.retrieval-evaluation). No new regression.",
+      "evidenceClass": "DETERMINISTIC_TEST",
+      "evidence": ["05_STAGE17/implementation/STAGE17_e974614_FULL166.json", "05_STAGE17/implementation/STAGE17_e974614_RAW_*_stderr.log"],
+      "candidateState": "UNCHANGED_FAIL_RAW_PRESERVED_PLUS_F96"
+    },
+    {
+      "criterion": "E01 Ollama health/current selected model",
+      "baseState": "NOT_RUN",
+      "observation": "Live server at e974614: 8/8 chat turns answered by the local model (qwen2.5:3b, entry llm.local-text.qwen2.5-3b PINNED/MATCH), 0 fallbacks, 0 HTTP errors; evidence lines outcome ok, errorCode null. qwen2.5:7b installed but not selected (unchanged).",
+      "evidenceClass": "LIVE_BOUNDED_WRITE (8 owner-approved chat turns wrote normal evidence lines)",
+      "evidence": ["docs/ayas-runtime-recovery/2026-10-08/LIVE_ROLLOUT_F95_e974614.json"],
+      "candidateState": "PASS_CURRENT_VERIFIED_PENDING_OWNER_REVIEW"
+    },
+    {
+      "criterion": "E06 phone access health",
+      "baseState": "NOT_RUN",
+      "observation": "Public tunnel https://ayas.atolyeayas.com: / , /brain and /studio answer 307 to /login with x-ayas-access-gate enforced; /login and /manifest.webmanifest 200; wake model, ONNX runtime and audio worklet served with exact byte sizes; data/brain/phone-access/status.json all online. Physical phone use not run.",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "evidence": ["docs/ayas-runtime-recovery/2026-10-08/LIVE_ROLLOUT_F95_e974614.json"],
+      "candidateState": "PASS_DISCLOSED_LIMITATION_PENDING_OWNER_REVIEW (device-side use is owner gate E07/E08)"
+    },
+    {
+      "criterion": "E08 voice/TTS path",
+      "baseState": "BLOCKED_OWNER_ACTION",
+      "observation": "Voice reply is browser speechSynthesis on the owner's device; no voice, wake or TTS source changed between the previous live build (5b657e1) and e974614; voice assets reachable over the tunnel. Audible output not verified.",
+      "evidenceClass": "LIVE_READ_ONLY",
+      "candidateState": "BLOCKED_OWNER_ACTION (unchanged)"
+    },
+    {
+      "criterion": "C06 answer relevance/completeness",
+      "baseState": "NOT_RUN",
+      "observation": "Informational live observation only: the 3B model echoed history lines and status sentences and bounced one direct question back. Not a qualification (criterion is DETERMINISTIC_TEST).",
+      "candidateState": "NOT_RUN (unchanged); F97 open"
+    },
+    {
+      "criterion": "Combined protected scope (closure reason COMBINED_CANONICAL_PROTECTED_SCOPE_NOT_QUALIFIED)",
+      "observation": "Independent review of combined-budget-v1: QUALIFIED_PASS_WITH_CONDITIONS. Limits fail closed, but absent roots/stores count as covered (B1) and external roots are not bound to the configured roots (B2). The f8143e2 receipt is not promoted.",
+      "evidence": ["05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md"],
+      "candidateState": "NOT_QUALIFIED (unchanged) until conditions 1-5 are met"
+    },
+    {
+      "criterion": "Firewall closure (F96)",
+      "observation": "Reviewed: app/page.tsx reaches the same 15 leased/owner-only and 33 effectful modules as app/brain/page.tsx; one OTHER_ENTRIES line makes the pinned grader pass 12/12 in a TEMP copy. Not applied; frozen pins unchanged.",
+      "evidence": ["05_STAGE17/implementation/F96_FROZEN_GRADER_REVIEW_e974614.md"],
+      "candidateState": "OPEN_FINDING (owner decision pending)"
+    }
+  ],
+  "foundationDecision": "BLOCKED",
+  "failClosed": true
+}

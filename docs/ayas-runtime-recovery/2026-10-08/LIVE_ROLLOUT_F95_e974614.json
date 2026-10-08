@@ -1,0 +1,593 @@
+{
+  "schemaVersion": "1",
+  "finding": "F95",
+  "ownerApproval": "Stage 17 owner review 2026-10-08, decision 2 (conditional: after full166 with no new unexpected regression; rollback plan and health checks; no Brain UI V2, voice or command-wiring change)",
+  "condition": {
+    "full166Head": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "result": "162/166",
+    "failures": [
+      "action-firewall-closure (F96)",
+      "retrieval-evaluation (preserved raw, exact 12 IMPROVED)",
+      "golden-vault-run (preserved raw, golden.memory.retrieval-evaluation only)",
+      "golden-sandbox-run (preserved raw, golden.memory.retrieval-evaluation only)"
+    ],
+    "newRegressions": 0,
+    "report": "05_STAGE17/implementation/STAGE17_e974614_FULL166.json"
+  },
+  "servedCodeDelta": {
+    "from": "5b657e1 (live build, treeState DIRTY)",
+    "to": "e974614 (CLEAN)",
+    "files": [
+      "app/brain/actions.ts",
+      "src/components/brain/BrainConsoleView.tsx",
+      "src/components/brain/BrainCoreConsole.tsx",
+      "src/components/brain/ayasChatStreamClient.ts",
+      "src/components/brain/brainCore.ts",
+      "src/lib/ayas/AyasChatStream.ts",
+      "src/lib/ayas/audit/AyasSystemAuditCollector.ts",
+      "src/lib/ayas/audit/AyasSystemAuditCombinedScope.ts"
+    ],
+    "voiceWakeOrHomepageDesignFiles": 0
+  },
+  "buildProof": {
+    "where": "TEMP shared clone at e974614 with a real node_modules copy (removed)",
+    "command": "npx next build",
+    "exit": 0,
+    "seconds": 33,
+    "manifestComparisonAgainstLive": {
+      "appRoutes": {
+        "live": 55,
+        "new": 55,
+        "onlyLive": [],
+        "onlyNew": []
+      },
+      "dynamicRoutes": {
+        "onlyLive": [],
+        "onlyNew": []
+      },
+      "staticRoutes": {
+        "onlyLive": [],
+        "onlyNew": []
+      },
+      "headersRedirectsRewrites": {
+        "live": [
+          1,
+          1,
+          48
+        ],
+        "new": [
+          1,
+          1,
+          48
+        ]
+      },
+      "middlewareEqual": true,
+      "middleware": {
+        "middleware": [
+          "/"
+        ],
+        "matchers": [
+          [
+            "/((?!_next/static|_next/image|favicon.ico).*)"
+          ]
+        ],
+        "functions": []
+      },
+      "actions": {
+        "live": 25,
+        "new": 25,
+        "onlyLive": [],
+        "onlyNew": []
+      }
+    }
+  },
+  "rollbackPoint": {
+    "location": "%LOCALAPPDATA%\\AtolyeAyasAccess\\rollback\\next-coVrOl3qLCvfhuOlaX6Xn-5b657e1",
+    "buildId": "coVrOl3qLCvfhuOlaX6Xn",
+    "gitHead": "5b657e1bfa36f56f97894d48d7dca6dfc29708ba",
+    "files": 1096,
+    "bytes": 150109548,
+    "excludedJunction": ".next/node_modules/typescript-279735412610ef8d -> node_modules/typescript",
+    "used": false
+  },
+  "restart": {
+    "method": "stop the next-start tree under the access daemon's npm wrapper (PID 28768: 29164, 15176, 24324, 33836); the singleton AYAS Access daemon detected origin down, ran npm run build and npm run start -- -p 3000 (its own recovery path, as in the 06:44 and 2026-10-07 rollouts)",
+    "tunnelTouched": false,
+    "stoppedAt": "2026-10-08T09:53:19.837Z",
+    "daemonAttempt": 25,
+    "daemonResult": "success",
+    "daemonLoggedAt": "2026-10-08T09:54:29.583Z",
+    "downtimeSeconds": 70,
+    "oldListenerPid": 24324,
+    "newListenerPid": 32416,
+    "newWrapperPid": 23856,
+    "newBuildId": "KmsdsLSOPkVSbJONHR1Zf",
+    "newBuildStamp": {
+      "gitHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0"
+    }
+  },
+  "checks": {
+    "preRestart": {
+      "label": "pre-restart",
+      "startedAt": "2026-10-08T09:20:07.483Z",
+      "local": {
+        "routes": {
+          "/": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2F"
+          },
+          "/brain": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fbrain"
+          },
+          "/studio": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fstudio"
+          },
+          "/login": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          },
+          "/manifest.webmanifest": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          }
+        },
+        "protectedRedirects": true,
+        "loginOk": true,
+        "manifestOk": true
+      },
+      "public": {
+        "routes": {
+          "/": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2F"
+          },
+          "/brain": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fbrain"
+          },
+          "/studio": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fstudio"
+          },
+          "/login": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          },
+          "/manifest.webmanifest": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          }
+        },
+        "protectedRedirects": true,
+        "loginOk": true,
+        "manifestOk": true
+      },
+      "buildStamp": {
+        "schemaVersion": "1",
+        "gitHead": "5b657e1bfa36f56f97894d48d7dca6dfc29708ba",
+        "treeState": "DIRTY",
+        "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+        "stampedAt": "2026-10-08T03:45:32.697Z"
+      },
+      "buildId": "coVrOl3qLCvfhuOlaX6Xn",
+      "phoneStatus": {
+        "appServer": "online",
+        "lanAccess": "online",
+        "tunnel": "online",
+        "ayasBackend": "online",
+        "tunnelUrl": "https://ayas.atolyeayas.com",
+        "updatedAt": "2026-10-08T09:20:07.6416145Z"
+      },
+      "ollamaLoaded": [],
+      "finishedAt": "2026-10-08T09:20:08.503Z"
+    },
+    "postRestart": {
+      "label": "post-restart",
+      "startedAt": "2026-10-08T09:54:39.610Z",
+      "local": {
+        "routes": {
+          "/": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2F"
+          },
+          "/brain": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fbrain"
+          },
+          "/studio": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fstudio"
+          },
+          "/login": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          },
+          "/manifest.webmanifest": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          }
+        },
+        "protectedRedirects": true,
+        "loginOk": true,
+        "manifestOk": true
+      },
+      "public": {
+        "routes": {
+          "/": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2F"
+          },
+          "/brain": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fbrain"
+          },
+          "/studio": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fstudio"
+          },
+          "/login": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          },
+          "/manifest.webmanifest": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          }
+        },
+        "protectedRedirects": true,
+        "loginOk": true,
+        "manifestOk": true
+      },
+      "buildStamp": {
+        "schemaVersion": "1",
+        "gitHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+        "treeState": "CLEAN",
+        "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+        "stampedAt": "2026-10-08T09:54:26.629Z"
+      },
+      "buildId": "KmsdsLSOPkVSbJONHR1Zf",
+      "phoneStatus": {
+        "appServer": "online",
+        "lanAccess": "online",
+        "tunnel": "online",
+        "ayasBackend": "online",
+        "tunnelUrl": "https://ayas.atolyeayas.com",
+        "updatedAt": "2026-10-08T09:54:30.3853048Z"
+      },
+      "ollamaLoaded": [],
+      "login": {
+        "status": 200,
+        "sessionIssued": true
+      },
+      "turns": [
+        {
+          "text": "merhaba",
+          "httpStatus": 200,
+          "ms": 6661,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "label-cleanup",
+          "reply": "Merhaba, sistem durumu kontrol ettim; yerel model ve sunucu çalışıyor. Nasıl yardımcı olabilirim?"
+        },
+        {
+          "text": "selam",
+          "httpStatus": 200,
+          "ms": 1306,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "label-cleanup",
+          "reply": "Selam, nasıl yardımcı olabilirim?"
+        },
+        {
+          "text": "merhaba AYAS",
+          "httpStatus": 200,
+          "ms": 1725,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "label-cleanup",
+          "reply": "Merhaba, sistem durumu kontrol ettim. Yerel model ve sunucu çalışıyor. Nasıl yardımcı olabilirim?"
+        },
+        {
+          "text": "günaydın",
+          "httpStatus": 200,
+          "ms": 1452,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "label-cleanup",
+          "reply": "Günaydın! Sistem durumu kontrol ettim; yerel model ve sunucu çalışıyor. Nasıl yardımcı olabilirim?"
+        },
+        {
+          "text": "Bugün kısaca neye odaklanmalıyım?",
+          "httpStatus": 200,
+          "ms": 1476,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "label-cleanup",
+          "reply": "Sistemin durumu kontrol ettim; yerel model ve sunucu çalışıyor. Bugün nasıl yardımcı olabilirim?"
+        }
+      ],
+      "summary": {
+        "turns": 5,
+        "llm": 5,
+        "fallback": 0,
+        "httpErrors": 0
+      },
+      "evidence": [
+        {
+          "startedAt": "2026-10-08T09:54:40.571Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 0,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        },
+        {
+          "startedAt": "2026-10-08T09:54:47.227Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 0,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        },
+        {
+          "startedAt": "2026-10-08T09:54:48.543Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 0,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        },
+        {
+          "startedAt": "2026-10-08T09:54:50.265Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 0,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        },
+        {
+          "startedAt": "2026-10-08T09:54:51.717Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 0,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        }
+      ],
+      "finishedAt": "2026-10-08T09:54:54.690Z"
+    },
+    "postRestartNeutralHistory": {
+      "label": "post-restart-neutral",
+      "startedAt": "2026-10-08T09:55:21.008Z",
+      "local": {
+        "routes": {
+          "/": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2F"
+          },
+          "/brain": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fbrain"
+          },
+          "/studio": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fstudio"
+          },
+          "/login": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          },
+          "/manifest.webmanifest": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          }
+        },
+        "protectedRedirects": true,
+        "loginOk": true,
+        "manifestOk": true
+      },
+      "public": {
+        "routes": {
+          "/": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2F"
+          },
+          "/brain": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fbrain"
+          },
+          "/studio": {
+            "status": 307,
+            "gate": "enforced",
+            "location": "/login?next=%2Fstudio"
+          },
+          "/login": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          },
+          "/manifest.webmanifest": {
+            "status": 200,
+            "gate": null,
+            "location": null
+          }
+        },
+        "protectedRedirects": true,
+        "loginOk": true,
+        "manifestOk": true
+      },
+      "buildStamp": {
+        "schemaVersion": "1",
+        "gitHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+        "treeState": "CLEAN",
+        "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+        "stampedAt": "2026-10-08T09:54:26.629Z"
+      },
+      "buildId": "KmsdsLSOPkVSbJONHR1Zf",
+      "phoneStatus": {
+        "appServer": "online",
+        "lanAccess": "online",
+        "tunnel": "online",
+        "ayasBackend": "online",
+        "tunnelUrl": "https://ayas.atolyeayas.com",
+        "updatedAt": "2026-10-08T09:54:30.3853048Z"
+      },
+      "ollamaLoaded": [
+        "qwen2.5:3b"
+      ],
+      "login": {
+        "status": 200,
+        "sessionIssued": true
+      },
+      "turns": [
+        {
+          "text": "merhaba",
+          "httpStatus": 200,
+          "ms": 1952,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "label-cleanup",
+          "reply": "Merhaba, bugün biraz plan yapalım. Hangi konudan başlamak istersin?"
+        },
+        {
+          "text": "selam",
+          "httpStatus": 200,
+          "ms": 1392,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "label-cleanup",
+          "reply": "Selam! Bugün biraz plan yapalım. Hangi konudan başlamak istersin?"
+        },
+        {
+          "text": "Bugün kısaca neye odaklanmalıyım?",
+          "httpStatus": 200,
+          "ms": 1589,
+          "deltas": 1,
+          "states": [],
+          "source": "llm",
+          "corrected": true,
+          "reason": "context-retry",
+          "reply": "Bugün neye odaklanmak istersin?"
+        }
+      ],
+      "summary": {
+        "turns": 3,
+        "llm": 3,
+        "fallback": 0,
+        "httpErrors": 0
+      },
+      "evidence": [
+        {
+          "startedAt": "2026-10-08T09:55:21.856Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 0,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        },
+        {
+          "startedAt": "2026-10-08T09:55:23.798Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 0,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        },
+        {
+          "startedAt": "2026-10-08T09:55:25.193Z",
+          "task": "chat-turn",
+          "outcome": "ok",
+          "errorCode": null,
+          "retries": 1,
+          "model": {
+            "entryId": "llm.local-text.qwen2.5-3b",
+            "state": "PINNED",
+            "pin": "MATCH"
+          }
+        }
+      ],
+      "finishedAt": "2026-10-08T09:55:28.280Z"
+    }
+  },
+  "credentialHandling": "AYAS_ACCESS_KEY read inside the check process from .env.local and sent only to http://127.0.0.1:3000/api/auth/login; never printed or written. Session cookie not recorded.",
+  "liveWrites": "8 chat turns through the live route (5 + 3) wrote their normal observability evidence lines; no other live state was changed.",
+  "notRun": [
+    "physical phone use (microphone, speaker, wake) — owner device",
+    "audible voice reply — browser speechSynthesis on the owner's device; only asset reachability checked",
+    "Windows reboot continuity"
+  ],
+  "quality": "F95 fixed live (8/8 model replies, 0 fallbacks). Conversation quality not qualified: qwen2.5:3b echoes history lines and status sentences and bounced a direct question back (F97 stays open)."
+}

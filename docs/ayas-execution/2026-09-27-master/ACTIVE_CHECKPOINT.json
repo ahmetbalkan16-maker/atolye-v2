@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Combined protected scope measured in a real interval (STATIC_AUDIT_COMPLETE, scope complete); TEST/LIVE binding, budget review and owner gates remain; Foundation BLOCKED",
-  "status": "COMBINED_PROTECTED_SCOPE_REAL_INTERVAL_COMPLETE_TEST_LIVE_UNBOUND_FOUNDATION_BLOCKED",
+  "subtask": "Owner review 2026-10-08: push done; F95 deployed live after a clean-regression full166; F96 reviewed (owner decision pending); combined-budget-v1 independently reviewed (conditions open, not promoted); Foundation BLOCKED",
+  "status": "OWNER_REVIEW_APPLIED_F95_LIVE_F96_REVIEWED_COMBINED_SCOPE_NOT_PROMOTED_FOUNDATION_BLOCKED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -286,14 +286,14 @@
   ],
   "graphify": {
     "schemaVersion": "1",
-    "sourceHead": "f8143e21a0223a57f7ee54b8549dd0825845c16e",
-    "lastSeenHead": "f8143e21a0223a57f7ee54b8549dd0825845c16e",
-    "lastAnalyzedHead": "f8143e21a0223a57f7ee54b8549dd0825845c16e",
-    "builtFromHead": "f8143e21a0223a57f7ee54b8549dd0825845c16e",
+    "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "lastSeenHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "lastAnalyzedHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "builtFromHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
     "stale": false,
     "integrityViolations": 0,
-    "nodes": 19403,
-    "edges": 55630,
+    "nodes": 19404,
+    "edges": 55632,
     "communities": 400,
     "structural": "PARTIAL",
     "semantic": "PENDING",
@@ -323,10 +323,12 @@
     "OWNER_ACTION (not blocking): rebuild and restart the Next server to load Stage 15T (/brain/briefing and the compact owner-alert panel on the Control Center). Until then the live server has no briefing.",
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only.",
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
-    "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification."
+    "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification.",
+    "OWNER_DECISION (blocks a clean full166): F96 — approve or reject the one-line OTHER_ENTRIES registration of app/page.tsx in the pinned firewall grader and the v58 pin refresh (05_STAGE17/implementation/F96_FROZEN_GRADER_REVIEW_e974614.md).",
+    "OWNER_DECISION (blocks qualified combined protected scope): F98 condition 1 — whether a missing protected root/store is an incompleteness reason or an explicit per-store acceptance; then conditions 2-5 (05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md)."
   ],
-  "nextAction": "Owner: approve git push of the local commits; approve a restart window to deploy F95; approve the F96 v58 grader registration; independent review of combined-budget-v1. Technical next: Stage17 review step 4 (same-source full166 receipt import into the collector), then step 5 domain TEST/LIVE binding. No Brain UI V2 redesign, no voice work.",
-  "updatedAt": "2026-10-08T09:05:00.000Z",
+  "nextAction": "Owner: decide F96 (v58 grader registration) and F98 condition 1; approve push of the 2026-10-08 documentation commit. Technical next: F98 conditions 2-5 (receipt binding, root validation, budget boundary tests) once condition 1 is decided, then Stage17 review step 4 (same-source full166 receipt import; e974614 receipt available) and step 5 (TEST/LIVE binding). F97 conversation quality open. No Brain UI V2 redesign, no voice work.",
+  "updatedAt": "2026-10-08T10:01:03.162Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1433,7 +1435,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Owner: approve git push of the local commits; approve a restart window to deploy F95; approve the F96 v58 grader registration; independent review of combined-budget-v1. Technical next: Stage17 review step 4 (same-source full166 receipt import into the collector), then step 5 domain TEST/LIVE binding. No Brain UI V2 redesign, no voice work.",
+  "resumeNextAction": "Owner: decide F96 (v58 grader registration) and F98 condition 1; approve push of the 2026-10-08 documentation commit. Technical next: F98 conditions 2-5 (receipt binding, root validation, budget boundary tests) once condition 1 is decided, then Stage17 review step 4 (same-source full166 receipt import; e974614 receipt available) and step 5 (TEST/LIVE binding). F97 conversation quality open. No Brain UI V2 redesign, no voice work.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -5248,7 +5250,7 @@
   },
   "localModelFallback20261008": {
     "finding": "F95",
-    "state": "FIXED_IN_SOURCE_NOT_DEPLOYED",
+    "state": "DEPLOYED_LIVE_e974614",
     "rootCause": "Context-quality guard rejected greeting replies once history existed; the short-turn fallback is 'Anladım.'; the chat note labelled every fallback as an unreachable model",
     "liveEvidence": "data/brain/observability/evidence/2026-10-08.jsonl turn 07:51:14Z: outcome fallback, errorCode null, qwen2.5-3b PINNED/MATCH, retries 1",
     "ollama": "REACHABLE; qwen2.5:3b resident; qwen2.5:7b installed; model choice unchanged",
@@ -5256,24 +5258,44 @@
     "tests": "scripts/smoke-ayas-reply-fallback-truth.ts PASS 11 (FAIL on unfixed HEAD); tsc PASS; ESLint changed files 0",
     "overlayBaseline": "162/166; failures = 3 preserved raw FAILs (same reasons) + action-firewall-closure pre-existing at HEAD (F96)",
     "brainUiV2": "PRESERVED; only the existing chat-note text is reason-accurate",
-    "deployment": "OWNER_APPROVED_RESTART_WINDOW_REQUIRED",
+    "deployment": "DONE_OWNER_APPROVED_2026-10-08",
     "openQuality": "F97",
-    "evidence": "docs/ayas-runtime-recovery/2026-10-08/LOCAL_MODEL_FALLBACK.md"
+    "evidence": "docs/ayas-runtime-recovery/2026-10-08/LOCAL_MODEL_FALLBACK.md",
+    "liveRollout": {
+      "condition": "full166 at e974614 162/166, no new regression",
+      "rollbackPoint": "%LOCALAPPDATA%\\AtolyeAyasAccess\\rollback\\next-coVrOl3qLCvfhuOlaX6Xn-5b657e1 (unused)",
+      "buildProof": "TEMP next build exit 0; 55/55 routes, proxy, 25/25 server actions identical to the live build",
+      "restart": "Access daemon recovery path; attempt 25 success; ~70 s down; build KmsdsLSOPkVSbJONHR1Zf at e974614 CLEAN",
+      "live": "local + public gates PASS; 8/8 real Ollama replies, 0 fallbacks; voice assets reachable over the tunnel",
+      "notRun": "physical phone, audible voice, reboot",
+      "receipt": "docs/ayas-runtime-recovery/2026-10-08/LIVE_ROLLOUT_F95_e974614.json"
+    }
   },
   "homepageFirewallRegistration": {
     "finding": "F96",
-    "state": "OPEN_OWNER_APPROVAL_REQUIRED_FROZEN_GRADER",
+    "state": "REVIEWED_OWNER_DECISION_PENDING_FROZEN_GRADER",
     "suite": "action-firewall-closure",
     "introducedBy": "4ca7e66",
     "requiredChange": "Register app/page.tsx in OTHER_ENTRIES of scripts/smoke-ayas-action-firewall-closure.ts and refresh the pin as manifest v58",
-    "frozenPinsChanged": false
+    "frozenPinsChanged": false,
+    "review": {
+      "at": "2026-10-08",
+      "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+      "reach": "app/page.tsx and app/brain/page.tsx: closures 325/325 (differ only by entry), same 15 leased/owner-only and 33 effectful modules; same access gate",
+      "graderSha256Pinned": "c57403df5ba9d8817a27fbf6fc6843bbd12bd5bd4fcf1d39168b7725260b2547",
+      "graderSha256WithProposedLine": "a7824b99374826a4145894215182fe0ffe4aac3b87778b1c2eec60e9f4531308",
+      "pinMatchBasis": "inferred: bound full166 started without AYAS_EVAL_PIN_DRIFT; manifest not opened",
+      "tempCopyResult": "unchanged FAIL at scenario 9; with the line PASS 12/12",
+      "record": "05_STAGE17/implementation/F96_FROZEN_GRADER_REVIEW_e974614.md"
+    },
+    "applied": false
   },
   "stage17CombinedScope": {
     "reviewSteps": "1-3 of 05_STAGE17/implementation/STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md",
-    "state": "IMPLEMENTED_REAL_INTERVAL_COMPLETE_BUDGET_REVIEW_PENDING",
+    "state": "REAL_INTERVAL_COMPLETE_INDEPENDENT_REVIEW_CONDITIONS_OPEN_NOT_PROMOTED",
     "implementationHead": "f8143e21a0223a57f7ee54b8549dd0825845c16e",
     "scope": "COMBINED_REPOSITORY_RUNTIME_AUTHORITY_V1",
-    "budget": "combined-budget-v1 (40000 files, 2 GiB, 16 MiB/file, depth 20, 300 s); independent review required before qualified use",
+    "budget": "combined-budget-v1 (40000 files, 2 GiB, 16 MiB/file, depth 20, 300 s); independently reviewed 2026-10-08: limits fail closed; evidence not promoted",
     "realInterval": {
       "head": "f8143e21a0223a57f7ee54b8549dd0825845c16e",
       "startedAt": "2026-10-08T09:00:01.700Z",
@@ -5306,15 +5328,59 @@
     "frozenChanged": false,
     "notes": "05_STAGE17/implementation/STAGE17_COMBINED_SCOPE.md",
     "foundationClosed": false,
-    "remaining": "budget review; writer attribution for longer intervals; review step 4 (same-source full166 receipt import) and step 5 (per-domain TEST/LIVE binding); six owner gates"
+    "remaining": "budget review; writer attribution for longer intervals; review step 4 (same-source full166 receipt import) and step 5 (per-domain TEST/LIVE binding); six owner gates",
+    "independentReview": {
+      "at": "2026-10-08",
+      "verdict": "QUALIFIED_PASS_WITH_CONDITIONS",
+      "promoted": false,
+      "high": [
+        "B1/F98: absent protected roots and missing stores count as covered without a reason (runtime, authority, projects, .atolye, data/brain/revenue absent here)",
+        "B2: external runtime/authority roots not bound to the configured roots; receipt omits roots/stores/budgetId"
+      ],
+      "medium": [
+        "B3 dangling junction reads ABSENT",
+        "B4 no maxFiles/total maxBytes boundary test or mutation control",
+        "B5 attribution NONE is endpoint-only"
+      ],
+      "conditions": 5,
+      "ownerDecision": "condition 1: how legitimately missing roots/stores count",
+      "record": "05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md"
+    }
   },
   "pushState": {
-    "state": "LOCAL_COMMITS_NOT_PUSHED",
-    "reason": "git push refused by the Claude Code session permission classifier on 2026-10-08; owner approval required",
+    "state": "PUSHED_THROUGH_e974614_DOCUMENTATION_COMMIT_LOCAL",
+    "pushed": {
+      "range": "462f9f7..e974614",
+      "commits": [
+        "1f76faa",
+        "f8143e2",
+        "e974614"
+      ],
+      "at": "2026-10-08",
+      "force": false,
+      "ownerApproval": "Stage 17 owner review, decision 1 (only these three commits)",
+      "verifiedRemoteHead": "e97461495391a5d287b7505dc6b41e01a8b88acc"
+    },
     "localCommits": [
-      "1f76faa",
-      "f8143e2",
-      "following documentation commits"
+      "2026-10-08 Stage 17 owner-review documentation commit (push needs separate owner approval)"
     ]
+  },
+  "full166AtE974614": {
+    "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "manifest": "15F.4-v57",
+    "declared": 166,
+    "passed": 162,
+    "failed": 4,
+    "failures": [
+      "action-firewall-closure (F96)",
+      "retrieval-evaluation (preserved raw; exactly 12 IMPROVED)",
+      "golden-vault-run (preserved raw; golden.memory.retrieval-evaluation only)",
+      "golden-sandbox-run (preserved raw; golden.memory.retrieval-evaluation only)"
+    ],
+    "newRegressions": 0,
+    "report": "05_STAGE17/implementation/STAGE17_e974614_FULL166.json",
+    "reportSha256": "e4c0a5260ef3f3bad19eb0aa3476e7419e033c01f7080ceeaa56c4e55f1e3739",
+    "rawFailureLogs": "05_STAGE17/implementation/STAGE17_e974614_RAW_<suite>_stderr.log (4)",
+    "grantsAuthority": false
   }
 }

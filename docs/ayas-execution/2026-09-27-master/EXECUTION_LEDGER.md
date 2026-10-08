@@ -1269,3 +1269,36 @@ Canonical Access daemon deployed CLEAN 59e585ab4ac9acfcaedeaebf75099568c28512f3.
 - Receipt: `STAGE17_COMBINED_AUDIT_f8143e2.json` (sha256 d1f0a2b2…4a6d).
 - Foundation BLOCKED: budget review, writer attribution for longer intervals, review steps 4–5 and the owner gates remain.
 - Push of `1f76faa`/`f8143e2` was refused by the session permission classifier; the commits are local until the owner approves the push.
+
+## 2026-10-08 — Stage 17 owner review: push, F95 live rollout, F96 review, combined-budget review
+
+- **Session start.** Branch `wip/ayas-graphify-final-execution` at `e974614`, clean, ahead 3 / behind 0 (`origin` = `462f9f7` by `ls-remote`). The previous session's bound full166 (started 12:04) was still running, so the repository was read-only until it ended.
+- **Push (owner decision 1).**
+  - Pre-checks: branch verified; ahead exactly 3 (`1f76faa`, `f8143e2`, `e974614`, all by the owner identity); fast-forward from `462f9f7`; no hooks.
+  - Diff: 22 files.
+  - Secret scan of the added lines: four benign keyword hits (an id, prose, a test canary name, a regex). No env/key/pem files, IPs or hosts, and no paths into `runtime/secrets`.
+  - Pushed `462f9f7..e974614` without force; `ls-remote` = `e974614`.
+- **Bound full166 at clean `e974614`** (manifest 15F.4-v57, 166/166 declared): **162 PASS / 4 FAIL**, no new regression.
+  - FAILs: `action-firewall-closure` (F96, `+ ['app/page.tsx']`); `retrieval-evaluation` (exactly 12 IMPROVED); `golden-vault-run` and `golden-sandbox-run` (both stopped only for `golden.memory.retrieval-evaluation`).
+  - Report `STAGE17_e974614_FULL166.json` (sha256 e4c0a526…3739) and the four `STAGE17_e974614_RAW_*_stderr.log` files.
+  - TEMP fixture removed: junction first; real `node_modules` count unchanged.
+- **F96 review (owner decision 3, inspection only).**
+  - Graphify path `app/page.tsx → AyasConsolePage.tsx → app/brain/actions.ts` (EXTRACTED).
+  - A copy of the grader's own import graph, run against a `git archive` copy of `e974614`: `/` and `/brain` have closures of 325 files each, the same 15 sensitive modules and the same 33 effectful modules; `/studio` reaches none.
+  - The unchanged grader (`c57403df…2547`) fails scenario 9. With one `OTHER_ENTRIES` line (`a7824b99…1308`) it passes 12/12.
+  - Pin equality is inferred from the run starting without `AYAS_EVAL_PIN_DRIFT`: a permission rule stopped this session from opening the eval manifest.
+  - Nothing applied: grader, manifest and tests unchanged.
+- **combined-budget-v1 review (owner decision 4).**
+  - A separate cold-start reviewer worked read-only on the repository, with execution only in its own TEMP copy against fixtures.
+  - Verdict: QUALIFIED_PASS_WITH_CONDITIONS.
+  - The two HIGH findings were re-checked here against the real repository and the receipt: absent roots/stores count as covered (B1/F98), and the external roots are unbound (B2).
+  - The receipt is not promoted.
+- **F95 live rollout (owner decision 2).** The condition was met (no new regression).
+  - Rollback point: the live `.next` backed up outside the repository (1,096 files / 150,109,548 bytes, build `coVrOl3q…` from `5b657e1`).
+  - TEMP build proof at `e974614`: exit 0 in 33 s; 55/55 routes, proxy identical, 25/25 server actions identical to the live build.
+  - Stopped only the `next start` tree under the Access daemon's wrapper. The daemon rebuilt and restarted: attempt 25 success, about 70 s down; build `KmsdsLSO…` at `e974614` CLEAN.
+  - Live: local and public gates PASS; 8/8 real Ollama replies, 0 fallbacks; voice assets reachable over the tunnel.
+  - Not run: physical phone, audible voice, reboot. F97 observed live.
+  - Receipt: `docs/ayas-runtime-recovery/2026-10-08/LIVE_ROLLOUT_F95_e974614.(md|json)`.
+- **Evidence matrix.** New delta `STAGE17_EVIDENCE_MATRIX_DELTA_e974614.json`, with candidate states only; the bound `59e83cd` matrix is unchanged.
+- **Foundation BLOCKED.** Open: F96 and F98 owner decisions, review steps 4–5, six owner gates, Next 16.2.10 vs lock 16.3.8, retrieval-golden succession. This documentation commit stays local until the owner approves its push.

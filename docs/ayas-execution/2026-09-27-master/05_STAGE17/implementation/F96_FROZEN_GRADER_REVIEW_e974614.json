@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1",
+  "finding": "F96",
+  "reviewedOn": "2026-10-08",
+  "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+  "method": "git archive of e974614 into OS TEMP with a node_modules junction; grader import-graph code copied into a probe; grader run unchanged and with one added OTHER_ENTRIES line; repository not modified",
+  "grader": {
+    "path": "scripts/smoke-ayas-action-firewall-closure.ts",
+    "lastChangedIn": "2bebdba",
+    "sha256Pinned": "c57403df5ba9d8817a27fbf6fc6843bbd12bd5bd4fcf1d39168b7725260b2547",
+    "pinMatchBasis": "INFERRED_FROM_BASELINE_START_NO_AYAS_EVAL_PIN_DRIFT; manifest not opened",
+    "sha256WithProposedLine": "a7824b99374826a4145894215182fe0ffe4aac3b87778b1c2eec60e9f4531308",
+    "linesAdded": 1
+  },
+  "cause": {
+    "commit": "4ca7e66c9070d41dd727477a710c736ced59acf9",
+    "file": "app/page.tsx",
+    "change": "HomeClient replaced by AyasConsolePage homepage; old dashboard moved to app/studio/page.tsx"
+  },
+  "runs": {
+    "unchanged": {
+      "exit": 1,
+      "scenariosPassedBeforeFailure": 8,
+      "failure": "a new entry point reaches leased or owner-only work",
+      "unregistered": [
+        "app/page.tsx"
+      ]
+    },
+    "withProposedLine": {
+      "exit": 0,
+      "scenariosPassed": 12,
+      "summary": "Stage 15D firewall closure audit: PASS (12 scenarios; 9 surfaces; 41 mapped modules; TEMP only)"
+    }
+  },
+  "reach": {
+    "homeClosureSize": 325,
+    "brainClosureSize": 325,
+    "onlyInHomeClosure": [
+      "app/page.tsx"
+    ],
+    "onlyInBrainClosure": [
+      "app/brain/page.tsx"
+    ],
+    "sensitiveModulesEqual": true,
+    "sensitiveModules": [
+      "src/lib/ayas/developer/AyasGraphifyStateCollector.ts [TOOL_LEASE,DURABLE_LEASE]",
+      "src/lib/ayas/execution/AyasDeveloperEvidence.ts [TOOL_LEASE]",
+      "src/lib/brain/autonomy/AyasAutonomyDaemon.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+      "src/lib/brain/autonomy/AyasBatchGraphifyCheck.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+      "src/lib/brain/autonomy/AyasDeferredPublicationFinalizer.ts [OWNER_PUBLICATION]",
+      "src/lib/brain/autonomy/AyasGuardedPublication.ts [OWNER_PUBLICATION]",
+      "src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts [OWNER_PUBLICATION]",
+      "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts [OWNER_LEASE]",
+      "src/lib/brain/autonomy/AyasMutationValidators.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+      "src/lib/brain/autonomy/AyasPatchArtifactMutation.ts [OWNER_LEASE]",
+      "src/lib/brain/autonomy/AyasPatchSandbox.ts [DISCOVERY_LEASE,OWNER_LEASE]",
+      "src/lib/brain/autonomy/AyasPostPublicationClosure.ts [OWNER_PUBLICATION]",
+      "src/lib/brain/autonomy/AyasProposalApprovalService.ts [OWNER_PUBLICATION]",
+      "src/lib/brain/autonomy/AyasProposalExecutionService.ts [OWNER_LEASE]",
+      "src/lib/brain/autonomy/AyasSafePublicFetch.ts [DISCOVERY_LEASE]"
+    ],
+    "effectfulModulesEqual": true,
+    "effectfulModuleCount": 33,
+    "studioReachesSensitive": false,
+    "appEntriesReachingSensitive": [
+      "app/api/ayas/chat/stream/route.ts",
+      "app/api/ayas/stt/route.ts",
+      "app/brain/actions.ts",
+      "app/brain/briefing/actions.ts",
+      "app/brain/briefing/page.tsx",
+      "app/brain/observerActions.ts",
+      "app/brain/page.tsx",
+      "app/page.tsx"
+    ]
+  },
+  "auth": {
+    "homepageProtected": true,
+    "basis": "\"/\" not in OPEN_EXACT or OPEN_PREFIXES (src/lib/auth/accessGate.ts); access daemon Test-AccessGateResponse expects 307 to /login?next=%2F"
+  },
+  "decision": "OWNER_DECISION_PENDING",
+  "applied": false,
+  "frozenPinsChanged": false,
+  "testsChanged": false
+}
