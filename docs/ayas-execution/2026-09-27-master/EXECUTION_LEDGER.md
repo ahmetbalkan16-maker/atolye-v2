@@ -1332,3 +1332,15 @@ Review4 actual 166 suite receipts bound in registry; Review5 all 152 criteria / 
 No new push/deploy authorized: pasted continuation order §10 overrides session-end automatic push. Local commits authorized. Graphify refreshed per local commit; PARTIAL9/semantic pending retained, direct gap review recorded. Resolve final checkout HEAD with Git; complete `265f16f` baseline must not be restarted. Never replay the nine records. Next: owner decisions/receipts and genuinely exhaustive evidence binding.
 
 Details: `docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CODEX_CONTINUATION_20261008.md` and `STAGE17_RECOVERY9_DIAGNOSIS_20261008.md`.
+
+## 2026-10-08 — Final local Stage 17 source checkpoint
+
+Latest source HEAD: `215581304514efa9fdbdd18817e9ead7aff6c5b1`; F98/F97 parent packet: `ef6acb234f231982b117a4004893ff1abe1e0e45`. Final documentation descendants keep these exact source bytes; resolve current checkout HEAD from Git. Start `265f16f`, origin last observed `ba1c3c6`; no new push/deploy.
+
+Full166 completed at original 265f16f/v58: 163 PASS / 3 preserved raw FAIL; F96 PASS. New source has separately hash-bound focused regression/TypeScript/lint/fresh-lock build receipts, not a new Full166. F98 two HIGH closed by independent review (37 primary / 21 mutation checks); general F97 quality remains OPEN despite bounded improvement. All 152 criteria / 30 slots reviewed; partial test witnesses bound, no false whole-slot PASS. Historical matrix/frozen expectations unchanged.
+
+Recovery follow-up now suppresses only same-hash RECOVERY_REQUIRED rediscovery: six cases plus reservation/approval/execution/daemon regressions and fresh-lock build PASS, old-source negative assertion control reproduced. Old nine records stay unresolved; actor unproven, no replay or history finalization. Their journals/bindings remain unchanged. Whole inbox later changed across a HEAD transition (STALE/new PENDING); background attribution is unproved, so earlier byte-stability applies only to its test interval. Live stays e974614 / Next16.2.10, one listener/two Running tasks; no restart.
+
+**Foundation BLOCKED; sprint NOT READY.** Remaining: genuine combined interval/writer and exhaustive domain receipts, frozen evaluator succession, coordinated live lock migration, owner reconciliation and six existing owner gates. Future AYAS enrichment stays backlog. Graphify refreshed per source commit, final docs get full clustered refresh; PARTIAL9/semantic pending remain disclosed. 64 registered artifact hashes match committed Git blobs; raw archive bytes are not normalized.
+
+Resume from `docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CODEX_FINAL_CHECKPOINT_20261008.md`. Do not restart the archived baseline or replay the nine records. Owner's continuation §10 requires separate new push/deploy approval.

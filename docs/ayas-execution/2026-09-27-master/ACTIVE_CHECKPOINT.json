@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "265f16f0442c1910d7deeaf8395e31f335bcd2b0",
-  "currentHeadMeaning": "ENTRY_HEAD_OF_CODEX_2026_10_08; exact repaired source hashes and immutable evidence in latestCodexContinuation; local packet/document commits follow; resolve final checkout HEAD from Git",
+  "currentHead": "215581304514efa9fdbdd18817e9ead7aff6c5b1",
+  "currentHeadMeaning": "LATEST_SOURCE_PACKET_HEAD; final documentation-only descendants do not change code; resolve exact checkout HEAD from Git and .graphify/STAGE17_CODEX_FINAL_VERIFY.json",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "F96 exact full166 complete; reviewed F98 source repaired; F97 bounded improvement; review4/5 delta and recovery9 diagnosis complete; canonical whole-scope/domain qualification and owner gates remain",
-  "status": "F98_REVIEWED_BOUNDED_PACKET_VALIDATED_FOUNDATION_BLOCKED_SPRINT_NOT_READY",
+  "subtask": "Source repairs and bounded evidence complete; original Full166 finished; legacy owner provenance and canonical whole-scope/domain/owner qualifications remain open",
+  "status": "LOCAL_SOURCE_PACKETS_COMMITTED_RECOVERY_EXACT_DEDUP_VALIDATED_FOUNDATION_BLOCKED_SPRINT_NOT_READY",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -5409,7 +5409,7 @@
     "observedAt": "2026-10-08T11:33:00.179Z",
     "entryHead": "265f16f0442c1910d7deeaf8395e31f335bcd2b0",
     "entryOrigin": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597",
-    "sourcePacketHead": "RESOLVE_LOCAL_COMMIT_WITH_THIS_PACKET",
+    "sourcePacketHead": "ef6acb234f231982b117a4004893ff1abe1e0e45",
     "baseline": {
       "sourceHead": "265f16f0442c1910d7deeaf8395e31f335bcd2b0",
       "declared": 166,
@@ -5429,11 +5429,11 @@
     "f97": "BOUNDED_IMPROVEMENT_GENERAL_QUALITY_OPEN",
     "packetValidation": "05_STAGE17/implementation/STAGE17_PACKET_VALIDATION_20261008.json",
     "evidenceDelta": "05_STAGE17/implementation/STAGE17_EVIDENCE_MATRIX_DELTA_CODEX_20261008.json",
-    "recovery9": "READ_ONLY_DIAGNOSIS_COMPLETE_OWNER_ACTOR_UNPROVEN_NO_REPLAY",
-    "report": "05_STAGE17/implementation/STAGE17_CODEX_CONTINUATION_20261008.md",
+    "recovery9": "READ_ONLY_DIAGNOSIS_AND_PROSPECTIVE_EXACT_HASH_DEDUP_TESTED_OLD_NINE_UNRESOLVED",
+    "report": "05_STAGE17/implementation/STAGE17_CODEX_FINAL_CHECKPOINT_20261008.md",
     "foundation": "BLOCKED",
     "sprint": "NOT_READY",
-    "graphify": "REFRESH_AFTER_EACH_LOCAL_COMMIT; PARTIAL9/SEMANTIC_PENDING",
+    "graphify": "SOURCE_COMMITS_REFRESHED; FINAL_DOCUMENT_COMMIT_FULL_CLUSTERED_REFRESH_THEN_VERIFY; PARTIAL9_SEMANTIC_PENDING",
     "push": "SEPARATE_EXPLICIT_OWNER_APPROVAL_REQUIRED_PASTED_ORDER_SECTION_10",
     "deploy": "NOT_AUTHORIZED",
     "liveServicesChanged": false,
@@ -5442,6 +5442,34 @@
       "Collect actual combined interval/attribution and exhaustive domain qualification receipts; keep insufficient slots NOT_RUN/BLOCKED.",
       "Owner decisions: new push, coordinated Next migration, frozen evaluator succession, append-only legacy reconciliation.",
       "Existing six owner gates and final digest-bound review; deferred future enrichment remains backlog."
-    ]
+    ],
+    "latestSourceHead": "215581304514efa9fdbdd18817e9ead7aff6c5b1",
+    "sourcePacketHeads": [
+      "ef6acb234f231982b117a4004893ff1abe1e0e45",
+      "215581304514efa9fdbdd18817e9ead7aff6c5b1"
+    ],
+    "dedupValidation": "05_STAGE17/implementation/STAGE17_RECOVERY_DEDUP_VALIDATION_20261008.json",
+    "liveSource": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "liveNext": "16.2.10",
+    "sourceFiles": {
+      "src/lib/ayas/audit/AyasSystemAuditCombinedScope.ts": "9f764dd8af8bdefd5f932dd112f3986da41beea5ab9bfcf9e3bab3f683065ad4",
+      "src/lib/ayas/audit/AyasSystemAuditCollector.ts": "d504b032c06a076766bf42094695ed9bb6e44aa19a6f1799dd8a3e73844511f9",
+      "scripts/ayas-system-audit.ts": "aa61927c84249ade01d2682636ecbc4e5fa1c19706369167c0a9af96d0f33dbd",
+      "scripts/smoke-ayas-system-audit-combined-scope.ts": "89154fbdfb7cc06603e930ba633912d83607e9923f7332d25d579597b719bed4",
+      "src/lib/runtime/security/RuntimeAuthorityGenerationMarker.ts": "3531dc0911eb7f5468d985db0c4c9089f04b44a3363e554e50280244d72f9e6f",
+      "src/lib/runtime/security/RuntimeAuthorityTransition.ts": "eb9674de30ade54eedd1b5a59590dc51adffdce1e22c319ab0935c825dde5ce2",
+      "src/lib/ayas/context/AyasReplyHistoryQuality.ts": "bb1c8c8cae5aaa1a2b4ea6c30065c7d047d919422a3bdcf3e8c085c5de2c6bf6",
+      "src/lib/ayas/AyasChatStream.ts": "ca0bd3679ae9202f4b297d0534f6a0fdbdcc312f4b51ac921af89ea747775490",
+      "scripts/smoke-ayas-reply-history-quality.ts": "a6687601b349c00d688d1421341ad206161dde20af43cbad027395b0248d43b7",
+      "src/lib/brain/autonomy/AyasApprovalInboxStore.ts": "132d8865e90830c7edbcd0b88fc1ca72c960a08f22ef3f84486952b2d2c2ce26",
+      "scripts/smoke-ayas-recovery-proposal-dedup.ts": "072f2b2a56887b033b966a38368cc0e2bb2f0be19bbfc112e8491953b745509f"
+    },
+    "sourceAndGitArchiveVerify": {
+      "sourceFiles": 11,
+      "registeredArtifacts": 64,
+      "allHashesMatch": true
+    },
+    "readOnlyIntervalNote": "Earlier inbox hash stability scoped to policy test interval; later overall inbox differs after head reconciliation/discovery. Nine old journals/bindings unchanged, writer attribution unqualified.",
+    "updatedAt": "2026-10-08T11:53:04.074Z"
   }
 }

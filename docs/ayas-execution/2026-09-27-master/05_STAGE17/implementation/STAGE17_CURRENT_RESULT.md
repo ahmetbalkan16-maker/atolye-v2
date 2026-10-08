@@ -1,4 +1,16 @@
-# Current — 2026-10-07 / Stage17 foundation closure evidence complete at59e83cd;152-criterion matrix+30-slot binding;Foundation BLOCKED fail-closed
+## 2026-10-08 — Final local Stage 17 source checkpoint
+
+Latest source HEAD: `215581304514efa9fdbdd18817e9ead7aff6c5b1`; F98/F97 parent packet: `ef6acb234f231982b117a4004893ff1abe1e0e45`. Final documentation descendants keep these exact source bytes; resolve current checkout HEAD from Git. Start `265f16f`, origin last observed `ba1c3c6`; no new push/deploy.
+
+Full166 completed at original 265f16f/v58: 163 PASS / 3 preserved raw FAIL; F96 PASS. New source has separately hash-bound focused regression/TypeScript/lint/fresh-lock build receipts, not a new Full166. F98 two HIGH closed by independent review (37 primary / 21 mutation checks); general F97 quality remains OPEN despite bounded improvement. All 152 criteria / 30 slots reviewed; partial test witnesses bound, no false whole-slot PASS. Historical matrix/frozen expectations unchanged.
+
+Recovery follow-up now suppresses only same-hash RECOVERY_REQUIRED rediscovery: six cases plus reservation/approval/execution/daemon regressions and fresh-lock build PASS, old-source negative assertion control reproduced. Old nine records stay unresolved; actor unproven, no replay or history finalization. Their journals/bindings remain unchanged. Whole inbox later changed across a HEAD transition (STALE/new PENDING); background attribution is unproved, so earlier byte-stability applies only to its test interval. Live stays e974614 / Next16.2.10, one listener/two Running tasks; no restart.
+
+**Foundation BLOCKED; sprint NOT READY.** Remaining: genuine combined interval/writer and exhaustive domain receipts, frozen evaluator succession, coordinated live lock migration, owner reconciliation and six existing owner gates. Future AYAS enrichment stays backlog. Graphify refreshed per source commit, final docs get full clustered refresh; PARTIAL9/semantic pending remain disclosed. 64 registered artifact hashes match committed Git blobs; raw archive bytes are not normalized.
+
+Resume from `docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CODEX_FINAL_CHECKPOINT_20261008.md`. Do not restart the archived baseline or replay the nine records. Owner's continuation §10 requires separate new push/deploy approval.
+
+# Historical snapshot — 2026-10-07 / Stage17 foundation closure evidence complete at59e83cd;152-criterion matrix+30-slot binding;Foundation BLOCKED fail-closed
 
 Resumed exact59e83cd clean/origin0/0;Graphify analyzed/built at HEAD,stale=false,integrity0,PARTIAL9/semanticPENDING disclosed;src unchanged fde898f..59e83cd (docs-only diff verified),so the fde898f full166 163PASS/3 preserved raw FAIL (retrieval-evaluation exact12 IMPROVED requests+16 limits;golden-vault-run/golden-sandbox-run PROMOTION_STOPPED solely for golden.memory.retrieval-evaluation) stays source-bound;34ecb66 162/4 immutable. Fresh canonical audits at59e83cd:interval1 caught PROTECTED_CHANGE_UNATTRIBUTED (background brain-memory writes under data/brain/Users,102 files/2h;attribution stays UNKNOWN by contract — no bounded writer receipt);quiescent interval2 rerun identical digests;both preserved,exclusions0. Combined canonical protected scope remains NOT_QUALIFIED(PROTECTED_SCOPE_INCOMPLETE);separate intervals are never combined into unified PASS.
 
