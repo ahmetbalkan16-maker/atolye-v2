@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-08T16:51:44.941Z",
+  "technicalHead": "dbf9542e352e149cbc6a5552894050ca33e4359a",
+  "fixtureRemote": "NONE",
+  "fixtureStatus": "CLEAN",
+  "installedNext": "16.3.8",
+  "lockedNext": "16.3.8",
+  "lockSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+  "manifestVersion": "15F.4-v59",
+  "declaredSuites": 166,
+  "freeMemoryGiB": 14.547508239746094,
+  "lifecycleScripts": "DISABLED_DURING_FRESH_NPM_CI",
+  "full166Runs": "SINGLE_FINAL_RUN_ABOUT_TO_START",
+  "liveNodeModules": "UNCHANGED_16.2.10",
+  "liveRuntime": "UNCHANGED"
+}

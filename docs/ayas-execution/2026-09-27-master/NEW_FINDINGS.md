@@ -1,3 +1,5 @@
+> 2026-10-08 K3 source delta: F106/F107/F108 exact patch c686697bd65c2832c47b00b414d1e2cac93b0a8992b8a18f494c9cd0ec7f4c4c ile local source'da düzeltildi; bağımsız review açıkP1/P2 yok. Canlı deployment hâlâ yapılmadı, runtime kapanışı iddia edilmez. Default internal REJECT/LATER ve tarihsel kayıtlar korunur. Ek kanıt sınırı: iki eski auto-resume smoke rawFAIL; e4 evidence CommonJS helper'larında repo-genel ESLint12styleerror. Orijinal kanıt byte'larını değiştirmeden raporlandı; production source lint0error.
+
 ## 2026-10-08 — Codex exact handoff / F106–F108 and F105 qualification delta
 
 **F106 MEDIUM, TEMP K3: invalid cryptographic seal accepted by decision binding and execution/resume admission predicate.** Reproduced with synthetic record. Explicit seal verifier rejects it, but production predicate never calls it. Persisted/in-process tampering scope; no unauthenticated browser bypass demonstrated. Source application CHANGES_REQUIRED.

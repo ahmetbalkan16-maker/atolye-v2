@@ -22,12 +22,60 @@
       "sha256": "7643cab21ce8bf55aab80d66080ea4d0c17accd601a584a939830201d31d8cde"
     },
     {
+      "file": "FINAL_BUILD_FRESH_INSTALL.raw.log",
+      "sha256": "be7271c06653d87ea5cd44992a229f07fcd2927f5f647c1032fa11c1c7f8e390"
+    },
+    {
+      "file": "FINAL_CLOSURE_STATUS.json",
+      "sha256": "95c24fb1eba683521b9379ac19301f0729f47865f25a4857747c643c60b0037d"
+    },
+    {
+      "file": "FINAL_FULL166_PREFLIGHT.json",
+      "sha256": "955d4fcb6610888257024121dae1dd7f18bb0f2cda385431e2ae45221d7bb9df"
+    },
+    {
+      "file": "FINAL_FULL166_dbf9542.raw.json",
+      "sha256": "dc395d77c36ad593d0d6ec86ad6cb9fad39fe94fc4a3b4c8979db30f891c4658"
+    },
+    {
+      "file": "FINAL_FULL166_dbf9542.raw.log",
+      "sha256": "b0c334fcdf47a619841d27f124fd6c4931decb3ca7e7d3ebeeeee1465897d5bc"
+    },
+    {
+      "file": "FINAL_ISOLATED_BUILD_RECEIPT.json",
+      "sha256": "561bcf23bfa7964d2e6d19fcb1f6bd15c91e408b3f47f4deadc12ee04b1368ee"
+    },
+    {
+      "file": "FINAL_ISOLATED_BUILD_dbf9542.raw.log",
+      "sha256": "a551402731a4a0d76ebcfde4d625ef328724b0f0f49317ab4dbc5235cb1a6026"
+    },
+    {
+      "file": "FINAL_OWNER_REPORT.md",
+      "sha256": "727ff6539cef6ebf80cc422ecedbaa9ec0d5ee8a93c53dac121416ef6d9c5bac"
+    },
+    {
+      "file": "FINAL_PRODUCTION_SOURCE_ESLINT.raw.log",
+      "sha256": "c22390248e3140e24bbcced0b550fbb134b89749f26281cc0e0e14fb898d8050"
+    },
+    {
+      "file": "FINAL_SOURCE_TSC.raw.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
       "file": "FRESH_LOCK_INSTALL.raw.log",
       "sha256": "1fa38501656ecaae85b26b9994e04c84fa92848896ae19273d90ef021bbee14c"
     },
     {
+      "file": "GRAPHIFY_TECHNICAL_HEAD_RECEIPT.json",
+      "sha256": "6e1a776ccf71dc32c954b09c1dd6b9c270665ad1f0c66ff74353136d85663f91"
+    },
+    {
       "file": "INDEPENDENT_SECURITY_REVIEW.md",
       "sha256": "6ffbe5e5b15e1123ce960518c72359761c1905eb6e0476d8d5c0f4cb8867f6d6"
+    },
+    {
+      "file": "ISOLATED_BUILD_JUNCTION_BLOCKED_ATTEMPT.raw.log",
+      "sha256": "3029f7ca318f9ffe52198816aa647e0baae52004e9e93fd53495203046f2620f"
     },
     {
       "file": "K3_FRESH_ESLINT.raw.log",
@@ -80,6 +128,10 @@
     {
       "file": "OWNER_DECISION_AND_PUSH_RECEIPT.json",
       "sha256": "c9d058e17adb595a1d16b32bf58b01376b08c6d25fef844d90e1a9c7ed83ec90"
+    },
+    {
+      "file": "UNFILTERED_REPO_ESLINT_FAIL.raw.log",
+      "sha256": "a00a661c5ffcac84a4122f5cd134c3cc7d5f833297ebad33c576efe9e3a86e06"
     }
   ]
 }

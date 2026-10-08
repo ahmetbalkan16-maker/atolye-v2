@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-08T17:08:00.815Z",
+  "kind": "ISOLATED_PRODUCTION_COMPILE_NOT_DEPLOY",
+  "sourceHead": "dbf9542e352e149cbc6a5552894050ca33e4359a",
+  "treeState": "CLEAN",
+  "next": "16.3.8",
+  "lockSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+  "buildId": "XnydUzh2DVBMq_hg1f-am",
+  "buildStampSha256": "34a531a2444352de5e48b31ecb9833ec5a356c63180edd40f896db02e519eb25",
+  "stamp": {
+    "schemaVersion": "1",
+    "gitHead": "dbf9542e352e149cbc6a5552894050ca33e4359a",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-08T17:05:50.581Z"
+  },
+  "initialJunctionAttempt": "ENVIRONMENT_BLOCKED_NOT_A_SOURCE_COMPILE_FAILURE",
+  "finalPhysicalFreshLockBuild": "EXIT0",
+  "liveBuild": "UNCHANGED",
+  "serverStarted": false,
+  "phoneTest": "NOT_RUN",
+  "rollback": "LIVE_NOT_EXECUTED"
+}

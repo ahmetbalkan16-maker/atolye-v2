@@ -1,3 +1,5 @@
+> Current owner decision, 8 October: PC/phone availability 9 October Friday07.00 is preparation time, NOT maintenance authorization. Current technical source dbf9542, K3 source303f36b, fresh-lock Full166 166_166_PASS. Live e974614/Next16.2.10 unchanged. Use ../v1-k3-security-20261008/OCT09_0700_OWNER_MAINTENANCE.md and FINAL_OWNER_REPORT.md for current gates. Historical draft below is preserved; its 58ec1bd/time-not-selected statements no longer describe the current technical plan. Whole-writer quiescence and exact fresh build/rollback identity must be reviewed before any explicit deploy/restart/reboot approval.
+
 # AYAS V1 — tek canlı bakım penceresi, uygulanmamış plan
 
 **Durum: PREPARED / NOT AUTHORIZED / NOT EXECUTED.** Owner master order §4 canlı deploy, Next değişimi, servis restart ve runtime migration için ayrı açık onay ister. Bu plan şu an reboot veya maintenance otomasyonu kurmaz.
