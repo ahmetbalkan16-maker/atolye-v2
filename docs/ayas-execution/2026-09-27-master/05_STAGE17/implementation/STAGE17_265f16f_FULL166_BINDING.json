@@ -1,0 +1,42 @@
+{
+  "sourceHead": "265f16f0442c1910d7deeaf8395e31f335bcd2b0",
+  "complete": true,
+  "selected": 166,
+  "declared": 166,
+  "manifestVersion": "15F.4-v58",
+  "manifestSerializedDigestMatches": true,
+  "manifestBytesSha256": "588013da3981a91a2f8663cfe3d955c7b84d2206048e2017aec460762e987e4d",
+  "sourceDigestMatches": true,
+  "actualSourceDigest": "ab93a2731f1dac4338d1ec20ccac0360802058d1caa679179c52ccb2cc6053c5",
+  "pass": 163,
+  "failed": [
+    "retrieval-evaluation",
+    "golden-vault-run",
+    "golden-sandbox-run"
+  ],
+  "firewall": {
+    "id": "action-firewall-closure",
+    "kind": "REGRESSION",
+    "trials": [
+      {
+        "durationMs": 1901,
+        "stdoutDigest": "f3749ab04697c8c715412864a570ee25d1ada4cedb7ed4a1464e5b126bbde6c7",
+        "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "exitCode": 0,
+        "outcome": "PASS"
+      }
+    ],
+    "summary": {
+      "trials": 1,
+      "requiredTrials": 1,
+      "passAt1": 1,
+      "passPowerK": 1,
+      "rawQualityPassedAllTrials": true,
+      "status": "PASS"
+    }
+  },
+  "installedNext": "16.2.10",
+  "reportSha256": "1623c8a43c4b3da61d18e7b7fb63b7bf71af58f7e43e66bfa1027ab02ca96910",
+  "logSha256": "3cb56cf955078ccc2142be80776653555cb9fee2757ad73841ea73790da3e1b8",
+  "grantsAuthority": false
+}

@@ -1,0 +1,20 @@
+PASS previous answer replay
+PASS replay with appended question
+PASS previous user line replay
+PASS direct question echoed
+PASS global status invented
+PASS status among other sentences
+PASS global status paraphrase
+PASS explicit repeat
+PASS explicit quote
+PASS same question repeated
+PASS short stable answer
+PASS historical recall
+PASS honest uncertainty
+PASS qualified component
+PASS substantive answer
+PASS system prompt excluded
+PASS status corrected
+PASS history corrected
+PASS repeat correction rejected
+{"status":"PASS","scenarios":19,"scope":"TEMP_INJECTED_PROVIDER_NO_LIVE_QUALITY_CLAIM"}

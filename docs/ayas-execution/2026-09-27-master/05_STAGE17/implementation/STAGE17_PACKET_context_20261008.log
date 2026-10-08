@@ -1,0 +1,3 @@
+{"contextBudgetEvaluation":{"baselineChars":12038,"selectedChars":5429,"reductionPercent":55,"baselineCompressionMs":0.001,"boundedCompressionMs":0.007,"msPerAssembly":0.177}}
+AYAS context smoke: PASS (34 scenarios)
+{"status":"PASS","suite":"ayas-context","scenarios":34}

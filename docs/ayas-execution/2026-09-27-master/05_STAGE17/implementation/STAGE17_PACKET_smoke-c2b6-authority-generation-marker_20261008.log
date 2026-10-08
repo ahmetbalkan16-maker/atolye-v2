@@ -1,0 +1,3 @@
+C.2B.6 authority-generation marker: PASS (14 scenarios)
+  skipped: symlink rejection (platform cannot create file symlinks)
+{"status":"PASS","suite":"c2b6-authority-generation-marker","scenarios":14,"skipped":["symlink rejection (platform cannot create file symlinks)"]}

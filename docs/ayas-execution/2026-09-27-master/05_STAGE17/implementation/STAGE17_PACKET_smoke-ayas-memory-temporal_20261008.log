@@ -1,0 +1,2 @@
+AYAS memory temporal smoke: PASS (52 scenarios)
+{"status":"PASS","suite":"ayas-memory-temporal","scenarios":52,"fixtures":13}

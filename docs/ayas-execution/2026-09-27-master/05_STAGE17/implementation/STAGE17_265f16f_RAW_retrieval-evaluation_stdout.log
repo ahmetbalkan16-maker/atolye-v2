@@ -1,0 +1,9 @@
+cases 74 (seed 13, new 61, held-out 8); all-layer pass 58; known limitations 28
+candidate recall 98.4% | Recall@1 86.3% Recall@4 96.8% | HitRate@1 90.3% HitRate@4 96.8% | MRR 0.925 | P@1 91.8% selection precision 78.4%
+temporal: query mode 98.6% current 86.5% history 100.0% as-of 77.8% (explicit 100.0%) | stale sel 4.4% (slot 0.0%, free text 6.3%) future-as-current 0.0% conflict 80.0% forget-resurrection 0.0%
+negative: abstention 91.7% strict 100.0% false-positive sel 8.3% distractor sel 9.1%
+context recall block: required 96.8% STALE 4.4% (clean slot 0.0%) CONTRADICTORY 2.6%
+context chat prompt: required 83.3% STALE 6.8% (clean slot 0.0%) CONTRADICTORY 0.0% abstain leak 8.3%
+held-out: pass 75.0% HitRate@K 100.0% MRR 0.833 | in-sample: pass 78.8% HitRate@K 96.4% MRR 0.936
+latency (median): retrieval 0.98 ms, recall 1.38 ms | scale 50:2.5ms 200:12.2ms 500:15.1ms 2000:66.1ms
+determinism repeatRun=true shuffledWriteOrder=true tz:America/Los_Angeles=true tz:Asia/Tokyo=true | error cases 8 | isolation/privacy 8 | chat chains 7 | leakage scan 942 files

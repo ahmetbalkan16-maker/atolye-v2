@@ -1,3 +1,17 @@
+## 2026-10-08 — Codex Stage 17 safe continuation (latest session)
+
+Entry HEAD `265f16f`; origin `ba1c3c6`, ahead 1 / behind 0. Original Full166 completed and archived: 166/166, 163 PASS / 3 preserved raw FAIL; F96 PASS at v58. That baseline belongs only to `265f16f`. F98 two HIGH repaired, independent QUALIFIED_PASS_WITH_LIMITATIONS, 37 primary / 21 source mutation checks; reviewed bytes promoted. F97 bounded history/status/echo guard plus same-provider correction prompt; 19 deterministic cases, controlled actual qwen2.5:3b final facts 4/4, fallback 0/6, general quality OPEN.
+
+Current file-hash-bound fresh-lock Next 16.3.8 packet: 14 regression commands + tsc/lint/build PASS, 55 route mappings match live, isolated rollback-artifact proof PASS. Main tsc PASS, whole ESLint 0 errors / 13 inherited warnings. Build keeps existing Turbopack dynamic-filesystem tracing and middleware warnings; no warning-free build claim. Installed live Next 16.2.10 unchanged.
+
+Review4 actual 166 suite receipts bound in registry; Review5 all 152 criteria / 30 slots reviewed in new delta. Partial witnesses are not whole-slot PASS; D raw FAIL and NOT_RUN/BLOCKED remain. Historical `59e83cd` matrix untouched. Nine disputed recovery rows diagnosed read-only: actor NOT_CAPTURED, owner authority unproven; two historical publication commits verified, five Graphify-import-count failures, two validator failures. Current no-replay policy tests PASS; inbox/journal bytes unchanged. No replay, APPROVE, DONE or history rewrite.
+
+**Foundation BLOCKED; sprint NOT READY.** Remaining: genuine combined-scope interval/writer and whole-domain receipts; frozen retrieval succession owner exception; coordinated live lock migration; nine-record owner reconciliation; six existing owner gates (identity, phone/voice/media, reboot, Lemon TEST, Fiverr official evidence/deferment, final digest-bound review). Future richer AYAS/model calibration/dispatch/research/revenue improvements are backlog, not an all-future-development prerequisite for Atölye. UI/homepage/voice/commands/live services preserved.
+
+No new push/deploy authorized: pasted continuation order §10 overrides session-end automatic push. Local commits authorized. Graphify refreshed per local commit; PARTIAL9/semantic pending retained, direct gap review recorded. Resolve final checkout HEAD with Git; complete `265f16f` baseline must not be restarted. Never replay the nine records. Next: owner decisions/receipts and genuinely exhaustive evidence binding.
+
+Details: `docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_CODEX_CONTINUATION_20261008.md` and `STAGE17_RECOVERY9_DIAGNOSIS_20261008.md`.
+
 # Current — 2026-10-08 / Stage17 continuation: ba1c3c6 pushed; F96 applied (grader line + manifest v58); F98 policy decided; Foundation BLOCKED
 **Owner decision and continuation order, sections 1–3:**
 1. **Push — done.** Exactly `e974614..ba1c3c6` was pushed without force. Before the push: documentation paths only, a fast-forward, and a secret scan of the added lines. `origin` = `ba1c3c6`.

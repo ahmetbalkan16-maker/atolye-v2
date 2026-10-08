@@ -1,0 +1,50 @@
+Graphify Review Analysis
+Changed files: 9
+Blast radius: high (score 140)
+Impacted files: 7
+Impacted communities: 9
+Bridge nodes: 8
+Test-gap hints: 9
+Multimodal safety: none
+
+Blast rationale:
+  - multiple communities are impacted
+  - bridge nodes connect this change across communities
+  - high-risk chains are present
+  - test-gap hints are present
+
+Impacted communities:
+  - Community 140 (high, 8 impacted nodes, 41 changed nodes)
+  - Community 120 (high, 5 impacted nodes, 23 changed nodes)
+  - Community 85 (high, 3 impacted nodes, 50 changed nodes)
+  - Community 126 (high, 2 impacted nodes, 25 changed nodes)
+  - Community 195 (high, 2 impacted nodes, 22 changed nodes)
+  - Community 224 (high, 2 impacted nodes, 13 changed nodes)
+  - Community 56 (low, 1 impacted nodes, 1 changed nodes)
+  - Community 194 (high, 1 impacted nodes, 22 changed nodes)
+
+Bridge nodes:
+  - RuntimeAuthorityTransitionStore (degree 37, community 140, src/lib/runtime/security/RuntimeAuthorityTransition.ts)
+  - AyasChatStreamEvent (degree 13, community 56, src/lib/ayas/AyasChatStream.ts)
+  - RuntimeAuthorityTransitionError (degree 32, community 140, src/lib/runtime/security/RuntimeAuthorityTransition.ts)
+  - describeRuntimeAuthorityIdentity() (degree 11, community 120, src/lib/runtime/security/RuntimeAuthorityGenerationMarker.ts)
+  - writeRuntimeAuthorityGenerationMarker() (degree 18, community 120, src/lib/runtime/security/RuntimeAuthorityGenerationMarker.ts)
+  - ayasChatStreamEventToSse() (degree 5, community 255, src/lib/ayas/AyasChatStream.ts)
+  - inventoryAyasAuditProtectedRoots() (degree 8, community 236, src/lib/ayas/audit/AyasSystemAuditCollector.ts)
+  - runtimeAuthorityProjectsContentDigest() (degree 8, community 126, src/lib/runtime/security/RuntimeAuthorityTransition.ts)
+
+Test-gap hints:
+  - scripts/ayas-system-audit.ts: no related test file surfaced in the impacted graph
+  - scripts/smoke-ayas-reply-history-quality.ts: no related test file surfaced in the impacted graph
+  - scripts/smoke-ayas-system-audit-combined-scope.ts: no related test file surfaced in the impacted graph
+  - src/lib/ayas/AyasChatStream.ts: no related test file surfaced in the impacted graph
+  - src/lib/ayas/audit/AyasSystemAuditCollector.ts: no related test file surfaced in the impacted graph
+  - src/lib/ayas/audit/AyasSystemAuditCombinedScope.ts: no related test file surfaced in the impacted graph
+  - src/lib/ayas/context/AyasReplyHistoryQuality.ts: no related test file surfaced in the impacted graph
+  - src/lib/runtime/security/RuntimeAuthorityGenerationMarker.ts: no related test file surfaced in the impacted graph
+  - src/lib/runtime/security/RuntimeAuthorityTransition.ts: no related test file surfaced in the impacted graph
+
+Multimodal/doc safety:
+  - no multimodal/doc artifact surfaced in the impacted graph
+
+Next best action: Start with bridge nodes and high-risk chains before reviewing individual files.

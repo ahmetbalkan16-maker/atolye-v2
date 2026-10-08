@@ -1,0 +1,70 @@
+{
+  "observedAt": "2026-10-08T11:30:32.3401041Z",
+  "files": [
+    {
+      "file": ".github/workflows/ayas-safe-ci.yml",
+      "sha256": "2dced4fd5ced7dfffbeb4b8542c52cb09035f475c7970219e33c06334cdd5a03",
+      "directInspection": true,
+      "powershellParseErrors": null,
+      "liveStartupTested": false
+    },
+    {
+      "file": "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+      "sha256": "7bd3f8a38a84c5732589142af2caa19413f6bba3ec25858e8f1125186cbb0020",
+      "directInspection": true,
+      "powershellParseErrors": null,
+      "liveStartupTested": false
+    },
+    {
+      "file": "scripts/ayas-access-daemon.ps1",
+      "sha256": "22dda6c62801310daaa6a690b302afbf501af1b6668d859d5603ed7ae69ad1c1",
+      "directInspection": true,
+      "powershellParseErrors": 0,
+      "liveStartupTested": false
+    },
+    {
+      "file": "scripts/ayas-autonomy-daemon.ps1",
+      "sha256": "6b49aac2bbbd75d5268341474b3f3ea11f5855410d8907e8e253427e6f7d70bb",
+      "directInspection": true,
+      "powershellParseErrors": 0,
+      "liveStartupTested": false
+    },
+    {
+      "file": "scripts/register-ayas-autonomy-autostart.ps1",
+      "sha256": "52a67dbfd78a3f19ccada189a03e5db29b16456946e991bcfcb08bbc24928dee",
+      "directInspection": true,
+      "powershellParseErrors": 0,
+      "liveStartupTested": false
+    },
+    {
+      "file": "scripts/register-ayas-autostart.ps1",
+      "sha256": "b113a29440da5eaebc7100ca6f27b69c56e8b8d9d182b894170262634316caf3",
+      "directInspection": true,
+      "powershellParseErrors": 0,
+      "liveStartupTested": false
+    },
+    {
+      "file": "scripts/smoke-ayas-access-daemon.ps1",
+      "sha256": "e5ef5bba0ea25c78f170ff2e056ce9b23d979a1c25f00e869f7032db9dcdb7cf",
+      "directInspection": true,
+      "powershellParseErrors": 0,
+      "liveStartupTested": false
+    },
+    {
+      "file": "scripts/unregister-ayas-autonomy-autostart.ps1",
+      "sha256": "d2f9424ddc7761e68dacf2f1bded1b062f6be5f19b8ddee9dd2d2efdcf0809b0",
+      "directInspection": true,
+      "powershellParseErrors": 0,
+      "liveStartupTested": false
+    },
+    {
+      "file": "scripts/unregister-ayas-autostart.ps1",
+      "sha256": "aff90cf6f627fbaa3c74d4d87e20e2cb93e7583a519d6762b3e5e98f9a4c3627",
+      "directInspection": true,
+      "powershellParseErrors": 0,
+      "liveStartupTested": false
+    }
+  ],
+  "graphQualification": "PARTIAL9_RETAINED_DIRECT_REVIEW_NOT_LIVE_EXECUTION",
+  "grantsAuthority": false
+}

@@ -908,7 +908,7 @@ function isEndpoint(value: unknown): value is RuntimeAuthorityEndpoint {
   );
 }
 
-function isTransitionRecord(
+export function isTransitionRecord(
   value: unknown,
 ): value is RuntimeAuthorityTransitionRecord {
   if (!isRecord(value)) return false;
@@ -940,7 +940,7 @@ function isTransitionRecord(
   );
 }
 
-function isActiveRecord(value: unknown): value is RuntimeAuthorityActiveRecord {
+export function isActiveRecord(value: unknown): value is RuntimeAuthorityActiveRecord {
   if (!isRecord(value)) return false;
   return (
     value.schemaVersion === runtimeAuthorityTransitionSchemaVersion &&

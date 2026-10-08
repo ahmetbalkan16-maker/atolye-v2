@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-10-08T11:26:09.325Z",
+  "outcome": "PASS_ISOLATED_ARTIFACT_ROLLBACK_ONLY",
+  "installedMainNext": "16.2.10",
+  "installedIsolatedNext": "16.3.8",
+  "packageSha256": "588fe1be5c55d83144de3acee081256f1e02fe767b3329cfca3f78d545763429",
+  "lockSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+  "packageLockEqualAcrossMainAndIsolated": true,
+  "buildMetadataBefore": {
+    "BUILD_ID": "386d4501eefca782d0966a417653ae064bf65c84bd7ab39ab2aa12870219d4d4",
+    "build-manifest.json": "ccce10ef3266fe682727496ca28738592c5858084c966935d49a57c412272eee",
+    "app-path-routes-manifest.json": "dfc1b69c6071f1042a529c5c36977f030aba04a9b664677d64e022ba82d44aa8",
+    "routes-manifest.json": "dd47686e226663172bb2ac1a64a0e1cda2790074941c918b8810231171cfa07c"
+  },
+  "buildMetadataAfter": {
+    "BUILD_ID": "386d4501eefca782d0966a417653ae064bf65c84bd7ab39ab2aa12870219d4d4",
+    "build-manifest.json": "ccce10ef3266fe682727496ca28738592c5858084c966935d49a57c412272eee",
+    "app-path-routes-manifest.json": "dfc1b69c6071f1042a529c5c36977f030aba04a9b664677d64e022ba82d44aa8",
+    "routes-manifest.json": "dd47686e226663172bb2ac1a64a0e1cda2790074941c918b8810231171cfa07c"
+  },
+  "routeCount": 55,
+  "routeMappingEqualToLiveBuild": true,
+  "liveDependencyOrBuildWrites": 0,
+  "serviceRestarted": false,
+  "actualLiveRollbackTested": false,
+  "plan": [
+    "Owner approves maintenance window and push/deploy separately.",
+    "Record live source/build, backup dependency/build artifacts outside repo, retain existing daemon wrapper and gate.",
+    "Install exact reviewed lock offline/credential-free with approved scripts policy; build and use existing recovery/read-only health gates.",
+    "On failure restore the recorded dependency/build artifacts and source through existing recovery gate; do not rewrite authority/history.",
+    "Do not execute production migration/restore or reboot under this preparation receipt."
+  ],
+  "grantsAuthority": false
+}

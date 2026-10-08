@@ -1,0 +1,990 @@
+{
+  "schemaVersion": "1",
+  "observedAt": "2026-10-08T11:06:28.056Z",
+  "sourceHead": "265f16f0442c1910d7deeaf8395e31f335bcd2b0",
+  "readOnly": true,
+  "inboxSha256": "60fb17453800f7ab4b8279828307a0f89db0d865964db7287de617822b4eeb29",
+  "count": 9,
+  "actorIdentityAvailable": false,
+  "ownerDisputesApproval": true,
+  "grantsAuthority": false,
+  "rows": [
+    {
+      "proposalId": "ayas-proposal-a45f13ae-c9c9-438d-87ee-1a30b4222e8e",
+      "createdAt": "2026-09-22T14:56:36.002Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "26174e4af2e76e2eccef7ea3883cb4d98cb7f94a",
+      "proposalHash": "43cf49f187f9cdb9442739845f3224a650be5941c72011de2ca6732f594c09a8",
+      "files": [
+        "scripts/smoke-ayas-capability-taxonomy.ts"
+      ],
+      "artifactId": "ayas-patch-artifact-dd85c5ef-9802-4896-881e-2f2a3be57c68",
+      "artifactSha256": "fd616a745b02599e4309679af8613198ee2437d0e10edfaa83157f7750b3946c",
+      "generatorIdentity": "ayas-detector:diagnostic-quality-gap-v1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-2fc8de4d-dca7-488d-a1e2-e9ca1bba60a9",
+        "at": "2026-09-22T15:19:19.388Z",
+        "reason": null,
+        "authorizationId": "ayas-dev-auth-1c9d66bd-c817-4d76-8148-8d6aaa40a748",
+        "reservationId": "ayas-reservation-2a313535-c5be-47d6-bb2f-f5be7fa5a14d",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-191ca509-e8f8-446a-b2ce-6b5b506e5e1d.json",
+        "sha256": "dd1627a55d7b59e8a372f866e8e9c6c9d66e64c1fa949191a470ba83aeff619e",
+        "executionId": "ayas-exec-191ca509-e8f8-446a-b2ce-6b5b506e5e1d",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "spawnSync npx.cmd EINVAL",
+        "mutationCompletedAt": "2026-09-22T15:19:20.831Z",
+        "testsRun": [
+          "scripts/smoke-ayas-capability-taxonomy.ts"
+        ],
+        "testResults": [
+          "PASS"
+        ],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [
+        "88d662eaf4534b668159639a7195b7bd761bf430"
+      ],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/93.json",
+            "sha256": "130980990553cf5aaa5fe89e2a69ae65a44baeaf496a2b82fab16b04e14cb9ae",
+            "sequence": 93,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-22T15:19:20.108Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/94.json",
+            "sha256": "b7362de368c7ac8e4308010b7a1f97598d744731eb21cb995b5bd0a4e9d604b8",
+            "sequence": 94,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-22T15:19:20.119Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/95.json",
+            "sha256": "d361220d22a20642d8cbbff1bdd639ac4a7390104bd006bfe0a6011f35b8df86",
+            "sequence": 95,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-22T15:19:20.129Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/96.json",
+            "sha256": "db758bd6bbef4a355326e801b165735bc3f4fac232c757c423bfbb9947581122",
+            "sequence": 96,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-22T15:19:20.432Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/97.json",
+            "sha256": "4ecc7ba2feb82c52b3a429da638372ec99e4a9989ccb925f4a440f9bb6ca13ad",
+            "sequence": 97,
+            "state": "COMPLETED",
+            "event": "complete-execution",
+            "at": "2026-09-22T15:19:20.797Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/98.json",
+            "sha256": "c26eedcabef2c795516105a29fc038dfaa26d33a04732eb94e08679f12237e92",
+            "sequence": 98,
+            "state": "READY",
+            "event": "settle",
+            "at": "2026-09-22T15:19:20.808Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/99.json",
+            "sha256": "78e84068bbb82cea9260028f87a8a325270d0a230747edbf85aa177c4a115395",
+            "sequence": 99,
+            "state": "CLOSED",
+            "event": "close",
+            "at": "2026-09-22T15:19:20.819Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "scripts/smoke-ayas-capability-taxonomy.ts",
+          "currentEqualsReplacement": true,
+          "replacementSha256": "47d525ea5262c76e4cacd9ce48a5a6b7b299431d5d9fd6f22f9355d216335027",
+          "currentSha256": "47d525ea5262c76e4cacd9ce48a5a6b7b299431d5d9fd6f22f9355d216335027"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": [
+        {
+          "commit": "88d662eaf4534b668159639a7195b7bd761bf430",
+          "ancestorOfHead": true,
+          "artifactReplacementsMatchAtCommit": true
+        }
+      ]
+    },
+    {
+      "proposalId": "ayas-proposal-40ff181b-c5da-4bb4-a22a-c46870318cc7",
+      "createdAt": "2026-09-24T10:19:26.289Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "f1c8e8af958b6dacc72b107810f8fec3ed5f0e13",
+      "proposalHash": "ebc1acecd4a253aeb0efbae53265ad78dbbeb84ef27931ce9121aa70e7f49a25",
+      "files": [
+        "scripts/smoke-ayas-chat.ts"
+      ],
+      "artifactId": "ayas-patch-artifact-a053801a-3b30-4f7f-8995-fe5ff86455e3",
+      "artifactSha256": "74cfbad1ea724d845fd93cfb8638eddc8376bfe5f634e14ced9eb41654b03fee",
+      "generatorIdentity": "ayas-detector:diagnostic-quality-gap-v1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-012270ea-0dd8-4467-bc2a-860d946b6ddc",
+        "at": "2026-09-24T10:51:05.775Z",
+        "reason": null,
+        "authorizationId": "ayas-dev-auth-f48d5961-be93-4696-bb17-869a0938d0c2",
+        "reservationId": "ayas-reservation-f16aa888-a5f6-493a-8962-8dcd48fa287f",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-2dc8aa8d-b59d-4cb6-8ab9-fb32eddf6beb.json",
+        "sha256": "573bcd73cd9cfba73c9932b2460a82de368e7ad5d694d5666926779b52808445",
+        "executionId": "ayas-exec-2dc8aa8d-b59d-4cb6-8ab9-fb32eddf6beb",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "scripts/smoke-ayas-chat.ts: expected exactly 4 import(s), Graphify's own AST extraction found 5 (targets: strict, node_fs, node_path, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_components_brain_braincore_ts, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_lib_brain_ui_brainconsolesnapshot_ts)",
+        "mutationCompletedAt": "2026-09-24T10:51:07.098Z",
+        "testsRun": [
+          "scripts/smoke-ayas-chat.ts"
+        ],
+        "testResults": [
+          "PASS"
+        ],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/114.json",
+            "sha256": "dc2b5076468b5ab4d9ba192dead139c2cc7fea7a61a6ab4ffcaa1248e61680a2",
+            "sequence": 114,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-24T10:51:06.420Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/115.json",
+            "sha256": "935e232a2b3f35db3c0fcabccd26a9ac36b62f2ec054eb45ccd290a151fae15e",
+            "sequence": 115,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-24T10:51:06.432Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/116.json",
+            "sha256": "b6f3b54584e1e7509f5604a719afb523f40a9b0d226404b095a57e8bf3d8deaa",
+            "sequence": 116,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-24T10:51:06.442Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/117.json",
+            "sha256": "77050f7739c626d2659fbfd60e318daf3ab68c405f745b6e83fb34c9e1a413dc",
+            "sequence": 117,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-24T10:51:06.702Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/118.json",
+            "sha256": "3e139d5b9f1f1a37bdb35eca4659d99acae3897ae0a431121fa3a205725f1171",
+            "sequence": 118,
+            "state": "COMPLETED",
+            "event": "complete-execution",
+            "at": "2026-09-24T10:51:07.064Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/119.json",
+            "sha256": "4c40427d649c68cbd407e43fe68c42423d60b8c2c5d93d88e4b1cdd55eae60ab",
+            "sequence": 119,
+            "state": "READY",
+            "event": "settle",
+            "at": "2026-09-24T10:51:07.076Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/120.json",
+            "sha256": "0384c7f2148afd0d6991bfda3bfa441350c7bf223fb651138de95bc2df40bd38",
+            "sequence": 120,
+            "state": "CLOSED",
+            "event": "close",
+            "at": "2026-09-24T10:51:07.086Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "scripts/smoke-ayas-chat.ts",
+          "currentEqualsReplacement": true,
+          "replacementSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d",
+          "currentSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": []
+    },
+    {
+      "proposalId": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+      "createdAt": "2026-09-24T10:56:19.637Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "405e8c5da3228a049e6e10bf5e5b333c6991a2e0",
+      "proposalHash": "517760ab91e7d26f22d8f3b8a613403bc9cd5eefdf98591533177bafe0f3c644",
+      "files": [
+        "scripts/smoke-ayas-chat.ts"
+      ],
+      "artifactId": "ayas-patch-artifact-94b31042-4a8b-4476-9f53-685705bf23d8",
+      "artifactSha256": "f9e5cc68d645aab337b6d93567ad798c1d68657c34bc7680f8ff676d5aa59fd8",
+      "generatorIdentity": "ayas-detector:diagnostic-quality-gap-v1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-26d628f8-3944-4cec-a033-6ea8ae265a70",
+        "at": "2026-09-24T10:58:24.019Z",
+        "reason": null,
+        "authorizationId": "ayas-dev-auth-3b13354c-1623-43ea-9c7b-a31fe308e2e9",
+        "reservationId": "ayas-reservation-1f0140fd-35d1-40e5-853e-eed9a967c604",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-448dd43b-638b-4833-b173-1165ddd9817a.json",
+        "sha256": "d7e4b0d69ec5e61e9b0258d9e88bbcdc53bd25a0c3d41cbf5e07f4dac988b02e",
+        "executionId": "ayas-exec-448dd43b-638b-4833-b173-1165ddd9817a",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "scripts/smoke-ayas-chat.ts: expected exactly 4 import(s), Graphify's own AST extraction found 5 (targets: strict, node_fs, node_path, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_components_brain_braincore_ts, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_lib_brain_ui_brainconsolesnapshot_ts)",
+        "mutationCompletedAt": "2026-09-24T10:58:25.202Z",
+        "testsRun": [
+          "scripts/smoke-ayas-chat.ts"
+        ],
+        "testResults": [
+          "PASS"
+        ],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/128.json",
+            "sha256": "424f2406bd04b4c6f4d1e550d7153bdff2a2a43831afab8f2841830c19203ffb",
+            "sequence": 128,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-24T10:58:24.613Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/129.json",
+            "sha256": "82dc1e924724a646ba2a3a473ec85e8eefb8f5e5972b63cbc5f11de805405ab3",
+            "sequence": 129,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-24T10:58:24.626Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/130.json",
+            "sha256": "5a9d956d1bc6eea5634b5e7e4395519aaaf894508e3cada32ceb48c2643313d0",
+            "sequence": 130,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-24T10:58:24.636Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/131.json",
+            "sha256": "c6b51a8f51eef9e9e722665533694267fb87809ea5d37bdae2073ec70b7b2cbd",
+            "sequence": 131,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-24T10:58:24.871Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/132.json",
+            "sha256": "48149b5d2333a340e79a86c7bd1dfc71f91c5fea46ce616e70801858bebc0723",
+            "sequence": 132,
+            "state": "COMPLETED",
+            "event": "complete-execution",
+            "at": "2026-09-24T10:58:25.171Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/133.json",
+            "sha256": "303db62a6c1ec3a01b5bef942a8a382b16e84b937a80eaa85303a71e12027537",
+            "sequence": 133,
+            "state": "READY",
+            "event": "settle",
+            "at": "2026-09-24T10:58:25.181Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/134.json",
+            "sha256": "2f0f1b380de6b50d335de613333ef7ed059bcfd303647fba918b22705095c46c",
+            "sequence": 134,
+            "state": "CLOSED",
+            "event": "close",
+            "at": "2026-09-24T10:58:25.191Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "scripts/smoke-ayas-chat.ts",
+          "currentEqualsReplacement": true,
+          "replacementSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d",
+          "currentSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": []
+    },
+    {
+      "proposalId": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+      "createdAt": "2026-09-24T11:01:32.963Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "405e8c5da3228a049e6e10bf5e5b333c6991a2e0",
+      "proposalHash": "517760ab91e7d26f22d8f3b8a613403bc9cd5eefdf98591533177bafe0f3c644",
+      "files": [
+        "scripts/smoke-ayas-chat.ts"
+      ],
+      "artifactId": "ayas-patch-artifact-8a0468d5-0267-4b06-8966-a322a9c9547c",
+      "artifactSha256": "f20f846187a43628f7b4779e797a9694c655e60f21a4a214aac09dee6a7dc9b3",
+      "generatorIdentity": "ayas-detector:diagnostic-quality-gap-v1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-3dab4ce9-bcf0-43f9-8f79-c19ed27efae2",
+        "at": "2026-09-24T11:20:47.345Z",
+        "reason": null,
+        "authorizationId": "ayas-dev-auth-ae0db8ac-e3af-4b11-ae83-c5db6afddf64",
+        "reservationId": "ayas-reservation-2eb31e08-7073-4cbe-a96e-0252dbac5255",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-666ab6b5-4496-44bd-a74c-805ae061fe47.json",
+        "sha256": "5ad9752ad46835f6f4124685229ad52cd32e808927a7b6234ebaab767c6365dc",
+        "executionId": "ayas-exec-666ab6b5-4496-44bd-a74c-805ae061fe47",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "scripts/smoke-ayas-chat.ts: expected exactly 4 import(s), Graphify's own AST extraction found 5 (targets: strict, node_fs, node_path, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_components_brain_braincore_ts, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_lib_brain_ui_brainconsolesnapshot_ts)",
+        "mutationCompletedAt": "2026-09-24T11:20:48.555Z",
+        "testsRun": [
+          "scripts/smoke-ayas-chat.ts"
+        ],
+        "testResults": [
+          "PASS"
+        ],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/135.json",
+            "sha256": "7696107d7aaf228800162f4e09ae48ad4fbc2f4b89190784c9d3bfebaf5965a1",
+            "sequence": 135,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-24T11:20:47.932Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/136.json",
+            "sha256": "674269ea3c179c49f1e21088a7c7e5c76bde6d31b28b0f70ef4383e44e9eb2bc",
+            "sequence": 136,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-24T11:20:47.944Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/137.json",
+            "sha256": "8061466ec2005fe483b58c0fd01c9b0c9d2f61304809c045667b406d73758083",
+            "sequence": 137,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-24T11:20:47.954Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/138.json",
+            "sha256": "15dda23322d94878919593a36c9a91f05ffcf0e633c8adb549fa70157e59e133",
+            "sequence": 138,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-24T11:20:48.184Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/139.json",
+            "sha256": "26f13ef4f1841881d3608008100a9c6c1b3969e435951ddf02ffad352ffa9acc",
+            "sequence": 139,
+            "state": "COMPLETED",
+            "event": "complete-execution",
+            "at": "2026-09-24T11:20:48.505Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/140.json",
+            "sha256": "60fab1b11dac04bbafcdaf68de134c3848acdd57a57578af4800686424009aa6",
+            "sequence": 140,
+            "state": "READY",
+            "event": "settle",
+            "at": "2026-09-24T11:20:48.522Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/141.json",
+            "sha256": "6f321139619cff29d84e27d2af4021167312bf2f79a421ed74fd6ce58c4337da",
+            "sequence": 141,
+            "state": "CLOSED",
+            "event": "close",
+            "at": "2026-09-24T11:20:48.540Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "scripts/smoke-ayas-chat.ts",
+          "currentEqualsReplacement": true,
+          "replacementSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d",
+          "currentSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": []
+    },
+    {
+      "proposalId": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+      "createdAt": "2026-09-24T11:22:26.598Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "405e8c5da3228a049e6e10bf5e5b333c6991a2e0",
+      "proposalHash": "517760ab91e7d26f22d8f3b8a613403bc9cd5eefdf98591533177bafe0f3c644",
+      "files": [
+        "scripts/smoke-ayas-chat.ts"
+      ],
+      "artifactId": "ayas-patch-artifact-b40f56b3-6d78-42d6-be1c-fc7f3b3176d0",
+      "artifactSha256": "9d108c73df41b9267cad314835d07e884600a5c6d32c742df1c55cd5627bab5a",
+      "generatorIdentity": "ayas-detector:diagnostic-quality-gap-v1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-0da463f7-da12-4b44-acbb-9e259060b592",
+        "at": "2026-09-24T11:27:39.383Z",
+        "reason": null,
+        "authorizationId": "ayas-dev-auth-6e612e79-510a-4baf-8bd2-f29dd777d7fe",
+        "reservationId": "ayas-reservation-61563dce-c8f5-4191-a3db-5fbf23186567",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-9e89d1e3-d2b7-45fd-be3c-7c799f32d315.json",
+        "sha256": "f8b326441bcd48b5c18eddc314cebc6b1b4432ce501478614f8a308e25f5875d",
+        "executionId": "ayas-exec-9e89d1e3-d2b7-45fd-be3c-7c799f32d315",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "scripts/smoke-ayas-chat.ts: expected exactly 4 import(s), Graphify's own AST extraction found 5 (targets: strict, node_fs, node_path, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_components_brain_braincore_ts, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_lib_brain_ui_brainconsolesnapshot_ts)",
+        "mutationCompletedAt": "2026-09-24T11:27:40.712Z",
+        "testsRun": [
+          "scripts/smoke-ayas-chat.ts"
+        ],
+        "testResults": [
+          "PASS"
+        ],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/142.json",
+            "sha256": "267385672894694db27d4d6f447858f0c1a421fc0cc6c7fce1573f46b1f9f0c7",
+            "sequence": 142,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-24T11:27:40.048Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/143.json",
+            "sha256": "2aadcc8b596e7bd93e1a9c6be82447808c58930da6f4f924288aed4d76003894",
+            "sequence": 143,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-24T11:27:40.060Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/144.json",
+            "sha256": "f352b3f3ae901c1aabd527740dc9dcdccec48e12d2cc805e9eab35799dcd5c59",
+            "sequence": 144,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-24T11:27:40.071Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/145.json",
+            "sha256": "ca7bf782d8de50eafe1c7bdcc27bca46d52417b71e8f921dfcbe8cd9b3f0ae59",
+            "sequence": 145,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-24T11:27:40.346Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/146.json",
+            "sha256": "bbb641a442d542691f7fe2d1f99ca0815f56afe94c212e681730b745852d91c7",
+            "sequence": 146,
+            "state": "COMPLETED",
+            "event": "complete-execution",
+            "at": "2026-09-24T11:27:40.675Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/147.json",
+            "sha256": "342663098ef38827c5d4be18befd007d156668c7e4b39bc2540f805c4e2009c0",
+            "sequence": 147,
+            "state": "READY",
+            "event": "settle",
+            "at": "2026-09-24T11:27:40.688Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/148.json",
+            "sha256": "cdc0eee801c1bb244614024d53010fd93ec537042fe71cc78106673758b3ca0e",
+            "sequence": 148,
+            "state": "CLOSED",
+            "event": "close",
+            "at": "2026-09-24T11:27:40.701Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "scripts/smoke-ayas-chat.ts",
+          "currentEqualsReplacement": true,
+          "replacementSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d",
+          "currentSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": []
+    },
+    {
+      "proposalId": "ayas-proposal-dc9045d9-0227-4563-8e47-06ff38777f53",
+      "createdAt": "2026-09-24T11:48:46.661Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "08af33a69a3054ab38d60fa4d7fba7c984033af2",
+      "proposalHash": "5492d6eb4f285b33388f7b6b40789c3c0ba2581b3eb5804ded95e34be770c2ce",
+      "files": [
+        "scripts/smoke-ayas-chat.ts"
+      ],
+      "artifactId": "ayas-patch-artifact-0d8d4ef1-239c-4624-8155-42a3f04c9329",
+      "artifactSha256": "a97530396936a1b4c8d5255a71e012e1b4de8ee773377e9e3c903c3e1cd89029",
+      "generatorIdentity": "ayas-detector:diagnostic-quality-gap-v1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-559f7cf3-8d52-4fff-97c8-39c48785198c",
+        "at": "2026-09-24T11:50:11.897Z",
+        "reason": null,
+        "authorizationId": "ayas-dev-auth-30f31dfc-71bc-4e9f-ad9c-c01a8ef1d3d6",
+        "reservationId": "ayas-reservation-8106d13b-de79-431d-beba-aad9ad3cb4eb",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-69420ce5-fdea-4351-8f25-f0951f687a01.json",
+        "sha256": "f75939c3b4e042841df915fcd5ef5a5e55900f3ccccfa71a918a8c5971225283",
+        "executionId": "ayas-exec-69420ce5-fdea-4351-8f25-f0951f687a01",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "scripts/smoke-ayas-chat.ts: expected exactly 4 import(s), Graphify's own AST extraction found 5 (targets: strict, node_fs, node_path, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_components_brain_braincore_ts, c_users_metod_desktop_solid_sw2020_x64_sp4_0_program_at_lye_atolye_v2_src_lib_brain_ui_brainconsolesnapshot_ts)",
+        "mutationCompletedAt": "2026-09-24T11:50:13.116Z",
+        "testsRun": [
+          "scripts/smoke-ayas-chat.ts"
+        ],
+        "testResults": [
+          "PASS"
+        ],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/156.json",
+            "sha256": "1a734e6a1b91ea210c357a4679036cb2ca42ff5eace7fbc294f31207c8141bc8",
+            "sequence": 156,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-24T11:50:12.496Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/157.json",
+            "sha256": "f4bb19b72aef9dc5d9f23039d91216d9cb00f1c82acf2a6bc149f81c27a777b9",
+            "sequence": 157,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-24T11:50:12.509Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/158.json",
+            "sha256": "39406fb6870b3695b6a68ef933c1fccff6f2e0edbd87be50b47d39050510e55c",
+            "sequence": 158,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-24T11:50:12.519Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/159.json",
+            "sha256": "7a2f794cb4125ef203feb18a21ed70d7b70d2d4c9f830ba110966680c2ddf2ba",
+            "sequence": 159,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-24T11:50:12.757Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/160.json",
+            "sha256": "b5133bf0455aff90e0fb30d3fe5f96ee39976efb1beb87c577810f276f51fc3a",
+            "sequence": 160,
+            "state": "COMPLETED",
+            "event": "complete-execution",
+            "at": "2026-09-24T11:50:13.075Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/161.json",
+            "sha256": "b422982b86d8857f21006bb8024cc4249df14ec0d584588671564e0982add0a7",
+            "sequence": 161,
+            "state": "READY",
+            "event": "settle",
+            "at": "2026-09-24T11:50:13.088Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/162.json",
+            "sha256": "59289f545205708ec733e5f0e0658da58adcf9bc6f0d09fcb39031f11ab1b131",
+            "sequence": 162,
+            "state": "CLOSED",
+            "event": "close",
+            "at": "2026-09-24T11:50:13.102Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "scripts/smoke-ayas-chat.ts",
+          "currentEqualsReplacement": true,
+          "replacementSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d",
+          "currentSha256": "9a297d153e74512fb6ec689704dcfec484bbcc82d1687ef06d9ae3dfa797820d"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": []
+    },
+    {
+      "proposalId": "ayas-proposal-412d8553-58fb-4a38-becd-4a852e18a918",
+      "createdAt": "2026-09-25T21:09:41.642Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "f8cb5adfd1a05d52c8e31960cd2785c2e778a5cf",
+      "proposalHash": "3772f76d5f7cd07295685afcd8c0102f83bbe3cbb0378ebb6f8214857a30f156",
+      "files": [
+        "scripts/smoke-ayas-graphify-evidence-store.ts"
+      ],
+      "artifactId": "ayas-patch-artifact-d43a6fdb-bb74-4ab6-bb70-dcd5b978ba58",
+      "artifactSha256": "62e4379bd1d88a4818b8a06a0465bea0be0833c08d5cbd8464dad59510a067b1",
+      "generatorIdentity": "ayas-detector:diagnostic-quality-gap-v1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-4d103164-59c0-40b3-9d79-a894a9b11728",
+        "at": "2026-09-25T21:20:40.395Z",
+        "reason": null,
+        "authorizationId": "ayas-dev-auth-0353c48f-aca0-4f5a-974d-8cd9caca9ed3",
+        "reservationId": "ayas-reservation-326aaa51-5fd7-4945-b96b-5d09b30d4310",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-55a13a6b-888a-4467-95a7-094e2cba8d71.json",
+        "sha256": "037acc16fee81f765e7987eaa12b52ee77aace423d0c9756ee994ced9f34e806",
+        "executionId": "ayas-exec-55a13a6b-888a-4467-95a7-094e2cba8d71",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "Command failed: [host-path] Files\\nodejs\\node.exe [host-path] [host-path]",
+        "mutationCompletedAt": "2026-09-25T21:20:41.936Z",
+        "testsRun": [
+          "scripts/smoke-ayas-graphify-evidence-store.ts"
+        ],
+        "testResults": [
+          "PASS"
+        ],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [
+        "97cb6e9ae317b5d7f6258ece132723a8e3c39de7"
+      ],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/240.json",
+            "sha256": "0b23a8845c90e4ddc3c922dcc8ba95bd3d74d2e5c630294bf15172a9f4d02c17",
+            "sequence": 240,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-25T21:20:41.067Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/241.json",
+            "sha256": "0f6f16ea6f59a0df892515f32e191615e6ad43275042d808adcac70b51fa123b",
+            "sequence": 241,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-25T21:20:41.079Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/242.json",
+            "sha256": "975173376608b8ac33c2dde2bbb65cf59e08d63f16153e9c32ce0ebcf249ba46",
+            "sequence": 242,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-25T21:20:41.089Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/243.json",
+            "sha256": "751beb76eb312c11e7f86139b11b5f27410e3fd817ccc33ff228f41fb91d5132",
+            "sequence": 243,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-25T21:20:41.348Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/244.json",
+            "sha256": "b5cd7afd2210a09fbad8fcaaa2ee72a2ebe073038af9ecf530dde771866b9131",
+            "sequence": 244,
+            "state": "COMPLETED",
+            "event": "complete-execution",
+            "at": "2026-09-25T21:20:41.906Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/245.json",
+            "sha256": "03c452b5fb0c97a5b760fb5c87f1237e8524878170d6d75ca982521111fa0b57",
+            "sequence": 245,
+            "state": "READY",
+            "event": "settle",
+            "at": "2026-09-25T21:20:41.917Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/246.json",
+            "sha256": "c81013cded62b6ee92f0e792a9a962715ecb2cfff55d0d9aea97496e129d377d",
+            "sequence": 246,
+            "state": "CLOSED",
+            "event": "close",
+            "at": "2026-09-25T21:20:41.927Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "scripts/smoke-ayas-graphify-evidence-store.ts",
+          "currentEqualsReplacement": true,
+          "replacementSha256": "cd4cd22629f0c5a63a108ff5c804710b6ce4d97656dbd7e7e4a4a0b4d66f9a07",
+          "currentSha256": "cd4cd22629f0c5a63a108ff5c804710b6ce4d97656dbd7e7e4a4a0b4d66f9a07"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": [
+        {
+          "commit": "97cb6e9ae317b5d7f6258ece132723a8e3c39de7",
+          "ancestorOfHead": true,
+          "artifactReplacementsMatchAtCommit": true
+        }
+      ]
+    },
+    {
+      "proposalId": "ayas-proposal-a5508567-a34b-4de6-8978-3050408f52dc",
+      "createdAt": "2026-09-29T04:59:27.536Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "9472de30e50872b2d1ddbbf1124417d7b00eb096",
+      "proposalHash": "bbeeac311ae7553428385b178e19312ea3cd499f6453b82856da97aa58ff4b11",
+      "files": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "artifactId": "ayas-controlled-evolution-bd415494-859a-4b03-ac3b-7d534d6b0cf0",
+      "artifactSha256": "8e62ed53d3de288f5d0ca2d31f3735aa17617786ead23bda99c7970f1f7835fa",
+      "generatorIdentity": "controlled-self-evolution:v1:exp-memory-render-tool-supersession@1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-23ff8eab-f129-42b3-890d-4727c997d3dc",
+        "at": "2026-09-29T05:02:00.626Z",
+        "reason": "owner-approved: exact patch awaiting local governed execution",
+        "authorizationId": "ayas-dev-auth-65a9211e-cfa4-4f2b-9337-6cc217453e13",
+        "reservationId": "ayas-reservation-233a4349-a217-4409-9767-327eaffd32cf",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-8e93ad12-f098-439a-b89b-0c334d2b976d.json",
+        "sha256": "fc91f388374b6aa497071a2b43f9cfc598a36774d03094c65ccf024527cfa0a1",
+        "executionId": "ayas-exec-8e93ad12-f098-439a-b89b-0c334d2b976d",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "validator failed: scripts/smoke-ayas-cognitive-quality.ts",
+        "mutationCompletedAt": null,
+        "testsRun": [],
+        "testResults": [],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/282.json",
+            "sha256": "f66161884ba26ac1469176231428e2318756dacbd565c334cab5a83c2045a870",
+            "sequence": 282,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-29T05:02:22.160Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/283.json",
+            "sha256": "c1c965575a1916e24462978f3b59d900ab57def49dad8f98710c075049f5aa71",
+            "sequence": 283,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-29T05:02:22.171Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/284.json",
+            "sha256": "4be591510cf802c1e27db7a26ef7cfa18aed2946f57131822f290468d72039d4",
+            "sequence": 284,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-29T05:02:22.181Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/285.json",
+            "sha256": "edb388dd40a59eb0f663178f19fb0612ecc5a022b41df7983300832e505104b6",
+            "sequence": 285,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-29T05:02:22.545Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+          "currentEqualsReplacement": false,
+          "replacementSha256": "ba8de8096f42e8c4de0d712cd48394ef6b587f835c97c9afd1a512e21e46bace",
+          "currentSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": []
+    },
+    {
+      "proposalId": "ayas-proposal-ec47b32a-316c-43e2-8650-0c164ee41ab2",
+      "createdAt": "2026-09-29T09:21:36.876Z",
+      "createdByLabel": "ayas-daemon",
+      "baseHead": "a8dc787f8f036ca0d7363bdfc1327f47e564f2e7",
+      "proposalHash": "9dbc584d799899bfc67a6c006db6dcc324f7a15ccb3e6adf064feb5992116e1a",
+      "files": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "artifactId": "ayas-controlled-evolution-8799a2c5-a21c-4e06-8a91-b712aa9bdd15",
+      "artifactSha256": "a2903cb4cf466c0fcc265cc82d451c9929306d4b239f6a8da3ca7b293208a61d",
+      "generatorIdentity": "controlled-self-evolution:v1:exp-memory-render-tool-supersession@1",
+      "patchHashMatches": true,
+      "decision": {
+        "id": "ayas-decision-23cd68bb-4fa3-4338-8792-8f9bc4b35d61",
+        "at": "2026-09-29T09:22:46.630Z",
+        "reason": "owner-approved: exact patch awaiting local governed execution",
+        "authorizationId": "ayas-dev-auth-015ddcc6-972e-475f-b87a-30b327024b9f",
+        "reservationId": "ayas-reservation-1423a352-5e78-4d2c-86b6-4d71fffb8cd6",
+        "finalizationOutcome": "RECOVERY_REQUIRED",
+        "actorIdentity": "NOT_CAPTURED",
+        "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED"
+      },
+      "journal": {
+        "file": "data/brain/self-improvement/execution/journal/ayas-exec-be1b1c75-3eb6-43f0-a523-eba5df02168e.json",
+        "sha256": "074a99a13e00e2fbe0c84c45701ee32ebdcc65639097e7879b33aaa9763b5af7",
+        "executionId": "ayas-exec-be1b1c75-3eb6-43f0-a523-eba5df02168e",
+        "phase": "RECOVERY_REQUIRED",
+        "lastError": "validator failed: scripts/smoke-ayas-retrieval-evaluation.ts",
+        "mutationCompletedAt": null,
+        "testsRun": [],
+        "testResults": [],
+        "bindingMatches": true,
+        "capabilityLeasePresent": false
+      },
+      "matchingResultCount": 0,
+      "publicationCommitsNamedByProposalId": [],
+      "gateAudit": {
+        "evidence": "TIMESTAMP_CORRELATION_ONLY_NOT_EXECUTION_OR_ACTOR_BINDING",
+        "rows": [
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/287.json",
+            "sha256": "3dbd623c59c5e071b5b8a25d266b8740133de16369978070f1fe04ee6d07fc9e",
+            "sequence": 287,
+            "state": "ARMED",
+            "event": "arm",
+            "at": "2026-09-29T09:23:02.564Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/288.json",
+            "sha256": "348ee787b0cd9ad3f3f85e3f475017a5235da3111f9ac2162a4dfeaa5bcc1899",
+            "sequence": 288,
+            "state": "READY",
+            "event": "confirm-ready",
+            "at": "2026-09-29T09:23:02.577Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/289.json",
+            "sha256": "46c6b351e2bcf08762dbdae1c0c58391c1af7ba6e7975844295a3a6ec1528d90",
+            "sequence": 289,
+            "state": "OPEN",
+            "event": "open",
+            "at": "2026-09-29T09:23:02.589Z"
+          },
+          {
+            "file": "data/brain/self-improvement/execution/gate-log/290.json",
+            "sha256": "da97bbd4e5f232004dc04f20ffe1d7b1becefb9a7bf7690cff60a48aa08e7cb5",
+            "sequence": 290,
+            "state": "EXECUTING",
+            "event": "begin-execution",
+            "at": "2026-09-29T09:23:02.958Z"
+          }
+        ]
+      },
+      "currentReplacementMatches": [
+        {
+          "file": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+          "currentEqualsReplacement": false,
+          "replacementSha256": "ba8de8096f42e8c4de0d712cd48394ef6b587f835c97c9afd1a512e21e46bace",
+          "currentSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13"
+        }
+      ],
+      "disposition": "KEEP_RECOVERY_REQUIRED_NO_REPLAY_NO_DONE_OWNER_PROVENANCE_REQUIRED",
+      "publicationEvidence": []
+    }
+  ]
+}

@@ -24,3 +24,10 @@
 *.ttf  binary
 *.otf  binary
 *.pdf  binary
+
+# Stage 17 exact-byte evidence archives. Never normalize raw capture bytes.
+# Raw progress output may contain trailing whitespace; it is not source code.
+/docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_265f16f_* -text -diff
+/docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_*_20261008.log -text -diff
+/docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/F98_INDEPENDENT_*_20261008.md -text -diff
+/docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/STAGE17_PARTIAL9_DIRECT_REVIEW_20261008.json -text -diff

@@ -277,7 +277,7 @@ function readMarkerFile(
   return Object.freeze(parsed);
 }
 
-function isMarkerShape(value: unknown): value is RuntimeAuthorityGenerationMarker {
+export function isMarkerShape(value: unknown): value is RuntimeAuthorityGenerationMarker {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }

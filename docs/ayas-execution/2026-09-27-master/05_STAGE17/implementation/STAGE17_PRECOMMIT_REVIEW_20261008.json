@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-10-08T11:34:53.677Z",
+  "entryHead": "265f16f0442c1910d7deeaf8395e31f335bcd2b0",
+  "outcome": "PASS_BOUNDED_PRECOMMIT_REVIEW",
+  "sourceFiles": {
+    "src/lib/ayas/audit/AyasSystemAuditCombinedScope.ts": "9f764dd8af8bdefd5f932dd112f3986da41beea5ab9bfcf9e3bab3f683065ad4",
+    "src/lib/ayas/audit/AyasSystemAuditCollector.ts": "d504b032c06a076766bf42094695ed9bb6e44aa19a6f1799dd8a3e73844511f9",
+    "scripts/ayas-system-audit.ts": "aa61927c84249ade01d2682636ecbc4e5fa1c19706369167c0a9af96d0f33dbd",
+    "scripts/smoke-ayas-system-audit-combined-scope.ts": "89154fbdfb7cc06603e930ba633912d83607e9923f7332d25d579597b719bed4",
+    "src/lib/runtime/security/RuntimeAuthorityGenerationMarker.ts": "3531dc0911eb7f5468d985db0c4c9089f04b44a3363e554e50280244d72f9e6f",
+    "src/lib/runtime/security/RuntimeAuthorityTransition.ts": "eb9674de30ade54eedd1b5a59590dc51adffdce1e22c319ab0935c825dde5ce2",
+    "src/lib/ayas/context/AyasReplyHistoryQuality.ts": "bb1c8c8cae5aaa1a2b4ea6c30065c7d047d919422a3bdcf3e8c085c5de2c6bf6",
+    "src/lib/ayas/AyasChatStream.ts": "ca0bd3679ae9202f4b297d0534f6a0fdbdcc312f4b51ac921af89ea747775490",
+    "scripts/smoke-ayas-reply-history-quality.ts": "a6687601b349c00d688d1421341ad206161dde20af43cbad027395b0248d43b7"
+  },
+  "f98ReviewedBytesEqual": true,
+  "mainTypeScript": {
+    "exit": 0
+  },
+  "mainWholeEslint": {
+    "exit": 0,
+    "errors": 0,
+    "inheritedWarnings": 13
+  },
+  "diffCheckExit": 0,
+  "frozenManifestAndHistoricalMatrixByteUnchanged": true,
+  "secretScan": {
+    "scope": "Added lines and new archives checked with BrainRedaction; potential hits reviewed in redacted context",
+    "actualCredentialsFound": 0,
+    "falsePositiveClasses": [
+      "Authority type/property/comparison syntax",
+      "Synthetic fixture identities",
+      "Review prose NOT_PROVIDED",
+      "execution-authority PASS label",
+      "authority NONE prose",
+      "Quoted auth parameter in build warning"
+    ],
+    "rawHistoricalLogsUnmodified": true
+  },
+  "protectedHomepageVoiceCommandsPackageAndLiveDataDiffs": 0,
+  "liveNext": "16.2.10",
+  "buildWarnings": "Inherited dynamic filesystem tracing and middleware deprecation; build exit0 not production deployment qualification",
+  "graphImpact": {
+    "receipt": "STAGE17_GRAPHIFY_IMPACT_FINAL_SOURCE_20261008.log",
+    "sha256": "def5c76f37b6ced1e0c866152bacab507088b6aa67122987fe3c6d85bb0aa01f",
+    "bridges": 8,
+    "testGapHints": 9,
+    "testsCoverActualFiles": true
+  },
+  "isolatedTests": true,
+  "noLiveUpgrade": true,
+  "noDaemonRestart": true,
+  "grantsAuthority": false
+}

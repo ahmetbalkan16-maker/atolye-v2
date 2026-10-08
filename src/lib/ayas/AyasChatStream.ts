@@ -42,6 +42,7 @@ import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
 import { selectAyasAgenticRoute } from "./routing/AyasAgenticRouting";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { AyasContextBudgetError, ayasContextBudgetTraceMetadata, type AyasContextBudgetEvidence } from "./context/AyasContextBudget";
+import { ayasReplyHistoryQualityIssue } from "./context/AyasReplyHistoryQuality";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
 import {
@@ -459,6 +460,8 @@ function buildContextCorrectionPrompt(input: {
     `Kaçınılacak ilk taslak: ${input.firstReply.replace(/\s+/g, " ").slice(0, 240)}`,
     "Son mesaja 1-3 cümleyle cevap ver. Soruysa gerçekten cevapla; bildirimse anlamını doğal biçimde karşıla.",
     "'Kullanıcı:' ve 'AYAS:' terim olarak sorulduysa bunların konuşma rol etiketleri olduğunu açıkla.",
+    `Yanıtlanacak son mesaj: ${input.userText}`,
+    "Yalnızca bu son mesajın cevabını yaz; soruyu geri sorma ve geçmişteki durum iddialarını tekrarlama. Bir öneri isteniyorsa tek bir somut öneri ver.",
   ].join("\n");
 }
 
@@ -900,6 +903,8 @@ function replyIssue(reply: string, input: AyasFinalizationInput): string | null 
   if (input.guardAgainstFakeToolClaim && ayasReplyClaimsToolUse(reply)) return "fake-tool-claim";
   const scriptContext = [input.userText, ...input.recentHistory.map((turn) => turn.text)].join(" ");
   if (ayasReplyHasUnexpectedScriptMixing(reply, scriptContext)) return "script-mixing";
+  const historyIssue = ayasReplyHistoryQualityIssue(reply, input.userText, input.recentHistory);
+  if (historyIssue) return historyIssue;
   const quality = {
     reply,
     userText: input.userText,

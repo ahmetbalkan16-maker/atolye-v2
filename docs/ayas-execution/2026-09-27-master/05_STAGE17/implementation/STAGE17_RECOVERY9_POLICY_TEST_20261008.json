@@ -1,0 +1,102 @@
+{
+  "observedAt": "2026-10-08T11:25:21.832Z",
+  "outcome": "PASS",
+  "nineCases": [
+    {
+      "proposalId": "ayas-proposal-a45f13ae-c9c9-438d-87ee-1a30b4222e8e",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-40ff181b-c5da-4bb4-a22a-c46870318cc7",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-dc9045d9-0227-4563-8e47-06ff38777f53",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-412d8553-58fb-4a38-becd-4a852e18a918",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-a5508567-a34b-4de6-8978-3050408f52dc",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    },
+    {
+      "proposalId": "ayas-proposal-ec47b32a-316c-43e2-8650-0c164ee41ab2",
+      "decision": {
+        "classification": "RECOVERY_REQUIRED",
+        "mutationPossible": true,
+        "autoReplayAllowed": false,
+        "humanReviewRequired": true
+      },
+      "journalDigestUnchanged": true
+    }
+  ],
+  "phaseNoReplayChecks": 14,
+  "inboxAndJournalsByteUnchanged": true,
+  "liveDataWrites": 0,
+  "actorRecovery": "NOT_POSSIBLE_FROM_MISSING_LEGACY_FIELDS",
+  "authorityChanged": false,
+  "grantsAuthority": false
+}

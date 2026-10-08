@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "265f16f0442c1910d7deeaf8395e31f335bcd2b0",
+  "manifestVersion": "15F.4-v58",
+  "sourceWorktreeDigest": "ab93a2731f1dac4338d1ec20ccac0360802058d1caa679179c52ccb2cc6053c5",
+  "completeDeclaredBaseline": true,
+  "files": [
+    {
+      "file": "STAGE17_265f16f_FULL166.json",
+      "sha256": "1623c8a43c4b3da61d18e7b7fb63b7bf71af58f7e43e66bfa1027ab02ca96910"
+    },
+    {
+      "file": "STAGE17_265f16f_FULL166_RUN.log",
+      "sha256": "3cb56cf955078ccc2142be80776653555cb9fee2757ad73841ea73790da3e1b8"
+    },
+    {
+      "file": "STAGE17_265f16f_RAW_retrieval-evaluation_stdout.log",
+      "sha256": "6fbed08b07685ddd56e87ddfa86698801ddc2ba10acc546f88b2143b9aa912c5"
+    },
+    {
+      "file": "STAGE17_265f16f_RAW_retrieval-evaluation_stderr.log",
+      "sha256": "3051d5f05340c7d0af1cbd676b503afeb688631178d861918d55d05240178054"
+    },
+    {
+      "file": "STAGE17_265f16f_RAW_golden-vault-run_stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "STAGE17_265f16f_RAW_golden-vault-run_stderr.log",
+      "sha256": "1982c88b79c9778e2f573cbf187ae5a7c548e65f2c00956f3d13ab85880e4bc2"
+    },
+    {
+      "file": "STAGE17_265f16f_RAW_golden-sandbox-run_stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "STAGE17_265f16f_RAW_golden-sandbox-run_stderr.log",
+      "sha256": "7cbda75ddb75c3268be914cbd910c8efe0ae685fe4b21888a7b3930a0e7f9cfe"
+    },
+    {
+      "file": "STAGE17_265f16f_FULL166_BINDING.json",
+      "sha256": "aa92d5590715009320611ab0a8e0c654259b7a59c6092c6d4af7a105683ae1db"
+    }
+  ],
+  "readOnlyHistoricalArchive": true,
+  "grantsAuthority": false
+}
