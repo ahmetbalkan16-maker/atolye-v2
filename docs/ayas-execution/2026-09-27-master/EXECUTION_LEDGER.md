@@ -1249,3 +1249,14 @@ Canonical Access daemon deployed CLEAN 59e585ab4ac9acfcaedeaebf75099568c28512f3.
 - Overlay baseline: 162/166, failures = three preserved raw FAILs (same reasons) + `action-firewall-closure`, which also fails at clean HEAD (F96).
 - Not deployed: the live server still runs the previous build.
 - Voice workstream recorded as FROZEN_BY_OWNER; nothing voice-related was run.
+
+## 2026-10-08 — Stage17 opt-in combined protected inventory (packet B)
+
+- Implements review steps 1–3 of `STAGE17_PROTECTED_SCOPE_INTEGRATION_REVIEW_fde898f.md`:
+  - new `AyasSystemAuditCombinedScope.ts`;
+  - additive collector change (exported credential rule and reader aliases, combined scope type, manifest-stable completeness);
+  - CLI `--protected-combined --runtime-root --authority-root`.
+- Policy, Gate, Registry, Report, manifest v57, frozen graders, fixtures and held files are unchanged. Every existing mutation anchor occurs exactly once.
+- Developed first in a TEMP `git archive` copy. Repository runs: new suite PASS 23 + 6/6 mutations; system-audit 151; adversarial 30/30 + 30/30; mutations 9/9; protection 14+6 and 6/6; boundary 10; durable-task-recovery 22; discovery-registry 15. Firewall: only the pre-existing F96 gap. tsc PASS, ESLint 0.
+- The `combined-budget-v1` constants were chosen from measured sizes and need independent review before a combined result counts as qualified evidence.
+- Notes: `05_STAGE17/implementation/STAGE17_COMBINED_SCOPE.md`. The real read-only interval runs at this packet's clean commit.

@@ -7,7 +7,9 @@ import {auditInteger,auditTime,freezeAudit,type AyasAuditEvidence,type AyasSyste
 import {AYAS_AUDIT_CHECKS,AYAS_AUDIT_PROTECTED_ROOTS} from "./AyasSystemAuditRegistry";
 import {buildAyasSystemAuditReport} from "./AyasSystemAuditReport";
 export const auditDigest=(bytes:Uint8Array|string)=>crypto.createHash("sha256").update(bytes).digest("hex");
-export interface AyasAuditInventory {digest:string;complete:boolean;files:number;scope:"FIXED_REPOSITORY_ROOTS_EXTERNAL_RUNTIME_UNQUALIFIED";localComplete?:boolean;externalRuntimeQualified?:false;bytesHashed?:number;mode?:"STREAMING_LOCAL_HASH_ONLY";exclusions?:{credentialFiles:number;sizeOrByteBudgetFiles:number;linkOrSpecialEntries:number;depthOrFileLimitStops:number;unreadableRoots:number}}
+/** Credential-named paths are never opened by any protected inventory. */
+export const AYAS_AUDIT_CREDENTIAL_PATH=/(^|\/)(?:\.env(?:\.|$)|.*(?:credential|secret|token|\.key$|\.pem$))/i;
+export interface AyasAuditInventory {digest:string;complete:boolean;files:number;scope:"FIXED_REPOSITORY_ROOTS_EXTERNAL_RUNTIME_UNQUALIFIED"|"COMBINED_REPOSITORY_RUNTIME_AUTHORITY_V1";localComplete?:boolean;externalRuntimeQualified?:boolean;coverageManifestDigest?:string;bytesHashed?:number;mode?:"STREAMING_LOCAL_HASH_ONLY";exclusions?:{credentialFiles:number;sizeOrByteBudgetFiles:number;linkOrSpecialEntries:number;depthOrFileLimitStops:number;unreadableRoots:number}}
 function contained(root:string,target:string){const relative=path.relative(root,target);return relative===""||!relative.startsWith("..")&&!path.isAbsolute(relative);}
 function ancestry(root:string,target:string){if(!contained(root,target))return false;let at=root;for(const part of path.relative(root,target).split(path.sep).filter(Boolean)){at=path.join(at,part);if(fs.existsSync(at)&&fs.lstatSync(at).isSymbolicLink())return false;}return true;}
 function sameAuditFile(a:fs.Stats,b:fs.Stats){return b.isFile()&&b.nlink===1&&a.ino===b.ino&&a.dev===b.dev&&a.size===b.size&&a.mtimeMs===b.mtimeMs&&a.ctimeMs===b.ctimeMs;}
@@ -34,7 +36,7 @@ export function inventoryAyasAuditProtectedRoots(root:string,mode:"BOUNDED_DEFAU
     const s=fs.lstatSync(file);if(s.isDirectory()){for(const name of fs.readdirSync(file).sort())visit(path.join(file,name),depth+1);return;}
     if(!s.isFile()||s.nlink!==1){complete=false;exclusions.linkOrSpecialEntries++;return;}files++;const relative=path.relative(resolved,file).replace(/\\/g,"/");
     // Credentials are never opened. Inventory stores only hashes, never private/media bodies.
-    const credential=/(^|\/)(?:\.env(?:\.|$)|.*(?:credential|secret|token|\.key$|\.pem$))/i.test(relative);
+    const credential=AYAS_AUDIT_CREDENTIAL_PATH.test(relative);
     if(credential||s.size>16*1024*1024||total+s.size>byteBudget){complete=false;if(credential)exclusions.credentialFiles++;else exclusions.sizeOrByteBudgetFiles++;parts.push(relative+":UNMEASURED:"+s.size+":"+s.mtimeMs);return;}
     const measured=readAuditFile(resolved,file,s,Math.min(16*1024*1024,byteBudget-total));total+=s.size;parts.push(relative+":"+measured.digest);
   };
@@ -57,14 +59,18 @@ export async function collectAyasSystemAudit(deps:AyasAuditCollectorDeps){
       findingCode:spec.kind==="SOURCE"?bytes===null?"SOURCE_ABSENT":"SOURCE_PRESENT":"COLLECTOR_NOT_BOUND",liveRequired:spec.liveRequired});
   }
   const after=deps.inventory(),finalFacts=await deps.graph(),finalStatus=evaluateAyasGraphifyState(finalFacts),end=deps.clock(),finalRepo=deps.repository();
+  // Both inventories of one interval must measure the same coverage manifest (absent for the local scopes).
+  const manifestStable=before.coverageManifestDigest===after.coverageManifestDigest;
   const input:AyasSystemAuditInput={schemaVersion:"1",auditId:auditDigest(JSON.stringify({head:repo.head,start,end,before:before.digest,after:after.digest})),branch:repo.branch,head:repo.head??"UNKNOWN",
     startedAt:start,completedAt:end,machineEvidenceAt:null,machineStatus:"UNKNOWN",graphify:{sourceHead:facts.sourceHead,lastAnalyzedHead:status.lastAnalyzedHead,builtFromHead:status.graphBuiltFromHead,
       stale:status.structuralStatus==="STALE"||finalStatus.structuralStatus==="STALE"||finalRepo.head!==repo.head||finalRepo.branch!==repo.branch||finalFacts.sourceHead!==facts.sourceHead||finalFacts.worktreeFingerprint!==facts.worktreeFingerprint,
       needsUpdate:facts.needsUpdateFlag||finalFacts.needsUpdateFlag,integrityViolations:graph?graph.duplicateIds+graph.duplicateEdges+graph.dangling+graph.selfLoops:null,structural:status.structuralStatus,semantic:status.semanticStatus},
-    evidence,coverage:{declared:deps.declaredSuites,executed:0},mutation:{beforeDigest:before.digest,afterDigest:after.digest,complete:before.complete&&after.complete,attribution:before.digest===after.digest?"NONE":"UNKNOWN",writerEvidenceDigest:null},ownerReviewDigest:null};
+    evidence,coverage:{declared:deps.declaredSuites,executed:0},mutation:{beforeDigest:before.digest,afterDigest:after.digest,complete:before.complete&&after.complete&&manifestStable,attribution:before.digest===after.digest?"NONE":"UNKNOWN",writerEvidenceDigest:null},ownerReviewDigest:null};
   return freezeAudit({report:buildAyasSystemAuditReport(input),input,protectedScope:before.scope,protectedFilesBefore:before.files,protectedFilesAfter:after.files,
     protectedExclusionsBefore:before.exclusions??null,protectedExclusionsAfter:after.exclusions??null,
     ...(before.localComplete===undefined?{}:{protectedLocalCompleteBefore:before.localComplete,protectedLocalCompleteAfter:after.localComplete??false,externalRuntimeQualified:false as const,protectedBytesHashedBefore:before.bytesHashed??0,protectedBytesHashedAfter:after.bytesHashed??0}),
+    ...(before.coverageManifestDigest===undefined?{}:{protectedCoverageManifestBefore:before.coverageManifestDigest,protectedCoverageManifestAfter:after.coverageManifestDigest??null,protectedCoverageManifestStable:manifestStable,
+      externalRuntimeQualified:before.externalRuntimeQualified===true&&after.externalRuntimeQualified===true&&manifestStable,protectedBytesHashedBefore:before.bytesHashed??0,protectedBytesHashedAfter:after.bytesHashed??0}),
     branchOrHeadChanged:finalRepo.head!==repo.head||finalRepo.branch!==repo.branch});
 }
 export function createLocalAyasAuditCollector(root:string,probes:Pick<AyasAuditCollectorDeps,"repository"|"graph">):AyasAuditCollectorDeps {
@@ -76,3 +82,4 @@ export function createLocalAyasAuditCollector(root:string,probes:Pick<AyasAuditC
       try{const stat=fs.lstatSync(target);if(!stat.isFile()||stat.nlink!==1||stat.size>4*1024*1024)return null;return readAuditFile(resolved,target,stat,4*1024*1024,true).body;}catch{return null;}}};
 }
 export function validateAyasAuditClock(value:string){if(!auditTime(value))throw Error("AUDIT_CLOCK_INVALID");return value;}
+export {ancestry as auditAncestry,readAuditFile as auditReadFile};
