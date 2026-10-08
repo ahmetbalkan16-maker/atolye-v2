@@ -1,4 +1,8 @@
-# Current — 2026-10-08 / bounded Wake V3 BLOCKED; isolated male evaluation tested
+# 2026-10-08 — local AYAS male V2 review evidence; no runtime change
+
+Prepared three distinct released synthetic male profiles from pinned Pocket Turkish offline,51 valid WAVs/19 local ASR probes/3 isolated cancellation probes. Metadata/own recipes only committed; audio/models remain private. Published commercial weight licenseCC-BY4 verified, teacher rights chain/owner quality and pronunciation artifacts remainOPEN; no commercial-production acceptance. Paid API/key route closed by owner, no further API calls. Report docs/ayas-male-voice-persona/2026-10-08/V2_LOCAL_RESULT.md. Owner listening STOP, WakeV3/FoundationBLOCKED, BrainUIV2/homepage and live AYAS unchanged.
+
+# Prior — 2026-10-08 / bounded Wake V3 BLOCKED; isolated male evaluation tested
 
 Final mel study closed at fixed10 epochs: actual WASM120/122 acoustic,227/244 held-out,372/384 overlapping-source Tolga audit,59/60 new speech; numeric parityPASS only. No failed model or male voice promoted, no additional same-method search. Isolated20 Turkish Piper outputs tested; owner quality/device acceptance and unrestricted production license remain pending. DFKI CC-BY-NC-SA restriction verified; existing browser TTS/profile and Piper narration preserved. Details docs/ayas-wake-policy-v3/2026-10-07/FINAL_BLOCKED.md and docs/ayas-male-voice-persona/2026-10-08/PREPARATION.md. Stage17/FoundationBLOCKED, phoneNOT_RUN; Graphify structuralPARTIAL9/semanticPENDING. New homepage/BrainUIV2 design is an explicit STOP boundary under latest owner order; previous runtime UI/PWA/tunnel/tasks/frozen history untouched. Session save commit/push authorized; finalHEAD fromGit.
 

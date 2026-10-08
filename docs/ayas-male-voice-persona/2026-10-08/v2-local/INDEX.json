@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-08T06:28:11.261Z",
+  "sourceHead": "60e161192f5912cfbad0a4af1376a7c1531e7b8e",
+  "scope": "Local synthetic voice evaluation metadata and own recipes only",
+  "noAudioOrWeightsUploaded": true,
+  "noHumanRecordingsUsed": true,
+  "noCredentials": true,
+  "paidApiPath": "CLOSED_BY_OWNER_LOCAL_ONLY_ORDER",
+  "wakePolicy": "BLOCKED_UNCHANGED",
+  "foundation": "BLOCKED_UNCHANGED",
+  "status": "THREE_REVIEW_SAMPLES_PREPARED_NO_COMMERCIAL_PRODUCTION_OR_OWNER_QUALITY_APPROVAL",
+  "files": [
+    {
+      "source": "LOCAL_PLAN.json",
+      "archive": "LOCAL_PLAN.json.gz",
+      "bytes": 1993,
+      "compressedBytes": 1081,
+      "sha256": "1a8327af57880daa2fb957397f00afd60c703e4e041d6133f175918b9dc8fa0f",
+      "archiveSha256": "6ebe613f4e78480fb1c4694fba684378bf8f3112a92c1c6ed0e22c7c6e61dd4e"
+    },
+    {
+      "source": "TEST_CORPUS.json",
+      "archive": "TEST_CORPUS.json.gz",
+      "bytes": 1443,
+      "compressedBytes": 798,
+      "sha256": "281b5dab58e8a39815b4e0576fcb2fcc0dfc66a3f51149220b57a1aa98bd2942",
+      "archiveSha256": "abcde3a2385ff3ab5b297a2798dc0bea5d98a756725693be3af07b1bd46306ff"
+    },
+    {
+      "source": "MODEL_MANIFEST.json",
+      "archive": "MODEL_MANIFEST.json.gz",
+      "bytes": 1741,
+      "compressedBytes": 586,
+      "sha256": "a4fd76ad65ebe03d0d738af95f9359f93a20ca311d555c5e107c08a9cf15c340",
+      "archiveSha256": "b42cbce9dea4c1aa0e1e4b44fa2ae40fd8607827ad40b4f743ca0301d1e6bb3e"
+    },
+    {
+      "source": "LOCAL_RESULTS.json",
+      "archive": "LOCAL_RESULTS.json.gz",
+      "bytes": 62216,
+      "compressedBytes": 9532,
+      "sha256": "6024f286ae0d4cf23eac007a214414d81444250f1e6b6b8818db3ce9d3bd3c9f",
+      "archiveSha256": "f5bac0a57f8c19c31df13e52eda38cf442ea3c79bea5ae1f7b7b937c7cc684e1"
+    },
+    {
+      "source": "ASR_RESULTS.json",
+      "archive": "ASR_RESULTS.json.gz",
+      "bytes": 12839,
+      "compressedBytes": 1989,
+      "sha256": "fdacef70c952df9888edd4bfc4e31efd0a19fb339421fbb3d565cb91a8c579e5",
+      "archiveSha256": "cd249208b44dc2891ad162512859d0047fac7f333d2cd0c6762a94f449d37e96"
+    },
+    {
+      "source": "DEMO_SIGNALS.json",
+      "archive": "DEMO_SIGNALS.json.gz",
+      "bytes": 1778,
+      "compressedBytes": 653,
+      "sha256": "ede48aca6d1b71eac199961154035b339e96ba3b56319e8a6898c0671afa82fd",
+      "archiveSha256": "fcf336ae3042b4bb4001ce2df229d67a50abedaabf466465f267af45c75bb794"
+    },
+    {
+      "source": "REFERENCE_EVALUATION.json",
+      "archive": "REFERENCE_EVALUATION.json.gz",
+      "bytes": 974,
+      "compressedBytes": 619,
+      "sha256": "6c90dc3f876b3917b773655d098b2d51692d384490c17f54ce25bb096f0cac26",
+      "archiveSha256": "cfeeddaeb411c329d0ed2aedf14ab65009450a9a665cbeb6a3d3103dd4b5d1e7"
+    },
+    {
+      "source": "RECOVERED_FAILURES.json",
+      "archive": "RECOVERED_FAILURES.json.gz",
+      "bytes": 403,
+      "compressedBytes": 226,
+      "sha256": "6198b925addca2dcf266349d8136d16f66609f36cef190b767a2a2a348fa74ce",
+      "archiveSha256": "195cbed61249cda6d2db7e84f1f3d32b1d18fbd9b6131dd8ebe7dcceb1ddb5e7"
+    },
+    {
+      "source": "API_PATH_CLOSED.json",
+      "archive": "API_PATH_CLOSED.json.gz",
+      "bytes": 380,
+      "compressedBytes": 285,
+      "sha256": "e9ec8b01d6b5bfac25104a1664e2eccb11dcc3d02bd832f795824b824636cd78",
+      "archiveSha256": "c001006524664f8d87816092d47c78adf1431b218d8b6aa4bc325fcce3af1384"
+    },
+    {
+      "source": "FROZEN_PINS.json",
+      "archive": "FROZEN_PINS.json.gz",
+      "bytes": 90,
+      "compressedBytes": 95,
+      "sha256": "c08e71e9428121e1a12919731ac8a7b53d5c1aca7959c931f0d2b61dbb3080aa",
+      "archiveSha256": "7504259710345cccd4fe8e7b38b43439ffa9f7334abb831a7e84fcb581ec7bd9"
+    },
+    {
+      "source": "live-before.json",
+      "archive": "live-before.json.gz",
+      "bytes": 882,
+      "compressedBytes": 497,
+      "sha256": "8def3af24a02d7dad33a79177424ed5b31a5ac293b3a2a841e40ee774cd2fe5e",
+      "archiveSha256": "cfe8dfc56bf0c5675b898129a594f8f5bf682cdfab1c0e1c3c8521aaea367e87"
+    },
+    {
+      "source": "live-after.json",
+      "archive": "live-after.json.gz",
+      "bytes": 882,
+      "compressedBytes": 498,
+      "sha256": "0820e7955f627d83d032a10237eb32ba5687631a1c67cc6a1e12233a1f326d76",
+      "archiveSha256": "4691fd7be4406990b94db3086566098332945f356e64e8ae52b31a9534ceadaa"
+    },
+    {
+      "source": "curated-skills.json",
+      "archive": "curated-skills.json.gz",
+      "bytes": 1932,
+      "compressedBytes": 416,
+      "sha256": "a2405f5d86d00daaa3e4c048eb2587dcea9a7149a60f1493b8789ecd826b6850",
+      "archiveSha256": "bd587f13991d1182065a79cff5db1d210d9aaee090c0ec83e7917d992024cdbf"
+    },
+    {
+      "source": "evaluate_local.py",
+      "archive": "evaluate_local.py.gz",
+      "bytes": 9889,
+      "compressedBytes": 3514,
+      "sha256": "2153cd36cd4adfbca97bbf46e6d4f0e9077b7b54d57fd8550c66245bcf456892",
+      "archiveSha256": "cddddf728c1a4a8c1c01fdd5c7727976e8b7db5e49a65a7220a7728fa272052b"
+    },
+    {
+      "source": "evaluate_asr.py",
+      "archive": "evaluate_asr.py.gz",
+      "bytes": 3991,
+      "compressedBytes": 1770,
+      "sha256": "40528d8c110cd0d924601d1ad53eaa7e92a4908b29041981bb7fc98826f26a5b",
+      "archiveSha256": "534144da143d8021b689dac162cb60722666dbb4beff71ad01f639b38c12bf5b"
+    },
+    {
+      "source": "evaluate_signals.py",
+      "archive": "evaluate_signals.py.gz",
+      "bytes": 1891,
+      "compressedBytes": 1026,
+      "sha256": "d9cd7013559f974065283b6935af48bae1c3862f21a30b7d41d80e87f28b9edc",
+      "archiveSha256": "1f59ee258073215151b3a6ad609d1b7d0840e2dd4d57a48269e78e4d41de16c5"
+    },
+    {
+      "source": "evaluate_reference.py",
+      "archive": "evaluate_reference.py.gz",
+      "bytes": 1836,
+      "compressedBytes": 1085,
+      "sha256": "9805f0023a6f7693c19d5283a75ebeece6d4cc93a7147f3c4cf9ea0ba838d637",
+      "archiveSha256": "bf2f4da540173a67548fd2dc513ec15fce9966678fc19d60bbd886ee73a1366c"
+    },
+    {
+      "source": "research/requirements-local.lock",
+      "archive": "research__requirements-local.lock.gz",
+      "bytes": 5103,
+      "compressedBytes": 2587,
+      "sha256": "b36f94ac999acd65bb5fdcf5ab79cb8adf148c83b83b8aa0bbc9bc9ca66f5d49",
+      "archiveSha256": "cc1b15ff277fdd76ba52cd603d8c3713da25e458193dd32d52f606b21993b995"
+    }
+  ]
+}
