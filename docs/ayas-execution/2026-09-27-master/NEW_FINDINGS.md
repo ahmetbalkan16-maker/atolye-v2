@@ -425,3 +425,19 @@ CF49 CLOSED_PASS retained;214 frozen pins/v55/166 suites unchanged. Raw retrieva
 - No reply guard covers unverified system-status claims.
 - The live AYAS model is `qwen2.5:3b` although `qwen2.5:7b` is installed. The model choice was not changed.
 - Conversation quality is not qualified by the F95 fix.
+
+## 2026-10-08 — F92 follow-up: combined protected scope measured in one real interval
+
+The incomplete protected-state inventory (F92, `PROTECTED_SCOPE_INCOMPLETE`) now has a real combined measurement.
+- Run: opt-in `--protected-combined` audit at clean `f8143e2`.
+- Measured: 8,996 files / 1,237,387,138 bytes across the repository protected roots plus the external runtime and authority roots.
+- Zero exclusions; identical digest before and after; stable coverage manifest; attribution NONE.
+- Closure decision: `STATIC_AUDIT_COMPLETE`, with only `LOCAL_OR_LIVE_QUALIFICATION_INCOMPLETE` remaining.
+
+Not closed:
+- The `combined-budget-v1` constants need independent review.
+- A longer interval needs writer attribution.
+- Executed coverage is still 0/166 and the 30 TEST/LIVE slots are unbound.
+- The six owner gates are open.
+
+Receipt: `05_STAGE17/implementation/STAGE17_COMBINED_AUDIT_f8143e2.json`.

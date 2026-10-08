@@ -1,3 +1,24 @@
+# Current — 2026-10-08 / Stage17 combined protected scope measured; TEST/LIVE unbound; Foundation BLOCKED
+**Stage17 packet `f8143e2`.** Implements steps 1–3 of the protected-scope integration review:
+- New opt-in combined inventory `AyasSystemAuditCombinedScope.ts`: the repository protected roots plus the explicit runtime and authority roots under one coverage manifest; resolution and validation only, fail-closed reasons.
+- Additive collector change: an interval is complete only when both inventories carry the same manifest.
+- CLI flag `--protected-combined`.
+
+Frozen graders, fixtures, pins (v57) and the Policy/Gate/Registry are unchanged. New suite: 23 scenarios + 6/6 source mutations caught; all existing audit suites, boundary and repo-wide guards PASS (firewall: only the pre-existing F96).
+
+**Real read-only interval at clean `f8143e2`.** 8,996 files / 1.24 GB, 0 exclusions, digest unchanged, manifest stable. Closure `STATIC_AUDIT_COMPLETE`, with `LOCAL_OR_LIVE_QUALIFICATION_INCOMPLETE` as the only reason. This is the first canonical audit without `PROTECTED_SCOPE_INCOMPLETE`. Receipt: `05_STAGE17/implementation/STAGE17_COMBINED_AUDIT_f8143e2.json`.
+
+**Not closed:**
+- The `combined-budget-v1` constants need independent review.
+- Longer intervals need writer attribution.
+- Review steps 4–5: full166 receipt import and the 30 TEST/LIVE bindings (executed 0/166).
+- Six owner gates: authenticated runtime identity, real phone voice/continuity, reboot, Lemon TEST, Fiverr order/revenue/ledger, final digest-bound owner review.
+- Next 16.2.10 vs lock 16.3.8 migration and frozen retrieval-golden succession.
+
+Foundation **BLOCKED**.
+
+**Git.** `1f76faa` (F95) and `f8143e2` are committed locally. `git push` was refused by the session permission classifier and needs owner approval; local is ahead of origin until then. Graphify is at `f8143e2` (PARTIAL 9 / semantic PENDING); later commits are documentation-only.
+
 # Current — 2026-10-08 / local-model fallback fixed in source (not deployed); voice FROZEN_BY_OWNER; Foundation BLOCKED
 Claude continuation V4 started from clean `462f9f7` (origin 0/0, no live Codex process). Graphify was already at HEAD: structural PARTIAL 9, semantic PENDING.
 

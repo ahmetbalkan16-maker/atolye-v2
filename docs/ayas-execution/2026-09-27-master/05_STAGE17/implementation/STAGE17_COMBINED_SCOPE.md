@@ -39,12 +39,25 @@ Attack coverage (review's list): root escape and junction inside a root (C12), j
 
 ## Real read-only run
 
-Not run in this commit. The real read-only `--protected-combined` interval against the configured runtime and authority roots runs at the clean commit that contains this packet. Its receipt is recorded separately.
+Receipt: [STAGE17_COMBINED_AUDIT_f8143e2.json](STAGE17_COMBINED_AUDIT_f8143e2.json) (SHA-256 `d1f0a2b2a6f47a1331837f1b780cea9308c8b325feb27f0faf2dd29e975c4a6d`). It contains no absolute paths. The run was `scripts/ayas-system-audit.ts --protected-combined` with the configured runtime and authority roots passed explicitly, at clean HEAD `f8143e21a0223a57f7ee54b8549dd0825845c16e`, 2026-10-08T09:00:01.700Z–09:00:11.476Z. Graphify was analyzed and built at that HEAD: not stale, integrity 0, structural PARTIAL, semantic PENDING.
+
+| Measure | Result |
+| --- | --- |
+| Scope | `COMBINED_REPOSITORY_RUNTIME_AUTHORITY_V1`, manifest stable before/after |
+| Files / bytes hashed, before = after | 8,996 / 1,237,387,138 |
+| Exclusions (credential, size/budget, link, depth/file, unreadable) | 0 / 0 / 0 / 0 / 0 |
+| Protected digest before = after | `ce22006d7a65bc7097f44567bda91bc3cdb19847734fdc6d7bb6f10511a400b5`; attribution `NONE` |
+| `mutation.complete`, `externalRuntimeQualified` | true, true |
+| Branch/HEAD changed | false |
+| Closure decision | `STATIC_AUDIT_COMPLETE`; only reason `LOCAL_OR_LIVE_QUALIFICATION_INCOMPLETE` |
+| Coverage | declared 166, executed 0; all 30 TEST/LIVE slots NOT_RUN / COLLECTOR_NOT_BOUND |
+
+This is the first canonical audit without `PROTECTED_SCOPE_INCOMPLETE`. The previous a60b3cf run was BLOCKED. It is one quiescent ~10 s interval; the live server can write `data/brain` during a longer one. It qualifies the protected scope only under the `combined-budget-v1` constants, which still need independent review. It is not a Foundation closure: full166 coverage, the 30 TEST/LIVE bindings and the owner gates are untouched.
 
 ## Remaining Stage 17 work
 
 1. The combined budget `combined-budget-v1` was chosen in this packet from measured sizes. It needs independent review before a combined result counts as qualified evidence.
-2. A quiescent interval or a bounded writer receipt is needed: the live server writes `data/brain` (phone-access heartbeat, traces) during any interval.
+2. One quiescent interval passed. An audit interval that also runs suites will span live `data/brain` writes (phone-access heartbeat, traces), so it needs a bounded writer receipt; until then such a change stays `PROTECTED_CHANGE_UNATTRIBUTED`.
 3. Review steps 4–5: same-source full166 receipt import, then per-domain TEST/LIVE binding.
 4. Six owner evidence gates (authenticated runtime identity, phone continuity/voice, reboot continuity, Lemon TEST ingress, Fiverr order/revenue/ledger evidence, digest-bound owner review).
 5. Next 16.2.10 versus lock 16.3.8 migration in a coordinated restart window.

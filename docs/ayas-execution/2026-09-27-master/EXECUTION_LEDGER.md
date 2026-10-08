@@ -1260,3 +1260,12 @@ Canonical Access daemon deployed CLEAN 59e585ab4ac9acfcaedeaebf75099568c28512f3.
 - Developed first in a TEMP `git archive` copy. Repository runs: new suite PASS 23 + 6/6 mutations; system-audit 151; adversarial 30/30 + 30/30; mutations 9/9; protection 14+6 and 6/6; boundary 10; durable-task-recovery 22; discovery-registry 15. Firewall: only the pre-existing F96 gap. tsc PASS, ESLint 0.
 - The `combined-budget-v1` constants were chosen from measured sizes and need independent review before a combined result counts as qualified evidence.
 - Notes: `05_STAGE17/implementation/STAGE17_COMBINED_SCOPE.md`. The real read-only interval runs at this packet's clean commit.
+
+## 2026-10-08 — Real read-only combined interval at f8143e2
+
+- Graphify updated to `f8143e2`: analyzed = built = HEAD, CLEAN, PARTIAL 9, semantic PENDING.
+- `ayas-system-audit.ts --protected-combined` with the configured runtime and authority roots passed explicitly, output to a caller-created TEMP directory (removed after copying the receipt).
+- Result: 8,996 files / 1,237,387,138 bytes, 0 exclusions, digest unchanged, manifest stable, `mutation.complete=true`, `externalRuntimeQualified=true`. Closure `STATIC_AUDIT_COMPLETE`; only reason `LOCAL_OR_LIVE_QUALIFICATION_INCOMPLETE`; executed 0/166.
+- Receipt: `STAGE17_COMBINED_AUDIT_f8143e2.json` (sha256 d1f0a2b2…4a6d).
+- Foundation BLOCKED: budget review, writer attribution for longer intervals, review steps 4–5 and the owner gates remain.
+- Push of `1f76faa`/`f8143e2` was refused by the session permission classifier; the commits are local until the owner approves the push.
