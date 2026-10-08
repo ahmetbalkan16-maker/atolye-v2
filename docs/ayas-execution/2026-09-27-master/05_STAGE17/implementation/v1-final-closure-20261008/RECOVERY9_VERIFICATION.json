@@ -1,0 +1,92 @@
+{
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "observedAt": "2026-10-08T12:52:51.523Z",
+  "rows": [
+    {
+      "proposalId": "ayas-proposal-a45f13ae-c9c9-438d-87ee-1a30b4222e8e",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [
+        "88d662eaf4534b668159639a7195b7bd761bf430"
+      ],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-40ff181b-c5da-4bb4-a22a-c46870318cc7",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-dc9045d9-0227-4563-8e47-06ff38777f53",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-412d8553-58fb-4a38-becd-4a852e18a918",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [
+        "97cb6e9ae317b5d7f6258ece132723a8e3c39de7"
+      ],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-a5508567-a34b-4de6-8978-3050408f52dc",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [],
+      "matchingResultCount": 0
+    },
+    {
+      "proposalId": "ayas-proposal-ec47b32a-316c-43e2-8650-0c164ee41ab2",
+      "journalUnchanged": true,
+      "phase": "RECOVERY_REQUIRED",
+      "actor": "NOT_CAPTURED",
+      "ownerAuthorization": "UNPROVEN_OWNER_DISPUTED",
+      "publicationCommits": [],
+      "matchingResultCount": 0
+    }
+  ],
+  "grantsAuthority": false
+}

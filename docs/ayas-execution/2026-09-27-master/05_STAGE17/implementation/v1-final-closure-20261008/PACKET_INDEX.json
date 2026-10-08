@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "AYAS_V1_PREPARATION_PACKET_1",
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "scope": "OWNER_V1_CLOSURE_PREPARATION_NOT_FINAL_ACCEPTANCE",
+  "files": [
+    {
+      "file": "ATOLYE_EXISTING_OUTPUT_EVIDENCE.json",
+      "sha256": "699d934f2597c7500dfda63419b03493def56959c3b480494bb73a540b805bc9"
+    },
+    {
+      "file": "ATOLYE_FIRST_VIDEO.md",
+      "sha256": "13fbb73ed23b3552e8a0cf5b2127c7b01a1e9428c03983dc074d658bd7b1069c"
+    },
+    {
+      "file": "ATOLYE_PIPELINE_GRAPH.json",
+      "sha256": "71805e7ef0d0ccef242c9845f27b7213d7219c7d99443d03d2aa179fde7ad2ef"
+    },
+    {
+      "file": "AYAS_V1_ACCEPTANCE.md",
+      "sha256": "803268ced144e01125210284eb6d56d45547fde540433667949162b7fd014d3a"
+    },
+    {
+      "file": "COMBINED_AUDIT_58ec1bd.json",
+      "sha256": "cc606985d9de78f5faee9b3eebafddcf254cee9428537198eb5673d52e4ede0f"
+    },
+    {
+      "file": "CURRENT_SOURCE_VALIDATION.json",
+      "sha256": "82fdb3dc8528158bb488641f371da7a3e1733367c092fa59c43431bfa76cb017"
+    },
+    {
+      "file": "DRAFT_VALIDATION.json",
+      "sha256": "de65686310b041c5ad2f955558e8c06df7dcdd37f5620c6c410828732397125c"
+    },
+    {
+      "file": "EVALUATOR_SUCCESSION_PROPOSAL.json",
+      "sha256": "fe61c521184c75305ccaee3da3fd90b083a56067284d9d8748bc5a5a04f5f5d0"
+    },
+    {
+      "file": "EVAL_MANIFEST_V59_DRAFT.json",
+      "sha256": "3cad3be7cae8a962c733f89e88927b1e1a7aaa2d561234609c3a61223fcf0c8d"
+    },
+    {
+      "file": "EVIDENCE_DELTA.json",
+      "sha256": "f2a0210908760f4eb870389e35bd49bdce8256910f04aef22545991cb3542611"
+    },
+    {
+      "file": "GOLDEN_V3_DRAFT.json",
+      "sha256": "8896ccb6196d75f7107262204ec40265990fb2f69bc705c6e0d272b37c59ed62"
+    },
+    {
+      "file": "ISOLATED_REUSE_BINDING.json",
+      "sha256": "2d65ce12c3ce133ef71b85e63e265dba910caff2abf927e843b843607b064505"
+    },
+    {
+      "file": "LIVE_MAINTENANCE_AND_PHONE_CHECKLIST.md",
+      "sha256": "62b39f4afa18ae8c7e86cd09d3d1e40110c50af607c8dfb6eb01a917a894941c"
+    },
+    {
+      "file": "LIVE_READONLY.json",
+      "sha256": "8bfb07dd6103afd8230717361923de34fe66e0ae727a0e3a5e201ae520d629d3"
+    },
+    {
+      "file": "OWNER_GATES.md",
+      "sha256": "0e9e051e6ce7e03f5d504849d92a72d422f0dfbcc2b119cba43f689e5dc29bf8"
+    },
+    {
+      "file": "RECOVERY9_OWNER_REVIEW.md",
+      "sha256": "dd14f2cff5c98dd0da803f329fe8ff1c1a8a157fb84acb4479fc7a2f065dc672"
+    },
+    {
+      "file": "RECOVERY9_RECONCILIATION_PROPOSAL.json",
+      "sha256": "1642bd11540e8a4e2a941cd95b650e238e29b7ac5a35090165dbfbfdb3af0a44"
+    },
+    {
+      "file": "RECOVERY9_VERIFICATION.json",
+      "sha256": "5926012636e00e1f9b84db1ebf5cc2f94b30204a5d2d3a11b43e53c799ee074b"
+    },
+    {
+      "file": "RETRIEVAL_SUCCESSOR_DRAFT.ts.txt",
+      "sha256": "2194580aec8f41d030db4ea33d2c9e8eede8e7ad5746c408f9a20ba9265647bc"
+    },
+    {
+      "file": "smoke-ayas-access-gate.ts.log",
+      "sha256": "f57797eb3010cfd9002abcea4032a71e9f62b58a057b7cab76140bb548ac5d2f"
+    },
+    {
+      "file": "smoke-ayas-action-firewall-closure.ts.log",
+      "sha256": "f3749ab04697c8c715412864a570ee25d1ada4cedb7ed4a1464e5b126bbde6c7"
+    },
+    {
+      "file": "smoke-ayas-action-firewall-runtime.ts.log",
+      "sha256": "7877bd30ea82e1b06888d10cb9d430ac97cbad9658eea756126e2ad68a4c72f8"
+    },
+    {
+      "file": "smoke-ayas-reply-history-quality.ts.log",
+      "sha256": "020983e8941b43c001bb87b35f94aa636e1a64e624ef64075b51d7f69e0695b7"
+    }
+  ],
+  "digestBasis": "SHA256_UTF8_JSON_STRINGIFY_SORTED_FILE_HASH_ENTRIES",
+  "packetDigest": "4283c5b0dc83ff9dc97852d58ee4359302b56cc0813c646b2f0ab1c41e0cd51c",
+  "ownerReviewDigest": null,
+  "ownerDecision": null,
+  "grantsAuthority": false,
+  "full166": "NOT_RUN_PENDING_REQUIRED_DECISION_AND_FINAL_TECHNICAL_SOURCE",
+  "foundation": "BLOCKED",
+  "sprint": "NOT_READY"
+}

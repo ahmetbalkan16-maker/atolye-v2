@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-10-08T13:04:14.096Z",
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "isolatedCandidateCodeFiles": 1674,
+  "nonEolCodeDrift": 0,
+  "inheritedEolVariants": 402,
+  "exactModifiedSourceFiles": 11,
+  "lockByteEqual": true,
+  "isolatedNext": "16.3.8",
+  "liveNext": "16.2.10",
+  "reuse": [
+    "STAGE17_PACKET_VALIDATION_20261008.json",
+    "STAGE17_RECOVERY_DEDUP_VALIDATION_20261008.json",
+    "STAGE17_LOCK_ROLLBACK_20261008.json"
+  ],
+  "newFull166": "NOT_RUN_WAITING_OWNER_SUCCESSION_DECISION_AND_FINAL_TECHNICAL_HEAD",
+  "grantsAuthority": false
+}

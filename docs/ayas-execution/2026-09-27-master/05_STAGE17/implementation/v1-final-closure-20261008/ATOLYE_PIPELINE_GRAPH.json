@@ -1,0 +1,239 @@
+{
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "graphBuiltFromHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "files": [
+    {
+      "file": "src/lib/pipeline/PipelineRunner.ts",
+      "nodes": 37,
+      "sha256": "11568f5083b9c7eb6bf07e5b92b7a68021ef17baebee4c8837135fc1ffd10ee8"
+    },
+    {
+      "file": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "nodes": 14,
+      "sha256": "6e7b8d2d68b9f8e5adf09b834d23becb168c59a70b78e5f3d92f4b45de272012"
+    },
+    {
+      "file": "src/lib/ai/AIManager.ts",
+      "nodes": 10,
+      "sha256": "15fcd3751e6810406a6aaaf2bcf4638ffb3bade9bf5713c9397c8d44ec6c3767"
+    },
+    {
+      "file": "src/lib/audio/AudioPipeline.ts",
+      "nodes": 28,
+      "sha256": "45156575392d37594bbfcc4777afe42be144501dc2fc8e47abe499e575db5aa0"
+    },
+    {
+      "file": "src/lib/assembly/VideoAssemblyManager.ts",
+      "nodes": 27,
+      "sha256": "b5d9ce0c907ff729edf9cf47662d5a126fe3daed26435bbb3f3100f316b520cc"
+    },
+    {
+      "file": "src/lib/export/ExportPackager.ts",
+      "nodes": 3,
+      "sha256": "7f4865b08a79263ae998ec921b01f2f26ec9041c32916eefdd3fcb378881d2f3"
+    },
+    {
+      "file": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "nodes": 12,
+      "sha256": "a2afa32f3d757fdfec95fa597591cd252c9cd3f7d7d0acddc73b6f58da734133"
+    },
+    {
+      "file": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "nodes": 17,
+      "sha256": "807dbdf1ceb253134897ee47822a93f8da49e247c4b28489a4ce99bab851b31d"
+    }
+  ],
+  "edges": [
+    {
+      "source": "src/lib/ai/AIManager.ts",
+      "target": "src/lib/ai/AIManager.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/ai/AIManager.ts",
+      "target": "src/lib/ai/AIManager.ts",
+      "relation": "method"
+    },
+    {
+      "source": "src/lib/ai/AIManager.ts",
+      "target": "src/lib/ai/AIManager.ts",
+      "relation": "calls"
+    },
+    {
+      "source": "src/lib/assembly/VideoAssemblyManager.ts",
+      "target": "src/lib/assembly/VideoAssemblyManager.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/assembly/VideoAssemblyManager.ts",
+      "target": "src/lib/assembly/VideoAssemblyManager.ts",
+      "relation": "calls"
+    },
+    {
+      "source": "src/lib/assembly/VideoAssemblyManager.ts",
+      "target": "src/lib/assembly/VideoAssemblyManager.ts",
+      "relation": "method"
+    },
+    {
+      "source": "src/lib/audio/AudioPipeline.ts",
+      "target": "src/lib/audio/AudioPipeline.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/audio/AudioPipeline.ts",
+      "target": "src/lib/audio/AudioPipeline.ts",
+      "relation": "calls"
+    },
+    {
+      "source": "src/lib/audio/AudioPipeline.ts",
+      "target": "src/lib/audio/AudioPipeline.ts",
+      "relation": "method"
+    },
+    {
+      "source": "src/lib/export/ExportPackager.ts",
+      "target": "src/lib/export/ExportPackager.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineRunner.ts",
+      "target": "src/lib/pipeline/PipelineRunner.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineRunner.ts",
+      "target": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineRunner.ts",
+      "target": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineRunner.ts",
+      "target": "src/lib/pipeline/PipelineRunner.ts",
+      "relation": "method"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineRunner.ts",
+      "target": "src/lib/pipeline/PipelineRunner.ts",
+      "relation": "calls"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/ai/AIManager.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/ai/AIManager.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/assembly/VideoAssemblyManager.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/assembly/VideoAssemblyManager.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/audio/AudioPipeline.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/audio/AudioPipeline.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/export/ExportPackager.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/export/ExportPackager.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "relation": "calls"
+    },
+    {
+      "source": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "target": "src/lib/pipeline/PipelineStageExecutor.ts",
+      "relation": "method"
+    },
+    {
+      "source": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "target": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "target": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "relation": "imports_from"
+    },
+    {
+      "source": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "target": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "relation": "imports"
+    },
+    {
+      "source": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "target": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "relation": "calls"
+    },
+    {
+      "source": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "target": "src/lib/youtube/publish/YouTubePublishPipeline.ts",
+      "relation": "method"
+    },
+    {
+      "source": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "target": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "relation": "contains"
+    },
+    {
+      "source": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "target": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "relation": "method"
+    },
+    {
+      "source": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "target": "src/lib/youtube/YouTubePackagePipeline.ts",
+      "relation": "calls"
+    }
+  ],
+  "interpretation": "GRAPH_STRUCTURE_AND_SOURCE_IMPORTS_NOT_PRODUCTION_EXECUTION_PROOF"
+}

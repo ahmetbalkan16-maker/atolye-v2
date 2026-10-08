@@ -1,0 +1,56 @@
+{
+  "observedAt": "2026-10-08T13:05:47.319Z",
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "scope": "CURRENT_SOURCE_TARGETED_DETERMINISTIC_TESTS_NO_LIVE_EXECUTION",
+  "installedNext": "16.2.10",
+  "typeScript": {
+    "exit": 0,
+    "incremental": false
+  },
+  "eslint": {
+    "exit": 0,
+    "errors": 0,
+    "inheritedWarnings": 13
+  },
+  "rows": [
+    {
+      "suite": "smoke-ayas-action-firewall-closure.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 1514,
+      "log": "smoke-ayas-action-firewall-closure.ts.log",
+      "sha256": "f3749ab04697c8c715412864a570ee25d1ada4cedb7ed4a1464e5b126bbde6c7",
+      "sourceSha256": "a7824b99374826a4145894215182fe0ffe4aac3b87778b1c2eec60e9f4531308"
+    },
+    {
+      "suite": "smoke-ayas-action-firewall-runtime.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 709,
+      "log": "smoke-ayas-action-firewall-runtime.ts.log",
+      "sha256": "7877bd30ea82e1b06888d10cb9d430ac97cbad9658eea756126e2ad68a4c72f8",
+      "sourceSha256": "b7c20541c1969b5a31af210fb9a3fb6b17bf58852c64eda0201c1f4feb82db74"
+    },
+    {
+      "suite": "smoke-ayas-access-gate.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 505,
+      "log": "smoke-ayas-access-gate.ts.log",
+      "sha256": "f57797eb3010cfd9002abcea4032a71e9f62b58a057b7cab76140bb548ac5d2f",
+      "sourceSha256": "05d87256cd4a095f4045f07e45cc6e314bcf85160268e73c65f073291310a05f"
+    },
+    {
+      "suite": "smoke-ayas-reply-history-quality.ts",
+      "exit": 0,
+      "signal": null,
+      "durationMs": 774,
+      "log": "smoke-ayas-reply-history-quality.ts.log",
+      "sha256": "020983e8941b43c001bb87b35f94aa636e1a64e624ef64075b51d7f69e0695b7",
+      "sourceSha256": "a6687601b349c00d688d1421341ad206161dde20af43cbad027395b0248d43b7"
+    }
+  ],
+  "full166": "NOT_RUN_PENDING_FINAL_TECHNICAL_HEAD_AFTER_OWNER_DECISION",
+  "liveOwnerQualification": "NOT_RUN",
+  "grantsAuthority": false
+}

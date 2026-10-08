@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "OWNER_REVIEW_DRAFT_1",
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "status": "PREPARED_NOT_APPLIED_OWNER_DECISION_REQUIRED",
+  "originalGrader": {
+    "file": "scripts/smoke-ayas-retrieval-evaluation.ts",
+    "sha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e",
+    "retained": true
+  },
+  "fixture": {
+    "file": "scripts/fixtures/ayas-retrieval-evaluation-cases.ts",
+    "sha256": "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23",
+    "version": "2",
+    "changes": 0
+  },
+  "currentManifest": {
+    "version": "15F.4-v58",
+    "sha256": "588013da3981a91a2f8663cfe3d955c7b84d2206048e2017aec460762e987e4d"
+  },
+  "successor": {
+    "file": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+    "sha256": "2194580aec8f41d030db4ea33d2c9e8eede8e7ad5746c408f9a20ba9265647bc",
+    "method": "Copy the original grader into a new sibling only after owner approval; remove exactly the 12 reviewed KNOWN_LIMITATIONS rows; keep ground truth, floors, ceilings, layer/invariant/network/isolation/privacy assertions unchanged",
+    "reviewIds": [
+      "exact-pc-plan",
+      "para-pc-thinking",
+      "para-pc-plan",
+      "morph-pc-last-decision",
+      "morph-pc-card-accusative",
+      "order-pc-inverted",
+      "multi-pc-card-and-ram",
+      "tr-pc-capitals",
+      "tr-pc-punctuation",
+      "tr-pc-typo",
+      "heldout-pc-card-want",
+      "heldout-pc-switch"
+    ],
+    "removedClassificationRows": [
+      "\"exact-pc-plan\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"para-pc-thinking\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"para-pc-plan\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"morph-pc-last-decision\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"morph-pc-card-accusative\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"order-pc-inverted\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"multi-pc-card-and-ram\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"tr-pc-capitals\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"tr-pc-punctuation\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"tr-pc-typo\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"heldout-pc-card-want\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },",
+      "\"heldout-pc-switch\": { classification: \"EXPECTED_LIMITATION\", layers: RANK_CTX, reason: FREE_TEXT },"
+    ],
+    "knownLimitationsRemaining": 16,
+    "candidateExecuted": false
+  },
+  "golden": {
+    "currentVersion": 2,
+    "currentDigest": "5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f",
+    "draftNextVersion": 3,
+    "draftDigest": "e76d2117c87b8e2f8fbf1f5637188e55451cbbcf9a77eb08ac0a85f3a0de3f16",
+    "rule": "Append VERSION_3 with previousDigest; never rewrite VERSION_1 or VERSION_2; same case IDs and all other case scripts/pins unchanged",
+    "changedCase": "golden.memory.retrieval-evaluation",
+    "retiredCases": []
+  },
+  "manifest": {
+    "proposedVersion": "15F.4-v59",
+    "suites": 166,
+    "changedSuite": "retrieval-evaluation",
+    "existingPinsChanged": 0,
+    "newSuccessorPin": true
+  },
+  "compatibility": {
+    "originalCf49Review": "Keeps running the unchanged original grader and still requires exit1/exact12 IMPROVED; successor must not replace its rawGate",
+    "threeHistoricalRawFails": "Retained exactly under original 265f16f/v58 receipts; never rewritten green",
+    "goldenCandidate": "Both Golden run suites must execute appended vault; they are not assumed PASS"
+  },
+  "ownerDecision": null,
+  "requiredValidation": [
+    "Explicit owner approval bound to proposal digest and exact12 scope",
+    "Fresh original raw gate remains exact12 IMPROVED/zero new regression",
+    "Successor all layer/invariant/floor/ceiling/determinism/scale/error/privacy checks pass; remaining16 disclosed",
+    "Existing CF49 review and contract controls, cognitive, memory/context/chat regression gates pass",
+    "Golden chain, pin, retirement and mutation gates pass; both Golden runners actually qualify new vault",
+    "TypeScript/ESLint/build, source/lock matching",
+    "Commit final technical source; Graphify current; run Full166 once at final HEAD with fresh-lock Next16.3.8 and archive all raw outputs"
+  ],
+  "grantsAuthority": false,
+  "implementationApplied": false,
+  "deployAuthorized": false
+}

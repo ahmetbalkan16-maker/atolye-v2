@@ -1,0 +1,16 @@
+{
+  "observedAt": "2026-10-08T13:01:20.675Z",
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "state": "PASS_DRAFT_STATIC_VALIDATION_ONLY",
+  "exactReviewedRowsRemoved": 12,
+  "otherGraderBytesChanged": "DRAFT provenance comment only",
+  "fixtureChanges": 0,
+  "existingManifestPinsChanged": 0,
+  "otherGoldenCasesChanged": 0,
+  "chainValid": true,
+  "syntaxValid": true,
+  "currentManifestUnchanged": true,
+  "candidateExecuted": false,
+  "ownerDecision": null,
+  "grantsAuthority": false
+}

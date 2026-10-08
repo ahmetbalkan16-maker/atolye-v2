@@ -1,0 +1,41 @@
+{
+  "observedAt": "2026-10-08T12:59:38.380Z",
+  "qualification": "UNAUTHENTICATED_READ_ONLY_ONLY",
+  "rows": [
+    {
+      "name": "localLogin",
+      "status": 200
+    },
+    {
+      "name": "protectedRuntime",
+      "status": 401
+    },
+    {
+      "name": "protectedStudio",
+      "status": 307
+    },
+    {
+      "name": "publicLogin",
+      "status": 200
+    },
+    {
+      "name": "ollamaTags",
+      "status": 200,
+      "modelCount": 2,
+      "models": [
+        "qwen2.5:7b",
+        "qwen2.5:3b"
+      ]
+    }
+  ],
+  "build": {
+    "head": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0"
+  },
+  "installedNext": "16.2.10",
+  "ownerIdentity": "NOT_QUALIFIED",
+  "phone": "NOT_RUN",
+  "reboot": "NOT_RUN",
+  "grantsAuthority": false
+}

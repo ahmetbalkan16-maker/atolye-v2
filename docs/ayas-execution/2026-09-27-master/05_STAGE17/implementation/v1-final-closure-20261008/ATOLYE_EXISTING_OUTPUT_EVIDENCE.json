@@ -1,0 +1,161 @@
+{
+  "observedAt": "2026-10-08T13:08:25.824Z",
+  "sourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "readOnly": true,
+  "projectCount": 17,
+  "completedAssemblyManifests": 7,
+  "actualSampledFinalMp4Count": 6,
+  "finalVideos": [
+    {
+      "projectRecordDigest": "adff30787ecad7df872855f4f12de7418120239fbf7e5a4c1cc5396505c2082d",
+      "provider": "ffmpeg",
+      "byteLength": 9452948,
+      "durationSeconds": 116.971,
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 1920,
+          "height": 1080
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio"
+        }
+      ]
+    },
+    {
+      "projectRecordDigest": "747d59fd663938113d0f3ea51fb7b03991764355330d0354a585d73320be53e0",
+      "provider": "ffmpeg",
+      "byteLength": 9083345,
+      "durationSeconds": 153.9,
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 1920,
+          "height": 1080
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio"
+        }
+      ]
+    },
+    {
+      "projectRecordDigest": "ccdc299c30b782b28d0fdfad2ec491db1117872b4770a80047da5b3b21cabec5",
+      "provider": "ffmpeg",
+      "byteLength": 8061011,
+      "durationSeconds": 108.8,
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 1920,
+          "height": 1080
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio"
+        }
+      ]
+    },
+    {
+      "projectRecordDigest": "a30a50b9c795e87a81dd2734883dcea7d40d6e695eae53e3396658a2eee6c11f",
+      "provider": "ffmpeg",
+      "byteLength": 7594261,
+      "durationSeconds": 97,
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 1920,
+          "height": 1080
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio"
+        }
+      ]
+    },
+    {
+      "projectRecordDigest": "46ca9051d2faddfd1f40c3573d2b89cfc10d1f51d8078ee0569df2e748fdd372",
+      "provider": "ffmpeg",
+      "byteLength": 10313795,
+      "durationSeconds": 95.833,
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 1920,
+          "height": 1080
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio"
+        }
+      ]
+    },
+    {
+      "projectRecordDigest": "dfb5df4f6f4978165b6a97cf5ee5460d44365934f43fa0eab4ac5a4c7fb5e3a4",
+      "provider": "ffmpeg",
+      "byteLength": 6902742,
+      "durationSeconds": 96.841,
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 1920,
+          "height": 1080
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio"
+        }
+      ]
+    }
+  ],
+  "firstCandidate": {
+    "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı",
+    "durationSeconds": 116.971,
+    "byteLength": 9452948,
+    "container": "MP4",
+    "video": "H264 1920x1080",
+    "audio": "AAC",
+    "meanVolumeDb": -27.8,
+    "maxVolumeDb": -10.2,
+    "sampledFrames": 6,
+    "visualObservation": "Sampled frames show collage compositions and cropped figures; editorial review needed, no whole-video pixel/quality/rights PASS",
+    "humanListening": "NOT_RUN",
+    "rights": "NOT_QUALIFIED"
+  },
+  "providers": {
+    "AI_PROVIDER": "ollama",
+    "IMAGE_PROVIDER": "real",
+    "AUDIO_PROVIDER": "openai",
+    "ANIMATION_PROVIDER": "ollama",
+    "VIDEO_PROVIDER": "ffmpeg",
+    "VIDEO_ASSEMBLY_PROVIDER": "ffmpeg",
+    "THUMBNAIL_PROVIDER": "local",
+    "YOUTUBE_PROVIDER": "ollama"
+  },
+  "tools": {
+    "ffmpeg": {
+      "available": true,
+      "configured": true
+    },
+    "ffprobe": {
+      "available": true,
+      "configured": true
+    }
+  },
+  "piperPresent": {
+    "binaryPresent": true,
+    "modelPresent": true
+  },
+  "localOnlyCostProof": false,
+  "currentNarrationProvider": "openai",
+  "qualifications": "CONTAINER_STREAMS_AND_METADATA_ONLY; no new render or live pipeline acceptance",
+  "privateRuntimeMetadataCommitted": false,
+  "grantsAuthority": false
+}
