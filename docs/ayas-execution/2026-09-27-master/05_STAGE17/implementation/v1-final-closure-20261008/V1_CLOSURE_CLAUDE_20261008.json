@@ -1,0 +1,357 @@
+{
+  "schemaVersion": "V1_CLOSURE_CLAUDE_1",
+  "observedBy": "Claude continuation, 2026-10-08",
+  "git": {
+    "branch": "wip/ayas-graphify-final-execution",
+    "entryHead": "a9dca747831f707abe4bcfc686a59fd0d1bf5c87",
+    "entryOrigin": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+    "aheadBehind": "1/0",
+    "worktreeClean": true,
+    "technicalSourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+    "sourceFilesChanged58ec1bdToA9dca74": 0
+  },
+  "liveAgents": {
+    "codexOrBaselineRunning": false,
+    "ownerServices": [
+      "AYAS Autonomy Observer (Running, daemon started 2026-10-08 06:44 local)",
+      "AYAS Access Online (Running)"
+    ]
+  },
+  "recovery9": {
+    "observedAt": "2026-10-08T13:48:00.019Z",
+    "readOnly": true,
+    "inbox": {
+      "sha256Now": "fa32ef353a7b910af5860facd2c7ccd57176dd7ab12d24429878a9571d324e56",
+      "sha256AtCodexDiagnosis": "60fb17453800f7ab4b8279828307a0f89db0d865964db7287de617822b4eeb29",
+      "proposals": 211,
+      "statusCounts": {
+        "STALE": 172,
+        "ABANDONED": 1,
+        "COMPLETED": 28,
+        "RECOVERY_REQUIRED": 9,
+        "PENDING": 1
+      }
+    },
+    "recoveryRequired": 9,
+    "outsideTheNine": 0,
+    "uniqueIds": 9,
+    "rows": [
+      {
+        "proposalId": "ayas-proposal-a45f13ae-c9c9-438d-87ee-1a30b4222e8e",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "dd1627a55d7b59e8a372f866e8e9c6c9d66e64c1fa949191a470ba83aeff619e",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-a45f13ae-c9c9-438d-87ee-1a30b4222e8e",
+            "status": "RECOVERY_REQUIRED"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-40ff181b-c5da-4bb4-a22a-c46870318cc7",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "573bcd73cd9cfba73c9932b2460a82de368e7ad5d694d5666926779b52808445",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-40ff181b-c5da-4bb4-a22a-c46870318cc7",
+            "status": "RECOVERY_REQUIRED"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "d7e4b0d69ec5e61e9b0258d9e88bbcdc53bd25a0c3d41cbf5e07f4dac988b02e",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-e7ff295b-0ca3-4ab5-98c8-dab3a03b540b",
+            "status": "STALE"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "5ad9752ad46835f6f4124685229ad52cd32e808927a7b6234ebaab767c6365dc",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-e7ff295b-0ca3-4ab5-98c8-dab3a03b540b",
+            "status": "STALE"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "f8b326441bcd48b5c18eddc314cebc6b1b4432ce501478614f8a308e25f5875d",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-e7ff295b-0ca3-4ab5-98c8-dab3a03b540b",
+            "status": "STALE"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-dc9045d9-0227-4563-8e47-06ff38777f53",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "f75939c3b4e042841df915fcd5ef5a5e55900f3ccccfa71a918a8c5971225283",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-dc9045d9-0227-4563-8e47-06ff38777f53",
+            "status": "RECOVERY_REQUIRED"
+          },
+          {
+            "id": "ayas-proposal-c6c026de-c201-4358-89d0-f2b971a8bdaf",
+            "status": "STALE"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-412d8553-58fb-4a38-becd-4a852e18a918",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "037acc16fee81f765e7987eaa12b52ee77aace423d0c9756ee994ced9f34e806",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-412d8553-58fb-4a38-becd-4a852e18a918",
+            "status": "RECOVERY_REQUIRED"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-a5508567-a34b-4de6-8978-3050408f52dc",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "fc91f388374b6aa497071a2b43f9cfc598a36774d03094c65ccf024527cfa0a1",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-a5508567-a34b-4de6-8978-3050408f52dc",
+            "status": "RECOVERY_REQUIRED"
+          }
+        ]
+      },
+      {
+        "proposalId": "ayas-proposal-ec47b32a-316c-43e2-8650-0c164ee41ab2",
+        "inboxStatus": "RECOVERY_REQUIRED",
+        "inboxCount": 1,
+        "journalUnchanged": true,
+        "journalSha256": "074a99a13e00e2fbe0c84c45701ee32ebdcc65639097e7879b33aaa9763b5af7",
+        "journalPhase": "RECOVERY_REQUIRED",
+        "sameHashProposals": [
+          {
+            "id": "ayas-proposal-ec47b32a-316c-43e2-8650-0c164ee41ab2",
+            "status": "RECOVERY_REQUIRED"
+          }
+        ]
+      }
+    ],
+    "tenthProposal": {
+      "proposalId": "ayas-proposal-18c15af4-4ccc-4a41-879e-47e5e3691dde",
+      "status": "COMPLETED",
+      "proposalHash": "4d7259d5f9f76cb5f77bf4a3c8879a6c5b4a2a5c74b3227a7fe6648f4e1a6500",
+      "publicationCommit": "580bbab01dce46d280beb1147556425dc81138ec",
+      "effect": "same scripts/smoke-ayas-chat.ts bytes the five chat records proposed"
+    },
+    "publicationCommitsAncestorOfHead": {
+      "88d662eaf4534b668159639a7195b7bd761bf430": true,
+      "97cb6e9ae317b5d7f6258ece132723a8e3c39de7": true
+    },
+    "dedupSmoke": {
+      "script": "scripts/smoke-ayas-recovery-proposal-dedup.ts",
+      "exit": 0,
+      "stdout": "PASS 6 scenarios TEMP_ONLY",
+      "repoUnchangedAfter": true,
+      "inboxUnchangedAfter": true
+    },
+    "discoveryRunsAsFreshChild": "scripts/ayas-autonomy-daemon.ts spawns scripts/ayas-discovery-daemon.ts per tick, so current source (with 2155813 dedup) is loaded",
+    "decisionRecordKeys": [
+      "decidedAt",
+      "decision",
+      "decisionId",
+      "evidenceFingerprint",
+      "proposalHash",
+      "proposalId",
+      "reason"
+    ],
+    "actorFieldPresent": false,
+    "latestDecisionAt": "2026-10-02T03:47:10.778Z",
+    "sandboxResidue": "Three discovery sandbox worktrees under %TEMP% hold 2026-10-05..08 residue unrelated to the nine; two look leaked; untouched",
+    "liveRisk": "NO_EXECUTION_OR_EXPLOIT_RISK_FROM_THE_NINE; OPEN_AUDIT_GAP_ACTOR_NOT_RECORDED_FOR_ANY_DECISION",
+    "ownerDecision": null
+  },
+  "autonomy": {
+    "autonomousExecutionFlag": "AYAS_AUTONOMOUS_EXECUTION_ENABLED=1 in live .env.local (value checked by exact-match test only)",
+    "daemonExecutionGate": "CLOSED since 2026-09-29T09:37:05.660Z",
+    "ownerOneClickPathUsesGate": false,
+    "internalReviewDecisions": [
+      "REJECT",
+      "LATER"
+    ],
+    "pendingProposals": 1,
+    "newDaemonOrEngine": false
+  },
+  "f98": {
+    "measuredRoots": 4,
+    "files": 9161,
+    "bytes": 1237993970,
+    "endpointDigest": "bf550ff4890e384e63347b4dd737e6899d41d3e2325262ca03fc9919bff529cb",
+    "incompleteReasons": 5,
+    "revenueStore": "ABSENT",
+    "writerAttribution": "NONE",
+    "slotsTestLive": 30,
+    "slotsRun": 0,
+    "criteriaRebasedWholePass": 0,
+    "newMeasurement": false,
+    "verdict": "QUALIFIED_PASS_WITH_LIMITATIONS; COMBINED_INCOMPLETE; FOUNDATION_BLOCKED"
+  },
+  "commercial": {
+    "lemon": {
+      "state": "UNBOUND",
+      "httpIngressRoute": false,
+      "durableIngressStore": false,
+      "deferredQualification": "LEMON_TEST_KEY_CONNECTION_DURABLE_INGRESS (16.8)",
+      "envNamesConfigured": false,
+      "registerAllowsDeferral": false
+    },
+    "fiverr": {
+      "state": "ACCOUNT_GIG_OWNER_REPORTED_ONLY",
+      "transport": "MANUAL_HANDOFF",
+      "credentials": "NONE",
+      "registerAllowsDeferral": true
+    },
+    "paidOrRealCommercialAction": false,
+    "deferralRecorded": false
+  },
+  "atolye": {
+    "candidateProjectRecordDigest": "adff30787ecad7df872855f4f12de7418120239fbf7e5a4c1cc5396505c2082d",
+    "finalMp4Sha256": "b03323fa3bd06283e2b1c1acf8a8b38750d5f07e7fcc5153cc686608d812892b",
+    "exportBundleCopyIdentical": true,
+    "durationSeconds": 116.971,
+    "bytes": 9452948,
+    "video": "h264 1920x1080 30fps",
+    "audio": "aac",
+    "integratedLufs": -24.5,
+    "lraLu": 4.6,
+    "sceneCutsSeconds": [
+      24.467,
+      43.733,
+      62.3,
+      81.367,
+      98.333
+    ],
+    "narrationSectionSeconds": [
+      24.4625,
+      19.25,
+      18.5625,
+      19.0625,
+      16.9625,
+      18.6375
+    ],
+    "plannedSceneSeconds": [
+      15,
+      20,
+      20,
+      15,
+      10,
+      10
+    ],
+    "staticSecondsFreezedetect": 89.5,
+    "sourceImages": "6 x 1024x1024 gpt-image-1",
+    "narrationProvider": "openai tts-1 (metadata wrongly names Google Wavenet)",
+    "music": "none",
+    "otherFinalsMeasured": [
+      {
+        "durationSeconds": 153.9,
+        "staticSeconds": 113.1,
+        "lufs": -24.8
+      },
+      {
+        "durationSeconds": 108.8,
+        "staticSeconds": 49.6,
+        "lufs": -24.8
+      },
+      {
+        "durationSeconds": 97,
+        "staticSeconds": 35.1,
+        "lufs": -24.5
+      },
+      {
+        "durationSeconds": 96.841,
+        "staticSeconds": 56.1,
+        "lufs": -24.7
+      }
+    ],
+    "renderPredatesFixes": [
+      "37dc655 full-frame scene composition (2026-08-08)",
+      "133864d TTS-authoritative duration + coverage guard (2026-08-28)"
+    ],
+    "newRender": false,
+    "upload": false,
+    "paidCall": false
+  },
+  "ayasV1": "BLOCKED",
+  "foundation": "BLOCKED",
+  "sprint": "NOT_READY",
+  "atolyeTransition": "CAN_START_PREPARATION_ONLY",
+  "grantsAuthority": false,
+  "pushAuthorized": false,
+  "deployAuthorized": false
+}

@@ -1,3 +1,32 @@
+## 2026-10-08 — Claude V1 closure continuation: exact12 validated as a TEMP candidate, owner decisions pending
+
+Entry `a9dca74` (origin `58ec1bd`, ahead 1 / behind 0), clean. No Codex, baseline or smoke process was live; the owner's Autonomy Observer and Access tasks were running. Technical source stays `58ec1bd`. Live `e974614` / Next 16.2.10 unchanged. No push, deploy, restart, runtime/authority write, paid call, render or upload.
+
+- **Exact12 (not applied to the real branch).** Applied only in an isolated TEMP clone as candidate `a4db592`: sibling `scripts/smoke-ayas-retrieval-evaluation-v3.ts`, manifest v59 (v58 archived byte-identical), Golden V3, the golden-vault smoke's digest list, and one lifecycle entry.
+  - Three draft defects fixed: the V3 case pinned the original grader (breaks the exact-closure rule); the vault smoke and its manifest pin must change; the header said DRAFT.
+  - Results: v3 PASS twice; negative controls 5/5; 34 affected suites 34/34 PASS through the declared runner at v59 (including `retrieval-evaluation`, `golden-vault-run` and `golden-sandbox-run`, the three raw FAILs at v58).
+  - CI-equivalent chain at the candidate: original raw gate exit 1 / exact12, CF49 review PASS, CF49 closure CLOSED_PASS. TypeScript 0; ESLint 0 errors / 13 inherited warnings.
+  - Independent review: PASS_WITH_FINDINGS. The reviewer reproduced every hash, the vault mutations caught 40/40, and its own controls again showed the original grader passing a regression. It found two MEDIUM issues:
+    - The approval must bind to the candidate patch, not Codex's draft digest.
+    - V3 re-greens the golden gate, which reopens the golden step of experiment promotion: a REVIEW_REQUIRED experiment patch can become a SAFE proposal, one owner click from commit and push.
+  - Owner approval is required because the protected manifest/vault scope exceeds the draft. Patch SHA-256 `337ec995…6323`.
+- **Recovery9.** Re-verified read-only: nine unique `RECOVERY_REQUIRED`, journals unchanged, dedup smoke PASS. No live execution risk. The five chat effects reached HEAD through a separate proposal (`18c15af4`, `580bbab`). Decision records have no actor field at all, including current ones.
+- **F98.** Unchanged: QUALIFIED_PASS_WITH_LIMITATIONS, combined INCOMPLETE. Writer attribution needs a writer-quiesced maintenance interval or a writer journal.
+- **Commercial.** Lemon ingress route/store does not exist (deferred qualification) and the register has no Lemon deferral. Fiverr's register allows an owner deferral. Neither was decided or deferred.
+- **Autonomy.** Boundaries verified; no new daemon. `AYAS_AUTONOMOUS_EXECUTION_ENABLED=1` is live (owner APPROVE leads to commit + push), so approvals must be frozen while the final HEAD is frozen. Backlog recorded.
+- **Maintenance.** Explicit start, success, rollback and abort conditions added; not executed.
+- **Atölye.** Fatih MP4 verified at 116.971 s. Findings: ~77% static frames, −24.5 LUFS, the face cropped out in scene 1, a collage, fez and flag anachronisms, the Urban/Edirne narration error, Rumeli Hisarı missing, wrong chapter timestamps, a 3:2 thumbnail. The defects are systemic across the finals, and the render predates the current composition and duration fixes. Correction plan written; nothing rendered.
+
+AYAS V1 BLOCKED; Foundation BLOCKED; sprint NOT READY; Atölye CAN_START.
+
+Resume: `docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-final-closure-20261008/AYAS_V1_CLOSURE_DECISION.md`.
+
+Next steps:
+1. Owner decision on the exact12 candidate. On approval: apply the same bytes as one local commit, update Graphify, run one Full166 at the final HEAD.
+2. Owner dispositions for Recovery9, Lemon, Fiverr and approval-actor binding.
+3. Separate maintenance approval for the live window.
+4. 12 October: owner full viewing of the Fatih video, then the read-only regeneration plan.
+
 ## 2026-10-08 — AYAS V1 owner closure preparation / Atölye first-video priority
 
 HEAD/origin entry58ec1bd clean0/0; four owner-approved commits pushed and remotely verified. This new packet is local-only; owner master order §7 requires separate new push approval. Technical source, live source e974614/Next16.2.10, runtime/authority, Brain UI V2/orb/voice/commands remain unchanged.

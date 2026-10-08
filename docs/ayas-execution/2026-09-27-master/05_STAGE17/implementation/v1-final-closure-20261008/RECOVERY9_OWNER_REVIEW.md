@@ -1,5 +1,7 @@
 # Recovery9 — owner inceleme taslağı
 
+> **Güncelleme (Claude devamı, 8 Ekim):** bağımsız yeniden doğrulama, canlı risk sonucu ve satır satır güvenli karar seçenekleri [RECOVERY9_LIVE_RISK_REVIEW.md](RECOVERY9_LIVE_RISK_REVIEW.md) içindedir. Canlı yürütme riski yok. Aktör alanı bugünkü karar kayıtlarında da yok.
+
 **Uygulanmadı. Dokuz raw RECOVERY_REQUIRED kaydı açık; actor NOT_CAPTURED.** Bu tablo sonuç kanıtının sınırını bildirir, APPROVE aktörü veya geçmiş yetki üretmez. Yeni onay geçmiş yetkiyi geriye dönük kanıtlamaz. Replay, APPROVE/DONE, execution capability veya runtime projection değişikliği yoktur.
 
 Exact proposal/artifact/decision/execution/journal/base hash bağları [RECOVERY9_RECONCILIATION_PROPOSAL.json](RECOVERY9_RECONCILIATION_PROPOSAL.json) içindedir. Dokuz journal byte bütünlüğü [RECOVERY9_VERIFICATION.json](RECOVERY9_VERIFICATION.json) ile doğrulanmıştır.

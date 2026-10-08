@@ -28,6 +28,33 @@
 6. Owner gerçekten reboot eder. Sonrasında port3000 tek listener, tek tunnel, iki existing task, observer heartbeat ve tekrar cihaz erişimi kaydedilir.
 7. Başarısızlıkta mevcut recovery gate'inden kaydedilmiş source/dependency/build'e dönülür; authority/history/status elle düzeltilmez. Rollback kimliği ve local/public gate tekrar ölçülür. Testi geçmiş gibi gösterme yok.
 
+## Açık başlangıç ve bitiş koşulları (Claude, 8 Ekim)
+
+**Başlangıç:** Pencere ancak şunların hepsi aynı anda doğruysa açılır:
+1. Yukarıdaki beş giriş şartı karşılanmış.
+2. Owner bu belgeye, hedef SHA'ya ve saate yazılı olarak "bakımı başlat" demiş.
+3. Ölçülen ön durum kaydedilmiş: tek :3000 dinleyici, iki Running görev, canlı build stamp `e974614` CLEAN, Next 16.2.10.
+4. Gelişim Merkezi'nde APPROVE dondurulmuş. `AYAS_AUTONOMOUS_EXECUTION_ENABLED=1` olduğu için bir APPROVE HEAD'i değiştirir ve push eder; final HEAD donduğu andan pencere kapanana kadar owner onay vermez.
+5. Çalışan başka test/baseline/agent yok.
+
+**Başarılı bitiş:** Pencere ancak şu koşullarda başarılı kapanır:
+- Canlı build stamp hedef SHA'yı CLEAN gösterir; kurulu Next lock ile aynı (16.3.8).
+- Yerel ve public login 200; korunan runtime 401 / studio 307; owner'ın kendi oturumunda authenticated kimlik doğru SHA/lock'u gösterir.
+- Fiziksel telefon tablosundaki her satır owner tarafından sonuçlandırılmış.
+- Gerçek reboot sonrası tek listener, tek tunnel, iki görev ve observer heartbeat kaydedilmiş.
+- Kapanış receipt'i yazılmış.
+
+**Geri dönüş ile bitiş:** Şunlardan herhangi biri olursa pencere geri dönüşle kapanır:
+- Build veya start başarısız, ya da Access daemon owner'ın pencere başında yazdığı süre içinde ayağa kalkmıyor (önceki `e974614` geçişi ~70 s sürdü; garanti değil).
+- Login veya korunan 401/307 kapısı yanlış davranıyor.
+- Owner kimliği yanlış SHA'yı gösteriyor.
+- Telefonda mikrofon/STT/TTS/PWA'da yeni bir regresyon var.
+- Reboot sonrası servis veya görevler eksik.
+
+Geri dönüşte kaydedilmiş `.next` + `node_modules` + lock noktasına dönülür; local/public kapılar yeniden ölçülür. Authority/runtime/history'ye dokunulmaz; sonuç başarısız olarak kaydedilir.
+
+**İptal (başlamadan durma):** Herhangi bir giriş şartı pencere sırasında bozulursa (yeni commit, kirli worktree, ikinci listener, beklenmeyen süreç) adım uygulanmadan durulur.
+
 Kesinti süresi yeni adayda ölçülmedi. Önceki e974614 geçişinde yaklaşık70 saniye görülmüş olması yeni pencere için garanti değildir. Owner fiziksel cihaz testi/reboot tamamlanmadan pencere başarılı kabul edilmez.
 
 ## Fiziksel telefon kontrol listesi

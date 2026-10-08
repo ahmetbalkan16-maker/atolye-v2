@@ -1,5 +1,7 @@
 # Atölye — 12 Ekim ilk video yolu
 
+> **Güncelleme (Claude devamı, 8 Ekim):** Fatih adayının tam teknik/editoryal incelemesi ve düzeltme planı [ATOLYE_FATIH_REVIEW.md](ATOLYE_FATIH_REVIEW.md) içindedir: süre 116,971 s doğrulandı; ~%77 hareketsiz kare, −24,5 LUFS, kesik yüz, anakronizmler ve Urban/Edirne anlatım hatası bulundu.
+
 **ATÖLYE GEÇİŞİ: CAN_START — yalnız read-only, editoryal ve izole hazırlık.** AYAS V1/Foundation kabulü hâlâ BLOCKED. Bu karar production write, model harcaması, runtime migration veya YouTube upload izni değildir.
 
 Graphify kaynağı `58ec1bd`: PipelineRunner → PipelineStageExecutor; AIManager, AudioPipeline, VideoAssemblyManager, ExportPackager, YouTubePackagePipeline ve YouTubePublishPipeline dosyaları gerçek node/import kenarlarıyla mevcut. [ATOLYE_PIPELINE_GRAPH.json](ATOLYE_PIPELINE_GRAPH.json) file hash'lerini taşır. Graph import kenarı tek başına execution kanıtı değildir; mevcut source contracts ve gerçek artifact probe'larıyla birlikte incelendi. Parser gap'li PowerShell task/wrapper dosyalarının önceki doğrudan incelemesi korunur; semantic PENDING/full-runtime qualification açık.

@@ -1,5 +1,7 @@
 # AYAS V1 — owner kabul paketi, 8 Ekim 2026
 
+> **Güncelleme (Claude devamı, 8 Ekim):** güncel karar ve kalan sıra [AYAS_V1_CLOSURE_DECISION.md](AYAS_V1_CLOSURE_DECISION.md) içindedir. Exact12 adayı TEMP'te uygulandı ve doğrulandı ([EXACT12_TEMP_CANDIDATE.md](EXACT12_TEMP_CANDIDATE.md)); gerçek kaynağa uygulanmadı. Durum yine BLOCKED.
+
 **AYAS V1: BLOCKED. Atölye geçişi: CAN_START, yalnız güvenli hazırlık kapsamında. Foundation BLOCKED; sprint NOT READY.** Bu paket kapanış hazırlığıdır; owner kabulü, canlı deployment veya Foundation kapanışı değildir.
 
 Başlangıç teknik kaynağı ve doğrulanmış origin: `58ec1bd0710e409ef8fa915c70ff5618338b2898`, branch `wip/ayas-graphify-final-execution`, clean/0/0. Önceki dört commit'in push'u tamamlandı. Bu paketin sonraki yerel dokümantasyon commit'leri yeni push onayı bekler. Çalışan Node zinciri mevcut observer/tsx çocuklarıdır; ikinci daemon veya ağır baseline başlatılmadı.

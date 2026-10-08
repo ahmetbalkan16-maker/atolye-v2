@@ -34,7 +34,7 @@ Kaynak: `58ec1bd`; önceki contract: `../STAGE17_OWNER_ACTION_REGISTER_59e83cd.j
 | Alan | Karşılığı |
 |---|---|
 | Mevcut durum | UNBOUND; önceki owner-reported TEST setup gerçek connector/ingress/durable receipt değildir |
-| Gerekli owner kararı/işlemi | Owner kontrollü TEST-mode account/secret store binding ve mevcut16.8 durable ingress/dedupe/journal kanıtı; veya sözleşmenin izin verdiği açık reviewed deferral kararını belirtir |
+| Gerekli owner kararı/işlemi | Owner kontrollü TEST-mode account/secret store binding ve 16.8 durable ingress/dedupe/journal kanıtı. **Düzeltme (Claude, 8 Ekim):** ingress route'u ve durable store kaynakta yok; `LEMON_TEST_KEY_CONNECTION_DURABLE_INGRESS` ertelenmiş nitelik. Register Lemon için erteleme tanımlamaz. Seçenekler: ingress paketi (yeni geliştirme) veya register'ı açıkça değiştiren owner-reviewed deferral. Bkz. [COMMERCIAL_GATES_LEMON_FIVERR.md](COMMERCIAL_GATES_LEMON_FIVERR.md) |
 | Risk | Gerçek bağlantı/mode/parent/ledger kanıtını fixture PASS sanmak; production ödeme yetkisini yanlış açmak |
 | Atölye engeli | MP4 hazırlığının teknik bağımlılığı değildir. Mevcut N05/N_LIVE ve Stage17 kapanışında kanıt/izinli açık karar eksikliği engeldir |
 

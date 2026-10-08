@@ -1,0 +1,640 @@
+{
+  "schemaVersion": "EXACT12_TEMP_CANDIDATE_1",
+  "observedBy": "Claude continuation, 2026-10-08",
+  "status": "TEMP_APPLIED_AND_VALIDATED_NOT_APPLIED_TO_REAL_SOURCE_OWNER_APPROVAL_REQUIRED",
+  "baseHead": "a9dca747831f707abe4bcfc686a59fd0d1bf5c87",
+  "technicalSourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "candidateTempCommit": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+  "candidateTempCommitScope": "Isolated TEMP clone without remote; never pushed; not on the real branch",
+  "reviewPatch": {
+    "file": "EXACT12_CANDIDATE_a4db592.patch",
+    "sha256": "337ec9954de687bbe6d1bd2b4533d05c33164036b959602cecbdf508aa7c6323"
+  },
+  "files": {
+    "originalGrader": {
+      "file": "scripts/smoke-ayas-retrieval-evaluation.ts",
+      "sha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e",
+      "changed": false
+    },
+    "successor": {
+      "file": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "sha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00",
+      "sameBodyAsCodexDraft": true,
+      "codexDraftSha256": "2194580aec8f41d030db4ea33d2c9e8eede8e7ad5746c408f9a20ba9265647bc",
+      "line1": "/** CF49 exact12 successor of the frozen scripts/smoke-ayas-retrieval-evaluation.ts: the same bytes except that the 12 CF49-reviewed IMPROVED rows leave KNOWN_LIMITATIONS. The original grader, its raw exit 1 and the CF49 review are unchanged. */"
+    },
+    "removedRows": [
+      "exact-pc-plan",
+      "para-pc-thinking",
+      "para-pc-plan",
+      "morph-pc-last-decision",
+      "morph-pc-card-accusative",
+      "order-pc-inverted",
+      "multi-pc-card-and-ram",
+      "tr-pc-capitals",
+      "tr-pc-punctuation",
+      "tr-pc-typo",
+      "heldout-pc-card-want",
+      "heldout-pc-switch"
+    ],
+    "remainingRows": [
+      "syn-pc-colloquial",
+      "contradiction-free-text-coffee",
+      "asof-pc-july-detected",
+      "distractor-pc-heavy-current",
+      "para-length-how",
+      "syn-length-yanit",
+      "superseded-length-old-wording",
+      "history-length-used-to",
+      "heldout-voice-length",
+      "attribute-pc-ram",
+      "attribute-pc-current-card",
+      "heldout-ram-bellek",
+      "none-same-word-other-meaning",
+      "syn-edit-montaj",
+      "future-plan-question",
+      "seed:identity-known-at-january"
+    ],
+    "fixture": {
+      "file": "scripts/fixtures/ayas-retrieval-evaluation-cases.ts",
+      "sha256": "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23",
+      "changed": false
+    },
+    "evaluationLibrary": {
+      "file": "scripts/lib/AyasRetrievalEvaluation.ts",
+      "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e",
+      "changed": false
+    },
+    "manifest": {
+      "v58Sha256": "588013da3981a91a2f8663cfe3d955c7b84d2206048e2017aec460762e987e4d",
+      "v58ArchivedAs": "EVAL_MANIFEST_V58.json",
+      "v59Sha256": "5daa2f6d5407aa026aa4665fc0a0d11edff8574313017121bbdd9a921e966169",
+      "suites": 166,
+      "leafChanges": [
+        {
+          "at": "/version",
+          "from": "15F.4-v58",
+          "to": "15F.4-v59"
+        },
+        {
+          "at": "/suites/65/script",
+          "from": "scripts/smoke-ayas-retrieval-evaluation.ts",
+          "to": "scripts/smoke-ayas-retrieval-evaluation-v3.ts"
+        },
+        {
+          "at": "/suites/65/pins/4",
+          "to": {
+            "file": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+            "sha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00"
+          }
+        },
+        {
+          "at": "/suites/95/pins/0/sha256",
+          "from": "90465d6f867a3804b8039e0eda7f21bac51e31a47e39df05d51f20c90631f06b",
+          "to": "9255c742a2a4d96897982f5354102832d2af8568e7eb48656a5df2c877cda0d4"
+        }
+      ],
+      "pinDrift": []
+    },
+    "goldenVault": {
+      "digests": [
+        {
+          "version": 1,
+          "digest": "1532277d2b7220fbc6eb774dbd623e648e5cab74e17cdb7ad3953584eedeba1c"
+        },
+        {
+          "version": 2,
+          "digest": "5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f"
+        },
+        {
+          "version": 3,
+          "digest": "4cc8762192344fb7d052d4d9b281b327661ec0840688e642c6bb7fe79824efd5"
+        }
+      ],
+      "chainProblems": [],
+      "pinDrift": [],
+      "closureMismatch": [],
+      "cases": 18
+    },
+    "lifecycle": {
+      "added": "evaluator.retrieval.cf49-exact12-v3",
+      "identitySha256": "f7013e3033fcfa32c3405060c668b4e536e2059c9edd49ce9ef10213b1ca1c31",
+      "rollbackTarget": "evaluator.retrieval.pf15c-v2",
+      "originalIdentityStillMatches": "cee4eeb022a557f3f697188a5a512bf4d72a8c333f45a196b003fcbd2f177a72"
+    }
+  },
+  "draftDeviations": [
+    "Golden V3 case pinned the original grader too; smoke-ayas-golden-vault.ts requires pins == script import closure, so the draft would fail it. Candidate pins the exact closure.",
+    "smoke-ayas-golden-vault.ts hard-codes the published digest list; appending V3 requires changing it and its manifest pin (draft claimed existingPinsChanged 0).",
+    "Successor header no longer says DRAFT; body byte-identical to the draft.",
+    "Lifecycle evaluator entry added (data only; not required by any gate)."
+  ],
+  "controlBeforeChange": {
+    "head": "a9dca74",
+    "originalExit": 1,
+    "gateFailures": 12,
+    "allImproved": true,
+    "reportSha256": "8e997d4c979cab041ad025368bbda3356b86adc55b7f2618f2120b2a756b19f9"
+  },
+  "candidateRuns": [
+    {
+      "run": 1,
+      "exit": 0,
+      "gateFailures": 0,
+      "knownLimitations": 16,
+      "reportSha256": "b1140d65eac2b9693d43b8c23c59c01dbc7a06d6791674ac78bb6e2fe042578f"
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "reportSha256": "7a26de20471d7a0855d6e9f48fd726cacfcda8422d53c3762f5877d5f06552bf"
+    }
+  ],
+  "measurementIdentity": "metrics, failure rows and determinism identical between the original and v3 reports; only classification and the +dirty commit marker differ",
+  "negativeControls": [
+    {
+      "id": "N1_CF49_SLOT_DISABLED_V3",
+      "mutatedFile": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+      "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "exit": 1,
+      "outcome": "FAIL",
+      "expected": "FAIL",
+      "ok": true,
+      "firstLines": [
+        "FAIL (12 gate failure(s))",
+        "  - REGRESSION exact-pc-plan: failed ranking,recall-context,chat-context (FORBIDDEN_SELECTED:stale-free-text)",
+        "  - REGRESSION para-pc-thinking: failed ranking,recall-context,chat-context (FORBIDDEN_SELECTED:stale-free-text)"
+      ],
+      "restoredSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13"
+    },
+    {
+      "id": "N1_CF49_SLOT_DISABLED_ORIGINAL",
+      "mutatedFile": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+      "ran": "scripts/smoke-ayas-retrieval-evaluation.ts",
+      "exit": 0,
+      "outcome": "PASS",
+      "expected": "OBSERVE",
+      "ok": true,
+      "firstLines": [],
+      "restoredSha256": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13"
+    },
+    {
+      "id": "N2_REVIEWED_ROW_READDED",
+      "mutatedFile": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "exit": 1,
+      "outcome": "FAIL",
+      "expected": "FAIL",
+      "ok": true,
+      "firstLines": [
+        "FAIL (1 gate failure(s))",
+        "  - IMPROVED tr-pc-typo: now passes — remove it from KNOWN_LIMITATIONS"
+      ],
+      "restoredSha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00"
+    },
+    {
+      "id": "N3_REMAINING_ROW_DROPPED",
+      "mutatedFile": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "exit": 1,
+      "outcome": "FAIL",
+      "expected": "FAIL",
+      "ok": true,
+      "firstLines": [
+        "FAIL (1 gate failure(s))",
+        "  - REGRESSION syn-pc-colloquial: failed chat-context (RELEVANT_DROPPED_BY_CHAT_GATE)"
+      ],
+      "restoredSha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00"
+    },
+    {
+      "id": "N4_FLOOR_RAISED_ABOVE_MEASURED",
+      "mutatedFile": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "exit": 1,
+      "outcome": "FAIL",
+      "expected": "FAIL",
+      "ok": true,
+      "firstLines": [
+        "FAIL (1 gate failure(s))",
+        "  - Recall@1 0.8629 < floor 0.999"
+      ],
+      "restoredSha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00"
+    }
+  ],
+  "negativeControlsSha256": "99f64537a7f0b4e70daeeff050d607af00f59c902b7a3efa219bf400e4d15a15",
+  "securityFinding": "With the CF49 slot disabled in source, the original frozen grader exits 0 (PASS) while v3 fails with exactly the 12 reviewed cases as REGRESSION: the frozen gate can no longer detect a CF49 regression.",
+  "affectedSuites": {
+    "runner": "scripts/ayas-eval-baseline.ts --suite <id> inside the TEMP clone",
+    "manifestVersion": "15F.4-v59",
+    "manifestDigest": "2661b3c55e60de299b8290b05e5c2bd74f0bb1b1a0967d59c6da88bba4ee3fcd",
+    "count": 34,
+    "allPass": true,
+    "suites": [
+      {
+        "suite": "action-firewall-closure",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "e512782f8bc885a04bf8e13d88f7ff0e9043f4297832d12828a1a78888256c68"
+      },
+      {
+        "suite": "chat-quality",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "c510f76d3a0355e40e022825fb8910779cb1cc79ea9c2ef5ba22032a8cf59887"
+      },
+      {
+        "suite": "cognitive-quality",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "360c853b6fa16cdccd4604dbb1f348b9517fbad89989923a1cbcf785d1e58e83"
+      },
+      {
+        "suite": "context-budget",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "48c3d0daace6c04702ebeb89f9a5104c316077e362e7eae7f3d6ab34facfdeab"
+      },
+      {
+        "suite": "context",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "71d76d4ac01559ce6983e8efa34b9d390776707a76388767a5ca1f3048b92422"
+      },
+      {
+        "suite": "controlled-self-evolution-artifact",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "4215868d7fa2750b1b10ea7167482015543e3aa43b45dff3f78e3279f050c26b"
+      },
+      {
+        "suite": "controlled-self-evolution-cycle",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "37cc0f98fccbec00021425abcc6797f87d34600609534c33bfae2b89a154e8ef"
+      },
+      {
+        "suite": "conversation-quality-master",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "dcc2e422b895a2bc0582c488f67a46903730292cd9e705616cc42dca0d334f0e"
+      },
+      {
+        "suite": "discovery-registry",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "9e397de745b0a48664bdd5e1c7145b5a687f5ce226d8b3246453159767019ae7"
+      },
+      {
+        "suite": "durable-task-recovery",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "0cce7bff64057d242c7bfd7cda7d38b11af9df17c008ddbdd98b1832a4dd9449"
+      },
+      {
+        "suite": "exact-patch-safety",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "d63e246070ed94b22d5b177e13e5b1115eb2b71f7c828a1f53fa1847bb410f6e"
+      },
+      {
+        "suite": "exact-proposal-safety",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "cf0958feb692d1ccd1956818a3b7ae22f13e9e2f1637c66a20c4f09d74341088"
+      },
+      {
+        "suite": "golden-experiment-gate-mutations",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "192582a18298cc67b16a5aeeebb3bb7edeae0ab60e2dd137649990d7247e6317"
+      },
+      {
+        "suite": "golden-experiment-gate",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "4b58619889b6bca6b101d37ef2fb3c08e0f0610f37c900ddfe1e52a8fcc8c15b"
+      },
+      {
+        "suite": "golden-sandbox-run",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "a00da9a2e93f37f6d327a26a471edcb961b6fa0a7982f7c3246f6dd85633d4c8"
+      },
+      {
+        "suite": "golden-vault-mutations",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "c3d2170b336672047aef7718931c9f2eae2612f1e5a8f19e0a41ebe5325f7144"
+      },
+      {
+        "suite": "golden-vault-operator",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "957bcc5d493a7ebf5690624fcd6a3ab09aaa5d9e17d4c097ef7746b77a147078"
+      },
+      {
+        "suite": "golden-vault-run",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "4599950df839866b9e7e952c630ae989191674ec4013b2243ce697d1e1fd305a"
+      },
+      {
+        "suite": "golden-vault",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "5c31b66973b98a0ebda0506d4f135522298cc52b8fed854abb43f95850e55d78"
+      },
+      {
+        "suite": "golden-video-projects",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "07dcd5c8ad866bec94c55a42ccf84ead2f00c893e96429575ffdd371217407cb"
+      },
+      {
+        "suite": "independence-certification-mutations",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "5603f536bb74adf1ed3c32fa5398af21159106ddbb0f6a5497307b6e2c097705"
+      },
+      {
+        "suite": "independence-certification",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "6bed6bbe6513ae662524f39896edc468e06f985f7ff57284abb3cead79ef4194"
+      },
+      {
+        "suite": "lifecycle",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "c3b53b7e23662d6b2e0d05e2206966818ac123fe07b64540684690e0ea094b07"
+      },
+      {
+        "suite": "memory-integrity",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "8e2fb914abba52b3be41b3bcdc1b13746deb81a0dbdfff0eebc06307a0598f71"
+      },
+      {
+        "suite": "memory-temporal",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "aaa5d2c72c0374bdcdb4740f6865bb418f322a8ac843b738e3a22dcf12764d1b"
+      },
+      {
+        "suite": "memory",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "71c978d57f9d034c97d3571c9098098ec4a69f4ef58f3da7088f86179f9be2c4"
+      },
+      {
+        "suite": "model-router",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "09ab797cad7570c9f03fbbcba3abe7a7103dead0670269ed6e8f22ac81dfec38"
+      },
+      {
+        "suite": "open-ended-evolution",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "8b2e8e0171d514431011c3c08bfe74b082b77e7eac9e783ff668d3236dd3d98f"
+      },
+      {
+        "suite": "patch-artifact-mutation",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "067d82aa8b70eebb16c96d1eb5ccbc6594f6a0ab6731825ea969c37e7125b9e3"
+      },
+      {
+        "suite": "proposal-approval-service",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "4d1676e5f746ba1023632cef2d02a3931d1c9f9e0fa5ca299770e2e1389083d7"
+      },
+      {
+        "suite": "release-provenance-mutations",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "3c277a53987eed3b4ce6305295022ec0398f4939ee63c66925f1e99a3e6e1b43"
+      },
+      {
+        "suite": "release-provenance",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "735a8bd2c223e47837eecad1f6bda53cf5f76924ce04d05455414092f2b36897"
+      },
+      {
+        "suite": "research-improvement-loop",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "f44f394159bbca2708d5e64b5b69e7b2cb5e0e44637bc3153f6615e85c9013d3"
+      },
+      {
+        "suite": "retrieval-evaluation",
+        "outcome": "PASS",
+        "failed": [],
+        "manifestVersion": "15F.4-v59",
+        "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+        "reportSha256": "257afe9efeb6bdc8a18ec24282d6dfaf07422225c2c35769d988351069071ac4"
+      }
+    ],
+    "selection": "Graphify review-analysis (29 impacted files / 11 communities) plus every importer of the golden vault and lifecycle registries"
+  },
+  "ciEquivalentChain": {
+    "summary": [
+      "head=a4db592163bf95dcdcfa030e2d50be5ad6742cb4 status=0",
+      "original-raw exit=1 improved=12 failures=12",
+      "cf49-frozen-review exit=0",
+      "cf49-closure exit=0",
+      "eslint-full exit=0  ✖ 13 problems (0 errors, 13 warnings)  ",
+      "status-after=0",
+      "DONE"
+    ],
+    "cf49Closure": {
+      "status": "CLOSED_PASS",
+      "sourceHead": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+      "children": 12,
+      "allExitZero": true
+    },
+    "originalReview": {
+      "status": "PASS",
+      "historicalGateExit": 1,
+      "improved": 12,
+      "remainingKnownLimitations": 16
+    }
+  },
+  "typeScript": {
+    "exit": 0
+  },
+  "eslintChangedFiles": {
+    "exit": 0,
+    "warnings": 0
+  },
+  "eslintFull": {
+    "exit": 0,
+    "errors": 0,
+    "warnings": 13,
+    "note": "the 13 warnings are the inherited ones recorded at 58ec1bd"
+  },
+  "independentReview": {
+    "reviewer": "independent cold-start reviewer (separate agent, own TEMP clone ayas-v1c-review, main repo read-only)",
+    "verdict": "PASS_WITH_FINDINGS",
+    "verifiedBytes": {
+      "patchSha256": "337ec9954de687bbe6d1bd2b4533d05c33164036b959602cecbdf508aa7c6323",
+      "baseTree": "11a2fa3c (equals a9dca74 tree)",
+      "patchedTree": "2766f438",
+      "originalGrader": "a92ceddb unchanged",
+      "successor": "3c207d69; diff vs original = 1 header line + 12 rows in CF49_REVIEW_IDS order",
+      "v58Archive": "588013da byte-identical",
+      "manifestLeafChanges": "version, retrieval script, one v3 pin, golden-vault smoke pin 9255c742; 166 suites",
+      "goldenDigests": [
+        "1532277d",
+        "5f2fbf0b",
+        "4cc87621"
+      ],
+      "lifecycleDigest": "f7013e30"
+    },
+    "runs": [
+      "original at base exit 1 with exactly 12 IMPROVED; v3 exit 0 after patch; original still exit 1 with the same 12; metrics identical except latency",
+      "smoke-ayas-golden-vault PASS (vault 3, 18 cases)",
+      "smoke-ayas-golden-vault-operator PASS; ayas-golden-vault.ts VAULT_INTACT v3 4cc87621, no chain/pin/unpinned problems",
+      "smoke-ayas-lifecycle PASS (19 entries); smoke-ayas-eval-governance PASS",
+      "smoke-ayas-golden-vault-mutations PASS 40/40",
+      "smoke-ayas-cf49-frozen-review PASS (original exit 1 / 12, 16 remaining, 228 guards)",
+      "tsc --noEmit and ESLint on changed files PASS"
+    ],
+    "ownNegativeControls": [
+      {
+        "control": "non-Turkish lowercase in AyasMemoryRetrieval.fold",
+        "result": "no effect; not a valid control"
+      },
+      {
+        "control": "retrieval-only superseded purchase plan let through",
+        "result": "v3 exit 1 with 12 REGRESSION; original grader exit 0 (PASS)"
+      },
+      {
+        "control": "time-zone-dependent rerank score",
+        "result": "v3 exit 1 (nondeterministic tz:Asia/Tokyo)"
+      },
+      {
+        "control": "conflict quarantine removed",
+        "result": "v3 exit 1 with 8 failures"
+      }
+    ],
+    "findings": [
+      {
+        "severity": "MEDIUM",
+        "id": "R1",
+        "summary": "Candidate bytes differ from Codex's owner-review drafts (v3 2194580a -> 3c207d69; Golden V3 e76d2117 -> 4cc87621, original-grader pin dropped because smoke-ayas-golden-vault.ts:132 requires pins == closure). An approval bound to EVALUATOR_SUCCESSION_PROPOSAL.json's digest would not cover these bytes; the approval object must be the candidate patch digest."
+      },
+      {
+        "severity": "MEDIUM",
+        "id": "R2",
+        "summary": "Behaviour change: at V2 the golden gate was always red (PROMOTION_STOPPED on the retrieval case). V3 lets ayasExperimentEvidenceGoldenHeld return true again, reopening the golden step of promotion paths in AyasExactProposalSafety.ts:52, AyasControlledSelfEvolutionArtifact.ts:77, AyasControlledSelfEvolutionBridge.ts:78, AyasResearchImprovementCycle.ts:566. The lifecycle entry's 'admission NONE' is not enforced. V2-digest-bound evidence is now refused (fail-closed); none found in the repo."
+      },
+      {
+        "severity": "LOW",
+        "id": "R3",
+        "summary": "The local declared Full166 no longer runs the original raw gate or the CF49 review; hosted CI (ayas-safe-ci.yml:41-59) still runs both. Raw-FAIL evidence preserved."
+      },
+      {
+        "severity": "LOW",
+        "id": "R4",
+        "summary": "v3 floors/ceilings are pre-CF49 values; in a regression all aggregates stayed within limits, so protection of the 12 cases rests on per-case strictness."
+      },
+      {
+        "severity": "LOW",
+        "id": "R5",
+        "summary": "Cosmetic: v3 usage header still names the original script; one extra blank line after VERSION_3; current vault pin-drift no longer covers the original grader (still protected via AYAS_GOLDEN_VAULT_PINNED_FILES/BrainPatchSafety and the manifest pin)."
+      }
+    ],
+    "unaffected": [
+      "AyasMutationValidators.ts:98",
+      "AyasPatchArtifactMutation.ts:114",
+      "AyasResearchExperimentRegistry.ts:123",
+      "smoke-ayas-stage15-7-candidate.ts:37 (still use the original grader, as at base)"
+    ],
+    "notVerifiedByReviewer": [
+      "golden-vault-run and golden-sandbox-run under V3 (run separately by the main session: PASS)",
+      "Full166",
+      "ayas-cf49-closure.ts (run separately by the main session: CLOSED_PASS)",
+      "hosted CI"
+    ],
+    "hygiene": "Worked only in ayas-v1c-review; junctions removed first; never touched ayas-v1c-exact12 or wrote to the main repo; one plain git status on the main repo may have refreshed the index stat cache."
+  },
+  "notProven": [
+    "Not a Full166: 34 of 166 suites ran",
+    "Not run in hosted CI",
+    "No live change; whether V2-digest-bound proposal evidence goes stale after V3 was not verified"
+  ],
+  "ownerDecision": null,
+  "grantsAuthority": false,
+  "appliedToRealSource": false,
+  "pushAuthorized": false,
+  "deployAuthorized": false
+}

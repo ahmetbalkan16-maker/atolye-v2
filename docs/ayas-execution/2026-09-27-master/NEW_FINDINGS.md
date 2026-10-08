@@ -1,3 +1,33 @@
+## 2026-10-08 — F99–F105 (Claude V1 closure continuation)
+
+**F99 — HIGH, evaluation integrity: the frozen retrieval grader cannot see a CF49 regression.** With the CF49 purchase-plan slot disabled in `src/lib/ayas/memory/AyasMemoryTemporal.ts` (TEMP only), the original `smoke-ayas-retrieval-evaluation.ts` exits 0. It still lists the 12 reviewed cases as known limitations, which may fail. The v3 successor fails with exactly those 12 as REGRESSION. Mitigation: the exact12 TEMP candidate `a4db592`; not applied, owner decision pending.
+
+**F100 — MEDIUM: the exact12 draft would not have passed.** The Golden V3 draft pinned the original grader in the successor case, which breaks the vault smoke's pins-equal-closure rule. Its "existing pins changed: 0" was impossible, because the vault smoke hard-codes the published digest list. Its syntax and chain checks had passed. Fixed in the candidate; recorded in `EXACT12_TEMP_CANDIDATE.md`.
+
+**F101 — MEDIUM, audit: approval decisions record no actor or session.** Decision records carry only `decidedAt`, `decision`, `decisionId`, `evidenceFingerprint`, `proposalHash`, `proposalId` and `reason`. This covers every decision, not only the nine. `AYAS_AUTONOMOUS_EXECUTION_ENABLED=1` is live, so an owner APPROVE commits and pushes. The cookie session gate protects the action, but its origin is not attributable. The owner decides whether this is a V1 requirement or an accepted debt.
+
+**F102 — MEDIUM, record accuracy: Lemon "existing 16.8 durable ingress" does not exist.** No `app/api` route and no durable store exist. `AyasLemonWebhook.ts` states "no HTTP route, store, queue or ledger write", and `AyasRevenueCenterClosure.ts` lists `LEMON_TEST_KEY_CONNECTION_DURABLE_INGRESS` as a deferred qualification. The register defines no Lemon deferral. `OWNER_GATES.md` was corrected.
+
+**F103 — MEDIUM, Atölye output quality (systemic).**
+- The five measured final MP4s run −24.5 to −24.8 LUFS and are 36–77% static frames.
+- The Fatih candidate has scene 1 with the face cropped out, a scene 2 collage, fezzes in scene 5 and modern-looking flags in scene 6.
+- Its narration says Urban was brought "to Istanbul" (the guns were cast at Edirne), and Rumeli Hisarı is missing.
+- Its chapter timestamps come from the plan, the thumbnail is 3:2, the captions are paragraph-length, and the narrator metadata names Google Wavenet while the audio is OpenAI `tts-1`.
+- The render predates `37dc655` and `133864d`.
+- Plan in `ATOLYE_FATIH_REVIEW.md`; nothing rendered.
+
+**F105 — MEDIUM, behaviour change if exact12 is approved: the golden step of experiment promotion reopens.** This comes from the independent review.
+- At V2 the golden vault always returned `PROMOTION_STOPPED` on the retrieval case.
+- At V3 `ayasExperimentEvidenceGoldenHeld` can return true. An IMPROVED experiment's REVIEW_REQUIRED patch can then pass `verifyAyasExactProposalSafety`, and the daemon files it as SAFE.
+- With `AYAS_AUTONOMOUS_EXECUTION_ENABLED=1` live, that proposal is one owner click from commit and push.
+- This is the designed Stage 15O flow, closed by accident since the gate went red. Owner approval is still required.
+- The lifecycle entry's `admission: NONE` does not enforce anything here.
+- Recommendation: freeze approvals until the V1 closure ends.
+
+**F104 — LOW, hygiene.** Two discovery patch-sandbox worktrees from 5–6 October in `%TEMP%` still hold modifications, and the micro-batch worktree holds an untracked generated smoke. They are unrelated to Recovery9 and were left untouched.
+
+Separately, 27 leftover `%TEMP%\ayas-eval-baseline-*` fixtures from 1–8 October (none from this session) each contain a `repo\node_modules` junction to the real `node_modules`. A recursive delete through a junction would destroy the real dependencies, so any cleanup must remove each junction first (`rmdir`). Left untouched.
+
 ## 2026-10-08 — AYAS V1 owner closure preparation / Atölye first-video priority
 
 HEAD/origin entry58ec1bd clean0/0; four owner-approved commits pushed and remotely verified. This new packet is local-only; owner master order §7 requires separate new push approval. Technical source, live source e974614/Next16.2.10, runtime/authority, Brain UI V2/orb/voice/commands remain unchanged.

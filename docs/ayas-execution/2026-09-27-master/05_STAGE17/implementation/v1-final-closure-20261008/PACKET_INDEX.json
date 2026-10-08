@@ -8,20 +8,36 @@
       "sha256": "699d934f2597c7500dfda63419b03493def56959c3b480494bb73a540b805bc9"
     },
     {
+      "file": "ATOLYE_FATIH_REVIEW.md",
+      "sha256": "649e52ba417faebab97ec837f6f29ae7752fdca92050c9a7fe09bed957be393d"
+    },
+    {
       "file": "ATOLYE_FIRST_VIDEO.md",
-      "sha256": "13fbb73ed23b3552e8a0cf5b2127c7b01a1e9428c03983dc074d658bd7b1069c"
+      "sha256": "c09700f498d7202237a98bf124eb6f446ebf0d524466160301c79b0cb456b23d"
     },
     {
       "file": "ATOLYE_PIPELINE_GRAPH.json",
       "sha256": "71805e7ef0d0ccef242c9845f27b7213d7219c7d99443d03d2aa179fde7ad2ef"
     },
     {
+      "file": "AUTONOMY_BOUNDARY_AND_BACKLOG.md",
+      "sha256": "8a1fee4ada39e8e844a6aab50ffe5028f848497a0b48d1c7a571b932c7836438"
+    },
+    {
       "file": "AYAS_V1_ACCEPTANCE.md",
-      "sha256": "803268ced144e01125210284eb6d56d45547fde540433667949162b7fd014d3a"
+      "sha256": "500a4df2abc48b2d8b8196fb96830ec60ee0c771cbe228a5e2969ca888e79d34"
+    },
+    {
+      "file": "AYAS_V1_CLOSURE_DECISION.md",
+      "sha256": "8981f547a1f5eee75d7ff1d32d57df6ee3c0633020aac5ff2561e35b6033541c"
     },
     {
       "file": "COMBINED_AUDIT_58ec1bd.json",
       "sha256": "cc606985d9de78f5faee9b3eebafddcf254cee9428537198eb5673d52e4ede0f"
+    },
+    {
+      "file": "COMMERCIAL_GATES_LEMON_FIVERR.md",
+      "sha256": "bc8a25e3adfe106e6c3dafbb45346f418fd68ee9b77918bcff4a679231132344"
     },
     {
       "file": "CURRENT_SOURCE_VALIDATION.json",
@@ -44,6 +60,22 @@
       "sha256": "f2a0210908760f4eb870389e35bd49bdce8256910f04aef22545991cb3542611"
     },
     {
+      "file": "EXACT12_CANDIDATE_a4db592.patch",
+      "sha256": "337ec9954de687bbe6d1bd2b4533d05c33164036b959602cecbdf508aa7c6323"
+    },
+    {
+      "file": "EXACT12_TEMP_CANDIDATE.json",
+      "sha256": "3196745d3a934ac5485859433da00634ba8674e8854f44f5f69c3859b5fbeb87"
+    },
+    {
+      "file": "EXACT12_TEMP_CANDIDATE.md",
+      "sha256": "fd1bed608e7b95b44de49c85f140eacdab132854f1a4b9b3d6a2e58882f03b38"
+    },
+    {
+      "file": "F98_MEASURED_SCOPE.md",
+      "sha256": "c79e9d9c63e126e9ef221c6d335a87968f543f58be5fb77303e5d0f4728dfc26"
+    },
+    {
       "file": "GOLDEN_V3_DRAFT.json",
       "sha256": "8896ccb6196d75f7107262204ec40265990fb2f69bc705c6e0d272b37c59ed62"
     },
@@ -53,7 +85,7 @@
     },
     {
       "file": "LIVE_MAINTENANCE_AND_PHONE_CHECKLIST.md",
-      "sha256": "62b39f4afa18ae8c7e86cd09d3d1e40110c50af607c8dfb6eb01a917a894941c"
+      "sha256": "68548a515d6925ed0aee91f66a7ff65a7442902d599802a1722bad5367d59f48"
     },
     {
       "file": "LIVE_READONLY.json",
@@ -61,11 +93,15 @@
     },
     {
       "file": "OWNER_GATES.md",
-      "sha256": "0e9e051e6ce7e03f5d504849d92a72d422f0dfbcc2b119cba43f689e5dc29bf8"
+      "sha256": "7f5f909de5df8637ef68e9a31dc817613ea89ca9493d5ff474b95fb1b706f619"
+    },
+    {
+      "file": "RECOVERY9_LIVE_RISK_REVIEW.md",
+      "sha256": "5e5f5399cb7e2c1b85ea71f5968d8813c2f3af198b73d1591fba855b1b3e7d34"
     },
     {
       "file": "RECOVERY9_OWNER_REVIEW.md",
-      "sha256": "dd14f2cff5c98dd0da803f329fe8ff1c1a8a157fb84acb4479fc7a2f065dc672"
+      "sha256": "2eab405f647b70ac1145a37c291a98a90156b3184a333a93ddfe9495e4cb315b"
     },
     {
       "file": "RECOVERY9_RECONCILIATION_PROPOSAL.json",
@@ -78,6 +114,10 @@
     {
       "file": "RETRIEVAL_SUCCESSOR_DRAFT.ts.txt",
       "sha256": "2194580aec8f41d030db4ea33d2c9e8eede8e7ad5746c408f9a20ba9265647bc"
+    },
+    {
+      "file": "V1_CLOSURE_CLAUDE_20261008.json",
+      "sha256": "761c9320935a68321245d03b84a5f00f77f6871c918de974f2456cd6066c316e"
     },
     {
       "file": "smoke-ayas-access-gate.ts.log",
@@ -97,11 +137,14 @@
     }
   ],
   "digestBasis": "SHA256_UTF8_JSON_STRINGIFY_SORTED_FILE_HASH_ENTRIES",
-  "packetDigest": "4283c5b0dc83ff9dc97852d58ee4359302b56cc0813c646b2f0ab1c41e0cd51c",
+  "packetDigest": "d3b54e31ab18075ad255b8dc7eb428f8ee383141c7031ffaf90c7491c2b3cd83",
   "ownerReviewDigest": null,
   "ownerDecision": null,
   "grantsAuthority": false,
   "full166": "NOT_RUN_PENDING_REQUIRED_DECISION_AND_FINAL_TECHNICAL_SOURCE",
   "foundation": "BLOCKED",
-  "sprint": "NOT_READY"
+  "sprint": "NOT_READY",
+  "previousPacketDigest": "4283c5b0dc83ff9dc97852d58ee4359302b56cc0813c646b2f0ab1c41e0cd51c",
+  "updatedBy": "Claude continuation, 2026-10-08",
+  "exact12": "TEMP_CANDIDATE_VALIDATED_NOT_APPLIED_OWNER_APPROVAL_REQUIRED"
 }

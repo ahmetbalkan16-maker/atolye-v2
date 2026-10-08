@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "AYAS V1 safety closure owner decisions and final qualification; Atolye read-only/editorial first-video preparation ready",
-  "status": "V1_BLOCKED_ATOLYE_PREPARATION_CAN_START_OWNER_DECISIONS_PENDING",
+  "subtask": "AYAS V1 closure: exact12 succession validated as a TEMP candidate (not applied); owner decisions on exact12, Recovery9, Lemon, Fiverr and approval-actor binding pending; Atolye first-video review done",
+  "status": "V1_BLOCKED_EXACT12_TEMP_CANDIDATE_VALIDATED_OWNER_DECISIONS_PENDING_ATOLYE_CAN_START",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -326,8 +326,8 @@
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification.",
     "F98 (blocks qualified combined protected scope): owner decided 2026-10-08 that a missing required root or store is INCOMPLETE_WITH_REASON; explicit exceptions only for roots proven optional, recorded with scope and reason, never counted as full-scope PASS. Implementation of conditions 2-5 under that policy is open (05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md)."
   ],
-  "nextAction": "Owner reviews the prepared frozen exact12 succession/recovery9/commercial decisions; complete real safety/domain binding, commit final technical source and run one final Full166; separate live-window/device/reboot and final digest review. No auto-push/deploy.",
-  "updatedAt": "2026-10-08T13:14:36.705Z",
+  "nextAction": "Owner decides on exact12 candidate a4db592 (patch sha256 337ec995...6323). On approval apply the same bytes as one local commit, update Graphify, then run one Full166 at the final HEAD with fresh-lock Next 16.3.8. Owner records Recovery9 dispositions, Lemon (ingress packet or register deferral), Fiverr (export or deferral) and whether approval-actor binding is a V1 requirement. Live window only after separate maintenance approval; no Gelisim Merkezi APPROVE while the final HEAD is frozen.",
+  "updatedAt": "2026-10-08T14:17:52.646Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1434,7 +1434,7 @@
       "Production suites are outside the declared baseline (F33)"
     ]
   },
-  "resumeNextAction": "Owner reviews the prepared frozen exact12 succession/recovery9/commercial decisions; complete real safety/domain binding, commit final technical source and run one final Full166; separate live-window/device/reboot and final digest review. No auto-push/deploy.",
+  "resumeNextAction": "Owner decides on exact12 candidate a4db592 (patch sha256 337ec995...6323). On approval apply the same bytes as one local commit, update Graphify, then run one Full166 at the final HEAD with fresh-lock Next 16.3.8. Owner records Recovery9 dispositions, Lemon (ingress packet or register deferral), Fiverr (export or deferral) and whether approval-actor binding is a V1 requirement. Live window only after separate maintenance approval; no Gelisim Merkezi APPROVE while the final HEAD is frozen.",
   "ownerStop": {
     "state": "NONE",
     "lastSuperseded": "03_STAGE15_BASE/hardening/15T/OWNER_RESUME_15T.json"
@@ -5509,5 +5509,43 @@
     "deployAuthorized": false,
     "firstWorkDate": "2026-10-12",
     "firstVideoCandidate": "Existing Fatih116.971s H264/AAC1080p, human editorial/rights/full audio review required"
+  },
+  "latestV1ClosureClaude": {
+    "observedAt": "2026-10-08T14:17:52.646Z",
+    "entryHead": "a9dca747831f707abe4bcfc686a59fd0d1bf5c87",
+    "technicalSourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+    "sourceChanged": false,
+    "decision": "05_STAGE17/implementation/v1-final-closure-20261008/AYAS_V1_CLOSURE_DECISION.md",
+    "exact12": {
+      "record": "05_STAGE17/implementation/v1-final-closure-20261008/EXACT12_TEMP_CANDIDATE.md",
+      "evidence": "05_STAGE17/implementation/v1-final-closure-20261008/EXACT12_TEMP_CANDIDATE.json",
+      "patch": "05_STAGE17/implementation/v1-final-closure-20261008/EXACT12_CANDIDATE_a4db592.patch",
+      "patchSha256": "337ec9954de687bbe6d1bd2b4533d05c33164036b959602cecbdf508aa7c6323",
+      "tempCommit": "a4db592163bf95dcdcfa030e2d50be5ad6742cb4",
+      "affectedSuites": "34/34 PASS at v59",
+      "negativeControls": "5/5",
+      "independentReview": "PASS_WITH_FINDINGS (2 MEDIUM: bind approval to the candidate patch digest; V3 reopens the golden step of experiment promotion)",
+      "appliedToRealSource": false
+    },
+    "recovery9": {
+      "record": "05_STAGE17/implementation/v1-final-closure-20261008/RECOVERY9_LIVE_RISK_REVIEW.md",
+      "state": "NINE_UNRESOLVED_JOURNALS_UNCHANGED_NO_LIVE_EXECUTION_RISK",
+      "actorFieldInDecisionRecords": false
+    },
+    "f98": "05_STAGE17/implementation/v1-final-closure-20261008/F98_MEASURED_SCOPE.md",
+    "commercial": "05_STAGE17/implementation/v1-final-closure-20261008/COMMERCIAL_GATES_LEMON_FIVERR.md",
+    "autonomy": "05_STAGE17/implementation/v1-final-closure-20261008/AUTONOMY_BOUNDARY_AND_BACKLOG.md",
+    "firstVideo": "05_STAGE17/implementation/v1-final-closure-20261008/ATOLYE_FATIH_REVIEW.md",
+    "sessionEvidence": "05_STAGE17/implementation/v1-final-closure-20261008/V1_CLOSURE_CLAUDE_20261008.json",
+    "ayasV1": "BLOCKED",
+    "foundation": "BLOCKED",
+    "sprint": "NOT_READY",
+    "atolyeTransition": "CAN_START_PREPARATION_ONLY",
+    "full166": "NOT_RUN_PENDING_OWNER_EXACT12_DECISION_AND_FINAL_TECHNICAL_HEAD",
+    "liveSource": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "liveNext": "16.2.10",
+    "push": "NOT_AUTHORIZED_SEPARATE_OWNER_APPROVAL_REQUIRED",
+    "deploy": "NOT_AUTHORIZED",
+    "grantsAuthority": false
   }
 }

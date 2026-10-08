@@ -1,0 +1,4320 @@
+From a4db592163bf95dcdcfa030e2d50be5ad6742cb4 Mon Sep 17 00:00:00 2001
+From: Ahmet <ahmet.balkan16@hotmail.com>
+Date: Thu, 8 Oct 2026 16:45:41 +0300
+Subject: [PATCH] TEMP candidate: CF49 exact12 evaluator succession (v59,
+ Golden V3); not for publication
+
+---
+ .../hardening/15F/EVAL_MANIFEST.json          |   10 +-
+ .../hardening/15F/EVAL_MANIFEST_V58.json      | 3465 +++++++++++++++++
+ scripts/smoke-ayas-golden-vault.ts            |    7 +-
+ scripts/smoke-ayas-retrieval-evaluation-v3.ts |  562 +++
+ .../ayas/golden/AyasGoldenVaultRegistry.ts    |  166 +-
+ .../ayas/lifecycle/AyasLifecycleRegistry.ts   |    9 +
+ 6 files changed, 4214 insertions(+), 5 deletions(-)
+ create mode 100644 docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V58.json
+ create mode 100644 scripts/smoke-ayas-retrieval-evaluation-v3.ts
+
+diff --git a/docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json b/docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json
+index 1d0f49e..1377c99 100644
+--- a/docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json
++++ b/docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json
+@@ -1,6 +1,6 @@
+ {
+   "schemaVersion": "1",
+-  "version": "15F.4-v58",
++  "version": "15F.4-v59",
+   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
+   "modelGrader": "NONE",
+   "suites": [
+@@ -1161,7 +1161,7 @@
+     {
+       "id": "retrieval-evaluation",
+       "kind": "CAPABILITY",
+-      "script": "scripts/smoke-ayas-retrieval-evaluation.ts",
++      "script": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+       "args": [],
+       "grading": "EXIT_STATUS",
+       "pins": [
+@@ -1180,6 +1180,10 @@
+         {
+           "file": "scripts/smoke-ayas-retrieval-evaluation.ts",
+           "sha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e"
++        },
++        {
++          "file": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
++          "sha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00"
+         }
+       ],
+       "slices": [
+@@ -1708,7 +1712,7 @@
+       "pins": [
+         {
+           "file": "scripts/smoke-ayas-golden-vault.ts",
+-          "sha256": "90465d6f867a3804b8039e0eda7f21bac51e31a47e39df05d51f20c90631f06b"
++          "sha256": "9255c742a2a4d96897982f5354102832d2af8568e7eb48656a5df2c877cda0d4"
+         },
+         {
+           "file": "scripts/lib/AyasGoldenVaultFiles.ts",
+diff --git a/docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V58.json b/docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V58.json
+new file mode 100644
+index 0000000..1d0f49e
+--- /dev/null
++++ b/docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V58.json
+@@ -0,0 +1,3465 @@
++{
++  "schemaVersion": "1",
++  "version": "15F.4-v58",
++  "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
++  "modelGrader": "NONE",
++  "suites": [
++    {
++      "id": "access-gate",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-access-gate.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-access-gate.ts",
++          "sha256": "05d87256cd4a095f4045f07e45cc6e314bcf85160268e73c65f073291310a05f"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "bounded-request-body",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-bounded-request-body.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-bounded-request-body.ts",
++          "sha256": "8885c9594fbc65c5c9712bbe61a1bc6b2609b5629fa43a342b0ed18ba2a9270b"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "bounded-file-write",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-bounded-file-write.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-bounded-file-write.ts",
++          "sha256": "70a7e0f0b563dfbbffd214fbef27a15c6c427b0b8cf788f7f68570045810a91f"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "action-runtime",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-action-runtime.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-action-runtime.ts",
++          "sha256": "0f33a2088c08ec95225fb2264c6d39e9a064402b756b6c2cd113ffbf263252e9"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "action-firewall",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-action-firewall.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-action-firewall.ts",
++          "sha256": "7c5ac18b9bb786cc78205ea7b17109aad5b95ec0617f64456c3b00b10de08219"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "action-firewall-runtime",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-action-firewall-runtime.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-action-firewall-runtime.ts",
++          "sha256": "b7c20541c1969b5a31af210fb9a3fb6b17bf58852c64eda0201c1f4feb82db74"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "action-firewall-bridge",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-action-firewall-bridge.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-action-firewall-bridge.ts",
++          "sha256": "272c36b9e09b211d3acce01567caf7efc6ca6ab21ac0d21d22629179b3151287"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "action-firewall-closure",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-action-firewall-closure.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-action-firewall-closure.ts",
++          "sha256": "a7824b99374826a4145894215182fe0ffe4aac3b87778b1c2eec60e9f4531308"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "owner-session-admission",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-owner-session-admission.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-owner-session-admission.ts",
++          "sha256": "8816277442ef0c7e3bc45878f3bef949a98c348a5f993cff1873f918534fd5ea"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "owner-capability-firewall",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-owner-capability-firewall.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-owner-capability-firewall.ts",
++          "sha256": "5de4e4e2c100782bfb045b22dd4463e0d08d7a4319ae94d2eb799b2e2542b418"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "repair-approval-proof",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-repair-approval-proof.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-repair-approval-proof.ts",
++          "sha256": "00183b5c4dd4e227e66ccecd1db39ee80a5a20aa9eb5f3c05b7ce5c9cd464485"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "discovery-run-firewall",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-discovery-run-firewall.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-discovery-run-firewall.ts",
++          "sha256": "24e0637cd99ffeb08a1e83a4b8aa02bea7c00b991f72285e6f09ebe9141bc530"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "execution-gate",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-execution-gate.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-execution-gate.ts",
++          "sha256": "98833f60365bfce31f6dea4659e814a4a2ccbca08ab4bbbc17d674eceb778d45"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "execution-bridge",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-execution-bridge.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-execution-bridge.ts",
++          "sha256": "5a9d831ee798351d403c524ff20ed0f99920270f09eed7bb042a88d21851ef15"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "write-action",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-write-action.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-write-action.ts",
++          "sha256": "0c4deef7b96e9b1e4f3331605b149ed6693f85600b0eb6cc17d436fc3899d3a1"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "execution-authority",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-execution-authority.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-execution-authority.ts",
++          "sha256": "dc4045cae8af553c171c336cd4bedf47d3fedb02510b49f06e7d98e40b51b797"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "execution-authority-lock",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-execution-authority-lock.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-execution-authority-lock.ts",
++          "sha256": "121459eb05623059e8b9c062b44191a8eeca8b1014501ce227b60a02ba0709a4"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "execution-journal",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-execution-journal.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-execution-journal.ts",
++          "sha256": "d08bedd6fd781f2958d0e6c8c3f7a099454bca54809ba8702becfbb43f186bb3"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "execution-revalidation-scope-recovery",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-execution-revalidation-scope-recovery.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-execution-revalidation-scope-recovery.ts",
++          "sha256": "aa38757da06c24d73e588f2858a6d13641167d4f3affca212083919524c3ac31"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "authorization-reservation",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-authorization-reservation.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-authorization-reservation.ts",
++          "sha256": "0fbea94c92df6e636cf631f855e3eb8551c67ed9b1054f95f39b87a64753e229"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "approval-durable-state-compatibility",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-approval-durable-state-compatibility.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-approval-durable-state-compatibility.ts",
++          "sha256": "d841792a3db6c7f5a0137e3b18996a7b3798a3cbd2d8edb7b269831fd955ff5a"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "daemon-authority-boundary",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-daemon-authority-boundary.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-daemon-authority-boundary.ts",
++          "sha256": "5b0a0cf81ea0d40784a0162f2a3be1133fb66177066a62eab6cc0c5ee71384ed"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "autonomy-daemon",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-autonomy-daemon.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-autonomy-daemon.ts",
++          "sha256": "b98bfbf09d2a99401002727a5890b32387a8baadea0cb353cd8ab479e0e0cedc"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "isolated-gate-root",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-isolated-gate-root.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-isolated-gate-root.ts",
++          "sha256": "bbfcacd69c1360c925407b512c009f2ab50e026f5d42c8a8ce8dd2de2b9581cc"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "verified-gate-transition",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-verified-gate-transition.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-verified-gate-transition.ts",
++          "sha256": "a94be15066764761b673a9254d102fecdfae28b2f9ea46503025a3786bbd5a51"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "runtime-stability-guard",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-runtime-stability-guard.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-runtime-stability-guard.ts",
++          "sha256": "2dee018c3ebda2d91eff65d34d24adbc2f681057b0a700d509983b830e93b1e2"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "exact-patch-safety",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-exact-patch-safety.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-exact-patch-safety.ts",
++          "sha256": "2f5a6fb6707ba9368471c5b04d106bfd6e6f60c67f905218c78379f27a5d37ab"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "exact-proposal-safety",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-exact-proposal-safety.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
++          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
++        },
++        {
++          "file": "scripts/smoke-ayas-exact-proposal-safety.ts",
++          "sha256": "ceca87d87dc132392625b248e68fba3a4307ea91a6d2805cf7b03793f2a9397e"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "guarded-publication",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-guarded-publication.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-guarded-publication.ts",
++          "sha256": "b1f041d7eed86e80abeb7e4a537d9674644dee62e2ca05b4d7608494dc5ab1f9"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "proposal-approval-service",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-proposal-approval-service.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/ayas-isolated-stability-guard.ts",
++          "sha256": "844aff67e14970ff9815d4df08d6bf32bd08c46c87d3512cb2b7e324bcbdbcc0"
++        },
++        {
++          "file": "scripts/smoke-ayas-proposal-approval-service.ts",
++          "sha256": "afd01f40a63a27809d4009e52678987b63ca0d007aa2541ba2b277b914e1b335"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "proposal-execution-service",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-proposal-execution-service.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-proposal-execution-service.ts",
++          "sha256": "a8be3e9798bdaaf87b8059642b45a4c87ca26649082c08b76327bc6ba4564c2e"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "micro-batch-approval-service",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-micro-batch-approval-service.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/ayas-isolated-stability-guard.ts",
++          "sha256": "844aff67e14970ff9815d4df08d6bf32bd08c46c87d3512cb2b7e324bcbdbcc0"
++        },
++        {
++          "file": "scripts/smoke-ayas-micro-batch-approval-service.ts",
++          "sha256": "c2d779406e91d0102d7979eab8a65d22925f8afbda7e8ce8a20f2bb77f556b3d"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "micro-batch-execution-service",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-micro-batch-execution-service.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-micro-batch-execution-service.ts",
++          "sha256": "ddac76f00fc1380068e413e939ce20eee08ab2335436bf0d4fe7b74b418eba57"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "patch-artifact",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-patch-artifact.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-patch-artifact.ts",
++          "sha256": "a3e0e0789a4134018ad3b284ef3071822b337f06bbaa8b013d9364e6aaf43fb6"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "patch-artifact-mutation",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-patch-artifact-mutation.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-patch-artifact-mutation.ts",
++          "sha256": "3b5c8bb784aa5813ca9f786ee0dc27fcf98cefc22228fd3108a30e0c9f70a79f"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "patch-artifact-execution-integration",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-patch-artifact-execution-integration.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-patch-artifact-execution-integration.ts",
++          "sha256": "d714009559f62cc396843f4a6cde01e607a9398a4fb692d980b4d72ddb42e729"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "guided-repair",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-guided-repair.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-guided-repair.ts",
++          "sha256": "8eecf033cb38407f8dbba53f137783845c00947a3e320d2735b89654450c1893"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "guided-repair-durability",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-guided-repair-durability.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-guided-repair-durability.ts",
++          "sha256": "02d075f9c22f6e26236f1d2df1614b44ae689b497bdba61024ab96addaa4e124"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "developer-workflow",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-developer-workflow.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-developer-workflow.ts",
++          "sha256": "8cf473753a356696749cd3494cea0e672943f6abd5e662b9421fdf5ae476c62f"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "workflow-recovery",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-workflow-recovery.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-workflow-recovery.ts",
++          "sha256": "4b9ada496cb31a6ea7c84503f09ea4739f2801dbefd7bdc7d7de8faf566df28c"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "workflow-store",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-workflow-store.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-workflow-store.ts",
++          "sha256": "99512b83b88174ceb0e692eeae9634290d37986c57589e612021e34fc41e96a0"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "durable-task-runtime",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-durable-task-runtime.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-durable-task-runtime.ts",
++          "sha256": "d071cb154c3f7c4f7651fb2ec6b016658aa8dcdaf3dfc8acaa9b76e70f7b75c4"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "durable-task-recovery",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-durable-task-recovery.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-durable-task-recovery.ts",
++          "sha256": "e8b765650abe4c3e335c78f646f67884b709a648bf07bf7e484d1d62bfd2e9dc"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "memory-integrity",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-memory-integrity.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-memory-temporal-cases.ts",
++          "sha256": "cce130c64fd2250360fb325d7920553200dc9f7062d739008e60a709b132e61d"
++        },
++        {
++          "file": "scripts/fixtures/ayas-retrieval-evaluation-cases.ts",
++          "sha256": "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23"
++        },
++        {
++          "file": "scripts/lib/AyasRetrievalEvaluation.ts",
++          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
++        },
++        {
++          "file": "scripts/smoke-ayas-memory-integrity.ts",
++          "sha256": "c01804717ed4d925f353010889133048c969862e20e5b74d4e3eb20592061314"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "memory",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-memory.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-memory.ts",
++          "sha256": "ef9e7165e80bdd44d5bbcd9efa41b9c01dc1a61d2e6666505b0d893a172583f1"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "memory-temporal",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-memory-temporal.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-memory-temporal-cases.ts",
++          "sha256": "cce130c64fd2250360fb325d7920553200dc9f7062d739008e60a709b132e61d"
++        },
++        {
++          "file": "scripts/smoke-ayas-memory-temporal.ts",
++          "sha256": "3df128a6d290cc5c65a1d75725f059a2a7ca637017ce47853c69b70af82e51ef"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "context",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-context.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-context.ts",
++          "sha256": "f1ee8aa666a9cee0134f32a76f779bd3f08b3cdf5650f73d2a245fb3abd7ded5"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "unified-trace",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-unified-trace.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/helpers/ayas-action-runtime-fixture.ts",
++          "sha256": "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f"
++        },
++        {
++          "file": "scripts/smoke-ayas-unified-trace.ts",
++          "sha256": "09dea5feae18b95a8f06ff2d6744b53b7d2a577c4e5185240fc9b6c9dc51baa5"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "operation-evidence",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-operation-evidence.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-operation-evidence.ts",
++          "sha256": "bf31b77fe167058a90ac0e20b84fc7d88d05c2287f1a167cdf83d67da500a547"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "operation-telemetry",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-operation-telemetry.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-operation-telemetry.ts",
++          "sha256": "eb19cbebcee8d57362ac12f2f7b8b8a1f8a9bed4bc9d09f35c4c27949354eb47"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "operation-telemetry-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-operation-telemetry-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-operation-telemetry-mutations.ts",
++          "sha256": "81ebc216f64848f7901038c62797c532b35ddffc3ca84418610d39982981605c"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "lifecycle",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-lifecycle.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-lifecycle.ts",
++          "sha256": "4e6488c7d8d623df8e1347a4347c61b3143b611af355fbb66b503ad651c349f0"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "model-router",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-model-router.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-model-router.ts",
++          "sha256": "40d2b03cf8dc844fed58baf1969fede7eab7e67831b3450f0539d44017935ac2"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "zero-cost-policy",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-zero-cost-policy.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-zero-cost-policy.ts",
++          "sha256": "6f6eb81d68423a7498f2d0d635c7dc4fa4b691f8b1b24fa83c3a314220857fea"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "safe-public-fetch",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-safe-public-fetch.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-safe-public-fetch.ts",
++          "sha256": "ccb576e908c4bd96df8d9d6ac37273e93b9dc1c18a748549020b610bcc76a7eb"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "external-research-store",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-external-research-store.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-external-research-store.ts",
++          "sha256": "70eb6f89eca35a8f2533c4d9632998a909568279bf311a9d2b00eb13aa028ce1"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "research-scheduler",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-research-scheduler.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-research-scheduler.ts",
++          "sha256": "aea6af7146fbf90a41e52dd01d8b962074d076e61236226abb296c62a603ad46"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "research-improvement-loop",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-research-improvement-loop.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
++          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-cycle-child.ts",
++          "sha256": "5aeb43c50f55966ce390c3b8365ff8d67905a373d28472e53be4330e93f072b7"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
++          "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
++          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
++        },
++        {
++          "file": "scripts/smoke-ayas-research-improvement-loop.ts",
++          "sha256": "2fa2bbd212d4ea39154df81140685d1a614d10875e297914b4325a4ce0443e27"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "controlled-self-evolution-cycle",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-controlled-self-evolution-cycle.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
++          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
++          "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
++          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
++        },
++        {
++          "file": "scripts/smoke-ayas-controlled-self-evolution-cycle.ts",
++          "sha256": "b1df060df0c4a29fe97a0586e9aea78ffe3bd7cf3ccfa5094eb0313c73c7c9bf"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "controlled-self-evolution-artifact",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-controlled-self-evolution-artifact.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
++          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
++          "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
++          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
++        },
++        {
++          "file": "scripts/smoke-ayas-controlled-self-evolution-artifact.ts",
++          "sha256": "6af6c10af0c3c3c234a194944b5ccdb30b03519ed2e6fa3b1f2c7b2e4ffb194f"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "storage-hygiene",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-storage-hygiene.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-storage-hygiene.ts",
++          "sha256": "65d0185dadce3d6d80fb1a60f5de587da207b94b0a37f8839d7faa838ea1fcf7"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "discovery-registry",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-discovery-registry.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-discovery-registry.ts",
++          "sha256": "febef3886d07d53e92a89cee5f235b858d525cd1dd7d424a47a480cff4c04fa9"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "cognitive-quality",
++      "kind": "CAPABILITY",
++      "script": "scripts/smoke-ayas-cognitive-quality.ts",
++      "args": [],
++      "grading": "COGNITIVE_REPORT",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-memory-temporal-cases.ts",
++          "sha256": "cce130c64fd2250360fb325d7920553200dc9f7062d739008e60a709b132e61d"
++        },
++        {
++          "file": "scripts/fixtures/ayas-retrieval-evaluation-cases.ts",
++          "sha256": "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23"
++        },
++        {
++          "file": "scripts/lib/AyasRetrievalEvaluation.ts",
++          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
++        },
++        {
++          "file": "scripts/smoke-ayas-cognitive-quality.ts",
++          "sha256": "6957b64c99b49457655880ef7d0f73815a0e8d203e18c976e8c9eca546558385"
++        }
++      ],
++      "slices": [
++        "main-deterministic",
++        "embedded-frozen-held-out",
++        "known-limitations-visible"
++      ]
++    },
++    {
++      "id": "conversation-quality-master",
++      "kind": "CAPABILITY",
++      "script": "scripts/smoke-ayas-conversation-quality-master.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-conversation-quality-master.ts",
++          "sha256": "b79d6a839027a4e35d416e96ce9f1ebbfa087d2e807f6f95a31b9c5d0078ec6d"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "chat-quality",
++      "kind": "CAPABILITY",
++      "script": "scripts/smoke-ayas-chat-quality.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-chat-quality.ts",
++          "sha256": "57c90b43077a80ed4dff728602e2a0941d6bfba3f6ed2ec0fdfff1a3913ee952"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "retrieval-evaluation",
++      "kind": "CAPABILITY",
++      "script": "scripts/smoke-ayas-retrieval-evaluation.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-memory-temporal-cases.ts",
++          "sha256": "cce130c64fd2250360fb325d7920553200dc9f7062d739008e60a709b132e61d"
++        },
++        {
++          "file": "scripts/fixtures/ayas-retrieval-evaluation-cases.ts",
++          "sha256": "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23"
++        },
++        {
++          "file": "scripts/lib/AyasRetrievalEvaluation.ts",
++          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
++        },
++        {
++          "file": "scripts/smoke-ayas-retrieval-evaluation.ts",
++          "sha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e"
++        }
++      ],
++      "slices": [
++        "retrieval-gate",
++        "embedded-held-out-with-known-limitations"
++      ]
++    },
++    {
++      "id": "open-ended-evolution",
++      "kind": "CAPABILITY",
++      "script": "scripts/smoke-ayas-open-ended-evolution.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-open-ended-evolution.ts",
++          "sha256": "1476be26a50c0e734a923734a066387806230034a49eaa193c607bc5e0ab921b"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "technology-watch",
++      "kind": "CAPABILITY",
++      "script": "scripts/smoke-ayas-technology-watch.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-technology-watch.ts",
++          "sha256": "f988d63fd1a2ce0dccd99af3ec88aad7a63b40aef5bfb98d764f0bfcea166b24"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "developer-intelligence",
++      "kind": "FROZEN_HELD_OUT",
++      "script": "scripts/smoke-ayas-developer-intelligence.ts",
++      "args": [
++        "--gate"
++      ],
++      "grading": "DEVELOPER_REPORT",
++      "pins": [
++        {
++          "file": "scripts/fixtures/ayas-developer-intelligence-sources.ts",
++          "sha256": "4f5d97f8c5cd7ac0c40ce965a688c69b6bb384d154c88741b55c017a35d5eacd"
++        },
++        {
++          "file": "scripts/smoke-ayas-developer-intelligence.ts",
++          "sha256": "e3e668fd286d2714bca357bb4d886464cf6d031c19418627d7b4c7caea0ab9f5"
++        }
++      ],
++      "slices": [
++        "main-flows",
++        "embedded-frozen-held-out",
++        "component-held-out",
++        "integration"
++      ]
++    },
++    {
++      "id": "context-budget",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-context-budget.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-context-budget.ts",
++          "sha256": "e462ed2d95cfb44d883d394fa27bc0a62cc2f04ba66607547f6687b80eb5fbdc"
++        },
++        {
++          "file": "scripts/lib/AyasRetrievalEvaluation.ts",
++          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
++        }
++      ],
++      "slices": [
++        "protected-context",
++        "fail-closed-overflow",
++        "privacy",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "context-budget-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-context-budget-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-context-budget-mutations.ts",
++          "sha256": "d91f21d85b5b10a66b4d07cbe9107d977fd0fa79e2f777a3be15c2902de5a053"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "voice-turn-state-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-voice-turn-state-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-voice-turn-state-mutations.ts",
++          "sha256": "6c219c4bd34786111886fe71b7612086a6c66c771e449b2dc4b5f1a340fcfcfb"
++        },
++        {
++          "file": "scripts/smoke-ayas-voice.ts",
++          "sha256": "16b405d8c9133b8ac08a64d374b577ea04f24b6eb3d0f3b648446144237603af"
++        },
++        {
++          "file": "scripts/smoke-ayas-reasoning.ts",
++          "sha256": "cd6fd4c5c7185f40cdd4d5b44bdc74e9c4f42df1a0177f3deb24b2aaeb586824"
++        },
++        {
++          "file": "scripts/smoke-ayas-chat-stream-client.ts",
++          "sha256": "2d9bcbe536645d6553eb3cfd20af33a13d9eb9d221e5c1e09913604dcb0b7cf3"
++        },
++        {
++          "file": "scripts/smoke-brain-core-ui.ts",
++          "sha256": "bf2edd8f9d8516c321e2308789c9da253c251d369b8d2588944aa9e4fd628259"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "release-provenance",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-release-provenance.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-release-provenance.ts",
++          "sha256": "31e673787c511af6a7113584cf579302ba085333b27cc7c9003c8253f0936283"
++        }
++      ],
++      "slices": [
++        "supply-chain",
++        "provenance",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "release-provenance-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-release-provenance-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-release-provenance-mutations.ts",
++          "sha256": "b8cefcb410b9e87e4756d5eda1f829e38ffad4167f22c9c2b52c5091b9160ae5"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "research-source-resilience",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-research-source-resilience.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-research-source-resilience.ts",
++          "sha256": "c9ca8025b46f0ffdc900aca5759d26ec4026fcbd0f3f62c169061e82359fe8f0"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "graphify-integration",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-graphify-integration.ts",
++      "args": [
++        "--gate"
++      ],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-graphify-integration.ts",
++          "sha256": "26ce0b1904617ba16c6498f6fc5df5a0515f94564cd82c3d50af3acd1550f165"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "independence-certification",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-independence-certification.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-independence-certification.ts",
++          "sha256": "1528e7450c112dc65419189796d81c90d79ca6824a1ad4f1936b7282680789bf"
++        }
++      ],
++      "slices": [
++        "independence",
++        "fail-closed",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "independence-certification-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-independence-certification-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-independence-certification-mutations.ts",
++          "sha256": "35cd98b9121f4764dab087fde5a8e3431e4b07dba451da5297bbd2a478ae6bcf"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-director",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-director.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-director.ts",
++          "sha256": "ab21e07908f9c6e34eb952b0a91d8275f7d83e67e6d7064bba65c501c4741043"
++        }
++      ],
++      "slices": [
++        "production-director",
++        "fail-closed",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-director-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-director-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-director-mutations.ts",
++          "sha256": "5d5420d3694b68878567c128f465257797fa4c4acfc71a5b36fff166b7047a91"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "historical-storytelling",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-historical-storytelling.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-historical-storytelling.ts",
++          "sha256": "5a6eea742a70a5e1ccd60bf6c03d9eb6742357ca4fec610e0b2f5275c7b24a1a"
++        }
++      ],
++      "slices": [
++        "storytelling",
++        "fail-closed",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "historical-storytelling-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-historical-storytelling-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-historical-storytelling-mutations.ts",
++          "sha256": "9f1d036788ccbf9e4e9d4399ce5a4cc11be5cab39c66833b9b776a64631c00dd"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-cost-governor",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-cost-governor.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-cost-governor.ts",
++          "sha256": "2013379e3618b5d839c60427ad9ef5ef03824115fa462fa7507d4cf753d6e5b6"
++        }
++      ],
++      "slices": [
++        "cost",
++        "fail-closed",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-cost-governor-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-cost-governor-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-cost-governor-mutations.ts",
++          "sha256": "07e28fe992009b1441eeb9a21f6ffc87b4d5ed0424f8074954535a9c432c8ff9"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-fault-repair",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-fault-repair.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-fault-repair.ts",
++          "sha256": "7f67d0e6d33a2461d09076ac186a7258b2ec8f120cfa58de25b6cc390548518f"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-fault-repair-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-fault-repair-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-fault-repair-mutations.ts",
++          "sha256": "ae2f41db49ded0ba9735265890b027fea2b8d22d15ff77be98378ed2548b1b66"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-quality-gate",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-quality-gate.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-quality-gate.ts",
++          "sha256": "f37fbac70c781a8a8e51083b2738fac66b89e71460e5b8bcb6eb8bfe6e43b7cb"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-quality-gate-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-quality-gate-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-quality-gate-mutations.ts",
++          "sha256": "6e9d6005bde5331e5a3a7be7636ab616ef9ef1d9a8892cf8d13312db1eed18ed"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-quality-collector",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-quality-collector.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-quality-collector.ts",
++          "sha256": "49c71df68c789bba66eb21fd7759e2c78756013ac469d7583e3697049cd1f75e"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "production-quality-collector-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-production-quality-collector-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-production-quality-collector-mutations.ts",
++          "sha256": "d247b9f2c2f2e20ff598e774b0b241e619bd7c0f4b73c3aed32ed624f1d19739"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "youtube-ready-export",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-youtube-ready-export.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-youtube-ready-export.ts",
++          "sha256": "77b3fcfb4712fbf5708a6dfcd84e632b4ab8dcd7de8c7f26318906efbe75ed49"
++        },
++        {
++          "file": "scripts/smoke-sprint-132-export-packaging.ts",
++          "sha256": "542293fc5331813b88a21e20c15857c9b4e5c87e97c928b257aba8ff42e44b9c"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "owner-constitution",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-owner-constitution.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-owner-constitution.ts",
++          "sha256": "a7bc5b2e8978e7262481beadb954fa0394447d27a7806d7c9462d1a0781d4671"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "owner-constitution-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-owner-constitution-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-owner-constitution-mutations.ts",
++          "sha256": "c07a4d0735f9b28fdbae12f634484282c5a1b2a0ab07caa3ccd82bd2f99b03c5"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "constitution-run-binding",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-constitution-run-binding.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-constitution-run-binding.ts",
++          "sha256": "e2343fd9226939a7bf7ea52c503b17617deaec93cf970cae20a885f54876e512"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "constitution-run-binding-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-constitution-run-binding-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-constitution-run-binding-mutations.ts",
++          "sha256": "762d19716e23174b8796b5bd5b8876f077d08ddac296c5d65be794b40734d67b"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-vault",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-vault.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-vault.ts",
++          "sha256": "90465d6f867a3804b8039e0eda7f21bac51e31a47e39df05d51f20c90631f06b"
++        },
++        {
++          "file": "scripts/lib/AyasGoldenVaultFiles.ts",
++          "sha256": "bb7f3eedd0cbb271b4d2c934999dcaa419177f1a4966375266cb9e5119f27c1f"
++        }
++      ],
++      "slices": [
++        "golden-vault",
++        "fail-closed",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-vault-operator",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-vault-operator.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-vault-operator.ts",
++          "sha256": "61ccb61d92875d0461f6044deca603c4b1518b161e9f403d9f59fed276a600ae"
++        },
++        {
++          "file": "scripts/lib/AyasGoldenVaultFiles.ts",
++          "sha256": "bb7f3eedd0cbb271b4d2c934999dcaa419177f1a4966375266cb9e5119f27c1f"
++        }
++      ],
++      "slices": [
++        "golden-vault",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-vault-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-vault-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-vault-mutations.ts",
++          "sha256": "b78375833776702491891bc30110919d43fe4a2da8a209b874c88e671e7e2995"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-vault-run",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-vault-run.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-vault-run.ts",
++          "sha256": "945802995515c6808f14edb4e7a2c99ae14ecd06cc14342ee8bb0d2a87b674ab"
++        },
++        {
++          "file": "scripts/lib/AyasGoldenVaultFiles.ts",
++          "sha256": "bb7f3eedd0cbb271b4d2c934999dcaa419177f1a4966375266cb9e5119f27c1f"
++        }
++      ],
++      "slices": [
++        "golden-vault",
++        "all-golden-cases",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-experiment-gate",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-experiment-gate.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-experiment-gate.ts",
++          "sha256": "889e070b4e973e9daab221ab97981b65d0dace8d3c77b5962b840fa7d6f22a7d"
++        },
++        {
++          "file": "scripts/fixtures/ayas-golden-fixtures.ts",
++          "sha256": "27d9856a986a06c7885ad1039c9e10ac7ef2699efd93f0c776e373015368c045"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-fixtures.ts",
++          "sha256": "04c2d44fa11564e5627c56d99aac2fa4cc8a2dd165a45777e0f28680556319c2"
++        },
++        {
++          "file": "scripts/fixtures/ayas-research-improvement-findings.ts",
++          "sha256": "940a933fca46b957ddf5954fb640eb2d2f10a7d4ae3d5ec4991f5a6f2b3272e8"
++        }
++      ],
++      "slices": [
++        "golden-vault",
++        "improvement-flow",
++        "fail-closed",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-experiment-gate-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-experiment-gate-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-experiment-gate-mutations.ts",
++          "sha256": "31b06c7c9e138e06bfe001e0fa22a1ba9c6d58c4dbf1146a0f51e805a53a4c04"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-sandbox-run",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-sandbox-run.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-sandbox-run.ts",
++          "sha256": "1fbd4fb5d9ace17b954bed1dff25bf91d9c4758c6e7296e64bf93493270ff331"
++        }
++      ],
++      "slices": [
++        "golden-vault",
++        "experiment-sandbox",
++        "all-golden-cases",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-video-projects",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-video-projects.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-video-projects.ts",
++          "sha256": "9f1b0be12afebdf434c06ee3225422ff84a1c16e7179cc17e0310fd356cf314d"
++        },
++        {
++          "file": "scripts/fixtures/ayas-golden-video-projects.ts",
++          "sha256": "0bf9fd37e52ebe91ce2504cc9405558b77d807b61cf94952d45a3f73dda72336"
++        },
++        {
++          "file": "scripts/fixtures/ayas-golden-video-projects-expected.ts",
++          "sha256": "151b55acd0c07cf7d4ca8e0938551f59f142204a0785affb5db134290458cda5"
++        }
++      ],
++      "slices": [
++        "golden-vault",
++        "historical-video",
++        "frozen-output",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "golden-video-projects-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-golden-video-projects-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-golden-video-projects-mutations.ts",
++          "sha256": "3d52c4431335b5c1a097fa6781319e9a198be5a490b887067b4eafe5cd394158"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "source-evidence",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-source-evidence.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-source-evidence.ts",
++          "sha256": "ad5fe299b19142d5a8cf72edfe6e0adb9a0676b6bb426bbbb4286b277dc29562"
++        },
++        {
++          "file": "scripts/ayas-source-evidence.ts",
++          "sha256": "e5df321eb4a65dd65cfc0a278e32e2066947f868c1c19bdeaf77fbe2a5cd4c79"
++        }
++      ],
++      "slices": [
++        "contextual-source-trust",
++        "external-data-boundary",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "source-evidence-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-source-evidence-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-source-evidence-mutations.ts",
++          "sha256": "24ecbfc13eb323056bc90bd6ce6e8377aae87f81477d5547e84ece4179d11746"
++        },
++        {
++          "file": "scripts/smoke-ayas-source-evidence.ts",
++          "sha256": "ad5fe299b19142d5a8cf72edfe6e0adb9a0676b6bb426bbbb4286b277dc29562"
++        },
++        {
++          "file": "scripts/ayas-source-evidence.ts",
++          "sha256": "e5df321eb4a65dd65cfc0a278e32e2066947f868c1c19bdeaf77fbe2a5cd4c79"
++        }
++      ],
++      "slices": [
++        "contextual-source-trust",
++        "external-data-boundary",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "resource-governor",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-resource-governor.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-resource-governor.ts",
++          "sha256": "8a10fe07e553323cfdc4f607490b4c395b1c8646a48314b0ed3140dd5e865568"
++        }
++      ],
++      "slices": [
++        "resource-admission",
++        "host-protection",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "resource-governor-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-resource-governor-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-resource-governor-mutations.ts",
++          "sha256": "8666819faa764853d77c642c4fc2fce16a9255e02b8cfa9498703f858624da74"
++        },
++        {
++          "file": "scripts/smoke-ayas-resource-governor.ts",
++          "sha256": "8a10fe07e553323cfdc4f607490b4c395b1c8646a48314b0ed3140dd5e865568"
++        }
++      ],
++      "slices": [
++        "resource-admission",
++        "host-protection",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "on-demand-lifecycle",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-on-demand-lifecycle.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-on-demand-lifecycle.ts",
++          "sha256": "87f846e29226755d07e66bd761d208d05a459ce5f9855807e27b49821406617f"
++        }
++      ],
++      "slices": [
++        "on-demand-controller",
++        "dependency-protection",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "on-demand-lifecycle-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-on-demand-lifecycle-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-on-demand-lifecycle-mutations.ts",
++          "sha256": "9fdf2288aad28f5f618ff54f93852f7d7997ac5ea80af0b6dfa04b65a19fbbaf"
++        },
++        {
++          "file": "scripts/smoke-ayas-on-demand-lifecycle.ts",
++          "sha256": "87f846e29226755d07e66bd761d208d05a459ce5f9855807e27b49821406617f"
++        }
++      ],
++      "slices": [
++        "on-demand-controller",
++        "dependency-protection",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "resource-occupancy",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-resource-occupancy.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-resource-occupancy.ts",
++          "sha256": "dba38d133bafe71d56147d907f0ae840905fc1d67290fd8424958c4e129574ba"
++        }
++      ],
++      "slices": [
++        "resource-occupancy",
++        "production-priority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "resource-occupancy-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-resource-occupancy-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-resource-occupancy-mutations.ts",
++          "sha256": "bbafc0d6dfdb630806fd883bb2713514d13487a7be3b4d73230ffec67044bd8c"
++        },
++        {
++          "file": "scripts/smoke-ayas-resource-occupancy.ts",
++          "sha256": "dba38d133bafe71d56147d907f0ae840905fc1d67290fd8424958c4e129574ba"
++        }
++      ],
++      "slices": [
++        "resource-occupancy",
++        "production-priority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "safe-mode",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-safe-mode.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-safe-mode.ts",
++          "sha256": "992e86c0263cae2a285033196d245cf9987507322fab3cf31d4812122686d3f8"
++        }
++      ],
++      "slices": [
++        "safe-read-only",
++        "emergency-stop",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "safe-mode-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-safe-mode-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-safe-mode-mutations.ts",
++          "sha256": "7413136bf0aa80f20081cd4ebeafe31d2cf37763d032c893bb808d4a84c68390"
++        },
++        {
++          "file": "scripts/smoke-ayas-safe-mode.ts",
++          "sha256": "992e86c0263cae2a285033196d245cf9987507322fab3cf31d4812122686d3f8"
++        }
++      ],
++      "slices": [
++        "safe-read-only",
++        "emergency-stop",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "portable-brain",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-portable-brain.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-portable-brain.ts",
++          "sha256": "caa81329de85e9fa63eea6498719f98c750c74873321eea63f9a1dceafaeabe1"
++        },
++        {
++          "file": "scripts/ayas-portable-brain.ts",
++          "sha256": "5ca12e7f80eaa0990c63c584036e387d557e028c66710dccbeb0aaf1603b0f0a"
++        }
++      ],
++      "slices": [
++        "portable-state",
++        "owner-activation-boundary",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "portable-brain-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-portable-brain-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-portable-brain.ts",
++          "sha256": "caa81329de85e9fa63eea6498719f98c750c74873321eea63f9a1dceafaeabe1"
++        },
++        {
++          "file": "scripts/smoke-ayas-portable-brain-mutations.ts",
++          "sha256": "566ff2802bb3b5063f6f8804d116023bf3f3c294645ab16918f43e7e2ce60033"
++        },
++        {
++          "file": "scripts/ayas-portable-brain.ts",
++          "sha256": "5ca12e7f80eaa0990c63c584036e387d557e028c66710dccbeb0aaf1603b0f0a"
++        }
++      ],
++      "slices": [
++        "portable-state",
++        "owner-activation-boundary",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "executive-briefing",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-executive-briefing.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-executive-briefing.ts",
++          "sha256": "1459cb94f89744c973fc83d972fb3f2d42e687e79021d1efd340f9dd7ed3721a"
++        },
++        {
++          "file": "scripts/ayas-executive-alerts.ts",
++          "sha256": "d91a8a79547e0011ce1a73748891d3cdd524edeb31e1c1549e395e6195725eb0"
++        }
++      ],
++      "slices": [
++        "owner-briefing",
++        "alert-priority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "executive-briefing-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-executive-briefing-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-executive-briefing.ts",
++          "sha256": "1459cb94f89744c973fc83d972fb3f2d42e687e79021d1efd340f9dd7ed3721a"
++        },
++        {
++          "file": "scripts/smoke-ayas-executive-briefing-mutations.ts",
++          "sha256": "c832e19083da7ff1264444f3ad4c289ca2d622e4f1c833fcdb5a8ac62ce18a96"
++        },
++        {
++          "file": "scripts/ayas-executive-alerts.ts",
++          "sha256": "d91a8a79547e0011ce1a73748891d3cdd524edeb31e1c1549e395e6195725eb0"
++        }
++      ],
++      "slices": [
++        "owner-briefing",
++        "alert-priority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-adapter-standard",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-adapter-standard.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
++          "sha256": "d0b8da0e40ff0644e027c2241d7a1596688c9684258d97cdcfd765a0797d371c"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
++          "sha256": "aa773ce2bbca18abf958704726af1e07e19479eb1dd28d0baaab495fcd66f95a"
++        }
++      ],
++      "slices": [
++        "revenue-adapter-standard",
++        "financial-non-autonomy",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-adapter-standard-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-adapter-standard.ts",
++          "sha256": "d0b8da0e40ff0644e027c2241d7a1596688c9684258d97cdcfd765a0797d371c"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-adapter-standard-mutations.ts",
++          "sha256": "5a476691984ed0500d1a57f04fd712b1c8094c95e55a4c1509d69229f6a27757"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
++          "sha256": "aa773ce2bbca18abf958704726af1e07e19479eb1dd28d0baaab495fcd66f95a"
++        }
++      ],
++      "slices": [
++        "revenue-adapter-standard",
++        "financial-non-autonomy",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-account-boundary",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-account-boundary.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-account-boundary.ts",
++          "sha256": "e3f6fb56ffe116d3c2ae73dc5a8d44b4baa5614906498a0afe678fb531e39d73"
++        }
++      ],
++      "slices": [
++        "revenue-account-boundary",
++        "credential-boundary",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-account-boundary-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-account-boundary-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-account-boundary.ts",
++          "sha256": "e3f6fb56ffe116d3c2ae73dc5a8d44b4baa5614906498a0afe678fb531e39d73"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-account-boundary-mutations.ts",
++          "sha256": "2b6e004877800c4a153df714a489d85bc82f9add5fcddf5eae84d788c98fd360"
++        }
++      ],
++      "slices": [
++        "revenue-account-boundary",
++        "credential-boundary",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-spend-policy",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-spend-policy.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-spend-policy.ts",
++          "sha256": "f768325c93d2ec1d6d3d72cc8fb93eba2015172bcb57d92b2f02f8de93f58237"
++        }
++      ],
++      "slices": [
++        "revenue-zero-cost",
++        "financial-non-autonomy",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-spend-policy-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-spend-policy-mutations.ts",
++          "sha256": "ae88ad56a830ee0e2381f5a263ff22edbd2e865f167dd142a8b3d4363aa95c9e"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-spend-policy.ts",
++          "sha256": "f768325c93d2ec1d6d3d72cc8fb93eba2015172bcb57d92b2f02f8de93f58237"
++        }
++      ],
++      "slices": [
++        "revenue-zero-cost",
++        "financial-non-autonomy",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-ledger",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-ledger.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-ledger.ts",
++          "sha256": "e6f7546968ef16f5827b6a6f994f36bb59bb69bb3b0968967b102c1977eb3f90"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
++          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-worker.ts",
++          "sha256": "523813cd835c6665dbd6df38e99026ae23ffdf29d3e00e7d36615dccb69c3432"
++        }
++      ],
++      "slices": [
++        "revenue-economics",
++        "durable-observation",
++        "privacy-bounded",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-ledger-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-ledger-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-ledger-mutations.ts",
++          "sha256": "382281109985223e57dabf5572c951b0fa231ec7d9c617ba374ce4eb8384f949"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-ledger.ts",
++          "sha256": "e6f7546968ef16f5827b6a6f994f36bb59bb69bb3b0968967b102c1977eb3f90"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
++          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-worker.ts",
++          "sha256": "523813cd835c6665dbd6df38e99026ae23ffdf29d3e00e7d36615dccb69c3432"
++        }
++      ],
++      "slices": [
++        "revenue-economics",
++        "durable-observation",
++        "privacy-bounded",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-free-first-validation",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-free-first-validation.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-free-first-validation.ts",
++          "sha256": "84536db50fb6aa5e78c87fa8c45884de8b9f465315be74ac912442db60418bf8"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
++          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
++        }
++      ],
++      "slices": [
++        "free-first-evidence",
++        "hypothetical-economics",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-free-first-validation-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-free-first-validation-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-free-first-validation-mutations.ts",
++          "sha256": "ad54a3779e86deb996478a8a58379322a534d0e1a4082aeefffd2b7526d65159"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-free-first-validation.ts",
++          "sha256": "84536db50fb6aa5e78c87fa8c45884de8b9f465315be74ac912442db60418bf8"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
++          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
++        }
++      ],
++      "slices": [
++        "free-first-evidence",
++        "hypothetical-economics",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-offer-factory",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-offer-factory.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-offer-factory.ts",
++          "sha256": "8412c2850c9e3c066ffc648e1a7704ee35e43fa5c73609df3b3a091b133d2af6"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
++          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
++        }
++      ],
++      "slices": [
++        "offer-fulfillment-proof",
++        "delivery-capacity",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-offer-factory-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-offer-factory-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-offer-factory-mutations.ts",
++          "sha256": "b224fe7d39d6cb5f00c0f40ad7a5c2801289a63da0b863282fed001de8e0659f"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-offer-factory.ts",
++          "sha256": "8412c2850c9e3c066ffc648e1a7704ee35e43fa5c73609df3b3a091b133d2af6"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
++          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
++        }
++      ],
++      "slices": [
++        "offer-fulfillment-proof",
++        "delivery-capacity",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-fulfillment-gate",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-fulfillment-gate.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-fulfillment-gate.ts",
++          "sha256": "6e6520e3c9d0fc9276ed22c4586d8b117afdfb7f0bc05ed6d5c5bdc541996f82"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
++          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
++        }
++      ],
++      "slices": [
++        "fulfillment-quality",
++        "delivery-manifest",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-fulfillment-gate-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-fulfillment-gate-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-fulfillment-gate-mutations.ts",
++          "sha256": "a315d838021e8aab7988d4236dd864757726b020cc0291ed9d3633b3456a4b58"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-fulfillment-gate.ts",
++          "sha256": "6e6520e3c9d0fc9276ed22c4586d8b117afdfb7f0bc05ed6d5c5bdc541996f82"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
++          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
++        }
++      ],
++      "slices": [
++        "fulfillment-quality",
++        "delivery-manifest",
++        "no-spend-authority",
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-etsy-adapter",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
++          "sha256": "7bc8ae082df2fcc08e95a2b1cd7963a7f36957c498baa49df65e3d91512efc77"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
++          "sha256": "99fba49229ecb707ec76b6ab2d232e7a7991334d62a587eba224cd1d15115440"
++        }
++      ],
++      "slices": [
++        "official-api-read",
++        "credential-boundary",
++        "pii-minimized",
++        "no-external-write"
++      ]
++    },
++    {
++      "id": "revenue-etsy-adapter-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-etsy-adapter-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-etsy-adapter-mutations.ts",
++          "sha256": "70642884b98c0ec77acf2427ba190e5222f5cead245ac8d9c0787e13940be7b2"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-etsy-adapter.ts",
++          "sha256": "7bc8ae082df2fcc08e95a2b1cd7963a7f36957c498baa49df65e3d91512efc77"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-etsy-fixture.ts",
++          "sha256": "99fba49229ecb707ec76b6ab2d232e7a7991334d62a587eba224cd1d15115440"
++        }
++      ],
++      "slices": [
++        "official-api-read",
++        "credential-boundary",
++        "pii-minimized",
++        "no-external-write"
++      ]
++    },
++    {
++      "id": "revenue-upwork-adapter",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-upwork-adapter.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-upwork-adapter.ts",
++          "sha256": "1db4117f36cecca16b0b1899dbfaa17b81f1eb5913ef65cb74d687f8428e1842"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-upwork-fixture.ts",
++          "sha256": "b2add520b957bae6e5d9ea6306bb33d0f83e2570f34cd30d3ea0889ae995d9d4"
++        }
++      ],
++      "slices": [
++        "synthetic-mcp-schema-pins",
++        "owner-interactive-only",
++        "no-external-write",
++        "official-qualification-pending"
++      ]
++    },
++    {
++      "id": "revenue-upwork-adapter-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-upwork-adapter-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-upwork-adapter-mutations.ts",
++          "sha256": "a4a56e6d1fe8165ffef43d12992523e711513288eb96147c0b73c95063cf9a1c"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-upwork-adapter.ts",
++          "sha256": "1db4117f36cecca16b0b1899dbfaa17b81f1eb5913ef65cb74d687f8428e1842"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-upwork-fixture.ts",
++          "sha256": "b2add520b957bae6e5d9ea6306bb33d0f83e2570f34cd30d3ea0889ae995d9d4"
++        }
++      ],
++      "slices": [
++        "synthetic-mcp-schema-pins",
++        "owner-interactive-only",
++        "no-external-write",
++        "official-qualification-pending"
++      ]
++    },
++    {
++      "id": "revenue-fiverr-adapter",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-fiverr-adapter.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-fiverr-adapter.ts",
++          "sha256": "c2756112eb62cf3ce50c2dd7e1f82a14d308b7ca209c0dffc3f4c87d7be399b1"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fiverr-fixture.ts",
++          "sha256": "1f3ee2dc40b090e62b38fdd131d7d64784193e393e3ad99a6f61e382effe2138"
++        }
++      ],
++      "slices": [
++        "manual-only-drafts",
++        "owner-reported-not-certified",
++        "strict-owner-import",
++        "no-external-write"
++      ]
++    },
++    {
++      "id": "revenue-fiverr-adapter-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-fiverr-adapter-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-fiverr-adapter-mutations.ts",
++          "sha256": "3e4e38a243c3fb03e3ebda920a1e81874efe41106b5c430637df86c9dc99f5b9"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-fiverr-adapter.ts",
++          "sha256": "c2756112eb62cf3ce50c2dd7e1f82a14d308b7ca209c0dffc3f4c87d7be399b1"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fiverr-fixture.ts",
++          "sha256": "1f3ee2dc40b090e62b38fdd131d7d64784193e393e3ad99a6f61e382effe2138"
++        }
++      ],
++      "slices": [
++        "manual-only-drafts",
++        "owner-reported-not-certified",
++        "strict-owner-import",
++        "no-external-write"
++      ]
++    },
++    {
++      "id": "course-production-plan",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-course-production-plan.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-course-production-plan.ts",
++          "sha256": "3dc36cf4ea53c8af960aa18f9b9af3d6b14b746163a5619cbac52cad65668b4c"
++        },
++        {
++          "file": "scripts/fixtures/ayas-course-fixture.ts",
++          "sha256": "c52976549a1fc88fbd24144dfca916ac01488cef3866d62ea15401927301ace5"
++        }
++      ],
++      "slices": [
++        "synthetic-only",
++        "owner-upload-only",
++        "course-quality-evidence",
++        "coarse-token-get-policy",
++        "partial-endpoint-qualification"
++      ]
++    },
++    {
++      "id": "revenue-udemy-adapter",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
++          "sha256": "dcfc41b49c23b355dbc920c0edf4b6ac8b359973c5436d250f78a11bf570dd2e"
++        },
++        {
++          "file": "scripts/fixtures/ayas-udemy-fixture.ts",
++          "sha256": "e298d5563246956895fa695c45799a0a0fa6eebbc621ca1d1d6fe9ddbed49ce2"
++        },
++        {
++          "file": "scripts/fixtures/ayas-course-fixture.ts",
++          "sha256": "c52976549a1fc88fbd24144dfca916ac01488cef3866d62ea15401927301ace5"
++        }
++      ],
++      "slices": [
++        "synthetic-only",
++        "owner-upload-only",
++        "course-quality-evidence",
++        "coarse-token-get-policy",
++        "partial-endpoint-qualification"
++      ]
++    },
++    {
++      "id": "revenue-udemy-course-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-udemy-course-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-udemy-course-mutations.ts",
++          "sha256": "2f20420bd70871b8e984bf47101bc9a647b603e5929418b9faba85559b8a1a17"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-udemy-adapter.ts",
++          "sha256": "dcfc41b49c23b355dbc920c0edf4b6ac8b359973c5436d250f78a11bf570dd2e"
++        },
++        {
++          "file": "scripts/smoke-ayas-course-production-plan.ts",
++          "sha256": "3dc36cf4ea53c8af960aa18f9b9af3d6b14b746163a5619cbac52cad65668b4c"
++        },
++        {
++          "file": "scripts/fixtures/ayas-udemy-fixture.ts",
++          "sha256": "e298d5563246956895fa695c45799a0a0fa6eebbc621ca1d1d6fe9ddbed49ce2"
++        },
++        {
++          "file": "scripts/fixtures/ayas-course-fixture.ts",
++          "sha256": "c52976549a1fc88fbd24144dfca916ac01488cef3866d62ea15401927301ace5"
++        }
++      ],
++      "slices": [
++        "synthetic-only",
++        "owner-upload-only",
++        "course-quality-evidence",
++        "coarse-token-get-policy",
++        "partial-endpoint-qualification"
++      ]
++    },
++    {
++      "id": "revenue-lemon-adapter",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
++          "sha256": "6d5c58d27e4bd1bba193210178270124ac8098a6143f85afd01b1133dce52b16"
++        },
++        {
++          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
++          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
++          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
++          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
++        }
++      ],
++      "slices": [
++        "synthetic-only",
++        "test-live-boundary",
++        "official-rest-get-only",
++        "canonical-parent-proof",
++        "signed-webhook-pointer",
++        "no-live-write-binding",
++        "owner-test-mode-proof-pending"
++      ]
++    },
++    {
++      "id": "revenue-lemon-adapter-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-lemon-adapter-mutations.ts",
++          "sha256": "c0b80ef0eb01e5fa11764f0961bff0929b2a8207421e172525e63e2bee5ef9da"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-lemon-adapter.ts",
++          "sha256": "6d5c58d27e4bd1bba193210178270124ac8098a6143f85afd01b1133dce52b16"
++        },
++        {
++          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
++          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-offer-fixture.ts",
++          "sha256": "bb92d3025fa11056d65ebe3642a1c71a374d955ab32f026787c4aa825968c494"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fulfillment-fixture.ts",
++          "sha256": "57f4f3283ca27960996e2b08f0371f40f616c585d6917d17fdb3c50b9568e707"
++        }
++      ],
++      "slices": [
++        "synthetic-only",
++        "test-live-boundary",
++        "official-rest-get-only",
++        "canonical-parent-proof",
++        "signed-webhook-pointer",
++        "no-live-write-binding",
++        "owner-test-mode-proof-pending"
++      ]
++    },
++    {
++      "id": "revenue-reinvestment-policy",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
++          "sha256": "93ebf1320fd90ba4d37063433561e8af7dd44a0a52b1f58c56b9594d254444be"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
++          "sha256": "3c5db7b98b2423f5bf0b89fe67846c1e43871458b01b3c8b3d17585b5c6595b0"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
++          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
++          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
++        }
++      ],
++      "slices": [
++        "synthetic-only",
++        "realized-ledger-not-estimates",
++        "default-disabled-zero-spend",
++        "owner-source-policy-not-approval",
++        "same-currency-settled-profit",
++        "bounded-advisory-only"
++      ]
++    },
++    {
++      "id": "revenue-reinvestment-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-reinvestment-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-reinvestment-mutations.ts",
++          "sha256": "5194365cc200d8a22e8a43704d1111293bcc275703feb74d3c43421a49fc1b7e"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-reinvestment-fixture.ts",
++          "sha256": "3c5db7b98b2423f5bf0b89fe67846c1e43871458b01b3c8b3d17585b5c6595b0"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
++          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-free-first-fixture.ts",
++          "sha256": "d687d75ecd236be31aa77a946ff5d53e9fba80457a767cc46abf0dd8489f6db0"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-reinvestment-policy.ts",
++          "sha256": "93ebf1320fd90ba4d37063433561e8af7dd44a0a52b1f58c56b9594d254444be"
++        }
++      ],
++      "slices": [
++        "synthetic-only",
++        "realized-ledger-not-estimates",
++        "default-disabled-zero-spend",
++        "owner-source-policy-not-approval",
++        "same-currency-settled-profit",
++        "bounded-advisory-only"
++      ]
++    },
++    {
++      "id": "revenue-memory",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-memory.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-memory.ts",
++          "sha256": "0fad2426f25d854711cc817d49c2ffd3189db892cc14914ee7938d2f333d40df"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-memory-fixture.ts",
++          "sha256": "5173431a20a60159410d75a2f458d1ab84ffc9da000a953e361026130084d44a"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-intelligence",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-intelligence.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-intelligence.ts",
++          "sha256": "d8f3d4cb41b818ece0b510b6939e02594c41bf7aed72e426846c4572e9b1f81b"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-memory-fixture.ts",
++          "sha256": "5173431a20a60159410d75a2f458d1ab84ffc9da000a953e361026130084d44a"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
++          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-memory-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-memory-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-memory-mutations.ts",
++          "sha256": "42f432f9b9bcfc5e2c3e57085e552e147fd17a2e6cb9378c9481b4ab79db7275"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-memory-fixture.ts",
++          "sha256": "5173431a20a60159410d75a2f458d1ab84ffc9da000a953e361026130084d44a"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-ledger-fixture.ts",
++          "sha256": "c57b543ce9d54388f2f6a704843775d203c0ac0c23341edeb8cf137d46fb9b89"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-memory.ts",
++          "sha256": "0fad2426f25d854711cc817d49c2ffd3189db892cc14914ee7938d2f333d40df"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-intelligence.ts",
++          "sha256": "d8f3d4cb41b818ece0b510b6939e02594c41bf7aed72e426846c4572e9b1f81b"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-security",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-security.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-security.ts",
++          "sha256": "86125456d4af5e4fdd139517d2fe3a31e1ed2ed45780dbb8620ab3ed35b81265"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-security-fixture.ts",
++          "sha256": "3efdb7f112e4212f0a8434792075930119c46f80e8fb2161ab74a7b5f400c65b"
++        },
++        {
++          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
++          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
++          "sha256": "aa773ce2bbca18abf958704726af1e07e19479eb1dd28d0baaab495fcd66f95a"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-security-adversarial",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-security-adversarial.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/adversarial-ayas-revenue-security.ts",
++          "sha256": "29fbfad86f8a3b76d0add891e94674da879be7b5787910488228901be4993765"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-security-fixture.ts",
++          "sha256": "3efdb7f112e4212f0a8434792075930119c46f80e8fb2161ab74a7b5f400c65b"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-security-adversarial.ts",
++          "sha256": "6303dd69675b34386334a380fe5e9920b3747214460a7684610f03a9cd800535"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-security-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-security-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-security-mutations.ts",
++          "sha256": "0f141358c05b3f874b633cbcb95a693567f2264ef02b7404bbefe303ef861c2e"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-security.ts",
++          "sha256": "86125456d4af5e4fdd139517d2fe3a31e1ed2ed45780dbb8620ab3ed35b81265"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-security.ts",
++          "sha256": "29fbfad86f8a3b76d0add891e94674da879be7b5787910488228901be4993765"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-security-fixture.ts",
++          "sha256": "3efdb7f112e4212f0a8434792075930119c46f80e8fb2161ab74a7b5f400c65b"
++        },
++        {
++          "file": "scripts/fixtures/ayas-lemon-fixture.ts",
++          "sha256": "e3122e18ab2d3aff0660eb3bd85c97436da8dfb755320d720f9df68de4d11b93"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-fake-adapter.ts",
++          "sha256": "aa773ce2bbca18abf958704726af1e07e19479eb1dd28d0baaab495fcd66f95a"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-compliance",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-compliance.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-compliance.ts",
++          "sha256": "d32d3e9a9a2c8601dcef4280c5ec2733173f731c8dc2269ad2e7d429de17f533"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
++          "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-compliance-adversarial",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-compliance-adversarial.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-compliance-adversarial.ts",
++          "sha256": "876b33025aaf473f3803f11fa2e1140d5d02672a35447f853d77f435beac5bea"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-compliance.ts",
++          "sha256": "1c22e6d28f98da8503ff57612cdf9870a532a34b372675dddd112dab28b2b617"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
++          "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-compliance-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-compliance-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-compliance-mutations.ts",
++          "sha256": "024ed14311d55afbe4986ce5a7c63a09059e1b715de2f3ff1b96ed62a33a8598"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-compliance.ts",
++          "sha256": "d32d3e9a9a2c8601dcef4280c5ec2733173f731c8dc2269ad2e7d429de17f533"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-compliance.ts",
++          "sha256": "1c22e6d28f98da8503ff57612cdf9870a532a34b372675dddd112dab28b2b617"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-compliance-fixture.ts",
++          "sha256": "18fe1efbb8bd45f4c26e24e13d38fb2a2d21944d825d75b8aebf9c8c5fb08822"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-low-cost-pilot",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
++          "sha256": "46319880a4bce9c7321d5da1d9ecb076d67e16eb1c14562288b891abcee1dbc6"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
++          "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-low-cost-pilot-adversarial",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-low-cost-pilot-adversarial.ts",
++          "sha256": "6d920895bb0e8e7b9d9a8bec8cba84d7274dfc39245e3458163dd59f1098208c"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
++          "sha256": "8760a13d6e055f0697604a155a38bb6874fbb69337f6ddb44c1d76883d2f4beb"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
++          "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-low-cost-pilot-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-low-cost-pilot-mutations.ts",
++          "sha256": "f29dfe5f4732e7ed4c8b02b1b0fd85d774aef00e643a0f5fe07250c866bf83ec"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-low-cost-pilot.ts",
++          "sha256": "46319880a4bce9c7321d5da1d9ecb076d67e16eb1c14562288b891abcee1dbc6"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-low-cost-pilot.ts",
++          "sha256": "8760a13d6e055f0697604a155a38bb6874fbb69337f6ddb44c1d76883d2f4beb"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-pilot-fixture.ts",
++          "sha256": "eb6a6c414a4c16938bb2c5ddcb58ac2c7e7fcb714b8380a467b412ee51973377"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-profit-gated-scaling",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-profit-gated-scaling.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling.ts",
++          "sha256": "d839f6cc1673697d80a5b508b2a9b1ef51a2b7a089ee47d6e9922b8d811bfc18"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
++          "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-profit-gated-scaling-adversarial",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-profit-gated-scaling-adversarial.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling-adversarial.ts",
++          "sha256": "c7b7bde8e3297b2df0f0abb3d50b9695a26d5f05dc48cbe6e4ff4104d6d46add"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-profit-gated-scaling.ts",
++          "sha256": "43d731c2e443a2d79010e40dbe54ee4c8abe119dbfcb80b1349591faef31e0bd"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
++          "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-profit-gated-scaling-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-profit-gated-scaling-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling-mutations.ts",
++          "sha256": "2c876a6d9d6eee34d6422004e5f2b3a0b7f62090d9fc78bd765bc1ec56d6fe59"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-profit-gated-scaling.ts",
++          "sha256": "d839f6cc1673697d80a5b508b2a9b1ef51a2b7a089ee47d6e9922b8d811bfc18"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-profit-gated-scaling.ts",
++          "sha256": "43d731c2e443a2d79010e40dbe54ee4c8abe119dbfcb80b1349591faef31e0bd"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-scaling-fixture.ts",
++          "sha256": "a30b76ec6d61516c427372fe0ad9608fdb6152d4e53b49a5ab016db0ca2cf4b3"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-center-closure",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-center-closure.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-center-closure.ts",
++          "sha256": "98a873d126876836bb23af7ea8da28860db0cea073922685c76323f66f334cda"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
++          "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-center-closure-adversarial",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-center-closure-adversarial.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-center-closure-adversarial.ts",
++          "sha256": "f3cc6b6073330bb5aa1d5bea88ef4dfa547f55c9905713b6c2602532f7b1eb7b"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
++          "sha256": "0262fd4561dfba826131e43f6255b2620f62e5b96b8e4d8bbe8cca8b5c56e0fb"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
++          "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "revenue-center-closure-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-revenue-center-closure-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-revenue-center-closure-mutations.ts",
++          "sha256": "19370a0acae17af4cf27701ab96594ba4c02e054c5d3cd154d7f2d0df78fb023"
++        },
++        {
++          "file": "scripts/smoke-ayas-revenue-center-closure.ts",
++          "sha256": "98a873d126876836bb23af7ea8da28860db0cea073922685c76323f66f334cda"
++        },
++        {
++          "file": "scripts/adversarial-ayas-revenue-center-closure.ts",
++          "sha256": "0262fd4561dfba826131e43f6255b2620f62e5b96b8e4d8bbe8cca8b5c56e0fb"
++        },
++        {
++          "file": "scripts/fixtures/ayas-revenue-closure-fixture.ts",
++          "sha256": "74ba535f3c67422ad664e97232090d39595a3413a8ff297e0b9ff643c27c78e4"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "system-audit",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-system-audit.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-system-audit.ts",
++          "sha256": "39f92de6d82a9199f547e22d7425aa84efff9d22505af59fd907582ee9d508ee"
++        },
++        {
++          "file": "scripts/fixtures/ayas-system-audit-fixture.ts",
++          "sha256": "57967945f7f619b10558ebb4ae8f277bd1ad7da0f1ddf221861235697ffbb580"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "system-audit-adversarial",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-system-audit-adversarial.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-system-audit-adversarial.ts",
++          "sha256": "9c8c13ac7e597da90dbc38bb113ecc5db29d70ba6d944a505666925d3b817661"
++        },
++        {
++          "file": "scripts/adversarial-ayas-system-audit.ts",
++          "sha256": "5e63a378e050117a91fedea7d8404a74fc4cde96232ac90307ef119063c8252e"
++        },
++        {
++          "file": "scripts/fixtures/ayas-system-audit-fixture.ts",
++          "sha256": "57967945f7f619b10558ebb4ae8f277bd1ad7da0f1ddf221861235697ffbb580"
++        },
++        {
++          "file": "scripts/fixtures/ayas-system-audit-held.ts",
++          "sha256": "bf21dc84288dba5b8d8d42201b8b4e376f400a77b4e22123acd9d16019bec6a7"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    },
++    {
++      "id": "system-audit-mutations",
++      "kind": "REGRESSION",
++      "script": "scripts/smoke-ayas-system-audit-mutations.ts",
++      "args": [],
++      "grading": "EXIT_STATUS",
++      "pins": [
++        {
++          "file": "scripts/smoke-ayas-system-audit-mutations.ts",
++          "sha256": "7670014a4ec4530a3e2ff71b2dc0a931412cd54bd72a9f5fcd862b488920567f"
++        },
++        {
++          "file": "scripts/smoke-ayas-system-audit.ts",
++          "sha256": "39f92de6d82a9199f547e22d7425aa84efff9d22505af59fd907582ee9d508ee"
++        },
++        {
++          "file": "scripts/adversarial-ayas-system-audit.ts",
++          "sha256": "5e63a378e050117a91fedea7d8404a74fc4cde96232ac90307ef119063c8252e"
++        },
++        {
++          "file": "scripts/fixtures/ayas-system-audit-fixture.ts",
++          "sha256": "57967945f7f619b10558ebb4ae8f277bd1ad7da0f1ddf221861235697ffbb580"
++        },
++        {
++          "file": "scripts/fixtures/ayas-system-audit-held.ts",
++          "sha256": "bf21dc84288dba5b8d8d42201b8b4e376f400a77b4e22123acd9d16019bec6a7"
++        }
++      ],
++      "slices": [
++        "deterministic-outcome"
++      ]
++    }
++  ],
++  "excluded": [
++    {
++      "scope": "live-* / observer-autostart / provider and deployed runtime suites",
++      "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
++    },
++    {
++      "scope": "local-coding qualification and model binaries",
++      "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
++    },
++    {
++      "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
++      "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
++    },
++    {
++      "scope": "Model grading and owner/human benchmark calibration",
++      "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
++    }
++  ]
++}
+diff --git a/scripts/smoke-ayas-golden-vault.ts b/scripts/smoke-ayas-golden-vault.ts
+index 449050b..8eb88e1 100644
+--- a/scripts/smoke-ayas-golden-vault.ts
++++ b/scripts/smoke-ayas-golden-vault.ts
+@@ -116,11 +116,16 @@ scenario("the vault of record: clean chain, pins equal the working tree and each
+   assert.deepEqual(AYAS_GOLDEN_VAULT_VERSIONS.map((vault) => ayasGoldenVaultDigest(vault)), [
+     "1532277d2b7220fbc6eb774dbd623e648e5cab74e17cdb7ad3953584eedeba1c",
+     "5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f",
++    "4cc8762192344fb7d052d4d9b281b327661ec0840688e642c6bb7fe79824efd5",
+   ]);
+   // Version 2 kept every case of version 1 with the same pinned bytes and added the golden video projects.
+-  const [first, second] = AYAS_GOLDEN_VAULT_VERSIONS; assert.ok(first && second);
++  const [first, second, third] = AYAS_GOLDEN_VAULT_VERSIONS; assert.ok(first && second && third);
+   for (const entry of first.cases) assert.deepEqual(second.cases.find((candidate) => candidate.id === entry.id), entry, entry.id);
+   assert.deepEqual(second.cases.filter((entry) => !first.cases.some((candidate) => candidate.id === entry.id)).map((entry) => [entry.id, entry.domain]), [["golden.video.historical-projects", "HISTORICAL_VIDEO"]]);
++  // Version 3 moved only the frozen retrieval case to its exact12 successor grader; every other case and every gap is version 2's.
++  assert.deepEqual(third.cases.map((entry) => entry.id), second.cases.map((entry) => entry.id)); assert.deepEqual(third.gaps, second.gaps);
++  for (const entry of second.cases) if (entry.id !== "golden.memory.retrieval-evaluation") assert.deepEqual(third.cases.find((candidate) => candidate.id === entry.id), entry, entry.id);
++  assert.equal(third.cases.find((entry) => entry.id === "golden.memory.retrieval-evaluation")?.script, "scripts/smoke-ayas-retrieval-evaluation-v3.ts");
+   assert.equal(AYAS_GOLDEN_VAULT, AYAS_GOLDEN_VAULT_VERSIONS[AYAS_GOLDEN_VAULT_VERSIONS.length - 1]);
+   assert.ok(Object.isFrozen(AYAS_GOLDEN_VAULT_VERSIONS) && Object.isFrozen(AYAS_GOLDEN_VAULT_PINNED_FILES));
+   assert.deepEqual(verifyAyasGoldenVaultPins(AYAS_GOLDEN_VAULT, (file) => fs.readFileSync(path.join(repo, file))), []);
+diff --git a/scripts/smoke-ayas-retrieval-evaluation-v3.ts b/scripts/smoke-ayas-retrieval-evaluation-v3.ts
+new file mode 100644
+index 0000000..1620bf3
+--- /dev/null
++++ b/scripts/smoke-ayas-retrieval-evaluation-v3.ts
+@@ -0,0 +1,562 @@
++/** CF49 exact12 successor of the frozen scripts/smoke-ayas-retrieval-evaluation.ts: the same bytes except that the 12 CF49-reviewed IMPROVED rows leave KNOWN_LIMITATIONS. The original grader, its raw exit 1 and the CF49 review are unchanged. */
++/**
++ * AYAS Retrieval Evaluation — deterministic quality benchmark + regression gate.
++ *
++ *   npx tsx scripts/smoke-ayas-retrieval-evaluation.ts                 # gate (exit 1 on regression)
++ *   npx tsx scripts/smoke-ayas-retrieval-evaluation.ts --report <TEMP file> # also write the JSON artifact
++ *   npx tsx scripts/smoke-ayas-retrieval-evaluation.ts --failures      # also print safe failure rows
++ *   npx tsx scripts/smoke-ayas-retrieval-evaluation.ts --explain <id>  # debug one case, no gate
++ *
++ * Grades the real retrieval → context → chat path against implementation-
++ * independent ground truth (`fixtures/ayas-retrieval-evaluation-cases.ts`),
++ * per layer (candidate / ranking / recall block / chat prompt), then gates:
++ *   - every case not listed in KNOWN_LIMITATIONS passes every layer; a listed
++ *     case may fail only its declared layers and must still fail (a fixed
++ *     limitation has to be removed from the list);
++ *   - 100% / 0% invariants (exclusive-slot staleness, future/historical as
++ *     current, forget, explicit as-of, exact negatives, no network);
++ *   - aggregate floors/ceilings at the verified post-remediation values;
++ *   - determinism (repeat run, shuffled write order, time zones), linear
++ *     scaling, fail-closed error cases, isolation, trace privacy, the
++ *     end-to-end chat chains, and no fixture text in production source.
++ *
++ * TEMP-only (see the evaluator header): no live memory, runtime, authority,
++ * provider or network. No LLM judges anything here.
++ */
++
++import assert from "node:assert/strict";
++import { execFileSync } from "node:child_process";
++import { createHash } from "node:crypto";
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
++
++import { recallAyasMemoryWithTrace } from "../src/lib/ayas/memory/AyasMemoryRecall";
++import { retrieveAyasMemory } from "../src/lib/ayas/memory/AyasMemoryRetrieval";
++import { createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
++import { BoundedAyasTraceStore, startAyasTrace } from "../src/lib/ayas/trace/AyasUnifiedTrace";
++import { buildBrainMemoryRecord } from "../src/lib/brain/BrainMemoryModel";
++import { generateAyasRenderToolSupersessionPatch } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
++import type { BrainMemoryRecordInput } from "../src/types/brainMemory";
++import {
++  AYAS_RETRIEVAL_EVALUATION_CASES,
++  AYAS_RETRIEVAL_EVALUATION_FIXTURE_VERSION,
++  EVAL_NOW,
++} from "./fixtures/ayas-retrieval-evaluation-cases";
++import {
++  assertAyasRetrievalTempRoot,
++  benchmarkAyasRetrievalScale,
++  buildAyasRetrievalReport,
++  computeAyasRetrievalMetrics,
++  createAyasRetrievalRunRoot,
++  evaluateAyasRetrieval,
++  evaluateAyasRetrievalCase,
++  explainAyasRetrievalCase,
++  ayasRetrievalFailureRows,
++  removeAyasRetrievalRunRoot,
++  runAyasRetrievalChatTurn,
++  stableAyasRetrievalView,
++  withAyasRetrievalNetworkGuard,
++  type AyasRetrievalCaseResult,
++  type AyasRetrievalFailureClass,
++  type AyasRetrievalLayer,
++} from "./lib/AyasRetrievalEvaluation";
++import type { AyasRetrievalCase } from "./fixtures/ayas-retrieval-evaluation-cases";
++
++/* ------------------------------------------------------------------ */
++/* Reviewed limitations (baseline classification, Phase 10–11)          */
++/* ------------------------------------------------------------------ */
++
++interface KnownLimitation {
++  readonly classification: AyasRetrievalFailureClass;
++  /** Layers this case is allowed to fail; any other failing layer is a regression. */
++  readonly layers: readonly AyasRetrievalLayer[];
++  readonly reason: string;
++}
++
++const FREE_TEXT = "free text has no exclusive slot, so an explicitly replaced plan/decision stays current next to its replacement (Memory Temporal v2 design gap)";
++const CHAT_GATE = "the chat relevance gate needs two shared roots (or one of 7+ letters) before memory reaches the prompt — deliberate anti-leak design, unchanged";
++const SAME_TOPIC = "lexical retrieval cannot tell attributes of one topic apart; the right record ranks first but top-K fills with same-topic records";
++const RANK_CTX: readonly AyasRetrievalLayer[] = ["ranking", "recall-context", "chat-context"];
++
++const KNOWN_LIMITATIONS: Readonly<Record<string, KnownLimitation>> = {
++  "syn-pc-colloquial": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: FREE_TEXT },
++  "contradiction-free-text-coffee": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: FREE_TEXT },
++  "asof-pc-july-detected": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: `${FREE_TEXT}; its unknown start makes it "possible" in an earlier window` },
++  "distractor-pc-heavy-current": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: `${FREE_TEXT}; ${SAME_TOPIC}` },
++  "para-length-how": { classification: "CONTEXT_ASSEMBLY", layers: ["chat-context"], reason: CHAT_GATE },
++  "syn-length-yanit": { classification: "CONTEXT_ASSEMBLY", layers: ["chat-context"], reason: CHAT_GATE },
++  "superseded-length-old-wording": { classification: "CONTEXT_ASSEMBLY", layers: ["chat-context"], reason: CHAT_GATE },
++  "history-length-used-to": { classification: "CONTEXT_ASSEMBLY", layers: ["chat-context"], reason: CHAT_GATE },
++  "heldout-voice-length": { classification: "CONTEXT_ASSEMBLY", layers: ["chat-context"], reason: CHAT_GATE },
++  "attribute-pc-ram": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: SAME_TOPIC },
++  "attribute-pc-current-card": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: SAME_TOPIC },
++  "heldout-ram-bellek": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: `${SAME_TOPIC}; retrieval ranking still lacks "bellek"/"RAM" synonymy` },
++  "none-same-word-other-meaning": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: "a general question sharing a word with personal memories is indistinguishable lexically" },
++  "syn-edit-montaj": { classification: "EXPECTED_LIMITATION", layers: ["candidate", ...RANK_CTX], reason: "no synonym lexicon (montaj/kurgu); no embeddings by design" },
++  "future-plan-question": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: "plans are reachable only through as-of/history; current recall never presents a plan (by design)" },
++  "seed:identity-known-at-january": { classification: "QUERY_NORMALIZATION", layers: ["query", "chat-context"], reason: 'the temporal detector does not read "<month> sonunda … biliniyordu" (explicit query is correct)' },
++};
++
++/**
++ * Verified post-remediation values (Phase 21). Floors may only rise; a drop
++ * is a regression. Error rates are ceilings.
++ */
++const FLOORS = {
++  candidateRecall: 0.983,
++  recallAt1: 0.862,
++  recallAtK: 0.967,
++  hitRateAt1: 0.903,
++  hitRateAtK: 0.967,
++  mrr: 0.924,
++  precisionAt1: 0.918,
++  selectionPrecision: 0.728,
++  queryModeAccuracy: 0.972,
++  currentCorrectRate: 0.596,
++  historyCorrectRate: 1,
++  asOfCorrectRate: 0.666,
++  conflictCorrectRate: 0.8,
++  abstentionCorrectRate: 0.916,
++  recallRequiredDelivered: 0.967,
++  chatRequiredDelivered: 0.816,
++  heldOutHitRateAtK: 1,
++  heldOutMrr: 0.833,
++} as const;
++const CEILINGS = {
++  staleSelectionRate: 0.378,
++  falsePositiveSelectionRate: 0.084,
++  distractorSelectionRate: 0.091,
++  recallStaleContext: 0.378,
++  recallContradictoryContext: 0.422,
++  chatStaleContext: 0.387,
++  chatContradictoryContext: 0.369,
++  chatDistractorDelivery: 0.073,
++  chatAbstainLeak: 0.084,
++  /** retrieval(2000 records) / retrieval(500): linear ≈ 4, quadratic ≈ 16. */
++  scaleRatio: 10,
++} as const;
++
++/* ------------------------------------------------------------------ */
++
++const gateFailures: string[] = [];
++function gate(condition: boolean, message: string): void {
++  if (!condition) gateFailures.push(message);
++}
++function atLeast(name: string, value: number | null, floor: number): void {
++  gate(value !== null && value >= floor, `${name} ${value?.toFixed(4) ?? "n/a"} < floor ${floor}`);
++}
++function atMost(name: string, value: number | null, ceiling: number): void {
++  gate(value !== null && value <= ceiling, `${name} ${value?.toFixed(4) ?? "n/a"} > ceiling ${ceiling}`);
++}
++const pct = (value: number | null) => (value === null ? "n/a" : `${(value * 100).toFixed(1)}%`);
++
++function argValue(flag: string): string | undefined {
++  const index = process.argv.indexOf(flag);
++  return index >= 0 ? process.argv[index + 1] : undefined;
++}
++
++function commit(): string {
++  try {
++    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
++    const dirty = execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim().length > 0;
++    return dirty ? `${head}+dirty` : head;
++  } catch {
++    return "unknown";
++  }
++}
++
++function fold(text: string): string {
++  return text.toLocaleLowerCase("tr").replace(/[İıI]/g, "i").replace(/ç/g, "c").replace(/ö/g, "o").replace(/ü/g, "u")
++    .replace(/ş/g, "s").replace(/ğ/g, "g").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
++}
++
++function identityInput(name: string, observedAt: string): BrainMemoryRecordInput {
++  return {
++    kind: "user-preference", title: "Kullanıcı kimliği / hitap tercihi", body: `beni ${name} olarak hatırla`,
++    importance: "durable", confidence: "reported", tags: ["kimlik"], observedAt, links: [],
++    temporal: { assertion: "current", provenance: "direct-user-statement", recordedAt: observedAt, factKey: "user.identity.name", factValue: name.toLocaleLowerCase("tr") },
++  };
++}
++
++function sha(file: string): string {
++  return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
++}
++
++/* ------------------------------------------------------------------ */
++
++/** Exact Stage 15.7 candidate evidence; ordinary baseline and unrelated diffs return null. */
++function renderToolCandidateEvidence(): { readonly baseHead: string; readonly diffSha256: string; readonly candidateSourceSha256: string } | null {
++  const target = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
++  try {
++    const changed = execFileSync("git", ["diff", "--name-only", "HEAD", "--"], { cwd: process.cwd(), encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
++    if (changed.length !== 1 || changed[0] !== target) return null;
++    const baseHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
++    const base = execFileSync("git", ["show", `HEAD:${target}`], { cwd: process.cwd(), encoding: "utf8", maxBuffer: 1_000_000 });
++    const actual = fs.readFileSync(path.join(process.cwd(), target), "utf8");
++    if (actual !== generateAyasRenderToolSupersessionPatch(base)) return null;
++    const diff = execFileSync("git", ["diff", "--no-ext-diff", "--binary", "HEAD", "--", target], { cwd: process.cwd(), encoding: "utf8", maxBuffer: 1_000_000 });
++    return { baseHead, diffSha256: createHash("sha256").update(diff, "utf8").digest("hex"), candidateSourceSha256: createHash("sha256").update(actual, "utf8").digest("hex") };
++  } catch { return null; }
++}
++
++async function checkLimitations(results: readonly AyasRetrievalCaseResult[]): Promise<readonly { readonly caseId: string; readonly status: "RESOLVED_KNOWN_LIMITATION"; readonly evidence: NonNullable<ReturnType<typeof renderToolCandidateEvidence>> }[]> {
++  const candidateEvidence = renderToolCandidateEvidence();
++  const resolved: { caseId: string; status: "RESOLVED_KNOWN_LIMITATION"; evidence: NonNullable<ReturnType<typeof renderToolCandidateEvidence>> }[] = [];
++  const ids = new Set(results.map((r) => r.caseId));
++  for (const id of Object.keys(KNOWN_LIMITATIONS)) gate(ids.has(id), `limitation ${id} names no case`);
++  for (const result of results) {
++    const limitation = KNOWN_LIMITATIONS[result.caseId];
++    const failed = (Object.keys(result.layerPass) as AyasRetrievalLayer[]).filter((layer) => !result.layerPass[layer]);
++    if (!limitation) {
++      gate(result.pass, `REGRESSION ${result.caseId}: failed ${failed.join(",")} (${result.failures.map((f) => f.code).join(" ")})`);
++      continue;
++    }
++    if (result.caseId === "seed:project-decision-free-text" && result.pass && candidateEvidence) {
++      resolved.push({ caseId: result.caseId, status: "RESOLVED_KNOWN_LIMITATION", evidence: candidateEvidence });
++    } else gate(!result.pass, `IMPROVED ${result.caseId}: now passes — remove it from KNOWN_LIMITATIONS`);
++    const unexpected = failed.filter((layer) => !limitation.layers.includes(layer));
++    gate(unexpected.length === 0, `REGRESSION ${result.caseId}: new failing layer(s) ${unexpected.join(",")}`);
++  }
++  return resolved;
++}
++
++/** Layer A counts a category-label match even if admission later removes it. */
++async function checkCandidateLayerSeparation(): Promise<void> {
++  const observedAt = "2026-09-10T09:00:00.000Z";
++  const input = (body: string): BrainMemoryRecordInput => ({
++    kind: "user-preference", title: "Kullanıcı tercihi", body, importance: "durable",
++    confidence: "reported", tags: ["tercih"], observedAt, links: [],
++  });
++  const testCase: AyasRetrievalCase = {
++    id: "candidate-layer-separation", category: "same-topic-other-attribute", description: "category-only candidate is not selected",
++    source: "new", nowIso: EVAL_NOW,
++    corpus: [
++      { key: "voice", input: input("seslendirmede tok erkek ses tonu tercih ederim") },
++      { key: "coffee", input: input("sabah filtre kahve içerim") },
++    ],
++    query: { text: "seslendirme tercihim ne?" },
++    expect: { queryMode: "current", relevant: ["voice"], forbidden: { coffee: "distractor" } },
++  };
++  const root = createAyasRetrievalRunRoot("candidate");
++  try {
++    const result = await evaluateAyasRetrievalCase(testCase, root, { chat: false });
++    gate(result.matchedKeys.join(",") === "coffee,voice" && result.candidateCount === 2,
++      "Layer A must count category-only candidate before admission");
++    gate(result.selectedKeys.join(",") === "voice", "Layer B must remove the unrelated category-only candidate");
++  } finally {
++    removeAyasRetrievalRunRoot(root);
++  }
++}
++
++async function checkErrorCases(): Promise<number> {
++  const root = createAyasRetrievalRunRoot("errors");
++  let count = 0;
++  try {
++    const good = buildBrainMemoryRecord(identityInput("Ahmet", "2026-09-01T09:00:00.000Z"));
++    const variants: Record<string, (file: string) => void> = {
++      unreadable: (file) => fs.mkdirSync(file, { recursive: true }),
++      malformed: (file) => fs.writeFileSync(file, "{ not json", "utf8"),
++      "unknown-schema": (file) => fs.writeFileSync(file, JSON.stringify({ schemaVersion: "99", records: [good] }), "utf8"),
++      "corrupted-record": (file) => fs.writeFileSync(file, JSON.stringify({ schemaVersion: "1", records: [good, { ...good, recordId: 42 }] }), "utf8"),
++      "malformed-v2": (file) => fs.writeFileSync(file, JSON.stringify({ schemaVersion: "1", records: [{ ...good, temporal: { ...good.temporal, version: 99 } }] }), "utf8"),
++    };
++    for (const [name, write] of Object.entries(variants)) {
++      const caseRoot = assertAyasRetrievalTempRoot(path.join(root, name));
++      fs.mkdirSync(path.join(caseRoot, "memory"), { recursive: true });
++      const file = path.join(caseRoot, "memory", "records.json");
++      write(file);
++      const before = fs.statSync(file).isFile() ? sha(file) : "dir";
++      const recall = await recallAyasMemoryWithTrace("benim adım ne?", { nowIso: EVAL_NOW, store: { rootDir: caseRoot } });
++      gate(recall.status === "unreadable" && recall.lines.length === 0, `error case ${name}: recall must fail closed with no lines (got ${recall.status}/${recall.lines.length})`);
++      const turn = await runAyasRetrievalChatTurn("benim adım ne?", caseRoot, EVAL_NOW);
++      gate(!turn.prompts.some((prompt) => /ahmet/i.test(prompt)) && !/ahmet/i.test(turn.done.text), `error case ${name}: chat must not surface the unreadable store's content`);
++      gate((fs.statSync(file).isFile() ? sha(file) : "dir") === before, `error case ${name}: the store must not be rewritten`);
++      count += 1;
++    }
++    // Invalid as-of timestamp: nothing selected, current state never substituted.
++    const invalid = retrieveAyasMemory([good], "adım neydi", { nowIso: EVAL_NOW, temporal: { mode: "as-of", at: "not-a-date" } });
++    gate(invalid.invalidTemporalQuery && invalid.selected.length === 0, "invalid as-of timestamp must select nothing");
++    count += 1;
++    // Duplicate record ids: either the store fails closed or retrieval dedupes; never a duplicated context line.
++    const dupRoot = assertAyasRetrievalTempRoot(path.join(root, "duplicate"));
++    fs.mkdirSync(path.join(dupRoot, "memory"), { recursive: true });
++    fs.writeFileSync(path.join(dupRoot, "memory", "records.json"), JSON.stringify({ schemaVersion: "1", records: [good, good] }), "utf8");
++    const dup = await recallAyasMemoryWithTrace("benim adım ne?", { nowIso: EVAL_NOW, store: { rootDir: dupRoot } });
++    gate(dup.status === "unreadable" || (dup.lines.length === 1 && new Set(dup.lines).size === dup.lines.length), `duplicate ids must fail closed or dedupe (got ${dup.status}/${dup.lines.length})`);
++    count += 1;
++    // Empty corpus: no store file at all.
++    const empty = await recallAyasMemoryWithTrace("benim adım ne?", { nowIso: EVAL_NOW, store: { rootDir: assertAyasRetrievalTempRoot(path.join(root, "empty")) } });
++    gate(empty.status === "ok" && empty.lines.length === 0, "empty corpus must recall nothing");
++    count += 1;
++  } finally {
++    removeAyasRetrievalRunRoot(root);
++  }
++  return count;
++}
++
++async function checkIsolationAndPrivacy(): Promise<number> {
++  let count = 0;
++  // The benchmark also runs from a clean source archive inside os.tmpdir();
++  // cwd-relative paths there are valid TEMP paths, so test absolute outsiders.
++  for (const bad of [path.join(path.parse(os.tmpdir()).root, "ayas-memory-outside-temp"), os.homedir(), path.join(os.homedir(), "ayas-memory")]) {
++    assert.throws(() => assertAyasRetrievalTempRoot(bad), /outside the OS temp directory/);
++    count += 1;
++  }
++  const root = createAyasRetrievalRunRoot("isolation");
++  try {
++    const a = assertAyasRetrievalTempRoot(path.join(root, "a"));
++    const b = assertAyasRetrievalTempRoot(path.join(root, "b"));
++    createAyasMemoryStore({ rootDir: a }).append(buildBrainMemoryRecord(identityInput("Ahmet", "2026-09-01T09:00:00.000Z")));
++    createAyasMemoryStore({ rootDir: b }).append(buildBrainMemoryRecord(identityInput("Mehmet", "2026-09-01T09:00:00.000Z")));
++    for (const temporal of [undefined, { mode: "current" as const, includeHistory: true }, { mode: "as-of" as const, at: "2026-09-10T00:00:00.000Z" }]) {
++      const fromA = await recallAyasMemoryWithTrace("benim adım ne?", { nowIso: EVAL_NOW, store: { rootDir: a }, ...(temporal ? { temporal } : {}) });
++      gate(fromA.lines.length === 1 && fromA.lines.every((line) => line.includes("Ahmet") && !line.includes("Mehmet")), `cross-root isolation (${temporal?.mode ?? "current"}${temporal && "includeHistory" in temporal ? "+history" : ""})`);
++      count += 1;
++    }
++    const turnB = await runAyasRetrievalChatTurn("benim adım ne?", b, EVAL_NOW);
++    gate(!turnB.prompts.some((prompt) => prompt.includes("Ahmet")) && !turnB.done.text.includes("Ahmet"), "chat on root B never sees root A");
++    count += 1;
++
++    // Unified Trace: counts and flags only — no bodies, names, query text or case ids.
++    const store = new BoundedAyasTraceStore();
++    const trace = startAyasTrace({ rootKind: "chat-turn", scope: "retrieval-eval", store });
++    const pcCase = AYAS_RETRIEVAL_EVALUATION_CASES.find((c) => c.id === "para-pc-thinking")!;
++    const traced = assertAyasRetrievalTempRoot(path.join(root, "traced"));
++    const traceStore = createAyasMemoryStore({ rootDir: traced });
++    for (const entry of pcCase.corpus) traceStore.append(buildBrainMemoryRecord(entry.input));
++    traceStore.append(buildBrainMemoryRecord(identityInput("Mehmet", "2026-09-01T09:00:00.000Z")));
++    await runAyasRetrievalChatTurn(pcCase.query.text, traced, pcCase.nowIso, { trace });
++    await runAyasRetrievalChatTurn("benim adım ne?", traced, pcCase.nowIso, { trace });
++    trace.finish("ok");
++    const serialized = fold(JSON.stringify(store.get(trace.traceId, "retrieval-eval")));
++    const memory = store.get(trace.traceId, "retrieval-eval")?.spans.filter((span) => span.kind === "memory") ?? [];
++    gate(memory.length > 0 && memory.every((span) => typeof span.metadata?.candidateCount === "number"), "trace carries memory spans with counts");
++    for (const secret of [...pcCase.corpus.map((entry) => entry.input.body), pcCase.query.text, "mehmet", "rtx", pcCase.id, "pcPlanNew"]) {
++      gate(!serialized.includes(fold(secret)), `trace leaked fixture content (${fold(secret).slice(0, 12)}…)`);
++    }
++    count += 1;
++  } finally {
++    removeAyasRetrievalRunRoot(root);
++  }
++  return count;
++}
++
++/** Phase 26–27: write → retrieve → context → answer, through real chat turns at frozen times. */
++async function checkChatChains(): Promise<number> {
++  const root = createAyasRetrievalRunRoot("chain");
++  let count = 0;
++  const memoryLines = (prompts: readonly string[]) => prompts.flatMap((prompt) => prompt.split("\n")).filter((line) => /^\s*·\s*\(/.test(line));
++  try {
++    const identityRoot = assertAyasRetrievalTempRoot(path.join(root, "identity"));
++    await runAyasRetrievalChatTurn("beni Ahmet olarak hatırla", identityRoot, "2026-08-01T09:00:00.000Z", { reply: "Tamam, Ahmet." });
++    await runAyasRetrievalChatTurn("artık beni Mehmet olarak hatırla", identityRoot, "2026-09-01T09:00:00.000Z", { reply: "Tamam, Mehmet." });
++    gate(createAyasMemoryStore({ rootDir: identityRoot }).load().filter((record) => record.tags.includes("kimlik")).length === 2, "chain: both identity statements persisted");
++
++    const current = await runAyasRetrievalChatTurn("benim adım ne?", identityRoot, EVAL_NOW, { reply: "Adın Mehmet." });
++    gate(/mehmet/i.test(current.done.text) && !/ahmet/i.test(current.done.text), "chain: current name answer is Mehmet");
++    gate(!memoryLines(current.prompts).some((line) => line.includes("Ahmet")), "chain: superseded name never reaches the prompt");
++    const wrong = await runAyasRetrievalChatTurn("benim adım ne?", identityRoot, EVAL_NOW, { reply: "Adın Ahmet." });
++    gate(!/\bahmet\b/i.test(wrong.done.text), "chain: a model answer with the superseded name is corrected");
++    const august = await runAyasRetrievalChatTurn("Ağustos ayında adım neydi?", identityRoot, EVAL_NOW, { reply: "Ağustos'ta sana Ahmet diyordum." });
++    gate(memoryLines(august.prompts).some((line) => line.includes("Ahmet") && /\[[^\]]+\]/.test(line)), "chain: as-of question reaches the old name, annotated with its time");
++    gate(/ahmet/i.test(august.done.text), "chain: historical answer is not replaced by the current name");
++    count += 4;
++
++    const prefRoot = assertAyasRetrievalTempRoot(path.join(root, "preference"));
++    await runAyasRetrievalChatTurn("bundan sonra cevapları kısa tut", prefRoot, "2026-08-05T09:00:00.000Z", { reply: "Tamam." });
++    await runAyasRetrievalChatTurn("bundan sonra cevapları uzun ve detaylı yaz", prefRoot, "2026-09-10T09:00:00.000Z", { reply: "Tamam." });
++    const pref = await runAyasRetrievalChatTurn("cevap uzunluğu tercihim ne?", prefRoot, EVAL_NOW, { reply: "Uzun ve detaylı istiyorsun." });
++    const prefLines = memoryLines(pref.prompts);
++    gate(prefLines.some((line) => line.includes("uzun ve detaylı")) && !prefLines.some((line) => line.includes("kısa tut")), "chain: current length preference reaches the prompt, the replaced one does not");
++    count += 1;
++
++    const none = await runAyasRetrievalChatTurn("yarın hava nasıl olacak?", prefRoot, EVAL_NOW, { reply: "Bilmiyorum." });
++    gate(memoryLines(none.prompts).length === 0, "chain: an unrelated question carries no memory");
++    count += 1;
++
++    const disputedRoot = assertAyasRetrievalTempRoot(path.join(root, "disputed"));
++    const disputed = createAyasMemoryStore({ rootDir: disputedRoot });
++    disputed.append(buildBrainMemoryRecord(identityInput("Ahmet", "2026-09-10T09:00:00.000Z")));
++    disputed.append(buildBrainMemoryRecord(identityInput("Mehmet", "2026-09-10T09:00:00.000Z")));
++    const ambiguous = await runAyasRetrievalChatTurn("benim adım ne?", disputedRoot, EVAL_NOW, { reply: "Emin değilim, nasıl hitap etmemi istersin?" });
++    gate(!/ahmet|mehmet/i.test(ambiguous.done.text) && memoryLines(ambiguous.prompts).length === 0, "chain: a disputed name is neither recalled nor asserted");
++    count += 1;
++  } finally {
++    removeAyasRetrievalRunRoot(root);
++  }
++  return count;
++}
++
++/** Phase 31: production code must not recognise benchmark content. */
++function checkNoFixtureLeakage(): number {
++  const needles = new Set<string>();
++  for (const testCase of AYAS_RETRIEVAL_EVALUATION_CASES.filter((c) => c.source === "new")) {
++    needles.add(testCase.id);
++    for (const entry of testCase.corpus) {
++      if (/[A-Z]/.test(entry.key)) needles.add(entry.key);
++      // "beni X olarak hatırla" is the extractor's own canonical identity sentence, documented in its source.
++      const body = fold(entry.input.body);
++      if (!/^beni \p{L}+ olarak hatirla$/u.test(body)) needles.add(body);
++    }
++    const query = fold(testCase.query.text);
++    if (query.split(" ").length >= 4) needles.add(query);
++  }
++  const files: string[] = [];
++  const walk = (dir: string) => {
++    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
++      const full = path.join(dir, entry.name);
++      if (entry.isDirectory()) walk(full);
++      else if (/\.(ts|tsx)$/.test(entry.name)) files.push(full);
++    }
++  };
++  for (const dir of ["src", "app"]) if (fs.existsSync(dir)) walk(dir);
++  for (const file of files) {
++    const raw = fs.readFileSync(file, "utf8");
++    const folded = fold(raw);
++    for (const needle of needles) {
++      const hit = /[A-Z]|[:-]/.test(needle) ? raw.includes(needle) : folded.includes(needle);
++      gate(!hit, `fixture text "${needle.slice(0, 24)}" found in production source: ${path.relative(process.cwd(), file)}`);
++    }
++  }
++  return files.length;
++}
++
++/* ------------------------------------------------------------------ */
++
++async function main(): Promise<void> {
++  const cases = AYAS_RETRIEVAL_EVALUATION_CASES;
++  const explainId = argValue("--explain");
++  if (explainId) {
++    const testCase = cases.find((c) => c.id === explainId);
++    if (!testCase) throw new Error(`no case ${explainId}`);
++    console.log(JSON.stringify(await explainAyasRetrievalCase(testCase), null, 2));
++    return;
++  }
++
++  const { results, networkAttempts } = await evaluateAyasRetrieval(cases);
++  gate(networkAttempts === 0, `network attempts during evaluation: ${networkAttempts}`);
++  const metrics = computeAyasRetrievalMetrics(results);
++  await checkCandidateLayerSeparation();
++
++  // Determinism (Phase 16): repeat, shuffled write order, time zones.
++  const baseline = stableAyasRetrievalView(results);
++  const repeat = await evaluateAyasRetrieval(cases);
++  const shuffled = await evaluateAyasRetrieval(cases, { shuffleSeed: 20260924 });
++  const originalTz = process.env.TZ;
++  const zones: Record<string, boolean> = {};
++  try {
++    for (const zone of ["America/Los_Angeles", "Asia/Tokyo"]) {
++      process.env.TZ = zone;
++      zones[zone] = stableAyasRetrievalView((await evaluateAyasRetrieval(cases)).results) === baseline;
++    }
++  } finally {
++    if (originalTz === undefined) delete process.env.TZ;
++    else process.env.TZ = originalTz;
++  }
++  const determinism = {
++    repeatRun: stableAyasRetrievalView(repeat.results) === baseline,
++    shuffledWriteOrder: stableAyasRetrievalView(shuffled.results) === baseline,
++    ...Object.fromEntries(Object.entries(zones).map(([zone, same]) => [`tz:${zone}`, same])),
++  };
++  for (const [name, same] of Object.entries(determinism)) gate(same, `nondeterministic result: ${name}`);
++
++  // Scale (Phase 20).
++  const pc = cases.find((c) => c.id === "exact-pc-plan")!;
++  const scale = await withAyasRetrievalNetworkGuard(() => benchmarkAyasRetrievalScale({
++    corpus: pc.corpus, query: pc.query.text, nowIso: pc.nowIso, targetKey: "pcPlanNew", staleKey: "pcPlanOld",
++    sizes: [50, 200, 500, 2000], repetitions: 15, storeCap: 500,
++  }));
++  const at = (records: number) => scale.value.find((row) => row.records === records)!;
++  atMost("scale ratio retrieval(2000)/retrieval(500)", at(2000).medianRetrievalMs / at(500).medianRetrievalMs, CEILINGS.scaleRatio);
++  gate(scale.value.every((row) => row.targetSelected), "the current plan must stay in the top-K at every corpus size");
++
++  // Hard invariants (must be 100% / 0%).
++  const t = metrics.temporal;
++  gate(t.supersededSelectionRate === 0, "an exclusive-slot superseded value was selected in current recall");
++  gate(metrics.context.recall.STALE_CONTEXT_RATE_CLEAN_EXCLUSIVE === 0 && metrics.context.chat.STALE_CONTEXT_RATE_CLEAN_EXCLUSIVE === 0, "stale exclusive-slot fact reached the context");
++  gate(t.futureAsCurrentRate === 0, "a plan was selected as a current fact");
++  gate(t.historicalAsCurrentRate === 0, "a past fact was selected as a current fact");
++  gate(t.deletedResurrectionRate === 0, "a forgotten memory resurrected");
++  gate(t.explicitAsOfCorrectRate === 1, "an explicitly labelled as-of case failed");
++  gate(metrics.negative.strictNegativeCorrectRate === 1, "an exact negative control selected or delivered something");
++  gate(results.every((r) => !r.forbiddenSelected.some((f) => f.reason === "disputed" || f.reason === "conflicting")), "a disputed/conflicting value was selected");
++  gate(metrics.context.recall.duplicateRate === 0 && metrics.context.chat.duplicateRate === 0, "duplicated context lines");
++
++  // Floors / ceilings at the verified values.
++  atLeast("candidate recall", metrics.candidate.recall, FLOORS.candidateRecall);
++  atLeast("Recall@1", metrics.ranking.recallAt1, FLOORS.recallAt1);
++  atLeast("Recall@K", metrics.ranking.recallAtK, FLOORS.recallAtK);
++  atLeast("HitRate@1", metrics.ranking.hitRateAt1, FLOORS.hitRateAt1);
++  atLeast("HitRate@K", metrics.ranking.hitRateAtK, FLOORS.hitRateAtK);
++  atLeast("MRR", metrics.ranking.mrr, FLOORS.mrr);
++  atLeast("Precision@1", metrics.ranking.precisionAt1, FLOORS.precisionAt1);
++  atLeast("selection precision", metrics.ranking.selectionPrecision, FLOORS.selectionPrecision);
++  atLeast("query-mode accuracy", t.queryModeAccuracy, FLOORS.queryModeAccuracy);
++  atLeast("current correctness", t.currentCorrectRate, FLOORS.currentCorrectRate);
++  atLeast("history correctness", t.historyCorrectRate, FLOORS.historyCorrectRate);
++  atLeast("as-of correctness", t.asOfCorrectRate, FLOORS.asOfCorrectRate);
++  atLeast("conflict correctness", t.conflictCorrectRate, FLOORS.conflictCorrectRate);
++  atLeast("abstention correctness", metrics.negative.abstentionCorrectRate, FLOORS.abstentionCorrectRate);
++  atLeast("recall-block required delivery", metrics.context.recall.requiredDeliveredRate, FLOORS.recallRequiredDelivered);
++  atLeast("chat required delivery", metrics.context.chat.requiredDeliveredRate, FLOORS.chatRequiredDelivered);
++  atLeast("held-out HitRate@K", metrics.heldOut.hitRateAtK, FLOORS.heldOutHitRateAtK);
++  atLeast("held-out MRR", metrics.heldOut.mrr, FLOORS.heldOutMrr);
++  atMost("stale selection rate", t.staleSelectionRate, CEILINGS.staleSelectionRate);
++  atMost("false-positive selection rate", metrics.negative.falsePositiveSelectionRate, CEILINGS.falsePositiveSelectionRate);
++  atMost("distractor selection rate", metrics.negative.distractorSelectionRate, CEILINGS.distractorSelectionRate);
++  atMost("recall STALE_CONTEXT_RATE", metrics.context.recall.STALE_CONTEXT_RATE, CEILINGS.recallStaleContext);
++  atMost("recall CONTRADICTORY_CONTEXT_RATE", metrics.context.recall.CONTRADICTORY_CONTEXT_RATE, CEILINGS.recallContradictoryContext);
++  atMost("chat STALE_CONTEXT_RATE", metrics.context.chat.STALE_CONTEXT_RATE, CEILINGS.chatStaleContext);
++  atMost("chat CONTRADICTORY_CONTEXT_RATE", metrics.context.chat.CONTRADICTORY_CONTEXT_RATE, CEILINGS.chatContradictoryContext);
++  atMost("chat distractor delivery", metrics.context.chat.distractorDeliveryRate, CEILINGS.chatDistractorDelivery);
++  atMost("chat abstain leak", metrics.context.chat.abstainLeakRate, CEILINGS.chatAbstainLeak);
++
++  const resolvedKnownLimitations = await checkLimitations(results);
++  const errorCases = await withAyasRetrievalNetworkGuard(checkErrorCases);
++  const isolation = await withAyasRetrievalNetworkGuard(checkIsolationAndPrivacy);
++  const chains = await withAyasRetrievalNetworkGuard(checkChatChains);
++  gate(errorCases.networkAttempts + isolation.networkAttempts + chains.networkAttempts + scale.networkAttempts === 0, "network attempted outside the main evaluation");
++  const scannedFiles = checkNoFixtureLeakage();
++
++  const reportPath = argValue("--report");
++  if (reportPath) {
++    const resolvedReport = path.resolve(reportPath);
++    const tempRoot = fs.realpathSync(os.tmpdir());
++    const realParent = fs.realpathSync(path.dirname(resolvedReport));
++    gate(realParent === tempRoot || realParent.startsWith(tempRoot + path.sep), "report path must be inside the OS temp directory");
++    gate(!fs.existsSync(resolvedReport), "report path must be a new file");
++    if (gateFailures.some((failure) => failure.startsWith("report path"))) throw new Error("unsafe retrieval report path");
++    const report = buildAyasRetrievalReport({
++      cases, fixtureVersion: AYAS_RETRIEVAL_EVALUATION_FIXTURE_VERSION, commit: commit(), results, networkAttempts, scale: scale.value, determinism,
++    });
++    fs.writeFileSync(resolvedReport, `${JSON.stringify({ ...report, knownLimitations: KNOWN_LIMITATIONS, resolvedKnownLimitations, gateFailures }, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
++  }
++
++  const c = metrics.counts;
++  const lines = [
++    `cases ${c.cases} (seed ${c.seed}, new ${c.new}, held-out ${c.heldOut}); all-layer pass ${c.passed}; known limitations ${Object.keys(KNOWN_LIMITATIONS).length}`,
++    `candidate recall ${pct(metrics.candidate.recall)} | Recall@1 ${pct(metrics.ranking.recallAt1)} Recall@${metrics.ranking.k} ${pct(metrics.ranking.recallAtK)} | HitRate@1 ${pct(metrics.ranking.hitRateAt1)} HitRate@${metrics.ranking.k} ${pct(metrics.ranking.hitRateAtK)} | MRR ${metrics.ranking.mrr?.toFixed(3)} | P@1 ${pct(metrics.ranking.precisionAt1)} selection precision ${pct(metrics.ranking.selectionPrecision)}`,
++    `temporal: query mode ${pct(t.queryModeAccuracy)} current ${pct(t.currentCorrectRate)} history ${pct(t.historyCorrectRate)} as-of ${pct(t.asOfCorrectRate)} (explicit ${pct(t.explicitAsOfCorrectRate)}) | stale sel ${pct(t.staleSelectionRate)} (slot ${pct(t.supersededSelectionRate)}, free text ${pct(t.freeTextStaleSelectionRate)}) future-as-current ${pct(t.futureAsCurrentRate)} conflict ${pct(t.conflictCorrectRate)} forget-resurrection ${pct(t.deletedResurrectionRate)}`,
++    `negative: abstention ${pct(metrics.negative.abstentionCorrectRate)} strict ${pct(metrics.negative.strictNegativeCorrectRate)} false-positive sel ${pct(metrics.negative.falsePositiveSelectionRate)} distractor sel ${pct(metrics.negative.distractorSelectionRate)}`,
++    `context recall block: required ${pct(metrics.context.recall.requiredDeliveredRate)} STALE ${pct(metrics.context.recall.STALE_CONTEXT_RATE)} (clean slot ${pct(metrics.context.recall.STALE_CONTEXT_RATE_CLEAN_EXCLUSIVE)}) CONTRADICTORY ${pct(metrics.context.recall.CONTRADICTORY_CONTEXT_RATE)}`,
++    `context chat prompt: required ${pct(metrics.context.chat.requiredDeliveredRate)} STALE ${pct(metrics.context.chat.STALE_CONTEXT_RATE)} (clean slot ${pct(metrics.context.chat.STALE_CONTEXT_RATE_CLEAN_EXCLUSIVE)}) CONTRADICTORY ${pct(metrics.context.chat.CONTRADICTORY_CONTEXT_RATE)} abstain leak ${pct(metrics.context.chat.abstainLeakRate)}`,
++    `held-out: pass ${pct(metrics.heldOut.passRate)} HitRate@K ${pct(metrics.heldOut.hitRateAtK)} MRR ${metrics.heldOut.mrr?.toFixed(3)} | in-sample: pass ${pct(metrics.inSample.passRate)} HitRate@K ${pct(metrics.inSample.hitRateAtK)} MRR ${metrics.inSample.mrr?.toFixed(3)}`,
++    `latency (median): retrieval ${metrics.latency.medianRetrievalMs?.toFixed(2)} ms, recall ${metrics.latency.medianRecallMs?.toFixed(2)} ms | scale ${scale.value.map((row) => `${row.records}:${row.medianRetrievalMs.toFixed(1)}ms`).join(" ")}`,
++    `determinism ${Object.entries(determinism).map(([k, v]) => `${k}=${v}`).join(" ")} | error cases ${errorCases.value} | isolation/privacy ${isolation.value} | chat chains ${chains.value} | leakage scan ${scannedFiles} files`,
++  ];
++  for (const line of lines) console.log(line);
++  for (const resolution of resolvedKnownLimitations) console.log(`${resolution.status} ${resolution.caseId} source=${resolution.evidence.candidateSourceSha256} diff=${resolution.evidence.diffSha256}`);
++  if (process.argv.includes("--failures")) console.log(JSON.stringify(ayasRetrievalFailureRows(results), null, 2));
++
++  if (gateFailures.length > 0) {
++    console.error(`FAIL (${gateFailures.length} gate failure(s))`);
++    for (const failure of gateFailures) console.error(`  - ${failure}`);
++    process.exit(1);
++  }
++  console.log(`PASS (${cases.length} cases, ${Object.keys(determinism).length} determinism checks, ${errorCases.value} error cases, ${isolation.value} isolation/privacy checks, ${chains.value} chat chains)`);
++}
++
++main().catch((error) => {
++  console.error(error);
++  process.exit(1);
++});
+diff --git a/src/lib/ayas/golden/AyasGoldenVaultRegistry.ts b/src/lib/ayas/golden/AyasGoldenVaultRegistry.ts
+index 4bf9f89..587a77d 100644
+--- a/src/lib/ayas/golden/AyasGoldenVaultRegistry.ts
++++ b/src/lib/ayas/golden/AyasGoldenVaultRegistry.ts
+@@ -323,8 +323,172 @@ const VERSION_2: AyasGoldenVault = {
+   ],
+ };
+ 
++/**
++ * Version 3 (Stage 17, CF49 exact12 succession): the frozen retrieval case runs its sibling successor grader, which no
++ * longer lists the 12 CF49-reviewed improvements as known limitations. The original grader stays pinned by versions 1
++ * and 2 and keeps its raw gate. Every other case, pin and gap is version 2's.
++ */
++const VERSION_3: AyasGoldenVault = {
++  schemaVersion: "1",
++  version: 3,
++  previousDigest: "5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f",
++  cases: [
++    {
++      id: "golden.conversation.quality-master", domain: "CONVERSATION", script: "scripts/smoke-ayas-conversation-quality-master.ts",
++      covers: "Conversation behaviour contracts: referent choice, context authority, memory selection, clarification policy, prompt restraint and stream finalization.",
++      pins: [
++        { file: "scripts/smoke-ayas-conversation-quality-master.ts", sha256: "b79d6a839027a4e35d416e96ce9f1ebbfa087d2e807f6f95a31b9c5d0078ec6d" },
++      ],
++    },
++    {
++      id: "golden.conversation.chat-quality", domain: "CONVERSATION", script: "scripts/smoke-ayas-chat-quality.ts",
++      covers: "Deterministic chat-quality mechanisms over a mocked model stream.",
++      pins: [
++        { file: "scripts/smoke-ayas-chat-quality.ts", sha256: "57c90b43077a80ed4dff728602e2a0941d6bfba3f6ed2ec0fdfff1a3913ee952" },
++      ],
++    },
++    {
++      id: "golden.memory.temporal-correction", domain: "MEMORY_RETRIEVAL", script: "scripts/smoke-ayas-memory-temporal.ts",
++      covers: "The temporal memory matrix: current, superseded, historical, future, disputed and as-of facts, with corruption and concurrency cases.",
++      pins: [
++        { file: "scripts/fixtures/ayas-memory-temporal-cases.ts", sha256: "cce130c64fd2250360fb325d7920553200dc9f7062d739008e60a709b132e61d" },
++        { file: "scripts/smoke-ayas-memory-temporal.ts", sha256: "3df128a6d290cc5c65a1d75725f059a2a7ca637017ce47853c69b70af82e51ef" },
++      ],
++    },
++    {
++      id: "golden.memory.integrity", domain: "MEMORY_RETRIEVAL", script: "scripts/smoke-ayas-memory-integrity.ts",
++      covers: "Stage 15C adversarial memory cases against the context firewall.",
++      pins: [
++        { file: "scripts/fixtures/ayas-memory-temporal-cases.ts", sha256: "cce130c64fd2250360fb325d7920553200dc9f7062d739008e60a709b132e61d" },
++        { file: "scripts/fixtures/ayas-retrieval-evaluation-cases.ts", sha256: "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23" },
++        { file: "scripts/lib/AyasRetrievalEvaluation.ts", sha256: "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e" },
++        { file: "scripts/smoke-ayas-memory-integrity.ts", sha256: "c01804717ed4d925f353010889133048c969862e20e5b74d4e3eb20592061314" },
++      ],
++    },
++    {
++      id: "golden.memory.retrieval-evaluation", domain: "MEMORY_RETRIEVAL", script: "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
++      covers: "The frozen retrieval cases graded by the CF49 exact12 successor: 16 declared known limitations remain; the original grader keeps its raw gate outside the vault.",
++      pins: [
++        { file: "scripts/fixtures/ayas-memory-temporal-cases.ts", sha256: "cce130c64fd2250360fb325d7920553200dc9f7062d739008e60a709b132e61d" },
++        { file: "scripts/fixtures/ayas-retrieval-evaluation-cases.ts", sha256: "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23" },
++        { file: "scripts/lib/AyasRetrievalEvaluation.ts", sha256: "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e" },
++        { file: "scripts/smoke-ayas-retrieval-evaluation-v3.ts", sha256: "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00" },
++      ],
++    },
++    {
++      id: "golden.coding.historical-repair-vault", domain: "CODING_REPAIR", script: "scripts/smoke-ayas-local-coding-qualification-vault.ts",
++      covers: "Five frozen historical repair tasks: base, fix and evaluator identities are immutable and no answer leaks into a task.",
++      pins: [
++        { file: "scripts/fixtures/ayas-local-coding-qualification-vault.ts", sha256: "5a97216b8dbf7d2e58faa5eba1ff7cab987b8aef15e15aafcc874effd289c957" },
++        { file: "scripts/smoke-ayas-local-coding-qualification-vault.ts", sha256: "574705ca8bc43cff8d1d18e786c38abbfe73c0fdcac98d758db647755efb5c0a" },
++      ],
++    },
++    {
++      id: "golden.coding.guided-repair", domain: "CODING_REPAIR", script: "scripts/smoke-ayas-guided-repair.ts",
++      covers: "Guided repair of a fixture source file in a TEMP workspace.",
++      pins: [
++        { file: "scripts/helpers/ayas-action-runtime-fixture.ts", sha256: "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f" },
++        { file: "scripts/smoke-ayas-guided-repair.ts", sha256: "8eecf033cb38407f8dbba53f137783845c00947a3e320d2735b89654450c1893" },
++      ],
++    },
++    {
++      id: "golden.security.action-firewall", domain: "SECURITY_ADVERSARIAL", script: "scripts/smoke-ayas-action-firewall.ts",
++      covers: "Stage 15D adversarial checks of capability leases on a real filesystem, across restart and a contended store.",
++      pins: [
++        { file: "scripts/smoke-ayas-action-firewall.ts", sha256: "7c5ac18b9bb786cc78205ea7b17109aad5b95ec0617f64456c3b00b10de08219" },
++      ],
++    },
++    {
++      id: "golden.security.exact-patch-safety", domain: "SECURITY_ADVERSARIAL", script: "scripts/smoke-ayas-exact-patch-safety.ts",
++      covers: "Exact reviewed patch proofs for the registered improvement strategy.",
++      pins: [
++        { file: "scripts/smoke-ayas-exact-patch-safety.ts", sha256: "2f5a6fb6707ba9368471c5b04d106bfd6e6f60c67f905218c78379f27a5d37ab" },
++      ],
++    },
++    {
++      id: "golden.security.access-gate", domain: "SECURITY_ADVERSARIAL", script: "scripts/smoke-ayas-access-gate.ts",
++      covers: "The access gate: session signing and verification, protected paths, the same-origin backstop and the brute-force limiter.",
++      pins: [
++        { file: "scripts/smoke-ayas-access-gate.ts", sha256: "05d87256cd4a095f4045f07e45cc6e314bcf85160268e73c65f073291310a05f" },
++      ],
++    },
++    {
++      id: "golden.production.fault-repair", domain: "PRODUCTION_RECOVERY", script: "scripts/smoke-ayas-production-fault-repair.ts",
++      covers: "Stage 15L production fault evidence, repair plans and exact bounded coding tasks.",
++      pins: [
++        { file: "scripts/smoke-ayas-production-fault-repair.ts", sha256: "7f67d0e6d33a2461d09076ac186a7258b2ec8f120cfa58de25b6cc390548518f" },
++      ],
++    },
++    {
++      id: "golden.production.workflow-recovery", domain: "PRODUCTION_RECOVERY", script: "scripts/smoke-ayas-workflow-recovery.ts",
++      covers: "Workflow recovery classification: a stale source after restart mutates nothing and a terminal workflow does nothing more.",
++      pins: [
++        { file: "scripts/helpers/ayas-action-runtime-fixture.ts", sha256: "8e61d95b05cb2f83844cf0e26f1938d9b3a56dcdb3f52beffe9b528ec763333f" },
++        { file: "scripts/smoke-ayas-workflow-recovery.ts", sha256: "4b9ada496cb31a6ea7c84503f09ea4739f2801dbefd7bdc7d7de8faf566df28c" },
++      ],
++    },
++    {
++      id: "golden.production.durable-task-runtime", domain: "PRODUCTION_RECOVERY", script: "scripts/smoke-ayas-durable-task-runtime.ts",
++      covers: "Stage 15B durable task runtime across crash and restart in TEMP journals.",
++      pins: [
++        { file: "scripts/smoke-ayas-durable-task-runtime.ts", sha256: "d071cb154c3f7c4f7651fb2ec6b016658aa8dcdaf3dfc8acaa9b76e70f7b75c4" },
++      ],
++    },
++    {
++      id: "golden.video.historical-storytelling", domain: "HISTORICAL_VIDEO", script: "scripts/smoke-ayas-historical-storytelling.ts",
++      covers: "Stage 15J historical fact pack, narrative contract and the local character scene engine.",
++      pins: [
++        { file: "scripts/smoke-ayas-historical-storytelling.ts", sha256: "5a6eea742a70a5e1ccd60bf6c03d9eb6742357ca4fec610e0b2f5275c7b24a1a" },
++      ],
++    },
++    {
++      id: "golden.video.quality-gate", domain: "HISTORICAL_VIDEO", script: "scripts/smoke-ayas-production-quality-gate.ts",
++      covers: "Stage 15M production quality gate over explicit evidence fixtures.",
++      pins: [
++        { file: "scripts/smoke-ayas-production-quality-gate.ts", sha256: "f37fbac70c781a8a8e51083b2738fac66b89e71460e5b8bcb6eb8bfe6e43b7cb" },
++      ],
++    },
++    {
++      id: "golden.video.historical-projects", domain: "HISTORICAL_VIDEO", script: "scripts/smoke-ayas-golden-video-projects.ts",
++      covers: "Three whole historical-video projects through the fact, narrative and character scene engines, compared with frozen reviews and rendered scene bytes.",
++      pins: [
++        { file: "scripts/fixtures/ayas-golden-video-projects-expected.ts", sha256: "151b55acd0c07cf7d4ca8e0938551f59f142204a0785affb5db134290458cda5" },
++        { file: "scripts/fixtures/ayas-golden-video-projects.ts", sha256: "0bf9fd37e52ebe91ce2504cc9405558b77d807b61cf94952d45a3f73dda72336" },
++        { file: "scripts/smoke-ayas-golden-video-projects.ts", sha256: "9f1b0be12afebdf434c06ee3225422ff84a1c16e7179cc17e0310fd356cf314d" },
++      ],
++    },
++    {
++      id: "golden.ui.brain-core", domain: "BRAIN_UI", script: "scripts/smoke-brain-core-ui.ts",
++      covers: "Brain Core components rendered to static markup and the read-only snapshot loader.",
++      pins: [
++        { file: "scripts/smoke-brain-core-ui.ts", sha256: "bf2edd8f9d8516c321e2308789c9da253c251d369b8d2588944aa9e4fd628259" },
++      ],
++    },
++    {
++      id: "golden.ui.voice", domain: "BRAIN_UI", script: "scripts/smoke-ayas-voice.ts",
++      covers: "The voice experience through a synchronous mock platform: wake word, voice selection and the engine state machine.",
++      pins: [
++        { file: "scripts/smoke-ayas-voice.ts", sha256: "16b405d8c9133b8ac08a64d374b577ea04f24b6eb3d0f3b648446144237603af" },
++      ],
++    },
++  ],
++  gaps: [
++    {
++      domain: "REVENUE_DRY_RUN",
++      missing: "No revenue adapter exists before Stage 16, so there is no dry-run scenario to freeze.",
++      reevaluateWhen: "A Stage 16 revenue adapter is built: its dry-run scenario becomes a golden case before the adapter is activated.",
++    },
++    {
++      domain: "HISTORICAL_VIDEO",
++      missing: "A project rendered by a real production: narration audio, assembled video and measured quality. The golden projects are deterministic fixtures of the local engines.",
++      reevaluateWhen: "The owner supplies or approves reference productions.",
++    },
++  ],
++};
++
++
+ /** Oldest first. Append; never edit a published version. */
+-export const AYAS_GOLDEN_VAULT_VERSIONS: readonly AyasGoldenVault[] = Object.freeze([VERSION_1, VERSION_2]);
++export const AYAS_GOLDEN_VAULT_VERSIONS: readonly AyasGoldenVault[] = Object.freeze([VERSION_1, VERSION_2, VERSION_3]);
+ 
+ /** `retired[version][caseId] = reason`: the cases that version dropped from the one before it. */
+ export const AYAS_GOLDEN_VAULT_RETIRED: Readonly<Record<number, Readonly<Record<string, string>>>> = Object.freeze({});
+diff --git a/src/lib/ayas/lifecycle/AyasLifecycleRegistry.ts b/src/lib/ayas/lifecycle/AyasLifecycleRegistry.ts
+index 31ae5ba..a8677e4 100644
+--- a/src/lib/ayas/lifecycle/AyasLifecycleRegistry.ts
++++ b/src/lib/ayas/lifecycle/AyasLifecycleRegistry.ts
+@@ -239,6 +239,15 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
+       { state: "PINNED", on: "2026-10-02", basis: "one environment value added to the evaluator's chat turn; cases, graders, assertions and known limitations unchanged" }],
+     notes: "No qualification, promotion or serving admission. The only change is the declared window of the evaluator's chat turn. Old bytes and their digest are preserved at the rollback target. The owner selected the previous identity; accepting this one is an owner decision.",
+   },
++  {
++    id: "evaluator.retrieval.cf49-exact12-v3", kind: "evaluator", role: "retrieval-evaluator", label: "smoke-ayas-retrieval-evaluation-v3 (CF49 exact12 successor)",
++    identity: { type: "source-digest", files: ["scripts/smoke-ayas-retrieval-evaluation-v3.ts", "scripts/lib/AyasRetrievalEvaluation.ts"], sha256: "f7013e3033fcfa32c3405060c668b4e536e2059c9edd49ce9ef10213b1ca1c31" },
++    state: "PINNED", admission: "NONE", compatibility: "deterministic; the same 74 cases, floors, ceilings and checks; 16 recorded known limitations after the 12 CF49-reviewed improvements left the list.",
++    record: unmeasured("new evaluator identity; owner acceptance pending"), rollbackTarget: "evaluator.retrieval.pf15c-v2",
++    history: [{ state: "DISCOVERED", on: "2026-10-08", basis: "the frozen grader exits 1 on exactly 12 IMPROVED cases that the CF49 review accepted" },
++      { state: "PINNED", on: "2026-10-08", basis: "a sibling copy of the frozen grader without the 12 reviewed rows; cases, graders, assertions and the other 16 known limitations unchanged" }],
++    notes: "No qualification, promotion or serving admission. The frozen grader keeps its bytes, its raw exit 1 and the CF49 review; it stays the rollback target. Accepting this identity is an owner decision.",
++  },
+ ] satisfies readonly AyasLifecycleEntry[]);
+ 
+ export function findAyasLifecycleEntry(id: string): AyasLifecycleEntry | undefined {
+-- 
+2.55.0.windows.2
+
