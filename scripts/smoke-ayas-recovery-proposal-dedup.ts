@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+const root=fs.mkdtempSync(path.join(os.tmpdir(),"ayas-recovery-dedup-"));
+const input={createdAt:"2026-10-08T00:00:00Z",baseBranch:"fixture",baseHead:"fixture-base",objective:"fixture diagnostic assertion",currentProblem:"fixture assertion is absent",selectionReason:"fixture identifies an assertion gap",expectedUserBenefit:"fixture regression detection",expectedBehaviorChange:"add one fixture assertion",unchangedBehavior:"production remains unchanged",riskIfNotDone:"fixture regression could be missed",technicalRisk:"low",productionImpact:"none",rationale:"synthetic bounded diagnostic gap",evidence:["fixture evidence"],graphifyEvidence:["fixture structural witness"],candidateRank:1,risk:"low",safetyClassification:"SAFE" as const,exactFiles:["scripts/smoke-ayas-machine-health.ts"],expectedDiffScope:"one assertion",testsPlanned:["fixture"],estimatedCost:"zero-cost" as const,mutationKind:"fixture-mutation"};
+try {
+  const inbox=createAyasApprovalInboxStore({rootDir:root});
+  const proposal=inbox.createProposal(input);
+  inbox.decide(proposal.proposalId,"APPROVE","2026-10-08T00:01:00Z","synthetic test only");
+  const reservation=inbox.reserveApproval(proposal.proposalId,proposal.proposalHash,proposal.baseHead,proposal.exactFiles,"2026-10-08T00:02:00Z");
+  inbox.finalizeApproval(reservation.reservationId,"RECOVERY_REQUIRED","2026-10-08T00:03:00Z");
+  const before=fs.readFileSync(inbox.stateFile);
+  const repeated=inbox.createProposal({...input,createdAt:"2026-10-08T00:04:00Z",proposalId:"new-discovery-id"});
+  assert.equal(repeated.proposalId,proposal.proposalId,"same unresolved hash must retain original recovery identity");
+  assert.equal(repeated.status,"RECOVERY_REQUIRED");
+  assert.equal(inbox.load().proposals.length,1);
+  assert.deepEqual(fs.readFileSync(inbox.stateFile),before,"duplicate discovery must not rewrite historical state");
+  const reopened=createAyasApprovalInboxStore({rootDir:root});
+  assert.equal(reopened.createProposal(input).proposalId,proposal.proposalId);
+  assert.deepEqual(fs.readFileSync(inbox.stateFile),before,"same content after restart remains immutable");
+  assert.throws(()=>reopened.decide(proposal.proposalId,"APPROVE","2026-10-08T00:05:00Z"));
+  assert.throws(()=>reopened.reserveApproval(proposal.proposalId,proposal.proposalHash,proposal.baseHead,proposal.exactFiles,"2026-10-08T00:05:00Z"));
+  const fresh=reopened.createProposal({...input,baseHead:"different-fixture-base"});
+  assert.equal(fresh.status,"PENDING");assert.notEqual(fresh.proposalHash,proposal.proposalHash);
+  const changed=reopened.createProposal({...input,objective:"a different exact proposed change"});
+  assert.equal(changed.status,"PENDING");assert.notEqual(changed.proposalHash,proposal.proposalHash);
+  const after=reopened.load();assert.equal(after.decisions.length,1);assert.equal(after.results.length,0);
+  assert.deepEqual(after.proposals[0],JSON.parse(before.toString()).proposals[0]);
+  console.log(JSON.stringify({status:"PASS",scenarios:6,scope:"TEMP_ONLY_EXACT_HASH_RECOVERY_DEDUP_NO_REPLAY_NO_AUTHORITY"}));
+} finally { fs.rmSync(root,{recursive:true,force:true}); }

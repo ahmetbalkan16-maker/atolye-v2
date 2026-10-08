@@ -292,7 +292,8 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       };
       const proposal = { ...base, schemaVersion: ayasApprovalInboxSchemaVersion, proposalHash: proposalHash(base), status: "PENDING" as const };
       const state = load();
-      const duplicate = state.proposals.find((p) => p.proposalHash === proposal.proposalHash && ["PENDING", "APPROVED", "REJECTED", "DEFERRED", "RESERVED"].includes(p.status));
+      // An unresolved mutation cannot become a fresh pending proposal by rediscovery of the same exact hash.
+      const duplicate = state.proposals.find((p) => p.proposalHash === proposal.proposalHash && ["PENDING", "APPROVED", "REJECTED", "DEFERRED", "RESERVED", "RECOVERY_REQUIRED"].includes(p.status));
       if (duplicate) return duplicate;
       save({ ...state, proposals: [...state.proposals, proposal] });
       return proposal;

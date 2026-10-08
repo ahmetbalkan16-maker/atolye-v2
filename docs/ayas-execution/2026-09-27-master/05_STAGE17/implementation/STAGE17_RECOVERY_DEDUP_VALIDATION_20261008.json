@@ -1,0 +1,122 @@
+{
+  "observedAt": "2026-10-08T11:45:28.914Z",
+  "scope": "PROSPECTIVE_EXACT_HASH_RECOVERY_DEDUP_NOT_HISTORICAL_RECONCILIATION",
+  "negativeControl": {
+    "name": "original-negative",
+    "args": [
+      "--import",
+      "tsx",
+      "scripts/smoke-ayas-recovery-proposal-dedup.ts"
+    ],
+    "exit": 1,
+    "log": "DEDUP_original-negative.log"
+  },
+  "checks": [
+    {
+      "name": "positive",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-recovery-proposal-dedup.ts"
+      ],
+      "exit": 0,
+      "log": "DEDUP_positive.log"
+    },
+    {
+      "name": "smoke-ayas-authorization-reservation.ts",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-authorization-reservation.ts"
+      ],
+      "exit": 0,
+      "log": "DEDUP_smoke-ayas-authorization-reservation.ts.log"
+    },
+    {
+      "name": "smoke-ayas-approval-durable-state-compatibility.ts",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-approval-durable-state-compatibility.ts"
+      ],
+      "exit": 0,
+      "log": "DEDUP_smoke-ayas-approval-durable-state-compatibility.ts.log"
+    },
+    {
+      "name": "smoke-ayas-proposal-approval-service.ts",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-proposal-approval-service.ts"
+      ],
+      "exit": 0,
+      "log": "DEDUP_smoke-ayas-proposal-approval-service.ts.log"
+    },
+    {
+      "name": "smoke-ayas-proposal-execution-service.ts",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-proposal-execution-service.ts"
+      ],
+      "exit": 0,
+      "log": "DEDUP_smoke-ayas-proposal-execution-service.ts.log"
+    },
+    {
+      "name": "smoke-ayas-autonomy-daemon.ts",
+      "args": [
+        "--import",
+        "tsx",
+        "scripts/smoke-ayas-autonomy-daemon.ts"
+      ],
+      "exit": 0,
+      "log": "DEDUP_smoke-ayas-autonomy-daemon.ts.log"
+    },
+    {
+      "name": "tsc",
+      "args": [
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "exit": 0,
+      "log": "DEDUP_tsc.log"
+    },
+    {
+      "name": "lint",
+      "args": [
+        "node_modules/eslint/bin/eslint.js",
+        "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
+        "scripts/smoke-ayas-recovery-proposal-dedup.ts"
+      ],
+      "exit": 0,
+      "log": "DEDUP_lint.log"
+    },
+    {
+      "name": "build",
+      "args": [
+        "node_modules/next/dist/bin/next",
+        "build"
+      ],
+      "exit": 0,
+      "log": "DEDUP_build.log"
+    }
+  ],
+  "sourceFiles": {
+    "src/lib/brain/autonomy/AyasApprovalInboxStore.ts": "132d8865e90830c7edbcd0b88fc1ca72c960a08f22ef3f84486952b2d2c2ce26",
+    "scripts/smoke-ayas-recovery-proposal-dedup.ts": "072f2b2a56887b033b966a38368cc0e2bb2f0be19bbfc112e8491953b745509f"
+  },
+  "logs": {
+    "DEDUP_original-negative.log": "7f2c30c12a05d0caa83190f1c1ffdb549cf88ba9e21629393eeeedf290a4ee6e",
+    "DEDUP_positive.log": "43b54d4d9995aafd2da6cfbac24f595a7eb15327d6185fae82f44e0e5d9a4bd6",
+    "DEDUP_smoke-ayas-authorization-reservation.ts.log": "d1050e7d04abde9df19b939c304a29d3435082b7984db3ebf169a83588e0079f",
+    "DEDUP_smoke-ayas-approval-durable-state-compatibility.ts.log": "cf96e5a6215ffd841a3318b41b4e61e2e37fc30af27c4c4e38a130df400cdd68",
+    "DEDUP_smoke-ayas-proposal-approval-service.ts.log": "e4b3c53f0a1a976c2484268e2ce7caff2e4d677733cdf46ea15f0e04d8e7a331",
+    "DEDUP_smoke-ayas-proposal-execution-service.ts.log": "c5aaccdec310328acb46474856f6ee6ad8a5af763c6a849b3900bae2d3e6b32c",
+    "DEDUP_smoke-ayas-autonomy-daemon.ts.log": "11b158bbbb7a930952f74db19e44b5d19c78fb4a8ec1cbfa408692e8341a563c",
+    "DEDUP_tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "DEDUP_lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "DEDUP_build.log": "eb81a59e3c93cb824d2acfaa06af04f05a5caa0005848192b381898949471eb8"
+  },
+  "liveRecordChanges": 0,
+  "grantsAuthority": false
+}

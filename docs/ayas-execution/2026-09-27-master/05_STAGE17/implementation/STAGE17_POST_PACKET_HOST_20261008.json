@@ -1,0 +1,44 @@
+{
+  "observedAt": "2026-10-08T11:44:23.2904249Z",
+  "port3000Listeners": [
+    {
+      "LocalPort": 3000,
+      "OwningProcess": 32416
+    }
+  ],
+  "ayasTasks": [
+    {
+      "TaskName": "AYAS Access Online",
+      "State": 4,
+      "Hidden": false
+    },
+    {
+      "TaskName": "AYAS Autonomy Observer",
+      "State": 4,
+      "Hidden": false
+    }
+  ],
+  "inspection": "READ_ONLY_NO_RESTART",
+  "credentialsRead": false,
+  "sourcePacketHead": "ef6acb234f231982b117a4004893ff1abe1e0e45",
+  "liveBuildStamp": {
+    "schemaVersion": "1",
+    "gitHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-08T09:54:26.629Z"
+  },
+  "liveBuildStampSha256": "f65d99dc96f0870315d7cc79231d3c17887d2f95701c86008f1c2f16840e11b6",
+  "rawTemporaryHostCaptureSha256": "500443de9a27374298a2774d68d827123aa9328869a3e4d7c8c9ab15ebe64a34",
+  "liveNext": "16.2.10",
+  "grantsAuthority": false,
+  "stateEnumMeaning": {
+    "4": "Running"
+  },
+  "recoveryRows": {
+    "countNow": 9,
+    "originalNineJournalBytesUnchanged": true,
+    "inboxSnapshotBytesUnchanged": false,
+    "finalizedOrReplayedByAgent": false
+  }
+}

@@ -1,0 +1,38 @@
+Graphify Review Analysis
+Changed files: 2
+Blast radius: high (score 78)
+Impacted files: 1
+Impacted communities: 3
+Bridge nodes: 8
+Test-gap hints: 2
+Multimodal safety: none
+
+Blast rationale:
+  - multiple communities are impacted
+  - bridge nodes connect this change across communities
+  - high-risk chains are present
+  - test-gap hints are present
+
+Impacted communities:
+  - Community 14 (high, 21 impacted nodes, 23 changed nodes)
+  - Community 31 (medium, 3 impacted nodes, 3 changed nodes)
+  - Community 17 (low, 1 impacted nodes, 1 changed nodes)
+
+Bridge nodes:
+  - createAyasApprovalInboxStore() (degree 40, community 14, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+  - AyasInboxProposal (degree 28, community 14, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+  - AyasApprovalInboxHandle (degree 20, community 14, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+  - AyasInboxProposalStatus (degree 5, community 17, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+  - AyasInboxDecision (degree 4, community 31, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+  - AyasApprovalInboxStoreError (degree 9, community 14, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+  - AyasInboxDecisionRecord (degree 3, community 31, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+  - AyasApprovalInboxState (degree 2, community 14, src/lib/brain/autonomy/AyasApprovalInboxStore.ts)
+
+Test-gap hints:
+  - scripts/smoke-ayas-recovery-proposal-dedup.ts: no related test file surfaced in the impacted graph
+  - src/lib/brain/autonomy/AyasApprovalInboxStore.ts: no related test file surfaced in the impacted graph
+
+Multimodal/doc safety:
+  - no multimodal/doc artifact surfaced in the impacted graph
+
+Next best action: Start with bridge nodes and high-risk chains before reviewing individual files.

@@ -1,0 +1,2 @@
+AYAS authorization reservation smoke: PASS (23 scenarios)
+{"status":"PASS","suite":"ayas-authorization-reservation","scenarios":23}
