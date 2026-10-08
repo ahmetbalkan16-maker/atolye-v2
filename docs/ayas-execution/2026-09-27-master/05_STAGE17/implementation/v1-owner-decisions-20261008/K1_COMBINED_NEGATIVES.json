@@ -1,0 +1,108 @@
+{
+ "restoredSha256": {
+  "src/lib/ayas/memory/AyasMemoryTemporal.ts": "c5139a0fbde0ad50af458d3946866032b65146ca4ae0d46db82ed80fc93f2c13",
+  "scripts/smoke-ayas-retrieval-evaluation-v3.ts": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00",
+  "scripts/smoke-ayas-retrieval-evaluation.ts": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e"
+ },
+ "results": [
+  {
+   "id": "N0_CLEAN_V3",
+   "applied": true,
+   "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+   "exit": 0,
+   "outcome": "PASS",
+   "expected": "PASS",
+   "ok": true,
+   "head": "PASS (74 cases, 4 determinism checks, 8 error cases, 8 isolation/privacy checks, 7 chat chains)",
+   "regressionCount": 0,
+   "regressions": []
+  },
+  {
+   "id": "N0_CLEAN_ORIGINAL",
+   "applied": true,
+   "ran": "scripts/smoke-ayas-retrieval-evaluation.ts",
+   "exit": 1,
+   "outcome": "FAIL",
+   "expected": "OBSERVE",
+   "ok": true,
+   "head": "FAIL (12 gate failure(s))",
+   "regressionCount": 0,
+   "regressions": []
+  },
+  {
+   "id": "N1_CF49_SLOT_DISABLED_V3",
+   "applied": true,
+   "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+   "exit": 1,
+   "outcome": "FAIL",
+   "expected": "FAIL",
+   "ok": true,
+   "head": "FAIL (12 gate failure(s))",
+   "regressionCount": 12,
+   "regressions": [
+    "exact-pc-plan",
+    "para-pc-thinking",
+    "para-pc-plan",
+    "morph-pc-last-decision",
+    "morph-pc-card-accusative",
+    "order-pc-inverted",
+    "multi-pc-card-and-ram",
+    "tr-pc-capitals",
+    "tr-pc-punctuation",
+    "tr-pc-typo",
+    "heldout-pc-card-want",
+    "heldout-pc-switch"
+   ]
+  },
+  {
+   "id": "N1_CF49_SLOT_DISABLED_ORIGINAL",
+   "applied": true,
+   "ran": "scripts/smoke-ayas-retrieval-evaluation.ts",
+   "exit": 0,
+   "outcome": "PASS",
+   "expected": "OBSERVE",
+   "ok": true,
+   "head": "PASS (74 cases, 4 determinism checks, 8 error cases, 8 isolation/privacy checks, 7 chat chains)",
+   "regressionCount": 0,
+   "regressions": []
+  },
+  {
+   "id": "N2_REVIEWED_ROW_READDED",
+   "applied": true,
+   "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+   "exit": 1,
+   "outcome": "FAIL",
+   "expected": "FAIL",
+   "ok": true,
+   "head": "FAIL (1 gate failure(s))",
+   "regressionCount": 0,
+   "regressions": []
+  },
+  {
+   "id": "N3_REMAINING_ROW_DROPPED",
+   "applied": true,
+   "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+   "exit": 1,
+   "outcome": "FAIL",
+   "expected": "FAIL",
+   "ok": true,
+   "head": "FAIL (1 gate failure(s))",
+   "regressionCount": 1,
+   "regressions": [
+    "syn-pc-colloquial"
+   ]
+  },
+  {
+   "id": "N4_FLOOR_RAISED_ABOVE_MEASURED",
+   "applied": true,
+   "ran": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+   "exit": 1,
+   "outcome": "FAIL",
+   "expected": "FAIL",
+   "ok": true,
+   "head": "FAIL (1 gate failure(s))",
+   "regressionCount": 0,
+   "regressions": []
+  }
+ ]
+}

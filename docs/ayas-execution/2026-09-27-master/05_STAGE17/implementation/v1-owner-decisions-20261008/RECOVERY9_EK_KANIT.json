@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "1",
+  "ownerDecision": "KARAR 2 — RECOVERY9: dokuz tarihsel kayit icin EK KANIT (owner, 2026-10-08)",
+  "observedAt": "2026-10-08T15:20:00Z",
+  "method": "READ_ONLY: live approval-inbox.json (revision 542), git history, Graphify evidence store, Access daemon log directory, operation evidence store, source revisions in effect at each decision time. No replay, no APPROVE/DONE, no write to any runtime store, no new live execution.",
+  "rules": {
+    "actorIdentity": "UNKNOWN stays UNKNOWN; no actor is inferred from timing, reason text, commit prose or path evidence",
+    "historicalRecords": "not deleted, not rewritten; raw status RECOVERY_REQUIRED kept",
+    "replay": "none",
+    "autoApprove": "none",
+    "liveRiskFinding": "preserved: no live execution or exploitation risk (RECOVERY9_LIVE_RISK_REVIEW.md)"
+  },
+  "sourcesChecked": [
+    { "source": "decision records (all 53 decisions)", "result": "NOT_CAPTURED", "detail": "fields: decisionId, proposalId, proposalHash, decision, decidedAt, evidenceFingerprint, authorizationId, reservationId, reservedAt, finalizedAt, finalizationOutcome, reason; no actor, session or request field exists" },
+    { "source": "Access daemon logs (%LOCALAPPDATA%\\AtolyeAyasAccess\\logs)", "result": "NOT_AVAILABLE", "detail": "app-server.log and cloudflared.log are rewritten at every service start (0 bytes; last start 2026-10-08); Next.js start output carries no per-request lines; nothing covers 2026-09-22..29" },
+    { "source": "login route", "result": "NOT_AVAILABLE", "detail": "app/api/auth/login writes no audit record" },
+    { "source": "operation evidence store (data/brain/observability/evidence)", "result": "NOT_AVAILABLE", "detail": "retained days 2026-10-07 and 2026-10-08 only" },
+    { "source": "Graphify evidence store (data/brain/self-improvement/graphify-evidence)", "result": "FOUND_FOR_7", "detail": "one per-file record for each of the seven one-click records; none for the two experiments" },
+    { "source": "git history and commit metadata", "result": "FOUND", "detail": "88d662e and 97cb6e9 carry the ONAYLA VE UYGULA service message; no commit between 2026-09-24T10:00Z and 12:30Z" },
+    { "source": "source revisions at decision time", "result": "FOUND", "detail": "78daadd (2026-09-24) reverts files on post-execution validation failure before staging; 9472de3 (2026-09-29) refuses exact patches in the one-click publisher, resume skips them, and the legacy decide action accepted a client-typed reason" }
+  ],
+  "records": [
+    {
+      "proposalId": "ayas-proposal-a45f13ae-c9c9-438d-87ee-1a30b4222e8e",
+      "decidedAtUtc": "2026-09-22T15:19:19.388Z", "decidedAtLocal": "2026-09-22 18:19:19 (UTC+3)",
+      "reason": null, "reserveAfterDecisionMs": 198,
+      "graphifyEvidence": { "file": "scripts/smoke-ayas-capability-taxonomy.ts", "outcome": "PASS", "at": "2026-09-22T15:19:20.836Z", "recordSha256Prefix": "1c3b5627cc132154" },
+      "commit": { "sha": "88d662e", "committedAt": "2026-09-22T15:19:23Z", "messageForm": "ONAYLA VE UYGULA one-click service" },
+      "finalizedAt": "2026-09-22T15:19:26.256Z",
+      "pathEvidence": "Single-call one-click path (approveAndExecuteAyasProposal): APPROVE without reason, reservation within the same call, Graphify PASS, commit 4 s after the decision. Non-test callers of that path: the session-gated proposalOnaylaVeUygula server action, or an operator running the crash-injection harness with an explicit config.",
+      "effect": "PUBLISHED (test assert message only), unchanged from earlier finding",
+      "actor": "UNKNOWN",
+      "rawStatus": "RECOVERY_REQUIRED",
+      "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Path evidence strengthened; actor not resolvable from existing records.",
+      "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-40ff181b-c5da-4bb4-a22a-c46870318cc7",
+      "decidedAtUtc": "2026-09-24T10:51:05.775Z", "decidedAtLocal": "2026-09-24 13:51:05 (UTC+3)",
+      "reason": null, "reserveAfterDecisionMs": 194,
+      "graphifyEvidence": { "file": "scripts/smoke-ayas-chat.ts", "outcome": "FAIL", "errorCode": "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", "at": "2026-09-24T10:51:07.106Z", "recordSha256Prefix": "fa95f0def698eb4a" },
+      "commit": null,
+      "finalizedAt": "2026-09-24T10:51:07.337Z",
+      "pathEvidence": "Single-call one-click path; the publication pipeline stopped at the per-file Graphify check. Source 78daadd (in effect) resets and reverts the files and returns before staging; no commit exists in the window.",
+      "effect": "NOT_PUBLISHED by this record; working-tree revert by the code path (revert success itself not separately logged); worktree clean today; same bytes published later by a separate proposal (18c15af4, commit 580bbab, 2026-09-25)",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Earlier 'absence of commit is not proof of no effect' narrowed: the code path in effect reverted before any staging, Graphify recorded FAIL at that moment, and git has no commit in the window.",
+      "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-e89f94d1-dfdf-4b88-976a-9adcf9821f96",
+      "decidedAtUtc": "2026-09-24T10:58:24.019Z", "decidedAtLocal": "2026-09-24 13:58:24 (UTC+3)",
+      "reason": null, "reserveAfterDecisionMs": 189,
+      "graphifyEvidence": { "file": "scripts/smoke-ayas-chat.ts", "outcome": "FAIL", "errorCode": "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", "at": "2026-09-24T10:58:25.207Z", "recordSha256Prefix": "b0bd3484f671192f" },
+      "commit": null, "finalizedAt": "2026-09-24T10:58:25.399Z",
+      "pathEvidence": "Same as 40ff181b.", "effect": "Same as 40ff181b.",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Same as 40ff181b.", "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-0dd94880-a665-4f6f-ad17-9247977f3632",
+      "decidedAtUtc": "2026-09-24T11:20:47.345Z", "decidedAtLocal": "2026-09-24 14:20:47 (UTC+3)",
+      "reason": null, "reserveAfterDecisionMs": 198,
+      "graphifyEvidence": { "file": "scripts/smoke-ayas-chat.ts", "outcome": "FAIL", "errorCode": "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", "at": "2026-09-24T11:20:48.564Z", "recordSha256Prefix": "b791f0badc43d9d4" },
+      "commit": null, "finalizedAt": "2026-09-24T11:20:48.784Z",
+      "pathEvidence": "Same as 40ff181b.", "effect": "Same as 40ff181b.",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Same as 40ff181b.", "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-40bccc69-6093-4c69-9824-7ce24b47cec4",
+      "decidedAtUtc": "2026-09-24T11:27:39.383Z", "decidedAtLocal": "2026-09-24 14:27:39 (UTC+3)",
+      "reason": null, "reserveAfterDecisionMs": 203,
+      "graphifyEvidence": { "file": "scripts/smoke-ayas-chat.ts", "outcome": "FAIL", "errorCode": "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", "at": "2026-09-24T11:27:40.719Z", "recordSha256Prefix": "8f985a19e82ed9cf" },
+      "commit": null, "finalizedAt": "2026-09-24T11:27:40.942Z",
+      "pathEvidence": "Same as 40ff181b.", "effect": "Same as 40ff181b.",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Same as 40ff181b.", "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-dc9045d9-0227-4563-8e47-06ff38777f53",
+      "decidedAtUtc": "2026-09-24T11:50:11.897Z", "decidedAtLocal": "2026-09-24 14:50:11 (UTC+3)",
+      "reason": null, "reserveAfterDecisionMs": 191,
+      "graphifyEvidence": { "file": "scripts/smoke-ayas-chat.ts", "outcome": "FAIL", "errorCode": "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", "at": "2026-09-24T11:50:13.124Z", "recordSha256Prefix": "0e618157a9c95095" },
+      "commit": null, "finalizedAt": "2026-09-24T11:50:13.325Z",
+      "pathEvidence": "Same as 40ff181b.", "effect": "Same as 40ff181b.",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Same as 40ff181b.", "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-412d8553-58fb-4a38-becd-4a852e18a918",
+      "decidedAtUtc": "2026-09-25T21:20:40.395Z", "decidedAtLocal": "2026-09-26 00:20:40 (UTC+3)",
+      "reason": null, "reserveAfterDecisionMs": 216,
+      "graphifyEvidence": { "file": "scripts/smoke-ayas-graphify-evidence-store.ts", "outcome": "PASS", "at": "2026-09-25T21:20:41.941Z", "recordSha256Prefix": "c32b95807719fc59" },
+      "commit": { "sha": "97cb6e9", "committedAt": "2026-09-25T21:20:45Z", "messageForm": "ONAYLA VE UYGULA one-click service" },
+      "finalizedAt": "2026-09-25T21:22:27.020Z",
+      "pathEvidence": "Single-call one-click path, as a45f13ae; commit 5 s after the decision.",
+      "effect": "PUBLISHED (test assert message only), unchanged from earlier finding",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Path evidence strengthened; actor not resolvable from existing records.", "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-a5508567-a34b-4de6-8978-3050408f52dc",
+      "decidedAtUtc": "2026-09-29T05:02:00.626Z", "decidedAtLocal": "2026-09-29 08:02:00 (UTC+3)",
+      "reason": "owner-approved: exact patch awaiting local governed execution", "reserveAfterDecisionMs": 20796,
+      "graphifyEvidence": null, "commit": null, "finalizedAt": "2026-09-29T05:02:23.312Z",
+      "pathEvidence": "The reason text is the one the owner-approval gate writes for an exact patch, but at source 9472de3 the legacy decide action also accepted a client-typed reason, so the text alone does not prove the path (owner decision 3 closes this). The reservation came 20.8 s later; at 9472de3 the one-click publisher refused exact patches and resume skipped them, leaving the session-gated YURUT action (executeAyasApprovedProposal) or a local script calling the execution service directly.",
+      "effect": "Validator failed; ledger rollback entry 271; current source does not equal the replacement bytes (unchanged finding)",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Path narrowed to two separate actions about 21 s apart; actor not resolvable.", "liveRisk": "NONE"
+    },
+    {
+      "proposalId": "ayas-proposal-ec47b32a-316c-43e2-8650-0c164ee41ab2",
+      "decidedAtUtc": "2026-09-29T09:22:46.630Z", "decidedAtLocal": "2026-09-29 12:22:46 (UTC+3)",
+      "reason": "owner-approved: exact patch awaiting local governed execution", "reserveAfterDecisionMs": 15157,
+      "graphifyEvidence": null, "commit": null, "finalizedAt": "2026-09-29T09:23:19.198Z",
+      "pathEvidence": "Same as a5508567; reservation 15.2 s after the decision.",
+      "effect": "Validator failed; ledger rollback entry 275; current source does not equal the replacement bytes (unchanged finding)",
+      "actor": "UNKNOWN", "rawStatus": "RECOVERY_REQUIRED", "ownerDecision": "EK_KANIT_ISTENDI",
+      "result": "Same as a5508567.", "liveRisk": "NONE"
+    }
+  ],
+  "remainingGap": "Who held the owner session (or ran a local script) at each decision time cannot be recovered from any existing record. Only an owner statement could add to it, and it would be recorded as OWNER_STATEMENT_UNVERIFIED next to the row, never written into the actor field.",
+  "grantsAuthority": false
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1",
+  "observedAt": "2026-10-08T15:50:44.214Z",
+  "evidenceClass": "ISOLATED_IN_MEMORY_INGRESS_CONTRACT_SIMULATION",
+  "implementation": "NOT_APPLIED",
+  "actualDurability": "NOT_QUALIFIED",
+  "realWebhook": "NOT_RUN",
+  "productionConnection": false,
+  "externalWrites": 0,
+  "ledgerWrites": 0,
+  "authority": "NONE",
+  "cases": 12,
+  "results": [
+    {
+      "id": "valid-test-notification-commits-before-ack",
+      "outcome": "PASS"
+    },
+    {
+      "id": "duplicate-ack-no-second-job",
+      "outcome": "PASS"
+    },
+    {
+      "id": "concurrent-duplicate-one-committed-receipt-model",
+      "outcome": "PASS"
+    },
+    {
+      "id": "bad-signature-no-receipt",
+      "outcome": "PASS"
+    },
+    {
+      "id": "altered-raw-body-refused",
+      "outcome": "PASS"
+    },
+    {
+      "id": "signed-malformed-json-refused",
+      "outcome": "PASS"
+    },
+    {
+      "id": "live-notification-refused-at-test-boundary",
+      "outcome": "PASS"
+    },
+    {
+      "id": "foreign-store-refused",
+      "outcome": "PASS"
+    },
+    {
+      "id": "case-duplicate-header-refused",
+      "outcome": "PASS"
+    },
+    {
+      "id": "oversized-body-refused",
+      "outcome": "PASS"
+    },
+    {
+      "id": "receipt-failure-no-200-and-retry-can-commit",
+      "outcome": "PASS"
+    },
+    {
+      "id": "receipts-no-raw-pii-secret-or-economic-authority",
+      "outcome": "PASS"
+    }
+  ]
+}

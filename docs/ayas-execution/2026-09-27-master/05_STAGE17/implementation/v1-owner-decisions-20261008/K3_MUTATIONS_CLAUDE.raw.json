@@ -1,0 +1,116 @@
+{
+ "total": 22,
+ "killed": 22,
+ "results": [
+  {
+   "id": "M01 strict store check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M02 inbox binding result ignored",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M03 micro-batch strict check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M04 micro-batch binding ignored",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M05 subject comparison removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M06 replay check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M07 staleness check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M08 future check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+  },
+  {
+   "id": "M09 gate mode check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false"
+  },
+  {
+   "id": "M10 session verification skipped",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false"
+  },
+  {
+   "id": "M11 seal check always true",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  },
+  {
+   "id": "M12 shape key-set check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  },
+  {
+   "id": "M13 resume admission filter removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:"
+  },
+  {
+   "id": "M14 reserved-reason NFKC removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: ｏｗｎｅｒ-approved: x"
+  },
+  {
+   "id": "M15 action: reserved-reason check removed",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: the reserved-reason check must run before the decision"
+  },
+  {
+   "id": "M16 action: legacy store not strict",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: decideAyasApproval must decide through an owner-action store"
+  },
+  {
+   "id": "M17 action: execute skips attributed approval",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: execution must check the attributed approval first"
+  },
+  {
+   "id": "M18 action: one-click store not strict",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: proposalOnaylaVeUygula must decide through an owner-action store"
+  },
+  {
+   "id": "M19 action: batch store not strict",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: batchOnaylaVeUygula must decide through an owner-action store"
+  },
+  {
+   "id": "M20 action guard reads dev gate as admitted",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false"
+  },
+  {
+   "id": "M21 service drops admission",
+   "status": "KILLED",
+   "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  },
+  {
+   "id": "M22 gate REJECT drops admission",
+   "status": "KILLED",
+   "reason": "Error: owner admission is required for this decision] {"
+  }
+ ]
+}

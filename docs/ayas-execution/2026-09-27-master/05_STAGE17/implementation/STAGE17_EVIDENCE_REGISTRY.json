@@ -2212,5 +2212,154 @@
     "sprint": "NOT_READY",
     "atolyeTransition": "CAN_START_PREPARATION_ONLY",
     "grantsAuthority": false
+  },
+  "codexExactHandoff20261008": {
+    "entryHead": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+    "technicalSourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+    "receipt": "v1-owner-decisions-20261008/CODEX_PACKET_INDEX.json",
+    "receiptSha256": "b0b855f10681e24ca0f89c102564b2fc5987e3be593f29b816f5f19277c051ea",
+    "scope": "TEMP_CANDIDATE_BASELINE_RECOVERY_SUPPLEMENTAL_SECURITY_REVIEW_COMMERCIAL_PREPARATION_NO_SOURCE_PROMOTION",
+    "entries": [
+      {
+        "file": "v1-owner-decisions-20261008/ATOLYE_FATIH_PRIORITIZED_PLAN.md",
+        "sha256": "7c1bf60da2709c4ec5fbdef1671e33f172b17e2cbd9b4e7d4efadad0ef5d1b52",
+        "bytes": 6380
+      },
+      {
+        "file": "v1-owner-decisions-20261008/CODEX_CONTINUATION_REPORT.md",
+        "sha256": "5d8826c41ad4d362352e62a32fa1c0bb4bf5aaddeb68806e77139cbd2784c0ab",
+        "bytes": 6594
+      },
+      {
+        "file": "v1-owner-decisions-20261008/FULL166_TEMP_c17132b.raw.json",
+        "sha256": "f19b76bdd2df88c91cf8b0ece105e374de605d48ac37d31e4235d396d45e9cc3",
+        "bytes": 112736
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K1_COMBINED_NEGATIVES.json",
+        "sha256": "ebad555d17ae35271269909532857192c89529502ebe95866820189049f20b2a",
+        "bytes": 2848
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K1_ENVIRONMENT_BLOCKED_ATTEMPT.raw.json",
+        "sha256": "b98af8cb7210897e008e6206425676c2088e8a1a2b4c48f9b4f22f11fa986120",
+        "bytes": 2591
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K1_EXACT12_CONDITIONS.md",
+        "sha256": "b951c594af531f98a2f96e90c5a5cc49ce273c37b99d098e0b76fa12bc88f028",
+        "bytes": 4456
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K3_MUTATIONS_CLAUDE.raw.json",
+        "sha256": "4187a721092b6b945038a3d94be17d235e9385bd560c944043fa5123e4407255",
+        "bytes": 3724
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K3_OWNER_ADMISSION_CANDIDATE_bc9f5fd.patch",
+        "sha256": "5deff0b53bed7e31292efff85493633bf330b30c24b12680ebfa2131cc341231",
+        "bytes": 73885
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K3_OWNER_PROVENANCE.md",
+        "sha256": "37ce8a1802bc73a1bc5f9110e991ab1287f6e8b0eaadf8e84b4a9bffe8cd8dd3",
+        "bytes": 8615
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K3_PRIMARY_CODEX.raw.log",
+        "sha256": "6bc2b427e5d2434b59bb651a3698486f261f17bdcdd8445356e57dd7fc0be956",
+        "bytes": 58
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K3_SECURITY_PROBES.cjs",
+        "sha256": "ed9059030aba7404eececa19a51d2cf4de3945329990a6b751f48e5cfc82e42c",
+        "bytes": 6403
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K3_SECURITY_PROBES.json",
+        "sha256": "31833b1775b79a318b421ce85e7baa7a614da1f3e4f92e0647c2fbad54330e88",
+        "bytes": 1558
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K3_SOURCE_REVIEW_CODEX.md",
+        "sha256": "72375c23a16b0b0c19bca3498e6737f8fe3783d6722197e9084e8e2db5b424a5",
+        "bytes": 7453
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K4_LEMON_INGRESS_CONTRACT.cjs",
+        "sha256": "cc6b13d57c3421403695bbfafd7acb332e884eb12bf458f4527deb9d1da7246f",
+        "bytes": 4786
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K4_LEMON_INGRESS_CONTRACT.json",
+        "sha256": "c661106e26fd3ef0ce268a67a67d92af3c463853d364236da2d226042d98b323",
+        "bytes": 1411
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K4_LEMON_TEST_INGRESS_DESIGN.md",
+        "sha256": "dfb074b63eca70287aed4befb3644f96222fceecfdfb237ee5dac677b5e25e48",
+        "bytes": 4008
+      },
+      {
+        "file": "v1-owner-decisions-20261008/K5_FIVERR_EVIDENCE_PLAN.md",
+        "sha256": "f868f0da6dcb4105272f05be543f6af5825ca37e0c45c6b02ffdfa49aa59913b",
+        "bytes": 4307
+      },
+      {
+        "file": "v1-owner-decisions-20261008/LIVE_UNAUTHENTICATED_PROBES.raw.json",
+        "sha256": "50090893f2ecc6cfd550ece3fc2a4dc9801b62724e23653f768ec3091be3fac9",
+        "bytes": 814
+      },
+      {
+        "file": "v1-owner-decisions-20261008/MAIN_CHECKS.json",
+        "sha256": "3563ad47ef81bd3d4c6bea97f94c42c97263711c0fb7906706b2c622170cecae",
+        "bytes": 571
+      },
+      {
+        "file": "v1-owner-decisions-20261008/OCT09_0700_READINESS.md",
+        "sha256": "4875f6ffe091a7550c56ee633903622691e9bcd14248bfe07105fbfc9e26ff66",
+        "bytes": 4244
+      },
+      {
+        "file": "v1-owner-decisions-20261008/RECOVERY9_CODEX_VERIFY.json",
+        "sha256": "a0662cc318d659e0e2a36dfc64fedde87861e99855c68b59557a1ec19896c37e",
+        "bytes": 8094
+      },
+      {
+        "file": "v1-owner-decisions-20261008/RECOVERY9_EK_KANIT.json",
+        "sha256": "d8c01b9315bed9b498aba5b0bfc6f9c0d66322c0c24e156df43646f66b86ffce",
+        "bytes": 11434
+      },
+      {
+        "file": "v1-owner-decisions-20261008/RECOVERY9_OWNER_TABLE_CODEX.md",
+        "sha256": "26c576d3aeec1ad9c07a2edd9d752d8d2be81862703fbff0122c04208ff44c75",
+        "bytes": 3151
+      },
+      {
+        "file": "v1-owner-decisions-20261008/RUNTIME_PROCESS_READONLY.raw.json",
+        "sha256": "84ffbc07771cd4b2fb0f0ba09d89f8765096ddf1f28b25927c2cf561aeda9bcc",
+        "bytes": 477
+      },
+      {
+        "file": "v1-owner-decisions-20261008/TEMP_VALIDATION.json",
+        "sha256": "71d6a5e3cffb612fc75e0f1f5642c30a43cab934a818c9289230b79eca6c0c25",
+        "bytes": 12262
+      },
+      {
+        "file": "v1-owner-decisions-20261008/CODEX_PACKET_INDEX.json",
+        "sha256": "b0b855f10681e24ca0f89c102564b2fc5987e3be593f29b816f5f19277c051ea"
+      }
+    ],
+    "currentOwnerGates": {
+      "file": "v1-final-closure-20261008/OWNER_GATES.md",
+      "sha256": "2569457bfb07e2503e7546d50fda5b13a07549a318bb7c607127dda6afb7c45a",
+      "history": "Previous registry digests remain original source-bound historical receipts; latest document prepends current qualification."
+    },
+    "full166Source": "c17132bcf18b3018cdfb76334d4b8c47772af165",
+    "full166Qualification": "TEMP_ONLY_JUNCTION_DEPENDENCIES",
+    "sourceApplied": false,
+    "foundationClosed": false,
+    "ownerReviewDigest": null,
+    "grantsAuthority": false
   }
 }

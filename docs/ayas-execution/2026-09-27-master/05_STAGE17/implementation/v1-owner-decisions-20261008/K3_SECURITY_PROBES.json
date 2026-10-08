@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1",
+  "candidate": "bc9f5fd9ad77d14d14c1a09da28a845015b50f15",
+  "observedAt": "2026-10-08T15:48:45.422Z",
+  "method": "PURE_FUNCTIONS_AND_REAL_ACTION_VM_WITH_NOOP_EXECUTOR",
+  "findingsAreNotSecurityPass": true,
+  "observations": [
+    {
+      "id": "P1",
+      "finding": "SAME_SECOND_LOGINS_HAVE_IDENTICAL_SESSION_REFERENCE",
+      "reproduced": true
+    },
+    {
+      "id": "P2",
+      "control": "VALID_ADMISSION_AND_SEAL_ACCEPTED",
+      "passed": true
+    },
+    {
+      "id": "P3",
+      "finding": "BINDING_ACCEPTS_INVALID_SEAL",
+      "reproduced": true,
+      "scope": "persisted/in-process record; no browser identity injection demonstrated"
+    },
+    {
+      "id": "P4",
+      "finding": "RESUME_EXECUTE_ELIGIBILITY_ACCEPTS_INVALID_SEAL",
+      "reproduced": true
+    },
+    {
+      "id": "P5",
+      "finding": "DECISION_BOUNDARY_ACCEPTS_EXPIRED_SESSION_WITHIN_FIVE_MINUTES",
+      "reproduced": true
+    },
+    {
+      "id": "P6",
+      "control": "REPLAY_AND_STALE_SUBJECT_REFUSED",
+      "passed": true
+    },
+    {
+      "id": "P7",
+      "finding": "CROSS_SESSION_EXECUTE_ALLOWED_AND_EXECUTE_ADMISSION_DISCARDED",
+      "reproduced": true,
+      "scope": "real action body with stubbed executor; no live execution"
+    },
+    {
+      "id": "P8",
+      "control": "UNATTRIBUTED_APPROVAL_REFUSED_BEFORE_EXECUTOR",
+      "passed": true
+    },
+    {
+      "id": "P9",
+      "observation": "DURABLE_APPROVAL_HAS_NO_CURRENT_SESSION_EXPIRY_CHECK",
+      "confirmed": true,
+      "policyDecisionRequired": true
+    }
+  ]
+}

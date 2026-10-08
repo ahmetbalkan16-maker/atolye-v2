@@ -1,0 +1,195 @@
+{
+  "schemaVersion": "CODEX_EXACT_HANDOFF_INDEX_1",
+  "entryHead": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+  "technicalSourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "packetPurpose": "RECOVER_EXISTING_CONTINUATION_EVIDENCE_AND_PREPARE_OWNER_REVIEW",
+  "authority": "NONE",
+  "ayasV1": "BLOCKED",
+  "foundation": "BLOCKED",
+  "sprint": "NOT_READY",
+  "atolye": "CAN_START_PREPARATION_ONLY",
+  "sourceApplication": "NOT_DONE_OWNER_K3_SCOPE_REQUIRED",
+  "full166": "TEMP_C17132B166_PASS_NOT_FRESH_LOCK_OR_FINAL_MAIN",
+  "k3": "CHANGES_REQUIRED",
+  "finalMainFull166": "NOT_READY",
+  "newPush": "OWNER_APPROVAL_REQUIRED",
+  "deployment": "NOT_AUTHORIZED_NOT_EXECUTED",
+  "files": [
+    {
+      "file": "ATOLYE_FATIH_PRIORITIZED_PLAN.md",
+      "sha256": "7c1bf60da2709c4ec5fbdef1671e33f172b17e2cbd9b4e7d4efadad0ef5d1b52",
+      "bytes": 6380
+    },
+    {
+      "file": "CODEX_CONTINUATION_REPORT.md",
+      "sha256": "5d8826c41ad4d362352e62a32fa1c0bb4bf5aaddeb68806e77139cbd2784c0ab",
+      "bytes": 6594
+    },
+    {
+      "file": "FULL166_TEMP_c17132b.raw.json",
+      "sha256": "f19b76bdd2df88c91cf8b0ece105e374de605d48ac37d31e4235d396d45e9cc3",
+      "bytes": 112736
+    },
+    {
+      "file": "K1_COMBINED_NEGATIVES.json",
+      "sha256": "ebad555d17ae35271269909532857192c89529502ebe95866820189049f20b2a",
+      "bytes": 2848
+    },
+    {
+      "file": "K1_ENVIRONMENT_BLOCKED_ATTEMPT.raw.json",
+      "sha256": "b98af8cb7210897e008e6206425676c2088e8a1a2b4c48f9b4f22f11fa986120",
+      "bytes": 2591
+    },
+    {
+      "file": "K1_EXACT12_CONDITIONS.md",
+      "sha256": "b951c594af531f98a2f96e90c5a5cc49ce273c37b99d098e0b76fa12bc88f028",
+      "bytes": 4456
+    },
+    {
+      "file": "K3_MUTATIONS_CLAUDE.raw.json",
+      "sha256": "4187a721092b6b945038a3d94be17d235e9385bd560c944043fa5123e4407255",
+      "bytes": 3724
+    },
+    {
+      "file": "K3_OWNER_ADMISSION_CANDIDATE_bc9f5fd.patch",
+      "sha256": "5deff0b53bed7e31292efff85493633bf330b30c24b12680ebfa2131cc341231",
+      "bytes": 73885
+    },
+    {
+      "file": "K3_OWNER_PROVENANCE.md",
+      "sha256": "37ce8a1802bc73a1bc5f9110e991ab1287f6e8b0eaadf8e84b4a9bffe8cd8dd3",
+      "bytes": 8615
+    },
+    {
+      "file": "K3_PRIMARY_CODEX.raw.log",
+      "sha256": "6bc2b427e5d2434b59bb651a3698486f261f17bdcdd8445356e57dd7fc0be956",
+      "bytes": 58
+    },
+    {
+      "file": "K3_SECURITY_PROBES.cjs",
+      "sha256": "ed9059030aba7404eececa19a51d2cf4de3945329990a6b751f48e5cfc82e42c",
+      "bytes": 6403
+    },
+    {
+      "file": "K3_SECURITY_PROBES.json",
+      "sha256": "31833b1775b79a318b421ce85e7baa7a614da1f3e4f92e0647c2fbad54330e88",
+      "bytes": 1558
+    },
+    {
+      "file": "K3_SOURCE_REVIEW_CODEX.md",
+      "sha256": "72375c23a16b0b0c19bca3498e6737f8fe3783d6722197e9084e8e2db5b424a5",
+      "bytes": 7453
+    },
+    {
+      "file": "K4_LEMON_INGRESS_CONTRACT.cjs",
+      "sha256": "cc6b13d57c3421403695bbfafd7acb332e884eb12bf458f4527deb9d1da7246f",
+      "bytes": 4786
+    },
+    {
+      "file": "K4_LEMON_INGRESS_CONTRACT.json",
+      "sha256": "c661106e26fd3ef0ce268a67a67d92af3c463853d364236da2d226042d98b323",
+      "bytes": 1411
+    },
+    {
+      "file": "K4_LEMON_TEST_INGRESS_DESIGN.md",
+      "sha256": "dfb074b63eca70287aed4befb3644f96222fceecfdfb237ee5dac677b5e25e48",
+      "bytes": 4008
+    },
+    {
+      "file": "K5_FIVERR_EVIDENCE_PLAN.md",
+      "sha256": "f868f0da6dcb4105272f05be543f6af5825ca37e0c45c6b02ffdfa49aa59913b",
+      "bytes": 4307
+    },
+    {
+      "file": "LIVE_UNAUTHENTICATED_PROBES.raw.json",
+      "sha256": "50090893f2ecc6cfd550ece3fc2a4dc9801b62724e23653f768ec3091be3fac9",
+      "bytes": 814
+    },
+    {
+      "file": "MAIN_CHECKS.json",
+      "sha256": "3563ad47ef81bd3d4c6bea97f94c42c97263711c0fb7906706b2c622170cecae",
+      "bytes": 571
+    },
+    {
+      "file": "OCT09_0700_READINESS.md",
+      "sha256": "4875f6ffe091a7550c56ee633903622691e9bcd14248bfe07105fbfc9e26ff66",
+      "bytes": 4244
+    },
+    {
+      "file": "RECOVERY9_CODEX_VERIFY.json",
+      "sha256": "a0662cc318d659e0e2a36dfc64fedde87861e99855c68b59557a1ec19896c37e",
+      "bytes": 8094
+    },
+    {
+      "file": "RECOVERY9_EK_KANIT.json",
+      "sha256": "d8c01b9315bed9b498aba5b0bfc6f9c0d66322c0c24e156df43646f66b86ffce",
+      "bytes": 11434
+    },
+    {
+      "file": "RECOVERY9_OWNER_TABLE_CODEX.md",
+      "sha256": "26c576d3aeec1ad9c07a2edd9d752d8d2be81862703fbff0122c04208ff44c75",
+      "bytes": 3151
+    },
+    {
+      "file": "RUNTIME_PROCESS_READONLY.raw.json",
+      "sha256": "84ffbc07771cd4b2fb0f0ba09d89f8765096ddf1f28b25927c2cf561aeda9bcc",
+      "bytes": 477
+    },
+    {
+      "file": "TEMP_VALIDATION.json",
+      "sha256": "71d6a5e3cffb612fc75e0f1f5642c30a43cab934a818c9289230b79eca6c0c25",
+      "bytes": 12262
+    }
+  ],
+  "mainSourceHashes": [
+    {
+      "file": "app/brain/actions.ts",
+      "sha256": "a0c253e961ce08eae79b2c603f762a0a20528a02855118cfa60c268a6fa0e555"
+    },
+    {
+      "file": "src/lib/auth/accessGate.ts",
+      "sha256": "999396d96e7e5d55fc58de2d4f9a090857f79f16b434f45d49729e2dc906b351"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
+      "sha256": "132d8865e90830c7edbcd0b88fc1ca72c960a08f22ef3f84486952b2d2c2ce26"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+      "sha256": "ed3973c5dd0f98790d779eefdac62b3a99ffac81a048e945b26d8937cb67d7ee"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasProposalApprovalService.ts",
+      "sha256": "622ab7032a2711ed300c982b081ccfeadc96ee1d5ec5a4493a58daa7a3b2b049"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts",
+      "sha256": "913f32eecd9466dc9f722b59098b585689f80f325fff7b8ffdf7191e9bd7f551"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasMicroBatch.ts",
+      "sha256": "8e2fef0345110c24324d766eda72d4ea1e56d606c42707109c3cb75adf02c090"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+      "sha256": "7429041ddfc92eb828d55fc76c57cbbab05385e222fdffcfccb2c91041fc6711"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+      "sha256": "c01d851f40d91cd775fe39e25acd287a793f7c7470ccf5dd04a45faaf6d430c9"
+    },
+    {
+      "file": "package.json",
+      "sha256": "588fe1be5c55d83144de3acee081256f1e02fe767b3329cfca3f78d545763429"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0"
+    }
+  ],
+  "originalExact12Patch": {
+    "file": "../v1-final-closure-20261008/EXACT12_CANDIDATE_a4db592.patch",
+    "sha256": "337ec9954de687bbe6d1bd2b4533d05c33164036b959602cecbdf508aa7c6323"
+  },
+  "nextCommand": "Get-Content -LiteralPath 'docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K3_SOURCE_REVIEW_CODEX.md'"
+}

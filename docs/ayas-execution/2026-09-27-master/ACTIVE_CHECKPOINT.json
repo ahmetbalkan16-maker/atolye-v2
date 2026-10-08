@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "AYAS V1 closure: exact12 succession validated as a TEMP candidate (not applied); owner decisions on exact12, Recovery9, Lemon, Fiverr and approval-actor binding pending; Atolye first-video review done",
-  "status": "V1_BLOCKED_EXACT12_TEMP_CANDIDATE_VALIDATED_OWNER_DECISIONS_PENDING_ATOLYE_CAN_START",
+  "subtask": "Exact Claude handoff recovered; TEMP c17132b Full166166PASS; K3 cryptographic/expiry/execution-provenance review requires owner scope; matching-lock final-main qualification pending",
+  "status": "V1_BLOCKED_K3_CHANGES_REQUIRED_TEMP_BASELINE_RECOVERED_OWNER_REVIEW_PENDING",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -5546,6 +5546,34 @@
     "liveNext": "16.2.10",
     "push": "NOT_AUTHORIZED_SEPARATE_OWNER_APPROVAL_REQUIRED",
     "deploy": "NOT_AUTHORIZED",
+    "grantsAuthority": false
+  },
+  "codexHandoff20261008": {
+    "entryHead": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+    "currentHeadMeaning": "Documentation descendant; resolve Git HEAD. Technical source remains58ec1bd; final-main Full166 NOT_READY.",
+    "report": "05_STAGE17/implementation/v1-owner-decisions-20261008/CODEX_CONTINUATION_REPORT.md",
+    "receipt": "05_STAGE17/implementation/v1-owner-decisions-20261008/TEMP_VALIDATION.json",
+    "candidate": "c17132bcf18b3018cdfb76334d4b8c47772af165",
+    "full166": "TEMP166_PASS_JUNCTION_NEXT16_2_10_NOT_FRESH_LOCK",
+    "sourceApplied": false,
+    "k3": "CHANGES_REQUIRED_F106_F107_F108",
+    "goldenPublication": "EXACT_PROOF_PUBLISHER_REFUSES_AND_RESUME_SKIPS_F105_NARROWED",
+    "recovery": "9_UNCHANGED_UNKNOWN_ACTORS_NO_REPLAY",
+    "lemon": "12_SYNTHETIC_CONTRACT_PASS_ACTUAL_INGRESS_ABSENT",
+    "fiverr": "OWNER_ORDER_OR_OFFICIAL_EXPORT_RESPONSE_PENDING_NO_DEFERRAL",
+    "f98": "QUALIFIED_PASS_WITH_LIMITATIONS_COMBINED_INCOMPLETE",
+    "mainTests": "TSC0_ESLINT0ERROR_13INHERITEDWARNINGS",
+    "live": "e974614_CLEAN_NEXT16_2_10_UNCHANGED",
+    "activeHeavyTests": 0,
+    "runtimeTasks": "EXISTING_ACCESS_AND_OBSERVER_RUNNING_ONE_LISTENER_ONE_TUNNEL",
+    "phoneReboot": "OWNER_ACTION_NOT_RUN",
+    "morning": "2026-10-09T07:00:00+03:00_PREPARATION_ONLY",
+    "nextVideoPriority": "2026-10-12_EXISTING_FATIH_REVIEW_NO_RENDER_OR_UPLOAD",
+    "sourceScopeApproval": "REQUIRED_BY_HANDOFF_2_3",
+    "newPushApproval": "REQUIRED_BY_HANDOFF_2_10",
+    "deployApproval": "SEPARATE_NOT_GRANTED",
+    "localCommit": "SESSION_END_WIP_AUTHORIZED_RESOLVE_HEAD_VIA_GIT",
+    "nextCommand": "Get-Content -LiteralPath 'docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K3_SOURCE_REVIEW_CODEX.md'",
     "grantsAuthority": false
   }
 }

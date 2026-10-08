@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "sourceHead": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+  "technicalSourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "commands": [
+    {
+      "command": "npx.cmd tsc --noEmit",
+      "exitCode": 0
+    },
+    {
+      "command": "npx.cmd eslint .",
+      "exitCode": 0,
+      "errors": 0,
+      "inheritedWarnings": 13
+    }
+  ],
+  "tscLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "eslintLogSha256": "7f4d5c507b67f14a7eba00e638990b989b9fda72850bb72093a3c01d791c567c",
+  "noSourceChange": true
+}

@@ -1,3 +1,18 @@
+## 2026-10-08 — Codex exact handoff: TEMP Full166 recovered; K3 source review blocked
+
+Entry/origin `5e1b0c5` equal0/0; prior two doc commits already pushed. Five untracked Claude owner-decision files preserved. Claude TEMP `bc9f5fd` K3 + `c17132b` Exact12 Full166 was still running; allowed to finish, **166/166 PASS**. This is a junction/Next16.2.10 candidate receipt, **not** matching-lock16.3.8 or final-main qualification. No duplicate Full166. Main technical source remains58ec1bd byte-identical.
+
+- K3 primary25PASS reproduced; Claude mutation22/22 receipt recovered. Supplemental nine probes show invalid-seal acceptance, expiry-at-decision gap, and discarded/cross-session EXECUTE provenance; candidate **CHANGES_REQUIRED**, not source-promoted. Narrow source scope/policy choices ready for owner review.
+- Exact12 six-file diff body identical to reviewed a4db592; original grader/fixture/library/V58/raw archives unchanged. Seven combined-candidate controls confirmed V3 exact12REGRESSION failure and original blindPASS. Existing exact-proof publisher refusal/resume skip narrows historical F105 one-click claim; normal SAFE publication remains live.
+- Recovery9 journal hashes9/9 unchanged; actorsUNKNOWN, no replay/history rewrite, approvedPending0. F98 remainsQUALIFIED_PASS_WITH_LIMITATIONS / combinedINCOMPLETE; writer/revenue/domain evidence unresolved.
+- Lemon TEST ingress design and12 in-memory contract casesPASS; actual HTTP/durable/owner binding absent. Fiverr official-export plan preserved, owner order/export answer pending; no platform deferral. Main tsc0; wholelint0errors/13 inheritedwarnings.
+- Live e974614CLEAN / Next16.2.10; local/public login200/health401/studio307. One listener/tunnel, two Running tasks; no active heavy tests at closing observation. Real phone/rebootNOT_RUN.9October07.00Turkey preparation ready; separate maintenance/deploy/restart approval required.12October video-first plan preserved; no paid call/render/upload or homepage edit.
+
+**AYAS V1 BLOCKED; Foundation BLOCKED; sprint NOT_READY; Atölye CAN_START (preparation).** New local doc WIP commit is authorized by session rule; **new push remains separately owner-gated by handoff §§2/10**, no deployment. Resolve final doc-only checkout HEAD via Git; post-commit Graphify/integrity receipt is local `.graphify/codex-handoff-final-verify.json`. PARTIAL9/semanticPENDING retained.
+
+Resume: `docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/CODEX_CONTINUATION_REPORT.md`. Exact next command: `Get-Content -LiteralPath 'docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K3_SOURCE_REVIEW_CODEX.md'`. Next owner decision is K3 bounded scope + session/resume policy; do not apply the unrevised K3 patch. Then revised digest/independent review, approved source application, matching fresh-lock and one final technical-HEAD Full166. No baseline/smoke process remains; live supervised services continue. All old evidence stays bound to its original source.
+
+
 ## 2026-10-08 — Claude V1 closure continuation: exact12 validated as a TEMP candidate, owner decisions pending
 
 Entry `a9dca74` (origin `58ec1bd`, ahead 1 / behind 0), clean. No Codex, baseline or smoke process was live; the owner's Autonomy Observer and Access tasks were running. Technical source stays `58ec1bd`. Live `e974614` / Next 16.2.10 unchanged. No push, deploy, restart, runtime/authority write, paid call, render or upload.

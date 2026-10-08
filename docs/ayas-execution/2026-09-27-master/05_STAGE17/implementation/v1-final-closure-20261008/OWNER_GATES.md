@@ -1,3 +1,5 @@
+> Current Codex handoff, 8 October: all six gates remain OPEN. Authenticated identity UNQUALIFIED (unauth login200/health401/studio307); phone/voiceNOT_RUN; rebootNOT_RUN; Lemon12 synthetic ingress-contractPASS but actual route/store/bindingABSENT; Fiverr official evidence/explicit deferral still pending; final digest ownerReviewNOT_READY. Exact12 TEMP c17132b166PASS is not source-applied or fresh-lock-qualified; K3 requires changes. Current decisions and morning plan: ../v1-owner-decisions-20261008/CODEX_CONTINUATION_REPORT.md. Historical draft rows below are superseded by that current packet; no authority granted.
+
 # AYAS V1 — altı owner kapısı ve kararlar
 
 Kaynak: `58ec1bd`; önceki contract: `../STAGE17_OWNER_ACTION_REGISTER_59e83cd.json`. Aşağıdaki durumlar agent kararıyla kapatılmadı. CAN_START yalnız Atölye'nin read-only/editoryal/izole hazırlığını ifade eder; production execution veya yayın izni değildir.

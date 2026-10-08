@@ -1,0 +1,349 @@
+{
+  "schemaVersion": "CODEX_HANDOFF_VALIDATION_1",
+  "observedAt": "2026-10-08T15:58:44.179Z",
+  "entryHead": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+  "technicalSourceHead": "58ec1bd0710e409ef8fa915c70ff5618338b2898",
+  "mainSourceChanged": false,
+  "recoveredCandidate": {
+    "base": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+    "k3": "bc9f5fd9ad77d14d14c1a09da28a845015b50f15",
+    "combined": "c17132bcf18b3018cdfb76334d4b8c47772af165",
+    "tree": "6d6a64843049917228c8d7e26cb26d75641bc9d3",
+    "worktree": "CLEAN",
+    "remote": "",
+    "patchSha256": "5deff0b53bed7e31292efff85493633bf330b30c24b12680ebfa2131cc341231"
+  },
+  "full166": {
+    "file": "FULL166_TEMP_c17132b.raw.json",
+    "sha256": "f19b76bdd2df88c91cf8b0ece105e374de605d48ac37d31e4235d396d45e9cc3",
+    "outcome": "PASS",
+    "selectedSuites": 166,
+    "declaredSuites": 166,
+    "manifestVersion": "15F.4-v59",
+    "manifestDigest": "2661b3c55e60de299b8290b05e5c2bd74f0bb1b1a0967d59c6da88bba4ee3fcd",
+    "sourceWorktreeDigest": "070ce9af12a0f07121329eab7768e368a56ac4200bf23497ce914b1d0b1e205a",
+    "finalMainSourceQualification": false,
+    "freshLockQualification": false
+  },
+  "dependencies": {
+    "installedNext": "16.2.10",
+    "candidateInstalledNext": "16.2.10",
+    "lockedNext": "16.3.8",
+    "match": false,
+    "qualification": "JUNCTION_REUSE_NOT_FRESH_LOCK"
+  },
+  "exact12Equality": [
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
+      "sha256": "5daa2f6d5407aa026aa4665fc0a0d11edff8574313017121bbdd9a921e966169",
+      "sameBytesAsA4db592": true,
+      "basis": "IDENTICAL_PATCH_BODY_AND_UNCHANGED_TECHNICAL_BASE"
+    },
+    {
+      "file": "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V58.json",
+      "sha256": "588013da3981a91a2f8663cfe3d955c7b84d2206048e2017aec460762e987e4d",
+      "sameBytesAsA4db592": true,
+      "basis": "IDENTICAL_PATCH_BODY_AND_UNCHANGED_TECHNICAL_BASE"
+    },
+    {
+      "file": "scripts/smoke-ayas-golden-vault.ts",
+      "sha256": "9255c742a2a4d96897982f5354102832d2af8568e7eb48656a5df2c877cda0d4",
+      "sameBytesAsA4db592": true,
+      "basis": "IDENTICAL_PATCH_BODY_AND_UNCHANGED_TECHNICAL_BASE"
+    },
+    {
+      "file": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "sha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00",
+      "sameBytesAsA4db592": true,
+      "basis": "IDENTICAL_PATCH_BODY_AND_UNCHANGED_TECHNICAL_BASE"
+    },
+    {
+      "file": "src/lib/ayas/golden/AyasGoldenVaultRegistry.ts",
+      "sha256": "bfc5dfc715cae78b1298e3c82d9e2d7b789f1ab57c8c4458f6d0dbe059589da1",
+      "sameBytesAsA4db592": true,
+      "basis": "IDENTICAL_PATCH_BODY_AND_UNCHANGED_TECHNICAL_BASE"
+    },
+    {
+      "file": "src/lib/ayas/lifecycle/AyasLifecycleRegistry.ts",
+      "sha256": "586bc023d12c62120dd7174dca209b972072f1d4df3754b5be8cf966671bda60",
+      "sameBytesAsA4db592": true,
+      "basis": "IDENTICAL_PATCH_BODY_AND_UNCHANGED_TECHNICAL_BASE"
+    }
+  ],
+  "frozen": [
+    {
+      "file": "scripts/smoke-ayas-retrieval-evaluation.ts",
+      "mainSha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e",
+      "candidateSha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e"
+    },
+    {
+      "file": "scripts/fixtures/ayas-retrieval-evaluation-cases.ts",
+      "mainSha256": "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23",
+      "candidateSha256": "4061b710cd73e9d82701854f9882a35ad3769c52e7e7344ec8f96e29e6128e23"
+    },
+    {
+      "file": "scripts/lib/AyasRetrievalEvaluation.ts",
+      "mainSha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e",
+      "candidateSha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
+    }
+  ],
+  "originalV58ArchiveByteIdentical": true,
+  "k3Review": "CHANGES_REQUIRED_BEFORE_SOURCE_PROMOTION",
+  "k3Primary25": {
+    "outcome": "PASS",
+    "scenarios": 25,
+    "evidence": "K3_PRIMARY_CODEX.raw.log",
+    "reproducedOnSeparateClone": true
+  },
+  "k1Supplemental": {
+    "file": "K1_COMBINED_NEGATIVES.json",
+    "trials": 7,
+    "expectedOutcomesConfirmed": true,
+    "priorSandboxAttempt": "K1_ENVIRONMENT_BLOCKED_ATTEMPT.raw.json",
+    "priorAttemptQualification": "NOT_QUALIFIED_FIXTURE_WRITE_DENIED",
+    "exact12RegressionSetConfirmed": true,
+    "mutatedV3Trials": 4
+  },
+  "k3Mutations": {
+    "file": "K3_MUTATIONS_CLAUDE.raw.json",
+    "total": 22,
+    "killed": 22,
+    "results": [
+      {
+        "id": "M01 strict store check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M02 inbox binding result ignored",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M03 micro-batch strict check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M04 micro-batch binding ignored",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M05 subject comparison removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M06 replay check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M07 staleness check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M08 future check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Missing expected exception."
+      },
+      {
+        "id": "M09 gate mode check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false"
+      },
+      {
+        "id": "M10 session verification skipped",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false"
+      },
+      {
+        "id": "M11 seal check always true",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+      },
+      {
+        "id": "M12 shape key-set check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+      },
+      {
+        "id": "M13 resume admission filter removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:"
+      },
+      {
+        "id": "M14 reserved-reason NFKC removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: ｏｗｎｅｒ-approved: x"
+      },
+      {
+        "id": "M15 action: reserved-reason check removed",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: the reserved-reason check must run before the decision"
+      },
+      {
+        "id": "M16 action: legacy store not strict",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: decideAyasApproval must decide through an owner-action store"
+      },
+      {
+        "id": "M17 action: execute skips attributed approval",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: execution must check the attributed approval first"
+      },
+      {
+        "id": "M18 action: one-click store not strict",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: proposalOnaylaVeUygula must decide through an owner-action store"
+      },
+      {
+        "id": "M19 action: batch store not strict",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: batchOnaylaVeUygula must decide through an owner-action store"
+      },
+      {
+        "id": "M20 action guard reads dev gate as admitted",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false"
+      },
+      {
+        "id": "M21 service drops admission",
+        "status": "KILLED",
+        "reason": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+      },
+      {
+        "id": "M22 gate REJECT drops admission",
+        "status": "KILLED",
+        "reason": "Error: owner admission is required for this decision] {"
+      }
+    ]
+  },
+  "supplementalSecurity": {
+    "file": "K3_SECURITY_PROBES.json",
+    "observations": 9,
+    "securityPass": false
+  },
+  "lemon": {
+    "file": "K4_LEMON_INGRESS_CONTRACT.json",
+    "scenarios": 12,
+    "contract": "PASS",
+    "liveIngress": "ABSENT",
+    "durableStore": "NOT_QUALIFIED",
+    "realAccount": "UNBOUND"
+  },
+  "recovery": {
+    "file": "RECOVERY9_CODEX_VERIFY.json",
+    "unchangedJournals": 9,
+    "actor": "UNKNOWN",
+    "approvedPending": 0
+  },
+  "live": {
+    "stamp": {
+      "schemaVersion": "1",
+      "gitHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+      "stampedAt": "2026-10-08T09:54:26.629Z"
+    },
+    "buildId": "KmsdsLSOPkVSbJONHR1Zf",
+    "identityAuthenticated": "NOT_QUALIFIED",
+    "probes": "LIVE_UNAUTHENTICATED_PROBES.raw.json"
+  },
+  "graphify": {
+    "entryRefreshHead": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+    "nodes": 19437,
+    "edges": 55722,
+    "integrity": {
+      "duplicateNodeIds": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0
+    },
+    "structural": "PARTIAL9",
+    "semantic": "PENDING",
+    "limitation": "Existing graph omits object-method CALLS paths and nine files; approval chain supplemented by direct source reads."
+  },
+  "gates": {
+    "ayasV1": "BLOCKED",
+    "foundation": "BLOCKED",
+    "sprint": "NOT_READY",
+    "atolye": "CAN_START_PREPARATION_ONLY"
+  },
+  "grantsAuthority": false,
+  "runtimeProcesses": {
+    "file": "RUNTIME_PROCESS_READONLY.raw.json",
+    "observedAt": "2026-10-08T16:05:50.7065225Z",
+    "tasks": [
+      {
+        "name": "AYAS Access Online",
+        "state": "Running"
+      },
+      {
+        "name": "AYAS Autonomy Observer",
+        "state": "Running"
+      }
+    ],
+    "listeners": [
+      {
+        "address": "::",
+        "pid": 32416
+      }
+    ],
+    "tunnelProcesses": [
+      {
+        "pid": 18572,
+        "name": "cloudflared"
+      }
+    ],
+    "activeBaselineSmokeProcesses": [],
+    "writesPerformed": false
+  },
+  "mainChecks": {
+    "tsc": {
+      "exitCode": 0
+    },
+    "eslint": {
+      "exitCode": 0,
+      "errors": 0,
+      "inheritedWarnings": 13
+    }
+  },
+  "recoveredUntrackedFiles": [
+    {
+      "file": "ATOLYE_FATIH_PRIORITIZED_PLAN.md",
+      "sha256": "7c1bf60da2709c4ec5fbdef1671e33f172b17e2cbd9b4e7d4efadad0ef5d1b52",
+      "treatment": "PRESERVED_WITHOUT_OVERWRITE"
+    },
+    {
+      "file": "K3_OWNER_ADMISSION_CANDIDATE_bc9f5fd.patch",
+      "sha256": "5deff0b53bed7e31292efff85493633bf330b30c24b12680ebfa2131cc341231",
+      "treatment": "PRESERVED_WITHOUT_OVERWRITE"
+    },
+    {
+      "file": "K3_OWNER_PROVENANCE.md",
+      "sha256": "37ce8a1802bc73a1bc5f9110e991ab1287f6e8b0eaadf8e84b4a9bffe8cd8dd3",
+      "treatment": "PRESERVED_WITHOUT_OVERWRITE"
+    },
+    {
+      "file": "K5_FIVERR_EVIDENCE_PLAN.md",
+      "sha256": "f868f0da6dcb4105272f05be543f6af5825ca37e0c45c6b02ffdfa49aa59913b",
+      "treatment": "PRESERVED_WITHOUT_OVERWRITE"
+    },
+    {
+      "file": "RECOVERY9_EK_KANIT.json",
+      "sha256": "d8c01b9315bed9b498aba5b0bfc6f9c0d66322c0c24e156df43646f66b86ffce",
+      "treatment": "PRESERVED_WITHOUT_OVERWRITE"
+    }
+  ],
+  "goldenPublicationDelta": {
+    "exactProofAutomaticPublisher": "REFUSED_EXACT_PATCH_LOCAL_EXECUTION_ONLY",
+    "exactProofResume": "SKIPPED",
+    "boundSuite": "exact-proposal-safety",
+    "status": "PASS",
+    "previousF105Claim": "NARROWED_FOR_EXACT_PROOF_LANE",
+    "noLiveApprovalIssued": true
+  }
+}

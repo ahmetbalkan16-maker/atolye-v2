@@ -1,0 +1,36 @@
+{
+  "observedAt": "2026-10-08T15:52:15.0799772Z",
+  "credentialUsed": false,
+  "probes": [
+    {
+      "url": "http://127.0.0.1:3000/login",
+      "status": 200,
+      "location": ""
+    },
+    {
+      "url": "http://127.0.0.1:3000/api/runtime/health",
+      "status": 401,
+      "location": ""
+    },
+    {
+      "url": "http://127.0.0.1:3000/studio",
+      "status": 307,
+      "location": "/login?next=%2Fstudio"
+    },
+    {
+      "url": "https://ayas.atolyeayas.com/login",
+      "status": 200,
+      "location": ""
+    },
+    {
+      "url": "https://ayas.atolyeayas.com/api/runtime/health",
+      "status": 401,
+      "location": ""
+    },
+    {
+      "url": "https://ayas.atolyeayas.com/studio",
+      "status": 307,
+      "location": "/login?next=%2Fstudio"
+    }
+  ]
+}

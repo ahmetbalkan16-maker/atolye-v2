@@ -1,3 +1,15 @@
+## 2026-10-08 — Codex exact handoff / F106–F108 and F105 qualification delta
+
+**F106 MEDIUM, TEMP K3: invalid cryptographic seal accepted by decision binding and execution/resume admission predicate.** Reproduced with synthetic record. Explicit seal verifier rejects it, but production predicate never calls it. Persisted/in-process tampering scope; no unauthenticated browser bypass demonstrated. Source application CHANGES_REQUIRED.
+
+**F107 MEDIUM, TEMP K3: expiry tested at verifiedAt, not decidedAt.** A valid session expiring one second later can still bind a decision after expiry, within the five-minute admission window. Reproduced; fail-closed decision boundary fix required.
+
+**F108 MEDIUM, TEMP K3: EXECUTE admission discarded.** A different verified owner session reaches the real action's NOOP executor seam without persisting/forwarding execution provenance. Cross-session owner use is not itself an authorization bypass, but approval→execution attribution is incomplete. LOW sub-limit: same-second issued sessions share a token/sessionRef; durable resume checks original decision time rather than current session expiry. Owner policy required.
+
+**F105 delta, historical finding preserved below:** Golden V3 reopens golden-held evaluation; exact-proof SAFE proposals are nevertheless refused by the automatic publisher (EXACT_PATCH_LOCAL_EXECUTION_ONLY), skipped by resume, and owner gate records pending-local execution. Bound c17132b exact-proposal-safetyPASS proves discovery proof retention and refusal before decision mint. Prior single-click commit/push claim is too broad for this exact-proof lane; ordinary SAFE publication remains unchanged.
+
+See docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-decisions-20261008/K3_SOURCE_REVIEW_CODEX.md, K3_SECURITY_PROBES.json, K1_EXACT12_CONDITIONS.md and TEMP_VALIDATION.json. Foundation/V1BLOCKED; no source promotion/live authority write. No future sprint opened.
+
 ## 2026-10-08 — F99–F105 (Claude V1 closure continuation)
 
 **F99 — HIGH, evaluation integrity: the frozen retrieval grader cannot see a CF49 regression.** With the CF49 purchase-plan slot disabled in `src/lib/ayas/memory/AyasMemoryTemporal.ts` (TEMP only), the original `smoke-ayas-retrieval-evaluation.ts` exits 0. It still lists the 12 reviewed cases as known limitations, which may fail. The v3 successor fails with exactly those 12 as REGRESSION. Mitigation: the exact12 TEMP candidate `a4db592`; not applied, owner decision pending.

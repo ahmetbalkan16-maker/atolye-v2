@@ -1,0 +1,27 @@
+{
+  "observedAt": "2026-10-08T16:05:50.7065225Z",
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running"
+    }
+  ],
+  "listeners": [
+    {
+      "address": "::",
+      "pid": 32416
+    }
+  ],
+  "tunnelProcesses": [
+    {
+      "pid": 18572,
+      "name": "cloudflared"
+    }
+  ],
+  "activeBaselineSmokeProcesses": [],
+  "writesPerformed": false
+}
