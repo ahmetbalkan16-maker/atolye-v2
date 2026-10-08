@@ -1,0 +1,47 @@
+// Mutation check for the TEMP-only Lemon TEST ingress candidate. Same posture as
+// mutate.mjs: one guard removed per mutant, suite run, exact bytes restored and
+// proven by SHA-256. Usage: node lemon-mutate.mjs <cloneRoot> <outJson>
+import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+const [cloneRoot, outJson] = process.argv.slice(2);
+if (!cloneRoot || !outJson || !cloneRoot.includes(`${path.sep}scratchpad${path.sep}`)) throw new Error("refusing: clone root must be inside the scratchpad");
+
+const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
+const LEMON = "src/lib/ayas/revenue/adapters/lemon/AyasLemonTestIngressCandidate.ts";
+const SUITE = "scripts/smoke-ayas-lemon-test-ingress-candidate.ts";
+const STORAGE_CATCH = "    } catch {\n      return { status: 503 };\n    }\n  }\n";
+const mutants = [
+  { id: "ML1_NO_OVERWRITE_COMMIT_REPLACED_BY_RENAME", edits: [["fs.linkSync(pending, final);", "fs.renameSync(pending, final);"]] },
+  { id: "ML2_RECEIPT_INTEGRITY_CHECK_REMOVED", edits: [["&& r.eventDigest === eventDigest && receiptDigest === sha256(receiptMaterial(rest));", "|| true;"]] },
+  { id: "ML3_STORAGE_FAILURE_ACKNOWLEDGED", edits: [[STORAGE_CATCH, "    } catch {\n      return { status: 200, committed: false };\n    }\n  }\n"]] },
+  { id: "ML4_DUPLICATE_RECOMMITTED", edits: [["if (fs.existsSync(final)) return committedMatches(final, eventDigest) ? { status: 200, committed: false } : { status: 503 };", "if (fs.existsSync(final)) fs.rmSync(final);"]] },
+];
+
+const rows = [];
+for (const m of mutants) {
+  const abs = path.join(cloneRoot, LEMON);
+  const original = fs.readFileSync(abs);
+  const originalSha = sha(original);
+  const text = original.toString("utf8").replace(/\r\n/g, "\n");
+  const counts = m.edits.map(([find]) => text.split(find).length - 1);
+  if (counts.some((c) => c !== 1)) { rows.push({ id: m.id, applied: false, reason: `expected 1 occurrence per edit, found ${counts.join(",")}` }); console.log(JSON.stringify(rows.at(-1))); continue; }
+  const mutated = m.edits.reduce((acc, [find, replace]) => acc.replace(find, replace), text);
+  let result;
+  try {
+    fs.writeFileSync(abs, mutated, "utf8");
+    const started = Date.now();
+    const run = spawnSync(process.execPath, [path.join(cloneRoot, "node_modules", "tsx", "dist", "cli.mjs"), SUITE], { cwd: cloneRoot, encoding: "utf8", timeout: 600_000, windowsHide: true });
+    const output = `${run.stdout}\n${run.stderr}`;
+    result = { exit: run.status, seconds: Math.round((Date.now() - started) / 1000), killed: run.status !== 0, lastPass: (output.match(/PASS \d+: [^\n]*/g) ?? []).at(-1) ?? null };
+  } finally {
+    fs.writeFileSync(abs, original);
+  }
+  const restoredSha = sha(fs.readFileSync(abs));
+  if (restoredSha !== originalSha) throw new Error(`RESTORE FAILED for ${LEMON}`);
+  rows.push({ id: m.id, file: LEMON, suite: SUITE, applied: true, ...result, restoredSha, restoreVerified: true });
+  console.log(JSON.stringify(rows.at(-1)));
+}
+fs.writeFileSync(outJson, `${JSON.stringify({ cloneRoot: "<scratchpad>/v2clone", mutants: rows }, null, 2)}\n`);

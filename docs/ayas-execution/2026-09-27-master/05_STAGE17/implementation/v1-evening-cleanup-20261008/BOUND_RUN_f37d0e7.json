@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1",
+  "evidenceClass": "COMMIT_BOUND_TEMP_ARCHIVE_RUN",
+  "sourceCommit": "f37d0e7",
+  "sourceTree": "git archive f37d0e7 into a session TEMP folder; node_modules junction to the installed tree (next 16.2.10 installed, package.json declares 16.3.8)",
+  "startedUtc": "2026-10-08T19:53:54Z",
+  "finishedUtc": "2026-10-08T19:56:00Z",
+  "v2Files": {
+    "scripts/smoke-ayas-owner-approval-resume-v2.ts": "d6e746aa1a7471aad00a79e460c7cc0b7fc3db11de33d52b9a0e8139de3c44bb",
+    "scripts/smoke-ayas-autonomous-execution-gate-v2.ts": "0a352af88e774bbe0b6c20406e349258ccc4aebbd2dde8d19272e7c9b565db45"
+  },
+  "results": [
+    { "step": "resume-v2", "exit": 0, "result": "PASS 20/20", "log": "RESUME_V2_f37d0e7.raw.log" },
+    { "step": "gate-v2", "exit": 0, "result": "PASS 6/6", "log": "GATE_V2_f37d0e7.raw.log" },
+    { "step": "k3-owner-approval-admission", "exit": 0, "result": "PASS 35/35 (unchanged K3 result)", "log": "K3_ADMISSION_f37d0e7.raw.log" },
+    { "step": "legacy-owner-approval-resume", "exit": 1, "result": "RAW_FAIL_REPRODUCED 0 !== 1 at :111:12 / :103:3, identical to the archived failure; file unchanged", "log": "LEGACY_RESUME_f37d0e7.raw.log" },
+    { "step": "guard-action-firewall-closure", "exit": 0, "result": "PASS 12/12", "log": "GUARD_FIREWALL_CLOSURE_f37d0e7.raw.log" },
+    { "step": "guard-durable-task-recovery", "exit": 0, "result": "PASS 22/22", "log": "GUARD_DURABLE_TASK_RECOVERY_f37d0e7.raw.log" },
+    { "step": "guard-daemon-authority-boundary", "exit": 0, "result": "PASS 23/23", "log": "GUARD_DAEMON_AUTHORITY_f37d0e7.raw.log" },
+    { "step": "tsc --noEmit", "exit": 0, "result": "no diagnostics", "log": "TSC_f37d0e7.raw.log" },
+    { "step": "npm run lint (whole repository)", "exit": 0, "result": "0 errors / 13 inherited warnings, unchanged", "log": "ESLINT_FULL_f37d0e7.raw.log" }
+  ],
+  "legacyGateSuite": "NOT_RERUN: its scenarios 5/7/18 publish through the default (non-isolated) stability guard; its raw FAIL stays archived",
+  "notRun": ["Full166 for f37d0e7", "independent V2 review", "lifecycle suite (needs git history; archive clone has none)"],
+  "full166": "166/166 belongs to dbf9542 only; it does not certify f37d0e7",
+  "isolation": "TEMP fixtures only; no data/brain, live runtime, network, model, deploy or restart",
+  "leftoverRunRoots": 0
+}

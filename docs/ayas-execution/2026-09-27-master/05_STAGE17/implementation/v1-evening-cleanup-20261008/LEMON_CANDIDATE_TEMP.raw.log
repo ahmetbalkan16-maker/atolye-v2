@@ -1,0 +1,115 @@
+PASS 1: L01 valid TEST notification: committed durably, then 200
+PASS 2: L02 duplicate delivery: 200 without a second commit
+PASS 3: L03 duplicate after a restart (new handle, same directory): still no second commit
+PASS 4: L04 four processes deliver the same new notification at one instant: exactly one commit
+PASS 5: L05 bad signature: 400 and nothing written
+PASS 6: L06 raw body altered after signing: 400 and nothing written
+PASS 7: L07 signed but malformed JSON: 400 and nothing written
+PASS 8: L08 LIVE-mode notification at the TEST boundary: 400 and nothing written
+PASS 9: L09 foreign store: 400 and nothing written
+PASS 10: L10 case-duplicated signature header: 400 and nothing written
+PASS 11: L11 oversized body: 400 and nothing written
+PASS 12: L12 signing secret unavailable or malformed: 503, never 200, nothing written
+PASS 13: L13 storage failure: 503 without a receipt, and the provider's retry commits once storage is back
+PASS 14: L14 crash before commit (stray pending file only): the retry commits
+PASS 15: L15 crash after commit, before cleanup (receipt plus stray pending): the retry is a duplicate
+PASS 16: L16 a tampered committed receipt fails closed: 503, not 200, and it is not overwritten
+PASS 17: L17 the server binding is TEST only: LIVE mode and a malformed store are refused at construction
+PASS 18: L18 a caller cannot choose the mode: an extra LIVE header still yields a TEST receipt
+PASS 19: L19 receipts carry no raw body, customer data, secret, amount or authority
+PASS 20: L20 no ledger, network or authority reach: the candidate imports only node built-ins and the existing verifier
+{
+  "schemaVersion": "1",
+  "evidenceClass": "TEMP_CANDIDATE_REAL_FILESYSTEM_INGRESS_CHECK",
+  "implementation": "TEMP_ONLY_NOT_APPLIED",
+  "route": "NONE",
+  "realWebhook": "NOT_RUN",
+  "network": "NONE",
+  "account": "UNBOUND",
+  "ledgerWrites": 0,
+  "externalWrites": 0,
+  "authority": "NONE",
+  "cases": 20,
+  "rows": [
+    {
+      "id": "L01 valid TEST notification: committed durably, then 200",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L02 duplicate delivery: 200 without a second commit",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L03 duplicate after a restart (new handle, same directory): still no second commit",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L04 four processes deliver the same new notification at one instant: exactly one commit",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L05 bad signature: 400 and nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L06 raw body altered after signing: 400 and nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L07 signed but malformed JSON: 400 and nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L08 LIVE-mode notification at the TEST boundary: 400 and nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L09 foreign store: 400 and nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L10 case-duplicated signature header: 400 and nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L11 oversized body: 400 and nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L12 signing secret unavailable or malformed: 503, never 200, nothing written",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L13 storage failure: 503 without a receipt, and the provider's retry commits once storage is back",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L14 crash before commit (stray pending file only): the retry commits",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L15 crash after commit, before cleanup (receipt plus stray pending): the retry is a duplicate",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L16 a tampered committed receipt fails closed: 503, not 200, and it is not overwritten",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L17 the server binding is TEST only: LIVE mode and a malformed store are refused at construction",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L18 a caller cannot choose the mode: an extra LIVE header still yields a TEST receipt",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L19 receipts carry no raw body, customer data, secret, amount or authority",
+      "outcome": "PASS"
+    },
+    {
+      "id": "L20 no ledger, network or authority reach: the candidate imports only node built-ins and the existing verifier",
+      "outcome": "PASS"
+    }
+  ]
+}

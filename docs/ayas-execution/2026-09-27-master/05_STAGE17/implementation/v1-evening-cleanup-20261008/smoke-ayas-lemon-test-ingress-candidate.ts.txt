@@ -1,0 +1,151 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import { createAyasLemonTestIngress } from "../src/lib/ayas/revenue/adapters/lemon/AyasLemonTestIngressCandidate";
+import { lemonWebhook, lemonWire, LEMON_SYNTHETIC_SIGNING_SECRET } from "./fixtures/ayas-lemon-fixture";
+
+/**
+ * TEMP-only check of the Lemon TEST ingress candidate against real files:
+ * durable commit before 200, idempotency across restart and processes, the
+ * existing verifier's refusals, crash windows, storage failure, and receipt
+ * privacy. Synthetic fixture secret; no route, network, ledger or account.
+ */
+const RUN_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-lemon-ingress-candidate-"));
+const rows: { id: string; outcome: "PASS" }[] = [];
+async function check(id: string, fn: () => Promise<void> | void) { await fn(); rows.push({ id, outcome: "PASS" }); if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${rows.length}: ${id}`); }
+let n = 0;
+const freshRoot = () => path.join(RUN_ROOT, `receipts-${++n}`);
+const ingressAt = (receiptRoot: string, resolveSecret: () => string = () => LEMON_SYNTHETIC_SIGNING_SECRET) => createAyasLemonTestIngress({ receiptRoot, storeRef: "1", mode: "TEST", resolveSecret });
+const files = (dir: string) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
+const receipts = (dir: string) => files(dir).filter((f) => f.endsWith(".json"));
+const pendings = (dir: string) => files(dir).filter((f) => f.endsWith(".pending"));
+const order = (id: string, test = true) => lemonWebhook("order_created", lemonWire("orders", id, test));
+
+function raceDeliveries(receiptRoot: string, w: ReturnType<typeof order>, processes: number): Promise<{ status: number; committed?: boolean }[]> {
+  const startAt = String(Date.now() + 2500);
+  const worker = path.join(__dirname, "smoke-ayas-lemon-test-ingress-candidate.worker.ts");
+  const tsx = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
+  return Promise.all(Array.from({ length: processes }, () => new Promise<{ status: number; committed?: boolean }>((resolve, reject) => {
+    const child = spawn(process.execPath, [tsx, worker, receiptRoot, w.body.toString("base64"), JSON.stringify(w.headers), startAt], { cwd: process.cwd(), windowsHide: true });
+    let out = ""; let err = "";
+    child.stdout.on("data", (d) => { out += d; }); child.stderr.on("data", (d) => { err += d; });
+    child.on("close", (code) => (code === 0 ? resolve(JSON.parse(out.trim().split("\n").at(-1)!)) : reject(new Error(`worker exit ${code}: ${err}`))));
+  })));
+}
+
+async function main() {
+  const root = freshRoot();
+  const ingress = ingressAt(root);
+  const w = order("30");
+
+  await check("L01 valid TEST notification: committed durably, then 200", async () => {
+    assert.deepEqual(await ingress.handle(w.body, w.headers), { status: 200, committed: true });
+    assert.equal(receipts(root).length, 1);
+    assert.deepEqual(pendings(root), []);
+  });
+  await check("L02 duplicate delivery: 200 without a second commit", async () => {
+    assert.deepEqual(await ingress.handle(w.body, w.headers), { status: 200, committed: false });
+    assert.equal(receipts(root).length, 1);
+  });
+  await check("L03 duplicate after a restart (new handle, same directory): still no second commit", async () => {
+    assert.deepEqual(await ingressAt(root).handle(w.body, w.headers), { status: 200, committed: false });
+    assert.equal(receipts(root).length, 1);
+  });
+  await check("L04 four processes deliver the same new notification at one instant: exactly one commit", async () => {
+    const results = await raceDeliveries(root, order("31"), 4);
+    assert.ok(results.every((r) => r.status === 200), JSON.stringify(results));
+    assert.equal(results.filter((r) => r.committed === true).length, 1, JSON.stringify(results));
+    assert.equal(receipts(root).length, 2);
+    assert.deepEqual(pendings(root), []);
+  });
+
+  const refusals: [string, () => { body: Buffer; headers: Record<string, string> }][] = [
+    ["L05 bad signature", () => { const b = order("40"); b.headers["X-Signature"] = "0".repeat(64); return b; }],
+    ["L06 raw body altered after signing", () => { const b = order("41"); return { ...b, body: Buffer.concat([b.body, Buffer.from(" ")]) }; }],
+    ["L07 signed but malformed JSON", () => { const body = Buffer.from("not-json"); return { body, headers: { "X-Event-Name": "order_created", "X-Signature": createHmac("sha256", LEMON_SYNTHETIC_SIGNING_SECRET).update(body).digest("hex") } }; }],
+    ["L08 LIVE-mode notification at the TEST boundary", () => order("42", false)],
+    ["L09 foreign store", () => { const r = lemonWire("orders", "43"); r.attributes.store_id = 2; return lemonWebhook("order_created", r); }],
+    ["L10 case-duplicated signature header", () => { const b = order("44"); return { ...b, headers: { ...b.headers, "x-signature": b.headers["X-Signature"] } }; }],
+    ["L11 oversized body", () => ({ ...order("45"), body: Buffer.alloc(262_145) })],
+  ];
+  for (const [id, make] of refusals) {
+    await check(`${id}: 400 and nothing written`, async () => {
+      const before = files(root);
+      const delivery = make();
+      assert.deepEqual(await ingress.handle(delivery.body, delivery.headers), { status: 400 });
+      assert.deepEqual(files(root), before);
+    });
+  }
+
+  await check("L12 signing secret unavailable or malformed: 503, never 200, nothing written", async () => {
+    const r = freshRoot();
+    assert.deepEqual(await ingressAt(r, () => { throw new Error("secret store offline"); }).handle(w.body, w.headers), { status: 503 });
+    assert.deepEqual(await ingressAt(r, () => "short").handle(w.body, w.headers), { status: 503 });
+    assert.deepEqual(files(r), []);
+  });
+  await check("L13 storage failure: 503 without a receipt, and the provider's retry commits once storage is back", async () => {
+    const r = freshRoot();
+    fs.writeFileSync(r, "not a directory");
+    const fresh = order("50");
+    assert.deepEqual(await ingressAt(r).handle(fresh.body, fresh.headers), { status: 503 });
+    fs.rmSync(r);
+    assert.deepEqual(await ingressAt(r).handle(fresh.body, fresh.headers), { status: 200, committed: true });
+    assert.equal(receipts(r).length, 1);
+  });
+  await check("L14 crash before commit (stray pending file only): the retry commits", async () => {
+    const r = freshRoot(); fs.mkdirSync(r);
+    fs.writeFileSync(path.join(r, ".interrupted.1234.00000000-0000-0000-0000-000000000000.pending"), "{\"partial\":");
+    const fresh = order("51");
+    assert.deepEqual(await ingressAt(r).handle(fresh.body, fresh.headers), { status: 200, committed: true });
+    assert.equal(receipts(r).length, 1);
+  });
+  await check("L15 crash after commit, before cleanup (receipt plus stray pending): the retry is a duplicate", async () => {
+    const r = freshRoot();
+    const fresh = order("52");
+    await ingressAt(r).handle(fresh.body, fresh.headers);
+    fs.copyFileSync(path.join(r, receipts(r)[0]!), path.join(r, `.${receipts(r)[0]!.replace(/\.json$/, "")}.999.11111111-1111-1111-1111-111111111111.pending`));
+    assert.deepEqual(await ingressAt(r).handle(fresh.body, fresh.headers), { status: 200, committed: false });
+    assert.equal(receipts(r).length, 1);
+  });
+  await check("L16 a tampered committed receipt fails closed: 503, not 200, and it is not overwritten", async () => {
+    const r = freshRoot();
+    const fresh = order("53");
+    await ingressAt(r).handle(fresh.body, fresh.headers);
+    const file = path.join(r, receipts(r)[0]!);
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("\"COMMITTED\"", "\"COMMITTED \""));
+    const tampered = fs.readFileSync(file);
+    assert.deepEqual(await ingressAt(r).handle(fresh.body, fresh.headers), { status: 503 });
+    assert.deepEqual(fs.readFileSync(file), tampered);
+  });
+  await check("L17 the server binding is TEST only: LIVE mode and a malformed store are refused at construction", () => {
+    assert.throws(() => createAyasLemonTestIngress({ receiptRoot: freshRoot(), storeRef: "1", mode: "LIVE" as never, resolveSecret: () => LEMON_SYNTHETIC_SIGNING_SECRET }), /AYAS_LEMON_INGRESS_TEST_ONLY/);
+    assert.throws(() => createAyasLemonTestIngress({ receiptRoot: freshRoot(), storeRef: "../1", mode: "TEST", resolveSecret: () => LEMON_SYNTHETIC_SIGNING_SECRET }), /STORE_REF_INVALID/);
+  });
+  await check("L18 a caller cannot choose the mode: an extra LIVE header still yields a TEST receipt", async () => {
+    const r = freshRoot();
+    const fresh = order("54");
+    assert.deepEqual(await ingressAt(r).handle(fresh.body, { ...fresh.headers, "X-Ayas-Mode": "LIVE" }), { status: 200, committed: true });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(r, receipts(r)[0]!), "utf8")).mode, "TEST");
+  });
+  await check("L19 receipts carry no raw body, customer data, secret, amount or authority", () => {
+    const all = fs.readdirSync(RUN_ROOT, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).map((e) => fs.readFileSync(path.join(e.parentPath, e.name), "utf8")).join("\n");
+    for (const forbidden of ["buyer@example.test", "Private Customer", LEMON_SYNTHETIC_SIGNING_SECRET, "\"total\"", "private.test", "authorizationId", "ledger"]) assert.equal(all.includes(forbidden), false, forbidden);
+  });
+  await check("L20 no ledger, network or authority reach: the candidate imports only node built-ins and the existing verifier", () => {
+    const source = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "ayas", "revenue", "adapters", "lemon", "AyasLemonTestIngressCandidate.ts"), "utf8");
+    assert.deepEqual([...source.matchAll(/^import [^;]+ from "([^"]+)";/gm)].map((m) => m[1]), ["node:crypto", "node:fs", "node:path", "./AyasLemonWebhook"]);
+    assert.doesNotMatch(source.replace(/\/\*[\s\S]*?\*\//g, ""), /fetch\(|https?:|Ledger|Registry|authority:/);
+    const entries = fs.readdirSync(RUN_ROOT);
+    assert.ok(entries.every((e) => /^receipts-\d+$/.test(e)), `only receipt directories were written: ${entries.join(",")}`);
+  });
+
+  console.log(JSON.stringify({ schemaVersion: "1", evidenceClass: "TEMP_CANDIDATE_REAL_FILESYSTEM_INGRESS_CHECK", implementation: "TEMP_ONLY_NOT_APPLIED", route: "NONE", realWebhook: "NOT_RUN", network: "NONE", account: "UNBOUND", ledgerWrites: 0, externalWrites: 0, authority: "NONE", cases: rows.length, rows }, null, 2));
+}
+
+main()
+  .catch((error) => { console.error(error); process.exitCode = 1; })
+  .finally(() => { fs.rmSync(RUN_ROOT, { recursive: true, force: true, maxRetries: 3 }); });

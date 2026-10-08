@@ -1,0 +1,38 @@
+
+> atolye-v2@0.1.0 lint
+> eslint
+
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\apply-retry-admission-istanbul-1453.ts
+  1:8  warning  'fs' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\diagnose-global-terminal-quiescence-istanbul-1453-readonly.ts
+  1:8  warning  'fs' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\diagnose-retry-compensation-failed-root-cause-readonly.ts
+  1:8   warning  'fs' is defined but never used                                       @typescript-eslint/no-unused-vars
+  9:10  warning  'classifyProductionDurableAttemptLineage' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\production-failed-stage-retry-with-authority-final-preflight-readonly.ts
+  7:36  warning  'fingerprintPipelineJob' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\production-manifest-reconciliation-final-preflight-readonly.ts
+  12:15  warning  'PipelineJobList' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\smoke-audio-compensation-descriptor-rebind.ts
+  27:8  warning  'AudioCanonicalDescriptorRebind' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\smoke-audio-publication-rebind.ts
+   24:8   warning  'AudioPublicationDescriptorRebind' is defined but never used  @typescript-eslint/no-unused-vars
+  155:10  warning  'intentFilePath' is defined but never used                    @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\smoke-isolated-e2e-audio-rebind-assembly.ts
+  254:13  warning  'publicationRebind' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\smoke-sprint-129-25c-1-runtime-backup.ts
+    14:3   warning  'runtimeBackupFormatVersion' is defined but never used          @typescript-eslint/no-unused-vars
+    18:3   warning  'runtimeBackupManifestSchemaVersion' is defined but never used  @typescript-eslint/no-unused-vars
+  1401:13  warning  'relativePath' is assigned a value but never used               @typescript-eslint/no-unused-vars
+
+✖ 13 problems (0 errors, 13 warnings)
+

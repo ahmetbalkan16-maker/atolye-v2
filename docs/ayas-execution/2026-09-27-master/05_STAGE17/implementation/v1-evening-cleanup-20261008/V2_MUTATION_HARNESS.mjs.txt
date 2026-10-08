@@ -1,0 +1,53 @@
+// Mutation check for the V2 suites, run only against the TEMP clone.
+// Each mutant removes one guard, runs the suite, then restores the exact bytes
+// and proves the restore by SHA-256. Usage: node mutate.mjs <cloneRoot> <outJson>
+import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+const [cloneRoot, outJson] = process.argv.slice(2);
+if (!cloneRoot || !outJson || !cloneRoot.includes(`${path.sep}scratchpad${path.sep}`)) throw new Error("refusing: clone root must be inside the scratchpad");
+
+const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
+const RESUME = "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts";
+const DAEMON = "src/lib/brain/autonomy/AyasAutonomyDaemon.ts";
+const EXEC = "src/lib/brain/autonomy/AyasProposalExecutionService.ts";
+const GATE_LINE = "if (deps.explicitManualOwnerAction !== true || !deps.executionOwnerAdmission) return [];";
+const mutants = [
+  { id: "MV1_MANUAL_ACTION_GATE_REMOVED", file: RESUME, edits: [[GATE_LINE, "if (!deps.executionOwnerAdmission) return [];"]], suite: "scripts/smoke-ayas-owner-approval-resume-v2.ts" },
+  // The pre-K3 worker: no manual gate, eligibility by provenance reason only.
+  { id: "MV2_LEGACY_AUTO_RESUME_RESTORED", file: RESUME, edits: [[GATE_LINE, ""], ["    return isAyasOwnerApprovedDecisionReason(decision?.reason) && ", "    return isAyasOwnerApprovedDecisionReason(decision?.reason) || "]], suite: "scripts/smoke-ayas-autonomous-execution-gate-v2.ts" },
+  { id: "MV3_ELIGIBILITY_EXECUTE_CHECK_REMOVED", file: RESUME, edits: [["&& !!decision && checkAyasOwnerExecutionAdmission(", "&& !!decision && true || checkAyasOwnerExecutionAdmission("]], suite: "scripts/smoke-ayas-owner-approval-resume-v2.ts" },
+  { id: "MV4_POST_RESERVATION_RECHECK_REMOVED", file: DAEMON, edits: [["        assertOwnerExecution(reservation);\n", ""]], suite: "scripts/smoke-ayas-owner-approval-resume-v2.ts" },
+  { id: "MV5_STALENESS_RECONCILE_REMOVED", file: EXEC, edits: [["  reconcileAyasStaleProposals(deps.inbox, currentHead, new Date().toISOString());\n", ""]], suite: "scripts/smoke-ayas-owner-approval-resume-v2.ts" },
+];
+
+const rows = [];
+for (const m of mutants) {
+  const abs = path.join(cloneRoot, m.file);
+  const original = fs.readFileSync(abs);
+  const originalSha = sha(original);
+  const text = original.toString("utf8").replace(/\r\n/g, "\n");
+  const crlf = original.includes(Buffer.from("\r\n"));
+  const counts = m.edits.map(([find]) => text.split(find).length - 1);
+  if (counts.some((c) => c !== 1)) { rows.push({ id: m.id, applied: false, reason: `expected 1 occurrence per edit, found ${counts.join(",")}` }); console.log(JSON.stringify(rows.at(-1))); continue; }
+  let mutated = m.edits.reduce((acc, [find, replace]) => acc.replace(find, replace), text);
+  if (crlf) mutated = mutated.replace(/\n/g, "\r\n");
+  let result;
+  try {
+    fs.writeFileSync(abs, mutated, "utf8");
+    const started = Date.now();
+    const run = spawnSync(process.execPath, [path.join(cloneRoot, "node_modules", "tsx", "dist", "cli.mjs"), m.suite], { cwd: cloneRoot, encoding: "utf8", timeout: 600_000, windowsHide: true });
+    const output = `${run.stdout}\n${run.stderr}`;
+    const failure = output.split("\n").find((line) => /AssertionError|Error:|message:|OWNER_|expected|actual/.test(line)) ?? null;
+    result = { exit: run.status, signal: run.signal, seconds: Math.round((Date.now() - started) / 1000), killed: run.status !== 0, lastPass: (output.match(/PASS \d+: [^\n]*/g) ?? []).at(-1) ?? null, firstFailureLine: failure?.trim().slice(0, 300) ?? null };
+  } finally {
+    fs.writeFileSync(abs, original);
+  }
+  const restoredSha = sha(fs.readFileSync(abs));
+  if (restoredSha !== originalSha) throw new Error(`RESTORE FAILED for ${m.file}`);
+  rows.push({ id: m.id, file: m.file, suite: m.suite, applied: true, ...result, restoredSha, restoreVerified: true });
+  console.log(JSON.stringify(rows.at(-1)));
+}
+fs.writeFileSync(outJson, `${JSON.stringify({ cloneRoot: "<scratchpad>/v2clone", mutants: rows }, null, 2)}\n`);

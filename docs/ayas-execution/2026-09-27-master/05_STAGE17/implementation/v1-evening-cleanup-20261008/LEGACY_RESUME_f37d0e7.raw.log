@@ -1,0 +1,19 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+0 !== 1
+
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\smoke-ayas-owner-approval-resume.ts:111:12)
+    at async main (C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\bound-f37d0e7\scripts\smoke-ayas-owner-approval-resume.ts:103:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: 1,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

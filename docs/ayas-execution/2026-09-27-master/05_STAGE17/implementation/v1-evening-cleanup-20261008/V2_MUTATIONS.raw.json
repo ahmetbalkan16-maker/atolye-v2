@@ -1,0 +1,75 @@
+{
+  "cloneRoot": "<scratchpad>/v2clone",
+  "mutants": [
+    {
+      "id": "MV1_MANUAL_ACTION_GATE_REMOVED",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+      "suite": "scripts/smoke-ayas-owner-approval-resume-v2.ts",
+      "applied": true,
+      "exit": 1,
+      "signal": null,
+      "seconds": 5,
+      "killed": true,
+      "lastPass": "PASS 1: R01a flag on, sealed historical APPROVE, neither manual action nor EXECUTE: zero attempts, zero state loads, zero effect",
+      "firstFailureLine": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+      "restoredSha": "72739aeae69c4a6508a2b229006f2d80bd312af808d70a58d904913be123c472",
+      "restoreVerified": true
+    },
+    {
+      "id": "MV2_LEGACY_AUTO_RESUME_RESTORED",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+      "suite": "scripts/smoke-ayas-autonomous-execution-gate-v2.ts",
+      "applied": true,
+      "exit": 1,
+      "signal": null,
+      "seconds": 1,
+      "killed": true,
+      "lastPass": null,
+      "firstFailureLine": "AssertionError [ERR_ASSERTION]: flag on alone: historical consent is not an execution action",
+      "restoredSha": "72739aeae69c4a6508a2b229006f2d80bd312af808d70a58d904913be123c472",
+      "restoreVerified": true
+    },
+    {
+      "id": "MV3_ELIGIBILITY_EXECUTE_CHECK_REMOVED",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+      "suite": "scripts/smoke-ayas-owner-approval-resume-v2.ts",
+      "applied": true,
+      "exit": 1,
+      "signal": null,
+      "seconds": 3,
+      "killed": true,
+      "lastPass": "PASS 4: R02b explicit manual action and fresh EXECUTE, flag off: zero attempts, zero state loads, zero effect",
+      "firstFailureLine": "AssertionError [ERR_ASSERTION]: approve-admission-replayed-as-execute",
+      "restoredSha": "72739aeae69c4a6508a2b229006f2d80bd312af808d70a58d904913be123c472",
+      "restoreVerified": true
+    },
+    {
+      "id": "MV4_POST_RESERVATION_RECHECK_REMOVED",
+      "file": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+      "suite": "scripts/smoke-ayas-owner-approval-resume-v2.ts",
+      "applied": true,
+      "exit": 1,
+      "signal": null,
+      "seconds": 40,
+      "killed": true,
+      "lastPass": "PASS 18: R09 a proposal carrying an exact-patch safety proof marker is never handed to the publication resume",
+      "firstFailureLine": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "restoredSha": "9da364cf7dae3c83283d3fae40c137925525eaa925c45a1e2402d762ec0137eb",
+      "restoreVerified": true
+    },
+    {
+      "id": "MV5_STALENESS_RECONCILE_REMOVED",
+      "file": "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+      "suite": "scripts/smoke-ayas-owner-approval-resume-v2.ts",
+      "applied": true,
+      "exit": 1,
+      "signal": null,
+      "seconds": 22,
+      "killed": true,
+      "lastPass": "PASS 11: R05e interleaved race: a second manual resume starts after the first passed eligibility and authentication but before its reservation — one publication",
+      "firstFailureLine": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "restoredSha": "e8272f36bdfb26718124037df9ae3e767983dbb8b5201b187e0fb329e1b950eb",
+      "restoreVerified": true
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+// TEMP-only race worker: delivers one notification at an agreed instant.
+import { createAyasLemonTestIngress } from "../src/lib/ayas/revenue/adapters/lemon/AyasLemonTestIngressCandidate";
+import { LEMON_SYNTHETIC_SIGNING_SECRET } from "./fixtures/ayas-lemon-fixture";
+
+async function main() {
+  const [receiptRoot, bodyB64, headersJson, startAt] = process.argv.slice(2);
+  const ingress = createAyasLemonTestIngress({ receiptRoot: receiptRoot!, storeRef: "1", mode: "TEST", resolveSecret: () => LEMON_SYNTHETIC_SIGNING_SECRET });
+  while (Date.now() < Number(startAt)) { /* align the deliveries */ }
+  const result = await ingress.handle(Buffer.from(bodyB64!, "base64"), JSON.parse(headersJson!) as Record<string, string>);
+  console.log(JSON.stringify(result));
+}
+main().catch((error) => { console.error(error); process.exitCode = 1; });

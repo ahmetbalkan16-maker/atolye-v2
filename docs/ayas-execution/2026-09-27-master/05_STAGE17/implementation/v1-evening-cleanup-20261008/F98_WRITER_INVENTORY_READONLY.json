@@ -1,0 +1,135 @@
+{
+    "schemaVersion":  "1",
+    "observedAtUtc":  "2026-10-08T19:55:45.1890056Z",
+    "evidenceClass":  "READ_ONLY_PROCESS_AND_PATH_OBSERVATION",
+    "purpose":  "F98 writer identification (step 1 of a writer-quiesced interval). Not attribution, not quiescence.",
+    "commandLines":  "NOT_RECORDED_ROLES_AND_SCRIPT_NAMES_ONLY",
+    "processes":  [
+                      {
+                          "pid":  23612,
+                          "ppid":  26096,
+                          "name":  "powershell.exe",
+                          "role":  "access-daemon",
+                          "startedUtc":  "2026-10-08T03:44:11.1903620Z"
+                      },
+                      {
+                          "pid":  17648,
+                          "ppid":  27740,
+                          "name":  "node.exe",
+                          "role":  "autonomy-observer",
+                          "startedUtc":  "2026-10-08T03:44:14.5956780Z"
+                      },
+                      {
+                          "pid":  27176,
+                          "ppid":  9016,
+                          "name":  "node.exe",
+                          "role":  "autonomy-observer",
+                          "startedUtc":  "2026-10-08T03:44:23.2195700Z"
+                      },
+                      {
+                          "pid":  27740,
+                          "ppid":  28164,
+                          "name":  "powershell.exe",
+                          "role":  "autonomy-observer",
+                          "startedUtc":  "2026-10-08T03:44:11.1902460Z"
+                      },
+                      {
+                          "pid":  30976,
+                          "ppid":  27176,
+                          "name":  "node.exe",
+                          "role":  "autonomy-observer",
+                          "startedUtc":  "2026-10-08T03:44:23.2687290Z"
+                      },
+                      {
+                          "pid":  19824,
+                          "ppid":  15052,
+                          "name":  "node.exe",
+                          "role":  "editor-or-agent-tooling",
+                          "startedUtc":  "2026-10-08T19:55:39.4941880Z"
+                      },
+                      {
+                          "pid":  29016,
+                          "ppid":  35408,
+                          "name":  "powershell.exe",
+                          "role":  "editor-or-agent-tooling",
+                          "startedUtc":  "2026-10-08T19:55:44.0113380Z"
+                      },
+                      {
+                          "pid":  32416,
+                          "ppid":  19452,
+                          "name":  "node.exe",
+                          "role":  "next-start",
+                          "startedUtc":  "2026-10-08T09:54:27.5320290Z"
+                      },
+                      {
+                          "pid":  18340,
+                          "ppid":  23856,
+                          "name":  "node.exe",
+                          "role":  "npm-run-start",
+                          "startedUtc":  "2026-10-08T09:54:27.3949690Z"
+                      },
+                      {
+                          "pid":  18572,
+                          "ppid":  23612,
+                          "name":  "cloudflared.exe",
+                          "role":  "tunnel",
+                          "startedUtc":  "2026-10-08T03:45:36.9898460Z"
+                      },
+                      {
+                          "pid":  22460,
+                          "ppid":  36684,
+                          "name":  "powershell.exe",
+                          "role":  "unclassified",
+                          "startedUtc":  "2026-10-08T19:24:16.6983950Z"
+                      },
+                      {
+                          "pid":  23784,
+                          "ppid":  17412,
+                          "name":  "ollama.exe",
+                          "role":  "unclassified",
+                          "startedUtc":  "2026-10-08T05:12:20.1976060Z"
+                      },
+                      {
+                          "pid":  25292,
+                          "ppid":  17664,
+                          "name":  "node.exe",
+                          "role":  "unclassified",
+                          "startedUtc":  "2026-10-08T19:55:39.3316730Z"
+                      }
+                  ],
+    "scheduledTasks":  [
+                           {
+                               "task":  "AYAS Access Online",
+                               "state":  "Running"
+                           },
+                           {
+                               "task":  "AYAS Autonomy Observer",
+                               "state":  "Running"
+                           }
+                       ],
+    "port3000Listeners":  [
+                              {
+                                  "port":  3000,
+                                  "owningPid":  32416
+                              }
+                          ],
+    "liveBuild":  {
+                      "gitHead":  "e97461495391a5d287b7505dc6b41e01a8b88acc",
+                      "treeState":  "CLEAN",
+                      "lockfileSha256":  "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+                      "stampedAt":  "2026-10-08T09:54:26.629Z",
+                      "buildId":  "KmsdsLSOPkVSbJONHR1Zf",
+                      "installedNext":  "16.2.10",
+                      "declaredNext":  "16.3.8"
+                  },
+    "protectedPathPresence":  {
+                                  "repository:data/brain/revenue":  false,
+                                  "repository:runtime":  false,
+                                  "repository:authority":  false,
+                                  "repository:projects":  false,
+                                  "repository:.atolye":  false
+                              },
+    "writesPerformed":  0,
+    "servicesStopped":  0,
+    "authorityCreated":  false
+}

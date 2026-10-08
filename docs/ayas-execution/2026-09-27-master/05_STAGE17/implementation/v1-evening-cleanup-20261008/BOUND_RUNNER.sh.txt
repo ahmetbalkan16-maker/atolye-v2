@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Bound evidence run for commit f37d0e7 in a TEMP archive clone. Read-only toward the repo.
+SP="C:/Users/Metod/AppData/Local/Temp/claude/c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2/a33382d8-40e3-43a1-af9b-c80cb9a128a5/scratchpad"
+cd "$SP/bound-f37d0e7" || exit 9
+L="$SP/bound-logs"; S="$L/BOUND_SUMMARY.txt"; : > "$S"
+step() { local name="$1"; shift; local t0=$(date +%s); "$@" > "$L/$name.raw.log" 2>&1; local rc=$?; echo "$name exit=$rc seconds=$(( $(date +%s) - t0 ))" >> "$S"; }
+echo "source=f37d0e7 started=$(date -u +%FT%TZ)" >> "$S"
+export SMOKE_TRACE=1
+step RESUME_V2_f37d0e7 timeout 900 npx tsx scripts/smoke-ayas-owner-approval-resume-v2.ts
+step GATE_V2_f37d0e7 timeout 600 npx tsx scripts/smoke-ayas-autonomous-execution-gate-v2.ts
+step K3_ADMISSION_f37d0e7 timeout 900 npx tsx scripts/smoke-ayas-owner-approval-admission.ts
+step LEGACY_RESUME_f37d0e7 timeout 600 npx tsx scripts/smoke-ayas-owner-approval-resume.ts
+unset SMOKE_TRACE
+step GUARD_FIREWALL_CLOSURE_f37d0e7 timeout 600 npx tsx scripts/smoke-ayas-action-firewall-closure.ts
+step GUARD_DURABLE_TASK_RECOVERY_f37d0e7 timeout 600 npx tsx scripts/smoke-ayas-durable-task-recovery.ts
+step GUARD_DAEMON_AUTHORITY_f37d0e7 timeout 600 npx tsx scripts/smoke-ayas-daemon-authority-boundary.ts
+step TSC_f37d0e7 timeout 900 npx tsc --noEmit
+step ESLINT_FULL_f37d0e7 timeout 1500 npm run lint
+echo "finished=$(date -u +%FT%TZ)" >> "$S"

@@ -1,0 +1,14 @@
+AssertionError [ERR_ASSERTION]: evaluator.research-improvement.2026-10-01: the source changed; record a new entry with the new digest and keep this one as its rollback target
+
+'ABSENT' !== 'MATCH'
+
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\v2clone\scripts\smoke-ayas-lifecycle.ts:262:47)
+    at scenario (C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\v2clone\scripts\smoke-ayas-lifecycle.ts:28:81)
+    at main (C:\Users\Metod\AppData\Local\Temp\claude\c--Users-Metod-Desktop-solid-SW2020-x64-SP4-0-Program-At-lye-atolye-v2\a33382d8-40e3-43a1-af9b-c80cb9a128a5\scratchpad\v2clone\scripts\smoke-ayas-lifecycle.ts:258:9) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'ABSENT',
+  expected: 'MATCH',
+  operator: 'strictEqual',
+  diff: 'simple'
+}

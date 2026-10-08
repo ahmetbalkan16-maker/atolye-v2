@@ -47,3 +47,8 @@ docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparat
 
 # Post-push preparation: capture bytes only; no source EOL conversion.
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-push-morning-20261008/*.raw.log -text -diff
+
+# Evening cleanup evidence: capture bytes only; no source EOL conversion.
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-evening-cleanup-20261008/*.raw.log -text -diff
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-evening-cleanup-20261008/*.raw.json -text -diff
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-evening-cleanup-20261008/*.txt -text -diff

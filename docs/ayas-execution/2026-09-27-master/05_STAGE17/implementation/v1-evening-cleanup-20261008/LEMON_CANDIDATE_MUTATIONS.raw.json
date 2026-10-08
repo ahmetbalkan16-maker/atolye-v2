@@ -1,0 +1,53 @@
+{
+  "cloneRoot": "<scratchpad>/v2clone",
+  "mutants": [
+    {
+      "id": "ML1_NO_OVERWRITE_COMMIT_REPLACED_BY_RENAME",
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonTestIngressCandidate.ts",
+      "suite": "scripts/smoke-ayas-lemon-test-ingress-candidate.ts",
+      "applied": true,
+      "exit": 1,
+      "seconds": 3,
+      "killed": true,
+      "lastPass": "PASS 3: L03 duplicate after a restart (new handle, same directory): still no second commit",
+      "restoredSha": "2f143fe79ed4c5bff23e812f43b6585ff5bd5cd292a17ef1fce0fa985c43e2a5",
+      "restoreVerified": true
+    },
+    {
+      "id": "ML2_RECEIPT_INTEGRITY_CHECK_REMOVED",
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonTestIngressCandidate.ts",
+      "suite": "scripts/smoke-ayas-lemon-test-ingress-candidate.ts",
+      "applied": true,
+      "exit": 1,
+      "seconds": 3,
+      "killed": true,
+      "lastPass": "PASS 15: L15 crash after commit, before cleanup (receipt plus stray pending): the retry is a duplicate",
+      "restoredSha": "2f143fe79ed4c5bff23e812f43b6585ff5bd5cd292a17ef1fce0fa985c43e2a5",
+      "restoreVerified": true
+    },
+    {
+      "id": "ML3_STORAGE_FAILURE_ACKNOWLEDGED",
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonTestIngressCandidate.ts",
+      "suite": "scripts/smoke-ayas-lemon-test-ingress-candidate.ts",
+      "applied": true,
+      "exit": 1,
+      "seconds": 3,
+      "killed": true,
+      "lastPass": "PASS 12: L12 signing secret unavailable or malformed: 503, never 200, nothing written",
+      "restoredSha": "2f143fe79ed4c5bff23e812f43b6585ff5bd5cd292a17ef1fce0fa985c43e2a5",
+      "restoreVerified": true
+    },
+    {
+      "id": "ML4_DUPLICATE_RECOMMITTED",
+      "file": "src/lib/ayas/revenue/adapters/lemon/AyasLemonTestIngressCandidate.ts",
+      "suite": "scripts/smoke-ayas-lemon-test-ingress-candidate.ts",
+      "applied": true,
+      "exit": 1,
+      "seconds": 1,
+      "killed": true,
+      "lastPass": "PASS 1: L01 valid TEST notification: committed durably, then 200",
+      "restoredSha": "2f143fe79ed4c5bff23e812f43b6585ff5bd5cd292a17ef1fce0fa985c43e2a5",
+      "restoreVerified": true
+    }
+  ]
+}

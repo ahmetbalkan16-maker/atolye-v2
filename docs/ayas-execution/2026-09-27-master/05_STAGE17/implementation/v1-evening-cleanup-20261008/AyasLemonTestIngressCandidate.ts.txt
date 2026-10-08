@@ -1,0 +1,107 @@
+/**
+ * TEMP-ONLY CANDIDATE (2026-10-08 evening) — not applied to the repository,
+ * not wired to any route, no network. The durable half of the K4 Lemon TEST
+ * ingress design: a verified TEST notification is committed as a minimal
+ * receipt before any 200 is returned, and a repeat of the same notification
+ * (same event/body/store/mode digest) never commits twice — across restarts
+ * and across processes.
+ *
+ * Verification stays the existing `verifyAyasLemonWebhook` (raw-body HMAC,
+ * strict headers, store and TEST/LIVE binding, size limit). The commit reuses
+ * the repository's exclusive-create idiom (`AyasExecutiveAlertStore`): write a
+ * `wx` pending file, fsync, then `linkSync` it to the final name, which fails
+ * if the receipt already exists. No ledger write, external write, job runner
+ * or authority exists here; a receipt is a pointer, never revenue evidence.
+ */
+
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+import { verifyAyasLemonWebhook } from "./AyasLemonWebhook";
+
+export const AYAS_LEMON_TEST_INGRESS_RECEIPT_SCHEMA = "ayas-lemon-test-ingress-receipt:v1";
+
+export interface AyasLemonTestIngressConfig {
+  /** A dedicated directory for TEST receipts only. */
+  readonly receiptRoot: string;
+  /** The one TEST store this server accepts; never chosen by the caller. */
+  readonly storeRef: string;
+  readonly mode: "TEST";
+  /** Reads the TEST signing secret from the owner's secret store at call time; the value is never kept or written. */
+  readonly resolveSecret: () => string;
+}
+
+export type AyasLemonTestIngressResponse =
+  | { readonly status: 200; readonly committed: boolean }
+  | { readonly status: 400 }
+  | { readonly status: 503 };
+
+interface Receipt {
+  readonly schema: typeof AYAS_LEMON_TEST_INGRESS_RECEIPT_SCHEMA;
+  readonly eventDigest: string;
+  readonly eventCode: string;
+  readonly resourceType: string;
+  readonly resourceRef: string;
+  readonly mode: "TEST";
+  readonly state: "COMMITTED";
+  readonly committedAt: string;
+  readonly receiptDigest: string;
+}
+
+const sha256 = (text: string) => crypto.createHash("sha256").update(text, "utf8").digest("hex");
+const receiptMaterial = (r: Omit<Receipt, "receiptDigest">) => JSON.stringify([r.schema, r.eventDigest, r.eventCode, r.resourceType, r.resourceRef, r.mode, r.state, r.committedAt]);
+
+export function createAyasLemonTestIngress(config: AyasLemonTestIngressConfig) {
+  if (config.mode !== "TEST") throw new Error("AYAS_LEMON_INGRESS_TEST_ONLY");
+  if (!/^[1-9][0-9]{0,19}$/.test(config.storeRef)) throw new Error("AYAS_LEMON_INGRESS_STORE_REF_INVALID");
+  const dir = path.resolve(config.receiptRoot);
+
+  /** A committed receipt counts only if it is intact and names this exact event. */
+  const committedMatches = (file: string, eventDigest: string): boolean => {
+    try {
+      const r = JSON.parse(fs.readFileSync(file, "utf8")) as Receipt;
+      const { receiptDigest, ...rest } = r;
+      return r.schema === AYAS_LEMON_TEST_INGRESS_RECEIPT_SCHEMA && r.mode === "TEST" && r.state === "COMMITTED"
+        && r.eventDigest === eventDigest && receiptDigest === sha256(receiptMaterial(rest));
+    } catch { return false; }
+  };
+
+  async function handle(rawBody: Buffer, headers: Record<string, string>): Promise<AyasLemonTestIngressResponse> {
+    let secret: string;
+    try { secret = config.resolveSecret(); } catch { return { status: 503 }; }
+    if (typeof secret !== "string" || secret.length < 16 || secret.length > 128) return { status: 503 };
+    const pointer = verifyAyasLemonWebhook(rawBody, headers, secret, { storeRef: config.storeRef, mode: "TEST" });
+    if (!pointer || pointer.mode !== "TEST" || pointer.state !== "VERIFIED_POINTER") return { status: 400 };
+
+    const eventDigest = String(pointer.eventDigest);
+    const name = sha256(eventDigest);
+    const final = path.join(dir, `${name}.json`);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      if (fs.existsSync(final)) return committedMatches(final, eventDigest) ? { status: 200, committed: false } : { status: 503 };
+      const unsealed: Omit<Receipt, "receiptDigest"> = { schema: AYAS_LEMON_TEST_INGRESS_RECEIPT_SCHEMA, eventDigest, eventCode: String(pointer.eventCode), resourceType: String(pointer.resourceType),
+        resourceRef: String(pointer.resourceRef), mode: "TEST", state: "COMMITTED", committedAt: new Date().toISOString() };
+      const text = `${JSON.stringify({ ...unsealed, receiptDigest: sha256(receiptMaterial(unsealed)) })}\n`;
+      const pending = path.join(dir, `.${name}.${process.pid}.${crypto.randomUUID()}.pending`);
+      let fd: number | undefined;
+      try {
+        fd = fs.openSync(pending, "wx", 0o600); fs.writeFileSync(fd, text); fs.fsyncSync(fd); fs.closeSync(fd); fd = undefined;
+        try {
+          fs.linkSync(pending, final);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+          return committedMatches(final, eventDigest) ? { status: 200, committed: false } : { status: 503 };
+        }
+      } finally {
+        if (fd !== undefined) fs.closeSync(fd);
+        fs.rmSync(pending, { force: true });
+      }
+      return { status: 200, committed: true };
+    } catch {
+      return { status: 503 };
+    }
+  }
+
+  return { handle, receiptRoot: dir };
+}

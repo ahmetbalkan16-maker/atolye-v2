@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "1",
+  "packet": "v1-evening-cleanup-20261008",
+  "createdAtUtc": "2026-10-08T20:00:58.531Z",
+  "startHead": "c3d55307cb8fde64ff8018efa5ff8023e9e63670",
+  "testCommit": "f37d0e7",
+  "origin": "32e59c11c973aa51ca6e7b42aac856fc75098253",
+  "report": "EVENING_REPORT.md",
+  "ownerMorning": "MORNING_0700_FINAL.md",
+  "sourceCandidatesApplied": false,
+  "files": [
+    {
+      "path": "AyasLemonTestIngressCandidate.ts.txt",
+      "bytes": 5307,
+      "sha256": "2f143fe79ed4c5bff23e812f43b6585ff5bd5cd292a17ef1fce0fa985c43e2a5"
+    },
+    {
+      "path": "BOUND_RUNNER.sh.txt",
+      "bytes": 1443,
+      "sha256": "f54aa92627e6f9db3ac2bce618f6aeefcd69f95a31645176d52fc79e0812eedd"
+    },
+    {
+      "path": "BOUND_RUN_f37d0e7.json",
+      "bytes": 2323,
+      "sha256": "1c23a23b899f09fedfe28de150cf4ce220b5ac8ba00b11d9be53ada1ea146f19"
+    },
+    {
+      "path": "BOUND_SUMMARY_f37d0e7.raw.log",
+      "bytes": 438,
+      "sha256": "2a377e1ed2fa363c6a7c530b6078a161e7c87061f3e63f427ee73170f7313862"
+    },
+    {
+      "path": "ESLINT_FULL_f37d0e7.raw.log",
+      "bytes": 3591,
+      "sha256": "f54a003491eb938aaf06ab0f56eb2f0d75a87b071bbe44a7cc2f154a861ba33d"
+    },
+    {
+      "path": "EVENING_REPORT.md",
+      "bytes": 3573,
+      "sha256": "9d79164a39b2a936c85d93beb982a313860793d34f06db00d6d48365f480de6e"
+    },
+    {
+      "path": "F98_EVENING_READONLY.md",
+      "bytes": 2740,
+      "sha256": "26e0b8fd8ae57b31612d2d1f3d126a422eb75ded75bfaacf6728884668d65f3f"
+    },
+    {
+      "path": "F98_WRITER_INVENTORY_READONLY.json",
+      "bytes": 5966,
+      "sha256": "51ed852c0cd2d6ef8d65e9dd79caba415170405188086942c3afea7c7eec0f2a"
+    },
+    {
+      "path": "GATE_V2_TEMP_OVERLAY.raw.log",
+      "bytes": 1302,
+      "sha256": "3f19eb79370a301c059ae6e669009105c40e180c291c1d9b2db2607b1dea683c"
+    },
+    {
+      "path": "GATE_V2_f37d0e7.raw.log",
+      "bytes": 1302,
+      "sha256": "24c07ad08a3d81163dbddb650325efd12fcc6112db5908441f4723b81ec9c29b"
+    },
+    {
+      "path": "GUARD_DAEMON_AUTHORITY_f37d0e7.raw.log",
+      "bytes": 132,
+      "sha256": "db336fa5de10dd3cdbe0bdf0d70d75fc56e0a5e3b305848425982463e8dfd2c7"
+    },
+    {
+      "path": "GUARD_DURABLE_TASK_RECOVERY_f37d0e7.raw.log",
+      "bytes": 88,
+      "sha256": "6a35df283f926ddce183ece0a2e956bf9dedb1fe62663a0d0c7e0119c4e65e3f"
+    },
+    {
+      "path": "GUARD_FIREWALL_CLOSURE_f37d0e7.raw.log",
+      "bytes": 96,
+      "sha256": "f3749ab04697c8c715412864a570ee25d1ada4cedb7ed4a1464e5b126bbde6c7"
+    },
+    {
+      "path": "GUARD_action-firewall-closure_OVERLAY.raw.log",
+      "bytes": 96,
+      "sha256": "f3749ab04697c8c715412864a570ee25d1ada4cedb7ed4a1464e5b126bbde6c7"
+    },
+    {
+      "path": "GUARD_daemon-authority-boundary_OVERLAY.raw.log",
+      "bytes": 132,
+      "sha256": "db336fa5de10dd3cdbe0bdf0d70d75fc56e0a5e3b305848425982463e8dfd2c7"
+    },
+    {
+      "path": "GUARD_durable-task-recovery_OVERLAY.raw.log",
+      "bytes": 88,
+      "sha256": "6a35df283f926ddce183ece0a2e956bf9dedb1fe62663a0d0c7e0119c4e65e3f"
+    },
+    {
+      "path": "GUARD_lifecycle_CLEAN_HEAD_NO_OVERLAY.raw.log",
+      "bytes": 1011,
+      "sha256": "d6a2fb222a0992335882c95e94262f86fb4390ad38f35379c31ed6036e3e635f"
+    },
+    {
+      "path": "GUARD_lifecycle_OVERLAY.raw.log",
+      "bytes": 1011,
+      "sha256": "d6a2fb222a0992335882c95e94262f86fb4390ad38f35379c31ed6036e3e635f"
+    },
+    {
+      "path": "K3_ADMISSION_f37d0e7.raw.log",
+      "bytes": 3470,
+      "sha256": "7616c3566b9af6f6b8ba309e857e80b141c76e26c679f49566902c22f26f1eef"
+    },
+    {
+      "path": "K3_EVENING_AUDIT.md",
+      "bytes": 3759,
+      "sha256": "0ce0d3d0efc7439b04ff2937851bf9875e14187bfa94cbc2bc0ef0d83a07906d"
+    },
+    {
+      "path": "LEGACY_RESUME_f37d0e7.raw.log",
+      "bytes": 1339,
+      "sha256": "ea2b4215a070bdfbcfec47f6182aac163865836a887583bb5ab68185804f2f81"
+    },
+    {
+      "path": "LEMON_CANDIDATE_MUTATIONS.raw.json",
+      "bytes": 2164,
+      "sha256": "7b8c9964bb56a22d824f20033c2f24cf06fd3cf95183a16485f0dd8f1aa4e116"
+    },
+    {
+      "path": "LEMON_CANDIDATE_TEMP.raw.log",
+      "bytes": 4448,
+      "sha256": "65f42ade61ac896b5328856f0d97e4348e86bbc810d606215de1f4f83314d258"
+    },
+    {
+      "path": "LEMON_MUTATION_HARNESS.mjs.txt",
+      "bytes": 3169,
+      "sha256": "f96efc910b387ee7f3e549ee6870ae4b9d11f44e99f64fa54e62ee052ee782af"
+    },
+    {
+      "path": "LEMON_TEST_INGRESS_CANDIDATE.md",
+      "bytes": 3994,
+      "sha256": "ab39201f9361c727a187cb119ac75edeb8075688dc950a8dd55c4a7d722e3ebe"
+    },
+    {
+      "path": "MORNING_0700_FINAL.md",
+      "bytes": 4365,
+      "sha256": "17cb799e3be37b294daca48fad6657e7b3bd7b823e6df3fb85455691e2cc1c10"
+    },
+    {
+      "path": "RESUME_V2_REPORT.md",
+      "bytes": 6374,
+      "sha256": "79a3325f50f904fe4c90ecfb09af7927259a6d7e0bc08e7f245b05cda474bb99"
+    },
+    {
+      "path": "RESUME_V2_TEMP_OVERLAY.raw.log",
+      "bytes": 11244,
+      "sha256": "2aa67d2a2952f852b89d3336de94d3d9c996c5de6a693e30e5f4428bc021ccb4"
+    },
+    {
+      "path": "RESUME_V2_f37d0e7.raw.log",
+      "bytes": 11244,
+      "sha256": "53343c78871a08737a80b5dcdb3281d1f14327a622223043083151b3224370a3"
+    },
+    {
+      "path": "TSC_f37d0e7.raw.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "V2_MUTATIONS.raw.json",
+      "bytes": 3295,
+      "sha256": "f0b2c2b42f0d6e73b6f3eb51febbad19ba2323f2a59dc5185a2b4e7c4eb2cf13"
+    },
+    {
+      "path": "V2_MUTATION_HARNESS.mjs.txt",
+      "bytes": 4094,
+      "sha256": "3cad330148178dc66de5077b749abc88b77f9e287681214c05c5a6fed8f44bc3"
+    },
+    {
+      "path": "smoke-ayas-lemon-test-ingress-candidate.ts.txt",
+      "bytes": 10640,
+      "sha256": "cb3be29023d342de70583aa70934d780ac654a3e91bda1843fbcd3cc684561d9"
+    },
+    {
+      "path": "smoke-ayas-lemon-test-ingress-candidate.worker.ts.txt",
+      "bytes": 840,
+      "sha256": "f7c6d94f99ed71bbc1094b6eb737a9970892e19998740259c3813f94465e0308"
+    }
+  ]
+}

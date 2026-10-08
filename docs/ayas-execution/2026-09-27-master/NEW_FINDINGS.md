@@ -1,3 +1,11 @@
+## 8 Ekim 2026 - akşam son hata temizliği; resume V2 eklendi, push yok
+
+**Kapanan boşluk:** iki eski auto-resume FAIL'inin çalıştıramadığı kapsam, yerel f37d0e7'deki sürümlü V2 suite'leriyle geçerli manuel yetki altında yeniden çalışıyor (20/20 + 6/6, 5/5 mutant KILLED). Eski suite'ler ve raw FAIL değişmedi. Bağımsız inceleme NOT_RUN.
+
+**K3-L1 (LOW, açık):** `AyasAutonomousExecutionGate.ts` başlığı ve `APPROVED_PENDING_EXECUTION` yorumu, bayrak açılınca resume worker'ın owner eylemi olmadan devraldığını söylüyor; gerçek davranış ve owner politikası tersi. Dosya K3 exact map'e bağlı; yalnız yorum düzeltmesi ayrı incelenmiş paket olmalı. **K3-L2 (LOW, açık):** reservation sonrası oturum biterse veya provenance değişirse yürütme güvenle reddedilir ama proposal RECOVERY_REQUIRED kalır (onay tüketilmiş). **Ortam notu:** `smoke-ayas-lifecycle.ts` git geçmişi olmayan arşiv klonunda tarihsel `76aa4b1` kaynağını okuyamadığı için FAIL verir (overlay'den bağımsız); geçmişli klon gerekir. F98/Recovery9/Lemon/Fiverr açık; AYAS V1/Foundation BLOCKED.
+
+Paket: docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-evening-cleanup-20261008/.
+
 ## 8 Ekim 2026 - dört commit push tamamlandı; 9 Ekim rehberliği hazır
 
 Onaylı e4c5132..32e59c1 dört commit normal fast-forward pushlandı; gerçek remote32e59c1, push sonrası0/0/clean. Sonraki bu belge kaydı yerelde kalır, yeni push yok. K3/Exact12/GoldenV3 uygulama içeriği dbf9542 ile Git'te aynı;1728dosya kontrolü ve405yalnızCRLF/LF fiziksel fark tanığı kaydedildi. Raw/frozen70artifact/215pin/Recovery9 korunur. Full166166PASS yalnızdbf9542; yeniHEADotomatik sertifikası yok. Fresh16.3.8 yeni lint config0error13warning; ağır test/build tekrarı yok.
