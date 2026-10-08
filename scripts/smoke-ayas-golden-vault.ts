@@ -116,11 +116,16 @@ scenario("the vault of record: clean chain, pins equal the working tree and each
   assert.deepEqual(AYAS_GOLDEN_VAULT_VERSIONS.map((vault) => ayasGoldenVaultDigest(vault)), [
     "1532277d2b7220fbc6eb774dbd623e648e5cab74e17cdb7ad3953584eedeba1c",
     "5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f",
+    "4cc8762192344fb7d052d4d9b281b327661ec0840688e642c6bb7fe79824efd5",
   ]);
   // Version 2 kept every case of version 1 with the same pinned bytes and added the golden video projects.
-  const [first, second] = AYAS_GOLDEN_VAULT_VERSIONS; assert.ok(first && second);
+  const [first, second, third] = AYAS_GOLDEN_VAULT_VERSIONS; assert.ok(first && second && third);
   for (const entry of first.cases) assert.deepEqual(second.cases.find((candidate) => candidate.id === entry.id), entry, entry.id);
   assert.deepEqual(second.cases.filter((entry) => !first.cases.some((candidate) => candidate.id === entry.id)).map((entry) => [entry.id, entry.domain]), [["golden.video.historical-projects", "HISTORICAL_VIDEO"]]);
+  // Version 3 moved only the frozen retrieval case to its exact12 successor grader; every other case and every gap is version 2's.
+  assert.deepEqual(third.cases.map((entry) => entry.id), second.cases.map((entry) => entry.id)); assert.deepEqual(third.gaps, second.gaps);
+  for (const entry of second.cases) if (entry.id !== "golden.memory.retrieval-evaluation") assert.deepEqual(third.cases.find((candidate) => candidate.id === entry.id), entry, entry.id);
+  assert.equal(third.cases.find((entry) => entry.id === "golden.memory.retrieval-evaluation")?.script, "scripts/smoke-ayas-retrieval-evaluation-v3.ts");
   assert.equal(AYAS_GOLDEN_VAULT, AYAS_GOLDEN_VAULT_VERSIONS[AYAS_GOLDEN_VAULT_VERSIONS.length - 1]);
   assert.ok(Object.isFrozen(AYAS_GOLDEN_VAULT_VERSIONS) && Object.isFrozen(AYAS_GOLDEN_VAULT_PINNED_FILES));
   assert.deepEqual(verifyAyasGoldenVaultPins(AYAS_GOLDEN_VAULT, (file) => fs.readFileSync(path.join(repo, file))), []);

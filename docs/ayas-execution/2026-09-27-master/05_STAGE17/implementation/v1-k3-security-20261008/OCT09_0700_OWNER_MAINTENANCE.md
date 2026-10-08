@@ -10,4 +10,3 @@
 6. F98 writer quiescence/slot kanıtı, Recovery9 exact receipt'leri ve Lemon TEST/Fiverr resmi kanıtı eksikleri ayrı kalır. Eksik sonuç PASS yapılmaz. Teknik ve fiziksel kapılar tamamlanınca exact final digest için owner kabulü istenir.
 
 12 Ekim Pazartesi Atölye üretim hedefi ve mevcut Fatih videosu düzeltme planı korunur. Bu görev render/yayın başlatmaz.
-

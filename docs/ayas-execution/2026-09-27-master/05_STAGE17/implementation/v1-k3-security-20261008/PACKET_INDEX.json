@@ -2,6 +2,26 @@
   "schemaVersion": "1",
   "files": [
     {
+      "file": "EXACT12_AFTER_K3.md",
+      "sha256": "844f6a73044507273cd05a7c424695ba6953a806fb799f2b2c75e44f34289d74"
+    },
+    {
+      "file": "EXACT12_AFTER_K3_GOLDEN.raw.log",
+      "sha256": "b6502be81d7e460c84ef5766d975c8cc6d2370cf08aef0db68b63ad02442b7df"
+    },
+    {
+      "file": "EXACT12_AFTER_K3_ORIGINAL.raw.log",
+      "sha256": "bfdf4cd6c7891a17e03cd604187bffc6c3a84c53710be8bc9873fad777c70d42"
+    },
+    {
+      "file": "EXACT12_AFTER_K3_PUBLICATION.raw.log",
+      "sha256": "9aa544ce01064c664913dbf3aba40c28be0eae4a2ff5dc787eae4dc965b9f2a0"
+    },
+    {
+      "file": "EXACT12_AFTER_K3_V3.raw.log",
+      "sha256": "7643cab21ce8bf55aab80d66080ea4d0c17accd601a584a939830201d31d8cde"
+    },
+    {
       "file": "FRESH_LOCK_INSTALL.raw.log",
       "sha256": "1fa38501656ecaae85b26b9994e04c84fa92848896ae19273d90ef021bbee14c"
     },
@@ -51,11 +71,11 @@
     },
     {
       "file": "K3_SECURITY_REPORT.md",
-      "sha256": "66299d2f29703e6c5aec66626f55080eb5f74dc3926a14ee4bf361c578a3289e"
+      "sha256": "fdf6208e1810d73c8022b3944fd41c71a04b81588bd99c78d818e4be7384d26e"
     },
     {
       "file": "OCT09_0700_OWNER_MAINTENANCE.md",
-      "sha256": "e1c0b58f71531d1de5d728b8cc3b0cbeabe29e76b0828e89e262cf198b4ef3c3"
+      "sha256": "749d90c75037559c928d089bc6666906b7b73ac171e41c128be631df91c819e7"
     },
     {
       "file": "OWNER_DECISION_AND_PUSH_RECEIPT.json",

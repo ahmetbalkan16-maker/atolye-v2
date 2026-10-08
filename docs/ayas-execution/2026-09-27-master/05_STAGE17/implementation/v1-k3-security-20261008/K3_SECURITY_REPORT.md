@@ -31,4 +31,3 @@ Sıfır kalıcı etki negatif kanıtı yalnız test edilen store/daemon sınırl
 ## Kapanış sınırları
 
 Canlı runtime kaynak/build kimliği önceki e974614; bu kaynak düzeltmesi deploy edilmiş sayılmaz. Canlı restart, Next yükseltmesi, APPROVE, authority/runtime yazısı, payment/customer action, render veya YouTube upload yapılmadı. Foundation ve AYAS V1 BLOCKED; F98/Recovery9/Lemon/Fiverr kanıtları korunur.
-

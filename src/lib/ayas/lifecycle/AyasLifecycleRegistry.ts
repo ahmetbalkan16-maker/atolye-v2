@@ -239,6 +239,15 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
       { state: "PINNED", on: "2026-10-02", basis: "one environment value added to the evaluator's chat turn; cases, graders, assertions and known limitations unchanged" }],
     notes: "No qualification, promotion or serving admission. The only change is the declared window of the evaluator's chat turn. Old bytes and their digest are preserved at the rollback target. The owner selected the previous identity; accepting this one is an owner decision.",
   },
+  {
+    id: "evaluator.retrieval.cf49-exact12-v3", kind: "evaluator", role: "retrieval-evaluator", label: "smoke-ayas-retrieval-evaluation-v3 (CF49 exact12 successor)",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-retrieval-evaluation-v3.ts", "scripts/lib/AyasRetrievalEvaluation.ts"], sha256: "f7013e3033fcfa32c3405060c668b4e536e2059c9edd49ce9ef10213b1ca1c31" },
+    state: "PINNED", admission: "NONE", compatibility: "deterministic; the same 74 cases, floors, ceilings and checks; 16 recorded known limitations after the 12 CF49-reviewed improvements left the list.",
+    record: unmeasured("new evaluator identity; owner acceptance pending"), rollbackTarget: "evaluator.retrieval.pf15c-v2",
+    history: [{ state: "DISCOVERED", on: "2026-10-08", basis: "the frozen grader exits 1 on exactly 12 IMPROVED cases that the CF49 review accepted" },
+      { state: "PINNED", on: "2026-10-08", basis: "a sibling copy of the frozen grader without the 12 reviewed rows; cases, graders, assertions and the other 16 known limitations unchanged" }],
+    notes: "No qualification, promotion or serving admission. The frozen grader keeps its bytes, its raw exit 1 and the CF49 review; it stays the rollback target. Accepting this identity is an owner decision.",
+  },
 ] satisfies readonly AyasLifecycleEntry[]);
 
 export function findAyasLifecycleEntry(id: string): AyasLifecycleEntry | undefined {

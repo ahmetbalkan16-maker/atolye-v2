@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v59",
+  "version": "15F.4-v58",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1161,7 +1161,7 @@
     {
       "id": "retrieval-evaluation",
       "kind": "CAPABILITY",
-      "script": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
+      "script": "scripts/smoke-ayas-retrieval-evaluation.ts",
       "args": [],
       "grading": "EXIT_STATUS",
       "pins": [
@@ -1180,10 +1180,6 @@
         {
           "file": "scripts/smoke-ayas-retrieval-evaluation.ts",
           "sha256": "a92ceddb0d4a273b1148c17cc491c83d0bf8cca1397dd9ce7911e3fc9fae5f9e"
-        },
-        {
-          "file": "scripts/smoke-ayas-retrieval-evaluation-v3.ts",
-          "sha256": "3c207d69d3cddc977386cc07535c96b5c4c97ce8a33517991346780e86277d00"
         }
       ],
       "slices": [
@@ -1712,7 +1708,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault.ts",
-          "sha256": "9255c742a2a4d96897982f5354102832d2af8568e7eb48656a5df2c877cda0d4"
+          "sha256": "90465d6f867a3804b8039e0eda7f21bac51e31a47e39df05d51f20c90631f06b"
         },
         {
           "file": "scripts/lib/AyasGoldenVaultFiles.ts",
