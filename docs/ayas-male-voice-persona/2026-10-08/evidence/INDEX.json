@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-08T05:31:22.112Z",
+  "status": "ISOLATED_PREPARATION_TESTED_QUALITY_PENDING",
+  "files": [
+    {
+      "source": ".graphify/male-voice-persona/2026-10-08/RESULT.json",
+      "artifact": "RESULT.json.gz",
+      "rawBytes": 13186,
+      "rawSha256": "f03ae23fd03ff6a46583bb69af8ac34f98b83958085a1eb4a80a702c49b4131b",
+      "gzipSha256": "3db7a0aafb289f277df37b3340c7aa58aafceed196fc4e7722396e32890aeaef"
+    },
+    {
+      "source": ".graphify/male-voice-persona/2026-10-08/CANCEL.json",
+      "artifact": "CANCEL.json.gz",
+      "rawBytes": 250,
+      "rawSha256": "07a96688ef969fed3c259db8ea411fef6934a8d885b293356466fc1c00198e00",
+      "gzipSha256": "8552beb5093d4bbd14c5ed627ddeaf4d4f2f8b26b8e8d5f28cf00e0eaad1405a"
+    },
+    {
+      "source": ".graphify/wake-policy-v3/prepare-male.cjs",
+      "artifact": "prepare-male.cjs.gz",
+      "rawBytes": 4542,
+      "rawSha256": "d979df9e46c22660624d196ae732a739fe668d4a77587f53110b23621c92119d",
+      "gzipSha256": "744c71c6ee18835fe6b7ecd9988949a747a4a40443be11b11aae74414daa9fec"
+    },
+    {
+      "source": ".graphify/wake-policy-v3/test-male-cancel.cjs",
+      "artifact": "test-male-cancel.cjs.gz",
+      "rawBytes": 1200,
+      "rawSha256": "ef9ad32a26f44d4e31205d6da07495788b9724a9e6fb7e08b4d6fd7401d3c11f",
+      "gzipSha256": "0a70b02ea3266505c5e81396a8f080899d4378c7d3cbaee9ffb6b9fd28198bfa"
+    },
+    {
+      "source": ".graphify/wake-policy-v3/voice-inventory.ps1",
+      "artifact": "voice-inventory.ps1.gz",
+      "rawBytes": 384,
+      "rawSha256": "6ceb4ce86a7c55aa3194b9aab3d8708d348bd4d85759b8fc8c2f6868650cab5f",
+      "gzipSha256": "92ebef0c102dd521b82a67de1eb6fc37d865f49f1e76935c703a623e1052ba1b"
+    }
+  ],
+  "audioIncluded": false,
+  "humanRecordingIncluded": false,
+  "modelIncluded": false,
+  "liveVoiceChanged": false,
+  "wakeGate": "BLOCKED",
+  "ownerListening": "NOT_RUN",
+  "broadCommercialLicense": "NOT_CLEARED",
+  "phone": "NOT_RUN"
+}

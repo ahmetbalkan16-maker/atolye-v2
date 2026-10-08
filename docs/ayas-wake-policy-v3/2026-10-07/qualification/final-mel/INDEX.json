@@ -1,0 +1,311 @@
+{
+  "at": "2026-10-08T05:28:52.098Z",
+  "sourceHead": "c0baf914562b5d5cb52d7acaa7c51e0424d4ebc6",
+  "policy": "owner-v3",
+  "status": "BLOCKED",
+  "noFurtherSameMethodFits": true,
+  "files": [
+    {
+      "source": "create-temporal-fit.cjs",
+      "artifact": "create-temporal-fit.cjs.gz",
+      "rawBytes": 986,
+      "rawSha256": "609a2bd3e42ed393f83a52dbdc053bf741e6dbc9c6040c1d119bdfdc97087baf",
+      "gzipSha256": "de2ef1eb170d70ca3d63082020b658f4fa66eba5ab9efe95d0ab87ae7ca631c4"
+    },
+    {
+      "source": "fit-temporal.py",
+      "artifact": "fit-temporal.py.gz",
+      "rawBytes": 11212,
+      "rawSha256": "57cfe17758069946f2a97196571fd384eb199d2660f5700e830e8c8962981edc",
+      "gzipSha256": "b81e9f72f7df52c08c0b5bab60280aad1499e77a50f9dde735de212bd2cb5a10"
+    },
+    {
+      "source": "temporal-fit.json",
+      "artifact": "temporal-fit.json.gz",
+      "rawBytes": 732230,
+      "rawSha256": "4dd284b55d0aba6e9ac18e430d3a70b67b98a134c03eae6547d6f76d58b4c717",
+      "gzipSha256": "8d87bf30466167a56521fbab28babd96609a1da1e0fcfd40b5b6967cb99f48b1"
+    },
+    {
+      "source": "temporal-progress.json",
+      "artifact": "temporal-progress.json.gz",
+      "rawBytes": 123,
+      "rawSha256": "cc037337dde656370565a62d6773fa8aac3bef0543cbbe353b4eab7caa3d82d0",
+      "gzipSha256": "9b418e418558eeaf4ba3942f625990d2b9f70658c3a0328c40bd9a47023978f8"
+    },
+    {
+      "source": "temporal-fit.stderr.log",
+      "artifact": "temporal-fit.stderr.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63"
+    },
+    {
+      "source": "extract-phonetic-context.ts",
+      "artifact": "extract-phonetic-context.ts.gz",
+      "rawBytes": 5145,
+      "rawSha256": "b2ff44a63f24a8de499c36e4c45536b5173f7705d8e8cde2b412e9f43002f0a2",
+      "gzipSha256": "8249e3d884cfd829ee35a471791266056b1d9bd865703a597957e4edd0228e0c"
+    },
+    {
+      "source": "phonetic/clips.json",
+      "artifact": "phonetic__clips.json.gz",
+      "rawBytes": 309732,
+      "rawSha256": "103bcce4c3e87076f007f595561b9f10a648aef11c373a30db197c84fbf1ef25",
+      "gzipSha256": "0583d061e737ac40ef3e0eab35ecedadc3ddaf31be15b251054003edda45ab73"
+    },
+    {
+      "source": "fit-phonetic.py",
+      "artifact": "fit-phonetic.py.gz",
+      "rawBytes": 7824,
+      "rawSha256": "832835318adb0fe275eb7480c2db2df27bb4cff9121901f54a898123a1cb358a",
+      "gzipSha256": "9c46314511d7b8a20170c7079ca0a8880232aaefde9bad7ee2896e2780562663"
+    },
+    {
+      "source": "phonetic-fit.json",
+      "artifact": "phonetic-fit.json.gz",
+      "rawBytes": 526545,
+      "rawSha256": "e9a0f1d9e998a557d371c50d3630522667a172f4943ce7e7515fa6d9a13dd710",
+      "gzipSha256": "c9cf70a1ab5ac5458a9a5a7eb8fac1dc10b5c24b85db1096dd642fcb749bfd68"
+    },
+    {
+      "source": "phonetic-progress.json",
+      "artifact": "phonetic-progress.json.gz",
+      "rawBytes": 121,
+      "rawSha256": "2e3bc32f1316887a58d347416b6997d2b38e459a0e6c115b392aa4f52995c966",
+      "gzipSha256": "c93ea78bc253d5e814447f2c202834aeb370913ea92fb9d334d2f5631f54b508"
+    },
+    {
+      "source": "phonetic-session.ts",
+      "artifact": "phonetic-session.ts.gz",
+      "rawBytes": 1019,
+      "rawSha256": "da6eb772b86d017e450c3626da5984a97cd5afd6ce001f70c0e75c0ddbca9a00",
+      "gzipSha256": "00b66319b7ed284bf13c47504e82e5e00fad8e436875f0c7a52b78855ee8c177"
+    },
+    {
+      "source": "create-context200.cjs",
+      "artifact": "create-context200.cjs.gz",
+      "rawBytes": 2802,
+      "rawSha256": "834a274c22f83da5b2395b3ab4891adc3d58c769c0f5cb4da2686069ce414461",
+      "gzipSha256": "0c21631109a94514ee4d9f398ede96dc043d75baed3e7e357e62e44300e5fc53"
+    },
+    {
+      "source": "extract-context200.ts",
+      "artifact": "extract-context200.ts.gz",
+      "rawBytes": 5635,
+      "rawSha256": "0a69ccc0dd4a9ce436e32e7f2a3dd33cf75425b9bf03677cde21c98510cd46f1",
+      "gzipSha256": "3cd5bbf958e141a243c8a7e80103e4c61ac2a1216f587b43bb067a325bfd86f8"
+    },
+    {
+      "source": "phonetic200/clips.json",
+      "artifact": "phonetic200__clips.json.gz",
+      "rawBytes": 309763,
+      "rawSha256": "36980986b69cfdcbd840acfa5e711d3e01debbfbd728d8578d0c89a741a85221",
+      "gzipSha256": "2a0e04018801058f6d6a46338263333d9e3561c7ad72b23b1149d10c346cd99a"
+    },
+    {
+      "source": "fit-context200.py",
+      "artifact": "fit-context200.py.gz",
+      "rawBytes": 7995,
+      "rawSha256": "44ff60b598b03578e684c87acfb6c7301d3d1aadc77f60ffe4a7a2e48f380ed2",
+      "gzipSha256": "ae60df856f2ea6489adbd9713612e2842caf4afd955dbbb92aee88b8a5e5bc5a"
+    },
+    {
+      "source": "context200-fit.json",
+      "artifact": "context200-fit.json.gz",
+      "rawBytes": 526775,
+      "rawSha256": "61b6ab385d0b8a62e4d933c44e430b13709105ae1189e7ecab53eb0616fa43dd",
+      "gzipSha256": "e34d0034dc51f6102bb52574169d6446b8789089d7dfd15b304aa1d7314c06ad"
+    },
+    {
+      "source": "context200-progress.json",
+      "artifact": "context200-progress.json.gz",
+      "rawBytes": 144,
+      "rawSha256": "66dd7d0c679823feb06ac5b235f9fc959401bfae189d850d5ae026003d1585c8",
+      "gzipSha256": "7c75ecb4ffccf8e09c3dbba65c284c9a66ca339084bb411ac95f53532ddc9944"
+    },
+    {
+      "source": "context200-runner.ts",
+      "artifact": "context200-runner.ts.gz",
+      "rawBytes": 2088,
+      "rawSha256": "585434f4d4fa7a076a99ec71f554181fbc5ba256e0decca4d2b7af3983ecb520",
+      "gzipSha256": "ce2caf0fb767c91d4bc9bb5da148ef9179d77f06e66bddf92184c0fb4b8a0077"
+    },
+    {
+      "source": "create-context200-replays.cjs",
+      "artifact": "create-context200-replays.cjs.gz",
+      "rawBytes": 835,
+      "rawSha256": "5df2afe8600dceab837c01d4cea4c266a53b770fad69a396b8a015f9087ac60b",
+      "gzipSha256": "dc2686e45841740c92a86a5ec03a24788dea1794f1ee64ce8d2827c95e60484a"
+    },
+    {
+      "source": "context200-acoustic.ts",
+      "artifact": "context200-acoustic.ts.gz",
+      "rawBytes": 7994,
+      "rawSha256": "1252ac5c7e319601a505d94d7134ed6c4639804d908992be83603fa18f3f69cd",
+      "gzipSha256": "ff5fc3ee22e5f8252c89cde7184a77ed949fc42843c58e76ec2323eb460fb39d"
+    },
+    {
+      "source": "context200-acoustic.json",
+      "artifact": "context200-acoustic.json.gz",
+      "rawBytes": 71525,
+      "rawSha256": "ec36db17b81a611b4c3d257f34fc2b4f3b4f180e0b1f861df8572c1c87e88ff3",
+      "gzipSha256": "f8962cb2d14ff3308fbbb3d8026e034223d27bfc6abf63b5ad6fc3d6518e1729"
+    },
+    {
+      "source": "context200-acoustic.stderr.log",
+      "artifact": "context200-acoustic.stderr.log.gz",
+      "rawBytes": 4595,
+      "rawSha256": "e0fae4bb92d7a054b91e2781e5dbf80977a01b62994429b0b0965e2d0c9cd4e7",
+      "gzipSha256": "7f14cf29439021c0668c24d5ad5763fcc1a1d11b52a685a2a268f761ad8873f6"
+    },
+    {
+      "source": "context200-held.ts",
+      "artifact": "context200-held.ts.gz",
+      "rawBytes": 3609,
+      "rawSha256": "058f244ba14828b8da7d4bd43335d925b6e8bdf9072c677caee79a7c72b450f1",
+      "gzipSha256": "b5ed26d9fa6eb84a081e92f41e61234f6dcf74452e1d7e7c70c7c58e6efaba71"
+    },
+    {
+      "source": "context200-held.json",
+      "artifact": "context200-held.json.gz",
+      "rawBytes": 140772,
+      "rawSha256": "b66e1ead0f6a823d467f3d3681857d98219219b3c0d0abb0ca3ed38e5581efa1",
+      "gzipSha256": "bb2da6ef28dd2830a95f08f141d4a3d198032ea4f3dc354119cca8e23146fab2"
+    },
+    {
+      "source": "context200-sapi.ts",
+      "artifact": "context200-sapi.ts.gz",
+      "rawBytes": 2922,
+      "rawSha256": "cb89854f4c5bafd11839a5410e24dfce73a66b0d456a8862fe78d290c927f876",
+      "gzipSha256": "2d43656148284b8522330129808bf5a2691e994818f3494b30f73a5eb4abf217"
+    },
+    {
+      "source": "context200-sapi.json",
+      "artifact": "context200-sapi.json.gz",
+      "rawBytes": 168778,
+      "rawSha256": "e5ab7354808dd511c37ffc1f0affaf521d4c662c3a06c31eeeb4e03e15d70bc7",
+      "gzipSha256": "78ffe03ca9730e8f944ef4744f85e6af9998b97d4cb14ad682c7bd37b07d3f65"
+    },
+    {
+      "source": "context200-challenge.ts",
+      "artifact": "context200-challenge.ts.gz",
+      "rawBytes": 3418,
+      "rawSha256": "50d2bf36afa5df1dced842091480ca7239004699d7c8c26af80dd9779767a915",
+      "gzipSha256": "87434c7805188babf1560e6d5404c02fb036eb82a9ddce00372b16730150af3d"
+    },
+    {
+      "source": "context200-challenge.json",
+      "artifact": "context200-challenge.json.gz",
+      "rawBytes": 19683,
+      "rawSha256": "234f411b2a494dfd1ca29f33d76b478414362d7c13f4f4fe1bfa79a60eb6ca88",
+      "gzipSha256": "e34620b8f763d8bd9cf2ddddd933e6914c55cd2f9d01f083b020ae3c492cc05d"
+    },
+    {
+      "source": "final-mel-parity.cjs",
+      "artifact": "final-mel-parity.cjs.gz",
+      "rawBytes": 1138,
+      "rawSha256": "0f2044393957f7acf2b6068793bb0ff91d9b88ebc8946a158d6f31756dd884d6",
+      "gzipSha256": "082f2ff59e9a6ded0afbf8cc61bb613ab9182c3ebc6a94f1682200ad46b933e5"
+    },
+    {
+      "source": "final-mel-parity.json",
+      "artifact": "final-mel-parity.json.gz",
+      "rawBytes": 302,
+      "rawSha256": "069b022ff429952710d459ad9f2e7e263c5811e69200b7fa22dd33ec2cba5b99",
+      "gzipSha256": "c14f022cf181e369d5f8d464c2e4aa5fa4e4b87718adf6dd61162f2afe14a5c8"
+    }
+  ],
+  "inputs": [
+    {
+      "source": "temporal-prototype.onnx",
+      "bytes": 92603,
+      "sha256": "cb8f9c385a48aece4acf13a11905b7744e522c79fa3a97ed5aa8fe3ca995b176",
+      "privateOnly": true,
+      "productionInstalled": false
+    },
+    {
+      "source": "phonetic-prototype.onnx",
+      "bytes": 425456,
+      "sha256": "0c112039083a07b5d3c33fef1f39b1fd98938c6d2169bd7ab2db8b3010a50abb",
+      "privateOnly": true,
+      "productionInstalled": false
+    },
+    {
+      "source": "context200-prototype.onnx",
+      "bytes": 414506,
+      "sha256": "872c8892e010bbf8fb9b82fc9e5d78c788e374434796c6bcd9b9b97d83596189",
+      "privateOnly": true,
+      "productionInstalled": false
+    },
+    {
+      "source": "phonetic/features.f32",
+      "bytes": 589755904,
+      "sha256": "f4261cb988e92d13101c126af558f91aa2f242ba34363edb617422b51c238266",
+      "privateOnly": true,
+      "productionInstalled": false
+    },
+    {
+      "source": "phonetic200/features.f32",
+      "bytes": 466097408,
+      "sha256": "487c9bc344a1c8206744163969b57576ae5bdd4b52867eb027bef5b8fdb8a6ac",
+      "privateOnly": true,
+      "productionInstalled": false
+    }
+  ],
+  "gates": [
+    {
+      "name": "context200-acoustic",
+      "status": "FAIL",
+      "scenarios": 122,
+      "failures": 2
+    },
+    {
+      "name": "context200-held",
+      "status": "FAIL",
+      "scenarios": 244,
+      "failures": 17
+    },
+    {
+      "name": "context200-sapi",
+      "status": "FAIL",
+      "scenarios": 384,
+      "failures": 12
+    },
+    {
+      "name": "context200-challenge",
+      "status": "FAIL",
+      "scenarios": 60,
+      "failures": 1
+    }
+  ],
+  "numericParity": {
+    "status": "PASS",
+    "scope": "numeric CPU versus actual WASM scores/decisions only; acoustic acceptance remains FAIL",
+    "clips": 172,
+    "frames": 9142,
+    "maxAbsoluteError": 0.0000029802322387695312,
+    "decisionMismatches": 0,
+    "independentPiperClips": 76,
+    "sourceOverlapTolgaAuditClips": 96
+  },
+  "fixedBudget": {
+    "temporalEpochs": 10,
+    "phonetic76Epochs": 10,
+    "finalContext200Epochs": 10,
+    "fitThreads": 4,
+    "additionalFitsAuthorized": 0
+  },
+  "trainingOnly": true,
+  "genuineHeldOutPiperClips": 76,
+  "sourceOverlapTolgaAuditClips": 96,
+  "newCompleteHeldOutNegatives": 168,
+  "humanRecordingIncluded": false,
+  "audioIncluded": false,
+  "modelIncluded": false,
+  "featureBinaryIncluded": false,
+  "credentialScan": "PASS",
+  "productionPromotion": "NOT_RUN",
+  "ownerPhone": "NOT_RUN",
+  "historicalArchives": "UNCHANGED"
+}

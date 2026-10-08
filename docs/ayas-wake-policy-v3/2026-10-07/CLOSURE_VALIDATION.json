@@ -1,0 +1,64 @@
+{
+  "at": "2026-10-08T05:33:29.905Z",
+  "status": "PASS_BOUNDED_CLOSURE_VALIDATION_ONLY",
+  "publicReceiptFiles": 51,
+  "receiptHashes": "PASS",
+  "credentialPatternScan": "PASS",
+  "publicPayload": "synthetic metadata and source recipes only; no audio, voice weights, feature binaries or human recordings",
+  "productionSourceSinceC0baf91": "UNCHANGED",
+  "frozenAcousticOracleChecks": "UNCHANGED",
+  "tests": [
+    {
+      "name": "final-text",
+      "status": "PASS",
+      "scenarios": 71
+    },
+    {
+      "name": "final-voice",
+      "status": "PASS",
+      "scenarios": 79
+    },
+    {
+      "name": "final-mobile-voice",
+      "status": "PASS",
+      "scenarios": 36
+    }
+  ],
+  "priorStaticBuild": "source unchanged; reuse previously completed TypeScript/lint/isolated build receipts, dependency version mismatch remains OPEN",
+  "numericParity": {
+    "status": "PASS",
+    "scope": "numeric CPU versus actual WASM scores/decisions only; acoustic acceptance remains FAIL",
+    "clips": 172,
+    "frames": 9142,
+    "maxAbsoluteError": 0.0000029802322387695312,
+    "decisionMismatches": 0,
+    "independentPiperClips": 76,
+    "sourceOverlapTolgaAuditClips": 96
+  },
+  "wake": "BLOCKED",
+  "male": "ISOLATED_TESTED_QUALITY_LICENSE_OWNER_PENDING",
+  "live": {
+    "at": "2026-10-08T05:32:02.7798241Z",
+    "local": true,
+    "public": true,
+    "origins": 1,
+    "tunnels": 1,
+    "tasks": [
+      {
+        "name": "AYAS Access Online",
+        "state": "Running",
+        "xmlSha256": "4b8979e399dd2ddef08e7bbc899519ef9a454d2814317e58e124f421bb68aba3"
+      },
+      {
+        "name": "AYAS Autonomy Observer",
+        "state": "Running",
+        "xmlSha256": "c2b6b3f3971c4b00f2f5465f20973a2056527589b1a757eefff9a42bf461a2df"
+      }
+    ],
+    "tunnelConfigUnchanged": true,
+    "buildId": "coVrOl3qLCvfhuOlaX6Xn"
+  },
+  "foundation": "BLOCKED",
+  "homepageChanges": false,
+  "publicAudioUpload": false
+}
