@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-08T18:14:47.335Z",
+  "head": "32e59c11c973aa51ca6e7b42aac856fc75098253",
+  "graphHead": "32e59c11c973aa51ca6e7b42aac856fc75098253",
+  "provenanceHead": "32e59c11c973aa51ca6e7b42aac856fc75098253",
+  "branchHead": "32e59c11c973aa51ca6e7b42aac856fc75098253",
+  "worktreeHead": "32e59c11c973aa51ca6e7b42aac856fc75098253",
+  "nodes": 19517,
+  "edges": 56002,
+  "integrity": {
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "structural": "PARTIAL",
+  "semantic": "PENDING",
+  "incompleteCodeFiles": 9,
+  "worktree": "CLEAN"
+}

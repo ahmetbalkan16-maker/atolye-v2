@@ -1,0 +1,39 @@
+{
+  "reviewedHeads": {
+    "baseline": "dbf9542e352e149cbc6a5552894050ca33e4359a",
+    "pushed": "32e59c11c973aa51ca6e7b42aac856fc75098253"
+  },
+  "applicationFiles": 1728,
+  "gitApplicationBlobs": "IDENTICAL",
+  "normalizedUtf8ApplicationCatalogDigest": "bedf5ee4ede4caa72bdb0df9530d3dd93b03f3b89888f7e17a7e4b3e6876903a",
+  "physicalByteDifferenceFiles": 405,
+  "physicalDifference": "ONLY_PREEXISTING_CRLF_VS_LF_NO_CONTENT_CHANGE",
+  "normalization": "VALID_UTF8_TEXT_CRLF_TO_LF_ONLY_FOR_COMPARISON_NO_FILE_WRITES",
+  "full166": {
+    "result": "166_166_PASS",
+    "sourceHead": "dbf9542e352e149cbc6a5552894050ca33e4359a",
+    "sourceWorktreeDigest": "2771b1024f5b438552e8889d66f9a6474e173c0a5594e88e2b73b52cb1c95341",
+    "newHeadCertification": "NOT_RUN_NOT_AUTOMATICALLY_CARRIED"
+  },
+  "lintDelta": {
+    "file": "eslint.config.mjs",
+    "exactPathsOnly": [
+      "K3_SECURITY_PROBES.cjs",
+      "K4_LEMON_INGRESS_CONTRACT.cjs"
+    ],
+    "rule": "@typescript-eslint/no-require-imports",
+    "formatRuleOnly": true,
+    "runtimeOrEvalSuiteManifestEffect": false,
+    "freshLockNext": "16.3.8",
+    "freshLockEslintConfigNext": "16.3.8",
+    "runExit": 0,
+    "errors": 0,
+    "inheritedWarnings": 13,
+    "temporaryFixtureConfig": "RESTORED_BYTE_IDENTICAL_TO_DBF9542"
+  },
+  "additionalTests": {
+    "performed": "SCOPED_LINT_ON_MATCHING_FRESH_DEPENDENCIES",
+    "full166": "NOT_REPEATED_NO_FUNCTIONAL_OR_MANIFEST_CHANGE",
+    "exactHeadBaselineIfRequired": "A_NEW_RUN_WITH_ITS_OWN_HEAD_DIGEST_RECEIPT_REQUIRED"
+  }
+}

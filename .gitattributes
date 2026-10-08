@@ -44,3 +44,6 @@ docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-k3-security-2
 # 07.00 preparation receipts: preserve captures without rewriting old archives.
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/*.raw.log -text -diff
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/PUBLICATION_CHAIN_PROBE.ts.txt -text -diff
+
+# Post-push preparation: capture bytes only; no source EOL conversion.
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-push-morning-20261008/*.raw.log -text -diff

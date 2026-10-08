@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "1",
+  "kind": "EXACT_FOUR_COMMIT_PUSH_AND_OWNER_MORNING_PREPARATION",
+  "pushedHead": "32e59c11c973aa51ca6e7b42aac856fc75098253",
+  "baselineHead": "dbf9542e352e149cbc6a5552894050ca33e4359a",
+  "files": [
+    {
+      "file": "APPLICATION_EOL_ONLY_RECEIPT.json",
+      "sha256": "e651e96c5b58bea90211aa90b2e6b069eda3092a960ee34e16f8ef9b0aa4f148"
+    },
+    {
+      "file": "BACKUP_ROLLBACK_RISK_PREFLIGHT.md",
+      "sha256": "ea3ee01a3ea43b551bef06be73d77e0c018733f05ff8eb03a3e8e872568abcf1"
+    },
+    {
+      "file": "FINAL_PUSH_MORNING_REPORT.md",
+      "sha256": "4a3ce52cae92fcbf2997cd8305785aea53aa3557bc2bcb8e55d35b3701c43de6"
+    },
+    {
+      "file": "FOUR_COMMIT_PUSH_PREFLIGHT.json",
+      "sha256": "cb34cbceb4b70da4a0ec8314f345994ecad888601f62f9b96dea1d8448833968"
+    },
+    {
+      "file": "FOUR_COMMIT_PUSH_RESULT.json",
+      "sha256": "92288aafd99ab629e459112556825cc0ece01b527caa6a9bc0c55a2b916a9b1f"
+    },
+    {
+      "file": "FRESH16_ESLINT_AFTER.raw.log",
+      "sha256": "bb27b039679e24465ff9e2193c02888d9f5860ddfd7bb7c4375751bf6605beaf"
+    },
+    {
+      "file": "GRAPHIFY_PUSH_HEAD_RECEIPT.json",
+      "sha256": "b1fb101b3d17ea40187721a8eb2ff33ef4e5eb19a203a22c7fa24602969b26d3"
+    },
+    {
+      "file": "LIVE_NON_SECRET_PREPARATION_METADATA.json",
+      "sha256": "4696caed53b233b2d4520c5c9ec212ddd244823c80495fc24f8b008c14da9e00"
+    },
+    {
+      "file": "MORNING_GUIDED_SEQUENCE.md",
+      "sha256": "6c73363ef24dde2cbce8487ff850459b0c25db3b51744d50bd051c9c77999053"
+    },
+    {
+      "file": "SOURCE_EQUIVALENCE_AND_FULL166.json",
+      "sha256": "894a091dd07b5c27f195da421dde7a7959198ad0a3f69e27ad01c5f9ce6bc263"
+    },
+    {
+      "file": "V2_INDEPENDENT_REVIEW_PACKET.md",
+      "sha256": "eba3eaf4abf4a76d57034a9980ffdb89b93e2e09d87a56f769da0300a249b796"
+    }
+  ],
+  "externalReferences": [
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/RESUME_REGRESSION_V2_CONTRACT.md",
+      "sha256": "62ca12bbcbe922d1fdbfceeeb25954c01e6948bbe10c764a99706319b8f2ef08"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/LEGACY_RESUME_FAIL_ANALYSIS.json",
+      "sha256": "a779f4e4d40ab5f42a5f8b2d00d8ba5ead3608e57cf30318f572e9fdb153b64a"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/K3_35_RECHECK.raw.log",
+      "sha256": "f1eb5ac0797dea4e31d492393b4272c67e560a2a05af1d3f326823964180bd77"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/PUBLICATION_CHAIN_9.raw.log",
+      "sha256": "3056a6602ee41318ab539220a6a64b2240df5ffaabd4d7516dddf395f9aea98b"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/ESLINT_SCOPE_CONTROLS.json",
+      "sha256": "fa2d3f3aa99f3bbfcc9d4e0be382385220650d4cd6604aa323c246eff4cd9dff"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-0700-preparation-20261008/OWNER_0700_ONE_PAGE.md",
+      "sha256": "d11a57c213de3bebb2f6fda3c32ac5e0380a5c5781603f6fa15f7c6bd3b8512f"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-k3-security-20261008/FINAL_FULL166_dbf9542.raw.json",
+      "sha256": "dc395d77c36ad593d0d6ec86ad6cb9fad39fe94fc4a3b4c8979db30f891c4658"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-k3-security-20261008/K3_SECURITY_FINAL_MAP.json",
+      "sha256": "f9e5a250d588705bd8c1ff6b5c006487b41de448550bb63ca2344792a09a5c5e"
+    },
+    {
+      "path": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-k3-security-20261008/K3_RELEVANT_REGRESSIONS.raw.json",
+      "sha256": "3c5ef4b016ab9efa4d47110572272c4923b4738287c1304b30a7aa5034869c6e"
+    }
+  ]
+}
