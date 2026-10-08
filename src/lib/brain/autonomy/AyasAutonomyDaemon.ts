@@ -1,3 +1,4 @@
+import { checkAyasOwnerExecutionAdmission, ayasUsedOwnerActionRefs, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -142,9 +143,24 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     transition(decision === "APPROVE" ? "APPROVED_PENDING_EXECUTION" : decision === "LATER" ? "DEFERRED" : "OBSERVING", { activeProposalId: proposalId });
     return result.proposal;
   };
-  const executeApproved = async (input: { readonly mutationKind?: string; readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
+  const executeApproved = async (input: { readonly executionOwnerAdmission?: AyasOwnerAdmission; readonly mutationKind?: string; readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
     // Isolate authority scope from caller arrays while asynchronous checks are running.
     input = { ...input, mutationKind: input.mutationKind ?? inbox.load().proposals.find((p) => p.proposalId === input.proposalId)?.mutationKind, exactFiles: Object.freeze([...input.exactFiles]), currentExactFiles: Object.freeze([...input.currentExactFiles]) };
+    // Authenticate before journal, reservation, gate or mutation effects.
+    const assertOwnerExecution = (reservation?: { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string }): void => {
+      const current = inbox.load();
+      const decision = [...current.decisions].reverse().find(d => d.proposalId === input.proposalId && d.decision === "APPROVE");
+      if (!inbox.requiresOwnerAdmission && !decision?.ownerAdmission && !input.executionOwnerAdmission) return;
+      const used = ayasUsedOwnerActionRefs(current.decisions.map(d => reservation && d.decisionId === reservation.decisionId ? { ...d, executionOwnerAdmission: undefined } : d));
+      const subject = decision?.ownerAdmission?.subject.kind === "micro-batch"
+        ? { kind: "micro-batch" as const, batchId: input.proposalId, batchHash: input.proposalHash, decision: "EXECUTE" as const }
+        : { kind: "proposal" as const, proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "EXECUTE" as const };
+      if (!decision || !checkAyasOwnerExecutionAdmission(decision, input.executionOwnerAdmission, subject, now(), used)) throw new Error("OWNER_ADMISSION_REQUIRED");
+      if (reservation && (decision.decisionId !== reservation.decisionId || decision.authorizationId !== reservation.authorizationId || decision.reservationId !== reservation.reservationId || JSON.stringify(decision.executionOwnerAdmission) !== JSON.stringify(input.executionOwnerAdmission))) throw new Error("OWNER_EXECUTION_BINDING_CHANGED");
+    };
+    // Snapshot the admission before asynchronous boundaries; caller objects grant no authority.
+    if (input.executionOwnerAdmission) input = { ...input, executionOwnerAdmission: JSON.parse(JSON.stringify(input.executionOwnerAdmission)) as AyasOwnerAdmission };
+    assertOwnerExecution();
     // Stage 15R: no source write starts in SAFE_READ_ONLY. Asked before the one-shot authorization is reserved, so the
     // owner's approval is not consumed by the refusal; the firewall refuses again at the write itself.
     assertAyasSafeModeAllowsMutation(repoRoot);
@@ -176,6 +192,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         startedAt,
         updatedAt: now(),
         reliabilityAudit,
+        ...(input.executionOwnerAdmission ? { ownerApprovalDecisionId: inbox.load().decisions.find(d => d.authorizationId === journalContext.authorizationId)?.decisionId, executionOwnerAdmission: input.executionOwnerAdmission, approvalOwnerAdmission: inbox.load().decisions.find(d => d.authorizationId === journalContext.authorizationId)?.ownerAdmission } : {}),
         ...(journalContext.authorizationId ? { authorizationId: journalContext.authorizationId } : {}),
         ...(journalContext.reservationId ? { reservationId: journalContext.reservationId } : {}),
         ...(journalContext.capabilityLease ? { capabilityLease: journalContext.capabilityLease } : {}),
@@ -189,7 +206,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     // authorization is reserved here, before any gate transition — a crash
     // between this line and `begin-execution` is Window A/B/C (durably
     // classified below as no-mutation-possible), never a silent replay.
-    const reservation = inbox.reserveApproval(input.proposalId, input.proposalHash, input.baseHead, input.exactFiles, now());
+    const reservation = inbox.reserveApproval(input.proposalId, input.proposalHash, input.baseHead, input.exactFiles, now(), input.executionOwnerAdmission);
     journalContext.authorizationId = reservation.authorizationId;
     journalContext.reservationId = reservation.reservationId;
     writeJournal("AUTHORIZATION_RESERVED");
@@ -250,6 +267,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         reliabilityAudit = { ...reliabilityAudit, mutationStarted: true };
         writeJournal("EXECUTING", { gateSequence: record.sequence });
 
+        assertOwnerExecution(reservation);
         const callbackReport = await input.applyWhileExecuting(reservation.authorizationId);
         reliabilityAudit = { ...reliabilityAudit, ...classifyAyasRegressionReport(callbackReport.testsRun, callbackReport.testResults) };
         // Preserve the report checked here across the awaited boundary and phase hooks.

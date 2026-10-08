@@ -53,6 +53,15 @@ import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasAppro
 import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { reconcileAyasStaleProposals } from "@/lib/brain/autonomy/AyasProposalStaleness";
+import { createAyasMicroBatchStore } from "@/lib/brain/autonomy/AyasMicroBatch";
+import {
+  admitAyasOwnerApproval,
+  isAyasApprovalDecisionOwnerAdmitted,
+  isAyasReservedDecisionReason,
+  type AyasOwnerAdmission,
+  type AyasOwnerAdmissionAction,
+  type AyasOwnerAdmissionSubject,
+} from "@/lib/brain/autonomy/AyasOwnerApprovalAdmission";
 import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
 import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
 import {
@@ -146,6 +155,18 @@ async function requireBrainSession(): Promise<void> {
   }
 }
 
+/**
+ * Owner provenance for an approval-capable action (owner decision 3, 2026-10-08).
+ * Runs after `requireBrainSession` on the same cookie and fails closed: no
+ * enforced access gate (local dev included) or no verified session means no
+ * decision. The admission is derived on the server from the verified cookie
+ * and server-side proposal/batch state; nothing the client sends names the owner.
+ */
+async function requireOwnerApprovalAdmission(action: AyasOwnerAdmissionAction, subject: AyasOwnerAdmissionSubject): Promise<AyasOwnerAdmission> {
+  const token = (await cookies()).get(AYAS_SESSION_COOKIE)?.value;
+  return admitAyasOwnerApproval({ gate: resolveAccessGate(process.env), token, action, subject });
+}
+
 /** Owner-requested, read-only external research from up to three registered official feeds. */
 export async function scheduleAyasGoalResearchAction(input: {
   readonly goalId: string;
@@ -188,7 +209,10 @@ export async function refreshBrainSelfHeal(): Promise<BrainSelfHealConsoleSnapsh
 export async function decideAyasApproval(input: { proposalId: string; decision: AyasInboxDecision; reason?: string }): Promise<AyasApprovalInboxView> {
   await requireBrainSession();
   if (input.decision !== "APPROVE" && input.decision !== "REJECT" && input.decision !== "LATER") throw new Error("invalid_decision");
-  const store = createAyasApprovalInboxStore();
+  // "owner-approved:" is machine-matched by the resume worker; a typed reason
+  // must never be able to pose as a server-written provenance marker.
+  if (isAyasReservedDecisionReason(input.reason)) throw new Error("reserved_decision_reason");
+  const store = createAyasApprovalInboxStore({ requireOwnerAdmission: true });
   // M16: reconcile staleness before honoring any decision — a PENDING or
   // APPROVED proposal whose baseHead no longer matches HEAD is durably
   // marked STALE here rather than being approved (or re-approved) into a
@@ -200,7 +224,8 @@ export async function decideAyasApproval(input: { proposalId: string; decision: 
   if (!proposal) throw new Error("proposal_not_found");
   if (proposal.status === "STALE") throw new Error("proposal_stale");
   if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
-  store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason);
+  const admission = await requireOwnerApprovalAdmission("decideAyasApproval", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: input.decision });
+  store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason, admission);
   return loadAyasApprovalInboxView();
 }
 
@@ -233,7 +258,15 @@ export interface AyasExecuteProposalResult {
 export async function executeAyasApprovedProposal(input: { proposalId: string }): Promise<AyasExecuteProposalResult> {
   await requireBrainSession();
   try {
-    await executeAyasApprovedProposalWith(input.proposalId, defaultAyasProposalExecutionDeps());
+    // Fail closed twice: this click needs a verified owner session, and the
+    // APPROVE it executes must itself carry one for this exact proposal.
+    const inboxState = createAyasApprovalInboxStore().load();
+    const proposal = inboxState.proposals.find((entry) => entry.proposalId === input.proposalId);
+    if (!proposal) throw new Error("proposal_not_found");
+    const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: "EXECUTE" });
+    const approval = [...inboxState.decisions].reverse().find((decision) => decision.proposalId === proposal.proposalId && decision.decision === "APPROVE");
+    if (!isAyasApprovalDecisionOwnerAdmitted(approval, proposal)) throw new Error("OWNER_ADMISSION_REQUIRED");
+    await executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission });
     return { ok: true, inbox: loadAyasApprovalInboxView() };
   } catch (error) {
     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
@@ -266,7 +299,14 @@ export interface AyasBatchOnaylaVeUygulaResult {
 export async function batchOnaylaVeUygula(input: { batchId: string; batchHash: string }): Promise<AyasBatchOnaylaVeUygulaResult> {
   await requireBrainSession();
   try {
-    const result = await approveAndExecuteAyasMicroBatch(input.batchId, input.batchHash, defaultAyasMicroBatchApprovalDeps());
+    const ownerAdmission = await requireOwnerApprovalAdmission("batchOnaylaVeUygula", { kind: "micro-batch", batchId: input.batchId, batchHash: input.batchHash, decision: "APPROVE" });
+    const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedMicroBatch", { kind: "micro-batch", batchId: input.batchId, batchHash: input.batchHash, decision: "EXECUTE" });
+    const result = await approveAndExecuteAyasMicroBatch(input.batchId, input.batchHash, {
+      ...defaultAyasMicroBatchApprovalDeps(),
+      batchStore: createAyasMicroBatchStore({ requireOwnerAdmission: true }),
+      ownerAdmission,
+      executionOwnerAdmission,
+    });
     return result.ok
       ? { ok: true, commitSha: result.commitSha, microBatch: loadAyasMicroBatchDevelopmentView() }
       : { ok: false, code: result.code, microBatch: loadAyasMicroBatchDevelopmentView() };
@@ -302,7 +342,14 @@ export interface AyasProposalOnaylaVeUygulaResult {
 export async function proposalOnaylaVeUygula(input: { proposalId: string; proposalHash: string }): Promise<AyasProposalOnaylaVeUygulaResult> {
   await requireBrainSession();
   try {
-    const result = await approveAndExecuteAyasProposal(input.proposalId, input.proposalHash, defaultAyasProposalApprovalDeps());
+    const ownerAdmission = await requireOwnerApprovalAdmission("proposalOnaylaVeUygula", { kind: "proposal", proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "APPROVE" });
+    const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "EXECUTE" });
+    const result = await approveAndExecuteAyasProposal(input.proposalId, input.proposalHash, {
+      ...defaultAyasProposalApprovalDeps(),
+      inbox: createAyasApprovalInboxStore({ requireOwnerAdmission: true }),
+      ownerAdmission,
+      executionOwnerAdmission,
+    });
     return result.ok
       ? { ok: true, commitSha: result.commitSha, inbox: loadAyasApprovalInboxView() }
       : { ok: false, code: result.code, inbox: loadAyasApprovalInboxView() };
@@ -335,17 +382,21 @@ export interface AyasOwnerApprovalDecisionResult {
  * exact same canonical execution primitive `proposalOnaylaVeUygula` uses
  * (`AyasProposalApprovalService.approveAndExecuteAyasProposal`) — no
  * parallel mutation engine. If it is not set, nothing executes yet;
- * `AyasOwnerApprovalResume.ts` is what later resumes it automatically, with
- * no second owner click. The live env var is read for real here (no
+ * a fresh explicit manual owner action is required for any later resume. The live env var is read for real here (no
  * override), so this can never execute anything unless that flag is
  * explicitly set in the real deployment environment.
  */
 export async function ayasOwnerApprovalDecision(input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecision }): Promise<AyasOwnerApprovalDecisionResult> {
   await requireBrainSession();
   try {
+    if (input.decision !== "APPROVE" && input.decision !== "REJECT") throw new Error("invalid_decision");
+    const ownerAdmission = await requireOwnerApprovalAdmission("ayasOwnerApprovalDecision", { kind: "proposal", proposalId: input.binding?.proposalId ?? "", proposalHash: input.binding?.proposalHash ?? "", decision: input.decision });
+    const executionOwnerAdmission = input.decision === "APPROVE" ? await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: input.binding.proposalId, proposalHash: input.binding.proposalHash, decision: "EXECUTE" }) : undefined;
     const outcome = await decideAyasOwnerApproval(input.binding, input.decision, {
       ...defaultAyasProposalApprovalDeps(),
-      inbox: createAyasApprovalInboxStore(),
+      inbox: createAyasApprovalInboxStore({ requireOwnerAdmission: true }),
+      ownerAdmission,
+      executionOwnerAdmission,
     });
     if (outcome.executed) {
       return { ok: true, commitSha: outcome.result.commitSha, recommendations: loadAyasOwnerRecommendationsView() };

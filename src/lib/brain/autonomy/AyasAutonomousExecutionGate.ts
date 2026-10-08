@@ -88,7 +88,7 @@ export async function decideAyasOwnerApproval(
     // prefixes "ayas-internal:") — both land on the same `REJECTED` status,
     // so `reason` is the one field that keeps the two provenances
     // distinguishable without a parallel status enum.
-    deps.inbox.decide(binding.proposalId, "REJECT", now(), "owner-rejected: explicit REJECT via owner approval UI");
+    deps.inbox.decide(binding.proposalId, "REJECT", now(), "owner-rejected: explicit REJECT via owner approval UI", deps.ownerAdmission);
     return { executed: false, reason: "OWNER_REJECTED" };
   }
 
@@ -114,7 +114,7 @@ export async function decideAyasOwnerApproval(
       experimentStore: deps.exactExperimentStore })) {
       return { executed: false, reason: "NOT_EXECUTABLE_CLASSIFICATION", detail: "exact patch evidence is stale or mismatched" };
     }
-    deps.inbox.decide(binding.proposalId, "APPROVE", now(), "owner-approved: exact patch awaiting local governed execution");
+    deps.inbox.decide(binding.proposalId, "APPROVE", now(), "owner-approved: exact patch awaiting local governed execution", deps.ownerAdmission);
     return { executed: false, reason: "APPROVED_PENDING_EXECUTION" };
   }
 
@@ -127,7 +127,7 @@ export async function decideAyasOwnerApproval(
     // already uses; the "owner-approved:" reason prefix is what lets
     // `AyasOwnerApprovalResume.ts` and the view layer tell this apart from a
     // legacy manual `decideAyasApproval` APPROVE later.
-    deps.inbox.decide(binding.proposalId, "APPROVE", now(), AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON);
+    deps.inbox.decide(binding.proposalId, "APPROVE", now(), AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON, deps.ownerAdmission);
     return { executed: false, reason: "APPROVED_PENDING_EXECUTION" };
   }
 

@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-08T16:47:16.091Z",
+  "ownerK3Scope": "APPROVED_NARROW_SECURITY_ONLY",
+  "sessionPolicy": {
+    "differentVerifiedSessionAllowed": true,
+    "newLoginNonce": true,
+    "legacyGeneralCookiesPreserved": true,
+    "historicalConsentPreserved": true,
+    "freshManualExecuteRequired": true,
+    "automaticResume": false,
+    "retroactiveRecoveryActors": false
+  },
+  "authorizedPush": {
+    "base": "5e1b0c585ea8bce6a5c2fdd3ae1577640bda08d3",
+    "head": "e4c5132c2d9b955bfd5c7acda3e4e1f7aca58f3f",
+    "branch": "wip/ayas-graphify-final-execution",
+    "remote": "https://github.com/ahmetbalkan16-maker/atolye-v2.git",
+    "outcome": "NORMAL_FAST_FORWARD_COMPLETE",
+    "sourceChanges": 0,
+    "artifactsVerified": 25,
+    "frozenPinsVerified": 214,
+    "graph": "INTEGRITY_CLEAN_PARTIAL9_SEMANTIC_PENDING",
+    "bulkEolConversion": false,
+    "newCredentialPatternHits": 0
+  },
+  "newSourcePush": "FORBIDDEN",
+  "deploy": "NOT_PERFORMED",
+  "homepage": "UNCHANGED",
+  "foundation": "BLOCKED",
+  "ayasV1": "BLOCKED"
+}

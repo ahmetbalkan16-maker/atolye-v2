@@ -12,6 +12,7 @@ import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, ty
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
+import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 
 /**
@@ -60,6 +61,8 @@ export function defaultAyasMicroBatchApprovalDeps(): AyasMicroBatchApprovalDeps 
 }
 
 export interface AyasMicroBatchApprovalDeps {
+  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
+  readonly executionOwnerAdmission?: AyasOwnerAdmission;
   readonly repoRoot: string;
   readonly gateRoot: string;
   readonly remoteName?: string;
@@ -82,6 +85,8 @@ export interface AyasMicroBatchApprovalDeps {
   readonly onAfterCommitBeforePush?: () => void;
   /** Test seam only. Production runs the one canonical post-push Graphify/health closure. */
   readonly postPublicationClosure?: (expectedHead: string) => void;
+  /** The server-verified owner session behind this click; recorded with the APPROVE decision (`AyasOwnerApprovalAdmission`). The owner action always sets it and opens `batchStore` in its strict mode. */
+  readonly ownerAdmission?: AyasOwnerAdmission;
 }
 
 export type AyasMicroBatchApprovalOutcome =
@@ -185,7 +190,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
 
   // --- decide: one durable APPROVE decision, binding this exact batchHash + baseHead (AyasMicroBatch.decide's own existing guard) ---
   const now = () => new Date().toISOString();
-  batchStore.decide(batchId, "APPROVE", approvedBatchHash, now());
+  batchStore.decide(batchId, "APPROVE", approvedBatchHash, now(), deps.ownerAdmission);
 
   /**
    * Everything from Package C execution to the verified push, unchanged.
@@ -208,6 +213,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
       artifactStore,
       onJournalPhase: deps.onJournalPhase,
       deferredPublication: true,
+      executionOwnerAdmission: deps.executionOwnerAdmission,
       onItemApplied: async (item) => {
         const artifact = artifactStore.loadVerified(
           batchStore.load().batches.find((b) => b.batchId === batchId)!.items.find((r) => r.microItemId === item.microItemId)!.patchArtifactId,

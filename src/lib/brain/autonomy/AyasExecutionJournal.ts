@@ -1,3 +1,4 @@
+import { isAyasOwnerAdmissionShape, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -38,6 +39,9 @@ export interface AyasExecutionJournalEntry {
   readonly proposalHash: string;
   readonly authorizationId?: string;
   readonly reservationId?: string;
+  readonly ownerApprovalDecisionId?: string;
+  readonly executionOwnerAdmission?: AyasOwnerAdmission;
+  readonly approvalOwnerAdmission?: AyasOwnerAdmission;
   /** Audit only. Serialized records never restore an opaque capability handle. */
   readonly capabilityLease?: AyasOwnerCapabilityLeaseAudit;
   /** Bounded observer metadata; old entries remain valid and have UNKNOWN coverage. */
@@ -110,6 +114,7 @@ function validate(raw: unknown, executionId: string): AyasExecutionJournalEntry 
     (record.mutationCompletedAt !== undefined && typeof record.mutationCompletedAt !== "string")) {
     throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has an invalid deferred receipt`);
   }
+  if ((record.ownerApprovalDecisionId !== undefined && typeof record.ownerApprovalDecisionId !== "string") || (record.executionOwnerAdmission !== undefined && !isAyasOwnerAdmissionShape(record.executionOwnerAdmission)) || (record.approvalOwnerAdmission !== undefined && !isAyasOwnerAdmissionShape(record.approvalOwnerAdmission))) throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", "invalid owner execution provenance");
   if (record.capabilityLease !== undefined && !isAyasOwnerCapabilityLeaseAudit(record.capabilityLease)) {
     throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has invalid capability audit metadata`);
   }

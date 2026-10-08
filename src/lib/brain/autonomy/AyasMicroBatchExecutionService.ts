@@ -1,3 +1,4 @@
+import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 import { execFileSync } from "node:child_process";
 
 import type { AyasApprovalInboxHandle, AyasApprovalInboxState, AyasInboxProposal, AyasInboxProposalStatus, AyasInboxDecisionRecord, AyasInboxResultRecord } from "./AyasApprovalInboxStore";
@@ -49,6 +50,7 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
   const unsupported = (name: string) => (): never => { throw new AyasMicroBatchExecutionError("AYAS_MICRO_BATCH_ADAPTER_UNSUPPORTED", `${name} must never be called via the batch execution adapter — structurally unreachable`); };
   return {
     stateFile: batchStore.stateFile,
+    requiresOwnerAdmission: batchStore.requiresOwnerAdmission,
     load(): AyasApprovalInboxState {
       const raw = batchStore.load();
       const batch = raw.batches.find((b) => b.batchId === batchId);
@@ -67,6 +69,7 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
         decision: decision.decision, decidedAt: decision.decidedAt, authorizationId: decision.authorizationId,
         reservationId: decision.reservationId, reservedAt: decision.reservedAt, finalizedAt: decision.finalizedAt,
         finalizationOutcome: decision.finalizationOutcome, evidenceFingerprint: decision.batchHash,
+        ownerAdmission: decision.ownerAdmission, ownerDecisionSeal: decision.ownerDecisionSeal, executionOwnerAdmission: decision.executionOwnerAdmission,
       }] : [];
       const results: readonly AyasInboxResultRecord[] = raw.results
         .filter((result) => result.batchId === batchId)
@@ -93,8 +96,8 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
     decide: unsupported("decide") as AyasApprovalInboxHandle["decide"],
     markStale: unsupported("markStale") as AyasApprovalInboxHandle["markStale"],
     consumeApproval: unsupported("consumeApproval") as AyasApprovalInboxHandle["consumeApproval"],
-    reserveApproval(_proposalId, proposalHashValue, baseHead, _exactFiles, now) {
-      return batchStore.reserveApproval(batchId, proposalHashValue, baseHead, now);
+    reserveApproval(_proposalId, proposalHashValue, baseHead, _exactFiles, now, executionOwnerAdmission) {
+      return batchStore.reserveApproval(batchId, proposalHashValue, baseHead, now, executionOwnerAdmission);
     },
     finalizeApproval(reservationId, outcome, now) {
       batchStore.finalizeApproval(reservationId, outcome, now);
@@ -106,6 +109,8 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
 }
 
 export interface AyasMicroBatchExecutionDeps {
+  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
+  readonly executionOwnerAdmission?: AyasOwnerAdmission;
   readonly repoRoot: string;
   readonly gateRoot: string;
   readonly batchStore?: AyasMicroBatchStoreHandle;
@@ -171,6 +176,7 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
 
   let receipt: AyasDeferredPublicationReceipt | undefined;
   await daemon.executeApproved({
+    executionOwnerAdmission: deps.executionOwnerAdmission,
     mutationKind: "micro-batch:v1",
     proposalId: batch.batchId,
     proposalHash: batch.batchHash,

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { containsBrainSecret, redactBrainText } from "../BrainRedaction";
+import { ayasUsedOwnerActionRefs, checkAyasOwnerAdmissionBinding, sealAyasOwnerDecision, checkAyasOwnerExecutionAdmission, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 
 /**
  * M18 — the immutable/versioned batch record and its durable
@@ -56,6 +57,10 @@ export interface AyasMicroBatchDecisionRecord {
   readonly reservedAt?: string;
   readonly finalizedAt?: string;
   readonly finalizationOutcome?: "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED";
+  /** Server-verified owner session that made this decision (`AyasOwnerApprovalAdmission`). Absent on decisions recorded before it existed; never added afterwards. */
+  readonly ownerAdmission?: AyasOwnerAdmission;
+  readonly ownerDecisionSeal?: string;
+  readonly executionOwnerAdmission?: AyasOwnerAdmission;
 }
 
 export interface AyasMicroBatchResultRecord {
@@ -109,17 +114,23 @@ export function computeAyasMicroBatchHash(input: { readonly baseHead: string; re
   return digest({ ...material, schemaVersion: ayasMicroBatchSchemaVersion });
 }
 
-export interface AyasMicroBatchStoreOptions { readonly rootDir?: string; }
+export interface AyasMicroBatchStoreOptions {
+  readonly rootDir?: string;
+  /** Owner actions open the store with this set: then every `decide()` needs an owner admission bound to that exact decision. */
+  readonly requireOwnerAdmission?: boolean;
+}
 
 export interface AyasMicroBatchStoreHandle {
   readonly stateFile: string;
+  readonly requiresOwnerAdmission?: boolean;
   load(): AyasMicroBatchStoreState;
   /** Creates batchVersion 1, or a new version of an existing batchId if `previousBatchId` is supplied (used when items are added/removed/rebased — Phase 17). */
   createOrVersion(input: Omit<AyasMicroBatch, "schemaVersion" | "batchId" | "batchHash" | "lastUpdatedAt" | "status"> & { readonly batchId?: string }): AyasMicroBatch;
   markReadyForReview(batchId: string, now: string): AyasMicroBatch;
-  decide(batchId: string, decision: "APPROVE" | "REJECT", batchHashValue: string, now: string): { readonly batch: AyasMicroBatch; readonly decision: AyasMicroBatchDecisionRecord };
+  /** `ownerAdmission`, when given, must name exactly this batch, hash and decision, be fresh at `now` and unused; it is recorded with the decision. Required when the store was opened with `requireOwnerAdmission`. */
+  decide(batchId: string, decision: "APPROVE" | "REJECT", batchHashValue: string, now: string, ownerAdmission?: AyasOwnerAdmission): { readonly batch: AyasMicroBatch; readonly decision: AyasMicroBatchDecisionRecord };
   markStale(batchId: string, now: string): AyasMicroBatch;
-  reserveApproval(batchId: string, batchHashValue: string, baseHead: string, now: string): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
+  reserveApproval(batchId: string, batchHashValue: string, baseHead: string, now: string, executionOwnerAdmission?: AyasOwnerAdmission): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
   finalizeApproval(reservationId: string, outcome: "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED", now: string): void;
   recordResult(result: AyasMicroBatchResultRecord, status: "COMPLETED" | "FAILED" | "STALE"): void;
 }
@@ -130,6 +141,7 @@ function emptyState(): AyasMicroBatchStoreState {
 
 export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions = {}): AyasMicroBatchStoreHandle {
   const root = path.resolve(options.rootDir ?? path.join(process.cwd(), "data", "brain"));
+  const requiresOwnerAdmission = options.requireOwnerAdmission === true || root === path.resolve(process.cwd(), "data", "brain");
   const dir = path.join(root, "autonomy");
   const stateFile = path.join(dir, "micro-batch-inbox.json");
 
@@ -168,6 +180,7 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions = 
 
   return {
     stateFile,
+    requiresOwnerAdmission,
     load,
     createOrVersion(input) {
       const state = load();
@@ -195,15 +208,22 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions = 
       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? updated : b) });
       return updated;
     },
-    decide(batchId, decision, batchHashValue, now) {
+    decide(batchId, decision, batchHashValue, now, ownerAdmission) {
       const state = load();
       const existing = state.batches.find((b) => b.batchId === batchId);
       if (!existing) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", "batch not found");
       if (existing.status !== "READY_FOR_REVIEW") throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", `batch is not ready for review: ${existing.status}`);
       if (existing.batchHash !== batchHashValue) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", "batchHash mismatch — the reviewed batch has changed, decision refused");
+      // Owner provenance — same rule as `AyasApprovalInboxStore.decide`.
+      if ((options.requireOwnerAdmission === true || (requiresOwnerAdmission && decision === "APPROVE")) && ownerAdmission === undefined) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_UNSAFE_APPROVAL", "owner admission is required for this decision");
+      if (ownerAdmission !== undefined) {
+        const binding = checkAyasOwnerAdmissionBinding(ownerAdmission, { subject: { kind: "micro-batch", batchId, batchHash: existing.batchHash, decision }, at: now, usedActionRefs: ayasUsedOwnerActionRefs(state.decisions) });
+        if (!binding.ok) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", `owner admission refused: ${binding.reason}`);
+      }
       const nextStatus: AyasMicroBatchStatus = decision === "APPROVE" ? "APPROVED" : "ACCUMULATING";
       const batch = { ...existing, status: nextStatus, lastUpdatedAt: now };
-      const record: AyasMicroBatchDecisionRecord = { decisionId: `ayas-micro-batch-decision-${crypto.randomUUID()}`, batchId, batchHash: existing.batchHash, decision, decidedAt: now, ...(decision === "APPROVE" ? { authorizationId: `ayas-batch-auth-${crypto.randomUUID()}` } : {}) };
+      let record: AyasMicroBatchDecisionRecord = { decisionId: `ayas-micro-batch-decision-${crypto.randomUUID()}`, batchId, batchHash: existing.batchHash, decision, decidedAt: now, ...(decision === "APPROVE" ? { authorizationId: `ayas-batch-auth-${crypto.randomUUID()}` } : {}), ...(ownerAdmission !== undefined ? { ownerAdmission } : {}) };
+      if (ownerAdmission) record = { ...record, ownerDecisionSeal: sealAyasOwnerDecision(record) };
       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? batch : b), decisions: [...state.decisions, record] });
       return { batch, decision: record };
     },
@@ -218,7 +238,7 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions = 
       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? updated : b) });
       return updated;
     },
-    reserveApproval(batchId, batchHashValue, baseHead, now) {
+    reserveApproval(batchId, batchHashValue, baseHead, now, executionOwnerAdmission) {
       const state = load();
       const batch = state.batches.find((b) => b.batchId === batchId);
       const decision = [...state.decisions].reverse().find((d) => d.batchId === batchId && d.decision === "APPROVE");
@@ -229,8 +249,11 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions = 
         throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", "approval scope or HEAD is stale");
       }
       if (!decision.authorizationId) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_UNSAFE_APPROVAL", "approval has no authorization");
+      if (requiresOwnerAdmission || decision.ownerAdmission || executionOwnerAdmission) {
+        if (!checkAyasOwnerExecutionAdmission(decision, executionOwnerAdmission, { kind: "micro-batch", batchId, batchHash: batchHashValue, decision: "EXECUTE" }, now, ayasUsedOwnerActionRefs(state.decisions))) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_UNSAFE_APPROVAL", "owner execution admission refused");
+      }
       const reservationId = `ayas-micro-batch-reservation-${crypto.randomUUID()}`;
-      const reserved = { ...decision, reservationId, reservedAt: now };
+      const reserved = { ...decision, reservationId, reservedAt: now, ...(executionOwnerAdmission ? { executionOwnerAdmission } : {}) };
       const reservedBatch = { ...batch, status: "RESERVED" as const, lastUpdatedAt: now };
       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? reservedBatch : b), decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? reserved : d) });
       return { reservationId, authorizationId: decision.authorizationId, decisionId: decision.decisionId };

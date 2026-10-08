@@ -1,0 +1,117 @@
+{
+  "at": "2026-10-08T16:40:36.581Z",
+  "kind": "ISOLATED_SECURITY_MUTATION_CONTROLS",
+  "baseline": "34+ security scenarios",
+  "cases": [
+    {
+      "id": "M1_SEAL_NOT_VERIFIED",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false\n\nCaught error:\n\nAyasOwnerAdmissionError: OWNER_ADMISSION_REQUIRED\n    at refusedStore (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:93:10)\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:378:7)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:373:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: [AyasOwnerAdmissionError],\n  expected: [Function (anonymous)],\n  operator: 'throws',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M2_DECISION_EXPIRY",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: Missing expected exception.\n    at refusedStore (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:93:10)\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:389:5)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:385:3) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: [Function (anonymous)],\n  operator: 'throws',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M3_NONCE_COLLISION",
+      "file": "src/lib/auth/accessGate.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: Expected \"actual\" to be strictly unequal to:\n\n'09f650904b9b04e4ab14a34aa6c880d3c0bb73a3025b6bd9190314a68903323e'\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:138:12)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:134:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: '09f650904b9b04e4ab14a34aa6c880d3c0bb73a3025b6bd9190314a68903323e',\n  expected: '09f650904b9b04e4ab14a34aa6c880d3c0bb73a3025b6bd9190314a68903323e',\n  operator: 'notStrictEqual',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M4_APPROVE_AS_EXECUTE",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts",
+      "applied": true,
+      "exit": 0,
+      "timedOut": false,
+      "killed": false,
+      "output": "AYAS owner approval admission smoke: PASS (35 scenarios)\n",
+      "restored": true,
+      "interpretation": "REDUNDANT_GUARD_SURVIVED: unchanged action/subject binding still refuses APPROVE; not a reproduced bypass"
+    },
+    {
+      "id": "M5_AUTHORIZATION_SEAL",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:414:12)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:392:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: true,\n  expected: false,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M6_DAEMON_PREAUTH",
+      "file": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /OWNER_ADMISSION_REQUIRED/. Input:\n\n'AyasApprovalInboxStoreError: owner execution admission refused'\n\n    at async <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:448:56)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:438:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: [AyasApprovalInboxStoreError],\n  expected: /OWNER_ADMISSION_REQUIRED/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M7_ASYNC_EXPIRY_TAMPER",
+      "file": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:465:7)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:455:3) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: undefined,\n  operator: 'rejects',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M8_BATCH_PROVENANCE_FORWARD",
+      "file": "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "[AyasMicroBatchStoreError: owner execution admission refused] {\n  code: 'AYAS_MICRO_BATCH_UNSAFE_APPROVAL'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M9_MANUAL_RESUME_GATE",
+      "file": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     outcome: {\n+       code: 'NOT_PATCH_ARTIFACT',\n+       graphifyEvidenceItemIds: [],\n+       message: 'single-approval execution is only wired for patch-artifact-backed proposals',\n+       ok: false,\n+       stage: 'RESUME'\n+     },\n+     proposalId: 'ayas-proposal-007714ec-f2b4-4897-8180-50070808f1b2'\n+   }\n+ ]\n- []\n\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:310:12)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:303:3) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: [Array],\n  expected: [],\n  operator: 'deepStrictEqual',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M10_DEFAULT_STRICT",
+      "file": "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
+      "applied": true,
+      "exit": 1,
+      "timedOut": false,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:418:12)\n    at scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:9)\n    at main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:417:9) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "restored": true
+    },
+    {
+      "id": "M11_HISTORICAL_APPROVE_REPLAY_FULL_BOUNDARY",
+      "exit": 1,
+      "killed": true,
+      "output": "AssertionError [ERR_ASSERTION]: Missing expected exception.\n    at refusedStore (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:93:10)\n    at <anonymous> (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:403:7)\n    at async scenario (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:54:3)\n    at async main (C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.graphify\\k3-security-20261008\\scripts\\smoke-ayas-owner-approval-admission.ts:392:3) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: [Function (anonymous)],\n  operator: 'throws',\n  diff: 'simple'\n}\n",
+      "applied": true,
+      "restored": true
+    }
+  ],
+  "conclusion": "10 meaningful controls KILLED; 1 redundant guard mutation SURVIVED; all bytes restored"
+}

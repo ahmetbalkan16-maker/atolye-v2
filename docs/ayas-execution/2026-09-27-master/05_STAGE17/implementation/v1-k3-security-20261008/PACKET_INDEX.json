@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1",
+  "files": [
+    {
+      "file": "FRESH_LOCK_INSTALL.raw.log",
+      "sha256": "1fa38501656ecaae85b26b9994e04c84fa92848896ae19273d90ef021bbee14c"
+    },
+    {
+      "file": "INDEPENDENT_SECURITY_REVIEW.md",
+      "sha256": "6ffbe5e5b15e1123ce960518c72359761c1905eb6e0476d8d5c0f4cb8867f6d6"
+    },
+    {
+      "file": "K3_FRESH_ESLINT.raw.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "K3_FRESH_LOCK_35.raw.log",
+      "sha256": "f1eb5ac0797dea4e31d492393b4272c67e560a2a05af1d3f326823964180bd77"
+    },
+    {
+      "file": "K3_FRESH_TSC.raw.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "K3_MAIN_PRIMARY_35.raw.log",
+      "sha256": "f1eb5ac0797dea4e31d492393b4272c67e560a2a05af1d3f326823964180bd77"
+    },
+    {
+      "file": "K3_MAIN_TSC.raw.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "K3_NEGATIVE_MUTATIONS.raw.json",
+      "sha256": "cc0e406c808ec448cfa234e5981d438cab333d82bea4ef4182fc861d11e1a9de"
+    },
+    {
+      "file": "K3_PRIMARY_35.raw.log",
+      "sha256": "f1eb5ac0797dea4e31d492393b4272c67e560a2a05af1d3f326823964180bd77"
+    },
+    {
+      "file": "K3_RELEVANT_REGRESSIONS.raw.json",
+      "sha256": "3c5ef4b016ab9efa4d47110572272c4923b4738287c1304b30a7aa5034869c6e"
+    },
+    {
+      "file": "K3_SECURITY_FINAL.patch",
+      "sha256": "c686697bd65c2832c47b00b414d1e2cac93b0a8992b8a18f494c9cd0ec7f4c4c"
+    },
+    {
+      "file": "K3_SECURITY_FINAL_MAP.json",
+      "sha256": "f9e5a250d588705bd8c1ff6b5c006487b41de448550bb63ca2344792a09a5c5e"
+    },
+    {
+      "file": "K3_SECURITY_REPORT.md",
+      "sha256": "66299d2f29703e6c5aec66626f55080eb5f74dc3926a14ee4bf361c578a3289e"
+    },
+    {
+      "file": "OCT09_0700_OWNER_MAINTENANCE.md",
+      "sha256": "e1c0b58f71531d1de5d728b8cc3b0cbeabe29e76b0828e89e262cf198b4ef3c3"
+    },
+    {
+      "file": "OWNER_DECISION_AND_PUSH_RECEIPT.json",
+      "sha256": "c9d058e17adb595a1d16b32bf58b01376b08c6d25fef844d90e1a9c7ed83ec90"
+    }
+  ]
+}

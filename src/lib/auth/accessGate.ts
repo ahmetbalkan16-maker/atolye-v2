@@ -65,6 +65,7 @@ interface SessionPayload {
   readonly v: number;
   readonly iat: number;
   readonly exp: number;
+  readonly nonce?: string;
 }
 
 export async function issueSession(
@@ -74,6 +75,7 @@ export async function issueSession(
   const issuedAt = Math.floor(now / 1000);
   const payload: SessionPayload = {
     v: SESSION_VERSION,
+    nonce: Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, "0")).join(""),
     iat: issuedAt,
     exp: issuedAt + AYAS_SESSION_TTL_SECONDS,
   };
@@ -109,11 +111,41 @@ export async function verifySession(
   const seconds = Math.floor(now / 1000);
   return (
     payload.v === SESSION_VERSION &&
+    (payload.nonce === undefined || (typeof payload.nonce === "string" && /^[0-9a-f]{64}$/.test(payload.nonce))) &&
     Number.isFinite(payload.iat) &&
     Number.isFinite(payload.exp) &&
     payload.iat <= seconds + CLOCK_SKEW_SECONDS &&
     payload.exp > seconds
   );
+}
+
+/**
+ * The issue and expiry times of a session that `verifySession` accepts, or
+ * `null` when it refuses it. `verifySession` runs first, so nothing here is
+ * read from an unverified cookie. Neither time is secret.
+ */
+export async function readVerifiedSessionClaims(
+  token: string | undefined | null,
+  key: string,
+  now: number = Date.now(),
+): Promise<{ readonly issuedAt: number; readonly expiresAt: number; readonly nonce?: string } | null> {
+  if (!await verifySession(token, key, now)) return null;
+  const body = (token as string).slice(0, (token as string).indexOf("."));
+  const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(body))) as SessionPayload;
+  return { issuedAt: payload.iat, expiresAt: payload.exp, ...(payload.nonce ? { nonce: payload.nonce } : {}) };
+}
+
+/**
+ * Hex HMAC-SHA256 of `material` under the access key, for audit records only.
+ * The domain is prefixed with a newline separator; a session body is base64url
+ * and never contains one, so no audit digest can ever equal a cookie signature.
+ * A digest identifies or seals a record; it is not a credential and cannot be
+ * reversed to the cookie or the key.
+ */
+export async function keyedAuditDigest(domain: string, material: string, key: string): Promise<string> {
+  if (!/^[a-z0-9:.-]+$/.test(domain)) throw new Error("invalid audit digest domain");
+  const bytes = await hmacSha256(`${domain}\n${material}`, key);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /* --------------------------------------------------------------- routing ---- */

@@ -1,0 +1,1585 @@
+diff --git a/app/brain/actions.ts b/app/brain/actions.ts
+index 29950d7e3db72bcc262f35868f0fe8a2ac2cd604..e74a9e401c5558879227dc1dfa9b7e7f306189df 100644
+--- a/app/brain/actions.ts
++++ b/app/brain/actions.ts
+@@ -53,6 +53,15 @@ import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasAppro
+ import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
+ import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+ import { reconcileAyasStaleProposals } from "@/lib/brain/autonomy/AyasProposalStaleness";
++import { createAyasMicroBatchStore } from "@/lib/brain/autonomy/AyasMicroBatch";
++import {
++  admitAyasOwnerApproval,
++  isAyasApprovalDecisionOwnerAdmitted,
++  isAyasReservedDecisionReason,
++  type AyasOwnerAdmission,
++  type AyasOwnerAdmissionAction,
++  type AyasOwnerAdmissionSubject,
++} from "@/lib/brain/autonomy/AyasOwnerApprovalAdmission";
+ import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
+ import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
+ import {
+@@ -146,6 +155,18 @@ async function requireBrainSession(): Promise<void> {
+   }
+ }
+ 
++/**
++ * Owner provenance for an approval-capable action (owner decision 3, 2026-10-08).
++ * Runs after `requireBrainSession` on the same cookie and fails closed: no
++ * enforced access gate (local dev included) or no verified session means no
++ * decision. The admission is derived on the server from the verified cookie
++ * and server-side proposal/batch state; nothing the client sends names the owner.
++ */
++async function requireOwnerApprovalAdmission(action: AyasOwnerAdmissionAction, subject: AyasOwnerAdmissionSubject): Promise<AyasOwnerAdmission> {
++  const token = (await cookies()).get(AYAS_SESSION_COOKIE)?.value;
++  return admitAyasOwnerApproval({ gate: resolveAccessGate(process.env), token, action, subject });
++}
++
+ /** Owner-requested, read-only external research from up to three registered official feeds. */
+ export async function scheduleAyasGoalResearchAction(input: {
+   readonly goalId: string;
+@@ -188,7 +209,10 @@ export async function refreshBrainSelfHeal(): Promise<BrainSelfHealConsoleSnapsh
+ export async function decideAyasApproval(input: { proposalId: string; decision: AyasInboxDecision; reason?: string }): Promise<AyasApprovalInboxView> {
+   await requireBrainSession();
+   if (input.decision !== "APPROVE" && input.decision !== "REJECT" && input.decision !== "LATER") throw new Error("invalid_decision");
+-  const store = createAyasApprovalInboxStore();
++  // "owner-approved:" is machine-matched by the resume worker; a typed reason
++  // must never be able to pose as a server-written provenance marker.
++  if (isAyasReservedDecisionReason(input.reason)) throw new Error("reserved_decision_reason");
++  const store = createAyasApprovalInboxStore({ requireOwnerAdmission: true });
+   // M16: reconcile staleness before honoring any decision — a PENDING or
+   // APPROVED proposal whose baseHead no longer matches HEAD is durably
+   // marked STALE here rather than being approved (or re-approved) into a
+@@ -200,7 +224,8 @@ export async function decideAyasApproval(input: { proposalId: string; decision:
+   if (!proposal) throw new Error("proposal_not_found");
+   if (proposal.status === "STALE") throw new Error("proposal_stale");
+   if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
+-  store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason);
++  const admission = await requireOwnerApprovalAdmission("decideAyasApproval", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: input.decision });
++  store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason, admission);
+   return loadAyasApprovalInboxView();
+ }
+ 
+@@ -233,7 +258,15 @@ export interface AyasExecuteProposalResult {
+ export async function executeAyasApprovedProposal(input: { proposalId: string }): Promise<AyasExecuteProposalResult> {
+   await requireBrainSession();
+   try {
+-    await executeAyasApprovedProposalWith(input.proposalId, defaultAyasProposalExecutionDeps());
++    // Fail closed twice: this click needs a verified owner session, and the
++    // APPROVE it executes must itself carry one for this exact proposal.
++    const inboxState = createAyasApprovalInboxStore().load();
++    const proposal = inboxState.proposals.find((entry) => entry.proposalId === input.proposalId);
++    if (!proposal) throw new Error("proposal_not_found");
++    const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: "EXECUTE" });
++    const approval = [...inboxState.decisions].reverse().find((decision) => decision.proposalId === proposal.proposalId && decision.decision === "APPROVE");
++    if (!isAyasApprovalDecisionOwnerAdmitted(approval, proposal)) throw new Error("OWNER_ADMISSION_REQUIRED");
++    await executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission });
+     return { ok: true, inbox: loadAyasApprovalInboxView() };
+   } catch (error) {
+     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
+@@ -266,7 +299,14 @@ export interface AyasBatchOnaylaVeUygulaResult {
+ export async function batchOnaylaVeUygula(input: { batchId: string; batchHash: string }): Promise<AyasBatchOnaylaVeUygulaResult> {
+   await requireBrainSession();
+   try {
+-    const result = await approveAndExecuteAyasMicroBatch(input.batchId, input.batchHash, defaultAyasMicroBatchApprovalDeps());
++    const ownerAdmission = await requireOwnerApprovalAdmission("batchOnaylaVeUygula", { kind: "micro-batch", batchId: input.batchId, batchHash: input.batchHash, decision: "APPROVE" });
++    const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedMicroBatch", { kind: "micro-batch", batchId: input.batchId, batchHash: input.batchHash, decision: "EXECUTE" });
++    const result = await approveAndExecuteAyasMicroBatch(input.batchId, input.batchHash, {
++      ...defaultAyasMicroBatchApprovalDeps(),
++      batchStore: createAyasMicroBatchStore({ requireOwnerAdmission: true }),
++      ownerAdmission,
++      executionOwnerAdmission,
++    });
+     return result.ok
+       ? { ok: true, commitSha: result.commitSha, microBatch: loadAyasMicroBatchDevelopmentView() }
+       : { ok: false, code: result.code, microBatch: loadAyasMicroBatchDevelopmentView() };
+@@ -302,7 +342,14 @@ export interface AyasProposalOnaylaVeUygulaResult {
+ export async function proposalOnaylaVeUygula(input: { proposalId: string; proposalHash: string }): Promise<AyasProposalOnaylaVeUygulaResult> {
+   await requireBrainSession();
+   try {
+-    const result = await approveAndExecuteAyasProposal(input.proposalId, input.proposalHash, defaultAyasProposalApprovalDeps());
++    const ownerAdmission = await requireOwnerApprovalAdmission("proposalOnaylaVeUygula", { kind: "proposal", proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "APPROVE" });
++    const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "EXECUTE" });
++    const result = await approveAndExecuteAyasProposal(input.proposalId, input.proposalHash, {
++      ...defaultAyasProposalApprovalDeps(),
++      inbox: createAyasApprovalInboxStore({ requireOwnerAdmission: true }),
++      ownerAdmission,
++      executionOwnerAdmission,
++    });
+     return result.ok
+       ? { ok: true, commitSha: result.commitSha, inbox: loadAyasApprovalInboxView() }
+       : { ok: false, code: result.code, inbox: loadAyasApprovalInboxView() };
+@@ -335,17 +382,21 @@ export interface AyasOwnerApprovalDecisionResult {
+  * exact same canonical execution primitive `proposalOnaylaVeUygula` uses
+  * (`AyasProposalApprovalService.approveAndExecuteAyasProposal`) — no
+  * parallel mutation engine. If it is not set, nothing executes yet;
+- * `AyasOwnerApprovalResume.ts` is what later resumes it automatically, with
+- * no second owner click. The live env var is read for real here (no
++ * a fresh explicit manual owner action is required for any later resume. The live env var is read for real here (no
+  * override), so this can never execute anything unless that flag is
+  * explicitly set in the real deployment environment.
+  */
+ export async function ayasOwnerApprovalDecision(input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecision }): Promise<AyasOwnerApprovalDecisionResult> {
+   await requireBrainSession();
+   try {
++    if (input.decision !== "APPROVE" && input.decision !== "REJECT") throw new Error("invalid_decision");
++    const ownerAdmission = await requireOwnerApprovalAdmission("ayasOwnerApprovalDecision", { kind: "proposal", proposalId: input.binding?.proposalId ?? "", proposalHash: input.binding?.proposalHash ?? "", decision: input.decision });
++    const executionOwnerAdmission = input.decision === "APPROVE" ? await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: input.binding.proposalId, proposalHash: input.binding.proposalHash, decision: "EXECUTE" }) : undefined;
+     const outcome = await decideAyasOwnerApproval(input.binding, input.decision, {
+       ...defaultAyasProposalApprovalDeps(),
+-      inbox: createAyasApprovalInboxStore(),
++      inbox: createAyasApprovalInboxStore({ requireOwnerAdmission: true }),
++      ownerAdmission,
++      executionOwnerAdmission,
+     });
+     if (outcome.executed) {
+       return { ok: true, commitSha: outcome.result.commitSha, recommendations: loadAyasOwnerRecommendationsView() };
+diff --git a/scripts/smoke-ayas-owner-approval-admission.ts b/scripts/smoke-ayas-owner-approval-admission.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..45377749c9ba74064511cd941ec2f7be37785135
+--- /dev/null
++++ b/scripts/smoke-ayas-owner-approval-admission.ts
+@@ -0,0 +1,487 @@
++/**
++ * Owner provenance for approval decisions (owner decision 3, 2026-10-08).
++ *
++ * Positive, negative, replay and bypass scenarios for `AyasOwnerApprovalAdmission`
++ * and its use by the approval stores, the owner-approval gate, the resume
++ * worker and the owner server actions. Every store lives in a fresh TEMP
++ * directory; nothing reads or writes `data/brain`, git, the network or a model.
++ * The server-action guard is the real function from `app/brain/actions.ts`,
++ * run in a VM that supplies only Next's cookie boundary and the env.
++ */
++import assert from "node:assert/strict";
++import crypto from "node:crypto";
++import { execFileSync } from "node:child_process";
++import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
++import { createAyasExecutionJournal } from "../src/lib/brain/autonomy/AyasExecutionJournal";
++import { createAyasMicroBatchAsInboxAdapter } from "../src/lib/brain/autonomy/AyasMicroBatchExecutionService";
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
++import vm from "node:vm";
++import ts from "typescript";
++
++import { AYAS_SESSION_COOKIE, AYAS_SESSION_TTL_SECONDS, issueSession, readVerifiedSessionClaims, resolveAccessGate, verifySession } from "../src/lib/auth/accessGate";
++import { createAyasApprovalInboxStore, AyasApprovalInboxStoreError, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
++import { createAyasMicroBatchStore, AyasMicroBatchStoreError, type AyasMicroBatch } from "../src/lib/brain/autonomy/AyasMicroBatch";
++import {
++  AYAS_OWNER_ADMISSION_MAX_AGE_MS,
++  AyasOwnerAdmissionError,
++  admitAyasOwnerApproval,
++  checkAyasOwnerAdmissionBinding,
++  checkAyasOwnerExecutionAdmission,
++  isAyasApprovalDecisionOwnerAdmitted,
++  isAyasOwnerAdmissionShape,
++  isAyasReservedDecisionReason,
++  verifyAyasOwnerAdmissionSeal,
++  type AyasOwnerAdmission,
++  type AyasOwnerAdmissionSubject,
++} from "../src/lib/brain/autonomy/AyasOwnerApprovalAdmission";
++import { decideAyasOwnerApproval } from "../src/lib/brain/autonomy/AyasAutonomousExecutionGate";
++import { bindAyasOwnerApproval } from "../src/lib/brain/autonomy/AyasApprovalBinding";
++import { resumeAyasOwnerApprovedProposals } from "../src/lib/brain/autonomy/AyasOwnerApprovalResume";
++import { approveAndExecuteAyasProposal } from "../src/lib/brain/autonomy/AyasProposalApprovalService";
++import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
++
++const originalKey = process.env.AYAS_ACCESS_KEY;
++const KEY = "owner-admission-smoke-key-long-enough";
++process.env.AYAS_ACCESS_KEY = KEY;
++const OTHER_KEY = "another-owner-admission-smoke-key";
++const enforced = resolveAccessGate({ AYAS_ACCESS_KEY: KEY, NODE_ENV: "production" });
++const temp = (label: string) => fs.mkdtempSync(path.join(os.tmpdir(), `ayas-owner-admission-${label}-`));
++
++let scenarios = 0;
++async function scenario(name: string, run: () => Promise<void> | void) {
++  await run();
++  scenarios += 1;
++  if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${scenarios}: ${name}`);
++}
++
++function proposalInput(overrides: Record<string, unknown> = {}) {
++  return {
++    createdAt: "2026-10-08T09:00:00.000Z", baseBranch: "wip/test", baseHead: "base-head-fixture",
++    objective: "fixture objective", currentProblem: "fixture problem", selectionReason: "fixture reason",
++    expectedUserBenefit: "fixture benefit", expectedBehaviorChange: "fixture change", unchangedBehavior: "fixture unchanged",
++    riskIfNotDone: "fixture risk", technicalRisk: "low", productionImpact: "none", rationale: "fixture rationale",
++    evidence: ["fixture evidence"], graphifyEvidence: ["fixture graphify evidence"], candidateRank: 1, risk: "low",
++    safetyClassification: "SAFE" as const, exactFiles: ["scripts/smoke-fixture-owner-admission.ts"], expectedDiffScope: "+1 file",
++    testsPlanned: ["smoke-fixture-owner-admission"], estimatedCost: "zero-cost" as const, mutationKind: "fixture-static-kind",
++    ...overrides,
++  };
++}
++
++function batchInput(): Omit<AyasMicroBatch, "schemaVersion" | "batchId" | "batchHash" | "lastUpdatedAt" | "status"> {
++  return {
++    batchVersion: 1, baseHead: "abc123", baseBranch: "wip/test",
++    items: [{ microItemId: "ayas-micro-item-a", semanticKey: "ayas-novel-a", patchArtifactId: "ayas-patch-artifact-a", patchHash: "hash-a", exactFiles: ["scripts/smoke-a.ts"] }],
++    exactFilesUnion: ["scripts/smoke-a.ts"], validatorUnion: ["scripts/smoke-a.ts"], worktreeBaseHead: "abc123",
++    createdAt: "2026-10-08T09:00:00.000Z", validationSummary: ["fixture"], aggregateRisk: "low",
++  };
++}
++
++const proposalSubject = (p: Pick<AyasInboxProposal, "proposalId" | "proposalHash">, decision: "APPROVE" | "REJECT" | "LATER" | "EXECUTE"): Extract<AyasOwnerAdmissionSubject, { kind: "proposal" }> =>
++  ({ kind: "proposal", proposalId: p.proposalId, proposalHash: p.proposalHash, decision });
++
++async function admit(subject: AyasOwnerAdmissionSubject, at = Date.now(), token?: string): Promise<AyasOwnerAdmission> {
++  return admitAyasOwnerApproval({ gate: enforced, token: token ?? await issueSession(KEY, at), action: subject.kind === "micro-batch" ? subject.decision === "EXECUTE" ? "executeAyasApprovedMicroBatch" : "batchOnaylaVeUygula" : subject.decision === "EXECUTE" ? "executeAyasApprovedProposal" : "decideAyasApproval", subject, now: at });
++}
++
++async function rejectsWith(code: string, run: () => Promise<unknown>) {
++  await assert.rejects(run, (error: unknown) => error instanceof AyasOwnerAdmissionError && error.code === code && error.message === code);
++}
++
++function refusedStore(run: () => unknown, code: string, pattern?: RegExp) {
++  assert.throws(run, (error: unknown) => (error instanceof AyasApprovalInboxStoreError || error instanceof AyasMicroBatchStoreError) && error.code === code && (!pattern || pattern.test(error.message)));
++}
++
++/* ---------------------------------------------- the real server-action guard --- */
++const actionsText = fs.readFileSync(path.join(__dirname, "../app/brain/actions.ts"), "utf8");
++const actionsSource = ts.createSourceFile("actions.ts", actionsText, ts.ScriptTarget.Latest, true);
++const fnNamed = (name: string) => actionsSource.statements.find((s): s is ts.FunctionDeclaration => ts.isFunctionDeclaration(s) && s.name?.text === name);
++const guardDecl = fnNamed("requireOwnerApprovalAdmission");
++assert.ok(guardDecl, "requireOwnerApprovalAdmission must exist in app/brain/actions.ts");
++const guardJs = ts.transpileModule(guardDecl.getText(actionsSource), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
++let guardEnv: Record<string, string | undefined> = { AYAS_ACCESS_KEY: KEY, NODE_ENV: "production" };
++let guardCookie: string | undefined;
++const realGuard = vm.runInNewContext(`${guardJs}\nrequireOwnerApprovalAdmission`, {
++  process: { get env() { return guardEnv; } }, resolveAccessGate, AYAS_SESSION_COOKIE, admitAyasOwnerApproval,
++  cookies: async () => ({ get: (name: string) => name === AYAS_SESSION_COOKIE && guardCookie !== undefined ? { value: guardCookie } : undefined }),
++}) as (action: string, subject: AyasOwnerAdmissionSubject) => Promise<AyasOwnerAdmission>;
++
++const APPROVAL_ACTIONS = ["decideAyasApproval", "executeAyasApprovedProposal", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision"] as const;
++
++async function main() {
++  const subject: AyasOwnerAdmissionSubject = { kind: "proposal", proposalId: "ayas-proposal-x", proposalHash: "hash-x", decision: "APPROVE" };
++
++  /* ------------------------------------------------------------ admission --- */
++  await scenario("a verified owner session yields a complete, sealed admission", async () => {
++    const at = Date.now(); const token = await issueSession(KEY, at);
++    const admission = await admit(subject, at, token);
++    assert.ok(isAyasOwnerAdmissionShape(admission));
++    assert.equal(admission.principal, "OWNER");
++    assert.deepEqual(admission.subject, subject);
++    assert.equal(admission.verifiedAt, new Date(at).toISOString());
++    const claims = await readVerifiedSessionClaims(token, KEY, at);
++    assert.ok(claims);
++    assert.equal(admission.sessionIssuedAt, new Date(claims.issuedAt * 1000).toISOString());
++    assert.equal(admission.sessionExpiresAt, new Date(claims.expiresAt * 1000).toISOString());
++    assert.equal(await verifyAyasOwnerAdmissionSeal(admission, KEY), true);
++  });
++  await scenario("the admission holds neither the cookie nor the key, and its session reference is not the cookie signature", async () => {
++    const at = Date.now(); const token = await issueSession(KEY, at);
++    const text = JSON.stringify(await admit(subject, at, token));
++    for (const part of [token, ...token.split("."), KEY]) assert.ok(!text.includes(part), "admission must not carry a credential");
++  });
++  await scenario("one login keeps one session reference; another login gets another; every call gets its own action reference", async () => {
++    const at = Date.now(); const first = await issueSession(KEY, at); const second = await issueSession(KEY, at);
++    const a = await admit(subject, at, first); const b = await admit(subject, at, first); const c = await admit(subject, at, second);
++    assert.equal(a.sessionRef, b.sessionRef);
++    assert.notEqual(a.sessionRef, c.sessionRef);
++    assert.notEqual(a.actionRef, b.actionRef);
++  });
++  await scenario("local dev with no access key yields no admission (fail closed, unlike read-only actions)", async () => {
++    await rejectsWith("OWNER_ADMISSION_GATE_UNAVAILABLE", () => admitAyasOwnerApproval({ gate: resolveAccessGate({ NODE_ENV: "development" }), token: undefined, action: "decideAyasApproval", subject }));
++  });
++  await scenario("a misconfigured gate yields no admission", async () => {
++    await rejectsWith("OWNER_ADMISSION_GATE_UNAVAILABLE", () => admitAyasOwnerApproval({ gate: resolveAccessGate({ AYAS_ACCESS_KEY: "short", NODE_ENV: "production" }), token: undefined, action: "decideAyasApproval", subject }));
++  });
++  await scenario("missing, malformed, foreign, expired, future and tampered sessions yield no admission", async () => {
++    const at = Date.now();
++    for (const token of [undefined, "owner-approved:allow", await issueSession(OTHER_KEY, at), await issueSession(KEY, at - (AYAS_SESSION_TTL_SECONDS + 10) * 1000), await issueSession(KEY, at + 120_000), `${await issueSession(KEY, at)}x`]) {
++      await rejectsWith("OWNER_ADMISSION_REQUIRED", () => admitAyasOwnerApproval({ gate: enforced, token, action: "decideAyasApproval", subject, now: at }));
++    }
++  });
++  await scenario("an empty or unknown subject or action yields no admission", async () => {
++    const token = await issueSession(KEY);
++    for (const bad of [{ ...subject, proposalId: "" }, { ...subject, proposalHash: " " }, { ...subject, decision: "DONE" }, { kind: "other" }] as AyasOwnerAdmissionSubject[]) {
++      await rejectsWith("OWNER_ADMISSION_INVALID_SUBJECT", () => admitAyasOwnerApproval({ gate: enforced, token, action: "decideAyasApproval", subject: bad }));
++    }
++    await rejectsWith("OWNER_ADMISSION_INVALID_SUBJECT", () => admitAyasOwnerApproval({ gate: enforced, token, action: "approveEverything" as never, subject }));
++  });
++  await scenario("the seal fails under another key and after any field is edited", async () => {
++    const admission = await admit(subject);
++    assert.equal(await verifyAyasOwnerAdmissionSeal(admission, OTHER_KEY), false);
++    const edits: Partial<AyasOwnerAdmission>[] = [
++      { subject: { ...subject, proposalId: "ayas-proposal-y" } }, { subject: { ...subject, decision: "REJECT" } },
++      { verifiedAt: new Date(Date.parse(admission.verifiedAt) + 1000).toISOString() }, { sessionRef: "0".repeat(64) },
++      { actionRef: "ayas-owner-action-00000000-0000-4000-8000-000000000000" }, { action: "proposalOnaylaVeUygula" },
++    ];
++    for (const edit of edits) assert.equal(await verifyAyasOwnerAdmissionSeal({ ...admission, ...edit } as AyasOwnerAdmission, KEY), false);
++  });
++  await scenario("a client-shaped admission with extra or missing fields is malformed", async () => {
++    const admission = await admit(subject);
++    const { seal: _seal, ...withoutSeal } = admission; void _seal;
++    for (const value of [{ ...admission, principal: "ahmet" }, { ...admission, extra: true }, withoutSeal, { ...admission, authMethod: "CLIENT_CLAIM" }, null, "owner"]) {
++      assert.equal(isAyasOwnerAdmissionShape(value), false);
++      assert.deepEqual(checkAyasOwnerAdmissionBinding(value, { subject, at: admission.verifiedAt, usedActionRefs: new Set() }), { ok: false, reason: "MALFORMED" });
++    }
++  });
++
++  /* ------------------------------------------------------------ inbox store --- */
++  await scenario("an owner-action store refuses APPROVE, REJECT and LATER without an admission and writes nothing", async () => {
++    const store = createAyasApprovalInboxStore({ rootDir: temp("strict"), requireOwnerAdmission: true });
++    const p = store.createProposal(proposalInput());
++    const before = fs.readFileSync(store.stateFile, "utf8");
++    for (const decision of ["APPROVE", "REJECT", "LATER"] as const) refusedStore(() => store.decide(p.proposalId, decision, new Date().toISOString()), "AYAS_INBOX_UNSAFE_APPROVAL", /owner admission is required/);
++    assert.equal(fs.readFileSync(store.stateFile, "utf8"), before);
++  });
++  await scenario("an admitted APPROVE is recorded with the exact admission, and its seal still verifies from disk", async () => {
++    const store = createAyasApprovalInboxStore({ rootDir: temp("approve"), requireOwnerAdmission: true });
++    const p = store.createProposal(proposalInput());
++    const at = Date.now(); const admission = await admit(proposalSubject(p, "APPROVE"), at);
++    const { decision } = store.decide(p.proposalId, "APPROVE", new Date(at + 1000).toISOString(), undefined, admission);
++    assert.deepEqual(decision.ownerAdmission, admission);
++    const persisted = store.load().decisions.at(-1)!;
++    assert.deepEqual(persisted.ownerAdmission, admission);
++    assert.equal(await verifyAyasOwnerAdmissionSeal(persisted.ownerAdmission!, KEY), true);
++    assert.equal(isAyasApprovalDecisionOwnerAdmitted(persisted, p), true);
++  });
++  await scenario("an admission for another proposal, decision or hash is refused", async () => {
++    const store = createAyasApprovalInboxStore({ rootDir: temp("mismatch"), requireOwnerAdmission: true });
++    const p = store.createProposal(proposalInput());
++    const q = store.createProposal(proposalInput({ objective: "second fixture" }));
++    const at = Date.now();
++    for (const wrong of [proposalSubject(q, "APPROVE"), proposalSubject(p, "REJECT"), proposalSubject(p, "EXECUTE"), { ...proposalSubject(p, "APPROVE"), proposalHash: "stale-hash" }] as AyasOwnerAdmissionSubject[]) {
++      const admission = await admit(wrong, at);
++      refusedStore(() => store.decide(p.proposalId, "APPROVE", new Date(at).toISOString(), undefined, admission), "AYAS_INBOX_INVALID", /SUBJECT_MISMATCH/);
++    }
++    assert.equal(store.load().decisions.length, 0);
++  });
++  await scenario("replay: one admission is accepted once, even for a decision the status still allows", async () => {
++    const store = createAyasApprovalInboxStore({ rootDir: temp("replay"), requireOwnerAdmission: true });
++    const p = store.createProposal(proposalInput());
++    const at = Date.now(); const admission = await admit(proposalSubject(p, "LATER"), at);
++    store.decide(p.proposalId, "LATER", new Date(at).toISOString(), undefined, admission);
++    refusedStore(() => store.decide(p.proposalId, "LATER", new Date(at + 1000).toISOString(), undefined, admission), "AYAS_INBOX_INVALID", /ACTION_REF_REUSED/);
++    assert.equal(store.load().decisions.length, 1);
++  });
++  await scenario("an admission older than the window, or from the future, is refused", async () => {
++    const store = createAyasApprovalInboxStore({ rootDir: temp("fresh"), requireOwnerAdmission: true });
++    const p = store.createProposal(proposalInput());
++    const at = Date.now();
++    const old = await admit(proposalSubject(p, "APPROVE"), at - AYAS_OWNER_ADMISSION_MAX_AGE_MS - 1000);
++    refusedStore(() => store.decide(p.proposalId, "APPROVE", new Date(at).toISOString(), undefined, old), "AYAS_INBOX_INVALID", /STALE/);
++    const future = await admit(proposalSubject(p, "APPROVE"), at + 120_000);
++    refusedStore(() => store.decide(p.proposalId, "APPROVE", new Date(at).toISOString(), undefined, future), "AYAS_INBOX_INVALID", /FUTURE/);
++  });
++  await scenario("an explicitly isolated legacy fixture stays unattributed", async () => {
++    const store = createAyasApprovalInboxStore({ rootDir: temp("legacy") });
++    const p = store.createProposal(proposalInput());
++    const { decision } = store.decide(p.proposalId, "APPROVE", new Date().toISOString());
++    assert.equal("ownerAdmission" in decision, false);
++    assert.equal(isAyasApprovalDecisionOwnerAdmitted(decision, p), false);
++  });
++  await scenario("earlier unattributed decisions stay byte-identical; nothing is added to them later", async () => {
++    const root = temp("history");
++    const legacy = createAyasApprovalInboxStore({ rootDir: root });
++    const old = legacy.createProposal(proposalInput({ objective: "historical" }));
++    legacy.decide(old.proposalId, "REJECT", "2026-09-24T10:00:00.000Z");
++    const historical = JSON.stringify(legacy.load().decisions[0]);
++    const strict = createAyasApprovalInboxStore({ rootDir: root, requireOwnerAdmission: true });
++    const fresh = strict.createProposal(proposalInput({ objective: "new" }));
++    const at = Date.now();
++    strict.decide(fresh.proposalId, "APPROVE", new Date(at).toISOString(), undefined, await admit(proposalSubject(fresh, "APPROVE"), at));
++    const decisions = strict.load().decisions;
++    assert.equal(JSON.stringify(decisions[0]), historical);
++    assert.equal("ownerAdmission" in decisions[0]!, false);
++  });
++
++  /* ------------------------------------------------------- micro-batch store --- */
++  await scenario("micro-batch: strict store refuses without admission; admitted APPROVE is recorded; mismatch and replay are refused", async () => {
++    const store = createAyasMicroBatchStore({ rootDir: temp("batch"), requireOwnerAdmission: true });
++    const batch = store.createOrVersion(batchInput());
++    store.markReadyForReview(batch.batchId, "2026-10-08T09:01:00.000Z");
++    refusedStore(() => store.decide(batch.batchId, "APPROVE", batch.batchHash, new Date().toISOString()), "AYAS_MICRO_BATCH_UNSAFE_APPROVAL", /owner admission is required/);
++    const at = Date.now();
++    const wrong = await admit({ kind: "micro-batch", batchId: batch.batchId, batchHash: "other-hash", decision: "APPROVE" }, at);
++    refusedStore(() => store.decide(batch.batchId, "APPROVE", batch.batchHash, new Date(at).toISOString(), wrong), "AYAS_MICRO_BATCH_INVALID", /SUBJECT_MISMATCH/);
++    const proposalShaped = await admit({ kind: "proposal", proposalId: batch.batchId, proposalHash: batch.batchHash, decision: "APPROVE" }, at);
++    refusedStore(() => store.decide(batch.batchId, "APPROVE", batch.batchHash, new Date(at).toISOString(), proposalShaped), "AYAS_MICRO_BATCH_INVALID", /SUBJECT_MISMATCH/);
++    const reject = await admit({ kind: "micro-batch", batchId: batch.batchId, batchHash: batch.batchHash, decision: "REJECT" }, at);
++    store.decide(batch.batchId, "REJECT", batch.batchHash, new Date(at).toISOString(), reject);
++    store.markReadyForReview(batch.batchId, new Date(at).toISOString());
++    refusedStore(() => store.decide(batch.batchId, "REJECT", batch.batchHash, new Date(at + 1000).toISOString(), reject), "AYAS_MICRO_BATCH_INVALID", /ACTION_REF_REUSED/);
++    const approve = await admit({ kind: "micro-batch", batchId: batch.batchId, batchHash: batch.batchHash, decision: "APPROVE" }, at);
++    const { decision } = store.decide(batch.batchId, "APPROVE", batch.batchHash, new Date(at).toISOString(), approve);
++    assert.deepEqual(decision.ownerAdmission, approve);
++  });
++
++  /* ------------------------------------------------- gate, publish and resume --- */
++  await scenario("owner-approval gate on an owner-action store: no admission, no decision; admitted REJECT and APPROVE are attributed", async () => {
++    const repoRoot = temp("gate-repo"); const gateRoot = temp("gate-root");
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("gate-inbox"), requireOwnerAdmission: true });
++    const p = inbox.createProposal(proposalInput());
++    const deps = { repoRoot, gateRoot, inbox, traceEnabled: false, envOverride: { AYAS_AUTONOMOUS_EXECUTION_ENABLED: "0" } };
++    await assert.rejects(() => decideAyasOwnerApproval(bindAyasOwnerApproval(p, new Date().toISOString()), "REJECT", deps), (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_UNSAFE_APPROVAL");
++    await assert.rejects(() => decideAyasOwnerApproval(bindAyasOwnerApproval(p, new Date().toISOString()), "APPROVE", deps), (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_UNSAFE_APPROVAL");
++    assert.equal(inbox.load().decisions.length, 0);
++    const at = Date.now();
++    const approved = await decideAyasOwnerApproval(bindAyasOwnerApproval(p, new Date(at).toISOString()), "APPROVE", { ...deps, ownerAdmission: await admit(proposalSubject(p, "APPROVE"), at) });
++    assert.equal(approved.executed, false);
++    assert.equal(approved.executed === false && approved.reason, "APPROVED_PENDING_EXECUTION");
++    const decision = inbox.load().decisions.at(-1)!;
++    assert.equal(isAyasApprovalDecisionOwnerAdmitted(decision, p), true);
++    const q = inbox.createProposal(proposalInput({ objective: "reject me" }));
++    await decideAyasOwnerApproval(bindAyasOwnerApproval(q, new Date(at).toISOString()), "REJECT", { ...deps, ownerAdmission: await admit(proposalSubject(q, "REJECT"), at) });
++    assert.equal(inbox.load().decisions.at(-1)!.ownerAdmission?.subject.decision, "REJECT");
++  });
++  await scenario("one-click publish on an owner-action store refuses before minting any decision when the admission is missing", async () => {
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("publish-inbox"), requireOwnerAdmission: true });
++    const p = inbox.createProposal(proposalInput({ mutationKind: AYAS_PATCH_ARTIFACT_MUTATION_KIND, patchArtifactId: "ayas-patch-artifact-fixture", patchHash: "fixture-patch-hash" }));
++    await assert.rejects(() => approveAndExecuteAyasProposal(p.proposalId, p.proposalHash, { repoRoot: temp("publish-repo"), gateRoot: temp("publish-gate"), inbox, traceEnabled: false }),
++      (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_UNSAFE_APPROVAL" && /owner admission is required/.test(error.message));
++    assert.equal(inbox.load().decisions.length, 0);
++    assert.equal(inbox.load().proposals[0]!.status, "PENDING");
++  });
++  await scenario("resume never publishes an unattributed APPROVE, even one carrying the owner-approved reason", async () => {
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("resume-legacy") });
++    const p = inbox.createProposal(proposalInput());
++    inbox.decide(p.proposalId, "APPROVE", new Date().toISOString(), "owner-approved: pending execution enablement");
++    const attempts = await resumeAyasOwnerApprovedProposals({ repoRoot: temp("resume-repo"), gateRoot: temp("resume-gate"), inbox, traceEnabled: false, envOverride: { AYAS_AUTONOMOUS_EXECUTION_ENABLED: "1" } });
++    assert.deepEqual(attempts, []);
++    assert.equal(inbox.load().proposals[0]!.status, "APPROVED");
++  });
++  await scenario("durable consent cannot automatically resume; a fresh exact manual action is required", async () => {
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("resume-admitted") });
++    const p = inbox.createProposal(proposalInput());
++    const at = Date.now();
++    inbox.decide(p.proposalId, "APPROVE", new Date(at).toISOString(), "owner-approved: pending execution enablement", await admit(proposalSubject(p, "APPROVE"), at));
++    const attempts = await resumeAyasOwnerApprovedProposals({ repoRoot: temp("resume-repo2"), gateRoot: temp("resume-gate2"), inbox, traceEnabled: false, envOverride: { AYAS_AUTONOMOUS_EXECUTION_ENABLED: "1" } });
++    assert.deepEqual(attempts, []);
++    assert.deepEqual(await resumeAyasOwnerApprovedProposals({ repoRoot: temp("no-click-repo"), gateRoot: temp("no-click-gate"), inbox, traceEnabled: false, envOverride: { AYAS_AUTONOMOUS_EXECUTION_ENABLED: "1" }, executionOwnerAdmission: await admit(proposalSubject(p, "EXECUTE")) }), []);
++    const manualAttempts = await resumeAyasOwnerApprovedProposals({ repoRoot: temp("manual-resume-repo"), gateRoot: temp("manual-resume-gate"), inbox, traceEnabled: false, envOverride: { AYAS_AUTONOMOUS_EXECUTION_ENABLED: "1" }, explicitManualOwnerAction: true, executionOwnerAdmission: await admit(proposalSubject(p, "EXECUTE")) });
++    assert.equal(manualAttempts.length, 1);
++    assert.equal(manualAttempts[0]!.outcome.ok, false); // fixture kind is not a patch artifact: the existing guard refuses it
++    assert.equal(!manualAttempts[0]!.outcome.ok && manualAttempts[0]!.outcome.code, "NOT_PATCH_ARTIFACT");
++  });
++  await scenario("a typed reason cannot pose as a server provenance marker", () => {
++    for (const reason of ["owner-approved: x", "  Owner-Approved: x", "ｏｗｎｅｒ-approved: x", "owner-rejected: y", "AYAS-INTERNAL: z"]) assert.equal(isAyasReservedDecisionReason(reason), true, reason);
++    for (const reason of [undefined, "", "owner approved this", "onaylandı", "approved: owner"]) assert.equal(isAyasReservedDecisionReason(reason), false, String(reason));
++  });
++
++  /* ------------------------------------------------------- real action guard --- */
++  await scenario("real action guard: verified cookie → admission; no cookie, foreign cookie, dev mode or misconfigured gate → refused", async () => {
++    guardEnv = { AYAS_ACCESS_KEY: KEY, NODE_ENV: "production" }; guardCookie = await issueSession(KEY);
++    const admission = await realGuard("proposalOnaylaVeUygula", subject);
++    assert.equal(admission.action, "proposalOnaylaVeUygula");
++    assert.equal(await verifyAyasOwnerAdmissionSeal(admission, KEY), true);
++    guardCookie = undefined; await rejectsWith("OWNER_ADMISSION_REQUIRED", () => realGuard("proposalOnaylaVeUygula", subject));
++    guardCookie = await issueSession(OTHER_KEY); await rejectsWith("OWNER_ADMISSION_REQUIRED", () => realGuard("proposalOnaylaVeUygula", subject));
++    guardEnv = { NODE_ENV: "development" }; guardCookie = undefined; await rejectsWith("OWNER_ADMISSION_GATE_UNAVAILABLE", () => realGuard("proposalOnaylaVeUygula", subject));
++    guardEnv = { NODE_ENV: "production" }; await rejectsWith("OWNER_ADMISSION_GATE_UNAVAILABLE", () => realGuard("proposalOnaylaVeUygula", subject));
++  });
++  await scenario("every approval-capable action keeps the session guard first, then derives its own admission and decides only through an owner-action store", () => {
++    for (const name of APPROVAL_ACTIONS) {
++      const fn = fnNamed(name);
++      assert.ok(fn?.body, `missing owner action ${name}`);
++      const first = fn.body.statements[0]!;
++      assert.ok(ts.isExpressionStatement(first) && ts.isAwaitExpression(first.expression) && ts.isCallExpression(first.expression.expression) && first.expression.expression.expression.getText(actionsSource) === "requireBrainSession", `${name}: requireBrainSession must stay first`);
++      const body = fn.body.getText(actionsSource);
++      assert.ok(body.includes(`requireOwnerApprovalAdmission("${name}"`), `${name} must derive its own admission`);
++      const params = fn.parameters.map((p) => p.getText(actionsSource)).join(",");
++      assert.ok(!/\b(?:ownerAdmission|admission|principal|actor|identity|sessionRef|decidedBy|approvedBy)\b/i.test(params), `${name} must not accept an identity from the client`);
++      if (name !== "executeAyasApprovedProposal") assert.ok(/create(?:AyasApprovalInbox|AyasMicroBatch)Store\(\{ requireOwnerAdmission: true \}\)/.test(body), `${name} must decide through an owner-action store`);
++    }
++    const before = (text: string, guard: string, effect: string) => text.indexOf(guard) >= 0 && text.indexOf(effect) >= 0 && text.indexOf(guard) < text.indexOf(effect);
++    const legacy = fnNamed("decideAyasApproval")!.body!.getText(actionsSource);
++    assert.ok(before(legacy, "isAyasReservedDecisionReason(input.reason)", "store.decide("), "the reserved-reason check must run before the decision");
++    assert.ok(legacy.includes("store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason, admission);"), "the legacy decision must record its admission");
++    const execute = fnNamed("executeAyasApprovedProposal")!.body!.getText(actionsSource);
++    assert.ok(before(execute, "if (!isAyasApprovalDecisionOwnerAdmitted(approval, proposal))", "executeAyasApprovedProposalWith("), "execution must check the attributed approval first");
++    for (const name of ["batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision"]) {
++      assert.ok(/\n\s+ownerAdmission,\n/.test(fnNamed(name)!.body!.getText(actionsSource)), `${name} must hand its admission to the service`);
++    }
++  });
++
++  await scenario("every service decision an owner action reaches passes the admission on to the store", () => {
++    const read = (file: string) => fs.readFileSync(path.join(__dirname, "../src/lib/brain/autonomy", file), "utf8");
++    const count = (text: string, pattern: RegExp) => (text.match(pattern) ?? []).length;
++    assert.equal(count(read("AyasProposalApprovalService.ts"), /deps\.inbox\.decide\(proposalId, "APPROVE", [^;\n]*, deps\.ownerAdmission\);/g), 1);
++    assert.equal(count(read("AyasMicroBatchApprovalService.ts"), /batchStore\.decide\(batchId, "APPROVE", approvedBatchHash, now\(\), deps\.ownerAdmission\);/g), 1);
++    const gate = read("AyasAutonomousExecutionGate.ts");
++    assert.equal(count(gate, /deps\.inbox\.decide\(/g), 3);
++    assert.equal(count(gate, /deps\.inbox\.decide\([^;\n]*, deps\.ownerAdmission\);/g), 3);
++  });
++
++
++  await scenario("old signed cookies remain valid for general access but require login for privileged admission", async () => {
++    const iat = Math.floor(Date.now() / 1000);
++    const body = Buffer.from(JSON.stringify({ v: 1, iat, exp: iat + 3600 })).toString("base64url");
++    const token = body + "." + crypto.createHmac("sha256", KEY).update(body).digest("base64url");
++    assert.equal(await verifySession(token, KEY), true);
++    await rejectsWith("OWNER_ADMISSION_REQUIRED", () => admit(subject, Date.now(), token));
++  });
++  await scenario("forged admission cannot mutate an inbox even when its shape and subject match", async () => {
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("forged"), requireOwnerAdmission: true });
++    const p = inbox.createProposal(proposalInput()); const a = await admit(proposalSubject(p, "APPROVE"));
++    const before = fs.readFileSync(inbox.stateFile);
++    for (const seal of ["0".repeat(64), "broken", "", a.seal.slice(1)]) {
++      refusedStore(() => inbox.decide(p.proposalId, "APPROVE", new Date().toISOString(), undefined, { ...a, seal }), "AYAS_INBOX_INVALID");
++      assert.deepEqual(fs.readFileSync(inbox.stateFile), before);
++    }
++    const foreign = await admitAyasOwnerApproval({ gate: resolveAccessGate({ AYAS_ACCESS_KEY: OTHER_KEY }), token: await issueSession(OTHER_KEY), action: "decideAyasApproval", subject: proposalSubject(p, "APPROVE") });
++    refusedStore(() => inbox.decide(p.proposalId, "APPROVE", new Date().toISOString(), undefined, foreign), "AYAS_INBOX_INVALID", /INVALID_SEAL/);
++    assert.deepEqual(fs.readFileSync(inbox.stateFile), before);
++  });
++  await scenario("session expiry is checked at decision time with zero persistent effects", async () => {
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("decision-expiry"), requireOwnerAdmission: true }); const p = inbox.createProposal(proposalInput());
++    const at = Date.now(); const token = await issueSession(KEY, at - (AYAS_SESSION_TTL_SECONDS - 1) * 1000);
++    const admission = await admit(proposalSubject(p, "APPROVE"), at, token); const before = fs.readFileSync(inbox.stateFile);
++    refusedStore(() => inbox.decide(p.proposalId, "APPROVE", new Date(at + 2000).toISOString(), undefined, admission), "AYAS_INBOX_INVALID", /STALE/);
++    assert.deepEqual(fs.readFileSync(inbox.stateFile), before);
++  });
++  await scenario("different verified sessions preserve approval/execution provenance and exact authorization/reservation links", async () => {
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("cross-session"), requireOwnerAdmission: true }); const p = inbox.createProposal(proposalInput());
++    // Historical consent survives original session expiry, but it supplies no current authority.
++    const old = Date.now() - (AYAS_SESSION_TTL_SECONDS + 100) * 1000;
++    const approval = await admit(proposalSubject(p, "APPROVE"), old);
++    const record = inbox.decide(p.proposalId, "APPROVE", new Date(old).toISOString(), undefined, approval).decision;
++    assert.equal(isAyasApprovalDecisionOwnerAdmitted(record, p), true);
++    const execution = await admit(proposalSubject(p, "EXECUTE"));
++    assert.notEqual(execution.sessionRef, approval.sessionRef);
++    const before = fs.readFileSync(inbox.stateFile);
++    for (const bad of [undefined, approval, { ...execution, seal: "0".repeat(64) }, await admit({ ...proposalSubject(p, "EXECUTE"), proposalHash: "changed" })]) {
++      refusedStore(() => inbox.reserveApproval(p.proposalId, p.proposalHash, p.baseHead, p.exactFiles, new Date().toISOString(), bad), "AYAS_INBOX_UNSAFE_APPROVAL");
++      assert.deepEqual(fs.readFileSync(inbox.stateFile), before);
++    }
++    const reservation = inbox.reserveApproval(p.proposalId, p.proposalHash, p.baseHead, p.exactFiles, new Date().toISOString(), execution);
++    const persisted = inbox.load().decisions.at(-1)!;
++    assert.deepEqual(persisted.ownerAdmission, approval); assert.deepEqual(persisted.executionOwnerAdmission, execution);
++    assert.equal(persisted.decisionId, reservation.decisionId); assert.equal(persisted.authorizationId, reservation.authorizationId); assert.equal(persisted.reservationId, reservation.reservationId);
++    const reserved = fs.readFileSync(inbox.stateFile);
++    refusedStore(() => inbox.reserveApproval(p.proposalId, p.proposalHash, p.baseHead, p.exactFiles, new Date().toISOString(), execution), "AYAS_INBOX_INVALID");
++    assert.deepEqual(fs.readFileSync(inbox.stateFile), reserved);
++    const d = { ...record, authorizationId: "forged-authorization" };
++    assert.equal(checkAyasOwnerExecutionAdmission(d, execution, proposalSubject(p, "EXECUTE"), new Date().toISOString(), new Set()), false);
++    assert.equal(checkAyasOwnerExecutionAdmission({ ...record, decisionId: "forged-decision" }, execution, proposalSubject(p, "EXECUTE"), new Date().toISOString(), new Set()), false);
++  });
++  await scenario("missing verification key refuses before decision and default production stores remain strict", async () => {
++    assert.equal(createAyasApprovalInboxStore().requiresOwnerAdmission, true);
++    assert.equal(createAyasApprovalInboxStore({ requireOwnerAdmission: false }).requiresOwnerAdmission, true);
++    assert.equal(createAyasMicroBatchStore().requiresOwnerAdmission, true);
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("missing-key"), requireOwnerAdmission: true }); const p = inbox.createProposal(proposalInput()); const a = await admit(proposalSubject(p, "APPROVE")); const before = fs.readFileSync(inbox.stateFile);
++    delete process.env.AYAS_ACCESS_KEY;
++    try { refusedStore(() => inbox.decide(p.proposalId, "APPROVE", new Date().toISOString(), undefined, a), "AYAS_INBOX_INVALID", /INVALID_SEAL/); } finally { process.env.AYAS_ACCESS_KEY = KEY; }
++    assert.deepEqual(fs.readFileSync(inbox.stateFile), before);
++  });
++
++
++  await scenario("fresh manual resume refuses historical APPROVE action replay and expired/cross-subject EXECUTE", async () => {
++    const inbox = createAyasApprovalInboxStore({ rootDir: temp("resume-negatives"), requireOwnerAdmission: true }); const p = inbox.createProposal(proposalInput());
++    const ownerAdmission = await admitAyasOwnerApproval({ gate: enforced, token: await issueSession(KEY), action: "ayasOwnerApprovalDecision", subject: proposalSubject(p, "APPROVE") });
++    inbox.decide(p.proposalId, "APPROVE", new Date().toISOString(), "owner-approved: pending execution enablement", ownerAdmission);
++    const deps = { repoRoot: temp("resume-neg-repo"), gateRoot: temp("resume-neg-gate"), inbox, traceEnabled: false, envOverride: { AYAS_AUTONOMOUS_EXECUTION_ENABLED: "1" }, explicitManualOwnerAction: true };
++    const expiredAt = Date.now() - (AYAS_OWNER_ADMISSION_MAX_AGE_MS + 1000);
++    for (const executionOwnerAdmission of [ownerAdmission, { ...await admit(proposalSubject(p, "EXECUTE")), seal: "0".repeat(64) }, await admit({ ...proposalSubject(p, "EXECUTE"), proposalHash: "other" }), await admit(proposalSubject(p, "EXECUTE"), expiredAt)]) {
++      const before = fs.readFileSync(inbox.stateFile); assert.deepEqual(await resumeAyasOwnerApprovedProposals({ ...deps, executionOwnerAdmission }), []); assert.deepEqual(fs.readFileSync(inbox.stateFile), before);
++    }
++  });
++  await scenario("strict daemon authenticates before journal/reservation and records both verified sessions on real isolated execution", async () => {
++    const repoRoot = temp("daemon-repo"); const gateRoot = temp("daemon-gate"); const inbox = createAyasApprovalInboxStore({ rootDir: temp("daemon-inbox"), requireOwnerAdmission: true });
++    const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
++    git("init", "-q"); git("config", "user.name", "Isolated K3 fixture"); git("config", "user.email", "fixture@example.invalid"); fs.mkdirSync(path.join(repoRoot, "scripts")); const file = "scripts/smoke-fixture-owner-admission.ts"; fs.writeFileSync(path.join(repoRoot, file), "before\n"); git("add", "."); git("commit", "-qm", "isolated base");
++    const p = inbox.createProposal(proposalInput({ baseHead: git("rev-parse", "HEAD") }));
++    const approval = await admit(proposalSubject(p, "APPROVE")); inbox.decide(p.proposalId, "APPROVE", new Date().toISOString(), undefined, approval);
++    let calls = 0; const execution = await admit(proposalSubject(p, "EXECUTE"));
++    const daemon = createAyasAutonomyDaemon({ inbox, repoRoot, gateRoot });
++    const input = { proposalId: p.proposalId, proposalHash: p.proposalHash, baseHead: p.baseHead, currentHead: p.baseHead, exactFiles: p.exactFiles, currentExactFiles: p.exactFiles, repoClean: true, applyWhileExecuting: async () => { calls++; fs.writeFileSync(path.join(repoRoot, file), "after\n"); return { changedFiles: p.exactFiles, diffFingerprint: "", testsRun: ["synthetic callback"], testResults: ["PASS"] }; } };
++    for (const executionOwnerAdmission of [undefined, approval, { ...execution, seal: "0".repeat(64) }]) {
++      const before = fs.readFileSync(inbox.stateFile); await assert.rejects(() => daemon.executeApproved({ ...input, executionOwnerAdmission }), /OWNER_ADMISSION_REQUIRED/); assert.deepEqual(fs.readFileSync(inbox.stateFile), before); assert.equal(createAyasExecutionJournal({ rootDir: gateRoot }).list().length, 0); assert.equal(calls, 0);
++    }
++    const result = await daemon.executeApproved({ ...input, executionOwnerAdmission: execution }); assert.equal(result.status, "COMPLETED"); assert.equal(calls, 1);
++    const journal = createAyasExecutionJournal({ rootDir: gateRoot }).list()[0]!; const d = inbox.load().decisions.at(-1)!;
++    assert.deepEqual(journal.executionOwnerAdmission, execution); assert.deepEqual(journal.approvalOwnerAdmission, approval); assert.equal(journal.ownerApprovalDecisionId, d.decisionId); assert.equal(journal.authorizationId, d.authorizationId); assert.equal(journal.reservationId, d.reservationId);
++    await assert.rejects(() => daemon.executeApproved({ ...input, executionOwnerAdmission: execution })); assert.equal(calls, 1);
++  });
++  await scenario("strict daemon rechecks session expiry and durable provenance after asynchronous gate phases before mutation", async () => {
++    for (const mode of ["expiry", "tamper"] as const) {
++      const inbox = createAyasApprovalInboxStore({ rootDir: temp("async-" + mode), requireOwnerAdmission: true }); const p = inbox.createProposal(proposalInput()); const gateRoot = temp("async-gate"); const repoRoot = temp("async-repo");
++      const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
++      git("init", "-q"); git("config", "user.name", "Isolated K3"); git("config", "user.email", "fixture@example.invalid"); fs.mkdirSync(path.join(repoRoot, "scripts")); fs.writeFileSync(path.join(repoRoot, p.exactFiles[0]!), "before\n"); git("add", "."); git("commit", "-qm", "base");
++      // Recreate exact subject using the fixture's actual HEAD.
++      const q = inbox.createProposal(proposalInput({ objective: "async exact fixture", baseHead: git("rev-parse", "HEAD") })); let at = Date.now();
++      const approve = await admit(proposalSubject(q, "APPROVE"), at); inbox.decide(q.proposalId, "APPROVE", new Date(at).toISOString(), undefined, approve);
++      const token = await issueSession(KEY, at - (AYAS_SESSION_TTL_SECONDS - 1) * 1000); const execute = await admit(proposalSubject(q, "EXECUTE"), at, token); let calls = 0;
++      const daemon = createAyasAutonomyDaemon({ inbox, repoRoot, gateRoot, now: () => new Date(at).toISOString(), onJournalPhase: phase => { if (phase !== "EXECUTING") return; if (mode === "expiry") at += 2000; else { const state = inbox.load(); inbox.save({ ...state, decisions: state.decisions.map(d => ({ ...d, authorizationId: "forged-after-reservation" })) }); } } });
++      await assert.rejects(() => daemon.executeApproved({ proposalId: q.proposalId, proposalHash: q.proposalHash, baseHead: q.baseHead, currentHead: q.baseHead, exactFiles: q.exactFiles, currentExactFiles: q.exactFiles, repoClean: true, executionOwnerAdmission: execute, applyWhileExecuting: async () => { calls++; return { changedFiles: [], diffFingerprint: "", testsRun: [], testResults: [] }; } }));
++      assert.equal(calls, 0); assert.equal(fs.readFileSync(path.join(repoRoot, q.exactFiles[0]!), "utf8"), "before\n");
++    }
++  });
++  await scenario("strict micro-batch adapter preserves separate approval/execute provenance and refuses approval replay", async () => {
++    const store = createAyasMicroBatchStore({ rootDir: temp("batch-reservation"), requireOwnerAdmission: true }); const b = store.createOrVersion(batchInput()); store.markReadyForReview(b.batchId, new Date().toISOString());
++    const approve = await admit({ kind: "micro-batch", batchId: b.batchId, batchHash: b.batchHash, decision: "APPROVE" }); store.decide(b.batchId, "APPROVE", b.batchHash, new Date().toISOString(), approve);
++    const execute = await admit({ kind: "micro-batch", batchId: b.batchId, batchHash: b.batchHash, decision: "EXECUTE" }); const adapter = createAyasMicroBatchAsInboxAdapter(store, b.batchId); const before = fs.readFileSync(store.stateFile);
++    refusedStore(() => adapter.reserveApproval(b.batchId, b.batchHash, b.baseHead, b.exactFilesUnion, new Date().toISOString(), approve), "AYAS_MICRO_BATCH_UNSAFE_APPROVAL"); assert.deepEqual(fs.readFileSync(store.stateFile), before);
++    const reservation = adapter.reserveApproval(b.batchId, b.batchHash, b.baseHead, b.exactFilesUnion, new Date().toISOString(), execute); const d = adapter.load().decisions[0]!; assert.deepEqual(d.ownerAdmission, approve); assert.deepEqual(d.executionOwnerAdmission, execute); assert.equal(d.reservationId, reservation.reservationId); assert.equal(d.authorizationId, reservation.authorizationId);
++  });
++
++  await scenario("production defaults preserve unattributed internal REJECT/LATER while APPROVE stays fail-closed", () => {
++    const previous = process.cwd(); const fixture = temp("production-default"); process.chdir(fixture);
++    try { const inbox = createAyasApprovalInboxStore();
++      for (const decision of ["REJECT", "LATER"] as const) { const p = inbox.createProposal(proposalInput({ objective: "internal " + decision })); const d = inbox.decide(p.proposalId, decision, new Date().toISOString()).decision; assert.equal(d.ownerAdmission, undefined); }
++      const p = inbox.createProposal(proposalInput({ objective: "blocked owner APPROVE" })); const before = fs.readFileSync(inbox.stateFile); refusedStore(() => inbox.decide(p.proposalId, "APPROVE", new Date().toISOString()), "AYAS_INBOX_UNSAFE_APPROVAL"); assert.deepEqual(fs.readFileSync(inbox.stateFile), before);
++    } finally { process.chdir(previous); }
++  });
++  console.log(`AYAS owner approval admission smoke: PASS (${scenarios} scenarios)`);
++}
++
++main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => { if (originalKey === undefined) delete process.env.AYAS_ACCESS_KEY; else process.env.AYAS_ACCESS_KEY = originalKey; });
+diff --git a/src/lib/auth/accessGate.ts b/src/lib/auth/accessGate.ts
+index 51c209b0d10b518f0be3b792b19a55cda3c22eaa..7ac20cf5f9809c7dccb50f1c76945ba87c8f5dc8 100644
+--- a/src/lib/auth/accessGate.ts
++++ b/src/lib/auth/accessGate.ts
+@@ -65,6 +65,7 @@ interface SessionPayload {
+   readonly v: number;
+   readonly iat: number;
+   readonly exp: number;
++  readonly nonce?: string;
+ }
+ 
+ export async function issueSession(
+@@ -74,6 +75,7 @@ export async function issueSession(
+   const issuedAt = Math.floor(now / 1000);
+   const payload: SessionPayload = {
+     v: SESSION_VERSION,
++    nonce: Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, "0")).join(""),
+     iat: issuedAt,
+     exp: issuedAt + AYAS_SESSION_TTL_SECONDS,
+   };
+@@ -109,6 +111,7 @@ export async function verifySession(
+   const seconds = Math.floor(now / 1000);
+   return (
+     payload.v === SESSION_VERSION &&
++    (payload.nonce === undefined || (typeof payload.nonce === "string" && /^[0-9a-f]{64}$/.test(payload.nonce))) &&
+     Number.isFinite(payload.iat) &&
+     Number.isFinite(payload.exp) &&
+     payload.iat <= seconds + CLOCK_SKEW_SECONDS &&
+@@ -116,6 +119,35 @@ export async function verifySession(
+   );
+ }
+ 
++/**
++ * The issue and expiry times of a session that `verifySession` accepts, or
++ * `null` when it refuses it. `verifySession` runs first, so nothing here is
++ * read from an unverified cookie. Neither time is secret.
++ */
++export async function readVerifiedSessionClaims(
++  token: string | undefined | null,
++  key: string,
++  now: number = Date.now(),
++): Promise<{ readonly issuedAt: number; readonly expiresAt: number; readonly nonce?: string } | null> {
++  if (!await verifySession(token, key, now)) return null;
++  const body = (token as string).slice(0, (token as string).indexOf("."));
++  const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(body))) as SessionPayload;
++  return { issuedAt: payload.iat, expiresAt: payload.exp, ...(payload.nonce ? { nonce: payload.nonce } : {}) };
++}
++
++/**
++ * Hex HMAC-SHA256 of `material` under the access key, for audit records only.
++ * The domain is prefixed with a newline separator; a session body is base64url
++ * and never contains one, so no audit digest can ever equal a cookie signature.
++ * A digest identifies or seals a record; it is not a credential and cannot be
++ * reversed to the cookie or the key.
++ */
++export async function keyedAuditDigest(domain: string, material: string, key: string): Promise<string> {
++  if (!/^[a-z0-9:.-]+$/.test(domain)) throw new Error("invalid audit digest domain");
++  const bytes = await hmacSha256(`${domain}\n${material}`, key);
++  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
++}
++
+ /* --------------------------------------------------------------- routing ---- */
+ 
+ const OPEN_PREFIXES: readonly string[] = [
+diff --git a/src/lib/brain/autonomy/AyasApprovalInboxStore.ts b/src/lib/brain/autonomy/AyasApprovalInboxStore.ts
+index ece9ba96cb043c9ff91ff543c0a8305e8b934e6a..d2087891bf5ca2bcd4537093ddcb9c41716fb1bb 100644
+--- a/src/lib/brain/autonomy/AyasApprovalInboxStore.ts
++++ b/src/lib/brain/autonomy/AyasApprovalInboxStore.ts
+@@ -10,6 +10,7 @@ import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
+ import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
+ import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
+ import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
++import { ayasUsedOwnerActionRefs, checkAyasOwnerAdmissionBinding, sealAyasOwnerDecision, checkAyasOwnerExecutionAdmission, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ 
+ export const ayasApprovalInboxSchemaVersion = "1" as const;
+ export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
+@@ -89,6 +90,10 @@ export interface AyasInboxDecisionRecord {
+   readonly reservedAt?: string;
+   readonly finalizedAt?: string;
+   readonly finalizationOutcome?: AyasInboxReservationOutcome;
++  /** Server-verified owner session that made this decision (`AyasOwnerApprovalAdmission`). Absent on decisions recorded before it existed and on AYAS's own internal REJECT/LATER; never added afterwards. */
++  readonly ownerAdmission?: AyasOwnerAdmission;
++  readonly ownerDecisionSeal?: string;
++  readonly executionOwnerAdmission?: AyasOwnerAdmission;
+ }
+ 
+ export interface AyasInboxResultRecord {
+@@ -160,7 +165,11 @@ function proposalHash(input: Record<string, unknown>): string {
+   return digest({ ...material, schemaVersion: ayasApprovalInboxSchemaVersion });
+ }
+ 
+-export interface AyasApprovalInboxStoreOptions { readonly rootDir?: string; readonly repoRoot?: string; readonly artifactStore?: AyasPatchArtifactStore; readonly experimentStore?: AyasResearchExperimentStore; }
++export interface AyasApprovalInboxStoreOptions {
++  readonly rootDir?: string; readonly repoRoot?: string; readonly artifactStore?: AyasPatchArtifactStore; readonly experimentStore?: AyasResearchExperimentStore;
++  /** Owner actions open the store with this set: then every `decide()` needs an owner admission bound to that exact decision. */
++  readonly requireOwnerAdmission?: boolean;
++}
+ 
+ export const ayasApprovalExplanationFields = [
+   "objective",
+@@ -197,10 +206,12 @@ type AyasProposalCreateInput = Omit<AyasInboxProposal, "schemaVersion" | "propos
+ 
+ export interface AyasApprovalInboxHandle {
+   readonly stateFile: string;
++  readonly requiresOwnerAdmission?: boolean;
+   load(): AyasApprovalInboxState;
+   save(state: AyasApprovalInboxState): AyasApprovalInboxState;
+   createProposal(input: AyasProposalCreateInput): AyasInboxProposal;
+-  decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
++  /** `ownerAdmission`, when given, must name exactly this proposal, hash and decision, be fresh at `now` and unused; it is recorded with the decision. Required when the store was opened with `requireOwnerAdmission`. */
++  decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string, ownerAdmission?: AyasOwnerAdmission): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
+   /**
+    * M16 — durable, backend-authoritative staleness reconciliation. Only a
+    * PENDING, APPROVED, or DEFERRED proposal may transition to STALE (M17:
+@@ -216,7 +227,7 @@ export interface AyasApprovalInboxHandle {
+   /** @deprecated single-phase one-shot consumption. New callers should use `reserveApproval`/`finalizeApproval` instead. */
+   consumeApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): AyasInboxDecisionRecord;
+   /** Phase 1 of the two-phase authority lifecycle: durably reserves the one-shot authorization (proposal moves to `RESERVED`) without implying anything about the gate or mutation. */
+-  reserveApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
++  reserveApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string, executionOwnerAdmission?: AyasOwnerAdmission): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
+   /** Phase 2: durably finalizes a reservation exactly once. Does not run anything — pure record-keeping. */
+   finalizeApproval(reservationId: string, outcome: AyasInboxReservationOutcome, now: string): void;
+   recordResult(result: AyasInboxResultRecord, status: "COMPLETED" | "FAILED" | "STALE"): void;
+@@ -228,6 +239,7 @@ function emptyState(): AyasApprovalInboxState {
+ 
+ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOptions = {}): AyasApprovalInboxHandle {
+   const root = path.resolve(options.rootDir ?? path.join(process.cwd(), "data", "brain"));
++  const requiresOwnerAdmission = options.requireOwnerAdmission === true || root === path.resolve(process.cwd(), "data", "brain");
+   const dir = path.join(root, "autonomy");
+   const stateFile = path.join(dir, "approval-inbox.json");
+   const exactSafetyReady = (proposal: AyasInboxProposal): boolean => {
+@@ -271,6 +283,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
+ 
+   return {
+     stateFile,
++    requiresOwnerAdmission,
+     load,
+     save,
+     createProposal(input) {
+@@ -298,7 +311,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
+       save({ ...state, proposals: [...state.proposals, proposal] });
+       return proposal;
+     },
+-    decide(proposalId, decision, now, reason) {
++    decide(proposalId, decision, now, reason, ownerAdmission) {
+       const state = load();
+       const existing = state.proposals.find((p) => p.proposalId === proposalId);
+       if (!existing) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "proposal not found");
+@@ -321,9 +334,20 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
+       if (decision === "APPROVE" && existing.safetyClassification !== "SAFE") throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `only SAFE proposals may be approved, got: ${existing.safetyClassification}`);
+       if (decision === "APPROVE" && !isAyasProposalApprovalReady(existing)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "SAFE proposal explanation or approval evidence is incomplete");
+       if (decision === "APPROVE" && !exactSafetyReady(existing)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "exact patch safety evidence is missing or stale");
++      // Owner provenance: an owner action's store refuses to decide without the
++      // server-verified session that made the decision; any admission given
++      // must be bound to exactly this decision and used only once.
++      // Internal review may defer/reject without claiming to be the owner.
++      // Owner-action stores remain strict for every decision; production APPROVE is always strict.
++      if ((options.requireOwnerAdmission === true || (requiresOwnerAdmission && decision === "APPROVE")) && ownerAdmission === undefined) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "owner admission is required for this decision");
++      if (ownerAdmission !== undefined) {
++        const binding = checkAyasOwnerAdmissionBinding(ownerAdmission, { subject: { kind: "proposal", proposalId, proposalHash: existing.proposalHash, decision }, at: now, usedActionRefs: ayasUsedOwnerActionRefs(state.decisions) });
++        if (!binding.ok) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", `owner admission refused: ${binding.reason}`);
++      }
+       const nextStatus: AyasInboxProposalStatus = decision === "APPROVE" ? "APPROVED" : decision === "REJECT" ? "REJECTED" : "DEFERRED";
+-      const record: AyasInboxDecisionRecord = { decisionId: `ayas-decision-${crypto.randomUUID()}`, proposalId, proposalHash: existing.proposalHash, decision, decidedAt: now, ...(reason ? { reason: scrub(reason, 400) } : {}), evidenceFingerprint: digest(existing.evidence), ...(decision === "APPROVE" ? { authorizationId: `ayas-dev-auth-${crypto.randomUUID()}` } : {}) };
++      let record: AyasInboxDecisionRecord = { decisionId: `ayas-decision-${crypto.randomUUID()}`, proposalId, proposalHash: existing.proposalHash, decision, decidedAt: now, ...(reason ? { reason: scrub(reason, 400) } : {}), evidenceFingerprint: digest(existing.evidence), ...(decision === "APPROVE" ? { authorizationId: `ayas-dev-auth-${crypto.randomUUID()}` } : {}), ...(ownerAdmission !== undefined ? { ownerAdmission } : {}) };
+       const proposal = { ...existing, status: nextStatus, lastUpdatedAt: now, ...(decision === "LATER" ? { nextEligibleAt: new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString() } : {}) };
++      if (ownerAdmission) record = { ...record, ownerDecisionSeal: sealAyasOwnerDecision(record) };
+       save({ ...state, proposals: state.proposals.map((p) => p.proposalId === proposalId ? proposal : p), decisions: [...state.decisions, record] });
+       return { proposal, decision: record };
+     },
+@@ -345,6 +369,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
+       return proposal;
+     },
+     consumeApproval(proposalId, proposalHashValue, baseHead, exactFiles, now) {
++      if (requiresOwnerAdmission) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "owner execution requires reservation admission");
+       const state = load();
+       const proposal = state.proposals.find((p) => p.proposalId === proposalId);
+       const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposalId && d.decision === "APPROVE");
+@@ -360,7 +385,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
+       save({ ...state, decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? consumed : d) });
+       return consumed;
+     },
+-    reserveApproval(proposalId, proposalHashValue, baseHead, exactFiles, now) {
++    reserveApproval(proposalId, proposalHashValue, baseHead, exactFiles, now, executionOwnerAdmission) {
+       const state = load();
+       const proposal = state.proposals.find((p) => p.proposalId === proposalId);
+       const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposalId && d.decision === "APPROVE");
+@@ -377,8 +402,11 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
+       if (proposal.proposalHash !== proposalHashValue || proposal.baseHead !== baseHead || JSON.stringify([...proposal.exactFiles]) !== JSON.stringify([...exactFiles])) {
+         throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval scope or HEAD is stale");
+       }
++      if (requiresOwnerAdmission || decision.ownerAdmission || executionOwnerAdmission) {
++        if (!checkAyasOwnerExecutionAdmission(decision, executionOwnerAdmission, { kind: "proposal", proposalId, proposalHash: proposalHashValue, decision: "EXECUTE" }, now, ayasUsedOwnerActionRefs(state.decisions))) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "owner execution admission refused");
++      }
+       const reservationId = `ayas-reservation-${crypto.randomUUID()}`;
+-      const reserved = { ...decision, reservationId, reservedAt: now };
++      const reserved = { ...decision, reservationId, reservedAt: now, ...(executionOwnerAdmission ? { executionOwnerAdmission } : {}) };
+       const reservedProposal = { ...proposal, status: "RESERVED" as const, lastUpdatedAt: now };
+       save({
+         ...state,
+diff --git a/src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts b/src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts
+index 8a2b887bfe87e6cbe0f34f4998858119d41db4d9..243d7046325b8f0529207b89e4d71e2f0b6da525 100644
+--- a/src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts
++++ b/src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts
+@@ -88,7 +88,7 @@ export async function decideAyasOwnerApproval(
+     // prefixes "ayas-internal:") — both land on the same `REJECTED` status,
+     // so `reason` is the one field that keeps the two provenances
+     // distinguishable without a parallel status enum.
+-    deps.inbox.decide(binding.proposalId, "REJECT", now(), "owner-rejected: explicit REJECT via owner approval UI");
++    deps.inbox.decide(binding.proposalId, "REJECT", now(), "owner-rejected: explicit REJECT via owner approval UI", deps.ownerAdmission);
+     return { executed: false, reason: "OWNER_REJECTED" };
+   }
+ 
+@@ -114,7 +114,7 @@ export async function decideAyasOwnerApproval(
+       experimentStore: deps.exactExperimentStore })) {
+       return { executed: false, reason: "NOT_EXECUTABLE_CLASSIFICATION", detail: "exact patch evidence is stale or mismatched" };
+     }
+-    deps.inbox.decide(binding.proposalId, "APPROVE", now(), "owner-approved: exact patch awaiting local governed execution");
++    deps.inbox.decide(binding.proposalId, "APPROVE", now(), "owner-approved: exact patch awaiting local governed execution", deps.ownerAdmission);
+     return { executed: false, reason: "APPROVED_PENDING_EXECUTION" };
+   }
+ 
+@@ -127,7 +127,7 @@ export async function decideAyasOwnerApproval(
+     // already uses; the "owner-approved:" reason prefix is what lets
+     // `AyasOwnerApprovalResume.ts` and the view layer tell this apart from a
+     // legacy manual `decideAyasApproval` APPROVE later.
+-    deps.inbox.decide(binding.proposalId, "APPROVE", now(), AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON);
++    deps.inbox.decide(binding.proposalId, "APPROVE", now(), AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON, deps.ownerAdmission);
+     return { executed: false, reason: "APPROVED_PENDING_EXECUTION" };
+   }
+ 
+diff --git a/src/lib/brain/autonomy/AyasAutonomyDaemon.ts b/src/lib/brain/autonomy/AyasAutonomyDaemon.ts
+index e1d98780208a1112a4e6826ab23ab632b1608244..9f37fc330774df4cc69273d462f0bac2a80bb153 100644
+--- a/src/lib/brain/autonomy/AyasAutonomyDaemon.ts
++++ b/src/lib/brain/autonomy/AyasAutonomyDaemon.ts
+@@ -1,3 +1,4 @@
++import { checkAyasOwnerExecutionAdmission, ayasUsedOwnerActionRefs, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ import crypto from "node:crypto";
+ import fs from "node:fs";
+ import path from "node:path";
+@@ -142,9 +143,24 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
+     transition(decision === "APPROVE" ? "APPROVED_PENDING_EXECUTION" : decision === "LATER" ? "DEFERRED" : "OBSERVING", { activeProposalId: proposalId });
+     return result.proposal;
+   };
+-  const executeApproved = async (input: { readonly mutationKind?: string; readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
++  const executeApproved = async (input: { readonly executionOwnerAdmission?: AyasOwnerAdmission; readonly mutationKind?: string; readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
+     // Isolate authority scope from caller arrays while asynchronous checks are running.
+     input = { ...input, mutationKind: input.mutationKind ?? inbox.load().proposals.find((p) => p.proposalId === input.proposalId)?.mutationKind, exactFiles: Object.freeze([...input.exactFiles]), currentExactFiles: Object.freeze([...input.currentExactFiles]) };
++    // Authenticate before journal, reservation, gate or mutation effects.
++    const assertOwnerExecution = (reservation?: { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string }): void => {
++      const current = inbox.load();
++      const decision = [...current.decisions].reverse().find(d => d.proposalId === input.proposalId && d.decision === "APPROVE");
++      if (!inbox.requiresOwnerAdmission && !decision?.ownerAdmission && !input.executionOwnerAdmission) return;
++      const used = ayasUsedOwnerActionRefs(current.decisions.map(d => reservation && d.decisionId === reservation.decisionId ? { ...d, executionOwnerAdmission: undefined } : d));
++      const subject = decision?.ownerAdmission?.subject.kind === "micro-batch"
++        ? { kind: "micro-batch" as const, batchId: input.proposalId, batchHash: input.proposalHash, decision: "EXECUTE" as const }
++        : { kind: "proposal" as const, proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "EXECUTE" as const };
++      if (!decision || !checkAyasOwnerExecutionAdmission(decision, input.executionOwnerAdmission, subject, now(), used)) throw new Error("OWNER_ADMISSION_REQUIRED");
++      if (reservation && (decision.decisionId !== reservation.decisionId || decision.authorizationId !== reservation.authorizationId || decision.reservationId !== reservation.reservationId || JSON.stringify(decision.executionOwnerAdmission) !== JSON.stringify(input.executionOwnerAdmission))) throw new Error("OWNER_EXECUTION_BINDING_CHANGED");
++    };
++    // Snapshot the admission before asynchronous boundaries; caller objects grant no authority.
++    if (input.executionOwnerAdmission) input = { ...input, executionOwnerAdmission: JSON.parse(JSON.stringify(input.executionOwnerAdmission)) as AyasOwnerAdmission };
++    assertOwnerExecution();
+     // Stage 15R: no source write starts in SAFE_READ_ONLY. Asked before the one-shot authorization is reserved, so the
+     // owner's approval is not consumed by the refusal; the firewall refuses again at the write itself.
+     assertAyasSafeModeAllowsMutation(repoRoot);
+@@ -176,6 +192,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
+         startedAt,
+         updatedAt: now(),
+         reliabilityAudit,
++        ...(input.executionOwnerAdmission ? { ownerApprovalDecisionId: inbox.load().decisions.find(d => d.authorizationId === journalContext.authorizationId)?.decisionId, executionOwnerAdmission: input.executionOwnerAdmission, approvalOwnerAdmission: inbox.load().decisions.find(d => d.authorizationId === journalContext.authorizationId)?.ownerAdmission } : {}),
+         ...(journalContext.authorizationId ? { authorizationId: journalContext.authorizationId } : {}),
+         ...(journalContext.reservationId ? { reservationId: journalContext.reservationId } : {}),
+         ...(journalContext.capabilityLease ? { capabilityLease: journalContext.capabilityLease } : {}),
+@@ -189,7 +206,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
+     // authorization is reserved here, before any gate transition — a crash
+     // between this line and `begin-execution` is Window A/B/C (durably
+     // classified below as no-mutation-possible), never a silent replay.
+-    const reservation = inbox.reserveApproval(input.proposalId, input.proposalHash, input.baseHead, input.exactFiles, now());
++    const reservation = inbox.reserveApproval(input.proposalId, input.proposalHash, input.baseHead, input.exactFiles, now(), input.executionOwnerAdmission);
+     journalContext.authorizationId = reservation.authorizationId;
+     journalContext.reservationId = reservation.reservationId;
+     writeJournal("AUTHORIZATION_RESERVED");
+@@ -250,6 +267,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
+         reliabilityAudit = { ...reliabilityAudit, mutationStarted: true };
+         writeJournal("EXECUTING", { gateSequence: record.sequence });
+ 
++        assertOwnerExecution(reservation);
+         const callbackReport = await input.applyWhileExecuting(reservation.authorizationId);
+         reliabilityAudit = { ...reliabilityAudit, ...classifyAyasRegressionReport(callbackReport.testsRun, callbackReport.testResults) };
+         // Preserve the report checked here across the awaited boundary and phase hooks.
+diff --git a/src/lib/brain/autonomy/AyasExecutionJournal.ts b/src/lib/brain/autonomy/AyasExecutionJournal.ts
+index f588662d2071a2e3976b6a037204aa304a598b2a..bafa257a92726238b3e0c3dd8c70dc4cced3bfbc 100644
+--- a/src/lib/brain/autonomy/AyasExecutionJournal.ts
++++ b/src/lib/brain/autonomy/AyasExecutionJournal.ts
+@@ -1,3 +1,4 @@
++import { isAyasOwnerAdmissionShape, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ import crypto from "node:crypto";
+ import fs from "node:fs";
+ import path from "node:path";
+@@ -38,6 +39,9 @@ export interface AyasExecutionJournalEntry {
+   readonly proposalHash: string;
+   readonly authorizationId?: string;
+   readonly reservationId?: string;
++  readonly ownerApprovalDecisionId?: string;
++  readonly executionOwnerAdmission?: AyasOwnerAdmission;
++  readonly approvalOwnerAdmission?: AyasOwnerAdmission;
+   /** Audit only. Serialized records never restore an opaque capability handle. */
+   readonly capabilityLease?: AyasOwnerCapabilityLeaseAudit;
+   /** Bounded observer metadata; old entries remain valid and have UNKNOWN coverage. */
+@@ -110,6 +114,7 @@ function validate(raw: unknown, executionId: string): AyasExecutionJournalEntry
+     (record.mutationCompletedAt !== undefined && typeof record.mutationCompletedAt !== "string")) {
+     throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has an invalid deferred receipt`);
+   }
++  if ((record.ownerApprovalDecisionId !== undefined && typeof record.ownerApprovalDecisionId !== "string") || (record.executionOwnerAdmission !== undefined && !isAyasOwnerAdmissionShape(record.executionOwnerAdmission)) || (record.approvalOwnerAdmission !== undefined && !isAyasOwnerAdmissionShape(record.approvalOwnerAdmission))) throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", "invalid owner execution provenance");
+   if (record.capabilityLease !== undefined && !isAyasOwnerCapabilityLeaseAudit(record.capabilityLease)) {
+     throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has invalid capability audit metadata`);
+   }
+diff --git a/src/lib/brain/autonomy/AyasMicroBatch.ts b/src/lib/brain/autonomy/AyasMicroBatch.ts
+index 756ed8413a8ac5fe341462e2d2b799d906168f95..5044cd92850a36ea46007981344f686d61399b65 100644
+--- a/src/lib/brain/autonomy/AyasMicroBatch.ts
++++ b/src/lib/brain/autonomy/AyasMicroBatch.ts
+@@ -3,6 +3,7 @@ import fs from "node:fs";
+ import path from "node:path";
+ 
+ import { containsBrainSecret, redactBrainText } from "../BrainRedaction";
++import { ayasUsedOwnerActionRefs, checkAyasOwnerAdmissionBinding, sealAyasOwnerDecision, checkAyasOwnerExecutionAdmission, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ 
+ /**
+  * M18 — the immutable/versioned batch record and its durable
+@@ -56,6 +57,10 @@ export interface AyasMicroBatchDecisionRecord {
+   readonly reservedAt?: string;
+   readonly finalizedAt?: string;
+   readonly finalizationOutcome?: "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED";
++  /** Server-verified owner session that made this decision (`AyasOwnerApprovalAdmission`). Absent on decisions recorded before it existed; never added afterwards. */
++  readonly ownerAdmission?: AyasOwnerAdmission;
++  readonly ownerDecisionSeal?: string;
++  readonly executionOwnerAdmission?: AyasOwnerAdmission;
+ }
+ 
+ export interface AyasMicroBatchResultRecord {
+@@ -109,17 +114,23 @@ export function computeAyasMicroBatchHash(input: { readonly baseHead: string; re
+   return digest({ ...material, schemaVersion: ayasMicroBatchSchemaVersion });
+ }
+ 
+-export interface AyasMicroBatchStoreOptions { readonly rootDir?: string; }
++export interface AyasMicroBatchStoreOptions {
++  readonly rootDir?: string;
++  /** Owner actions open the store with this set: then every `decide()` needs an owner admission bound to that exact decision. */
++  readonly requireOwnerAdmission?: boolean;
++}
+ 
+ export interface AyasMicroBatchStoreHandle {
+   readonly stateFile: string;
++  readonly requiresOwnerAdmission?: boolean;
+   load(): AyasMicroBatchStoreState;
+   /** Creates batchVersion 1, or a new version of an existing batchId if `previousBatchId` is supplied (used when items are added/removed/rebased — Phase 17). */
+   createOrVersion(input: Omit<AyasMicroBatch, "schemaVersion" | "batchId" | "batchHash" | "lastUpdatedAt" | "status"> & { readonly batchId?: string }): AyasMicroBatch;
+   markReadyForReview(batchId: string, now: string): AyasMicroBatch;
+-  decide(batchId: string, decision: "APPROVE" | "REJECT", batchHashValue: string, now: string): { readonly batch: AyasMicroBatch; readonly decision: AyasMicroBatchDecisionRecord };
++  /** `ownerAdmission`, when given, must name exactly this batch, hash and decision, be fresh at `now` and unused; it is recorded with the decision. Required when the store was opened with `requireOwnerAdmission`. */
++  decide(batchId: string, decision: "APPROVE" | "REJECT", batchHashValue: string, now: string, ownerAdmission?: AyasOwnerAdmission): { readonly batch: AyasMicroBatch; readonly decision: AyasMicroBatchDecisionRecord };
+   markStale(batchId: string, now: string): AyasMicroBatch;
+-  reserveApproval(batchId: string, batchHashValue: string, baseHead: string, now: string): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
++  reserveApproval(batchId: string, batchHashValue: string, baseHead: string, now: string, executionOwnerAdmission?: AyasOwnerAdmission): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
+   finalizeApproval(reservationId: string, outcome: "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED", now: string): void;
+   recordResult(result: AyasMicroBatchResultRecord, status: "COMPLETED" | "FAILED" | "STALE"): void;
+ }
+@@ -130,6 +141,7 @@ function emptyState(): AyasMicroBatchStoreState {
+ 
+ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions = {}): AyasMicroBatchStoreHandle {
+   const root = path.resolve(options.rootDir ?? path.join(process.cwd(), "data", "brain"));
++  const requiresOwnerAdmission = options.requireOwnerAdmission === true || root === path.resolve(process.cwd(), "data", "brain");
+   const dir = path.join(root, "autonomy");
+   const stateFile = path.join(dir, "micro-batch-inbox.json");
+ 
+@@ -168,6 +180,7 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions =
+ 
+   return {
+     stateFile,
++    requiresOwnerAdmission,
+     load,
+     createOrVersion(input) {
+       const state = load();
+@@ -195,15 +208,22 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions =
+       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? updated : b) });
+       return updated;
+     },
+-    decide(batchId, decision, batchHashValue, now) {
++    decide(batchId, decision, batchHashValue, now, ownerAdmission) {
+       const state = load();
+       const existing = state.batches.find((b) => b.batchId === batchId);
+       if (!existing) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", "batch not found");
+       if (existing.status !== "READY_FOR_REVIEW") throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", `batch is not ready for review: ${existing.status}`);
+       if (existing.batchHash !== batchHashValue) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", "batchHash mismatch — the reviewed batch has changed, decision refused");
++      // Owner provenance — same rule as `AyasApprovalInboxStore.decide`.
++      if ((options.requireOwnerAdmission === true || (requiresOwnerAdmission && decision === "APPROVE")) && ownerAdmission === undefined) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_UNSAFE_APPROVAL", "owner admission is required for this decision");
++      if (ownerAdmission !== undefined) {
++        const binding = checkAyasOwnerAdmissionBinding(ownerAdmission, { subject: { kind: "micro-batch", batchId, batchHash: existing.batchHash, decision }, at: now, usedActionRefs: ayasUsedOwnerActionRefs(state.decisions) });
++        if (!binding.ok) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", `owner admission refused: ${binding.reason}`);
++      }
+       const nextStatus: AyasMicroBatchStatus = decision === "APPROVE" ? "APPROVED" : "ACCUMULATING";
+       const batch = { ...existing, status: nextStatus, lastUpdatedAt: now };
+-      const record: AyasMicroBatchDecisionRecord = { decisionId: `ayas-micro-batch-decision-${crypto.randomUUID()}`, batchId, batchHash: existing.batchHash, decision, decidedAt: now, ...(decision === "APPROVE" ? { authorizationId: `ayas-batch-auth-${crypto.randomUUID()}` } : {}) };
++      let record: AyasMicroBatchDecisionRecord = { decisionId: `ayas-micro-batch-decision-${crypto.randomUUID()}`, batchId, batchHash: existing.batchHash, decision, decidedAt: now, ...(decision === "APPROVE" ? { authorizationId: `ayas-batch-auth-${crypto.randomUUID()}` } : {}), ...(ownerAdmission !== undefined ? { ownerAdmission } : {}) };
++      if (ownerAdmission) record = { ...record, ownerDecisionSeal: sealAyasOwnerDecision(record) };
+       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? batch : b), decisions: [...state.decisions, record] });
+       return { batch, decision: record };
+     },
+@@ -218,7 +238,7 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions =
+       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? updated : b) });
+       return updated;
+     },
+-    reserveApproval(batchId, batchHashValue, baseHead, now) {
++    reserveApproval(batchId, batchHashValue, baseHead, now, executionOwnerAdmission) {
+       const state = load();
+       const batch = state.batches.find((b) => b.batchId === batchId);
+       const decision = [...state.decisions].reverse().find((d) => d.batchId === batchId && d.decision === "APPROVE");
+@@ -229,8 +249,11 @@ export function createAyasMicroBatchStore(options: AyasMicroBatchStoreOptions =
+         throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_INVALID", "approval scope or HEAD is stale");
+       }
+       if (!decision.authorizationId) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_UNSAFE_APPROVAL", "approval has no authorization");
++      if (requiresOwnerAdmission || decision.ownerAdmission || executionOwnerAdmission) {
++        if (!checkAyasOwnerExecutionAdmission(decision, executionOwnerAdmission, { kind: "micro-batch", batchId, batchHash: batchHashValue, decision: "EXECUTE" }, now, ayasUsedOwnerActionRefs(state.decisions))) throw new AyasMicroBatchStoreError("AYAS_MICRO_BATCH_UNSAFE_APPROVAL", "owner execution admission refused");
++      }
+       const reservationId = `ayas-micro-batch-reservation-${crypto.randomUUID()}`;
+-      const reserved = { ...decision, reservationId, reservedAt: now };
++      const reserved = { ...decision, reservationId, reservedAt: now, ...(executionOwnerAdmission ? { executionOwnerAdmission } : {}) };
+       const reservedBatch = { ...batch, status: "RESERVED" as const, lastUpdatedAt: now };
+       save({ ...state, batches: state.batches.map((b) => b.batchId === batchId ? reservedBatch : b), decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? reserved : d) });
+       return { reservationId, authorizationId: decision.authorizationId, decisionId: decision.decisionId };
+diff --git a/src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts b/src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts
+index 67e760ba9ad4c626d135ce47073bad5d264da41d..5fd3cbf51c47f6b5abdbb0952fc2223259bdf213 100644
+--- a/src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts
++++ b/src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts
+@@ -12,6 +12,7 @@ import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, ty
+ import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
+ import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
+ import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
++import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
+ 
+ /**
+@@ -60,6 +61,8 @@ export function defaultAyasMicroBatchApprovalDeps(): AyasMicroBatchApprovalDeps
+ }
+ 
+ export interface AyasMicroBatchApprovalDeps {
++  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
++  readonly executionOwnerAdmission?: AyasOwnerAdmission;
+   readonly repoRoot: string;
+   readonly gateRoot: string;
+   readonly remoteName?: string;
+@@ -82,6 +85,8 @@ export interface AyasMicroBatchApprovalDeps {
+   readonly onAfterCommitBeforePush?: () => void;
+   /** Test seam only. Production runs the one canonical post-push Graphify/health closure. */
+   readonly postPublicationClosure?: (expectedHead: string) => void;
++  /** The server-verified owner session behind this click; recorded with the APPROVE decision (`AyasOwnerApprovalAdmission`). The owner action always sets it and opens `batchStore` in its strict mode. */
++  readonly ownerAdmission?: AyasOwnerAdmission;
+ }
+ 
+ export type AyasMicroBatchApprovalOutcome =
+@@ -185,7 +190,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
+ 
+   // --- decide: one durable APPROVE decision, binding this exact batchHash + baseHead (AyasMicroBatch.decide's own existing guard) ---
+   const now = () => new Date().toISOString();
+-  batchStore.decide(batchId, "APPROVE", approvedBatchHash, now());
++  batchStore.decide(batchId, "APPROVE", approvedBatchHash, now(), deps.ownerAdmission);
+ 
+   /**
+    * Everything from Package C execution to the verified push, unchanged.
+@@ -208,6 +213,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
+       artifactStore,
+       onJournalPhase: deps.onJournalPhase,
+       deferredPublication: true,
++      executionOwnerAdmission: deps.executionOwnerAdmission,
+       onItemApplied: async (item) => {
+         const artifact = artifactStore.loadVerified(
+           batchStore.load().batches.find((b) => b.batchId === batchId)!.items.find((r) => r.microItemId === item.microItemId)!.patchArtifactId,
+diff --git a/src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts b/src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts
+index afe85a6b51c5b4f7019773bcb46125552527ba0e..faf87521f411f32908de9aa390b3cb2c8d7e24f1 100644
+--- a/src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts
++++ b/src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts
+@@ -1,3 +1,4 @@
++import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ import { execFileSync } from "node:child_process";
+ 
+ import type { AyasApprovalInboxHandle, AyasApprovalInboxState, AyasInboxProposal, AyasInboxProposalStatus, AyasInboxDecisionRecord, AyasInboxResultRecord } from "./AyasApprovalInboxStore";
+@@ -49,6 +50,7 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
+   const unsupported = (name: string) => (): never => { throw new AyasMicroBatchExecutionError("AYAS_MICRO_BATCH_ADAPTER_UNSUPPORTED", `${name} must never be called via the batch execution adapter — structurally unreachable`); };
+   return {
+     stateFile: batchStore.stateFile,
++    requiresOwnerAdmission: batchStore.requiresOwnerAdmission,
+     load(): AyasApprovalInboxState {
+       const raw = batchStore.load();
+       const batch = raw.batches.find((b) => b.batchId === batchId);
+@@ -67,6 +69,7 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
+         decision: decision.decision, decidedAt: decision.decidedAt, authorizationId: decision.authorizationId,
+         reservationId: decision.reservationId, reservedAt: decision.reservedAt, finalizedAt: decision.finalizedAt,
+         finalizationOutcome: decision.finalizationOutcome, evidenceFingerprint: decision.batchHash,
++        ownerAdmission: decision.ownerAdmission, ownerDecisionSeal: decision.ownerDecisionSeal, executionOwnerAdmission: decision.executionOwnerAdmission,
+       }] : [];
+       const results: readonly AyasInboxResultRecord[] = raw.results
+         .filter((result) => result.batchId === batchId)
+@@ -93,8 +96,8 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
+     decide: unsupported("decide") as AyasApprovalInboxHandle["decide"],
+     markStale: unsupported("markStale") as AyasApprovalInboxHandle["markStale"],
+     consumeApproval: unsupported("consumeApproval") as AyasApprovalInboxHandle["consumeApproval"],
+-    reserveApproval(_proposalId, proposalHashValue, baseHead, _exactFiles, now) {
+-      return batchStore.reserveApproval(batchId, proposalHashValue, baseHead, now);
++    reserveApproval(_proposalId, proposalHashValue, baseHead, _exactFiles, now, executionOwnerAdmission) {
++      return batchStore.reserveApproval(batchId, proposalHashValue, baseHead, now, executionOwnerAdmission);
+     },
+     finalizeApproval(reservationId, outcome, now) {
+       batchStore.finalizeApproval(reservationId, outcome, now);
+@@ -106,6 +109,8 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
+ }
+ 
+ export interface AyasMicroBatchExecutionDeps {
++  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
++  readonly executionOwnerAdmission?: AyasOwnerAdmission;
+   readonly repoRoot: string;
+   readonly gateRoot: string;
+   readonly batchStore?: AyasMicroBatchStoreHandle;
+@@ -171,6 +176,7 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
+ 
+   let receipt: AyasDeferredPublicationReceipt | undefined;
+   await daemon.executeApproved({
++    executionOwnerAdmission: deps.executionOwnerAdmission,
+     mutationKind: "micro-batch:v1",
+     proposalId: batch.batchId,
+     proposalHash: batch.batchHash,
+diff --git a/src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts b/src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f87eca2af58fb7db042c842e00a23f4ec439ffb5
+--- /dev/null
++++ b/src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts
+@@ -0,0 +1,266 @@
++/**
++ * Owner provenance for approval decisions (AYAS V1 security condition, owner
++ * decision 3 of 2026-10-08).
++ *
++ * Before this module a decision record carried what was decided and when, but
++ * not who decided it: `requireBrainSession` verified the cookie and returned
++ * nothing. An admission is the server's own record of that verification,
++ * attached to the exact decision it authorized:
++ *
++ * - who: the one principal the access gate admits (single-owner studio — the
++ *   holder of the owner passcode session; never a client-supplied name);
++ * - which login: a keyed, non-reversible reference to the verified cookie;
++ * - what: the exact proposal/batch id, its hash and the decision;
++ * - when: the session's verified issue/expiry and the verification time;
++ * - which operation: a server-generated action reference, usable once.
++ *
++ * It is built only from the verified cookie and server state, and sealed with
++ * the access key. Nothing here grants authority: the existing session gate,
++ * stores, hashes and firewalls stay the authority. This adds the missing
++ * attribution and makes the owner actions fail closed when it is missing.
++ *
++ * No approval system of its own: the stores record an admission next to the
++ * decision they already make, and owner actions refuse to decide without one.
++ * Historical decisions are never rewritten; a decision recorded before this
++ * existed simply has no admission and stays unattributed.
++ */
++
++import crypto from "node:crypto";
++
++import { keyedAuditDigest, readVerifiedSessionClaims, resolveAccessGate, type AccessGateConfig } from "../../auth/accessGate";
++import type { AyasInboxDecisionRecord } from "./AyasApprovalInboxStore";
++
++export const AYAS_OWNER_ADMISSION_SCHEMA = "ayas-owner-admission:v1";
++export const AYAS_OWNER_ADMISSION_AUTH_METHOD = "AYAS_OWNER_SESSION_HMAC_V1";
++/** A decision must be recorded within this long after its session was verified. */
++export const AYAS_OWNER_ADMISSION_MAX_AGE_MS = 5 * 60 * 1000;
++const CLOCK_SKEW_MS = 60 * 1000;
++const SESSION_REFERENCE_DOMAIN = "ayas-owner-session-reference:v1";
++const SEAL_DOMAIN = "ayas-owner-admission-seal:v1";
++
++export type AyasOwnerAdmissionAction =
++  | "decideAyasApproval"
++  | "executeAyasApprovedProposal"
++  | "executeAyasApprovedMicroBatch"
++  | "batchOnaylaVeUygula"
++  | "proposalOnaylaVeUygula"
++  | "ayasOwnerApprovalDecision";
++
++export type AyasOwnerAdmissionSubject =
++  | { readonly kind: "proposal"; readonly proposalId: string; readonly proposalHash: string; readonly decision: "APPROVE" | "REJECT" | "LATER" | "EXECUTE" }
++  | { readonly kind: "micro-batch"; readonly batchId: string; readonly batchHash: string; readonly decision: "APPROVE" | "REJECT" | "EXECUTE" };
++
++export interface AyasOwnerAdmission {
++  readonly schema: typeof AYAS_OWNER_ADMISSION_SCHEMA;
++  /** The single principal the access gate admits. Not a named person. */
++  readonly principal: "OWNER";
++  readonly authMethod: typeof AYAS_OWNER_ADMISSION_AUTH_METHOD;
++  readonly action: AyasOwnerAdmissionAction;
++  /** Server-generated, one per owner action call; a store accepts it once. */
++  readonly actionRef: string;
++  /** Keyed digest of the verified cookie: identifies the login, is not a credential. */
++  readonly sessionRef: string;
++  readonly sessionIssuedAt: string;
++  readonly sessionExpiresAt: string;
++  readonly verifiedAt: string;
++  readonly subject: AyasOwnerAdmissionSubject;
++  /** Keyed digest over every field above; verifiable later with the access key. */
++  readonly seal: string;
++}
++
++export class AyasOwnerAdmissionError extends Error {
++  constructor(readonly code: "OWNER_ADMISSION_REQUIRED" | "OWNER_ADMISSION_GATE_UNAVAILABLE" | "OWNER_ADMISSION_INVALID_SUBJECT") {
++    // The message is the code: server actions surface `error.message`, and the
++    // code is the only thing the owner-facing label lookup can match.
++    super(code);
++    this.name = "AyasOwnerAdmissionError";
++    this.stack = undefined;
++  }
++}
++
++const ACTIONS: ReadonlySet<string> = new Set<AyasOwnerAdmissionAction>(["decideAyasApproval", "executeAyasApprovedProposal", "executeAyasApprovedMicroBatch", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision"]);
++const PROPOSAL_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "REJECT", "LATER", "EXECUTE"]);
++const BATCH_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "REJECT", "EXECUTE"]);
++const HEX64 = /^[0-9a-f]{64}$/;
++const ACTION_REF = /^ayas-owner-action-[0-9a-f-]{36}$/;
++const nonEmpty = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0 && value.length <= 200;
++const isIso = (value: unknown): value is string => typeof value === "string" && Number.isFinite(Date.parse(value)) && new Date(Date.parse(value)).toISOString() === value;
++
++/** Stable JSON with sorted keys, so a seal never depends on property order. */
++function canonicalJson(value: unknown): string {
++  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
++  if (value && typeof value === "object") {
++    return `{${Object.keys(value as Record<string, unknown>).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`).join(",")}}`;
++  }
++  return JSON.stringify(value);
++}
++
++function normalizeSubject(subject: AyasOwnerAdmissionSubject): AyasOwnerAdmissionSubject | null {
++  if (!subject || typeof subject !== "object") return null;
++  if (subject.kind === "proposal" && nonEmpty(subject.proposalId) && nonEmpty(subject.proposalHash) && PROPOSAL_DECISIONS.has(subject.decision)) {
++    return { kind: "proposal", proposalId: subject.proposalId, proposalHash: subject.proposalHash, decision: subject.decision };
++  }
++  if (subject.kind === "micro-batch" && nonEmpty(subject.batchId) && nonEmpty(subject.batchHash) && BATCH_DECISIONS.has(subject.decision)) {
++    return { kind: "micro-batch", batchId: subject.batchId, batchHash: subject.batchHash, decision: subject.decision };
++  }
++  return null;
++}
++
++/**
++ * Builds the admission for one owner action from the verified cookie. Fails
++ * closed: a gate that is not enforced (including local dev with no access key)
++ * or a cookie that does not verify yields no admission, so no decision.
++ */
++export async function admitAyasOwnerApproval(input: {
++  readonly gate: AccessGateConfig;
++  readonly token: string | undefined;
++  readonly action: AyasOwnerAdmissionAction;
++  readonly subject: AyasOwnerAdmissionSubject;
++  readonly now?: number;
++}): Promise<AyasOwnerAdmission> {
++  if (input.gate.mode !== "enforced" || typeof input.gate.key !== "string") throw new AyasOwnerAdmissionError("OWNER_ADMISSION_GATE_UNAVAILABLE");
++  if (!ACTIONS.has(input.action)) throw new AyasOwnerAdmissionError("OWNER_ADMISSION_INVALID_SUBJECT");
++  const subject = normalizeSubject(input.subject);
++  if (!subject) throw new AyasOwnerAdmissionError("OWNER_ADMISSION_INVALID_SUBJECT");
++  const now = input.now ?? Date.now();
++  const claims = await readVerifiedSessionClaims(input.token, input.gate.key, now);
++  if (!claims?.nonce) throw new AyasOwnerAdmissionError("OWNER_ADMISSION_REQUIRED");
++  const unsealed: Omit<AyasOwnerAdmission, "seal"> = {
++    schema: AYAS_OWNER_ADMISSION_SCHEMA,
++    principal: "OWNER",
++    authMethod: AYAS_OWNER_ADMISSION_AUTH_METHOD,
++    action: input.action,
++    actionRef: `ayas-owner-action-${crypto.randomUUID()}`,
++    sessionRef: await keyedAuditDigest(SESSION_REFERENCE_DOMAIN, input.token as string, input.gate.key),
++    sessionIssuedAt: new Date(claims.issuedAt * 1000).toISOString(),
++    sessionExpiresAt: new Date(claims.expiresAt * 1000).toISOString(),
++    verifiedAt: new Date(now).toISOString(),
++    subject,
++  };
++  return { ...unsealed, seal: await keyedAuditDigest(SEAL_DOMAIN, canonicalJson(unsealed), input.gate.key) };
++}
++
++/** True when the seal matches under `key`, i.e. the record was written by something holding the access key and was not edited since. */
++export function verifyAyasOwnerAdmissionSealSync(admission: unknown, key: string | undefined = resolveAccessGate().key): admission is AyasOwnerAdmission {
++  if (!key || key.length < 12 || !isAyasOwnerAdmissionShape(admission)) return false;
++  const { seal, ...unsealed } = admission;
++  const expected = crypto.createHmac("sha256", key).update(SEAL_DOMAIN + "\n" + canonicalJson(unsealed)).digest("hex");
++  return crypto.timingSafeEqual(Buffer.from(seal), Buffer.from(expected));
++}
++
++export async function verifyAyasOwnerAdmissionSeal(admission: AyasOwnerAdmission, key: string): Promise<boolean> {
++  return verifyAyasOwnerAdmissionSealSync(admission, key);
++}
++
++/** Key-free structural check: every field present and well formed. */
++export function isAyasOwnerAdmissionShape(value: unknown): value is AyasOwnerAdmission {
++  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
++  const a = value as Record<string, unknown>;
++  const keys = Object.keys(a).sort().join(",");
++  if (keys !== "action,actionRef,authMethod,principal,schema,seal,sessionExpiresAt,sessionIssuedAt,sessionRef,subject,verifiedAt") return false;
++  return a.schema === AYAS_OWNER_ADMISSION_SCHEMA
++    && a.principal === "OWNER"
++    && a.authMethod === AYAS_OWNER_ADMISSION_AUTH_METHOD
++    && typeof a.action === "string" && ACTIONS.has(a.action)
++    && typeof a.actionRef === "string" && ACTION_REF.test(a.actionRef)
++    && typeof a.sessionRef === "string" && HEX64.test(a.sessionRef)
++    && typeof a.seal === "string" && HEX64.test(a.seal)
++    && isIso(a.sessionIssuedAt) && isIso(a.sessionExpiresAt) && isIso(a.verifiedAt)
++    && Date.parse(a.sessionExpiresAt as string) > Date.parse(a.verifiedAt as string)
++    && normalizeSubject(a.subject as AyasOwnerAdmissionSubject) !== null
++    && canonicalJson(normalizeSubject(a.subject as AyasOwnerAdmissionSubject)) === canonicalJson(a.subject);
++}
++
++export type AyasOwnerAdmissionBindingResult = { readonly ok: true } | { readonly ok: false; readonly reason: "INVALID_SEAL" | "INVALID_ACTION" | "MALFORMED" | "SUBJECT_MISMATCH" | "ACTION_REF_REUSED" | "STALE" | "FUTURE" };
++
++/**
++ * Cryptographic check a store runs before recording: the admission is well formed,
++ * names exactly this subject, has not been used before, and is fresh at the
++ * decision time `at`.
++ */
++export function checkAyasOwnerAdmissionBinding(admission: unknown, expected: {
++  readonly subject: AyasOwnerAdmissionSubject;
++  readonly at: string;
++  readonly usedActionRefs: ReadonlySet<string>;
++}): AyasOwnerAdmissionBindingResult {
++  if (!isAyasOwnerAdmissionShape(admission)) return { ok: false, reason: "MALFORMED" };
++  if (!verifyAyasOwnerAdmissionSealSync(admission)) return { ok: false, reason: "INVALID_SEAL" };
++  if (!isAyasOwnerAdmissionActionCompatible(admission)) return { ok: false, reason: "INVALID_ACTION" };
++  const subject = normalizeSubject(expected.subject);
++  if (!subject || canonicalJson(subject) !== canonicalJson(admission.subject)) return { ok: false, reason: "SUBJECT_MISMATCH" };
++  if (expected.usedActionRefs.has(admission.actionRef)) return { ok: false, reason: "ACTION_REF_REUSED" };
++  const at = Date.parse(expected.at); const verified = Date.parse(admission.verifiedAt);
++  if (!Number.isFinite(at)) return { ok: false, reason: "MALFORMED" };
++  if (verified > at + CLOCK_SKEW_MS) return { ok: false, reason: "FUTURE" };
++  if (at - verified > AYAS_OWNER_ADMISSION_MAX_AGE_MS || Date.parse(admission.sessionExpiresAt) <= at) return { ok: false, reason: "STALE" };
++  return { ok: true };
++}
++
++/** Every action reference already recorded in a store's decisions. */
++export function ayasUsedOwnerActionRefs(decisions: readonly { readonly ownerAdmission?: AyasOwnerAdmission; readonly executionOwnerAdmission?: AyasOwnerAdmission }[]): ReadonlySet<string> {
++  return new Set(decisions.flatMap((decision) => [decision.ownerAdmission?.actionRef, decision.executionOwnerAdmission?.actionRef]).filter((ref): ref is string => typeof ref === "string"));
++}
++
++/**
++ * True only when an APPROVE decision carries an admission for exactly this
++ * proposal and hash, recorded within the freshness window. A decision made
++ * before admissions existed is never treated as attributed.
++ */
++export function isAyasApprovalDecisionOwnerAdmitted(
++  decision: Pick<AyasInboxDecisionRecord, "decision" | "decidedAt" | "proposalId" | "proposalHash" | "ownerAdmission" | "decisionId" | "authorizationId" | "ownerDecisionSeal"> | undefined,
++  proposal: { readonly proposalId: string; readonly proposalHash: string },
++): boolean {
++  if (!decision || decision.decision !== "APPROVE" || decision.proposalId !== proposal.proposalId || decision.proposalHash !== proposal.proposalHash) return false;
++  return verifyAyasOwnerDecisionSeal(decision) && checkAyasOwnerAdmissionBinding(decision.ownerAdmission, {
++    subject: { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: "APPROVE" },
++    at: decision.decidedAt,
++    usedActionRefs: new Set(),
++  }).ok;
++}
++
++const RESERVED_REASON_PREFIXES = ["owner-approved:", "owner-rejected:", "ayas-internal:"] as const;
++
++/**
++ * Provenance prefixes only server code writes into a decision `reason` (one of
++ * them is machine-matched by the resume worker). A reason typed by a client
++ * must never carry one.
++ */
++export function isAyasReservedDecisionReason(reason: unknown): boolean {
++  if (typeof reason !== "string") return false;
++  const normalized = reason.normalize("NFKC").trim().toLowerCase();
++  return RESERVED_REASON_PREFIXES.some((prefix) => normalized.startsWith(prefix));
++}
++
++/** A verified action must match its exact subject and decision. */
++export function isAyasOwnerAdmissionActionCompatible(a: AyasOwnerAdmission): boolean {
++  if (a.subject.kind === "micro-batch") return a.subject.decision === "EXECUTE" ? a.action === "executeAyasApprovedMicroBatch" : a.action === "batchOnaylaVeUygula";
++  if (a.subject.decision === "EXECUTE") return a.action === "executeAyasApprovedProposal";
++  if (a.action === "decideAyasApproval") return true;
++  if (a.action === "ayasOwnerApprovalDecision") return a.subject.decision !== "LATER";
++  return a.action === "proposalOnaylaVeUygula" && a.subject.decision === "APPROVE";
++}
++
++type OwnerDecision = { readonly decisionId: string; readonly authorizationId?: string; readonly decidedAt: string; readonly ownerAdmission?: AyasOwnerAdmission; readonly ownerDecisionSeal?: string };
++function ownerDecisionMaterial(d: OwnerDecision): string {
++  return canonicalJson({ decisionId: d.decisionId, authorizationId: d.authorizationId ?? null, decidedAt: d.decidedAt, ownerAdmission: d.ownerAdmission });
++}
++export function sealAyasOwnerDecision(d: OwnerDecision): string {
++  const key = resolveAccessGate().key;
++  if (!key || !verifyAyasOwnerAdmissionSealSync(d.ownerAdmission, key)) throw new AyasOwnerAdmissionError("OWNER_ADMISSION_REQUIRED");
++  return crypto.createHmac("sha256", key).update("ayas-owner-decision:v1\n" + ownerDecisionMaterial(d)).digest("hex");
++}
++export function verifyAyasOwnerDecisionSeal(d: OwnerDecision): boolean {
++  if (typeof d.ownerDecisionSeal !== "string" || !HEX64.test(d.ownerDecisionSeal) || !verifyAyasOwnerAdmissionSealSync(d.ownerAdmission)) return false;
++  const expected = sealAyasOwnerDecision(d);
++  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(d.ownerDecisionSeal));
++}
++
++export function checkAyasOwnerExecutionAdmission(d: OwnerDecision, admission: unknown, subject: AyasOwnerAdmissionSubject, at: string, usedActionRefs: ReadonlySet<string>): boolean {
++  if (!verifyAyasOwnerDecisionSeal(d) || !d.ownerAdmission || d.ownerAdmission.subject.decision !== "APPROVE" || !isAyasOwnerAdmissionShape(admission)) return false;
++  const approvalSubject = { ...subject, decision: "APPROVE" } as AyasOwnerAdmissionSubject;
++  if (!checkAyasOwnerAdmissionBinding(d.ownerAdmission, { subject: approvalSubject, at: d.decidedAt, usedActionRefs: new Set() }).ok) return false;
++  // Every execution is a distinct, freshly verified action. Durable APPROVE is consent only.
++  const action = subject.kind === "micro-batch" ? "executeAyasApprovedMicroBatch" : "executeAyasApprovedProposal";
++  if (admission.action !== action || admission.subject.decision !== "EXECUTE") return false;
++  return checkAyasOwnerAdmissionBinding(admission, { subject, at, usedActionRefs }).ok;
++}
+diff --git a/src/lib/brain/autonomy/AyasOwnerApprovalResume.ts b/src/lib/brain/autonomy/AyasOwnerApprovalResume.ts
+index c0bf8b8bb3d3f4bd6da58aaface6040de93b4982..27a79b839b162bcbfe4ba2722dd4ccd009600180 100644
+--- a/src/lib/brain/autonomy/AyasOwnerApprovalResume.ts
++++ b/src/lib/brain/autonomy/AyasOwnerApprovalResume.ts
+@@ -1,32 +1,14 @@
+-/**
+- * The narrow reconciler that gives a durably owner-approved proposal a real
+- * path to execution once live autonomous execution is later enabled — Step
+- * 6 of the durable one-click owner-approval correction. Deliberately the
+- * smallest thing that can do this:
+- *
+- * - It discovers nothing (never calls `AyasDiscoveryRegistry`/`AyasNovelPatchDiscovery`).
+- * - It approves nothing (never calls `inbox.decide()` — an owner APPROVE was
+- *   already durably recorded earlier, by `AyasAutonomousExecutionGate.decideAyasOwnerApproval`'s
+- *   `APPROVED_PENDING_EXECUTION` path; this module only ever CONSUMES that).
+- * - It never reclassifies risk or expands scope.
+- * - It only ever touches a proposal whose APPROVE decision carries the
+- *   `AyasOwnerApprovalProvenance` marker — a proposal approved through the
+- *   older, separate manual "ONAYLA" flow (`decideAyasApproval`) is left
+- *   completely alone, exactly as before this module existed (that flow's own
+- *   manual "YÜRÜT" button is still how a human resumes those).
+- * - It reuses the SAME canonical execute→Graphify→validate→stage→commit→push
+- *   pipeline every other single-click path already uses
+- *   (`AyasProposalApprovalService.publishAlreadyOwnerApprovedAyasProposal`)
+- *   — no parallel mutation engine.
+- *
+- * Deliberately kept OUT of `ayas-discovery-daemon.ts`'s tick (a daemon that
+- * discovers/reviews candidates must never also be the thing that executes
+- * them) — it has its own entrypoint, `scripts/ayas-owner-approval-resume.ts`.
++/** Manual-only resume of one exact durably approved proposal.
++ * Historical consent never supplies a current session or execution action.
++ * A fresh verified EXECUTE, its exact subject and an explicit server-side owner
++ * action are required. The unattended CLI supplies none and returns no attempts.
++ * Existing publication machinery and exact-patch exclusion remain unchanged.
+  */
+ 
+ import { publishAlreadyOwnerApprovedAyasProposal, AyasProposalApprovalError, type AyasProposalApprovalDeps, type AyasProposalApprovalOutcome } from "./AyasProposalApprovalService";
+ import { isAyasAutonomousExecutionEnabled } from "./AyasAutonomousExecutionGate";
+ import { isAyasOwnerApprovedDecisionReason } from "./AyasOwnerApprovalProvenance";
++import { isAyasApprovalDecisionOwnerAdmitted, checkAyasOwnerExecutionAdmission } from "./AyasOwnerApprovalAdmission";
+ 
+ export interface AyasOwnerApprovalResumeAttempt {
+   readonly proposalId: string;
+@@ -35,27 +17,25 @@ export interface AyasOwnerApprovalResumeAttempt {
+ 
+ export interface AyasOwnerApprovalResumeDeps extends AyasProposalApprovalDeps {
+   readonly envOverride?: Record<string, string | undefined>;
++  /** A server-side manual owner action, targeting exactly one subject. */
++  readonly explicitManualOwnerAction?: boolean;
+ }
+ 
+-/**
+- * Finds every proposal that is durably `APPROVED` via the owner-approval
+- * model and still awaiting execution, and publishes each one through the
+- * canonical pipeline — in encounter order, sequentially (never
+- * concurrently: each publish can move real HEAD, so the next one's own
+- * fresh staleness check is what decides whether it can still proceed, not
+- * this loop). Returns `[]` without reading or touching anything else when
+- * live execution is not enabled — REJECT/DEFER/PENDING proposals are never
+- * in scope here at all.
+- */
++/** Returns no attempts before any state access unless manual session-bound execution is supplied. */
+ export async function resumeAyasOwnerApprovedProposals(deps: AyasOwnerApprovalResumeDeps): Promise<readonly AyasOwnerApprovalResumeAttempt[]> {
+   if (!isAyasAutonomousExecutionEnabled(deps.envOverride)) return [];
++  if (deps.explicitManualOwnerAction !== true || !deps.executionOwnerAdmission) return [];
+ 
+   const state = deps.inbox.load();
+   const eligible = state.proposals.filter((proposal) => {
+     if (proposal.status !== "APPROVED") return false;
+     if (proposal.exactPatchSafetyProof) return false; // local governed execution only; this worker publishes to the remote
+     const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposal.proposalId && d.decision === "APPROVE");
+-    return isAyasOwnerApprovedDecisionReason(decision?.reason);
++    // The reason prefix says which path recorded the APPROVE; only the
++    // admission proves a verified owner session made it. Both are required, so
++    // an unattributed APPROVE (older, or written outside an owner action) is
++    // never published from here.
++    return isAyasOwnerApprovedDecisionReason(decision?.reason) && isAyasApprovalDecisionOwnerAdmitted(decision, proposal) && !!decision && checkAyasOwnerExecutionAdmission(decision, deps.executionOwnerAdmission, { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: "EXECUTE" }, new Date().toISOString(), new Set(state.decisions.flatMap(d => [d.ownerAdmission?.actionRef, d.executionOwnerAdmission?.actionRef]).filter((v): v is string => !!v)));
+   });
+ 
+   const attempts: AyasOwnerApprovalResumeAttempt[] = [];
+diff --git a/src/lib/brain/autonomy/AyasProposalApprovalService.ts b/src/lib/brain/autonomy/AyasProposalApprovalService.ts
+index c6e06fa4cea8314afd65d9cf31e961cf7ed6e731..e25df4955a83ee226d480b6c6f5b137b2675d697 100644
+--- a/src/lib/brain/autonomy/AyasProposalApprovalService.ts
++++ b/src/lib/brain/autonomy/AyasProposalApprovalService.ts
+@@ -17,6 +17,7 @@ import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
+ import { ayasTraceErrorCode, startAyasTrace, type AyasTraceEvidenceSink, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStore } from "../../ayas/trace/AyasUnifiedTrace";
+ import { createAyasOperationEvidenceStore, createAyasTraceEvidenceSink } from "../../ayas/observability/AyasOperationEvidenceStore";
+ import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
++import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ 
+ /**
+  * M20.7 — "ONAYLA VE UYGULA": the individual-PRIORITY_SAFE-proposal
+@@ -59,6 +60,8 @@ export function defaultAyasProposalApprovalDeps(): AyasProposalApprovalDeps {
+ }
+ 
+ export interface AyasProposalApprovalDeps {
++  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
++  readonly executionOwnerAdmission?: AyasOwnerAdmission;
+   readonly repoRoot: string;
+   readonly gateRoot: string;
+   readonly remoteName?: string;
+@@ -86,6 +89,8 @@ export interface AyasProposalApprovalDeps {
+   readonly onAfterCommitBeforePush?: () => void;
+   /** Test seam only. Production runs the one canonical post-push Graphify/health closure. */
+   readonly postPublicationClosure?: (expectedHead: string) => void;
++  /** The server-verified owner session behind this click; recorded with the decision (`AyasOwnerApprovalAdmission`). Owner actions always set it and open `inbox` in its strict mode. */
++  readonly ownerAdmission?: AyasOwnerAdmission;
+ }
+ 
+ export type AyasProposalApprovalOutcome =
+@@ -182,7 +187,7 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
+     loadAyasProposalForPublish(proposalId, approvedProposalHash, "PENDING", deps);
+ 
+     // --- decide: one durable APPROVE decision ---
+-    deps.inbox.decide(proposalId, "APPROVE", new Date().toISOString());
++    deps.inbox.decide(proposalId, "APPROVE", new Date().toISOString(), undefined, deps.ownerAdmission);
+     approved = deps.inbox.load().proposals.find((p) => p.proposalId === proposalId)!;
+     if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal did not reach an approval-ready state after decide");
+   } catch (error) {
+@@ -359,7 +364,7 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
+ 
+   // --- Package C execution (unmodified AyasAutonomyDaemon.executeApproved, via the existing AyasProposalExecutionService) ---
+   try {
+-    deferredReceipt = await executeAyasApprovedProposalWith(approved.proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase, deferredPublication: true });
++    deferredReceipt = await executeAyasApprovedProposalWith(approved.proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase, deferredPublication: true, executionOwnerAdmission: deps.executionOwnerAdmission });
+     if (!deferredReceipt) throw new Error("AYAS_DEFERRED_RECEIPT_MISSING");
+   } catch (error) {
+     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
+diff --git a/src/lib/brain/autonomy/AyasProposalExecutionService.ts b/src/lib/brain/autonomy/AyasProposalExecutionService.ts
+index d9d790feece1411b82b26bbfeae39d778ed07130..1c96f950120ec3e818b32767c59a2be65ccae494 100644
+--- a/src/lib/brain/autonomy/AyasProposalExecutionService.ts
++++ b/src/lib/brain/autonomy/AyasProposalExecutionService.ts
+@@ -1,3 +1,4 @@
++import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
+ import { execFileSync } from "node:child_process";
+ import path from "node:path";
+ 
+@@ -35,6 +36,8 @@ export class AyasProposalExecutionError extends Error {
+ }
+ 
+ export interface AyasProposalExecutionDeps {
++  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
++  readonly executionOwnerAdmission?: AyasOwnerAdmission;
+   readonly repoRoot: string;
+   readonly gateRoot: string;
+   readonly inbox: AyasApprovalInboxHandle;
+@@ -94,6 +97,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps:
+     exactPatchArtifactStore: deps.patchArtifactStore, exactExperimentStore: deps.exactExperimentStore, onJournalPhase: deps.onJournalPhase });
+   let receipt: AyasDeferredPublicationReceipt | undefined;
+   await daemon.executeApproved({
++    executionOwnerAdmission: deps.executionOwnerAdmission,
+     proposalId: proposal.proposalId,
+     proposalHash: proposal.proposalHash,
+     mutationKind: proposal.mutationKind,

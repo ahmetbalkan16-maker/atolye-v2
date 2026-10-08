@@ -1,0 +1,36 @@
+PASS 1: a verified owner session yields a complete, sealed admission
+PASS 2: the admission holds neither the cookie nor the key, and its session reference is not the cookie signature
+PASS 3: one login keeps one session reference; another login gets another; every call gets its own action reference
+PASS 4: local dev with no access key yields no admission (fail closed, unlike read-only actions)
+PASS 5: a misconfigured gate yields no admission
+PASS 6: missing, malformed, foreign, expired, future and tampered sessions yield no admission
+PASS 7: an empty or unknown subject or action yields no admission
+PASS 8: the seal fails under another key and after any field is edited
+PASS 9: a client-shaped admission with extra or missing fields is malformed
+PASS 10: an owner-action store refuses APPROVE, REJECT and LATER without an admission and writes nothing
+PASS 11: an admitted APPROVE is recorded with the exact admission, and its seal still verifies from disk
+PASS 12: an admission for another proposal, decision or hash is refused
+PASS 13: replay: one admission is accepted once, even for a decision the status still allows
+PASS 14: an admission older than the window, or from the future, is refused
+PASS 15: an explicitly isolated legacy fixture stays unattributed
+PASS 16: earlier unattributed decisions stay byte-identical; nothing is added to them later
+PASS 17: micro-batch: strict store refuses without admission; admitted APPROVE is recorded; mismatch and replay are refused
+PASS 18: owner-approval gate on an owner-action store: no admission, no decision; admitted REJECT and APPROVE are attributed
+PASS 19: one-click publish on an owner-action store refuses before minting any decision when the admission is missing
+PASS 20: resume never publishes an unattributed APPROVE, even one carrying the owner-approved reason
+PASS 21: durable consent cannot automatically resume; a fresh exact manual action is required
+PASS 22: a typed reason cannot pose as a server provenance marker
+PASS 23: real action guard: verified cookie → admission; no cookie, foreign cookie, dev mode or misconfigured gate → refused
+PASS 24: every approval-capable action keeps the session guard first, then derives its own admission and decides only through an owner-action store
+PASS 25: every service decision an owner action reaches passes the admission on to the store
+PASS 26: old signed cookies remain valid for general access but require login for privileged admission
+PASS 27: forged admission cannot mutate an inbox even when its shape and subject match
+PASS 28: session expiry is checked at decision time with zero persistent effects
+PASS 29: different verified sessions preserve approval/execution provenance and exact authorization/reservation links
+PASS 30: missing verification key refuses before decision and default production stores remain strict
+PASS 31: fresh manual resume refuses historical APPROVE action replay and expired/cross-subject EXECUTE
+PASS 32: strict daemon authenticates before journal/reservation and records both verified sessions on real isolated execution
+PASS 33: strict daemon rechecks session expiry and durable provenance after asynchronous gate phases before mutation
+PASS 34: strict micro-batch adapter preserves separate approval/execute provenance and refuses approval replay
+PASS 35: production defaults preserve unattributed internal REJECT/LATER while APPROVE stays fail-closed
+AYAS owner approval admission smoke: PASS (35 scenarios)

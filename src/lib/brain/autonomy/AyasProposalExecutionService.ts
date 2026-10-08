@@ -1,3 +1,4 @@
+import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
@@ -35,6 +36,8 @@ export class AyasProposalExecutionError extends Error {
 }
 
 export interface AyasProposalExecutionDeps {
+  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
+  readonly executionOwnerAdmission?: AyasOwnerAdmission;
   readonly repoRoot: string;
   readonly gateRoot: string;
   readonly inbox: AyasApprovalInboxHandle;
@@ -94,6 +97,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
     exactPatchArtifactStore: deps.patchArtifactStore, exactExperimentStore: deps.exactExperimentStore, onJournalPhase: deps.onJournalPhase });
   let receipt: AyasDeferredPublicationReceipt | undefined;
   await daemon.executeApproved({
+    executionOwnerAdmission: deps.executionOwnerAdmission,
     proposalId: proposal.proposalId,
     proposalHash: proposal.proposalHash,
     mutationKind: proposal.mutationKind,

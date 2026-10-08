@@ -17,6 +17,7 @@ import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 import { ayasTraceErrorCode, startAyasTrace, type AyasTraceEvidenceSink, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStore } from "../../ayas/trace/AyasUnifiedTrace";
 import { createAyasOperationEvidenceStore, createAyasTraceEvidenceSink } from "../../ayas/observability/AyasOperationEvidenceStore";
 import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
+import type { AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA": the individual-PRIORITY_SAFE-proposal
@@ -59,6 +60,8 @@ export function defaultAyasProposalApprovalDeps(): AyasProposalApprovalDeps {
 }
 
 export interface AyasProposalApprovalDeps {
+  /** Fresh verified owner action for this exact execution; never restored from durable consent. */
+  readonly executionOwnerAdmission?: AyasOwnerAdmission;
   readonly repoRoot: string;
   readonly gateRoot: string;
   readonly remoteName?: string;
@@ -86,6 +89,8 @@ export interface AyasProposalApprovalDeps {
   readonly onAfterCommitBeforePush?: () => void;
   /** Test seam only. Production runs the one canonical post-push Graphify/health closure. */
   readonly postPublicationClosure?: (expectedHead: string) => void;
+  /** The server-verified owner session behind this click; recorded with the decision (`AyasOwnerApprovalAdmission`). Owner actions always set it and open `inbox` in its strict mode. */
+  readonly ownerAdmission?: AyasOwnerAdmission;
 }
 
 export type AyasProposalApprovalOutcome =
@@ -182,7 +187,7 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
     loadAyasProposalForPublish(proposalId, approvedProposalHash, "PENDING", deps);
 
     // --- decide: one durable APPROVE decision ---
-    deps.inbox.decide(proposalId, "APPROVE", new Date().toISOString());
+    deps.inbox.decide(proposalId, "APPROVE", new Date().toISOString(), undefined, deps.ownerAdmission);
     approved = deps.inbox.load().proposals.find((p) => p.proposalId === proposalId)!;
     if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal did not reach an approval-ready state after decide");
   } catch (error) {
@@ -359,7 +364,7 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
 
   // --- Package C execution (unmodified AyasAutonomyDaemon.executeApproved, via the existing AyasProposalExecutionService) ---
   try {
-    deferredReceipt = await executeAyasApprovedProposalWith(approved.proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase, deferredPublication: true });
+    deferredReceipt = await executeAyasApprovedProposalWith(approved.proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase, deferredPublication: true, executionOwnerAdmission: deps.executionOwnerAdmission });
     if (!deferredReceipt) throw new Error("AYAS_DEFERRED_RECEIPT_MISSING");
   } catch (error) {
     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";

@@ -10,6 +10,7 @@ import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
 import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
 import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
+import { ayasUsedOwnerActionRefs, checkAyasOwnerAdmissionBinding, sealAyasOwnerDecision, checkAyasOwnerExecutionAdmission, type AyasOwnerAdmission } from "./AyasOwnerApprovalAdmission";
 
 export const ayasApprovalInboxSchemaVersion = "1" as const;
 export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
@@ -89,6 +90,10 @@ export interface AyasInboxDecisionRecord {
   readonly reservedAt?: string;
   readonly finalizedAt?: string;
   readonly finalizationOutcome?: AyasInboxReservationOutcome;
+  /** Server-verified owner session that made this decision (`AyasOwnerApprovalAdmission`). Absent on decisions recorded before it existed and on AYAS's own internal REJECT/LATER; never added afterwards. */
+  readonly ownerAdmission?: AyasOwnerAdmission;
+  readonly ownerDecisionSeal?: string;
+  readonly executionOwnerAdmission?: AyasOwnerAdmission;
 }
 
 export interface AyasInboxResultRecord {
@@ -160,7 +165,11 @@ function proposalHash(input: Record<string, unknown>): string {
   return digest({ ...material, schemaVersion: ayasApprovalInboxSchemaVersion });
 }
 
-export interface AyasApprovalInboxStoreOptions { readonly rootDir?: string; readonly repoRoot?: string; readonly artifactStore?: AyasPatchArtifactStore; readonly experimentStore?: AyasResearchExperimentStore; }
+export interface AyasApprovalInboxStoreOptions {
+  readonly rootDir?: string; readonly repoRoot?: string; readonly artifactStore?: AyasPatchArtifactStore; readonly experimentStore?: AyasResearchExperimentStore;
+  /** Owner actions open the store with this set: then every `decide()` needs an owner admission bound to that exact decision. */
+  readonly requireOwnerAdmission?: boolean;
+}
 
 export const ayasApprovalExplanationFields = [
   "objective",
@@ -197,10 +206,12 @@ type AyasProposalCreateInput = Omit<AyasInboxProposal, "schemaVersion" | "propos
 
 export interface AyasApprovalInboxHandle {
   readonly stateFile: string;
+  readonly requiresOwnerAdmission?: boolean;
   load(): AyasApprovalInboxState;
   save(state: AyasApprovalInboxState): AyasApprovalInboxState;
   createProposal(input: AyasProposalCreateInput): AyasInboxProposal;
-  decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
+  /** `ownerAdmission`, when given, must name exactly this proposal, hash and decision, be fresh at `now` and unused; it is recorded with the decision. Required when the store was opened with `requireOwnerAdmission`. */
+  decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string, ownerAdmission?: AyasOwnerAdmission): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
   /**
    * M16 — durable, backend-authoritative staleness reconciliation. Only a
    * PENDING, APPROVED, or DEFERRED proposal may transition to STALE (M17:
@@ -216,7 +227,7 @@ export interface AyasApprovalInboxHandle {
   /** @deprecated single-phase one-shot consumption. New callers should use `reserveApproval`/`finalizeApproval` instead. */
   consumeApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): AyasInboxDecisionRecord;
   /** Phase 1 of the two-phase authority lifecycle: durably reserves the one-shot authorization (proposal moves to `RESERVED`) without implying anything about the gate or mutation. */
-  reserveApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
+  reserveApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string, executionOwnerAdmission?: AyasOwnerAdmission): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
   /** Phase 2: durably finalizes a reservation exactly once. Does not run anything — pure record-keeping. */
   finalizeApproval(reservationId: string, outcome: AyasInboxReservationOutcome, now: string): void;
   recordResult(result: AyasInboxResultRecord, status: "COMPLETED" | "FAILED" | "STALE"): void;
@@ -228,6 +239,7 @@ function emptyState(): AyasApprovalInboxState {
 
 export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOptions = {}): AyasApprovalInboxHandle {
   const root = path.resolve(options.rootDir ?? path.join(process.cwd(), "data", "brain"));
+  const requiresOwnerAdmission = options.requireOwnerAdmission === true || root === path.resolve(process.cwd(), "data", "brain");
   const dir = path.join(root, "autonomy");
   const stateFile = path.join(dir, "approval-inbox.json");
   const exactSafetyReady = (proposal: AyasInboxProposal): boolean => {
@@ -271,6 +283,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
 
   return {
     stateFile,
+    requiresOwnerAdmission,
     load,
     save,
     createProposal(input) {
@@ -298,7 +311,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       save({ ...state, proposals: [...state.proposals, proposal] });
       return proposal;
     },
-    decide(proposalId, decision, now, reason) {
+    decide(proposalId, decision, now, reason, ownerAdmission) {
       const state = load();
       const existing = state.proposals.find((p) => p.proposalId === proposalId);
       if (!existing) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "proposal not found");
@@ -321,9 +334,20 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       if (decision === "APPROVE" && existing.safetyClassification !== "SAFE") throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `only SAFE proposals may be approved, got: ${existing.safetyClassification}`);
       if (decision === "APPROVE" && !isAyasProposalApprovalReady(existing)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "SAFE proposal explanation or approval evidence is incomplete");
       if (decision === "APPROVE" && !exactSafetyReady(existing)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "exact patch safety evidence is missing or stale");
+      // Owner provenance: an owner action's store refuses to decide without the
+      // server-verified session that made the decision; any admission given
+      // must be bound to exactly this decision and used only once.
+      // Internal review may defer/reject without claiming to be the owner.
+      // Owner-action stores remain strict for every decision; production APPROVE is always strict.
+      if ((options.requireOwnerAdmission === true || (requiresOwnerAdmission && decision === "APPROVE")) && ownerAdmission === undefined) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "owner admission is required for this decision");
+      if (ownerAdmission !== undefined) {
+        const binding = checkAyasOwnerAdmissionBinding(ownerAdmission, { subject: { kind: "proposal", proposalId, proposalHash: existing.proposalHash, decision }, at: now, usedActionRefs: ayasUsedOwnerActionRefs(state.decisions) });
+        if (!binding.ok) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", `owner admission refused: ${binding.reason}`);
+      }
       const nextStatus: AyasInboxProposalStatus = decision === "APPROVE" ? "APPROVED" : decision === "REJECT" ? "REJECTED" : "DEFERRED";
-      const record: AyasInboxDecisionRecord = { decisionId: `ayas-decision-${crypto.randomUUID()}`, proposalId, proposalHash: existing.proposalHash, decision, decidedAt: now, ...(reason ? { reason: scrub(reason, 400) } : {}), evidenceFingerprint: digest(existing.evidence), ...(decision === "APPROVE" ? { authorizationId: `ayas-dev-auth-${crypto.randomUUID()}` } : {}) };
+      let record: AyasInboxDecisionRecord = { decisionId: `ayas-decision-${crypto.randomUUID()}`, proposalId, proposalHash: existing.proposalHash, decision, decidedAt: now, ...(reason ? { reason: scrub(reason, 400) } : {}), evidenceFingerprint: digest(existing.evidence), ...(decision === "APPROVE" ? { authorizationId: `ayas-dev-auth-${crypto.randomUUID()}` } : {}), ...(ownerAdmission !== undefined ? { ownerAdmission } : {}) };
       const proposal = { ...existing, status: nextStatus, lastUpdatedAt: now, ...(decision === "LATER" ? { nextEligibleAt: new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString() } : {}) };
+      if (ownerAdmission) record = { ...record, ownerDecisionSeal: sealAyasOwnerDecision(record) };
       save({ ...state, proposals: state.proposals.map((p) => p.proposalId === proposalId ? proposal : p), decisions: [...state.decisions, record] });
       return { proposal, decision: record };
     },
@@ -345,6 +369,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       return proposal;
     },
     consumeApproval(proposalId, proposalHashValue, baseHead, exactFiles, now) {
+      if (requiresOwnerAdmission) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "owner execution requires reservation admission");
       const state = load();
       const proposal = state.proposals.find((p) => p.proposalId === proposalId);
       const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposalId && d.decision === "APPROVE");
@@ -360,7 +385,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       save({ ...state, decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? consumed : d) });
       return consumed;
     },
-    reserveApproval(proposalId, proposalHashValue, baseHead, exactFiles, now) {
+    reserveApproval(proposalId, proposalHashValue, baseHead, exactFiles, now, executionOwnerAdmission) {
       const state = load();
       const proposal = state.proposals.find((p) => p.proposalId === proposalId);
       const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposalId && d.decision === "APPROVE");
@@ -377,8 +402,11 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       if (proposal.proposalHash !== proposalHashValue || proposal.baseHead !== baseHead || JSON.stringify([...proposal.exactFiles]) !== JSON.stringify([...exactFiles])) {
         throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval scope or HEAD is stale");
       }
+      if (requiresOwnerAdmission || decision.ownerAdmission || executionOwnerAdmission) {
+        if (!checkAyasOwnerExecutionAdmission(decision, executionOwnerAdmission, { kind: "proposal", proposalId, proposalHash: proposalHashValue, decision: "EXECUTE" }, now, ayasUsedOwnerActionRefs(state.decisions))) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "owner execution admission refused");
+      }
       const reservationId = `ayas-reservation-${crypto.randomUUID()}`;
-      const reserved = { ...decision, reservationId, reservedAt: now };
+      const reserved = { ...decision, reservationId, reservedAt: now, ...(executionOwnerAdmission ? { executionOwnerAdmission } : {}) };
       const reservedProposal = { ...proposal, status: "RESERVED" as const, lastUpdatedAt: now };
       save({
         ...state,
