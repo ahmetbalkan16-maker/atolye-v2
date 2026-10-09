@@ -1,0 +1,93 @@
+{
+  "label": "drillB-target-d03c5a0-src2d6cef3-next16.3.8",
+  "baseUrl": "http://127.0.0.1:3919",
+  "at": "2026-10-09T07:45:31.552Z",
+  "checks": {
+    "unauthRootGate": true,
+    "unauthBrainGate": true,
+    "loginPage200": true,
+    "authRoot200": true,
+    "authBrain200": true
+  },
+  "pass": true,
+  "rows": [
+    {
+      "route": "/",
+      "authenticated": false,
+      "status": 307,
+      "gate": "enforced",
+      "location": "/login?next=%2F",
+      "bytes": 15,
+      "hasHtml": false,
+      "nextError": false,
+      "ms": 49
+    },
+    {
+      "route": "/brain",
+      "authenticated": false,
+      "status": 307,
+      "gate": "enforced",
+      "location": "/login?next=%2Fbrain",
+      "bytes": 20,
+      "hasHtml": false,
+      "nextError": false,
+      "ms": 3
+    },
+    {
+      "route": "/login",
+      "authenticated": false,
+      "status": 200,
+      "gate": null,
+      "location": null,
+      "bytes": 13935,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 13
+    },
+    {
+      "route": "/",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 64934,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 647
+    },
+    {
+      "route": "/brain",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 62349,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 351
+    },
+    {
+      "route": "/brain/briefing",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 23511,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 292
+    },
+    {
+      "route": "/studio",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 11996,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 18
+    }
+  ],
+  "cookieOrKeyRecorded": false
+}

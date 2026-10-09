@@ -1,0 +1,32 @@
+{
+  "counts": {
+    "liveAb11e77": {
+      "appPathEntries": 55,
+      "routes": 55
+    },
+    "drillC_d03c5a0_16_2_10": {
+      "appPathEntries": 55,
+      "routes": 55
+    },
+    "target_d03c5a0_16_3_8": {
+      "appPathEntries": 55,
+      "routes": 55
+    }
+  },
+  "liveToTargetApp": {
+    "added": [],
+    "removed": []
+  },
+  "liveToTargetRoutes": {
+    "added": [],
+    "removed": []
+  },
+  "drillCToTargetApp": {
+    "added": [],
+    "removed": []
+  },
+  "liveToDrillCApp": {
+    "added": [],
+    "removed": []
+  }
+}

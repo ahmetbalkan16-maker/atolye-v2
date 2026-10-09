@@ -181,7 +181,22 @@
   "observerSideEffect": {
     "note": "Running Autonomy Observer created one daemon SAFE patch-artifact PENDING proposal bound to 2d6cef3 at 2026-10-09T06:26:13Z; decisions unchanged 53; untouched; it becomes STALE when HEAD moves."
   },
-  "push": "NOT_PERFORMED_OWNER_EXACT_SHA_APPROVAL_REQUIRED",
-  "remoteHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "push": "PUSHED_FAST_FORWARD_456dad6_TO_d03c5a0_OWNER_APPROVED",
+  "remoteHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+  "pushAtCertification": "NOT_PERFORMED_OWNER_EXACT_SHA_APPROVAL_REQUIRED",
+  "remoteHeadAtCertification": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "publication": {
+    "receipt": "PUBLICATION_RECEIPT_d03c5a0.json",
+    "range": "456dad6c43d102b8ecd997428d22b0f41c32d5e2..d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "pushedAt": "2026-10-09T07:20:09Z",
+    "fastForward": true,
+    "force": false,
+    "verifiedAt": "2026-10-09T07:31:00Z",
+    "verification": "git fetch + ls-remote: remote branch = local = d03c5a0, 0/0, clean; remote main f0ae19d untouched",
+    "technicalCertificationUnchanged": true,
+    "d03c5a0TechnicallyCertified": false
+  },
+  "amendedAt": "2026-10-09T08:10:00.000Z",
+  "amendment": "Publication fields only (push, remoteHead, publication). Certification content unchanged; the values at certification are kept in pushAtCertification and remoteHeadAtCertification.",
   "grantsAuthority": false
 }

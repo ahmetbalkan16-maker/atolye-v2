@@ -1,0 +1,21 @@
+const fs = require("fs");
+const [lockPath, liveHidden, freshHidden, out] = process.argv.slice(2);
+const lock = JSON.parse(fs.readFileSync(lockPath)).packages;
+const live = JSON.parse(fs.readFileSync(liveHidden)).packages;
+const fresh = JSON.parse(fs.readFileSync(freshHidden)).packages;
+const keys = (o) => Object.keys(o).filter((k) => k.startsWith("node_modules/"));
+function cmp(a, b) {
+  const diff = [], onlyA = [], onlyB = [];
+  for (const k of keys(a)) { if (!b[k]) onlyA.push(`${k}@${a[k].version}`); else if (a[k].version !== b[k].version || (a[k].integrity && b[k].integrity && a[k].integrity !== b[k].integrity)) diff.push({ pkg: k.replace(/^node_modules\//, ""), a: a[k].version, b: b[k].version }); }
+  for (const k of keys(b)) if (!a[k]) onlyB.push(`${k}@${b[k].version}`);
+  return { diff, onlyA, onlyB };
+}
+const liveVsLock = cmp(live, lock);
+const freshVsLock = cmp(fresh, lock);
+const r = { lockPackages: keys(lock).length, livePackages: keys(live).length, freshPackages: keys(fresh).length,
+  liveVsLock: { versionOrIntegrityDiffs: liveVsLock.diff, onlyInstalledLive: liveVsLock.onlyA, onlyInLock: liveVsLock.onlyB },
+  freshVsLock: { versionOrIntegrityDiffs: freshVsLock.diff.length, onlyInstalledFresh: freshVsLock.onlyA.length, onlyInLock: freshVsLock.onlyB } };
+fs.writeFileSync(out, JSON.stringify(r, null, 2));
+console.log(JSON.stringify({ lockPackages: r.lockPackages, livePackages: r.livePackages, freshPackages: r.freshPackages,
+  liveDiffs: liveVsLock.diff.map((d) => `${d.pkg} ${d.a}->${d.b}`), liveOnly: liveVsLock.onlyA, lockOnlyVsLive: liveVsLock.onlyB,
+  freshDiffs: freshVsLock.diff, freshOnly: freshVsLock.onlyA, lockOnlyVsFresh: freshVsLock.onlyB }, null, 1));

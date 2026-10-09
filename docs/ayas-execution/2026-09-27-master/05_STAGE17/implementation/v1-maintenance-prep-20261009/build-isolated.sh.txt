@@ -1,0 +1,22 @@
+#!/bin/sh
+# usage: build-isolated.sh <cloneDir> <runtimeRoot> <rootDir> <logFile>
+# Mirrors package.json "build" (next build) + "postbuild" (tsx scripts/ayas-build-stamp.ts).
+CLONE="$1"; RT="$2"; ROOT="$3"; LOG="$4"
+KEY="$(cat "$ROOT/fixture-key.txt")"
+W() { cygpath -w "$1"; }
+cd "$CLONE" || exit 2
+run() {
+  env -i \
+    PATH="$(W "$CLONE/node_modules/.bin");/c/Program Files/nodejs:/c/Windows/System32:/c/Windows:/c/Program Files/Git/cmd:/usr/bin" \
+    SystemRoot='C:\Windows' windir='C:\Windows' SystemDrive='C:' COMSPEC='C:\Windows\System32\cmd.exe' PATHEXT='.COM;.EXE;.BAT;.CMD' \
+    TEMP="$(W "$ROOT/tmp")" TMP="$(W "$ROOT/tmp")" USERPROFILE="$(W "$ROOT/home")" HOME="$(W "$ROOT/home")" \
+    LOCALAPPDATA="$(W "$ROOT/appdata/local")" APPDATA="$(W "$ROOT/appdata/roaming")" \
+    NEXT_TELEMETRY_DISABLED=1 ATOLYE_RUNTIME_ROOT="$(W "$RT")" AYAS_ACCESS_KEY="$KEY" \
+    "/c/Program Files/nodejs/node.exe" "$@"
+}
+start=$(date +%s)
+run node_modules/next/dist/bin/next build > "$LOG" 2>&1
+code=$?
+if [ $code -eq 0 ]; then run node_modules/tsx/dist/cli.mjs scripts/ayas-build-stamp.ts >> "$LOG" 2>&1; code=$?; fi
+echo "BUILD_EXIT=$code SECONDS=$(( $(date +%s) - start ))"
+exit $code

@@ -1,0 +1,86 @@
+{
+  "packet": "v1-maintenance-prep-20261009",
+  "createdAt": "2026-10-09T08:10:00.000Z",
+  "files": [
+    {
+      "file": "ISOLATED_DRILLS.json",
+      "sha256": "9dc6bb0fce396cb1a47576dc91a2d09af51afcb5c6d97b3117a7e36520e36339"
+    },
+    {
+      "file": "LIVE_IDENTITY_READONLY.json",
+      "sha256": "4cee998c993067ebc458152f3880ddac9ec082a0ba5f365f37b4cb9b0123e05c"
+    },
+    {
+      "file": "MAINTENANCE_PLAN.md",
+      "sha256": "bbdc8b89bda1c8c16d63d136d4f336335f3eed73a328c9dc4650cea2781227c3"
+    },
+    {
+      "file": "MAINTENANCE_READINESS.json",
+      "sha256": "70e25f9d727f2a191c1d9fa38175e13c6ac9d9a8a03cef120152e2a4f8e5d6e5"
+    },
+    {
+      "file": "SOURCE_DEPENDENCY_DELTA.json",
+      "sha256": "86073ced8791dbd18228158b5a0384419d3c81683862e7e5253287a1c8d01bbf"
+    },
+    {
+      "file": "STATE_INVENTORY.json",
+      "sha256": "d5d0b6457383fdc1a37f815092f9e7f3403744ed8654905bf11811d5dcb7904e"
+    },
+    {
+      "file": "assemble-packet.cjs.txt",
+      "sha256": "b4d109d0aab2b3fb04cfbc07e42c6081f57aa9b76e3e9632c053d7bc5fdd3abf"
+    },
+    {
+      "file": "build-isolated.sh.txt",
+      "sha256": "49b5f3d013a3b259e5d82c343e1ee0c0b9ada2dc5d2d781a073fcae1b597e576"
+    },
+    {
+      "file": "dep-delta.cjs.txt",
+      "sha256": "06494727598eb6eaafa6e7437018d6c1b66f48d97341731867953737a73aa092"
+    },
+    {
+      "file": "dependency-delta.raw.json",
+      "sha256": "c0d94d29c74402269950725dc494ef41355c0f63eb20bc6961c44a066b5108c8"
+    },
+    {
+      "file": "drillA-probe.raw.json",
+      "sha256": "eb21bf7d5a3b4d102658b5ce74ed95b00ad97d3ecb61fc8c95fb92ff7bfeb46f"
+    },
+    {
+      "file": "drillB-probe.raw.json",
+      "sha256": "d2b01b5b6ab26b79dd8f33be1bba1a2043ff7cc104d73b579ef62dbfb8052836"
+    },
+    {
+      "file": "drillC-probe.raw.json",
+      "sha256": "a17109961da59f3080a6b30564f4f1f16878f19865c48aecb551cc6420c0f53a"
+    },
+    {
+      "file": "gate-probe.mts.txt",
+      "sha256": "b622d50dd0afce68156e9fa127ac7566887ecdfbb15390e7bfedb07ee62f54be"
+    },
+    {
+      "file": "rehearsal-probe.raw.json",
+      "sha256": "b138ebb7bcafcce9d572bab062857f56f249d87e1fbc958060d5fce0fd7c1228"
+    },
+    {
+      "file": "route-compare.cjs.txt",
+      "sha256": "03343c37d52bbd1cdadf0a7445f0cc470ffbf0e87d1716db8ca4fce5741d33ff"
+    },
+    {
+      "file": "route-compare.raw.json",
+      "sha256": "dba5611848ad311561cbaf16fa7f0393d01662c4256534ef4aaa123e360a30d2"
+    },
+    {
+      "file": "start-isolated.sh.txt",
+      "sha256": "b36cbed943683ef94af4de49741b1ad0e67d045599e23cf1fba2d0c639e3c0d4"
+    },
+    {
+      "file": "tree-manifest.mjs.txt",
+      "sha256": "648f3db9c910d253a8295d2f093efdaf93cbdf770442c8689e0ead85b1794450"
+    },
+    {
+      "file": "wait-ready.mjs.txt",
+      "sha256": "19e7f8c41ac95e3d3817ff92faa56ddebd4ce2938b2fb84def2bb51d7b482ad8"
+    }
+  ]
+}

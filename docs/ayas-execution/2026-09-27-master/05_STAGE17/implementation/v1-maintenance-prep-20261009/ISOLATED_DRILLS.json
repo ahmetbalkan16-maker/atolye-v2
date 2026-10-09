@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "scope": "TEMP only (C:\\Users\\Metod\\AppData\\Local\\Temp\\mx17-7764e6, removed junction-first after the drills). Clones: git clone --shared --no-hardlinks --local, origin removed, detached. Servers bound to 127.0.0.1:3917-3919 only. Sanitized environment: TEMP runtime root, fixture AYAS_ACCESS_KEY (not recorded), TEMP/LOCALAPPDATA/APPDATA/USERPROFILE redirected, no .env.local, no ATOLYE_DURABLE_PIPELINE_EXECUTION, no model or provider variables. No install, no network fetch, no request to :3000 or the public URL.",
+  "liveUntouchedProof": {
+    "liveNextBeforeAfterEqual": true,
+    "liveNodeModulesBeforeAfterEqual": true,
+    "liveListener3000Pid": 28928,
+    "accessDaemonAttemptsUnchanged": "origin 26 / tunnel 17 before and after"
+  },
+  "drillA_rollbackArtifactsRestart": {
+    "what": "Byte copy of the live .next (ab11e77 build) and live node_modules (Next 16.2.10) into a clone at ab11e77; junction recreated to the clone's typescript; next start without rebuild.",
+    "copyNodeModulesEqualLive": true,
+    "copyNextEqualLive": true,
+    "copySeconds": {
+      "node_modules": 6,
+      "next": 0.5
+    },
+    "readyMs": 88,
+    "serverLogErrors": 0,
+    "probe": {
+      "label": "drillA-rollback-copy-ab11e77-next16.2.10",
+      "pass": true,
+      "checks": {
+        "unauthRootGate": true,
+        "unauthBrainGate": true,
+        "loginPage200": true,
+        "authRoot200": true,
+        "authBrain200": true
+      },
+      "rows": [
+        {
+          "route": "/",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2F",
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2Fbrain",
+          "nextError": false
+        },
+        {
+          "route": "/login",
+          "authenticated": false,
+          "status": 200,
+          "gate": null,
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain/briefing",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/studio",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        }
+      ]
+    }
+  },
+  "drillC_unplannedLogonRebuildPrediction": {
+    "what": "What the next interactive logon would deploy: current HEAD d03c5a0 (source = 2d6cef3) built with the live node_modules copy (Next 16.2.10).",
+    "buildExit": 0,
+    "buildSeconds": 23,
+    "stamp": {
+      "gitHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+      "treeState": "CLEAN"
+    },
+    "turbopackWarnings": 12,
+    "readyMs": 89,
+    "serverLogErrors": 0,
+    "probe": {
+      "label": "drillC-unplanned-restart-prediction-d03c5a0-next16.2.10",
+      "pass": true,
+      "checks": {
+        "unauthRootGate": true,
+        "unauthBrainGate": true,
+        "loginPage200": true,
+        "authRoot200": true,
+        "authBrain200": true
+      },
+      "rows": [
+        {
+          "route": "/",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2F",
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2Fbrain",
+          "nextError": false
+        },
+        {
+          "route": "/login",
+          "authenticated": false,
+          "status": 200,
+          "gate": null,
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain/briefing",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/studio",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        }
+      ]
+    },
+    "caveat": "Built without .env.local, so NEXT_PUBLIC_* values are absent from the client bundle; the daemon's in-repo build includes them. Gate/session/route behaviour does not depend on them."
+  },
+  "drillB_targetBuild": {
+    "what": "Target: d03c5a0 (source = 2d6cef3) with a byte copy of the fresh-lock runtime (Next 16.3.8 = lock).",
+    "copyEqualFreshLock": true,
+    "buildExit": 0,
+    "buildSeconds": 23,
+    "stamp": {
+      "gitHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0"
+    },
+    "turbopackWarnings": 129,
+    "warningNote": "16.3.8 reports broad dynamic file-pattern traces (one matches 16580 project files; public/music, public/sfx). Not an error; recorded, not called clean.",
+    "middlewareDeprecationWarning": true,
+    "readyMs": 94,
+    "serverLogErrors": 0,
+    "probe": {
+      "label": "drillB-target-d03c5a0-src2d6cef3-next16.3.8",
+      "pass": true,
+      "checks": {
+        "unauthRootGate": true,
+        "unauthBrainGate": true,
+        "loginPage200": true,
+        "authRoot200": true,
+        "authBrain200": true
+      },
+      "rows": [
+        {
+          "route": "/",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2F",
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2Fbrain",
+          "nextError": false
+        },
+        {
+          "route": "/login",
+          "authenticated": false,
+          "status": 200,
+          "gate": null,
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain/briefing",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/studio",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        }
+      ]
+    }
+  },
+  "routeComparison": {
+    "counts": {
+      "liveAb11e77": {
+        "appPathEntries": 55,
+        "routes": 55
+      },
+      "drillC_d03c5a0_16_2_10": {
+        "appPathEntries": 55,
+        "routes": 55
+      },
+      "target_d03c5a0_16_3_8": {
+        "appPathEntries": 55,
+        "routes": 55
+      }
+    },
+    "liveToTargetApp": {
+      "added": [],
+      "removed": []
+    },
+    "liveToTargetRoutes": {
+      "added": [],
+      "removed": []
+    },
+    "drillCToTargetApp": {
+      "added": [],
+      "removed": []
+    },
+    "liveToDrillCApp": {
+      "added": [],
+      "removed": []
+    }
+  },
+  "rollbackRehearsal": {
+    "what": "In the target directory after the target ran: source back to ab11e77 (git checkout --detach), node_modules and .next swapped by same-volume rename to the verified 16.2.10 tree and the byte-copied ab11e77 build, junction recreated; next start without rebuild.",
+    "switchSeconds": 0.27,
+    "restoredNodeModulesEqualLive": true,
+    "restoredNextEqualLive": true,
+    "readyMs": 93,
+    "serverLogErrors": 0,
+    "probe": {
+      "label": "rollback-rehearsal-target-dir-restored-ab11e77-next16.2.10-no-rebuild",
+      "pass": true,
+      "checks": {
+        "unauthRootGate": true,
+        "unauthBrainGate": true,
+        "loginPage200": true,
+        "authRoot200": true,
+        "authBrain200": true
+      },
+      "rows": [
+        {
+          "route": "/",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2F",
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": false,
+          "status": 307,
+          "gate": "enforced",
+          "location": "/login?next=%2Fbrain",
+          "nextError": false
+        },
+        {
+          "route": "/login",
+          "authenticated": false,
+          "status": 200,
+          "gate": null,
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/brain/briefing",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        },
+        {
+          "route": "/studio",
+          "authenticated": true,
+          "status": 200,
+          "gate": "enforced",
+          "location": null,
+          "nextError": false
+        }
+      ]
+    }
+  },
+  "backupRestoreDrill_stableStores": {
+    "what": "robocopy backup of the live runtime and authority roots into TEMP, then restore into a second TEMP target; every copy hashed.",
+    "runtime": {
+      "backupEqualLive": true,
+      "restoreEqualLive": true,
+      "liveUnchanged": true,
+      "files": 2374,
+      "bytes": 611013585
+    },
+    "authority": {
+      "backupEqualLive": true,
+      "restoreEqualLive": true,
+      "liveUnchanged": true,
+      "files": 4
+    },
+    "dataBrain": "NOT_DRILLED (active writers; private memory/chat records not copied to TEMP). Same mechanism; needs a quiesced snapshot inside the window."
+  },
+  "notProven": [
+    "live restart of any build",
+    "live rollback",
+    "in-repo daemon build with .env.local",
+    "real runtime root / model / voice / chat with the new dependencies",
+    "public tunnel path",
+    "owner authenticated session on a real device",
+    "behaviour under concurrent writers during the swap"
+  ],
+  "cleanup": {
+    "tempRoot": "removed",
+    "junctionsRemovedFirst": 3,
+    "junctionTargetsOutsideTempRoot": 0,
+    "liveNodeModulesTopLevelEntriesBeforeAfter": "334/334"
+  },
+  "grantsAuthority": false
+}

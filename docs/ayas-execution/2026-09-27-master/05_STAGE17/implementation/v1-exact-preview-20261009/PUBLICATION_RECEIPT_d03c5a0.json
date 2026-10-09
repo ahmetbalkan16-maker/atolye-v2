@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "GIT_PUBLICATION_RECEIPT",
+  "recordedAt": "2026-10-09T08:10:00Z",
+  "branch": "wip/ayas-graphify-final-execution",
+  "remote": "origin",
+  "pushed": {
+    "from": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+    "to": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "commits": [
+      "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+      "67493c8f9e43578676c3dc7939ce0942061f319a",
+      "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+      "d03c5a09e32b5135013103cc2117ba33be0f2472"
+    ],
+    "at": "2026-10-09T07:20:09Z",
+    "atSource": "remote-tracking reflog: origin/wip/ayas-graphify-final-execution@{2026-10-09 10:20:09 +0300}: update by push",
+    "fastForward": true,
+    "fastForwardProof": "git merge-base --is-ancestor 456dad6 d03c5a0 = true",
+    "force": false,
+    "historyRewrite": false,
+    "ownerApproval": "Owner's exact-SHA decision for these four commits on the WIP branch (2026-10-09); accepted again in the Stage 17 owner continuation of 2026-10-09 ('Son WIP branch push raporunu kabul ediyorum')."
+  },
+  "freshVerification": {
+    "at": "2026-10-09T07:31:00Z",
+    "fetch": "git fetch origin --prune: no change",
+    "lsRemote": {
+      "refs/heads/wip/ayas-graphify-final-execution": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+      "refs/heads/main": "f0ae19d5ccf5c95466f5c87f2421239cfee6f232"
+    },
+    "localHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "aheadBehind": "0/0",
+    "worktree": "CLEAN",
+    "mainUntouched": true,
+    "otherAgentProcesses": "none"
+  },
+  "certificationBinding": {
+    "certifiedTechnicalHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "d03c5a0": "documentation-only descendant of 2d6cef3 (no path outside docs/ and *.md differs); NOT technically certified by itself",
+    "full166": "166/166 PASS bound to 2d6cef3 only (FINAL_CERTIFICATION.json)",
+    "notTransferred": ["dbf9542 166/166 stays historical", "569d6f5 T1 FAIL stays preserved"]
+  },
+  "graphAtD03c5a0": {
+    "lastAnalyzedHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "stale": false,
+    "nodes": 19237,
+    "edges": 53300,
+    "communities": 422,
+    "integrity": { "duplicateNodes": 0, "duplicateEdges": 0, "danglingEdges": 0, "selfLoops": 0 },
+    "structural": "PARTIAL10",
+    "semantic": "PENDING",
+    "deltaVs2d6cef3Receipt": "+1 node / +2 edges = git provenance of d03c5a0 only"
+  },
+  "liveSystem": "unchanged by the push: live build stamp ab11e77 CLEAN, Next 16.2.10 installed",
+  "grantsAuthority": false
+}

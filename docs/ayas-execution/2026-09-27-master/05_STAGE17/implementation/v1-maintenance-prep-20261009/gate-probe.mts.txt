@@ -1,0 +1,47 @@
+// Gate + session probe against an ISOLATED Next server (never the live :3000).
+// usage: node <clone>/node_modules/tsx/dist/cli.mjs gate-probe.mts <baseUrl> <clonePath> <fixtureKeyFile> <out.json> <label>
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const [baseUrl, clonePath, keyFile, out, label] = process.argv.slice(2);
+if (!/^http:\/\/127\.0\.0\.1:39\d\d$/.test(baseUrl)) throw new Error("PROBE_REFUSED_NON_ISOLATED_ORIGIN");
+const key = fs.readFileSync(keyFile, "utf8").trim();
+const gate = await import(pathToFileURL(path.join(clonePath, "src/lib/auth/accessGate.ts")).href);
+
+async function get(route: string, cookie?: string) {
+  const started = Date.now();
+  const res = await fetch(baseUrl + route, { redirect: "manual", headers: cookie ? { cookie } : {} });
+  const body = await res.text();
+  return {
+    route,
+    authenticated: Boolean(cookie),
+    status: res.status,
+    gate: res.headers.get("x-ayas-access-gate"),
+    location: res.headers.get("location"),
+    bytes: body.length,
+    hasHtml: /<html/i.test(body),
+    nextError: /Application error|Internal Server Error|__next_error__/i.test(body),
+    ms: Date.now() - started,
+  };
+}
+
+const token: string = await gate.issueSession(key, Date.now());
+const cookie = `${gate.AYAS_SESSION_COOKIE}=${token}`;
+const rows = [];
+for (const r of ["/", "/brain"]) rows.push(await get(r));
+rows.push(await get("/login"));
+for (const r of ["/", "/brain", "/brain/briefing", "/studio"]) rows.push(await get(r, cookie));
+
+const expectGate = (row: { status: number; gate: string | null; location: string | null }, next: string) =>
+  row.status === 307 && row.gate === "enforced" && row.location === `/login?next=${next}`;
+const checks = {
+  unauthRootGate: expectGate(rows[0], "%2F"),
+  unauthBrainGate: expectGate(rows[1], "%2Fbrain"),
+  loginPage200: rows[2].status === 200 && rows[2].hasHtml,
+  authRoot200: rows[3].status === 200 && !rows[3].nextError,
+  authBrain200: rows[4].status === 200 && !rows[4].nextError,
+};
+const result = { label, baseUrl, at: new Date().toISOString(), checks, pass: Object.values(checks).every(Boolean), rows, cookieOrKeyRecorded: false };
+fs.writeFileSync(out, JSON.stringify(result, null, 2));
+console.log(JSON.stringify({ label, pass: result.pass, checks, rows: rows.map((r) => `${r.authenticated ? "A" : "U"} ${r.route} ${r.status} ${r.gate ?? ""} ${r.location ?? ""}`) }));

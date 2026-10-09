@@ -1,0 +1,148 @@
+// Assembles the v1-maintenance-prep-20261009 evidence JSON from measured scratchpad data.
+const fs = require("fs");
+const path = require("path");
+const [sp, outDir] = process.argv.slice(2);
+const ev = (f) => JSON.parse(fs.readFileSync(path.join(sp, "ev", f), "utf8"));
+const agg = (f) => { const m = ev(f); return { fileCount: m.fileCount, bytes: m.bytes, aggregateSha256: m.aggregateSha256, reparsePoints: m.reparsePoints.map((l) => l.p), maxPathLength: m.maxPathLength, newestMtime: m.newestMtime, hashedAt: m.at }; };
+const write = (name, obj) => fs.writeFileSync(path.join(outDir, name), JSON.stringify(obj, null, 2) + "\n");
+fs.mkdirSync(outDir, { recursive: true });
+
+const NOTE = "Tree digest = sha256 over sorted lines 'relativePath\\0size\\0sha256' of every regular file; reparse points are listed, never followed (tree-manifest.mjs.txt).";
+
+write("LIVE_IDENTITY_READONLY.json", {
+  schemaVersion: 1,
+  observedAt: "2026-10-09T07:33:00Z/07:50:00Z",
+  method: "READ_ONLY: process table, listeners, build files, scheduled-task export, daemon state files. No request to the live server, no restart, no write.",
+  repo: { branch: "wip/ayas-graphify-final-execution", head: "d03c5a09e32b5135013103cc2117ba33be0f2472", worktree: "CLEAN", remoteHead: "d03c5a09e32b5135013103cc2117ba33be0f2472", remoteMain: "f0ae19d5ccf5c95466f5c87f2421239cfee6f232" },
+  liveBuild: {
+    stamp: { gitHead: "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9", treeState: "CLEAN", lockfileSha256: "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0", stampedAt: "2026-10-09T03:48:16.187Z" },
+    buildId: "S97dvGhTGFFsHILCPmoWV",
+    builtBy: "Access daemon Start-Origin (npm run build in the repo at the HEAD checked out then) after the logon start of the two tasks at 06:46:51 local",
+    nextDirTree: agg("live-next.json"),
+    nextDirJunction: "node_modules/typescript-279735412610ef8d -> <repo>\\node_modules\\typescript",
+    routes: 55,
+    stampLockFieldCaveat: "The stamp records the sha256 of package-lock.json (Next 16.3.8) while the installed tree it was built with is Next 16.2.10. The stamp's lock field is not the dependency identity of the running build.",
+  },
+  installedDependencies: { next: "16.2.10", lockNext: "16.3.8", packageJsonNext: "16.3.8", packageJsonSha256: "588fe1be5c55d83144de3acee081256f1e02fe767b3329cfca3f78d545763429", packageLockSha256: "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0", nodeModulesTree: agg("live-node_modules.json"), lockLastChangedAt: "36e794f 2026-10-06T04:03:14Z", node: "v24.18.0", npm: "11.16.0" },
+  processes: {
+    nextServer: { pid: 28928, startedLocal: "2026-10-09 06:48:17", chain: "node next start -p 3000 <- cmd <- node npm-cli run start -- -p 3000 (15076 chain) <- cmd <- powershell ayas-access-daemon (2700) <- wscript <- Task Scheduler" },
+    cloudflared: { pid: 20716, startedLocal: "2026-10-09 06:48:20", parent: "powershell ayas-access-daemon (2700)" },
+    accessDaemon: { pid: 2700, task: "AYAS Access Online", startedLocal: "2026-10-09 06:46:53" },
+    autonomyObserver: { wrapperPid: 14788, nodePids: [24484, 18228, 14512], task: "AYAS Autonomy Observer", startedLocal: "2026-10-09 06:46:53", intervalMs: 300000 },
+    ollama: { pid: 11148, listener: "127.0.0.1:11434" },
+    otherAgents: "none (no codex/ChatGPT process; no baseline or smoke running at start)",
+    listeners3000: 1,
+  },
+  scheduledTasks: {
+    "AYAS Access Online": { trigger: "LogonTrigger only", logonType: "InteractiveToken", multipleInstances: "IgnoreNew", executionTimeLimit: "PT0S", restartOnFailure: "PT1M x3", action: "wscript //B run-ayas-access-hidden.vbs", xmlSha256Utf16: "374d98b680e33f887394338a6bfa841f5b70065556b6e08978e01537d4d5fb62", lastRun: "2026-10-09 06:46:51", state: "Running" },
+    "AYAS Autonomy Observer": { trigger: "LogonTrigger only", logonType: "InteractiveToken", multipleInstances: "IgnoreNew", executionTimeLimit: "PT0S", restartOnFailure: "PT1M x3", action: "wscript //B run-ayas-observer-hidden.vbs", xmlSha256Utf16: "c46b569029b9205a0b42830bcf7054e2f2f0ebc155a9ce030aa0d673b472f55b", lastRun: "2026-10-09 06:46:51", state: "Running" },
+  },
+  lastFullBoot: "2026-10-06 06:41:10 local (Windows LastBootUpTime; the tasks restart at every interactive logon)",
+  accessDaemon: {
+    recoveryState: { result: "healthy", originAttempts: 26, tunnelAttempts: 17, consecutiveFailures: 0, listenerPid: 28928, wrapperPid: 15076, tunnelPid: 20716 },
+    behaviour: "Every 60 s; if :3000 is down it runs npm run build in the repo (current HEAD, installed node_modules, .env.local) then npm run start -- -p 3000; 3 consecutive failures exhaust retries (cooldown 120 s, 240 s).",
+    morningRestartPattern: "recovery-audit.jsonl shows origin (and usually tunnel) started at about 06:4x local on 2026-09-25, 09-28, 09-29, 10-01, 10-05, 10-06, 10-07, 10-08 and 10-09: each interactive logon rebuilds the live site from the repo HEAD.",
+    buildFailureHistory: "2026-10-07 06:48-06:57 three build failures (retries exhausted), operator repair 'sharp-lock-restored' at 09:26 local; site origin down about 2.6 h.",
+  },
+  liveChangedWithoutWindow: "Live moved from e974614 (recorded 2026-10-08) to ab11e77 through the 2026-10-09 logon rebuild; no maintenance window was used. This is the daemon's designed behaviour, recorded as a finding (F115).",
+  grantsAuthority: false,
+});
+
+const dep = ev("dependency-delta.json");
+write("SOURCE_DEPENDENCY_DELTA.json", {
+  schemaVersion: 1,
+  live: "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+  technicalTarget: "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+  currentHead: "d03c5a09e32b5135013103cc2117ba33be0f2472",
+  headVsTechnicalTarget: "documentation-only (git diff 2d6cef3 d03c5a0 outside docs/ and *.md is empty)",
+  sourceDiffLiveToTarget: {
+    filesOutsideDocs: 17, insertions: 939, deletions: 52,
+    application: ["app/brain/actions.ts", "app/brain/observerActions.ts", "src/components/brain/AyasConsolePage.tsx", "src/components/brain/AyasDevelopmentCenter.tsx", "src/components/brain/BrainConsoleView.tsx", "src/components/brain/BrainCoreConsole.tsx", "src/lib/brain/autonomy/AyasApprovalInboxView.ts", "src/lib/brain/autonomy/AyasExactProposalSafety.ts", "src/lib/brain/autonomy/AyasOwnerExactPreview.ts", "src/lib/brain/autonomy/AyasOwnerExactPreviewContract.ts", "src/lib/brain/autonomy/AyasOwnerExactPreviewInbox.ts", "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts", "src/lib/brain/autonomy/AyasProposalExecutionService.ts"],
+    tests: ["scripts/fixtures/ayas-owner-exact-preview-fixture.ts", "scripts/smoke-ayas-owner-approval-resume-v2-hardening.ts", "scripts/smoke-ayas-owner-exact-preview.ts"],
+    other: [".gitattributes"],
+    packageJsonOrLockChanged: false,
+    persistedStateFormat: "No new persisted record kind: the exact preview is computed on read and bound per request (ownerPreview argument); inbox store unchanged. Rollback to ab11e77 code reads the same stores.",
+    rollbackSecurityNote: "A rollback to ab11e77 removes the exact-preview requirement before owner patch execution (569d6f5). Gelisim Merkezi APPROVE/YURUT stays frozen while rolled back.",
+  },
+  dependencyDelta: {
+    lockPackages: dep.lockPackages, installedLivePackages: dep.livePackages, freshLockRuntimePackages: dep.freshPackages,
+    liveVsLockVersionDiffs: dep.liveVsLock.versionOrIntegrityDiffs,
+    installedOnlyInLive: dep.liveVsLock.onlyInstalledLive,
+    lockOnlyNotInstalledLiveCount: dep.liveVsLock.onlyInLock.length,
+    lockOnlyNote: "Lock-only entries are optional platform binaries for other operating systems (darwin/linux/wasm/arm), plus the same set is absent from the fresh-lock runtime.",
+    freshLockRuntimeVsLock: { versionOrIntegrityDiffs: dep.freshVsLock.versionOrIntegrityDiffs, onlyInstalled: dep.freshVsLock.onlyInstalledFresh, lockOnlyCount: dep.freshVsLock.onlyInLock.length, verdict: "EQUAL_FOR_WIN32_X64" },
+    riskBearing: ["next 16.2.10->16.3.8 (+@next/swc, @next/env, eslint-config-next)", "sharp 0.34.5->0.35.5 (+@img/sharp-win32-x64); a sharp/lock mismatch broke the 2026-10-07 logon build", "onnxruntime-node 1.24.3->1.30.0 and @huggingface/transformers 4.2.0->4.3.0 (local voice/model paths; physical voice tests required)", "wrangler 4.131.0->4.147.0 / workerd / miniflare (Worker tooling only; no deploy)"],
+  },
+  freshLockRuntime: { path: "<repo>/.graphify/k3-fresh-lock-20261008/node_modules (gitignored)", next: "16.3.8", tree: agg("freshlock-node_modules.json"), installRecord: "STAGE17_LOCK_INSTALL_20261008.json and v1-k3-security-20261008/FRESH_LOCK_INSTALL.raw.log (lifecycle scripts not executed)", usedBy: "Full166 at 2d6cef3 (166/166 PASS)" },
+  graphify: "Current at d03c5a0 (structural PARTIAL10, semantic PENDING); no source change in this packet, so no graph refresh was needed.",
+  grantsAuthority: false,
+});
+
+const db1 = ev("data-brain-pass1.json"), db2 = ev("data-brain-pass2.json");
+write("STATE_INVENTORY.json", {
+  schemaVersion: 1,
+  note: NOTE,
+  stores: [
+    { store: "runtime root (ATOLYE_RUNTIME_ROOT) Program\\Atolye\\runtime\\AtolyeRuntime", writers: "Atolye production pipeline only (no production running; no write since 2026-09-15)", changedByMaintenance: false, tree: agg("runtime-root.json"), stableAcrossSession: ev("runtime-root.json").aggregateSha256 === ev("runtime-root-after.json").aggregateSha256, pathBudget: "max path 260 at the live location; any backup root must be shorter than the live root" },
+    { store: "authority root (ATOLYE_RUNTIME_AUTHORITY_ROOT) Program\\Atolye\\runtime\\AtolyeAuthority", writers: "authority transitions only", changedByMaintenance: false, tree: agg("authority-root.json"), stableAcrossSession: ev("authority-root.json").aggregateSha256 === ev("authority-root-after.json").aggregateSha256, canonicalBackupToolMarker: "ABSENT: runtime-backup-authority-v1.json was never created; running npm run runtime:backup:inventory would create it in the live authority root, so it was NOT run" },
+    { store: "repo data/brain (gitignored)", writers: "Next server (chat, approvals, sessions), Autonomy Observer (every 5 min: daemon-state, discovery-runs, research, execution/authorizations, patch-artifacts), Access daemon (phone-access/status.json every 60 s)", changedByMaintenance: "only by the restarted processes", pass1: { at: db1.at, fileCount: db1.fileCount, aggregateSha256: db1.aggregateSha256 }, pass2: { at: db2.at, fileCount: db2.fileCount, aggregateSha256: db2.aggregateSha256 }, writerActivityBetweenPasses: { minutes: 6.3, changed: 4, added: 2, removed: 0, where: ["autonomy/daemon-state.json", "phone-access/status.json", "self-improvement/discovery-runs", "self-improvement/research", "execution/authorizations (+1)", "self-improvement/patch-artifacts (+1)"] }, qualifiedSnapshot: "REQUIRES_QUIESCENCE (Autonomy Observer stopped, Next idle); NOT_TAKEN" },
+    { store: "repo .next (live build)", changedByMaintenance: true, tree: agg("live-next.json") },
+    { store: "repo node_modules (installed, Next 16.2.10)", changedByMaintenance: true, tree: agg("live-node_modules.json"), recreatableFromLock: false, why: "the lock now resolves Next 16.3.8; only a byte copy restores 16.2.10" },
+    { store: "LOCALAPPDATA\\AtolyeAyasAccess (daemon state and logs, 143 MiB, 1119 files)", changedByMaintenance: "logs and recovery-state.json by the daemon", recoveryStateSha256AtInventory: "bd9c7538b7e12b26bcb40bbe67c1ea2a2876a3785d17133bef9660353dba02b0" },
+    { store: "repo data/projects (legacy, gitignored, 2399 files, 583 MiB, max path 309)", liveBound: false, changedByMaintenance: false },
+  ],
+  configIdentityHashOnly: {
+    note: "Contents never read or printed. Maintenance must not change any of these.",
+    "repo/.env.local": "a2f46ef4158ee4648d2967aca4b2215c89c85e4ded850a6c9324faea76ea2d8d (5812 bytes, 2026-09-21)",
+    "~/.cloudflared/config.yml": "a909cbb9a9b0979cb23507cc83ab39496188f661e7178ece6d58a2555e2e74d9 (246 bytes)",
+    "~/.cloudflared credentials json, cert.pem": "present; not hashed or read",
+    "run-ayas-access-hidden.vbs": "d6996308c539d30586f81f55635e681a30bbb6031fad01f870bdd1456fc5df1a",
+    "run-ayas-observer-hidden.vbs": "f313246bf947261795fd231d1fc1b89335183dd6791199c40b90825e58f9009b",
+    "scripts/ayas-access-daemon.ps1": "22dda6c62801310daaa6a690b302afbf501af1b6668d859d5603ed7ae69ad1c1",
+    "scripts/ayas-autonomy-daemon.ps1": "6b49aac2bbbd75d5268341474b3f3ea11f5855410d8907e8e253427e6f7d70bb",
+    taskXml: "see LIVE_IDENTITY_READONLY.json scheduledTasks",
+  },
+  existingBackupRoots: { "Program\\Atolye\\backups": ["claude/authority-control-plane-2026-09-15", "external/AtolyeBackup/backups/b-0d971133190c (Sprint 207 era)", "external/AtolyeBackup/backups/b-fee58282da89 (stale)"], currentProductionBackup: "NONE for the current runtime state through the canonical tool" },
+  diskAndMemory: { cFreeGiB: 123.8, ramFreeGiB: 16.1, ramTotalGiB: 31.7, estimatedBackupGiB: "about 1.9 (node_modules 1.04 + .next 0.15 + runtime 0.57 + data/brain 0.02 + staged target tree 1.12 counted separately)" },
+  grantsAuthority: false,
+});
+
+const probe = (f) => { const p = ev(f); return { label: p.label, pass: p.pass, checks: p.checks, rows: p.rows.map((r) => ({ route: r.route, authenticated: r.authenticated, status: r.status, gate: r.gate, location: r.location, nextError: r.nextError })) }; };
+const routes = ev("route-compare.json");
+const eq = (a, b) => ev(a).aggregateSha256 === ev(b).aggregateSha256;
+write("ISOLATED_DRILLS.json", {
+  schemaVersion: 1,
+  scope: "TEMP only (C:\\Users\\Metod\\AppData\\Local\\Temp\\mx17-7764e6, removed junction-first after the drills). Clones: git clone --shared --no-hardlinks --local, origin removed, detached. Servers bound to 127.0.0.1:3917-3919 only. Sanitized environment: TEMP runtime root, fixture AYAS_ACCESS_KEY (not recorded), TEMP/LOCALAPPDATA/APPDATA/USERPROFILE redirected, no .env.local, no ATOLYE_DURABLE_PIPELINE_EXECUTION, no model or provider variables. No install, no network fetch, no request to :3000 or the public URL.",
+  liveUntouchedProof: { liveNextBeforeAfterEqual: eq("live-next.json", "live-next-after.json"), liveNodeModulesBeforeAfterEqual: eq("live-node_modules.json", "live-node_modules-after.json"), liveListener3000Pid: 28928, accessDaemonAttemptsUnchanged: "origin 26 / tunnel 17 before and after" },
+  drillA_rollbackArtifactsRestart: {
+    what: "Byte copy of the live .next (ab11e77 build) and live node_modules (Next 16.2.10) into a clone at ab11e77; junction recreated to the clone's typescript; next start without rebuild.",
+    copyNodeModulesEqualLive: eq("live-node_modules.json", "copy-r-node_modules.json"), copyNextEqualLive: eq("live-next.json", "copy-r-next.json"),
+    copySeconds: { node_modules: 6, next: 0.5 }, readyMs: 88, serverLogErrors: 0, probe: probe("drillA-probe.json"),
+  },
+  drillC_unplannedLogonRebuildPrediction: {
+    what: "What the next interactive logon would deploy: current HEAD d03c5a0 (source = 2d6cef3) built with the live node_modules copy (Next 16.2.10).",
+    buildExit: 0, buildSeconds: 23, stamp: { gitHead: "d03c5a09e32b5135013103cc2117ba33be0f2472", treeState: "CLEAN" }, turbopackWarnings: 12, readyMs: 89, serverLogErrors: 0, probe: probe("drillC-probe.json"),
+    caveat: "Built without .env.local, so NEXT_PUBLIC_* values are absent from the client bundle; the daemon's in-repo build includes them. Gate/session/route behaviour does not depend on them.",
+  },
+  drillB_targetBuild: {
+    what: "Target: d03c5a0 (source = 2d6cef3) with a byte copy of the fresh-lock runtime (Next 16.3.8 = lock).",
+    copyEqualFreshLock: eq("freshlock-node_modules.json", "copy-t-node_modules.json"), buildExit: 0, buildSeconds: 23, stamp: { gitHead: "d03c5a09e32b5135013103cc2117ba33be0f2472", treeState: "CLEAN", lockfileSha256: "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0" },
+    turbopackWarnings: 129, warningNote: "16.3.8 reports broad dynamic file-pattern traces (one matches 16580 project files; public/music, public/sfx). Not an error; recorded, not called clean.",
+    middlewareDeprecationWarning: true, readyMs: 94, serverLogErrors: 0, probe: probe("drillB-probe.json"),
+  },
+  routeComparison: routes,
+  rollbackRehearsal: {
+    what: "In the target directory after the target ran: source back to ab11e77 (git checkout --detach), node_modules and .next swapped by same-volume rename to the verified 16.2.10 tree and the byte-copied ab11e77 build, junction recreated; next start without rebuild.",
+    switchSeconds: 0.27, restoredNodeModulesEqualLive: eq("live-node_modules.json", "rehearsal-node_modules.json"), restoredNextEqualLive: eq("live-next.json", "rehearsal-next.json"), readyMs: 93, serverLogErrors: 0, probe: probe("rehearsal-probe.json"),
+  },
+  backupRestoreDrill_stableStores: {
+    what: "robocopy backup of the live runtime and authority roots into TEMP, then restore into a second TEMP target; every copy hashed.",
+    runtime: { backupEqualLive: eq("runtime-root.json", "drill-bk-rt.json"), restoreEqualLive: eq("runtime-root.json", "drill-rs-rt.json"), liveUnchanged: eq("runtime-root.json", "runtime-root-after.json"), files: 2374, bytes: 611013585 },
+    authority: { backupEqualLive: eq("authority-root.json", "drill-bk-au.json"), restoreEqualLive: eq("authority-root.json", "drill-rs-au.json"), liveUnchanged: eq("authority-root.json", "authority-root-after.json"), files: 4 },
+    dataBrain: "NOT_DRILLED (active writers; private memory/chat records not copied to TEMP). Same mechanism; needs a quiesced snapshot inside the window.",
+  },
+  notProven: ["live restart of any build", "live rollback", "in-repo daemon build with .env.local", "real runtime root / model / voice / chat with the new dependencies", "public tunnel path", "owner authenticated session on a real device", "behaviour under concurrent writers during the swap"],
+  cleanup: { tempRoot: "removed", junctionsRemovedFirst: 3, junctionTargetsOutsideTempRoot: 0, liveNodeModulesTopLevelEntriesBeforeAfter: "334/334" },
+  grantsAuthority: false,
+});
+console.log("assembled", fs.readdirSync(outDir));

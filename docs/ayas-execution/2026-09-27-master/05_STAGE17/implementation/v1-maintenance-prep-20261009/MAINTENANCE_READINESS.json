@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-09T08:05:00Z",
+  "command": "Stage 17 owner continuation 2026-10-09, task 2 (prepare only; not a maintenance authorization)",
+  "targets": {
+    "technicalSource": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "deployHeadRule": "The branch HEAD at window start, provided git diff 2d6cef3 <HEAD> outside docs/ and *.md is empty. The build stamp will name that HEAD, not 2d6cef3.",
+    "liveBuild": "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+    "installedNext": "16.2.10",
+    "targetNext": "16.3.8",
+    "packageLockSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "targetNodeModulesTreeSha256": "5742657cbee8a3bd833c11b096d8efac29e9fcecdc47d1b392b0b6844d9dbf3f",
+    "rollbackNodeModulesTreeSha256": "2c171137e39b0d83f09a971a3bb3fdb1a578f67ba53eb29cffbe2afa0584a3d5",
+    "rollbackNextDirTreeSha256": "fd0f9396c72a1f9c8b9eba9eb1ee656cd0d6abc6e8fa109bf6cb9396710dda62",
+    "runtimeRootTreeSha256": "b63b9509cd924fcc6366e3c58b846a8c730998f8f11353ef621726ed003858e7",
+    "authorityRootTreeSha256": "7851b7641f25c692c456e19e7fd888b159648be1a26a20adf62868b0c8907422",
+    "branch": "wip/ayas-graphify-final-execution",
+    "runtimeAuthority": "Program\\Atolye\\runtime\\AtolyeRuntime + AtolyeAuthority (unchanged by maintenance)"
+  },
+  "verdicts": {
+    "backupReadiness": {
+      "state": "NOT_READY",
+      "proven": [
+        "Byte backup of the live .next and node_modules: copies equal live, live unchanged during the copy (ISOLATED_DRILLS.json drillA).",
+        "Backup and restore of the runtime and authority roots: both copies equal live, live unchanged (backupRestoreDrill_stableStores)."
+      ],
+      "missing": [
+        "No retained backup exists: every drill copy was in TEMP and has been deleted. The window's own backups must be made and verified at window start.",
+        "data/brain has active writers (6 changes in 6.3 min); a consistent snapshot needs the Autonomy Observer stopped and Next idle. NOT_TAKEN.",
+        "The canonical runtime backup tool has never been bootstrapped on the live authority root (its marker is absent); its first use writes that marker and needs owner approval.",
+        "Secrets (.env.local, cloudflared credentials) are not copied by the agent; maintenance does not change them, but the owner's own secure copy is unverified."
+      ]
+    },
+    "restoreReadiness": {
+      "state": "ISOLATED_PASS_LIVE_NOT_RUN",
+      "proven": [
+        "Rename swap back to the verified ab11e77 build and Next 16.2.10 tree took 0.27 s, both trees re-hashed equal to live, and the server booted and passed gate and session checks (rollbackRehearsal).",
+        "Runtime and authority restore copies are byte-exact."
+      ],
+      "missing": [
+        "No live restore was run.",
+        "data/brain restore not drilled.",
+        "A live restore races the Access daemon: whenever :3000 is down it rebuilds the repo HEAD within 60 s and overwrites .next."
+      ]
+    },
+    "targetBuildReadiness": {
+      "state": "ISOLATED_PASS_WITH_DECLARED_DIFFERENCES",
+      "proven": [
+        "Full166 166/166 PASS at 2d6cef3 on the same fresh-lock runtime (FINAL_CERTIFICATION.json).",
+        "Isolated build of d03c5a0 (source = 2d6cef3) on a byte copy of the fresh-lock runtime: exit 0 in 23 s, stamp CLEAN, 55 routes identical to live, boot 94 ms, gate and authenticated pages PASS, 0 server log errors.",
+        "Fresh-lock runtime equals package-lock.json for win32-x64 (0 version or integrity differences)."
+      ],
+      "declaredDifferences": [
+        "Built without .env.local: NEXT_PUBLIC_* client values absent; the in-repo daemon build includes them.",
+        "Next 16.3.8 reports 129 Turbopack warnings (12 on 16.2.10), mostly broad dynamic file-pattern traces; not errors.",
+        "No real runtime root, chat, model, voice, phone or public-tunnel path exercised."
+      ]
+    },
+    "rollbackReadiness": {
+      "state": "ISOLATED_REHEARSED_LIVE_NOT_PROVEN",
+      "proven": [
+        "Rollback artifacts (live ab11e77 build + live 16.2.10 tree) restart from byte copies without a rebuild (drillA, rollbackRehearsal).",
+        "Deps-only rollback (2d6cef3 source on 16.2.10) builds and boots (drillC).",
+        "Target adds no new persisted record kind; ab11e77 code reads the same stores."
+      ],
+      "notAssumed": [
+        "The rollback target is not assumed safe because it was live: a rollback removes the exact-preview requirement (569d6f5), so APPROVE/YURUT stays frozen while rolled back.",
+        "Live rollback, live restart under the daemon, and recovery from a half-swapped node_modules are NOT_RUN."
+      ]
+    },
+    "maintenance": "NOT_READY",
+    "foundation": "BLOCKED",
+    "ayasV1": "BLOCKED"
+  },
+  "criticalRiskBeforeAnyWindow": {
+    "id": "F115",
+    "statement": "Both AYAS tasks start at interactive logon; the Access daemon then finds :3000 down and runs npm run build in the repo at the checked-out HEAD with the installed node_modules. The next logon (or any :3000 outage) therefore deploys the current HEAD (source 2d6cef3, including the 569d6f5 application change) on Next 16.2.10 without a maintenance window.",
+    "evidence": "recovery-audit.jsonl morning origin starts on 9 of the last 15 days; live moved e974614 -> ab11e77 this way on 2026-10-09.",
+    "prediction": "Drill C: that combination builds (23 s) and boots with gate and session checks passing. Not proven on the real device, env, voice or phone.",
+    "ownerDecisionRequiredBefore": "the next sign-out, shutdown, restart or :3000 outage"
+  },
+  "ownerApprovalsRequired": [
+    "M1 Target identity: deploy HEAD (docs-only descendant of 2d6cef3), Next 16.3.8 tree 5742657c..., lock 24b7037c....",
+    "M2 Window start time and the accepted phone/PC downtime (expected 30-130 s per origin restart; longer if a build fails).",
+    "M3 Retained backup location outside the repo (for example Program\\Atolye\\backups\\local\\maintenance-<date>) and permission to write about 1.9 GB there.",
+    "M4 Ending the AYAS Autonomy Observer task for the window and starting it again afterwards.",
+    "M5 Killing only the Next npm wrapper process tree so the Access daemon rebuilds and restarts origin (never the Access task, never cloudflared).",
+    "M6 The node_modules swap by same-volume rename (no npm install, no network, no npm audit fix).",
+    "M7 Pre-approved rollback: R1 (dependencies back to 16.2.10) and, if needed, R2 (worktree detached at ab11e77) when any trigger fires, without a second question; or an explicit 'ask me first'.",
+    "M8 Physical phone and PC checks by the owner after the restart.",
+    "M9 Reboot as a separate, later approval.",
+    "M10 Gelisim Merkezi APPROVE/YURUT frozen from window start until the window closes (and while any rollback is active).",
+    "M11 F115 decision before the next logon."
+  ],
+  "liveOperationsThisSession": {
+    "deploy": "NONE", "nextRestart": "NONE", "reboot": "NONE", "approveOrExecute": "NONE", "dependencyInstall": "NONE", "liveWrite": "NONE", "requestToLiveServer": "NONE", "paidService": "NONE", "financialOrPlatformAction": "NONE"
+  },
+  "grantsAuthority": false
+}

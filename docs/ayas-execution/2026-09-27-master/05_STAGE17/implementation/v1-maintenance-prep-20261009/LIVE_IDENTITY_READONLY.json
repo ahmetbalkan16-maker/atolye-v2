@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-09T07:33:00Z/07:50:00Z",
+  "method": "READ_ONLY: process table, listeners, build files, scheduled-task export, daemon state files. No request to the live server, no restart, no write.",
+  "repo": {
+    "branch": "wip/ayas-graphify-final-execution",
+    "head": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "worktree": "CLEAN",
+    "remoteHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "remoteMain": "f0ae19d5ccf5c95466f5c87f2421239cfee6f232"
+  },
+  "liveBuild": {
+    "stamp": {
+      "gitHead": "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+      "treeState": "CLEAN",
+      "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+      "stampedAt": "2026-10-09T03:48:16.187Z"
+    },
+    "buildId": "S97dvGhTGFFsHILCPmoWV",
+    "builtBy": "Access daemon Start-Origin (npm run build in the repo at the HEAD checked out then) after the logon start of the two tasks at 06:46:51 local",
+    "nextDirTree": {
+      "fileCount": 1096,
+      "bytes": 160726825,
+      "aggregateSha256": "fd0f9396c72a1f9c8b9eba9eb1ee656cd0d6abc6e8fa109bf6cb9396710dda62",
+      "reparsePoints": [
+        "node_modules/typescript-279735412610ef8d"
+      ],
+      "maxPathLength": 177,
+      "newestMtime": "2026-10-09T03:48:16.263Z",
+      "hashedAt": "2026-10-09T07:39:59.254Z"
+    },
+    "nextDirJunction": "node_modules/typescript-279735412610ef8d -> <repo>\\node_modules\\typescript",
+    "routes": 55,
+    "stampLockFieldCaveat": "The stamp records the sha256 of package-lock.json (Next 16.3.8) while the installed tree it was built with is Next 16.2.10. The stamp's lock field is not the dependency identity of the running build."
+  },
+  "installedDependencies": {
+    "next": "16.2.10",
+    "lockNext": "16.3.8",
+    "packageJsonNext": "16.3.8",
+    "packageJsonSha256": "588fe1be5c55d83144de3acee081256f1e02fe767b3329cfca3f78d545763429",
+    "packageLockSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "nodeModulesTree": {
+      "fileCount": 25977,
+      "bytes": 1115216940,
+      "aggregateSha256": "2c171137e39b0d83f09a971a3bb3fdb1a578f67ba53eb29cffbe2afa0584a3d5",
+      "reparsePoints": [],
+      "maxPathLength": 239,
+      "newestMtime": "2026-10-07T06:21:23.309Z",
+      "hashedAt": "2026-10-09T07:40:25.009Z"
+    },
+    "lockLastChangedAt": "36e794f 2026-10-06T04:03:14Z",
+    "node": "v24.18.0",
+    "npm": "11.16.0"
+  },
+  "processes": {
+    "nextServer": {
+      "pid": 28928,
+      "startedLocal": "2026-10-09 06:48:17",
+      "chain": "node next start -p 3000 <- cmd <- node npm-cli run start -- -p 3000 (15076 chain) <- cmd <- powershell ayas-access-daemon (2700) <- wscript <- Task Scheduler"
+    },
+    "cloudflared": {
+      "pid": 20716,
+      "startedLocal": "2026-10-09 06:48:20",
+      "parent": "powershell ayas-access-daemon (2700)"
+    },
+    "accessDaemon": {
+      "pid": 2700,
+      "task": "AYAS Access Online",
+      "startedLocal": "2026-10-09 06:46:53"
+    },
+    "autonomyObserver": {
+      "wrapperPid": 14788,
+      "nodePids": [
+        24484,
+        18228,
+        14512
+      ],
+      "task": "AYAS Autonomy Observer",
+      "startedLocal": "2026-10-09 06:46:53",
+      "intervalMs": 300000
+    },
+    "ollama": {
+      "pid": 11148,
+      "listener": "127.0.0.1:11434"
+    },
+    "otherAgents": "none (no codex/ChatGPT process; no baseline or smoke running at start)",
+    "listeners3000": 1
+  },
+  "scheduledTasks": {
+    "AYAS Access Online": {
+      "trigger": "LogonTrigger only",
+      "logonType": "InteractiveToken",
+      "multipleInstances": "IgnoreNew",
+      "executionTimeLimit": "PT0S",
+      "restartOnFailure": "PT1M x3",
+      "action": "wscript //B run-ayas-access-hidden.vbs",
+      "xmlSha256Utf16": "374d98b680e33f887394338a6bfa841f5b70065556b6e08978e01537d4d5fb62",
+      "lastRun": "2026-10-09 06:46:51",
+      "state": "Running"
+    },
+    "AYAS Autonomy Observer": {
+      "trigger": "LogonTrigger only",
+      "logonType": "InteractiveToken",
+      "multipleInstances": "IgnoreNew",
+      "executionTimeLimit": "PT0S",
+      "restartOnFailure": "PT1M x3",
+      "action": "wscript //B run-ayas-observer-hidden.vbs",
+      "xmlSha256Utf16": "c46b569029b9205a0b42830bcf7054e2f2f0ebc155a9ce030aa0d673b472f55b",
+      "lastRun": "2026-10-09 06:46:51",
+      "state": "Running"
+    }
+  },
+  "lastFullBoot": "2026-10-06 06:41:10 local (Windows LastBootUpTime; the tasks restart at every interactive logon)",
+  "accessDaemon": {
+    "recoveryState": {
+      "result": "healthy",
+      "originAttempts": 26,
+      "tunnelAttempts": 17,
+      "consecutiveFailures": 0,
+      "listenerPid": 28928,
+      "wrapperPid": 15076,
+      "tunnelPid": 20716
+    },
+    "behaviour": "Every 60 s; if :3000 is down it runs npm run build in the repo (current HEAD, installed node_modules, .env.local) then npm run start -- -p 3000; 3 consecutive failures exhaust retries (cooldown 120 s, 240 s).",
+    "morningRestartPattern": "recovery-audit.jsonl shows origin (and usually tunnel) started at about 06:4x local on 2026-09-25, 09-28, 09-29, 10-01, 10-05, 10-06, 10-07, 10-08 and 10-09: each interactive logon rebuilds the live site from the repo HEAD.",
+    "buildFailureHistory": "2026-10-07 06:48-06:57 three build failures (retries exhausted), operator repair 'sharp-lock-restored' at 09:26 local; site origin down about 2.6 h."
+  },
+  "liveChangedWithoutWindow": "Live moved from e974614 (recorded 2026-10-08) to ab11e77 through the 2026-10-09 logon rebuild; no maintenance window was used. This is the daemon's designed behaviour, recorded as a finding (F115).",
+  "grantsAuthority": false
+}

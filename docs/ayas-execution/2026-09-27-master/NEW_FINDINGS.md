@@ -1,3 +1,11 @@
+## 9 Ekim 2026 — bakım hazırlığı / F115–F117
+
+**F115 — HIGH, operasyon (owner kararı).** Canlı build bakım penceresine bağlı değil. "AYAS Access Online" ve "AYAS Autonomy Observer" yalnız LogonTrigger/InteractiveToken ile başlar. Access daemon :3000'i kapalı bulunca repo'da o an checkout edilmiş HEAD'i kurulu node_modules ve `.env.local` ile `npm run build` edip başlatır (`scripts/ayas-access-daemon.ps1` Start-Origin). `recovery-audit.jsonl`'de son 15 günün 9'unda sabah yeniden build var; canlı 8 Ekim'deki e974614'ten 9 Ekim 06:47'de ab11e77'ye böyle geçti. 7 Ekim'de aynı yol üç kez build hatası verdi ve origin ~2,6 saat kapalı kaldı. Sonraki logon veya :3000 kesintisi 2d6cef3 kaynağını Next 16.2.10 üzerinde canlıya alır (izole Drill C: build ve açılış PASS). Kaynak değişikliği yapılmadı; seçenekler MAINTENANCE_PLAN.md §0'da.
+
+**F116 — LOW, kanıt doğruluğu.** `.next/ayas-build-stamp.json` içindeki `lockfileSha256`, kurulu bağımlılık ağacının değil `package-lock.json` dosyasının özetidir. Canlı ab11e77 stamp'i 16.3.8 lock özetini taşır, ama build 16.2.10 ağacıyla yapılmıştır; Drill C'de de aynısı görüldü. Bağımlılık kimliği ağaç özetiyle doğrulanmalıdır (bakım planı §1, §8). Kaynak değişikliği önerilmedi.
+
+**F117 — MEDIUM, yedek.** Kanonik runtime yedek aracı canlı authority köküne hiç bağlanmamış: `runtime-backup-authority-v1.json` yok. `npm run runtime:backup:inventory` dahil ilk çalıştırma bu marker'ı canlı köke yazar, yani salt okunur değildir; bu yüzden çalıştırılmadı. Güncel runtime durumu için kanonik yedek yok (son yedek b-0d971133190c, Sprint 207 dönemi). İlk kullanım owner onaylı bakım adımıdır (M3).
+
 ## 9 Ekim 2026 — exact-preview final teknik kaynak 2d6cef3: Full166 166/166 PASS; push owner onayı bekliyor
 
 - Teknik commit 2d6cef3 yalnız iki test dosyası (+4/−4): Golden Vault okuması izinli `smoke-ayas-owner-exact-preview.ts` suite'ine taşındı, fixture vault'u parametreyle alır. Uygulama kaynağı 569d6f5 ile bayt-bayt aynı; EVAL manifest ve 215 frozen pin 456dad6'dan beri değişmedi; Golden sözleşme/registry/guard suite/consumer allow-list'e dokunulmadı. 67493c8 yalnız T1 FAIL ve onarım kanıtıdır (docs).

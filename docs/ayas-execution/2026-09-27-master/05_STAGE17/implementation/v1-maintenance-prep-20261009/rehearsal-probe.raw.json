@@ -1,0 +1,93 @@
+{
+  "label": "rollback-rehearsal-target-dir-restored-ab11e77-next16.2.10-no-rebuild",
+  "baseUrl": "http://127.0.0.1:3917",
+  "at": "2026-10-09T07:46:38.075Z",
+  "checks": {
+    "unauthRootGate": true,
+    "unauthBrainGate": true,
+    "loginPage200": true,
+    "authRoot200": true,
+    "authBrain200": true
+  },
+  "pass": true,
+  "rows": [
+    {
+      "route": "/",
+      "authenticated": false,
+      "status": 307,
+      "gate": "enforced",
+      "location": "/login?next=%2F",
+      "bytes": 15,
+      "hasHtml": false,
+      "nextError": false,
+      "ms": 48
+    },
+    {
+      "route": "/brain",
+      "authenticated": false,
+      "status": 307,
+      "gate": "enforced",
+      "location": "/login?next=%2Fbrain",
+      "bytes": 20,
+      "hasHtml": false,
+      "nextError": false,
+      "ms": 4
+    },
+    {
+      "route": "/login",
+      "authenticated": false,
+      "status": 200,
+      "gate": null,
+      "location": null,
+      "bytes": 14582,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 23
+    },
+    {
+      "route": "/",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 65619,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 514
+    },
+    {
+      "route": "/brain",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 62978,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 346
+    },
+    {
+      "route": "/brain/briefing",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 24166,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 325
+    },
+    {
+      "route": "/studio",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 12686,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 18
+    }
+  ],
+  "cookieOrKeyRecorded": false
+}

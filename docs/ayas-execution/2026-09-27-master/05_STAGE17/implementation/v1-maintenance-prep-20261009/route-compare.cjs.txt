@@ -1,0 +1,19 @@
+const fs = require("fs");
+const [liveDir, cApp, cRoutes, tDir, out] = process.argv.slice(2);
+const read = (p) => JSON.parse(fs.readFileSync(p, "utf8"));
+const routeSet = (rm) => [...rm.staticRoutes, ...rm.dynamicRoutes].map((r) => r.page).sort();
+const sets = {
+  liveAb11e77: { app: Object.keys(read(liveDir + "/app-path-routes-manifest.json")).sort(), routes: routeSet(read(liveDir + "/routes-manifest.json")) },
+  drillC_d03c5a0_16_2_10: { app: Object.keys(read(cApp)).sort(), routes: routeSet(read(cRoutes)) },
+  target_d03c5a0_16_3_8: { app: Object.keys(read(tDir + "/app-path-routes-manifest.json")).sort(), routes: routeSet(read(tDir + "/routes-manifest.json")) },
+};
+const diff = (a, b) => ({ added: b.filter((x) => !a.includes(x)), removed: a.filter((x) => !b.includes(x)) });
+const r = {
+  counts: Object.fromEntries(Object.entries(sets).map(([k, v]) => [k, { appPathEntries: v.app.length, routes: v.routes.length }])),
+  liveToTargetApp: diff(sets.liveAb11e77.app, sets.target_d03c5a0_16_3_8.app),
+  liveToTargetRoutes: diff(sets.liveAb11e77.routes, sets.target_d03c5a0_16_3_8.routes),
+  drillCToTargetApp: diff(sets.drillC_d03c5a0_16_2_10.app, sets.target_d03c5a0_16_3_8.app),
+  liveToDrillCApp: diff(sets.liveAb11e77.app, sets.drillC_d03c5a0_16_2_10.app),
+};
+fs.writeFileSync(out, JSON.stringify(r, null, 2));
+console.log(JSON.stringify(r));

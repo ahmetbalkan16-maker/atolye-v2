@@ -1,0 +1,8 @@
+const [url, timeoutMs] = process.argv.slice(2);
+const deadline = Date.now() + Number(timeoutMs || 120000);
+const started = Date.now();
+while (Date.now() < deadline) {
+  try { const r = await fetch(url, { redirect: "manual" }); if (r.status === 200) { console.log(JSON.stringify({ ready: true, ms: Date.now() - started, status: r.status })); process.exit(0); } } catch {}
+  await new Promise((res) => setTimeout(res, 1000));
+}
+console.log(JSON.stringify({ ready: false, ms: Date.now() - started })); process.exit(1);

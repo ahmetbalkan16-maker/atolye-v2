@@ -42,7 +42,9 @@
     },
     {
       "file": "REPORT.md",
-      "sha256": "22f29703b61c14aea93e84a0714f8f898a7f6e483450b7284775f828a018a19b"
+      "sha256": "a8e6f133fe0b3dccc037b6c4ad2738e3d33cae91b10a02f95cc45f9e482599ad",
+      "previousSha256": "22f29703b61c14aea93e84a0714f8f898a7f6e483450b7284775f828a018a19b",
+      "amendedAt": "2026-10-09T08:10:00.000Z"
     },
     {
       "file": "SOURCE.patch",
@@ -366,7 +368,9 @@
     },
     {
       "file": "FINAL_CERTIFICATION.json",
-      "sha256": "f88f7005bb9e38cf91ed189f9250dca31efe4d315662f8d9b2bc88bb449788f0"
+      "sha256": "719acc6debaa17a26364235c2a2ced1beccf8e6eb2c1dd38e4882db1968e7ba6",
+      "previousSha256": "f88f7005bb9e38cf91ed189f9250dca31efe4d315662f8d9b2bc88bb449788f0",
+      "amendedAt": "2026-10-09T08:10:00.000Z"
     },
     {
       "file": "FULL166_2d6cef3.raw.json",
@@ -487,6 +491,11 @@
     {
       "file": "historical-smoke-ayas-publication-activity-456dad6.raw.log",
       "sha256": "5f6c287261b6432a0ab65c11ee905583dbdc4ca8d9698629a7238d21c4274503"
+    },
+    {
+      "file": "PUBLICATION_RECEIPT_d03c5a0.json",
+      "sha256": "e7296e02192ceb00c1f8dcf62af077536e17424f8d4e8de78c9beb2c18f01284",
+      "addedAt": "2026-10-09T08:10:00.000Z"
     }
   ]
 }

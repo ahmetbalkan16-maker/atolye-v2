@@ -1,0 +1,93 @@
+{
+  "label": "drillC-unplanned-restart-prediction-d03c5a0-next16.2.10",
+  "baseUrl": "http://127.0.0.1:3918",
+  "at": "2026-10-09T07:43:59.911Z",
+  "checks": {
+    "unauthRootGate": true,
+    "unauthBrainGate": true,
+    "loginPage200": true,
+    "authRoot200": true,
+    "authBrain200": true
+  },
+  "pass": true,
+  "rows": [
+    {
+      "route": "/",
+      "authenticated": false,
+      "status": 307,
+      "gate": "enforced",
+      "location": "/login?next=%2F",
+      "bytes": 15,
+      "hasHtml": false,
+      "nextError": false,
+      "ms": 43
+    },
+    {
+      "route": "/brain",
+      "authenticated": false,
+      "status": 307,
+      "gate": "enforced",
+      "location": "/login?next=%2Fbrain",
+      "bytes": 20,
+      "hasHtml": false,
+      "nextError": false,
+      "ms": 2
+    },
+    {
+      "route": "/login",
+      "authenticated": false,
+      "status": 200,
+      "gate": null,
+      "location": null,
+      "bytes": 14582,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 26
+    },
+    {
+      "route": "/",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 65649,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 613
+    },
+    {
+      "route": "/brain",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 63029,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 472
+    },
+    {
+      "route": "/brain/briefing",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 24166,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 380
+    },
+    {
+      "route": "/studio",
+      "authenticated": true,
+      "status": 200,
+      "gate": "enforced",
+      "location": null,
+      "bytes": 12686,
+      "hasHtml": true,
+      "nextError": false,
+      "ms": 15
+    }
+  ],
+  "cookieOrKeyRecorded": false
+}

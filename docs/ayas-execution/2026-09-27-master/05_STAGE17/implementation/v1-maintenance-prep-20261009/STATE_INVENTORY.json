@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "note": "Tree digest = sha256 over sorted lines 'relativePath\\0size\\0sha256' of every regular file; reparse points are listed, never followed (tree-manifest.mjs.txt).",
+  "stores": [
+    {
+      "store": "runtime root (ATOLYE_RUNTIME_ROOT) Program\\Atolye\\runtime\\AtolyeRuntime",
+      "writers": "Atolye production pipeline only (no production running; no write since 2026-09-15)",
+      "changedByMaintenance": false,
+      "tree": {
+        "fileCount": 2374,
+        "bytes": 611013585,
+        "aggregateSha256": "b63b9509cd924fcc6366e3c58b846a8c730998f8f11353ef621726ed003858e7",
+        "reparsePoints": [],
+        "maxPathLength": 260,
+        "newestMtime": "2026-09-15T05:13:04.967Z",
+        "hashedAt": "2026-10-09T07:40:50.726Z"
+      },
+      "stableAcrossSession": true,
+      "pathBudget": "max path 260 at the live location; any backup root must be shorter than the live root"
+    },
+    {
+      "store": "authority root (ATOLYE_RUNTIME_AUTHORITY_ROOT) Program\\Atolye\\runtime\\AtolyeAuthority",
+      "writers": "authority transitions only",
+      "changedByMaintenance": false,
+      "tree": {
+        "fileCount": 4,
+        "bytes": 11113,
+        "aggregateSha256": "7851b7641f25c692c456e19e7fd888b159648be1a26a20adf62868b0c8907422",
+        "reparsePoints": [],
+        "maxPathLength": 189,
+        "newestMtime": "2026-09-15T05:13:12.387Z",
+        "hashedAt": "2026-10-09T07:40:50.781Z"
+      },
+      "stableAcrossSession": true,
+      "canonicalBackupToolMarker": "ABSENT: runtime-backup-authority-v1.json was never created; running npm run runtime:backup:inventory would create it in the live authority root, so it was NOT run"
+    },
+    {
+      "store": "repo data/brain (gitignored)",
+      "writers": "Next server (chat, approvals, sessions), Autonomy Observer (every 5 min: daemon-state, discovery-runs, research, execution/authorizations, patch-artifacts), Access daemon (phone-access/status.json every 60 s)",
+      "changedByMaintenance": "only by the restarted processes",
+      "pass1": {
+        "at": "2026-10-09T07:40:51.511Z",
+        "fileCount": 4733,
+        "aggregateSha256": "e2ef4ac4005474a0e36a25524127ca51793f405a07ea7d3adcc1601d1130ec8b"
+      },
+      "pass2": {
+        "at": "2026-10-09T07:47:11.797Z",
+        "fileCount": 4735,
+        "aggregateSha256": "0cfe69d428764e989d5e1f0e2c5ea87cae1aea8fc20d23dffc900da8de0cfd47"
+      },
+      "writerActivityBetweenPasses": {
+        "minutes": 6.3,
+        "changed": 4,
+        "added": 2,
+        "removed": 0,
+        "where": [
+          "autonomy/daemon-state.json",
+          "phone-access/status.json",
+          "self-improvement/discovery-runs",
+          "self-improvement/research",
+          "execution/authorizations (+1)",
+          "self-improvement/patch-artifacts (+1)"
+        ]
+      },
+      "qualifiedSnapshot": "REQUIRES_QUIESCENCE (Autonomy Observer stopped, Next idle); NOT_TAKEN"
+    },
+    {
+      "store": "repo .next (live build)",
+      "changedByMaintenance": true,
+      "tree": {
+        "fileCount": 1096,
+        "bytes": 160726825,
+        "aggregateSha256": "fd0f9396c72a1f9c8b9eba9eb1ee656cd0d6abc6e8fa109bf6cb9396710dda62",
+        "reparsePoints": [
+          "node_modules/typescript-279735412610ef8d"
+        ],
+        "maxPathLength": 177,
+        "newestMtime": "2026-10-09T03:48:16.263Z",
+        "hashedAt": "2026-10-09T07:39:59.254Z"
+      }
+    },
+    {
+      "store": "repo node_modules (installed, Next 16.2.10)",
+      "changedByMaintenance": true,
+      "tree": {
+        "fileCount": 25977,
+        "bytes": 1115216940,
+        "aggregateSha256": "2c171137e39b0d83f09a971a3bb3fdb1a578f67ba53eb29cffbe2afa0584a3d5",
+        "reparsePoints": [],
+        "maxPathLength": 239,
+        "newestMtime": "2026-10-07T06:21:23.309Z",
+        "hashedAt": "2026-10-09T07:40:25.009Z"
+      },
+      "recreatableFromLock": false,
+      "why": "the lock now resolves Next 16.3.8; only a byte copy restores 16.2.10"
+    },
+    {
+      "store": "LOCALAPPDATA\\AtolyeAyasAccess (daemon state and logs, 143 MiB, 1119 files)",
+      "changedByMaintenance": "logs and recovery-state.json by the daemon",
+      "recoveryStateSha256AtInventory": "bd9c7538b7e12b26bcb40bbe67c1ea2a2876a3785d17133bef9660353dba02b0"
+    },
+    {
+      "store": "repo data/projects (legacy, gitignored, 2399 files, 583 MiB, max path 309)",
+      "liveBound": false,
+      "changedByMaintenance": false
+    }
+  ],
+  "configIdentityHashOnly": {
+    "note": "Contents never read or printed. Maintenance must not change any of these.",
+    "repo/.env.local": "a2f46ef4158ee4648d2967aca4b2215c89c85e4ded850a6c9324faea76ea2d8d (5812 bytes, 2026-09-21)",
+    "~/.cloudflared/config.yml": "a909cbb9a9b0979cb23507cc83ab39496188f661e7178ece6d58a2555e2e74d9 (246 bytes)",
+    "~/.cloudflared credentials json, cert.pem": "present; not hashed or read",
+    "run-ayas-access-hidden.vbs": "d6996308c539d30586f81f55635e681a30bbb6031fad01f870bdd1456fc5df1a",
+    "run-ayas-observer-hidden.vbs": "f313246bf947261795fd231d1fc1b89335183dd6791199c40b90825e58f9009b",
+    "scripts/ayas-access-daemon.ps1": "22dda6c62801310daaa6a690b302afbf501af1b6668d859d5603ed7ae69ad1c1",
+    "scripts/ayas-autonomy-daemon.ps1": "6b49aac2bbbd75d5268341474b3f3ea11f5855410d8907e8e253427e6f7d70bb",
+    "taskXml": "see LIVE_IDENTITY_READONLY.json scheduledTasks"
+  },
+  "existingBackupRoots": {
+    "Program\\Atolye\\backups": [
+      "claude/authority-control-plane-2026-09-15",
+      "external/AtolyeBackup/backups/b-0d971133190c (Sprint 207 era)",
+      "external/AtolyeBackup/backups/b-fee58282da89 (stale)"
+    ],
+    "currentProductionBackup": "NONE for the current runtime state through the canonical tool"
+  },
+  "diskAndMemory": {
+    "cFreeGiB": 123.8,
+    "ramFreeGiB": 16.1,
+    "ramTotalGiB": 31.7,
+    "estimatedBackupGiB": "about 1.9 (node_modules 1.04 + .next 0.15 + runtime 0.57 + data/brain 0.02 + staged target tree 1.12 counted separately)"
+  },
+  "grantsAuthority": false
+}

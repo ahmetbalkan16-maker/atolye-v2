@@ -4,7 +4,7 @@
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
   "currentHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
-  "currentHeadMeaning": "Final certified exact-preview technical source (Full166 166/166 PASS, FINAL_CERTIFICATION.json). Docs-only evidence commits follow it; resolve Git HEAD. Not pushed.",
+  "currentHeadMeaning": "Final certified exact-preview technical source (Full166 166/166 PASS, FINAL_CERTIFICATION.json). Docs-only descendants follow it and are not technically certified by themselves. Pushed through d03c5a0 on 2026-10-09 (owner-approved fast-forward); resolve Git HEAD.",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Exact-preview fail-closed source certified at 2d6cef3 (Full166 166/166); evidence recorded; push and every live/owner gate await the owner.",
-  "status": "V1_BLOCKED_OWNER_LIVE_GATES_PENDING_SOURCE_CERTIFIED_2D6CEF3",
+  "subtask": "Push of 456dad6..d03c5a0 recorded; maintenance preparation for 2d6cef3 / Next 16.3.8 done with isolated drills (v1-maintenance-prep-20261009); MAINTENANCE NOT_READY; live and owner gates await the owner.",
+  "status": "V1_BLOCKED_MAINTENANCE_NOT_READY_SOURCE_CERTIFIED_2D6CEF3_PUSHED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -286,18 +286,41 @@
   ],
   "graphify": {
     "schemaVersion": "1",
-    "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
-    "lastSeenHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
-    "lastAnalyzedHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
-    "builtFromHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+    "sourceHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "lastSeenHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "lastAnalyzedHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "builtFromHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
     "stale": false,
     "integrityViolations": 0,
-    "nodes": 19404,
-    "edges": 55632,
-    "communities": 400,
+    "integrity": {
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0
+    },
+    "nodes": 19237,
+    "edges": 53300,
+    "communities": 422,
     "structural": "PARTIAL",
+    "structuralReason": "INCOMPLETE_CODE_FILES:10 (7 .ps1 without PowerShell grammar, CI yml, two bracketed asset routes)",
     "semantic": "PENDING",
-    "note": "PARTIAL9 = 7 .ps1 (no PowerShell grammar) + CI yml + bracketed thumbnails route. Later documentation-only commits are source-identical; resolve exact-HEAD state with scripts/ayas-graphify-status.ts"
+    "verifiedAt": "2026-10-09T07:33:00Z",
+    "note": "Verified at d03c5a0 before this evidence commit; the graph is refreshed after it (AST-only update). Resolve exact-HEAD state with scripts/ayas-graphify-status.ts.",
+    "previous": {
+      "schemaVersion": "1",
+      "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+      "lastSeenHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+      "lastAnalyzedHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+      "builtFromHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
+      "stale": false,
+      "integrityViolations": 0,
+      "nodes": 19404,
+      "edges": 55632,
+      "communities": 400,
+      "structural": "PARTIAL",
+      "semantic": "PENDING",
+      "note": "PARTIAL9 = 7 .ps1 (no PowerShell grammar) + CI yml + bracketed thumbnails route. Later documentation-only commits are source-identical; resolve exact-HEAD state with scripts/ayas-graphify-status.ts"
+    }
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -324,10 +347,20 @@
     "OWNER_DECISION (not blocking): whether CRITICAL owner alerts may use a push/phone channel. None exists; it would be new external transport. Until then delivery is the owner's open Brain UI only.",
     "STAGE16_CLOSURE_BLOCKER:16.5 official Upwork catalog/schema/scopes need owner OAuth after foundation;16.7 official reviews/Q&A/individual-message route qualification incomplete. Independent Stage16 source can continue; do not claim full Stage16/Master closure.",
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification.",
-    "F98 (blocks qualified combined protected scope): owner decided 2026-10-08 that a missing required root or store is INCOMPLETE_WITH_REASON; explicit exceptions only for roots proven optional, recorded with scope and reason, never counted as full-scope PASS. Implementation of conditions 2-5 under that policy is open (05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md)."
+    "F98 (blocks qualified combined protected scope): owner decided 2026-10-08 that a missing required root or store is INCOMPLETE_WITH_REASON; explicit exceptions only for roots proven optional, recorded with scope and reason, never counted as full-scope PASS. Implementation of conditions 2-5 under that policy is open (05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md).",
+    "F115 (owner decision before the next logon): both AYAS tasks start at interactive logon and the Access daemon rebuilds the live site from the checked-out repo HEAD with the installed node_modules. Next logon or :3000 outage deploys source 2d6cef3 on Next 16.2.10 without a maintenance window (isolated Drill C: builds and boots; device/env/voice unproven).",
+    "MAINTENANCE_NOT_READY: no retained verified backup, no quiesced data/brain snapshot, live restart and rollback NOT_RUN, owner approvals M1-M11 not granted (05_STAGE17/implementation/v1-maintenance-prep-20261009/MAINTENANCE_READINESS.json)."
   ],
-  "nextAction": "Owner: (1) approve or decline the push of the exact local commits 569d6f5, 67493c8, 2d6cef3 and the evidence commit (fast-forward from 456dad6, no force); (2) remaining owner/live gates: real microphone/STT/TTS/barge-in/reconnect/phone lock/Wi-Fi, qualified backup/rollback, separate exact-SHA maintenance approval. Homepage design: OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN -> AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN. No Gelisim Merkezi APPROVE/YURUT by agents.",
-  "updatedAt": "2026-10-08T14:17:52.646Z",
+  "nextAction": "Owner: (1) decide F115 before the next sign-out, shutdown, restart or :3000 outage (the logon auto-rebuild would deploy source 2d6cef3 on installed Next 16.2.10 without a window); (2) review 05_STAGE17/implementation/v1-maintenance-prep-20261009/MAINTENANCE_PLAN.md and grant or decline M1-M11 for one exact window; (3) remaining owner/live gates: physical phone/voice checks, qualified backup and rollback inside the window, reboot. Homepage: OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN -> AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN. No Gelisim Merkezi APPROVE/YURUT by agents.",
+  "previousStatusAndNextAction": {
+    "until": "2026-10-09T08:10:00.000Z",
+    "currentHeadMeaning": "Final certified exact-preview technical source (Full166 166/166 PASS, FINAL_CERTIFICATION.json). Docs-only evidence commits follow it; resolve Git HEAD. Not pushed.",
+    "subtask": "Exact-preview fail-closed source certified at 2d6cef3 (Full166 166/166); evidence recorded; push and every live/owner gate await the owner.",
+    "status": "V1_BLOCKED_OWNER_LIVE_GATES_PENDING_SOURCE_CERTIFIED_2D6CEF3",
+    "nextAction": "Owner: (1) approve or decline the push of the exact local commits 569d6f5, 67493c8, 2d6cef3 and the evidence commit (fast-forward from 456dad6, no force); (2) remaining owner/live gates: real microphone/STT/TTS/barge-in/reconnect/phone lock/Wi-Fi, qualified backup/rollback, separate exact-SHA maintenance approval. Homepage design: OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN -> AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN. No Gelisim Merkezi APPROVE/YURUT by agents.",
+    "updatedAt": "2026-10-08T14:17:52.646Z"
+  },
+  "updatedAt": "2026-10-09T08:10:00.000Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -5359,45 +5392,66 @@
     }
   },
   "pushState": {
-    "state": "LOCAL_AHEAD_UNPUSHED",
-    "verifiedRemoteHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
-    "verifiedAt": "2026-10-09T07:02:48.443Z",
-    "localCommitsAhead": [
-      "569d6f59acdb1f557d287a410b9e11fe678eab1b",
-      "67493c8f9e43578676c3dc7939ce0942061f319a",
-      "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
-      "EVIDENCE_COMMIT_RESOLVE_FROM_GIT"
-    ],
-    "ownerApproval": "REQUIRED_FOR_EXACT_SHAS",
-    "force": false,
+    "state": "PUSHED_THROUGH_d03c5a0",
+    "verifiedRemoteHead": "d03c5a09e32b5135013103cc2117ba33be0f2472",
+    "verifiedAt": "2026-10-09T07:31:00Z",
+    "pushed": {
+      "range": "456dad6c43d102b8ecd997428d22b0f41c32d5e2..d03c5a09e32b5135013103cc2117ba33be0f2472",
+      "commits": [
+        "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+        "67493c8f9e43578676c3dc7939ce0942061f319a",
+        "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+        "d03c5a09e32b5135013103cc2117ba33be0f2472"
+      ],
+      "at": "2026-10-09T07:20:09Z",
+      "force": false,
+      "fastForward": true,
+      "ownerApproval": "Owner's exact-SHA decision for these four commits on the WIP branch; accepted again in the Stage 17 owner continuation of 2026-10-09",
+      "checks": "fast-forward from 456dad6; remote main f0ae19d untouched; fresh ls-remote remote = local; clean worktree",
+      "receipt": "05_STAGE17/implementation/v1-exact-preview-20261009/PUBLICATION_RECEIPT_d03c5a0.json"
+    },
+    "thisEvidenceCommit": "The Stage 17 owner continuation (2026-10-09) authorized exactly one narrow docs/evidence commit and its normal fast-forward push to this WIP branch after all pre-checks; resolve its SHA from git ls-remote. Any other commit or branch needs a new owner approval.",
     "previous": {
-      "state": "PUSHED_THROUGH_ba1c3c6",
-      "pushed": {
-        "range": "e974614..ba1c3c6",
-        "commits": [
-          "ba1c3c6"
-        ],
-        "at": "2026-10-08",
-        "force": false,
-        "ownerApproval": "Stage 17 owner decision and continuation order, section 1 (only ba1c3c6)",
-        "checks": "documentation-only paths; fast-forward from e974614; secret scan of added lines: no key/token/credential values",
-        "verifiedRemoteHead": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597"
-      },
+      "state": "LOCAL_AHEAD_UNPUSHED",
+      "verifiedRemoteHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+      "verifiedAt": "2026-10-09T07:02:48.443Z",
+      "localCommitsAhead": [
+        "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+        "67493c8f9e43578676c3dc7939ce0942061f319a",
+        "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+        "EVIDENCE_COMMIT_RESOLVE_FROM_GIT"
+      ],
+      "ownerApproval": "REQUIRED_FOR_EXACT_SHAS",
+      "force": false,
       "previous": {
-        "range": "462f9f7..e974614",
-        "commits": [
-          "1f76faa",
-          "f8143e2",
-          "e974614"
-        ],
-        "at": "2026-10-08",
-        "force": false,
-        "ownerApproval": "Stage 17 owner review, decision 1 (only these three commits)",
-        "verifiedRemoteHead": "e97461495391a5d287b7505dc6b41e01a8b88acc"
-      },
-      "localCommits": [
-        "F96 application commit (2026-10-08); push needs a separate owner approval"
-      ]
+        "state": "PUSHED_THROUGH_ba1c3c6",
+        "pushed": {
+          "range": "e974614..ba1c3c6",
+          "commits": [
+            "ba1c3c6"
+          ],
+          "at": "2026-10-08",
+          "force": false,
+          "ownerApproval": "Stage 17 owner decision and continuation order, section 1 (only ba1c3c6)",
+          "checks": "documentation-only paths; fast-forward from e974614; secret scan of added lines: no key/token/credential values",
+          "verifiedRemoteHead": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597"
+        },
+        "previous": {
+          "range": "462f9f7..e974614",
+          "commits": [
+            "1f76faa",
+            "f8143e2",
+            "e974614"
+          ],
+          "at": "2026-10-08",
+          "force": false,
+          "ownerApproval": "Stage 17 owner review, decision 1 (only these three commits)",
+          "verifiedRemoteHead": "e97461495391a5d287b7505dc6b41e01a8b88acc"
+        },
+        "localCommits": [
+          "F96 application commit (2026-10-08); push needs a separate owner approval"
+        ]
+      }
     }
   },
   "full166AtE974614": {
@@ -5842,7 +5896,9 @@
     "full166": "166_166_PASS_AT_2D6CEF3",
     "historicalFailuresPreserved": true,
     "frozenPins": 215,
-    "push": "OWNER_APPROVAL_REQUIRED",
+    "push": "PUSHED_456DAD6_TO_D03C5A0",
+    "pushBeforePublication": "OWNER_APPROVAL_REQUIRED",
+    "publicationReceipt": "05_STAGE17/implementation/v1-exact-preview-20261009/PUBLICATION_RECEIPT_d03c5a0.json",
     "homepage": "NOT_STARTED",
     "foundation": "BLOCKED",
     "technicalHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
@@ -5878,9 +5934,41 @@
     "graph": "INTEGRITY_0_0_0_0_PARTIAL10_SEMANTIC_PENDING_SOURCE_MATCH",
     "historicalFails": "OBSERVER_AND_PUBLICATION_ACTIVITY_SAME_AT_456DAD6",
     "liveOperations": "NONE",
+    "publication": "PUSHED_FAST_FORWARD_456dad6..d03c5a0_2026-10-09T07:20:09Z",
+    "d03c5a0TechnicallyCertified": false,
     "foundation": "BLOCKED",
     "ayasV1": "BLOCKED",
     "certificate": "05_STAGE17/implementation/v1-exact-preview-20261009/FINAL_CERTIFICATION.json",
+    "grantsAuthority": false
+  },
+  "maintenancePreparation20261009": {
+    "packet": "05_STAGE17/implementation/v1-maintenance-prep-20261009",
+    "plan": "05_STAGE17/implementation/v1-maintenance-prep-20261009/MAINTENANCE_PLAN.md",
+    "readiness": "05_STAGE17/implementation/v1-maintenance-prep-20261009/MAINTENANCE_READINESS.json",
+    "live": {
+      "buildStamp": "ab11e77 CLEAN",
+      "buildId": "S97dvGhTGFFsHILCPmoWV",
+      "installedNext": "16.2.10",
+      "nextDirTreeSha256": "fd0f9396c72a1f9c8b9eba9eb1ee656cd0d6abc6e8fa109bf6cb9396710dda62",
+      "nodeModulesTreeSha256": "2c171137e39b0d83f09a971a3bb3fdb1a578f67ba53eb29cffbe2afa0584a3d5"
+    },
+    "target": {
+      "technicalSource": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+      "next": "16.3.8",
+      "nodeModulesTreeSha256": "5742657cbee8a3bd833c11b096d8efac29e9fcecdc47d1b392b0b6844d9dbf3f",
+      "lockSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0"
+    },
+    "backupReadiness": "NOT_READY",
+    "restoreReadiness": "ISOLATED_PASS_LIVE_NOT_RUN",
+    "targetBuildReadiness": "ISOLATED_PASS_WITH_DECLARED_DIFFERENCES",
+    "rollbackReadiness": "ISOLATED_REHEARSED_LIVE_NOT_PROVEN",
+    "maintenance": "NOT_READY",
+    "foundation": "BLOCKED",
+    "ayasV1": "BLOCKED",
+    "criticalRisk": "F115",
+    "ownerApprovals": "M1-M11 (MAINTENANCE_READINESS.json), none granted",
+    "liveOperations": "NONE",
+    "homepage": "OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN",
     "grantsAuthority": false
   }
 }

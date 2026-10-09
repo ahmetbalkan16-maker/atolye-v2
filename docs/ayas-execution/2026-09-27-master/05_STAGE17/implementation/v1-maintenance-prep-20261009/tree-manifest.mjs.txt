@@ -1,0 +1,82 @@
+// Read-only tree manifest: sha256 per regular file, reparse points recorded (never followed).
+// usage: node tree-manifest.mjs <root> <out.json> [--exclude=relA,relB] [--quiet]
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+
+const [root, out] = process.argv.slice(2);
+const excludeArg = process.argv.find((a) => a.startsWith("--exclude="));
+const excludes = excludeArg ? excludeArg.slice(10).split(",").filter(Boolean).map((e) => e.replace(/\\/g, "/")) : [];
+if (!root || !out) throw new Error("usage: tree-manifest.mjs <root> <out.json>");
+const abs = path.resolve(root);
+const files = [];
+const links = [];
+const errors = [];
+
+function excluded(rel) {
+  return excludes.some((e) => rel === e || rel.startsWith(e + "/"));
+}
+function walk(dir) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { errors.push({ p: path.relative(abs, dir), code: e.code }); return; }
+  for (const ent of entries) {
+    const full = path.join(dir, ent.name);
+    const rel = path.relative(abs, full).replace(/\\/g, "/");
+    if (excluded(rel)) continue;
+    let st;
+    try { st = fs.lstatSync(full); } catch (e) { errors.push({ p: rel, code: e.code }); continue; }
+    if (st.isSymbolicLink()) {
+      let target = null;
+      try { target = fs.readlinkSync(full); } catch { /* unreadable */ }
+      links.push({ p: rel, target });
+    } else if (st.isDirectory()) walk(full);
+    else if (st.isFile()) files.push({ p: rel, full, size: st.size, mtimeMs: st.mtimeMs });
+  }
+}
+walk(abs);
+
+async function hashFile(f) {
+  return new Promise((resolve) => {
+    const h = crypto.createHash("sha256");
+    const s = fs.createReadStream(f.full);
+    s.on("data", (c) => h.update(c));
+    s.on("error", (e) => { errors.push({ p: f.p, code: e.code }); resolve(null); });
+    s.on("end", () => resolve(h.digest("hex")));
+  });
+}
+let i = 0;
+async function worker() {
+  while (i < files.length) {
+    const f = files[i++];
+    f.sha = await hashFile(f);
+  }
+}
+const started = Date.now();
+await Promise.all(Array.from({ length: 16 }, worker));
+files.sort((a, b) => (a.p < b.p ? -1 : a.p > b.p ? 1 : 0));
+links.sort((a, b) => (a.p < b.p ? -1 : 1));
+const agg = crypto.createHash("sha256");
+let bytes = 0;
+for (const f of files) { agg.update(`${f.p}\0${f.size}\0${f.sha}\n`); bytes += f.size; }
+const aggLinks = crypto.createHash("sha256");
+for (const l of links) aggLinks.update(`${l.p}\n`);
+const result = {
+  schema: "tree-manifest-v1",
+  root: abs,
+  excludes,
+  at: new Date().toISOString(),
+  ms: Date.now() - started,
+  fileCount: files.length,
+  bytes,
+  maxPathLength: files.reduce((m, f) => Math.max(m, f.full.length), 0),
+  newestMtime: files.length ? new Date(Math.max(...files.map((f) => f.mtimeMs))).toISOString() : null,
+  aggregateSha256: agg.digest("hex"),
+  reparsePoints: links,
+  reparsePointNameDigest: aggLinks.digest("hex"),
+  errors,
+  files: files.map((f) => ({ p: f.p, size: f.size, sha: f.sha })),
+};
+fs.writeFileSync(out, JSON.stringify(result));
+if (!process.argv.includes("--quiet")) {
+  console.log(JSON.stringify({ root: abs.replace(/^.*\\Program\\/, "<Program>\\"), fileCount: result.fileCount, bytes, aggregateSha256: result.aggregateSha256, reparsePoints: links.length, errors: errors.length, maxPathLength: result.maxPathLength, newestMtime: result.newestMtime, ms: result.ms }));
+}

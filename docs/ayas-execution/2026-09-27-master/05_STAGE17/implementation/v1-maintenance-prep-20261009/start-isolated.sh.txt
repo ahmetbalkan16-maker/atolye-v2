@@ -1,0 +1,14 @@
+#!/bin/sh
+# usage: start-isolated.sh <cloneDir> <port> <runtimeRoot> <rootDir> <logFile>
+CLONE="$1"; PORT="$2"; RT="$3"; ROOT="$4"; LOG="$5"
+KEY="$(cat "$ROOT/fixture-key.txt")"
+W() { cygpath -w "$1"; }
+cd "$CLONE" || exit 2
+exec env -i \
+  PATH="/c/Program Files/nodejs:/c/Windows/System32:/c/Windows:/c/Program Files/Git/cmd:/usr/bin" \
+  SystemRoot='C:\Windows' windir='C:\Windows' SystemDrive='C:' COMSPEC='C:\Windows\System32\cmd.exe' PATHEXT='.COM;.EXE;.BAT;.CMD' \
+  TEMP="$(W "$ROOT/tmp")" TMP="$(W "$ROOT/tmp")" USERPROFILE="$(W "$ROOT/home")" HOME="$(W "$ROOT/home")" \
+  LOCALAPPDATA="$(W "$ROOT/appdata/local")" APPDATA="$(W "$ROOT/appdata/roaming")" \
+  NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 \
+  ATOLYE_RUNTIME_ROOT="$(W "$RT")" AYAS_ACCESS_KEY="$KEY" \
+  node node_modules/next/dist/bin/next start -p "$PORT" -H 127.0.0.1 > "$LOG" 2>&1
