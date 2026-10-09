@@ -1,0 +1,88 @@
+{
+  "at": "2026-10-09T06:18:23.421Z",
+  "sourceHead": "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+  "stagedOverlay": {
+    "scripts/fixtures/ayas-owner-exact-preview-fixture.ts": "84a2018443867b83136ceb80482fcb94ae62217414428ada6dd7cc63883e1b6c",
+    "scripts/smoke-ayas-owner-exact-preview.ts": "3004c29acfa69dd61c5aa64d58bc956b4b916538bbe783fe4bc98f4f91853842"
+  },
+  "workDir": "C:\\Users\\Metod\\AppData\\Local\\Temp\\cc-xp-mut-4741a0",
+  "baseline": "PASS_20",
+  "results": [
+    {
+      "id": "M1-entry-no-preview",
+      "file": "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 5,
+      "restored": true
+    },
+    {
+      "id": "M2-no-prewrite-check",
+      "file": "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 7,
+      "restored": true
+    },
+    {
+      "id": "M3-snapshot-match-removed",
+      "file": "src/lib/brain/autonomy/AyasOwnerExactPreview.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 5,
+      "restored": true
+    },
+    {
+      "id": "M4-artifact-id-unbound",
+      "file": "src/lib/brain/autonomy/AyasOwnerExactPreview.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 10,
+      "restored": true
+    },
+    {
+      "id": "M5-patch-digest-unbound",
+      "file": "src/lib/brain/autonomy/AyasOwnerExactPreview.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 2,
+      "restored": true
+    },
+    {
+      "id": "M6-stale-snapshot-allowed",
+      "file": "src/lib/brain/autonomy/AyasOwnerExactPreview.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 4,
+      "restored": true
+    },
+    {
+      "id": "M7-current-head-unbound",
+      "file": "src/lib/brain/autonomy/AyasExactProposalSafety.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 14,
+      "restored": true
+    },
+    {
+      "id": "M8-ui-review-bypassed",
+      "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 16,
+      "restored": true
+    },
+    {
+      "id": "M9-existing-file-create-unchecked",
+      "file": "src/lib/brain/autonomy/AyasExactProposalSafety.ts",
+      "status": "KILLED",
+      "exit": 1,
+      "passedScenariosBeforeKill": 13,
+      "restored": true
+    }
+  ],
+  "killed": 9,
+  "total": 9,
+  "allRestored": true,
+  "mainWorktreeMutated": false
+}

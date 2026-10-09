@@ -1,0 +1,69 @@
+// Full166 certification runner for one exact technical HEAD (same method as the dbf9542 / T1 runs).
+// Usage: node full166-runner.cjs <repoRoot> <expectedHead> <outDir> <runTemp>
+// - repoRoot is only read: clean-tree check, clone source, physical digest before/after.
+// - The canonical scripts/ayas-eval-baseline.ts runs inside an isolated TEMP clone (no remote, sanitized env)
+//   and itself produces the bound report (sourceHead, sourceWorktreeDigest, manifestDigest, every suite).
+// - node_modules is the existing fresh-lock runtime (Next 16.3.8 == package-lock); nothing is installed.
+const fs = require("fs"), path = require("path"), cp = require("child_process"), crypto = require("crypto"), assert = require("assert/strict"), os = require("os");
+const [repoRoot, expectedHead, outDir, runTemp] = process.argv.slice(2);
+assert.ok(repoRoot && /^[0-9a-f]{40}$/.test(expectedHead || "") && outDir && runTemp, "usage");
+const root = path.resolve(repoRoot), out = path.resolve(outDir), tmp = path.resolve(runTemp);
+assert.ok(!fs.existsSync(tmp), "runTemp must be new"); fs.mkdirSync(tmp, { recursive: true }); fs.mkdirSync(out, { recursive: true });
+const short = expectedHead.slice(0, 7);
+const reportFile = path.join(out, `FULL166_${short}.raw.json`); assert.ok(!fs.existsSync(reportFile));
+const env = { NODE_ENV: "test", SMOKE_TRACE: "1", TEMP: tmp, TMP: tmp };
+for (const k of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA"]) if (process.env[k]) env[k] = process.env[k];
+const config = path.join(out, "empty.gitconfig"); fs.writeFileSync(config, ""); env.GIT_CONFIG_GLOBAL = config; env.GIT_CONFIG_SYSTEM = config; env.GIT_CONFIG_NOSYSTEM = "1";
+const git = (cwd, ...a) => cp.execFileSync("git", ["-c", "safe.directory=" + cwd, ...a], { cwd, env, windowsHide: true, encoding: "utf8", maxBuffer: 30000000 }).trim();
+const hash = (b) => crypto.createHash("sha256").update(b).digest("hex");
+
+assert.equal(git(root, "rev-parse", "HEAD"), expectedHead, "root HEAD must be the technical commit under certification");
+assert.equal(git(root, "status", "--porcelain"), "", "root worktree must be clean");
+const files = git(root, "ls-files", "-z").split("\0").filter(Boolean);
+const digest = (cwd) => hash(files.slice().sort().map((f) => f + "\n" + hash(fs.readFileSync(path.join(cwd, f))) + "\n").join(""));
+const rootDigestBefore = digest(root);
+
+const fixture = path.join(os.tmpdir(), "xp166-" + short + "-" + crypto.randomBytes(3).toString("hex")); assert.ok(!fs.existsSync(fixture));
+git(root, "-c", "core.longpaths=true", "clone", "--config", "core.longpaths=true", "--quiet", "--shared", "--no-hardlinks", "--local", root, fixture);
+git(fixture, "remote", "remove", "origin"); assert.equal(git(fixture, "remote"), "");
+for (const f of files) { const from = path.join(root, f), to = path.join(fixture, f); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.copyFileSync(from, to); const st = fs.statSync(from); fs.utimesSync(to, st.atimeMs / 1000, st.mtimeMs / 1000); }
+// Exact physical bytes plus the canonical index's stat cache; no assume/skip flags.
+git(fixture, "config", "core.checkStat", "minimal"); git(fixture, "config", "core.trustctime", "false");
+fs.copyFileSync(path.resolve(root, git(root, "rev-parse", "--git-path", "index")), path.join(fixture, ".git/index"));
+const runtime = path.join(root, ".graphify/k3-fresh-lock-20261008/node_modules");
+const runtimeNext = JSON.parse(fs.readFileSync(path.join(runtime, "next/package.json"))).version;
+const lockNext = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"))).packages["node_modules/next"].version;
+assert.equal(runtimeNext, "16.3.8"); assert.equal(lockNext, "16.3.8");
+fs.symlinkSync(runtime, path.join(fixture, "node_modules"), "junction");
+fs.mkdirSync(path.join(fixture, ".graphify"));
+for (const f of ["graph.json", "branch.json", "worktree.json", "manifest.json", ".graphify_describe_pending"]) if (fs.existsSync(path.join(root, ".graphify", f))) fs.copyFileSync(path.join(root, ".graphify", f), path.join(fixture, ".graphify", f));
+assert.equal(git(fixture, "status", "--porcelain"), ""); assert.equal(git(fixture, "rev-parse", "HEAD"), expectedHead); git(fixture, "-c", "core.safecrlf=false", "diff", "--quiet");
+assert.equal(digest(fixture), rootDigestBefore);
+const manifestPath = "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json";
+const manifest = JSON.parse(fs.readFileSync(path.join(root, manifestPath)));
+const preflight = { at: new Date().toISOString(), sourceHead: expectedHead, sourceWorktreeDigest: rootDigestBefore, fixture, fixtureRemote: "NONE", fixtureStatus: "CLEAN",
+  trackedPhysicalFiles: files.length, credentialEnvironment: "SANITIZED_OS_ONLY", runTemp: tmp, tempRedirected: true,
+  nextInstalled: runtimeNext, nextLocked: lockNext, packageLockSha256: hash(fs.readFileSync(path.join(root, "package-lock.json"))), existingFreshLockRuntime: true, noInstallOrUpgrade: true,
+  mainNext: JSON.parse(fs.readFileSync(path.join(root, "node_modules/next/package.json"))).version,
+  manifestVersion: manifest.version, manifestDeclaredSuites: manifest.suites.length, manifestDigest: hash(JSON.stringify(manifest)), manifestFileSha256: hash(fs.readFileSync(path.join(root, manifestPath))),
+  graphLastAnalyzedHead: JSON.parse(fs.readFileSync(path.join(root, ".graphify/branch.json"))).lastAnalyzedHead,
+  node: process.version, git: cp.execFileSync("git", ["--version"], { encoding: "utf8" }).trim(), freeMemoryGiB: os.freemem() / 1024 ** 3, totalMemoryGiB: os.totalmem() / 1024 ** 3 };
+fs.writeFileSync(path.join(out, `FULL166_${short}_PREFLIGHT.json`), JSON.stringify(preflight, null, 2) + "\n");
+console.log(JSON.stringify(preflight));
+
+const log = fs.createWriteStream(path.join(out, `full166-${short}.raw.log`), { flags: "wx" });
+const started = new Date().toISOString();
+const child = cp.spawn(process.execPath, ["node_modules/tsx/dist/cli.mjs", "scripts/ayas-eval-baseline.ts", "--report", reportFile], { cwd: fixture, env, windowsHide: true });
+child.stdout.on("data", (b) => { log.write(b); process.stdout.write(b); });
+child.stderr.on("data", (b) => { log.write(b); process.stderr.write(b); });
+const finish = (code, error) => {
+  log.end();
+  let rootHeadAfter = null, rootStatusAfter = null, rootDigestAfter = null;
+  try { rootHeadAfter = git(root, "rev-parse", "HEAD"); rootStatusAfter = git(root, "status", "--porcelain"); rootDigestAfter = digest(root); } catch (e) { rootStatusAfter = "ERROR " + e.message; }
+  const post = { startedAt: started, finishedAt: new Date().toISOString(), exit: code, spawnError: error ? String(error) : null, reportFile, reportWritten: fs.existsSync(reportFile),
+    rootHeadAfter, rootHeadUnchanged: rootHeadAfter === expectedHead, rootStatusClean: rootStatusAfter === "", rootDigestUnchanged: rootDigestAfter === rootDigestBefore, fixture };
+  fs.writeFileSync(path.join(out, `FULL166_${short}_POST.json`), JSON.stringify(post, null, 2) + "\n");
+  console.log(JSON.stringify(post)); process.exitCode = code || (error ? 1 : 0);
+};
+child.on("close", (code) => finish(code, null));
+child.on("error", (e) => finish(1, e));

@@ -1,0 +1,27 @@
+PASS A-missing
+PASS B-corrupt
+PASS C-digest
+PASS D-baseHead
+PASS E-stale
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    head: '168e1802081ab301b40d090124c97ceae6932447',
++   inbox: 'fbf6ff865c7c89aac092398192066d21ddccadb9acb6060231a79ffbf7495421',
++   journal: 1,
+-   inbox: '4eead5fec8dd67d12f6cff9c4898282c0f7c349ecf8aea3c2a5b1e3ac32efa00',
+-   journal: 0,
+    worktree: ''
+  }
+
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:95:105)
+    at async scenario (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:84:73)
+    at async main (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:93:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Object],
+  expected: [Object],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

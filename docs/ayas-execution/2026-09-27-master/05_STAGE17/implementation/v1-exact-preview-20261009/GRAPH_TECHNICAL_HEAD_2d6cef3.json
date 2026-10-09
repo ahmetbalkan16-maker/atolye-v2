@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-09T07:02:48.443Z",
+  "technicalHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+  "graphHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+  "stale": false,
+  "nodes": 19236,
+  "edges": 53298,
+  "communities": 422,
+  "integrity": {
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "structural": "PARTIAL",
+  "reasons": [
+    "INCOMPLETE_CODE_FILES:10"
+  ],
+  "semantic": "PENDING",
+  "incompleteCodeFiles": [
+    ".github/workflows/ayas-safe-ci.yml",
+    "app/api/assets/images/[slug]/[fileName]/route.ts",
+    "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+    "scripts/ayas-access-daemon.ps1",
+    "scripts/ayas-autonomy-daemon.ps1",
+    "scripts/register-ayas-autonomy-autostart.ps1",
+    "scripts/register-ayas-autostart.ps1",
+    "scripts/smoke-ayas-access-daemon.ps1",
+    "scripts/unregister-ayas-autonomy-autostart.ps1",
+    "scripts/unregister-ayas-autostart.ps1"
+  ],
+  "refreshCommand": "graphify update --scope all --no-description --no-label .",
+  "sourceMatch": {
+    "change": "Golden Vault registry import moved from the exact-preview fixture to its smoke suite",
+    "fixtureToRegistryImports": 0,
+    "smokeToRegistryImports": 1,
+    "phantomFixtureRegistryEdge": false,
+    "deltaVsPrior569d6f5Graph": "+2 nodes/+6 edges = git provenance of 67493c8 and 2d6cef3 only; no code relation added or removed",
+    "priorGraphPreserved": ".graphify/pre-2d6cef3-graph.json (ignored, verbatim copy)"
+  },
+  "grantsAuthority": false
+}

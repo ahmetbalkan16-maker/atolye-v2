@@ -1,0 +1,29 @@
+// Run the two preserved historical-FAIL suites at two exact SHAs in isolated clones; compare failure points.
+// Usage: node historical-fails.cjs <repoRoot> <workDir> <outDir> <sha>...
+const fs = require("fs"), path = require("path"), cp = require("child_process"), crypto = require("crypto"), assert = require("assert/strict");
+const [repoRoot, workDir, outDir, ...shas] = process.argv.slice(2);
+const root = path.resolve(repoRoot), work = path.resolve(workDir), out = path.resolve(outDir);
+assert.ok(!fs.existsSync(work)); fs.mkdirSync(work, { recursive: true }); fs.mkdirSync(out, { recursive: true });
+const tmp = path.join(work, "tmp"); fs.mkdirSync(tmp);
+const cfg = path.join(work, "empty.gitconfig"); fs.writeFileSync(cfg, "");
+const env = { NODE_ENV: "test", SMOKE_TRACE: "1", TEMP: tmp, TMP: tmp, GIT_CONFIG_GLOBAL: cfg, GIT_CONFIG_SYSTEM: cfg, GIT_CONFIG_NOSYSTEM: "1" };
+for (const k of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA"]) if (process.env[k]) env[k] = process.env[k];
+const git = (cwd, ...a) => cp.execFileSync("git", ["-c", "safe.directory=*", "-c", "core.longpaths=true", ...a], { cwd, env, encoding: "utf8", windowsHide: true, maxBuffer: 64e6 }).trim();
+const suites = ["scripts/smoke-ayas-autonomy-observer.ts", "scripts/smoke-ayas-publication-activity.ts"];
+const rows = [];
+for (const sha of shas) {
+  const full = git(root, "rev-parse", sha); const dir = path.join(work, full.slice(0, 7));
+  git(work, "clone", "--quiet", "--shared", "--local", "--no-checkout", root, dir); git(dir, "remote", "remove", "origin"); git(dir, "checkout", "--quiet", "--detach", full);
+  fs.symlinkSync(path.join(root, "node_modules"), path.join(dir, "node_modules"), "junction");
+  for (const s of suites) {
+    const r = cp.spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", s], { cwd: dir, env, encoding: "utf8", windowsHide: true, timeout: 180000 });
+    const output = (r.stdout || "") + (r.stderr || ""); const name = `${path.basename(s, ".ts")}-${full.slice(0, 7)}`;
+    fs.writeFileSync(path.join(out, `${name}.raw.log`), output);
+    const assertion = (output.match(/AssertionError[^\n]*\n(?:[^\n]*\n){0,6}/) || [""])[0].trim();
+    const at = (output.match(/at [^\n]*scripts[\\/]smoke-ayas-[a-z-]+\.ts:\d+:\d+/) || [""])[0].replace(/^.*scripts[\\/]/, "scripts/");
+    const passed = (output.match(/^PASS[^\n]*/gm) || []).length;
+    rows.push({ sha: full, suite: s, suiteSha256: crypto.createHash("sha256").update(fs.readFileSync(path.join(dir, s))).digest("hex"), exit: r.status, passedScenarioLines: passed, failurePoint: at || null, assertion: assertion.slice(0, 600) || null, log: `${name}.raw.log` });
+    console.log(JSON.stringify(rows.at(-1)).slice(0, 700));
+  }
+}
+fs.writeFileSync(path.join(out, "historical-fails.json"), JSON.stringify({ at: new Date().toISOString(), rows }, null, 2) + "\n");

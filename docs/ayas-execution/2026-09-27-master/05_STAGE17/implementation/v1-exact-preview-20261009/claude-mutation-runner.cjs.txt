@@ -1,0 +1,68 @@
+// Independent re-run of the 9 exact-preview mutants against the exact staged bytes.
+// Usage: node mutation-verify.cjs <repoRoot> <workDir> <outDir>
+// The main worktree is only read (clone source). Every mutation happens inside <workDir>/repo.
+const fs = require("fs"), path = require("path"), cp = require("child_process"), crypto = require("crypto"), assert = require("assert/strict");
+const [repoRoot, workDir, outDir] = process.argv.slice(2).map((p) => path.resolve(p));
+assert.ok(repoRoot && workDir && outDir, "usage: <repoRoot> <workDir> <outDir>");
+assert.ok(!fs.existsSync(workDir), "workDir must not exist");
+fs.mkdirSync(workDir, { recursive: true }); fs.mkdirSync(outDir, { recursive: true });
+const tmp = path.join(workDir, "tmp"); fs.mkdirSync(tmp);
+const gitconfig = path.join(workDir, "empty.gitconfig"); fs.writeFileSync(gitconfig, "");
+const env = { NODE_ENV: "test", SMOKE_TRACE: "1", TEMP: tmp, TMP: tmp, GIT_CONFIG_GLOBAL: gitconfig, GIT_CONFIG_SYSTEM: gitconfig, GIT_CONFIG_NOSYSTEM: "1" };
+for (const k of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA"]) if (process.env[k]) env[k] = process.env[k];
+const git = (cwd, ...a) => cp.execFileSync("git", ["-c", "safe.directory=*", "-c", "core.longpaths=true", ...a], { cwd, env, encoding: "utf8", windowsHide: true, maxBuffer: 64e6 }).trim();
+const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
+
+const head = git(repoRoot, "rev-parse", "HEAD");
+const changed = git(repoRoot, "diff", "--cached", "--name-only", "HEAD").split("\n").filter((f) => f && !f.startsWith("docs/") && !/^[A-Z_]+\.md$/.test(f));
+assert.deepEqual(changed.sort(), ["scripts/fixtures/ayas-owner-exact-preview-fixture.ts", "scripts/smoke-ayas-owner-exact-preview.ts"]);
+assert.equal(git(repoRoot, "diff", "--name-only"), "", "worktree must equal index");
+const repo = path.join(workDir, "repo");
+git(workDir, "clone", "--quiet", "--shared", "--local", "--no-checkout", repoRoot, repo);
+git(repo, "remote", "remove", "origin");
+git(repo, "checkout", "--quiet", "--detach", head);
+// Overlay the exact staged bytes of the two technical files (index blob == worktree, asserted above).
+const overlay = {};
+for (const f of changed) { const bytes = cp.execFileSync("git", ["show", `:${f}`], { cwd: repoRoot, env, windowsHide: true, maxBuffer: 64e6 }); fs.writeFileSync(path.join(repo, f), bytes); overlay[f] = sha(bytes); }
+fs.symlinkSync(path.join(repoRoot, "node_modules"), path.join(repo, "node_modules"), "junction");
+
+const preview = "src/lib/brain/autonomy/AyasOwnerExactPreview.ts", service = "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+  probe = "src/lib/brain/autonomy/AyasExactProposalSafety.ts", ui = "src/components/brain/AyasDevelopmentCenter.tsx";
+const edits = [
+  ["M1-entry-no-preview", service, "  revalidatePreview();", "  /* mutation: entry preview check removed */"],
+  ["M2-no-prewrite-check", service, "      revalidatePreview(true);", "      /* mutation: prewrite preview check removed */"],
+  ["M3-snapshot-match-removed", preview, "!fresh || canonical(fresh.binding) !== canonical(binding)", "!fresh"],
+  ["M4-artifact-id-unbound", preview, "artifact.artifactId !== proposal.patchArtifactId || ", ""],
+  ["M5-patch-digest-unbound", preview, "artifact.patchHash !== proposal.patchHash || ", ""],
+  ["M6-stale-snapshot-allowed", preview, " || Date.parse(binding.expiresAt) <= now", ""],
+  ["M7-current-head-unbound", probe, 'git("rev-parse", "HEAD").trim() !== baseHead || ', ""],
+  ["M8-ui-review-bypassed", ui, "{acknowledged ? <ManualExecuteControl", "{true ? <ManualExecuteControl"],
+  ["M9-existing-file-create-unchecked", probe, '    if (git("ls-tree", "--name-only", baseHead, "--", file.filePath).trim()) throw new Error("EXACT_PREVIEW_UNAVAILABLE");', "    /* mutation: existing file wrongly accepted as create */"],
+];
+const targets = [...new Set(edits.map((e) => e[1]))];
+const original = new Map(targets.map((f) => [f, fs.readFileSync(path.join(repo, f))]));
+const mainBefore = new Map(targets.map((f) => [f, sha(fs.readFileSync(path.join(repoRoot, f)))]));
+const run = (name) => { const r = cp.spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "scripts/smoke-ayas-owner-exact-preview.ts"], { cwd: repo, env, encoding: "utf8", windowsHide: true, timeout: 240000 });
+  const output = (r.stdout || "") + (r.stderr || ""); fs.writeFileSync(path.join(outDir, `${name}.log`), output); return { code: r.status, signal: r.signal, output }; };
+
+const baseline = run("baseline");
+assert.equal(baseline.code, 0, baseline.output.slice(-2000));
+assert.match(baseline.output, /"scenarios":20/);
+const results = [];
+for (const [id, file, needle, replacement] of edits) {
+  const source = original.get(file).toString();
+  assert.equal(source.split(needle).length - 1, 1, `${id} needle must match exactly once`);
+  fs.writeFileSync(path.join(repo, file), source.replace(needle, replacement));
+  let r; try { r = run(id); } finally { fs.writeFileSync(path.join(repo, file), original.get(file)); }
+  const killed = r.code !== 0 && r.signal === null && /AssertionError|ERR_ASSERTION/.test(r.output);
+  const failedScenario = (r.output.match(/PASS [^\n{]+/g) || []).length;
+  results.push({ id, file, status: killed ? "KILLED" : "SURVIVED", exit: r.code, passedScenariosBeforeKill: failedScenario, restored: sha(fs.readFileSync(path.join(repo, file))) === sha(original.get(file)) });
+  console.log(JSON.stringify(results.at(-1)));
+}
+for (const [f, b] of original) assert.deepEqual(fs.readFileSync(path.join(repo, f)), b, `${f} restored`);
+for (const [f, h] of mainBefore) assert.equal(sha(fs.readFileSync(path.join(repoRoot, f))), h, `${f} main untouched`);
+const summary = { at: new Date().toISOString(), sourceHead: head, stagedOverlay: overlay, workDir, baseline: "PASS_20", results,
+  killed: results.filter((r) => r.status === "KILLED").length, total: results.length, allRestored: results.every((r) => r.restored), mainWorktreeMutated: false };
+fs.writeFileSync(path.join(outDir, "summary.json"), JSON.stringify(summary, null, 2) + "\n");
+console.log(JSON.stringify({ killed: summary.killed, total: summary.total, allRestored: summary.allRestored }));
+process.exitCode = summary.killed === summary.total ? 0 : 1;

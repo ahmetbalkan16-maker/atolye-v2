@@ -42,7 +42,7 @@
     },
     {
       "file": "REPORT.md",
-      "sha256": "c8ea710784d5e9a6d8be0dc4449b2290109bbdba2fe8725b299424a1ee5cdfa7"
+      "sha256": "22f29703b61c14aea93e84a0714f8f898a7f6e483450b7284775f828a018a19b"
     },
     {
       "file": "SOURCE.patch",
@@ -66,7 +66,7 @@
     },
     {
       "file": "TEST_SUMMARY.json",
-      "sha256": "8aa466a1cf3a488aae4e63fa151e0ac3655bb26008437dae9f59ca0bba33cb2c"
+      "sha256": "49cdd8f2bc7a1ba9cddf027b4710dd0afc60c20694f8f62842206171a61e3913"
     },
     {
       "file": "consumer-final-mutation-M1-entry-no-preview.raw.log",
@@ -363,6 +363,130 @@
     {
       "file": "typescript-final20.raw.log",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "FINAL_CERTIFICATION.json",
+      "sha256": "f88f7005bb9e38cf91ed189f9250dca31efe4d315662f8d9b2bc88bb449788f0"
+    },
+    {
+      "file": "FULL166_2d6cef3.raw.json",
+      "sha256": "72c0665d2c31cfba746d69bb18fb5f15c9b565af4051e20133f91df2e889f7a2"
+    },
+    {
+      "file": "FULL166_2d6cef3_POST.json",
+      "sha256": "7ec4c034ed2c89003a2efcaef28826fc7e655450749868a3fc8fc370f079dc3d"
+    },
+    {
+      "file": "FULL166_2d6cef3_PREFLIGHT.json",
+      "sha256": "223396e9012f8f257f2d41f9ac84cf29f37536b6a5f14d8056889a8c033a4651"
+    },
+    {
+      "file": "GRAPH_TECHNICAL_HEAD_2d6cef3.json",
+      "sha256": "1a5396b89d6e085a4e515b00f654d668ba4daa42d072361dc170b35598444ed0"
+    },
+    {
+      "file": "claude-mutation-M1-entry-no-preview.raw.log",
+      "sha256": "8b9a9347e9b33485e4e9695f0212fa7ad3c41cb1e38db09232f7cb31837c542d"
+    },
+    {
+      "file": "claude-mutation-M2-no-prewrite-check.raw.log",
+      "sha256": "5533d2467846942b5eb1b0acde6195ffc5ffa08d51baa01ab719d7daa95edb97"
+    },
+    {
+      "file": "claude-mutation-M3-snapshot-match-removed.raw.log",
+      "sha256": "528d54ba50450fe71de96c0857347316a9a6d60dd0b7aec305f6c20630570cc1"
+    },
+    {
+      "file": "claude-mutation-M4-artifact-id-unbound.raw.log",
+      "sha256": "67eb5889a8ed685a8f28f6a54c66a27d9d6e302e8aa18a0617bd6ff990adeaad"
+    },
+    {
+      "file": "claude-mutation-M5-patch-digest-unbound.raw.log",
+      "sha256": "9e955b7189f65b9322ac34bbfbe502292c75b30d4febeb0032aca72dd7a94621"
+    },
+    {
+      "file": "claude-mutation-M6-stale-snapshot-allowed.raw.log",
+      "sha256": "9d90666fe349afec70d33c9cec4b90f73bccd43c2ff0fcac4cbb2a0f57d30cb2"
+    },
+    {
+      "file": "claude-mutation-M7-current-head-unbound.raw.log",
+      "sha256": "8d9ab6ba918108d044106b8ef283c6f0c3b5a9f203c6b6d24bc3760de5c0f580"
+    },
+    {
+      "file": "claude-mutation-M8-ui-review-bypassed.raw.log",
+      "sha256": "a1f39fef3f56ac64768bc79b6032d41df66fbf664e5e6b7a90f10497cc41abbf"
+    },
+    {
+      "file": "claude-mutation-M9-existing-file-create-unchecked.raw.log",
+      "sha256": "b273a6581c932e9bea513fed867104906d25dfeed0fa0505a6b95fc3d5215893"
+    },
+    {
+      "file": "claude-mutation-baseline.raw.log",
+      "sha256": "7c9703c45f373b3d56ae695f7db12d9a18b591d01837c3e6c8994b57239b9681"
+    },
+    {
+      "file": "claude-mutation-runner.cjs.txt",
+      "sha256": "ecf437f4b75d155456150a9b46a5d3b2d8263ec778ea1b01aa1c9ce3948821fd"
+    },
+    {
+      "file": "claude-mutation-summary.raw.json",
+      "sha256": "a0222db42d3da5109a1c6fba6e8ac72b941081accc2b2ccede2d9f44164f95f8"
+    },
+    {
+      "file": "claude-reverify-eslint.raw.log",
+      "sha256": "b7e9d94f59817cc3c255c11a74371953720db5014b71b94a15299d34b5dfcdd7"
+    },
+    {
+      "file": "claude-reverify-golden-vault13.raw.log",
+      "sha256": "9378186c867dbaea7bdda5f83389d556080a91da567138d1846a680e9f4feb57"
+    },
+    {
+      "file": "claude-reverify-owner-exact-preview20.raw.log",
+      "sha256": "7c9703c45f373b3d56ae695f7db12d9a18b591d01837c3e6c8994b57239b9681"
+    },
+    {
+      "file": "claude-reverify-typescript.raw.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "clean-own-temp.cjs.txt",
+      "sha256": "d18225564e02dd97a7f5463264095d6825abf851e3aac56e01d3d1fb6ad36c0c"
+    },
+    {
+      "file": "clean-own-temp.raw.log",
+      "sha256": "769ed4cc3d180cbf273cc5eda06c4ecb0988e259692661a368f394bb1b053618"
+    },
+    {
+      "file": "full166-2d6cef3-runner.cjs.txt",
+      "sha256": "0523e02628a26b587bec266295f164a73deb8a63bb588b97664f191fc160c476"
+    },
+    {
+      "file": "full166-2d6cef3.raw.log",
+      "sha256": "78f3d0d7a8bae73729b77a8971f1679a80ef37eaa8d099b7f8f9152b9f3e1c57"
+    },
+    {
+      "file": "historical-fails-456dad6-2d6cef3.raw.json",
+      "sha256": "fafaff097744c35407f3b34fc03af7d7b60625d096a30ea43452e5c3776f94c9"
+    },
+    {
+      "file": "historical-fails-runner.cjs.txt",
+      "sha256": "625e4dff455ee39b0d38059db04afe1f392dba3004b1acd93ceca494b0eb7627"
+    },
+    {
+      "file": "historical-smoke-ayas-autonomy-observer-2d6cef3.raw.log",
+      "sha256": "923a6a1951498c59461e64176e2719566b437f794d33b2208e59eccb037fec8f"
+    },
+    {
+      "file": "historical-smoke-ayas-autonomy-observer-456dad6.raw.log",
+      "sha256": "71e00011fa7bee6f61c3fa4c64c2f70311a71cad6b70d9c37c1982a871ef2182"
+    },
+    {
+      "file": "historical-smoke-ayas-publication-activity-2d6cef3.raw.log",
+      "sha256": "637897873bd204c55d39641108e86b5e5c4837f4022800e598d91ad2a69a221b"
+    },
+    {
+      "file": "historical-smoke-ayas-publication-activity-456dad6.raw.log",
+      "sha256": "5f6c287261b6432a0ab65c11ee905583dbdc4ca8d9698629a7238d21c4274503"
     }
   ]
 }

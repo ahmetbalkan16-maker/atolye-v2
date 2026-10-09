@@ -1,0 +1,21 @@
+PASS A-missing
+PASS B-corrupt
+PASS C-digest
+PASS D-baseHead
+PASS E-stale
+PASS F-artifact-after-view
+PASS G-valid-reviewed-exact
+PASS H-pre-write-mismatch-zero-source-effect
+PASS no-snapshot-zero-reservation
+PASS unsigned-or-tampered-snapshot
+PASS unreviewed-identity-replacement
+PASS scope-evidence-mismatch
+PASS dirty-source
+PASS existing-file-cannot-preview-as-create
+PASS current-head-advanced
+PASS unattributed-approve
+PASS render-exact-before-ack
+PASS ack-does-not-transfer
+PASS no-fresh-execute
+PASS valid-local-once-no-publication
+{"status":"PASS","suite":"ayas-owner-exact-preview","scenarios":20,"rows":[{"id":"A-missing","status":"PASS"},{"id":"B-corrupt","status":"PASS"},{"id":"C-digest","status":"PASS"},{"id":"D-baseHead","status":"PASS"},{"id":"E-stale","status":"PASS"},{"id":"F-artifact-after-view","status":"PASS"},{"id":"G-valid-reviewed-exact","status":"PASS"},{"id":"H-pre-write-mismatch-zero-source-effect","status":"PASS"},{"id":"no-snapshot-zero-reservation","status":"PASS"},{"id":"unsigned-or-tampered-snapshot","status":"PASS"},{"id":"unreviewed-identity-replacement","status":"PASS"},{"id":"scope-evidence-mismatch","status":"PASS"},{"id":"dirty-source","status":"PASS"},{"id":"existing-file-cannot-preview-as-create","status":"PASS"},{"id":"current-head-advanced","status":"PASS"},{"id":"unattributed-approve","status":"PASS"},{"id":"render-exact-before-ack","status":"PASS"},{"id":"ack-does-not-transfer","status":"PASS"},{"id":"no-fresh-execute","status":"PASS"},{"id":"valid-local-once-no-publication","status":"PASS"}],"actualRestart":"NOT_RUN","crossProcessRace":"NOT_RUN","reviewedExactExecution":"NOT_RUN"}

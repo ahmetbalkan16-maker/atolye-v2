@@ -307,8 +307,13 @@
     "live rollout"
   ],
   "full166": {
-    "status": "T1_NEW_FAIL_PRESERVED_REQUIRES_NEW_FINAL_TECHNICAL_COMMIT_AND_ENTIRE_NEW166",
-    "oldCertificateNotTransferred": true
+    "status": "PASS_166_166_AT_FINAL_TECHNICAL_HEAD",
+    "technicalHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "sourceWorktreeDigest": "52f954defe471ac6cc8bd68cd5c6122498d44ca51830687b0bcc1757725f23c6",
+    "manifestDigest": "2661b3c55e60de299b8290b05e5c2bd74f0bb1b1a0967d59c6da88bba4ee3fcd",
+    "certificate": "FINAL_CERTIFICATION.json",
+    "oldCertificateNotTransferred": true,
+    "firstAttemptPreserved": "FULL166_T1_FAILURE.json"
   },
   "finalWhitespaceOnly": "Final read-only ls-tree create collision guard added with20th negative case; final focused20/TS/lint/mutations re-run; Full166 evaluates final bytes.",
   "firstFull166Attempt": {
@@ -326,5 +331,22 @@
     "rootCause": "New test fixture directly imported GoldenVaultRegistry outside original permitted consumer regex. Frozen :265 assertion correctly rejected it.",
     "repair": "Move only this new import to permitted smoke-ayas-owner-exact-preview.ts; pass vault through fixture parameter. Frozen test/pin/registry and application source unchanged.",
     "requiresEntireNew166": true
+  },
+  "claudeReverify2d6cef3": {
+    "goldenVault": 13,
+    "ownerExactPreview": 20,
+    "typeScript": "EXIT0",
+    "eslint": {
+      "errors": 0,
+      "inheritedWarnings": 13
+    },
+    "mutations": {
+      "killed": 9,
+      "total": 9
+    },
+    "historicalFailsSameAt456dad6": [
+      "autonomy-observer",
+      "publication-activity"
+    ]
   }
 }

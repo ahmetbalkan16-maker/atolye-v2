@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "569d6f59acdb1f557d287a410b9e11fe678eab1b",
-  "currentHeadMeaning": "Uncertified first exact-preview technical source. New Full166 Golden consumer FAIL preserved; only test import wiring repaired, new final source Full166 required.",
+  "currentHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+  "currentHeadMeaning": "Final certified exact-preview technical source (Full166 166/166 PASS, FINAL_CERTIFICATION.json). Docs-only evidence commits follow it; resolve Git HEAD. Not pushed.",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Frozen Golden consumer failure corrected in new tests only; new clean technical source commit and complete NEW166 pending; no push/live.",
-  "status": "V1_BLOCKED_NEW_SOURCE_CERTIFICATION_AND_OWNER_LIVE_GATES_PENDING",
+  "subtask": "Exact-preview fail-closed source certified at 2d6cef3 (Full166 166/166); evidence recorded; push and every live/owner gate await the owner.",
+  "status": "V1_BLOCKED_OWNER_LIVE_GATES_PENDING_SOURCE_CERTIFIED_2D6CEF3",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -326,7 +326,7 @@
     "STAGE16_CLOSURE_BLOCKER:16.8 store and TEST credential creation OWNER_REPORTED_CREATED; authenticated TEST connection and durable ingress binding pending after foundation; no production route/ACK/receipt or live qualification.",
     "F98 (blocks qualified combined protected scope): owner decided 2026-10-08 that a missing required root or store is INCOMPLETE_WITH_REASON; explicit exceptions only for roots proven optional, recorded with scope and reason, never counted as full-scope PASS. Implementation of conditions 2-5 under that policy is open (05_STAGE17/implementation/STAGE17_COMBINED_BUDGET_INDEPENDENT_REVIEW.md)."
   ],
-  "nextAction": "Owner decides on exact12 candidate a4db592 (patch sha256 337ec995...6323). On approval apply the same bytes as one local commit, update Graphify, then run one Full166 at the final HEAD with fresh-lock Next 16.3.8. Owner records Recovery9 dispositions, Lemon (ingress packet or register deferral), Fiverr (export or deferral) and whether approval-actor binding is a V1 requirement. Live window only after separate maintenance approval; no Gelisim Merkezi APPROVE while the final HEAD is frozen.",
+  "nextAction": "Owner: (1) approve or decline the push of the exact local commits 569d6f5, 67493c8, 2d6cef3 and the evidence commit (fast-forward from 456dad6, no force); (2) remaining owner/live gates: real microphone/STT/TTS/barge-in/reconnect/phone lock/Wi-Fi, qualified backup/rollback, separate exact-SHA maintenance approval. Homepage design: OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN -> AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN. No Gelisim Merkezi APPROVE/YURUT by agents.",
   "updatedAt": "2026-10-08T14:17:52.646Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -5359,33 +5359,46 @@
     }
   },
   "pushState": {
-    "state": "PUSHED_THROUGH_ba1c3c6",
-    "pushed": {
-      "range": "e974614..ba1c3c6",
-      "commits": [
-        "ba1c3c6"
-      ],
-      "at": "2026-10-08",
-      "force": false,
-      "ownerApproval": "Stage 17 owner decision and continuation order, section 1 (only ba1c3c6)",
-      "checks": "documentation-only paths; fast-forward from e974614; secret scan of added lines: no key/token/credential values",
-      "verifiedRemoteHead": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597"
-    },
+    "state": "LOCAL_AHEAD_UNPUSHED",
+    "verifiedRemoteHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+    "verifiedAt": "2026-10-09T07:02:48.443Z",
+    "localCommitsAhead": [
+      "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+      "67493c8f9e43578676c3dc7939ce0942061f319a",
+      "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+      "EVIDENCE_COMMIT_RESOLVE_FROM_GIT"
+    ],
+    "ownerApproval": "REQUIRED_FOR_EXACT_SHAS",
+    "force": false,
     "previous": {
-      "range": "462f9f7..e974614",
-      "commits": [
-        "1f76faa",
-        "f8143e2",
-        "e974614"
-      ],
-      "at": "2026-10-08",
-      "force": false,
-      "ownerApproval": "Stage 17 owner review, decision 1 (only these three commits)",
-      "verifiedRemoteHead": "e97461495391a5d287b7505dc6b41e01a8b88acc"
-    },
-    "localCommits": [
-      "F96 application commit (2026-10-08); push needs a separate owner approval"
-    ]
+      "state": "PUSHED_THROUGH_ba1c3c6",
+      "pushed": {
+        "range": "e974614..ba1c3c6",
+        "commits": [
+          "ba1c3c6"
+        ],
+        "at": "2026-10-08",
+        "force": false,
+        "ownerApproval": "Stage 17 owner decision and continuation order, section 1 (only ba1c3c6)",
+        "checks": "documentation-only paths; fast-forward from e974614; secret scan of added lines: no key/token/credential values",
+        "verifiedRemoteHead": "ba1c3c6b6f2e96a4ab9d3ebc7452cbf6caec6597"
+      },
+      "previous": {
+        "range": "462f9f7..e974614",
+        "commits": [
+          "1f76faa",
+          "f8143e2",
+          "e974614"
+        ],
+        "at": "2026-10-08",
+        "force": false,
+        "ownerApproval": "Stage 17 owner review, decision 1 (only these three commits)",
+        "verifiedRemoteHead": "e97461495391a5d287b7505dc6b41e01a8b88acc"
+      },
+      "localCommits": [
+        "F96 application commit (2026-10-08); push needs a separate owner approval"
+      ]
+    }
   },
   "full166AtE974614": {
     "sourceHead": "e97461495391a5d287b7505dc6b41e01a8b88acc",
@@ -5824,13 +5837,50 @@
   },
   "exactPreviewClosure": {
     "packet": "05_STAGE17/implementation/v1-exact-preview-20261009",
-    "status": "FIRST_FULL166_FAIL_REPAIRED_PENDING_NEW166",
+    "status": "SOURCE_CERTIFIED_FULL166_PASS_2D6CEF3",
     "sourceMap": "SOURCE_MAP.json",
-    "full166": "T1_FAIL_INCOMPLETE_NEW166_REQUIRED",
+    "full166": "166_166_PASS_AT_2D6CEF3",
     "historicalFailuresPreserved": true,
     "frozenPins": 215,
     "push": "OWNER_APPROVAL_REQUIRED",
     "homepage": "NOT_STARTED",
-    "foundation": "BLOCKED"
+    "foundation": "BLOCKED",
+    "technicalHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "certificate": "05_STAGE17/implementation/v1-exact-preview-20261009/FINAL_CERTIFICATION.json",
+    "firstAttempt": "T1_FAIL_569D6F5_PRESERVED",
+    "homepageStop": "OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN"
+  },
+  "homepageDesignStop": {
+    "marker": "OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN",
+    "nextAction": "AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN",
+    "recordedAt": "2026-10-09T07:02:48.443Z",
+    "source": "Owner master continuation order 2026-10-09, section 10",
+    "started": false,
+    "forbiddenUntilInstruction": [
+      "CSS",
+      "component/layout",
+      "avatar/orb",
+      "animation",
+      "visual prototype",
+      "design branch",
+      "homepage implementation"
+    ]
+  },
+  "exactPreviewFinal20261009": {
+    "technicalHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "docsT1Commit": "67493c8f9e43578676c3dc7939ce0942061f319a",
+    "securitySourceCommit": "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+    "full166": "166_166_PASS",
+    "manifest": "15F.4-v59",
+    "manifestDigest": "2661b3c55e60de299b8290b05e5c2bd74f0bb1b1a0967d59c6da88bba4ee3fcd",
+    "sourceWorktreeDigest": "52f954defe471ac6cc8bd68cd5c6122498d44ca51830687b0bcc1757725f23c6",
+    "mutations": "9_9_KILLED_INDEPENDENT_RERUN",
+    "graph": "INTEGRITY_0_0_0_0_PARTIAL10_SEMANTIC_PENDING_SOURCE_MATCH",
+    "historicalFails": "OBSERVER_AND_PUBLICATION_ACTIVITY_SAME_AT_456DAD6",
+    "liveOperations": "NONE",
+    "foundation": "BLOCKED",
+    "ayasV1": "BLOCKED",
+    "certificate": "05_STAGE17/implementation/v1-exact-preview-20261009/FINAL_CERTIFICATION.json",
+    "grantsAuthority": false
   }
 }

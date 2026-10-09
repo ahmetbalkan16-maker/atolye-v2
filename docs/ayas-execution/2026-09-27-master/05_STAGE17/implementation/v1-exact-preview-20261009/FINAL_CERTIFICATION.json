@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-09T07:02:48.443Z",
+  "certifies": "EXACT_PREVIEW_FINAL_TECHNICAL_SOURCE",
+  "technicalHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+  "technicalCommit": {
+    "sha": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "subject": "test(ayas): pass the Golden Vault into the exact-preview fixture",
+    "parent": "67493c8f9e43578676c3dc7939ce0942061f319a",
+    "files": [
+      "scripts/fixtures/ayas-owner-exact-preview-fixture.ts",
+      "scripts/smoke-ayas-owner-exact-preview.ts"
+    ],
+    "insertions": 4,
+    "deletions": 4
+  },
+  "securitySourceCommit": {
+    "sha": "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+    "applicationSourceEqualToTechnicalHead": true,
+    "firstFull166": "T1_FAIL_INCOMPLETE_PRESERVED_FULL166_T1_FAILURE.json"
+  },
+  "full166": {
+    "outcome": "PASS",
+    "declaredSuites": 166,
+    "selectedSuites": 166,
+    "passed": 166,
+    "failed": [],
+    "knownLimitationSuites": [],
+    "completeDeclaredBaseline": true,
+    "trials": 1,
+    "manifestVersion": "15F.4-v59",
+    "manifestDigest": "2661b3c55e60de299b8290b05e5c2bd74f0bb1b1a0967d59c6da88bba4ee3fcd",
+    "sourceHead": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "sourceWorktreeDigest": "52f954defe471ac6cc8bd68cd5c6122498d44ca51830687b0bcc1757725f23c6",
+    "trackedPhysicalFiles": 3299,
+    "evidenceClass": "DETERMINISTIC_TEST",
+    "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+    "startedAt": "2026-10-09T06:24:29.716Z",
+    "finishedAt": "2026-10-09T06:59:04.297Z",
+    "suiteTimeMs": 1891618,
+    "minFreeMemoryGiB": 14.5,
+    "report": "FULL166_2d6cef3.raw.json",
+    "reportSha256": "72c0665d2c31cfba746d69bb18fb5f15c9b565af4051e20133f91df2e889f7a2",
+    "rawLog": "full166-2d6cef3.raw.log",
+    "preflight": "FULL166_2d6cef3_PREFLIGHT.json",
+    "post": "FULL166_2d6cef3_POST.json",
+    "runner": "full166-2d6cef3-runner.cjs.txt"
+  },
+  "isolation": {
+    "fixtureRemote": "NONE",
+    "credentialEnvironment": "SANITIZED_OS_ONLY",
+    "tempRedirectedToOwnRunDir": true,
+    "nodeModules": "EXISTING_FRESH_LOCK_RUNTIME_JUNCTION",
+    "nextInstalled": "16.3.8",
+    "nextLocked": "16.3.8",
+    "packageLockSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "mainNextUnchanged": "16.2.10",
+    "installOrUpgrade": "NONE",
+    "graphLastAnalyzedHeadAtRun": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+    "rootHeadUnchanged": true,
+    "rootStatusClean": true,
+    "rootPhysicalDigestUnchanged": true
+  },
+  "preparationIssues": {
+    "pathLength": "NONE (max tracked path 155 chars)",
+    "crlf": "NONE",
+    "eperm": "NONE",
+    "note": "No environment failure occurred in this run; nothing reclassified."
+  },
+  "frozen": {
+    "manifestUnchangedSince": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+    "pinnedFiles": 215,
+    "pinnedFilesChanged": 0,
+    "goldenContractRegistryGuardUnchanged": true,
+    "consumerBoundaryRelaxed": false
+  },
+  "focusedReverifyOnStagedBytes": {
+    "goldenVault": "13/13 PASS",
+    "ownerExactPreview": "20/20 PASS",
+    "typeScript": "EXIT0",
+    "eslint": "EXIT0 0 errors / 13 inherited warnings",
+    "changedFilesLint": "EXIT0",
+    "logs": [
+      "claude-reverify-golden-vault13.raw.log",
+      "claude-reverify-owner-exact-preview20.raw.log",
+      "claude-reverify-typescript.raw.log",
+      "claude-reverify-eslint.raw.log"
+    ]
+  },
+  "mutations": {
+    "scope": "independent re-run in own TEMP clone of the exact staged bytes; main never mutated",
+    "baseline": "PASS_20",
+    "killed": 9,
+    "total": 9,
+    "allRestored": true,
+    "ids": [
+      "M1-entry-no-preview",
+      "M2-no-prewrite-check",
+      "M3-snapshot-match-removed",
+      "M4-artifact-id-unbound",
+      "M5-patch-digest-unbound",
+      "M6-stale-snapshot-allowed",
+      "M7-current-head-unbound",
+      "M8-ui-review-bypassed",
+      "M9-existing-file-create-unchecked"
+    ],
+    "summary": "claude-mutation-summary.raw.json",
+    "codexConsumerFinal": "9/9 KILLED (consumer-final-mutation-summary.raw.json)"
+  },
+  "graph": {
+    "receipt": "GRAPH_TECHNICAL_HEAD_2d6cef3.json",
+    "integrity": {
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0
+    },
+    "coverage": "PARTIAL10",
+    "semantic": "PENDING",
+    "sourceMatch": "MATCH"
+  },
+  "historicalFails": {
+    "outsideManifest": true,
+    "sameAtPushedBaseline456dad6AndTechnicalHead": true,
+    "rows": [
+      {
+        "sha": "456dad6",
+        "suite": "scripts/smoke-ayas-autonomy-observer.ts",
+        "exit": 1,
+        "failurePoint": "scripts/smoke-ayas-autonomy-observer.ts:160:12",
+        "suiteSha256": "c858e32621f418aa06d37d77f6d1586e1751a02414ffd40bb2592e7f91eb244a"
+      },
+      {
+        "sha": "456dad6",
+        "suite": "scripts/smoke-ayas-publication-activity.ts",
+        "exit": 1,
+        "failurePoint": "scripts/smoke-ayas-publication-activity.ts:140:10",
+        "suiteSha256": "549fcd2e2f955c6a9cbe3155b6531aee4a827c80f02372599c9ed2a009f46c05"
+      },
+      {
+        "sha": "2d6cef3",
+        "suite": "scripts/smoke-ayas-autonomy-observer.ts",
+        "exit": 1,
+        "failurePoint": "scripts/smoke-ayas-autonomy-observer.ts:160:12",
+        "suiteSha256": "c858e32621f418aa06d37d77f6d1586e1751a02414ffd40bb2592e7f91eb244a"
+      },
+      {
+        "sha": "2d6cef3",
+        "suite": "scripts/smoke-ayas-publication-activity.ts",
+        "exit": 1,
+        "failurePoint": "scripts/smoke-ayas-publication-activity.ts:140:10",
+        "suiteSha256": "549fcd2e2f955c6a9cbe3155b6531aee4a827c80f02372599c9ed2a009f46c05"
+      }
+    ],
+    "observer": "app/brain/page.tsx no longer imports ./observerActions (assertion :160); predates exact-preview",
+    "publicationActivity": "batch STALE_SUPERSEDED expectation (assertion :140, harness :157); predates exact-preview",
+    "raw": "historical-fails-456dad6-2d6cef3.raw.json"
+  },
+  "notTransferred": [
+    "dbf9542 166/166 PASS stays historical only",
+    "569d6f5 T1 FAIL stays preserved, not relabelled"
+  ],
+  "bindingRule": "Binds only technicalHead 2d6cef3 and sourceWorktreeDigest 52f954de...; later docs-only evidence commits are not automatically qualified.",
+  "notRun": [
+    "cross-process race",
+    "actual restart",
+    "real owner APPROVE/YURUT",
+    "reviewed exact Golden artifact execution",
+    "live browser execution",
+    "live rollout/maintenance",
+    "physical phone voice/STT/TTS/barge-in/reconnect"
+  ],
+  "live": {
+    "deploy": "NONE",
+    "nextRestart": "NONE",
+    "reboot": "NONE",
+    "approveOrExecute": "NONE",
+    "externalWrite": "NONE",
+    "paidService": "NONE"
+  },
+  "observerSideEffect": {
+    "note": "Running Autonomy Observer created one daemon SAFE patch-artifact PENDING proposal bound to 2d6cef3 at 2026-10-09T06:26:13Z; decisions unchanged 53; untouched; it becomes STALE when HEAD moves."
+  },
+  "push": "NOT_PERFORMED_OWNER_EXACT_SHA_APPROVAL_REQUIRED",
+  "remoteHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "grantsAuthority": false
+}

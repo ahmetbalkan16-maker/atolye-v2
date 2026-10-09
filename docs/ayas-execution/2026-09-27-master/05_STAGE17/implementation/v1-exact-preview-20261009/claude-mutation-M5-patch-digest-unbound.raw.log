@@ -1,0 +1,47 @@
+PASS A-missing
+PASS B-corrupt
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ {
++   binding: {
++     artifactId: 'ayas-patch-artifact-41acf0b8-9d49-421c-b439-d460861941b7',
++     baseHead: 'cead16728a180d1978f49483fffdee5b2fdc01dd',
++     expiresAt: '2026-10-09T06:22:56.248Z',
++     issuedAt: '2026-10-09T06:17:56.248Z',
++     patchHash: 'b84c87ae84974f5896ebe9f3cd612187521d06d17d39280ad66797806e46e2bd',
++     proposalHash: '07f318c2cf289ef09aa2801e22e4ba9b5b479e0d162937523985cc5a9cdbb26a',
++     proposalId: 'ayas-proposal-ab287da6-2a0e-4260-bff4-1c9075f09bea',
++     schema: 'ayas-owner-exact-preview:v1',
++     seal: '37317ef7f1dbd7c4c8efd33c22e976cd2ad437f7c2de0d26c8e4979559bf1cb7',
++     snapshotDigest: '02bf3fc6b4bfd8716e1ba17409c8ff2ca124f3dc797901e63c8c685bcb474cb9'
++   },
++   evidenceIdentity: '95e49bf7f5bdf8ccecd157570254b0bdd89dc87c15cf647d340016e1cefe01f4',
++   evidenceStatus: 'VERIFIED',
++   exactFiles: [
++     'scripts/smoke-fixture-generated.ts'
++   ],
++   files: [
++     {
++       after: 'console.log(JSON.stringify({status:"PASS",suite:"fixture-generated",scenarios:1}));\n',
++       before: null,
++       filePath: 'scripts/smoke-fixture-generated.ts'
++     }
++   ],
++   validationSummary: [
++     'fixture validator: PASS'
++   ]
++ }
+- undefined
+
+    at noYurut (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:76:10)
+    at <anonymous> (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:88:71)
+    at async scenario (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:84:73)
+    at async main (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:88:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Object],
+  expected: undefined,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

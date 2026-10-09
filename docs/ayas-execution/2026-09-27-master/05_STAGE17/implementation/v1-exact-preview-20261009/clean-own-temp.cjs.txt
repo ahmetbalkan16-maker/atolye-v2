@@ -1,0 +1,34 @@
+// Junction-first removal of ONLY this session's own TEMP dirs. Usage: node clean-own-temp.cjs <--dry|--apply> <dir>...
+// 1) walk with lstat (never follows links) and list every symlink/junction with its target;
+// 2) --apply: remove each link itself, re-walk to prove zero links remain, then delete the plain tree;
+// 3) the real dependency trees the links pointed at must still be intact afterwards.
+const fs = require("fs"), path = require("path"), assert = require("assert/strict");
+const [mode, ...dirs] = process.argv.slice(2);
+assert.ok(mode === "--dry" || mode === "--apply");
+const allowed = /[\\/](cc-xp-mut-[0-9a-f]{6}|xp166-2d6cef3-[0-9a-f]{6}|x166-[0-9a-f]{4}|cc-hist-[0-9a-f]{4}|tmp1)$/;
+const protectedTargets = ["C:/Users/Metod/Desktop/solid/SW2020.x64.SP4.0/Program/Atölye/atolye-v2/node_modules", "C:/Users/Metod/Desktop/solid/SW2020.x64.SP4.0/Program/Atölye/atolye-v2/.graphify/k3-fresh-lock-20261008/node_modules"];
+const intact = () => protectedTargets.map((t) => ({ t, next: fs.existsSync(path.join(t, "next/package.json")), tsx: fs.existsSync(path.join(t, "tsx/package.json")), entries: fs.readdirSync(t).length }));
+function walk(dir, links, stats) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name); const st = fs.lstatSync(p);
+    if (st.isSymbolicLink()) { let target = null; try { target = fs.readlinkSync(p); } catch {} links.push({ p, target }); }
+    else if (st.isDirectory()) { stats.dirs++; walk(p, links, stats); } else stats.files++;
+  }
+}
+const before = intact(); console.log(JSON.stringify({ protectedBefore: before }));
+for (const d of dirs) {
+  const dir = path.resolve(d); assert.ok(allowed.test(dir), "not an own session dir: " + dir);
+  if (!fs.existsSync(dir)) { console.log(JSON.stringify({ dir, state: "ABSENT" })); continue; }
+  assert.ok(!fs.lstatSync(dir).isSymbolicLink());
+  const links = [], stats = { dirs: 0, files: 0 }; walk(dir, links, stats);
+  const targets = {}; for (const l of links) { const k = String(l.target).replace(/\\/g, "/").replace(/\/$/, ""); targets[k] = (targets[k] || 0) + 1; }
+  console.log(JSON.stringify({ dir, links: links.length, dirs: stats.dirs, files: stats.files, linkTargets: targets }));
+  if (mode === "--apply") {
+    for (const l of links) { try { fs.rmdirSync(l.p); } catch { fs.unlinkSync(l.p); } }
+    const again = [], s2 = { dirs: 0, files: 0 }; walk(dir, again, s2); assert.equal(again.length, 0, "links remain in " + dir);
+    fs.rmSync(dir, { recursive: true, force: true }); assert.ok(!fs.existsSync(dir));
+    console.log(JSON.stringify({ dir, state: "REMOVED", linksRemovedFirst: links.length }));
+  }
+}
+const after = intact(); console.log(JSON.stringify({ protectedAfter: after }));
+assert.deepEqual(after, before, "protected dependency trees changed");

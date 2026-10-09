@@ -1,0 +1,14 @@
+PASS 1: the design's own list: eight domains, and the vault of record gives each one a case or a declared gap
+PASS 2: contract: a vault is read only in its own shape
+PASS 3: digest: independent of key order, changed by any pinned byte, case, gap or version
+PASS 4: chain: versions are contiguous, each names the one before it, and a case leaves only by name
+PASS 5: the vault of record: clean chain, pins equal the working tree and each script's whole grader closure
+PASS 6: pins: one changed byte or a missing file is drift, and an invalid vault verifies nothing
+PASS 7: gate: held only when every case is golden in the candidate tree
+PASS 8: gate: one golden case red stops promotion, whatever else improved
+PASS 9: gate: a baseline only says whose fault it is; it never rescues a red candidate
+PASS 10: gate: what was not measured is never held
+PASS 11: gate: a moved yardstick is not a comparison
+PASS 12: path protection: the vault, what it pins, the eval yardstick and the owner constitution are never autonomous
+PASS 13: evidence, not authority: the contract is pure, the registry is data, and only the flow it gates reads the vault
+{"status":"PASS","suite":"ayas-golden-vault","scenarios":13,"vaultVersion":3,"cases":18,"gaps":2,"modelRuns":0}

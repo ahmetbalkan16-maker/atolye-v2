@@ -1,0 +1,45 @@
+{
+  "at": "2026-10-09T06:59:44.974Z",
+  "rows": [
+    {
+      "sha": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+      "suite": "scripts/smoke-ayas-autonomy-observer.ts",
+      "suiteSha256": "c858e32621f418aa06d37d77f6d1586e1751a02414ffd40bb2592e7f91eb244a",
+      "exit": 1,
+      "passedScenarioLines": 20,
+      "failurePoint": "scripts/smoke-ayas-autonomy-observer.ts:160:12",
+      "assertion": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from\\s+\"\\.\\/observerActions\"/. Input:\n\n'import { AyasConsolePage } from \"@/components/brain/AyasConsolePage\";\\n' +\n  'import { BRAIN_PANELS } from \"@/components/brain/brainCore\";\\n' +\n  '\\n' +\n  'export const dynamic = \"force-dynamic\";\\n' +\n  '\\n' +",
+      "log": "smoke-ayas-autonomy-observer-456dad6.raw.log"
+    },
+    {
+      "sha": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+      "suite": "scripts/smoke-ayas-publication-activity.ts",
+      "suiteSha256": "549fcd2e2f955c6a9cbe3155b6531aee4a827c80f02372599c9ed2a009f46c05",
+      "exit": 1,
+      "passedScenarioLines": 10,
+      "failurePoint": "scripts/smoke-ayas-publication-activity.ts:140:10",
+      "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\r\n+ actual - expected\r\n\r\n+ undefined\r\n- 'STALE_SUPERSEDED'\r\n\r\n    at <anonymous> (C:\\Users\\Metod\\AppData\\Local\\Temp\\cc-hist-0fbb\\456dad6\\scripts\\smoke-ayas-publication-activity.ts:140:10)",
+      "log": "smoke-ayas-publication-activity-456dad6.raw.log"
+    },
+    {
+      "sha": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+      "suite": "scripts/smoke-ayas-autonomy-observer.ts",
+      "suiteSha256": "c858e32621f418aa06d37d77f6d1586e1751a02414ffd40bb2592e7f91eb244a",
+      "exit": 1,
+      "passedScenarioLines": 20,
+      "failurePoint": "scripts/smoke-ayas-autonomy-observer.ts:160:12",
+      "assertion": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from\\s+\"\\.\\/observerActions\"/. Input:\n\n'import { AyasConsolePage } from \"@/components/brain/AyasConsolePage\";\\n' +\n  'import { BRAIN_PANELS } from \"@/components/brain/brainCore\";\\n' +\n  '\\n' +\n  'export const dynamic = \"force-dynamic\";\\n' +\n  '\\n' +",
+      "log": "smoke-ayas-autonomy-observer-2d6cef3.raw.log"
+    },
+    {
+      "sha": "2d6cef3564f7987fc7ab29f3efe2282e5ef000f3",
+      "suite": "scripts/smoke-ayas-publication-activity.ts",
+      "suiteSha256": "549fcd2e2f955c6a9cbe3155b6531aee4a827c80f02372599c9ed2a009f46c05",
+      "exit": 1,
+      "passedScenarioLines": 10,
+      "failurePoint": "scripts/smoke-ayas-publication-activity.ts:140:10",
+      "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\r\n+ actual - expected\r\n\r\n+ undefined\r\n- 'STALE_SUPERSEDED'\r\n\r\n    at <anonymous> (C:\\Users\\Metod\\AppData\\Local\\Temp\\cc-hist-0fbb\\2d6cef3\\scripts\\smoke-ayas-publication-activity.ts:140:10)",
+      "log": "smoke-ayas-publication-activity-2d6cef3.raw.log"
+    }
+  ]
+}

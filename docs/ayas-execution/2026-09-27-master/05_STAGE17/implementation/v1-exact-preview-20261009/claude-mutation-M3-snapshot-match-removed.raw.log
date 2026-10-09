@@ -1,0 +1,16 @@
+PASS A-missing
+PASS B-corrupt
+PASS C-digest
+PASS D-baseHead
+PASS E-stale
+AssertionError [ERR_ASSERTION]: Missing expected rejection.
+    at async <anonymous> (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:95:33)
+    at async scenario (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:84:73)
+    at async main (C:\Users\Metod\AppData\Local\Temp\cc-xp-mut-4741a0\repo\scripts\smoke-ayas-owner-exact-preview.ts:93:3) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: /EXACT_PREVIEW_CHANGED/,
+  operator: 'rejects',
+  diff: 'simple'
+}
