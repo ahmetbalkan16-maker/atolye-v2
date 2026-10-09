@@ -1,4 +1,5 @@
 import { buildAyasOwnerPreviewInboxView } from "../src/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
+import { AYAS_GOLDEN_VAULT } from "../src/lib/ayas/golden/AyasGoldenVaultRegistry";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -92,7 +93,7 @@ async function main() {
   await scenario("F-artifact-after-view", async () => { const f = await fixture(); fs.writeFileSync(f.artifactPath, JSON.stringify({ ...f.artifact, sandboxValidationSummary: ["replacement summary"] }));
     assert.equal(f.artifactStore.loadVerified(f.artifact.artifactId).patchHash, f.artifact.patchHash, "patchHash excludes this owner-visible field");
     const before = snapshot(f); await assert.rejects(() => execute(f), /EXACT_PREVIEW_CHANGED/); assert.deepEqual(snapshot(f), before); });
-  await scenario("G-valid-reviewed-exact", async () => { const f = createOwnerExactReviewedPreviewFixture();
+  await scenario("G-valid-reviewed-exact", async () => { const f = createOwnerExactReviewedPreviewFixture(AYAS_GOLDEN_VAULT);
     f.inbox.decide(f.proposal.proposalId, "APPROVE", new Date().toISOString(), "owner-approved: pending execution enablement", await admission(f.proposal, "APPROVE"));
     const p = f.inbox.load().proposals[0]!, decision = f.inbox.load().decisions[0]!;
     const preview = loadAyasOwnerExactPreview(p, decision, f.options); assert.ok(preview, "actual REVIEW_REQUIRED exact proof + golden-held evidence");

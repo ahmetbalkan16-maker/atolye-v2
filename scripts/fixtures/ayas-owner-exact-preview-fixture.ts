@@ -4,7 +4,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { AYAS_GOLDEN_VAULT } from "../../src/lib/ayas/golden/AyasGoldenVaultRegistry";
 import { createAyasExactPatchSafetyProof, ayasExactPatchSha256 } from "../../src/lib/brain/selfheal/AyasExactPatchSafety";
 import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest, generateAyasRenderToolSupersessionPatch } from "../../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { createAyasPatchArtifactStore } from "../../src/lib/brain/autonomy/AyasPatchArtifact";
@@ -15,7 +14,7 @@ import { AYAS_EXPERIMENT_ISOLATION } from "../../src/lib/brain/autonomy/AyasRese
 import { heldGoldenEvidence } from "./ayas-golden-fixtures";
 
 /** Synthetic exact reviewed source/evidence, using the preserved historical strategy. No live execution. */
-export function createOwnerExactReviewedPreviewFixture() {
+export function createOwnerExactReviewedPreviewFixture(vault: Parameters<typeof heldGoldenEvidence>[0]) {
 const file = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
 const sourceRoot = process.cwd();
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-exact-proposal-"));
@@ -51,7 +50,7 @@ const evidence = { schemaVersion: AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, expe
   change: { strategyId: strategy.strategyId, strategyVersion: strategy.version, diffSha256: "d".repeat(64), files: [{ filePath: file }] },
   regressions: { newlyFailingCaseIds: [], heldOutDelta: 0,
     suites: strategy.regressionSuites.map((script) => ({ script, baselinePass: true, experimentPass: true })) },
-  golden: heldGoldenEvidence(AYAS_GOLDEN_VAULT, strategy.regressionSuites),
+  golden: heldGoldenEvidence(vault, strategy.regressionSuites),
   performance: { baselineMs: 100, experimentMs: 100, ratio: 1 },
   risk: { riskClass: "REVIEW_REQUIRED", isolation: AYAS_EXPERIMENT_ISOLATION, liveWorkspaceUnchanged: true, sandboxDiscarded: true },
   analysisRoute: null, verdict: "IMPROVED", reasonCodes: [], targetGain: 1, fixedCaseIds: ["stale-free-text-seed"],
