@@ -1,0 +1,25 @@
+PASS 1: scripts/ayas-discovery-daemon.ts exists and is a real file
+PASS 2: scripts/ayas-discovery-daemon.ts's transitive import closure is non-trivial (walker actually traverses, not a no-op)
+PASS 3: scripts/ayas-discovery-daemon.ts never transitively imports src/lib/brain/autonomy/AyasProposalApprovalService.ts
+PASS 4: scripts/ayas-discovery-daemon.ts never transitively imports src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts
+PASS 5: scripts/ayas-discovery-daemon.ts never transitively imports src/lib/brain/autonomy/AyasProposalExecutionService.ts
+PASS 6: scripts/ayas-discovery-daemon.ts never transitively imports src/lib/brain/autonomy/AyasOwnerApprovalResume.ts
+PASS 7: scripts/ayas-discovery-daemon.ts's transitive closure contains zero direct git commit/push/add call sites
+PASS 8: src/lib/brain/autonomy/AyasAutonomousReview.ts exists and is a real file
+PASS 9: src/lib/brain/autonomy/AyasAutonomousReview.ts's transitive import closure is non-trivial (walker actually traverses, not a no-op)
+PASS 10: src/lib/brain/autonomy/AyasAutonomousReview.ts never transitively imports src/lib/brain/autonomy/AyasProposalApprovalService.ts
+PASS 11: src/lib/brain/autonomy/AyasAutonomousReview.ts never transitively imports src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts
+PASS 12: src/lib/brain/autonomy/AyasAutonomousReview.ts never transitively imports src/lib/brain/autonomy/AyasProposalExecutionService.ts
+PASS 13: src/lib/brain/autonomy/AyasAutonomousReview.ts never transitively imports src/lib/brain/autonomy/AyasOwnerApprovalResume.ts
+PASS 14: src/lib/brain/autonomy/AyasAutonomousReview.ts's transitive closure contains zero direct git commit/push/add call sites
+PASS 15: src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts exists and is a real file
+PASS 16: src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts's transitive import closure is non-trivial (walker actually traverses, not a no-op)
+PASS 17: src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts never transitively imports src/lib/brain/autonomy/AyasProposalApprovalService.ts
+PASS 18: src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts never transitively imports src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts
+PASS 19: src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts never transitively imports src/lib/brain/autonomy/AyasProposalExecutionService.ts
+PASS 20: src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts never transitively imports src/lib/brain/autonomy/AyasOwnerApprovalResume.ts
+PASS 21: src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts's transitive closure contains zero direct git commit/push/add call sites
+PASS 22: sanity: the walker DOES detect a forbidden edge when one genuinely exists (negative-control, proves the test isn't vacuously passing)
+PASS 23: sanity: the walker DOES detect a reachable AyasOwnerApprovalResume edge from its own dedicated script entrypoint (negative-control)
+AYAS daemon authority boundary smoke: PASS (23 scenarios)
+{"status":"PASS","suite":"ayas-daemon-authority-boundary","scenarios":23}

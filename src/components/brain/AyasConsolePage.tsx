@@ -8,10 +8,11 @@
  * pipeline, GPU or paid-API call happens here — the execution gate is closed.
  */
 
+import { loadAyasOwnerPreviewInboxView } from "@/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
 import { BrainCoreConsole } from "@/components/brain/BrainCoreConsole";
 import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { loadAyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
-import { loadAyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+
 import { loadAyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
@@ -53,7 +54,7 @@ export async function AyasConsolePage({ homepage = false, initialPanel = "chat" 
     loadBrainConsoleSnapshot(),
     ayasModelConfigured(),
     loadAyasAutonomousView(),
-    loadAyasApprovalInboxView(),
+    loadAyasOwnerPreviewInboxView(),
     loadAyasMicroBatchDevelopmentView(),
   ]);
   // Read-only self-healing state (incidents / repairs / learning). Fail-soft.

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ayasOwnerExactPreviewAcknowledged, type AyasOwnerExactPreviewBinding } from "@/lib/brain/autonomy/AyasOwnerExactPreviewContract";
 
 import type { AyasApprovalInboxView, AyasDevelopmentProposal, AyasPublicationDisplayState } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { selectAyasPendingOwnerApprovals } from "@/lib/brain/autonomy/AyasPendingApprovalSelector";
@@ -207,10 +208,12 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
   readonly onDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const { request, binding } = recommendation;
+  const { request, binding, afterApproval } = recommendation;
   const busy = pendingId === binding.proposalId;
   const errorMessage = error?.proposalId === binding.proposalId ? (ayasOwnerDecisionErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
   const decide = (decision: AyasOwnerDecisionLiteral) => onDecision?.({ binding, decision });
+  const executesNow = afterApproval === "EXECUTES_AND_PUBLISHES";
+  const busyLabel = executesNow ? "UYGULANIYOR…" : "KAYDEDİLİYOR…";
 
   return (
     <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-rec-${binding.proposalId}`}>
@@ -240,15 +243,17 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
       {confirming ? (
         <div className="bc-dev__confirm" role="group" aria-label="Onaylarsam ne olacak?">
           <strong>ONAYLA — onaylarsam ne olacak?</strong>
-          <p>AYAS bu değişikliği kendisi uygulayacak, test edecek ve başarılı olursa tek bir commit olarak yayınlayacak. İkinci bir onay istenmeyecek.</p>
+          {executesNow
+            ? <p>AYAS bu değişikliği kendisi uygulayacak, test edecek ve başarılı olursa tek bir commit olarak yayınlayacak. İkinci bir onay istenmeyecek.</p>
+            : <p>Onayın kalıcı olarak kaydedilir; AYAS bu değişikliği kendiliğinden yürütmez. Yürütmek için &quot;Onaylandı — Yürütme Bekleniyor&quot; bölümünde ayrıca YÜRÜT&apos;e basman gerekir.</p>}
           <div className="bc-dev__actions">
-            <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
+            <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>{busy ? busyLabel : "ONAYLA"}</button>
             <button type="button" className="bc-btn bc-btn--ghost" disabled={busy} onClick={() => setConfirming(false)}>VAZGEÇ</button>
           </div>
         </div>
       ) : (
         <div className="bc-dev__actions">
-          <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
+          <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>{busy ? busyLabel : "ONAYLA"}</button>
           <button type="button" className="bc-btn bc-btn--ghost" disabled={busy || !onDecision} onClick={() => decide("REJECT")}>REDDET</button>
         </div>
       )}
@@ -257,26 +262,37 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
 }
 
 /**
- * Durable one-click correction (Step 3/4). A proposal the owner already
- * durably APPROVED while live execution was off — read entirely from the
+ * An owner-model APPROVE that has not run yet — read entirely from the
  * server's `pendingExecution` list, never from client memory, so it reads
- * "ONAYLANDI" exactly the same after a hard reload or a server restart as it
- * did the moment the owner clicked. Deliberately has NO button at all: the
- * owner's decision already happened once and is already durably recorded;
- * offering ONAYLA again here would be the exact duplicate-authorization this
- * correction rules out. `AyasOwnerApprovalResume.ts` is what later turns
- * this into a real execution once live execution is enabled.
+ * "ONAYLANDI" exactly the same after a hard reload or a server restart. It
+ * never offers ONAYLA again: the decision is already durably recorded.
+ * Nothing resumes it automatically (owner policy 2026-10-08). It runs only
+ * through the ordinary manual YÜRÜT (`ExecuteControl`), shown here only when
+ * the server verified a sealed owner APPROVE for exactly this proposal
+ * (`manualExecution === "AVAILABLE"`) and the inbox still reads APPROVED;
+ * the server then requires a freshly verified EXECUTE before anything runs.
  */
-function AyasOwnerPendingExecutionCard({ entry }: { readonly entry: AyasOwnerPendingExecutionEntry }) {
+function AyasOwnerPendingExecutionCard({ entry, proposal, executingId, executionError, onExecute }: { readonly entry: AyasOwnerPendingExecutionEntry; readonly proposal?: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void }) {
+  const admitted = entry.manualExecution === "AVAILABLE";
+  const approved = proposal?.status === "APPROVED";
   return (
     <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-pending-execution-${entry.proposalId}`}>
       <header className="bc-dev__proposal-head">
         <div><span className="bc-dev__status">ONAYLANDI</span><h3>{entry.wantsTo}</h3></div>
       </header>
       <div className="bc-dev__confirm" role="status">
-        <p>Otomatik yürütme şu anda devre dışı. AYAS, yürütme etkinleştirildiğinde bu onayı yeniden doğrulayıp işlemi otomatik olarak sürdürecek.</p>
+        <p>Otomatik yürütme şu anda devre dışı.</p>
+        {!admitted
+          ? <p>Bu onay doğrulanmış bir owner oturumuna bağlı değil (eski ya da kimliği doğrulanamayan kayıt). AYAS bunu yürütmez ve YÜRÜT sunulmaz; değişiklik hâlâ gerekiyorsa yeni bir öneri ve yeni onay gerekir.</p>
+          : approved
+            ? <p>Onayın kayıtlı. AYAS bunu kendiliğinden yürütmez; yürütme yalnız senin YÜRÜT eyleminle ve doğrulanmış owner oturumunla başlar.</p>
+            : proposal
+              ? <p>Güncel durum: {statusLabel[proposal.status]}. Bu öneri için YÜRÜT sunulmaz.</p>
+              : <p>Bu öneri güncel listede bulunamadı; sayfayı yenile. YÜRÜT sunulmaz.</p>}
         <p><small>Onaylandı: {new Date(entry.approvedAt).toLocaleString("tr-TR")}</small></p>
       </div>
+      {proposal?.status === "RECOVERY_REQUIRED" ? <RecoveryNotice /> : null}
+      {admitted && approved && proposal ? <ExecuteControl proposal={proposal} placement="owner-pending" executingId={executingId} executionError={executionError} onExecute={onExecute} /> : null}
     </article>
   );
 }
@@ -364,6 +380,8 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
 }
 
 const executionErrorLabel: Record<string, string> = {
+  EXACT_PREVIEW_REQUIRED: "Tam değişiklik önizlemesini yeniden inceleyip onayla.",
+  EXACT_PREVIEW_CHANGED: "Önizleme değişti veya doğrulanamıyor; işlem durdu. Sayfayı yenileyip yeniden incele.",
   NOT_FOUND: "Öneri bulunamadı.",
   NOT_APPROVED: "Bu öneri artık onaylı değil — sayfa güncel değil olabilir.",
   NOT_READY: "Öneri yürütmeye hazır değil.",
@@ -371,13 +389,58 @@ const executionErrorLabel: Record<string, string> = {
   AYAS_MUTATION_SCOPE_MISMATCH: "Uygulamanın dosya kapsamı öneriyle eşleşmiyor.",
   STALE_APPROVAL: "Onay durumu değişti — sayfayı yenile.",
   INVALID_INPUT: "Geçersiz istek.",
+  OWNER_ADMISSION_REQUIRED: "Doğrulanmış owner oturumu gerekiyor — yeniden giriş yap ve kartın güncel durumuna bak.",
+  OWNER_ADMISSION_GATE_UNAVAILABLE: "Owner doğrulaması bu sunucuda kullanılamıyor — yürütme başlatılmadı.",
+  AYAS_DAEMON_DIRTY_REPO: "Çalışma ağacında kaydedilmemiş değişiklikler var — yürütme başlatılmadı.",
   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
 };
 
-/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. A proposal APPROVED via the owner-approval model (`ownerApprovedPendingExecution`) also renders nothing here — it already has its own durable "ONAYLANDI" card (`AyasOwnerPendingExecutionCard`) and resumes automatically via `AyasOwnerApprovalResume.ts`, never via this manual YÜRÜT control. */
-function ExecuteControl({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
+/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. A proposal APPROVED via the owner-approval model (`ownerApprovedPendingExecution`) gets this control only on its "Onaylandı — Yürütme Bekleniyor" card (`placement="owner-pending"`), which renders it only after the server verified a sealed owner APPROVE; it is never resumed automatically. Every other APPROVED proposal keeps it on its timeline card. Either way the server requires a fresh verified EXECUTE before anything runs. */
+function ExecuteControl({ proposal, executingId, executionError, onExecute, placement = "timeline" }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: AyasOwnerExactPreviewBinding }) => void; readonly placement?: "timeline" | "owner-pending" }) {
+  if (proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL) return <ExactPreviewExecutionControl key={proposal.exactPreview?.binding.seal ?? "unavailable"} proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} placement={placement} />;
+  return <ManualExecuteControl proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} placement={placement} />;
+}
+
+function ExactPreviewExecutionControl({ proposal, ...controls }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: AyasOwnerExactPreviewBinding }) => void; readonly placement: "timeline" | "owner-pending" }) {
+  const [reviewedSeal, setReviewedSeal] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
+  const preview = proposal.exactPreview;
+  useEffect(() => {
+    if (!preview) return;
+    const timer = setTimeout(() => setExpired(true), Math.max(0, Date.parse(preview.binding.expiresAt) - Date.now()));
+    return () => clearTimeout(timer);
+  }, [preview]);
+  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution !== (controls.placement === "owner-pending")) return null;
+  if (!preview || expired || proposal.displayState !== "NORMAL") return <p role="status">Doğrulanmış güncel önizleme yok. YÜRÜT kullanılamaz; sayfayı yenile.</p>;
+  const acknowledged = ayasOwnerExactPreviewAcknowledged(preview, reviewedSeal, proposal);
+  const executeWithPreview = (input: { proposalId: string }) => {
+    if (!ayasOwnerExactPreviewAcknowledged(preview, reviewedSeal, proposal)) return;
+    const dispatch = controls.onExecute;
+    dispatch?.({ ...input, ownerPreview: preview.binding });
+  };
+  return <div data-testid="ayas-exact-preview">
+    <dl className="bc-dev__facts">
+      <div><dt>Artifact</dt><dd><code>{preview.binding.artifactId}</code></dd></div>
+      <div><dt>Patch digest</dt><dd><code>{preview.binding.patchHash}</code></dd></div>
+      <div><dt>Snapshot digest</dt><dd><code>{preview.binding.snapshotDigest}</code></dd></div>
+      <div><dt>Base / source HEAD</dt><dd><code>{preview.binding.baseHead}</code></dd></div>
+      <div><dt>Kapsam</dt><dd>{preview.exactFiles.join(", ")} · {proposal.expectedDiffScope}</dd></div>
+      <div><dt>Kanıt kimliği / durumu</dt><dd><code>{preview.evidenceIdentity}</code> · {preview.evidenceStatus}</dd></div>
+    </dl>
+    {preview.files.map(file => <div key={file.filePath}>
+      <strong>{file.filePath}</strong>
+      <p>Önce</p><pre className="bc-dev__diff"><code>{file.before ?? "Yeni dosya — mevcut içerik yok"}</code></pre>
+      <p>Uygulanacak tam içerik</p><pre className="bc-dev__diff"><code>{file.after}</code></pre>
+    </div>)}
+    <p>{preview.validationSummary.join(" · ")}</p>
+    <label><input type="checkbox" checked={acknowledged} onChange={event => setReviewedSeal(event.target.checked ? preview.binding.seal : null)} /> Yukarıdaki tam değişikliği, digest, HEAD, kapsam ve kanıtı inceledim.</label>
+    {acknowledged ? <ManualExecuteControl proposal={proposal} {...controls} onExecute={controls.onExecute ? executeWithPreview : undefined} /> : null}
+  </div>;
+}
+
+function ManualExecuteControl({ proposal, executingId, executionError, onExecute, placement = "timeline" }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: AyasOwnerExactPreviewBinding }) => void; readonly placement?: "timeline" | "owner-pending" }) {
   const [confirming, setConfirming] = useState(false);
-  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution) return null;
+  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution !== (placement === "owner-pending")) return null;
   const busy = executingId === proposal.proposalId;
   const error = executionError?.proposalId === proposal.proposalId ? executionError : null;
   const errorMessage = error ? executionErrorLabel[error.code] ?? `Yürütme başarısız oldu (${error.code}).` : null;
@@ -391,6 +454,7 @@ function ExecuteControl({ proposal, executingId, executionError, onExecute }: { 
         <p><b>Test planı:</b> {proposal.testsPlanned.join(" · ")}</p>
         <p><b>Üretim etkisi:</b> {proposal.productionImpact}</p>
         <p><b>Uygulama kimliği:</b> <code>{proposal.mutationKind || "—"}</code></p>
+        <p>AYAS değişikliği bu bilgisayardaki çalışma kopyasında uygular ve testleri çalıştırır; commit veya push yapmaz. Doğrulanmış owner oturumu gerekir.</p>
         <p>Bu onay tek kullanımlıktır; yürütme başladıktan sonra aynı onay tekrar kullanılamaz.</p>
         {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
         <div className="bc-dev__actions">
@@ -408,7 +472,7 @@ function ExecuteControl({ proposal, executingId, executionError, onExecute }: { 
   );
 }
 
-function TimelineCard({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
+function TimelineCard({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void }) {
   return (
     <article className="bc-dev__timeline-card">
       <div><span className="bc-dev__status">{statusLabel[proposal.status]}</span><strong>{proposal.objective}</strong></div>
@@ -525,11 +589,12 @@ function MicroBatchPanel({ microBatch, onaylaPending, onaylaError, onBatchOnayla
   );
 }
 
-export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula, proposalOnaylaPendingId, proposalOnaylaError, onProposalOnaylaVeUygula, ownerRecommendations, ownerDecisionPendingId, ownerDecisionError, onOwnerApprovalDecision, ownerApprovalPendingExecution }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void; readonly proposalOnaylaPendingId?: string | null; readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void; readonly ownerRecommendations?: readonly AyasOwnerRecommendation[]; readonly ownerDecisionPendingId?: string | null; readonly ownerDecisionError?: { readonly proposalId: string; readonly code: string } | null; readonly onOwnerApprovalDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void; readonly ownerApprovalPendingExecution?: readonly AyasOwnerPendingExecutionEntry[] }) {
+export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula, proposalOnaylaPendingId, proposalOnaylaError, onProposalOnaylaVeUygula, ownerRecommendations, ownerDecisionPendingId, ownerDecisionError, onOwnerApprovalDecision, ownerApprovalPendingExecution }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void; readonly proposalOnaylaPendingId?: string | null; readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void; readonly ownerRecommendations?: readonly AyasOwnerRecommendation[]; readonly ownerDecisionPendingId?: string | null; readonly ownerDecisionError?: { readonly proposalId: string; readonly code: string } | null; readonly onOwnerApprovalDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void; readonly ownerApprovalPendingExecution?: readonly AyasOwnerPendingExecutionEntry[] }) {
   if (!inbox.connected) return <div className="bc-empty" role="alert"><strong>Gelişim Merkezi okunamadı</strong><p>{inbox.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
   const pendingOwnerApprovals = selectAyasPendingOwnerApprovals(inbox);
   const pendingIds = new Set(pendingOwnerApprovals.map((proposal) => proposal.proposalId));
   const pendingReview = inbox.pending.filter((proposal) => !pendingIds.has(proposal.proposalId));
+  const inboxProposalById = new Map([...inbox.history, ...inbox.today, ...inbox.pending].map((proposal) => [proposal.proposalId, proposal] as const));
   return (
     <section className="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center">
       <header className="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header>
@@ -553,7 +618,7 @@ export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision
         <section className="bc-dev__section" aria-labelledby="ayas-owner-pending-execution" data-testid="ayas-owner-pending-execution">
           <h3 id="ayas-owner-pending-execution">Onaylandı — Yürütme Bekleniyor <span>{ownerApprovalPendingExecution.length}</span></h3>
           <div className="bc-dev__timeline">
-            {ownerApprovalPendingExecution.map((entry) => <AyasOwnerPendingExecutionCard key={entry.proposalId} entry={entry} />)}
+            {ownerApprovalPendingExecution.map((entry) => <AyasOwnerPendingExecutionCard key={entry.proposalId} entry={entry} proposal={inboxProposalById.get(entry.proposalId)} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}
           </div>
         </section>
       ) : null}

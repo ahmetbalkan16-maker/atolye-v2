@@ -1,0 +1,35 @@
+AYAS autonomy observer smoke FAILED: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from\s+"\.\/observerActions"/. Input:
+
+'import { AyasConsolePage } from "@/components/brain/AyasConsolePage";\n' +
+  'import { BRAIN_PANELS } from "@/components/brain/brainCore";\n' +
+  '\n' +
+  'export const dynamic = "force-dynamic";\n' +
+  '\n' +
+  'export default async function BrainCorePage({ searchParams }: {\n' +
+  '  searchParams: Promise<{ panel?: string | string[] }>;\n' +
+  '}) {\n' +
+  '  const requested = (await searchParams).panel;\n' +
+  '  const panel = BRAIN_PANELS.find((item) => item.id === requested)?.id ?? "chat";\n' +
+  '  return <AyasConsolePage initialPanel={panel} />;\n' +
+  '}\n'
+
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-autonomy-observer.ts:160:12)
+    at scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-autonomy-observer.ts:11:90)
+    at main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-autonomy-observer.ts:158:9) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'import { AyasConsolePage } from "@/components/brain/AyasConsolePage";\n' +
+    'import { BRAIN_PANELS } from "@/components/brain/brainCore";\n' +
+    '\n' +
+    'export const dynamic = "force-dynamic";\n' +
+    '\n' +
+    'export default async function BrainCorePage({ searchParams }: {\n' +
+    '  searchParams: Promise<{ panel?: string | string[] }>;\n' +
+    '}) {\n' +
+    '  const requested = (await searchParams).panel;\n' +
+    '  const panel = BRAIN_PANELS.find((item) => item.id === requested)?.id ?? "chat";\n' +
+    '...',
+  expected: /from\s+"\.\/observerActions"/,
+  operator: 'match',
+  diff: 'simple'
+}

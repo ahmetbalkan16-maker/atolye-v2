@@ -1,3 +1,7 @@
+## 9 Ekim 2026 — owner exact-preview dar kaynak düzeltmesi; yeni Full166 bekleniyor
+
+Owner continuation ön şartı:456dad6 remote/clean doğrulandı. Exact preview öncesi YÜRÜT açılması kapatıldı: mevcut artifact/digest/HEAD/scope/evidence + sealed owner APPROVE ile HMAC snapshot, görünür tam before/after, snapshot'a bağlı açık checkbox ve mevcut manuel onay; server fresh EXECUTE + reservation öncesi ve mutation öncesi aynı snapshot doğrulaması. Mevcut engine/K3/firewall/resume korunur; auto-resume yok.15 kaynak/test dosyası; new20PASS,9mutantKILLED,K3/V2/publication/recovery PASS,TS0,ESLint0error13warning. İki tarihsel smoke FAIL ayrı korunur; ara import/firewall regresyonları düzeltilip rawFAIL'leri saklandı.215frozen pin aynı. Yeni temiz teknik commit için Full166 PENDING; dbf9542 sonucu taşınmaz. Bu kayıt ve kaynak yerel kalır; PUSH için ayrı exactSHA owner onayı. Canlı işlemler/cleanup/homepage/gerçekAPPROVE-YÜRÜT yok. FoundationBLOCKED; ses/reconnect, backup/rollback ve canlıbakım owner kapıları açık. Detay:docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-exact-preview-20261009/REPORT.md.
+
 ## 9 Ekim 2026 — owner son düzeltme; exact preview eksikliği nedeniyle Gelişim Merkezi HELD
 
 - İzinli ab11e77 kaynak değişikliklerinden önce normal fast-forward ad6c2a9 → ab11e77 pushlandı; gerçek remote/clean tree/39 artifact hash/secret0/Graphify0-0-0-0 doğrulandı. Sonraki bu oturum commit'i yerelde kalır; owner'ın yalnız ab11e77 push sınırı oturum-sonu genel kuralını daraltır.

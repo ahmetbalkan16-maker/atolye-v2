@@ -13,6 +13,19 @@ import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./Aya
 import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest } from "./AyasResearchExperimentRegistry";
 import { createAyasResearchExperimentStore, resolveAyasResearchImprovementRoot, type AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 
+/** Fixed, read-only Git probes for the owner-visible exact snapshot. No arbitrary command adapter. */
+export function readAyasExactPreviewSource(repoRoot: string, baseHead: string, files: readonly { readonly filePath: string; readonly expectedHash: string | null }[]): readonly (string | null)[] {
+  if (!/^[0-9a-f]{40}$/.test(baseHead) || !files.length || files.some(file => !file.filePath || file.filePath.includes("..") || file.filePath.includes("\\")
+    || path.posix.isAbsolute(file.filePath) || !/^(?:src|app|scripts)\//.test(file.filePath))) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 4_000_000 });
+  if (git("rev-parse", "HEAD").trim() !== baseHead || git("status", "--porcelain").trim()) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
+  return files.map(file => {
+    if (file.expectedHash !== null) return git("show", `${baseHead}:${file.filePath}`);
+    if (git("ls-tree", "--name-only", baseHead, "--", file.filePath).trim()) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
+    return null;
+  });
+}
+
 /** Keeps the path classifier authoritative while proving only one immutable reviewed replacement. */
 export function verifyAyasExactProposalSafety(proposal: Pick<AyasInboxProposal,
   "baseHead" | "exactFiles" | "safetyClassification" | "mutationKind" | "patchArtifactId" | "patchHash" | "exactPatchSafetyProof">,

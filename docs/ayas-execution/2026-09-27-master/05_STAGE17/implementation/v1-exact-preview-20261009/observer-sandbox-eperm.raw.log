@@ -1,0 +1,14 @@
+AYAS autonomy observer smoke FAILED: Error: EPERM: operation not permitted, rename 'C:\Users\Metod\AppData\Local\Packages\sandbox.{46539702-6256-48e7-8f38-de82617e55a0}\AC\Temp\ayas-observer-ZA2XED\observer-state.json.11164.tmp' -> 'C:\Users\Metod\AppData\Local\Packages\sandbox.{46539702-6256-48e7-8f38-de82617e55a0}\AC\Temp\ayas-observer-ZA2XED\observer-state.json'
+    at Object.renameSync (node:fs:1013:11)
+    at persist (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\src\lib\brain\autonomy\AyasAutonomyObserver.ts:55:237)
+    at transition (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\src\lib\brain\autonomy\AyasAutonomyObserver.ts:56:236)
+    at Object.observe (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\src\lib\brain\autonomy\AyasAutonomyObserver.ts:60:12)
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-autonomy-observer.ts:47:11)
+    at scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-autonomy-observer.ts:11:90)
+    at main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-autonomy-observer.ts:43:9) {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'rename',
+  path: 'C:\\Users\\Metod\\AppData\\Local\\Packages\\sandbox.{46539702-6256-48e7-8f38-de82617e55a0}\\AC\\Temp\\ayas-observer-ZA2XED\\observer-state.json.11164.tmp',
+  dest: 'C:\\Users\\Metod\\AppData\\Local\\Packages\\sandbox.{46539702-6256-48e7-8f38-de82617e55a0}\\AC\\Temp\\ayas-observer-ZA2XED\\observer-state.json'
+}

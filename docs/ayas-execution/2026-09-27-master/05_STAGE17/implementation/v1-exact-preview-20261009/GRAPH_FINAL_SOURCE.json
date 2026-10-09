@@ -1,0 +1,16 @@
+{
+  "nodes": 19233,
+  "edges": 53276,
+  "communities": 422,
+  "integrity": {
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "head": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "structural": "STALE",
+  "semantic": "PENDING",
+  "incomplete": 10,
+  "staleAuthorityImports": 0
+}

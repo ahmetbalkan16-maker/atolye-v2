@@ -4,6 +4,7 @@ import { createAyasPatchArtifactStore, AyasPatchArtifactError } from "./AyasPatc
 import { classifyAyasFindingValue, type AyasFindingValueClass } from "./AyasFindingValueClass";
 import { readAyasPublicationActivity, AYAS_PUBLICATION_ACTIVITY_UNKNOWN, type AyasPublicationActivitySnapshot } from "./AyasPublicationActivity";
 import { isAyasOwnerApprovedDecisionReason } from "./AyasOwnerApprovalProvenance";
+import type { AyasOwnerExactPreview } from "./AyasOwnerExactPreviewContract";
 
 /**
  * Approval-race UX hardening (Part A). Purely a display hint derived from
@@ -65,6 +66,7 @@ export interface AyasDevelopmentPatchArtifact {
 }
 
 export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
+  readonly exactPreview?: AyasOwnerExactPreview;
   readonly approvalReady: boolean;
   readonly missingExplanation: readonly AyasHumanExplanationField[];
   readonly decision?: AyasInboxDecisionRead;
@@ -80,11 +82,12 @@ export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
   /**
    * True only for an `APPROVED` proposal whose APPROVE came from the
    * owner-approval model (`AyasAutonomousExecutionGate.decideAyasOwnerApproval`)
-   * while live execution was disabled — durably resumable by
-   * `AyasOwnerApprovalResume.ts`, never by a second manual click. A legacy
-   * `decideAyasApproval`-approved proposal is `false` here and keeps its
-   * ordinary manual "YÜRÜT" control; this flag is what lets the UI show the
-   * two differently without a client-side flag of its own.
+   * without executing (an exact reviewed patch, or live execution off). It
+   * is never resumed automatically; its manual "YÜRÜT" is shown on the
+   * "Onaylandı — Yürütme Bekleniyor" card, and only for a sealed owner
+   * APPROVE. A legacy `decideAyasApproval`-approved proposal is `false` here
+   * and keeps its ordinary "YÜRÜT" on its timeline card; this flag is what
+   * lets the UI place the two differently without a client-side flag.
    */
   readonly ownerApprovedPendingExecution: boolean;
 }

@@ -1,0 +1,27 @@
+PASS A-missing
+PASS B-corrupt
+PASS C-digest
+PASS D-baseHead
+PASS E-stale
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    head: 'a61f187463ecd833dc072a7de10334d68c559c27',
++   inbox: 'e3bc8e21e64b163ec2da2cbd45f90cb477a5b7824f32b654646d83e00d7f2f65',
++   journal: 1,
+-   inbox: 'ae930937ce20ec115324b26b7a5b1fb8a5035af51e8e564cf1e46dc6b7774cad',
+-   journal: 0,
+    worktree: ''
+  }
+
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:94:105)
+    at async scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:83:73)
+    at async main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:92:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Object],
+  expected: [Object],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

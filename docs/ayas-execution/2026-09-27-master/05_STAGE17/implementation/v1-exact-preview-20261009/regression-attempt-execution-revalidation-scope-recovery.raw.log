@@ -1,0 +1,39 @@
+PASS 1: 1 correct HEAD accepted
+PASS 2: 2 stale HEAD rejected
+PASS 3: 3 dirty repo rejected
+PASS 4: 4 Machine Health PAUSE rejected
+PASS 5: 5 Machine Health STOP rejected
+PASS 6: 6 proposal hash mismatch rejected
+PASS 7: 7 exactFiles mismatch rejected
+PASS 8: 8 invalid reservation rejected
+PASS 9: 9 state change between two validations detected
+PASS 10: 10 callback count zero on failed second validation
+PASS 11: reservation must still be an APPROVE decision
+PASS 12: decision hash must match exact approved proposal
+PASS 13: legacy consumed decision cannot delegate
+PASS 14: invalid reservation time cannot delegate
+PASS 15: reservation cannot predate decision
+PASS 16: finalized decision cannot delegate
+PASS 17: newer owner decision invalidates old reservation
+PASS 18: 11 authorized single-file change accepted
+PASS 19: 12 authorized multi-file change accepted
+PASS 20: 13 unexpected extra file rejected
+PASS 21: 14 unauthorized untracked file detected
+PASS 22: 15 delete detected
+PASS 23: 16 rename requires both identities
+PASS 24: 17 outside-root path rejected
+PASS 25: 18 normalized traversal alias rejected
+PASS 26: 19 Windows separators and case canonicalize deterministically
+PASS 27: 20 callback report cannot conceal actual extra mutation
+PASS 28: 21 reserved restart
+PASS 29: 22 armed restart
+PASS 30: 23 ready restart
+PASS 31: 24 open restart
+PASS 32: 25 executing never replays
+PASS 33: 26 mutation completed never replays
+PASS 34: 27 failed remains terminal
+PASS 35: 28 successful result completed
+PASS 36: 29 uncertain requires review
+PASS 37: 30 classifier is pure and mutation-free
+AYAS M4 execution revalidation/scope/recovery smoke: PASS (37 scenarios)
+{"status":"PASS","suite":"ayas-execution-revalidation-scope-recovery","scenarios":37}

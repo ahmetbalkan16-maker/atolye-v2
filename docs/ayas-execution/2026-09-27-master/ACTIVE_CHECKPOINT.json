@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "dbf9542e352e149cbc6a5552894050ca33e4359a",
-  "currentHeadMeaning": "Historical final technical-source HEAD dbf9542 with166PASS; later lint configuration/doc changes are not a Full166 qualification for a new HEAD. Resolve checkout HEAD from Git.",
+  "currentHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "currentHeadMeaning": "Entry source HEAD only. New exact-preview technical source pending local commit and new Full166. Resolve Git HEAD; do not transfer historical dbf9542 certificate.",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Night 2026-10-09: approved four commits pushed (origin ad6c2a9); V2 cross-review recorded PASS_WITH_FINDINGS (not a full independent review); Gelisim Merkezi execute fix and V2 hardening suite prepared in TEMP only, awaiting owner approval of exact file scopes; ayas-guard TEMP cleanup classified, dry run only; nothing deployed",
-  "status": "V1_BLOCKED_OWNER_LIVE_DEVICE_AND_MAINTENANCE_GATES_PENDING",
+  "subtask": "Owner-authorized exact-preview fail-closed source patch;20 cases/9mutants; new final technical source Full166 pending; no push/live operations.",
+  "status": "V1_BLOCKED_NEW_SOURCE_CERTIFICATION_AND_OWNER_LIVE_GATES_PENDING",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -5710,14 +5710,21 @@
     "v2IndependentReview": "NOT_RUN",
     "v2InManifest": false,
     "k3": "14_OF_14_EXACT_MAP_35_OF_35_NO_NEW_HIGH_OR_CRITICAL",
-    "k3OpenLow": ["K3-L1 gate header comment still describes automatic resume", "K3-L2 lapse after reservation leaves RECOVERY_REQUIRED"],
+    "k3OpenLow": [
+      "K3-L1 gate header comment still describes automatic resume",
+      "K3-L2 lapse after reservation leaves RECOVERY_REQUIRED"
+    ],
     "tscBound": "EXIT0",
     "eslintBound": "EXIT0_ERRORS0_WARNINGS13",
     "full166": "166PASS_DBF9542_ONLY",
     "newHeadFull166": "NOT_RUN",
     "f98": "QUALIFIED_PASS_WITH_LIMITATIONS_UNCHANGED_READONLY_WRITER_INVENTORY_ADDED",
     "lemonIngress": "TEMP_ONLY_DURABLE_CANDIDATE_20_OF_20_MUTATIONS_4_OF_4_NOT_APPLIED_ACCOUNT_UNBOUND",
-    "applicationSourceEqual": ["dbf9542", "32e59c1", "f37d0e7"],
+    "applicationSourceEqual": [
+      "dbf9542",
+      "32e59c1",
+      "f37d0e7"
+    ],
     "suggestedDeployTarget": "32e59c1",
     "live": "E974614_NEXT16.2.10_INSTALLED",
     "pushState": "LOCAL_AHEAD_NOT_PUSHED",
@@ -5731,10 +5738,23 @@
   },
   "ownerNightDecision20261009": {
     "packet": "docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009",
-    "approvedPush": ["c3d5530", "f37d0e7", "8dce89b", "ad6c2a9"],
+    "approvedPush": [
+      "c3d5530",
+      "f37d0e7",
+      "8dce89b",
+      "ad6c2a9"
+    ],
     "pushResult": "NORMAL_FAST_FORWARD_32e59c1_TO_ad6c2a9",
     "originAfterPush": "ad6c2a99a6c49e7e3c11b02c441a01138542db53",
-    "prePushChecks": { "remoteHead": "32e59c1", "worktree": "CLEAN", "credentialMatches": 0, "addedLinesScanned": 5332, "graphHead": "ad6c2a9", "graphIntegrity": "0_0_0_0", "graph": "PARTIAL9_SEMANTIC_PENDING" },
+    "prePushChecks": {
+      "remoteHead": "32e59c1",
+      "worktree": "CLEAN",
+      "credentialMatches": 0,
+      "addedLinesScanned": 5332,
+      "graphHead": "ad6c2a9",
+      "graphIntegrity": "0_0_0_0",
+      "graph": "PARTIAL9_SEMANTIC_PENDING"
+    },
     "v2CrossReview": "PASS_WITH_FINDINGS",
     "v2FullIndependentReview": "NOT_PERFORMED",
     "v2ReviewDocumentInRepo": false,
@@ -5751,12 +5771,24 @@
     "devCenterServerOrK3FilesChanged": false,
     "v2HardeningFinding": "F110",
     "v2HardeningCandidate": "TEMP_ONLY_NOT_APPLIED_8_OF_8_MUTATIONS_5_OF_5",
-    "v2HardeningScope": ["scripts/smoke-ayas-owner-approval-resume-v2-hardening.ts"],
+    "v2HardeningScope": [
+      "scripts/smoke-ayas-owner-approval-resume-v2-hardening.ts"
+    ],
     "crossProcessRace": "NOT_RUN",
     "realRestart": "NOT_RUN",
     "browserHydration": "NOT_RUN",
-    "guardTempDirs": { "finding": "F111", "total": 13552, "reparsePoints": 0, "dryRunDeletable": 13184, "keptTooRecent": 368, "deleted": 0 },
-    "preExistingSuiteFailures": ["smoke-ayas-publication-activity", "smoke-ayas-autonomy-observer"],
+    "guardTempDirs": {
+      "finding": "F111",
+      "total": 13552,
+      "reparsePoints": 0,
+      "dryRunDeletable": 13184,
+      "keptTooRecent": 368,
+      "deleted": 0
+    },
+    "preExistingSuiteFailures": [
+      "smoke-ayas-publication-activity",
+      "smoke-ayas-autonomy-observer"
+    ],
     "live": "E974614_NEXT16.2.10_UNTOUCHED",
     "deployTargetNote": "After an approved devcenter application, the deploy target should be the new HEAD containing it, not 32e59c1",
     "pushState": "THIS_DOC_COMMIT_LOCAL_NOT_AUTHORIZED",
@@ -5789,5 +5821,16 @@
     "atolye": "OCT12_FATIH_CAN_START_PREPARATION_NO_RENDER_UPLOAD",
     "next": "EXACT_PREVIEW_FAIL_CLOSED_SCOPE_DIGEST_REVIEW_THEN_FINAL_TECHNICAL_HEAD_TESTS_FULL166_BACKUP_ROLLBACK_SEPARATE_MAINTENANCE_APPROVAL",
     "grantsAuthority": false
+  },
+  "exactPreviewClosure": {
+    "packet": "05_STAGE17/implementation/v1-exact-preview-20261009",
+    "status": "SOURCE_GUARDS_PASS_FULL166_PENDING",
+    "sourceMap": "SOURCE_MAP.json",
+    "full166": "PENDING_NEW_TECHNICAL_SOURCE_COMMIT",
+    "historicalFailuresPreserved": true,
+    "frozenPins": 215,
+    "push": "OWNER_APPROVAL_REQUIRED",
+    "homepage": "NOT_STARTED",
+    "foundation": "BLOCKED"
   }
 }

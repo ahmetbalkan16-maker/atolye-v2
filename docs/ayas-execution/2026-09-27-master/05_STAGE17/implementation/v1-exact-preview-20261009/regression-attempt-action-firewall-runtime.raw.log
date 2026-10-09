@@ -1,0 +1,13 @@
+PASS 1: adapter sees durable admission, unique task identity, correct scope before its single call
+PASS 2: caller and adapter cannot mutate the admitted request/resource after its digest is checked
+PASS 3: grant audit failure prevents adapter invocation
+PASS 4: consume audit failure prevents adapter invocation
+PASS 5: outcome audit failure honestly reports actual execution and leaves consumed evidence
+PASS 6: expired grant prevents adapter invocation
+PASS 7: revoked grant prevents adapter invocation
+PASS 8: locked grant prevents adapter invocation
+PASS 9: tool semantic denial keeps its existing outcome and settles the admitted attempt
+PASS 10: invalid/reserved/forged lease input is denied before any grant or executor
+PASS 11: project capability binds authoritative TEMP runtime resource, not repository data
+PASS 12: concurrent trusted contexts keep separate task identities and audit roots
+Stage 15D read dispatch firewall: PASS (12 scenarios; TEMP only; model/network/production actions 0)

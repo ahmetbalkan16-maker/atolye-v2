@@ -1,0 +1,19 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process'),assert=require('assert/strict'),crypto=require('crypto');
+const root=process.cwd(),temp=path.join(root,'.graphify/exact-preview-temp'),out=path.join(root,'.graphify/exact-preview-mutation-results');fs.mkdirSync(out,{recursive:true});
+const env={NODE_ENV:'test',SMOKE_TRACE:'1'};for(const k of ['SystemRoot','WINDIR','COMSPEC','PATH','PATHEXT','TEMP','TMP','USERPROFILE','APPDATA','LOCALAPPDATA'])if(process.env[k])env[k]=process.env[k];
+const preview='src/lib/brain/autonomy/AyasOwnerExactPreview.ts',service='src/lib/brain/autonomy/AyasProposalExecutionService.ts',probe='src/lib/brain/autonomy/AyasExactProposalSafety.ts',ui='src/components/brain/AyasDevelopmentCenter.tsx';
+const edits=[
+['M1-entry-no-preview',service,'  revalidatePreview();','  /* mutation: entry preview check removed */'],
+['M2-no-prewrite-check',service,'      revalidatePreview(true);','      /* mutation: prewrite preview check removed */'],
+['M3-snapshot-match-removed',preview,'!fresh || canonical(fresh.binding) !== canonical(binding)','!fresh'],
+['M4-artifact-id-unbound',preview,'artifact.artifactId !== proposal.patchArtifactId || ',''],
+['M5-patch-digest-unbound',preview,'artifact.patchHash !== proposal.patchHash || ',''],
+['M6-stale-snapshot-allowed',preview,' || Date.parse(binding.expiresAt) <= now',''],
+['M7-current-head-unbound',probe,'git("rev-parse", "HEAD").trim() !== baseHead || ',''],
+['M8-ui-review-bypassed',ui,'{acknowledged ? <ManualExecuteControl','{true ? <ManualExecuteControl']
+];
+const files=[preview,service,probe,ui],original=new Map(files.map(f=>[f,fs.readFileSync(path.join(temp,f))]));
+async function run(name){return new Promise(resolve=>{const c=cp.spawn(process.execPath,['node_modules/tsx/dist/cli.mjs','scripts/smoke-ayas-owner-exact-preview.ts'],{cwd:temp,env,windowsHide:true});let output='';c.stdout.on('data',b=>output+=b);c.stderr.on('data',b=>output+=b);c.on('close',code=>{fs.writeFileSync(path.join(out,name+'.log'),output);resolve({code,output});});});}
+(async()=>{const baseline=await run('baseline');assert.equal(baseline.code,0,baseline.output);const results=[];
+for(const [id,file,needle,replacement] of edits){const source=original.get(file).toString();assert.equal(source.split(needle).length-1,1,id+' must match exactly once');fs.writeFileSync(path.join(temp,file),source.replace(needle,replacement));let result;try{result=await run(id);}finally{fs.writeFileSync(path.join(temp,file),original.get(file));}assert.ok(result.code!==0&&(/AssertionError|assert\.rejects|ERR_ASSERTION/.test(result.output)),id+' not assertion-killed: '+result.output);results.push({id,status:'KILLED',exit:result.code,restored:true});console.log(JSON.stringify(results.at(-1)));fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify({baseline:'PASS',results},null,2));}
+for(const [file,bytes]of original)assert.deepEqual(fs.readFileSync(path.join(temp,file)),bytes);console.log('All 8 mutants KILLED; all TEMP source restored; main never mutated');})().catch(e=>{console.error(e);process.exitCode=1});

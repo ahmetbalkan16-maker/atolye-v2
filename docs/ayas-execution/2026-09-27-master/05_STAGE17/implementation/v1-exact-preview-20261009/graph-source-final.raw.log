@@ -1,0 +1,23 @@
+Re-extracting code files in . (no LLM needed)...
+  AST extraction: 100/1705 files (5%)
+  AST extraction: 200/1705 files (11%)
+  AST extraction: 300/1705 files (17%)
+  AST extraction: 400/1705 files (23%)
+  AST extraction: 500/1705 files (29%)
+  AST extraction: 600/1705 files (35%)
+  AST extraction: 700/1705 files (41%)
+  AST extraction: 800/1705 files (46%)
+  AST extraction: 900/1705 files (52%)
+  AST extraction: 1000/1705 files (58%)
+  AST extraction: 1100/1705 files (64%)
+  AST extraction: 1200/1705 files (70%)
+  AST extraction: 1300/1705 files (76%)
+  AST extraction: 1400/1705 files (82%)
+  AST extraction: 1500/1705 files (87%)
+  AST extraction: 1600/1705 files (93%)
+  AST extraction: 1700/1705 files (99%)
+  AST extraction: 1705/1705 files (100%)
+[graphify watch] AST extraction failed for 7 file(s): C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\ayas-access-daemon.ps1: tree-sitter-powershell not available | C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\ayas-autonomy-daemon.ps1: tree-sitter-powershell not available | C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\register-ayas-autonomy-autostart.ps1: tree-sitter-powershell not available
+[graphify watch] Rebuilt: 19233 nodes, 53276 edges, 422 communities
+[graphify watch] graph.json and GRAPH_REPORT.md updated in C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify
+Code graph updated. For doc/paper/image changes run the graphify skill with --update.

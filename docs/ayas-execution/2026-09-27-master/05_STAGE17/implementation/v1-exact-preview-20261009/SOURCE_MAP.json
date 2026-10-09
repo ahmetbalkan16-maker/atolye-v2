@@ -1,0 +1,80 @@
+{
+  "baseHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "sourceFiles": [
+    {
+      "file": "app/brain/actions.ts",
+      "sha256": "06cd950db9cd9015d2accb8886a80706615410a7a42ffcb5862c93cef7761350",
+      "gitBlob": "f84511cebfa19422b72ce62dd2e366edd875df6c"
+    },
+    {
+      "file": "app/brain/observerActions.ts",
+      "sha256": "babbde7f7ba2062a52307bcf01e58d75ec2d45d930b00f1b89a1e471751f424e",
+      "gitBlob": "4ff190fc4e9e04dc51d7d05b5b44a3bf52e375e1"
+    },
+    {
+      "file": "scripts/fixtures/ayas-owner-exact-preview-fixture.ts",
+      "sha256": "6912768bca2d1e8b56d23c8e9571ca21afbaf7512368ebeeb16f4f327f183b82",
+      "gitBlob": "6e017343386260e39e82d65b81b012fca5e5e8c1"
+    },
+    {
+      "file": "scripts/smoke-ayas-owner-exact-preview.ts",
+      "sha256": "f0717ca3af2c09684e9d2471a5d1c13279cfa2ce537072d705822df624415cd4",
+      "gitBlob": "5e990378ed14fcd92d5f6afd27f80b5e616c0aa9"
+    },
+    {
+      "file": "src/components/brain/AyasConsolePage.tsx",
+      "sha256": "abceec171b969300325fa6cf6a889da362c6a50876d0d2ce7c0e130c5b3fe8c0",
+      "gitBlob": "99739ab344761dea1da86f6c641c4de4dcd97f40"
+    },
+    {
+      "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+      "sha256": "b61b545b3cbffa693314ee676dc4d0c3b8ac4a1edc869fb94f1cc54986ea938c",
+      "gitBlob": "402e64f03b6b3c703f78f01428be7b0a323c8dd4"
+    },
+    {
+      "file": "src/components/brain/BrainConsoleView.tsx",
+      "sha256": "bf444466f516fd19db7b7ca0d7c62f1c412cd4ec5f7f6f6f69efa9a7c80b75f9",
+      "gitBlob": "cdb71ebbf4cb8d8875b66d89dbc52f7be51287f9"
+    },
+    {
+      "file": "src/components/brain/BrainCoreConsole.tsx",
+      "sha256": "0988420802e8e31273d0d8c633a8f34a8680b58383a852e0f98f8d6618e5e667",
+      "gitBlob": "f4c3dff700d90b35801aaba18c370d1c1ee2a873"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
+      "sha256": "33b1359de7352331e6adf54180e8af700568caab2704dc264211a79289f43ec1",
+      "gitBlob": "5bebd6d14954314c9230303823115b6c156e351f"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasExactProposalSafety.ts",
+      "sha256": "a72d3ca558fa0ce9f556885753aa67880632f71785fb2a121860913871d6120c",
+      "gitBlob": "25e2f90d28e9c43afb81a0f60d42616aa165ff64"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasOwnerExactPreview.ts",
+      "sha256": "cd4d91e512742ad586992f98c647a9c2b4ef87294ef7e632b75b178e2cf13671",
+      "gitBlob": "3be82484f5e0b9c189ebd789db11538a311d9bd8"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasOwnerExactPreviewContract.ts",
+      "sha256": "c6e24ee13e23b9be3317c1f981a0b0b62a742d2d0a997910449232585c18cf80",
+      "gitBlob": "a9e6c8d0aefa203532cb80c32bea058a6168e99a"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasOwnerExactPreviewInbox.ts",
+      "sha256": "42dd85d82a39e5dac36a81d41421c8b8dfbd7c81fa337a3388632e952c23400a",
+      "gitBlob": "3b0bf776c66b3ed002049ef7a8b4e511ae004fef"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts",
+      "sha256": "2418517f4367971083ba8e62abec0d6c81efe7223ead3c6ff07fc9b49a2f4bfa",
+      "gitBlob": "abc1a3410861697a34408273baf3c26f97c0d8dd"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+      "sha256": "f49a0175bbc3d0f94642af14079e69b79aaf84df957b4f034cb70ecb6620b6e3",
+      "gitBlob": "f1a3eba79009043feb7ee8be7b1a0eb96261569b"
+    }
+  ]
+}

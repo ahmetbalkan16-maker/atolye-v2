@@ -1,0 +1,12 @@
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\AppData\Local\Temp\ayas-gate-v2-xOWNFc\remote-VHue3m
+   d0025fa..9721e18  master -> master
+PASS 1: 20e-v2. a durable owner APPROVE is never picked up automatically when the flag turns on; one explicit manual action with a fresh EXECUTE runs it exactly once
+PASS 2: 20f-v2. the resume worker never touches a proposal approved through the legacy manual ONAYLA flow, even with a fresh manual EXECUTE
+PASS 3: 20g. AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON itself is recognized by isAyasOwnerApprovedDecisionReason
+PASS 4: 20h. the Server Action maps BOTH non-mutating accepted outcomes (APPROVED_PENDING_EXECUTION and OWNER_REJECTED) to ok:true
+PASS 5: 20i. the Server Action's catch prefers AyasProposalApprovalError's stable short code over its English prose
+PASS 6: 20j. the unattended resume CLI supplies neither an explicit manual action nor an execution admission, so it can never publish
+AYAS autonomous execution gate V2 smoke: PASS (6 scenarios)
+{"status":"PASS","suite":"ayas-autonomous-execution-gate-v2","scenarios":6}

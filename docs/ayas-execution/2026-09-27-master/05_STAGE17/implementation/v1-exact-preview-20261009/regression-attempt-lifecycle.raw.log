@@ -1,0 +1,15 @@
+PASS 1: eight states, one legal path forward, degraded returns only by re-qualification, retired is final
+PASS 2: an entry's state must be backed by what it records
+PASS 3: history is append-only evidence: it starts at DISCOVERED, each step is legal, and it ends at the state
+PASS 4: degraded needs a cause, promotion needs a serving state, retired is not used, shapes are closed
+PASS 5: the registry: unique ids, a real rollback target, one active per role, and a comparison against the incumbent
+PASS 6: promotion: one legal step at a time, only with evidence, and it changes nothing by itself
+PASS 7: a regression drafts a proposal: back to the last known good, or the role off
+PASS 8: what an entry may serve: canary is internal only, shadow is compared only, owner selection is never an external write
+PASS 9: the registry of record holds, covers every kind and claims no more than its evidence
+PASS 10: the local coding model is recorded as it really is: pinned, then degraded by its own qualification run
+PASS 11: identities: the recorded source digests match this HEAD, and a change is seen
+PASS 12: evaluator replacement preserves historical bytes without blessing current or serving source
+PASS 13: identities: files and served model digests are compared, never assumed
+PASS 14: the contract is pure and nothing in the application promotes
+Stage 15E lifecycle: PASS (14 scenarios; 19 registry entries; offline; no model, network or install)

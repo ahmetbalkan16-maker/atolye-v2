@@ -1,0 +1,47 @@
+PASS A-missing
+PASS B-corrupt
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ {
++   binding: {
++     artifactId: 'ayas-patch-artifact-6dbcd6b6-dfcf-49e4-934f-f139282b314e',
++     baseHead: '399852609885e2e624ba9c6b3fbdb230a9e6be81',
++     expiresAt: '2026-10-09T05:18:26.773Z',
++     issuedAt: '2026-10-09T05:13:26.773Z',
++     patchHash: '6621eb33efc56e9d548ccdb61e795a538fadb90f201dec3a8a039d02943fbd94',
++     proposalHash: 'f3eb2c4b5a14f14ac16a6fff1f5b7abf1f7ba8af86d33a78c0e2e58ae240faf5',
++     proposalId: 'ayas-proposal-c34776d1-d74d-44f6-bae8-91bcf4b0cb65',
++     schema: 'ayas-owner-exact-preview:v1',
++     seal: '9360964e649aac98b90d94dc3f8b5a226706fb0c110b6d5ce901d29c84e8104f',
++     snapshotDigest: '1af761cbff7d720cad6d67c2be2171e98aada99f078674c4c7e21646323afa34'
++   },
++   evidenceIdentity: '95e49bf7f5bdf8ccecd157570254b0bdd89dc87c15cf647d340016e1cefe01f4',
++   evidenceStatus: 'VERIFIED',
++   exactFiles: [
++     'scripts/smoke-fixture-generated.ts'
++   ],
++   files: [
++     {
++       after: 'console.log(JSON.stringify({status:"PASS",suite:"fixture-generated",scenarios:1}));\n',
++       before: null,
++       filePath: 'scripts/smoke-fixture-generated.ts'
++     }
++   ],
++   validationSummary: [
++     'fixture validator: PASS'
++   ]
++ }
+- undefined
+
+    at noYurut (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:75:10)
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:87:71)
+    at async scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:83:73)
+    at async main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:87:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Object],
+  expected: undefined,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

@@ -126,7 +126,7 @@ export interface BrainCoreConsoleProps {
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA approval decision. Session-gated; the safety-classification policy is enforced server-side (Store boundary), not by this prop's presence. */
   readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
   /** Server Action that runs an already-APPROVED proposal through Package C's execution authority chain. Session-gated, separate from `decideApproval` — approving never calls this. */
-  readonly executeProposal?: (input: { proposalId: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly inbox: AyasApprovalInboxView }>;
+  readonly executeProposal?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly inbox: AyasApprovalInboxView }>;
   /** M18.1 — "BATCH ONAYLA VE UYGULA": Server Action that decides, executes through Package C, Graphify-verifies, and (only if every check passes) commits+pushes the exact reviewed batch — one call, one human authorization. */
   readonly batchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly microBatch: AyasMicroBatchDevelopmentView }>;
   /** M20.7 — "ONAYLA VE UYGULA": Server Action that does the same for one individual, patch-artifact-backed PRIORITY_SAFE proposal. */
@@ -632,7 +632,7 @@ export function BrainCoreConsole({
   // every failure look identical and invisible) — a genuine transport/
   // network failure is the only case that still reaches `catch`, and it is
   // surfaced with its own explicit code rather than silently discarded.
-  const onExecuteProposal = useCallback((input: { proposalId: string }) => {
+  const onExecuteProposal = useCallback((input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => {
     if (!executeProposal || executionPending) return;
     setExecutionPending(input.proposalId);
     setExecutionError(null);

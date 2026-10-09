@@ -1,0 +1,28 @@
+{
+  "scope": "SYNTHETIC_REACT_COMPONENT_NO_SERVER_ACTION",
+  "url": "http://127.0.0.1:31847",
+  "beforeAcknowledgement": {
+    "yurut": 0
+  },
+  "afterAcknowledgement": {
+    "yurut": 1
+  },
+  "afterYurutClick": {
+    "confirmation": true,
+    "dispatch": 0
+  },
+  "replacement": {
+    "yurut": 0,
+    "acknowledgementReset": true,
+    "dispatch": 0
+  },
+  "missing": {
+    "yurut": 0
+  },
+  "expired": {
+    "yurut": 0,
+    "dispatch": 0
+  },
+  "actualExecute": "NOT_RUN",
+  "screenshot": "NOT_CAPTURED_CDP_TIMEOUT"
+}

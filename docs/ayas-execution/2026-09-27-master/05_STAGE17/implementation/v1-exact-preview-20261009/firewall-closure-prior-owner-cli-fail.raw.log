@@ -1,0 +1,18 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'scripts/ayas-owner-approval-resume.ts now reaches src/lib/brain/autonomy/AyasPublicationActivity.ts: classify it in SURFACES, with the guard that admits it'
++ ]
+- []
+
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-action-firewall-closure.ts:371:12)
+    at scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-action-firewall-closure.ts:39:81)
+    at main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-action-firewall-closure.ts:363:9) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

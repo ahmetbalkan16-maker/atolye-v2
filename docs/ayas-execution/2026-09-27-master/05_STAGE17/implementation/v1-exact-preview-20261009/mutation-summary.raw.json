@@ -1,0 +1,59 @@
+{
+  "baseline": "PASS",
+  "results": [
+    {
+      "id": "M1-entry-no-preview",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M2-no-prewrite-check",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M3-snapshot-match-removed",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M4-artifact-id-unbound",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M5-patch-digest-unbound",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M6-stale-snapshot-allowed",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M7-current-head-unbound",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M8-ui-review-bypassed",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    },
+    {
+      "id": "M9-existing-file-create-unchecked",
+      "status": "KILLED",
+      "exit": 1,
+      "restored": true
+    }
+  ]
+}

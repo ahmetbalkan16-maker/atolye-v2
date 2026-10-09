@@ -1,0 +1,15 @@
+PASS 1: a SAFE, ready, PENDING proposal is surfaced as a recommendation with a plain-language request + binding
+PASS 2: a REVIEW_REQUIRED proposal is never surfaced — deferred internally, not shown to the owner
+PASS 3: a FORBIDDEN_AUTONOMOUS proposal is never surfaced
+PASS 4: a non-PENDING proposal (already APPROVED/REJECTED/STALE/etc.) is never re-surfaced
+PASS 5: an insufficient-evidence proposal is never surfaced
+PASS 6: no `.decide(` call is reachable from this module's own source — a page render can never mutate the inbox
+PASS 7: a broken inbox (throws on load) is reported as disconnected, not crashed
+PASS 8: the recommendation card renders plain-language fields and both actions, no hashes visible outside the <details> disclosure
+PASS 9: an empty recommendations list renders no owner-recommendations section at all
+PASS 10: a proposal durably APPROVED via the owner-approval model (owner-approved: reason) is surfaced in pendingExecution, not recommendations
+PASS 11: a proposal APPROVED via the legacy manual ONAYLA flow (no owner-approved reason) never appears in pendingExecution
+PASS 12: the pendingExecution card renders a durable ONAYLANDI notice with no ONAYLA/REDDET/VAZGEÇ action at all
+PASS 13: an empty pendingExecution list renders no such section at all
+AYAS owner recommendations view smoke: PASS (13 scenarios)
+{"status":"PASS","suite":"ayas-owner-recommendations-view","scenarios":13}

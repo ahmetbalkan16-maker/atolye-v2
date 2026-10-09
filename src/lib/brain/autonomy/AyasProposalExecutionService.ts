@@ -11,6 +11,8 @@ import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
 import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
 import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 import { reconcileAyasStaleProposals } from "./AyasProposalStaleness";
+import { assertAyasOwnerExactPreview } from "./AyasOwnerExactPreview";
+import type { AyasOwnerExactPreviewBinding } from "./AyasOwnerExactPreviewContract";
 
 /**
  * The one real Package C execution entrypoint (M15), factored out of the
@@ -36,6 +38,7 @@ export class AyasProposalExecutionError extends Error {
 }
 
 export interface AyasProposalExecutionDeps {
+  readonly ownerPreview?: AyasOwnerExactPreviewBinding;
   /** Fresh verified owner action for this exact execution; never restored from durable consent. */
   readonly executionOwnerAdmission?: AyasOwnerAdmission;
   readonly repoRoot: string;
@@ -67,6 +70,24 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
   if (!proposal) throw new AyasProposalExecutionError("NOT_FOUND", "proposal not found");
   if (proposal.status !== "APPROVED") throw new AyasProposalExecutionError("NOT_APPROVED", `proposal status is ${proposal.status}`);
   if (proposal.safetyClassification !== "SAFE" || !isAyasProposalApprovalReady(proposal)) throw new AyasProposalExecutionError("NOT_READY", "proposal is not SAFE/approval-ready");
+
+  // Preserve the owner-visible snapshot across every asynchronous boundary.
+  const preview = deps.ownerPreview ? JSON.parse(JSON.stringify(deps.ownerPreview)) as AyasOwnerExactPreviewBinding : undefined;
+  // The existing non-exact publication lane has its separate one-click review
+  // contract. Exact reviewed patches can never use that lane; manual local
+  // patch execution always carries this additional preview requirement.
+  const previewRequired = proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND
+    && (!deps.deferredPublication || !!proposal.exactPatchSafetyProof) && (deps.inbox.requiresOwnerAdmission || !!deps.executionOwnerAdmission || !!preview);
+  const revalidatePreview = (reserved = false) => {
+    if (!previewRequired) return;
+    const state = deps.inbox.load();
+    const current = state.proposals.find(entry => entry.proposalId === proposalId);
+    const approval = [...state.decisions].reverse().find(entry => entry.proposalId === proposalId && entry.decision === "APPROVE");
+    if (!current) throw new AyasProposalExecutionError("EXACT_PREVIEW_CHANGED", "EXACT_PREVIEW_CHANGED");
+    assertAyasOwnerExactPreview(preview, current, approval, { repoRoot: deps.repoRoot, artifactStore: deps.patchArtifactStore,
+      experimentStore: deps.exactExperimentStore, reserved });
+  };
+  revalidatePreview();
 
   let mutation;
   try {
@@ -108,6 +129,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
     repoClean,
     ...(deps.deferredPublication ? { deferredPublication: true, onDeferredReceipt: (value) => { receipt = value; } } : {}),
     applyWhileExecuting: async () => {
+      revalidatePreview(true);
       const run = await mutation.run(deps.repoRoot);
       return { changedFiles: run.changedFiles, diffFingerprint: "", testsRun: run.testsRun, testResults: run.testResults };
     },

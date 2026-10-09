@@ -1,0 +1,11 @@
+PASS 1: a patch-artifact proposal is rejected before execution unless APPROVED
+PASS 2: full happy path: APPROVE -> execute -> real mutation applied -> durable testResults -> EXECUTED -> gate closed
+PASS 3: execution runs the artifact's own declared validators and records their PASS result durably
+PASS 4: AYAS_MUTATION_SCOPE_MISMATCH: proposal's exactFiles no longer matches the frozen artifact's exactFiles
+PASS 5: AYAS_PATCH_ARTIFACT_NOT_FOUND surfaces as a clean AyasProposalExecutionError when the artifact was deleted
+PASS 6: stale baseHead: the repo moved on since the proposal's baseHead — execution refuses (fail closed, no replay)
+PASS 7: real execution-time validator failure rolls back the write and leaves the proposal RECOVERY_REQUIRED, never a false success
+PASS 8: dirty repo at execution time: refuses, never mutates
+PASS 9: execution never touches a second, unrelated patch-artifact store (test isolation self-check)
+AYAS patch artifact execution integration smoke: PASS (9 scenarios)
+{"status":"PASS","suite":"ayas-patch-artifact-execution-integration","scenarios":9}

@@ -1,0 +1,127 @@
+[
+  {
+    "id": "owner-exact-preview",
+    "exit": 0,
+    "seconds": 15.298
+  },
+  {
+    "id": "owner-approval-admission",
+    "exit": 0,
+    "seconds": 8.137
+  },
+  {
+    "id": "owner-approval-resume-v2",
+    "exit": 0,
+    "seconds": 52.598
+  },
+  {
+    "id": "owner-approval-resume-v2-hardening",
+    "exit": 0,
+    "seconds": 41.578
+  },
+  {
+    "id": "autonomous-execution-gate-v2",
+    "exit": 0,
+    "seconds": 6.606
+  },
+  {
+    "id": "development-center",
+    "exit": 0,
+    "seconds": 0.791
+  },
+  {
+    "id": "owner-recommendations-view",
+    "exit": 0,
+    "seconds": 0.906
+  },
+  {
+    "id": "proposal-execution-service",
+    "exit": 0,
+    "seconds": 29.189
+  },
+  {
+    "id": "patch-artifact-execution-integration",
+    "exit": 0,
+    "seconds": 12.818
+  },
+  {
+    "id": "guarded-publication",
+    "exit": 0,
+    "seconds": 57.576
+  },
+  {
+    "id": "action-firewall",
+    "exit": 0,
+    "seconds": 1.173
+  },
+  {
+    "id": "action-firewall-runtime",
+    "exit": 0,
+    "seconds": 0.836
+  },
+  {
+    "id": "action-firewall-closure",
+    "exit": 1,
+    "seconds": 1.295
+  },
+  {
+    "id": "owner-capability-firewall",
+    "exit": 0,
+    "seconds": 6.259
+  },
+  {
+    "id": "daemon-authority-boundary",
+    "exit": 0,
+    "seconds": 0.779
+  },
+  {
+    "id": "execution-revalidation-scope-recovery",
+    "exit": 0,
+    "seconds": 4.667
+  },
+  {
+    "id": "exact-patch-safety",
+    "exit": 0,
+    "seconds": 0.785
+  },
+  {
+    "id": "exact-proposal-safety",
+    "exit": 0,
+    "seconds": 2.987
+  },
+  {
+    "id": "durable-task-recovery",
+    "exit": 0,
+    "seconds": 27
+  },
+  {
+    "id": "lifecycle",
+    "exit": 0,
+    "seconds": 1.4
+  },
+  {
+    "id": "approval-durable-state-compatibility",
+    "exit": 0,
+    "seconds": 1.155
+  },
+  {
+    "id": "autonomy-observer",
+    "exit": 1,
+    "seconds": 0.607
+  },
+  {
+    "id": "publication-activity",
+    "exit": 1,
+    "seconds": 0.608
+  },
+  {
+    "id": "typescript",
+    "exit": 0,
+    "seconds": 17.919
+  },
+  {
+    "id": "eslint",
+    "exit": 0,
+    "seconds": 27.075
+  }
+]

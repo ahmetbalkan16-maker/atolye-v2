@@ -136,7 +136,7 @@ export interface BrainConsoleViewProps {
   readonly onApprovalDecision?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => void;
   readonly executionPendingId?: string | null;
   readonly executionError?: { readonly proposalId: string; readonly code: string } | null;
-  readonly onExecuteProposal?: (input: { proposalId: string }) => void;
+  readonly onExecuteProposal?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void;
   /** M18.1 — "BATCH ONAYLA VE UYGULA": one click authorizes Package C execution, Graphify verification, and Git publication together for the exact reviewed batch. */
   readonly batchOnaylaPending?: boolean;
   readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null;

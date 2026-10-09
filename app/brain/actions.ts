@@ -20,6 +20,7 @@
  * runs no task/pipeline/GPU, approves nothing.
  */
 
+import { loadAyasOwnerPreviewInboxView } from "@/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
 import { execFileSync } from "node:child_process";
 
 import { cookies } from "next/headers";
@@ -38,7 +39,7 @@ import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
 import { streamAyasChat, type AyasChatStreamEvent } from "@/lib/ayas/AyasChatStream";
 import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
 import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
-import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import { type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { scheduleAyasGoalResearch, createAndScheduleAyasGoalResearch, controlAyasGoalResearchJob } from "@/lib/brain/autonomy/AyasGoalResearchSchedule";
@@ -226,7 +227,7 @@ export async function decideAyasApproval(input: { proposalId: string; decision: 
   if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
   const admission = await requireOwnerApprovalAdmission("decideAyasApproval", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: input.decision });
   store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason, admission);
-  return loadAyasApprovalInboxView();
+  return loadAyasOwnerPreviewInboxView();
 }
 
 export interface AyasExecuteProposalResult {
@@ -255,7 +256,7 @@ export interface AyasExecuteProposalResult {
  * health blocked" from an actual bug. Returning `{ ok: false, code }`
  * carries the real (already safe, non-secret) reason through intact.
  */
-export async function executeAyasApprovedProposal(input: { proposalId: string }): Promise<AyasExecuteProposalResult> {
+export async function executeAyasApprovedProposal(input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }): Promise<AyasExecuteProposalResult> {
   await requireBrainSession();
   try {
     // Fail closed twice: this click needs a verified owner session, and the
@@ -266,11 +267,11 @@ export async function executeAyasApprovedProposal(input: { proposalId: string })
     const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: "EXECUTE" });
     const approval = [...inboxState.decisions].reverse().find((decision) => decision.proposalId === proposal.proposalId && decision.decision === "APPROVE");
     if (!isAyasApprovalDecisionOwnerAdmitted(approval, proposal)) throw new Error("OWNER_ADMISSION_REQUIRED");
-    await executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission });
-    return { ok: true, inbox: loadAyasApprovalInboxView() };
+    await executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission, ownerPreview: input.ownerPreview });
+    return { ok: true, inbox: loadAyasOwnerPreviewInboxView() };
   } catch (error) {
     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
-    return { ok: false, code, inbox: loadAyasApprovalInboxView() };
+    return { ok: false, code, inbox: loadAyasOwnerPreviewInboxView() };
   }
 }
 
@@ -351,11 +352,11 @@ export async function proposalOnaylaVeUygula(input: { proposalId: string; propos
       executionOwnerAdmission,
     });
     return result.ok
-      ? { ok: true, commitSha: result.commitSha, inbox: loadAyasApprovalInboxView() }
-      : { ok: false, code: result.code, inbox: loadAyasApprovalInboxView() };
+      ? { ok: true, commitSha: result.commitSha, inbox: loadAyasOwnerPreviewInboxView() }
+      : { ok: false, code: result.code, inbox: loadAyasOwnerPreviewInboxView() };
   } catch (error) {
     const code = error instanceof AyasProposalApprovalError ? error.code : error instanceof Error ? error.message : "APPROVAL_FAILED";
-    return { ok: false, code, inbox: loadAyasApprovalInboxView() };
+    return { ok: false, code, inbox: loadAyasOwnerPreviewInboxView() };
   }
 }
 

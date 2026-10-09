@@ -1,0 +1,33 @@
+PASS default firewall cannot mint owner authority
+PASS model financial/production action cannot use owner reservation
+PASS owner text is not a proof
+PASS grant uses exact existing identity and reservation TTL
+PASS durable consume precedes admission and immutable adapter request
+PASS serialized/spread/prototype/model handles carry no owner authority
+PASS foreign task and restart cannot recover grant from journal
+PASS same task cannot bind the existing reservation twice
+PASS fresh Node restart cannot restore JSON authority or bind reserved audit again
+PASS changed caller file scope cannot widen captured proof
+PASS rewritten proof plus journal cannot widen captured scope
+PASS decision replacement invalidates delegation
+PASS revoked/withdrawn current approval denies
+PASS expiry cannot be renewed by shifted reservation
+PASS journal expiry cannot be extended
+PASS exact expiry boundary denies admission
+PASS expired reservation cannot issue a fresh TTL
+PASS backwards and invalid clock deny
+PASS explicit revocation stays monotonic if journal is restored
+PASS a consumed lease cannot be revoked afterwards: the consumed audit record stands
+PASS consumed live handle rejects restored granted audit
+PASS journal IO failure prevents issue
+PASS consume journal IO failure prevents admission
+PASS unknown cost/identity/capability audit fields fail closed
+PASS absolute/traversal/device file binding rejected
+PASS real daemon consumes same approval before one bounded mutation
+PASS owner decision withdrawn after OPEN
+PASS cost class changed after OPEN
+PASS actual daemon TTL expiring during lease journal write prevents mutation
+PASS actual daemon captured scope rejects post-grant mutation change
+PASS actual daemon grant journal failure has zero callbacks
+PASS actual daemon consume journal failure has zero callbacks
+AYAS owner capability firewall: PASS (32 scenarios; TEMP only; no model/network/production activation)

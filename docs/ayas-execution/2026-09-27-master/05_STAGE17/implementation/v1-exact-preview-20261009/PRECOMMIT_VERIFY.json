@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-09T05:17:11.902Z",
+  "head": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "upstream": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+  "sourceFiles": 15,
+  "changedFiles": 83,
+  "pinsVerified": 215,
+  "credentialMatches": 0,
+  "newLinesScanned": 5405,
+  "graph": {
+    "nodes": 19233,
+    "edges": 53276,
+    "communities": 422,
+    "integrity": {
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0
+    },
+    "head": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
+    "structural": "STALE",
+    "semantic": "PENDING",
+    "incomplete": 10,
+    "staleAuthorityImports": 0
+  },
+  "worktree": "EXPECTED_LOCAL_CHANGES",
+  "postCommit": false,
+  "push": "NOT_PERFORMED",
+  "liveActions": "NOT_PERFORMED"
+}

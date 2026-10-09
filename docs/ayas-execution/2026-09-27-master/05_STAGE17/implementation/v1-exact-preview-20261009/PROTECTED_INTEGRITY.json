@@ -1,0 +1,84 @@
+{
+  "frozenPinsVerified": 215,
+  "frozenManifestChanged": false,
+  "k3HistoricalMapImmutable": true,
+  "k3MappedSourceFiles": [
+    {
+      "path": "app/brain/actions.ts",
+      "sha256": "f98cf427473fc760d757a7cca34c4ab8e3cb223604b35f24844673559470b7d1",
+      "currentSha256": "06cd950db9cd9015d2accb8886a80706615410a7a42ffcb5862c93cef7761350"
+    },
+    {
+      "path": "scripts/smoke-ayas-owner-approval-admission.ts",
+      "sha256": "de851318147290d159d6167b291275a5722b4530d254b36a621099d040eaf89c",
+      "currentSha256": "de851318147290d159d6167b291275a5722b4530d254b36a621099d040eaf89c"
+    },
+    {
+      "path": "src/lib/auth/accessGate.ts",
+      "sha256": "acc7b210e90103aec2b2feab3406f45046fd6d50130e1bcb2e20b9b804e80f2d",
+      "currentSha256": "acc7b210e90103aec2b2feab3406f45046fd6d50130e1bcb2e20b9b804e80f2d"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
+      "sha256": "6bd2accfbaf2b700885ab81579168712b94485832768cab275e95c198151102f",
+      "currentSha256": "6bd2accfbaf2b700885ab81579168712b94485832768cab275e95c198151102f"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts",
+      "sha256": "691f351503e0042e990e6941a4c28a8dfb82548894b98d9088c31eca3b2d2d36",
+      "currentSha256": "691f351503e0042e990e6941a4c28a8dfb82548894b98d9088c31eca3b2d2d36"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+      "sha256": "9da364cf7dae3c83283d3fae40c137925525eaa925c45a1e2402d762ec0137eb",
+      "currentSha256": "9da364cf7dae3c83283d3fae40c137925525eaa925c45a1e2402d762ec0137eb"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasExecutionJournal.ts",
+      "sha256": "c1a1ed70743e109ee4d378929bc09cad935e0153a2d4c27ca7b407417f4c87bc",
+      "currentSha256": "c1a1ed70743e109ee4d378929bc09cad935e0153a2d4c27ca7b407417f4c87bc"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasMicroBatch.ts",
+      "sha256": "3f4b0282fdbb168571e3d2d90657f744a946de93dd2c78afc90eb4be9f2f3097",
+      "currentSha256": "3f4b0282fdbb168571e3d2d90657f744a946de93dd2c78afc90eb4be9f2f3097"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts",
+      "sha256": "e05938f1829370f85eaf5889b8e9a79a1ed826ff7cdc351afca3f6f42c01346a",
+      "currentSha256": "e05938f1829370f85eaf5889b8e9a79a1ed826ff7cdc351afca3f6f42c01346a"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts",
+      "sha256": "ce46917d1a19ba0140daefcbcd0e8a0223e4f8bbc67d54b121848e5cdffe500a",
+      "currentSha256": "ce46917d1a19ba0140daefcbcd0e8a0223e4f8bbc67d54b121848e5cdffe500a"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasOwnerApprovalAdmission.ts",
+      "sha256": "e8f39d960a6c282b04f69466ced8b479e7666ca1759064d55191413ecd1bef79",
+      "currentSha256": "e8f39d960a6c282b04f69466ced8b479e7666ca1759064d55191413ecd1bef79"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+      "sha256": "72739aeae69c4a6508a2b229006f2d80bd312af808d70a58d904913be123c472",
+      "currentSha256": "72739aeae69c4a6508a2b229006f2d80bd312af808d70a58d904913be123c472"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasProposalApprovalService.ts",
+      "sha256": "742fdb66aef7ac9afb0d3a64417dcbd4397e67436f8431117bca4ff34e802eb7",
+      "currentSha256": "742fdb66aef7ac9afb0d3a64417dcbd4397e67436f8431117bca4ff34e802eb7"
+    },
+    {
+      "path": "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+      "sha256": "e8272f36bdfb26718124037df9ae3e767983dbb8b5201b187e0fb329e1b950eb",
+      "currentSha256": "f49a0175bbc3d0f94642af14079e69b79aaf84df957b4f034cb70ecb6620b6e3"
+    }
+  ],
+  "changedK3Seams": [
+    "app/brain/actions.ts",
+    "src/lib/brain/autonomy/AyasProposalExecutionService.ts"
+  ],
+  "homepageHeldOutAndGuardAndDependenciesUnchanged": true,
+  "originalTestsUnchanged": true,
+  "rawArchivesUnchanged": true
+}

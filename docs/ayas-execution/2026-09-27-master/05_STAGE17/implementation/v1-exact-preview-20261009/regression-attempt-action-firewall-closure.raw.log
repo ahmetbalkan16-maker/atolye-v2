@@ -1,0 +1,24 @@
+PASS 1: the decision vocabulary is closed: four decisions, no autonomous financial state
+PASS 2: every tool classifies and has one executor; reserved and owner actions need the owner; the rest is denied
+PASS 3: tool executors are dispatched from two places only, each after the firewall admits
+PASS 4: owner-approved work admits its lease before it mutates, validates or publishes
+PASS 5: the durable activity and the discovery run admit before their work
+PASS 6: product context reads the catalogue through the guarded tool; no MCP client exists
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'app/api/ayas/chat/stream/route.ts now reaches src/lib/brain/autonomy/AyasExactProposalSafety.ts: classify it in SURFACES, with the guard that admits it'
++ ]
+- []
+
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-action-firewall-closure.ts:371:12)
+    at scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-action-firewall-closure.ts:39:81)
+    at main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\scripts\smoke-ayas-action-firewall-closure.ts:363:9) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

@@ -10,7 +10,8 @@
  * authorization, touch source, or reach the execution gate.
  */
 
-import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import { loadAyasOwnerPreviewInboxView } from "@/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
+import { type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { loadAyasGoalDevelopmentView, type AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
@@ -27,7 +28,7 @@ function reconcileForDisplay(): void {
 
 export async function refreshAyasApprovalInbox(): Promise<AyasApprovalInboxView> {
   reconcileForDisplay();
-  return loadAyasApprovalInboxView();
+  return loadAyasOwnerPreviewInboxView();
 }
 
 // Owner-approval model — read-only, same posture as the refresh above: no

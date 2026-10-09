@@ -1,0 +1,976 @@
+diff --git a/app/brain/actions.ts b/app/brain/actions.ts
+index e74a9e4..f84511c 100644
+--- a/app/brain/actions.ts
++++ b/app/brain/actions.ts
+@@ -20,6 +20,7 @@
+  * runs no task/pipeline/GPU, approves nothing.
+  */
+ 
++import { loadAyasOwnerPreviewInboxView } from "@/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
+ import { execFileSync } from "node:child_process";
+ 
+ import { cookies } from "next/headers";
+@@ -38,7 +39,7 @@ import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
+ import { streamAyasChat, type AyasChatStreamEvent } from "@/lib/ayas/AyasChatStream";
+ import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
+ import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
+-import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
++import { type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+ import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+ import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+ import { scheduleAyasGoalResearch, createAndScheduleAyasGoalResearch, controlAyasGoalResearchJob } from "@/lib/brain/autonomy/AyasGoalResearchSchedule";
+@@ -226,7 +227,7 @@ export async function decideAyasApproval(input: { proposalId: string; decision:
+   if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
+   const admission = await requireOwnerApprovalAdmission("decideAyasApproval", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: input.decision });
+   store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason, admission);
+-  return loadAyasApprovalInboxView();
++  return loadAyasOwnerPreviewInboxView();
+ }
+ 
+ export interface AyasExecuteProposalResult {
+@@ -255,7 +256,7 @@ export interface AyasExecuteProposalResult {
+  * health blocked" from an actual bug. Returning `{ ok: false, code }`
+  * carries the real (already safe, non-secret) reason through intact.
+  */
+-export async function executeAyasApprovedProposal(input: { proposalId: string }): Promise<AyasExecuteProposalResult> {
++export async function executeAyasApprovedProposal(input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }): Promise<AyasExecuteProposalResult> {
+   await requireBrainSession();
+   try {
+     // Fail closed twice: this click needs a verified owner session, and the
+@@ -266,11 +267,11 @@ export async function executeAyasApprovedProposal(input: { proposalId: string })
+     const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: "EXECUTE" });
+     const approval = [...inboxState.decisions].reverse().find((decision) => decision.proposalId === proposal.proposalId && decision.decision === "APPROVE");
+     if (!isAyasApprovalDecisionOwnerAdmitted(approval, proposal)) throw new Error("OWNER_ADMISSION_REQUIRED");
+-    await executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission });
+-    return { ok: true, inbox: loadAyasApprovalInboxView() };
++    await executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission, ownerPreview: input.ownerPreview });
++    return { ok: true, inbox: loadAyasOwnerPreviewInboxView() };
+   } catch (error) {
+     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
+-    return { ok: false, code, inbox: loadAyasApprovalInboxView() };
++    return { ok: false, code, inbox: loadAyasOwnerPreviewInboxView() };
+   }
+ }
+ 
+@@ -351,11 +352,11 @@ export async function proposalOnaylaVeUygula(input: { proposalId: string; propos
+       executionOwnerAdmission,
+     });
+     return result.ok
+-      ? { ok: true, commitSha: result.commitSha, inbox: loadAyasApprovalInboxView() }
+-      : { ok: false, code: result.code, inbox: loadAyasApprovalInboxView() };
++      ? { ok: true, commitSha: result.commitSha, inbox: loadAyasOwnerPreviewInboxView() }
++      : { ok: false, code: result.code, inbox: loadAyasOwnerPreviewInboxView() };
+   } catch (error) {
+     const code = error instanceof AyasProposalApprovalError ? error.code : error instanceof Error ? error.message : "APPROVAL_FAILED";
+-    return { ok: false, code, inbox: loadAyasApprovalInboxView() };
++    return { ok: false, code, inbox: loadAyasOwnerPreviewInboxView() };
+   }
+ }
+ 
+diff --git a/app/brain/observerActions.ts b/app/brain/observerActions.ts
+index 2de868d..4ff190f 100644
+--- a/app/brain/observerActions.ts
++++ b/app/brain/observerActions.ts
+@@ -10,7 +10,8 @@
+  * authorization, touch source, or reach the execution gate.
+  */
+ 
+-import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
++import { loadAyasOwnerPreviewInboxView } from "@/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
++import { type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+ import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+ import { loadAyasGoalDevelopmentView, type AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+ import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+@@ -27,7 +28,7 @@ function reconcileForDisplay(): void {
+ 
+ export async function refreshAyasApprovalInbox(): Promise<AyasApprovalInboxView> {
+   reconcileForDisplay();
+-  return loadAyasApprovalInboxView();
++  return loadAyasOwnerPreviewInboxView();
+ }
+ 
+ // Owner-approval model — read-only, same posture as the refresh above: no
+diff --git a/scripts/fixtures/ayas-owner-exact-preview-fixture.ts b/scripts/fixtures/ayas-owner-exact-preview-fixture.ts
+new file mode 100644
+index 0000000..6e01734
+--- /dev/null
++++ b/scripts/fixtures/ayas-owner-exact-preview-fixture.ts
+@@ -0,0 +1,98 @@
++import assert from "node:assert/strict";
++import { execFileSync } from "node:child_process";
++import crypto from "node:crypto";
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
++import { AYAS_GOLDEN_VAULT } from "../../src/lib/ayas/golden/AyasGoldenVaultRegistry";
++import { createAyasExactPatchSafetyProof, ayasExactPatchSha256 } from "../../src/lib/brain/selfheal/AyasExactPatchSafety";
++import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest, generateAyasRenderToolSupersessionPatch } from "../../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
++import { createAyasPatchArtifactStore } from "../../src/lib/brain/autonomy/AyasPatchArtifact";
++import { createAyasApprovalInboxStore } from "../../src/lib/brain/autonomy/AyasApprovalInboxStore";
++import { createAyasResearchExperimentStore } from "../../src/lib/brain/autonomy/AyasResearchExperimentStore";
++import { AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION } from "../../src/lib/brain/autonomy/AyasResearchImprovementLoop";
++import { AYAS_EXPERIMENT_ISOLATION } from "../../src/lib/brain/autonomy/AyasResearchExperimentEvaluation";
++import { heldGoldenEvidence } from "./ayas-golden-fixtures";
++
++/** Synthetic exact reviewed source/evidence, using the preserved historical strategy. No live execution. */
++export function createOwnerExactReviewedPreviewFixture() {
++const file = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
++const sourceRoot = process.cwd();
++const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-exact-proposal-"));
++const git = (...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
++git("init", "-q");
++git("config", "user.email", "smoke@example.invalid");
++git("config", "user.name", "Smoke");
++fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
++// The strategy is bound to the source it was reviewed against. That is immutable history (the commit just before
++// the governed patch was applied), not HEAD: the patch has landed and the file has changed again since.
++const REVIEWED_BASE_COMMIT = "71f554eb72e6f5aaafb272f31bff402664f602cc";
++const before = execFileSync("git", ["show", `${REVIEWED_BASE_COMMIT}:${file}`], { cwd: sourceRoot, encoding: "utf8", windowsHide: true, maxBuffer: 16_000_000 });
++fs.writeFileSync(path.join(root, file), before);
++fs.writeFileSync(path.join(root, ".gitignore"), "data/\n");
++git("add", "-A");
++git("commit", "-qm", "immutable fixture base");
++const baseHead = git("rev-parse", "HEAD");
++const after = generateAyasRenderToolSupersessionPatch(before);
++const strategy = AYAS_DEFAULT_IMPROVEMENT_REGISTRY.strategies.find((item) => item.strategyId === "exp-memory-render-tool-supersession");
++assert.ok(strategy?.reviewedExactPatch);
++const registryDigest = ayasImprovementRegistryDigest(AYAS_DEFAULT_IMPROVEMENT_REGISTRY);
++const experimentId = `ayas-experiment-${crypto.randomUUID()}`;
++const experiments = createAyasResearchExperimentStore({ rootDir: path.join(root, "data", "brain", "self-improvement", "research-improvement") });
++const replacement = { filePath: file, expectedHash: ayasExactPatchSha256(before), content: after, allowCreate: false };
++const replacementDigest = ayasExactPatchSha256(JSON.stringify([{ filePath: file, expectedHash: replacement.expectedHash, content: after }]));
++const measurement = { benchmarkId: "cognitive-quality-master", evaluatorSha256: "a".repeat(64), caseCount: 55,
++  passed: 53, heldOut: { passed: 4, total: 5 }, dimensions: [], failingCaseIds: ["stale-free-text-seed", "heldout-free-text"], durationMs: 100 };
++const evidence = { schemaVersion: AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, experimentId, attemptKey: "b".repeat(64), baseHead,
++  findingIds: [], sourceIds: [], sourceBindings: [{ kind: "EVOLUTION_OPPORTUNITY", id: `ayas-evo-${"c".repeat(16)}` }],
++  replacementDigest, hypothesis: { findingIds: [], riskClass: "REVIEW_REQUIRED" }, baseline: measurement,
++  experiment: { ...measurement, passed: 54, failingCaseIds: ["heldout-free-text"] },
++  environment: { node: process.version, platform: process.platform, arch: process.arch, tsx: null, typescript: null },
++  change: { strategyId: strategy.strategyId, strategyVersion: strategy.version, diffSha256: "d".repeat(64), files: [{ filePath: file }] },
++  regressions: { newlyFailingCaseIds: [], heldOutDelta: 0,
++    suites: strategy.regressionSuites.map((script) => ({ script, baselinePass: true, experimentPass: true })) },
++  golden: heldGoldenEvidence(AYAS_GOLDEN_VAULT, strategy.regressionSuites),
++  performance: { baselineMs: 100, experimentMs: 100, ratio: 1 },
++  risk: { riskClass: "REVIEW_REQUIRED", isolation: AYAS_EXPERIMENT_ISOLATION, liveWorkspaceUnchanged: true, sandboxDiscarded: true },
++  analysisRoute: null, verdict: "IMPROVED", reasonCodes: [], targetGain: 1, fixedCaseIds: ["stale-free-text-seed"],
++  remainingTargetFailures: 1, completedAt: "2026-09-29T00:00:00.000Z", authority: "NONE" };
++const evidenceHash = experiments.writeEvidence(evidence as never);
++experiments.writeExperiment({ schemaVersion: AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, experimentId,
++  hypothesisId: "fixture-hypothesis", attemptKey: evidence.attemptKey, attempt: 1, baseHead,
++  strategyId: strategy.strategyId, strategyVersion: strategy.version, inputsDigest: "e".repeat(64), status: "COMPLETED",
++  reservedAt: evidence.completedAt, updatedAt: evidence.completedAt,
++  owner: { pid: process.pid, processStartEpochMs: Date.now(), runId: "fixture" }, leaseExpiresAt: evidence.completedAt,
++  verdict: "IMPROVED", evidenceHash, completedAt: evidence.completedAt } as never);
++const proof = createAyasExactPatchSafetyProof({ manifest: strategy.reviewedExactPatch, file, before, after,
++  baseHead, strategyId: strategy.strategyId, strategyVersion: strategy.version, registryDigest, experimentId, evidenceHash });
++assert.ok(proof);
++const artifacts = createAyasPatchArtifactStore({ rootDir: path.join(root, "data", "brain", "self-improvement", "patch-artifacts") });
++const artifactInput = { artifactId: `ayas-controlled-evolution-${crypto.randomUUID()}`, candidateId: "fixture",
++  generatorIdentity: `controlled-self-evolution:v1:${strategy.strategyId}@${strategy.version}`,
++  baseBranch: "fixture", baseHead, exactFiles: [file], allowedRoots: ["src/lib/ayas/memory/"], replacements: [replacement],
++  validatorScripts: ["scripts/smoke-ayas-cognitive-quality.ts", ...strategy.regressionSuites],
++  graphifyEvidence: ["fixture"], safetyClassification: "SAFE",
++  controlledEvolutionBinding: { opportunityId: `ayas-evo-${"c".repeat(16)}`, experimentId, evidenceHash,
++    hypothesisId: "fixture-hypothesis", strategyId: strategy.strategyId, strategyVersion: strategy.version, registryDigest },
++  exactPatchSafetyProof: proof, problemStatement: "fixture", rationale: "fixture", expectedUserBenefit: "fixture",
++  expectedBehaviorChange: "fixture", unchangedBehavior: "fixture", risk: "fixture", productionImpact: "none",
++  sandboxValidationSummary: ["fixture"], generatedAt: evidence.completedAt } as const;
++const artifact = artifacts.freeze(artifactInput);
++assert.throws(() => artifacts.freeze({ ...artifactInput, artifactId: `ayas-controlled-evolution-${crypto.randomUUID()}`,
++  problemStatement: `sk-${"x".repeat(24)}` }), "a real secret-like raw value still fails closed");
++const inbox = createAyasApprovalInboxStore({ rootDir: path.join(root, "data", "brain"), repoRoot: root,
++  artifactStore: artifacts, experimentStore: experiments, requireOwnerAdmission: true });
++const proposal = inbox.createProposal({ createdAt: evidence.completedAt, baseBranch: "fixture", baseHead,
++  objective: "verify exact patch", currentProblem: "specific stale context", selectionReason: "measured local evidence",
++  expectedUserBenefit: "one measured case improves", expectedBehaviorChange: "read-side supersession",
++  unchangedBehavior: "persistent records stay unchanged", riskIfNotDone: "stale context remains",
++  technicalRisk: "bounded exact patch", productionImpact: "none before approval", rationale: "measured fixture",
++  evidence: [evidenceHash], graphifyEvidence: ["fixture"], candidateRank: 1, risk: "bounded",
++  safetyClassification: "SAFE", exactFiles: [file], expectedDiffScope: "one reviewed replacement",
++  testsPlanned: ["scripts/smoke-ayas-cognitive-quality.ts", ...strategy.regressionSuites], estimatedCost: "zero-cost",
++  mutationKind: "patch-artifact:v1", patchArtifactId: artifact.artifactId, patchHash: artifact.patchHash,
++  exactPatchSafetyProof: proof });
++const options = { repoRoot: root, artifactStore: artifacts, experimentStore: experiments };
++
++return { root, inbox, proposal, artifact, artifacts, experiments, options, before, after, file };
++}
+diff --git a/scripts/smoke-ayas-owner-exact-preview.ts b/scripts/smoke-ayas-owner-exact-preview.ts
+new file mode 100644
+index 0000000..5e99037
+--- /dev/null
++++ b/scripts/smoke-ayas-owner-exact-preview.ts
+@@ -0,0 +1,126 @@
++import { buildAyasOwnerPreviewInboxView } from "../src/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
++import assert from "node:assert/strict";
++import crypto from "node:crypto";
++import { execFileSync } from "node:child_process";
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
++import { createElement } from "react";
++import { renderToStaticMarkup } from "react-dom/server";
++import { issueSession, resolveAccessGate } from "../src/lib/auth/accessGate";
++import { admitAyasOwnerApproval, type AyasOwnerAdmissionAction } from "../src/lib/brain/autonomy/AyasOwnerApprovalAdmission";
++import { createAyasApprovalInboxStore, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
++import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
++import { loadAyasOwnerExactPreview, assertAyasOwnerExactPreview } from "../src/lib/brain/autonomy/AyasOwnerExactPreview";
++import { readAyasExactPreviewSource } from "../src/lib/brain/autonomy/AyasExactProposalSafety";
++import { ayasOwnerExactPreviewAcknowledged } from "../src/lib/brain/autonomy/AyasOwnerExactPreviewContract";
++import type { AyasDevelopmentProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxView";
++import { readAyasApprovalInboxState } from "../src/lib/brain/autonomy/AyasApprovalInboxReader";
++import { loadAyasOwnerRecommendationsView } from "../src/lib/brain/autonomy/AyasOwnerRecommendationsView";
++import { executeAyasApprovedProposalWith } from "../src/lib/brain/autonomy/AyasProposalExecutionService";
++import { createAyasExecutionJournal } from "../src/lib/brain/autonomy/AyasExecutionJournal";
++import { AyasDevelopmentCenter } from "../src/components/brain/AyasDevelopmentCenter";
++import { createOwnerExactReviewedPreviewFixture } from "./fixtures/ayas-owner-exact-preview-fixture";
++
++const key = "synthetic-owner-exact-preview-key-no-credential";
++process.env.AYAS_ACCESS_KEY = key;
++const rows: { id: string; status: string }[] = [];
++const sha = (bytes: string | Buffer) => crypto.createHash("sha256").update(bytes).digest("hex");
++const git = (root: string, ...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
++async function admission(proposal: AyasInboxProposal, decision: "APPROVE" | "EXECUTE", action: AyasOwnerAdmissionAction = decision === "APPROVE" ? "ayasOwnerApprovalDecision" : "executeAyasApprovedProposal") {
++  const now = Date.now();
++  return admitAyasOwnerApproval({ gate: resolveAccessGate(), token: await issueSession(key, now - 1000), action,
++    subject: { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision }, now });
++}
++async function fixture() {
++  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-owner-preview-"));
++  git(root, "init", "-q"); git(root, "config", "user.name", "Preview smoke"); git(root, "config", "user.email", "preview@example.invalid");
++  fs.mkdirSync(path.join(root, "scripts"));
++  const content = 'console.log(JSON.stringify({status:"PASS",suite:"fixture-generated",scenarios:1}));\n';
++  fs.writeFileSync(path.join(root, "scripts/smoke-validator.ts"), content);
++  fs.writeFileSync(path.join(root, ".gitignore"), "data/\nnode_modules/\n");
++  fs.symlinkSync(path.join(process.cwd(), "node_modules"), path.join(root, "node_modules"), process.platform === "win32" ? "junction" : "dir");
++  git(root, "add", "-A"); git(root, "commit", "-qm", "synthetic base");
++  const baseHead = git(root, "rev-parse", "HEAD");
++  const artifactStore = createAyasPatchArtifactStore({ rootDir: path.join(root, "data/artifacts") });
++  const exactFiles = ["scripts/smoke-fixture-generated.ts"];
++  const artifact = artifactStore.freeze({ artifactId: `ayas-patch-artifact-${crypto.randomUUID()}`, candidateId: "fixture", generatorIdentity: "fixture",
++    baseBranch: "fixture", baseHead, exactFiles, allowedRoots: ["scripts/"], replacements: [{ filePath: exactFiles[0]!, expectedHash: null, content, allowCreate: true }],
++    validatorScripts: ["scripts/smoke-validator.ts"], graphifyEvidence: ["synthetic graph"], safetyClassification: "SAFE",
++    problemStatement: "fixture", rationale: "fixture", expectedUserBenefit: "fixture", expectedBehaviorChange: "fixture", unchangedBehavior: "fixture",
++    risk: "bounded", productionImpact: "none", sandboxValidationSummary: ["fixture validator: PASS"], generatedAt: new Date().toISOString() });
++  const inbox = createAyasApprovalInboxStore({ rootDir: path.join(root, "data/inbox"), requireOwnerAdmission: true });
++  const proposal = inbox.createProposal({ createdAt: new Date().toISOString(), baseBranch: "fixture", baseHead, objective: "synthetic preview",
++    currentProblem: "fixture", selectionReason: "fixture", expectedUserBenefit: "fixture", expectedBehaviorChange: "fixture", unchangedBehavior: "fixture",
++    riskIfNotDone: "fixture", technicalRisk: "bounded", productionImpact: "none", rationale: "fixture", evidence: ["fixture"], graphifyEvidence: artifact.graphifyEvidence,
++    candidateRank: 1, risk: "bounded", safetyClassification: "SAFE", exactFiles, expectedDiffScope: "one synthetic new test", testsPlanned: artifact.validatorScripts,
++    estimatedCost: "zero-cost", mutationKind: "patch-artifact:v1", patchArtifactId: artifact.artifactId, patchHash: artifact.patchHash });
++  inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString(), "owner-approved: pending execution enablement", await admission(proposal, "APPROVE"));
++  const approved = inbox.load().proposals[0]!;
++  const approval = inbox.load().decisions[0]!;
++  const options = { repoRoot: root, artifactStore };
++  const preview = loadAyasOwnerExactPreview(approved, approval, options);
++  assert.ok(preview, "positive verified artifact fixture must produce a preview");
++  const artifactPath = path.join(artifactStore.dir, `${artifact.artifactId}.json`);
++  return { root, inbox, proposal: approved, approval, artifactStore, artifact, artifactPath, options, preview, gateRoot: path.join(root, "data/gate") };
++}
++type Fixture = Awaited<ReturnType<typeof fixture>>;
++function render(f: Fixture, preview = loadAyasOwnerExactPreview(f.proposal, f.approval, f.options)) {
++  const view = buildAyasOwnerPreviewInboxView(readAyasApprovalInboxState({ rootDir: path.dirname(path.dirname(f.inbox.stateFile)) }), new Date().toISOString(), undefined, f.options);
++  const projected = { ...view.today[0]!, exactPreview: preview } as AyasDevelopmentProposal;
++  const inbox = { ...view, today: [projected], history: [projected] };
++  return renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox, ownerApprovalPendingExecution: loadAyasOwnerRecommendationsView(f.inbox).pendingExecution, onExecute: () => undefined }));
++}
++function noYurut(f: Fixture, preview = loadAyasOwnerExactPreview(f.proposal, f.approval, f.options)) {
++  assert.equal(preview, undefined);
++  assert.doesNotMatch(render(f, preview), />YÜRÜT</);
++}
++function snapshot(f: Fixture) { return { head: git(f.root, "rev-parse", "HEAD"), worktree: git(f.root, "status", "--porcelain"), inbox: sha(fs.readFileSync(f.inbox.stateFile)), journal: createAyasExecutionJournal({ rootDir: f.gateRoot }).list().length }; }
++async function execute(f: Fixture, extra: Record<string, unknown> = {}) {
++  return executeAyasApprovedProposalWith(f.proposal.proposalId, { repoRoot: f.root, gateRoot: f.gateRoot, inbox: f.inbox, patchArtifactStore: f.artifactStore,
++    executionOwnerAdmission: await admission(f.proposal, "EXECUTE"), ownerPreview: f.preview.binding, ...extra });
++}
++async function scenario(id: string, test: () => Promise<void> | void) { await test(); rows.push({ id, status: "PASS" }); console.log(`PASS ${id}`); }
++async function main() {
++  await scenario("A-missing", async () => { const f = await fixture(); fs.renameSync(f.artifactPath, `${f.artifactPath}.held`); noYurut(f); });
++  await scenario("B-corrupt", async () => { const f = await fixture(); fs.writeFileSync(f.artifactPath, "invalid JSON"); noYurut(f); });
++  await scenario("C-digest", async () => { const f = await fixture(); noYurut({ ...f, proposal: { ...f.proposal, patchHash: "f".repeat(64) } }); });
++  await scenario("D-baseHead", async () => { const f = await fixture(); noYurut({ ...f, proposal: { ...f.proposal, baseHead: "f".repeat(40) } }); });
++  await scenario("E-stale", async () => { const f = await fixture(); noYurut({ ...f, proposal: { ...f.proposal, status: "STALE" } });
++    assert.equal(ayasOwnerExactPreviewAcknowledged(f.preview, f.preview.binding.seal, f.proposal, Date.parse(f.preview.binding.expiresAt)), false);
++    assert.throws(() => assertAyasOwnerExactPreview(f.preview.binding, f.proposal, f.approval, { ...f.options, now: Date.parse(f.preview.binding.expiresAt) }), /EXACT_PREVIEW_REQUIRED/); });
++  await scenario("F-artifact-after-view", async () => { const f = await fixture(); fs.writeFileSync(f.artifactPath, JSON.stringify({ ...f.artifact, sandboxValidationSummary: ["replacement summary"] }));
++    assert.equal(f.artifactStore.loadVerified(f.artifact.artifactId).patchHash, f.artifact.patchHash, "patchHash excludes this owner-visible field");
++    const before = snapshot(f); await assert.rejects(() => execute(f), /EXACT_PREVIEW_CHANGED/); assert.deepEqual(snapshot(f), before); });
++  await scenario("G-valid-reviewed-exact", async () => { const f = createOwnerExactReviewedPreviewFixture();
++    f.inbox.decide(f.proposal.proposalId, "APPROVE", new Date().toISOString(), "owner-approved: pending execution enablement", await admission(f.proposal, "APPROVE"));
++    const p = f.inbox.load().proposals[0]!, decision = f.inbox.load().decisions[0]!;
++    const preview = loadAyasOwnerExactPreview(p, decision, f.options); assert.ok(preview, "actual REVIEW_REQUIRED exact proof + golden-held evidence");
++    assert.equal(preview.files[0]?.before, f.before); assert.equal(preview.files[0]?.after, f.after); assert.equal(preview.evidenceIdentity, p.exactPatchSafetyProof?.evidenceHash);
++    assert.equal(ayasOwnerExactPreviewAcknowledged(preview, null, p), false); assert.equal(ayasOwnerExactPreviewAcknowledged(preview, preview.binding.seal, p), true);
++    assertAyasOwnerExactPreview(preview.binding, p, decision, f.options);
++  });
++  await scenario("H-pre-write-mismatch-zero-source-effect", async () => { const f = await fixture(); const head = git(f.root, "rev-parse", "HEAD");
++    await assert.rejects(() => execute(f, { onJournalPhase: (phase: string) => { if (phase === "EXECUTING") fs.writeFileSync(f.artifactPath, JSON.stringify({ ...f.artifact, sandboxValidationSummary: ["changed during reservation"] })); } }), /EXACT_PREVIEW_CHANGED/);
++    assert.equal(fs.existsSync(path.join(f.root, f.proposal.exactFiles[0]!)), false); assert.equal(git(f.root, "rev-parse", "HEAD"), head);
++    assert.equal(git(f.root, "status", "--porcelain"), ""); assert.equal(f.inbox.load().proposals[0]?.status, "RECOVERY_REQUIRED"); });
++  await scenario("no-snapshot-zero-reservation", async () => { const f = await fixture(); const before = snapshot(f); await assert.rejects(() => execute(f, { ownerPreview: undefined }), /EXACT_PREVIEW_REQUIRED/); assert.deepEqual(snapshot(f), before); });
++  await scenario("unsigned-or-tampered-snapshot", async () => { const f = await fixture(); const before = snapshot(f); await assert.rejects(() => execute(f, { ownerPreview: { ...f.preview.binding, snapshotDigest: "f".repeat(64) } }), /EXACT_PREVIEW_CHANGED/); assert.deepEqual(snapshot(f), before); });
++  await scenario("unreviewed-identity-replacement", async () => { const f = await fixture(); fs.writeFileSync(f.artifactPath, JSON.stringify({ ...f.artifact, artifactId: "ayas-patch-artifact-replacement" })); noYurut(f); });
++  await scenario("scope-evidence-mismatch", async () => { const f = await fixture(); noYurut({ ...f, proposal: { ...f.proposal, exactFiles: ["scripts/other.ts"] } }); noYurut({ ...f, proposal: { ...f.proposal, graphifyEvidence: [] } }); });
++  await scenario("dirty-source", async () => { const f = await fixture(); fs.writeFileSync(path.join(f.root, "dirty.txt"), "unexpected"); noYurut(f); });
++  await scenario("existing-file-cannot-preview-as-create", async () => { const f = await fixture();
++    assert.throws(() => readAyasExactPreviewSource(f.root, f.proposal.baseHead, [{ filePath: "scripts/smoke-validator.ts", expectedHash: null }]), /EXACT_PREVIEW_UNAVAILABLE/); });
++  await scenario("current-head-advanced", async () => { const f = await fixture(); fs.writeFileSync(path.join(f.root, "advance.txt"), "new head"); git(f.root, "add", "advance.txt"); git(f.root, "commit", "-qm", "synthetic head advance"); noYurut(f); });
++  await scenario("unattributed-approve", async () => { const f = await fixture(); noYurut({ ...f, approval: { ...f.approval, ownerAdmission: undefined } }); });
++  await scenario("render-exact-before-ack", async () => { const f = await fixture(); const html = render(f); assert.match(html, /ayas-exact-preview/); assert.match(html, /type="checkbox"/); assert.match(html, new RegExp(f.artifact.patchHash)); assert.match(html, new RegExp(f.proposal.baseHead)); assert.match(html, /Uygulanacak tam içerik/); assert.doesNotMatch(html, />YÜRÜT</); });
++  await scenario("ack-does-not-transfer", async () => { const f = await fixture(); assert.equal(ayasOwnerExactPreviewAcknowledged(f.preview, f.preview.binding.seal, f.proposal), true);
++    assert.equal(ayasOwnerExactPreviewAcknowledged({ ...f.preview, binding: { ...f.preview.binding, seal: "f".repeat(64) } }, f.preview.binding.seal, f.proposal), false); });
++  await scenario("no-fresh-execute", async () => { const f = await fixture(); const before = snapshot(f); await assert.rejects(() => execute(f, { executionOwnerAdmission: undefined }), /OWNER_ADMISSION_REQUIRED/); assert.deepEqual(snapshot(f), before); });
++  await scenario("valid-local-once-no-publication", async () => { const f = await fixture(); const head = git(f.root, "rev-parse", "HEAD"); await execute(f);
++    assert.equal(fs.readFileSync(path.join(f.root, f.proposal.exactFiles[0]!), "utf8"), f.artifact.replacements[0]?.content);
++    assert.equal(git(f.root, "rev-parse", "HEAD"), head); assert.equal(f.inbox.load().proposals[0]?.status, "COMPLETED");
++    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().length, 1); await assert.rejects(() => execute(f)); assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().length, 1); });
++  console.log(JSON.stringify({ status: "PASS", suite: "ayas-owner-exact-preview", scenarios: rows.length, rows, actualRestart: "NOT_RUN", crossProcessRace: "NOT_RUN", reviewedExactExecution: "NOT_RUN" }));
++}
++main().catch(error => { console.error(error); process.exitCode = 1; });
+diff --git a/src/components/brain/AyasConsolePage.tsx b/src/components/brain/AyasConsolePage.tsx
+index cc478ff..99739ab 100644
+--- a/src/components/brain/AyasConsolePage.tsx
++++ b/src/components/brain/AyasConsolePage.tsx
+@@ -8,10 +8,11 @@
+  * pipeline, GPU or paid-API call happens here — the execution gate is closed.
+  */
+ 
++import { loadAyasOwnerPreviewInboxView } from "@/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
+ import { BrainCoreConsole } from "@/components/brain/BrainCoreConsole";
+ import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
+ import { loadAyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
+-import { loadAyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
++
+ import { loadAyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+ import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+ import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+@@ -53,7 +54,7 @@ export async function AyasConsolePage({ homepage = false, initialPanel = "chat"
+     loadBrainConsoleSnapshot(),
+     ayasModelConfigured(),
+     loadAyasAutonomousView(),
+-    loadAyasApprovalInboxView(),
++    loadAyasOwnerPreviewInboxView(),
+     loadAyasMicroBatchDevelopmentView(),
+   ]);
+   // Read-only self-healing state (incidents / repairs / learning). Fail-soft.
+diff --git a/src/components/brain/AyasDevelopmentCenter.tsx b/src/components/brain/AyasDevelopmentCenter.tsx
+index 3affd6b..402e64f 100644
+--- a/src/components/brain/AyasDevelopmentCenter.tsx
++++ b/src/components/brain/AyasDevelopmentCenter.tsx
+@@ -1,6 +1,7 @@
+ "use client";
+ 
+-import { useState } from "react";
++import { useEffect, useState } from "react";
++import { ayasOwnerExactPreviewAcknowledged, type AyasOwnerExactPreviewBinding } from "@/lib/brain/autonomy/AyasOwnerExactPreviewContract";
+ 
+ import type { AyasApprovalInboxView, AyasDevelopmentProposal, AyasPublicationDisplayState } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+ import { selectAyasPendingOwnerApprovals } from "@/lib/brain/autonomy/AyasPendingApprovalSelector";
+@@ -207,10 +208,12 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
+   readonly onDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void;
+ }) {
+   const [confirming, setConfirming] = useState(false);
+-  const { request, binding } = recommendation;
++  const { request, binding, afterApproval } = recommendation;
+   const busy = pendingId === binding.proposalId;
+   const errorMessage = error?.proposalId === binding.proposalId ? (ayasOwnerDecisionErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
+   const decide = (decision: AyasOwnerDecisionLiteral) => onDecision?.({ binding, decision });
++  const executesNow = afterApproval === "EXECUTES_AND_PUBLISHES";
++  const busyLabel = executesNow ? "UYGULANIYOR…" : "KAYDEDİLİYOR…";
+ 
+   return (
+     <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-rec-${binding.proposalId}`}>
+@@ -240,15 +243,17 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
+       {confirming ? (
+         <div className="bc-dev__confirm" role="group" aria-label="Onaylarsam ne olacak?">
+           <strong>ONAYLA — onaylarsam ne olacak?</strong>
+-          <p>AYAS bu değişikliği kendisi uygulayacak, test edecek ve başarılı olursa tek bir commit olarak yayınlayacak. İkinci bir onay istenmeyecek.</p>
++          {executesNow
++            ? <p>AYAS bu değişikliği kendisi uygulayacak, test edecek ve başarılı olursa tek bir commit olarak yayınlayacak. İkinci bir onay istenmeyecek.</p>
++            : <p>Onayın kalıcı olarak kaydedilir; AYAS bu değişikliği kendiliğinden yürütmez. Yürütmek için &quot;Onaylandı — Yürütme Bekleniyor&quot; bölümünde ayrıca YÜRÜT&apos;e basman gerekir.</p>}
+           <div className="bc-dev__actions">
+-            <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
++            <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>{busy ? busyLabel : "ONAYLA"}</button>
+             <button type="button" className="bc-btn bc-btn--ghost" disabled={busy} onClick={() => setConfirming(false)}>VAZGEÇ</button>
+           </div>
+         </div>
+       ) : (
+         <div className="bc-dev__actions">
+-          <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
++          <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>{busy ? busyLabel : "ONAYLA"}</button>
+           <button type="button" className="bc-btn bc-btn--ghost" disabled={busy || !onDecision} onClick={() => decide("REJECT")}>REDDET</button>
+         </div>
+       )}
+@@ -257,26 +262,37 @@ function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecis
+ }
+ 
+ /**
+- * Durable one-click correction (Step 3/4). A proposal the owner already
+- * durably APPROVED while live execution was off — read entirely from the
++ * An owner-model APPROVE that has not run yet — read entirely from the
+  * server's `pendingExecution` list, never from client memory, so it reads
+- * "ONAYLANDI" exactly the same after a hard reload or a server restart as it
+- * did the moment the owner clicked. Deliberately has NO button at all: the
+- * owner's decision already happened once and is already durably recorded;
+- * offering ONAYLA again here would be the exact duplicate-authorization this
+- * correction rules out. `AyasOwnerApprovalResume.ts` is what later turns
+- * this into a real execution once live execution is enabled.
++ * "ONAYLANDI" exactly the same after a hard reload or a server restart. It
++ * never offers ONAYLA again: the decision is already durably recorded.
++ * Nothing resumes it automatically (owner policy 2026-10-08). It runs only
++ * through the ordinary manual YÜRÜT (`ExecuteControl`), shown here only when
++ * the server verified a sealed owner APPROVE for exactly this proposal
++ * (`manualExecution === "AVAILABLE"`) and the inbox still reads APPROVED;
++ * the server then requires a freshly verified EXECUTE before anything runs.
+  */
+-function AyasOwnerPendingExecutionCard({ entry }: { readonly entry: AyasOwnerPendingExecutionEntry }) {
++function AyasOwnerPendingExecutionCard({ entry, proposal, executingId, executionError, onExecute }: { readonly entry: AyasOwnerPendingExecutionEntry; readonly proposal?: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void }) {
++  const admitted = entry.manualExecution === "AVAILABLE";
++  const approved = proposal?.status === "APPROVED";
+   return (
+     <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-pending-execution-${entry.proposalId}`}>
+       <header className="bc-dev__proposal-head">
+         <div><span className="bc-dev__status">ONAYLANDI</span><h3>{entry.wantsTo}</h3></div>
+       </header>
+       <div className="bc-dev__confirm" role="status">
+-        <p>Otomatik yürütme şu anda devre dışı. AYAS, yürütme etkinleştirildiğinde bu onayı yeniden doğrulayıp işlemi otomatik olarak sürdürecek.</p>
++        <p>Otomatik yürütme şu anda devre dışı.</p>
++        {!admitted
++          ? <p>Bu onay doğrulanmış bir owner oturumuna bağlı değil (eski ya da kimliği doğrulanamayan kayıt). AYAS bunu yürütmez ve YÜRÜT sunulmaz; değişiklik hâlâ gerekiyorsa yeni bir öneri ve yeni onay gerekir.</p>
++          : approved
++            ? <p>Onayın kayıtlı. AYAS bunu kendiliğinden yürütmez; yürütme yalnız senin YÜRÜT eyleminle ve doğrulanmış owner oturumunla başlar.</p>
++            : proposal
++              ? <p>Güncel durum: {statusLabel[proposal.status]}. Bu öneri için YÜRÜT sunulmaz.</p>
++              : <p>Bu öneri güncel listede bulunamadı; sayfayı yenile. YÜRÜT sunulmaz.</p>}
+         <p><small>Onaylandı: {new Date(entry.approvedAt).toLocaleString("tr-TR")}</small></p>
+       </div>
++      {proposal?.status === "RECOVERY_REQUIRED" ? <RecoveryNotice /> : null}
++      {admitted && approved && proposal ? <ExecuteControl proposal={proposal} placement="owner-pending" executingId={executingId} executionError={executionError} onExecute={onExecute} /> : null}
+     </article>
+   );
+ }
+@@ -364,6 +380,8 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
+ }
+ 
+ const executionErrorLabel: Record<string, string> = {
++  EXACT_PREVIEW_REQUIRED: "Tam değişiklik önizlemesini yeniden inceleyip onayla.",
++  EXACT_PREVIEW_CHANGED: "Önizleme değişti veya doğrulanamıyor; işlem durdu. Sayfayı yenileyip yeniden incele.",
+   NOT_FOUND: "Öneri bulunamadı.",
+   NOT_APPROVED: "Bu öneri artık onaylı değil — sayfa güncel değil olabilir.",
+   NOT_READY: "Öneri yürütmeye hazır değil.",
+@@ -371,13 +389,58 @@ const executionErrorLabel: Record<string, string> = {
+   AYAS_MUTATION_SCOPE_MISMATCH: "Uygulamanın dosya kapsamı öneriyle eşleşmiyor.",
+   STALE_APPROVAL: "Onay durumu değişti — sayfayı yenile.",
+   INVALID_INPUT: "Geçersiz istek.",
++  OWNER_ADMISSION_REQUIRED: "Doğrulanmış owner oturumu gerekiyor — yeniden giriş yap ve kartın güncel durumuna bak.",
++  OWNER_ADMISSION_GATE_UNAVAILABLE: "Owner doğrulaması bu sunucuda kullanılamıyor — yürütme başlatılmadı.",
++  AYAS_DAEMON_DIRTY_REPO: "Çalışma ağacında kaydedilmemiş değişiklikler var — yürütme başlatılmadı.",
+   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
+ };
+ 
+-/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. A proposal APPROVED via the owner-approval model (`ownerApprovedPendingExecution`) also renders nothing here — it already has its own durable "ONAYLANDI" card (`AyasOwnerPendingExecutionCard`) and resumes automatically via `AyasOwnerApprovalResume.ts`, never via this manual YÜRÜT control. */
+-function ExecuteControl({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
++/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. A proposal APPROVED via the owner-approval model (`ownerApprovedPendingExecution`) gets this control only on its "Onaylandı — Yürütme Bekleniyor" card (`placement="owner-pending"`), which renders it only after the server verified a sealed owner APPROVE; it is never resumed automatically. Every other APPROVED proposal keeps it on its timeline card. Either way the server requires a fresh verified EXECUTE before anything runs. */
++function ExecuteControl({ proposal, executingId, executionError, onExecute, placement = "timeline" }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: AyasOwnerExactPreviewBinding }) => void; readonly placement?: "timeline" | "owner-pending" }) {
++  if (proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL) return <ExactPreviewExecutionControl key={proposal.exactPreview?.binding.seal ?? "unavailable"} proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} placement={placement} />;
++  return <ManualExecuteControl proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} placement={placement} />;
++}
++
++function ExactPreviewExecutionControl({ proposal, ...controls }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: AyasOwnerExactPreviewBinding }) => void; readonly placement: "timeline" | "owner-pending" }) {
++  const [reviewedSeal, setReviewedSeal] = useState<string | null>(null);
++  const [expired, setExpired] = useState(false);
++  const preview = proposal.exactPreview;
++  useEffect(() => {
++    if (!preview) return;
++    const timer = setTimeout(() => setExpired(true), Math.max(0, Date.parse(preview.binding.expiresAt) - Date.now()));
++    return () => clearTimeout(timer);
++  }, [preview]);
++  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution !== (controls.placement === "owner-pending")) return null;
++  if (!preview || expired || proposal.displayState !== "NORMAL") return <p role="status">Doğrulanmış güncel önizleme yok. YÜRÜT kullanılamaz; sayfayı yenile.</p>;
++  const acknowledged = ayasOwnerExactPreviewAcknowledged(preview, reviewedSeal, proposal);
++  const executeWithPreview = (input: { proposalId: string }) => {
++    if (!ayasOwnerExactPreviewAcknowledged(preview, reviewedSeal, proposal)) return;
++    const dispatch = controls.onExecute;
++    dispatch?.({ ...input, ownerPreview: preview.binding });
++  };
++  return <div data-testid="ayas-exact-preview">
++    <dl className="bc-dev__facts">
++      <div><dt>Artifact</dt><dd><code>{preview.binding.artifactId}</code></dd></div>
++      <div><dt>Patch digest</dt><dd><code>{preview.binding.patchHash}</code></dd></div>
++      <div><dt>Snapshot digest</dt><dd><code>{preview.binding.snapshotDigest}</code></dd></div>
++      <div><dt>Base / source HEAD</dt><dd><code>{preview.binding.baseHead}</code></dd></div>
++      <div><dt>Kapsam</dt><dd>{preview.exactFiles.join(", ")} · {proposal.expectedDiffScope}</dd></div>
++      <div><dt>Kanıt kimliği / durumu</dt><dd><code>{preview.evidenceIdentity}</code> · {preview.evidenceStatus}</dd></div>
++    </dl>
++    {preview.files.map(file => <div key={file.filePath}>
++      <strong>{file.filePath}</strong>
++      <p>Önce</p><pre className="bc-dev__diff"><code>{file.before ?? "Yeni dosya — mevcut içerik yok"}</code></pre>
++      <p>Uygulanacak tam içerik</p><pre className="bc-dev__diff"><code>{file.after}</code></pre>
++    </div>)}
++    <p>{preview.validationSummary.join(" · ")}</p>
++    <label><input type="checkbox" checked={acknowledged} onChange={event => setReviewedSeal(event.target.checked ? preview.binding.seal : null)} /> Yukarıdaki tam değişikliği, digest, HEAD, kapsam ve kanıtı inceledim.</label>
++    {acknowledged ? <ManualExecuteControl proposal={proposal} {...controls} onExecute={controls.onExecute ? executeWithPreview : undefined} /> : null}
++  </div>;
++}
++
++function ManualExecuteControl({ proposal, executingId, executionError, onExecute, placement = "timeline" }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: AyasOwnerExactPreviewBinding }) => void; readonly placement?: "timeline" | "owner-pending" }) {
+   const [confirming, setConfirming] = useState(false);
+-  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution) return null;
++  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution !== (placement === "owner-pending")) return null;
+   const busy = executingId === proposal.proposalId;
+   const error = executionError?.proposalId === proposal.proposalId ? executionError : null;
+   const errorMessage = error ? executionErrorLabel[error.code] ?? `Yürütme başarısız oldu (${error.code}).` : null;
+@@ -391,6 +454,7 @@ function ExecuteControl({ proposal, executingId, executionError, onExecute }: {
+         <p><b>Test planı:</b> {proposal.testsPlanned.join(" · ")}</p>
+         <p><b>Üretim etkisi:</b> {proposal.productionImpact}</p>
+         <p><b>Uygulama kimliği:</b> <code>{proposal.mutationKind || "—"}</code></p>
++        <p>AYAS değişikliği bu bilgisayardaki çalışma kopyasında uygular ve testleri çalıştırır; commit veya push yapmaz. Doğrulanmış owner oturumu gerekir.</p>
+         <p>Bu onay tek kullanımlıktır; yürütme başladıktan sonra aynı onay tekrar kullanılamaz.</p>
+         {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
+         <div className="bc-dev__actions">
+@@ -408,7 +472,7 @@ function ExecuteControl({ proposal, executingId, executionError, onExecute }: {
+   );
+ }
+ 
+-function TimelineCard({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
++function TimelineCard({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void }) {
+   return (
+     <article className="bc-dev__timeline-card">
+       <div><span className="bc-dev__status">{statusLabel[proposal.status]}</span><strong>{proposal.objective}</strong></div>
+@@ -525,11 +589,12 @@ function MicroBatchPanel({ microBatch, onaylaPending, onaylaError, onBatchOnayla
+   );
+ }
+ 
+-export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula, proposalOnaylaPendingId, proposalOnaylaError, onProposalOnaylaVeUygula, ownerRecommendations, ownerDecisionPendingId, ownerDecisionError, onOwnerApprovalDecision, ownerApprovalPendingExecution }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void; readonly proposalOnaylaPendingId?: string | null; readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void; readonly ownerRecommendations?: readonly AyasOwnerRecommendation[]; readonly ownerDecisionPendingId?: string | null; readonly ownerDecisionError?: { readonly proposalId: string; readonly code: string } | null; readonly onOwnerApprovalDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void; readonly ownerApprovalPendingExecution?: readonly AyasOwnerPendingExecutionEntry[] }) {
++export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula, proposalOnaylaPendingId, proposalOnaylaError, onProposalOnaylaVeUygula, ownerRecommendations, ownerDecisionPendingId, ownerDecisionError, onOwnerApprovalDecision, ownerApprovalPendingExecution }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void; readonly proposalOnaylaPendingId?: string | null; readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void; readonly ownerRecommendations?: readonly AyasOwnerRecommendation[]; readonly ownerDecisionPendingId?: string | null; readonly ownerDecisionError?: { readonly proposalId: string; readonly code: string } | null; readonly onOwnerApprovalDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void; readonly ownerApprovalPendingExecution?: readonly AyasOwnerPendingExecutionEntry[] }) {
+   if (!inbox.connected) return <div className="bc-empty" role="alert"><strong>Gelişim Merkezi okunamadı</strong><p>{inbox.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
+   const pendingOwnerApprovals = selectAyasPendingOwnerApprovals(inbox);
+   const pendingIds = new Set(pendingOwnerApprovals.map((proposal) => proposal.proposalId));
+   const pendingReview = inbox.pending.filter((proposal) => !pendingIds.has(proposal.proposalId));
++  const inboxProposalById = new Map([...inbox.history, ...inbox.today, ...inbox.pending].map((proposal) => [proposal.proposalId, proposal] as const));
+   return (
+     <section className="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center">
+       <header className="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header>
+@@ -553,7 +618,7 @@ export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision
+         <section className="bc-dev__section" aria-labelledby="ayas-owner-pending-execution" data-testid="ayas-owner-pending-execution">
+           <h3 id="ayas-owner-pending-execution">Onaylandı — Yürütme Bekleniyor <span>{ownerApprovalPendingExecution.length}</span></h3>
+           <div className="bc-dev__timeline">
+-            {ownerApprovalPendingExecution.map((entry) => <AyasOwnerPendingExecutionCard key={entry.proposalId} entry={entry} />)}
++            {ownerApprovalPendingExecution.map((entry) => <AyasOwnerPendingExecutionCard key={entry.proposalId} entry={entry} proposal={inboxProposalById.get(entry.proposalId)} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}
+           </div>
+         </section>
+       ) : null}
+diff --git a/src/components/brain/BrainConsoleView.tsx b/src/components/brain/BrainConsoleView.tsx
+index 23ee6cf..cdb71eb 100644
+--- a/src/components/brain/BrainConsoleView.tsx
++++ b/src/components/brain/BrainConsoleView.tsx
+@@ -136,7 +136,7 @@ export interface BrainConsoleViewProps {
+   readonly onApprovalDecision?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => void;
+   readonly executionPendingId?: string | null;
+   readonly executionError?: { readonly proposalId: string; readonly code: string } | null;
+-  readonly onExecuteProposal?: (input: { proposalId: string }) => void;
++  readonly onExecuteProposal?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => void;
+   /** M18.1 — "BATCH ONAYLA VE UYGULA": one click authorizes Package C execution, Graphify verification, and Git publication together for the exact reviewed batch. */
+   readonly batchOnaylaPending?: boolean;
+   readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null;
+diff --git a/src/components/brain/BrainCoreConsole.tsx b/src/components/brain/BrainCoreConsole.tsx
+index e76fcb7..f4c3dff 100644
+--- a/src/components/brain/BrainCoreConsole.tsx
++++ b/src/components/brain/BrainCoreConsole.tsx
+@@ -126,7 +126,7 @@ export interface BrainCoreConsoleProps {
+   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA approval decision. Session-gated; the safety-classification policy is enforced server-side (Store boundary), not by this prop's presence. */
+   readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
+   /** Server Action that runs an already-APPROVED proposal through Package C's execution authority chain. Session-gated, separate from `decideApproval` — approving never calls this. */
+-  readonly executeProposal?: (input: { proposalId: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly inbox: AyasApprovalInboxView }>;
++  readonly executeProposal?: (input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly inbox: AyasApprovalInboxView }>;
+   /** M18.1 — "BATCH ONAYLA VE UYGULA": Server Action that decides, executes through Package C, Graphify-verifies, and (only if every check passes) commits+pushes the exact reviewed batch — one call, one human authorization. */
+   readonly batchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly microBatch: AyasMicroBatchDevelopmentView }>;
+   /** M20.7 — "ONAYLA VE UYGULA": Server Action that does the same for one individual, patch-artifact-backed PRIORITY_SAFE proposal. */
+@@ -632,7 +632,7 @@ export function BrainCoreConsole({
+   // every failure look identical and invisible) — a genuine transport/
+   // network failure is the only case that still reaches `catch`, and it is
+   // surfaced with its own explicit code rather than silently discarded.
+-  const onExecuteProposal = useCallback((input: { proposalId: string }) => {
++  const onExecuteProposal = useCallback((input: { proposalId: string; ownerPreview?: import("@/lib/brain/autonomy/AyasOwnerExactPreviewContract").AyasOwnerExactPreviewBinding }) => {
+     if (!executeProposal || executionPending) return;
+     setExecutionPending(input.proposalId);
+     setExecutionError(null);
+diff --git a/src/lib/brain/autonomy/AyasApprovalInboxView.ts b/src/lib/brain/autonomy/AyasApprovalInboxView.ts
+index 76d6f33..5bebd6d 100644
+--- a/src/lib/brain/autonomy/AyasApprovalInboxView.ts
++++ b/src/lib/brain/autonomy/AyasApprovalInboxView.ts
+@@ -4,6 +4,7 @@ import { createAyasPatchArtifactStore, AyasPatchArtifactError } from "./AyasPatc
+ import { classifyAyasFindingValue, type AyasFindingValueClass } from "./AyasFindingValueClass";
+ import { readAyasPublicationActivity, AYAS_PUBLICATION_ACTIVITY_UNKNOWN, type AyasPublicationActivitySnapshot } from "./AyasPublicationActivity";
+ import { isAyasOwnerApprovedDecisionReason } from "./AyasOwnerApprovalProvenance";
++import type { AyasOwnerExactPreview } from "./AyasOwnerExactPreviewContract";
+ 
+ /**
+  * Approval-race UX hardening (Part A). Purely a display hint derived from
+@@ -65,6 +66,7 @@ export interface AyasDevelopmentPatchArtifact {
+ }
+ 
+ export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
++  readonly exactPreview?: AyasOwnerExactPreview;
+   readonly approvalReady: boolean;
+   readonly missingExplanation: readonly AyasHumanExplanationField[];
+   readonly decision?: AyasInboxDecisionRead;
+@@ -80,11 +82,12 @@ export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
+   /**
+    * True only for an `APPROVED` proposal whose APPROVE came from the
+    * owner-approval model (`AyasAutonomousExecutionGate.decideAyasOwnerApproval`)
+-   * while live execution was disabled — durably resumable by
+-   * `AyasOwnerApprovalResume.ts`, never by a second manual click. A legacy
+-   * `decideAyasApproval`-approved proposal is `false` here and keeps its
+-   * ordinary manual "YÜRÜT" control; this flag is what lets the UI show the
+-   * two differently without a client-side flag of its own.
++   * without executing (an exact reviewed patch, or live execution off). It
++   * is never resumed automatically; its manual "YÜRÜT" is shown on the
++   * "Onaylandı — Yürütme Bekleniyor" card, and only for a sealed owner
++   * APPROVE. A legacy `decideAyasApproval`-approved proposal is `false` here
++   * and keeps its ordinary "YÜRÜT" on its timeline card; this flag is what
++   * lets the UI place the two differently without a client-side flag.
+    */
+   readonly ownerApprovedPendingExecution: boolean;
+ }
+diff --git a/src/lib/brain/autonomy/AyasExactProposalSafety.ts b/src/lib/brain/autonomy/AyasExactProposalSafety.ts
+index ac5b816..25e2f90 100644
+--- a/src/lib/brain/autonomy/AyasExactProposalSafety.ts
++++ b/src/lib/brain/autonomy/AyasExactProposalSafety.ts
+@@ -13,6 +13,19 @@ import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./Aya
+ import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest } from "./AyasResearchExperimentRegistry";
+ import { createAyasResearchExperimentStore, resolveAyasResearchImprovementRoot, type AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
+ 
++/** Fixed, read-only Git probes for the owner-visible exact snapshot. No arbitrary command adapter. */
++export function readAyasExactPreviewSource(repoRoot: string, baseHead: string, files: readonly { readonly filePath: string; readonly expectedHash: string | null }[]): readonly (string | null)[] {
++  if (!/^[0-9a-f]{40}$/.test(baseHead) || !files.length || files.some(file => !file.filePath || file.filePath.includes("..") || file.filePath.includes("\\")
++    || path.posix.isAbsolute(file.filePath) || !/^(?:src|app|scripts)\//.test(file.filePath))) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
++  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 4_000_000 });
++  if (git("rev-parse", "HEAD").trim() !== baseHead || git("status", "--porcelain").trim()) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
++  return files.map(file => {
++    if (file.expectedHash !== null) return git("show", `${baseHead}:${file.filePath}`);
++    if (git("ls-tree", "--name-only", baseHead, "--", file.filePath).trim()) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
++    return null;
++  });
++}
++
+ /** Keeps the path classifier authoritative while proving only one immutable reviewed replacement. */
+ export function verifyAyasExactProposalSafety(proposal: Pick<AyasInboxProposal,
+   "baseHead" | "exactFiles" | "safetyClassification" | "mutationKind" | "patchArtifactId" | "patchHash" | "exactPatchSafetyProof">,
+diff --git a/src/lib/brain/autonomy/AyasOwnerExactPreview.ts b/src/lib/brain/autonomy/AyasOwnerExactPreview.ts
+new file mode 100644
+index 0000000..3be8248
+--- /dev/null
++++ b/src/lib/brain/autonomy/AyasOwnerExactPreview.ts
+@@ -0,0 +1,91 @@
++import crypto from "node:crypto";
++import path from "node:path";
++import { resolveAccessGate } from "../../auth/accessGate";
++import type { AyasInboxProposal, AyasInboxDecisionRecord } from "./AyasApprovalInboxStore";
++import { isAyasApprovalDecisionOwnerAdmitted } from "./AyasOwnerApprovalAdmission";
++import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
++import { readAyasExactPreviewSource, verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
++import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
++import { createAyasResearchExperimentStore, resolveAyasResearchImprovementRoot, type AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
++import type { AyasOwnerExactPreview, AyasOwnerExactPreviewBinding } from "./AyasOwnerExactPreviewContract";
++
++const TTL_MS = 5 * 60 * 1000;
++const sha = (value: string) => crypto.createHash("sha256").update(value).digest("hex");
++function canonical(value: unknown): string {
++  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
++  if (value && typeof value === "object") return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}`;
++  return JSON.stringify(value);
++}
++function seal(binding: Omit<AyasOwnerExactPreviewBinding, "seal">): string {
++  const gate = resolveAccessGate();
++  if (gate.mode !== "enforced" || !gate.key) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
++  return crypto.createHmac("sha256", gate.key).update(`ayas-owner-exact-preview:v1\n${canonical(binding)}`).digest("hex");
++}
++export interface AyasOwnerExactPreviewOptions {
++  readonly repoRoot?: string;
++  readonly artifactStore?: AyasPatchArtifactStore;
++  readonly experimentStore?: AyasResearchExperimentStore;
++  readonly now?: number;
++  /** Only the existing service's pre-write check accepts its reserved proposal. */
++  readonly reserved?: boolean;
++}
++
++/** Read-only derivation. Missing/corrupt/dirty/stale/unattributed inputs produce no preview. */
++export function loadAyasOwnerExactPreview(proposal: AyasInboxProposal, approval: AyasInboxDecisionRecord | undefined,
++  options: AyasOwnerExactPreviewOptions = {}): AyasOwnerExactPreview | undefined {
++  try {
++    const repoRoot = options.repoRoot ?? process.cwd();
++    if (proposal.mutationKind !== "patch-artifact:v1" || proposal.safetyClassification !== "SAFE"
++      || proposal.status !== (options.reserved ? "RESERVED" : "APPROVED") || !proposal.patchArtifactId || !proposal.patchHash
++      || !/^[A-Za-z0-9_-]{1,200}$/.test(proposal.patchArtifactId) || !/^[0-9a-f]{64}$/.test(proposal.patchHash)
++      || !/^[0-9a-f]{40}$/.test(proposal.baseHead)
++      || !isAyasApprovalDecisionOwnerAdmitted(approval, proposal) || approval?.finalizedAt || approval?.authorizationConsumedAt
++      || (!options.reserved && approval?.reservedAt)) return undefined;
++    const store = options.artifactStore ?? createAyasPatchArtifactStore({ rootDir: path.join(repoRoot, "data/brain/self-improvement/patch-artifacts") });
++    const artifact = store.loadVerified(proposal.patchArtifactId);
++    if (artifact.artifactId !== proposal.patchArtifactId || artifact.patchHash !== proposal.patchHash || artifact.baseHead !== proposal.baseHead
++      || artifact.safetyClassification !== "SAFE" || canonical(artifact.exactFiles) !== canonical(proposal.exactFiles)
++      || !artifact.replacements.length || artifact.replacements.length !== proposal.exactFiles.length
++      || artifact.replacements.some((file, i) => file.filePath !== proposal.exactFiles[i])
++      || !artifact.validatorScripts.length || !artifact.sandboxValidationSummary.length || !artifact.graphifyEvidence.length
++      || canonical(artifact.validatorScripts) !== canonical(proposal.testsPlanned)
++      || artifact.graphifyEvidence.some(item => !proposal.graphifyEvidence.includes(item))) return undefined;
++    const classification = classifyPatchSet(proposal.exactFiles).level;
++    if (classification === "FORBIDDEN_AUTONOMOUS") return undefined;
++    const experiments = options.experimentStore ?? createAyasResearchExperimentStore({ rootDir: resolveAyasResearchImprovementRoot(repoRoot) });
++    const proof = proposal.exactPatchSafetyProof;
++    if ((classification === "REVIEW_REQUIRED" || proof) && !verifyAyasExactProposalSafety(proposal, { repoRoot, artifactStore: store, experimentStore: experiments })) return undefined;
++    const evidence = proof ? experiments.readEvidence(proof.evidenceHash) : { graphify: artifact.graphifyEvidence, sandbox: artifact.sandboxValidationSummary, validators: artifact.validatorScripts };
++    const record = proof ? experiments.readExperiment(proof.experimentId) : null;
++    if (!evidence) return undefined;
++    const beforeContents = readAyasExactPreviewSource(repoRoot, proposal.baseHead, artifact.replacements);
++    const files = artifact.replacements.map((file, i) => {
++      const before = beforeContents[i]!;
++      if (before !== null && sha(before) !== file.expectedHash) throw new Error("EXACT_PREVIEW_UNAVAILABLE");
++      return { filePath: file.filePath, before, after: file.content };
++    });
++    const evidenceIdentity = proof ? proof.evidenceHash : sha(canonical(evidence));
++    const proposalMaterial = Object.fromEntries(Object.entries(proposal).filter(([field]) => field !== "status" && field !== "lastUpdatedAt"));
++    const snapshotDigest = sha(canonical({ artifact, files, evidence, record, proposal: proposalMaterial, proposalHash: proposal.proposalHash,
++      baseHead: proposal.baseHead, exactFiles: proposal.exactFiles, scope: proposal.expectedDiffScope, evidenceIdentity,
++      approval: { decisionId: approval!.decisionId, decidedAt: approval!.decidedAt, ownerDecisionSeal: approval!.ownerDecisionSeal } }));
++    const issued = options.now ?? Date.now();
++    const binding = { schema: "ayas-owner-exact-preview:v1" as const, proposalId: proposal.proposalId, proposalHash: proposal.proposalHash,
++      artifactId: artifact.artifactId, patchHash: artifact.patchHash, baseHead: proposal.baseHead, snapshotDigest,
++      issuedAt: new Date(issued).toISOString(), expiresAt: new Date(issued + TTL_MS).toISOString() };
++    return { binding: { ...binding, seal: seal(binding) }, files, exactFiles: artifact.exactFiles, evidenceIdentity,
++      evidenceStatus: "VERIFIED", validationSummary: artifact.sandboxValidationSummary };
++  } catch { return undefined; }
++}
++
++export function assertAyasOwnerExactPreview(binding: AyasOwnerExactPreviewBinding | undefined, proposal: AyasInboxProposal,
++  approval: AyasInboxDecisionRecord | undefined, options: AyasOwnerExactPreviewOptions = {}): void {
++  const now = options.now ?? Date.now();
++  if (!binding || binding.schema !== "ayas-owner-exact-preview:v1" || !/^[0-9a-f]{64}$/.test(binding.seal)
++    || !Number.isFinite(Date.parse(binding.issuedAt)) || Date.parse(binding.issuedAt) > now
++    || Date.parse(binding.expiresAt) !== Date.parse(binding.issuedAt) + TTL_MS || Date.parse(binding.expiresAt) <= now) throw new Error("EXACT_PREVIEW_REQUIRED");
++  const { seal: suppliedSeal, ...material } = binding;
++  if (!crypto.timingSafeEqual(Buffer.from(suppliedSeal, "hex"), Buffer.from(seal(material), "hex"))) throw new Error("EXACT_PREVIEW_CHANGED");
++  const fresh = loadAyasOwnerExactPreview(proposal, approval, { ...options, now: Date.parse(binding.issuedAt) });
++  if (!fresh || canonical(fresh.binding) !== canonical(binding)) throw new Error("EXACT_PREVIEW_CHANGED");
++}
+diff --git a/src/lib/brain/autonomy/AyasOwnerExactPreviewContract.ts b/src/lib/brain/autonomy/AyasOwnerExactPreviewContract.ts
+new file mode 100644
+index 0000000..a9e6c8d
+--- /dev/null
++++ b/src/lib/brain/autonomy/AyasOwnerExactPreviewContract.ts
+@@ -0,0 +1,33 @@
++/** Client-safe data only. A preview seal grants no execution authority. */
++export interface AyasOwnerExactPreviewBinding {
++  readonly schema: "ayas-owner-exact-preview:v1";
++  readonly proposalId: string;
++  readonly proposalHash: string;
++  readonly artifactId: string;
++  readonly patchHash: string;
++  readonly baseHead: string;
++  readonly snapshotDigest: string;
++  readonly issuedAt: string;
++  readonly expiresAt: string;
++  readonly seal: string;
++}
++
++export interface AyasOwnerExactPreview {
++  readonly binding: AyasOwnerExactPreviewBinding;
++  readonly exactFiles: readonly string[];
++  readonly files: readonly { readonly filePath: string; readonly before: string | null; readonly after: string }[];
++  readonly evidenceIdentity: string;
++  readonly evidenceStatus: "VERIFIED";
++  readonly validationSummary: readonly string[];
++}
++
++/** The acknowledgement belongs to the rendered snapshot, never to a proposal id alone. */
++export function ayasOwnerExactPreviewAcknowledged(preview: AyasOwnerExactPreview | undefined, reviewedSeal: string | null,
++  proposal: { readonly proposalId: string; readonly proposalHash: string; readonly patchArtifactId?: string; readonly patchHash?: string; readonly baseHead: string; readonly exactFiles: readonly string[] }, now = Date.now()): boolean {
++  return !!preview && preview.evidenceStatus === "VERIFIED" && reviewedSeal === preview.binding.seal
++    && preview.binding.proposalId === proposal.proposalId && preview.binding.proposalHash === proposal.proposalHash
++    && preview.binding.artifactId === proposal.patchArtifactId && preview.binding.patchHash === proposal.patchHash
++    && preview.binding.baseHead === proposal.baseHead && JSON.stringify(preview.exactFiles) === JSON.stringify(proposal.exactFiles)
++    && preview.files.length === proposal.exactFiles.length && preview.files.every((file, i) => file.filePath === proposal.exactFiles[i])
++    && Date.parse(preview.binding.issuedAt) <= now && Date.parse(preview.binding.expiresAt) > now;
++}
+diff --git a/src/lib/brain/autonomy/AyasOwnerExactPreviewInbox.ts b/src/lib/brain/autonomy/AyasOwnerExactPreviewInbox.ts
+new file mode 100644
+index 0000000..3b0bf77
+--- /dev/null
++++ b/src/lib/brain/autonomy/AyasOwnerExactPreviewInbox.ts
+@@ -0,0 +1,21 @@
++import { buildAyasApprovalInboxView, type AyasApprovalInboxView } from "./AyasApprovalInboxView";
++import { readAyasApprovalInboxState, type AyasApprovalInboxReadState } from "./AyasApprovalInboxReader";
++import { readAyasPublicationActivity, AYAS_PUBLICATION_ACTIVITY_UNKNOWN, type AyasPublicationActivitySnapshot } from "./AyasPublicationActivity";
++import type { AyasInboxProposal, AyasInboxDecisionRecord } from "./AyasApprovalInboxStore";
++import { loadAyasOwnerExactPreview, type AyasOwnerExactPreviewOptions } from "./AyasOwnerExactPreview";
++/** Owner-only enrichment. The shared chat/status projection gains no Git/evidence probe import. */
++export function buildAyasOwnerPreviewInboxView(state: AyasApprovalInboxReadState, now = new Date().toISOString(),
++  activity: AyasPublicationActivitySnapshot = AYAS_PUBLICATION_ACTIVITY_UNKNOWN, options: AyasOwnerExactPreviewOptions = {}): AyasApprovalInboxView {
++  const base = buildAyasApprovalInboxView(state, now, activity);
++  const enrich = (entry: AyasApprovalInboxView["today"][number]) => {
++    const proposal = state.proposals.find(p => p.proposalId === entry.proposalId);
++    const decision = [...state.decisions].reverse().find(d => d.proposalId === entry.proposalId);
++    return { ...entry, exactPreview: proposal ? loadAyasOwnerExactPreview(proposal as AyasInboxProposal, decision as AyasInboxDecisionRecord | undefined, options) : undefined };
++  };
++  return { ...base, pending: base.pending.map(enrich), today: base.today.map(enrich), history: base.history.map(enrich) };
++}
++
++export function loadAyasOwnerPreviewInboxView(): AyasApprovalInboxView {
++  try { return buildAyasOwnerPreviewInboxView(readAyasApprovalInboxState(), new Date().toISOString(), readAyasPublicationActivity()); }
++  catch { return { connected: false, pending: [], today: [], history: [], error: "Owner önizlemesi okunamadı." }; }
++}
+diff --git a/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts b/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts
+index 0c84e7a..abc1a34 100644
+--- a/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts
++++ b/src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts
+@@ -18,25 +18,53 @@ import { evaluateAyasInternalDecision } from "./AyasInternalDecision";
+ import { buildAyasOwnerApprovalRequest, type AyasOwnerApprovalRequest } from "./AyasOwnerApprovalRequest";
+ import { bindAyasOwnerApproval, type AyasApprovalBindingSnapshot } from "./AyasApprovalBinding";
+ import { isAyasOwnerApprovedDecisionReason } from "./AyasOwnerApprovalProvenance";
++import { isAyasApprovalDecisionOwnerAdmitted } from "./AyasOwnerApprovalAdmission";
++
++/**
++ * What the owner's ONAYLA will actually do, so the confirmation text never
++ * promises more than happens. Mirrors the branch order of
++ * `AyasAutonomousExecutionGate.decideAyasOwnerApproval`: an exact reviewed
++ * patch is only ever recorded for local governed execution, and with live
++ * execution off every APPROVE is only recorded. Display only — the gate
++ * re-decides on the click and remains the authority.
++ */
++export type AyasOwnerAfterApproval = "EXECUTES_AND_PUBLISHES" | "WAITS_FOR_MANUAL_EXECUTE";
+ 
+ export interface AyasOwnerRecommendation {
+   readonly request: AyasOwnerApprovalRequest;
+   readonly binding: AyasApprovalBindingSnapshot;
++  readonly afterApproval: AyasOwnerAfterApproval;
+ }
+ 
+ /**
+- * A proposal the owner already durably APPROVED while live execution was
+- * off — Step 3/4 of the durable one-click correction. Shown as a plain,
+- * non-actionable "ONAYLANDI" card: no ONAYLA, no REJECT, no VAZGEÇ, because
+- * the owner's decision already happened and is already durably recorded.
+- * `AyasOwnerApprovalResume.ts` is what later turns this into a real
+- * execution once `AYAS_AUTONOMOUS_EXECUTION_ENABLED` is set — never a second
+- * click here.
++ * Same test as `AyasAutonomousExecutionGate.isAyasAutonomousExecutionEnabled`,
++ * kept local so this read-only view does not import the gate and, through
++ * it, the execution/publication services. A smoke compares the two.
++ */
++export function isAyasLiveExecutionEnabledForDisplay(env: Record<string, string | undefined> = process.env): boolean {
++  return env.AYAS_AUTONOMOUS_EXECUTION_ENABLED === "1";
++}
++
++export function ayasOwnerAfterApproval(proposal: { readonly exactPatchSafetyProof?: unknown }, env: Record<string, string | undefined> = process.env): AyasOwnerAfterApproval {
++  return !proposal.exactPatchSafetyProof && isAyasLiveExecutionEnabledForDisplay(env) ? "EXECUTES_AND_PUBLISHES" : "WAITS_FOR_MANUAL_EXECUTE";
++}
++
++/**
++ * A proposal the owner durably APPROVED through the owner-approval model that
++ * has not run yet: an exact reviewed patch (always local governed execution),
++ * or any APPROVE recorded while live execution was off. Nothing resumes it
++ * automatically (owner policy 2026-10-08: no automatic resume, a fresh manual
++ * EXECUTE is required). The card offers the manual YÜRÜT only when
++ * `manualExecution` is `AVAILABLE`, i.e. the APPROVE carries a sealed owner
++ * admission for exactly this proposal and hash — the same check
++ * `executeAyasApprovedProposal` makes before executing. An older or
++ * unattributed APPROVE is `OWNER_ADMISSION_MISSING` and is never offered.
+  */
+ export interface AyasOwnerPendingExecutionEntry {
+   readonly proposalId: string;
+   readonly wantsTo: string;
+   readonly approvedAt: string;
++  readonly manualExecution: "AVAILABLE" | "OWNER_ADMISSION_MISSING";
+ }
+ 
+ export interface AyasOwnerRecommendationsView {
+@@ -46,7 +74,12 @@ export interface AyasOwnerRecommendationsView {
+   readonly pendingExecution: readonly AyasOwnerPendingExecutionEntry[];
+ }
+ 
+-export function loadAyasOwnerRecommendationsView(inbox: AyasApprovalInboxHandle = createAyasApprovalInboxStore()): AyasOwnerRecommendationsView {
++/** A verification error must not disconnect the whole view; it only withholds YÜRÜT. */
++function ownerAdmittedForDisplay(...args: Parameters<typeof isAyasApprovalDecisionOwnerAdmitted>): boolean {
++  try { return isAyasApprovalDecisionOwnerAdmitted(...args); } catch { return false; }
++}
++
++export function loadAyasOwnerRecommendationsView(inbox: AyasApprovalInboxHandle = createAyasApprovalInboxStore(), env: Record<string, string | undefined> = process.env): AyasOwnerRecommendationsView {
+   try {
+     const now = new Date().toISOString();
+     const state = inbox.load();
+@@ -56,14 +89,19 @@ export function loadAyasOwnerRecommendationsView(inbox: AyasApprovalInboxHandle
+       if (proposal.status === "APPROVED") {
+         const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposal.proposalId && d.decision === "APPROVE");
+         if (isAyasOwnerApprovedDecisionReason(decision?.reason)) {
+-          pendingExecution.push({ proposalId: proposal.proposalId, wantsTo: proposal.objective || "belirtilmemiş bir geliştirme", approvedAt: decision?.decidedAt ?? proposal.lastUpdatedAt });
++          pendingExecution.push({
++            proposalId: proposal.proposalId,
++            wantsTo: proposal.objective || "belirtilmemiş bir geliştirme",
++            approvedAt: decision?.decidedAt ?? proposal.lastUpdatedAt,
++            manualExecution: ownerAdmittedForDisplay(decision, proposal) ? "AVAILABLE" : "OWNER_ADMISSION_MISSING",
++          });
+         }
+         continue;
+       }
+       if (proposal.status !== "PENDING") continue;
+       const decision = evaluateAyasInternalDecision(proposal);
+       if (decision.decision !== "RECOMMEND_FOR_APPROVAL" || !decision.executable) continue;
+-      recommendations.push({ request: buildAyasOwnerApprovalRequest(proposal, decision), binding: bindAyasOwnerApproval(proposal, now) });
++      recommendations.push({ request: buildAyasOwnerApprovalRequest(proposal, decision), binding: bindAyasOwnerApproval(proposal, now), afterApproval: ayasOwnerAfterApproval(proposal, env) });
+     }
+     return { connected: true, recommendations, pendingExecution };
+   } catch (error) {
+diff --git a/src/lib/brain/autonomy/AyasProposalExecutionService.ts b/src/lib/brain/autonomy/AyasProposalExecutionService.ts
+index 1c96f95..f1a3eba 100644
+--- a/src/lib/brain/autonomy/AyasProposalExecutionService.ts
++++ b/src/lib/brain/autonomy/AyasProposalExecutionService.ts
+@@ -11,6 +11,8 @@ import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
+ import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
+ import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
+ import { reconcileAyasStaleProposals } from "./AyasProposalStaleness";
++import { assertAyasOwnerExactPreview } from "./AyasOwnerExactPreview";
++import type { AyasOwnerExactPreviewBinding } from "./AyasOwnerExactPreviewContract";
+ 
+ /**
+  * The one real Package C execution entrypoint (M15), factored out of the
+@@ -36,6 +38,7 @@ export class AyasProposalExecutionError extends Error {
+ }
+ 
+ export interface AyasProposalExecutionDeps {
++  readonly ownerPreview?: AyasOwnerExactPreviewBinding;
+   /** Fresh verified owner action for this exact execution; never restored from durable consent. */
+   readonly executionOwnerAdmission?: AyasOwnerAdmission;
+   readonly repoRoot: string;
+@@ -68,6 +71,24 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps:
+   if (proposal.status !== "APPROVED") throw new AyasProposalExecutionError("NOT_APPROVED", `proposal status is ${proposal.status}`);
+   if (proposal.safetyClassification !== "SAFE" || !isAyasProposalApprovalReady(proposal)) throw new AyasProposalExecutionError("NOT_READY", "proposal is not SAFE/approval-ready");
+ 
++  // Preserve the owner-visible snapshot across every asynchronous boundary.
++  const preview = deps.ownerPreview ? JSON.parse(JSON.stringify(deps.ownerPreview)) as AyasOwnerExactPreviewBinding : undefined;
++  // The existing non-exact publication lane has its separate one-click review
++  // contract. Exact reviewed patches can never use that lane; manual local
++  // patch execution always carries this additional preview requirement.
++  const previewRequired = proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND
++    && (!deps.deferredPublication || !!proposal.exactPatchSafetyProof) && (deps.inbox.requiresOwnerAdmission || !!deps.executionOwnerAdmission || !!preview);
++  const revalidatePreview = (reserved = false) => {
++    if (!previewRequired) return;
++    const state = deps.inbox.load();
++    const current = state.proposals.find(entry => entry.proposalId === proposalId);
++    const approval = [...state.decisions].reverse().find(entry => entry.proposalId === proposalId && entry.decision === "APPROVE");
++    if (!current) throw new AyasProposalExecutionError("EXACT_PREVIEW_CHANGED", "EXACT_PREVIEW_CHANGED");
++    assertAyasOwnerExactPreview(preview, current, approval, { repoRoot: deps.repoRoot, artifactStore: deps.patchArtifactStore,
++      experimentStore: deps.exactExperimentStore, reserved });
++  };
++  revalidatePreview();
++
+   let mutation;
+   try {
+     mutation = proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND
+@@ -108,6 +129,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps:
+     repoClean,
+     ...(deps.deferredPublication ? { deferredPublication: true, onDeferredReceipt: (value) => { receipt = value; } } : {}),
+     applyWhileExecuting: async () => {
++      revalidatePreview(true);
+       const run = await mutation.run(deps.repoRoot);
+       return { changedFiles: run.changedFiles, diffFingerprint: "", testsRun: run.testsRun, testResults: run.testResults };
+     },
