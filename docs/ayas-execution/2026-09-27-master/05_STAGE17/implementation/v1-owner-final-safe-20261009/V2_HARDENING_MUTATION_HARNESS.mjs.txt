@@ -1,0 +1,40 @@
+// Mutation check for the Gelişim Merkezi owner-execute candidate. Runs only in the TEMP clone given as argv[2].
+// Each mutant removes one protection (or restores the old defect); the suite must fail (KILLED).
+// Original bytes are restored and SHA-verified after every mutant.
+import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+const repo = argv2();
+function argv2() { const r = process.argv[2]; if (!r || !fs.existsSync(path.join(r, "package.json"))) throw new Error("usage: node harness.mjs <temp-repo>"); return r; }
+const RESUME = "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts";
+const DAEMON = "src/lib/brain/autonomy/AyasAutonomyDaemon.ts";
+const EXEC = "src/lib/brain/autonomy/AyasProposalExecutionService.ts";
+const SUITE = "scripts/smoke-ayas-owner-approval-resume-v2-hardening.ts";
+
+const mutants = JSON.parse(fs.readFileSync(process.argv[3], "utf8")).map((m) => ({ ...m, file: { RESUME, DAEMON, EXEC }[m.file] }));
+
+const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
+const results = [];
+for (const m of mutants) {
+  const abs = path.join(repo, m.file);
+  const original = fs.readFileSync(abs);
+  const before = sha(original);
+  const text = original.toString("utf8");
+  if (text.split(m.from).length !== 2) { results.push({ id: m.id, what: m.what, outcome: "NOT_APPLIED_PATTERN_COUNT_" + (text.split(m.from).length - 1) }); continue; }
+  fs.writeFileSync(abs, text.replace(m.from, m.to));
+  let outcome = "SURVIVED"; let tail = "";
+  try {
+    execFileSync(process.execPath, [path.join(repo, "node_modules", "tsx", "dist", "cli.mjs"), SUITE], { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 900_000, env: process.env });
+  } catch (error) {
+    outcome = "KILLED";
+    tail = String(error.stderr || error.stdout || error.message).split("\n").find((l) => /AssertionError|Error:|PASS \d+/.test(l))?.slice(0, 160) ?? "";
+  } finally {
+    fs.writeFileSync(abs, original);
+  }
+  const restored = sha(fs.readFileSync(abs)) === before;
+  results.push({ id: m.id, what: m.what, file: m.file, outcome, restored, firstFailure: tail });
+  if (!restored) throw new Error(`restore failed for ${m.id}`);
+}
+console.log(JSON.stringify({ suite: SUITE, mutants: results.length, killed: results.filter((r) => r.outcome === "KILLED").length, results }, null, 1));

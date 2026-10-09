@@ -1,0 +1,10 @@
+{"probe":"EXACT_PREVIEW_RENDER_ONLY_NO_EXECUTION","ownerAdmission":"AVAILABLE","artifactPreviewMissing":true,"yurutVisible":true,"headVisible":false}
+AssertionError [ERR_ASSERTION]: owner condition: no exact YÜRÜT when verified preview is missing
+    at main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-temp\scripts\owner-final-preview-probe.ts:165:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'n type="button" class="bc-btn">YÜRÜT</button></div>...',
+  expected: />YÜRÜT</,
+  operator: 'doesNotMatch',
+  diff: 'simple'
+}

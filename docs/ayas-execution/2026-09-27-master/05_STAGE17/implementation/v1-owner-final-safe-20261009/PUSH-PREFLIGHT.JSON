@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-09T04:02:41.899Z",
+  "head": "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+  "base": "ad6c2a99a6c49e7e3c11b02c441a01138542db53",
+  "changedFiles": 45,
+  "packetHashesVerified": 39,
+  "secretPatterns": 0,
+  "linesScanned": 2515,
+  "integrity": {
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "graphHead": "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+  "worktree": "CLEAN"
+}

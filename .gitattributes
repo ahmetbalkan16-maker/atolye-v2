@@ -58,3 +58,8 @@ docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2r
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009/*.raw.json -text -diff
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009/*.patch -text -diff
 docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-devcenter-v2review-20261009/*.txt -text -diff
+
+# Owner conditional closure: preserve only this evidence packet's capture bytes.
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-final-safe-20261009/*.log -text -diff
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-final-safe-20261009/*.txt -text -diff
+docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-final-safe-20261009/*.[jJ][sS][oO][nN] -text -diff

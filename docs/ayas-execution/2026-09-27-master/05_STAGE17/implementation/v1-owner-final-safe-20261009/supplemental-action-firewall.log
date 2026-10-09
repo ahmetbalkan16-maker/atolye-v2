@@ -1,0 +1,55 @@
+PASS 1: exact scope is persisted before admission, owner marker grants no identity
+PASS 2: same request and clock still produce unique audit execution identities
+PASS 3: process validation is bounded local, not pure read
+PASS 4: writes and production require owner; unknown financial/network tools denied with zero grants
+PASS 5: model/tool authority fields cannot widen an issued scope
+PASS 6: serialized handle has no authority
+PASS 7: spread handle has no authority
+PASS 8: prototype handle has no authority
+PASS 9: fake id handle has no authority
+PASS 10: other task/run and recreated firewall reject even a genuine object
+PASS 11: changed file refused without consuming original
+PASS 12: changed action refused without consuming original
+PASS 13: changed caller marker refused without consuming original
+PASS 14: changed project refused without consuming original
+PASS 15: intent remains audit text outside canonical authority binding
+PASS 16: exact expiry boundary denies and durably expires
+PASS 17: revocation survives a new store and cannot settle an unused grant
+PASS 18: consumed grant replay rejected in-process even if durable state is maliciously rewound
+PASS 19: recomputed persisted digests cannot widen the server-captured lease
+PASS 20: recomputed persisted digests cannot widen the server-captured lease
+PASS 21: revocation after admission remains revoked when outcome settles
+PASS 22: live revocation cannot be undone by restoring an old persisted record
+PASS 23: backwards and invalid admission clocks fail closed
+PASS 24: persisted TTL widening cannot extend live handle
+PASS 25: scope run tamper rejected by store
+PASS 26: scope task tamper rejected by store
+PASS 27: scope agent tamper rejected by store
+PASS 28: scope owner tamper rejected by store
+PASS 29: scope delegation tamper rejected by store
+PASS 30: scope cost tamper rejected by store
+PASS 31: scope extra capability tamper rejected by store
+PASS 32: scope wildcard tamper rejected by store
+PASS 33: scope unknown schema tamper rejected by store
+PASS 34: scope unknown field tamper rejected by store
+PASS 35: resource repository cannot reuse lease
+PASS 36: resource platform cannot reuse lease
+PASS 37: resource resource root cannot reuse lease
+PASS 38: resource request digest cannot reuse lease
+PASS 39: resource project cannot reuse lease
+PASS 40: legacy grant cannot become a capability by attaching text
+PASS 41: stripping persisted scope cannot downgrade a live capability to legacy
+PASS 42: malformed persisted time fails closed instead of a NaN immortal grant
+PASS 43: scope parser denies absent classification, unknown capability and arrays
+PASS 44: TTL configuration is finite positive capped integer
+PASS 45: unknown project storage authority is never inferred from repository root
+PASS 46: adapter storage root drift invalidates admission
+PASS 47: grant audit persistence failure yields no handle
+PASS 48: contended durable mutation lock refuses admission before effect
+PASS 49: two fresh Node processes cannot both consume one durable grant
+PASS 50: native read pins additional physical roots and cannot accept a changed dependency
+PASS 51: native read scope rejects duplicate/network/empty/unknown dependency roots
+PASS 52: old scopes keep their canonical audit representation without added roots
+PASS 53: 15F: the durable record keeps identifiers and never the user's words
+PASS 54: 15F: a body field is never kept, a secret-shaped token is never kept, a code label is
+Stage 15D action firewall: PASS (54 scenarios; TEMP only; network/model/production actions 0)

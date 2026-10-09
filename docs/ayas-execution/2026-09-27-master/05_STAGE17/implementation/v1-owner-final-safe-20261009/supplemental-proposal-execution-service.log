@@ -1,0 +1,31 @@
+PASS 1: nonexistent proposalId is rejected with zero side effects
+PASS 2: status PENDING is blocked with zero side effects
+PASS 3: status REJECTED is blocked with zero side effects
+PASS 4: status DEFERRED is blocked with zero side effects
+PASS 5: status STALE is blocked with zero side effects
+PASS 6: status ABANDONED is blocked with zero side effects
+PASS 7: status COMPLETED is blocked with zero side effects
+PASS 8: status RESERVED is blocked with zero side effects
+PASS 9: status RECOVERY_REQUIRED is blocked with zero side effects
+PASS 10: status FAILED is blocked with zero side effects
+PASS 11: REVIEW_REQUIRED safety classification is blocked even if status were APPROVED
+PASS 12: unknown mutationKind is blocked before any reservation/gate activity
+PASS 13: registry exactFiles scope mismatch is blocked before any reservation/gate activity
+PASS 14: M16: stale baseHead (repo advanced) is blocked, durably marked STALE, and no reservation is ever created
+PASS 15: M16: a proposal marked STALE by a prior execution attempt cannot be executed again, and a fresh commit does not resurrect it
+PASS 16: M16: a PENDING (never-approved) proposal whose baseHead is already stale is also reconciled to STALE by an execution attempt against a sibling proposal
+PASS 17: dirty working tree is blocked, no mutation attempted
+PASS 18: isolated gate root is never the real production root
+PASS 19: passing the real production root as gateRoot is structurally refused
+PASS 20: successful execution stays within exactFiles and is durably completed
+PASS 21: global historical gate is never touched by a real execution
+PASS 22: callback (mutation implementation) is invoked exactly once per execution
+PASS 23: re-executing the same proposalId after COMPLETED is rejected (one-shot, no double execution)
+PASS 24: a mutation that writes outside its declared exactFiles surfaces UNAUTHORIZED_MUTATION and finalizes RECOVERY_REQUIRED
+PASS 25: RECOVERY_REQUIRED is never automatically retried by a later call with the same proposalId
+PASS 26: malformed proposalId input is rejected before any store read
+PASS 27: two different APPROVED proposals execute independently
+PASS 28: concurrent double-invocation of the same proposalId is serialized, only one succeeds
+PASS 29: M16: AyasProposalStaleness.ts imports no execution/gate/mutation authority module (structurally cannot reserve, execute, or open a gate)
+AYAS proposal execution service smoke: PASS (29 scenarios)
+{"status":"PASS","suite":"ayas-proposal-execution-service","scenarios":29}

@@ -1,0 +1,20 @@
+FAIL: first activity set: one read-only Graphify state read, recorded once per commit
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
++   'SUCCEEDED',
+-   'RETRY_WAIT',
+    []
+  ]
+
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-temp\scripts\smoke-ayas-durable-task-recovery.ts:639:12)
+    at async scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-temp\scripts\smoke-ayas-durable-task-recovery.ts:94:9)
+    at async main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-temp\scripts\smoke-ayas-durable-task-recovery.ts:567:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [Array],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

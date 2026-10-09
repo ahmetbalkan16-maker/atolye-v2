@@ -1,0 +1,37 @@
+PASS 1: route /brain/briefing has retained content inside V2 frame
+PASS 2: route /brain/constitution has retained content inside V2 frame
+PASS 3: route /brain has retained content inside V2 frame
+PASS 4: route /brain/revenue has retained content inside V2 frame
+PASS 5: route /brain/safe-mode has retained content inside V2 frame
+PASS 6: route /brain/voice-lab has retained content inside V2 frame
+PASS 7: route /brain/voice-lab/phone-llm has retained content inside V2 frame
+PASS 8: route /brain/voice-lab/wake has retained content inside V2 frame
+PASS 9: route /login has retained content inside V2 frame
+PASS 10: route /offline has retained content inside V2 frame
+PASS 11: route / has retained content inside V2 frame
+PASS 12: route /project/[slug] has retained content inside V2 frame
+PASS 13: route /research has retained content inside V2 frame
+PASS 14: route /scenes has retained content inside V2 frame
+PASS 15: route /script has retained content inside V2 frame
+PASS 16: route /studio has retained content inside V2 frame
+PASS 17: route /visuals has retained content inside V2 frame
+PASS 18: all fixed top/dock destinations resolve to existing routes and known panels
+PASS 19: brain chat panel remains reachable with identical stateful body
+PASS 20: brain tasks panel remains reachable with identical stateful body
+PASS 21: brain memory panel remains reachable with identical stateful body
+PASS 22: brain autonomous panel remains reachable with identical stateful body
+PASS 23: brain development panel remains reachable with identical stateful body
+PASS 24: brain selfheal panel remains reachable with identical stateful body
+PASS 25: brain research panel remains reachable with identical stateful body
+PASS 26: brain production panel remains reachable with identical stateful body
+PASS 27: brain system panel remains reachable with identical stateful body
+PASS 28: brain learning panel remains reachable with identical stateful body
+PASS 29: brain safety panel remains reachable with identical stateful body
+PASS 30: navigation keeps original callback and adds usable keyboard tabs
+PASS 31: real state colors and labels, error and degraded content survive
+PASS 32: chat/stop and every existing voice control remain accessible
+PASS 33: studio retains real project/pipeline components without fabricated status badges
+PASS 34: new shared shell cannot be changed by an automatic homepage patch
+PASS 35: homepage has no added shell/features and PWA retains exact launch/identity
+PASS 36: CSS has scoped responsive, safe-area, focus and reduced-motion contracts
+{"suite":"ayas-owner-ui-v2","status":"PASS","scenarios":36}

@@ -1,0 +1,120 @@
+warning: in the working copy of 'scripts/smoke-fixture-h05c.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-h05c.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-resume-v2-hardening-knTRzP\remote-KGs4s0
+   b675503..ab0b4cf  master -> master
+PASS 1: H05c SAME EXECUTE clicked twice back-to-back: exactly one publication; the second click is filtered because the proposal already left APPROVED
+warning: in the working copy of 'scripts/smoke-fixture-h05d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-h05d.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-resume-v2-hardening-knTRzP\remote-Yrj4Be
+   cddcfbd..af5f5d5  master -> master
+PASS 2: H05d two DIFFERENT fresh EXECUTEs clicked back-to-back: exactly one publication; the second click is filtered because the proposal already left APPROVED
+warning: in the working copy of 'scripts/smoke-fixture-h05f.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-h05f.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-resume-v2-hardening-knTRzP\remote-6El56h
+   dbe5527..4bc027d  master -> master
+PASS 3: H05f SAME EXECUTE interleaved: the replay starts inside the first click's pre-reservation window and is refused; one publication
+warning: in the working copy of 'scripts/smoke-fixture-h07a.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-h07a.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-resume-v2-hardening-knTRzP\remote-BvZeBA
+   e5abf92..161cd5d  master -> master
+PASS 4: H07 EXECUTE for A publishes only A; B stays APPROVED and byte-identical; B's own EXECUTE is exactly one STALE_APPROVAL attempt
+PASS 5: H10a the EXECUTE session expires after reservation: refused for the owner check at EXECUTION, RECOVERY_REQUIRED, and never replayable
+PASS 6: H10b the sealed APPROVE decision is altered after reservation: refused for the owner check at EXECUTION, RECOVERY_REQUIRED, and never replayable
+warning: in the working copy of 'scripts/smoke-fixture-k3a.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-k3a.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-resume-v2-hardening-knTRzP\remote-yBVqzw
+   d49e1cb..ae7a97b  master -> master
+PASS 7: K3a an EXECUTE whose actionRef is already recorded is filtered by the resume eligibility check — zero attempts, zero effect
+PASS 8: K3b the same replayed actionRef handed straight to the service (bypassing the resume filter) is refused by the owner check — zero effect
+{
+  "status": "PASS",
+  "suite": "ayas-owner-approval-resume-v2-hardening",
+  "scenarios": 8,
+  "notRun": [
+    "cross-process race",
+    "real server restart"
+  ],
+  "rows": [
+    {
+      "id": "H05c",
+      "name": "SAME EXECUTE clicked twice back-to-back: exactly one publication; the second click is filtered because the proposal already left APPROVED",
+      "outcome": "PASS",
+      "attempts": 1,
+      "successful": 1,
+      "commits": 1,
+      "reservations": 1,
+      "secondSawStatus": "RESERVED",
+      "secondAttempts": 0
+    },
+    {
+      "id": "H05d",
+      "name": "two DIFFERENT fresh EXECUTEs clicked back-to-back: exactly one publication; the second click is filtered because the proposal already left APPROVED",
+      "outcome": "PASS",
+      "attempts": 1,
+      "successful": 1,
+      "commits": 1,
+      "reservations": 1,
+      "secondSawStatus": "RESERVED",
+      "secondAttempts": 0
+    },
+    {
+      "id": "H05f",
+      "name": "SAME EXECUTE interleaved: the replay starts inside the first click's pre-reservation window and is refused; one publication",
+      "outcome": "PASS",
+      "firstOk": true,
+      "replayCode": "AYAS_PROPOSAL_STABILITY_GUARD_REFUSED",
+      "replayStage": "STABILITY_GUARD",
+      "commits": 1,
+      "reservations": 1
+    },
+    {
+      "id": "H07",
+      "name": "EXECUTE for A publishes only A; B stays APPROVED and byte-identical; B's own EXECUTE is exactly one STALE_APPROVAL attempt",
+      "outcome": "PASS",
+      "bStatusAfterA": "APPROVED",
+      "bByteIdenticalAfterA": true,
+      "bAttempts": 1,
+      "bCode": "STALE_APPROVAL",
+      "bFinal": "STALE"
+    },
+    {
+      "id": "H10a",
+      "name": "the EXECUTE session expires after reservation: refused for the owner check at EXECUTION, RECOVERY_REQUIRED, and never replayable",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "stage": "EXECUTION",
+      "journal": "RECOVERY_REQUIRED",
+      "finalStatus": "RECOVERY_REQUIRED",
+      "laterReplayAttempts": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "H10b",
+      "name": "the sealed APPROVE decision is altered after reservation: refused for the owner check at EXECUTION, RECOVERY_REQUIRED, and never replayable",
+      "outcome": "PASS",
+      "code": "OWNER_ADMISSION_REQUIRED",
+      "stage": "EXECUTION",
+      "journal": "RECOVERY_REQUIRED",
+      "finalStatus": "RECOVERY_REQUIRED",
+      "laterReplayAttempts": 0,
+      "commits": 0,
+      "pushes": 0
+    },
+    {
+      "id": "K3a",
+      "name": "an EXECUTE whose actionRef is already recorded is filtered by the resume eligibility check — zero attempts, zero effect",
+      "outcome": "PASS",
+      "replayAttempts": 0,
+      "controlAttempts": 1
+    },
+    {
+      "id": "K3b",
+      "name": "the same replayed actionRef handed straight to the service (bypassing the resume filter) is refused by the owner check — zero effect",
+      "outcome": "PASS",
+      "serviceCode": "OWNER_ADMISSION_REQUIRED",
+      "reserved": false
+    }
+  ]
+}
+AYAS owner-approval resume V2 hardening smoke: PASS (8 scenarios)

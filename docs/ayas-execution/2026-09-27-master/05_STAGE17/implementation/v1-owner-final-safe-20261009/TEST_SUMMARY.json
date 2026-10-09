@@ -1,0 +1,266 @@
+{
+  "at": "2026-10-09T04:24:09.726Z",
+  "baseHead": "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+  "tempDependency": "REUSED_FRESH_LOCK_NEXT16.3.8",
+  "mainDependency": "INSTALLED_NEXT16.2.10_UNCHANGED",
+  "main": [
+    {
+      "id": "owner-approval-resume-v2-hardening",
+      "exit": 0,
+      "seconds": 50.672,
+      "log": "main-owner-approval-resume-v2-hardening.log"
+    },
+    {
+      "id": "owner-approval-admission",
+      "exit": 0,
+      "seconds": 10.936,
+      "log": "main-owner-approval-admission.log"
+    },
+    {
+      "id": "owner-approval-resume-v2",
+      "exit": 0,
+      "seconds": 61.264,
+      "log": "main-owner-approval-resume-v2.log"
+    },
+    {
+      "id": "autonomous-execution-gate-v2",
+      "exit": 0,
+      "seconds": 6.143,
+      "log": "main-autonomous-execution-gate-v2.log"
+    },
+    {
+      "id": "proposal-execution-service",
+      "exit": 0,
+      "seconds": 31.527,
+      "log": "main-proposal-execution-service.log"
+    },
+    {
+      "id": "action-firewall-closure",
+      "exit": 0,
+      "seconds": 1.931,
+      "log": "main-action-firewall-closure.log"
+    },
+    {
+      "id": "daemon-authority-boundary",
+      "exit": 0,
+      "seconds": 0.493,
+      "log": "main-daemon-authority-boundary.log"
+    },
+    {
+      "id": "autonomy-observer",
+      "exit": 1,
+      "seconds": 0.222,
+      "log": "main-autonomy-observer.log"
+    },
+    {
+      "id": "publication-activity",
+      "exit": 1,
+      "seconds": 0.206,
+      "log": "main-publication-activity.log"
+    }
+  ],
+  "temp": [
+    {
+      "id": "development-center-owner-execute",
+      "exit": 0,
+      "seconds": 9.123,
+      "log": "temp-development-center-owner-execute.log"
+    },
+    {
+      "id": "owner-approval-resume-v2-hardening",
+      "exit": 0,
+      "seconds": 41.781,
+      "log": "temp-owner-approval-resume-v2-hardening.log"
+    },
+    {
+      "id": "owner-approval-admission",
+      "exit": 0,
+      "seconds": 8.237,
+      "log": "temp-owner-approval-admission.log"
+    },
+    {
+      "id": "owner-approval-resume-v2",
+      "exit": 0,
+      "seconds": 61.694,
+      "log": "temp-owner-approval-resume-v2.log"
+    },
+    {
+      "id": "autonomous-execution-gate-v2",
+      "exit": 0,
+      "seconds": 7.537,
+      "log": "temp-autonomous-execution-gate-v2.log"
+    },
+    {
+      "id": "development-center",
+      "exit": 0,
+      "seconds": 0.456,
+      "log": "temp-development-center.log"
+    },
+    {
+      "id": "owner-recommendations-view",
+      "exit": 0,
+      "seconds": 0.597,
+      "log": "temp-owner-recommendations-view.log"
+    },
+    {
+      "id": "brain-control-center",
+      "exit": 0,
+      "seconds": 6.315,
+      "log": "temp-brain-control-center.log"
+    },
+    {
+      "id": "micro-batch-development-center",
+      "exit": 0,
+      "seconds": 0.337,
+      "log": "temp-micro-batch-development-center.log"
+    },
+    {
+      "id": "homepage-v2",
+      "exit": 0,
+      "seconds": 1.657,
+      "log": "temp-homepage-v2.log"
+    },
+    {
+      "id": "owner-ui-v2",
+      "exit": 0,
+      "seconds": 1.636,
+      "log": "temp-owner-ui-v2.log"
+    },
+    {
+      "id": "proposal-execution-service",
+      "exit": 0,
+      "seconds": 29.625,
+      "log": "supplemental-proposal-execution-service.log"
+    },
+    {
+      "id": "action-firewall",
+      "exit": 0,
+      "seconds": 0.764,
+      "log": "supplemental-action-firewall.log"
+    },
+    {
+      "id": "action-firewall-runtime",
+      "exit": 0,
+      "seconds": 0.61,
+      "log": "supplemental-action-firewall-runtime.log"
+    },
+    {
+      "id": "action-firewall-closure",
+      "exit": 0,
+      "seconds": 1.534,
+      "log": "supplemental-action-firewall-closure.log"
+    },
+    {
+      "id": "guarded-publication",
+      "exit": 0,
+      "seconds": 64.45,
+      "log": "supplemental-guarded-publication.log"
+    },
+    {
+      "id": "owner-capability-firewall",
+      "exit": 0,
+      "seconds": 7.02,
+      "log": "supplemental-owner-capability-firewall.log"
+    },
+    {
+      "id": "daemon-authority-boundary",
+      "exit": 0,
+      "seconds": 0.526,
+      "log": "supplemental-daemon-authority-boundary.log"
+    },
+    {
+      "id": "execution-revalidation-scope-recovery",
+      "exit": 0,
+      "seconds": 5.174,
+      "log": "supplemental-execution-revalidation-scope-recovery.log"
+    },
+    {
+      "id": "exact-patch-safety",
+      "exit": 0,
+      "seconds": 0.355,
+      "log": "supplemental-exact-patch-safety.log"
+    },
+    {
+      "id": "exact-proposal-safety",
+      "exit": 0,
+      "seconds": 3.146,
+      "log": "supplemental-exact-proposal-safety.log"
+    },
+    {
+      "id": "durable-task-recovery",
+      "exit": 0,
+      "seconds": 21.949,
+      "log": "supplemental-durable-task-recovery.log"
+    },
+    {
+      "id": "lifecycle",
+      "exit": 0,
+      "seconds": 1.001,
+      "log": "supplemental-lifecycle.log"
+    },
+    {
+      "id": "approval-durable-state-compatibility",
+      "exit": 0,
+      "seconds": 0.74,
+      "log": "supplemental-approval-durable-state-compatibility.log"
+    },
+    {
+      "id": "publication-activity",
+      "exit": 1,
+      "seconds": 0.247,
+      "log": "supplemental-publication-activity.log"
+    },
+    {
+      "id": "autonomy-observer",
+      "exit": 1,
+      "seconds": 0.283,
+      "log": "supplemental-autonomy-observer.log"
+    },
+    {
+      "id": "devcenter-mutants",
+      "exit": 0,
+      "seconds": 20.834,
+      "log": "supplemental-devcenter-mutants.log"
+    },
+    {
+      "id": "hardening-mutants",
+      "exit": 0,
+      "seconds": 162.209,
+      "log": "supplemental-hardening-mutants.log"
+    }
+  ],
+  "devcenterMutations": {
+    "killed": 10,
+    "total": 10,
+    "restored": true
+  },
+  "hardeningMutations": {
+    "killed": 5,
+    "total": 5,
+    "restored": true
+  },
+  "candidateFilesRestored": 6,
+  "knownOldFailures": [
+    "publication-activity",
+    "autonomy-observer"
+  ],
+  "typeScriptExit": 0,
+  "eslint": {
+    "exit": 0,
+    "errors": 0,
+    "inheritedWarnings": 13
+  },
+  "expectedPreviewProbe": "EXPECTED_FAIL_NO_VERIFIED_PREVIEW_YURUT_VISIBLE_NO_EXECUTION",
+  "intermediateFailures": [
+    "SANDBOX_MSYS_REALPATH_EPERM_INVALID",
+    "INTERRUPTED_TEMP_MUTANT_RECONSTRUCTED_6_HASHES",
+    "TEMP_EXECUTION_TRANSIENT_RENAME_EPERM_THEN_MAIN_AND_TEMP29_PASS",
+    "GENERATED_PROBE_ENTRYPOINT_FIREWALL_REFUSAL_THEN_REMOVED_PASS",
+    "TEMP_PARENT_REPO_DISCOVERY_THEN_OUTSIDE_REPO22_PASS"
+  ],
+  "crossProcessRace": "NOT_RUN",
+  "realRestart": "NOT_RUN",
+  "newHeadFull166": "NOT_RUN_NOT_AUTOMATICALLY_CERTIFIED",
+  "devcenterSourceApplied": false,
+  "grantsAuthority": false
+}

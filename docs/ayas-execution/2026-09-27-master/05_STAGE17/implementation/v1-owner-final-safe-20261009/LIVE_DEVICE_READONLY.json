@@ -1,0 +1,99 @@
+{
+  "observedAt": "2026-10-09T04:21:50.6975062+00:00",
+  "operation": "READ_ONLY_NO_RUNTIME_WRITE_NO_DEPLOY_OR_RESTART",
+  "diskBuildStamp": {
+    "schemaVersion": "1",
+    "gitHead": "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-09T03:48:16.187Z"
+  },
+  "installedNext": "16.2.10",
+  "access": {
+    "observedAt": "2026-10-09T04:20:49.8590362Z",
+    "result": "healthy",
+    "recoveryAction": "none",
+    "originStatus": "healthy",
+    "tunnelStatus": "healthy",
+    "lastHealthyAt": "2026-10-09T04:20:50.7177979Z",
+    "listenerPid": 28928
+  },
+  "recentAccessAudit": [
+    {
+      "observedAt": "2026-10-08T03:45:39.4764132Z",
+      "kind": "attempt",
+      "component": "tunnel",
+      "action": "start",
+      "result": "success",
+      "failureStage": "",
+      "attempt": 16,
+      "oldPid": null,
+      "newPid": 18572
+    },
+    {
+      "observedAt": "2026-10-08T09:54:29.5826385Z",
+      "kind": "attempt",
+      "component": "origin",
+      "action": "start",
+      "result": "success",
+      "failureStage": "",
+      "attempt": 25,
+      "oldPid": null,
+      "newPid": 23856
+    },
+    {
+      "observedAt": "2026-10-09T03:48:19.3483283Z",
+      "kind": "attempt",
+      "component": "origin",
+      "action": "start",
+      "result": "success",
+      "failureStage": "",
+      "attempt": 26,
+      "oldPid": null,
+      "newPid": 15076
+    },
+    {
+      "observedAt": "2026-10-09T03:48:22.607872Z",
+      "kind": "attempt",
+      "component": "tunnel",
+      "action": "start",
+      "result": "success",
+      "failureStage": "",
+      "attempt": 17,
+      "oldPid": null,
+      "newPid": 20716
+    }
+  ],
+  "listeners": [
+    {
+      "LocalPort": 3000,
+      "OwningProcess": 28928
+    }
+  ],
+  "tasks": [
+    {
+      "TaskName": "AYAS Access Online",
+      "State": 4
+    },
+    {
+      "TaskName": "AYAS Autonomy Observer",
+      "State": 4
+    }
+  ],
+  "anonymousHttpObserved": {
+    "runtimeHealth": 401,
+    "studio": 307,
+    "login": 200,
+    "root": 307
+  },
+  "publicAuthenticatedBuildIdentity": "NOT_QUALIFIED",
+  "ownerReported": {
+    "stt": "NOT_RUN",
+    "reconnect": "NOT_RUN",
+    "pcChat": "AYAS -> Anladim",
+    "pcAccess": "PASS_OWNER_REPORTED",
+    "microphone": "NOT_RUN",
+    "phoneAccess": "PASS_OWNER_REPORTED",
+    "tts": "NOT_RUN"
+  }
+}

@@ -1,0 +1,47 @@
+{
+ "suite": "scripts/smoke-ayas-owner-approval-resume-v2-hardening.ts",
+ "mutants": 5,
+ "killed": 5,
+ "results": [
+  {
+   "id": "HM1",
+   "what": "resume eligibility forgets recorded actionRefs (K3 replay filter removed)",
+   "file": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:"
+  },
+  {
+   "id": "HM2",
+   "what": "daemon drops the post-reservation owner re-check",
+   "file": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: a refused attempt"
+  },
+  {
+   "id": "HM3",
+   "what": "daemon ignores recorded actionRefs (K3 replay check at the service removed)",
+   "file": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  },
+  {
+   "id": "HM4",
+   "what": "resume eligibility no longer requires the fresh EXECUTE for this subject",
+   "file": "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:"
+  },
+  {
+   "id": "HM5",
+   "what": "execution service stops reconciling stale proposals before executing",
+   "file": "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  }
+ ]
+}

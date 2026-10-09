@@ -1,0 +1,41 @@
+{
+  "head": "ab11e7785fd4c4d5aa1fcfe4a7a8ec9f86ca96c9",
+  "files": [
+    {
+      "file": "scripts/smoke-ayas-development-center-owner-execute.ts",
+      "expectedGitBlob": "7ad6640",
+      "actualGitBlob": "7ad6640113561dbfe833880e9ff180a95d9f3ab6",
+      "sha256": "697da1d1dcdb6b92bd70205be6143632901828c7c907787a8b8d07ddd60ba866"
+    },
+    {
+      "file": "scripts/smoke-ayas-owner-recommendations-view.ts",
+      "expectedGitBlob": "4cb7807",
+      "actualGitBlob": "4cb78079943a515c3822a854062edb4ede8cea7d",
+      "sha256": "abea6f10d42bf721213d00627edbff819a47e54f3f2d4c0726f7abe0cffbeeb2"
+    },
+    {
+      "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+      "expectedGitBlob": "c71da03",
+      "actualGitBlob": "c71da0373623e65adbab948f6a9df21ccfb666f6",
+      "sha256": "ba285fcef717b48bd4120311e5ca980d82c4dde5843afef29120f53dfc95e133"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
+      "expectedGitBlob": "8191bb9",
+      "actualGitBlob": "8191bb9c2fac425dcdb8b3157fea5cd9d1b60114",
+      "sha256": "240d708ae3d6600cc1517cf4dcdf4ca1375ee952b69a9b2b99db75b7f37e5b3a"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts",
+      "expectedGitBlob": "abc1a34",
+      "actualGitBlob": "abc1a3410861697a34408273baf3c26f97c0d8dd",
+      "sha256": "2418517f4367971083ba8e62abec0d6c81efe7223ead3c6ff07fc9b49a2f4bfa"
+    },
+    {
+      "file": "scripts/smoke-ayas-owner-approval-resume-v2-hardening.ts",
+      "expectedGitBlob": "cc2bf45",
+      "actualGitBlob": "cc2bf45bf4e4cfb6c945325cf010ac92116329bc",
+      "sha256": "8e1dc8db453e84aeeb462418fccc94b293032873f28c1c151613787b093432a8"
+    }
+  ]
+}

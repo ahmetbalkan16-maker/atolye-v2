@@ -1,0 +1,107 @@
+{
+  "at": "2026-10-09T04:16:16.194Z",
+  "mode": "PROPOSAL_ONLY_NO_DELETION",
+  "maxDirectories": 10,
+  "tempRoot": "C:\\Users\\Metod\\AppData\\Local\\Temp\\",
+  "minimumAgeHours": 2,
+  "inventorySummary": {
+    "at": "2026-10-09T07:07:06.9353988+03:00",
+    "mode": "DRY_RUN",
+    "tempRoot": "C:\\Users\\Metod\\AppData\\Local\\Temp\\",
+    "minAgeHours": 2,
+    "runningTestProcesses": 0,
+    "total": 13552,
+    "byOutcome": [
+      {
+        "outcome": "WOULD_DELETE",
+        "count": 13552
+      }
+    ],
+    "keptReasons": []
+  },
+  "selected": [
+    {
+      "name": "ayas-guard-inbox-00240k",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-00240k",
+      "kind": "inbox",
+      "createdAt": "2026-10-02T10:10:34.959Z",
+      "modifiedAt": "2026-10-02T10:10:34.959Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-00VWPC",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-00VWPC",
+      "kind": "inbox",
+      "createdAt": "2026-10-08T16:38:16.892Z",
+      "modifiedAt": "2026-10-08T16:38:16.892Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-01L3j8",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-01L3j8",
+      "kind": "inbox",
+      "createdAt": "2026-09-23T15:10:27.123Z",
+      "modifiedAt": "2026-09-23T15:10:27.123Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-02BbEy",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-02BbEy",
+      "kind": "inbox",
+      "createdAt": "2026-09-22T14:43:34.771Z",
+      "modifiedAt": "2026-09-22T14:43:34.771Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-04lB4A",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-04lB4A",
+      "kind": "inbox",
+      "createdAt": "2026-09-23T15:10:13.831Z",
+      "modifiedAt": "2026-09-23T15:10:13.831Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-06RAv0",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-06RAv0",
+      "kind": "inbox",
+      "createdAt": "2026-10-01T22:44:13.913Z",
+      "modifiedAt": "2026-10-01T22:44:13.913Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-07V647",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-07V647",
+      "kind": "inbox",
+      "createdAt": "2026-10-03T00:16:10.200Z",
+      "modifiedAt": "2026-10-03T00:16:10.200Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-084Q1b",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-084Q1b",
+      "kind": "inbox",
+      "createdAt": "2026-10-08T16:59:14.564Z",
+      "modifiedAt": "2026-10-08T16:59:14.564Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-0b8ZsL",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-0b8ZsL",
+      "kind": "inbox",
+      "createdAt": "2026-09-18T15:48:26.180Z",
+      "modifiedAt": "2026-09-18T15:48:26.180Z",
+      "files": []
+    },
+    {
+      "name": "ayas-guard-inbox-0gcOlG",
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-guard-inbox-0gcOlG",
+      "kind": "inbox",
+      "createdAt": "2026-09-23T15:37:31.857Z",
+      "modifiedAt": "2026-09-23T15:37:31.857Z",
+      "files": []
+    }
+  ],
+  "selectedDigest": "07fa2e349e8b5b8b8e79213214215370c2d2d112b413597fbf3ef3c103388945",
+  "mustRecheckProcessesBeforeAnyApprovedDeletion": true,
+  "deleted": 0
+}

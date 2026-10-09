@@ -1,0 +1,24 @@
+PASS 1: nonexistent proposalId is rejected with zero side effects
+PASS 2: status PENDING is blocked with zero side effects
+PASS 3: status REJECTED is blocked with zero side effects
+PASS 4: status DEFERRED is blocked with zero side effects
+PASS 5: status STALE is blocked with zero side effects
+PASS 6: status ABANDONED is blocked with zero side effects
+PASS 7: status COMPLETED is blocked with zero side effects
+PASS 8: status RESERVED is blocked with zero side effects
+PASS 9: status RECOVERY_REQUIRED is blocked with zero side effects
+PASS 10: status FAILED is blocked with zero side effects
+PASS 11: REVIEW_REQUIRED safety classification is blocked even if status were APPROVED
+PASS 12: unknown mutationKind is blocked before any reservation/gate activity
+PASS 13: registry exactFiles scope mismatch is blocked before any reservation/gate activity
+PASS 14: M16: stale baseHead (repo advanced) is blocked, durably marked STALE, and no reservation is ever created
+PASS 15: M16: a proposal marked STALE by a prior execution attempt cannot be executed again, and a fresh commit does not resurrect it
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+[AyasApprovalInboxStoreError: EPERM: operation not permitted, rename 'C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-exec-service-inbox-ohJrA5\brain\autonomy\.approval-inbox.13508.aee22531-6c78-40fe-8f6b-55fcb785cc18.tmp' -> 'C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-exec-service-inbox-ohJrA5\brain\autonomy\approval-inbox.json'] {
+  code: 'AYAS_INBOX_IO'
+}
+
+Node.js v24.18.0

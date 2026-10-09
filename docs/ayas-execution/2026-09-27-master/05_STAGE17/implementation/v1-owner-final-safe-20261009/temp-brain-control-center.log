@@ -1,0 +1,41 @@
+PASS P1: healthy overview: every domain healthy/informational, nothing asks for the owner
+PASS P2: degraded Graphify (GRAPH_STALE): WARNING with the recovery command shown, never run
+PASS P3: GRAPH_PARTIAL is labelled partial, never 'current', and raises no false alarm
+PASS P4: pending SAFE approval-ready proposal → ACTION_REQUIRED routed to the existing Gelişim Merkezi controls
+PASS P4a: home and development use the same durable pending projection across lifecycle and reload
+PASS P5: stale / revalidating proposals are never shown as actionable
+PASS P6: interrupted development → IN_PROGRESS with the first unfinished Stage 10 gate and a read-only handoff command
+PASS P7: research running → IN_PROGRESS, not healthy-idle and not an alarm
+PASS P8: experiment complete: verdict, baseline→experiment, regression state and linked proposal from real ids
+PASS P9: unavailable capability: Ollama down is a WARNING; agents are manual-handoff, never implied dispatch
+PASS P10: security: recorded Stage 9 review with deferred checks, pinned to the security doc; no scanner on load
+PASS P11: no data: absent sources are NO_DATA, not warnings, and panels say so
+PASS P12: partial backend outage: failed sources are WARNING with their code; the rest stays real
+PASS P13: unauthorized access: /brain and its Server Actions are behind the access gate
+PASS P14: raw secrets, env values and absolute paths never leave the server read model
+PASS P15: private memory: only counts leave the store; no title, body or value
+PASS P16: every action is classified; owner approvals route to existing panels; the Control Center imports no authority
+PASS P17: no direct mutation: collecting leaves the workspace byte-identical and uses read-only Git only
+PASS P18: mobile: owner attention precedes the rest, tiles collapse to one column, tap targets ≥ 44px, no tables
+PASS P19: freshness: data time, server read time and UI time are distinct and deterministic
+PASS P20: activity feed: real transitions only, windowed, deduplicated, bounded and newest first
+PASS P21: no stale 'Not connected' status for research or production on the home screen or tabs
+PASS H1: observer DOWN → ACTION_REQUIRED, opens the Autonomous panel
+PASS H2: diverged branch → ACTION_REQUIRED, no force suggested
+PASS H3: misconfigured access gate → ACTION_REQUIRED
+PASS H4: micro batch READY_FOR_REVIEW → owner approval via the existing BATCH ONAYLA control
+PASS H5: research catch-up awaiting the owner → OWNER_APPROVAL on the Research panel
+PASS H6: REVIEW_REQUIRED proposal is a warning, never an approve prompt
+PASS H7: untrusted text renders as escaped text only
+PASS H8: autonomous-execution flag mirror matches the authority module's predicate
+PASS H9: owner-approved-pending-execution waits (IN_PROGRESS); a legacy APPROVED proposal needs YÜRÜT
+PASS H10: no polling and no client fetch in the Control Center UI
+PASS H11: semantic-pending-only graph is informational and says so
+PASS H12: attention folding never hides an ACTION_REQUIRED item and keeps the rest one tap away
+PASS I1: TEMP repo: real collectors produce the expected facts end to end
+PASS I2: a hanging source times out on its own; everything else still arrives
+PASS I4: behind / diverged upstream is never reported as clean: Stage 10 SYNC / DIVERGED gates reach the owner
+PASS H13: development never reads clean when recovery could not be computed
+PASS I3: performance: pure build over a large fixture stays cheap
+AYAS Brain Control Center smoke: PASS (39 scenarios)
+{"status":"PASS","suite":"ayas-brain-control-center","mode":"final","primary":{"pass":22,"fail":0,"missing":0,"total":22},"heldOut":{"pass":13,"fail":0,"missing":0,"total":13},"integration":{"pass":4,"fail":0,"missing":0,"total":4}}

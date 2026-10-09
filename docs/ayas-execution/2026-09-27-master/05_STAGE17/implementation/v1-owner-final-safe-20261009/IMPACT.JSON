@@ -1,0 +1,20 @@
+{
+  "status": "ok",
+  "summary": "Review context for 2 changed file(s):\n  - Risk: high\n  - 165 impacted nodes in 48 files",
+  "risk": "high",
+  "changedFileCount": 2,
+  "impactedFileCount": 48,
+  "keyEntities": [
+    "AYAS_NON_ACTIONABLE_DISPLAY_STATES",
+    "AyasDevelopmentCenter()",
+    "AyasDevelopmentCenter.tsx",
+    "AyasOwnerDecisionLiteral",
+    "AyasOwnerPendingExecutionCard()"
+  ],
+  "testGaps": 35,
+  "nextToolSuggestions": [
+    "detect-changes",
+    "affected-flows",
+    "review-context"
+  ]
+}

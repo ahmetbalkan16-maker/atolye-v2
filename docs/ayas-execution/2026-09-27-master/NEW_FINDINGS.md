@@ -1,3 +1,9 @@
+## 9 Ekim 2026 — owner koşulu / F114
+
+**F114 — exact manuel YÜRÜT için önizleme bağı eksik, DEV_CENTER_HELD.** İncelenen beş dosyalık aday AVAILABLE+APPROVED kartta doğrulanmış artifact preview eksik olsa da YÜRÜT gösteriyor; pending kart diff/digest/HEAD içermiyor, execute isteği yalnız proposalId. TEMP render counterexample beklenen assertion FAIL; backend bypass iddiası yok. Owner ön şartı gereği kaynağa taşınmadı. Mevcut K3/firewall/session/seal aynı. Yeni güvenli scope/digest incelemesi gerekir.
+
+**K3-L1 LOW backlog** eski gate yorumu aynen kalır; kritik güvenlik işi değildir. H9 frozen/held-out ve pinned guard ayrı manifest/pin kararı aynı. F111 toplu temizlik yok; 10klasör örnek izin paketi, silinen0. Yeni yerel source/test/doc push onayı yok. Kanıt: docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/v1-owner-final-safe-20261009/REPORT.md.
+
 ## 9 Ekim 2026 gece - V2 PASS_WITH_FINDINGS; Gelişim Merkezi çıkmazı; geçici klasör sızıntısı
 
 **F109 — MEDIUM, owner akışı / doğruluk (aday TEMP'te, kaynak açık).** `AyasDevelopmentCenter.tsx` owner-model onayı için "yürütme etkinleştirildiğinde otomatik olarak sürdürecek" der ve kontrol sunmaz; `ExecuteControl` bu onayları gizler. K3 sonrası otomatik resume yok; exact patch onayı (canlıda bayrak açıkken bile) her zaman bu karta düşer ve hiçbir yoldan yürütülemez. Aday: mühürlü owner APPROVE için mevcut YÜRÜT, admission'sız onayda YÜRÜT yok, metinler gerçek davranışı söyler. Kapsam ve kanıt: `05_STAGE17/implementation/v1-devcenter-v2review-20261009/`.

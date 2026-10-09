@@ -1,0 +1,29 @@
+PASS 1: readAyasMicroBatchState returns an empty state when the file does not exist
+PASS 2: readAyasMicroBatchState throws AYAS_MICRO_BATCH_READ_CORRUPT on malformed JSON
+PASS 3: readAyasMicroBatchState throws AYAS_MICRO_BATCH_READ_SCHEMA_MISMATCH on an unsupported schema version
+PASS 4: readAyasMicroBatchState throws AYAS_MICRO_BATCH_READ_CORRUPT when a durable collection is not an array
+PASS 5: readAyasMicroBatchState parses a valid file correctly
+PASS 6: buildAyasMicroBatchDevelopmentView: an empty state has no active batch and empty history
+PASS 7: buildAyasMicroBatchDevelopmentView: an ACCUMULATING batch is the active batch, not history
+PASS 8: buildAyasMicroBatchDevelopmentView: a READY_FOR_REVIEW batch is also active
+PASS 9: buildAyasMicroBatchDevelopmentView: a COMPLETED batch is history, not active
+PASS 10: buildAyasMicroBatchDevelopmentView: history is most-recent-first
+PASS 11: buildAyasMicroBatchDevelopmentView: a missing/corrupt item artifact fails safe — the item still renders, just without a patchArtifact
+PASS 12: buildAyasMicroBatchDevelopmentView: attaches the matching decision/result by batchId
+PASS 13: daily hygiene hides yesterday completed micro-batches while preserving an active batch and today's completed batch
+PASS 14: UI: microBatch prop omitted entirely renders no micro-batch section and does not crash (backward compatible)
+PASS 15: UI: a disconnected microBatch view renders an honest error, not a crash or fabricated content
+PASS 16: UI: no active batch renders an honest empty state, never a fabricated batch
+PASS 17: UI: an active ACCUMULATING batch renders its item count, semanticKey, exactFiles, and aggregate risk
+PASS 18: UI: a two-item batch renders both items, each as its own collapsible micro-item card
+PASS 19: UI: a batch item WITH a resolved patch artifact renders its exact diff, patchHash, and sandbox validation summary — the same evidence an individual proposal's diff panel shows
+PASS 20: UI: a COMPLETED batch appears in 'Geçmiş Paketler' with its decision and result outcome, never in the active section
+PASS 21: UI: an ACCUMULATING batch renders NO 'BATCH ONAYLA VE UYGULA' control — it is not yet reviewable
+PASS 22: UI: a COMPLETED (historical) batch renders NO 'BATCH ONAYLA VE UYGULA' control — it was already decided
+PASS 23: UI: a READY_FOR_REVIEW batch renders exactly ONE action control, 'BATCH ONAYLA VE UYGULA' — never a separate ONAYLA, YÜRÜT, or Git-publish button
+PASS 24: the confirmation dialog (shown after the first click, before renderToStaticMarkup can capture client state — verified by source instead) states the exact required execution+publication authority sentence
+PASS 25: UI: a pending BATCH ONAYLA VE UYGULA disables the control and shows 'UYGULANIYOR…'
+PASS 26: UI: a batch-approval error for THIS batch renders its mapped Turkish message; an error for a DIFFERENT batchId is never shown here
+PASS 27: UI: with no onBatchOnaylaVeUygula handler supplied, the control still renders but stays disabled — never silently omitted or silently clickable to nowhere
+AYAS micro batch development center smoke: PASS (27 scenarios)
+{"status":"PASS","suite":"ayas-micro-batch-development-center","scenarios":27}

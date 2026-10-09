@@ -1,0 +1,162 @@
+PASS 1: a smoke-test file classifies TEST_ONLY and declares that restart checks are not applicable
+PASS 2: ordinary source classifies SOURCE_ONLY and is publishable
+PASS 3: runtime config, scheduler, service entry and storage/execution authority each classify to their own non-publishable class
+PASS 4: the most restrictive file decides the whole publication, never the first one or an average
+PASS 5: an unknown, traversing, absolute or empty path is UNKNOWN — the most restrictive class, never a favourable default
+PASS 6: a src/lib/runtime path is classified by the authority rule, not by the broader src/ rule that also matches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-k6BNdC
+   4c4af73..a7784c3  master -> master
+PASS 7: END-TO-END: an owner-approved TEST_ONLY proposal is published through approval -> guard PREPARED -> mutation -> tests -> commit -> push -> guard COMPLETED, with the result recorded
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-5GaHf1
+   b21f662..f90e450  master -> master
+PASS 8: the durable record states the declared impact class and the checks that class rules out — a lightweight decision, never a silent absence
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing-editable.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing-editable.ts', LF will be replaced by CRLF the next time Git touches it
+PASS 9: a SOURCE_ONLY publication uses the same lightweight guard scope, declaring SOURCE_ONLY rather than TEST_ONLY
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing-editable.ts', LF will be replaced by CRLF the next time Git touches it
+PASS 10: a source proposal with no reviewed exact-patch proof is refused at approval: no decision, no guard transaction, no mutation — SOURCE_ONLY impact is not an approval
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-CZcc5w
+   37c7f93..b285084  master -> master
+PASS 11: a TEST_ONLY publication restarts nothing: the observed service keeps its pid, and an unrelated listener is untouched
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-TPEH5h
+   a4fa082..cc9c1dd  master -> master
+PASS 12: the research scheduler is untouched by an unrelated publication, and its health is verified rather than assumed
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-K4bCMA
+   00ae49c..c8d8b8b  master -> master
+PASS 13: the execution gate and the mandatory-owner-approval invariant are snapshotted before and after, and neither may move
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-W8z5Tg
+   5121c90..fa9ca3c  master -> master
+PASS 14: the owner-approval resume entrypoint is guarded by the SAME single integration — one pipeline, one guard, two entrypoints
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 15: a proposal whose declared scope reaches the storage/execution authority is refused before any decision, mutation or guard transaction
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 16: a service-entry proposal is refused the same way — an impact class that would need a restart never reaches a lane that cannot perform one
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 17: a dirty working tree fail-closes at the guard precondition: refused, nothing mutated, nothing committed
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 18: a proposalHash that no longer matches is refused before the guard is ever consulted — no decision, no transaction, no mutation
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 19: the guard can neither approve a proposal nor be entered without an approval: a still-PENDING proposal is refused with no transaction
+PASS 20: source inspection: the guarded-publication module contains no approval, decision or process-termination primitive
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 21: a stale proposal is recorded by the guard but mutates nothing: ROLLED_BACK with HEAD and the tree exactly as found
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-existing-editable.ts', LF will be replaced by CRLF the next time Git touches it
+PASS 22: a post-execution validation failure is ROLLED_BACK with its ORIGINAL code and stage preserved — the guard reports the lane's truth, it does not relabel it
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+PASS 23: a commit failure leaves staged content for a human and escalates to RECOVERY_REQUIRED — the guard proves it could NOT prove a clean baseline
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'elsewhere.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-N4TxF6
+ ! [rejected]        master -> master (fetch first)
+error: failed to push some refs to 'C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-N4TxF6'
+hint: Updates were rejected because the remote contains work that you do not
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+PASS 24: a push failure preserves the local commit and escalates to RECOVERY_REQUIRED — the guard never rewrites a real commit to satisfy a probe
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-fDmoHj
+   3402670..73d042e  master -> master
+PASS 25: a postcondition failure after a successful push is reported and escalated, and the published commit is still never rewritten
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/smoke-fixture-generated.ts', LF will be replaced by CRLF the next time Git touches it
+To C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\owner-final-test-tmp\ayas-guarded-pub-en4Xj1
+   e8af927..78c378e  master -> master
+PASS 26: replay is impossible: a second call on a COMPLETED proposal is refused, leaving exactly one commit and exactly one guard transaction
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 27: a publication already in flight for the same proposal under a LIVE process blocks a duplicate — no second mutation is attempted
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 28: an interrupted transaction recovers deterministically — PREPARED is provably untouched (ABANDONED), anything later is RECOVERY_REQUIRED and then blocks the next attempt
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 29: guard state and the execution journal reconcile: an interrupted journal entry blocks a publication even when the guard's own log is clean
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 30: an unreadable durable ledger is a refusal, never an empty history — a corrupt store can not make an interrupted transaction disappear
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 31: a completed execution journal does NOT block a later publication — reconciliation refuses only genuinely unresolved attempts
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/existing.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+PASS 32: a transaction for a DIFFERENT proposal never blocks this one — reconciliation is bound to the exact subject id
+PASS 33: source inspection: the canonical publish boundary cannot be reached except through the guard
+AYAS guarded publication integration smoke: PASS (33 scenarios)
+{"status":"PASS","suite":"ayas-guarded-publication","scenarios":33}

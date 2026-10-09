@@ -1,0 +1,26 @@
+PASS 1: Reader: status "PENDING" is read without crashing
+PASS 2: Reader: status "APPROVED" is read without crashing
+PASS 3: Reader: status "REJECTED" is read without crashing
+PASS 4: Reader: status "DEFERRED" is read without crashing
+PASS 5: Reader: status "STALE" is read without crashing
+PASS 6: Reader: status "COMPLETED" is read without crashing
+PASS 7: Reader: status "FAILED" is read without crashing
+PASS 8: Reader: status "RESERVED" is read without crashing
+PASS 9: Reader: status "ABANDONED" is read without crashing
+PASS 10: Reader: status "RECOVERY_REQUIRED" is read without crashing
+PASS 11: View: status "APPROVED" never appears as pending (real committed Reader+View chain)
+PASS 12: View: status "REJECTED" never appears as pending (real committed Reader+View chain)
+PASS 13: View: status "STALE" never appears as pending (real committed Reader+View chain)
+PASS 14: View: status "COMPLETED" never appears as pending (real committed Reader+View chain)
+PASS 15: View: status "FAILED" never appears as pending (real committed Reader+View chain)
+PASS 16: View: status "RESERVED" never appears as pending (real committed Reader+View chain)
+PASS 17: View: status "ABANDONED" never appears as pending (real committed Reader+View chain)
+PASS 18: View: status "RECOVERY_REQUIRED" never appears as pending (real committed Reader+View chain)
+PASS 19: View: PENDING appears as pending
+PASS 20: View: an eligible DEFERRED (nextEligibleAt already passed) appears as pending
+PASS 21: View: a not-yet-eligible DEFERRED does not appear as pending
+PASS 22: RESERVED, EXECUTED-finalized, ABANDONED, and RECOVERY_REQUIRED are distinguishable in the durable record alone
+PASS 23: corrupt durable state degrades identically for M2 data as it did before M2 (Reader throws, View degrades to disconnected)
+PASS 24: schemaVersion remains "1" for M2 — old and new statuses coexist under the same envelope version
+AYAS approval durable-state compatibility smoke: PASS (24 scenarios)
+{"status":"PASS","suite":"ayas-approval-durable-state-compatibility","scenarios":24}

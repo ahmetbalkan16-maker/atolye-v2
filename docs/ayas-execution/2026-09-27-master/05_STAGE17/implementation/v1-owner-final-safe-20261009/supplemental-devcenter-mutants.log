@@ -1,0 +1,87 @@
+{
+ "suite": "scripts/smoke-ayas-development-center-owner-execute.ts",
+ "mutants": 10,
+ "killed": 10,
+ "results": [
+  {
+   "id": "MD1",
+   "what": "restore the false auto-continue text",
+   "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /AYAS bunu kendiliğinden yürütmez/. Input:"
+  },
+  {
+   "id": "MD2",
+   "what": "view marks every owner-model APPROVE as AVAILABLE (no admission check)",
+   "file": "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  },
+  {
+   "id": "MD3",
+   "what": "pending card renders YÜRÜT without the admission condition",
+   "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression />YÜRÜT</. Input:"
+  },
+  {
+   "id": "MD4",
+   "what": "pending card ignores the current inbox status",
+   "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: RESERVED"
+  },
+  {
+   "id": "MD5",
+   "what": "ExecuteControl old guard: never for owner-model proposals (the invisible YÜRÜT)",
+   "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression />YÜRÜT</. Input:"
+  },
+  {
+   "id": "MD6",
+   "what": "ExecuteControl ignores placement (owner-model YÜRÜT also on the timeline card)",
+   "file": "src/components/brain/AyasDevelopmentCenter.tsx",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: no second YÜRÜT on the timeline card for the same proposal"
+  },
+  {
+   "id": "MD7",
+   "what": "ONAYLA always promises immediate publication",
+   "file": "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  },
+  {
+   "id": "MD8",
+   "what": "ONAYLA ignores the exact-patch branch",
+   "file": "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  },
+  {
+   "id": "MD9",
+   "what": "display flag drifts from the gate",
+   "file": "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: display flag agrees with the gate for \"true\""
+  },
+  {
+   "id": "MD10",
+   "what": "a verification error disconnects nothing but also no longer fails closed",
+   "file": "src/lib/brain/autonomy/AyasOwnerRecommendationsView.ts",
+   "outcome": "KILLED",
+   "restored": true,
+   "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+  }
+ ]
+}

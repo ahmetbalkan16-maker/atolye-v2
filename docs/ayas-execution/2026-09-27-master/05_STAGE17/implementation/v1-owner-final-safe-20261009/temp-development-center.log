@@ -1,0 +1,61 @@
+PASS 1: main AYAS panel registry exposes Gelişim Merkezi
+PASS 2: main Brain UI has a first-class development entry and navigation handler
+PASS 3: pending SAFE proposal appears
+PASS 4: expectedUserBenefit is displayed as the approval answer
+PASS 5: currentProblem is displayed
+PASS 6: riskIfNotDone is displayed
+PASS 7: technical risk and safety classification are displayed
+PASS 8: exact files are available
+PASS 9: test plan is available
+PASS 10: Graphify evidence is available
+PASS 11: production impact is available
+PASS 12: missing human explanation is not approval-ready
+PASS 13: Store authority refuses a legacy SAFE proposal with incomplete explanation
+PASS 14: SAFE exposes approve, reject and later decisions
+PASS 15: SAFE approval uses a concise second confirmation before authority creation
+PASS 16: REVIEW_REQUIRED is not ordinary-approvable
+PASS 17: FORBIDDEN_AUTONOMOUS is not ordinary-approvable
+PASS 18: RECOVERY_REQUIRED is visible with uncertainty guidance
+PASS 19: recovery item has no ordinary retry control
+PASS 20: rejected history item is not pending
+PASS 21: completed history item is not pending
+PASS 22: DEFERRED is displayed correctly in history
+PASS 23: empty inbox fabricates no activity
+PASS 24: today contains actual evaluated statuses without changing pending semantics
+PASS 25: daily hygiene hides yesterday COMPLETED and STALE records from the main history projection
+PASS 26: daily hygiene keeps yesterday PENDING and APPROVED-pending-execution records visible
+PASS 27: daily hygiene keeps yesterday RECOVERY_REQUIRED visible but keeps today's terminal result visible normally
+PASS 28: Istanbul midnight boundary is shared by the daily projection
+PASS 29: daily projection never mutates durable approval state
+PASS 30: durable decision and outcome are attached to history
+PASS 31: responsive CSS collapses facts and preserves touch-sized actions
+PASS 32: APPROVED proposal exposes YÜRÜT
+PASS 33: durable one-click correction: an APPROVED proposal whose decision carries the owner-approved reason does NOT expose the legacy YÜRÜT control
+PASS 34: an APPROVED proposal from the legacy manual ONAYLA flow (no owner-approved reason) still exposes YÜRÜT, unchanged
+PASS 35: PENDING does not expose YÜRÜT
+PASS 36: REJECTED does not expose YÜRÜT
+PASS 37: DEFERRED does not expose YÜRÜT
+PASS 38: RESERVED does not expose YÜRÜT
+PASS 39: COMPLETED does not expose YÜRÜT
+PASS 40: ABANDONED does not expose YÜRÜT
+PASS 41: RECOVERY_REQUIRED does not expose YÜRÜT
+PASS 42: STALE does not expose YÜRÜT
+PASS 43: FAILED does not expose YÜRÜT
+PASS 44: RECOVERY_REQUIRED exposes neither YÜRÜT nor ordinary replay
+PASS 45: M16: a STALE proposal shows the Turkish 'lost currency' label and lands in history, not pending
+PASS 46: M16: a real (non-empty) PASS validator result is visibly rendered, not silently dropped
+PASS 47: M16: a real validator FAILURE is visibly rendered too, not hidden behind a generic success message
+PASS 48: YÜRÜT opens a second confirmation before dispatch
+PASS 49: execution confirmation states one-shot consumption
+PASS 50: executingId disables the YÜRÜT control for that proposal
+PASS 51: YÜRÜT only calls setConfirming — the client never dispatches onExecute before the confirmation screen
+PASS 52: VAZGEÇ (cancel) never calls onExecute — it only resets local confirmation state
+PASS 53: YÜRÜTMEYİ BAŞLAT is the only control wired to onExecute, with the exact proposalId
+PASS 54: a returned execution error for this proposal renders a visible, non-silent message
+PASS 55: an unrecognized error code still renders a visible fallback message, never nothing
+PASS 56: an execution error for a DIFFERENT proposal never bleeds into this one
+PASS 57: no execution error present renders no alert at all
+PASS 58: M17: a statically pre-written (non-artifact) proposal renders no patch/diff panel
+PASS 59: M17: a sandbox-drafted proposal's exact diff, patchHash, validators, and sandbox result all render
+AYAS Gelişim Merkezi smoke: PASS (59 scenarios)
+{"status":"PASS","suite":"ayas-development-center","scenarios":59}
