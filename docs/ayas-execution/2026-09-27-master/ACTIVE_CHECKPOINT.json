@@ -3,8 +3,8 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "71b53b94654453223b7ca9d51750047f5ac49fc7",
-  "currentHead": "456dad6c43d102b8ecd997428d22b0f41c32d5e2",
-  "currentHeadMeaning": "Entry source HEAD only. New exact-preview technical source pending local commit and new Full166. Resolve Git HEAD; do not transfer historical dbf9542 certificate.",
+  "currentHead": "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+  "currentHeadMeaning": "Uncertified first exact-preview technical source. New Full166 Golden consumer FAIL preserved; only test import wiring repaired, new final source Full166 required.",
   "hostedCiFollowup": {
     "historicalFailedHead": "f5effbd297af9e8297d04678cce6de5761f0b183",
     "historicalRun": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/37297397885",
@@ -23,7 +23,7 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Owner-authorized exact-preview fail-closed source patch;20 cases/9mutants; new final technical source Full166 pending; no push/live operations.",
+  "subtask": "Frozen Golden consumer failure corrected in new tests only; new clean technical source commit and complete NEW166 pending; no push/live.",
   "status": "V1_BLOCKED_NEW_SOURCE_CERTIFICATION_AND_OWNER_LIVE_GATES_PENDING",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -5824,9 +5824,9 @@
   },
   "exactPreviewClosure": {
     "packet": "05_STAGE17/implementation/v1-exact-preview-20261009",
-    "status": "SOURCE_GUARDS_PASS_FULL166_PENDING",
+    "status": "FIRST_FULL166_FAIL_REPAIRED_PENDING_NEW166",
     "sourceMap": "SOURCE_MAP.json",
-    "full166": "PENDING_NEW_TECHNICAL_SOURCE_COMMIT",
+    "full166": "T1_FAIL_INCOMPLETE_NEW166_REQUIRED",
     "historicalFailuresPreserved": true,
     "frozenPins": 215,
     "push": "OWNER_APPROVAL_REQUIRED",

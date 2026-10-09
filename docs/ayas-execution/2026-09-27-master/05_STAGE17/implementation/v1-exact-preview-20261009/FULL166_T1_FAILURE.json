@@ -1,0 +1,16 @@
+{
+  "sourceHead": "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+  "sourceWorktreeDigest": "9e3e762bcf282a9af43a8d7eb1137407b625992eff1e7355d63ed48ebf4b7d83",
+  "declared": 166,
+  "completed": 100,
+  "failed": [
+    "golden-vault"
+  ],
+  "outcome": "FAIL_INCOMPLETE_INTERRUPTED_AFTER_NEW_FROZEN_CONSUMER_BOUNDARY_FAILURE",
+  "officialFinalEvalReportWritten": false,
+  "certified": false,
+  "interruption": "Owned test runner stopped after sufficient root-cause diagnosis;0owned runner processes remain",
+  "rootCause": "New test fixture directly imported GoldenVaultRegistry outside original permitted consumer regex. Frozen :265 assertion correctly rejected it.",
+  "repair": "Move only this new import to permitted smoke-ayas-owner-exact-preview.ts; pass vault through fixture parameter. Frozen test/pin/registry and application source unchanged.",
+  "requiresEntireNew166": true
+}

@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-09T05:32:22.329Z",
+  "sourceHead": "569d6f59acdb1f557d287a410b9e11fe678eab1b",
+  "sourceWorktreeDigest": "9e3e762bcf282a9af43a8d7eb1137407b625992eff1e7355d63ed48ebf4b7d83",
+  "fixture": "C:\\Users\\Metod\\AppData\\Local\\Temp\\xp166-569d6f5-7bc0f1",
+  "fixtureRemote": "NONE",
+  "fixtureStatus": "CLEAN",
+  "trackedPhysicalFiles": 3275,
+  "credentialEnvironment": "SANITIZED_OS_ONLY",
+  "nextInstalled": "16.3.8",
+  "nextLocked": "16.3.8",
+  "existingFreshLockRuntime": true,
+  "noInstallOrUpgrade": true,
+  "mainNext": "16.2.10",
+  "manifestDigest": "2661b3c55e60de299b8290b05e5c2bd74f0bb1b1a0967d59c6da88bba4ee3fcd",
+  "freeMemoryGiB": 16.586139678955078
+}

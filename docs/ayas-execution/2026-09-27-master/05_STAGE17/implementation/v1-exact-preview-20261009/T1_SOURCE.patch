@@ -92,16 +92,17 @@ index 2de868d..4ff190f 100644
  // Owner-approval model — read-only, same posture as the refresh above: no
 diff --git a/scripts/fixtures/ayas-owner-exact-preview-fixture.ts b/scripts/fixtures/ayas-owner-exact-preview-fixture.ts
 new file mode 100644
-index 0000000..8df7875
+index 0000000..6e01734
 --- /dev/null
 +++ b/scripts/fixtures/ayas-owner-exact-preview-fixture.ts
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,98 @@
 +import assert from "node:assert/strict";
 +import { execFileSync } from "node:child_process";
 +import crypto from "node:crypto";
 +import fs from "node:fs";
 +import os from "node:os";
 +import path from "node:path";
++import { AYAS_GOLDEN_VAULT } from "../../src/lib/ayas/golden/AyasGoldenVaultRegistry";
 +import { createAyasExactPatchSafetyProof, ayasExactPatchSha256 } from "../../src/lib/brain/selfheal/AyasExactPatchSafety";
 +import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest, generateAyasRenderToolSupersessionPatch } from "../../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 +import { createAyasPatchArtifactStore } from "../../src/lib/brain/autonomy/AyasPatchArtifact";
@@ -112,7 +113,7 @@ index 0000000..8df7875
 +import { heldGoldenEvidence } from "./ayas-golden-fixtures";
 +
 +/** Synthetic exact reviewed source/evidence, using the preserved historical strategy. No live execution. */
-+export function createOwnerExactReviewedPreviewFixture(vault: Parameters<typeof heldGoldenEvidence>[0]) {
++export function createOwnerExactReviewedPreviewFixture() {
 +const file = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
 +const sourceRoot = process.cwd();
 +const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-exact-proposal-"));
@@ -148,7 +149,7 @@ index 0000000..8df7875
 +  change: { strategyId: strategy.strategyId, strategyVersion: strategy.version, diffSha256: "d".repeat(64), files: [{ filePath: file }] },
 +  regressions: { newlyFailingCaseIds: [], heldOutDelta: 0,
 +    suites: strategy.regressionSuites.map((script) => ({ script, baselinePass: true, experimentPass: true })) },
-+  golden: heldGoldenEvidence(vault, strategy.regressionSuites),
++  golden: heldGoldenEvidence(AYAS_GOLDEN_VAULT, strategy.regressionSuites),
 +  performance: { baselineMs: 100, experimentMs: 100, ratio: 1 },
 +  risk: { riskClass: "REVIEW_REQUIRED", isolation: AYAS_EXPERIMENT_ISOLATION, liveWorkspaceUnchanged: true, sandboxDiscarded: true },
 +  analysisRoute: null, verdict: "IMPROVED", reasonCodes: [], targetGain: 1, fixedCaseIds: ["stale-free-text-seed"],
@@ -195,12 +196,11 @@ index 0000000..8df7875
 +}
 diff --git a/scripts/smoke-ayas-owner-exact-preview.ts b/scripts/smoke-ayas-owner-exact-preview.ts
 new file mode 100644
-index 0000000..a6f6d62
+index 0000000..5e99037
 --- /dev/null
 +++ b/scripts/smoke-ayas-owner-exact-preview.ts
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,126 @@
 +import { buildAyasOwnerPreviewInboxView } from "../src/lib/brain/autonomy/AyasOwnerExactPreviewInbox";
-+import { AYAS_GOLDEN_VAULT } from "../src/lib/ayas/golden/AyasGoldenVaultRegistry";
 +import assert from "node:assert/strict";
 +import crypto from "node:crypto";
 +import { execFileSync } from "node:child_process";
@@ -294,7 +294,7 @@ index 0000000..a6f6d62
 +  await scenario("F-artifact-after-view", async () => { const f = await fixture(); fs.writeFileSync(f.artifactPath, JSON.stringify({ ...f.artifact, sandboxValidationSummary: ["replacement summary"] }));
 +    assert.equal(f.artifactStore.loadVerified(f.artifact.artifactId).patchHash, f.artifact.patchHash, "patchHash excludes this owner-visible field");
 +    const before = snapshot(f); await assert.rejects(() => execute(f), /EXACT_PREVIEW_CHANGED/); assert.deepEqual(snapshot(f), before); });
-+  await scenario("G-valid-reviewed-exact", async () => { const f = createOwnerExactReviewedPreviewFixture(AYAS_GOLDEN_VAULT);
++  await scenario("G-valid-reviewed-exact", async () => { const f = createOwnerExactReviewedPreviewFixture();
 +    f.inbox.decide(f.proposal.proposalId, "APPROVE", new Date().toISOString(), "owner-approved: pending execution enablement", await admission(f.proposal, "APPROVE"));
 +    const p = f.inbox.load().proposals[0]!, decision = f.inbox.load().decisions[0]!;
 +    const preview = loadAyasOwnerExactPreview(p, decision, f.options); assert.ok(preview, "actual REVIEW_REQUIRED exact proof + golden-held evidence");

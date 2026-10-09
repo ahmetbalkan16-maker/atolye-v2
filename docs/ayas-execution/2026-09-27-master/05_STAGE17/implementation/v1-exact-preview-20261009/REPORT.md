@@ -14,7 +14,7 @@
 
 7. GRAPHIFY: Final stable-source refresh/currentness/integrity captured in GRAPH_FINAL_SOURCE.json. PARTIAL10 and semantic PENDING remain declared. Owner projection→readonly snapshot→fixed Git/evidence probes; server action→fresh owner admission→execution service→snapshot guard→existing daemon/gate/mutation. Generic chat/status projection imports client-safe types only.
 
-8. FULL166: PENDING until the new clean technical source commit. The dbf9542 certificate is historical only. Final certification will be appended as a docs-only evidence commit and explicitly bound to the technical source SHA, full physical sourceWorktreeDigest and immutable manifestDigest. No automatic qualification of a later docs HEAD.
+8. FULL166: First technical source569d6f5 FAILED the frozen Golden consumer boundary (new fixture direct import).100 suite results were captured before owned-runner interruption; this incomplete attempt grants no certificate. Raw FAIL and partial transcript are preserved in FULL166_T1_FAILURE.json and full166-T1 files. Only new test import wiring was corrected; all166 must run anew at the next clean technical source commit. PENDING until that new clean technical source commit. The dbf9542 certificate is historical only. Final certification will be appended as a docs-only evidence commit and explicitly bound to the technical source SHA, full physical sourceWorktreeDigest and immutable manifestDigest. No automatic qualification of a later docs HEAD.
 
 9. LIMITATIONS: Historical observer direct import assertion and publication-activity STALE_SUPERSEDED assertion remain FAIL; original raw FAIL archives, suites and215 pins unchanged. Failed intermediate firewall/observer attempts are kept, not relabelled. Actual restart/cross-process race/reviewed Golden execution NOT_RUN. Synthetic SAFE local patch proves single execution, no commit and dirty result; replay does not execute twice. Real owner click/live publication NOT_RUN.
 
@@ -25,3 +25,5 @@
 12. FOUNDATION: BLOCKED / NOT_READY; source-preview blocker is not final CLOSED until new Full166 passes. AYAS feature expansion stays closed; Atölye12Oct Fatih preparation CAN_START, no render/upload.
 
 13. NEXT: Certify new technical source with NEW Full166; then record final exact evidence and stop for owner push approval. Homepage stage not reached and not started. Before any future homepage stage record OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN and AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN.
+
+Golden consumer repair verification: original frozen13PASS, new20PASS,9/9mutantsKILLED,TS0,ESLint0errors/13warnings. Only new two test imports changed relative to569d6f5; app/src unchanged. New clean technical source and entire166 are still required.

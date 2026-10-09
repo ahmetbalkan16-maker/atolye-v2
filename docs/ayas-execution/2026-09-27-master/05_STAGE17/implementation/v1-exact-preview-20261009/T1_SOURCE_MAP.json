@@ -13,13 +13,13 @@
     },
     {
       "file": "scripts/fixtures/ayas-owner-exact-preview-fixture.ts",
-      "sha256": "84a2018443867b83136ceb80482fcb94ae62217414428ada6dd7cc63883e1b6c",
-      "gitBlob": "8df78751d6b879cad93c7504da885e9dcb286337"
+      "sha256": "6912768bca2d1e8b56d23c8e9571ca21afbaf7512368ebeeb16f4f327f183b82",
+      "gitBlob": "6e017343386260e39e82d65b81b012fca5e5e8c1"
     },
     {
       "file": "scripts/smoke-ayas-owner-exact-preview.ts",
-      "sha256": "3004c29acfa69dd61c5aa64d58bc956b4b916538bbe783fe4bc98f4f91853842",
-      "gitBlob": "a6f6d620c9aee5d84d1ff72aa1542aa3c55e5ab1"
+      "sha256": "f0717ca3af2c09684e9d2471a5d1c13279cfa2ce537072d705822df624415cd4",
+      "gitBlob": "5e990378ed14fcd92d5f6afd27f80b5e616c0aa9"
     },
     {
       "file": "src/components/brain/AyasConsolePage.tsx",

@@ -1,0 +1,24 @@
+PASS A-missing
+PASS B-corrupt
+PASS C-digest
+PASS D-baseHead
+PASS E-stale
+PASS F-artifact-after-view
+PASS G-valid-reviewed-exact
+PASS H-pre-write-mismatch-zero-source-effect
+PASS no-snapshot-zero-reservation
+PASS unsigned-or-tampered-snapshot
+PASS unreviewed-identity-replacement
+PASS scope-evidence-mismatch
+PASS dirty-source
+AssertionError [ERR_ASSERTION]: Missing expected exception.
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:114:12)
+    at async scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:84:73)
+    at async main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:113:3) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: /EXACT_PREVIEW_UNAVAILABLE/,
+  operator: 'throws',
+  diff: 'simple'
+}

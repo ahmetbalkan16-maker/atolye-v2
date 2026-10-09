@@ -1,0 +1,59 @@
+PASS A-missing
+PASS B-corrupt
+PASS C-digest
+PASS D-baseHead
+PASS E-stale
+PASS F-artifact-after-view
+PASS G-valid-reviewed-exact
+PASS H-pre-write-mismatch-zero-source-effect
+PASS no-snapshot-zero-reservation
+PASS unsigned-or-tampered-snapshot
+PASS unreviewed-identity-replacement
+PASS scope-evidence-mismatch
+PASS dirty-source
+PASS existing-file-cannot-preview-as-create
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ {
++   binding: {
++     artifactId: 'ayas-patch-artifact-293c7857-f012-4b60-95d8-61831ffa0375',
++     baseHead: 'd23d9ba17f102d6635aa735f5e53161bb85accc1',
++     expiresAt: '2026-10-09T06:09:46.745Z',
++     issuedAt: '2026-10-09T06:04:46.745Z',
++     patchHash: 'fd19aab4abd437ba48b66d82eb747fafbc6c04d7f9927ca46c8b5669de90e0a4',
++     proposalHash: '653c37cdfa088ea91f0864b1d4ce8e409cbf96891db28a1813c836ee1ef41ca5',
++     proposalId: 'ayas-proposal-11b19040-ce1b-4a4c-ae35-e35c1537cda6',
++     schema: 'ayas-owner-exact-preview:v1',
++     seal: '16bc7561b4cf6fef9bcb843c4720247c2be87b62fe153e8c4766ff1f46205f92',
++     snapshotDigest: '438586c5ab43f08613990f2abe6bbd59f516af881d37cfcc0a1ec20f58a9b34d'
++   },
++   evidenceIdentity: '95e49bf7f5bdf8ccecd157570254b0bdd89dc87c15cf647d340016e1cefe01f4',
++   evidenceStatus: 'VERIFIED',
++   exactFiles: [
++     'scripts/smoke-fixture-generated.ts'
++   ],
++   files: [
++     {
++       after: 'console.log(JSON.stringify({status:"PASS",suite:"fixture-generated",scenarios:1}));\n',
++       before: null,
++       filePath: 'scripts/smoke-fixture-generated.ts'
++     }
++   ],
++   validationSummary: [
++     'fixture validator: PASS'
++   ]
++ }
+- undefined
+
+    at noYurut (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:76:10)
+    at <anonymous> (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:115:239)
+    at async scenario (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:84:73)
+    at async main (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\.graphify\exact-preview-temp\scripts\smoke-ayas-owner-exact-preview.ts:115:3) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Object],
+  expected: undefined,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
