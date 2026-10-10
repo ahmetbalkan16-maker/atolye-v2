@@ -1,3 +1,5 @@
+Current 2026-10-10 — Claude Gelişim Merkezi worker/lost-response fixes are live at1c48a20 / bTVBH-peoZ8mHuMi7K2pX;502build/25976dep check, worker15/15, recheck13/13 and TypeScript PASS. Public owner acceptance/Git/Graphify closure is tracked in docs/AYAS_DEVCENTER_HANDOFF_2026-10-10.md and ATOLYE_CHECKPOINT.md. Existing9recovery holds/homepage/local conversation/security preserved; physical reboot12October.
+
 ## 10 Ekim 2026 — CI rerun başarısı kök neden değildir
 
 CI'da bir kez düşen suite'i rerun ile geçmiş saymadan önce kök nedeni bul. CF49 kapısı çocuk suite'in yalnız stderr hash'ini saklar; hangi senaryonun düştüğünü adım süreleri ve süre eşikleri gösterir. Çok işlemli testlerde yeniden denemeyi deneme sayısına değil süreye bağla: Linux zamanlayıcısı kısa sleep'leri Windows'tan çok daha kısa tutar. Pinli test dosyasına dokunma; düzeltmeyi pinlenmemiş yardımcıda yap ve kalıcı kilidin hâlâ hata verdiğini kanıtla.

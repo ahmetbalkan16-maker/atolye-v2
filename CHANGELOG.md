@@ -1,3 +1,5 @@
+Current 2026-10-10 — Claude Gelişim Merkezi worker/lost-response fixes are live at1c48a20 / bTVBH-peoZ8mHuMi7K2pX;502build/25976dep check, worker15/15, recheck13/13 and TypeScript PASS. Public owner acceptance/Git/Graphify closure is tracked in docs/AYAS_DEVCENTER_HANDOFF_2026-10-10.md and ATOLYE_CHECKPOINT.md. Existing9recovery holds/homepage/local conversation/security preserved; physical reboot12October.
+
 ## 10 Ekim 2026 — AYAS Access Online penceresiz başlangıç
 
 Windows 11'de Windows Terminal varsayılan olduğu için `powershell.exe -WindowStyle Hidden` kısayolu görünür bir Terminal penceresi açıyordu. Yeni `scripts/ayas-access-hidden.vbs` daemon'u `wscript` ile penceresiz başlatır; `register-ayas-autostart.ps1` eski kendi kısayolunu yerinde yükseltir, `unregister` iki kimliği tanır. Access smoke 50/50 PASS. Canlı supervisor yalnız gözetmen olarak değiştirildi; Next ve tünel kesintisiz. Reboot kabulü NOT_RUN.

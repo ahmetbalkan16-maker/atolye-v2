@@ -1,3 +1,5 @@
+Current 2026-10-10 — Claude Gelişim Merkezi worker/lost-response fixes are live at1c48a20 / bTVBH-peoZ8mHuMi7K2pX;502build/25976dep check, worker15/15, recheck13/13 and TypeScript PASS. Public owner acceptance/Git/Graphify closure is tracked in docs/AYAS_DEVCENTER_HANDOFF_2026-10-10.md and ATOLYE_CHECKPOINT.md. Existing9recovery holds/homepage/local conversation/security preserved; physical reboot12October.
+
 ## 10 Ekim 2026 — Owner yerel Türkçe sohbet geliştirmesi
 
 Gemma3 12B ve opt-in rol/geçmiş sohbeti canlı663bce3 / pinli S6WspeoHPZ1sbNN0w0RzH.42 yeni senaryo/29 ilgili suite/TS/lint/build ve gerçek chat/Studio kabulü PASS;2108 kayıt korunur. CI38063422350 attempt2 SUCCESS; final Graphify checkpoint'te izlenir. Gerçek telefon ses ve Windows logon kabulü12EkimPazartesi. ChatGPT eşitliği/sıfır hata veya foundation kapanışı ilan edilmez. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
