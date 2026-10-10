@@ -1,4 +1,4 @@
-Current 2026-10-10 — Claude Gelişim Merkezi worker/lost-response fixes are live at1c48a20 / bTVBH-peoZ8mHuMi7K2pX;502build/25976dep check, worker15/15, recheck13/13 and TypeScript PASS. Public owner acceptance/Git/Graphify closure is tracked in docs/AYAS_DEVCENTER_HANDOFF_2026-10-10.md and ATOLYE_CHECKPOINT.md. Existing9recovery holds/homepage/local conversation/security preserved; physical reboot12October.
+Current 2026-10-10 — Claude Gelişim Merkezi worker/lost-response fixes are live at1c48a20 / bTVBH-peoZ8mHuMi7K2pX;502build/25976dep check, worker15/15, recheck13/13 and TypeScript PASS. Public login/chat, natural discovery, clean0/0 Git and CI38077028506 PASS; real next ready-publication acceptance remains NOT_RUN. Final Graphify evidence is tracked in docs/AYAS_DEVCENTER_HANDOFF_2026-10-10.md and ATOLYE_CHECKPOINT.md. Existing9recovery holds/homepage/local conversation/security preserved; physical reboot12October.
 
 # Current — 2026-10-10 / local Turkish conversation live and qualified
 
