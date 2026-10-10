@@ -43,6 +43,7 @@ import { selectAyasAgenticRoute } from "./routing/AyasAgenticRouting";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { AyasContextBudgetError, ayasContextBudgetTraceMetadata, type AyasContextBudgetEvidence } from "./context/AyasContextBudget";
 import { ayasReplyHistoryQualityIssue } from "./context/AyasReplyHistoryQuality";
+import { buildAyasNaturalConversation } from "./context/AyasNaturalConversation";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
 import {
@@ -784,7 +785,7 @@ function identityNameFromContext(
 }
 
 function isIdentityQuestion(text: string): boolean {
-  return /\b(adim|ismim)\b/.test(fold(text));
+  return !isAyasIdentityStatement(text) && /\b(adim|ismim)\b/.test(fold(text));
 }
 
 function isIdentityQuestionEcho(reply: string): boolean {
@@ -943,7 +944,9 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
   // ("Adın ne."). It is neither an answer nor an acceptable fallback. When
   // retrieval provides no trustworthy identity, answer with explicit
   // uncertainty rather than presenting the user's question as a fact.
-  if (!recalledIdentityName && isIdentityQuestion(input.userText) && isIdentityQuestionEcho(cleaned)) {
+  const plainCurrentNameQuestion = /^(?:benim\s+)?(?:adim|ismim)\s+(?:ne|nedir|neydi)[?.!\s]*$/.test(fold(input.userText));
+  if (!recalledIdentityName && !input.historicalMemoryQuery &&
+      (plainCurrentNameQuestion || (isIdentityQuestion(input.userText) && isIdentityQuestionEcho(cleaned)))) {
     return { text: "Bunu bilmiyorum; adını söylersen hatırlayabilirim.", source: "fallback", corrected: true, reason: "unknown-identity", correctionAttempts: 0 };
   }
 
@@ -962,20 +965,34 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
   const correctionSpan = input.trace?.startSpan("model", "ayas-model", "correction", input.traceParentSpanId, 2);
   try {
     correctionSpan?.event("retry", "running", { attempt: 2 });
+    const naturalCorrection = input.env.AYAS_CONVERSATION_V2 === "1" && input.provider.id === "ollama"
+      ? buildAyasNaturalConversation({
+          userText: input.userText, history: input.recentHistory,
+          context: { selectedOption: input.selectedOption, resolvedReferents: input.resolvedReferents,
+            correctionRequested: "Önceki taslağı tekrar etmeden son mesaja doğru, doğal Türkçe cevap ver." },
+          memoryLines: input.memoryLines, protectedMemoryLines: input.memoryLines,
+          ceiling: input.provider.contextWindowTokens, outputReserve: AYAS_MAX_REPLY_TOKENS,
+        }) : undefined;
     const correction = await input.provider.chat({
-      prompt: buildContextCorrectionPrompt({
+      ...(naturalCorrection ? { prompt: naturalCorrection.prompt, conversationMessages: naturalCorrection.conversationMessages } : { prompt: buildContextCorrectionPrompt({
         userText: input.userText,
         recentHistory: input.recentHistory,
         firstReply: cleaned,
         selectedOption: input.selectedOption,
         resolvedReferents: input.resolvedReferents,
-      }),
+      }) }),
       complexity: input.complexity,
       maxTokens: AYAS_MAX_REPLY_TOKENS,
       temperature: resolveChatTemperature(input.env),
       ...(input.signal ? { signal: input.signal } : {}),
     });
     const revised = stripAyasReplyLabelEcho(correction.text.trim(), input.userText);
+    // The correction call must obey the same trusted identity as the first draft.
+    // A valid first draft cannot authorize a later retry to invent a different name.
+    if (recalledIdentityName && !new RegExp(`(?:ad[ıi]n|ismin)\\s+${foldedIdentityName}\\b|^${foldedIdentityName}[,.!\\s]`).test(fold(revised))) {
+      correctionSpan?.end("fallback");
+      return { text: `Adın ${recalledIdentityName}.`, source: "fallback", corrected: true, reason: "memory-identity-correction", correctionAttempts: 1 };
+    }
     if (!replyIssue(revised, { ...input, rawReply: revised })) {
       correctionSpan?.end("ok");
       return { text: revised, source: "llm", corrected: true, reason: "context-retry", correctionAttempts: 1 };
@@ -1486,8 +1503,27 @@ async function* streamAyasChatTurn(
     return { type: "done", text: AYAS_CONTEXT_OVERFLOW_REPLY, source: "fallback", corrected: true, reason: "CONTEXT_BUDGET_UNSAFE", provider: providerId, complexity: route.decision.complexity };
   };
   let prompt: string;
+  let conversationMessages: ReturnType<typeof buildAyasNaturalConversation>["conversationMessages"] | undefined;
   let contextBudget: AyasContextBudgetEvidence | undefined;
-  if (contextCeiling === undefined) {
+  if (env.AYAS_CONVERSATION_V2 === "1" && route.provider.id === "ollama") {
+    try {
+      const built = buildAyasNaturalConversation({
+        userText: text, history: ctx.recentHistory, memoryLines: memoryLinesForPrompt, protectedMemoryLines,
+        context: {
+          conversation: ctx.block,
+          ...(studioForPrompt ? { studio: studioForPrompt } : {}),
+          ...(isStudioRelevantQuery(text) ? { state: {
+            executionGate: input.snapshot.executionGate, taskCount: input.snapshot.tasks.total,
+            pendingApproval: input.snapshot.tasks.pendingApproval, errors: input.snapshot.errors,
+          } } : {}),
+        }, ceiling: contextCeiling, outputReserve: AYAS_MAX_REPLY_TOKENS,
+      });
+      prompt = built.prompt; conversationMessages = built.conversationMessages; contextBudget = built.evidence;
+    } catch (error) {
+      if (!(error instanceof AyasContextBudgetError)) throw error;
+      yield refuseContextBudget(error.evidence); return;
+    }
+  } else if (contextCeiling === undefined) {
     prompt = buildAyasChatPrompt(promptInput);
   } else {
     try {
@@ -1504,6 +1540,7 @@ async function* streamAyasChatTurn(
     let promptTokens: number | undefined;
     for await (const chunk of route.provider.stream({
       prompt,
+      ...(conversationMessages ? { conversationMessages } : {}),
       complexity: route.decision.complexity,
       maxTokens: AYAS_MAX_REPLY_TOKENS,
       temperature: resolveChatTemperature(env),

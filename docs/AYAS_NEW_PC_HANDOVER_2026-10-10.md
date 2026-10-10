@@ -1,3 +1,7 @@
+## Sonraki sohbet geliştirmesi — aktarım listesi yeniden ölçülecek
+
+Owner yerel doğal Türkçe sohbet geliştirmesini istedi. Kaynak opt-in `AYAS_CONVERSATION_V2=1` ile aynı router/bellek/güvenlik yolunu kullanır; nihai model/canlı kabul durumu [AYAS_LOCAL_CONVERSATION_2026-10-10.md](AYAS_LOCAL_CONVERSATION_2026-10-10.md) ve checkpoint'tedir. Bu oturumdaki Qwen3/Gemma deneme ağırlıkları disk kullanımını artırdı; aşağıdaki41,67GB eski ölçümdür. Pazartesi kesin dosya/model listesi ve ortak Ollama blob'ları tekil sayılarak tekrar ölçülür. Kullanılmayan adaylar zorunlu taşıma kapsamı değildir; owner dosyası/modeli silinmedi.128GB önerisi korunur, güncel toplam diye eski sayı verilmez. Hedefte seçilen AYAS model alanı/flag, bellek/Whisper/TTS yolları ve yeni build qualification doğrulanmalıdır.
+
 # AYAS / Atölye — 10 Ekim kontrolü ve yeni PC teslimi
 
 Sonraki owner talimatıyla canlı Gelişim Merkezi ve başlangıç düzeltmesi yapıldı: gerçek küçük öneri26bf497 COMPLETED; otomatik build Access yolundan kaldırıldı, hashlenmiş mevcut derleme için kullanıcı Startup kaydı kuruldu. Eski Access görevi disabled kalır. Fiziksel reboot/logon kabulü henüz yapılmadı. Güncel kanıt ve hedef qualification kuralları: [AYAS_AUTONOMY_STARTUP_2026-10-10.md](AYAS_AUTONOMY_STARTUP_2026-10-10.md). Aşağıdaki önceki audit açıklamaları kendi oturumuna bağlı tarihsel kanıttır.

@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — Yerel doğal sohbet kapsamı
+
+Owner ücretsiz yerel Türkçe sohbet ve güvenilir tanıma istedi; opt-in AYAS_CONVERSATION_V2 kaynakları ve29suite/izolebuild hazır, canlı model/qualification henüz tamamlanmadı. Sonraki ajan ATOLYE_CHECKPOINT.md'deki kalan sırayı ve docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md'yi izlemeli. Küçük model denemelerindeki hata kayıtlarını başarı diye sunma; owner belleğine sentetik ad yazma. Üretim OLLAMA_MODEL/temperature ve homepage/voice/authority korunur. Telefon ve Windows reboot kabulü12EkimPazartesi; kullanıcı bugün reboot istemedi.
+
 ## 10 Ekim 2026 — Geçerli owner kapsamı ve başlangıç hafızası
 
 Owner canlı Gelişim Merkezi ve otomatikbaşlangıç düzeltmesini yetkilendirdi; tamyedek/WinPE açılmadı. Gerçekküçüköneri26bf497 COMPLETED. Access artık yalnız hashlenmiş mevcutbuildi başlatır; eski autbuildtask disabledkorunur, kullanıcıStartup tek kayıt. Reboot kabulü henüzNOT_RUN; sonrakiownerWindowsrestart+logon sonrasınıdoğrula. Başkacihaza yerelmanifest/.next/node_modules/.lnk kurulumsayılmaz; hedefqualification yenidenyapılır. Eski9recovery kaydını silme/yenidenyürütme; Homepageownerpolicy korunur. Rapor docs/AYAS_AUTONOMY_STARTUP_2026-10-10.md.

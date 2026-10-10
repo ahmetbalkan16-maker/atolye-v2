@@ -1,3 +1,7 @@
+# Current — 2026-10-10 / local Turkish conversation source ready; live acceptance pending
+
+Owner requested natural local/free AYAS conversation with trusted personal recall. Opt-in typed role/history transport uses the existing router, budget, memory and finalizer; unknown-name and retry-identity safeguards added.29 suites/TS/lint/isolated production build PASS; stronger-model evaluation, controlled activation and new startup qualification remain. Homepage/voice UI/production model/dependency/authority unchanged. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md. Physical reboot/phone acceptance12October; no new Full166/foundation certification.
+
 # Current — 2026-10-10 / real small development publication PASS; qualified prebuilt Access startup installed; reboot acceptance pending
 
 Owner explicitly authorized live development verification and automatic startup repair. AYAS26bf497 COMPLETED; Access now verifies existing artifact/dependencies and never auto-builds. Current-user Startup shortcut installed, old task disabled; live app/tunnel/models/observer preserved. No full backup or PC restart. Latest details: docs/AYAS_AUTONOMY_STARTUP_2026-10-10.md / ATOLYE_CHECKPOINT.md. Foundation and historical qualifications remain separate.

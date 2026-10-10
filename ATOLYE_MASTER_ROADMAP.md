@@ -1,3 +1,7 @@
+## 2026-10-10 — Owner local conversation improvement (qualification in progress)
+
+Local Turkish chat roles/history and trusted identity guards are implemented behind an opt-in flag; stronger-model and live startup qualification remain in progress. Current scope/results: ATOLYE_CHECKPOINT.md and docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md. Existing stage gates/frozen qualifications remain unchanged; physical reboot/phone acceptance is12October.
+
 ## 9 Ekim 2026 — push kanıtı 456dad6..d03c5a0 kaydedildi; güvenli bakım paketi hazır, MAINTENANCE NOT_READY
 
 - Push: owner'ın exact-SHA onayıyla 569d6f5, 67493c8, 2d6cef3 ve d03c5a0, 456dad6'dan normal fast-forward olarak gönderildi (07:20:09Z, force yok). Taze fetch ve ls-remote: remote = local = d03c5a0, 0/0, temiz worktree; remote main f0ae19d dokunulmadı. Full166 166/166 yalnız 2d6cef3'e bağlıdır; d03c5a0 ve bu kanıt commit'i yalnız dokümantasyondur ve tek başına teknik sertifikalı sayılmaz. FINAL_CERTIFICATION, ACTIVE_CHECKPOINT, evidence registry ve packet index gerçek remote durumuna eşitlendi; değişen değerler `*AtCertification` / `previous` / `…BeforePublication` alanlarında korunur. İki tarihsel FAIL (autonomy-observer :160, publication-activity :140) ve açık qualification borçları aynen kalır.

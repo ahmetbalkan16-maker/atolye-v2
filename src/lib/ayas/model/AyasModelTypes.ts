@@ -45,8 +45,15 @@ export type AyasModelProviderId = "ollama" | "cloud";
 export type AyasModelProviderKind = "local" | "cloud";
 
 /** One model call — the prompt is already fully built by `buildAyasChatPrompt`. */
+export interface AyasConversationMessage {
+  readonly role: "system" | "user" | "assistant";
+  readonly content: string;
+}
+
 export interface AyasModelRequest {
   readonly prompt: string;
+  /** Optional local chat transport; prompt MUST be the exact JSON serialization admitted by the budget. */
+  readonly conversationMessages?: readonly AyasConversationMessage[];
   readonly complexity: AyasChatComplexity;
   readonly maxTokens: number;
   readonly temperature?: number;

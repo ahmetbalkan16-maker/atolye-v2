@@ -96,6 +96,13 @@ export function createOllamaAyasProvider(
       if (!base) throw new Error("ollama-not-configured");
       // Post-freeze 15C: an unknown window or a prompt that does not fit it is refused before any request is made.
       const ceiling = resolveAyasContextCeiling("local", env, req.numCtx ?? base.numCtx);
+      if (req.conversationMessages && (
+        req.prompt !== JSON.stringify(req.conversationMessages) ||
+        req.conversationMessages.length < 2 || req.conversationMessages[0].role !== "system" ||
+        req.conversationMessages.at(-1)?.role !== "user" ||
+        req.conversationMessages.some((message, index) => typeof message.content !== "string" ||
+          !["system", "user", "assistant"].includes(message.role) || (index > 0 && message.role === "system"))
+      )) throw new Error("ayas-conversation-contract-invalid");
       assertAyasPromptFits(req.prompt, ceiling, req.maxTokens);
       const controller = new AbortController();
       const onAbort = () => controller.abort();
@@ -111,7 +118,10 @@ export function createOllamaAyasProvider(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             model,
-            messages: [{ role: "user", content: req.prompt }],
+            // AYAS consumes final answer content, never hidden thinking. On
+            // Qwen3 this also keeps the bounded reply budget for the answer.
+            ...(/^qwen3(?::|$)/.test(model) ? { think: false } : {}),
+            messages: req.conversationMessages ?? [{ role: "user", content: req.prompt }],
             stream: true,
             // Ollama's own grammar-constrained decoding (server >= 0.5) —
             // when the caller supplies a schema, this makes the RAW model

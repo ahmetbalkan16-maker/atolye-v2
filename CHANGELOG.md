@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — AYAS opt-in yerel doğal sohbet
+
+Mevcut Ollama sohbetine typed gerçek roller, kısa sabit Türkçe cevap politikası ve aynı context bütçesi eklendi; flag kapalı eski transport korunur. Bilinmeyen ad uydurması/retry ad kaybı kapatıldı.29 ilgili suite, TS/lint ve izole production build PASS; canlı model kalitesi/kabul devam ediyor. Homepage, ses UI, üretim model seçimi, gate/onay ve dependency değiştirilmedi. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
+
 ## 10 Ekim 2026 — Canlı gelişim doğrulandı; derlemesiz güvenli başlangıç kuruldu
 
 Gerçek küçük test iyileştirmesi AYAS onay→yürütme→test→commit/push→Graphify/health akışında COMPLETED26bf497; reload sonrası kalıcı. Access otomatikbuild kaldırıldı,1086build/25976dependency hash pin ve20guard/48PSnative test eklendi. Kullanıcı Startup kaydı, normal yetki; eski disabledtask korundu. Eski supervisor tekPID değişti, app/tunnel/model/observer aynı kaldı.173senaryo/TS/lintPASS; eski9recovery+1okunamayanproje ve Nextversionfarkı korunur; gerçekrebootNOT_RUN. docs/AYAS_AUTONOMY_STARTUP_2026-10-10.md.

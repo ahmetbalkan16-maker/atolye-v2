@@ -1,3 +1,5 @@
+Current 2026-10-10 conversation work: opt-in `AYAS_CONVERSATION_V2=1` preserves real local chat roles/history within the existing context budget and safety finalizer.29 related suite commands and isolated production build PASS; stronger local model/live qualification still in progress. No homepage/voice UI or production-model change. See docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md and latest ATOLYE_CHECKPOINT.md. Physical reboot/phone acceptance is deferred to12October by owner.
+
 Current 2026-10-10: real owner-approved Gelişim Merkezi proposal completed and published at26bf497; Access now starts a qualified existing build without auto-build/install. Current-user Startup registration installed; physical reboot/logon acceptance pending. See docs/AYAS_AUTONOMY_STARTUP_2026-10-10.md and latest ATOLYE_CHECKPOINT.md. Foundation qualification is unchanged.
 
 Owner UI V2 session (2026-10-07): shared owner experience deployed at CLEAN59e585a; see ATOLYE_CHECKPOINT.md and docs/ayas-execution/2026-09-27-master/07_BRAIN_UI_V2/owner-ui/OWNER_UI_V2_RESULT.md for exact deployment/phone qualification. Foundation remains BLOCKED.

@@ -1,3 +1,7 @@
+## 2026-10-10 — Opt-in typed local conversation, existing authority boundary
+
+Direct AYAS Ollama chat may use `AYAS_CONVERSATION_V2=1` to transmit a fixed system policy, user/assistant history and the latest user message separately. The serialized payload is admitted by the existing context budget and bound exactly to the provider request; dynamic memory/context never becomes a system role. Legacy callers omit the optional typed messages and retain their transport. Model routing, schema reasoning, storage, finalization and execution/onboarding approvals remain shared and unchanged. Trusted identity is checked again after the single correction attempt. No parallel orchestrator, cloud provider or homepage feature is introduced. Validation/live limitations: docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
+
 ---
 Document: ARCHITECTURE_DECISIONS.md
 Version: 1.0.0
