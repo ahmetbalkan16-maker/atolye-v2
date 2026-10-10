@@ -56,11 +56,13 @@ function temp(prefix: string): string {
   return dir;
 }
 /** No AYAS key, no model, no runtime root: only what Node and tsx need to start. */
-const env: NodeJS.ProcessEnv = Object.fromEntries(
-  ["PATH", "Path", "PATHEXT", "SystemRoot", "SYSTEMROOT", "ComSpec", "WINDIR", "TEMP", "TMP", "USERPROFILE", "HOME", "APPDATA", "LOCALAPPDATA"]
-    .filter((key) => process.env[key] !== undefined).map((key) => [key, process.env[key]]),
-);
-env.NODE_ENV = "test";
+const env: NodeJS.ProcessEnv = {
+  ...Object.fromEntries(
+    ["PATH", "Path", "PATHEXT", "SystemRoot", "SYSTEMROOT", "ComSpec", "WINDIR", "TEMP", "TMP", "USERPROFILE", "HOME", "APPDATA", "LOCALAPPDATA"]
+      .filter((key) => process.env[key] !== undefined).map((key) => [key, process.env[key]]),
+  ),
+  NODE_ENV: "test",
+};
 
 const admission = { schema: "fixture-admission" } as unknown as AyasOwnerPublicationRequest["ownerAdmission"];
 const proposalRequest = (proposalId = "ayas-proposal-fixture"): AyasOwnerPublicationRequest => ({ lane: "proposal", proposalId, proposalHash: "sha256:fixture", ownerAdmission: admission, executionOwnerAdmission: admission });
