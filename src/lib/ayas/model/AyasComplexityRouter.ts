@@ -179,6 +179,8 @@ const AYAS_BENEFIT_WORDS = /\bfayda\w*\b|\byapacaksin\b|\byapamiyorsun\b|\byapab
 const AYAS_RECOVERY_WORDS = /\brecovery\b/;
 const AYAS_DEVELOPMENT_REPORT = /\bgelisim rapor\w*\b/;
 const AYAS_NAMED_WAITING = /\bayas\b.*\b(senden|benden)\b.*\bbekliyor\w*\b/;
+/** Named self-development topic, without treating "AYAS, bu videoyu geliştir" as a status request. */
+const AYAS_NAMED_DEVELOPMENT = /\bayas(?: (?:in|ta|da))? (?:gelisim\w*|gelistirme merkez\w*)\b/;
 /** Generic Turkish 2nd-person-singular verb suffix — broad on purpose, but never checked standalone: always AND-gated below with an AYAS development/approval topic word. */
 const AYAS_SECOND_PERSON_SUFFIX = /\w*(yorsun|misin|musun|müsün|mısın|dun\b|dın\b|din\b|tun\b|tın\b|tin\b|acaksin|eceksin)\b/;
 
@@ -189,6 +191,7 @@ export function isAyasDevelopmentStatusQuery(text: string): boolean {
   if (AYAS_DEFERRED_PHRASE.test(t)) return true;
   if (AYAS_DEVELOPMENT_REPORT.test(t)) return true;
   if (AYAS_NAMED_WAITING.test(t)) return true;
+  if (AYAS_NAMED_DEVELOPMENT.test(t)) return true;
   if (AYAS_BENEFIT_WORDS.test(t) && (AYAS_APPROVAL_WORDS.test(t) || AYAS_SELF_SUBJECT.test(t))) return true;
   if (AYAS_SELF_SUBJECT.test(t) && (AYAS_DEV_WORDS.test(t) || AYAS_APPROVAL_WORDS.test(t))) return true;
   if (AYAS_SECOND_PERSON_SUFFIX.test(t) && (AYAS_DEV_WORDS.test(t) || AYAS_APPROVAL_WORDS.test(t))) return true;

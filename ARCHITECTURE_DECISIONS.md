@@ -1,3 +1,7 @@
+## 2026-10-10 — Canonical development facts and existing micro-batch readiness
+
+A successfully executed ayas-development-status tool returns its existing canonical Turkish summary through the shared chat stream. Model paraphrasing must not invent scan times or approval counts. Other tools and normal conversation retain the existing finalizer. Named AYAS development queries select that existing read-only action; no separate orchestrator or homepage feature is added. The micro-batch accumulator applies its existing readiness policy on no-new-item ticks under the same fresh/clean/machine/HEAD guards. READY_FOR_REVIEW does not grant approval, reservation or publication authority. Validation: docs/AYAS_GENERAL_AUDIT_2026-10-10.md.
+
 ## 2026-10-10 — Opt-in typed local conversation, existing authority boundary
 
 Later10October, owner publication was moved to a child worker to keep the Next event loop responsive during synchronous publication checks. Parent and worker retain strict sealed admission validation and canonical publication services. A process-local shared queue serializes owner ledger writers; read refreshes skip STALE mutations during publication. Lost HTTP responses trigger bounded read-only reconciliation, without replaying the action. Worker/queue/entry remain AUTHORITY_OR_STORAGE and require manual review. Source/live details: docs/AYAS_DEVCENTER_HANDOFF_2026-10-10.md; real next approved-publication acceptance remains separate.

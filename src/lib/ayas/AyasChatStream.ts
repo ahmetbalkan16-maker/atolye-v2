@@ -1413,7 +1413,11 @@ async function* streamAyasChatTurn(
     }
 
     let rawReplyForFinalization = outcome.result.answer;
-    if (dispatch?.actionOutcome.executed) {
+    // Development/approval facts already have a canonical Turkish summary.
+    // Model paraphrasing added an unobserved scan date in live acceptance.
+    const developmentStatusSummary = dispatch?.toolId === "ayas-development-status" && dispatch.actionOutcome.executed
+      ? dispatch.actionOutcome.result.summary : null;
+    if (dispatch?.actionOutcome.executed && developmentStatusSummary === null) {
       const { result } = dispatch.actionOutcome;
       try {
         const grounded = await route.provider.chat({
@@ -1440,7 +1444,9 @@ async function* streamAyasChatTurn(
     // fabricated "here's the result" answer was most likely.
     const toolNamedButNotExecuted = outcome.anyToolNamedBeforeFilter && dispatch?.actionOutcome.executed !== true;
 
-    const finalized = await finalizeAyasReply({
+    const finalized = developmentStatusSummary !== null
+      ? { text: developmentStatusSummary, source: "fallback" as const, corrected: false, correctionAttempts: 0 as const, reason: undefined }
+      : await finalizeAyasReply({
       rawReply: rawReplyForFinalization,
       userText: text,
       // Identity correction is a terminal safety guard. Preserve the bounded

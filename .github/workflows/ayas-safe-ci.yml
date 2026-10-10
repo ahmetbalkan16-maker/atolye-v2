@@ -36,6 +36,10 @@ jobs:
         run: npm run lint
       - name: Cognitive quality
         run: npx tsx scripts/smoke-ayas-cognitive-quality.ts
+      - name: Canonical development status routing and reply
+        run: npx tsx scripts/smoke-ayas-named-development-routing.ts
+      - name: Micro-batch age readiness and preserved guards
+        run: npx tsx scripts/smoke-ayas-micro-batch-age-readiness.ts
       - name: Prepare bounded retrieval evidence directory
         run: mkdir "$AYAS_CI_EVIDENCE_DIR"
       # Preserve the original grader's raw exit/report. The next mandatory

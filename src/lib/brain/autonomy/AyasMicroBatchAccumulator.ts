@@ -100,10 +100,20 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
     activeBatch = null;
   }
 
+  // Age progresses even when no additional candidate passes this tick. This
+  // only requests review; the existing owner approval/execution path remains.
+  const reviewIfDue = (batch: AyasMicroBatch | null): AyasMicroBatch | null => {
+    if (batch?.status === "ACCUMULATING" && batch.baseHead === observation.head && batch.worktreeBaseHead === handle.baseHead &&
+        evaluateAyasMicroBatchReadiness(batch.items.length, batch.createdAt, observation.now).ready) {
+      return batchStore.markReadyForReview(batch.batchId, observation.now);
+    }
+    return batch;
+  };
   const currentItemCount = activeBatch?.items.length ?? 0;
   const capacity = Math.max(0, AYAS_MICRO_BATCH_MAX_ITEMS - currentItemCount);
   if (capacity === 0) {
-    return { itemsAdded: [], batch: activeBatch, rejections: [], readyForReview: activeBatch?.status === "READY_FOR_REVIEW", staledPreviousBatchId };
+    const batch = reviewIfDue(activeBatch);
+    return { itemsAdded: [], batch, rejections: [], readyForReview: batch?.status === "READY_FOR_REVIEW", staledPreviousBatchId };
   }
 
   const activeSemanticKeys = new Set((activeBatch?.items ?? []).map((i) => i.semanticKey));
@@ -194,7 +204,8 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
   }
 
   if (itemsAdded.length === 0) {
-    return { itemsAdded: [], batch: activeBatch, rejections, readyForReview: activeBatch?.status === "READY_FOR_REVIEW", staledPreviousBatchId };
+    const batch = reviewIfDue(activeBatch);
+    return { itemsAdded: [], batch, rejections, readyForReview: batch?.status === "READY_FOR_REVIEW", staledPreviousBatchId };
   }
 
   const allItems: AyasMicroBatchItemRef[] = [...(activeBatch?.items ?? []), ...itemsAdded.map((i): AyasMicroBatchItemRef => ({ microItemId: i.microItemId, semanticKey: i.semanticKey, patchArtifactId: i.patchArtifactId, patchHash: i.patchHash, exactFiles: i.exactFiles }))];
@@ -217,8 +228,7 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
 
   const batched = itemsAdded.map((item) => itemStore.transition(item.microItemId, "BATCHED", observation.now, { batchId: batch.batchId }));
 
-  const readiness = evaluateAyasMicroBatchReadiness(allItems.length, batch.createdAt, observation.now);
-  const finalBatch = readiness.ready && batch.status === "ACCUMULATING" ? batchStore.markReadyForReview(batch.batchId, observation.now) : batch;
+  const finalBatch = reviewIfDue(batch)!;
 
   return { itemsAdded: batched, batch: finalBatch, rejections, readyForReview: finalBatch.status === "READY_FOR_REVIEW", staledPreviousBatchId };
 }
