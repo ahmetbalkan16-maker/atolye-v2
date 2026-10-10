@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — CI temporal-memory kararsızlığı giderildi
+
+Senaryo 16'nın iki işlemli bellek yarışında test yazıcısı meşgul kilidi 50 deneme × 2–12 ms (Linux ≈0,35 sn) bekliyordu; yavaş CI runner'da sağlıklı yarış CONFLICT oluyordu (CI38063422350 attempt1). Yardımcı artık 20 sn süre sınırıyla yeniden dener; kalıcı kilit hâlâ hata verir. Ürün kodu, pinli test, frozen manifest ve canlı sistem değişmedi. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
+
 ## 10 Ekim 2026 — AYAS opt-in yerel doğal sohbet
 
 Gemma3 12B/flag1 canlı663bce3 ve pinli S6WspeoHPZ1sbNN0w0RzH. Typed gerçek roller/geçmiş, kısa Türkçe politika, güvenilir ad ve bilinmeyen kişisel olgu koruması; yanlış geçmiş referansı ve sahte çalışma-planı fallback'i giderildi.42 yeni senaryo/29 suite/TS/lint/build ve gerçek sohbet/Studio PASS;2108 kayıt değişen0. Model keep_alive0 yanıtlar arasında VRAM'i bırakır. Homepage/sesUI/üretim modeli/gate/onay/dependency korunur; fiziksel telefon/reboot12Ekim. CI38063422350 attempt2 SUCCESS; final Graphify checkpoint'te. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.

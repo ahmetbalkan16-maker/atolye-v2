@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — CI rerun başarısı kök neden değildir
+
+CI'da bir kez düşen suite'i rerun ile geçmiş saymadan önce kök nedeni bul. CF49 kapısı çocuk suite'in yalnız stderr hash'ini saklar; hangi senaryonun düştüğünü adım süreleri ve süre eşikleri gösterir. Çok işlemli testlerde yeniden denemeyi deneme sayısına değil süreye bağla: Linux zamanlayıcısı kısa sleep'leri Windows'tan çok daha kısa tutar. Pinli test dosyasına dokunma; düzeltmeyi pinlenmemiş yardımcıda yap ve kalıcı kilidin hâlâ hata verdiğini kanıtla.
+
 ## 10 Ekim 2026 — Yerel doğal sohbet kapsamı
 
 Owner ücretsiz yerel Türkçe sohbet istedi; Gemma3 12B/AYAS_CONVERSATION_V2=1 canlı663bce3, hash-qualified S6WspeoHPZ1sbNN0w0RzH.42 yeni senaryo/29suite/TS/lint/build/gerçek sohbet+Studio PASS;2108 kayıt değişen0. Son CI38063422350 attempt2 SUCCESS, ilk FAIL kaydı korunur; final Graphify ve closure checkpoint'te. Model/generic anlayış kusursuz değildir; ilk hatalı ham kayıtları sakla. Owner belleğine sentetik ad yazma. Üretim OLLAMA_MODEL/temperature ve homepage/voice/authority korunur. Telefon ve Windows reboot kabulü12EkimPazartesi; bugün reboot yok. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
