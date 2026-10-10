@@ -40,6 +40,7 @@ import { useBrainLifecycle } from "./useBrainLifecycle";
 import { useScreenWakeLock } from "./useScreenWakeLock";
 import { runAyasChatStreamWithPhoneFallback } from "./ayasChatStreamClient";
 import { bootstrapAyasPhoneKeyFromUrl } from "./ayasPhoneFallback";
+import { ayasLostResponseErrorCode, ayasMicroBatchProgress, ayasProposalProgress, recheckAyasAfterLostResponse } from "./ayasLostResponseRecheck";
 import {
   BRAIN_CONVERSATION_KEY,
   conversationHistoryForModel,
@@ -538,7 +539,8 @@ export function BrainCoreConsole({
 
   const send = () => runAyas(draft);
 
-  const doRefresh = () => {
+  // Stable so the one-click owner actions below can re-read every panel once they finish.
+  const doRefresh = useCallback(() => {
     if (!refresh) return;
     startTransition(async () => {
       try {
@@ -588,7 +590,7 @@ export function BrainCoreConsole({
         try { setControlCenterOverride(await refreshControlCenter()); } catch { /* keep the last Control Center read; its own timestamps stay visible */ }
       });
     }
-  };
+  }, [refresh, refreshSelfHeal, refreshApprovalInbox, refreshOwnerRecommendations, refreshMicroBatch, refreshGoalDevelopment, refreshResearchEngineStatus, refreshControlCenter]);
 
   // Record an operator ONAYLA / REDDET / DAHA SONRA decision. This writes a
   // small decision record server-side (auth-gated) — it does NOT run git, stage
@@ -656,6 +658,11 @@ export function BrainCoreConsole({
   // confirmation. Same `{ ok, code }`-over-throw posture as `onExecuteProposal`
   // above, for the same reason (a thrown Server Action error is redacted in
   // production).
+  //
+  // This call runs for minutes, so a proxy or a phone can drop its response
+  // while the server finishes. `catch` therefore re-reads durable state
+  // (`ayasLostResponseRecheck`) and never re-sends; `finally` re-reads every
+  // panel, the same as "Durumu yenile".
   const onBatchOnaylaVeUygula = useCallback((input: { batchId: string; batchHash: string }) => {
     if (!batchOnaylaVeUygula || batchOnaylaPendingId) return;
     setBatchOnaylaPendingId(input.batchId);
@@ -666,16 +673,21 @@ export function BrainCoreConsole({
         setMicroBatch(result.microBatch);
         setBatchOnaylaError(result.ok ? null : { batchId: input.batchId, code: result.code ?? "APPROVAL_FAILED" });
       } catch {
-        setBatchOnaylaError({ batchId: input.batchId, code: "NETWORK_ERROR" });
+        const code = refreshMicroBatch
+          ? ayasLostResponseErrorCode(await recheckAyasAfterLostResponse({ read: refreshMicroBatch, progress: (view) => ayasMicroBatchProgress(view, input.batchId), apply: setMicroBatch }))
+          : "NETWORK_ERROR";
+        setBatchOnaylaError(code ? { batchId: input.batchId, code } : null);
       } finally {
         setBatchOnaylaPendingId(null);
+        doRefresh();
       }
     });
-  }, [batchOnaylaPendingId, batchOnaylaVeUygula]);
+  }, [batchOnaylaPendingId, batchOnaylaVeUygula, refreshMicroBatch, doRefresh]);
 
   // "ONAYLA VE UYGULA" (M20.7) — the individual-proposal equivalent of
   // `onBatchOnaylaVeUygula` above: one call, one human authorization,
   // decide → Package C execution → Graphify verification → Git publication.
+  // Lost-response handling and the closing re-read as in the batch handler.
   const onProposalOnaylaVeUygula = useCallback((input: { proposalId: string; proposalHash: string }) => {
     if (!proposalOnaylaVeUygula || proposalOnaylaPendingId) return;
     setProposalOnaylaPendingId(input.proposalId);
@@ -686,18 +698,23 @@ export function BrainCoreConsole({
         setApprovalInbox(result.inbox);
         setProposalOnaylaError(result.ok ? null : { proposalId: input.proposalId, code: result.code ?? "APPROVAL_FAILED" });
       } catch {
-        setProposalOnaylaError({ proposalId: input.proposalId, code: "NETWORK_ERROR" });
+        const code = refreshApprovalInbox
+          ? ayasLostResponseErrorCode(await recheckAyasAfterLostResponse({ read: refreshApprovalInbox, progress: (view) => ayasProposalProgress(view, input.proposalId), apply: setApprovalInbox }))
+          : "NETWORK_ERROR";
+        setProposalOnaylaError(code ? { proposalId: input.proposalId, code } : null);
       } finally {
         setProposalOnaylaPendingId(null);
+        doRefresh();
       }
     });
-  }, [proposalOnaylaPendingId, proposalOnaylaVeUygula]);
+  }, [proposalOnaylaPendingId, proposalOnaylaVeUygula, refreshApprovalInbox, doRefresh]);
 
   // Owner-approval model — the owner's one APPROVE/REJECT on an exact
   // recommendation binding. REJECT durably records the decision with no
   // mutation; APPROVE re-validates everything fresh server-side and, only if
   // still valid AND the server's own live-execution flag is set, delegates
-  // to the same canonical execution path as `onProposalOnaylaVeUygula` above.
+  // to the same canonical execution path as `onProposalOnaylaVeUygula` above,
+  // so it gets the same lost-response handling and closing re-read.
   const onOwnerApprovalDecision = useCallback((input: { binding: AyasApprovalBindingSnapshot; decision: "APPROVE" | "REJECT" }) => {
     if (!ownerApprovalDecision || ownerDecisionPendingId) return;
     setOwnerDecisionPendingId(input.binding.proposalId);
@@ -708,12 +725,16 @@ export function BrainCoreConsole({
         setOwnerRecommendations(result.recommendations);
         setOwnerDecisionError(result.ok ? null : { proposalId: input.binding.proposalId, code: result.code ?? "APPROVAL_FAILED" });
       } catch {
-        setOwnerDecisionError({ proposalId: input.binding.proposalId, code: "NETWORK_ERROR" });
+        const code = refreshApprovalInbox
+          ? ayasLostResponseErrorCode(await recheckAyasAfterLostResponse({ read: refreshApprovalInbox, progress: (view) => ayasProposalProgress(view, input.binding.proposalId), apply: setApprovalInbox }))
+          : "NETWORK_ERROR";
+        setOwnerDecisionError(code ? { proposalId: input.binding.proposalId, code } : null);
       } finally {
         setOwnerDecisionPendingId(null);
+        doRefresh();
       }
     });
-  }, [ownerDecisionPendingId, ownerApprovalDecision]);
+  }, [ownerDecisionPendingId, ownerApprovalDecision, refreshApprovalInbox, doRefresh]);
 
   // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
   // select the chat panel and, when this device can hear, start listening
