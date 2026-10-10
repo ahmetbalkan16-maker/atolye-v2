@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — AYAS Access Online penceresiz başlangıç
+
+Windows 11'de Windows Terminal varsayılan olduğu için `powershell.exe -WindowStyle Hidden` kısayolu görünür bir Terminal penceresi açıyordu. Yeni `scripts/ayas-access-hidden.vbs` daemon'u `wscript` ile penceresiz başlatır; `register-ayas-autostart.ps1` eski kendi kısayolunu yerinde yükseltir, `unregister` iki kimliği tanır. Access smoke 50/50 PASS. Canlı supervisor yalnız gözetmen olarak değiştirildi; Next ve tünel kesintisiz. Reboot kabulü NOT_RUN.
+
 ## 10 Ekim 2026 — CI temporal-memory kararsızlığı giderildi
 
 Senaryo 16'nın iki işlemli bellek yarışında test yazıcısı meşgul kilidi 50 deneme × 2–12 ms (Linux ≈0,35 sn) bekliyordu; yavaş CI runner'da sağlıklı yarış CONFLICT oluyordu (CI38063422350 attempt1). Yardımcı artık 20 sn süre sınırıyla yeniden dener; kalıcı kilit hâlâ hata verir. Ürün kodu, pinli test, frozen manifest ve canlı sistem değişmedi. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.

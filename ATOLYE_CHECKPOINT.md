@@ -1,3 +1,17 @@
+## 10 Ekim 2026 — AYAS Access Online penceresiz arka planda başlıyor
+
+Owner, bağlantı için çalışan AYAS Access Online'ın PC açılışında (Windows oturumu açılınca) otomatik başlamasını, ama pencere göstermeden arka planda çalışmasını istedi; çalışan hiçbir şey bozulmayacaktı. Giriş HEAD 4c836a5 = origin, temiz.
+
+Kök neden: Startup kısayolu doğrudan `powershell.exe -WindowStyle Hidden` çalıştırıyordu. Windows 11'de varsayılan terminal Windows Terminal olduğu için konsol görünür bir "AYAS Access Online" Terminal penceresine devrediliyor, `-WindowStyle Hidden` bu pencereyi gizlemiyordu (supervisor 16452 → WindowsTerminal 28308). Observer zaten `wscript` + VBS ile başladığı için gizliydi.
+
+Değişiklik: yeni `scripts/ayas-access-hidden.vbs` (yalnız ASCII; yolları kendi konumundan türetir) daemon'u `WshShell.Run(..., 0, True)` ile penceresiz başlatır ve çıkış kodunu korur; ExecutionPolicy Bypass yok. `register-ayas-autostart.ps1` kısayolu ve izin verilirse görev eylemini `wscript.exe //B //NoLogo "<repo>\scripts\ayas-access-hidden.vbs"` yapar. Önceki powershell hedefli kendi kısayolunu aynı dosyada yerinde yükseltir, Task Scheduler'a dokunmaz, ikinci kayıt oluşturmaz. `unregister-ayas-autostart.ps1` iki kimliği de tanır. Daemon, build/qualification, eski disabled görev, Observer ve Ollama değişmedi.
+
+Doğrulama: access daemon smoke **50/50 PASS** (48 eski + 2 yeni: kaynak sözleşmesi ve gerçek wscript başlatması; boşluklu Türkçe yol, argümanlar, çalışma klasörü, çıkış kodu). Explorer → test kısayolu → wscript ile sahte daemon: konsol `visible=False`, yeni Terminal/OpenConsole yok; gerçek U+00F6 yolu PASS. Not: WSH 260 karakteri aşan betik yolunda modal "Geçersiz yol adı" diyaloğu açar (ilk test denemesi uzun TEMP yüzünden buna takıldı); gerçek yol 101 karakter, test fixture adı kısaltıldı ve takılan kendi wscript'ini kapatır. Canlı `register -Apply`: qualification PASS (S6WspeoHPZ1sbNN0w0RzH, 495 build / 25976 dependency), kısayol yükseltildi; tekrar `-Apply` "Already registered"; unregister yalnız dry-run. Eski kısayolun yedeği yalnız oturum scratchpad'inde.
+
+Canlı geçiş: yalnız görünür supervisor 16452, kimliği doğrulanıp döngü uykusundayken durduruldu (process tree durdurulmadı). Yeni supervisor **11948** Startup kısayolundan explorer üzerinden başlatıldı (wscript 14136 → powershell; ajan süreç ağacına bağlı değil). İlk iki döngü 16:13:40Z/16:14:41Z **healthy / recoveryAction none**; Next **13656** ve tünel **27628** aynı, kesinti yok, yeni audit kaydı yok, app hata günlüğü 0 byte. Windows Terminal penceresi kapandı; görünür AYAS penceresi yok.
+
+Açık: başlatma Windows oturumu açılınca çalışır (Startup klasörü); oturum açılmadan çalışmaz. Gerçek reboot/logon kabulü hâlâ NOT_RUN, Pazartesi owner restart'ında doğrulanır. Eski görev disabled kalır.
+
 ## 10 Ekim 2026 — CI temporal-memory hatasının kök nedeni giderildi; sohbet kapanışı
 
 Devralma: Codex aşağıdaki kapanışta CI38063422350 attempt1 `CF49_CHILD_FAILED: scripts/smoke-ayas-memory-temporal.ts` hatasını görüp değişmeyen kaynağı rerun etmişti (attempt2 SUCCESS). Giriş HEAD 0fb68ea = origin; yalnız sohbet raporu commit edilmemişti. Codex uygulaması açıktı ama aktif yazma/komut yoktu. Observer çalışma ağacı kirli olduğu için `PAUSED_DIRTY_REPO` idi.

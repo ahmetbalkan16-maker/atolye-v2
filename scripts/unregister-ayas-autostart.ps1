@@ -16,9 +16,14 @@ $shortcut = $null
 if (Test-Path -LiteralPath $ShortcutPath) {
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($ShortcutPath)
-  $expectedExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-  $expectedArgs = '-NoProfile -WindowStyle Hidden -File "' + (Join-Path $RepoRoot 'scripts\ayas-access-daemon.ps1') + '" -Continuous -IntervalSeconds 60'
-  if ($shortcut.TargetPath -ne $expectedExe -or $shortcut.WorkingDirectory -ne $RepoRoot -or $shortcut.Arguments -ne $expectedArgs) {
+  # Current hidden launcher, or the earlier direct powershell.exe shortcut.
+  $hiddenExe = Join-Path $env:SystemRoot 'System32\wscript.exe'
+  $hiddenArgs = '//B //NoLogo "' + (Join-Path $RepoRoot 'scripts\ayas-access-hidden.vbs') + '"'
+  $visibleExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  $visibleArgs = '-NoProfile -WindowStyle Hidden -File "' + (Join-Path $RepoRoot 'scripts\ayas-access-daemon.ps1') + '" -Continuous -IntervalSeconds 60'
+  $isHidden = $shortcut.TargetPath -eq $hiddenExe -and $shortcut.Arguments -eq $hiddenArgs
+  $isVisible = $shortcut.TargetPath -eq $visibleExe -and $shortcut.Arguments -eq $visibleArgs
+  if ($shortcut.WorkingDirectory -ne $RepoRoot -or -not ($isHidden -or $isVisible)) {
     throw 'AYAS_ACCESS_SHORTCUT_IDENTITY_UNVERIFIED'
   }
 }

@@ -147,6 +147,16 @@ try {
     Yes ($source.Contains('-Continuous -IntervalSeconds 60'))
     Yes ($source.Contains('ExecutionTimeLimit ([TimeSpan]::Zero)'))
   }
+  Scenario 'autostart launches through wscript, never a visible powershell console' {
+    $source=Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'register-ayas-autostart.ps1')
+    Yes ($source.Contains('$shortcut.TargetPath = $WScriptExe'))
+    Yes ($source.Contains('-Execute $WScriptExe'))
+    No ($source.Contains('$shortcut.TargetPath = $PowerShellExe'))
+    No ($source.Contains('-Execute $PowerShellExe'))
+    $launcher=Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'ayas-access-hidden.vbs')
+    Yes ($launcher -match '(?m)^rc = shell\.Run\(.+-Continuous -IntervalSeconds 60", 0, True\)')
+    No ($launcher -match '(?i)ExecutionPolicy|npm|next build')
+  }
   Scenario 'no unknown-process kill or authority expansion' {
     $source=Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'ayas-access-daemon.ps1')
     No ($source -match '(?im)^\s*Stop-Process\b')
@@ -307,6 +317,29 @@ try {
       $owned=Get-CimInstance Win32_Process -Filter "ProcessId = $($child.Id)" -ErrorAction SilentlyContinue
       if ($owned -and $owned.Name -eq 'powershell.exe' -and $owned.CommandLine -match 'Start-Sleep -Seconds 20') { Stop-Process -Id $child.Id -Force }
     }
+  }
+  Scenario 'real hidden launcher runs its sibling daemon from a spaced Turkish path and returns its exit code' {
+    # Short name: WSH refuses a script path over MAX_PATH with a modal dialog.
+    $fixtureRoot=Join-Path $temp 'Atölye fx'
+    $fixtureScripts=Join-Path $fixtureRoot 'scripts'
+    New-Item -ItemType Directory -Path $fixtureScripts -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'ayas-access-hidden.vbs') -Destination $fixtureScripts
+    $fakeDaemon=@'
+param([switch]$Continuous, [int]$IntervalSeconds)
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'record.txt'), "$Continuous|$IntervalSeconds|$((Get-Location).Path)")
+exit 7
+'@
+    [IO.File]::WriteAllText((Join-Path $fixtureScripts 'ayas-access-daemon.ps1'), $fakeDaemon, (New-Object Text.UTF8Encoding($false)))
+    $wscript=Join-Path $env:SystemRoot 'System32\wscript.exe'
+    $launch=Start-Process -FilePath $wscript -ArgumentList @('//B','//NoLogo',('"' + (Join-Path $fixtureScripts 'ayas-access-hidden.vbs') + '"')) -PassThru
+    $null=$launch.Handle
+    if (-not $launch.WaitForExit(30000)) {
+      $owned=Get-CimInstance Win32_Process -Filter "ProcessId = $($launch.Id)" -ErrorAction SilentlyContinue
+      if ($owned -and $owned.Name -eq 'wscript.exe' -and $owned.CommandLine.Contains($fixtureScripts)) { Stop-Process -Id $launch.Id -Force }
+      throw 'hidden launcher did not finish'
+    }
+    Eq $launch.ExitCode 7
+    Eq ([IO.File]::ReadAllText((Join-Path $fixtureScripts 'record.txt'))) "True|60|$fixtureRoot"
   }
   Scenario 'native cold-start boundary launches one quoted Next fixture and preserves running AYAS' {
     $previousRoot=$script:RepoRoot; $previousPort=$script:Port
