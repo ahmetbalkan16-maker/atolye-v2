@@ -1,0 +1,26 @@
+{
+  "rows": [
+    {
+      "suite": "smoke-brain-core-ui.ts",
+      "exit": 0,
+      "passed_scenarios": 43
+    },
+    {
+      "suite": "smoke-ayas-homepage-v2.ts",
+      "exit": 0,
+      "passed_scenarios": 11
+    },
+    {
+      "suite": "smoke-ayas-micro-batch-development-center.ts",
+      "exit": 0,
+      "passed_scenarios": 27
+    },
+    {
+      "suite": "smoke-ayas-portable-brain.ts",
+      "exit": 0,
+      "passed_scenarios": 24
+    }
+  ],
+  "isolated": true,
+  "credential_environment": "OS_ONLY"
+}

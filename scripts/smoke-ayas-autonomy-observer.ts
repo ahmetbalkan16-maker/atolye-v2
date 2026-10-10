@@ -155,11 +155,18 @@ async function main() {
     assert.match(src, /refreshAyasApprovalInbox/);
   });
 
-  await scenario("app/brain/page.tsx sources the read-only inbox refresh from observerActions, not from ./actions (independent of the separate Package B decision wiring)", () => {
-    const src = read("app/brain/page.tsx");
-    assert.match(src, /from\s+"\.\/observerActions"/);
-    const actionsImportBlock = src.slice(src.indexOf('from "./actions"') - 400, src.indexOf('from "./actions"'));
-    assert.doesNotMatch(actionsImportBlock, /refreshAyasApprovalInbox/);
+  await scenario("/brain delegates to AyasConsolePage, whose inbox refresh comes from observerActions independently of the decision actions", () => {
+    const page = read("app/brain/page.tsx");
+    assert.match(page, /import\s+\{\s*AyasConsolePage\s*\}\s+from\s+"@\/components\/brain\/AyasConsolePage"/);
+    assert.match(page, /<AyasConsolePage\b/);
+    const src = read("src/components/brain/AyasConsolePage.tsx");
+    const observerImport = src.match(/import\s*\{([^}]+)\}\s*from\s*"\.\.\/\.\.\/\.\.\/app\/brain\/observerActions"/);
+    assert.ok(observerImport, "console must import the read-only observer actions");
+    assert.match(observerImport[1], /\brefreshAyasApprovalInbox\b/);
+    assert.match(src, /refreshApprovalInbox=\{refreshAyasApprovalInbox\}/);
+    const actionsImport = src.match(/import\s*\{([^}]+)\}\s*from\s*"\.\.\/\.\.\/\.\.\/app\/brain\/actions"/);
+    assert.ok(actionsImport, "separate decision action wiring must remain present");
+    assert.doesNotMatch(actionsImport[1], /\brefreshAyasApprovalInbox\b/);
   });
 
   await scenario("the observer runner and observer module remain unreachable from authorization/execution APIs", () => {

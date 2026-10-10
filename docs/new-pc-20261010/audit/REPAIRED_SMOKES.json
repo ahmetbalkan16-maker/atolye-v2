@@ -1,0 +1,63 @@
+{
+  "rows": [
+    {
+      "case": "before-smoke-ayas-autonomy-observer",
+      "exit": 1,
+      "passed_scenarios": 20,
+      "expected": "FAIL",
+      "matched": true
+    },
+    {
+      "case": "after-smoke-ayas-autonomy-observer",
+      "exit": 0,
+      "passed_scenarios": 22,
+      "expected": "PASS",
+      "matched": true
+    },
+    {
+      "case": "before-smoke-ayas-publication-activity",
+      "exit": 1,
+      "passed_scenarios": 10,
+      "expected": "FAIL",
+      "matched": true
+    },
+    {
+      "case": "after-smoke-ayas-publication-activity",
+      "exit": 0,
+      "passed_scenarios": 13,
+      "expected": "PASS",
+      "matched": true
+    },
+    {
+      "case": "mutation-observer-import-wrong-module",
+      "exit": 1,
+      "passed_scenarios": 20,
+      "expected": "FAIL",
+      "matched": true
+    },
+    {
+      "case": "mutation-observer-refresh-wrong-callback",
+      "exit": 1,
+      "passed_scenarios": 20,
+      "expected": "FAIL",
+      "matched": true
+    },
+    {
+      "case": "mutation-observer-refresh-in-decision-module",
+      "exit": 1,
+      "passed_scenarios": 20,
+      "expected": "FAIL",
+      "matched": true
+    },
+    {
+      "case": "mutation-lost-batch-successor",
+      "exit": 1,
+      "passed_scenarios": 10,
+      "expected": "FAIL",
+      "matched": true
+    }
+  ],
+  "isolated": true,
+  "source_restored": true,
+  "runtime_source_changed": false
+}

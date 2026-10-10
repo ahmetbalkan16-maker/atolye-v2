@@ -1,0 +1,42 @@
+{
+  "settings_other_fields_unchanged": true,
+  "cases": [
+    {
+      "case": "search_protocol",
+      "status": "PASS"
+    },
+    {
+      "case": "search_configured_command",
+      "status": "PASS"
+    },
+    {
+      "case": "read_protocol",
+      "status": "PASS"
+    },
+    {
+      "case": "read_configured_command",
+      "status": "PASS"
+    },
+    {
+      "case": "search_relocated_project",
+      "status": "PASS"
+    },
+    {
+      "case": "read_relocated_project",
+      "status": "PASS"
+    },
+    {
+      "case": "no_graph",
+      "status": "PASS"
+    },
+    {
+      "case": "invalid_json",
+      "status": "PASS"
+    },
+    {
+      "case": "invalid_mode",
+      "status": "PASS"
+    }
+  ],
+  "claude_real_session": "NOT_RUN"
+}

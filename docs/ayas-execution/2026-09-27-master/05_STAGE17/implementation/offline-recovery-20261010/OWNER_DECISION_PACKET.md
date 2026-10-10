@@ -1,5 +1,7 @@
 # AYAS — Planlı Offline Recovery karar paketi
 
+> 10 Ekim R0 sonrası güncel karar: [r0-followup/OWNER_DECISION_PACKET.md](r0-followup/OWNER_DECISION_PACKET.md). Owner WinRE/BCD/BitLocker metadata kapılarını PASS bildirdi; tekrar sorgulanmaz. Bu eski paketin R0 bekleyen bölümü tarihsel kalır. Mevcut WIM bileşenleri normal-token Access Denied; 23 yeni TEMP synthetic delta PASS, gerçek offline NOT_RUN; A–D HELD. Tek sonraki owner işlemi gerçek admin konsolunda prepared Inspect-WinRE.ps1; yeni commit/push owner tarafından yasak.
+
 10 Ekim 2026. **FAIL_CLOSED / STOP · MAINTENANCE NOT_READY · F115 OPEN_IN_LIVE · CONSISTENT_BACKUP_PASS FALSE.** Bu paket hazırlık ve gerçek blocker teslimidir; A–D canlı onayı istenebilecek uygulanabilir paket henüz değildir. Owner'ın bu görevi TEMP hazırlığı ve salt okunur incelemeyi yetkilendirir; shutdown, boot, task değişikliği, gerçek P0/secret okuma, D: yazımı, servis başlangıcı ve reboot yetkisi vermez.
 
 ## Doğrulanan başlangıç ve güvenli fark

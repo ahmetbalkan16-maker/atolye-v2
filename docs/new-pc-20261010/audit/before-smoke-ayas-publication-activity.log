@@ -1,0 +1,39 @@
+PASS 1: no live signal available (activity unknown) leaves every proposal NORMAL — the pre-existing behavior is untouched by default
+PASS 2: gate open, this proposal never reserved it -> WAITING_OTHER_PUBLICATION, and its ONAYLA VE UYGULA control must not be presented as actionable
+PASS 3: gate open AND this proposal is the one that reserved it (reservedAt set, not yet finalized) -> EXECUTING_NOW, not WAITING
+PASS 4: live HEAD has already moved past baseHead but the store has not reconciled to STALE yet -> REVALIDATING_FOR_NEW_HEAD, never presented as plain PENDING
+PASS 5: STALE proposal with a fresh rediscovery already PENDING for the same exact files -> STALE_SUPERSEDED, points at the successor
+PASS 6: STALE proposal with no fresh rediscovery yet -> STALE_AWAITING_REDISCOVERY, never silently disappears without explanation
+PASS 7: a COMPLETED proposal is never given a race-related displayState, regardless of live gate/HEAD signals
+PASS 8: batch: gate open for a DIFFERENT publication -> WAITING_OTHER_PUBLICATION, BATCH ONAYLA VE UYGULA must not be presented as actionable
+PASS 9: batch: this exact batch holds the reservation while the gate is open -> EXECUTING_NOW
+PASS 10: batch: exactly the live incident this sprint reconciled — an APPROVED batch whose baseHead a sibling publication has already superseded, before the store's own reconciliation pass runs -> REVALIDATING_FOR_NEW_HEAD, never shown as plain-actionable APPROVED
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ undefined
+- 'STALE_SUPERSEDED'
+
+    at <anonymous> (C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\audit-source\scripts\smoke-ayas-publication-activity.ts:140:10)
+    at scenario (C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\audit-source\scripts\smoke-ayas-publication-activity.ts:20:51)
+    at assert (C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\audit-source\scripts\smoke-ayas-publication-activity.ts:130:1)
+    at Object.<anonymous> (C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\audit-source\scripts\smoke-ayas-publication-activity.ts:157:101)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object.transformer (C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2\node_modules\tsx\dist\register-BoI6-WNn.cjs:9:3252)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: 'STALE_SUPERSEDED',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

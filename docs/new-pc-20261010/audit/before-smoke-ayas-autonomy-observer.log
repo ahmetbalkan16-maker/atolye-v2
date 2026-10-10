@@ -1,0 +1,55 @@
+PASS 1: normal observation reaches OBSERVING
+PASS 2: machine health PAUSE pauses the observer
+PASS 3: machine health STOP OWN WORKLOAD pauses the observer
+PASS 4: dirty repo pauses the observer
+PASS 5: observer state survives restart via an isolated state file
+PASS 6: corrupt observer state file fails loudly
+PASS 7: observer module has no import of the execution gate, approval store, or any mutation API
+PASS 8: observer factory exposes no discover/decide/executeApproved/inbox surface
+PASS 9: runner imports only the observer module — no daemon, no approval store, no execution gate
+PASS 10: runner never calls discover(), decide(), or executeApproved()
+PASS 11: runner cannot write production/pipeline state
+PASS 12: /brain legacy approval panel delegates to the single Gelişim Merkezi implementation
+PASS 13: no Stage 7A file references the execution gate — it cannot be reached from this sprint's code
+PASS 14: missing inbox file returns a safe empty/display state
+PASS 15: corrupt inbox JSON fails loudly at the reader boundary (not silently reinterpreted)
+PASS 16: wrong-schema inbox JSON fails loudly at the reader boundary
+PASS 17: loadAyasApprovalInboxView degrades to disconnected (never throws) on a corrupt real-path inbox file
+PASS 18: read-only inbox reader and view import no Store/Daemon/Gate module
+PASS 19: read-only inbox reader exposes no mutating API
+PASS 20: app/brain/observerActions.ts imports no Package B module and is the sole source of refreshAyasApprovalInbox for the UI
+AYAS autonomy observer smoke FAILED: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from\s+"\.\/observerActions"/. Input:
+
+'import { AyasConsolePage } from "@/components/brain/AyasConsolePage";\n' +
+  'import { BRAIN_PANELS } from "@/components/brain/brainCore";\n' +
+  '\n' +
+  'export const dynamic = "force-dynamic";\n' +
+  '\n' +
+  'export default async function BrainCorePage({ searchParams }: {\n' +
+  '  searchParams: Promise<{ panel?: string | string[] }>;\n' +
+  '}) {\n' +
+  '  const requested = (await searchParams).panel;\n' +
+  '  const panel = BRAIN_PANELS.find((item) => item.id === requested)?.id ?? "chat";\n' +
+  '  return <AyasConsolePage initialPanel={panel} />;\n' +
+  '}\n'
+
+    at <anonymous> (C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\audit-source\scripts\smoke-ayas-autonomy-observer.ts:160:12)
+    at scenario (C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\audit-source\scripts\smoke-ayas-autonomy-observer.ts:11:90)
+    at main (C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\audit-source\scripts\smoke-ayas-autonomy-observer.ts:158:9) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'import { AyasConsolePage } from "@/components/brain/AyasConsolePage";\n' +
+    'import { BRAIN_PANELS } from "@/components/brain/brainCore";\n' +
+    '\n' +
+    'export const dynamic = "force-dynamic";\n' +
+    '\n' +
+    'export default async function BrainCorePage({ searchParams }: {\n' +
+    '  searchParams: Promise<{ panel?: string | string[] }>;\n' +
+    '}) {\n' +
+    '  const requested = (await searchParams).panel;\n' +
+    '  const panel = BRAIN_PANELS.find((item) => item.id === requested)?.id ?? "chat";\n' +
+    '...',
+  expected: /from\s+"\.\/observerActions"/,
+  operator: 'match',
+  diff: 'simple'
+}

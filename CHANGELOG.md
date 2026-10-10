@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — AYAS test / Graphify hata düzeltmesi ve yeni PC devir kaydı
+
+Observer eski UI import beklentisi gerçek component/action bağlantısına taşındı; publication batch testinin tarihi sabitlendi. Graphify0171 Windows localMCP path guard için kurulu paketi değiştirmeyen version-bound launcher eklendi; Claude yerel reminder iki eksik executable yolunun yerini aldı.158sentetik senaryo,9hookkontrolü,4mutationreddi,TS0,ESLint0hata13devralınmışuyarı; uygulama/homepage/data değişmez. Son owner talimatıyla tam yedek/offline açılmadı. YeniPC kurulum/migration ve gerçek cihaz kabulü gelecekte gerçek hedefte yapılacak; docs/AYAS_NEW_PC_HANDOVER_2026-10-10.md ve docs/new-pc-20261010 kanıtı. Live F115/Next16.2.10vslock16.3.8/PARTIAL10/semanticPENDING açık; yeni Full166/canlıREADY iddiası yok.
+
 ## 10 Ekim 2026 — Offline recovery hazırlık/STOP teslimi
 
 Taze process/task/build/storage kimlikleri, 55 MB TEMP runtime/crypto/Intel driver staging ve normal Windows'ta 10 sentetik kontrol; uygulama/homepage kaynağı değişmez. F115 OPEN_IN_LIVE; WinRE/BCD/BitLocker/medya/key/boot-return unqualified, gerçek cold backup/restore/live rollback ve PC/phone NOT_RUN. A–D HELD. Ayrıntı: docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/offline-recovery-20261010/OWNER_DECISION_PACKET.md. Önceki kanıtlar ve kısmi B1 korunur; oturum kaydı teknik release değildir.

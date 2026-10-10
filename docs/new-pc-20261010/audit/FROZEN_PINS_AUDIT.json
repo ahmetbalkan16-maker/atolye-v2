@@ -1,0 +1,8 @@
+{
+  "manifest": "15F.4-v59",
+  "declared_suites": 166,
+  "unique_pins": 215,
+  "drift_count": 0,
+  "drift_files": [],
+  "full_baseline_rerun": false
+}

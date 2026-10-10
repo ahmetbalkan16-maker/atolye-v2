@@ -1,0 +1,16 @@
+{
+ "firstSyntheticDeltaRun":{"exit":1,"reason":"hardlink fixture creation WinError5 after prior checks","qualified":false,"fixturePreserved":"fixture-7b16a52782c7460ea9205ccdf10831c3"},
+ "finalSyntheticDeltaRun":{"PASS":23,"FAIL":0,"nativeHardlinkFixture":"NOT_RUN_SANDBOX_DENIED","reasonForSecondRun":"finish incomplete new delta suite with denied fixture explicitly recorded NOT_RUN"},
+ "firstMetadataCollector":{"reason":"sandbox CIM access denied; downstream empty JSON rejected","qualified":false},
+ "permittedMetadataCollector":{"scope":"Get-Disk/Get-Partition/Get-Volume only, no R0 queries","sourceMount":"C:\\","targetMount":"D:\\","matchedSources":7,"realOfflineEvidence":false},
+ "winreWim":{"scope":"read-only file access attempt","reason":"normal-token OS Access Denied","packages":"UNBOUND","runtime":"NOT_RUN"},
+ "inspectorNormalTokenGuard":{"result":"OWNER_ELEVATED_CONSOLE_REQUIRED before writes","expected":true},
+ "hardlinkReparseACL":{"nativeHardlinkFixture":"NOT_RUN","reparseNativeDelta":"NOT_RUN","syntheticACLRead":"PASS","fullACLRestore":"NOT_RUN","alternateStreams":"NOT_QUALIFIED"},
+ "oldTests":{"10StagedRuntime":"INHERITED_NOT_REPEATED","27B1Synthetic":"INHERITED_NOT_REPEATED","F115PS5PS7_30":"INHERITED_NOT_REPEATED","TS":"INHERITED_NO_APP_SOURCE_CHANGE","Full166Build":"NOT_REPEATED"},
+ "realColdEntry":"HELD_NO_OWNER_APPROVAL_OR_SYSTEM_TOKEN_BYPASS",
+ "realOfflineBoot":"NOT_RUN",
+ "realOwnerRecovery":"NOT_RUN",
+ "realByteRestore":"NOT_RUN",
+ "realApplicationState":"NOT_RUN",
+ "CONSISTENT_BACKUP_PASS":false
+}

@@ -107,7 +107,7 @@ function findBatchEntry(view: ReturnType<typeof buildAyasMicroBatchDevelopmentVi
 
 scenario("batch: gate open for a DIFFERENT publication -> WAITING_OTHER_PUBLICATION, BATCH ONAYLA VE UYGULA must not be presented as actionable", () => {
   const state: AyasMicroBatchReadState = { batches: [batch({ status: "READY_FOR_REVIEW" })], decisions: [], results: [] };
-  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "head-a", publicationActive: true });
+  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "head-a", publicationActive: true }, NOW);
   assert.equal(findBatchEntry(view, "b1")?.displayState, "WAITING_OTHER_PUBLICATION");
 });
 
@@ -117,13 +117,13 @@ scenario("batch: this exact batch holds the reservation while the gate is open -
     decisions: [{ decisionId: "d1", batchId: "b1", decision: "APPROVE", decidedAt: NOW, reservedAt: NOW }],
     results: [],
   };
-  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "head-a", publicationActive: true });
+  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "head-a", publicationActive: true }, NOW);
   assert.equal(findBatchEntry(view, "b1")?.displayState, "EXECUTING_NOW");
 });
 
 scenario("batch: exactly the live incident this sprint reconciled — an APPROVED batch whose baseHead a sibling publication has already superseded, before the store's own reconciliation pass runs -> REVALIDATING_FOR_NEW_HEAD, never shown as plain-actionable APPROVED", () => {
   const state: AyasMicroBatchReadState = { batches: [batch({ status: "APPROVED", baseHead: "5fd40df" })], decisions: [], results: [] };
-  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "dc33c69", publicationActive: false });
+  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "dc33c69", publicationActive: false }, NOW);
   assert.equal(findBatchEntry(view, "b1")?.displayState, "REVALIDATING_FOR_NEW_HEAD");
 });
 
@@ -135,7 +135,7 @@ scenario("batch: STALE with a fresh ACCUMULATING batch already reforming over ov
     ],
     decisions: [], results: [],
   };
-  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "dc33c69", publicationActive: false });
+  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "dc33c69", publicationActive: false }, NOW);
   const old = findBatchEntry(view, "b-old");
   assert.equal(old?.displayState, "STALE_SUPERSEDED");
   assert.equal(old?.supersededByBatchId, "b-fresh");
@@ -143,13 +143,13 @@ scenario("batch: STALE with a fresh ACCUMULATING batch already reforming over ov
 
 scenario("batch: STALE with no successor yet -> STALE_AWAITING_REDISCOVERY", () => {
   const state: AyasMicroBatchReadState = { batches: [batch({ status: "STALE" })], decisions: [], results: [] };
-  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "head-b", publicationActive: false });
+  const view = buildAyasMicroBatchDevelopmentView(state, { liveCurrentHead: "head-b", publicationActive: false }, NOW);
   assert.equal(findBatchEntry(view, "b1")?.displayState, "STALE_AWAITING_REDISCOVERY");
 });
 
 scenario("no activity snapshot supplied at all (default parameter) -> every existing pre-Part-A test call site keeps working exactly as before, entirely NORMAL", () => {
   const state: AyasMicroBatchReadState = { batches: [batch({})], decisions: [], results: [] };
-  const view = buildAyasMicroBatchDevelopmentView(state);
+  const view = buildAyasMicroBatchDevelopmentView(state, undefined, NOW);
   assert.equal(findBatchEntry(view, "b1")?.displayState, "NORMAL");
 });
 

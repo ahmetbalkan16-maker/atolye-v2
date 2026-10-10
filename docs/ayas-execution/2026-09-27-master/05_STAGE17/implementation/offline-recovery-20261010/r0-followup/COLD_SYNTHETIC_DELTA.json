@@ -1,0 +1,108 @@
+{
+  "scope": "NORMAL_WINDOWS_TEMP_SYNTHETIC_DELTA_ONLY",
+  "PASS": 23,
+  "FAIL": 0,
+  "tests": [
+    {
+      "test": "arbitrary offline letter matches UniqueId GPT geometry",
+      "status": "PASS"
+    },
+    {
+      "test": "identity rejects diskUniqueId",
+      "status": "PASS"
+    },
+    {
+      "test": "identity rejects partitionGuid",
+      "status": "PASS"
+    },
+    {
+      "test": "identity rejects offset",
+      "status": "PASS"
+    },
+    {
+      "test": "identity rejects size",
+      "status": "PASS"
+    },
+    {
+      "test": "identity rejects filesystem",
+      "status": "PASS"
+    },
+    {
+      "test": "identity rejects mount",
+      "status": "PASS"
+    },
+    {
+      "test": "duplicate disk/partition refuses ambiguity",
+      "status": "PASS"
+    },
+    {
+      "test": "seven accepted suffixes and kinds preserved without P0 open",
+      "status": "PASS"
+    },
+    {
+      "test": "native adapter accepts R",
+      "status": "PASS"
+    },
+    {
+      "test": "native adapter accepts S",
+      "status": "PASS"
+    },
+    {
+      "test": "native adapter accepts Z",
+      "status": "PASS"
+    },
+    {
+      "test": "committed entire physical SHA matches receipt",
+      "status": "PASS"
+    },
+    {
+      "test": "same exclusive ciphertext handle authenticates before parsing",
+      "status": "PASS"
+    },
+    {
+      "test": "exclusive handle blocks write reopen",
+      "status": "PASS"
+    },
+    {
+      "test": "exclusive handle blocks delete reopen",
+      "status": "PASS"
+    },
+    {
+      "test": "synthetic filesystem restore seven hashes Unicode and empty dirs",
+      "status": "PASS"
+    },
+    {
+      "test": "output opaque receipt and ciphertext only",
+      "status": "PASS"
+    },
+    {
+      "test": "CREATE_NEW restore overwrite refused",
+      "status": "PASS"
+    },
+    {
+      "test": "postcommit physical readback mismatch aborts",
+      "status": "PASS"
+    },
+    {
+      "test": "postcommit failure receipt remains ABORT consistency false",
+      "status": "PASS"
+    },
+    {
+      "test": "real cold entry remains HELD even with old approval",
+      "status": "PASS"
+    },
+    {
+      "test": "synthetic root ACL readable without ACL mutation",
+      "status": "PASS"
+    }
+  ],
+  "nativeHardlinkFixture": "NOT_RUN_SANDBOX_DENIED",
+  "realOfflineBoot": "NOT_RUN",
+  "realP0Read": false,
+  "DWrite": false,
+  "realOwnerKeyRecovery": "NOT_RUN",
+  "realApplicationState": "NOT_RUN",
+  "realColdEntry": "HELD",
+  "CONSISTENT_BACKUP_PASS": false,
+  "fixture": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-offline-recovery-prep-20261010-8c21d4e9\\r0-followup\\fixture-f23c957ed18640e5a3ef4670fdfc1e2b"
+}

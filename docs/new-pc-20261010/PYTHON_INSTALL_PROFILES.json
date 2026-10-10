@@ -1,0 +1,35 @@
+{
+  "profiles": [
+    {
+      "name": "wake",
+      "python": "3.11",
+      "source": ".venv-wake/Lib/site-packages",
+      "packages": 91,
+      "requirements": "wake-requirements-observed.txt",
+      "sha256": "a36b1d0c8518091ff2cdba3f22561c5c49023c5bc1067d18a46378775856dac6",
+      "direct_url_metadata_present_for": [],
+      "reinstalled_on_new_pc": false
+    },
+    {
+      "name": "male-voice-env",
+      "python": "3.12.14",
+      "source": ".graphify/male-voice-persona-v2/local-env/Lib/site-packages",
+      "packages": 54,
+      "requirements": "male-voice-env-requirements-observed.txt",
+      "sha256": "0e5c0168f4665852b20301e4b27f1bc2d1aac8c95f9815b3bb3e180670af08a8",
+      "direct_url_metadata_present_for": [],
+      "reinstalled_on_new_pc": false
+    },
+    {
+      "name": "male-voice-deps",
+      "python": "3.12.14",
+      "source": ".graphify/male-voice-persona-v2/python-deps",
+      "packages": 14,
+      "requirements": "male-voice-deps-requirements-observed.txt",
+      "sha256": "d01dbefa94a795616f03a9c820f9e4c95b618a3bee09c6de642f7f195cb6cbc0",
+      "direct_url_metadata_present_for": [],
+      "reinstalled_on_new_pc": false
+    }
+  ],
+  "private_urls_read": false
+}

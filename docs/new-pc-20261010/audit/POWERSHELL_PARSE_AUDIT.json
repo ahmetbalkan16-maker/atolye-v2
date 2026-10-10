@@ -1,0 +1,30 @@
+[
+  {
+    "file": "scripts/ayas-access-daemon.ps1",
+    "parseErrors": 0
+  },
+  {
+    "file": "scripts/ayas-autonomy-daemon.ps1",
+    "parseErrors": 0
+  },
+  {
+    "file": "scripts/register-ayas-autonomy-autostart.ps1",
+    "parseErrors": 0
+  },
+  {
+    "file": "scripts/register-ayas-autostart.ps1",
+    "parseErrors": 0
+  },
+  {
+    "file": "scripts/smoke-ayas-access-daemon.ps1",
+    "parseErrors": 0
+  },
+  {
+    "file": "scripts/unregister-ayas-autonomy-autostart.ps1",
+    "parseErrors": 0
+  },
+  {
+    "file": "scripts/unregister-ayas-autostart.ps1",
+    "parseErrors": 0
+  }
+]

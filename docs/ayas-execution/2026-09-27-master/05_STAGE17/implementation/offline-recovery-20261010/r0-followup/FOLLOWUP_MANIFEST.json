@@ -1,0 +1,136 @@
+{
+  "scope": "TEMP_FOLLOWUP_FILES_ONLY_FIXTURES_EXCLUDED",
+  "files": [
+    {
+      "file": "ACCEPTED_SOURCE_MAP.json",
+      "bytes": 2739,
+      "sha256": "d4e9e1e1e9cab60248221bcd530562fd32cc5bfd571f6a8eb91ab5cccf1881fe"
+    },
+    {
+      "file": "COLD_SYNTHETIC_DELTA.json",
+      "bytes": 2769,
+      "sha256": "93214b90010efdde34201e1292147b03d7664736ce703a1f2afd418a7b525077"
+    },
+    {
+      "file": "CURRENT_DISK_METADATA.json",
+      "bytes": 2494,
+      "sha256": "2a28fa48406bdce0098f9ed7f2b44f9266c82c0aec0970960402538004172ee9"
+    },
+    {
+      "file": "Collect-OfflineDiskMap.ps1",
+      "bytes": 895,
+      "sha256": "7fb7bd6395cfea28c0a4d5d99fb2a07a6f0f5a885776c87ae5b0286b4a2ca2c7"
+    },
+    {
+      "file": "DISK_EXPECTATIONS.json",
+      "bytes": 527,
+      "sha256": "15e74355ae37d7eb6b3c42236a9886f89fddfcb15da82cd3273d9b46b4bc99dc"
+    },
+    {
+      "file": "Inspect-WinRE.ps1",
+      "bytes": 4455,
+      "sha256": "ab97abce340b8f9b02174df83ca63fb444867dee0cf830829de83a0ccb09b785"
+    },
+    {
+      "file": "NATIVE_IMPORT_PROBE.json",
+      "bytes": 885,
+      "sha256": "5c94f0b3b8a5a5329ce9d934d3322728bf2d5585c14c7bd742d7fdccb96ec054"
+    },
+    {
+      "file": "PREPARATION_LIMITATIONS.json",
+      "bytes": 1545,
+      "sha256": "76b32ec30eabf4305c1c4a9217098ac7be823a9de072cd9e623891d883769ee5"
+    },
+    {
+      "file": "RUNTIME_REQUIREMENTS.json",
+      "bytes": 17343,
+      "sha256": "45f0ed28b7ed0324bcafa99a15f965a27a3797483d6726f4192ff734bde82bc2"
+    },
+    {
+      "file": "SOURCE_ROOT_BASELINE.json",
+      "bytes": 2602,
+      "sha256": "8a15773c2d4386f552898ce3727826a43afd2f3218162d8c7f1cd8c353246eae"
+    },
+    {
+      "file": "TARGET_ACL_BASELINE.json",
+      "bytes": 736,
+      "sha256": "891bd775b205d77afcaab4eaa335109929bef8bacc768a45162901e9809fad79"
+    },
+    {
+      "file": "b1_bound_adapter.py",
+      "bytes": 24755,
+      "sha256": "c9667c39311ba1b471d18a74cc50a1b7af2378737f961e8ed2a38c6788d2dfad"
+    },
+    {
+      "file": "backup_adapter.py",
+      "bytes": 24014,
+      "sha256": "3dddebefb6bbc77581bfcfdfa223c0e982e49dc22332becad91173942c943c17"
+    },
+    {
+      "file": "check_disk_map.py",
+      "bytes": 965,
+      "sha256": "2ceec83d352166b286770c822377ecd9e50fdc99ab149af1ddbb9e327b3d9454"
+    },
+    {
+      "file": "check_native_roots.py",
+      "bytes": 2385,
+      "sha256": "f8756b41e2126bf8ac18f3ceeeeea06b729b5f7c4d09a8e304db192cd02352b7"
+    },
+    {
+      "file": "cold_native.py",
+      "bytes": 24757,
+      "sha256": "cd1e8dd06b14dcd79c4d4d5c99d4d0898950da47abcc0b1383968c1063bcd7de"
+    },
+    {
+      "file": "cold_synthetic_capture.py",
+      "bytes": 15188,
+      "sha256": "588e8ba3a86199df524ea2916e524f56f1f2b1d3991c0eb7ee5acef2f0cc672a"
+    },
+    {
+      "file": "identity_match.py",
+      "bytes": 1523,
+      "sha256": "4fc6ba488accb265e4d313c4ac50f9ae8e0a72e840d06dfe2b3ba8c546505dd2"
+    },
+    {
+      "file": "prepare_extension.py",
+      "bytes": 1353,
+      "sha256": "b16c2111d077a56e933e2bf91967f1abaad70e968764fe89fbbd29e5c695f902"
+    },
+    {
+      "file": "probe_hidden_console.py",
+      "bytes": 656,
+      "sha256": "307a26c72f98a589c3e843bc5713ebe17c53f1c6738e5ef30ce0be0fd9d50909"
+    },
+    {
+      "file": "runtime_native_probe.py",
+      "bytes": 598,
+      "sha256": "0305066ca8ab586fd2ae8902d11afd23e46eb608694b6983f8b75bfc8e181f40"
+    },
+    {
+      "file": "runtime_requirements.py",
+      "bytes": 2470,
+      "sha256": "351b58780106741a1c94de06f3a6129c6c6436720060b3e62d05688b4c78d016"
+    },
+    {
+      "file": "seal_followup.py",
+      "bytes": 802,
+      "sha256": "4986c2f4efaed715e0035a464a86c99b25703db32962dafdff1d790f2a9c0cfa"
+    },
+    {
+      "file": "sealed_capture.py",
+      "bytes": 14793,
+      "sha256": "bff83d18f904263b7d44cf9bcd01a88b13bf77c79b8ef1353eb7626fad8ea6d2"
+    },
+    {
+      "file": "sealed_crypto.py",
+      "bytes": 6787,
+      "sha256": "8ac7e8e0737c3eaae98d056d1a80c873919248b542c202c4dd7a475be5c83d27"
+    },
+    {
+      "file": "test_cold_extension.py",
+      "bytes": 6981,
+      "sha256": "e4c7507a3f84ea40cd2e4b3f2f52167284fb81bdfd17e771ded7533f13339408"
+    }
+  ],
+  "originalStagingManifestSHA256": "0c8e5d35c48d790ad94f990f2491fd4dc1c8698f5adf69932b16589e174a9dc8"
+}

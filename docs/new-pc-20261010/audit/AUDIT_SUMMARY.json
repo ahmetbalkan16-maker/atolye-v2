@@ -1,0 +1,30 @@
+{
+  "entryHead": "7b09ac93db4668c4c8b04e426a5cd30c1bccdbe1",
+  "applicationSourceBaseline": "2d6cef3",
+  "applicationSourceChanged": false,
+  "installedGraphifyVersion": "0.17.1",
+  "installedGraphifyModuleSHA256": "e232377a07088f3b76bb494c39a0383ccef601444c8fb0cbff12fe38ecee43e9",
+  "globalGraphifyModuleChanged": false,
+  "unpatchedMcpWindowsPath": "FAIL_REJECTS_OWN_GRAPH",
+  "compatibilityMcpProtocol": "PASS_11_TOOLS_AND_READONLY_SUMMARY",
+  "pathGuardWindowsAndPosix": "18_PASS",
+  "runtimeSuites": "140_PASS",
+  "claudeHookChecks": "9_PASS",
+  "controlledMutationsRejected": "4_OF_4",
+  "typescript": "EXIT_0",
+  "eslint": {
+    "errors": 0,
+    "inheritedWarnings": 13
+  },
+  "full166Rerun": false,
+  "liveRestartBuildTaskIntervention": false,
+  "backupCreated": false,
+  "newPcAcceptance": "NOT_RUN_TARGET_NOT_PRESENT",
+  "liveOpenItems": [
+    "F115_OLD_ACCESS_RUNNING_WITH_DISABLED_TASK",
+    "INSTALLED_NEXT_16_2_10_VS_LOCK_16_3_8",
+    "PHYSICAL_VOICE_PHONE_ACCEPTANCE_NOT_RUN"
+  ],
+  "graphCoverage": "PARTIAL10_SEMANTIC_PENDING",
+  "remoteMcp": "CONFIGURED_UNVERIFIED"
+}

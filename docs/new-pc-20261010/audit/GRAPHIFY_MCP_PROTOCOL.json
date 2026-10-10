@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-10T12:40:57.604Z",
+  "status": "PASS",
+  "initialize": "PASS",
+  "listTools": "PASS",
+  "toolCount": 11,
+  "readOnlySummary": "PASS",
+  "remoteEndpoint": "NOT_TESTED"
+}
