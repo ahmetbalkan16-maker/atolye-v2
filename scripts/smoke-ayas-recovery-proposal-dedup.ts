@@ -14,19 +14,19 @@ try {
   const before=fs.readFileSync(inbox.stateFile);
   const repeated=inbox.createProposal({...input,createdAt:"2026-10-08T00:04:00Z",proposalId:"new-discovery-id"});
   assert.equal(repeated.proposalId,proposal.proposalId,"same unresolved hash must retain original recovery identity");
-  assert.equal(repeated.status,"RECOVERY_REQUIRED");
-  assert.equal(inbox.load().proposals.length,1);
+  assert.equal(repeated.status,"RECOVERY_REQUIRED", "assert.equal(repeated.status,\"RECOVERY_REQUIRED\")");
+  assert.equal(inbox.load().proposals.length,1, "assert.equal(inbox.load().proposals.length,1)");
   assert.deepEqual(fs.readFileSync(inbox.stateFile),before,"duplicate discovery must not rewrite historical state");
   const reopened=createAyasApprovalInboxStore({rootDir:root});
-  assert.equal(reopened.createProposal(input).proposalId,proposal.proposalId);
+  assert.equal(reopened.createProposal(input).proposalId,proposal.proposalId, "assert.equal(reopened.createProposal(input).proposalId,proposal.proposalId)");
   assert.deepEqual(fs.readFileSync(inbox.stateFile),before,"same content after restart remains immutable");
   assert.throws(()=>reopened.decide(proposal.proposalId,"APPROVE","2026-10-08T00:05:00Z"));
   assert.throws(()=>reopened.reserveApproval(proposal.proposalId,proposal.proposalHash,proposal.baseHead,proposal.exactFiles,"2026-10-08T00:05:00Z"));
   const fresh=reopened.createProposal({...input,baseHead:"different-fixture-base"});
-  assert.equal(fresh.status,"PENDING");assert.notEqual(fresh.proposalHash,proposal.proposalHash);
+  assert.equal(fresh.status,"PENDING", "assert.equal(fresh.status,\"PENDING\")");assert.notEqual(fresh.proposalHash,proposal.proposalHash);
   const changed=reopened.createProposal({...input,objective:"a different exact proposed change"});
-  assert.equal(changed.status,"PENDING");assert.notEqual(changed.proposalHash,proposal.proposalHash);
-  const after=reopened.load();assert.equal(after.decisions.length,1);assert.equal(after.results.length,0);
-  assert.deepEqual(after.proposals[0],JSON.parse(before.toString()).proposals[0]);
+  assert.equal(changed.status,"PENDING", "assert.equal(changed.status,\"PENDING\")");assert.notEqual(changed.proposalHash,proposal.proposalHash);
+  const after=reopened.load();assert.equal(after.decisions.length,1, "assert.equal(after.decisions.length,1)");assert.equal(after.results.length,0, "assert.equal(after.results.length,0)");
+  assert.deepEqual(after.proposals[0],JSON.parse(before.toString()).proposals[0], "assert.deepEqual(after.proposals[0],JSON.parse(before.toString()).proposals[0])");
   console.log(JSON.stringify({status:"PASS",scenarios:6,scope:"TEMP_ONLY_EXACT_HASH_RECOVERY_DEDUP_NO_REPLAY_NO_AUTHORITY"}));
 } finally { fs.rmSync(root,{recursive:true,force:true}); }
