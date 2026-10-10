@@ -15,6 +15,7 @@
  * Output contract (1920x1080, h264 + aac, 30 fps) is asserted from ffprobe.
  */
 import assert from "node:assert/strict";
+import { createMediaSmokePng } from "./lib/MediaSmokePng";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -68,26 +69,10 @@ function wav(seconds: number, hz = 330): Buffer {
 }
 
 /**
- * A real, non-trivial PNG for the scene compositor to scale. Prefers an image
- * from a committed project (same source the bgm/kenburns smoke uses); falls
- * back to a solid 64x64 PNG so the suite still runs on a fresh checkout.
+ * A valid 64x64 PNG independent of owner project data and checkout contents.
  */
 function samplePng(): Buffer {
-  const committed = path.join(
-    process.cwd(),
-    "data", "projects",
-    "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
-    "assets", "images",
-    "3206e749-5cc3-4dfb-b4d6-4d4476bf31ce.png",
-  );
-  if (fs.existsSync(committed)) return fs.readFileSync(committed);
-  // 64x64 solid grey PNG
-  return Buffer.from(
-    "89504e470d0a1a0a0000000d494844520000004000000040080200000025" +
-      "0b0e1b0000001c4944415478da63fccff0bf1e0d0c8c8c8c0c0c0c8c8c" +
-      "8c0c0c0c8c0c00006b1b03e1d0a3f0570000000049454e44ae426082",
-    "hex",
-  );
+  return createMediaSmokePng();
 }
 
 function probe(ffprobe: string, file: string) {

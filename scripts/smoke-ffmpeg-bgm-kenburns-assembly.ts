@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createMediaSmokePng } from "./lib/MediaSmokePng";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -54,21 +55,7 @@ function generateMinimalWav(durationSeconds: number, frequency = 440): Buffer {
 }
 
 function generateValidPng(): Buffer {
-  // Valid 100x100 Solid Red PNG
-  const realProjImg = path.join(
-    process.cwd(),
-    "data", "projects",
-    "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
-    "assets", "images",
-    "3206e749-5cc3-4dfb-b4d6-4d4476bf31ce.png"
-  );
-  if (fs.existsSync(realProjImg)) {
-    return fs.readFileSync(realProjImg);
-  }
-  return Buffer.from(
-    "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c4944415408d763f8cfc00000030001000001000100000000",
-    "hex",
-  );
+  return createMediaSmokePng();
 }
 
 async function runSmokeTests() {

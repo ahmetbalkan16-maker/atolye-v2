@@ -17,6 +17,7 @@
  * and that the no-music path is genuinely silent in the narration gaps.
  */
 import assert from "node:assert/strict";
+import { createMediaSmokePng } from "./lib/MediaSmokePng";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -84,17 +85,7 @@ function wav(totalSeconds: number, hz: number, amp: number, toneUntil = totalSec
 }
 
 function samplePng(): Buffer {
-  const committed = path.join(
-    process.cwd(), "data", "projects",
-    "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
-    "assets", "images", "3206e749-5cc3-4dfb-b4d6-4d4476bf31ce.png",
-  );
-  if (fs.existsSync(committed)) return fs.readFileSync(committed);
-  return Buffer.from(
-    "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de" +
-      "0000000c4944415408d763f8cfc00000030001000001000100000000",
-    "hex",
-  );
+  return createMediaSmokePng();
 }
 
 class CapturingRunner implements VideoAssemblyProcessRunner {
