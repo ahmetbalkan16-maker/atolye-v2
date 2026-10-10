@@ -952,6 +952,9 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
 
   const initialIssue = replyIssue(cleaned, input);
   if (!initialIssue) {
+    if (input.env.AYAS_CONVERSATION_V2 === "1" && plainCurrentNameQuestion && recalledIdentityName && cleaned !== `Adın ${recalledIdentityName}.`) {
+      return { text: `Adın ${recalledIdentityName}.`, source: "fallback", corrected: true, reason: "memory-identity-correction", correctionAttempts: 0 };
+    }
     const labelCleaned = cleaned !== input.rawReply.trim();
     return {
       text: cleaned,
@@ -995,6 +998,9 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
     }
     if (!replyIssue(revised, { ...input, rawReply: revised })) {
       correctionSpan?.end("ok");
+      if (input.env.AYAS_CONVERSATION_V2 === "1" && plainCurrentNameQuestion && recalledIdentityName && revised !== `Adın ${recalledIdentityName}.`) {
+        return { text: `Adın ${recalledIdentityName}.`, source: "fallback", corrected: true, reason: "memory-identity-correction", correctionAttempts: 1 };
+      }
       return { text: revised, source: "llm", corrected: true, reason: "context-retry", correctionAttempts: 1 };
     }
     correctionSpan?.end("fallback");

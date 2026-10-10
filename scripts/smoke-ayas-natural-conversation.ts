@@ -69,6 +69,7 @@ async function main(){
  await check("personal fact refusal does not change flag-off behavior",async()=>{const r=await turn("Ben nerede çalışıyorum?",["Bunu bilmiyorum."],[],{legacy:true});assert.equal(r.requests.length,1);});
  await check("v2 releases the local model between turns",async()=>{const requests:unknown[]=[];const provider=createOllamaAyasProvider(env,network(["4"],requests));await provider.chat({prompt:"2+2",complexity:"SIMPLE",maxTokens:420});assert.equal((requests[0] as {keep_alive?:number}).keep_alive,0);});
  await check("flag-off legacy calls keep their original model lifetime",async()=>{const requests:unknown[]=[];const provider=createOllamaAyasProvider({...env,AYAS_CONVERSATION_V2:"0"},network(["4"],requests));await provider.chat({prompt:"2+2",complexity:"SIMPLE",maxTokens:420});assert.equal(Object.hasOwn(requests[0] as object,"keep_alive"),false);});
+ await check("plain name recall never echoes old naming instructions",async()=>{const r=await turn("Benim adım ne?",["Adın Deniz, beni böyle hatırla."],[{role:"user",text:"Benim adım Deniz, beni böyle hatırla."}]);assert.equal(r.done.text,"Adın Deniz.");assert.equal(r.events.filter(e=>e.type==="delta").map(e=>e.type==="delta"?e.text:"").join(""),r.done.text);});
  console.log(`${passed} natural conversation scenarios PASS.`);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
