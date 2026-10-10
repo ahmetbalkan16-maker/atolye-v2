@@ -936,7 +936,10 @@ function replyIssue(reply: string, input: AyasFinalizationInput): string | null 
   if (replyHasPersonalStatementDrift(reply, input.userText)) return "personal-statement-drift";
   if (replyHasUnexpectedStudioDrift(reply, input.userText)) return "studio-drift";
   const constraintContext = [input.userText, ...input.recentHistory.map((turn) => turn.text)];
-  if (replyViolatesReadOnlyConstraint(reply, constraintContext) || replyMissesReadOnlyConstraint(reply, constraintContext)) {
+  // An assistant's native report describes an operation, not a new owner
+  // instruction for every later turn. Keep the full write-violation guard.
+  const instructionContext = [input.userText, ...input.recentHistory.filter((turn) => turn.role === "user").map((turn) => turn.text)];
+  if (replyViolatesReadOnlyConstraint(reply, constraintContext) || replyMissesReadOnlyConstraint(reply, instructionContext)) {
     return "read-only-constraint";
   }
   if (/\p{Extended_Pictographic}/u.test(reply)) return "unexpected-pictograph";

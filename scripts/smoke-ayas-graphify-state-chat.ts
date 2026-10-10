@@ -65,6 +65,27 @@ async function streamTruth() {
   assert.ok(done.text.startsWith("Graphify durumu salt okunur incelendi.")); assert.ok(done.text.includes("Yapısal durum:"));
   assert.ok(!done.text.includes("Graphify tam ve güncel"));
   assert.equal(events.filter(event => event.type === "delta").map(event => event.type === "delta" ? event.text : "").join(""), done.text);
-  count++; console.log(`AYAS Graphify state chat smoke: PASS (${count} scenarios)`);
+  count++;
+  const history = [{ role: "user" as const, text: positive[0]! }, { role: "brain" as const, text: done.text }];
+  const checkFollowup = async (text: string, answer: string) => {
+    let modelCalls = 0;
+    const followupProvider: AyasModelProvider = { ...provider,
+      async chat() { modelCalls++; return { finishReason: "stop", text: answer }; },
+      async *stream() { modelCalls++; yield { type: "delta", text: answer }; yield { type: "done", text: answer, finishReason: "stop" }; } };
+    const followup: AyasChatStreamEvent[] = [];
+    for await (const event of streamAyasChat({ text, seq: count, snapshot, history,
+      env: { NODE_ENV: "test", AYAS_CONVERSATION_V2: "1", OLLAMA_NUM_CTX: "8192" },
+      route: { provider: followupProvider, decision: { complexity: "SIMPLE", providerId: "ollama", providerKind: "local", model: "fixture", reason: "fixture" } },
+      memoryStore: { rootDir: path.join(root, "followup-memory") } })) followup.push(event);
+    const result = followup.find(event => event.type === "done"); assert.ok(result?.type === "done");
+    return { result, modelCalls };
+  };
+  const math = await checkFollowup("37 ile 48 toplam kaç eder? Kısa Türkçe cevap ver.", "85 eder.");
+  assert.equal(math.result.text, "85 eder."); assert.equal(math.result.source, "llm"); assert.equal(math.modelCalls, 1); count++;
+  const ownerConstraint = await checkFollowup("Salt okunur kal. 37 ile 48 toplam kaç eder?", "85 eder.");
+  assert.equal(ownerConstraint.result.reason, "read-only-constraint"); assert.equal(ownerConstraint.result.source, "fallback"); count++;
+  const mutation = await checkFollowup("Bu kod için kısa öneri ver.", "Dosyayı değiştir, gerekli düzenlemeleri yap.");
+  assert.equal(mutation.result.reason, "execution-claim"); assert.equal(mutation.result.source, "fallback"); count++;
+  console.log(`AYAS Graphify state chat smoke: PASS (${count} scenarios)`);
 }
 streamTruth().catch(error => { console.error(error); process.exitCode = 1; });
