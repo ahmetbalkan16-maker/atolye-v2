@@ -8,13 +8,15 @@ Giriş kaynak HEAD'i `03d467484310de21ee7696b3904c0b7d3de0f24d`; dal origin ile 
 
 Tarama; komut yönlendirmesi, sohbet ve SSE, hafıza, ses sözleşmeleri, araç/onay sınırları, observer/discovery, micro-batch, owner publication worker, UI, Git/Graphify, Windows başlangıcı, yerel ve tünel erişimi bağlantılarını kapsadı. Boş veya gelecekte kullanılacak bir yeteneği çalışıyor gibi gösterme veya gate açma yapılmadı. Donmuş testlerin/pinlerin ham geçmişi korunur.
 
-## Üç doğrulanmış hata ve düzeltme
+## Dört doğrulanmış hata ve düzeltme
 
 1. `AYAS gelişim durumunu raporla. Son gerçek tarama ve bekleyen onaylar neler?` sıradan reasoning'e gidiyordu. Canlıda model, UI'da bir bekleyen öneri varken onay olmadığını ve kanıtsız bir tarama zamanını söyledi. `AyasComplexityRouter` içindeki dar AYAS gelişim/geliştirme merkezi eşleşmesi artık mevcut salt okunur `ayas-development-status` aracına gider. Video/çocuk gelişimi/normal sohbet ve Git niyetleri aynı kalır.
 2. Araç doğru seçilse bile ikinci model çağrısı kanonik rapora tarama tarihi ekleyebiliyordu. `AyasChatStream`, yalnız bu aracın gerçekten çalışmış sonucunu mevcut Türkçe kanonik özetiyle döndürür. SSE, kayıt ve actionTrace akışı sürer. UI bunu mevcut deterministik rapor olarak gösterir. Diğer araçlar ve sohbet finalizer'ı korunur.
 3. Micro-batch'te yeni öğe eklenmeyen tick erken dönüyor, tek öğeli birikim 24 saat dolsa da incelemeye geçmiyordu. Mevcut readiness politikası artık boş/capacity dolu tick dönüşlerinde de değerlendirilir. Fresh Graphify, temiz repo, ALLOW/THROTTLE, aynı kaynak ve sandbox HEAD şartları sürer; sadece READY_FOR_REVIEW yapılır, onay/rezerve/yayın yetkisi verilmez.
 
-Yeni iki pinlenmemiş regresyon dosyası: `smoke-ayas-named-development-routing.ts` (25 senaryo: 12 doğru niyet, 12 konu ayrımı, gerçek stream'de yalan model taslağının dışlanması), `smoke-ayas-micro-batch-age-readiness.ts` (7 senaryo: gerçek sandbox typecheck/smoke ile öğe; süre, dirty/stale/makine kapıları, 24 saat ve tekrar). İki suite mevcut AYAS Safe CI'ya zorunlu adım olarak eklendi; frozen EVAL manifest değiştirilmedi. Önceki kaynakta üç ayrı negatif kontrol gerçekten FAIL verdi; ham loglar saklanır.
+4. Son public kabulde `Graphify durumunu göster. Sadece incele, değişiklik yapma.` gerçek araca gitmeyip genel model cevabı verdi. Yeni dar state niyeti, mevcut `query-graphify` aracının sabit `operation: state` işlemine gider. Agentic seçim availability/mutation/çoklu-hedef sınırlarını korur; sembol açıklama ve güncelleme ayrı kalır. Yerel native veriden Türkçe kanonik durum döner; model FULL veya kaynak HEAD uyduramaz. Yeni `smoke-ayas-graphify-state-chat.ts` 20/20 ve bu son kaynak üzerinde 21 bağlantılı suite PASS; üçüncü zorunlu CI adımıdır. Eski b1d6fcc routing negatif kontrolü gerçekten null ile FAIL verdi.
+
+Yeni iki ilk regresyon dosyası: `smoke-ayas-named-development-routing.ts` (25 senaryo: 12 doğru niyet, 12 konu ayrımı, gerçek stream'de yalan model taslağının dışlanması), `smoke-ayas-micro-batch-age-readiness.ts` (7 senaryo: gerçek sandbox typecheck/smoke ile öğe; süre, dirty/stale/makine kapıları, 24 saat ve tekrar). İki suite mevcut AYAS Safe CI'ya zorunlu adım olarak eklendi; frozen EVAL manifest değiştirilmedi. Önceki kaynakta üç ayrı negatif kontrol gerçekten FAIL verdi; ham loglar saklanır.
 
 ## Doğrulama kayıtları
 
@@ -24,11 +26,11 @@ Kanonik girişin v60 Full166 baseline'ı **PASS: 166/166**, failed=[]; sourceHEA
 
 Üçüncü düzeltmeden sonra 18 bağlantılı suite yeniden PASS: named routing 25, development status 27, chat stream 31, client trace 11, chat quality 36, natural conversation 42, reasoning 48, candidate guard 34, context 21, unified trace 17, firewall closure 12, cognitive quality 55, memory temporal 52, reply truth 11, brain core UI 43, homepage 11, owner UI 36 ve voice 79. İlk 41 koşusundaki worker 15, worker mutants 13, voice mutants 12, mobile 36, phone 42, wake V3 71, observer/daemon ve micro-batch approval/execution kontrolleri de PASS.
 
-Windows Access native smoke 50/50, prebuilt smoke 20/20 PASS. Yedi kritik PowerShell dosyası doğrudan parser ile 0 hata. TypeScript 0 hata; ESLint 0 hata / 13 devralınmış uyarı. İzole production build PASS, BUILD_ID `PWgInBTNf40hHD9Sovd_6`, sourceStable true, sourceDigest `8125c29b4232db67817d06fb4ca790628e9d044c66ce422dccb751ed85294dcd`. Mevcut kurulu Next 16.2.10 / lock 16.3.8 farkı korunup raporlandı; kurulum/upgrade yapılmadı.
+Windows Access native smoke 50/50, prebuilt smoke 20/20 PASS. Yedi kritik PowerShell dosyası doğrudan parser ile 0 hata. TypeScript 0 hata; ESLint 0 hata / 13 devralınmış uyarı. İzole production build PASS, BUILD_ID `ZLRX8jxam2DN0-x6uAgn0`, sourceStable true, sourceDigest `9e70ab8d0814e265adef3862eeaf9dcfe6cb714712c21cec8790618f5e6319e0`. Mevcut kurulu Next 16.2.10 / lock 16.3.8 farkı korunup raporlandı; kurulum/upgrade yapılmadı.
 
 İzole gerçek Gemma3:12b production UI kabulünde gelişim komutu, boş fixture kayıtları için doğru kanonik raporu verdi; tarama tarihi uydurmadı. Sonraki sıradan hesap sorusu 37 + 48 = 85, normal model yolu. Test sunucusu sadece loopback3918, sahte fixture erişim anahtarı, ayrı runtime data ve otonom execution kapalıyla çalıştı; kimliği doğrulanıp kapatıldı.
 
-FINAL_RESEARCH_RESULT_PENDING
+Gerçek remote’suz baseline klonunda `research-improvement-loop` son üç-düzeltme kaynağı **b1d6fcc** için PASS (229061 ms), failed=[]. İlk aday fixture FAIL’i korunur; son ek Graphify niyeti için 21 bağlantılı suite/TS/lint/build ve ayrı gerçek üretim kabulü kullanıldı; Full166 tekrarlandığı veya bütün kanıtların son HEAD sertifikası olduğu iddia edilmez.
 
 ## Canlı kayıtlar ve korunmuş sınırlar
 
@@ -36,7 +38,7 @@ Başlangıç public/local erişim kapıları, authenticated UI'nin dokuz alt pan
 
 9 eski RECOVERY_REQUIRED kayıt, owner'ın önceki bekletme kararıyla silinmedi ve yeniden çalıştırılmadı. Atölye'de 17 proje görülür, geçmişten 1 okunamayan proje ayrıca görünür; mevcut veri üzerinde bu denetimde onarım/re-render yapılmadı. Bazı gelecek Learning/experience veya dış servis yetenekleri bağlı değildir; bunlar genel sistem çalışması veya güvenlik sertifikası sayılmaz. Mevcut homepage owner görseli/policy ve ses UI'si değiştirilmedi.
 
-LIVE_CLOSURE_PENDING
+İlk kontrollü geçiş **20:08:12Z**: build PWgInBTNf40hHD9Sovd_6 / b1d6fcc CLEAN; qualification/check 494build/25976dep PASS. Startup kısayolu üzerinden supervisor12244 ve origin14660; tünel27628/Ollama5236/Observer14680+18184/18844/18916 korunur. Local/public auth ve authenticated UI PASS. Gerçek gelişim raporu 0 bekleyen,9recovery,1biriken öğeyi doğru gösterdi; normal model37+48=85.2108JSON değişen/eklenen/silinen0. Observer20:09:05Z OBSERVING/lastErrornull. b1d6fcc CI38081999587 SUCCESS. Ek Graphify düzeltmesinin kontrollü canlı geçişi ve son kabulü BEKLİYOR; önceki derlemenin ayrıca geri dönüşü korunur.
 
 ## Güvenli devir
 

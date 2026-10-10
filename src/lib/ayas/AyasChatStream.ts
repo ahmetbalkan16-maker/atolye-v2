@@ -72,6 +72,7 @@ import {
   hasMultipleAyasFilePathMentions,
   resolveAyasProjectCatalogFilterKind,
   isAyasDevelopmentStatusQuery,
+  isAyasGraphifyStateQuery,
 } from "./model/AyasComplexityRouter";
 
 /**
@@ -518,12 +519,24 @@ function isRealAllowlistedAction(id: string): id is AyasExecutionActionId {
   return Object.prototype.hasOwnProperty.call(AYAS_EXECUTION_ALLOWLIST, id);
 }
 
+/** Native, executed state facts only. Missing facts stay explicitly unknown. */
+export function buildAyasGraphifyStateReply(data: Readonly<Record<string, unknown>>): string {
+  const fact = (key: string) => typeof data[key] === "string" ? data[key] : "bilinmiyor";
+  const incomplete = Number.isInteger(data.incompleteCodeFiles) && Number(data.incompleteCodeFiles) >= 0
+    ? data.incompleteCodeFiles : "bilinmiyor";
+  return `Graphify durumu salt okunur incelendi. Kaynak HEAD: ${fact("sourceHead")}. Analiz HEAD: ${fact("lastAnalyzedHead")}. ` +
+    `Yapısal durum: ${fact("structuralStatus")}; anlamsal durum: ${fact("semanticStatus")}; sınıflandırma: ${fact("classification")}. ` +
+    `Grafikte eksik kod dosyası: ${incomplete}. Çalışma ağacı: ${fact("worktreeState")}. Grafiği güncellemedim.`;
+}
+
 interface AyasToolDispatchAttempt {
   readonly toolId: AyasExecutionActionId;
   readonly actionOutcome: AyasActionRuntimeOutcome;
 }
 
 type AyasToolInputHint = {
+  /** Native Graphify state only; never a model-selected symbol, root or refresh. */
+  readonly operation?: "state";
   readonly documentId?: string;
   readonly filePath?: string;
   readonly status?: string;
@@ -627,6 +640,9 @@ export function resolveDeterministicToolCandidate(userText: string): AyasDetermi
   // comment) — a message can trigger at most one of the two.
   if (isAyasDevelopmentStatusQuery(userText)) {
     candidates.push({ action: "ayas-development-status", toolInput: { userText } });
+  }
+  if (isAyasGraphifyStateQuery(userText)) {
+    candidates.push({ action: "query-graphify", toolInput: { operation: "state" } });
   }
 
   if (candidates.length !== 1) return null;
@@ -1413,11 +1429,14 @@ async function* streamAyasChatTurn(
     }
 
     let rawReplyForFinalization = outcome.result.answer;
-    // Development/approval facts already have a canonical Turkish summary.
-    // Model paraphrasing added an unobserved scan date in live acceptance.
-    const developmentStatusSummary = dispatch?.toolId === "ayas-development-status" && dispatch.actionOutcome.executed
-      ? dispatch.actionOutcome.result.summary : null;
-    if (dispatch?.actionOutcome.executed && developmentStatusSummary === null) {
+    // Executed development and native Graphify state facts are canonical.
+    // Model paraphrasing must not invent scan dates, counts or graph freshness.
+    const canonicalStatusSummary = dispatch?.actionOutcome.executed
+      ? dispatch.toolId === "ayas-development-status" ? dispatch.actionOutcome.result.summary
+        : dispatch.toolId === "query-graphify" && isAyasGraphifyStateQuery(text)
+          ? buildAyasGraphifyStateReply(dispatch.actionOutcome.result.data) : null
+      : null;
+    if (dispatch?.actionOutcome.executed && canonicalStatusSummary === null) {
       const { result } = dispatch.actionOutcome;
       try {
         const grounded = await route.provider.chat({
@@ -1444,8 +1463,8 @@ async function* streamAyasChatTurn(
     // fabricated "here's the result" answer was most likely.
     const toolNamedButNotExecuted = outcome.anyToolNamedBeforeFilter && dispatch?.actionOutcome.executed !== true;
 
-    const finalized = developmentStatusSummary !== null
-      ? { text: developmentStatusSummary, source: "fallback" as const, corrected: false, correctionAttempts: 0 as const, reason: undefined }
+    const finalized = canonicalStatusSummary !== null
+      ? { text: canonicalStatusSummary, source: "fallback" as const, corrected: false, correctionAttempts: 0 as const, reason: undefined }
       : await finalizeAyasReply({
       rawReply: rawReplyForFinalization,
       userText: text,

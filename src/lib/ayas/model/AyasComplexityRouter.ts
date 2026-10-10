@@ -222,6 +222,11 @@ export interface ClassifyOptions {
  * Deterministic first pass. Order matters: the most specific intents
  * (research / repair / tool) win over the generic COMPLEX/NORMAL split.
  */
+/** Only the existing native state operation; symbols/install/update are separate intents. */
+export function isAyasGraphifyStateQuery(text: string): boolean {
+  return /\bgraphify (?:durum\w*|status)\b/.test(fold(text));
+}
+
 export function classifyAyasComplexity(text: string): AyasChatComplexity {
   const t = fold(text);
   if (!t) return "SIMPLE";
@@ -237,6 +242,7 @@ export function classifyAyasComplexity(text: string): AyasChatComplexity {
   if (TOOL_RUN_WORDS.test(t) && RUN_VERB_WORDS.test(t)) return "TOOL";
   if (isAyasProjectCatalogQuery(text)) return "TOOL";
   if (isAyasDevelopmentStatusQuery(text)) return "TOOL";
+  if (isAyasGraphifyStateQuery(text)) return "TOOL";
   if (COMPLEX.test(t)) return "COMPLEX";
 
   const words = t.split(" ").filter(Boolean);

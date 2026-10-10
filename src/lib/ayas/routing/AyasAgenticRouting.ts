@@ -7,7 +7,7 @@ import { AYAS_EXECUTION_ALLOWLIST } from "../execution/AyasExecutionPolicy";
 import {
   CHECKPOINT_MENTION, ROADMAP_MENTION, CHANGELOG_MENTION,
   extractAyasFilePathMention, hasMultipleAyasFilePathMentions,
-  resolveAyasProjectCatalogFilterKind, isAyasDevelopmentStatusQuery,
+  resolveAyasProjectCatalogFilterKind, isAyasDevelopmentStatusQuery, isAyasGraphifyStateQuery,
 } from "../model/AyasComplexityRouter";
 import { classifyAyasComplexity } from "../model/AyasComplexityRouter";
 
@@ -140,17 +140,19 @@ export function describeAyasTask(text: string): AyasTaskRequirement {
   const docCount = [CHECKPOINT_MENTION, ROADMAP_MENTION, CHANGELOG_MENTION].filter((re) => re.test(withoutPath)).length;
   const doc = docCount === 1;
   const repoStatus = /\bgit (durum\w*|status)\b/.test(t);
+  const graphifyState = isAyasGraphifyStateQuery(text);
   const repoAnalysis = /\b(depo\w*|repo\w*|kod taban\w*)\b/.test(t) && /\b(mimari\w*|bagimlilik\w*|graphify)\b/.test(t);
   const code = /\b(kod|typescript|code|refactor|kod taban)\b/.test(t) && mutation;
   const smokePlan = /\b(smoke|test)\b/.test(t) && /\b(plan\w*|dogrulama\w*)\b/.test(t);
   const memory = /\b(adim neydi|hatirliyor musun|remember|benim adim)\b/.test(t);
   const project = resolveAyasProjectCatalogFilterKind(text) !== null || isAyasDevelopmentStatusQuery(text);
-  const ambiguous = multipleFiles || docCount > 1 || Boolean(filePath && doc);
+  const ambiguous = multipleFiles || docCount > 1 || Boolean(filePath && doc)
+    || Boolean(graphifyState && (filePath || docCount > 0 || repoStatus || project));
   let taskClass: AyasTaskClass = "conversation";
   if (fresh) taskClass = "research";
   else if (code || smokePlan) taskClass = "coding";
   else if (filePath || doc) taskClass = "file";
-  else if (repoStatus || repoAnalysis) taskClass = "repository";
+  else if (repoStatus || repoAnalysis || graphifyState) taskClass = "repository";
   else if (project) taskClass = "project";
   else if (memory) taskClass = "memory";
   let requiredToolId: string | null = null;
@@ -159,6 +161,7 @@ export function describeAyasTask(text: string): AyasTaskRequirement {
     if (filePath) requiredToolId = "inspect-source-file";
     else if (doc) requiredToolId = "read-project-document";
     else if (repoStatus) requiredToolId = "inspect-repository-status";
+    else if (graphifyState) requiredToolId = "query-graphify";
     else if (project) requiredToolId = isAyasDevelopmentStatusQuery(text) ? "ayas-development-status" : "list-production-projects";
   }
   const relevantSkillId = smokePlan ? "ayas-tests"

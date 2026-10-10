@@ -1,3 +1,7 @@
+## 2026-10-10 — Native Graphify state command
+
+A narrow Graphify status query selects the existing read-only query-graphify executor with fixed operation state, without a symbol, caller root or refresh. Registered availability, mutation and ambiguous-target guards remain. An executed native state result supplies canonical Turkish facts through the shared stream; no model can replace source HEAD, structural/semantic classification or missing-file count. Symbol queries retain their existing bounded evidence path. No new executor, authority, homepage or global permission is introduced.
+
 ## 2026-10-10 — Canonical development facts and existing micro-batch readiness
 
 A successfully executed ayas-development-status tool returns its existing canonical Turkish summary through the shared chat stream. Model paraphrasing must not invent scan times or approval counts. Other tools and normal conversation retain the existing finalizer. Named AYAS development queries select that existing read-only action; no separate orchestrator or homepage feature is added. The micro-batch accumulator applies its existing readiness policy on no-new-item ticks under the same fresh/clean/machine/HEAD guards. READY_FOR_REVIEW does not grant approval, reservation or publication authority. Validation: docs/AYAS_GENERAL_AUDIT_2026-10-10.md.
