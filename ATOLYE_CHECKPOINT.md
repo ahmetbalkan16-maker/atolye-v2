@@ -1,4 +1,4 @@
-## 10 Ekim 2026 — Yerel Türkçe sohbet kaynakları hazır; canlı kalite/kabul sürüyor
+## 10 Ekim 2026 — Gemma3 12B sohbet canlı; son dar bağlam eki kabulü sürüyor
 
 Owner doğal Türkçe, anlamlı muhabbet ve güvenilir kişisel hatırlama için yerel/ücretsiz geliştirme istedi; homepage değişikliği istemedi. Reboot/logon **12 Ekim Pazartesi**. Yeni opt-in AYAS_CONVERSATION_V2 yalnız Ollama chat'te gerçek roller/geçmiş/son mesajı mevcut router+bütçe+finalizer üzerinden taşır. Bilinmeyen ad uydurması ve retry sırasında doğrulanmış adın kaybı kapatıldı; bellek aynı atomik yazma yolunda. Homepage, ses/UI, üretim OLLAMA_MODEL, dependency, gate/onay/yetki korunur.
 
@@ -6,7 +6,9 @@ Owner doğal Türkçe, anlamlı muhabbet ve güvenilir kişisel hatırlama için
 
 Aday gerçek tarayıcıda85 doğru hesap/bilinmeyen olgu belirsizliği/ad kaydı/reload kalıcılığı görüldü. Reload'da doğru adın yanında eski talimat tekrarı vardı; son opt-in düz ad yanıtı bu tekrarı güvenilir tek cümleyle kapatır, genel output/retry güvenliği atlanmaz. Yeni39 senaryo + etkilenen6 suite/TS/lint PASS; son derleme ve aday tekrar kabulü sürüyor. Kaynak c15b64c CI38061499212 SUCCESS, son ad düzeltmesi bununla sertifikalanmaz.
 
-Canlı eski origin26068 ve önceki6c287aa derleme korunur; kaynak değişimi nedeniyle eski qualification yeni kaynak için geçerli sayılmaz. **Sıradaki iş:** son derleme → yeni ayrı3321 ad recall → dar env/model activation → kontrollü artifact switch+yeni qualification → canlı kabul → docs/push/Graphify/doğal observer. Kalan sırayı atlama. Rapor docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md; Full166/foundation/telefon/reboot kabulü yenilenmiş sayılmaz.
+İlk canlı geçiş15:04Z: 3e36db2 / BUILD_ID -cEhz7qQUOL28AP6pHLjB, origin22552/supervisor25256, Gemma3 12B/flag1. Yeni495build/25976dep qualification PASS; aynı Node/dependency/tünel hash'leri, local/public healthy, errorlog boş.2108 memory/project JSON değişen0. Eski artifact/manifest korundu. Tünel27628/Ollama5236/Observer14680+çocukları aynı.3e36db2 CI38061907579 SUCCESS. Gerçek canlı hesap/unknownpast doğru; hipotetik "arkadaşın… ona…" eski yemek konusuna bağlanınca doğal cevap reddedildi. Bu dar opt-in direct-chat bağlam hatası ve kalite-reddi sahte çalışma planı fallback'i kaynakta kapatıldı; reasoning/tool/seçim referansları korunur. Aynı gerçek model geçmişinde artık uygun Türkçe/0retry, yeni42 senaryo PASS; son29-suite/TS/lint/build kabulü sürüyor.
+
+**Sıradaki iş:** son derleme/kaynak commit → ayrı3321 aynı gerçek bağlam kabulü → yalnız22552/25256 exactidentity artifact switch (env aynı) → yeni qualification → ana canlı aynı sohbet/Atölye/data kabulü → tüm güncel docs/commit/push → Graphify/doğalobserver. Eski pin/source3e36db2 son kaynak için geçerli sayılmaz. Kalan sırayı atlama. Rapor docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md; Full166/foundation/telefon/reboot kabulü yenilenmiş sayılmaz.
 
 ## 10 Ekim 2026 — Owner canlı gelişim ve güvenli başlangıcı onayladı; reboot kabulü bekliyor
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildAyasNaturalConversation, AYAS_NATURAL_CONVERSATION_POLICY, ayasPersonalFactIsUnknown } from "../src/lib/ayas/context/AyasNaturalConversation";
+import { buildAyasNaturalConversation, AYAS_NATURAL_CONVERSATION_POLICY, ayasPersonalFactIsUnknown, ayasHasLocalHypotheticalAntecedent } from "../src/lib/ayas/context/AyasNaturalConversation";
 import { classifyAyasReplyFallback } from "../src/components/brain/brainCore";
 import { AyasContextBudgetError } from "../src/lib/ayas/context/AyasContextBudget";
 import { createOllamaAyasProvider } from "../src/lib/ayas/model/OllamaAyasProvider";
@@ -70,6 +70,9 @@ async function main(){
  await check("v2 releases the local model between turns",async()=>{const requests:unknown[]=[];const provider=createOllamaAyasProvider(env,network(["4"],requests));await provider.chat({prompt:"2+2",complexity:"SIMPLE",maxTokens:420});assert.equal((requests[0] as {keep_alive?:number}).keep_alive,0);});
  await check("flag-off legacy calls keep their original model lifetime",async()=>{const requests:unknown[]=[];const provider=createOllamaAyasProvider({...env,AYAS_CONVERSATION_V2:"0"},network(["4"],requests));await provider.chat({prompt:"2+2",complexity:"SIMPLE",maxTokens:420});assert.equal(Object.hasOwn(requests[0] as object,"keep_alive"),false);});
  await check("plain name recall never echoes old naming instructions",async()=>{const r=await turn("Benim adım ne?",["Adın Deniz, beni böyle hatırla."],[{role:"user",text:"Benim adım Deniz, beni böyle hatırla."}]);assert.equal(r.done.text,"Adın Deniz.");assert.equal(r.events.filter(e=>e.type==="delta").map(e=>e.type==="delta"?e.text:"").join(""),r.done.text);});
+ await check("in-sentence hypothetical pronoun does not bind an older meal question",async()=>{const r=await turn("Günlük konuşmada bir arkadaşın çok yorulduğunu söylerse ona doğal Türkçeyle ne dersin?",['"Çok yorulmuşsun, biraz dinlen istersen." derdim.'],[{role:"user",text:"Ben dün akşam ne yedim?"},{role:"brain",text:"Bunu bilmiyorum."}]);assert.equal(r.done.source,"llm");assert.equal(r.done.correctionAttempts,0);assert.match(r.done.text,/dinlen/);});
+ await check("explicit earlier-choice reference keeps the existing resolver",()=>assert.equal(ayasHasLocalHypotheticalAntecedent("Önceki seçtiğim bir seçenek işe yaramazsa onu nasıl düzeltirim?"),false));
+ await check("rejected conversational draft never becomes a made-up studio plan",async()=>{const question="Günlük konuşmada bir arkadaşın çok yorulduğunu söylerse ona doğal Türkçeyle ne dersin?";const r=await turn(question,[question,question],[{role:"user",text:"Ben dün akşam ne yedim?"},{role:"brain",text:"Bunu bilmiyorum."}]);assert.equal(r.done.source,"fallback");assert.equal(r.done.text,"Yanıtı doğru ve doğal biçimde oluşturamadım. Sorunu biraz farklı anlatır mısın?");assert.ok(!r.done.text.includes("mevcut durum"));});
  console.log(`${passed} natural conversation scenarios PASS.`);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

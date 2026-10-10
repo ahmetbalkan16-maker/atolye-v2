@@ -43,7 +43,7 @@ import { selectAyasAgenticRoute } from "./routing/AyasAgenticRouting";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { AyasContextBudgetError, ayasContextBudgetTraceMetadata, type AyasContextBudgetEvidence } from "./context/AyasContextBudget";
 import { ayasReplyHistoryQualityIssue } from "./context/AyasReplyHistoryQuality";
-import { buildAyasNaturalConversation, ayasPersonalFactIsUnknown } from "./context/AyasNaturalConversation";
+import { buildAyasNaturalConversation, ayasPersonalFactIsUnknown, ayasHasLocalHypotheticalAntecedent } from "./context/AyasNaturalConversation";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
 import {
@@ -1031,6 +1031,10 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
   if (!hasStaticIntentFallback && replyIssue(fallback, { ...input, rawReply: fallback })) {
     fallback = "Yanıtı güvenli ve doğru biçimde oluşturamadım; hiçbir işlem gerçekleştirmedim. Salt okunur sınırı koruyarak neyi ele almamı istediğini netleştirir misin?";
   }
+  if (input.env.AYAS_CONVERSATION_V2 === "1" && !isStudioRelevantQuery(input.userText)
+      && !hasStaticIntentFallback && ["unusable-reply", "context-quality", "question-echo", "history-replay", "personal-statement-drift", "studio-drift"].includes(initialIssue)) {
+    fallback = "Yanıtı doğru ve doğal biçimde oluşturamadım. Sorunu biraz farklı anlatır mısın?";
+  }
   return { text: fallback, source: "fallback", corrected: true, reason: initialIssue, correctionAttempts: 1 };
 }
 
@@ -1500,6 +1504,11 @@ async function* streamAyasChatTurn(
   // doc comments above): surface recalled memory only for a self-referential
   // turn, and the studio/project-state block only for a project-topical one.
   const studioForPrompt = input.studio && isStudioRelevantQuery(text) ? input.studio : undefined;
+  // A conversational hypothetical names a new subject inside the current
+  // utterance. Do not force its pronoun onto a resolved older studio/chat topic.
+  // Reasoning/tool paths above and genuine earlier-choice references are unchanged.
+  const localHypotheticalAntecedent = env.AYAS_CONVERSATION_V2 === "1"
+    && !isStudioRelevantQuery(text) && ayasHasLocalHypotheticalAntecedent(text);
 
   const promptInput = {
     userText: text,
@@ -1531,7 +1540,7 @@ async function* streamAyasChatTurn(
       const built = buildAyasNaturalConversation({
         userText: text, history: ctx.recentHistory, memoryLines: memoryLinesForPrompt, protectedMemoryLines,
         context: {
-          conversation: ctx.block,
+          conversation: localHypotheticalAntecedent ? { ...ctx.block, referenceLines: [] } : ctx.block,
           ...(studioForPrompt ? { studio: studioForPrompt } : {}),
           ...(isStudioRelevantQuery(text) ? { state: {
             executionGate: input.snapshot.executionGate, taskCount: input.snapshot.tasks.total,
@@ -1602,10 +1611,10 @@ async function* streamAyasChatTurn(
     // See the reasoning-path finalizer above: full request history is capped
     // by the route/client contract and is required for identity precedence.
     recentHistory: input.history ?? [],
-    selectedOption: ctx.trace.selectedOption,
-    activeTopic: activeTopicForFinalization,
+    selectedOption: localHypotheticalAntecedent ? null : ctx.trace.selectedOption,
+    activeTopic: localHypotheticalAntecedent ? null : activeTopicForFinalization,
     hasPendingContinuation,
-    resolvedReferents: ctx.resolvedReferents,
+    resolvedReferents: localHypotheticalAntecedent ? [] : ctx.resolvedReferents,
     memoryLines: memoryLinesForPrompt,
     memoryIdentityName,
     historicalMemoryQuery,

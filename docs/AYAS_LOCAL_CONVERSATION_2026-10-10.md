@@ -2,7 +2,7 @@
 
 ## Güncel durum
 
-Kaynak ve son izole derleme hazır; Gemma3 12B gerçek denemelerle aday kabulüne geçti, canlı kabul henüz tamamlanmadı. Owner bu geliştirmeyi ve gerekli güvenli düzeltmeleri istedi. PC reboot/logon kabulü owner kararıyla **12 Ekim Pazartesi** yapılacak. Tam yedek/WinPE/USB işi bugün açılmadı.
+Gemma3 12B ve opt-in sohbet **15:04Z'de canlıya alındı**; hash qualification ve yerel/public sağlık PASS. Canlı kabulde bulunan dar "arkadaşın… ona…" bağlam sorunu kaynakta giderildi; bu son ekin ayrı derlemesi ve canlı kabulü sürüyor. Owner bu geliştirmeyi ve gerekli güvenli düzeltmeleri istedi. PC reboot/logon kabulü owner kararıyla **12 Ekim Pazartesi** yapılacak. Tam yedek/WinPE/USB işi bugün açılmadı.
 
 ## Mimari ve değişiklik
 
@@ -24,13 +24,16 @@ Model ve konuşma flag'i uygulamada opt-in'dir. Canlı activation henüz yapılm
 
 ## Doğrulama
 
-- **29 ilgili suite komutu PASS**; model ömrü ve ad tekrarı kapanışında yeni suite **39 doğal sohbet senaryosu PASS**. Son ad düzeltmesinden sonra etkilenen6 suite ayrıca PASS. Bellek/temporal/integrity, chat/SSE/client/quality, router, bütçe, reasoning/schema, eylem firewall/closure, trace, voice/mobile, Brain/UI/homepage ve zero-cost sözleşmeleri kapsandı.
+- **29 ilgili suite komutu PASS**; son sohbet bağlam kapanışında yeni suite **42 doğal sohbet senaryosu PASS**, son29 komut koşusu devam ediyor. Bellek/temporal/integrity, chat/SSE/client/quality, router, bütçe, reasoning/schema, eylem firewall/closure, trace, voice/mobile, Brain/UI/homepage ve zero-cost sözleşmeleri kapsandı.
 - Kontrollü context mutasyonları 19/19, voice-turn mutasyonları 12/12 yakalandı. Native Windows lock/bellek denemeleri kendi sentetik klasörlerinde yapıldı.
 - TypeScript `--noEmit --incremental false` exit0. ESLint 0 hata / devralınmış 13 uyarı. Diff whitespace kontrolü PASS.
 - Kurulu Next16.2.10 ile izole webpack production build PASS; lock16.3.8 farkı korunur, giderilmiş sayılmaz. Ana `.next`, çalışan servisler ve owner veri klasörleri hazırlıkta değiştirilmedi. Kaynak kopyasının derleme öncesi/sonrası hash'i aynı.
 - Model ömrü kapanış derlemesi `tQ0yVkdLJtnrskXG3YyJ9`, kaynak SHA256 `7d15ee90a9b9ab4747db8c8b865c437a50faac19711c7184e12eb85eb331a447`. Gerçek keep_alive0 denemesi sonrası Ollama `/api/ps` model sayısı0; genel cevaplar soğuk yüklemeyle yaklaşık5–7,4sn, bilinmeyen olgu reddi17–28ms (sentetik snapshot ölçümü, telefon RTT garantisi değil). Son ad düzeltmesi kendi yeni derlemesini gerektirir.
 - Gerçek aday tarayıcısında85 doğru hesap, bilinmeyen kişisel soruda belirsizlik, ad kaydı ve reload sonrası kalıcılık görüldü. İlk reload yanıtı doğru adın yanında eski "beni böyle hatırla" cümlesini tekrar etti; bu canlı aday bulgusu kapatıldı: opt-in düz ad sorusunda güvenilir adın tek cümlelik yanıtı verilir. Genel çıktı/retry güvenlik incelemesi atlanmaz. Son39 senaryo ve TS/lint PASS; aday yeni derlemeyle yeniden açılacak.
 - İlk kaynak cb0ab43 [AYAS Safe CI38060269213](https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/38060269213) SUCCESS; yeni kişisel-olgu/model ömrü kaynakları bununla sertifikalanmaz, kendi CI sonucu takip edilir.
+- İlk canlı kaynak3e36db2 [AYAS Safe CI38061907579](https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/38061907579) SUCCESS. Canlı hesap85 ve bilinmeyen geçmiş olgu reddi doğru görüldü. Sonraki örnekte aynı cümledeki hipotetik "arkadaşın… ona…" eski yemek konusuna bağlanmıştı; modelin uygun Türkçe taslağı yanlış reddedildi. Dar opt-in, stüdyo dışı direct-chat düzeltmesi aynı cümledeki yeni hipotetik antecedent'i geçmiş seçiminden ayırır; açık "önceki/seçtiğim" referansları ve reasoning/tool yolları değişmez. Kalite reddinde konuşma cümlesini çalışma planı gibi sunmak yerine açık netleştirme verilir. Aynı geçmişle gerçek model tekrar denemesi6,8sn/LLM/0retry: "Çok yorulmuşsun, dinlen biraz." gibi uygun cevap. İlk FAIL kaydı korunur.
+
+İlk geçişte22552 origin/25256 supervisor; tünel27628/Ollama5236/Observer14680 ve çocukları korundu.495 build /25976 dependency yeni qualification PASS; eski artifact/manifest ayrı dar geri dönüş klasöründe korunur. Node/dependency/tünel executable/config hash'leri aynı; canlı errorlog boş, local/public healthy.2108 memory/project JSON kaydı önce/sonra aynı; değişen0. İkinci bağlam eki geçişi sadece artifact/source qualification içindir; model/flag ve diğer env alanları yeniden değiştirilmez.
 - İlk hazırlıkta eksik clone Git/CHANGELOG ve build docs/cloudflare importları vardı; fixture tamamlanıp yeniden koşu PASS. Ürün test beklentileri veya frozen manifest/pinler değiştirilmedi. Ham ilk FAIL kayıtları saklandı.
 
 Kanıtlar bu PC'nin Codex görselleştirme klasöründeki `CONVERSATION_*.json`, `conversation-regression-*.log`, `CONVERSATION_BUILD*.log` ve `.graphify/conversation-local-probe-20261010.ts` içindedir. Bunlar sentetik deney kayıtlarıdır; kaynak/frozen sertifika veya gerçek telefon ses kalitesi kanıtı değildir. Yeni Full166 sertifikası verilmedi.

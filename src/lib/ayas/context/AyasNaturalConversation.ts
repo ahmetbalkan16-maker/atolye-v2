@@ -27,6 +27,15 @@ function hasContent(value: unknown): boolean {
 
 const foldPersonal = (text: string): string => text.toLocaleLowerCase("tr-TR")
   .replace(/[çğıöşü]/g, letter => ({ ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u" })[letter]!);
+
+/** A fresh hypothetical supplies its own antecedent; its pronoun must not bind an older chat topic.
+ * Explicit references to earlier choices still use the existing resolver.
+ */
+export function ayasHasLocalHypotheticalAntecedent(text: string): boolean {
+  const value = foldPersonal(text);
+  return !/\b(?:onceki|az once|sectigim|sectigin|yukaridaki)\b/.test(value)
+    && /\b(?:bir|diyelim ki|ornegin|mesela)\b.{5,180}\b[a-z]{2,}(?:sa|se)\b.{0,100}\b(?:ona|onu|onun)\b/.test(value);
+}
 const personalFactDomains = [
   { question: /\b(?:yedim|yemistim|ictim|icmistim)\b/, evidence: /\b(?:yedim|yemistim|ictim|icmistim)\b/ },
   { question: /\b(?:gittim|gitmistim|tatilim|seyahatim)\b/, evidence: /\b(?:gittim|gitmistim|tatil\w*|seyahat\w*)\b/ },
