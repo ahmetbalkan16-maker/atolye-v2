@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — Geçerli owner kapsamı ve başlangıç hafızası
+
+Owner canlı Gelişim Merkezi ve otomatikbaşlangıç düzeltmesini yetkilendirdi; tamyedek/WinPE açılmadı. Gerçekküçüköneri26bf497 COMPLETED. Access artık yalnız hashlenmiş mevcutbuildi başlatır; eski autbuildtask disabledkorunur, kullanıcıStartup tek kayıt. Reboot kabulü henüzNOT_RUN; sonrakiownerWindowsrestart+logon sonrasınıdoğrula. Başkacihaza yerelmanifest/.next/node_modules/.lnk kurulumsayılmaz; hedefqualification yenidenyapılır. Eski9recovery kaydını silme/yenidenyürütme; Homepageownerpolicy korunur. Rapor docs/AYAS_AUTONOMY_STARTUP_2026-10-10.md.
+
 ## 8 Ekim 2026 - akşam son hata temizliği; resume V2 eklendi, push yok
 
 Yerel f37d0e7 iki sürümlü halef test ekler: smoke-ayas-owner-approval-resume-v2.ts (R01–R10, 20/20) ve smoke-ayas-autonomous-execution-gate-v2.ts (6/6). Eski iki auto-resume suite'i ve raw FAIL'leri değişmedi; otomatik resume owner politikasıyla yasak. V2, eski testlerin çalıştıramadığı stale/dirty/scope/multi-proposal/restart/yarış kapsamını geçerli manuel yetkiyle sınar; 5/5 mutant KILLED; bağımsız inceleme NOT_RUN. f37d0e7 arşiv klonunda K3 35/35, tsc exit0, ESLint 0 hata / 13 uyarı; Full166 yalnız dbf9542.

@@ -1,24 +1,39 @@
 ﻿<#
 .SYNOPSIS
-  Removes "AYAS Access Online" autostart, however it was registered — the
-  Task Scheduler task, the Startup-folder shortcut, or (defensively) both.
-  Does not stop an already-running app server / tunnel.
+  Dry-run by default. -Apply disables this project's task and removes only
+  its verified startup shortcut. Preserves definitions, logs and manifest;
+  does not stop any running process.
 #>
+param([switch]$Apply)
 $ErrorActionPreference = "Stop"
 $TaskName = "AYAS Access Online"
 $StartupDir = [Environment]::GetFolderPath("Startup")
 $ShortcutPath = Join-Path $StartupDir "AYAS Access Online.lnk"
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if ($task -and $task.Actions[0].WorkingDirectory -ne $RepoRoot) { throw 'AYAS_ACCESS_TASK_IDENTITY_UNVERIFIED' }
+$shortcut = $null
+if (Test-Path -LiteralPath $ShortcutPath) {
+  $shell = New-Object -ComObject WScript.Shell
+  $shortcut = $shell.CreateShortcut($ShortcutPath)
+  $expectedExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  $expectedArgs = '-NoProfile -WindowStyle Hidden -File "' + (Join-Path $RepoRoot 'scripts\ayas-access-daemon.ps1') + '" -Continuous -IntervalSeconds 60'
+  if ($shortcut.TargetPath -ne $expectedExe -or $shortcut.WorkingDirectory -ne $RepoRoot -or $shortcut.Arguments -ne $expectedArgs) {
+    throw 'AYAS_ACCESS_SHORTCUT_IDENTITY_UNVERIFIED'
+  }
+}
+if (-not $Apply) { Write-Output 'DRY-RUN: disable owned autostart only; preserve all running services, definitions, data and qualification.'; return }
 
 $removedAny = $false
 
-if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
-  Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-  Write-Host "Removed scheduled task '$TaskName'."
+if ($task -and $task.Settings.Enabled) {
+  Disable-ScheduledTask -TaskName $TaskName | Out-Null
+  Write-Host "Disabled scheduled task '$TaskName'; definition preserved."
   $removedAny = $true
 }
 
-if (Test-Path $ShortcutPath) {
-  Remove-Item $ShortcutPath -Force
+if ($shortcut) {
+  Remove-Item -LiteralPath $ShortcutPath
   Write-Host "Removed Startup shortcut: $ShortcutPath"
   $removedAny = $true
 }

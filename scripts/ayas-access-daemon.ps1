@@ -1,4 +1,4 @@
-<# AYAS access owner: one-shot by default; -Continuous is a bounded, singleton watch. #>
+<# AYAS access owner: starts only a qualified existing build; never builds/installs. #>
 param(
   [switch]$Continuous,
   [int]$IntervalSeconds = 60,
@@ -8,6 +8,11 @@ param(
   [switch]$LibraryOnly
 )
 $ErrorActionPreference = "Stop"
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+try {
+  $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+  if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'AYAS_ACCESS_ELEVATED_EXECUTION_REFUSED' }
+} finally { $identity.Dispose() }
 if ($IntervalSeconds -lt 30 -or $Port -lt 1 -or $Port -gt 65535) { throw "AYAS_ACCESS_ARGUMENT_INVALID" }
 $script:RepoRoot = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\')
 $script:Port = $Port
@@ -32,6 +37,17 @@ $script:TunnelStdoutLog = Join-Path $script:LogDir "cloudflared-stdout.log"
 $script:NamedTunnelUrl = "https://ayas.atolyeayas.com"
 $script:MaxFailures = 3
 $script:CooldownSeconds = 120
+$script:RuntimeManifestFile = Join-Path $script:StateDir 'prebuilt-runtime-v1.json'
+$script:NodeExe = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+
+function Test-PrebuiltRuntime([string]$Mode = '--check') {
+  try {
+    $checker = Join-Path $PSScriptRoot 'ayas-prebuilt-runtime.mjs'
+    if (-not (Test-Path -LiteralPath $script:RuntimeManifestFile -PathType Leaf)) { return $false }
+    $null = & $script:NodeExe $checker $Mode $script:RepoRoot $script:RuntimeManifestFile $script:CloudflaredExe $script:TunnelConfig 2>&1
+    return $LASTEXITCODE -eq 0
+  } catch { return $false }
+}
 
 function Write-AtomicText([string]$Path, [string]$Value) {
   $temporary = "$Path.$PID.tmp"
@@ -204,10 +220,10 @@ function Start-OwnedProcess([string]$FilePath, [string[]]$Arguments, [string]$St
 }
 function Start-Origin {
   if ((Get-AccessSnapshot).origin -ne 'down') { return [pscustomobject]@{ ok = $false; stage = 'origin-race'; wrapperPid = $null } }
-  $build = Start-OwnedProcess 'npm.cmd' @('run','build') $script:BuildLog $script:BuildErrLog $script:RepoRoot -Wait
-  if ($build.ExitCode -ne 0) { return [pscustomobject]@{ ok = $false; stage = 'build'; wrapperPid = $null } }
+  if (-not (Test-PrebuiltRuntime)) { return [pscustomobject]@{ ok = $false; stage = 'prebuilt-runtime-unverified'; wrapperPid = $null } }
   if ((Get-AccessSnapshot).origin -ne 'down') { return [pscustomobject]@{ ok = $false; stage = 'origin-race'; wrapperPid = $null } }
-  $wrapper = Start-OwnedProcess 'npm.cmd' @('run','start','--','-p',[string]$script:Port) $script:AppLog $script:AppErrLog $script:RepoRoot
+  $nextCli = Join-Path $script:RepoRoot 'node_modules\next\dist\bin\next'
+  $wrapper = Start-OwnedProcess $script:NodeExe @(('"' + $nextCli + '"'),'start','-p',[string]$script:Port) $script:AppLog $script:AppErrLog $script:RepoRoot
   Write-AtomicText $script:AppWrapperPidFile ([string]$wrapper.Id)
   for ($attempt = 0; $attempt -lt 15; $attempt++) {
     Start-Sleep -Seconds 2
@@ -225,7 +241,8 @@ function Start-Tunnel {
   if (-not (Test-Path -LiteralPath $script:CloudflaredExe)) { return [pscustomobject]@{ ok = $false; stage = 'tunnel-executable'; pid = $null } }
   $before = Get-AccessSnapshot
   if ($before.tunnel -ne 'down' -or $before.origin -ne 'healthy' -or -not (Test-LocalHealth $script:Port)) { return [pscustomobject]@{ ok = $false; stage = 'tunnel-race'; pid = $null } }
-  $started = Start-OwnedProcess $script:CloudflaredExe @('tunnel','--config',$script:TunnelConfig,'run','ayas') $script:TunnelStdoutLog $script:TunnelLog $script:RepoRoot
+  if (-not (Test-PrebuiltRuntime '--check-tunnel')) { return [pscustomobject]@{ ok = $false; stage = 'prebuilt-runtime-unverified'; pid = $null } }
+  $started = Start-OwnedProcess $script:CloudflaredExe @('tunnel','--config',('"' + $script:TunnelConfig + '"'),'run','ayas') $script:TunnelStdoutLog $script:TunnelLog $script:RepoRoot
   for ($attempt = 0; $attempt -lt 5; $attempt++) {
     Start-Sleep -Seconds 2
     $snapshot = Get-AccessSnapshot

@@ -1,3 +1,13 @@
+## 10 Ekim 2026 — Owner canlı gelişim ve güvenli başlangıcı onayladı; reboot kabulü bekliyor
+
+Son owner talimatı bu iki işe canlı deneme ve başlangıç düzenlemesi yetkisi verdi; önceki yalnız-readonly kapsam bu iş için supersede edilir. Yedek/WinPE işi açılmadı, PC restart edilmedi. Giriş33e015d/origin temiz. Owner localhost'a kendisi giriş yaptı; gerçek keşfedilmiş tek-test-file mesaj iyileştirmesi ONAYLA VE UYGULA ile13:19:43Z→13:22:28Z COMPLETED/testPASS; AYAS kendi26bf497 commit/push/Graphify/HEALTHY kapanışını yaptı. Reload sonrası sonuç kalıcı. Eski9RECOVERY_REQUIRED korunur, yeni yetki/gate bypass yok; genel kapıCLOSED.
+
+Start-Origin otomatikbuild kaldırıldı; mevcut derleme+tamdependency ağacı hash manifestiyle doğrulanıp doğrudan Next/Node başlar. Prebuilt20+AccessPS5.1/native48+Brain43/homepage11/microbatch27/portable24=173PASS; TS0, ESLint0hata/13eskiuyarı. Kaynak/app/ana sayfa/data/model/dependency değişmedi; Next16.2.10/lock16.3.8 farkı pinlenerek korunur, çözülmüş sayılmaz. Qualification yerelmanifest1086build/25976dependency; başkaPC'de yenidenkurulum/build/kabul ve yenipin gerekir.
+
+TaskScheduler WindowsAccessDenied; eskiAccess görevdisabledkorundu, yalnız kendiStartup/AYAS Access Online.lnk kuruldu. Güvenlikpolitikası/UAC/Defender/firewall değişmedi, Bypass eklenmedi. RepeatApply ikinci kayıt oluşturmaz; unregister dry-run/owned-scope güvenli. EskiPS14672 exactidentity tekprocess olarak değişti→yeniPS6780; Next26068/tunnel27628/Ollama5236/observer14680+18184+18844+18916 aynı, kayıp0; yenierrorlog0. F115 automaticbuild canlıdenetleyici/yeniStartup yolundan kaldırıldı, eski disabledtask enabled yapılmaz. Ollama/Observer mevcutaçılışkayıtlarıkorundu.
+
+Teksonrakiadım: kaynak/dokümanlar commit/push+Graphify sonHEAD; doğalobserverdirtyPAUSE kaldırma değil temizrepoüzerindedöngüyle dönmeli. Sonra owner normalWindowsrestart ve logon yapar; gerçek reboot/startup/telefon kabulü NOT_RUN olmayı sürdürür. Geçmiş9recovery ve1okunamayanproje bu kapsamda çözülmedi. Rapor docs/AYAS_AUTONOMY_STARTUP_2026-10-10.md; yenipcdevir güncellendi. Oturumsonu finalmakbuz Gitdışı kaydedilir. Veri/authority backup/restore yok.
+
 ## 10 Ekim 2026 — Kullanım ve yeniden açılış durumu; salt okunur kontrol
 
 Owner Gelişim Merkezi kullanımı ve PC kapanıp açılınca kayıp/bozulma riskini sordu. Git pull güncel, giriş temiz ve origin 0/0. 13:06Z canlı kontrol: tek :3000 PID26068, tünel PID27628 healthy, Ollama iki model/200; yerel/public giriş kapıları beklenen 307/200/401. Observer 13:02Z OBSERVING / lastError null. Bu kanıt oturum açılmış gerçek sohbet veya owner ONAYLA VE UYGULA/YÜRÜT kabul testi değildir; önceki sentetik geliştirme merkezi testleri bu eksikliği kapatmaz.

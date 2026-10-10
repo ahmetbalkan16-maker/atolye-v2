@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — Canlı gelişim doğrulandı; derlemesiz güvenli başlangıç kuruldu
+
+Gerçek küçük test iyileştirmesi AYAS onay→yürütme→test→commit/push→Graphify/health akışında COMPLETED26bf497; reload sonrası kalıcı. Access otomatikbuild kaldırıldı,1086build/25976dependency hash pin ve20guard/48PSnative test eklendi. Kullanıcı Startup kaydı, normal yetki; eski disabledtask korundu. Eski supervisor tekPID değişti, app/tunnel/model/observer aynı kaldı.173senaryo/TS/lintPASS; eski9recovery+1okunamayanproje ve Nextversionfarkı korunur; gerçekrebootNOT_RUN. docs/AYAS_AUTONOMY_STARTUP_2026-10-10.md.
+
 ## 10 Ekim 2026 — AYAS test / Graphify hata düzeltmesi ve yeni PC devir kaydı
 
 Observer eski UI import beklentisi gerçek component/action bağlantısına taşındı; publication batch testinin tarihi sabitlendi. Graphify0171 Windows localMCP path guard için kurulu paketi değiştirmeyen version-bound launcher eklendi; Claude yerel reminder iki eksik executable yolunun yerini aldı.158sentetik senaryo,9hookkontrolü,4mutationreddi,TS0,ESLint0hata13devralınmışuyarı; uygulama/homepage/data değişmez. Son owner talimatıyla tam yedek/offline açılmadı. YeniPC kurulum/migration ve gerçek cihaz kabulü gelecekte gerçek hedefte yapılacak; docs/AYAS_NEW_PC_HANDOVER_2026-10-10.md ve docs/new-pc-20261010 kanıtı. Live F115/Next16.2.10vslock16.3.8/PARTIAL10/semanticPENDING açık; yeni Full166/canlıREADY iddiası yok.

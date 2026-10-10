@@ -153,6 +153,47 @@ try {
     No ($source -match '(?im)^\s*(?:git|graphify|cloudflared\s+tunnel\s+create)\b')
     No ($source -match 'AyasApproval|ExecutionGate|observerActions')
   }
+  # Verify the real startup functions before replacing them for cycle tests.
+  $startupSaved = @{}
+  foreach ($name in @('Get-AccessSnapshot','Test-PrebuiltRuntime','Start-OwnedProcess','Test-LocalHealth','Start-Sleep')) {
+    $command = Get-Command $name
+    $startupSaved[$name] = if ($command.CommandType -eq 'Function') { $command.ScriptBlock } else { $null }
+  }
+  function Get-AccessSnapshot { $script:startupSnapshot }
+  function Test-PrebuiltRuntime { $script:prebuiltValid }
+  function Test-LocalHealth { $true }
+  function Start-Sleep { }
+  function Start-OwnedProcess([string]$FilePath, [string[]]$Arguments, [string]$Stdout, [string]$Stderr, [string]$WorkingDirectory, [switch]$Wait) {
+    $script:startupLaunches++
+    $script:lastStartupExe = $FilePath; $script:lastStartupArgs = $Arguments
+    $script:startupSnapshot.origin='healthy'; $script:startupSnapshot.listenerPid=444
+    [pscustomobject]@{Id=444}
+  }
+  try {
+    Scenario 'already healthy origin is never relaunched' {
+      $script:startupSnapshot=[pscustomobject]@{origin='healthy';listenerPid=444}; $script:startupLaunches=0; $script:prebuiltValid=$true
+      Eq (Start-Origin).stage origin-race; Eq $script:startupLaunches 0
+    }
+    Scenario 'unqualified build is refused without launch' {
+      $script:startupSnapshot=[pscustomobject]@{origin='down';listenerPid=$null}; $script:startupLaunches=0; $script:prebuiltValid=$false
+      Eq (Start-Origin).stage prebuilt-runtime-unverified; Eq $script:startupLaunches 0
+    }
+    Scenario 'qualified startup executes Next directly with quoted path, never npm build' {
+      $script:startupSnapshot=[pscustomobject]@{origin='down';listenerPid=$null}; $script:startupLaunches=0; $script:prebuiltValid=$true
+      Yes (Start-Origin).ok; Eq $script:startupLaunches 1; Eq $script:lastStartupExe $script:NodeExe
+      Eq $script:lastStartupArgs[0] ('"' + (Join-Path $script:RepoRoot 'node_modules\next\dist\bin\next') + '"')
+      Eq $script:lastStartupArgs[1] start; No ($script:lastStartupArgs -contains 'build')
+    }
+    Scenario 'ambiguous origin refuses even a qualified runtime' {
+      $script:startupSnapshot=[pscustomobject]@{origin='ambiguous';listenerPid=444}; $script:startupLaunches=0; $script:prebuiltValid=$true
+      Eq (Start-Origin).stage origin-race; Eq $script:startupLaunches 0
+    }
+  } finally {
+    foreach ($name in $startupSaved.Keys) {
+      if ($null -eq $startupSaved[$name]) { Remove-Item -Path "Function:$name" -ErrorAction SilentlyContinue }
+      else { Set-Item -Path "Function:$name" -Value $startupSaved[$name] }
+    }
+  }
   # Exercise the actual cycle with isolated state and injected process/HTTP seams.
   $saved = @{}
   foreach ($name in @('Get-AccessSnapshot','Test-LocalHealth','Test-PublicHealth','Start-Origin','Start-Tunnel')) {
@@ -265,6 +306,44 @@ try {
     } finally {
       $owned=Get-CimInstance Win32_Process -Filter "ProcessId = $($child.Id)" -ErrorAction SilentlyContinue
       if ($owned -and $owned.Name -eq 'powershell.exe' -and $owned.CommandLine -match 'Start-Sleep -Seconds 20') { Stop-Process -Id $child.Id -Force }
+    }
+  }
+  Scenario 'native cold-start boundary launches one quoted Next fixture and preserves running AYAS' {
+    $previousRoot=$script:RepoRoot; $previousPort=$script:Port
+    $previousLog=$script:AppLog; $previousErr=$script:AppErrLog
+    $previousVerifier=(Get-Command Test-PrebuiltRuntime).ScriptBlock
+    $fakeRoot=Join-Path $temp 'Atölye cold start fixture'
+    $fakeCli=Join-Path $fakeRoot 'node_modules\next\dist\bin\next'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $fakeCli) -Force | Out-Null
+    $content=@'
+const http = require('node:http');
+const port = Number(process.argv[process.argv.indexOf('-p') + 1]);
+http.createServer((req, res) => {
+  res.writeHead(307, {'x-ayas-access-gate':'enforced',location:'/login?next='+encodeURIComponent(req.url)});
+  res.end();
+}).listen(port, '127.0.0.1');
+'@
+    [IO.File]::WriteAllText($fakeCli, $content, (New-Object Text.UTF8Encoding($false)))
+    $allocator=New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback,0)
+    $allocator.Start(); $script:Port=$allocator.LocalEndpoint.Port; $allocator.Stop()
+    $script:RepoRoot=$fakeRoot; $script:AppLog=Join-Path $temp 'next-fixture.out'; $script:AppErrLog=Join-Path $temp 'next-fixture.err'
+    # Artifact rejection is covered separately; this scenario tests the actual
+    # Windows launch/quoting, native process identity, HTTP and singleton path.
+    function Test-PrebuiltRuntime { $true }
+    $protectedListener=@(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+    $outcome=$null
+    try {
+      $outcome=Start-Origin; Yes $outcome.ok
+      $snapshot=Get-AccessSnapshot; Eq $snapshot.listenerPid $outcome.wrapperPid; Eq $snapshot.origin healthy
+      Eq (Start-Origin).stage origin-race
+      foreach ($processId in $protectedListener) { Yes (Get-Process -Id $processId -ErrorAction SilentlyContinue) }
+    } finally {
+      if ($outcome -and $outcome.wrapperPid) {
+        $owned=Get-CimInstance Win32_Process -Filter "ProcessId=$($outcome.wrapperPid)" -ErrorAction SilentlyContinue
+        if ($owned -and $owned.Name -eq 'node.exe' -and $owned.CommandLine.Contains($fakeCli)) { Stop-Process -Id $owned.ProcessId }
+      }
+      Set-Item -Path Function:Test-PrebuiltRuntime -Value $previousVerifier
+      $script:RepoRoot=$previousRoot; $script:Port=$previousPort; $script:AppLog=$previousLog; $script:AppErrLog=$previousErr
     }
   }
 } finally {
