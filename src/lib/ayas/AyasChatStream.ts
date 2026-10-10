@@ -43,7 +43,7 @@ import { selectAyasAgenticRoute } from "./routing/AyasAgenticRouting";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { AyasContextBudgetError, ayasContextBudgetTraceMetadata, type AyasContextBudgetEvidence } from "./context/AyasContextBudget";
 import { ayasReplyHistoryQualityIssue } from "./context/AyasReplyHistoryQuality";
-import { buildAyasNaturalConversation } from "./context/AyasNaturalConversation";
+import { buildAyasNaturalConversation, ayasPersonalFactIsUnknown } from "./context/AyasNaturalConversation";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
 import {
@@ -1283,6 +1283,21 @@ async function* streamAyasChatTurn(
     promptInjected: injected,
     historyCount: ctx.recentHistory.length,
   });
+
+  // A model must not invent a personal experience that no trusted user fact supports.
+  // Keep this opt-in and before generation; assistant history is never evidence.
+  if (env.AYAS_CONVERSATION_V2 === "1" && route.provider.id === "ollama" && ayasPersonalFactIsUnknown({
+    userText: text, history: input.history ?? [],
+    memoryLines: conversationalMemoryLines.map(stripAyasMemoryLineAnnotation),
+  })) {
+    const reply = "Bunu şu an bilmiyorum; istersen bana anlatabilirsin.";
+    conversationSpan?.end("fallback");
+    for (const chunk of validatedReplyChunks(reply)) yield { type: "delta", text: chunk };
+    yield { type: "done", text: reply, source: "fallback", corrected: true, reason: "unknown-personal-fact",
+      provider: providerId, complexity: route.decision.complexity,
+      memoryTrace: buildMemoryTrace({ candidates: 0, stored: 0 }, false), correctionAttempts: 0 };
+    return;
+  }
 
   // Phase D — the complexity gate. SIMPLE/NORMAL never reach the Reasoning
   // Core (falls through to the existing direct-stream path below, unchanged).

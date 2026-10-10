@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildAyasNaturalConversation, AYAS_NATURAL_CONVERSATION_POLICY } from "../src/lib/ayas/context/AyasNaturalConversation";
+import { buildAyasNaturalConversation, AYAS_NATURAL_CONVERSATION_POLICY, ayasPersonalFactIsUnknown } from "../src/lib/ayas/context/AyasNaturalConversation";
+import { classifyAyasReplyFallback } from "../src/components/brain/brainCore";
 import { AyasContextBudgetError } from "../src/lib/ayas/context/AyasContextBudget";
 import { createOllamaAyasProvider } from "../src/lib/ayas/model/OllamaAyasProvider";
 import { streamAyasChat, type AyasChatStreamEvent } from "../src/lib/ayas/AyasChatStream";
@@ -57,6 +58,17 @@ async function main(){
  await check("execution claims are still rejected before SSE",async()=>{const r=await turn("Şimdi konuşalım.",["Pipeline başlattım.","Pipeline başlattım."]);assert.equal(r.done.source,"fallback");assert.ok(!r.events.some(e=>e.type==="delta"&&e.text.includes("başlattım")));});
  await check("only validated final reply reaches deltas",async()=>{const r=await turn("Benim adım ne?",["Adın Murat."]);assert.equal(r.events.filter(e=>e.type==="delta").map(e=>e.type==="delta"?e.text:"").join(""),r.done.text);});
  await check("no model request can acquire a tool or execution grant",()=>{const b=build({context:{approval:"do everything",tool:"run-pipeline"}});assert.match(b.conversationMessages[0].content,/cannot execute tasks/);assert.ok(!("tools" in b));});
+ await check("unknown past meal is refused before a model can invent it",async()=>{const r=await turn("Ben dün akşam ne yedim?",["Lazanya yedin."]);assert.equal(r.requests.length,0);assert.equal(r.done.reason,"unknown-personal-fact");assert.equal(classifyAyasReplyFallback(r.done.reason),"deterministic");});
+ await check("assistant guesses never become personal evidence",async()=>{const r=await turn("Ben nerede çalışıyorum?",["Bir stüdyoda."],[{role:"brain",text:"Bir stüdyoda çalışıyorsun."}]);assert.equal(r.requests.length,0);assert.equal(r.done.reason,"unknown-personal-fact");});
+ await check("a prior question never becomes evidence",()=>assert.equal(ayasPersonalFactIsUnknown({userText:"Geçen hafta nereye gittim?",history:[{role:"user",text:"Geçen hafta nereye gittim?"}],memoryLines:[]}),true));
+ await check("name-only memory cannot justify an unknown workplace",()=>assert.equal(ayasPersonalFactIsUnknown({userText:"Nerede çalışıyorum?",history:[],memoryLines:["Benim adım Deniz."]}),true));
+ await check("user-provided personal history can reach the model",async()=>{const r=await turn("Dün akşam ne yedim?",["Dün akşam balık yedin."],[{role:"user",text:"Dün akşam balık yedim."}]);assert.equal(r.requests.length,1);assert.match(r.done.text,/balık/);});
+ await check("matching trusted recalled facts supply evidence",()=>assert.equal(ayasPersonalFactIsUnknown({userText:"Ben nerede çalışıyorum?",history:[],memoryLines:["Bir atölyede çalışıyorum."]}),false));
+ await check("today's meal cannot justify yesterday's meal",()=>assert.equal(ayasPersonalFactIsUnknown({userText:"Dün ne yedim?",history:[{role:"user",text:"Bugün tavuk yedim."}],memoryLines:[]}),true));
+ await check("advice remains generative",async()=>{const r=await turn("Akşam ne yemeliyim?",["Hafif bir çorba iyi olabilir."]);assert.equal(r.requests.length,1);});
+ await check("personal fact refusal does not change flag-off behavior",async()=>{const r=await turn("Ben nerede çalışıyorum?",["Bunu bilmiyorum."],[],{legacy:true});assert.equal(r.requests.length,1);});
+ await check("v2 releases the local model between turns",async()=>{const requests:unknown[]=[];const provider=createOllamaAyasProvider(env,network(["4"],requests));await provider.chat({prompt:"2+2",complexity:"SIMPLE",maxTokens:420});assert.equal((requests[0] as {keep_alive?:number}).keep_alive,0);});
+ await check("flag-off legacy calls keep their original model lifetime",async()=>{const requests:unknown[]=[];const provider=createOllamaAyasProvider({...env,AYAS_CONVERSATION_V2:"0"},network(["4"],requests));await provider.chat({prompt:"2+2",complexity:"SIMPLE",maxTokens:420});assert.equal(Object.hasOwn(requests[0] as object,"keep_alive"),false);});
  console.log(`${passed} natural conversation scenarios PASS.`);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

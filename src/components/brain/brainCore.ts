@@ -1446,6 +1446,7 @@ export const AYAS_DETERMINISTIC_FALLBACK_REASONS: readonly string[] = [
   "CONTEXT_BUDGET_UNSAFE",
   "memory-identity-correction",
   "unknown-identity",
+  "unknown-personal-fact",
 ];
 
 export function classifyAyasReplyFallback(reason: string | undefined): AyasReplyFallbackKind {

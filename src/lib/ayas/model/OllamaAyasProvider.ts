@@ -118,6 +118,9 @@ export function createOllamaAyasProvider(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             model,
+            // Opt-in AYAS chat releases its model after the response so a
+            // large conversation model does not reserve VRAM between turns.
+            ...(env.AYAS_CONVERSATION_V2 === "1" ? { keep_alive: 0 } : {}),
             // AYAS consumes final answer content, never hidden thinking. On
             // Qwen3 this also keeps the bounded reply budget for the answer.
             ...(/^qwen3(?::|$)/.test(model) ? { think: false } : {}),

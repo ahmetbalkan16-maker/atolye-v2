@@ -25,6 +25,38 @@ function hasContent(value: unknown): boolean {
   return true;
 }
 
+const foldPersonal = (text: string): string => text.toLocaleLowerCase("tr-TR")
+  .replace(/[çğıöşü]/g, letter => ({ ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u" })[letter]!);
+const personalFactDomains = [
+  { question: /\b(?:yedim|yemistim|ictim|icmistim)\b/, evidence: /\b(?:yedim|yemistim|ictim|icmistim)\b/ },
+  { question: /\b(?:gittim|gitmistim|tatilim|seyahatim)\b/, evidence: /\b(?:gittim|gitmistim|tatil\w*|seyahat\w*)\b/ },
+  { question: /\b(?:calisiyorum|calisiyordum|isyerim|meslegim)\b/, evidence: /\b(?:calisiyorum|calisiyordum|isyerim|meslegim)\b/ },
+  { question: /\b(?:yasiyorum|oturuyorum|evim|adresim)\b/, evidence: /\b(?:yasiyorum|oturuyorum|evim|adresim)\b/ },
+  { question: /\b(?:dogdum|dogum\s+gunum|yasim)\b/, evidence: /\b(?:dogdum|dogum\s+gunum|yasim|yasindayim)\b/ },
+  { question: /\b(?:en\s+sevdigim|severim|tercihim)\b/, evidence: /\b(?:en\s+sevdigim|severim|seviyorum|tercihim)\b/ },
+] as const;
+
+/** Narrow factual domains only: advice, hypothetical questions and general knowledge stay conversational.
+ * Assistant guesses and earlier user questions are not evidence. This cannot certify arbitrary personal facts.
+ */
+export function ayasPersonalFactIsUnknown(input: {
+  readonly userText: string;
+  readonly history: readonly { readonly role: string; readonly text: string }[];
+  readonly memoryLines: readonly string[];
+}): boolean {
+  const question = foldPersonal(input.userText);
+  if (!/[?？]|\b(?:ne|nerede|nereye|hangi|kac|kim)\b/.test(question)) return false;
+  const domain = personalFactDomains.find(entry => entry.question.test(question));
+  if (!domain) return false;
+  const temporal = question.match(/\b(?:dun|bugun|gecen\s+(?:hafta|ay|yil))\b/)?.[0];
+  const statements = [
+    ...input.history.filter(turn => turn.role === "user").map(turn => turn.text),
+    input.userText, ...input.memoryLines,
+  ].flatMap(text => foldPersonal(text).split(/(?<=[.!?？;])\s*/));
+  return !statements.some(text => !/[?？]|\b(?:ne|nerede|nereye|hangi|kac|kim)\b/.test(text)
+    && domain.evidence.test(text) && (!temporal || text.includes(temporal)));
+}
+
 export interface AyasNaturalConversationInput {
   readonly userText: string;
   readonly history: readonly { readonly role: string; readonly text: string }[];
