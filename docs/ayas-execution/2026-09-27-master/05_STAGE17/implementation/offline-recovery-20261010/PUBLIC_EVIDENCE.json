@@ -1,0 +1,329 @@
+{
+  "scope": "READ_ONLY_METADATA_NO_P0_PAYLOAD",
+  "atUtc": "2026-10-10T06:52:19.9740534Z",
+  "head": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+  "normalToken": true,
+  "os": {
+    "Caption": "Microsoft Windows 11 Pro",
+    "Version": "10.0.26100",
+    "BuildNumber": "26100",
+    "TotalVisibleMemorySize": 33235692,
+    "FreePhysicalMemory": 17900504
+  },
+  "disks": [
+    {
+      "Number": 1,
+      "FriendlyName": "WDC WD10SPSX-75A6WT0",
+      "BusType": "SATA",
+      "PartitionStyle": "GPT",
+      "UniqueId": "50014EE26B68EAAB",
+      "Size": 1000204886016,
+      "OperationalStatus": "Online"
+    },
+    {
+      "Number": 0,
+      "FriendlyName": "NVMe PM9A1 NVMe Samsung 512GB",
+      "BusType": "NVMe",
+      "PartitionStyle": "GPT",
+      "UniqueId": "eui.36483330583236140025384600000001",
+      "Size": 512110190592,
+      "OperationalStatus": "Online"
+    }
+  ],
+  "partitions": [
+    {
+      "DiskNumber": 1,
+      "PartitionNumber": 1,
+      "DriveLetter": "\u0000",
+      "Guid": "{a3a3f4c7-126b-4667-bd33-ad7b2aac0fe0}",
+      "Type": "Reserved",
+      "Offset": 1048576,
+      "Size": 134217728
+    },
+    {
+      "DiskNumber": 1,
+      "PartitionNumber": 2,
+      "DriveLetter": "D",
+      "Guid": "{74c4c694-22e7-4c39-be34-5f10954060d0}",
+      "Type": "Basic",
+      "Offset": 135266304,
+      "Size": 1000068874240
+    },
+    {
+      "DiskNumber": 0,
+      "PartitionNumber": 1,
+      "DriveLetter": "\u0000",
+      "Guid": "{56374216-f681-494e-8041-d7346ea71369}",
+      "Type": "System",
+      "Offset": 1048576,
+      "Size": 209715200
+    },
+    {
+      "DiskNumber": 0,
+      "PartitionNumber": 2,
+      "DriveLetter": "\u0000",
+      "Guid": "{788e032f-a859-4104-98bc-1e4930dc5a87}",
+      "Type": "Reserved",
+      "Offset": 210763776,
+      "Size": 134217728
+    },
+    {
+      "DiskNumber": 0,
+      "PartitionNumber": 3,
+      "DriveLetter": "C",
+      "Guid": "{7603acda-c755-4dd7-956a-d791d067c522}",
+      "Type": "Basic",
+      "Offset": 344981504,
+      "Size": 509097279488
+    },
+    {
+      "DiskNumber": 0,
+      "PartitionNumber": 4,
+      "DriveLetter": "\u0000",
+      "Guid": "{5a01a7d8-68d1-4709-b69c-ef7280e7d949}",
+      "Type": "Recovery",
+      "Offset": 509442260992,
+      "Size": 1038090240
+    },
+    {
+      "DiskNumber": 0,
+      "PartitionNumber": 5,
+      "DriveLetter": "\u0000",
+      "Guid": "{c901ac46-9391-4301-9e0c-af85a196943e}",
+      "Type": "Recovery",
+      "Offset": 510481399808,
+      "Size": 1614807040
+    }
+  ],
+  "volumes": [
+    {
+      "DriveLetter": "D",
+      "FileSystem": "NTFS",
+      "UniqueId": "\\\\?\\Volume{74c4c694-22e7-4c39-be34-5f10954060d0}\\",
+      "Size": 1000068870144,
+      "SizeRemaining": 966273396736
+    },
+    {
+      "DriveLetter": "C",
+      "FileSystem": "NTFS",
+      "UniqueId": "\\\\?\\Volume{7603acda-c755-4dd7-956a-d791d067c522}\\",
+      "Size": 509097275392,
+      "SizeRemaining": 135028486144
+    },
+    {
+      "DriveLetter": "E",
+      "FileSystem": "",
+      "UniqueId": "\\\\?\\Volume{992cf29a-23a3-11ef-8115-806e6f6e6963}\\",
+      "Size": 0,
+      "SizeRemaining": 0
+    }
+  ],
+  "processes": [
+    {
+      "pid": 10008,
+      "parentPid": 2668,
+      "created": "2026-10-09T11:22:59.89963+03:00",
+      "exe": "C:\\WINDOWS\\System32\\wscript.exe",
+      "commandLineSha256": "aee35e904d70f87bd701a6babb6b260d0eb50ec7b398fd01ecfae88523902df7",
+      "role": "launcher"
+    },
+    {
+      "pid": 10016,
+      "parentPid": 2668,
+      "created": "2026-10-09T11:22:59.899641+03:00",
+      "exe": "C:\\WINDOWS\\System32\\wscript.exe",
+      "commandLineSha256": "60e96250215b5d65712d1fbd622fc5ac933dcab7916a42003e156345773e281b",
+      "role": "launcher"
+    },
+    {
+      "pid": 14672,
+      "parentPid": 10016,
+      "created": "2026-10-09T11:23:01.098651+03:00",
+      "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "commandLineSha256": "cd7313ee08545de2a4d722ddc989f689f821f58d17f296501d0a23c7f8635ec3",
+      "role": "legacy-access"
+    },
+    {
+      "pid": 14680,
+      "parentPid": 10008,
+      "created": "2026-10-09T11:23:01.098995+03:00",
+      "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "commandLineSha256": "6fc554c5ccc854d73c07df3e9bf562937a875275944b992cb0f2fdb1c770a7ff",
+      "role": "observer"
+    },
+    {
+      "pid": 18184,
+      "parentPid": 14680,
+      "created": "2026-10-09T11:23:06.998885+03:00",
+      "exe": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLineSha256": "a7d5f4003ff4c987c891eb889c1c29893575874f3a680644314c5a45906df767",
+      "role": "observer"
+    },
+    {
+      "pid": 18844,
+      "parentPid": 18820,
+      "created": "2026-10-09T11:23:15.082273+03:00",
+      "exe": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLineSha256": "7f5ca5950e1c101c8ca7337fa85cc95225fc510fd93b79a7bc4e6dcac5e1d32f",
+      "role": "observer"
+    },
+    {
+      "pid": 18916,
+      "parentPid": 18844,
+      "created": "2026-10-09T11:23:15.257209+03:00",
+      "exe": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLineSha256": "47921ef6646a229e7e7be842c918f58ac2a35ce62b77288570aa3a21e5ead5b9",
+      "role": "observer"
+    },
+    {
+      "pid": 26068,
+      "parentPid": 6708,
+      "created": "2026-10-09T11:24:59.103903+03:00",
+      "exe": "C:\\Program Files\\nodejs\\node.exe",
+      "commandLineSha256": "54ea029ad6ca03fffe1ae450ff3836f688d8ea9bcd7facfb0946317cb0dcfacb",
+      "role": "next"
+    },
+    {
+      "pid": 27628,
+      "parentPid": 14672,
+      "created": "2026-10-09T11:25:04.348089+03:00",
+      "exe": "C:\\Program Files (x86)\\cloudflared\\cloudflared.exe",
+      "commandLineSha256": "3ff4592edb66df8f1202644dcaffbdb4f2a9f5ea1f675a1c14fee86f70f74ab9",
+      "role": "tunnel"
+    }
+  ],
+  "tasks": [
+    {
+      "name": "AYAS Access Online",
+      "state": "Running",
+      "enabled": false,
+      "runLevel": "Limited",
+      "logonType": "Interactive",
+      "restartCount": 3,
+      "xmlSHA256": "b4b753de8133f3b04ecdeb210a2caca060ea4728cf6269fec85c86906b59024b"
+    },
+    {
+      "name": "AYAS Autonomy Observer",
+      "state": "Running",
+      "enabled": true,
+      "runLevel": "Limited",
+      "logonType": "Interactive",
+      "restartCount": 3,
+      "xmlSHA256": "c2b6b3f3971c4b00f2f5465f20973a2056527589b1a757eefff9a42bf461a2df"
+    }
+  ],
+  "listener": [
+    {
+      "LocalAddress": "::",
+      "LocalPort": 3000,
+      "OwningProcess": 26068
+    }
+  ],
+  "drivers": [
+    {
+      "DeviceName": "Intel RST VMD Managed Controller 09AB",
+      "DriverProviderName": "Intel Corporation",
+      "DriverVersion": "20.2.13.1038",
+      "InfName": "oem246.inf",
+      "IsSigned": true
+    },
+    {
+      "DeviceName": "Intel RST VMD Controller A77F",
+      "DriverProviderName": "Intel Corporation",
+      "DriverVersion": "20.2.13.1038",
+      "InfName": "oem246.inf",
+      "IsSigned": true
+    },
+    {
+      "DeviceName": "Intel RST VMD Managed Controller 09AB",
+      "DriverProviderName": "Intel Corporation",
+      "DriverVersion": "20.2.13.1038",
+      "InfName": "oem246.inf",
+      "IsSigned": true
+    },
+    {
+      "DeviceName": "Microsoft Storage Spaces Controller",
+      "DriverProviderName": "Microsoft",
+      "DriverVersion": "10.0.26100.9444",
+      "InfName": "spaceport.inf",
+      "IsSigned": true
+    }
+  ],
+  "buildStamp": {
+    "schemaVersion": "1",
+    "gitHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+    "treeState": "CLEAN",
+    "lockfileSha256": "24b7037cbc34bd06fdfc2f9416dfaa4b3ebabcba049c063837c90e951cec2db0",
+    "stampedAt": "2026-10-09T08:24:57.115Z"
+  },
+  "buildID": "Nn5jrdXSpO-UT9_4gc1-I",
+  "installedNext": "16.2.10",
+  "fileIdentities": [
+    {
+      "path": "C:\\Program Files\\nodejs\\node.exe",
+      "size": 92534088,
+      "sha256": "9a4eb5f1c29c6a2e93852ead46b999e284a6a5ca8bab4d4e241d587d025a52de"
+    },
+    {
+      "path": "C:\\Program Files (x86)\\cloudflared\\cloudflared.exe",
+      "size": 54841128,
+      "sha256": "83e726ed18ea78c5ad5213c4c3a3a27051393950d2bc8ed4de69bec12d14eaae"
+    },
+    {
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\node_modules\\next\\dist\\bin\\next",
+      "size": 17025,
+      "sha256": "bb2459a9a81a01b8a6e90c2c5fe956bc62c8d8b0dd4028194c6406dda120333a"
+    },
+    {
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\.next\\ayas-build-stamp.json",
+      "size": 239,
+      "sha256": "e5e06a36084aaeb021d6e0caffd5daa3f8972dfb9accbb8ffdbdcfdaa88993de"
+    },
+    {
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\ayas-access-daemon.ps1",
+      "size": 21992,
+      "sha256": "22dda6c62801310daaa6a690b302afbf501af1b6668d859d5603ed7ae69ad1c1"
+    },
+    {
+      "path": "C:\\Users\\Metod\\Desktop\\solid\\SW2020.x64.SP4.0\\Program\\Atölye\\atolye-v2\\scripts\\ayas-autonomy-daemon.ps1",
+      "size": 4351,
+      "sha256": "6b49aac2bbbd75d5268341474b3f3ea11f5855410d8907e8e253427e6f7d70bb"
+    },
+    {
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-offline-recovery-prep-20261010-8c21d4e9\\ayas-access-observe-only.ps1",
+      "size": 18226,
+      "sha256": "399cc433276d28b23d37bdcdafbdb9494e8ec35cc338c90a0c998437e33ccafe"
+    },
+    {
+      "path": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-offline-recovery-prep-20261010-8c21d4e9\\sealed_crypto.py",
+      "size": 6787,
+      "sha256": "8ac7e8e0737c3eaae98d056d1a80c873919248b542c202c4dd7a475be5c83d27"
+    }
+  ],
+  "reagentcExit": 5,
+  "bcdExit": 1,
+  "bitLocker": "NOT_QUALIFIED_ACCESS_DENIED_PREVIOUS_QUERY",
+  "reagentXMLSHA256": "3133af3d1070dd303438da8edf4209c2cf517fab3e682245e83cff07c2c3f0e1",
+  "adkPresentAtStandardPath": false,
+  "sourceRootCount": 7,
+  "allRootIdentitiesMatch": true,
+  "sourceMapSHA256": "d4e9e1e1e9cab60248221bcd530562fd32cc5bfd571f6a8eb91ab5cccf1881fe",
+  "targetAbsent": true,
+  "targetParentACLObservation": "owner/SYSTEM/Administrators allow; offline access NOT_QUALIFIED",
+  "existingB1Metadata": [
+    {
+      "Name": "receipt.json",
+      "Length": 81,
+      "LastWriteTimeUtc": "2026-10-10T00:25:01.0976248Z"
+    },
+    {
+      "Name": "sealed-backup.bin",
+      "Length": 1231697444,
+      "LastWriteTimeUtc": "2026-10-10T00:25:01.0905938Z"
+    }
+  ],
+  "liveOperations": "NONE",
+  "P0PayloadRead": false,
+  "DWrite": false,
+  "stagingManifestSHA256": "0c8e5d35c48d790ad94f990f2491fd4dc1c8698f5adf69932b16589e174a9dc8"
+}

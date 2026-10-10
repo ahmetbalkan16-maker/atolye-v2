@@ -1,3 +1,7 @@
+## 10 Ekim 2026 — Offline recovery hazırlık/STOP teslimi
+
+Taze process/task/build/storage kimlikleri, 55 MB TEMP runtime/crypto/Intel driver staging ve normal Windows'ta 10 sentetik kontrol; uygulama/homepage kaynağı değişmez. F115 OPEN_IN_LIVE; WinRE/BCD/BitLocker/medya/key/boot-return unqualified, gerçek cold backup/restore/live rollback ve PC/phone NOT_RUN. A–D HELD. Ayrıntı: docs/ayas-execution/2026-09-27-master/05_STAGE17/implementation/offline-recovery-20261010/OWNER_DECISION_PACKET.md. Önceki kanıtlar ve kısmi B1 korunur; oturum kaydı teknik release değildir.
+
 ## 9 Ekim 2026 — push kanıtı 456dad6..d03c5a0 kaydedildi; güvenli bakım paketi hazır, MAINTENANCE NOT_READY
 
 - Push: owner'ın exact-SHA onayıyla 569d6f5, 67493c8, 2d6cef3 ve d03c5a0, 456dad6'dan normal fast-forward olarak gönderildi (07:20:09Z, force yok). Taze fetch ve ls-remote: remote = local = d03c5a0, 0/0, temiz worktree; remote main f0ae19d dokunulmadı. Full166 166/166 yalnız 2d6cef3'e bağlıdır; d03c5a0 ve bu kanıt commit'i yalnız dokümantasyondur ve tek başına teknik sertifikalı sayılmaz. FINAL_CERTIFICATION, ACTIVE_CHECKPOINT, evidence registry ve packet index gerçek remote durumuna eşitlendi; değişen değerler `*AtCertification` / `previous` / `…BeforePublication` alanlarında korunur. İki tarihsel FAIL (autonomy-observer :160, publication-activity :140) ve açık qualification borçları aynen kalır.

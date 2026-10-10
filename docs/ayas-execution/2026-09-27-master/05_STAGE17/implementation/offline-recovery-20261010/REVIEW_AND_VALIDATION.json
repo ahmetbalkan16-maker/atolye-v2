@@ -1,0 +1,74 @@
+{
+  "atUtc": "2026-10-10T09:58:59.769739+03:00",
+  "scope": "DOCS_AND_TEMP_PREPARATION_ONLY",
+  "entryHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+  "applicationSourceChanged": false,
+  "homepageChanged": false,
+  "independentReview": {
+    "reviewer": "/root/offline_review",
+    "status": "PASS_WITH_BLOCKERS",
+    "finalPacketReviewed": true,
+    "securityFixRequired": false,
+    "finding": "Ambiguous tunnel comment clarified; linked evidence files supplied. Real offline/key/restore/app/rollback qualification remains blocked.",
+    "limitation": "Read-only review; no new runtime tests or production acceptance by reviewer.",
+    "evidenceFilesVerified": "5 files present; 4/4 pinned hashes verified read-only; synthetic report matches TEMP bytes; no further findings"
+  },
+  "checks": {
+    "syntheticStagedRuntime": {
+      "pass": 10,
+      "fail": 0,
+      "environment": "NORMAL_WINDOWS_NOT_WINRE",
+      "actualRestore": "NOT_RUN",
+      "actualKey": "NOT_RUN"
+    },
+    "nativeRootIdentity": {
+      "matches": 7,
+      "sources": 7,
+      "payloadRead": false
+    },
+    "typescript": {
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "exit": 0
+    },
+    "eslint": "NOT_RUN_DOCS_ONLY_NO_SOURCE_CHANGE",
+    "full166": "NOT_REPEATED_PREVIOUS_PASS_EXACT_2d6cef3_ONLY",
+    "F115AcceptedMatrix": "NOT_REPEATED_ACCEPTED_FINAL_SHA_ONLY",
+    "build": "NOT_RUN",
+    "graphifyEntry": {
+      "nodes": 19238,
+      "edges": 53302,
+      "integrity": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "structural": "PARTIAL10",
+      "semantic": "PENDING",
+      "windowsBootDriverPowerShellCoverage": "NOT_QUALIFIED"
+    }
+  },
+  "liveOperations": "NONE",
+  "P0PayloadRead": false,
+  "DWrite": false,
+  "realByteRestoreVerified": "NOT_RUN",
+  "applicationStateVerified": "NOT_RUN",
+  "maintenance": "NOT_READY",
+  "F115": "OPEN_IN_LIVE",
+  "consistentBackupPass": false,
+  "publicationAuthorization": "AGENTS_SESSION_END_PREAUTHORIZED_DOCS_ONLY",
+  "finalPublicationReceipt": ".graphify/offline-recovery-final-20261010.json; final SHA and remote equality verified after commit/push; not a technical certificate",
+  "evidenceSHA256": {
+    "GRAPHIFY_ENTRY.json": "b057f92bd63005d9c40ace815c4332fc471839fb895f6024a28876d9cfbdc62a",
+    "OWNER_DECISION_PACKET.md": "760fd9ad1f9b03adea2e3124cffb0d9a70978313ca9f4280788d85e02504baee",
+    "PUBLIC_EVIDENCE.json": "35b5d346c2ac8620503cf328943ecdfec0d6ceb47979ba81cd4d0502329208d0",
+    "SYNTHETIC_RUNTIME_PROBE.json": "a1fc5ecf1d7671f333d50939da5dd580357312366a2a2db20216b68af6eba3e4"
+  },
+  "reviewedPhysicalEvidenceSHA256BeforeLFNormalization": {
+    "GRAPHIFY_ENTRY.json": "f5cc4b116f11b72f55b3fb0415afcdb9f305237d653fb483009b6af19e02a244",
+    "OWNER_DECISION_PACKET.md": "760fd9ad1f9b03adea2e3124cffb0d9a70978313ca9f4280788d85e02504baee",
+    "PUBLIC_EVIDENCE.json": "9781dc89f258fad014aa04b9fecb3fcc928165dcb7c9b5c11a89653e3e10726b",
+    "SYNTHETIC_RUNTIME_PROBE.json": "e772afef0e93b04c635eba35cded1c1ac0471dac10b5d27dd2987c60da2b062a"
+  },
+  "evidenceSHA256Meaning": "Final LF bytes; prior independent-review physical hashes retained separately. Content unchanged by newline normalization."
+}

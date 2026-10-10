@@ -23,8 +23,8 @@
     "foundationClosed": false
   },
   "stage": "STAGE_17",
-  "subtask": "Push of 456dad6..d03c5a0 recorded; maintenance preparation for 2d6cef3 / Next 16.3.8 done with isolated drills (v1-maintenance-prep-20261009); MAINTENANCE NOT_READY; live and owner gates await the owner.",
-  "status": "V1_BLOCKED_MAINTENANCE_NOT_READY_SOURCE_CERTIFIED_2D6CEF3_PUSHED",
+  "subtask": "Planned offline recovery: read-only identities and TEMP synthetic staging delivered; OFFLINE_ENVIRONMENT_UNQUALIFIED; A-D HELD; F115 OPEN_IN_LIVE.",
+  "status": "V1_BLOCKED_OFFLINE_ENVIRONMENT_UNQUALIFIED_F115_OPEN_IN_LIVE",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -351,7 +351,7 @@
     "F115 (owner decision before the next logon): both AYAS tasks start at interactive logon and the Access daemon rebuilds the live site from the checked-out repo HEAD with the installed node_modules. Next logon or :3000 outage deploys source 2d6cef3 on Next 16.2.10 without a maintenance window (isolated Drill C: builds and boots; device/env/voice unproven).",
     "MAINTENANCE_NOT_READY: no retained verified backup, no quiesced data/brain snapshot, live restart and rollback NOT_RUN, owner approvals M1-M11 not granted (05_STAGE17/implementation/v1-maintenance-prep-20261009/MAINTENANCE_READINESS.json)."
   ],
-  "nextAction": "Owner: (1) decide F115 before the next sign-out, shutdown, restart or :3000 outage (the logon auto-rebuild would deploy source 2d6cef3 on installed Next 16.2.10 without a window); (2) review 05_STAGE17/implementation/v1-maintenance-prep-20261009/MAINTENANCE_PLAN.md and grant or decline M1-M11 for one exact window; (3) remaining owner/live gates: physical phone/voice checks, qualified backup and rollback inside the window, reboot. Homepage: OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN -> AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN. No Gelisim Merkezi APPROVE/YURUT by agents.",
+  "nextAction": "STOP live maintenance. Obtain only owner-admin read-only WinRE/BCD/BitLocker metadata and trusted recovery media identity; qualify offline boot/runtime/key/Windows-return before creating an executable cold wrapper and one A-D maintenance approval packet. No VSS, live B1 or Scheduler child-preservation loop. See 05_STAGE17/implementation/offline-recovery-20261010/OWNER_DECISION_PACKET.md.",
   "previousStatusAndNextAction": {
     "until": "2026-10-09T08:10:00.000Z",
     "currentHeadMeaning": "Final certified exact-preview technical source (Full166 166/166 PASS, FINAL_CERTIFICATION.json). Docs-only evidence commits follow it; resolve Git HEAD. Not pushed.",
@@ -360,7 +360,7 @@
     "nextAction": "Owner: (1) approve or decline the push of the exact local commits 569d6f5, 67493c8, 2d6cef3 and the evidence commit (fast-forward from 456dad6, no force); (2) remaining owner/live gates: real microphone/STT/TTS/barge-in/reconnect/phone lock/Wi-Fi, qualified backup/rollback, separate exact-SHA maintenance approval. Homepage design: OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN -> AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN. No Gelisim Merkezi APPROVE/YURUT by agents.",
     "updatedAt": "2026-10-08T14:17:52.646Z"
   },
-  "updatedAt": "2026-10-09T08:10:00.000Z",
+  "updatedAt": "2026-10-10T06:58:59.769739+00:00",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -5970,5 +5970,28 @@
     "liveOperations": "NONE",
     "homepage": "OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN",
     "grantsAuthority": false
+  },
+  "nextActionBeforeOfflineRecovery20261010": "Owner: (1) decide F115 before the next sign-out, shutdown, restart or :3000 outage (the logon auto-rebuild would deploy source 2d6cef3 on installed Next 16.2.10 without a window); (2) review 05_STAGE17/implementation/v1-maintenance-prep-20261009/MAINTENANCE_PLAN.md and grant or decline M1-M11 for one exact window; (3) remaining owner/live gates: physical phone/voice checks, qualified backup and rollback inside the window, reboot. Homepage: OWNER_STOP_BEFORE_AYAS_HOMEPAGE_DESIGN -> AWAIT_OWNER_INSTRUCTION_FOR_AYAS_HOMEPAGE_DESIGN. No Gelisim Merkezi APPROVE/YURUT by agents.",
+  "offlineRecoveryPreparation20261010": {
+    "entryHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+    "liveBuildHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+    "buildID": "Nn5jrdXSpO-UT9_4gc1-I",
+    "installedNext": "16.2.10",
+    "status": "FAIL_CLOSED_STOP",
+    "maintenance": "NOT_READY",
+    "F115": "OPEN_IN_LIVE",
+    "consistentBackupPass": false,
+    "realByteRestoreVerified": "NOT_RUN",
+    "applicationStateVerified": "NOT_RUN",
+    "PC": "NOT_RUN",
+    "PHONE": "NOT_RUN",
+    "syntheticRuntime": "10_PASS_NORMAL_WINDOWS_ONLY",
+    "nativeSourceRoots": "7_7_IDENTITY_MATCH_METADATA_ONLY",
+    "packet": "05_STAGE17/implementation/offline-recovery-20261010/OWNER_DECISION_PACKET.md",
+    "staging": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-offline-recovery-prep-20261010-8c21d4e9",
+    "crossPCStagingAvailability": "NOT_QUALIFIED_DO_NOT_ASSUME",
+    "liveOperations": "NONE",
+    "sessionPublication": "AGENTS_SESSION_END_AUTHORIZED_DOCS_ONLY_RESOLVE_FINAL_GIT_HEAD_REMOTE",
+    "sourceCertification": "Full166_2d6cef3_ONLY_UNCHANGED_NO_NEW_CERTIFICATE"
   }
 }

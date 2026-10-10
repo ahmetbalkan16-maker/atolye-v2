@@ -1,0 +1,58 @@
+{
+  "scope": "SYNTHETIC_ONLY_ON_NORMAL_WINDOWS_NOT_WINRE",
+  "python": "3.12.14",
+  "cryptography": "50.0.2",
+  "isolatedPython": true,
+  "runtime": "C:\\Users\\Metod\\AppData\\Local\\Temp\\ayas-offline-recovery-prep-20261010-8c21d4e9\\python\\python.exe",
+  "PASS": 10,
+  "FAIL": 0,
+  "cases": [
+    {
+      "case": "staged Python+cryptography full committed disk authentication",
+      "status": "PASS"
+    },
+    {
+      "case": "seven synthetic namespaces source-backup-restored bytes/type/count/SHA",
+      "status": "PASS"
+    },
+    {
+      "case": "disk output ciphertext only",
+      "status": "PASS"
+    },
+    {
+      "case": "staged-runtime authentication refusal: bad-tag",
+      "status": "PASS"
+    },
+    {
+      "case": "staged-runtime authentication refusal: truncated",
+      "status": "PASS"
+    },
+    {
+      "case": "staged-runtime authentication refusal: wrong-key",
+      "status": "PASS"
+    },
+    {
+      "case": "identity match survives synthetic drive-letter reassignment",
+      "status": "PASS"
+    },
+    {
+      "case": "synthetic volume refusal: same-letter wrong-disk",
+      "status": "PASS"
+    },
+    {
+      "case": "synthetic volume refusal: ambiguous",
+      "status": "PASS"
+    },
+    {
+      "case": "synthetic volume refusal: no-volume",
+      "status": "PASS"
+    }
+  ],
+  "BYTE_RESTORE_VERIFIED": "SYNTHETIC_MEMORY_ONLY",
+  "APPLICATION_STATE_VERIFIED": "NOT_RUN",
+  "BOOT_AND_RETURN_VERIFIED": "NOT_RUN",
+  "REAL_KEY_RECOVERY_VERIFIED": "NOT_RUN",
+  "realP0PayloadRead": false,
+  "DWrite": false,
+  "ciphertextSHA256": "1d6739d0ec40a371a3beb561275471f9bf2e21b318a0446c1830261738d46e22"
+}

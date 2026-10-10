@@ -1,0 +1,50 @@
+{
+  "graphSource": ".graphify/graph.json",
+  "sourceHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+  "lastSeenHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+  "lastAnalyzedHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+  "graphBuiltFromHead": "6c287aa82068c9a356b24df4b815429bd1b47cff",
+  "worktreeState": "DIRTY",
+  "worktreeFingerprint": null,
+  "structuralStatus": "PARTIAL",
+  "structuralReasons": [
+    "INCOMPLETE_CODE_FILES:10"
+  ],
+  "semanticStatus": "PENDING",
+  "classification": "GRAPH_PARTIAL",
+  "localCli": "AVAILABLE",
+  "localMcp": "AVAILABLE",
+  "remoteMcp": "CONFIGURED_UNVERIFIED",
+  "incompleteCodeFiles": [
+    ".github/workflows/ayas-safe-ci.yml",
+    "app/api/assets/images/[slug]/[fileName]/route.ts",
+    "app/api/assets/thumbnails/[slug]/[fileName]/route.ts",
+    "scripts/ayas-access-daemon.ps1",
+    "scripts/ayas-autonomy-daemon.ps1",
+    "scripts/register-ayas-autonomy-autostart.ps1",
+    "scripts/register-ayas-autostart.ps1",
+    "scripts/smoke-ayas-access-daemon.ps1",
+    "scripts/unregister-ayas-autonomy-autostart.ps1",
+    "scripts/unregister-ayas-autostart.ps1"
+  ],
+  "criticalIncompleteFiles": [
+    "scripts/ayas-access-daemon.ps1",
+    "scripts/ayas-autonomy-daemon.ps1",
+    "scripts/register-ayas-autonomy-autostart.ps1",
+    "scripts/register-ayas-autostart.ps1",
+    "scripts/smoke-ayas-access-daemon.ps1",
+    "scripts/unregister-ayas-autonomy-autostart.ps1",
+    "scripts/unregister-ayas-autostart.ps1"
+  ],
+  "nextAction": "Graph is current but has no nodes for some code files; review those files directly \u2014 refreshing cannot add them.",
+  "graphSHA256": "35c3009a00ddc131a3390748bd686d64521f87c9e12e10c55a037abe2b4d550c",
+  "nodes": 19238,
+  "edges": 53302,
+  "integrity": {
+    "duplicateIds": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0
+  },
+  "powershellTaskBootCoverage": "NOT_QUALIFIED_DIRECT_OS_SOURCE_SUPPLEMENT_ONLY"
+}
