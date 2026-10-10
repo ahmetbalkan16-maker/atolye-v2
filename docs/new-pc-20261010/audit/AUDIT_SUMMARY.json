@@ -1,5 +1,11 @@
 {
   "entryHead": "7b09ac93db4668c4c8b04e426a5cd30c1bccdbe1",
+  "technicalHead": "584a44fb283bdf871fc08e380febf916179ec638",
+  "technicalHeadPushed": true,
+  "technicalHeadCI": "SUCCESS",
+  "ciUrl": "https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/38053258198",
+  "observerFinal": { "updatedAt": "2026-10-10T12:50:59.167Z", "phase": "OBSERVING", "lastError": null },
+  "liveBeforeAfterMetadataUnchanged": true,
   "applicationSourceBaseline": "2d6cef3",
   "applicationSourceChanged": false,
   "installedGraphifyVersion": "0.17.1",

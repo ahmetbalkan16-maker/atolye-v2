@@ -19,6 +19,8 @@ Bu komut stdio MCP sunucusudur; normal web sunucusu değildir. İstemci ayarınd
 
 ## Doğrulama ve sınırları
 
+Teknik/tool commit `584a44f` origin'e gönderildi ve [AYAS Safe CI](https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/38053258198) **SUCCESS** tamamlandı. Lock'tan temiz kurulum, TypeScript, ESLint ve workflow'daki zorunlu deterministic kapılar geçti. Gözlemci 12:50:59Z'de doğal döngüde `OBSERVING`, `lastError: null` durumuna döndü. Bu kapanış notunu taşıyan sonraki commit yalnız dokümandır; teknik kaynak aynı kalır.
+
 | Kontrol | Sonuç |
 |---|---|
 | Gözlemci / yayın durumu | 22 / 13 PASS |
