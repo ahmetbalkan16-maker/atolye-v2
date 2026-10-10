@@ -1,5 +1,7 @@
 ## 2026-10-10 — Opt-in typed local conversation, existing authority boundary
 
+Qualified local activation uses Gemma3 12B with flag1 and keep_alive0 between turns; production OLLAMA_MODEL remains qwen2.5:3b. Unknown personal facts require relevant trusted user evidence before generation. Fresh local hypothetical antecedents in non-studio direct chat do not inherit unrelated prior selections; reasoning/tool/explicit historical references retain their existing resolver. Rejected conversational drafts request clarification rather than inventing a studio plan. No new model training or speech synthesis engine.
+
 Direct AYAS Ollama chat may use `AYAS_CONVERSATION_V2=1` to transmit a fixed system policy, user/assistant history and the latest user message separately. The serialized payload is admitted by the existing context budget and bound exactly to the provider request; dynamic memory/context never becomes a system role. Legacy callers omit the optional typed messages and retain their transport. Model routing, schema reasoning, storage, finalization and execution/onboarding approvals remain shared and unchanged. Trusted identity is checked again after the single correction attempt. No parallel orchestrator, cloud provider or homepage feature is introduced. Validation/live limitations: docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
 
 ---

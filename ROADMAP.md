@@ -1,6 +1,6 @@
 ## 10 Ekim 2026 — Owner yerel Türkçe sohbet geliştirmesi
 
-Opt-in rol/geçmiş transport'u ve güvenilir ad korumaları kaynakta hazır,29 ilgili suite/TS/lint/izolebuild PASS. Model seçimi ve canlı kabul sürüyor; sıradaki adım checkpoint'te. Gerçek telefon ses ve Windows logon kabulü12EkimPazartesi. ChatGPT eşitliği/sıfır hata veya foundation kapanışı ilan edilmez. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
+Gemma3 12B ve opt-in rol/geçmiş sohbeti canlı663bce3 / pinli S6WspeoHPZ1sbNN0w0RzH.42 yeni senaryo/29 ilgili suite/TS/lint/build ve gerçek chat/Studio kabulü PASS;2108 kayıt korunur. CI38063422350 attempt2 SUCCESS; final Graphify checkpoint'te izlenir. Gerçek telefon ses ve Windows logon kabulü12EkimPazartesi. ChatGPT eşitliği/sıfır hata veya foundation kapanışı ilan edilmez. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
 
 ## 10 Ekim 2026 — Başlangıç ve canlı otonomi kontrolü
 

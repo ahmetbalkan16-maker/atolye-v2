@@ -1,6 +1,6 @@
 ## 10 Ekim 2026 — AYAS opt-in yerel doğal sohbet
 
-Mevcut Ollama sohbetine typed gerçek roller, kısa sabit Türkçe cevap politikası ve aynı context bütçesi eklendi; flag kapalı eski transport korunur. Bilinmeyen ad uydurması/retry ad kaybı kapatıldı.29 ilgili suite, TS/lint ve izole production build PASS; canlı model kalitesi/kabul devam ediyor. Homepage, ses UI, üretim model seçimi, gate/onay ve dependency değiştirilmedi. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
+Gemma3 12B/flag1 canlı663bce3 ve pinli S6WspeoHPZ1sbNN0w0RzH. Typed gerçek roller/geçmiş, kısa Türkçe politika, güvenilir ad ve bilinmeyen kişisel olgu koruması; yanlış geçmiş referansı ve sahte çalışma-planı fallback'i giderildi.42 yeni senaryo/29 suite/TS/lint/build ve gerçek sohbet/Studio PASS;2108 kayıt değişen0. Model keep_alive0 yanıtlar arasında VRAM'i bırakır. Homepage/sesUI/üretim modeli/gate/onay/dependency korunur; fiziksel telefon/reboot12Ekim. CI38063422350 attempt2 SUCCESS; final Graphify checkpoint'te. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md.
 
 ## 10 Ekim 2026 — Canlı gelişim doğrulandı; derlemesiz güvenli başlangıç kuruldu
 

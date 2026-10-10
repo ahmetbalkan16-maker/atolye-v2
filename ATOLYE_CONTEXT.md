@@ -1,6 +1,6 @@
-# Current — 2026-10-10 / local Turkish conversation source ready; live acceptance pending
+# Current — 2026-10-10 / local Turkish conversation live and qualified
 
-Owner requested natural local/free AYAS conversation with trusted personal recall. Opt-in typed role/history transport uses the existing router, budget, memory and finalizer; unknown-name and retry-identity safeguards added.29 suites/TS/lint/isolated production build PASS; stronger-model evaluation, controlled activation and new startup qualification remain. Homepage/voice UI/production model/dependency/authority unchanged. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md. Physical reboot/phone acceptance12October; no new Full166/foundation certification.
+Gemma3 12B / opt-in flag1 live at clean source663bce3, qualified build S6WspeoHPZ1sbNN0w0RzH.42 focused cases/29 regression suites/TS/lint/build PASS; authenticated chat answers math, unknown personal facts and fresh hypothetical context correctly. Studio shows16 readable projects; inherited1 unreadable project and9 recovery holds remain.2108 memory/project records unchanged; Observer naturally OBSERVING. Local/public auth gates healthy. CI38063422350 attempt2 SUCCESS; first temporal-memory child FAIL preserved. Homepage/voice UI/production model/dependencies/authority preserved. docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md. Physical phone/reboot12October; no Full166/foundation or zero-error certification.
 
 # Current — 2026-10-10 / real small development publication PASS; qualified prebuilt Access startup installed; reboot acceptance pending
 

@@ -1,5 +1,7 @@
 ## Sonraki sohbet geliştirmesi — aktarım listesi yeniden ölçülecek
 
+Son seçilen yerel sohbet modeli **Gemma3 12B**; buPC canlı663bce3 / pinli S6WspeoHPZ1sbNN0w0RzH, AYAS_OLLAMA_MODEL=gemma3:12b / AYAS_CONVERSATION_V2=1. Üretim OLLAMA_MODEL=qwen2.5:3b korunur. Hedefte Gemma ağırlığı Ollama üzerinden ücretsiz yeniden indirilebilir (~8,2GB) veya blob/manifest ile taşınır; testte indirilen Qwen3:8b/Gemma3:4b zorunlu değil. Kalıcı bellek ve üretim modelleri/Whisper ile tüm veri/asset/env yolu envanteri ayrıca korunmalıdır. BuPC'ye ait çalışma manifesti/derleme/başlangıç kısayolu yeniPC için yeterlilik kanıtı sayılmaz. Telefon fiziksel ses ve Windows logon kabulü12Ekim; ChatGPT eşitliği/sıfırhata garantisi yok.
+
 Owner yerel doğal Türkçe sohbet geliştirmesini istedi. Kaynak opt-in `AYAS_CONVERSATION_V2=1` ile aynı router/bellek/güvenlik yolunu kullanır; nihai model/canlı kabul durumu [AYAS_LOCAL_CONVERSATION_2026-10-10.md](AYAS_LOCAL_CONVERSATION_2026-10-10.md) ve checkpoint'tedir. Bu oturumdaki Qwen3/Gemma deneme ağırlıkları disk kullanımını artırdı; aşağıdaki41,67GB eski ölçümdür. Pazartesi kesin dosya/model listesi ve ortak Ollama blob'ları tekil sayılarak tekrar ölçülür. Kullanılmayan adaylar zorunlu taşıma kapsamı değildir; owner dosyası/modeli silinmedi.128GB önerisi korunur, güncel toplam diye eski sayı verilmez. Hedefte seçilen AYAS model alanı/flag, bellek/Whisper/TTS yolları ve yeni build qualification doğrulanmalıdır.
 
 # AYAS / Atölye — 10 Ekim kontrolü ve yeni PC teslimi

@@ -1,6 +1,6 @@
-## 2026-10-10 — Owner local conversation improvement (qualification in progress)
+## 2026-10-10 — Owner local conversation improvement live
 
-Local Turkish chat roles/history and trusted identity guards are implemented behind an opt-in flag; stronger-model and live startup qualification remain in progress. Current scope/results: ATOLYE_CHECKPOINT.md and docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md. Existing stage gates/frozen qualifications remain unchanged; physical reboot/phone acceptance is12October.
+Gemma3 12B / opt-in flag1 is live, clean source663bce3 and hash-qualified S6WspeoHPZ1sbNN0w0RzH;42 focused cases/29 suites/TS/lint/build and real chat/Studio PASS.2108 data records unchanged; CI38063422350 attempt2 SUCCESS; final Graphify tracked in checkpoint. Current scope: docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md. Existing stage gates/frozen qualifications remain unchanged; physical reboot/phone acceptance12October.
 
 ## 9 Ekim 2026 — push kanıtı 456dad6..d03c5a0 kaydedildi; güvenli bakım paketi hazır, MAINTENANCE NOT_READY
 
