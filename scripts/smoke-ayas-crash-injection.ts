@@ -205,8 +205,13 @@ async function main(): Promise<void> {
     assert.equal(afterCount, beforeCount, "no commit was created even though the mutation itself completed and was recorded");
     const journal = createAyasExecutionJournal({ rootDir: f.gateRoot });
     const entry = journal.list()[0]!;
-    assert.equal(entry.phase, "RESULT_RECORDED", "the journal's last durable phase is RESULT_RECORDED — everything Package C itself owns finished cleanly");
-    assert.equal(classifyAyasRestartRecovery(entry).classification, "COMPLETED", "Package C's own view is complete — the crash happened in Git-publication code this session added on top, a distinct concern from Package C's mutation authority");
+    // Since 26174e4 (2026-09-22, "defer publication success until verified closure") a one-click run records its result
+    // only after the verified publication closure; until then the journal holds the mutation as pending publication.
+    assert.equal(entry.phase, "MUTATION_COMPLETED_PENDING_PUBLICATION", "the journal's last durable phase is the completed mutation awaiting its publication");
+    const recovery = classifyAyasRestartRecovery(entry);
+    assert.equal(recovery.classification, "RECOVERY_REQUIRED", "an applied but unpublished mutation is never treated as complete");
+    assert.equal(recovery.humanReviewRequired, true);
+    assert.equal(recovery.autoReplayAllowed, false, "and never replayed automatically");
   });
 
   await scenario("crash AFTER commit, before push (AFTER_COMMIT_BEFORE_PUSH): the commit survives locally, untouched, but never reaches the remote — no silent republish, no force-push on retry", async () => {

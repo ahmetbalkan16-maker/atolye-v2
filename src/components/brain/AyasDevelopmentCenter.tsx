@@ -158,6 +158,7 @@ const proposalOnaylaErrorLabel: Record<string, string> = {
   AYAS_PROPOSAL_PUSH_FAILED: "Commit oluşturuldu ama remote'a push başarısız oldu — manuel inceleme gerekiyor.",
   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
   RESULT_UNKNOWN: "Sunucudan yanıt alınamadı — işlem arka planda sürüyor olabilir. Tekrar denemeden önce sayfayı yenileyip güncel durumu kontrol et.",
+  AYAS_OWNER_PUBLICATION_WORKER_FAILED: "İşlem çalıştırıcısı başlatılamadı ya da sonuç bildirmeden kapandı — işlem yarıda kalmış olabilir. Tekrar denemeden önce sayfayı yenileyip güncel durumu kontrol et.",
 };
 
 const ayasOwnerDecisionErrorLabel: Record<string, string> = {
@@ -172,6 +173,7 @@ const ayasOwnerDecisionErrorLabel: Record<string, string> = {
   NOT_EXECUTABLE_CLASSIFICATION: "AYAS bu değişikliği kendi başına uygulayamaz — güvenlik sınıflandırması buna izin vermiyor.",
   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
   RESULT_UNKNOWN: "Sunucudan yanıt alınamadı — işlem arka planda sürüyor olabilir. Tekrar denemeden önce sayfayı yenileyip güncel durumu kontrol et.",
+  AYAS_OWNER_PUBLICATION_WORKER_FAILED: "İşlem çalıştırıcısı başlatılamadı ya da sonuç bildirmeden kapandı — işlem yarıda kalmış olabilir. Tekrar denemeden önce sayfayı yenileyip güncel durumu kontrol et.",
 };
 
 /**
@@ -520,6 +522,7 @@ const batchOnaylaErrorLabel: Record<string, string> = {
   AYAS_MICRO_BATCH_PUSH_FAILED: "Commit oluşturuldu ama remote'a push başarısız oldu — manuel inceleme gerekiyor.",
   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
   RESULT_UNKNOWN: "Sunucudan yanıt alınamadı — işlem arka planda sürüyor olabilir. Tekrar denemeden önce sayfayı yenileyip güncel durumu kontrol et.",
+  AYAS_OWNER_PUBLICATION_WORKER_FAILED: "İşlem çalıştırıcısı başlatılamadı ya da sonuç bildirmeden kapandı — işlem yarıda kalmış olabilir. Tekrar denemeden önce sayfayı yenileyip güncel durumu kontrol et.",
 };
 
 /** M18.1 — "BATCH ONAYLA VE UYGULA": the single human authorization. Visible ONLY for a READY_FOR_REVIEW batch — never for ACCUMULATING (not yet reviewable) or a historical/terminal batch (already decided). One click here authorizes Package C execution, per-item + final Graphify verification, and — only if every check passes — one exact-scope Git commit and push. There is no second confirmation afterward. */

@@ -4,6 +4,7 @@ import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle } from "./Ay
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle } from "./AyasMicroBatch";
 import { reconcileAyasMicroBatchStaleness } from "./AyasMicroBatchStaleness";
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
+import { isAyasOwnerPublicationRunning } from "./AyasOwnerPublicationQueue";
 import { reconcileAyasStaleProposals } from "./AyasProposalStaleness";
 
 /**
@@ -22,6 +23,8 @@ export interface AyasDevelopmentCenterReconciliationDeps {
   readonly inbox?: AyasApprovalInboxHandle;
   readonly batchStore?: AyasMicroBatchStoreHandle;
   readonly itemStore?: AyasMicroItemStore;
+  /** Test seam. Production asks this server's owner publication queue. */
+  readonly publicationRunning?: () => boolean;
 }
 
 export interface AyasDevelopmentCenterReconciliationResult {
@@ -35,6 +38,10 @@ export function reconcileAyasDevelopmentCenterFreshness(deps: AyasDevelopmentCen
   const now = deps.now?.() ?? new Date().toISOString();
   const currentHead = (deps.readHead?.() ?? execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "ignore"] })).trim();
   if (!currentHead) throw new Error("AYAS_DEVELOPMENT_CENTER_HEAD_UNREADABLE");
+  // A running owner publication's worker is writing these ledgers; writing
+  // them here too could undo its update. The read that follows shows them as
+  // they are, and the next read after the run retires anything stale.
+  if ((deps.publicationRunning ?? isAyasOwnerPublicationRunning)()) return { currentHead, staleProposalIds: [], staleBatchIds: [] };
 
   const inbox = deps.inbox ?? createAyasApprovalInboxStore(deps.brainRoot ? { rootDir: deps.brainRoot } : {});
   const batchStore = deps.batchStore ?? createAyasMicroBatchStore(deps.brainRoot ? { rootDir: deps.brainRoot } : {});

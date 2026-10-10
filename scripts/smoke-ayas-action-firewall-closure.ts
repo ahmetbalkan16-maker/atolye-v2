@@ -202,9 +202,23 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       "src/lib/ayas/model/CloudAyasProvider.ts": "CLOUD_MODEL_DENIED",
       "src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts": "OWNER_PUBLICATION",
       "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts": "OWNER_LEASE",
+      // Starts the owner publication worker below for one owner click, with the two admissions minted here.
+      "src/lib/brain/autonomy/AyasOwnerPublicationWorker.ts": "OWNER_PUBLICATION",
       "src/lib/brain/autonomy/AyasPublicationActivity.ts": "READ_ONLY_PROBE",
       // The owner schedules or cancels goal research here; the fetch itself runs in the leased discovery child.
       "src/lib/brain/autonomy/AyasSafePublicFetch.ts": "IMPORT_ONLY",
+    },
+  },
+  "scripts/ayas-owner-publication-worker.ts": {
+    what: "worker process for one owner click on the owner-session surface above; runs that click's publication service with the admissions the server minted", agent: false,
+    allowed: ["OWNER_LEASE", "OWNER_PUBLICATION", "READ_ONLY_PROBE"],
+    modules: {
+      ...SELF_DEVELOPMENT, ...PUBLICATION,
+      "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE",
+      "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE",
+      "src/lib/brain/autonomy/AyasMicroBatchApprovalService.ts": "OWNER_PUBLICATION",
+      "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts": "OWNER_LEASE",
+      "src/lib/brain/autonomy/AyasOwnerPublicationWorker.ts": "OWNER_PUBLICATION",
     },
   },
   "app/brain/observerActions.ts": {

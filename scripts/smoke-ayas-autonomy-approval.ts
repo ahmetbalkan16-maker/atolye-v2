@@ -299,12 +299,16 @@ async function main() {
     assert.doesNotMatch(decideBody, /executeAyasApprovedProposalWith|AyasAutonomyDaemon/, "decideAyasApproval must still never call into execution");
   });
 
-  await scenario("M16 re-proof: executeAyasApprovedProposal's own type signature and body accept/read nothing from the client but proposalId", () => {
+  // 569d6f5 (owner exact-preview correction, 2026-10-09) added the one other client field on purpose: the exact preview
+  // binding the owner reviewed, which the execution service verifies against its sealed snapshot before anything runs.
+  await scenario("M16 re-proof: executeAyasApprovedProposal's own type signature and body accept/read nothing from the client but proposalId and the reviewed exact-preview binding", () => {
     const src = read("app/brain/actions.ts");
     const signature = src.slice(src.indexOf("export async function executeAyasApprovedProposal"));
-    assert.match(signature.split("\n")[0] ?? "", /input: \{ proposalId: string \}/, "the client-facing input type must be exactly { proposalId: string } — no mutationKind/exactFiles/gateRoot/callback");
+    assert.match(signature.split("\n")[0] ?? "", /input: \{ proposalId: string; ownerPreview\?: import\("@\/lib\/brain\/autonomy\/AyasOwnerExactPreviewContract"\)\.AyasOwnerExactPreviewBinding \}\)/, "the client-facing input type must be exactly { proposalId; ownerPreview? } — no mutationKind/exactFiles/gateRoot/callback");
     const body = signature.slice(0, signature.indexOf("\nexport ", 1) < 0 ? undefined : signature.indexOf("\nexport ", 1));
-    assert.doesNotMatch(body, /input\.(?!proposalId)/, "the action body must read only input.proposalId, never any other client-supplied field");
+    assert.doesNotMatch(body, /input\.(?!proposalId\b|ownerPreview\b)/, "the action body must read only input.proposalId and input.ownerPreview, never any other client-supplied field");
+    assert.equal(body.split("input.ownerPreview").length - 1, 1, "the preview binding is read once");
+    assert.match(body, /executeAyasApprovedProposalWith\(input\.proposalId, \{ \.\.\.defaultAyasProposalExecutionDeps\(\), executionOwnerAdmission, ownerPreview: input\.ownerPreview \}\)/, "and only handed to the execution service, which verifies it");
   });
   await scenario("M16 re-proof: decideAyasApproval requires an authenticated session before touching any durable state", () => {
     const src = read("app/brain/actions.ts");

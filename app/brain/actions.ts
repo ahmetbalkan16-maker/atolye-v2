@@ -47,14 +47,15 @@ import { resolveAyasResearchGateRoot } from "@/lib/brain/autonomy/AyasResearchSc
 import type { AyasGoalResearchCatchUpPolicy } from "@/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { detectAyasResearchStatusIntent, buildAyasResearchStatusSpokenAnswer } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
-import { approveAndExecuteAyasMicroBatch, defaultAyasMicroBatchApprovalDeps, AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
-import { approveAndExecuteAyasProposal, defaultAyasProposalApprovalDeps, AyasProposalApprovalError } from "@/lib/brain/autonomy/AyasProposalApprovalService";
+import { AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
+import { defaultAyasProposalApprovalDeps, AyasProposalApprovalError } from "@/lib/brain/autonomy/AyasProposalApprovalService";
 import { decideAyasOwnerApproval, type AyasOwnerDecision } from "@/lib/brain/autonomy/AyasAutonomousExecutionGate";
+import { runAyasOwnerPublicationInWorker } from "@/lib/brain/autonomy/AyasOwnerPublicationWorker";
+import { withAyasOwnerPublicationExclusive } from "@/lib/brain/autonomy/AyasOwnerPublicationQueue";
 import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasApprovalBinding";
 import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { reconcileAyasStaleProposals } from "@/lib/brain/autonomy/AyasProposalStaleness";
-import { createAyasMicroBatchStore } from "@/lib/brain/autonomy/AyasMicroBatch";
 import {
   admitAyasOwnerApproval,
   isAyasApprovalDecisionOwnerAdmitted,
@@ -213,21 +214,24 @@ export async function decideAyasApproval(input: { proposalId: string; decision: 
   // "owner-approved:" is machine-matched by the resume worker; a typed reason
   // must never be able to pose as a server-written provenance marker.
   if (isAyasReservedDecisionReason(input.reason)) throw new Error("reserved_decision_reason");
-  const store = createAyasApprovalInboxStore({ requireOwnerAdmission: true });
-  // M16: reconcile staleness before honoring any decision — a PENDING or
-  // APPROVED proposal whose baseHead no longer matches HEAD is durably
-  // marked STALE here rather than being approved (or re-approved) into a
-  // dead end. Read-only w.r.t. execution: never reserves, executes, or
-  // opens a gate.
-  const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8", windowsHide: true }).trim();
-  reconcileAyasStaleProposals(store, currentHead, new Date().toISOString());
-  const proposal = store.load().proposals.find((entry) => entry.proposalId === input.proposalId);
-  if (!proposal) throw new Error("proposal_not_found");
-  if (proposal.status === "STALE") throw new Error("proposal_stale");
-  if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
-  const admission = await requireOwnerApprovalAdmission("decideAyasApproval", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: input.decision });
-  store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason, admission);
-  return loadAyasOwnerPreviewInboxView();
+  // Queued behind any running owner publication, which writes the same ledger.
+  return withAyasOwnerPublicationExclusive(async () => {
+    const store = createAyasApprovalInboxStore({ requireOwnerAdmission: true });
+    // M16: reconcile staleness before honoring any decision — a PENDING or
+    // APPROVED proposal whose baseHead no longer matches HEAD is durably
+    // marked STALE here rather than being approved (or re-approved) into a
+    // dead end. Read-only w.r.t. execution: never reserves, executes, or
+    // opens a gate.
+    const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8", windowsHide: true }).trim();
+    reconcileAyasStaleProposals(store, currentHead, new Date().toISOString());
+    const proposal = store.load().proposals.find((entry) => entry.proposalId === input.proposalId);
+    if (!proposal) throw new Error("proposal_not_found");
+    if (proposal.status === "STALE") throw new Error("proposal_stale");
+    if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
+    const admission = await requireOwnerApprovalAdmission("decideAyasApproval", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: input.decision });
+    store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason, admission);
+    return loadAyasOwnerPreviewInboxView();
+  });
 }
 
 export interface AyasExecuteProposalResult {
@@ -267,7 +271,8 @@ export async function executeAyasApprovedProposal(input: { proposalId: string; o
     const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: proposal.proposalId, proposalHash: proposal.proposalHash, decision: "EXECUTE" });
     const approval = [...inboxState.decisions].reverse().find((decision) => decision.proposalId === proposal.proposalId && decision.decision === "APPROVE");
     if (!isAyasApprovalDecisionOwnerAdmitted(approval, proposal)) throw new Error("OWNER_ADMISSION_REQUIRED");
-    await executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission, ownerPreview: input.ownerPreview });
+    // Queued behind any running owner publication; the service re-reads every input inside.
+    await withAyasOwnerPublicationExclusive(() => executeAyasApprovedProposalWith(input.proposalId, { ...defaultAyasProposalExecutionDeps(), executionOwnerAdmission, ownerPreview: input.ownerPreview }));
     return { ok: true, inbox: loadAyasOwnerPreviewInboxView() };
   } catch (error) {
     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
@@ -302,12 +307,8 @@ export async function batchOnaylaVeUygula(input: { batchId: string; batchHash: s
   try {
     const ownerAdmission = await requireOwnerApprovalAdmission("batchOnaylaVeUygula", { kind: "micro-batch", batchId: input.batchId, batchHash: input.batchHash, decision: "APPROVE" });
     const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedMicroBatch", { kind: "micro-batch", batchId: input.batchId, batchHash: input.batchHash, decision: "EXECUTE" });
-    const result = await approveAndExecuteAyasMicroBatch(input.batchId, input.batchHash, {
-      ...defaultAyasMicroBatchApprovalDeps(),
-      batchStore: createAyasMicroBatchStore({ requireOwnerAdmission: true }),
-      ownerAdmission,
-      executionOwnerAdmission,
-    });
+    // `approveAndExecuteAyasMicroBatch` with a strict-admission batch store, run in the worker so the server stays responsive.
+    const result = await runAyasOwnerPublicationInWorker({ lane: "micro-batch", batchId: input.batchId, batchHash: input.batchHash, ownerAdmission, executionOwnerAdmission });
     return result.ok
       ? { ok: true, commitSha: result.commitSha, microBatch: loadAyasMicroBatchDevelopmentView() }
       : { ok: false, code: result.code, microBatch: loadAyasMicroBatchDevelopmentView() };
@@ -345,12 +346,8 @@ export async function proposalOnaylaVeUygula(input: { proposalId: string; propos
   try {
     const ownerAdmission = await requireOwnerApprovalAdmission("proposalOnaylaVeUygula", { kind: "proposal", proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "APPROVE" });
     const executionOwnerAdmission = await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: input.proposalId, proposalHash: input.proposalHash, decision: "EXECUTE" });
-    const result = await approveAndExecuteAyasProposal(input.proposalId, input.proposalHash, {
-      ...defaultAyasProposalApprovalDeps(),
-      inbox: createAyasApprovalInboxStore({ requireOwnerAdmission: true }),
-      ownerAdmission,
-      executionOwnerAdmission,
-    });
+    // `approveAndExecuteAyasProposal` with a strict-admission inbox, run in the worker so the server stays responsive.
+    const result = await runAyasOwnerPublicationInWorker({ lane: "proposal", proposalId: input.proposalId, proposalHash: input.proposalHash, ownerAdmission, executionOwnerAdmission });
     return result.ok
       ? { ok: true, commitSha: result.commitSha, inbox: loadAyasOwnerPreviewInboxView() }
       : { ok: false, code: result.code, inbox: loadAyasOwnerPreviewInboxView() };
@@ -393,12 +390,14 @@ export async function ayasOwnerApprovalDecision(input: { binding: AyasApprovalBi
     if (input.decision !== "APPROVE" && input.decision !== "REJECT") throw new Error("invalid_decision");
     const ownerAdmission = await requireOwnerApprovalAdmission("ayasOwnerApprovalDecision", { kind: "proposal", proposalId: input.binding?.proposalId ?? "", proposalHash: input.binding?.proposalHash ?? "", decision: input.decision });
     const executionOwnerAdmission = input.decision === "APPROVE" ? await requireOwnerApprovalAdmission("executeAyasApprovedProposal", { kind: "proposal", proposalId: input.binding.proposalId, proposalHash: input.binding.proposalHash, decision: "EXECUTE" }) : undefined;
-    const outcome = await decideAyasOwnerApproval(input.binding, input.decision, {
-      ...defaultAyasProposalApprovalDeps(),
-      inbox: createAyasApprovalInboxStore({ requireOwnerAdmission: true }),
-      ownerAdmission,
-      executionOwnerAdmission,
-    });
+    // An APPROVE can publish, so it runs in the worker; a REJECT only records the decision and stays here, in the same queue.
+    const outcome = executionOwnerAdmission
+      ? await runAyasOwnerPublicationInWorker({ lane: "owner-approve", binding: input.binding, ownerAdmission, executionOwnerAdmission })
+      : await withAyasOwnerPublicationExclusive(() => decideAyasOwnerApproval(input.binding, input.decision, {
+        ...defaultAyasProposalApprovalDeps(),
+        inbox: createAyasApprovalInboxStore({ requireOwnerAdmission: true }),
+        ownerAdmission,
+      }));
     if (outcome.executed) {
       return { ok: true, commitSha: outcome.result.commitSha, recommendations: loadAyasOwnerRecommendationsView() };
     }

@@ -108,6 +108,8 @@ const realGuard = vm.runInNewContext(`${guardJs}\nrequireOwnerApprovalAdmission`
 }) as (action: string, subject: AyasOwnerAdmissionSubject) => Promise<AyasOwnerAdmission>;
 
 const APPROVAL_ACTIONS = ["decideAyasApproval", "executeAyasApprovedProposal", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision"] as const;
+/** The worker lane each one-click publication action hands its click to (`AyasOwnerPublicationWorker`). */
+const WORKER_LANES: Readonly<Partial<Record<(typeof APPROVAL_ACTIONS)[number], string>>> = { batchOnaylaVeUygula: "micro-batch", proposalOnaylaVeUygula: "proposal", ayasOwnerApprovalDecision: "owner-approve" };
 
 async function main() {
   const subject: AyasOwnerAdmissionSubject = { kind: "proposal", proposalId: "ayas-proposal-x", proposalHash: "hash-x", decision: "APPROVE" };
@@ -339,7 +341,19 @@ async function main() {
       assert.ok(body.includes(`requireOwnerApprovalAdmission("${name}"`), `${name} must derive its own admission`);
       const params = fn.parameters.map((p) => p.getText(actionsSource)).join(",");
       assert.ok(!/\b(?:ownerAdmission|admission|principal|actor|identity|sessionRef|decidedBy|approvedBy)\b/i.test(params), `${name} must not accept an identity from the client`);
-      if (name !== "executeAyasApprovedProposal") assert.ok(/create(?:AyasApprovalInbox|AyasMicroBatch)Store\(\{ requireOwnerAdmission: true \}\)/.test(body), `${name} must decide through an owner-action store`);
+      // A one-click publication runs its service in the owner publication worker; that lane's store is checked there, below.
+      const lane = WORKER_LANES[name];
+      if (lane) assert.ok(new RegExp(`runAyasOwnerPublicationInWorker\\(\\{ lane: "${lane}", [^}]*\\bownerAdmission, executionOwnerAdmission \\}\\)`).test(body), `${name} must hand both of its admissions to the worker`);
+      if (name !== "executeAyasApprovedProposal" && name !== "batchOnaylaVeUygula" && name !== "proposalOnaylaVeUygula") assert.ok(/create(?:AyasApprovalInbox|AyasMicroBatch)Store\(\{ requireOwnerAdmission: true \}\)/.test(body), `${name} must decide through an owner-action store`);
+    }
+    // The worker builds, per lane, the same strict owner-action store the actions used to build in-process.
+    const workerSource = fs.readFileSync(path.join(__dirname, "../src/lib/brain/autonomy/AyasOwnerPublicationWorker.ts"), "utf8");
+    const perform = workerSource.slice(workerSource.indexOf("export async function performAyasOwnerPublication"), workerSource.indexOf("export function ayasOwnerPublicationErrorReply"));
+    for (const [lane, store] of [["proposal", "createAyasApprovalInboxStore"], ["micro-batch", "createAyasMicroBatchStore"], ["owner-approve", "createAyasApprovalInboxStore"]] as const) {
+      const branch = perform.slice(perform.indexOf(`case "${lane}":`));
+      const text = branch.slice(0, branch.indexOf("case ", 1) > 0 ? branch.indexOf("case ", 1) : undefined);
+      assert.ok(text.includes(`${store}({ requireOwnerAdmission: true })`), `worker lane ${lane} must decide through an owner-action store`);
+      assert.ok(text.includes("ownerAdmission: request.ownerAdmission,") && text.includes("executionOwnerAdmission: request.executionOwnerAdmission,"), `worker lane ${lane} must hand both admissions to the service`);
     }
     const before = (text: string, guard: string, effect: string) => text.indexOf(guard) >= 0 && text.indexOf(effect) >= 0 && text.indexOf(guard) < text.indexOf(effect);
     const legacy = fnNamed("decideAyasApproval")!.body!.getText(actionsSource);
@@ -348,7 +362,8 @@ async function main() {
     const execute = fnNamed("executeAyasApprovedProposal")!.body!.getText(actionsSource);
     assert.ok(before(execute, "if (!isAyasApprovalDecisionOwnerAdmitted(approval, proposal))", "executeAyasApprovedProposalWith("), "execution must check the attributed approval first");
     for (const name of ["batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision"]) {
-      assert.ok(/\n\s+ownerAdmission,\n/.test(fnNamed(name)!.body!.getText(actionsSource)), `${name} must hand its admission to the service`);
+      const text = fnNamed(name)!.body!.getText(actionsSource);
+      assert.ok(/\n\s+ownerAdmission,\n/.test(text) || /runAyasOwnerPublicationInWorker\(\{[^}]*\bownerAdmission, executionOwnerAdmission \}\)/.test(text), `${name} must hand its admission to the service`);
     }
   });
 

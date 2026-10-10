@@ -127,6 +127,10 @@ const RULES: readonly Rule[] = Object.freeze([
         "src/lib/brain/autonomy/ayasmicrobatchexecutionservice.ts",
         "src/lib/brain/autonomy/ayasguardedpublication.ts",
         "src/lib/brain/autonomy/ayasproposalruntimeimpact.ts",
+        // The worker that runs those publication services for the server, and the queue ordering them.
+        "src/lib/brain/autonomy/ayasownerpublicationworker.ts",
+        "src/lib/brain/autonomy/ayasownerpublicationqueue.ts",
+        "scripts/ayas-owner-publication-worker.ts",
       )(p),
   },
   {
