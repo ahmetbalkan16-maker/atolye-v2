@@ -669,11 +669,23 @@ function providerCheck(id: ProductionReadinessCheckId, raw: string | undefined, 
  * public-domain / open-licence only; Faz 1-6). `real` still needs the OpenAI
  * key + image config for the bounded per-scene AI fallback, so the OpenAI image
  * configuration is validated in both cases. `mock` stays blocked.
+ *
+ * `character` (locally drawn stick-figure reenactments) is admissible too. It
+ * has no AI fallback and no key, so only its router is checked.
  */
 function imageProviderCheck(environment: NodeJS.ProcessEnv): ProductionReadinessCheck {
   const selected = normalize(environment.IMAGE_PROVIDER);
   if (!selected) return check("image-provider", "NOT_CONFIGURED", "IMAGE_PROVIDER_MISSING");
   if (selected === "mock") return check("image-provider", "BLOCKED", "IMAGE_PROVIDER_MOCK_BLOCKED");
+  if (selected === "character") {
+    try {
+      return ImageProviderRouter.getProvider(resolveImageProviderName(environment.IMAGE_PROVIDER)).name === "character"
+        ? check("image-provider", "READY", "IMAGE_PROVIDER_READY")
+        : check("image-provider", "INVALID", "IMAGE_PROVIDER_ROUTER_INVALID");
+    } catch {
+      return check("image-provider", "INVALID", "IMAGE_PROVIDER_CONFIGURATION_INVALID");
+    }
+  }
   if (selected !== "openai" && selected !== "real") {
     return check("image-provider", "INVALID", "IMAGE_PROVIDER_INVALID");
   }

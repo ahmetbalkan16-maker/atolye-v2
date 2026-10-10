@@ -175,7 +175,7 @@ export interface ProjectAssets {
   updatedAt: string;
 }
 
-export type ImageProviderName = "mock" | "openai" | "real" | "local";
+export type ImageProviderName = "mock" | "openai" | "real" | "local" | "character";
 
 export type ImageMimeType = "image/png" | "image/jpeg" | "image/webp";
 
@@ -252,6 +252,24 @@ export type ImageGenerationLocalSuccess = ImageGenerationResultBase &
   };
 
 /**
+ * Local, $0 stick-figure reenactment scene (Stage 15J engine), produced by
+ * `CharacterImageProvider` when `IMAGE_PROVIDER=character`. A drawn scene is never
+ * a photo and never an API call; it carries its reenactment label in the image
+ * and its blocking + animation plan inside the PNG for the scene-video stage.
+ * Classified downstream as a synthesised image (`mediaOrigin: "ai"`) with
+ * `selectionReason: "local-character-reenactment"`.
+ */
+export type ImageGenerationCharacterSuccess = ImageGenerationResultBase &
+  (ImageGenerationFileLocator | ImageGenerationUrlLocator) & {
+    success: true;
+    provider: "character";
+    mimeType: "image/png";
+    width: number;
+    height: number;
+    error?: never;
+  };
+
+/**
  * Safe, bounded diagnostic detail for a failed image generation. Never carries
  * secrets (no API key, no Authorization header, no raw request body); the body
  * summary is a short, sanitized excerpt of the provider's own error object.
@@ -287,4 +305,5 @@ export type ImageGenerationResult =
   | ImageGenerationRealSuccess
   | ImageGenerationRealPhotoSuccess
   | ImageGenerationLocalSuccess
+  | ImageGenerationCharacterSuccess
   | ImageGenerationFailure;

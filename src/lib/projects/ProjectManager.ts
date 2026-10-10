@@ -1,5 +1,6 @@
 import { ProjectWriter } from "./ProjectWriter";
 import { ProjectReader } from "./ProjectReader";
+import { createProjectSlug } from "./projectSlug";
 import { validateYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 import { validateYouTubePublishRecord } from "@/lib/youtube/publish/YouTubePublishValidation";
 import { isPipelineErrorEvidence } from "@/lib/pipeline/PipelineErrorEvidence";
@@ -72,17 +73,7 @@ export class ProjectManager {
   };
 
   static createSlug(text: string) {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/ğ/g, "g")
-      .replace(/ü/g, "u")
-      .replace(/ş/g, "s")
-      .replace(/ı/g, "i")
-      .replace(/ö/g, "o")
-      .replace(/ç/g, "c")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
+    return createProjectSlug(text);
   }
 
   /**

@@ -116,6 +116,18 @@ export function ayasCpuPercentFromSamples(before: readonly os.CpuInfo[], after: 
   return total > 0 ? Number(Math.max(0, Math.min(100, 100 * (1 - idle / total))).toFixed(2)) : undefined;
 }
 
+/**
+ * The hottest GPU's temperature in °C, read-only (`nvidia-smi --query-gpu=temperature.gpu`), or `undefined` when it
+ * cannot be read. Kept apart from `collectAyasMachineTelemetry` so the telemetry contract is unchanged.
+ */
+export async function readAyasGpuTemperatureC(deps: Pick<AyasMachineTelemetryDeps, "run"> = {}): Promise<number | undefined> {
+  try {
+    const output = await (deps.run ?? runLocal)("nvidia-smi", ["--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"]);
+    const values = output.trim().split(/\r?\n/).map((line) => Number(line.trim())).filter((value) => Number.isFinite(value) && value > -50 && value < 150);
+    return values.length ? Math.max(...values) : undefined;
+  } catch { return undefined; }
+}
+
 async function runLocal(file: string, args: readonly string[]): Promise<string> {
   const result = await execFileAsync(file, [...args], { timeout: 2_500, maxBuffer: 256 * 1024, windowsHide: true });
   return result.stdout;

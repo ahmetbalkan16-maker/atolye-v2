@@ -37,7 +37,7 @@ const LLM_ASSUMPTIONS = Object.freeze({
 });
 
 /** Image providers that never bill a per-image API cost. */
-const NON_BILLING_IMAGE_PROVIDERS = new Set(["real", "local", "mock", "ollama", "piper", "music-library"]);
+const NON_BILLING_IMAGE_PROVIDERS = new Set(["real", "local", "character", "mock", "ollama", "piper", "music-library"]);
 
 export interface ProductionCostInputs {
   /** Script chapters — one narration section each. */

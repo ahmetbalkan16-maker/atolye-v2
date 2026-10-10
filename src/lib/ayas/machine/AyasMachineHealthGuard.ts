@@ -1,6 +1,7 @@
 import type { ProductionStepKey } from "@/types/project";
 import { collectAyasMachineTelemetry, type AyasMachineTelemetry } from "./AyasMachineTelemetry";
 import { readAyasOwnerConstitution } from "../governance/AyasOwnerConstitutionReader";
+import { awaitAyasGpuThermalHeadroom } from "./AyasGpuThermalAdmission";
 
 export type AyasMachineHealthAction = "ALLOW" | "THROTTLE" | "PAUSE" | "STOP OWN WORKLOAD" | "BLOCK NEW HEAVY WORK";
 export interface AyasMachineHealthDecision { readonly action: AyasMachineHealthAction; readonly reasonCode: string; readonly telemetry: AyasMachineTelemetry; readonly mayStart: boolean; }
@@ -34,6 +35,12 @@ export class AyasMachineHealthBlockedError extends Error {
 export async function assertAyasHeavyWorkloadAllowed(workload: AyasMachineWorkload): Promise<AyasMachineHealthDecision> {
   const decision = await guardAyasHeavyWorkload(workload);
   if (!decision.mayStart) throw new AyasMachineHealthBlockedError(decision);
+  // The owner's 60 °C GPU hard stop: a new stage waits for a hot card to cool; the re-check right before the stage
+  // handler only reads.
+  const thermal = await awaitAyasGpuThermalHeadroom({ wait: !workload.ownedActive });
+  if (thermal.tripped) {
+    throw new AyasMachineHealthBlockedError(Object.freeze({ ...decision, action: "PAUSE" as const, reasonCode: "MACHINE_HEALTH_GPU_THERMAL_HARD_STOP", mayStart: false }));
+  }
   return decision;
 }
 

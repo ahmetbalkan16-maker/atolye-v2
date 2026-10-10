@@ -1,6 +1,6 @@
 import { EXPRESSION_SHAPES } from "./CharacterExpression";
 import { POSE_ANGLES } from "./CharacterPose";
-import { computeCharacterJoints, STICK_FIGURE_RIG, type CharacterJoints, type Point } from "./CharacterRig";
+import { computeCharacterJoints, STICK_FIGURE_RIG, type CharacterJoints, type Point, type PoseAngles } from "./CharacterRig";
 import type { HistoricalCostumeHint } from "./HistoricalCostumeHint";
 import { STAGE_PROP_SIZE, type HandProp, type StageProp } from "./PropLibrary";
 import { findSceneBlockingProblems, type BlockedCharacter, type SceneBlocking, type StageBackdrop, type StageTime } from "./SceneBlocking";
@@ -25,7 +25,27 @@ const INK = "#1c1c1c";
 
 export const REENACTMENT_LABELS = Object.freeze({ tr: "CANLANDIRMA", en: "REENACTMENT" });
 export type ReenactmentLabelLanguage = keyof typeof REENACTMENT_LABELS;
-export interface SvgSceneOptions { readonly reenactmentLabel: ReenactmentLabelLanguage | null }
+export interface SvgSceneOptions {
+  readonly reenactmentLabel: ReenactmentLabelLanguage | null;
+  /**
+   * Font family for the caption and the label. Omitted, the text asks for the generic `sans-serif`, exactly as
+   * before; production frames name real fonts because the rasterizer on Windows resolves `sans-serif` to a serif.
+   */
+  readonly fontFamily?: string;
+}
+
+/**
+ * One character as it stands in one animation frame: a pose given as angles instead of a named pose, a position,
+ * and whether the mouth is open. The renderer draws it with the character's own costume, prop and expression.
+ */
+export interface CharacterFrameOverride {
+  readonly pose: PoseAngles;
+  readonly x: number;
+  readonly mouthOpen: boolean;
+}
+
+const DEFAULT_FONT_FAMILY = "sans-serif";
+const FONT_FAMILY_PATTERN = /^[A-Za-z0-9 ,'-]{1,80}$/;
 
 const PALETTE: Readonly<Record<StageTime, { readonly sky: string; readonly far: string; readonly ground: string; readonly accent: string }>> = Object.freeze({
   DAY: { sky: "#d9e6f2", far: "#b7c9b0", ground: "#c9b48a", accent: "#8a6f4d" },
@@ -99,13 +119,13 @@ function handProp(prop: HandProp, hand: Point, scale: number): string {
   }
 }
 
-function character(item: BlockedCharacter): string {
+function character(item: BlockedCharacter, frame?: CharacterFrameOverride): string {
   const scale = scaleAt(item.depth);
-  const ground: Point = { x: item.x * CHARACTER_SCENE_WIDTH, y: groundY(item.depth) };
-  const pose = POSE_ANGLES[item.pose];
+  const ground: Point = { x: (frame ? frame.x : item.x) * CHARACTER_SCENE_WIDTH, y: groundY(item.depth) };
+  const pose = frame ? frame.pose : POSE_ANGLES[item.pose];
   const joints = computeCharacterJoints(STICK_FIGURE_RIG, pose, ground, scale);
   const w = STICK_FIGURE_RIG.stroke * scale; const r = STICK_FIGURE_RIG.headRadius * scale;
-  const face = EXPRESSION_SHAPES[item.expression];
+  const face = frame ? { ...EXPRESSION_SHAPES[item.expression], mouthOpen: frame.mouthOpen } : EXPRESSION_SHAPES[item.expression];
   const eyeY = joints.head.y - r * 0.12; const eyeDx = r * 0.36; const browY = eyeY - r * (0.3 + face.browRaise); const tilt = Math.tan((face.browTilt * Math.PI) / 180) * r * 0.22;
   const mouthY = joints.head.y + r * 0.42;
   const parts = [
@@ -155,13 +175,48 @@ function stageProp(prop: StageProp, x: number, depth: number, facing: "LEFT" | "
  * far as it goes. Farther figures and props are drawn first.
  */
 export function renderCharacterSceneSvg(blocking: SceneBlocking, options: SvgSceneOptions): string {
+  return renderSceneDocument(blocking, options, () => undefined);
+}
+
+/**
+ * One frame of an animated scene. The blocking places the props, the backdrop and each figure's costume, prop and
+ * face; `frames` moves a figure by id. A figure with no entry stands as the blocking draws it. Every frame carries the
+ * same reenactment label as the still.
+ */
+export function renderCharacterSceneFrameSvg(
+  blocking: SceneBlocking,
+  frames: Readonly<Record<string, CharacterFrameOverride>>,
+  options: SvgSceneOptions,
+): string {
+  const ids = new Set(blocking.characters.map((item) => item.id));
+  for (const [id, frame] of Object.entries(frames)) {
+    if (!ids.has(id) || !isRenderableFrame(frame)) throw new Error("CHARACTER_SCENE_FRAME_INVALID");
+  }
+  return renderSceneDocument(blocking, options, (item) => (Object.hasOwn(frames, item.id) ? frames[item.id] : undefined));
+}
+
+function isRenderableFrame(frame: CharacterFrameOverride): boolean {
+  const pose = frame?.pose;
+  const limbs = pose ? [pose.armFront, pose.armBack, pose.legFront, pose.legBack] : [];
+  const angles = pose ? [pose.torsoLean, pose.bodyRotation, ...limbs.flatMap((limb) => [limb?.upper, limb?.bend])] : [];
+  return !!pose && limbs.every(Boolean) && angles.every((value) => typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= 360) &&
+    typeof frame.x === "number" && Number.isFinite(frame.x) && frame.x >= 0 && frame.x <= 1 && typeof frame.mouthOpen === "boolean";
+}
+
+function renderSceneDocument(
+  blocking: SceneBlocking,
+  options: SvgSceneOptions,
+  frameFor: (item: BlockedCharacter) => CharacterFrameOverride | undefined,
+): string {
   const problems = findSceneBlockingProblems(blocking);
   if (problems.length) throw new Error(`CHARACTER_SCENE_BLOCKING_INVALID: ${problems.join(", ")}`);
   if (!(options.reenactmentLabel === null || Object.hasOwn(REENACTMENT_LABELS, options.reenactmentLabel))) throw new Error("CHARACTER_SCENE_LABEL_INVALID");
+  if (options.fontFamily !== undefined && !FONT_FAMILY_PATTERN.test(options.fontFamily)) throw new Error("CHARACTER_SCENE_FONT_INVALID");
+  const font = xml(options.fontFamily ?? DEFAULT_FONT_FAMILY);
   const W = CHARACTER_SCENE_WIDTH; const H = CHARACTER_SCENE_HEIGHT;
   const drawn = [
     ...blocking.props.map((prop, index) => ({ depth: prop.depth, order: index, svg: stageProp(prop.prop, prop.x, prop.depth, prop.facing) })),
-    ...blocking.characters.map((item, index) => ({ depth: item.depth, order: 100 + index, svg: character(item) })),
+    ...blocking.characters.map((item, index) => ({ depth: item.depth, order: 100 + index, svg: character(item, frameFor(item)) })),
   ].sort((a, b) => b.depth - a.depth || a.order - b.order);
   const arrows = blocking.arrows.map((arrow) => {
     const from: Point = { x: arrow.fromX * W, y: arrow.fromY * H }; const to: Point = { x: arrow.toX * W, y: arrow.toY * H };
@@ -169,7 +224,7 @@ export function renderCharacterSceneSvg(blocking: SceneBlocking, options: SvgSce
     const wing = (turn: number): Point => ({ x: to.x - head * Math.cos(angle + turn), y: to.y - head * Math.sin(angle + turn) });
     return line(from, to, 12, "#8b2e2e") + polygon([to, wing(0.45), wing(-0.45)], "#8b2e2e");
   });
-  const caption = blocking.caption === null ? "" : `<rect x="60" y="60" width="${n(Math.min(W - 120, 60 + blocking.caption.length * 30))}" height="84" rx="10" fill="#1c1c1c" opacity="0.72"/><text x="90" y="118" font-family="sans-serif" font-size="46" fill="#ffffff">${xml(blocking.caption)}</text>`;
-  const label = options.reenactmentLabel === null ? "" : `<g data-reenactment-label="${options.reenactmentLabel}"><rect x="60" y="${H - 132}" width="420" height="72" rx="8" fill="#1c1c1c" opacity="0.8"/><text x="84" y="${H - 82}" font-family="sans-serif" font-size="40" font-weight="bold" letter-spacing="4" fill="#ffffff">${REENACTMENT_LABELS[options.reenactmentLabel]}</text></g>`;
+  const caption = blocking.caption === null ? "" : `<rect x="60" y="60" width="${n(Math.min(W - 120, 60 + blocking.caption.length * 30))}" height="84" rx="10" fill="#1c1c1c" opacity="0.72"/><text x="90" y="118" font-family="${font}" font-size="46" fill="#ffffff">${xml(blocking.caption)}</text>`;
+  const label = options.reenactmentLabel === null ? "" : `<g data-reenactment-label="${options.reenactmentLabel}"><rect x="60" y="${H - 132}" width="420" height="72" rx="8" fill="#1c1c1c" opacity="0.8"/><text x="84" y="${H - 82}" font-family="${font}" font-size="40" font-weight="bold" letter-spacing="4" fill="#ffffff">${REENACTMENT_LABELS[options.reenactmentLabel]}</text></g>`;
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${backdrop(blocking.backdrop, blocking.time)}${drawn.map((item) => item.svg).join("")}${arrows.join("")}${caption}${label}</svg>\n`;
 }

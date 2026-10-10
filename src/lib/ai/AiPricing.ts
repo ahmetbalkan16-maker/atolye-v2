@@ -60,6 +60,8 @@ const FREE_PROVIDERS = new Set([
   // Local / self-hosted backends — no per-call cost.
   "ollama",
   "piper",
+  // Locally drawn stick-figure scenes.
+  "character",
 ]);
 
 /**

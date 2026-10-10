@@ -109,6 +109,7 @@ export function resolveImageProviderName(
     case "openai":
     case "real":
     case "local":
+    case "character":
       return normalized;
     default:
       throw new ImageProviderConfigurationError();

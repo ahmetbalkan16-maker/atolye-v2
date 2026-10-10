@@ -58,6 +58,10 @@ export function directorTaskFromProjectArtifacts(
   const assetCandidates = (artifacts.assets?.assets ?? [])
     .filter((asset) => asset.type === "image" || asset.type === "video")
     .map(assetToCandidate);
+  // A drawn stick-figure scene carries its reenactment label inside the image
+  // (the character asset fixes the documentary label), so it is labelled.
+  const labelledAssetIds = new Set((artifacts.assets?.assets ?? [])
+    .filter(isLabelledCharacterReenactment).map((asset) => asset.id));
   const visualByScene = new Map(artifacts.visuals?.scenes.map((scene) => [scene.sceneId, scene]) ?? []);
   const motionByScene = new Map(artifacts.animation?.scenes.map((scene) => [scene.sceneId, scene]) ?? []);
   const chapterById = new Map(artifacts.script?.chapters.map((chapter) => [chapter.id, chapter]) ?? []);
@@ -90,7 +94,7 @@ export function directorTaskFromProjectArtifacts(
       // Old artifacts do not encode scene-level factual citations or labels.
       requiredEvidence: options.format === "DOCUMENTARY",
       sourceReferences: undefined,
-      reconstructionLabeled: false,
+      reconstructionLabeled: Boolean(motion?.sourceImageAssetId && labelledAssetIds.has(motion.sourceImageAssetId)),
     };
   });
   return {
@@ -119,10 +123,15 @@ function mapMediaClass(mediaType: MediaType | undefined): DirectorMediaClass {
   }
 }
 
+function isLabelledCharacterReenactment(asset: Asset): boolean {
+  return asset.type === "image" && asset.status === "generated" && asset.provider === "character"
+    && asset.selectionReason === "local-character-reenactment";
+}
+
 function assetToCandidate(asset: Asset): DirectorMediaCandidate {
   const origin = asset.mediaOrigin === "real" || asset.provider === "real"
     ? "REAL" as const
-    : asset.mediaOrigin === "ai" || ["openai", "mock", "local"].includes(asset.provider)
+    : asset.mediaOrigin === "ai" || ["openai", "mock", "local", "character"].includes(asset.provider)
       ? "GENERATED" as const : "UNKNOWN" as const;
   return {
     id: asset.id,

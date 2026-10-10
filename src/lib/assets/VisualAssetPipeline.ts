@@ -243,6 +243,9 @@ export class VisualAssetPipeline {
         selectionReason = forcedAi ? "operator-forced-ai" : "no-suitable-real-media-found";
       } else if (effectiveProvider.name === "local") {
         selectionReason = "local-generated-placeholder";
+      } else if (effectiveProvider.name === "character") {
+        // A drawn reenactment: $0, no request, never capped and never a fallback.
+        selectionReason = "local-character-reenactment";
       }
 
       let result: ImageGenerationResult;
@@ -351,7 +354,9 @@ export class VisualAssetPipeline {
             ? "mock"
             : normalizedResult.provider === "local"
               ? "local-generated-placeholder"
-              : selectionReason,
+              : normalizedResult.provider === "character"
+                ? "local-character-reenactment"
+                : selectionReason,
       });
 
       const asset = AssetManager.createAsset({
@@ -437,8 +442,9 @@ function findValidGeneratedSceneAsset(
 
 /**
  * How many of this batch's scenes are already covered by an AI image. Local
- * placeholders (`provider === "local"`) share the `mediaOrigin: "ai"` bucket for
- * rights purposes but make no API call, so they never consume the AI-image cap.
+ * placeholders (`provider === "local"`) and drawn stick-figure scenes
+ * (`provider === "character"`) share the `mediaOrigin: "ai"` bucket for rights
+ * purposes but make no API call, so they never consume the AI-image cap.
  */
 function countExistingAiImages(
   assets: ProjectAssets,
@@ -452,6 +458,7 @@ function countExistingAiImages(
       typeof asset.sceneId === "number" &&
       plannedSceneIds.has(asset.sceneId) &&
       asset.provider !== "local" &&
+      asset.provider !== "character" &&
       (asset.provider === "openai" || asset.mediaOrigin === "ai"),
   ).length;
 }
@@ -575,7 +582,9 @@ function normalizeGenerationResult(
     };
   }
 
-  if (result.provider === "local") {
+  // A local placeholder and a drawn stick-figure scene are both stored PNGs with
+  // no source licence; they are checked the same way and keep their own name.
+  if (result.provider === "local" || result.provider === "character") {
     const mimeType = normalizeImageMimeType(result.mimeType);
     const filePath = normalizeSafeImagePath(result.filePath, projectSlug);
     const url = normalizeSafeImageUrl(result.url, projectSlug, filePath);
@@ -605,7 +614,7 @@ function normalizeGenerationResult(
     }
 
     return {
-      provider: "local",
+      provider: result.provider,
       model: result.model,
       filePath,
       url,

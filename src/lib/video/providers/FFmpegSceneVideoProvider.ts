@@ -1,5 +1,15 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
+import { characterAnimationFrameCount, CHARACTER_ANIMATION_FPS } from "@/lib/animation/character/CharacterAnimation";
+import {
+  characterSceneFrameSeconds,
+  readCharacterScenePayload,
+  renderCharacterSceneAssetFrame,
+  type CharacterSceneAssetPayload,
+} from "@/lib/animation/character/CharacterSceneAsset";
+import { rasterizeCharacterSceneSvg } from "@/lib/character/CharacterSceneRasterizer";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import {
@@ -68,11 +78,24 @@ export class FFmpegSceneVideoProvider implements ConfiguredVideoProvider {
           context,
         );
         paths.push(renderPaths);
-        const ffmpeg = await this.runner.run(
-          config.ffmpegPath,
-          buildSceneFFmpegArgs(scene, renderPaths.temporaryAbsolutePath, context),
-          { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
-        );
+        // A drawn stick-figure scene carries its animation inside the PNG: its
+        // frames are drawn here and encoded instead of moving one still image.
+        const character = readCharacterScene(scene, context);
+        const frames = character
+          ? await renderCharacterSceneFrames(character, scene.motionPlan.durationSeconds)
+          : null;
+        let ffmpeg: ProcessRunResult;
+        try {
+          ffmpeg = await this.runner.run(
+            config.ffmpegPath,
+            frames
+              ? buildCharacterSceneFFmpegArgs(scene, renderPaths.temporaryAbsolutePath, frames.pattern)
+              : buildSceneFFmpegArgs(scene, renderPaths.temporaryAbsolutePath, context),
+            { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
+          );
+        } finally {
+          frames?.dispose();
+        }
         requireSuccessfulProcess(ffmpeg);
         const temporaryInspection = VideoStorage.inspectMp4(
           renderPaths.temporaryAbsolutePath,
@@ -227,6 +250,102 @@ export function buildSceneFFmpegArgs(
     "+faststart",
     outputPath,
   ];
+}
+
+/**
+ * A drawn stick-figure scene: its frames at the animation rate, doubled to the
+ * scene rate. The frames are already 1920x1080 and already move, so no camera
+ * move is added on top — which also keeps the reenactment label in the corner
+ * of every frame, never cropped away.
+ */
+export function buildCharacterSceneFFmpegArgs(
+  scene: VideoProviderSceneInput,
+  outputPath: string,
+  framePattern: string,
+) {
+  return [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-nostdin",
+    "-n",
+    "-framerate",
+    String(CHARACTER_ANIMATION_FPS),
+    "-start_number",
+    "0",
+    "-i",
+    framePattern,
+    "-filter_complex",
+    `[0:v]scale=${WIDTH}:${HEIGHT}:out_range=tv,format=yuv420p,fps=${FRAME_RATE},setsar=1,format=yuv420p[scene]`,
+    "-map",
+    "[scene]",
+    "-an",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    "-r",
+    String(FRAME_RATE),
+    "-t",
+    scene.motionPlan.durationSeconds.toFixed(6),
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+/**
+ * The stick-figure payload of a scene's stored image, or `null` when the image
+ * is any other picture. A PNG whose payload is damaged or edited fails the
+ * scene: it is never quietly rendered as a still.
+ */
+function readCharacterScene(
+  scene: VideoProviderSceneInput,
+  context: RuntimeStorageContext,
+): CharacterSceneAssetPayload | null {
+  if (scene.imageMimeType !== "image/png") return null;
+  const read = readCharacterScenePayload(fs.readFileSync(absoluteInput(scene.imageFilePath, context)));
+  if (read.status === "ABSENT") return null;
+  if (read.status === "INVALID") throw new Error(SAFE_ERROR);
+  return read.payload;
+}
+
+/**
+ * Draws every frame of a stick-figure scene into a private temporary folder,
+ * one after another. A frame identical to the one before it is not drawn
+ * again. The caller removes the folder once FFmpeg has read it.
+ */
+async function renderCharacterSceneFrames(
+  payload: CharacterSceneAssetPayload,
+  durationSeconds: number,
+): Promise<{ readonly pattern: string; dispose(): void }> {
+  const count = characterAnimationFrameCount(durationSeconds);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-charframes-"));
+  const dispose = () => fs.rmSync(directory, { recursive: true, force: true });
+  try {
+    let previousSvg = "";
+    let previousPng: Buffer | null = null;
+    // Long scenes keep the default compression so their frames stay small on disk.
+    const fast = count <= 1800;
+    for (let index = 0; index < count; index++) {
+      const svg = renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index));
+      if (svg !== previousSvg || !previousPng) {
+        const raster = await rasterizeCharacterSceneSvg(svg, { fast });
+        if (!raster.ok) throw new Error(SAFE_ERROR);
+        previousSvg = svg;
+        previousPng = raster.png;
+      }
+      fs.writeFileSync(path.join(directory, `f${String(index).padStart(5, "0")}.png`), previousPng);
+    }
+    return { pattern: path.join(directory, "f%05d.png"), dispose };
+  } catch (error) {
+    dispose();
+    throw error;
+  }
 }
 
 function buildMotionFilter(

@@ -1,3 +1,4 @@
+import { CharacterImageProvider } from "./CharacterImageProvider";
 import { resolveImageProviderName } from "./ImageProviderConfig";
 import type { ImageProvider } from "./ImageProvider";
 import { LocalImageProvider } from "./LocalImageProvider";
@@ -18,6 +19,8 @@ export class ImageProviderRouter {
         return new RealPhotoImageProvider();
       case "local":
         return new LocalImageProvider();
+      case "character":
+        return new CharacterImageProvider();
     }
   }
 }

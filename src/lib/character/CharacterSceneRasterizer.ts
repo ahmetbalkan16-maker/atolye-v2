@@ -23,12 +23,16 @@ export function isRasterizableCharacterSceneSvg(svg: string): boolean {
   return typeof svg === "string" && svg.startsWith(HEADER) && svg.trimEnd().endsWith("</svg>") && Buffer.byteLength(svg, "utf8") <= MAX_SVG_BYTES && !OUTSIDE.test(svg);
 }
 
-export async function rasterizeCharacterSceneSvg(svg: string): Promise<CharacterSceneRasterResult> {
+/** `fast` trades file size for speed: animation frames are written once, read once by FFmpeg and deleted. */
+export interface CharacterSceneRasterOptions { readonly fast?: boolean }
+
+export async function rasterizeCharacterSceneSvg(svg: string, options: CharacterSceneRasterOptions = {}): Promise<CharacterSceneRasterResult> {
   if (!isRasterizableCharacterSceneSvg(svg)) return { ok: false, reason: "SVG_REJECTED" };
   let sharp: typeof import("sharp").default;
   try { sharp = (await import("sharp")).default; } catch { return { ok: false, reason: "RASTERIZER_UNAVAILABLE" }; }
   try {
-    const png = await sharp(Buffer.from(svg, "utf8")).resize(CHARACTER_SCENE_WIDTH, CHARACTER_SCENE_HEIGHT, { fit: "fill" }).png().toBuffer();
+    const image = sharp(Buffer.from(svg, "utf8")).resize(CHARACTER_SCENE_WIDTH, CHARACTER_SCENE_HEIGHT, { fit: "fill" });
+    const png = await (options.fast ? image.png({ compressionLevel: 1 }) : image.png()).toBuffer();
     // PNG signature, then the IHDR chunk's width and height.
     if (png.length < 24 || png.readUInt32BE(0) !== 0x89504e47 || png.readUInt32BE(4) !== 0x0d0a1a0a || png.readUInt32BE(16) !== CHARACTER_SCENE_WIDTH || png.readUInt32BE(20) !== CHARACTER_SCENE_HEIGHT) return { ok: false, reason: "RASTERIZE_FAILED" };
     return { ok: true, png, width: CHARACTER_SCENE_WIDTH, height: CHARACTER_SCENE_HEIGHT, rasterizer: "sharp" };

@@ -106,6 +106,7 @@ export type VisualMediaSelectionReason =
   | "no-suitable-real-media-found"
   | "operator-forced-ai"
   | "local-generated-placeholder"
+  | "local-character-reenactment"
   | "mock";
 
 /**
@@ -121,9 +122,12 @@ export type VisualMediaSelectionReason =
  *    (non-photographic, self-generated) image with no real-media source licence,
  *    so it shares the "not real media" bucket; its `selectionReason` records that
  *    it is specifically a local placeholder.
+ *  - character -> the same synthesised bucket: a drawn stick-figure
+ *    reenactment, labelled in the image, `selectionReason`
+ *    `local-character-reenactment`.
  */
 export function resolveMediaProvenance(input: {
-  readonly provider: "real" | "openai" | "mock" | "local";
+  readonly provider: "real" | "openai" | "mock" | "local" | "character";
   readonly license?: string | null;
   readonly reason: VisualMediaSelectionReason;
 }): ResolvedMediaProvenance {

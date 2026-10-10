@@ -50,7 +50,7 @@ const STAGE_PROVIDERS: Readonly<Record<ProductionStepKey, readonly string[]>> = 
 const PRODUCTION_DOMAIN: Readonly<Record<string, ProductionProviderDomain>> = Object.freeze({ AI_PROVIDER: "ai", AUDIO_PROVIDER: "audio", THUMBNAIL_PROVIDER: "thumbnail", YOUTUBE_PROVIDER: "youtube" });
 /** The zero-cost provider the production path already recognises for a selection. */
 const ZERO_COST_ALTERNATIVE: Readonly<Record<string, string>> = Object.freeze({ AI_PROVIDER: "ollama", AUDIO_PROVIDER: "piper", THUMBNAIL_PROVIDER: "local", YOUTUBE_PROVIDER: "ollama", ANIMATION_PROVIDER: "ollama", IMAGE_PROVIDER: "real" });
-const COST_CLASS: Readonly<Record<string, AyasCostClass>> = Object.freeze({ ollama: "local-zero-cost", piper: "local-zero-cost", local: "local-zero-cost", ffmpeg: "local-zero-cost", mock: "local-zero-cost", real: "free-public", openai: "paid", openrouter: "paid" });
+const COST_CLASS: Readonly<Record<string, AyasCostClass>> = Object.freeze({ ollama: "local-zero-cost", piper: "local-zero-cost", local: "local-zero-cost", character: "local-zero-cost", ffmpeg: "local-zero-cost", mock: "local-zero-cost", real: "free-public", openai: "paid", openrouter: "paid" });
 
 /**
  * The provider a production run uses for one selection, and what it costs. The four domains the production path
