@@ -1,3 +1,7 @@
+## 2026-10-11 — Live prebuilt candidates include the instrumentation entry
+
+A candidate build for the live origin is made from the same tracked root files as the canonical repository, including `instrumentation.ts`. That file starts `initializeProductionProcessRuntime()`; without it the Atölye production runtime stays uninitialized and `PipelineRunner` fails closed with `RUNTIME_OPERATION_CONTEXT_MISSING`. AYAS chat does not depend on it, so a chat-only acceptance cannot catch its absence. Before a switch, confirm `.next/server/instrumentation.js` exists and that an isolated fixture reports an initialized runtime. The webpack build works with the entry. No source, gate or qualification-script change is introduced.
+
 ## 2026-10-10 — Native Graphify state command
 
 A narrow Graphify status query selects the existing read-only query-graphify executor with fixed operation state, without a symbol, caller root or refresh. Registered availability, mutation and ambiguous-target guards remain. An executed native state result supplies canonical Turkish facts through the shared stream; no model can replace source HEAD, structural/semantic classification or missing-file count. Symbol queries retain their existing bounded evidence path. No new executor, authority, homepage or global permission is introduced.
