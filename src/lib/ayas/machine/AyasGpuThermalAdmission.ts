@@ -1,7 +1,8 @@
 import { readAyasGpuTemperatureC } from "./AyasMachineTelemetry";
+import { A2000_GPU_HARD_STOP_C } from "../../brain/probe/GpuThermalPolicy";
 
 /**
- * The owner's GPU hard stop (60 °C on the RTX A2000) at the door of every Atölye production stage.
+ * The owner's GPU hard stop (73 °C on the RTX A2000) at the door of every Atölye production stage.
  *
  * It is the same rule the Brain worker and speech-to-text already obey (`evaluateBrainResourceHardStop` in
  * `src/lib/brain/probe/BrainResourceProbe.ts`): on the configured A2000 profile a measured temperature at or over the
@@ -15,7 +16,7 @@ import { readAyasGpuTemperatureC } from "./AyasMachineTelemetry";
  * are not imported, so the production path reaches no new process-spawning module.
  */
 export const AYAS_A2000_PROFILE_ID = "rtx-a2000-12gb";
-export const AYAS_A2000_GPU_HARD_STOP_C = 60;
+export const AYAS_A2000_GPU_HARD_STOP_C = A2000_GPU_HARD_STOP_C;
 /** Same variable as the Brain console's hardware profile. */
 const HARDWARE_PROFILE_ENV = "ATOLYE_BRAIN_HARDWARE_PROFILE";
 

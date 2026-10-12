@@ -21,7 +21,7 @@ Her karede sol altta **CANLANDIRMA** etiketi vardır (15J kuralı, belgeselde sa
 
 - Görseller $0: API çağrısı yok, AI görsel kotasına (`ATOLYE_MAX_AI_IMAGES`) sayılmaz, $1/video bütçesinde 0 görünür. Mevcut ayarlarda seslendirme OpenAI üzerinden ücretlidir (`AUDIO_PROVIDER=openai`); `$1` koruması (`ATOLYE_AI_COST_GUARD=on`) aynen geçerli.
 - Kare çizimi bu makinede ~20–28 ms (1920x1080). Önceki küçük fixture ölçümünden tahmin: 12 dakikalık bir video ≈ 10.800 kare ≈ 4–5 dk CPU (gerçek uzun video kabulü yapılmadı); kareler sırayla çizilir, sahne biter bitmez silinir.
-- Üretim aşamaları başlamadan Makine Sağlığı Koruması (RAM/CPU/disk/VRAM) ve **GPU 60 °C koruması** çalışır: A2000 profilinde kart ≥ 60 °C ise aşama 15 sn aralıklarla soğumasını bekler (en fazla 10 dk, `ATOLYE_GPU_THERMAL_MAX_WAIT_MS` ile 0–30 dk); soğumazsa aşama başlatılmaz ve proje sayfasından devam ettirilebilir. Okunamayan sıcaklık beklemeye sokmaz (ses tanımayla aynı kural).
+- Üretim aşamaları başlamadan Makine Sağlığı Koruması (RAM/CPU/disk/VRAM) ve **GPU 73 °C koruması** çalışır: A2000 profilinde kart ≥ 73 °C ise aşama 15 sn aralıklarla soğumasını bekler (en fazla 10 dk, `ATOLYE_GPU_THERMAL_MAX_WAIT_MS` ile 0–30 dk); soğumazsa aşama başlatılmaz ve proje sayfasından devam ettirilebilir. Okunamayan sıcaklık beklemeye sokmaz (ses tanımayla aynı kural).
 
 ## Sınırlar (bilerek)
 

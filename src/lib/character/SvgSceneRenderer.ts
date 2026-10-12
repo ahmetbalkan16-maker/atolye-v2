@@ -1,4 +1,5 @@
 import { EXPRESSION_SHAPES } from "./CharacterExpression";
+import { renderIllustratedCharacter, renderIllustratedThrone } from "./IllustratedCharacter";
 import { POSE_ANGLES } from "./CharacterPose";
 import { computeCharacterJoints, STICK_FIGURE_RIG, type CharacterJoints, type Point, type PoseAngles } from "./CharacterRig";
 import type { HistoricalCostumeHint } from "./HistoricalCostumeHint";
@@ -38,6 +39,7 @@ export interface SvgSceneOptions {
   readonly artDirection?: CharacterArtDirection;
   /** Used only when a verified local PNG backdrop is composited outside SVG. */
   readonly transparentBackdrop?: boolean;
+  readonly floorLayout?: "foreground-v1";
 }
 
 /**
@@ -254,16 +256,18 @@ function renderSceneDocument(
   if (options.renderStyle !== undefined && options.renderStyle !== EDITORIAL_RENDER_STYLE) throw new Error("CHARACTER_SCENE_STYLE_INVALID");
   if (options.artDirection !== undefined && findCharacterArtDirectionProblems(options.artDirection).length) throw new Error("CHARACTER_SCENE_ART_DIRECTION_INVALID");
   if (options.transparentBackdrop !== undefined && typeof options.transparentBackdrop !== "boolean") throw new Error("CHARACTER_SCENE_BACKDROP_INVALID");
+  if (options.floorLayout !== undefined && (options.floorLayout !== "foreground-v1" || !options.transparentBackdrop)) throw new Error("CHARACTER_SCENE_FLOOR_INVALID");
   const font = xml(options.fontFamily ?? DEFAULT_FONT_FAMILY);
   const W = CHARACTER_SCENE_WIDTH; const H = CHARACTER_SCENE_HEIGHT;
   const drawn = [
     ...blocking.props.map((prop, index) => ({ depth: prop.depth, order: index, svg: prop.prop === "THRONE" && options.artDirection
-      ? renderDirectedThrone(prop.x, prop.depth, options.artDirection.culture)
+      ? options.artDirection.version === "4" ? renderIllustratedThrone(prop.x, prop.depth, options.artDirection.culture) : renderDirectedThrone(prop.x, prop.depth, options.artDirection.culture)
       : stageProp(prop.prop, prop.x, prop.depth, prop.facing) })),
     ...blocking.characters.map((item, index) => ({ depth: item.depth, order: 100 + index, svg: options.renderStyle === EDITORIAL_RENDER_STYLE
       ? renderEditorialCharacter(item, frameFor(item), (joints, scale) => item.handProp ? handProp(item.handProp, joints.handFront, scale) : "", options.artDirection)
       : character(item, frameFor(item), options.mascot) })),
   ].sort((a, b) => b.depth - a.depth || a.order - b.order);
+  const sceneArt = drawn.map(item => options.floorLayout === "foreground-v1" ? `<g transform="translate(0 ${n(140 + 160 * item.depth)})">${item.svg}</g>` : item.svg).join("");
   const arrows = blocking.arrows.map((arrow) => {
     const from: Point = { x: arrow.fromX * W, y: arrow.fromY * H }; const to: Point = { x: arrow.toX * W, y: arrow.toY * H };
     const angle = Math.atan2(to.y - from.y, to.x - from.x); const head = 34;
@@ -272,14 +276,14 @@ function renderSceneDocument(
   });
   const caption = blocking.caption === null ? "" : `<rect x="60" y="60" width="${n(Math.min(W - 120, 60 + blocking.caption.length * 30))}" height="84" rx="10" fill="#1c1c1c" opacity="0.72"/><text x="90" y="118" font-family="${font}" font-size="46" fill="#ffffff">${xml(blocking.caption)}</text>`;
   const label = options.reenactmentLabel === null ? "" : `<g data-reenactment-label="${options.reenactmentLabel}"><rect x="60" y="${H - 132}" width="420" height="72" rx="8" fill="#1c1c1c" opacity="0.8"/><text x="84" y="${H - 82}" font-family="${font}" font-size="40" font-weight="bold" letter-spacing="4" fill="#ffffff">${REENACTMENT_LABELS[options.reenactmentLabel]}</text></g>`;
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${options.transparentBackdrop ? "" : options.renderStyle === EDITORIAL_RENDER_STYLE ? renderEditorialBackdrop(blocking, options.artDirection) : backdrop(blocking.backdrop, blocking.time)}${drawn.map((item) => item.svg).join("")}${arrows.join("")}${caption}${label}</svg>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${options.transparentBackdrop ? "" : options.renderStyle === EDITORIAL_RENDER_STYLE ? renderEditorialBackdrop(blocking, options.artDirection) : backdrop(blocking.backdrop, blocking.time)}${sceneArt}${arrows.join("")}${caption}${label}</svg>\n`;
 }
 
 /** Permanent local art direction. Bounded SVG primitives, no downloads or image model. */
 export const EDITORIAL_RENDER_STYLE = "editorial-v2" as const;
 export const CHARACTER_ART_CULTURES = ["UNKNOWN", "OTTOMAN", "BYZANTINE", "ROMAN", "WESTERN", "STEPPE", "EGYPTIAN"] as const;
 export interface CharacterArtDirection {
-  readonly version: "1" | "2" | "3";
+  readonly version: "1" | "2" | "3" | "4";
   /** Explicit scene context, not an inferred ethnic identity from appearance. */
   readonly culture: (typeof CHARACTER_ART_CULTURES)[number];
   readonly faith: "UNSPECIFIED" | "ISLAM" | "CHRISTIANITY" | "ANCIENT_EGYPT";
@@ -287,7 +291,7 @@ export interface CharacterArtDirection {
 }
 export function findCharacterArtDirectionProblems(value: unknown): string[] {
   const v = value as Partial<CharacterArtDirection> | null;
-  if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some(k => !["version", "culture", "faith", "roles"].includes(k)) || !["1", "2", "3"].includes(v.version ?? "") || !(CHARACTER_ART_CULTURES as readonly unknown[]).includes(v.culture) || !["UNSPECIFIED", "ISLAM", "CHRISTIANITY", "ANCIENT_EGYPT"].includes(v.faith ?? "") || !Array.isArray(v.roles) || v.roles.length > 8) return ["ART_DIRECTION_SHAPE"];
+  if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some(k => !["version", "culture", "faith", "roles"].includes(k)) || !["1", "2", "3", "4"].includes(v.version ?? "") || !(CHARACTER_ART_CULTURES as readonly unknown[]).includes(v.culture) || !["UNSPECIFIED", "ISLAM", "CHRISTIANITY", "ANCIENT_EGYPT"].includes(v.faith ?? "") || !Array.isArray(v.roles) || v.roles.length > 8) return ["ART_DIRECTION_SHAPE"];
   const seen = new Set<string>();
   for (const role of v.roles) {
     if (!role || Object.keys(role).length !== 2 || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(role.id) || seen.has(role.id) || !["RULER", "ADVISOR", "GUARD", "NARRATOR", "CITIZEN"].includes(role.role)) return ["ART_DIRECTION_ROLES"];
@@ -312,7 +316,7 @@ export function editorialSceneTheme(blocking: SceneBlocking): string {
 /** Layered illustrative settings are scenery, not photographs or historical evidence. */
 export function renderEditorialBackdrop(blocking: SceneBlocking, direction?: CharacterArtDirection): string {
   const theme = editorialSceneTheme(blocking);
-  if (theme === "palace" && direction && ["2", "3"].includes(direction.version) && direction.culture !== "UNKNOWN") return renderCulturalPalace(direction.culture, blocking.time);
+  if (theme === "palace" && direction && ["2", "3", "4"].includes(direction.version) && direction.culture !== "UNKNOWN") return renderCulturalPalace(direction.culture, blocking.time);
   const night = blocking.time === "NIGHT";
   const dusk = blocking.time === "DUSK";
   const sky = night ? "#243550" : dusk ? "#ffe0bf" : "#e6f1f3";
@@ -484,6 +488,13 @@ function renderCulturalPalace(culture: CharacterArtDirection["culture"], time: S
 }
 
 export function renderEditorialCharacter(item: BlockedCharacter, frame: CharacterFrameOverride | undefined, prop: (joints: CharacterJoints, scale: number) => string, direction?: CharacterArtDirection): string {
+  if (direction?.version === "4") {
+    const role = direction.roles.find(r => r.id === item.id)?.role;
+    // Keep non-court historical gear on the established renderer until a
+    // reviewed illustrated costume exists; never strip a warrior's armour.
+    if (["RULER", "ADVISOR", "GUARD"].includes(role ?? "") || item.costume === "NONE" || item.costume === "ROBE") return renderIllustratedCharacter(item, frame, prop, direction);
+    return renderEditorialCharacter(item, frame, prop, { ...direction, version: "3" });
+  }
   const variant = editorialActorVariant(item.id);
   const scale = 1.28 * (1 - 0.5 * item.depth);
   const ground = { x: (frame?.x ?? item.x) * 1920, y: 900 - 260 * item.depth };

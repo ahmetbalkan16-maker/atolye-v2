@@ -1,6 +1,6 @@
 /**
  * Atölye stick-figure animation mode (`IMAGE_PROVIDER=character`) — engine, planner, asset, pipeline wiring, and the
- * two owner fixes that ship with it (start-screen lost-response recovery, 60 °C GPU admission).
+ * two owner fixes that ship with it (start-screen lost-response recovery, 73 °C GPU admission).
  *
  * Proves:
  *  A. renderer — the still renderer's bytes are unchanged; a frame with no overrides is the still; fonts are checked.
@@ -368,11 +368,11 @@ async function run(projectsRoot: string, prefix: string, ffmpeg: string | null, 
   await scenario("GPU admission waits for a hot card, gives up after its bound, and reads once when not waiting", async () => {
     let clock = 0;
     const sleep = async (ms: number) => { clock += ms; };
-    const temps = [64, 62, 59];
+    const temps = [76, 74, 72];
     const reads: number[] = [];
-    const read = async () => { const temp = temps.shift() ?? 59; reads.push(temp); return { tripped: temp >= 60, reason: `${temp}` }; };
+    const read = async () => { const temp = temps.shift() ?? 72; reads.push(temp); return { tripped: temp >= 73, reason: `${temp}` }; };
     const cooled = await awaitAyasGpuThermalHeadroom({ wait: true, read, sleep, now: () => clock, pollMs: 15_000, maxWaitMs: 600_000 });
-    assert.deepEqual([cooled.tripped, cooled.waitedMs, reads], [false, 30_000, [64, 62, 59]]);
+    assert.deepEqual([cooled.tripped, cooled.waitedMs, reads], [false, 30_000, [76, 74, 72]]);
     clock = 0;
     const hot = await awaitAyasGpuThermalHeadroom({ wait: true, read: async () => ({ tripped: true, reason: "70" }), sleep, now: () => clock, pollMs: 15_000, maxWaitMs: 40_000 });
     assert.deepEqual([hot.tripped, hot.waitedMs], [true, 40_000]);
@@ -383,10 +383,12 @@ async function run(projectsRoot: string, prefix: string, ffmpeg: string | null, 
     const unread = async () => { throw new Error("the GPU must not be read off the A2000 profile"); };
     assert.equal((await readAyasGpuThermal({ ATOLYE_BRAIN_HARDWARE_PROFILE: "gtx-1650-4gb" } as unknown as NodeJS.ProcessEnv, unread)).tripped, false);
     assert.equal((await readAyasGpuThermal({} as unknown as NodeJS.ProcessEnv, unread)).tripped, false);
-    // On the A2000 the limit is the Brain probe's own 60 °C, and an unreadable card does not hold.
+    // On the A2000 the limit is the Brain probe's own 73 °C, and an unreadable card does not hold.
     const a2000 = { ATOLYE_BRAIN_HARDWARE_PROFILE: "rtx-a2000-12gb" } as unknown as NodeJS.ProcessEnv;
-    assert.equal((await readAyasGpuThermal(a2000, async () => 60)).tripped, true);
-    assert.equal((await readAyasGpuThermal(a2000, async () => 59)).tripped, false);
+    assert.equal((await readAyasGpuThermal(a2000, async () => 73)).tripped, true);
+    assert.equal((await readAyasGpuThermal(a2000, async () => 74)).tripped, true);
+    assert.equal((await readAyasGpuThermal(a2000, async () => 72.9)).tripped, false);
+    assert.equal((await readAyasGpuThermal(a2000, async () => 60)).tripped, false);
     assert.equal((await readAyasGpuThermal(a2000, async () => undefined)).tripped, false);
     assert.equal(AYAS_A2000_GPU_HARD_STOP_C, BRAIN_A2000_GPU_HARD_STOP_C, "mirrors the Brain probe limit");
     assert.equal(AYAS_A2000_PROFILE_ID, BRAIN_A2000_PROFILE_ID, "mirrors the Brain probe profile");

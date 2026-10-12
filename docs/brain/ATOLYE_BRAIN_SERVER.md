@@ -184,7 +184,7 @@ When the PC comes back online, **Server Brain → Local Agent** sync runs:
 2. Pending items are bucketed: `security` · `approval` · `production` ·
    `code-change`. Nothing in `approval` / `code-change` runs without the
    director; `production` runs only under the autonomy gate + Safety Governor +
-   (on the A2000) the 60 °C hard stop; `security` deterministic checks run,
+   (on the A2000) the 73 °C hard stop; `security` deterministic checks run,
    Brain "security intelligence" only *recommends*.
 3. Results flow back into the experience store; the morning report is delivered
    as an `INFO` digest (or `APPROVAL_REQUIRED` if something is parked).
@@ -251,7 +251,7 @@ outcome.
 | Memory / Experience Store | `src/lib/brain/store/BrainExperienceStore.ts` — durable, atomic, redacted, `data/brain/experience/<yyyy-mm>.json` (Sprint 181) |
 | **Task Queue (durable)** | `src/lib/brain/worker/BrainTaskStore.ts` — `data/brain/queue/tasks.json` + `queue/results/<cycle>.json`; restart-safe, deterministic, reject-on-leak, corruption-safe, idempotent. Queue logic unchanged; **no** execution authority (Sprint 182) |
 | **Worker Cycle (skeleton)** | `src/lib/brain/worker/BrainWorkerCycle.ts` — load → pick `auto-safe` → deterministic **safe stub** → persist → report. Runs nothing; approval-gated parked, forbidden skipped (Sprint 183) |
-| Local Agent resource guard | `src/lib/brain/probe/BrainResourceProbe.ts` — read-only `nvidia-smi` + `os`; A2000 60 °C hard stop (Sprint 181) |
+| Local Agent resource guard | `src/lib/brain/probe/BrainResourceProbe.ts` — read-only `nvidia-smi` + `os`; A2000 73 °C hard stop (Sprint 181) |
 | Quality feed | `src/lib/brain/probe/BrainRenderProbe.ts` — read-only `ffprobe` → `BrainFinalRenderReport` (Sprint 181) |
 | Night-learning `OBSERVE` input | `buildBrainDryRunExperienceRecord` (marked `dry-run`) (Sprint 181) |
 

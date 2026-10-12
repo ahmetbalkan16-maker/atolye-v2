@@ -324,7 +324,8 @@ async function main() {
 
   await scenario("local and inert: no filesystem, process, network, provider or model in the storytelling and character modules", () => {
     const files = ["src/lib/storytelling/HistoricalFactPack.ts", "src/lib/storytelling/NarrativeContract.ts", ...fs.readdirSync(path.join(repo, "src/lib/character")).filter((name) => name.endsWith(".ts")).map((name) => `src/lib/character/${name}`)];
-    assert.equal(files.length, 12);
+    assert.equal(files.length, 13);
+    assert(files.includes("src/lib/character/IllustratedCharacter.ts"));
     for (const file of files) {
       const code = fs.readFileSync(path.join(repo, file), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
       for (const forbidden of [/node:fs|node:child_process|node:path|node:os|node:https?|node:net/, /\bfetch\s*\(/, /process\.(?:env|cwd|argv)/, /Date\.now|new Date\(/, /Math\.random/, /openai|ollama|Provider/i]) assert.ok(!forbidden.test(code), `${file} must not contain ${forbidden}`);

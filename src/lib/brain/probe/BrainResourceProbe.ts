@@ -14,13 +14,14 @@
  *  - "Could not read" is NOT "safe". When the GPU cannot be read the snapshot
  *    `source` is `"unavailable"`, which drives the Safety Governor's full
  *    conservative bundle — it must never silently become `"measured"`.
- *  - The A2000's **60 °C hard stop** is preserved here as an explicit,
+ *  - The A2000's **73 °C hard stop** is preserved here as an explicit,
  *    deterministic check ({@link evaluateBrainResourceHardStop}) that callers
  *    must consult *in addition to* `evaluateBrainSafety`.
  */
 
 import { execFile } from "node:child_process";
 import os from "node:os";
+import { A2000_GPU_HARD_STOP_C } from "./GpuThermalPolicy";
 
 import type {
   BrainAbnormalSignal,
@@ -31,9 +32,9 @@ import type {
 /**
  * A2000-specific hard ceiling. The general Safety Governor ceiling for this card
  * is 80 °C; this is a *stricter* stop the director asked to keep in force for
- * the A2000 after the earlier WHEA/TDR incidents. Never raise it here.
+ * the A2000. The owner changed the shared stop to 73 °C on 2026-10-12.
  */
-export const BRAIN_A2000_GPU_HARD_STOP_C = 60;
+export const BRAIN_A2000_GPU_HARD_STOP_C = A2000_GPU_HARD_STOP_C;
 export const BRAIN_A2000_PROFILE_ID = "rtx-a2000-12gb";
 
 const DEFAULT_TIMEOUT_MS = 4_000;
@@ -249,7 +250,7 @@ function safeReadMemory(
 }
 
 /* ------------------------------------------------------------------------- *
- * A2000 60 °C hard stop (deterministic, checked alongside evaluateBrainSafety)
+ * A2000 73 °C hard stop (deterministic, checked alongside evaluateBrainSafety)
  * ------------------------------------------------------------------------- */
 
 export interface BrainResourceHardStop {

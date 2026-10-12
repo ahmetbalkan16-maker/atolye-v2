@@ -40,7 +40,7 @@ export interface CharacterSceneAssetPayload {
   /** Absent on historical assets; their original appearance stays unchanged. */
   readonly renderStyle?: typeof EDITORIAL_RENDER_STYLE;
   readonly direction?: CharacterSceneDirection;
-  readonly background?: { readonly provider: "sdxl-local"; readonly modelRevision: string; readonly sha256: string };
+  readonly background?: { readonly provider: "sdxl-local"; readonly modelRevision: string; readonly sha256: string; readonly stageLayout?: "foreground-v1" };
 }
 
 export type CharacterScenePayloadRead =
@@ -58,7 +58,7 @@ export function findCharacterSceneAssetPayloadProblems(value: unknown): string[]
   if (payload.renderStyle !== undefined && payload.renderStyle !== EDITORIAL_RENDER_STYLE) problems.push("PAYLOAD_RENDER_STYLE");
   if (payload.background !== undefined) {
     const b = payload.background;
-    if (payload.renderStyle !== EDITORIAL_RENDER_STYLE || !payload.direction || !b || typeof b !== "object" || Array.isArray(b) || Object.keys(b).length !== 3 || Object.keys(b).some(k => !["provider", "modelRevision", "sha256"].includes(k)) || b.provider !== "sdxl-local" || !/^[0-9a-f]{40}$/.test(b.modelRevision) || !/^[0-9a-f]{64}$/.test(b.sha256)) problems.push("PAYLOAD_BACKGROUND");
+    if (payload.renderStyle !== EDITORIAL_RENDER_STYLE || !payload.direction || !b || typeof b !== "object" || Array.isArray(b) || ![3, 4].includes(Object.keys(b).length) || Object.keys(b).some(k => !["provider", "modelRevision", "sha256", "stageLayout"].includes(k)) || (b.stageLayout !== undefined && b.stageLayout !== "foreground-v1") || b.provider !== "sdxl-local" || !/^[0-9a-f]{40}$/.test(b.modelRevision) || !/^[0-9a-f]{64}$/.test(b.sha256)) problems.push("PAYLOAD_BACKGROUND");
   }
   const requestProblems = findCharacterSceneRequestProblems(payload.request);
   problems.push(...requestProblems);
@@ -85,7 +85,7 @@ export function renderCharacterSceneAssetFrame(payload: CharacterSceneAssetPaylo
   return renderCharacterSceneFrameSvg(
     payload.request.blocking,
     payload.direction ? characterDirectedFrame(payload.request.blocking, payload.animation, payload.direction.beats, t, durationSeconds) : characterAnimationFrame(payload.request.blocking, payload.animation, t),
-    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily, renderStyle: payload.renderStyle, artDirection: payload.direction?.art, transparentBackdrop: payload.background !== undefined },
+    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily, renderStyle: payload.renderStyle, artDirection: payload.direction?.art, transparentBackdrop: payload.background !== undefined, floorLayout: payload.background?.stageLayout },
   );
 }
 

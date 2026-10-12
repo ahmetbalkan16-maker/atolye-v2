@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--seed", type=int, default=1977)
     parser.add_argument("--kind", choices=["background", "character"], default="background")
     parser.add_argument("--role", choices=["RULER", "ADVISOR", "GUARD"], default="RULER")
+    parser.add_argument("--guide")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     runtime = root / "bin" / "ayas-local-visual"
@@ -60,16 +61,54 @@ def main():
             "ROMAN": {"RULER": "Roman emperor, green laurel wreath, white tunic, richly detailed golden armor, flowing red cape", "ADVISOR": "Roman advisor, short brown hair, round glasses, long white toga with red trim", "GUARD": "Roman legionary, silver helmet with red crest, segmented silver armor, red tunic"},
             "EGYPTIAN": {"RULER": "Egyptian pharaoh, blue and gold striped nemes headdress, elaborate gold and blue collar, white linen kilt with golden belt", "ADVISOR": "ancient Egyptian scholar advisor, black bob hairstyle with blue and gold headband, round glasses, long white linen robe, blue and gold collar", "GUARD": "ancient Egyptian guard, black bob hair and blue and gold headband, white linen tunic and kilt, blue and gold collar"},
         }
-        prompt = "One single full-body cartoon character sprite, professional cute 2D educational animation character design, friendly stylized stick figure, large pure white round circular face, two simple black oval eyes, simple expressive smiling mouth, tiny black eyebrows, no nose, thin limbs, white cartoon gloves, large white cartoon shoes, clean confident black ink outlines, beautiful detailed costume, subtle cel shading, " + costumes[args.theme][args.role] + ", entire body visible from headdress to shoes, standing front view, arms slightly away from body, both hands visible, character centered with empty margin, isolated on perfectly flat solid bright magenta pink background, no environment, no objects, no weapon, no writing"
-        negative = "photorealistic, realistic human face, nose, beard, skin color, photograph, 3d, background scene, palace, scenery, floor, shadow on background, gradient background, multiple people, multiple characters, duplicate person, cropped feet, cropped head, text, letters, logo, watermark, blurry, deformed hands, extra limbs"
-        width, height = 1024, 1024
+        prompt = "Full-length cute 2D cartoon mascot, big round white face, black oval eyes, happy smile, small body, visible white shoes, standing, isolated on solid magenta background. " + costumes[args.theme][args.role]
+        prompt2 = "Full body character design, cute simple rounded cartoon " + costumes[args.theme][args.role] + ", white circular face, black eyes, slim body, colorful cel shaded clothing, bold black outlines, head and feet visible, centered on plain magenta background"
+        negative = "portrait, close-up, cropped feet, large head filling frame, multiple characters, sprite sheet, contact sheet, monochrome, pencil sketch, grayscale, 3D, photograph, realistic face, scenery, pattern background, text, watermark, logo, extra limbs, blurry"
+        width, height = 768, 1024
     else:
         prompt = "Professional 2D educational cartoon animation background, hand drawn clean outlined illustration, detailed architecture, warm pastel colors, elegant soft lighting and shadows, polished high quality cartoon, widescreen composition, " + THEMES[args.theme] + ", empty room, no people, no characters, clear open foreground for animated actors, no text, no letters, no logo"
         negative = "people, person, human, character, face, crowd, text, letters, watermark, logo, photorealistic, photograph, blurry, low quality, deformed, distorted perspective, clutter, modern technology"
         width, height = 1024, 576
-    image = pipe(prompt=prompt, negative_prompt=negative, width=width, height=height, num_inference_steps=24, guidance_scale=7.0, generator=torch.Generator(device="cpu").manual_seed(args.seed)).images[0]
+    # Leave idle time between CUDA steps instead of raising the machine's thermal
+    # limits. The parent still owns the hard stop and checks the real sensors.
+    def pace_step(_pipeline, _step, _timestep, callback_kwargs):
+        torch.cuda.synchronize()
+        time.sleep(2.0 if args.kind == "character" else 0.75)
+        return callback_kwargs
+    extra = {}
+    if args.guide:
+        guide = Path(args.guide).resolve()
+        if args.kind != "character" or not guide.is_relative_to(candidate_root.resolve()) or guide.suffix != ".png" or not guide.is_file() or guide.stat().st_size > 2 * 1024**2:
+            raise RuntimeError("LOCAL_VISUAL_GUIDE_REFUSED")
+        from PIL import Image
+        guide_image = Image.open(guide)
+        if guide_image.size != (768, 1024) or guide_image.mode != "RGB":
+            raise RuntimeError("LOCAL_VISUAL_GUIDE_SHAPE")
+        from diffusers import StableDiffusionXLImg2ImgPipeline
+        pipe = StableDiffusionXLImg2ImgPipeline(**pipe.components)
+        pipe.enable_model_cpu_offload()
+        extra = {"image": guide_image, "strength": 0.55}
+        prompt = "Full body 2D cartoon Ottoman sultan, large white round face, black oval eyes, white turban, red kaftan with delicate gold floral embroidery, slim limbs, white gloves, white shoes, clean black outlines, magenta background" if args.theme == "OTTOMAN" and args.role == "RULER" else prompt
+        prompt2 = prompt
+    generated = pipe(prompt=prompt, prompt_2=prompt2 if args.kind == "character" else prompt, negative_prompt=negative, width=width, height=height, num_inference_steps=40 if args.guide else 24, guidance_scale=7.0, generator=torch.Generator(device="cpu").manual_seed(args.seed), callback_on_step_end=pace_step, output_type="latent" if args.kind == "character" else "pil", **extra).images
+    if args.kind == "character":
+        # The final large VAE decode caused a thermal spike even with paced
+        # denoising. Decode this optional character on CPU, with four threads.
+        # Removing only this model's offload hooks prevents a hidden CUDA move.
+        from accelerate.hooks import remove_hook_from_module
+        latents = generated.detach().to(device="cpu", dtype=torch.float32)
+        pipe.maybe_free_model_hooks()
+        remove_hook_from_module(pipe.vae, recurse=True)
+        pipe.vae.to(device="cpu", dtype=torch.float32)
+        if next(pipe.vae.parameters()).device.type != "cpu":
+            raise RuntimeError("LOCAL_VISUAL_CPU_DECODE_UNCONFIRMED")
+        with torch.inference_mode():
+            decoded = pipe.vae.decode(latents / pipe.vae.config.scaling_factor, return_dict=False)[0]
+        image = pipe.image_processor.postprocess(decoded, output_type="pil")[0]
+    else:
+        image = generated[0]
     image.save(output)
-    receipt = {"status": "CANDIDATE", "theme": args.theme, "kind": args.kind, "role": args.role if args.kind == "character" else None, "modelRevision": manifest["revision"], "seed": args.seed, "width": width, "height": height, "seconds": round(time.monotonic() - started, 2), "peakVramGB": round(torch.cuda.max_memory_allocated() / 1024**3, 3), "sha256": hashlib.file_digest(output.open("rb"), "sha256").hexdigest(), "bytes": output.stat().st_size, "paidCalls": 0, "offlineInference": True, "qualityAccepted": False}
+    receipt = {"status": "CANDIDATE", "theme": args.theme, "kind": args.kind, "role": args.role if args.kind == "character" else None, "guided": bool(args.guide), "modelRevision": manifest["revision"], "seed": args.seed, "width": width, "height": height, "seconds": round(time.monotonic() - started, 2), "decodeDevice": "cpu" if args.kind == "character" else "cuda", "peakVramGB": round(torch.cuda.max_memory_allocated() / 1024**3, 3), "sha256": hashlib.file_digest(output.open("rb"), "sha256").hexdigest(), "bytes": output.stat().st_size, "paidCalls": 0, "offlineInference": True, "qualityAccepted": False}
     output.with_suffix(".json").write_text(json.dumps(receipt, indent=2), encoding="utf-8")
     print(json.dumps(receipt))
 

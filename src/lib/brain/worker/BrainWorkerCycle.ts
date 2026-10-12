@@ -28,6 +28,7 @@ import {
   nextRunnableBrainTask,
 } from "./BrainTaskQueue";
 import { buildBrainWorkerCycleReport } from "./BrainWorkerReport";
+import { A2000_GPU_HARD_STOP_C } from "../probe/GpuThermalPolicy";
 import type { BrainTaskStoreHandle } from "./BrainTaskStore";
 import {
   brainWorkerSchemaVersion,
@@ -50,7 +51,7 @@ export const DEFAULT_BRAIN_WORKER_CONFIG: BrainWorkerConfig = Object.freeze({
   maxTasksPerCycle: 8,
   cycleBudgetMs: 5 * 60_000,
   allowGpuTasks: false,
-  gpuHardStopCelsius: 60,
+  gpuHardStopCelsius: A2000_GPU_HARD_STOP_C,
   gpuCooldownMs: 20_000,
   maxAutonomy: "auto-safe",
 });

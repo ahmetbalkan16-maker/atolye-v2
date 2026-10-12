@@ -8,7 +8,7 @@
  *
  *  A. nvidia-smi CSV parsing — normal / [N/A] / [Not Supported] / off-the-bus.
  *  B. probeBrainResources — measured vs unavailable; never throws.
- *  C. A2000 60 °C hard stop — trips at/above 60, not below, honest on unknown.
+ *  C. A2000 73 °C hard stop — trips at/above 60, not below, honest on unknown.
  *  D. ffprobe JSON parsing — av / video-only / malformed / no-format.
  *  E. probeMediaFile — missing file, injected success.
  *  F. buildBrainFinalRenderReport → evaluateBrainQuality (end to end, pure).
@@ -151,18 +151,19 @@ async function run() {
     assert.ok((snap.abnormalSignals ?? []).includes("gpu-fallen-off-bus"));
   });
 
-  /* --------------------- C. A2000 60 °C hard stop --------------------- */
+  /* --------------------- C. A2000 73 °C hard stop --------------------- */
 
-  await scenario("C1. A2000 at / above 60 °C trips the hard stop", () => {
+  await scenario("C1. A2000 at / above 73 °C trips the hard stop", () => {
     const a2000 = DEFAULT_BRAIN_HARDWARE_PROFILES["rtx-a2000-12gb"];
-    assert.equal(BRAIN_A2000_GPU_HARD_STOP_C, 60);
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 60 }, a2000).tripped, true);
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 72 }, a2000).tripped, true);
+    assert.equal(BRAIN_A2000_GPU_HARD_STOP_C, 73);
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 73 }, a2000).tripped, true);
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 74 }, a2000).tripped, true);
   });
 
-  await scenario("C2. A2000 below 60 °C does not trip; unknown temp is honest, not 'clear'", () => {
+  await scenario("C2. A2000 below 73 °C does not trip; unknown temp is honest, not 'clear'", () => {
     const a2000 = DEFAULT_BRAIN_HARDWARE_PROFILES["rtx-a2000-12gb"];
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 59.9 }, a2000).tripped, false);
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 72.9 }, a2000).tripped, false);
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 60 }, a2000).tripped, false);
     const unknown = evaluateBrainResourceHardStop({ observedAt: "x", source: "unavailable" }, a2000);
     assert.equal(unknown.tripped, false);
     assert.match(unknown.reason, /cannot confirm below/);

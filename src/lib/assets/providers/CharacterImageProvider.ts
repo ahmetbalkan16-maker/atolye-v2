@@ -59,7 +59,7 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         contextualDirection: true,
       });
       const direction = planCharacterSceneDirection([input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking);
-      const background = readCharacterLocalBackdrop(this.backdropMode, direction.art);
+      const background = readCharacterLocalBackdrop(this.backdropMode, direction.art, plan.request.blocking.time);
       const payload: CharacterSceneAssetPayload = {
         schemaVersion: CHARACTER_SCENE_ASSET_SCHEMA_VERSION,
         request: plan.request,

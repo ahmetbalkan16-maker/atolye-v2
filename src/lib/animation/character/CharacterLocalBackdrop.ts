@@ -13,8 +13,8 @@ export function resolveCharacterLocalBackdropMode(): CharacterLocalBackdropMode 
 }
 
 /** Only reviewed local backdrops. Production never downloads a model or opens paid generation. */
-export function readCharacterLocalBackdrop(mode: CharacterLocalBackdropMode, art: CharacterArtDirection): { png: Buffer; metadata: NonNullable<CharacterSceneAssetPayload["background"]> } | null {
-  if (mode === "off" || art.culture === "UNKNOWN") return null;
+export function readCharacterLocalBackdrop(mode: CharacterLocalBackdropMode, art: CharacterArtDirection, time = "DAY"): { png: Buffer; metadata: NonNullable<CharacterSceneAssetPayload["background"]> } | null {
+  if (mode === "off" || art.culture === "UNKNOWN" || time !== "DAY" || !art.roles.some(r => r.role === "RULER")) return null;
   const root = fs.realpathSync.native(process.cwd());
   const directory = path.join(root, "bin", "ayas-local-visual", "library");
   const stem = art.culture.toLowerCase();
@@ -31,5 +31,5 @@ export function readCharacterLocalBackdrop(mode: CharacterLocalBackdropMode, art
   if (receipt.schema !== 1 || receipt.reviewStatus !== "ENGINEERING_ACCEPTED" || receipt.theme !== art.culture || receipt.provider !== "sdxl-local" || typeof receipt.modelRevision !== "string" || !/^[0-9a-f]{40}$/.test(receipt.modelRevision) || typeof receipt.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(receipt.sha256)) throw new Error("CHARACTER_LOCAL_BACKDROP_UNREVIEWED");
   const png = fs.readFileSync(pngFile);
   if (!isCharacterBackdropPng(png) || createHash("sha256").update(png).digest("hex") !== receipt.sha256) throw new Error("CHARACTER_LOCAL_BACKDROP_CHANGED");
-  return { png, metadata: { provider: "sdxl-local", modelRevision: receipt.modelRevision, sha256: receipt.sha256 } };
+  return { png, metadata: { provider: "sdxl-local", modelRevision: receipt.modelRevision, sha256: receipt.sha256, stageLayout: "foreground-v1" } };
 }

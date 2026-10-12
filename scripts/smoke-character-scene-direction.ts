@@ -19,7 +19,7 @@ async function main() {
     const p = planCharacterScene({ sceneId: 1, text, contextualDirection: true });
     const direction = planCharacterSceneDirection(text, p.request.blocking);
     assert.equal(direction.art.culture, culture);
-    assert.equal(direction.art.version, "3");
+    assert.equal(direction.art.version, "4");
     assert.equal(direction.art.faith, culture === "BYZANTINE" ? "CHRISTIANITY" : "UNSPECIFIED");
     assert.equal(direction.art.roles[0]!.role, "RULER");
     assert.deepEqual(findCharacterStoryBeatProblems(direction.beats, p.request.blocking), []);
@@ -42,6 +42,8 @@ async function main() {
     assert(findCharacterSceneAssetPayloadProblems({ ...payload, direction: { ...direction, beats: [{ actorId: "c1", action: "TALK", start: 0.9, end: 0.1 }] } }).length);
   }
   assert.equal(fingerprints.size, examples.length);
+  const inflected = planCharacterScene({ sceneId: 1, text: "Mısır firavunu sarayda konuşuyor.", contextualDirection: true });
+  assert.equal(planCharacterSceneDirection("Mısır firavunu sarayda konuşuyor.", inflected.request.blocking).art.culture, "EGYPTIAN");
   const p = planCharacterScene({ sceneId: 3, text: "Kral sarayda konuşur. Haritayı gösterir." });
   const d = planCharacterSceneDirection("Kral sarayda konuşur. Haritayı gösterir.", p.request.blocking);
   assert.deepEqual(d.beats.map(b => b.action), ["TALK", "POINT"]);

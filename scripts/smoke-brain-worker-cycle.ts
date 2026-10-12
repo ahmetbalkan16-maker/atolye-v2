@@ -232,15 +232,18 @@ async function run() {
     for (const token of banned) {
       assert.ok(!code.includes(token), `BrainWorkerCycle.ts code must not reference "${token}"`);
     }
-    // and it only imports from within the brain worker layer + types
+    // Worker/types plus the one shared policy, which must remain data-only.
     const imports = [...raw.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
     for (const spec of imports) {
       assert.ok(
-        spec.startsWith("./") || spec === "@/types/brainWorker",
+        spec.startsWith("./") || spec === "@/types/brainWorker" || spec === "../probe/GpuThermalPolicy",
         `unexpected import "${spec}" in BrainWorkerCycle.ts`,
       );
     }
     assert.ok(imports.length > 0, "sanity: found import specifiers");
+    const thermalPolicy = fs.readFileSync(path.join(REPO_ROOT, "src/lib/brain/probe/GpuThermalPolicy.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    assert.equal(thermalPolicy, "export const A2000_GPU_HARD_STOP_C = 73;", "shared thermal policy contains no import, probe, or execution");
+    assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 73);
   });
 
   await scenario("14. safe-stub processor is pure and deterministic", () => {

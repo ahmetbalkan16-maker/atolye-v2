@@ -21,10 +21,10 @@ const fold = (s: string) => s.toLocaleLowerCase("tr-TR").normalize("NFD").replac
 export function planCharacterSceneDirection(text: string, blocking: SceneBlocking): CharacterSceneDirection {
   const words = fold(text.slice(0, 8192));
   const has = (r: RegExp) => r.test(words);
-  const culture: CharacterArtDirection["culture"] = has(/\b(osmanli|ottoman|padisah|fatih|kanuni)\b/) ? "OTTOMAN" : has(/\b(bizans|byzantine)\b/) ? "BYZANTINE" : has(/\b(firavun|pharaoh|ramesses|ramses|nemes)\b/) ? "EGYPTIAN" : has(/\b(roma|roman|caesar|sezar)\b/) ? "ROMAN" : has(/\b(mogol|mongol|gokturk|attila|hun)\b/) ? "STEPPE" : has(/\b(avrupa|european|ingiliz|english|fransiz|french|tudor)\b/) ? "WESTERN" : "UNKNOWN";
+  const culture: CharacterArtDirection["culture"] = has(/\b(osmanli|ottoman|padisah\w*|fatih|kanuni)\b/) ? "OTTOMAN" : has(/\b(bizans|byzantine)\b/) ? "BYZANTINE" : has(/\b(firavun\w*|pharaoh|ramesses|ramses|nemes)\b/) ? "EGYPTIAN" : has(/\b(roma|roman|caesar|sezar)\b/) ? "ROMAN" : has(/\b(mogol|mongol|gokturk|attila|hun)\b/) ? "STEPPE" : has(/\b(avrupa|european|ingiliz|english|fransiz|french|tudor)\b/) ? "WESTERN" : "UNKNOWN";
   const faith: CharacterArtDirection["faith"] = has(/\b(islam|musluman|muslim)\b/) ? "ISLAM" : has(/\b(hristiyan|christian)\b/) ? "CHRISTIANITY" : has(/\b(ra tapinagi|ancient egyptian religion|antik misir dini)\b/) ? "ANCIENT_EGYPT" : "UNSPECIFIED";
   const court = blocking.props.some(p => p.prop === "THRONE");
-  const art: CharacterArtDirection = { version: "3", culture, faith, roles: blocking.characters.map((c, i) => ({ id: c.id, role: court ? i === 0 ? "RULER" : c.handProp === "SPEAR" || c.handProp === "SWORD" ? "GUARD" : "ADVISOR" : i === 0 ? "NARRATOR" : "CITIZEN" })) };
+  const art: CharacterArtDirection = { version: "4", culture, faith, roles: blocking.characters.map((c, i) => ({ id: c.id, role: court ? i === 0 ? "RULER" : c.handProp === "SPEAR" || c.handProp === "SWORD" ? "GUARD" : "ADVISOR" : i === 0 ? "NARRATOR" : "CITIZEN" })) };
   const sentences = words.split(/[.!?;\n]+/).filter(s => s.trim()).slice(0, 8);
   const total = sentences.reduce((n, s) => n + Math.max(1, s.trim().split(/\s+/).length), 0);
   let used = 0;

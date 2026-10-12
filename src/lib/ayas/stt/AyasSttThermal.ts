@@ -2,7 +2,7 @@
  * AYAS STT — GPU thermal guard (Voice Closure Sprint).
  *
  * Whisper transcription is a GPU burst. It rides the SAME hard-stop the Brain
- * worker cycle already respects (`evaluateBrainResourceHardStop`, 60 °C on the
+ * worker cycle already respects (`evaluateBrainResourceHardStop`, 73 °C on the
  * A2000). If the GPU is at/over the hard stop, STT refuses to spawn and the
  * caller falls back to "type your command" — the guard is never bypassed.
  *

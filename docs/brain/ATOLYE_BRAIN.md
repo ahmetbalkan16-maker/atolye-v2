@@ -84,7 +84,7 @@ services still *do the work*.
 | `autonomy/AyasAutonomousView.ts` | Read-only UI view of the autonomous loop state. | fs (read-only) |
 | `src/components/brain/` | AYAS / Brain Core UI — `brainCore.ts` (pure state model + 10 core states + the AYAS chat prompt / `resolveAyasReply` / `{reply}` envelope helpers), `BrainCoreOrb.tsx` + `BrainCore.css` (deep "command-center" CSS/SVG living orb; reduced-motion aware; no WebGL/canvas/rAF; overflow-safe; desktop+tablet+mobile), `BrainConsoleView.tsx` (pure presentational command center — orb, AYAS ● ONLINE, snapshot-only status cards, 8 panel tabs incl. Autonomous, voice status), `BrainCoreConsole.tsx` (`"use client"` shell — async `askAyas` chat with deterministic fallback, auto-speech, voice hook, read-only refresh Server Action, no client `fetch`), `ayasVoice.ts` (pure — voice state-machine reducer, wake-word matcher, capability detection, male/Turkish voice-selection algorithm, TTS profile, `toSpokenAyasText`), `voice/ayasVoiceEngine.ts` (pure engine, no DOM — `AyasVoicePlatform` interface, epoch-guarded orchestration), `voice/browserVoiceAdapter.ts` (`"use client"` — the only DOM Web Speech API caller), `useAyasVoice.ts` (`"use client"` — binds the engine to React; STT off by default behind a cloud-disclosure). | React |
 | `BrainDryRunExperience.ts` | `BrainRunPlan` → a `mode: "dry-run"` experience record (honest zeros, hidden from the learner) | pure |
-| `probe/BrainResourceProbe.ts` | Read-only host probe: `nvidia-smi --query-gpu` + `os` → `BrainResourceSnapshot`; A2000 **60 °C hard stop** check | read-only spawn |
+| `probe/BrainResourceProbe.ts` | Read-only host probe: `nvidia-smi --query-gpu` + `os` → `BrainResourceSnapshot`; A2000 **73 °C hard stop** check | read-only spawn |
 | `probe/BrainRenderProbe.ts` | Read-only `ffprobe -show_format -show_streams` → `BrainFinalRenderReport` for the quality judge | read-only spawn |
 
 Types: `src/types/brain.ts`, `brainMemory.ts`, `brainWorker.ts`, `brainSecurity.ts`.
@@ -210,7 +210,7 @@ module, 50 passing smoke scenarios, `tsc` + `eslint` clean.
   (atomic, redacted, reject-on-leak, corrupt-shard-fails-loud, deterministic).
 - `BrainDryRunExperience.ts` — dry-run plan → a clearly-marked experience record.
 - `probe/BrainResourceProbe.ts` — read-only `nvidia-smi` + `os` host probe;
-  A2000 60 °C hard-stop check.
+  A2000 73 °C hard-stop check.
 - `probe/BrainRenderProbe.ts` — read-only `ffprobe` → `BrainFinalRenderReport`.
 - Server / remote-access / proactive-comms / night-learning / security design:
   `docs/brain/ATOLYE_BRAIN_SERVER.md`.
