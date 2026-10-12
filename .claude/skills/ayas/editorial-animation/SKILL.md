@@ -5,6 +5,12 @@ description: Atölye'nin yerel çöp adam video karakterlerini, ortamlarını ve
 
 # Kalıcı Atölye görsel tasarım yeteneği
 
+12 Ekim owner ek hedefi: gerçek3D hacim, sahne yılı/dönemiyle uyumlu rol kıyafeti ve YouTube örneklerinden anlatım/kadraj ilkeleri. Güncel kapsam ve gerçek önizlemeler: `docs/ATOLYE_3D_PERIOD_DESIGN_2026-10-12.md`. `scripts/local-visual-runtime/character-volume.ts` ve `period-wardrobe.ts` mevcut rig'e bağlı **önizleme adayıdır**; canlı version4 hâlâ2D. Skill metnini okuyarak her videoda3D kullanılıyormuş gibi davranma. CPU z-buffer son aday görüntüsüdür; SVG painter çıktısını finalvideo sayma. `preview-volume-storyboard.ts` geniş/konuşmacı/ifade/ayrıntı kadrajlarını gösterir; bu sahne çeşitliliğini gerçek üretime bağlamak ayrı iş olarak kaydedilmiştir.
+
+Kıyafet seçimi kültür + sahnenin yılı/dönemi + kişi/rol + olay/ortam ve güvenilir tarihî kaynakla yapılmalıdır. Bilinmeyen veya birden fazla yıl, başka role ait portre, desteklenmeyen dönem → araştırma gerekli; rastgele bir kıyafeti tarihî doğru ilan etme. Küçük5referans penceresi tam tarihî kıyafet veri tabanı değildir. Renk, materyal, başlık ve bütün aksesuarların aynı derecede kanıtlandığını varsayma. Bir padişahın sarığını tüm halka veya bir hanedanın tacını bütün Bizans dönemine kopyalama. 2D/3D estetik ve tarihî doğruluk ayrı kabul ölçütleridir.
+
+YouTube araştırmasında doğrudan kaynak/URL, tarih, örneklenen kare ve erişim sınırını kaydet. Sesini dinlemediysen yalnız açıklamadaki müzik/lisans kredisini raporla; miks seviyesini ölçmüş gibi sunma. Başarılı örneklerden cümleye bağlı hareket, anlaşılır siluet, kadraj çeşitliliği ve görsel mizah ilkelerini çıkar; tasarım/müzik/video kopyalama. “Daha iyi” ve daha yüksek izlenme doğrulanmış sonuç değil kalite hedefidir. Mevcut narration ducking/lisans/bütçe yollarını koru; tek sinüs demo fonunu nihai müzik kalitesi sayma.
+
 Owner tercihi: sade çizgili fakat özenli, eğlenceli ve eğitici YouTube animasyonları. Tek tip ince çöp adam ve boş renkli zemin teslim kalitesi değildir.
 
 - Üretim bağlantısı: `CharacterImageProvider.ts` yeni PNG'ye `editorial-v2` ve art version4 yazar. `IllustratedCharacter.ts` tam giysi, manşet, eldiven, ifade, başlık ve tahtı mevcut eklemlerde çizer; `CharacterSceneAsset.ts` galeriyi ve bütün video karelerini aynı payload ile üretir. Eski version1/2/3 görüntülerini değiştirme. Skill metni otomatik yürütme/kurulum yetkisi vermez; varsayılan kullanım kodla sağlanır.

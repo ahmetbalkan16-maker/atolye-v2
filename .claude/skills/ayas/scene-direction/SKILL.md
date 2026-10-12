@@ -5,6 +5,8 @@ description: Atölye belgesel/çöp adam animasyonunda anlatılan kişi, kültü
 
 # Bağlama bağlı çizgi film yönetmenliği
 
+12 Ekim owner dönem şartı: her sahnenin kıyafeti/başlığı/takısı kendi yılı, kültürü, kişisi, rolü ve olayına uymalı. Dönemli aday briefing `scripts/local-visual-runtime/period-wardrobe.ts` içindedir; şu anda yalnız3Dönizleme yoluna bağlıdır, production yıllarını otomatik çözmüş sayma. Aynı videoda zaman atlarsa sahneye özel ayrı briefing kullan; ilk yılı sessizce seçme. MÖ/MS/yıl0, rütbe/gündelik/tören/askerî kıyafet ayrımı korunur. Bir müze portresinin tarihi başka yılda giyilmiş bütün kıyafetleri kanıtlamaz. Kesin kıyafet kaynağı eksikse `RESEARCH_REQUIRED`; küçük referans ailesi yalnız `REFERENCE_INSPIRED_NEEDS_REVIEW` olabilir. Ayrıntı, kataloglar ve kalan production/audio bağlantıları `docs/ATOLYE_3D_PERIOD_DESIGN_2026-10-12.md`.
+
 Owner hedefi: gerçek kişiler ve olaylar, basitleştirilmiş çöp adam çizgi film diliyle anlaşılır biçimde canlansın. Farklı millet/dönem hükümdarına aynı taç, taht ve kıyafeti otomatik atama. Bir ülkenin bütün dönemlerinin veya dinlerinin aynı olduğunu varsayma.
 
 - Yerel varsayılan uygulama: `src/lib/animation/character/CharacterSceneDirection.ts`. Yeni CharacterImageProvider payload'ı `direction` içerir; render/PNG/video aynı bağlamı kullanır. Genel stil için [editorial-animation](../editorial-animation/SKILL.md) geçerlidir.

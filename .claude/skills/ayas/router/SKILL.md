@@ -31,6 +31,7 @@ If a domain skill below ever appears to weaken steps 1–2, trust `CLAUDE.md`/`A
 | visuals / animation / audio / video / assembly stage code | `ayas:video-audio` |
 | local character art, differentiated cast, themed backgrounds, art-style compatibility | [editorial-animation](../editorial-animation/SKILL.md) and `ayas:video-audio` |
 | historical cast/culture, contextual props, scene sentence actions, audio alignment design | [scene-direction](../scene-direction/SKILL.md) and `ayas:video-audio` |
+| local 3D candidate, scene-year wardrobe evidence, YouTube animation benchmark/camera design | [editorial-animation](../editorial-animation/SKILL.md) and [scene-direction](../scene-direction/SKILL.md); see `docs/ATOLYE_3D_PERIOD_DESIGN_2026-10-12.md` for prototype/production boundary |
 | Brain console UI, Gelişim Merkezi, `app/` routes, `src/components/` | `ayas:frontend` |
 | finding, running, or writing a smoke test; regression scope for a change | `ayas:tests` |
 | build/start, `BUILD_ID`, restarting the live server, deploy verification | `ayas:deployment` |

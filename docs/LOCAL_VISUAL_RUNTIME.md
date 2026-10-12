@@ -1,3 +1,5 @@
+12 Ekim son devam: yerel3D/dönem-kıyafet/YouTube-kadraj adayları ve anlamlı kontroller hazır; canlı source03308c76/buildhtR7TBNeqdb0pk7eeDEic hâlâ2Dversion4 ve73°Ckorumalı. Yeni3D üretim/audio/scene-year bağlantısı henüz açık; app/src/env/homepage/ownerverisi değişmedi. Güncel durum ATOLYE_CHECKPOINT.md ve docs/ATOLYE_3D_PERIOD_DESIGN_2026-10-12.md. Bu kayıt aşağıdaki eski durumları supersede eder.
+
 # Yerel illüstrasyon ve kalıcı çizgi film yeteneği — 12 Ekim 2026
 
 Üretim karakteri `src/lib/character/illustration/IllustratedCharacter.ts` içindeki art version4'tür. Mevcut rig/action planı kıyafeti, eli, aksesuarı ve ağzı her karede çizer. Altı ifade/10poz gerçek PNG kontrolü vardır. Version1/2/3 eski kayıtta korunur. Henüz yeni kıyafeti incelenmemiş non-court tarihî zırh eski renderer'da kalır. Fonem/kelime senkronu tamamlanmış sayılmaz: `SCENE_TEXT_ESTIMATE` görsel cümle zamanlamasıdır.
