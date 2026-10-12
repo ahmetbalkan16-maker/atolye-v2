@@ -1,7 +1,7 @@
-import { computeCharacterJoints, type CharacterJoints, type Point } from "./CharacterRig";
-import { POSE_ANGLES } from "./CharacterPose";
-import type { BlockedCharacter } from "./SceneBlocking";
-import type { CharacterArtDirection, CharacterFrameOverride } from "./SvgSceneRenderer";
+import { computeCharacterJoints, type CharacterJoints, type Point } from "../CharacterRig";
+import { POSE_ANGLES } from "../CharacterPose";
+import type { BlockedCharacter } from "../SceneBlocking";
+import type { CharacterArtDirection, CharacterFrameOverride } from "../SvgSceneRenderer";
 
 const ink = "#242332", gold = "#e6b54d", paleGold = "#ffe5a0";
 const n = (v: number) => String(Math.round(v * 100) / 100);

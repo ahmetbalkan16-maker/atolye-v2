@@ -1,5 +1,5 @@
 import { EXPRESSION_SHAPES } from "./CharacterExpression";
-import { renderIllustratedCharacter, renderIllustratedThrone } from "./IllustratedCharacter";
+import { renderIllustratedCharacter, renderIllustratedThrone } from "./illustration/IllustratedCharacter";
 import { POSE_ANGLES } from "./CharacterPose";
 import { computeCharacterJoints, STICK_FIGURE_RIG, type CharacterJoints, type Point, type PoseAngles } from "./CharacterRig";
 import type { HistoricalCostumeHint } from "./HistoricalCostumeHint";
