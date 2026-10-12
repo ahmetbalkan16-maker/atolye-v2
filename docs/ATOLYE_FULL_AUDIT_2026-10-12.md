@@ -1,6 +1,6 @@
 # 12 Ekim 2026 — Atölye genel kontrolü
 
-Durum: **devam ediyor; genel hatasızlık / canlı yeni sürüm kabulü henüz verilmedi.**
+Durum: **devam ediyor; kaynak düzeltmesi canlıda doğrulandı, geniş taramanın kalan eski testleri henüz kapanmadı.** Genel hatasızlık / yeni Full166 sertifikası verilmez.
 
 Başlangıç kaynak HEAD: `b0ac2591e9fc71e5c6130ceabe64a2f2ca900f4b`, origin ile eşit. Başlangıç canlı uygulama `0f0ef5d`, build `_d7VZ_06v2f0NPdit7Kor`; instrumentation mevcut. Authenticated runtime healthy/ready, worker hazır, aktif execution 0; Studio 200 / 16 okunabilir proje. Gerçek runtime durumuyla readiness 27/27 geçti; özel probe klasörü temizlendi. Eski proje kayıtları yeniden oynatılmadı.
 
@@ -36,3 +36,21 @@ PC reboot/telefonun owner kabulü yapılmadı. Yeni owner videosu, ücretli ça�
 `C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\atolye-full-audit-20261012`
 
 Başlıca kayıtlar: `BROAD_RESULTS.jsonl`, `broad-logs/`, `PREPARED_RECHECK.jsonl`, `FAILURES_RECHECK.jsonl`, `IMPLICIT_RUNNER_RECHECK.jsonl`, `MODEL_CHAIN.json`, `MODEL_CHAIN_ARTIFACTS.json`, `GEMMA12_CANDIDATE_ABORTED.json`, `LIVE_AUTH_ENTRY.json`, `READINESS_ENTRY.json`, `PROTECTED_BEFORE.json`, `LINT_CLOSURE.log`. Ham kayıtlar credential içermez. Korunan data fingerprint yöntemi path/size/mtime metadatasıdır; content backup olarak adlandırılmaz.
+
+## Kaynak düzeltmesinin canlı kabulü — 12 Ekim 08:51 Türkiye saati
+
+Kaynak `8eebc10446e73fa741754131c4947cac8385041a` commit edilip mevcut uzak dala push edildi. Tam-history temiz kopyada bütün tracked kaynaklar (`instrumentation.ts` dahil) derlendi. Build `1osyiX6oqrIuLIy2JohQ-`, CLEAN stamp aynı source HEAD; kurulu Next16.2.10/lock16.3.8 aynen korundu. Webpack mevcut Graphify `createRequire` uyarılarını verdi; build ve gerçek instrumentation/route bundle sağlık kontrolü geçti. Özel HTTP sunucusu: gate307/enforced, login200, runtime healthy/ready/workerReady/acceptingExecutions, Studio200, owner verisi kullanılmadı; test sunucusu kapatıldı.
+
+Canlı origin 7848→10880 ve supervisor11928→14852; mevcut penceresiz Startup kısayolundan başlatıldı. Tünel/Ollama/Observer/ortam ayarları değiştirilmedi. Qualification **501 build / 25976 dependency PASS**, startup verification PASS. Önceki `.next` ve qualification `rollback-runtime-20261012` altında tutulur. Geri dönüş artifact yanında bu tek kaynak commitinin revert edilmesini de gerektirir; tek başına build değişimi yeterli değildir.
+
+Gerçek giriş oturumuyla health healthy/ready, aktif execution0, Studio200/16 proje. Local/public giriş kapıları307/enforced, login200, korunan health401; ObserverOBSERVING/null error. Gerçek runtime snapshot'ı ile readiness **27/27 READY**, probeRemoved=true. Bu ses sağlayıcısının key/config ve storage/media ön koşullarını kanıtlar; ücretli TTS çağrısı veya bakiye kanıtı değildir.
+
+Readiness adaptörleri kendi iki sentinel projesi için persistent authority claim oluşturmuştu. Ham AFTER kaydı4→6 farkını gösterir. İki claim'in projectIdentity değeri tam olarak bu oturumun probeRoot UUID'leriyle eşleşti; iki probe yoktu, aktif lock yoktu. İçerik/hash/absolute kök kontrolleri ve küçük metadata capture sonrası yalnız bu iki kendi claim'i temizlendi. `PROTECTED_CLEAN.json`: runtime2374, authority4, repoProjects2399; üç metadata digest başlangıçla birebir aynı. Eski claim/proje kayıtlarına dokunulmadı.
+
+Yeni yerel sağlayıcı kontrolü **73 PASS** (gerçek FFmpeg thumbnail dahil; Piper kurulu değil, açık SKIP). Yeni schema22/thermal18 PASS. Native adayda değişen bütün kaynak dosyalarının SHA256 değerleri source8eeb ile aynı: `NATIVE_SOURCE_BINDING.json`; native makbuzun eski scope etiketi değiştirilmedi. Canlı model **Qwen2.5:3b**, AYAS ayrıGemma3:12b korunur. Aday CPU knobs ortak AYAS profilini de etkileyebileceği için canlıya atanmadı. GPU sınırında istek iptali güvenlik korumasıdır; tüm bilgisayarın her iş yükü için mutlak sıcaklık tavanı garanti edilmez.
+
+Source commit CI [38209677863](https://github.com/ahmetbalkan16-maker/atolye-v2/actions/runs/38209677863): **SUCCESS**. TypeScript/lint, yeni iki gate, frozen raw/review ve exact clean HEAD CF49 closure/regression gates geçti. Frozen manifest ve pinler değiştirilmedi.
+
+36 FAIL yeniden koşusunda12 PASS /24 FAIL; ayrıca implicit-root30 PASS (koşucu file URL düzeltmesi) ve build-health-bundle PASS (gerçek build ön koşulu) ile ilk145 kümesinden **123 doğrulanmış PASS /22 kapanmamış suite** vardır. Bu 123/145 tek temiz HEAD üzerinde komple yeniden koşu iddiası değildir; başlangıç109 + gerekçeli yeniden koşulardır. Kalan22 suite mutlak loader ile yeniden koşulmaktadır; sonuç/ham hatalar kanıt klasöründe. Eski suite'lerde readonly getter mutasyonu, eski marker/policy fixture, eksik explicit root, Windows exact path fixture ve negatif registry beklentisi görüldü. Bunların tümünü ürün dışı olarak otomatik aklamıyoruz; tam tarama bunlar netleştirilmeden tamamlanmış sayılmaz.
+
+Sıradaki somut iş: `REMAINING_ABSOLUTE_RUNNER.jsonl` tamamını oku; kalan22 suite'yi güncel authority/policy/cost ön koşullarıyla tek tek yeniden üret/düzelt, özellikle129.28 public-provider-snapshot ve129.27 audio compensation timeout. Üretim güvenlik sınırlarını veya frozen beklentileri gevşetme. Yeniden kaynak değişirse tekrar temiz build + controlled rollout gerekir. Son doküman HEAD'i için Graphify/yerel MCP/CI makbuzu oturum kaydıyla birlikte tutulur.

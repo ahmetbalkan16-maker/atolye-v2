@@ -792,3 +792,8 @@ Uzun vadede;
 olması hedeflenmektedir.
 
 Tüm mimari kararlar bu vizyona hizmet etmelidir.
+
+
+## 12 Ekim 2026 — Genel kontrol ara kaydı
+
+Kaynak düzeltmesi8eebc10 canlı build1osyiX6oqrIuLIy2JohQ- ile doğrulandı: strict local grammar/süre bütçesi, aktif60°C model request iptali, CPU opt-in ve test izolasyonu. Runtime/Studio/startup qualification ve27readiness kontrolü PASS; korunan üç veri metadata digest aynı. Source CI SUCCESS. Geniş taramada kalan22 eski suite henüz kapanmadı; genel hatasızlık veya yeniFull166 denmez. Sıradaki iş/kanıt ve rollback: [12 Ekim raporu](docs/ATOLYE_FULL_AUDIT_2026-10-12.md); aktif checkpoint önceliklidir.
