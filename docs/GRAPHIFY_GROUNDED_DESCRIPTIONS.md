@@ -18,6 +18,24 @@ node --max-old-space-size=768 scripts/graphify-grounded-descriptions.mjs --apply
 npx tsx scripts/smoke-graphify-grounded-descriptions.ts
 ```
 
+Native `update` rebuilds existing AST nodes without carrying their prior descriptions.
+To finalize its pending lifecycle, stage source-grounded answers for the prompts it
+actually emitted, then let that same native update ingest them (API calls remain zero):
+
+```powershell
+graphify update --scope all --fill-missing --no-label --description-mode assistant .
+node --max-old-space-size=768 scripts/graphify-grounded-descriptions.mjs --stage-update --out .graphify/native-description-staging
+graphify update --scope all --fill-missing --no-label --description-mode assistant .
+npx tsx scripts/smoke-graphify-native-answer-staging.ts
+```
+
+`--stage-update` never archives/consumes the current prompts, edits the graph, or removes
+the pending marker. It checks graph/source hashes and unresolved evidence, validates
+every requested ID before writing any batch, and refuses conflicting existing answers.
+It is idempotent for identical answers. Do not combine it with `--apply`. Native update
+clears the marker only when its real described coverage is complete. Recheck structural
+complement hashes after the update; no manual marker deletion is part of this workflow.
+
 Only run `--apply` while no other process writes the canonical graph. Before ingest, the helper
 checks that neither the graph nor described source files changed during the audit. A stale
 SHA-attested complement or unresolved node stops application. After ingest it verifies node IDs

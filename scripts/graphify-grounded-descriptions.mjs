@@ -23,6 +23,34 @@ export function readSource(root, file) {
   return fs.readFileSync(resolved, 'utf8');
 }
 
+/** Answer the exact pending native-update prompts without consuming them.
+ * Native update rebuilds AST nodes, so a standalone `describe` ingest is not
+ * enough to finalize that lifecycle. The next native update must ingest these.
+ * Validate every batch before writing any answer; never overwrite a conflict.
+ */
+export function stageNativeDescriptionAnswers(instructionDir, descriptions) {
+  const prompts = fs.readdirSync(instructionDir).filter(name => /^batch-\d+\.md$/.test(name)).sort();
+  if (!prompts.length) throw new Error('DESCRIPTION_NATIVE_PROMPTS_REQUIRED');
+  const plans = prompts.map(name => {
+    const file = path.join(instructionDir, name);
+    if (!fs.lstatSync(file).isFile() || fs.lstatSync(file).isSymbolicLink() || fs.statSync(file).size > 1_000_000) throw new Error('DESCRIPTION_NATIVE_PROMPT_REFUSED');
+    const ids = [...fs.readFileSync(file, 'utf8').matchAll(/^- "([^"]+)":/gm)].map(match => match[1]);
+    if (!ids.length || ids.some(id => !Object.hasOwn(descriptions, id) || typeof descriptions[id] !== 'string' || !descriptions[id].trim())) throw new Error('DESCRIPTION_NATIVE_UNVERIFIED_ID');
+    const answers = Object.fromEntries(ids.map(id => [id, descriptions[id]]));
+    const output = file.replace(/\.md$/, '.json');
+    if (fs.existsSync(output)) {
+      if (!fs.lstatSync(output).isFile() || fs.lstatSync(output).isSymbolicLink() || fs.statSync(output).size > 2_000_000 || JSON.stringify(JSON.parse(fs.readFileSync(output, 'utf8'))) !== JSON.stringify(answers)) throw new Error('DESCRIPTION_NATIVE_ANSWER_CONFLICT');
+    }
+    return { output, answers, count: ids.length };
+  });
+  for (const plan of plans) {
+    if (fs.existsSync(plan.output)) {
+      if (!fs.lstatSync(plan.output).isFile() || fs.lstatSync(plan.output).isSymbolicLink() || fs.statSync(plan.output).size > 2_000_000 || JSON.stringify(JSON.parse(fs.readFileSync(plan.output, 'utf8'))) !== JSON.stringify(plan.answers)) throw new Error('DESCRIPTION_NATIVE_ANSWER_CONFLICT');
+    } else fs.writeFileSync(plan.output, JSON.stringify(plan.answers, null, 2), { flag: 'wx' });
+  }
+  return { batches: plans.length, nodes: plans.reduce((sum, plan) => sum + plan.count, 0) };
+}
+
 /** Extract declaration identity and actual AST facts; never infer purpose from a name. */
 export function indexTypeScript(ts, file, text) {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
@@ -248,7 +276,20 @@ export function main(args = process.argv.slice(2)) {
   fs.writeFileSync(path.join(out, 'unresolved.json'), JSON.stringify(result.unresolved, null, 2));
   fs.writeFileSync(path.join(out, 'answers.json'), JSON.stringify(result.descriptions, null, 2));
   const receipt = { version: 1, generated_at: new Date().toISOString(), source_head: git(['rev-parse', 'HEAD']).trim(), mode: 'local-source-grounded-assistant-answers', api_calls: 0, graph_before_sha256: hash(graphText), before, grounded: Object.keys(result.descriptions).length, unresolved: result.unresolved.length, evidence_modes: result.evidence.reduce((counts, item) => ({ ...counts, [item.mode]: (counts[item.mode] ?? 0) + 1 }), {}), applied: false };
-  if (args.includes('--apply')) {
+  if (args.includes('--stage-update') && args.includes('--apply')) throw new Error('DESCRIPTION_MODE_CONFLICT');
+  if (args.includes('--stage-update')) {
+    if (result.unresolved.length) throw new Error(`DESCRIPTION_UNRESOLVED_${result.unresolved.length}`);
+    if (hash(fs.readFileSync(graphPath, 'utf8')) !== hash(graphText)) throw new Error('DESCRIPTION_GRAPH_CHANGED_DURING_AUDIT');
+    const checkedSources = new Set();
+    for (const item of result.evidence) if (item.source_sha256 && !checkedSources.has(item.source_file)) {
+      if (hash(readSource(root, item.source_file)) !== item.source_sha256) throw new Error('DESCRIPTION_SOURCE_CHANGED_DURING_AUDIT');
+      checkedSources.add(item.source_file);
+    }
+    receipt.staged_native_answers = stageNativeDescriptionAnswers(path.join(state, 'description-instructions'), result.descriptions);
+    receipt.staged_only = true;
+    receipt.graph_unchanged = hash(fs.readFileSync(graphPath, 'utf8')) === hash(graphText);
+    if (!receipt.graph_unchanged) throw new Error('DESCRIPTION_GRAPH_CHANGED_DURING_AUDIT');
+  } else if (args.includes('--apply')) {
     if (result.unresolved.length) throw new Error(`DESCRIPTION_UNRESOLVED_${result.unresolved.length}: inspect ${path.join(out, 'unresolved.json')}`);
     if (hash(fs.readFileSync(graphPath, 'utf8')) !== hash(graphText)) throw new Error('DESCRIPTION_GRAPH_CHANGED_DURING_AUDIT');
     const checkedSources = new Set();
