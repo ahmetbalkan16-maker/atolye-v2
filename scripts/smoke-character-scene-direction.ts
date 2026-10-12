@@ -19,6 +19,7 @@ async function main() {
     const p = planCharacterScene({ sceneId: 1, text, contextualDirection: true });
     const direction = planCharacterSceneDirection(text, p.request.blocking);
     assert.equal(direction.art.culture, culture);
+    assert.equal(direction.art.version, "2");
     assert.equal(direction.art.faith, culture === "BYZANTINE" ? "CHRISTIANITY" : "UNSPECIFIED");
     assert.equal(direction.art.roles[0]!.role, "RULER");
     assert.deepEqual(findCharacterStoryBeatProblems(direction.beats, p.request.blocking), []);
@@ -27,6 +28,11 @@ async function main() {
     const svg = renderCharacterSceneAssetFrame(payload, 0.8, 8);
     assert(isRasterizableCharacterSceneSvg(svg)); assert.match(svg, /data-throne-culture=/);
     assert.match(svg, new RegExp(`data-art-culture="${culture}"`));
+    assert.match(svg, new RegExp(`data-palace-culture="${culture}"`));
+    const previous = { ...payload, direction: { ...direction, art: { ...direction.art, version: "1" as const } } };
+    assert.deepEqual(findCharacterSceneAssetPayloadProblems(previous), []);
+    assert.doesNotMatch(renderCharacterSceneAssetFrame(previous, 0.8, 8), /data-palace-version="2"/);
+    assert.notEqual(svg, renderCharacterSceneAssetFrame(previous, 0.8, 8));
     assert.equal(svg, renderCharacterSceneAssetFrame(payload, 0.8, 8));
     fingerprints.add(svg);
     const raster = await rasterizeCharacterSceneSvg(svg); assert(raster.ok);

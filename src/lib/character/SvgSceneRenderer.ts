@@ -276,7 +276,7 @@ function renderSceneDocument(
 export const EDITORIAL_RENDER_STYLE = "editorial-v2" as const;
 export const CHARACTER_ART_CULTURES = ["UNKNOWN", "OTTOMAN", "BYZANTINE", "ROMAN", "WESTERN", "STEPPE", "EGYPTIAN"] as const;
 export interface CharacterArtDirection {
-  readonly version: "1";
+  readonly version: "1" | "2";
   /** Explicit scene context, not an inferred ethnic identity from appearance. */
   readonly culture: (typeof CHARACTER_ART_CULTURES)[number];
   readonly faith: "UNSPECIFIED" | "ISLAM" | "CHRISTIANITY" | "ANCIENT_EGYPT";
@@ -284,7 +284,7 @@ export interface CharacterArtDirection {
 }
 export function findCharacterArtDirectionProblems(value: unknown): string[] {
   const v = value as Partial<CharacterArtDirection> | null;
-  if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some(k => !["version", "culture", "faith", "roles"].includes(k)) || v.version !== "1" || !(CHARACTER_ART_CULTURES as readonly unknown[]).includes(v.culture) || !["UNSPECIFIED", "ISLAM", "CHRISTIANITY", "ANCIENT_EGYPT"].includes(v.faith ?? "") || !Array.isArray(v.roles) || v.roles.length > 8) return ["ART_DIRECTION_SHAPE"];
+  if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some(k => !["version", "culture", "faith", "roles"].includes(k)) || !["1", "2"].includes(v.version ?? "") || !(CHARACTER_ART_CULTURES as readonly unknown[]).includes(v.culture) || !["UNSPECIFIED", "ISLAM", "CHRISTIANITY", "ANCIENT_EGYPT"].includes(v.faith ?? "") || !Array.isArray(v.roles) || v.roles.length > 8) return ["ART_DIRECTION_SHAPE"];
   const seen = new Set<string>();
   for (const role of v.roles) {
     if (!role || Object.keys(role).length !== 2 || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(role.id) || seen.has(role.id) || !["RULER", "ADVISOR", "GUARD", "NARRATOR", "CITIZEN"].includes(role.role)) return ["ART_DIRECTION_ROLES"];
@@ -309,6 +309,7 @@ export function editorialSceneTheme(blocking: SceneBlocking): string {
 /** Layered illustrative settings are scenery, not photographs or historical evidence. */
 export function renderEditorialBackdrop(blocking: SceneBlocking, direction?: CharacterArtDirection): string {
   const theme = editorialSceneTheme(blocking);
+  if (theme === "palace" && direction?.version === "2" && direction.culture !== "UNKNOWN") return renderCulturalPalace(direction.culture, blocking.time);
   const night = blocking.time === "NIGHT";
   const dusk = blocking.time === "DUSK";
   const sky = night ? "#243550" : dusk ? "#ffe0bf" : "#e6f1f3";
@@ -409,6 +410,76 @@ function renderDirectedThrone(x: number, depth: number, culture: CharacterArtDir
   return `<g data-prop="THRONE" data-throne-culture="${culture}">${body.join("")}</g>`;
 }
 
+/** Version 2 scenery families. Stylised architecture; not a claim about a specific surviving palace. */
+function renderCulturalPalace(culture: CharacterArtDirection["culture"], time: StageTime): string {
+  const night = time === "NIGHT";
+  const wall = culture === "EGYPTIAN" ? "#d5b77a" : culture === "BYZANTINE" ? "#bea98e" : culture === "WESTERN" ? "#b5b9ba" : culture === "STEPPE" ? "#d8c7a8" : "#eee2cb";
+  const parts = [`<g data-art-environment="palace" data-palace-culture="${culture}" data-palace-version="2">`, rect(0, 0, 1920, 1080, wall)];
+  if (culture === "OTTOMAN") {
+    // Pointed arch windows, decorative tile panels and timber ceiling: visually distinct from a European court.
+    parts.push(rect(0, 0, 1920, 74, "#795d46"), rect(0, 82, 1920, 16, "#c7a469"));
+    for (const x of [70, 445, 1075, 1450]) {
+      parts.push(path(`M${x} 575 L${x} 275 Q${x + 150} 80 ${x + 300} 275 L${x + 300} 575Z`, night ? "#385b75" : "#a5c7d2", "#c8ad78", 16));
+      parts.push(seg({ x: x + 150, y: 195 }, { x: x + 150, y: 572 }, 8, "#efdfbd"), seg({ x, y: 405 }, { x: x + 300, y: 405 }, 8, "#efdfbd"));
+      parts.push(path(`M${x + 8} 570 Q${x + 100} 510 ${x + 190} 555 Q${x + 240} 445 ${x + 292} 570Z`, night ? "#607c85" : "#7caaac", "none"));
+    }
+    for (let col = 0; col < 24; col++) for (let row = 0; row < 3; row++) {
+      const x = col * 80; const y = 580 + row * 28;
+      parts.push(rect(x, y, 78, 26, (row + col) % 2 ? "#587e90" : "#e8ead6"), path(`M${x + 39} ${y + 3} L${x + 53} ${y + 13} L${x + 39} ${y + 23} L${x + 25} ${y + 13}Z`, "#a3bdb2", "none"));
+    }
+    parts.push(path("M800 105 Q960 0 1120 105 L1120 550 L800 550Z", "#ead5ad", "#c19b5c", 9));
+    parts.push(rect(874, 130, 172, 350, "#abc3b6", 22));
+  } else if (culture === "BYZANTINE") {
+    // Vaults, warm brick and mosaic-like geometric bands; no invented saint portraits.
+    for (let row = 0; row < 9; row++) for (let col = 0; col < 12; col++) parts.push(rect(col * 168 + (row % 2) * 84, 80 + row * 58, 155, 46, (row + col) % 3 ? "#c5aa8f" : "#b99a80", 3));
+    parts.push(path("M0 120 Q480 -170 960 120 Q1440 -170 1920 120 L1920 210 Q1440 -40 960 210 Q480 -40 0 210Z", "#d5bd88", "#b4955b", 8));
+    for (const x of [90, 645, 1200, 1755]) parts.push(rect(x, 270, 70, 355, "#e8dfca", 12), rect(x - 20, 250, 110, 34, "#c4a465", 8), rect(x - 14, 615, 98, 42, "#c4a465", 5));
+    for (const x of [240, 805, 1360]) parts.push(path(`M${x} 525 L${x} 370 A145 145 0 0 1 ${x + 290} 370 L${x + 290} 525Z`, night ? "#485c70" : "#c9d5ca", "#9e8155", 9));
+    for (let col = 0; col < 24; col++) parts.push(rect(col * 80, 574, 76, 54, col % 2 ? "#b88b54" : "#e0c17d", 3));
+  } else if (culture === "ROMAN") {
+    // Open atrium and classical column spacing, rather than medieval pointed windows.
+    parts.push(rect(120, 100, 1680, 430, night ? "#405875" : "#b7d6df"));
+    parts.push(path("M180 525 Q500 380 760 525 T1730 490 L1730 570 L180 570Z", "#879d83", "none"));
+    parts.push(rect(0, 58, 1920, 67, "#b49e7d"), rect(0, 126, 1920, 28, "#f7efdd"), rect(0, 562, 1920, 105, "#b67e6a"));
+    for (const x of [60, 420, 780, 1140, 1500, 1845]) {
+      parts.push(rect(x, 184, 58, 417, "#f1e9d5", 10), rect(x - 18, 160, 96, 40, "#d6c5a5", 6), rect(x - 14, 587, 86, 42, "#d6c5a5", 5));
+      for (const dx of [13, 29, 45]) parts.push(rect(x + dx, 212, 3, 351, "#d6c5a5"));
+    }
+  } else if (culture === "EGYPTIAN") {
+    // Flat lintels and broad lotus-like capitals, unlike the arched court families.
+    for (let row = 0; row < 8; row++) for (let col = 0; col < 14; col++) parts.push(rect(col * 142 + (row % 2) * 71, 110 + row * 60, 137, 55, (row + col) % 3 ? "#d6bb85" : "#d0b17b", 2));
+    parts.push(rect(0, 80, 1920, 54, "#607a8e"), rect(0, 136, 1920, 17, "#d5ac4c"));
+    for (const x of [140, 620, 1100, 1580]) {
+      parts.push(rect(x, 250, 88, 380, "#dfc792", 8), path(`M${x - 35} 230 L${x + 123} 230 L${x + 95} 290 L${x - 7} 290Z`, "#819a90", "#657b71", 4), rect(x - 15, 618, 118, 36, "#ba9957", 3));
+      for (const y of [300, 330, 580]) parts.push(rect(x, y, 88, 16, "#59778e"));
+    }
+    parts.push(rect(795, 200, 330, 340, "#867051", 3), rect(824, 222, 272, 318, night ? "#4e667c" : "#bdd0ca", 1), rect(776, 185, 368, 38, "#c8aa62", 2));
+  } else if (culture === "WESTERN") {
+    parts.push(rect(0, 0, 1920, 115, "#67594e"));
+    for (const x of [80, 470, 1170, 1560]) {
+      parts.push(path(`M${x} 540 L${x} 240 Q${x + 140} 90 ${x + 280} 240 L${x + 280} 540Z`, night ? "#4b5b7c" : "#bfd2d9", "#7a7a75", 13));
+      parts.push(seg({ x: x + 140, y: 175 }, { x: x + 140, y: 536 }, 9, "#f0e6cf"), seg({ x, y: 390 }, { x: x + 280, y: 390 }, 9, "#f0e6cf"));
+    }
+    for (const x of [385, 1000, 1775]) parts.push(path(`M${x} 133 L${x + 100} 133 L${x + 90} 430 L${x + 50} 468 L${x + 10} 430Z`, "#95636f", "#c3a269", 6));
+    parts.push(rect(0, 568, 1920, 96, "#887262"));
+    for (let x = 0; x < 1920; x += 110) parts.push(rect(x + 10, 582, 85, 64, "#a08873", 5));
+  } else {
+    // Steppe court concept: felt, timber lattice and a central roof ring.
+    parts.push(ellipse(960, 92, 820, 78, "#9c7e5d"), ellipse(960, 92, 210, 43, night ? "#405671" : "#aac5cd"));
+    for (let x = -600; x < 2400; x += 180) { parts.push(path(`M${x} 205 L${x + 540} 650`, "none", "#ad9474", 5), path(`M${x} 650 L${x + 540} 205`, "none", "#ad9474", 5)); }
+    parts.push(rect(805, 234, 310, 430, "#967657", 65), rect(835, 270, 250, 394, night ? "#586880" : "#bbc5ac", 55));
+  }
+  parts.push(rect(0, 665, 1920, 415, culture === "ROMAN" || culture === "BYZANTINE" ? "#e4ddd0" : "#e5d6ba"));
+  for (const x of [-600, 0, 600, 1200, 1800, 2400]) parts.push(path(`M960 665 L${x} 1080`, "none", "#c7baa3", 2));
+  for (const y of [740, 845, 1000]) parts.push(rect(0, y, 1920, 2, "#c7baa3"));
+  if (!["ROMAN", "EGYPTIAN"].includes(culture)) {
+    parts.push(path("M690 665 L1230 665 L1540 1080 L380 1080Z", culture === "OTTOMAN" ? "#9c6764" : culture === "BYZANTINE" ? "#826484" : "#9d686a", "#d4b97f", 7));
+    for (let row = 0; row < 3; row++) for (let col = 0; col < 5; col++) parts.push(path(`M${770 + col * 78 - row * 18} ${705 + row * 88} l18 16 l-18 16 l-18 -16Z`, "#c4a777", "none"));
+  }
+  parts.push("</g>");
+  return parts.join("");
+}
+
 export function renderEditorialCharacter(item: BlockedCharacter, frame: CharacterFrameOverride | undefined, prop: (joints: CharacterJoints, scale: number) => string, direction?: CharacterArtDirection): string {
   const variant = editorialActorVariant(item.id);
   const scale = 1.28 * (1 - 0.5 * item.depth);
@@ -422,6 +493,7 @@ export function renderEditorialCharacter(item: BlockedCharacter, frame: Characte
   const color = colors[variant]!;
   const role = direction?.roles.find(r => r.id === item.id)?.role;
   const culture = direction?.culture ?? "UNKNOWN";
+  const wardrobe = direction?.version === "2";
   const coat = role === "RULER" && culture === "BYZANTINE" ? "#65385c" : role === "RULER" && culture === "EGYPTIAN" ? "#eddfb5" : item.costume === "TURBAN" ? ["#9c3947", "#3c6475", "#706047"][variant % 3]! : item.costume === "CROWN" ? "#514c83" : item.costume === "HELMET" || item.costume === "ARMOR" ? "#7b8997" : color;
   const parts = [e(ground, 0, 6, 61, 10, "#b9ad98", "none")];
   if (role === "RULER" && (culture === "WESTERN" || culture === "BYZANTINE")) parts.push(poly([p(joints.shoulder, -32, -1), p(joints.hip, -75, 49), p(joints.hip, 52, 49), p(joints.shoulder, 25, 0)], "#793d51"));
@@ -432,6 +504,34 @@ export function renderEditorialCharacter(item: BlockedCharacter, frame: Characte
   if (item.costume !== "NONE") parts.push(seg(p(joints.hip, -34, -8), p(joints.hip, 34, -8), 12 * scale, "#d6b574"));
   for (const y of [28, 53, 78]) parts.push(e(joints.shoulder, 13, y, 3, 3, "#f6de9e", "none"));
   if (role === "RULER") for (const y of [20, 47, 74]) for (const x of [-19, 23]) parts.push(e(joints.shoulder, x, y, 4, 6, "#d7ba76", "none"));
+  if (wardrobe) {
+    const advisor = role === "ADVISOR";
+    if (culture === "ROMAN") {
+      parts.push(poly([p(joints.shoulder, -35, -3), p(joints.shoulder, 32, 10), p(joints.hip, 42, 55), p(joints.hip, -37, 55)], advisor ? "#e3d5b7" : role === "GUARD" ? "#b36952" : "#f3e4c4"));
+      parts.push(seg(p(joints.shoulder, -29, 0), p(joints.hip, 25, 42), 12 * scale, role === "RULER" ? "#886083" : "#9c5850"));
+    } else if (culture === "EGYPTIAN") {
+      parts.push(poly([p(joints.hip, -30, -8), p(joints.hip, 31, -8), p(joints.hip, 48, 67), p(joints.hip, -44, 67)], "#f4e9ca"));
+      parts.push(seg(p(joints.shoulder, -29, 8), p(joints.shoulder, 30, 8), 16 * scale, role === "RULER" ? "#547e9a" : "#c6a766"), seg(p(joints.hip, -31, 0), p(joints.hip, 31, 0), 9 * scale, "#c8a85d"));
+    } else if (culture === "OTTOMAN") {
+      const cloth = role === "GUARD" ? "#ede2c4" : advisor ? "#426e71" : "#9c3947";
+      parts.push(poly([p(joints.shoulder, -32, 0), p(joints.shoulder, 31, 0), p(joints.hip, 48, advisor ? 78 : 59), p(joints.hip, -46, advisor ? 78 : 59)], cloth));
+      parts.push(seg(p(joints.shoulder, -27, 6), p(joints.hip, -10, 48), 7 * scale, "#d7bd82"), seg(p(joints.shoulder, 26, 6), p(joints.hip, 11, 48), 7 * scale, "#d7bd82"));
+      if (role === "RULER") for (const x of [-24, 24]) parts.push(e(joints.shoulder, x, 6, 13, 19, "#e8ddc5", "none"));
+      parts.push(seg(p(joints.hip, -35, 1), p(joints.hip, 34, 1), 13 * scale, role === "GUARD" ? "#9a4f50" : "#c3a36a"));
+    } else if (culture === "BYZANTINE") {
+      const cloth = role === "GUARD" ? "#84909b" : advisor ? "#9c8560" : "#65385c";
+      parts.push(poly([p(joints.shoulder, -33, 0), p(joints.shoulder, 33, 0), p(joints.hip, 42, advisor ? 78 : 47), p(joints.hip, -42, advisor ? 78 : 47)], cloth));
+      if (role === "RULER") for (let y = 12; y < 148; y += 22) parts.push(e(joints.shoulder, 2, y, 9, 7, "#d8bc75", "none"));
+      else parts.push(seg(p(joints.shoulder, -23, 7), p(joints.hip, 24, 34), 8 * scale, "#d0b17c"));
+    } else if (culture === "WESTERN") {
+      parts.push(poly([p(joints.shoulder, -30, 0), p(joints.shoulder, 30, 0), p(joints.hip, 38, 40), p(joints.hip, -38, 40)], role === "RULER" ? "#496288" : advisor ? "#93605e" : "#929ca6"));
+      parts.push(seg(p(joints.shoulder, 0, 10), p(joints.hip, 0, 32), 9 * scale, "#d9c493"));
+      if (role === "RULER") for (const x of [-24, 24]) parts.push(e(joints.shoulder, x, 5, 13, 16, "#f0e6d3", "none"));
+    } else if (culture === "STEPPE") {
+      parts.push(poly([p(joints.shoulder, -30, 0), p(joints.shoulder, 32, 0), p(joints.hip, 43, 54), p(joints.hip, -43, 54)], role === "RULER" ? "#946649" : advisor ? "#5f795e" : "#746049"));
+      parts.push(seg(p(joints.shoulder, -22, 5), p(joints.hip, 22, 43), 7 * scale, "#cbb997"));
+    }
+  }
   parts.push(seg(joints.shoulder, joints.elbowFront, 17 * scale, coat), seg(joints.elbowFront, joints.handFront, 13 * scale));
   parts.push(e(joints.head, 0, 0, 58, variant === 2 || variant === 5 ? 62 : 57, "#fffaf1"));
   const face = EXPRESSION_SHAPES[item.expression];
@@ -446,7 +546,13 @@ export function renderEditorialCharacter(item: BlockedCharacter, frame: Characte
   else if (mouth) parts.push(poly([p(joints.head, -20, 22), p(joints.head, 24, 22), p(joints.head, 15, 42), p(joints.head, -8, 43)], ART_INK), seg(p(joints.head, -14, 25), p(joints.head, 19, 25), 5 * scale, "white"), e(joints.head, 6, 38, 10, 4, "#e97879", "none"));
   else parts.push(path(`M${num(joints.head.x - 19 * scale)} ${num(joints.head.y + 29 * scale)} q${22 * scale} ${face.mouthCurve * 70 * scale} ${39 * scale} 0`, "none", ART_INK, 4 * scale));
   // Full headwear and secondary identity details, positioned from animated head joints.
-  if (role === "RULER" && culture === "EGYPTIAN") {
+  if (wardrobe && culture === "EGYPTIAN" && role !== "RULER") {
+    parts.push(poly([p(joints.head, -53, -37), p(joints.head, -42, -64), p(joints.head, 43, -64), p(joints.head, 52, -37)], "#3d3c36"), seg(p(joints.head, -47, -38), p(joints.head, 47, -38), 8 * scale, "#bda263"));
+  } else if (wardrobe && culture === "ROMAN" && role === "ADVISOR") {
+    parts.push(path(`M${num(joints.head.x - 44 * scale)} ${num(joints.head.y - 40 * scale)} Q${num(joints.head.x)} ${num(joints.head.y - 75 * scale)} ${num(joints.head.x + 44 * scale)} ${num(joints.head.y - 40 * scale)}`, "none", "#605247", 9 * scale));
+  } else if (wardrobe && culture === "STEPPE") {
+    parts.push(e(joints.head, 0, -48, 63, 27, "#785b46"), seg(p(joints.head, -52, -32), p(joints.head, 52, -32), 12 * scale, "#c4b59a"));
+  } else if (role === "RULER" && culture === "EGYPTIAN") {
     parts.push(poly([p(joints.head, -60, -40), p(joints.head, -52, -74), p(joints.head, 52, -74), p(joints.head, 60, -40), p(joints.head, 77, 53), p(joints.head, 48, 50), p(joints.head, 42, -32), p(joints.head, -42, -32), p(joints.head, -48, 50), p(joints.head, -77, 53)], "#d9ba63"));
     for (const x of [-62, 60]) for (const y of [-25, -7, 11, 29]) parts.push(seg(p(joints.head, x - 7, y), p(joints.head, x + 7, y), 7 * scale, "#47617f"));
     parts.push(e(joints.head, 0, -55, 6, 12, "#45627a", "none"));
