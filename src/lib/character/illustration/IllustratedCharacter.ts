@@ -116,13 +116,14 @@ export function renderIllustratedCharacter(item: BlockedCharacter, frame: Charac
     for(const x of [-21,21]) parts.push(ellipse(j.head,x,-4,8,12,ink,"none"),ellipse(j.head,x-2,-9,2.5,4,"#fff","none"));
   }
   const angry = faceMood === "ANGRY" || faceMood === "DETERMINED";
-  parts.push(localPath(j.head,angry?"M-36-27L-11-20M11-20L36-27":"M-35-28Q-23-33-12-29M12-29Q23-33 35-28","none",ink,3.5));
+  const brow = faceMood === "SAD" ? "M-36-24Q-23-29-12-35M12-35Q23-29 36-24" : faceMood === "ANGRY" ? "M-36-30L-11-18M11-18L36-30" : angry ? "M-36-27L-11-20M11-20L36-27" : "M-35-28Q-23-33-12-29M12-29Q23-33 35-28";
+  parts.push(localPath(j.head,brow,"none",ink,3.5));
   for(const x of [-40,40]) parts.push(ellipse(j.head,x,15,9,4,"#efb4a1","none"));
   if (frame?.mouthOpen || (faceMood === "HAPPY" && frame === undefined)) {
     parts.push(localPath(j.head,"M-24 24Q0 31 24 24Q17 53 0 52Q-17 50-24 24Z",ink));
     parts.push(localPath(j.head,"M-19 27Q0 32 19 27L15 34Q0 38-15 34Z","#fff","none"),localPath(j.head,"M-11 46Q0 39 11 46Q0 55-11 46Z","#e96572","none"));
   } else if(faceMood === "SURPRISED") parts.push(ellipse(j.head,0,33,9,12,ink));
-  else parts.push(localPath(j.head,angry?"M-16 33Q0 28 16 33":"M-21 27Q0 44 21 27","none",ink,3.5));
+  else parts.push(localPath(j.head,faceMood === "SAD" ? "M-19 36Q0 21 19 36" : angry?"M-16 33Q0 28 16 33" : faceMood === "NEUTRAL" ? "M-18 32H18" : "M-21 27Q0 44 21 27","none",ink,3.5));
   if(advisor || (!historical && identity%3===1)) {
     for(const x of [-21,21]) parts.push(ellipse(j.head,x,-6,20,23,"none",ink,2.6));
     parts.push(localPath(j.head,"M-1-6H1M-58-9L-42-6M42-6L58-9","none",ink,2.6));
