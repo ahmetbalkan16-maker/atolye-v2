@@ -7,13 +7,16 @@
 export const HAND_PROPS = Object.freeze(["SWORD", "SPEAR", "SHIELD", "FLAG", "SCROLL", "BOW", "TORCH"] as const);
 export type HandProp = (typeof HAND_PROPS)[number];
 export const STAGE_PROPS = Object.freeze(["CANNON", "TENT", "THRONE", "TREE", "SHIP", "TOWER", "HORSE", "TABLE"] as const);
-export type StageProp = (typeof STAGE_PROPS)[number];
+/** Additive modern vocabulary; the historical foundation's enumeration stays unchanged. */
+export const MODERN_STAGE_PROPS = Object.freeze(["MONITOR", "CHART", "MICROPHONE"] as const);
+export type StageProp = (typeof STAGE_PROPS)[number] | (typeof MODERN_STAGE_PROPS)[number];
 
 /** Width and height of a stage prop in pixels at scale 1. */
 export const STAGE_PROP_SIZE: Readonly<Record<StageProp, { readonly width: number; readonly height: number }>> = Object.freeze({
   CANNON: { width: 260, height: 120 }, TENT: { width: 340, height: 260 }, THRONE: { width: 180, height: 300 }, TREE: { width: 220, height: 380 },
   SHIP: { width: 520, height: 360 }, TOWER: { width: 200, height: 520 }, HORSE: { width: 360, height: 300 }, TABLE: { width: 280, height: 130 },
+  MONITOR: { width: 310, height: 230 }, CHART: { width: 320, height: 270 }, MICROPHONE: { width: 70, height: 190 },
 });
 
 export function isHandProp(value: unknown): value is HandProp { return typeof value === "string" && (HAND_PROPS as readonly string[]).includes(value); }
-export function isStageProp(value: unknown): value is StageProp { return typeof value === "string" && (STAGE_PROPS as readonly string[]).includes(value); }
+export function isStageProp(value: unknown): value is StageProp { return typeof value === "string" && [...STAGE_PROPS, ...MODERN_STAGE_PROPS].includes(value as StageProp); }

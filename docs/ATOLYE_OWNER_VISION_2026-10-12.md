@@ -1,0 +1,35 @@
+## 12 Ekim görsel kalite düzeltmesi — editorial-v2
+
+Owner önceki gerçek önizlemeyi fazla basit buldu. Yeni kalıcı yetenek `.claude/skills/ayas/editorial-animation/SKILL.md` ve AYAS skill router'ına kaydedildi; üretim davranışı skill okunmasına bağlı değildir. CharacterImageProvider her yeni PNG'ye `renderStyle: editorial-v2` yazar. Gerçek renderer'da katmanlı saray/kütüphane/teknoloji odası/ekonomi/forum ve dış ortamlar; oyuncu id'sine bağlı saç, gözlük, sakal, renk ve kıyafet farklılıkları var. Ana maskot sarı atkılıdır; yardımcılar farklı renk kullanır. Ağız, kıyafet ve aksesuarlar animasyon eklemlerine bağlıdır. Eski PNG'lerin stylesız payload'ı eski renderer'da kalır; yeni sahneler aynı gömülü stili galeride ve videoda kullanır. Tasarım SVG çizgi film stilidir, owner referansının birebir raster illüstrasyonu değildir.
+
+SVG okuyucusunun dış referans/url/filter yasağı korunur: gradyan kullanımı testte reddedildi ve yerel renk katmanlarına çevrildi. Tarihî testin sabit modül sınırı korunur; yeni sanat yordamları mevcut renderer'dadır. İlk FAIL logları korunur; test klonundaki artık deneme modülü temizlenip gerçek kaynak tekrar test edildi. 960x540 önizleme raster süresi16–29ms; bu tam1920 kare veya uzun video performans ölçümü değildir. Ücretli çağrı/model indirme yok.
+
+# Owner vizyonu: yerel maskot stüdyosu ve güvenli AYAS gelişimi
+
+Owner 12 Ekim 2026'da sarı atkılı, ortak yüz/kimliğe sahip; dönemine göre kıyafet, aksesuar ve ifadesi değişen çöp adam örneği verdi. Hedef: tarih, savaş, teknoloji, siyaset, ekonomi ve başka konularda Türkçe, eğlenceli ve eğitici YouTube videosu; yerel ağırlıklı üretim, mevcut OpenAI fiyat tavanı ve bilgisayar sağlığı önceliği. Bu bir video konusu veya otomatik yayın talimatı değildir; bu oturum owner videosu/ücretli çağrı üretmez.
+
+## Uygulama
+
+- Yerel SVG motorunda sarı atkı, beyaz eldiven/ayakkabı ve daha belirgin yüz. Animasyonlu PNG/frame yolunda etkin; tarihî foundation renderer'ın varsayılan byte çıktısı korunur. Model, GPU görüntü üretimi veya ağ çağrısı yok. Kıyafet, poz, yüz, TALK/yürüme/savaş hareketleri mevcut rig'i kullanır; fon müziği mevcut lisans doğrulayan yerel müzik/SFX ve ducking akışından gelir. Ağız hareketi konuşma animasyonudur; fonem düzeyinde lip-sync iddiası değildir.
+- Teknoloji, ekonomi, siyaset sahnelerine MONITOR/CHART/MICROPHONE: tarihî aksesuar enumeration'ını değiştirmeyen ayrı modern ek. Tarihî teknoloji bağlamına modern bilgisayar konmaz. Grafik bir ŞEMA'dır, gerçek veri veya istatistik değildir. Belgesel CANLANDIRMA etiketi korunur.
+- Studio'nun yeni video başlatma yolu `automaticLocalRepair:true` kullanır. Yalnız o yeni ilk koşuda, override'sız loopback Ollama ve bulut olmayan model için research/script/scenes'in açıkça tanınan cevap hataları otomatik yeniden denenir. En fazla toplam3 deneme;60/120s backoff. Job sürümü veya backend değişirse durur. Mevcut `prepareFailedStageRetry`, durable terminal lineage, CAS, retry admission, cost ve makine kapıları aynen zorunludur; yeni orchestrator, eski proje replay'i, extension veya sıcak kod yaması yok.
+- Ücretli/uzak çağrı, bilinmeyen maliyet, kullanım kaydı hatası, kaynak/izin sorunu, güvenlik reddi ve tanınmayan hata otomatik tekrarlanmaz. Bu durumlarda gerekçe ile durur; bütçeyi yükseltmez veya korumayı atlamaz. Kod geliştirmesi Gelişim Merkezi'nde yeni owner onayı ister. “Her hatayı sonsuza kadar kendisi çözer” sözü verilmez.
+- Kare çiziminde150karede bir mevcut RAM/disk/CPU/GPU sağlık kapısı; TEMP başka diskteyse gerçek kare diski için ayrıca en az%3 boş alan. FFmpeg render/montajında5s sağlık kontrolü: ret yalnız runner'ın kendi child'ını durdurur; normal timeout/çıktı sınırı ve temizliği korunur. Tek sahne/tek kare çizimi,1920x1080,15 animasyon fps/30 çıktı fps ve mevcut FFmpeg thread sınırları korunur. GPU60°C kuralı korunur; sensör bulunmayan CPU sıcaklığı uydurulmaz.
+
+## AYAS'ın sürekli öğrenmesi ve önerileri
+
+Mevcut Observer/discovery daemon → araştırma scheduler → güvenli public fetch → araştırma/improvement deneyleri → proposal inbox/Gelişim Merkezi bağlantısı kullanılır. Scheduler varsayılan açık: LIGHT6saat, DEEP24saat; PC açıkken kalıcı takvim işler, kaçırılan döngüler toplu ağır işe dönüşmez, belirsiz döngü tekrar oynatılmaz. Yeni background runner veya Codex token kotasına bağlı scheduler eklenmez.
+
+Mevcut kaynaklar Ollama, model/agent/memory/testing/safety kütüphaneleri, FFmpeg, Remotion, Manim, ses ve diğer gerçek bağımlılıkları izler. Resmî [YouTube Blog RSS](https://blog.youtube/rss/)12Ekim HTTP200/application+xml/28KB ile doğrulanıp eklendi. Eski arşiv Piper kaynağı [güncel resmî OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl) ile değişti; yazılım/voice lisansı ayrıca incelenmeden kurulum veya geçiş yapılmaz.404dönen YouTube API revision feed'i eklenmedi.
+
+Bir kaynak resmî olsa da güvenli/uyumlu/yararlı olduğu varsayılmaz. Mevcut Stage8/13/14 akışı relevance, gerçek eksik, ölçülen iyileşme, maliyet, donanım, lisans, güvenlik ve bağımlılık etkisini değerlendirir. Kanıtlı veya tasarım incelemesi gereken öneri "AYAS öneriyor" akışına gelir; onay/commit/push/canlı yayın yetkisi bu araştırmadan türetilmez. Homepage yeni kart/özellik almaz. Eski onay yeni HEAD'e taşınmaz.
+
+Gelir/marketplace çerçeveleri owner gelecekte hesapları bağlayıp etkinleştirene kadar mevcut kapılarında kalır. Araştırma, para harcama/aktarma, hesap bağlama veya YouTube upload izni değildir. [YouTube para kazanma politikası](https://support.google.com/youtube/answer/1311392?hl=tr) aynı karakterli farklı özgün/eğitici hikâyelere izin verirken seri, birbirini tekrar eden düşük değerli içerikleri ayırır; yalnız animasyon veya AI kullanımı gelir garantisi değildir.
+
+## Graphify ve doğrulama
+
+Eski354açıklama isteği arşivlendi; mevcut graf için495yeni assistant batch'i yerel AST/JSDoc/signature/direct-call/return ve gerçek Git bilgisiyle yanıtlandı; resmî describe yoluyla19.785/19.785node açıklamalı,55.267ilişki ve202kaynak-SHA node korunmuş,0çözümsüz. Eski/eksik semboller güncel kaynakta varmış gibi anlatılmaz. Yeni helper `scripts/graphify-grounded-descriptions.mjs`,14grounding smoke; API/kurulum0. Son kaynak commitinden sonra yeniden uygulanır ve native update gerçek coverage tamamlandığında pending'i kapatır.
+
+Yeni maskot/modern sahne, gerçek scoped-worker/durable otomatik retry, failure bound ve unknown-usage stop PASS. Tarihî14/golden6(24sahne), karakter15, assembly/scene render, stage-bounded,129.28 yetki, cost budget11/governor14, machine health20, research scheduler17/improvement28+integration, safe-fetch24 ve source-resilience24 PASS. TypeScript/lint/build/canlı/son CI makbuzları aşağıdaki klasörde güncellenir; bu kayıt hazırlanırken temiz build/canlı geçiş hâlâ sıradaki iştir.
+
+Kanıt: `C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\atolye-owner-vision-20261012`. `.graphify/grounded-descriptions*` kaynak/açıklama makbuzlarını tutar; runtime/generated dosyalar Git'e alınmaz. Her tamamlanan işte checkpoint ve Git kaydı; oturum sonunda temiz Git, hash-qualified build ve exact-HEAD graph doğrulaması zorunludur.

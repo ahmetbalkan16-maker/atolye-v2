@@ -6,6 +6,7 @@ import {
 } from "./CharacterAnimation";
 import { findCharacterSceneRequestProblems, type CharacterSceneRequest } from "../../character/CharacterSceneManifest";
 import { renderCharacterSceneFrameSvg } from "../../character/SvgSceneRenderer";
+import { EDITORIAL_RENDER_STYLE } from "../../character/SvgSceneRenderer";
 
 /**
  * Atölye stick-figure scene asset — the PNG the visuals stage stores for a character scene, and how the video stage
@@ -32,6 +33,8 @@ export interface CharacterSceneAssetPayload {
   readonly request: CharacterSceneRequest;
   readonly animation: CharacterAnimationPlan;
   readonly fontFamily: string;
+  /** Absent on historical assets; their original appearance stays unchanged. */
+  readonly renderStyle?: typeof EDITORIAL_RENDER_STYLE;
 }
 
 export type CharacterScenePayloadRead =
@@ -42,10 +45,11 @@ export type CharacterScenePayloadRead =
 export function findCharacterSceneAssetPayloadProblems(value: unknown): string[] {
   const payload = value as Partial<CharacterSceneAssetPayload> | null;
   if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
-      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily"].includes(key))) return ["PAYLOAD_SHAPE"];
+      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily", "renderStyle"].includes(key))) return ["PAYLOAD_SHAPE"];
   const problems: string[] = [];
   if (payload.schemaVersion !== CHARACTER_SCENE_ASSET_SCHEMA_VERSION) problems.push("PAYLOAD_SCHEMA_VERSION");
   if (payload.fontFamily !== CHARACTER_SCENE_FONT_FAMILY) problems.push("PAYLOAD_FONT");
+  if (payload.renderStyle !== undefined && payload.renderStyle !== EDITORIAL_RENDER_STYLE) problems.push("PAYLOAD_RENDER_STYLE");
   const requestProblems = findCharacterSceneRequestProblems(payload.request);
   problems.push(...requestProblems);
   // A drawn scene in a documentary always says what it is.
@@ -59,7 +63,7 @@ export function renderCharacterSceneAssetFrame(payload: CharacterSceneAssetPaylo
   return renderCharacterSceneFrameSvg(
     payload.request.blocking,
     characterAnimationFrame(payload.request.blocking, payload.animation, t),
-    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily },
+    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily, renderStyle: payload.renderStyle },
   );
 }
 

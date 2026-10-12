@@ -1,5 +1,8 @@
 import fs from "node:fs";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { planAutomaticLocalRepair, isAutomaticRepairLocalBackend } from "./PipelineAutomaticLocalRepair";
+import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
+import { resolveProductionProviderName } from "@/lib/production/ProductionProviderResolution";
 import { PipelineJobManager } from "./PipelineJobManager";
 import { getRetryBudgetExtensionDirectory } from "@/lib/production/ProductionPipelineRetryBudgetExtensionStore";
 import { verifyCanonicalPipelineRetryBudgetExtensionAdmission } from "@/lib/production/ProductionPipelineRetryBudgetExtensionGate";
@@ -153,6 +156,8 @@ export class PipelineRunner {
     topic: string,
     options: {
       stageExecution?: PipelineStageExecutionOptions;
+      /** Only this freshly requested run, never startup recovery or a historical project. */
+      automaticLocalRepair?: boolean;
       /**
        * Stop the fresh run cleanly the moment this stage completes — the same
        * bounded semantics as `resume(projectSlug, { stopAfterStage })`. The
@@ -172,6 +177,7 @@ export class PipelineRunner {
     topic: string,
     options: {
       stageExecution?: PipelineStageExecutionOptions;
+      automaticLocalRepair?: boolean;
       stopAfterStage?: PipelineRecoveryStageKey;
     } = {},
   ) {
@@ -189,6 +195,7 @@ export class PipelineRunner {
           options.stageExecution,
           undefined,
           options.stopAfterStage,
+          options.automaticLocalRepair === true,
         );
 
       // A clean bounded stop (`stoppedAfterStage`) is a success, but the project
@@ -1002,6 +1009,7 @@ export class PipelineRunner {
     stageExecution?: PipelineStageExecutionOptions,
     retryAdmission?: { admission: PipelineRetryAdmission; previousJob: PipelineJob },
     stopAfterStage?: PipelineRecoveryStageKey,
+    automaticLocalRepair = false,
   ): Promise<{
     completedStages: PipelineRecoveryStageKey[];
     stopReason?: string;
@@ -1029,14 +1037,42 @@ export class PipelineRunner {
       // The caller's options go through untouched: a spread copy keeps only own
       // enumerable keys, so an admitted provider held any other way was dropped and
       // the configured provider dispatched instead (Sprint 129.28 one-read snapshot).
-      const execute = () => this.runPipelineStage(
-        slug, nextStage, state, runType, undefined, stageExecution, stopAfterStage,
-      );
-      const completed = retryAdmission?.admission.stage === nextStage
-        ? await withProductionAcceptanceRetryAdmission(
-          retryAdmission.admission, retryAdmission.previousJob, execute,
-        )
-        : await execute();
+      let stageAdmission = retryAdmission?.admission.stage === nextStage ? retryAdmission : undefined;
+      let completed: boolean;
+      while (true) {
+        const execute = () => this.runPipelineStage(
+          slug, nextStage, state, stageAdmission?.admission.runType ?? runType,
+          undefined, stageExecution, stopAfterStage,
+        );
+        try {
+          completed = stageAdmission
+            ? await withProductionAcceptanceRetryAdmission(stageAdmission.admission, stageAdmission.previousJob, execute)
+            : await execute();
+          break;
+        } catch (error) {
+          if (!automaticLocalRepair || runType !== "initial" || stageExecution !== undefined) throw error;
+          const job = await PipelineJobManager.getJobForStageReadOnly(slug, nextStage);
+          if (!job) throw error;
+          const backend = resolveOllamaConfig();
+          const repair = planAutomaticLocalRepair({ stage: nextStage, provider: resolveProductionProviderName("ai"),
+            errorCode: canonicalErrorCode(error), status: job.status, attempts: job.attempts,
+            enabled: automaticLocalRepair, freshRun: runType === "initial", hasProviderOverrides: false,
+            localBackend: isAutomaticRepairLocalBackend(backend) });
+          if (!repair.allowed) throw error;
+          await new Promise<void>(resolve => setTimeout(function automaticLocalRepairBackoff() { resolve(); }, repair.delayMs));
+          const current = await PipelineJobManager.getJobForStageReadOnly(slug, nextStage);
+          const currentBackend = resolveOllamaConfig();
+          if (!current || current.id !== job.id || current.updatedAt !== job.updatedAt ||
+              current.attempts !== job.attempts || current.status !== "failed" ||
+              resolveProductionProviderName("ai") !== "ollama" || currentBackend.baseUrl !== backend.baseUrl ||
+              currentBackend.model !== backend.model) throw error;
+          // Reconciles terminal lineage, CAS ownership, attempt/cost limits and
+          // compensation before any new dispatch. No budget extension or replay.
+          const prepared = await prepareFailedStageRetry(slug, job.id);
+          if (!prepared.success) throw error;
+          stageAdmission = { admission: prepared.admission, previousJob: prepared.previousJob };
+        }
+      }
 
       if (!completed) {
         return {

@@ -112,7 +112,7 @@ export const AYAS_RESEARCH_SOURCE_REGISTRY: readonly AyasResearchSource[] = [
 
   // --- multimodal / voice / audio / transcription / TTS ---
   ghReleases("whisper", "OpenAI Whisper", "TRANSCRIPTION", "openai", "whisper", "Open-source speech-to-text model — directly comparable to this project's own STT."),
-  ghReleases("piper-tts", "Piper", "TTS", "rhasspy", "piper", "Open-source local TTS — directly comparable to this project's own `piper` provider."),
+  ghReleases("piper-tts", "Piper", "TTS", "OHF-Voice", "piper1-gpl", "Maintained official local TTS project; watch only. GPL software and each voice model's licence need independent review before adoption."),
 
   // --- video/media editing, tooling, developer platforms, automation ---
   ghReleases("openshot", "OpenShot", "VIDEO_EDITING", "OpenShot", "openshot-qt", "Open-source non-linear video editor."),
@@ -197,6 +197,10 @@ export const AYAS_RESEARCH_SOURCE_REGISTRY: readonly AyasResearchSource[] = [
   ghReleases("demucs", "Meta AI", "AUDIO_CLEANUP", "adefossez", "demucs", "Official music source separation — stem isolation/cleanup relevant to Atölye's audio stage. Low release frequency by design; watched, not expected to be noisy."),
 
   // --- publishing / media discovery -------------------------------------
+  { sourceId: "youtube-official-blog", provider: "YouTube", category: "QUALITY_ASSURANCE", kind: "rss",
+    url: "https://blog.youtube/rss/", officialSource: true,
+    notes: "Official creator/platform updates, originality and educational value, discovery and monetization changes; read-only research, never account activation or publication authority.",
+    expectedContentTypes: ["application/xml", "application/rss+xml", "text/xml"] },
   ghReleases("yt-dlp", "yt-dlp", "MEDIA_DISCOVERY", "yt-dlp", "yt-dlp", "Official yt-dlp — tracks YouTube platform/extractor changes, the most reliable public signal that YouTube-side behavior shifted under Atölye's publishing stage."),
 
   // --- platform / runtime dependencies this project actually ships on ---

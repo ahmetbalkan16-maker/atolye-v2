@@ -10,6 +10,7 @@ import {
 import { CHARACTER_SCENE_HEIGHT, CHARACTER_SCENE_WIDTH } from "@/lib/character/SvgSceneRenderer";
 import { rasterizeCharacterSceneSvg } from "@/lib/character/CharacterSceneRasterizer";
 import { planCharacterScene } from "@/lib/animation/character/CharacterScenePlanner";
+import { EDITORIAL_RENDER_STYLE } from "@/lib/character/SvgSceneRenderer";
 import type { ImageGenerationResult } from "@/types/asset";
 import { ImageStorage } from "../storage/ImageStorage";
 import type { ConfiguredImageProvider, ImageGenerationInput } from "./ImageProvider";
@@ -57,6 +58,7 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         request: plan.request,
         animation: plan.animation,
         fontFamily: CHARACTER_SCENE_FONT_FAMILY,
+        renderStyle: EDITORIAL_RENDER_STYLE,
       };
       const raster = await rasterizeCharacterSceneSvg(renderCharacterSceneAssetFrame(payload, CHARACTER_SCENE_STILL_SECONDS));
       if (!raster.ok) return failure(input.sceneId, createdAt);

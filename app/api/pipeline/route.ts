@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     // so the failure path below can point the user at their partial project.
     slug = ProjectManager.createSlug(topic.trim());
 
-    const result = await PipelineRunner.run(topic.trim());
+    const result = await PipelineRunner.run(topic.trim(), { automaticLocalRepair: true });
 
     if (result.stopReason) {
       return NextResponse.json(

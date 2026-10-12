@@ -37,7 +37,9 @@ export interface CharacterScenePlanInput {
 
 export type CharacterSceneKind =
   | "BATTLE" | "MARCH" | "RALLY" | "CELEBRATION" | "COURT" | "COUNCIL" | "VOYAGE"
-  | "BUILD" | "MARKET" | "SCHOLAR" | "PRAYER" | "JOURNEY" | "DEATH" | "NARRATOR";
+  | "BUILD" | "MARKET" | "SCHOLAR" | "PRAYER" | "JOURNEY" | "DEATH" | "NARRATOR"
+  | "TECHNOLOGY" | "ECONOMY" | "POLITICS";
+// Modern explainers use the same rig, props and worker, rather than an AI image model.
 
 export interface CharacterScenePlan {
   readonly kind: CharacterSceneKind;
@@ -66,6 +68,9 @@ const KIND_RULES: readonly (readonly [CharacterSceneKind, Stems, number?])[] = [
   ["MARKET", ["market", "bazaar", "merchant", "trade", "trading", "street", "bustling", "economy", "economic", "carsi", "pazar", "tuccar", "ticaret", "sokak", "esnaf", "ekonomi"]],
   ["SCHOLAR", ["scholar", "book", "writ", "scien", "teach", "study", "astronom", "poet", "philosoph", "alim", "kitap", "yazdi", "yazar", "bilim", "ogret", "ders", "sair", "medrese", "felsef"]],
   ["PRAYER", ["pray", "worship", "dua$", "namaz", "ibadet", "secde"]],
+  ["TECHNOLOGY", ["teknolo", "bilgisayar", "yazilim", "internet", "robot", "yapay zeka", "computer", "software", "technology", "artificial intelligence"]],
+  ["ECONOMY", ["enflasyon", "faiz", "borsa", "finans", "banka", "inflation", "interest rate", "stock market", "banking"]],
+  ["POLITICS", ["siyaset", "politika", "secim", "oy$", "demokrasi", "parlamento", "politic", "election", "democrac", "parliament"]],
   ["JOURNEY", ["journey", "travel", "migrat", "nomad", "caravan", "goc", "yolculuk", "kervan", "gocebe"]],
 ];
 
@@ -143,6 +148,10 @@ export function classifyCharacterScene(input: CharacterScenePlanInput): {
     const score = matches(text, stems) * weight;
     if (score > best) { best = score; kind = candidate; }
   }
+  // A historical technology scene must never acquire a modern computer merely
+  // because the prompt uses today's word "technology" to explain it.
+  if (kind === "TECHNOLOGY" && (/(?:^|\s)(?:[1-9]\d{2}|1[0-8]\d{2})(?:\s|$)/.test(text) ||
+      matches(text, ["osmanli", "bizans", "antik", "orta cag", "medieval", "ottoman", "byzantine"]) > 0)) kind = "SCHOLAR";
   const backdropScores = new Map(BACKDROP_RULES.map(([candidate, stems]) => [candidate, matches(text, stems)] as const));
   let backdrop: StageBackdrop = "PLAIN";
   let backdropScore = 0;
@@ -302,6 +311,14 @@ export function planCharacterScene(input: CharacterScenePlanInput): CharacterSce
       figures.push({ x: 0.5, depth: 0.15, facing: "RIGHT", pose: "STAND", expression: "SAD", costume: matches(text, ["sultan", "king", "emperor", "padisah", "kral", "imparator", "hukumdar"]) > 0 ? rulerHat : soldierHat("home"), handProp: null, action: "FALL", delay: 1.5 });
       figures.push({ x: 0.3, depth: 0.25, facing: "RIGHT", pose: "STAND", expression: "SAD", costume: soldierHat("home"), handProp: null, action: "KNEEL_DOWN", delay: 2.4 });
       figures.push({ x: 0.72, depth: 0.3, facing: "LEFT", pose: "STAND", expression: "SURPRISED", costume: soldierHat(twoSides ? "other" : "home"), handProp: twoSides ? "SWORD" : null, action: "IDLE" });
+      break;
+    }
+    case "TECHNOLOGY":
+    case "ECONOMY":
+    case "POLITICS": {
+      addProp(kind === "TECHNOLOGY" ? "MONITOR" : kind === "ECONOMY" ? "CHART" : "MICROPHONE", 0.55, 0.45);
+      figures.push({ x: 0.3, depth: 0.12, facing: "RIGHT", pose: "STAND", expression: "HAPPY", costume: "NONE", handProp: null, action: "TALK" });
+      figures.push({ x: 0.74, depth: 0.2, facing: "LEFT", pose: "STAND", expression: "SURPRISED", costume: "NONE", handProp: null, action: "POINT", delay: 1.2 });
       break;
     }
     case "NARRATOR": {

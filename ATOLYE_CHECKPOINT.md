@@ -1,3 +1,7 @@
+## 12 Ekim 2026 — owner görsel kalite isteği, kalıcı editorial-animation yeteneği
+
+Kaynak uygulama tamam: yeni üretim PNG payload'ında editorial-v2; farklı oyuncu kimlikleri, konuya uygun ayrıntılı yerel ortamlar, animasyonla bağlı tasarım. Eski stylesız payload görüntüsü korunur. Skill `.claude/skills/ayas/editorial-animation/SKILL.md` router'a bağlı; her yeni üretimde kodla otomatik kullanılır. Owner videosu veya ücretli çağrı yok. Önceki Graphify açıklama görevi08164ae commit/push tamam. Kaynak testleri ve TypeScript/lint doğrulanıyor; sıradaki zorunlu iş cleanHEAD build → candidate HTTP → owned süreçleriyle kontrollü canlı switch → son Graphify açıklama/native finalizasyon → belgeler/Git/CI. Bu kayıt yeni özelliklerin canlıya alındığı anlamına gelmez.
+
 ## 12 Ekim 2026 — Owner maskot/otonomi vizyonu: Graphify açıklamaları tamam; yeni kaynak canlı kabul bekliyor
 
 Owner örnek PNG'deki ortak sarı atkılı karakter, konuya göre anlatım/hareket/ses/müzik, mevcut fiyat sınırı, PC sağlığı, güvenli araştırma ve owner-onaylı öneri akışını istedi. Yeni owner videosu/ücretli çağrı/upload/kurulum yok. Graphify495güncel batch/19.785node açıklaması resmî assistant ingestion ile tamam,55.267ilişki ve202SHA node korunur;354eski prompt arşivlendi. Helper/14grounding testi docs/GRAPHIFY_GROUNDED_DESCRIPTIONS.md. Son kaynak refresh sonrası yeniden uygulanıp native update ile pending kapanacak.

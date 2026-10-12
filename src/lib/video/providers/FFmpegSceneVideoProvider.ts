@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { assertAyasHeavyWorkloadAllowed } from "@/lib/ayas/machine/AyasMachineHealthGuard";
 import os from "node:os";
 import path from "node:path";
 import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
@@ -91,7 +92,8 @@ export class FFmpegSceneVideoProvider implements ConfiguredVideoProvider {
             frames
               ? buildCharacterSceneFFmpegArgs(scene, renderPaths.temporaryAbsolutePath, frames.pattern)
               : buildSceneFFmpegArgs(scene, renderPaths.temporaryAbsolutePath, context),
-            { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
+            { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes,
+              healthCheck: () => assertAyasHeavyWorkloadAllowed({ stage: "video", ownedActive: true }) },
           );
         } finally {
           frames?.dispose();
@@ -332,6 +334,16 @@ async function renderCharacterSceneFrames(
     // Long scenes keep the default compression so their frames stay small on disk.
     const fast = count <= 1800;
     for (let index = 0; index < count; index++) {
+      // Poll once per ten seconds of animation, with one raster in memory.
+      // A refusal unwinds through this owned TEMP folder's cleanup.
+      if (index % 150 === 0) {
+        await assertAyasHeavyWorkloadAllowed({ stage: "video", ownedActive: true });
+        // TEMP can be on another drive after migration; check the actual frame
+        // volume too, not only the workspace volume observed by the host guard.
+        const disk = fs.statfsSync(directory);
+        if (!Number.isFinite(disk.blocks) || disk.blocks <= 0 || !Number.isFinite(disk.bavail) ||
+            disk.bavail / disk.blocks < 0.03) throw new Error("CHARACTER_FRAME_STORAGE_PRESSURE");
+      }
       const svg = renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index));
       if (svg !== previousSvg || !previousPng) {
         const raster = await rasterizeCharacterSceneSvg(svg, { fast });

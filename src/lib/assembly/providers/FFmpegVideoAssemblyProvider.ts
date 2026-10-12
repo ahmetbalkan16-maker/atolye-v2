@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { assertAyasHeavyWorkloadAllowed } from "@/lib/ayas/machine/AyasMachineHealthGuard";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import type { Readable } from "node:stream";
@@ -37,6 +38,8 @@ interface SceneVideoProbeSignature {
 export interface ProcessRunOptions {
   timeoutMs: number;
   maxOutputBytes: number;
+  /** Optional ongoing check; failure terminates only the child this runner owns. */
+  healthCheck?: () => Promise<unknown>;
 }
 
 export interface ProcessRunResult {
@@ -137,7 +140,8 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
       const ffmpegResult = await this.runner.run(
         config.ffmpegPath,
         buildFFmpegArgs(input, paths.temporaryAbsolutePath, concatManifestPath, context),
-        { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
+        { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes,
+          healthCheck: () => assertAyasHeavyWorkloadAllowed({ stage: "assembly", ownedActive: true }) },
       );
 
       requireSuccessfulProcess(ffmpegResult, "ffmpeg(assemble)");
@@ -238,6 +242,7 @@ export class SpawnRunner implements VideoAssemblyProcessRunner {
       let terminating = false;
       let retryKillTimer: ReturnType<typeof setTimeout> | undefined;
       let forceSettleTimer: ReturnType<typeof setTimeout> | undefined;
+      let healthTimer: ReturnType<typeof setTimeout> | undefined;
       const swallowLateError = () => {};
       const safeKill = () => {
         try {
@@ -248,6 +253,7 @@ export class SpawnRunner implements VideoAssemblyProcessRunner {
       };
       const cleanup = () => {
         clearTimeout(timeoutTimer);
+        if (healthTimer) clearTimeout(healthTimer);
         if (retryKillTimer) clearTimeout(retryKillTimer);
         if (forceSettleTimer) clearTimeout(forceSettleTimer);
         child.off("error", onChildError);
@@ -334,6 +340,13 @@ export class SpawnRunner implements VideoAssemblyProcessRunner {
         });
       };
       const timeoutTimer = setTimeout(() => terminate(true), options.timeoutMs);
+      const checkHealth = async () => {
+        if (settled || terminating || !options.healthCheck) return;
+        try { await options.healthCheck(); }
+        catch { terminate(false); return; }
+        if (!settled && !terminating) healthTimer = setTimeout(() => { void checkHealth(); }, 5000);
+      };
+      if (options.healthCheck) healthTimer = setTimeout(() => { void checkHealth(); }, 5000);
 
       child.stdout?.on("data", onStdoutData);
       child.stdout?.on("error", onStreamError);

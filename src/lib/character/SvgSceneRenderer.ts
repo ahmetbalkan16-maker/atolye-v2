@@ -32,6 +32,9 @@ export interface SvgSceneOptions {
    * before; production frames name real fonts because the rasterizer on Windows resolves `sans-serif` to a serif.
    */
   readonly fontFamily?: string;
+  /** Low-cost recurring mascot details; absent preserves the original renderer. */
+  readonly mascot?: boolean;
+  readonly renderStyle?: typeof EDITORIAL_RENDER_STYLE;
 }
 
 /**
@@ -90,8 +93,8 @@ function backdrop(kind: StageBackdrop, time: StageTime): string {
   return parts.join("");
 }
 
-function costume(hint: HistoricalCostumeHint, joints: CharacterJoints, scale: number, behind: boolean): string {
-  const r = STICK_FIGURE_RIG.headRadius * scale; const head = joints.head; const w = STICK_FIGURE_RIG.stroke * scale;
+function costume(hint: HistoricalCostumeHint, joints: CharacterJoints, scale: number, behind: boolean, mascot = false): string {
+  const r = STICK_FIGURE_RIG.headRadius * scale * (mascot ? 1.5 : 1); const head = joints.head; const w = STICK_FIGURE_RIG.stroke * scale;
   if (behind) {
     if (hint === "CAPE") return polygon([joints.shoulder, { x: joints.shoulder.x - 70 * scale, y: joints.hip.y + 60 * scale }, { x: joints.hip.x - 10 * scale, y: joints.hip.y + 70 * scale }], "#8b2e2e", INK, w * 0.5);
     if (hint === "ROBE") return polygon([{ x: joints.shoulder.x - 34 * scale, y: joints.shoulder.y }, { x: joints.shoulder.x + 34 * scale, y: joints.shoulder.y }, { x: joints.hip.x + 62 * scale, y: joints.hip.y + 150 * scale }, { x: joints.hip.x - 62 * scale, y: joints.hip.y + 150 * scale }], "#4d5b7c", INK, w * 0.5);
@@ -119,30 +122,35 @@ function handProp(prop: HandProp, hand: Point, scale: number): string {
   }
 }
 
-function character(item: BlockedCharacter, frame?: CharacterFrameOverride): string {
+function character(item: BlockedCharacter, frame?: CharacterFrameOverride, mascot = false): string {
   const scale = scaleAt(item.depth);
   const ground: Point = { x: (frame ? frame.x : item.x) * CHARACTER_SCENE_WIDTH, y: groundY(item.depth) };
   const pose = frame ? frame.pose : POSE_ANGLES[item.pose];
   const joints = computeCharacterJoints(STICK_FIGURE_RIG, pose, ground, scale);
-  const w = STICK_FIGURE_RIG.stroke * scale; const r = STICK_FIGURE_RIG.headRadius * scale;
-  const face = frame ? { ...EXPRESSION_SHAPES[item.expression], mouthOpen: frame.mouthOpen } : EXPRESSION_SHAPES[item.expression];
+  const w = STICK_FIGURE_RIG.stroke * scale; const r = STICK_FIGURE_RIG.headRadius * scale * (mascot ? 1.5 : 1);
+  const face = frame ? { ...EXPRESSION_SHAPES[item.expression], mouthOpen: frame.mouthOpen || (mascot && EXPRESSION_SHAPES[item.expression].mouthOpen) } : EXPRESSION_SHAPES[item.expression];
   const eyeY = joints.head.y - r * 0.12; const eyeDx = r * 0.36; const browY = eyeY - r * (0.3 + face.browRaise); const tilt = Math.tan((face.browTilt * Math.PI) / 180) * r * 0.22;
   const mouthY = joints.head.y + r * 0.42;
   const parts = [
-    costume(item.costume, joints, scale, true),
+    mascot ? mascotClothing(item.costume, joints, scale) : "",
+    costume(item.costume, joints, scale, true, mascot),
     line(joints.hip, joints.kneeBack, w), line(joints.kneeBack, joints.footBack, w), line(joints.shoulder, joints.elbowBack, w), line(joints.elbowBack, joints.handBack, w),
     line(joints.hip, joints.shoulder, w), line(joints.shoulder, joints.neck, w),
     // Armour sits on the torso, under the near leg and the head; a head hint is drawn over the head, further down.
-    item.costume === "ARMOR" ? costume(item.costume, joints, scale, false) : "",
+    item.costume === "ARMOR" ? costume(item.costume, joints, scale, false, mascot) : "",
     line(joints.hip, joints.kneeFront, w), line(joints.kneeFront, joints.footFront, w),
-    circle(joints.head, r, "#f6f1e7", w),
+    circle(joints.head, r, mascot ? "#ffffff" : "#f6f1e7", w),
     // The eye nearer the facing side is drawn a little forward, so the face reads as turned.
-    circle({ x: joints.head.x - eyeDx + r * 0.14, y: eyeY }, r * 0.09, INK), circle({ x: joints.head.x + eyeDx + r * 0.14, y: eyeY }, r * 0.09, INK),
+    mascot ? `<ellipse cx="${n(joints.head.x - eyeDx + r * 0.14)}" cy="${n(eyeY)}" rx="${n(r * 0.11)}" ry="${n(r * 0.17)}" fill="${INK}"/>` : circle({ x: joints.head.x - eyeDx + r * 0.14, y: eyeY }, r * 0.09, INK),
+    mascot ? `<ellipse cx="${n(joints.head.x + eyeDx + r * 0.14)}" cy="${n(eyeY)}" rx="${n(r * 0.11)}" ry="${n(r * 0.17)}" fill="${INK}"/>` : circle({ x: joints.head.x + eyeDx + r * 0.14, y: eyeY }, r * 0.09, INK),
     line({ x: joints.head.x - eyeDx - r * 0.1, y: browY - tilt }, { x: joints.head.x - eyeDx + r * 0.36, y: browY + tilt }, w * 0.45), line({ x: joints.head.x + eyeDx - r * 0.1, y: browY + tilt }, { x: joints.head.x + eyeDx + r * 0.36, y: browY - tilt }, w * 0.45),
-    face.mouthOpen ? circle({ x: joints.head.x + r * 0.14, y: mouthY }, r * 0.16, INK)
+    face.mouthOpen ? (mascot && item.expression === "HAPPY"
+      ? `<path d="M ${n(joints.head.x - r * 0.25)} ${n(mouthY - r * 0.12)} Q ${n(joints.head.x + r * 0.14)} ${n(mouthY)} ${n(joints.head.x + r * 0.53)} ${n(mouthY - r * 0.12)} Q ${n(joints.head.x + r * 0.14)} ${n(mouthY + r * 0.55)} ${n(joints.head.x - r * 0.25)} ${n(mouthY - r * 0.12)} Z" fill="${INK}"/>` + circle({ x: joints.head.x + r * 0.14, y: mouthY + r * 0.15 }, r * 0.08, "#e8564f")
+      : circle({ x: joints.head.x + r * 0.14, y: mouthY }, r * 0.16, INK))
       : `<path d="M ${n(joints.head.x - r * 0.3 + r * 0.14)} ${n(mouthY)} Q ${n(joints.head.x + r * 0.14)} ${n(mouthY + face.mouthCurve * r * 2)} ${n(joints.head.x + r * 0.3 + r * 0.14)} ${n(mouthY)}" fill="none" stroke="${INK}" stroke-width="${n(w * 0.45)}" stroke-linecap="round"/>`,
-    item.costume !== "ARMOR" ? costume(item.costume, joints, scale, false) : "",
+    item.costume !== "ARMOR" ? costume(item.costume, joints, scale, false, mascot) : "",
     line(joints.shoulder, joints.elbowFront, w), line(joints.elbowFront, joints.handFront, w),
+    mascot ? mascotDetails(joints, scale, item.costume) : "",
     item.handProp ? handProp(item.handProp, joints.handFront, scale) : "",
   ].join("");
   const transforms: string[] = [];
@@ -151,12 +159,39 @@ function character(item: BlockedCharacter, frame?: CharacterFrameOverride): stri
   return `<g data-character="${xml(item.id)}"${transforms.length ? ` transform="${transforms.join(" ")}"` : ""}>${parts}</g>`;
 }
 
+function mascotClothing(hint: HistoricalCostumeHint, joints: CharacterJoints, scale: number): string {
+  const color = hint === "TURBAN" ? "#ad2936" : hint === "CROWN" ? "#354b8b" : hint === "HELMET" ? "#9aa4ad" : null;
+  if (!color) return "";
+  return `<g data-mascot-costume="${hint}">` + polygon([
+    { x: joints.shoulder.x - 28 * scale, y: joints.shoulder.y + 4 * scale },
+    { x: joints.shoulder.x + 28 * scale, y: joints.shoulder.y + 4 * scale },
+    { x: joints.hip.x + 37 * scale, y: joints.hip.y + 25 * scale },
+    { x: joints.hip.x - 37 * scale, y: joints.hip.y + 25 * scale },
+  ], color, INK, 4 * scale) + line({ x: joints.hip.x - 32 * scale, y: joints.hip.y }, { x: joints.hip.x + 32 * scale, y: joints.hip.y }, 10 * scale, "#e7bd3c") + `</g>`;
+}
+
+/** A shared scarf, gloves and shoes made of SVG primitives, with no model or network work. */
+function mascotDetails(joints: CharacterJoints, scale: number, hint: HistoricalCostumeHint): string {
+  const p = (origin: Point, x: number, y: number): Point => ({ x: origin.x + x * scale, y: origin.y + y * scale });
+  const stroke = 4 * scale;
+  const scarf = polygon([p(joints.neck, -18, -5), p(joints.neck, 23, -2), p(joints.neck, 17, 16), p(joints.neck, -20, 10)], "#ffc629", INK, stroke) +
+    polygon([p(joints.neck, 8, 9), p(joints.neck, 25, 10), p(joints.neck, 42, 68), p(joints.neck, 16, 57)], "#ffc629", INK, stroke);
+  const gloves = [joints.handBack, joints.handFront].map(hand => circle(hand, 13 * scale, "#ffffff", stroke)).join("");
+  const shoes = [joints.footBack, joints.footFront].map(foot => `<ellipse cx="${n(foot.x + 9 * scale)}" cy="${n(foot.y)}" rx="${n(24 * scale)}" ry="${n(11 * scale)}" fill="#ffffff" stroke="${INK}" stroke-width="${n(stroke)}"/>`).join("");
+  const hair = hint === "NONE" || hint === "ROBE" || hint === "CAPE" || hint === "ARMOR"
+    ? [-18, 0, 18].map(x => line(p(joints.head, x, -STICK_FIGURE_RIG.headRadius * 1.5 + 5), p(joints.head, x + 20, -STICK_FIGURE_RIG.headRadius * 1.5 - 20), stroke)).join("") : "";
+  return `<g data-mascot="yellow-scarf-v1">${scarf}${gloves}${shoes}${hair}</g>`;
+}
+
 function stageProp(prop: StageProp, x: number, depth: number, facing: "LEFT" | "RIGHT"): string {
   const scale = scaleAt(depth); const size = STAGE_PROP_SIZE[prop]; const w = size.width * scale; const h = size.height * scale;
   const cx = x * CHARACTER_SCENE_WIDTH; const base = groundY(depth); const left = cx - w / 2; const s = 6 * scale;
   const at = (fx: number, fy: number): Point => ({ x: left + fx * w, y: base - fy * h });
   let body = "";
   switch (prop) {
+    case "MONITOR": body = `<rect x="${n(left)}" y="${n(base - h)}" width="${n(w)}" height="${n(h * 0.72)}" rx="12" fill="#26364a" stroke="${INK}" stroke-width="${n(s)}"/><rect x="${n(left + w * 0.08)}" y="${n(base - h * 0.92)}" width="${n(w * 0.84)}" height="${n(h * 0.53)}" fill="#d9eff7"/>` + line(at(0.5, 0.28), at(0.5, 0.05), s * 3) + line(at(0.25, 0), at(0.75, 0), s * 2); break;
+    case "CHART": body = `<rect x="${n(left)}" y="${n(base - h)}" width="${n(w)}" height="${n(h)}" rx="10" fill="#ffffff" stroke="${INK}" stroke-width="${n(s)}"/>` + [0.25, 0.45, 0.7].map((level, index) => `<rect x="${n(left + w * (0.17 + index * 0.25))}" y="${n(base - h * (0.1 + level))}" width="${n(w * 0.16)}" height="${n(h * level)}" fill="${["#5b8fb0", "#e2783c", "#d9b23c"][index]}"/>`).join("") + `<text x="${n(left + w * 0.1)}" y="${n(base - h * 0.87)}" font-family="sans-serif" font-size="${n(22 * scale)}" fill="${INK}">ŞEMA</text>`; break;
+    case "MICROPHONE": body = line(at(0.5, 0.08), at(0.5, 0.76), s * 2) + circle(at(0.5, 0.88), w * 0.28, "#3c3c3c", s) + line(at(0.08, 0), at(0.92, 0), s * 2); break;
     case "CANNON": body = `<rect x="${n(left + w * 0.15)}" y="${n(base - h * 0.85)}" width="${n(w * 0.85)}" height="${n(h * 0.34)}" rx="${n(h * 0.17)}" fill="#3c3c3c"/>` + circle(at(0.3, 0.3), h * 0.3, "#6e5239", s); break;
     case "TENT": body = polygon([at(0, 0), at(0.5, 1), at(1, 0)], "#e6dcc3", INK, s) + polygon([at(0.42, 0), at(0.5, 0.55), at(0.58, 0)], "#6e5239"); break;
     case "THRONE": body = `<rect x="${n(left + w * 0.1)}" y="${n(base - h)}" width="${n(w * 0.8)}" height="${n(h)}" fill="#8b2e2e" stroke="${INK}" stroke-width="${n(s)}"/><rect x="${n(left)}" y="${n(base - h * 0.42)}" width="${n(w)}" height="${n(h * 0.14)}" fill="#d9b23c" stroke="${INK}" stroke-width="${n(s)}"/>`; break;
@@ -212,11 +247,15 @@ function renderSceneDocument(
   if (problems.length) throw new Error(`CHARACTER_SCENE_BLOCKING_INVALID: ${problems.join(", ")}`);
   if (!(options.reenactmentLabel === null || Object.hasOwn(REENACTMENT_LABELS, options.reenactmentLabel))) throw new Error("CHARACTER_SCENE_LABEL_INVALID");
   if (options.fontFamily !== undefined && !FONT_FAMILY_PATTERN.test(options.fontFamily)) throw new Error("CHARACTER_SCENE_FONT_INVALID");
+  if (options.mascot !== undefined && typeof options.mascot !== "boolean") throw new Error("CHARACTER_SCENE_MASCOT_INVALID");
+  if (options.renderStyle !== undefined && options.renderStyle !== EDITORIAL_RENDER_STYLE) throw new Error("CHARACTER_SCENE_STYLE_INVALID");
   const font = xml(options.fontFamily ?? DEFAULT_FONT_FAMILY);
   const W = CHARACTER_SCENE_WIDTH; const H = CHARACTER_SCENE_HEIGHT;
   const drawn = [
     ...blocking.props.map((prop, index) => ({ depth: prop.depth, order: index, svg: stageProp(prop.prop, prop.x, prop.depth, prop.facing) })),
-    ...blocking.characters.map((item, index) => ({ depth: item.depth, order: 100 + index, svg: character(item, frameFor(item)) })),
+    ...blocking.characters.map((item, index) => ({ depth: item.depth, order: 100 + index, svg: options.renderStyle === EDITORIAL_RENDER_STYLE
+      ? renderEditorialCharacter(item, frameFor(item), (joints, scale) => item.handProp ? handProp(item.handProp, joints.handFront, scale) : "")
+      : character(item, frameFor(item), options.mascot) })),
   ].sort((a, b) => b.depth - a.depth || a.order - b.order);
   const arrows = blocking.arrows.map((arrow) => {
     const from: Point = { x: arrow.fromX * W, y: arrow.fromY * H }; const to: Point = { x: arrow.toX * W, y: arrow.toY * H };
@@ -226,5 +265,166 @@ function renderSceneDocument(
   });
   const caption = blocking.caption === null ? "" : `<rect x="60" y="60" width="${n(Math.min(W - 120, 60 + blocking.caption.length * 30))}" height="84" rx="10" fill="#1c1c1c" opacity="0.72"/><text x="90" y="118" font-family="${font}" font-size="46" fill="#ffffff">${xml(blocking.caption)}</text>`;
   const label = options.reenactmentLabel === null ? "" : `<g data-reenactment-label="${options.reenactmentLabel}"><rect x="60" y="${H - 132}" width="420" height="72" rx="8" fill="#1c1c1c" opacity="0.8"/><text x="84" y="${H - 82}" font-family="${font}" font-size="40" font-weight="bold" letter-spacing="4" fill="#ffffff">${REENACTMENT_LABELS[options.reenactmentLabel]}</text></g>`;
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${backdrop(blocking.backdrop, blocking.time)}${drawn.map((item) => item.svg).join("")}${arrows.join("")}${caption}${label}</svg>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${options.renderStyle === EDITORIAL_RENDER_STYLE ? renderEditorialBackdrop(blocking) : backdrop(blocking.backdrop, blocking.time)}${drawn.map((item) => item.svg).join("")}${arrows.join("")}${caption}${label}</svg>\n`;
+}
+
+/** Permanent local art direction. Bounded SVG primitives, no downloads or image model. */
+export const EDITORIAL_RENDER_STYLE = "editorial-v2" as const;
+const ART_INK = "#243044";
+const num = (v: number) => String(Math.round(v * 10) / 10);
+const rect = (x: number, y: number, w: number, h: number, fill: string, radius = 0, stroke = "none") => `<rect x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}" rx="${num(radius)}" fill="${fill}" stroke="${stroke}" stroke-width="3"/>`;
+const path = (d: string, fill: string, stroke = ART_INK, width = 3) => `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const ellipse = (x: number, y: number, rx: number, ry: number, fill: string, stroke = "none", width = 3) => `<ellipse cx="${num(x)}" cy="${num(y)}" rx="${num(rx)}" ry="${num(ry)}" fill="${fill}" stroke="${stroke}" stroke-width="${width}"/>`;
+const seg = (a: Point, b: Point, width: number, color = ART_INK) => path(`M${num(a.x)} ${num(a.y)} L${num(b.x)} ${num(b.y)}`, "none", color, width);
+
+export function editorialSceneTheme(blocking: SceneBlocking): string {
+  if (blocking.props.some(p => p.prop === "MONITOR")) return "studio";
+  if (blocking.props.some(p => p.prop === "CHART")) return "economy";
+  if (blocking.props.some(p => p.prop === "MICROPHONE")) return "forum";
+  return blocking.backdrop === "INTERIOR" ? (blocking.characters.some(c => c.costume === "CROWN" || c.costume === "TURBAN") ? "palace" : "library") : blocking.backdrop.toLowerCase();
+}
+
+/** Layered illustrative settings are scenery, not photographs or historical evidence. */
+export function renderEditorialBackdrop(blocking: SceneBlocking): string {
+  const theme = editorialSceneTheme(blocking);
+  const night = blocking.time === "NIGHT";
+  const dusk = blocking.time === "DUSK";
+  const sky = night ? "#243550" : dusk ? "#ffe0bf" : "#e6f1f3";
+  const parts = [`<g data-art-environment="${theme}">`, rect(0, 0, 1920, 1080, sky), rect(0, 500, 1920, 220, night ? "#4b617a" : "#edf1e6")];
+  const inside = ["palace", "library", "studio", "economy", "forum"].includes(theme);
+  if (inside) {
+    parts.push(rect(0, 0, 1920, 665, theme === "palace" ? "#ecdab9" : theme === "studio" ? "#d4e2ea" : theme === "economy" ? "#e9e2d2" : "#e4e9e5"));
+    // Deep windows, wall mouldings and layered columns create depth without filters.
+    for (const x of [100, 570, 1040, 1510]) {
+      const arch = theme === "palace" || theme === "library" || theme === "forum";
+      parts.push(rect(x, 100, 310, 455, arch ? "#c5b89b" : "#a9bcc5", arch ? 150 : 14), rect(x + 14, 114, 282, 427, night ? "#3a5573" : "#9dbcc9", arch ? 140 : 8), rect(x + 30, 138, 250, 390, night ? "#54718e" : "#d4e6e9", arch ? 125 : 4));
+      parts.push(rect(x + 146, 205, 12, 320, "#f7eedc"), rect(x + 20, 330, 270, 10, "#f7eedc"));
+    }
+    parts.push(rect(0, 574, 1920, 18, "#b8a486"), rect(0, 600, 1920, 65, "#d0bfa2"));
+    if (theme === "palace") {
+      for (const x of [40, 440, 940, 1440, 1830]) parts.push(rect(x, 82, 48, 553, "#f8efda", 8), rect(x - 14, 80, 76, 25, "#b89854", 6), rect(x - 10, 614, 68, 27, "#b89854", 4));
+      for (const x of [470, 1390]) parts.push(path(`M${x} 90 L${x + 145} 90 L${x + 135} 340 L${x + 72} 380 L${x + 10} 340 Z`, "#763d46", "#b89854", 5));
+    } else if (theme === "library") {
+      for (const x of [45, 1350]) {
+        parts.push(rect(x, 210, 525, 405, "#715b4e", 12));
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 12; col++) parts.push(rect(x + 18 + col * 41, 240 + row * 115, 29, 83, ["#ab6460", "#b8a36b", "#657f88", "#797092"][col % 4]!, 3));
+          parts.push(rect(x + 10, 327 + row * 115, 505, 12, "#c6ac80"));
+        }
+      }
+    } else {
+      parts.push(rect(900, 175, 425, 220, "#fbfcf8", 22, "#9aa9ac"));
+      if (theme === "studio") {
+        for (let row = 0; row < 5; row++) parts.push(rect(935, 205 + row * 32, 140 + (row % 3) * 52, 9, ["#70a2a9", "#b49b67", "#8582a5"][row % 3]!, 4));
+        for (const x of [95, 1570]) {
+          parts.push(rect(x, 340, 205, 274, "#344d65", 18));
+          for (let row = 0; row < 5; row++) parts.push(rect(x + 18, 360 + row * 44, 169, 30, "#567186", 7), ellipse(x + 162, 375 + row * 44, 4, 4, "#b7d69a"));
+        }
+      } else if (theme === "economy") {
+        parts.push(path("M940 350 L1000 310 L1060 335 L1125 245 L1215 270 L1280 220", "none", "#5b9091", 8));
+        // Schematic unlabeled line: never invent market prices or financial statistics.
+        for (const x of [130, 1510]) parts.push(rect(x, 430, 230, 184, "#798b86", 8), rect(x + 15, 445, 200, 18, "#eadcc2", 4));
+      } else {
+        for (let row = 0; row < 3; row++) for (let col = 0; col < 7; col++) parts.push(rect(130 + col * 240, 475 + row * 44, 195, 27, "#8895a4", 14));
+        parts.push(ellipse(1110, 278, 65, 65, "#c9b37c"), path("M1090 278 L1107 295 L1140 252", "none", "#faf7ef", 10));
+      }
+    }
+  } else {
+    parts.push(ellipse(1540, 165, 80, 80, night ? "#eee9d3" : "#f6d98a"));
+    for (const x of [80, 610, 1150]) parts.push(ellipse(x + 60, 180, 100, 27, night ? "#647389" : "#ffffff"), ellipse(x + 122, 165, 75, 34, night ? "#647389" : "#ffffff"));
+    const mountains = theme === "mountains";
+    parts.push(path(mountains ? "M0 655 L190 320 L390 540 L730 200 L1030 570 L1420 290 L1920 600 L1920 750 L0 750Z" : "M0 590 Q270 420 580 590 T1150 570 T1920 530 L1920 780 L0 780Z", night ? "#50627b" : "#a1b7ad", "none"));
+    parts.push(path("M0 645 Q440 530 820 650 T1920 620 L1920 770 L0 770Z", night ? "#647269" : "#c0cdb4", "none"));
+    if (theme === "city_walls") {
+      parts.push(rect(0, 445, 1920, 250, "#b5afa3"));
+      for (let x = 0; x < 1920; x += 180) parts.push(rect(x, 410, 90, 65, "#a29b90"));
+      for (let row = 0; row < 4; row++) for (let col = 0; col < 13; col++) parts.push(rect(col * 155 + (row % 2) * 70, 490 + row * 47, 145, 38, "#c9c1b1", 4));
+      parts.push(path("M835 695 L835 550 A125 125 0 0 1 1085 550 L1085 695Z", "#69716c", "#8b857c", 8));
+    }
+  }
+  const ground = theme === "sea" ? 760 : 665;
+  parts.push(rect(0, ground, 1920, 1080 - ground, "#e4d9c4"));
+  for (let band = 0; band < 8; band++) parts.push(rect(0, ground + band * (1080 - ground) / 8, 1920, (1080 - ground) / 8 + 1, ["#d6c7ad", "#daceb7", "#dfd3bd", "#e3d8c5", "#e7decd", "#ece4d5", "#f0e8dc", "#f5ecdc"][band]!));
+  if (theme === "sea") {
+    parts.push(rect(0, 560, 1920, 200, night ? "#44647c" : "#7caabb"));
+    for (let row = 0; row < 4; row++) parts.push(path(`M0 ${590 + row * 42} q80 -16 160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0`, "none", "#d6e8e8", 4));
+  }
+  if (inside) {
+    for (const x of [-600, 0, 600, 1200, 1800, 2400]) parts.push(path(`M960 665 L${x} 1080`, "none", "#d9cdb8", 2));
+    for (const y of [724, 820, 975]) parts.push(rect(0, y, 1920, 2, "#d9cdb8"));
+    if (theme === "palace") parts.push(path("M735 666 L1185 666 L1390 1080 L530 1080Z", "#a96062", "#dfbb80", 7));
+  }
+  parts.push("</g>");
+  return parts.join("");
+}
+
+/** Identity stays attached to actor id, never to the current pose or time. */
+export function editorialActorVariant(id: string): number {
+  const ordinal = /^c([1-8])$/.exec(id);
+  if (ordinal) return Number(ordinal[1]) - 1;
+  let hash = 0; for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+  return hash % 8;
+}
+
+export function renderEditorialCharacter(item: BlockedCharacter, frame: CharacterFrameOverride | undefined, prop: (joints: CharacterJoints, scale: number) => string): string {
+  const variant = editorialActorVariant(item.id);
+  const scale = 1.28 * (1 - 0.5 * item.depth);
+  const ground = { x: (frame?.x ?? item.x) * 1920, y: 900 - 260 * item.depth };
+  const pose = frame?.pose ?? POSE_ANGLES[item.pose];
+  const joints = computeCharacterJoints({ id: EDITORIAL_RENDER_STYLE, headRadius: 58, neck: 12, torso: 112, upperArm: 65, lowerArm: 62, upperLeg: 72, lowerLeg: 72, stroke: 12 }, pose, ground, scale);
+  const p = (point: Point, x: number, y: number) => ({ x: point.x + x * scale, y: point.y + y * scale });
+  const e = (point: Point, x: number, y: number, rx: number, ry: number, fill: string, stroke = ART_INK) => ellipse(point.x + x * scale, point.y + y * scale, rx * scale, ry * scale, fill, stroke, 3 * scale);
+  const poly = (points: Point[], fill: string, stroke = ART_INK) => path(`M${points.map(a => `${num(a.x)} ${num(a.y)}`).join(" L")}Z`, fill, stroke, 3 * scale);
+  const colors = ["#d5a83e", "#527f91", "#a66568", "#778b66", "#8c7199", "#be8257", "#4d7285", "#927655"];
+  const color = colors[variant]!;
+  const coat = item.costume === "TURBAN" ? ["#9c3947", "#3c6475", "#706047"][variant % 3]! : item.costume === "CROWN" ? "#514c83" : item.costume === "HELMET" || item.costume === "ARMOR" ? "#7b8997" : color;
+  const parts = [e(ground, 0, 6, 61, 10, "#b9ad98", "none")];
+  // Black limbs, colored tunics, cuffs and shoes keep the mascot language without identical silhouettes.
+  for (const [a, b, c] of [[joints.hip, joints.kneeBack, joints.footBack], [joints.hip, joints.kneeFront, joints.footFront], [joints.shoulder, joints.elbowBack, joints.handBack]] as const) parts.push(seg(a, b, 15 * scale), seg(b, c, 15 * scale));
+  parts.push(poly([p(joints.shoulder, -33, 0), p(joints.shoulder, 33, 0), p(joints.hip, 42, item.costume === "NONE" ? 8 : 35), p(joints.hip, -42, item.costume === "NONE" ? 8 : 35)], coat));
+  parts.push(seg(p(joints.shoulder, 0, 10), p(joints.hip, 0, 9), 3 * scale, "#e8d3a4"));
+  if (item.costume !== "NONE") parts.push(seg(p(joints.hip, -34, -8), p(joints.hip, 34, -8), 12 * scale, "#d6b574"));
+  for (const y of [28, 53, 78]) parts.push(e(joints.shoulder, 13, y, 3, 3, "#f6de9e", "none"));
+  parts.push(seg(joints.shoulder, joints.elbowFront, 17 * scale, coat), seg(joints.elbowFront, joints.handFront, 13 * scale));
+  parts.push(e(joints.head, 0, 0, 58, variant === 2 || variant === 5 ? 62 : 57, "#fffaf1"));
+  const face = EXPRESSION_SHAPES[item.expression];
+  for (const x of [-19, 22]) {
+    parts.push(e(joints.head, x, -7, 7, 11, ART_INK, "none"), e(joints.head, x - 1, -10, 2.2, 3, "white", "none"));
+    const tilt = face.browTilt * 0.17 * (x < 0 ? 1 : -1);
+    parts.push(seg(p(joints.head, x - 10, -29 + tilt - face.browRaise * 50), p(joints.head, x + 11, -29 - tilt - face.browRaise * 50), 4 * scale));
+  }
+  parts.push(e(joints.head, -34, 19, 8, 4, "#edb5a3", "none"), e(joints.head, 36, 19, 8, 4, "#edb5a3", "none"));
+  const mouth = frame?.mouthOpen ?? face.mouthOpen;
+  if (mouth && item.expression === "SURPRISED") parts.push(e(joints.head, 2, 29, 10, 14, ART_INK, "none"));
+  else if (mouth) parts.push(poly([p(joints.head, -20, 22), p(joints.head, 24, 22), p(joints.head, 15, 42), p(joints.head, -8, 43)], ART_INK), seg(p(joints.head, -14, 25), p(joints.head, 19, 25), 5 * scale, "white"), e(joints.head, 6, 38, 10, 4, "#e97879", "none"));
+  else parts.push(path(`M${num(joints.head.x - 19 * scale)} ${num(joints.head.y + 29 * scale)} q${22 * scale} ${face.mouthCurve * 70 * scale} ${39 * scale} 0`, "none", ART_INK, 4 * scale));
+  // Full headwear and secondary identity details, positioned from animated head joints.
+  if (item.costume === "TURBAN") {
+    parts.push(e(joints.head, 0, -49, 68, 31, "#fcf3dc"));
+    for (const y of [-66, -52, -38]) parts.push(seg(p(joints.head, -51, y + 8), p(joints.head, 52, y - 8), 4 * scale, "#d5c3a1"));
+    parts.push(e(joints.head, 25, -43, 11, 14, "#d7b35e"), e(joints.head, 25, -43, 5, 8, "#af4850", "none"));
+  } else if (item.costume === "CROWN") {
+    parts.push(poly([p(joints.head, -51, -34), p(joints.head, -59, -80), p(joints.head, -30, -62), p(joints.head, 0, -94), p(joints.head, 28, -62), p(joints.head, 58, -80), p(joints.head, 50, -34)], "#e1b756"));
+    for (const x of [-30, 0, 30]) parts.push(e(joints.head, x, -45, 5, 7, x === 0 ? "#be595b" : "#5c91a5", "none"));
+  } else if (item.costume === "HELMET" || item.costume === "ARMOR") {
+    parts.push(path(`M${num(joints.head.x - 61 * scale)} ${num(joints.head.y - 9 * scale)} a${61 * scale} ${61 * scale} 0 0 1 ${122 * scale} 0 Z`, "#99a8b5", ART_INK, 4 * scale));
+    parts.push(seg(p(joints.head, 0, -58), p(joints.head, 16, -92), 16 * scale, "#b14f58"));
+  } else if (item.costume === "HOOD") parts.push(path(`M${num(joints.head.x - 63 * scale)} ${num(joints.head.y + 37 * scale)} Q${num(joints.head.x - 84 * scale)} ${num(joints.head.y - 86 * scale)} ${num(joints.head.x)} ${num(joints.head.y - 70 * scale)} Q${num(joints.head.x + 84 * scale)} ${num(joints.head.y - 86 * scale)} ${num(joints.head.x + 63 * scale)} ${num(joints.head.y + 37 * scale)}`, "none", "#7b6758", 12 * scale));
+  else if (variant % 3 === 0) parts.push(poly([p(joints.head, -39, -44), p(joints.head, -25, -71), p(joints.head, -4, -60), p(joints.head, 13, -79), p(joints.head, 25, -56), p(joints.head, 39, -67), p(joints.head, 43, -44)], "#39404c"));
+  else if (variant % 3 === 1) parts.push(path(`M${num(joints.head.x - 46 * scale)} ${num(joints.head.y - 36 * scale)} Q${num(joints.head.x - 20 * scale)} ${num(joints.head.y - 87 * scale)} ${num(joints.head.x + 47 * scale)} ${num(joints.head.y - 41 * scale)}`, "none", "#77594b", 11 * scale));
+  if (variant % 3 === 1 || item.costume === "ROBE") {
+    parts.push(e(joints.head, -19, -7, 16, 19, "none"), e(joints.head, 22, -7, 16, 19, "none"), seg(p(joints.head, -3, -7), p(joints.head, 6, -7), 3 * scale));
+  }
+  if (variant % 3 === 2) parts.push(path(`M${num(joints.head.x - 26 * scale)} ${num(joints.head.y + 45 * scale)} q${26 * scale} ${32 * scale} ${54 * scale} 0`, "none", "#776251", 11 * scale));
+  // Only the lead mascot wears yellow; supporting actors keep their own color identity.
+  const scarf = variant === 0 ? "#f3c549" : ["#88b5ba", "#d7a7a1", "#bec597"][variant % 3]!;
+  parts.push(poly([p(joints.neck, -25, -3), p(joints.neck, 29, -3), p(joints.neck, 23, 17), p(joints.neck, -24, 12)], scarf));
+  parts.push(poly([p(joints.neck, 12, 12), p(joints.neck, 28, 14), p(joints.neck, 38, 68), p(joints.neck, 15, 57)], scarf));
+  for (const h of [joints.handBack, joints.handFront]) parts.push(e(h, 0, 0, 14, 16, "#fffaf1"));
+  for (const foot of [joints.footBack, joints.footFront]) parts.push(e(foot, 10, -2, 28, 13, "#fffaf1"), seg(p(foot, -15, 4), p(foot, 34, 4), 3 * scale));
+  parts.push(prop(joints, scale));
+  const transforms = [];
+  if (item.facing === "LEFT") transforms.push(`translate(${num(ground.x * 2)} 0) scale(-1 1)`);
+  if (pose.bodyRotation) transforms.push(`rotate(${num(pose.bodyRotation)} ${num(ground.x)} ${num(ground.y)})`);
+  return `<g data-character="${item.id}" data-art-identity="${variant}" data-mascot="yellow-scarf-v1"${transforms.length ? ` transform="${transforms.join(" ")}"` : ""}>${parts.join("")}</g>`;
 }
