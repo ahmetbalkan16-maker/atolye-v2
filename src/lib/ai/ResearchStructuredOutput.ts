@@ -45,6 +45,27 @@ export const canonicalResearchProviderSchema = Object.freeze({
   arrayFields: arrayFieldSchema,
 });
 
+/** The generation grammar mirrors the strict research contract; semantic URL validation stays authoritative. */
+export function buildResearchResponseJsonSchema() {
+  return {
+    type: "object", additionalProperties: false, required: [...providerFields],
+    properties: {
+      ...Object.fromEntries(stringFields.map(field => {
+        const spec = stringFieldSchema[field];
+        return [field, { type: "string", minLength: spec.minimumLength, maxLength: spec.maximumLength }];
+      })),
+      ...Object.fromEntries(arrayFields.map(field => {
+        const spec = arrayFieldSchema[field];
+        return [field, { type: "array", minItems: spec.minimumItems, maxItems: spec.maximumItems,
+          items: { type: "string", minLength: 1, maxLength: spec.itemMaximumLength,
+            ...(field === "sources" ? { pattern: "^https?://[^ @/]+(/[^ ]*)?$" } : {}),
+          },
+        }];
+      })),
+    },
+  };
+}
+
 export function createResearchPrompt(topic: string): string {
   return [
     "You are a documentary research assistant.",

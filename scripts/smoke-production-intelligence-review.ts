@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { withEmptyProjectSmoke } from "./lib/withEmptyProjectSmoke";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
@@ -178,4 +179,4 @@ async function withMutedConsole<T>(action: () => Promise<T>) {
   }
 }
 
-void main();
+void withEmptyProjectSmoke(slug, "production-intelligence-review", main).catch(error => { console.error(error); process.exitCode = 1; });

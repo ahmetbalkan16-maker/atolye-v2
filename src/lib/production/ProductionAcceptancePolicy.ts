@@ -1154,6 +1154,9 @@ export function productionAcceptanceConfigurationFingerprint(
   if (environment.IMAGE_OPENAI_REQUEST_INTERVAL_MS !== undefined) {
     snapshot.push(["IMAGE_OPENAI_REQUEST_INTERVAL_MS", environment.IMAGE_OPENAI_REQUEST_INTERVAL_MS]);
   }
+  for (const name of ["OLLAMA_NUM_GPU", "OLLAMA_NUM_THREADS"] as const) {
+    if (environment[name] !== undefined) snapshot.push([name, environment[name]]);
+  }
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
 

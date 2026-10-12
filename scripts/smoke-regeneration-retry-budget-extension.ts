@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { tempSmokeStorageContext } from "./lib/TempSmokeStorageContext";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
@@ -96,7 +97,7 @@ async function main() {
   const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atolye-regen-extension-"));
   try {
     // ═══════════════════════ Part A: store layer ═══════════════════════
-    const storeInput = { workspaceRoot: tempRoot };
+    const storeInput = tempSmokeStorageContext(tempRoot);
 
     await scenario("a well-formed authority validates and round-trips through write/read", async () => {
       const body = authorityBody();

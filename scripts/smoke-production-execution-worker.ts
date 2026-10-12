@@ -27,6 +27,12 @@ async function mainDurable(){const root=await fs.mkdtemp(path.join(os.tmpdir(),"
  const after=await dSetup(root,"after-cancel");let checks=0;const post=await after.service.execute(dRequest(),()=>({summary:"completed but cancelled"}),{isCancellationRequested:()=>++checks>1});await scenario("post cancellation wins",()=>assert.equal(post.status,"cancelled"));
  const blocked=await dSetup(root,"blocked");for(const[name,attempt,code]of[["claim",{claimId:"claim-2"},"WORKER_EXECUTION_OWNERSHIP_CONFLICT"],["worker",{workerId:"worker-2"},"WORKER_EXECUTION_OWNERSHIP_CONFLICT"],["session",{workerSessionId:"session-2"},"WORKER_EXECUTION_OWNERSHIP_CONFLICT"],["lease",{leaseId:"lease-2"},"WORKER_EXECUTION_LEASE_INVALID"]]as const)await scenario(`${name} mismatch`,async()=>{let invoked=false;const result=await blocked.service.execute(dRequest({},attempt),()=>{invoked=true;return{summary:"bad"}},never);assert.equal(result.reasonCode,code);assert.equal(invoked,false)});
  const expired=await dSetup(root,"expired");await scenario("expired lease blocks handler",async()=>{let invoked=false;const result=await expired.service.execute(dRequest({runningAt:d4,finishedAt:d4}),()=>{invoked=true;return{summary:"bad"}},never);assert.equal(result.reasonCode,"WORKER_EXECUTION_LEASE_INVALID");assert.equal(invoked,false)});
- const duplicate=await dSetup(root,"duplicate");let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve}),first=duplicate.service.execute(dRequest(),async()=>{await gate;return{summary:"first"}},never);while((await dTree(duplicate.directory)).filter(x=>x.includes("attempt-1-v2")).length===0)await new Promise(resolve=>setTimeout(resolve,1));const second=await duplicate.service.execute(dRequest(),()=>({summary:"second"}),never);await scenario("duplicate conflict",()=>assert.equal(second.reasonCode,"WORKER_EXECUTION_CONFLICT"));release();await first;
+ const duplicate=await dSetup(root,"duplicate");let release!:()=>void;let entered!:()=>void;
+ const gate=new Promise<void>(resolve=>{release=resolve}),handlerEntered=new Promise<void>(resolve=>{entered=resolve});
+ // Wait for the handler, after durable publication, rather than reading a tree
+ // concurrently with atomic rename of its .tmp files.
+ const first=duplicate.service.execute(dRequest(),async()=>{entered();await gate;return{summary:"first"}},never);
+ await handlerEntered;
+ const second=await duplicate.service.execute(dRequest(),()=>({summary:"second"}),never);await scenario("duplicate conflict",()=>assert.equal(second.reasonCode,"WORKER_EXECUTION_CONFLICT"));release();await first;
  assert.equal(scenarios,18);console.log(`Sprint 105 durable worker execution smoke: PASS (${scenarios} scenarios)`)
 }finally{await fs.rm(root,{recursive:true,force:true})}}

@@ -358,7 +358,7 @@ async function buildFixture(options: FixtureOptions): Promise<Fixture> {
         attemptWithinGeneration: jobAttemptWithinGeneration, updatedAt: timestamp,
         fingerprint: "fingerprint-placeholder" },
     });
-    const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, { workspaceRoot: tempRoot });
+    const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, storageContext);
     assert.equal(written.ok, true, `fixture authority must write cleanly: ${written.reasonCode}`);
   }
 
@@ -510,7 +510,7 @@ async function main() {
           attemptWithinGeneration: 0, updatedAt: timestamp, fingerprint: "fp" },
       });
       const written = writeRegenerationRetryBudgetExtensionAuthority(
-        fixture.projectSlug, body, { workspaceRoot: fixture.tempRoot });
+        fixture.projectSlug, body, fixture.storageContext);
       assert.equal(written.ok, true);
 
       await scenario("real prepareFailedStageRetry is rejected (setup, unaffected -- this authority doesn't match either)", async () => {

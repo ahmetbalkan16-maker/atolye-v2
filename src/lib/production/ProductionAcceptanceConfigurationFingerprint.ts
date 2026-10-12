@@ -198,6 +198,12 @@ export async function createProductionAcceptancePortableConfigurationSnapshotV2(
       ...(environment.OLLAMA_HOST !== undefined
         ? { ollamaHost: environment.OLLAMA_HOST }
         : {}),
+      ...(environment.OLLAMA_NUM_GPU !== undefined
+        ? { ollamaNumGpu: environment.OLLAMA_NUM_GPU }
+        : {}),
+      ...(environment.OLLAMA_NUM_THREADS !== undefined
+        ? { ollamaNumThreads: environment.OLLAMA_NUM_THREADS }
+        : {}),
       ...(environment.PIPER_VOICE_MODEL !== undefined
         ? { piperVoice: environment.PIPER_VOICE_MODEL }
         : {}),

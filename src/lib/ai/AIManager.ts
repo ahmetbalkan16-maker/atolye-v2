@@ -18,6 +18,7 @@ import { getSceneMaxTokens, SceneAIConfigError } from "./SceneAIConfig";
 import {
   parseStrictScriptResponse,
   resolveScriptContentBudget,
+  buildScriptResponseJsonSchema,
 } from "./ScriptStructuredOutput";
 import {
   buildScenesResponseJsonSchema,
@@ -36,6 +37,7 @@ import {
 import { ApplicationTimestampError } from "./CanonicalTimestamp";
 import {
   createResearchPrompt,
+  buildResearchResponseJsonSchema,
   parseStrictResearchResponse,
 } from "./ResearchStructuredOutput";
 import {
@@ -183,6 +185,7 @@ export class AIManager {
         prompt,
         provider,
         maxTokens: getResearchMaxTokens(),
+        jsonSchema: policy?.failClosed ? buildResearchResponseJsonSchema() : undefined,
         context: {
           ...context,
           operation: context?.operation ?? "research",
@@ -341,6 +344,7 @@ export class AIManager {
         prompt,
         provider,
         maxTokens: getScriptMaxTokens(),
+        jsonSchema: policy?.failClosed ? buildScriptResponseJsonSchema() : undefined,
         context: {
           ...context,
           operation: context?.operation ?? "script",

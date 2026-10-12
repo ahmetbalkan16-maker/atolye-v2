@@ -434,7 +434,7 @@ async function buildFixture(options: FixtureOptions): Promise<Fixture> {
         updatedAt: timestamp, fingerprint: "fingerprint-placeholder",
       },
     });
-    const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, { workspaceRoot: tempRoot });
+    const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, storageContext);
     assert.equal(written.ok, true, `fixture authority must write cleanly: ${written.reasonCode}`);
     if (ext.preConsumed) {
       const { buildProductionPipelineRegenerationRetryBudgetExtensionReceipt,
@@ -443,7 +443,7 @@ async function buildFixture(options: FixtureOptions): Promise<Fixture> {
       const receipt = buildProductionPipelineRegenerationRetryBudgetExtensionReceipt(
         body.authorityId, "consumed", timestamp, timestamp, ["fixture:pre-consumed"],
       );
-      writeRegenerationRetryBudgetExtensionReceipt(projectSlug, receipt, { workspaceRoot: tempRoot });
+      writeRegenerationRetryBudgetExtensionReceipt(projectSlug, receipt, storageContext);
     }
   }
 
@@ -494,7 +494,7 @@ async function main() {
 
     await scenario("the extension authority is consumed and a consumed receipt exists on disk", async () => {
       const receipt = readRegenerationRetryBudgetExtensionReceipt(
-        positive.projectSlug, "regen-auth-e2e", "consumed", { workspaceRoot: positive.tempRoot },
+        positive.projectSlug, "regen-auth-e2e", "consumed", positive.storageContext,
       );
       assert.equal(receipt.ok, true);
       assert.equal(receipt.value?.state, "consumed");

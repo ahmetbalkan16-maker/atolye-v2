@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { tempSmokeStorageContext } from "./lib/TempSmokeStorageContext";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
@@ -130,7 +131,7 @@ function writeAuthorityAndReceipt(
       attemptWithinGeneration: 2, updatedAt: timestamp, fingerprint: "fp-unit",
     },
   });
-  const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, { workspaceRoot });
+  const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, tempSmokeStorageContext(workspaceRoot));
   assert.equal(written.ok, true, `fixture authority must write cleanly: ${written.reasonCode}`);
   if (overrides.corruptAuthority) {
     const dir = path.join(workspaceRoot, "data", "projects", projectSlug, "production-execution",
@@ -143,7 +144,7 @@ function writeAuthorityAndReceipt(
       authorityId, receiptState, timestamp,
       overrides.receiptJobVersion ?? baseJob.updatedAt, ["unit-fixture"],
     );
-    const writtenReceipt = writeRegenerationRetryBudgetExtensionReceipt(projectSlug, receipt, { workspaceRoot });
+    const writtenReceipt = writeRegenerationRetryBudgetExtensionReceipt(projectSlug, receipt, tempSmokeStorageContext(workspaceRoot));
     assert.equal(writtenReceipt.ok, true, `fixture receipt must write cleanly: ${writtenReceipt.reasonCode}`);
     if (overrides.corruptReceipt) {
       const dir = path.join(workspaceRoot, "data", "projects", projectSlug, "production-execution",
@@ -159,7 +160,7 @@ async function runUnitScenarios() {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot);
       const result = findConsumedRegenerationRetryBudgetExtension(
-        "proj-a", stage, { ...baseJob, regenerationId: undefined }, { workspaceRoot },
+        "proj-a", stage, { ...baseJob, regenerationId: undefined }, tempSmokeStorageContext(workspaceRoot),
       );
       assert.equal(result, undefined);
     });
@@ -169,7 +170,7 @@ async function runUnitScenarios() {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot);
       const result = findConsumedRegenerationRetryBudgetExtension(
-        "proj-a", stage, { ...baseJob, generationOrdinal: undefined }, { workspaceRoot },
+        "proj-a", stage, { ...baseJob, generationOrdinal: undefined }, tempSmokeStorageContext(workspaceRoot),
       );
       assert.equal(result, undefined);
     });
@@ -180,7 +181,7 @@ async function runUnitScenarios() {
       // No authority needs to exist on disk at all -- the attempts<1 guard
       // must reject before ever reading the store.
       const result = findConsumedRegenerationRetryBudgetExtension(
-        "proj-a", stage, { ...baseJob, attempts: 0 }, { workspaceRoot },
+        "proj-a", stage, { ...baseJob, attempts: 0 }, tempSmokeStorageContext(workspaceRoot),
       );
       assert.equal(result, undefined);
     });
@@ -188,7 +189,7 @@ async function runUnitScenarios() {
 
   await scenario("no authority file at all -> undefined", async () => {
     await withTempDir((workspaceRoot) => {
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -196,7 +197,7 @@ async function runUnitScenarios() {
   await scenario("wrong projectSlug in authority -> undefined", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { projectSlug: "proj-b" });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -204,7 +205,7 @@ async function runUnitScenarios() {
   await scenario("wrong stage in authority -> undefined", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { stage: "thumbnail" });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -212,7 +213,7 @@ async function runUnitScenarios() {
   await scenario("wrong jobId in authority -> undefined", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { jobId: "proj-a-wrong-job" });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -220,7 +221,7 @@ async function runUnitScenarios() {
   await scenario("wrong generationOrdinal in authority -> undefined", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { generationOrdinal: 3 });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -228,7 +229,7 @@ async function runUnitScenarios() {
   await scenario("wrong priorJob.attempts in authority -> undefined", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { priorJobAttempts: 3 });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -240,7 +241,7 @@ async function runUnitScenarios() {
       // findConsumedRegenerationRetryBudgetExtension expects for this job
       // (job.attempts(6) + 1 = 7).
       writeAuthorityAndReceipt(workspaceRoot, { currentDurableOrdinal: 3, authorizedDurableOrdinal: 4 });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -248,7 +249,7 @@ async function runUnitScenarios() {
   await scenario("no receipt at all -> undefined (authority found but never consumed)", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { receiptState: "none" });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -256,7 +257,7 @@ async function runUnitScenarios() {
   await scenario("receipt state is 'aborted', not 'consumed' -> undefined", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { receiptState: "aborted" });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -264,7 +265,7 @@ async function runUnitScenarios() {
   await scenario("stale receipt.jobVersion (doesn't match current job.updatedAt) -> undefined", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { receiptJobVersion: "2020-01-01T00:00:00.000Z" });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -272,7 +273,7 @@ async function runUnitScenarios() {
   await scenario("corrupt authority JSON -> undefined (fail-closed, not a throw)", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { corruptAuthority: true });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -280,7 +281,7 @@ async function runUnitScenarios() {
   await scenario("corrupt receipt JSON -> undefined (fail-closed, not a throw)", async () => {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot, { corruptReceipt: true });
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -289,7 +290,7 @@ async function runUnitScenarios() {
     await withTempDir(async (workspaceRoot) => {
       writeAuthorityAndReceipt(workspaceRoot); // receipt bound to baseJob.updatedAt
       const staleJob = { ...baseJob, updatedAt: "2020-01-01T00:00:00.000Z" };
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, staleJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, staleJob, tempSmokeStorageContext(workspaceRoot));
       assert.equal(result, undefined);
     });
   });
@@ -297,7 +298,7 @@ async function runUnitScenarios() {
   await scenario("everything matches -> returns the authority, body, and consumed receipt", async () => {
     await withTempDir(async (workspaceRoot) => {
       const authorityId = writeAuthorityAndReceipt(workspaceRoot);
-      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, { workspaceRoot });
+      const result = findConsumedRegenerationRetryBudgetExtension("proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot));
       assert.ok(result);
       assert.equal(result?.authorityId, authorityId);
       assert.equal(result?.body.priorJob.attempts, baseJob.attempts - 1);
@@ -315,11 +316,11 @@ async function runUnitScenarios() {
       const { findMatchingRegenerationRetryBudgetExtension } = await import(
         "../src/lib/production/ProductionPipelineRegenerationRetryBudgetExtension");
       const matching = findMatchingRegenerationRetryBudgetExtension(
-        "proj-a", stage, baseJob, baseJob.attempts + 1, { workspaceRoot },
+        "proj-a", stage, baseJob, baseJob.attempts + 1, tempSmokeStorageContext(workspaceRoot),
       );
       assert.equal(matching, undefined, "a consumed authority must not match the pre-consumption finder");
       const consumedMatch = findConsumedRegenerationRetryBudgetExtension(
-        "proj-a", stage, baseJob, { workspaceRoot },
+        "proj-a", stage, baseJob, tempSmokeStorageContext(workspaceRoot),
       );
       assert.ok(consumedMatch, "but it must match the post-consumption finder");
     });
@@ -602,7 +603,7 @@ async function buildFixture(): Promise<Fixture> {
       attemptWithinGeneration: jobAttemptWithinGeneration, updatedAt: timestamp,
       fingerprint: "fingerprint-placeholder" },
   });
-  const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, { workspaceRoot: tempRoot });
+  const written = writeRegenerationRetryBudgetExtensionAuthority(projectSlug, body, storageContext);
   assert.equal(written.ok, true, `fixture authority must write cleanly: ${written.reasonCode}`);
 
   return { tempRoot, projectSlug, jobId, regenerationId, storageContext, operationContext, projectRoot };
@@ -659,7 +660,7 @@ async function runIntegrationScenarios() {
 
     await scenario("the P3 authority now has a real consumed receipt on disk", () => {
       const receipt = readRegenerationRetryBudgetExtensionReceipt(
-        fixture.projectSlug, "regen-auth-guard-e2e", "consumed", { workspaceRoot: fixture.tempRoot },
+        fixture.projectSlug, "regen-auth-guard-e2e", "consumed", fixture.storageContext,
       );
       assert.equal(receipt.ok, true);
       assert.equal(receipt.value?.state, "consumed");

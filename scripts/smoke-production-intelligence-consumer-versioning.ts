@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { withEmptyProjectSmoke } from "./lib/withEmptyProjectSmoke";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ProductionHealthPanelView } from "../src/components/studio/ProductionHealthPanel";
@@ -74,4 +75,4 @@ function render(report: Awaited<ReturnType<typeof consume>>) {
   return renderToStaticMarkup(createElement(ProductionHealthPanelView, { state: { kind: "success", report }, onRetry: () => undefined }));
 }
 
-void main();
+void withEmptyProjectSmoke(slug, "production-intelligence-consumer-versioning", main).catch(error => { console.error(error); process.exitCode = 1; });

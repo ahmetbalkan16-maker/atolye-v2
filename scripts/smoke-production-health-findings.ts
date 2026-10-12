@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { withEmptyProjectSmoke } from "./lib/withEmptyProjectSmoke";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ProductionHealthFindingsPanel from "../src/components/studio/ProductionHealthFindingsPanel";
@@ -175,4 +176,4 @@ function reportWithFindings(
   return next;
 }
 
-void main();
+void withEmptyProjectSmoke(slug, "production-health-findings", main).catch(error => { console.error(error); process.exitCode = 1; });

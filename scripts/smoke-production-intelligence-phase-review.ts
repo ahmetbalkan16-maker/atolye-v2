@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { withEmptyProjectSmoke } from "./lib/withEmptyProjectSmoke";
 import { ProductionActionEngine } from "../src/lib/production/ProductionActionEngine";
 import { detectProductionDependencyCycles } from "../src/lib/production/ProductionDependencyGraph";
 import { ProductionExecutionContract } from "../src/lib/production/ProductionExecutionContract";
@@ -161,4 +162,4 @@ function sourceFinding(
   };
 }
 
-void main();
+void withEmptyProjectSmoke(slug, "production-intelligence-phase-review", main).catch(error => { console.error(error); process.exitCode = 1; });

@@ -42,6 +42,10 @@ jobs:
         run: npx tsx scripts/smoke-ayas-micro-batch-age-readiness.ts
       - name: Native Graphify state chat and authority boundaries
         run: npx tsx scripts/smoke-ayas-graphify-state-chat.ts
+      - name: Script generation schema and preserved semantic guards
+        run: npx tsx scripts/smoke-script-structured-generation.ts
+      - name: Local model thermal request cancellation
+        run: npx tsx scripts/smoke-ollama-thermal-monitor.ts
       - name: Prepare bounded retrieval evidence directory
         run: mkdir "$AYAS_CI_EVIDENCE_DIR"
       # Preserve the original grader's raw exit/report. The next mandatory

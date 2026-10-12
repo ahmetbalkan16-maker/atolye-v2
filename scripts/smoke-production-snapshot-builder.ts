@@ -355,13 +355,15 @@ async function verifyFilesystemReadOnly() {
     assert.equal(wrongUsageProject.sourceState.aiUsage.status, "malformed");
     await writeJson("ai-usage.json", sourceBundle.aiUsage.data);
 
-    let lockedSnapshot: Promise<Awaited<ReturnType<typeof ProductionSnapshotBuilder.build>>> | undefined;
     let snapshotSettled = false;
+    let startSnapshot!: () => void;
+    const snapshotStart = new Promise<void>(resolve => { startSnapshot = resolve; });
+    // Register the reader outside the writer's async lock context: a nested
+    // read deliberately shares that context and is reentrant, not a contender.
+    const lockedSnapshot = snapshotStart.then(() => ProductionSnapshotBuilder.build(slug, generatedAt));
+    void lockedSnapshot.then(() => { snapshotSettled = true; });
     await PipelineJobManager.withProjectLock(slug, async () => {
-      lockedSnapshot = ProductionSnapshotBuilder.build(slug, generatedAt);
-      void lockedSnapshot.then(() => {
-        snapshotSettled = true;
-      });
+      startSnapshot();
       await new Promise<void>((resolve) => setImmediate(resolve));
       assert.equal(snapshotSettled, false);
 

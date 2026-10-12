@@ -712,7 +712,7 @@ async function strictGrammarForwarding() {
   // (fail-closed: full layout pin; non-strict: shape-only, no prefixItems).
   await withCanonicalSmokeRuntime(
     { name: "strict-grammar-forwarding", environment: { AI_PROVIDER: "ollama" } },
-    async () => {
+    async (runtime) => {
       const seen: Array<AIProviderGenerateOptions | undefined> = [];
       const captureProvider: AIProvider = {
         generate: async (_prompt: string, options?: AIProviderGenerateOptions) => {
@@ -721,8 +721,8 @@ async function strictGrammarForwarding() {
         },
       };
       const sc = strictScript();
-      await AIManager.runScenes(sc, { projectSlug: "unknown" }, captureProvider, strictGenerationExecutionPolicy, null).catch(() => undefined);
-      await AIManager.runScenes(sc, { projectSlug: "unknown" }, captureProvider, undefined, null).catch(() => undefined);
+      await AIManager.runScenes(sc, { projectSlug: runtime.projectSlug, stage: "unknown" }, captureProvider, strictGenerationExecutionPolicy, null).catch(() => undefined);
+      await AIManager.runScenes(sc, { projectSlug: runtime.projectSlug, stage: "unknown" }, captureProvider, undefined, null).catch(() => undefined);
       const strictScenes = (seen[0]?.jsonSchema as { properties?: { scenes?: { prefixItems?: unknown[]; items?: unknown } } })?.properties?.scenes;
       const nonStrictScenes = (seen[1]?.jsonSchema as { properties?: { scenes?: { prefixItems?: unknown[]; items?: unknown } } })?.properties?.scenes;
       pass(
@@ -742,7 +742,7 @@ async function strictGrammarForwarding() {
   // stays chapterId-free by design (see smoke-sprint-128-1).
   await withCanonicalSmokeRuntime(
     { name: "non-strict-scene-contract", environment: { AI_PROVIDER: "ollama" } },
-    async () => {
+    async (runtime) => {
       const sc = strictScript(); // 5 chapters, ids 1..5
       const gapProvider: AIProvider = {
         generate: async () => JSON.stringify({
@@ -755,7 +755,7 @@ async function strictGrammarForwarding() {
           ],
         }),
       };
-      const out = await AIManager.runScenes(sc, { projectSlug: "unknown" }, gapProvider, undefined, null);
+      const out = await AIManager.runScenes(sc, { projectSlug: runtime.projectSlug, stage: "unknown" }, gapProvider, undefined, null);
       const ids = out.scenes.map((s) => s.id);
       pass(
         JSON.stringify(ids) === JSON.stringify([1, 2, 3, 4, 5]) &&

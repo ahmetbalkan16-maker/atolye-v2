@@ -17,6 +17,8 @@
  *  - `OLLAMA_TEMPERATURE` sampling temperature (default 0.4, matching OpenAI)
  *  - `OLLAMA_FORMAT`      `json` (default — this pipeline's every LLM call wants
  *                         one JSON object) or `text`
+ *  - `OLLAMA_NUM_GPU`     optional per-request GPU layer count; 0 uses CPU
+ *  - `OLLAMA_NUM_THREADS` optional bounded CPU threads for these requests
  */
 
 export interface OllamaConfig {
@@ -32,6 +34,8 @@ export interface OllamaConfig {
    * with `OLLAMA_NUM_CTX`; a bigger value needs a bigger KV cache, so only raise
    * it where the GPU has the headroom. */
   readonly numCtx?: number;
+  readonly numGpu?: number;
+  readonly numThreads?: number;
   /** Extra attempts when a reply comes back truncated (`done_reason: "length"`)
    * or empty — a small local model is not deterministic, so a re-roll (with a
    * lower temperature each time) often lands a complete JSON object. `0` keeps
@@ -120,6 +124,8 @@ export function resolveOllamaConfig(env: NodeJS.ProcessEnv = process.env): Ollam
   if (!SAFE_MODEL.test(model)) throw new OllamaConfigurationError();
   const format = (env.OLLAMA_FORMAT?.trim().toLowerCase() || OLLAMA_DEFAULTS.format);
   if (format !== "json" && format !== "text") throw new OllamaConfigurationError();
+  const numGpu = optionalInteger(env.OLLAMA_NUM_GPU, 0, 200);
+  const numThreads = optionalInteger(env.OLLAMA_NUM_THREADS, 1, 32);
   return Object.freeze({
     baseUrl: resolveOllamaBaseUrl(env),
     model,
@@ -128,6 +134,8 @@ export function resolveOllamaConfig(env: NodeJS.ProcessEnv = process.env): Ollam
     temperature: float(env.OLLAMA_TEMPERATURE, OLLAMA_DEFAULTS.temperature, 0, 2),
     format,
     numCtx: optionalInteger(env.OLLAMA_NUM_CTX, 2_048, 131_072),
+    ...(numGpu !== undefined ? { numGpu } : {}),
+    ...(numThreads !== undefined ? { numThreads } : {}),
     maxRetries: integer(env.OLLAMA_MAX_RETRIES, OLLAMA_DEFAULTS.maxRetries, 0, 6),
   });
 }

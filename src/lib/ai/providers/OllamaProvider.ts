@@ -4,6 +4,7 @@
 // the same note in `AyasModelProfile.ts`.
 import { createProviderDispatchAdapter } from "../../providers/ProviderDispatchAdapterAuthority";
 import { resolveOllamaConfig, type OllamaConfig } from "../OllamaConfig";
+import { startOllamaThermalMonitor, OllamaThermalHardStopError, type OllamaThermalMonitorOptions } from "./OllamaThermalMonitor";
 import type {
   AIProviderGenerateOptions,
   AIProviderResult,
@@ -24,6 +25,7 @@ export class OllamaProvider implements ConfiguredAIProvider {
   constructor(
     private readonly fetcher: Fetcher = fetch,
     private readonly loadConfig: () => OllamaConfig = resolveOllamaConfig,
+    private readonly thermalOptions?: OllamaThermalMonitorOptions,
   ) {}
 
   createImmutableAiDispatchAdapter() {
@@ -52,6 +54,7 @@ export class OllamaProvider implements ConfiguredAIProvider {
       try {
         last = await this.callOnce(prompt, options, config, temperature);
       } catch (error) {
+        if (error instanceof OllamaThermalHardStopError) throw error;
         lastError = error;
         continue;
       }
@@ -69,7 +72,9 @@ export class OllamaProvider implements ConfiguredAIProvider {
   ): Promise<AIProviderResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+    let thermal: Awaited<ReturnType<typeof startOllamaThermalMonitor>> | undefined;
     try {
+      thermal = await startOllamaThermalMonitor(controller, this.thermalOptions);
       const format = options?.jsonSchema
         ? options.jsonSchema
         : config.format === "json"
@@ -87,6 +92,8 @@ export class OllamaProvider implements ConfiguredAIProvider {
             temperature,
             num_predict: options?.maxTokens ?? config.maxTokens,
             ...(config.numCtx !== undefined ? { num_ctx: config.numCtx } : {}),
+            ...(config.numGpu !== undefined ? { num_gpu: config.numGpu } : {}),
+            ...(config.numThreads !== undefined ? { num_thread: config.numThreads } : {}),
           },
         }),
         signal: controller.signal,
@@ -120,7 +127,11 @@ export class OllamaProvider implements ConfiguredAIProvider {
             }
           : {}),
       };
+    } catch (error) {
+      if (thermal?.failure) throw thermal.failure;
+      throw error;
     } finally {
+      thermal?.stop();
       clearTimeout(timeout);
     }
   }

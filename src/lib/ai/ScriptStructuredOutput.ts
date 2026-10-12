@@ -143,6 +143,43 @@ export function resolveCanonicalScriptProviderSchema(
   });
 }
 
+/** Apply the strict parser shape and the prompt's actual duration/content budget at generation time. */
+export function buildScriptResponseJsonSchema(env: NodeJS.ProcessEnv = process.env) {
+  const schema = resolveCanonicalScriptProviderSchema(env);
+  const budget = resolveScriptContentBudget(env);
+  const string = (maxLength: number) => ({ type: "string", minLength: 1, maxLength });
+  const positiveInteger = { type: "integer", minimum: 1 };
+  const properties = Object.fromEntries(
+    Object.entries(schema.stringLimits).map(([key, cap]) => [key, string(cap)]),
+  );
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: [...topLevelFields],
+    properties: {
+      ...properties,
+      estimatedDuration: positiveInteger,
+      narrationWordCount: positiveInteger,
+      seoKeywords: { type: "array", minItems: 1, maxItems: 20, items: string(100) },
+      chapters: {
+        type: "array", minItems: budget.chapterCount, maxItems: budget.chapterCount,
+        items: {
+          type: "object", additionalProperties: false, required: [...chapterFields],
+          properties: {
+            title: string(chapterStringLimits.title),
+            narration: { type: "string", minLength: Math.ceil(budget.totalLowChars / budget.chapterCount),
+              maxLength: Math.min(schema.chapterStringLimits.narration, Math.floor(budget.totalHighChars / budget.chapterCount)) },
+            visualGoal: string(chapterStringLimits.visualGoal),
+            emotion: string(chapterStringLimits.emotion),
+            transition: string(chapterStringLimits.transition),
+            id: positiveInteger, duration: positiveInteger,
+          },
+        },
+      },
+    },
+  };
+}
+
 export function parseStrictScriptResponse(
   response: string,
   now: () => string = () => new Date().toISOString(),

@@ -123,7 +123,7 @@ export function ayasCpuPercentFromSamples(before: readonly os.CpuInfo[], after: 
 export async function readAyasGpuTemperatureC(deps: Pick<AyasMachineTelemetryDeps, "run"> = {}): Promise<number | undefined> {
   try {
     const output = await (deps.run ?? runLocal)("nvidia-smi", ["--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"]);
-    const values = output.trim().split(/\r?\n/).map((line) => Number(line.trim())).filter((value) => Number.isFinite(value) && value > -50 && value < 150);
+    const values = output.trim().split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(Number).filter((value) => Number.isFinite(value) && value > -50 && value < 150);
     return values.length ? Math.max(...values) : undefined;
   } catch { return undefined; }
 }

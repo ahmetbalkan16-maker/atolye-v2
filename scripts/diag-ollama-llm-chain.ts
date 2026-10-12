@@ -10,20 +10,7 @@
  * whatever root variables the shell exports — the records never reach the live
  * runtime or the repository `data/projects`.
  */
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-
-process.env.AI_PROVIDER = "ollama";
-const isolationRoot = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-diag-llm-chain-"));
-for (const [key, folder] of [
-  ["ATOLYE_RUNTIME_ROOT", "runtime"],
-  ["ATOLYE_RUNTIME_AUTHORITY_ROOT", "authority"],
-  ["ATOLYE_WORKSPACE_ROOT", "workspace"],
-] as const) {
-  process.env[key] = path.join(isolationRoot, folder);
-  fs.mkdirSync(process.env[key]!);
-}
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 const topic = process.argv[2]?.trim() || "Kanuni Sultan Süleyman";
 
@@ -32,7 +19,7 @@ async function main() {
   const { AIManager } = await import("../src/lib/ai/AIManager");
   const { resolveOllamaConfig } = await import("../src/lib/ai/OllamaConfig");
   const cfg = resolveOllamaConfig();
-  console.log(`storage=${isolationRoot} (TEMP, removed on exit)`);
+  console.log(`storage=${process.env.ATOLYE_RUNTIME_ROOT} (TEMP, removed on exit)`);
   console.log(`model=${cfg.model} num_ctx=${cfg.numCtx ?? "server-default"} timeoutMs=${cfg.timeoutMs}`);
 
   const t0 = Date.now();
@@ -77,9 +64,8 @@ async function main() {
   process.exitCode = allReal ? 0 : 1;
 }
 
-void main()
+void withCanonicalSmokeRuntime({ name: "diag-ollama-llm-chain", projectSlug: "diag-llm-chain", environment: { AI_PROVIDER: "ollama" } }, main)
   .catch((e) => {
     console.error("FATAL:", e);
     process.exitCode = 2;
-  })
-  .finally(() => fs.rmSync(isolationRoot, { recursive: true, force: true }));
+  });
