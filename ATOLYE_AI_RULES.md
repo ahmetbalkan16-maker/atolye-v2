@@ -1,3 +1,5 @@
+12 Ekim 2026 — Atölye yeni video hazırlamaya teknik olarak hazır. Claude devamı ve eski 22 başarısız suite 22/22 PASS; yeni source fa3434dd35e4b41fd6500447b5d41399ad5b03fa, CLEAN build 8PKEkaYETEkRb_7mDLUaT canlı. Instrumentation/bundle health, aday HTTP, qualification501/25976, gerçek canlı health/ready/workerReady/Studio16, local/public erişim ve source CI38229667318 PASS. Runtime2374/authority4/repoProjects2399 metadata digestleri aynı. Graphify eksik11dosya/202node/296edge yerel parser ile çözüldü; kaynak hash guard ve yerel MCP sorgusu PASS. Owner reboot/telefon kabulü OWNER_REPORTED. Yeni video/ücretli çağrı/upload/kurulum/reboot yok. Ayrıntı ve kalan isteğe bağlı tarihsel işler: docs/ATOLYE_READY_2026-10-12.md. Bu kayıt aşağıdaki eski Current/handoff paragraflarının güncel durumunu supersede eder; tarihsel kanıtlar korunur.
+
 ---
 Document: ATOLYE_AI_RULES.md
 Version: 1.0.0

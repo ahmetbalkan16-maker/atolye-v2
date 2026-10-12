@@ -310,3 +310,7 @@ to fake a metadata-only bump.
    observer and discovery daemon sources, so Stage 10A did not do it.
 6. Decide whether to clean-rebuild `.graphify/graph.json` to drop phantom edges (see §9); it also drops
    retained non-code nodes.
+
+## 12 October 2026 closure
+
+The canonical graph now covers all 11 parser-gap files with 202 SHA-attested nodes and 296 edges; the local MCP query resolves PowerShell startup dependencies. Structural status is CURRENT with no incomplete code file. The official assistant labeling command ingested 200 community names. The old label-only pending message was corrected rather than erased: 354 unanswered optional description batches from 24 September remain SEMANTIC PENDING. This is separate from AST/file coverage and does not gate video production. No per-node description completion or dynamic-call resolution is claimed. Final exact-HEAD evidence is in the `atolye-close-gates-20261012` audit directory described in `docs/ATOLYE_READY_2026-10-12.md`.
