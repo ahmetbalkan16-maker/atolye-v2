@@ -33,6 +33,11 @@ async function main() {
       assert(result.success,JSON.stringify(result));if(!result.success||!result.filePath) return;
       const stored=fs.readFileSync(resolveRuntimeLogicalPath(result.filePath,runtime.runtimeStorageContext)),read=readCharacterScenePayload(stored);assert.equal(read.status,"VALID");if(read.status!=="VALID") return;
       const payload=read.payload;assert(payload.volume);assert.deepEqual(payload.volume.sceneYears,[1453]);assert.equal(payload.volume.wardrobes[0]!.brief.recipe,"OTTOMAN_15_PORTRAIT");
+      assert.equal(payload.volume.design?.performance,'GROUNDED');assert.equal(payload.volume.design?.setting,'OTTOMAN_COURT_15');
+      const oldVolume={...payload,volume:{...payload.volume,design:undefined}};
+      delete oldVolume.volume.design;
+      assert.deepEqual(findCharacterSceneAssetPayloadProblems(oldVolume),[],'earlier volume metadata remains valid');
+      assert((await rasterizeCharacterSceneAssetFrame(oldVolume,.1,8)).ok,'earlier volume geometry still renders');
       assert.deepEqual(findCharacterSceneAssetPayloadProblems(payload),[]);
       assert(findCharacterSceneAssetPayloadProblems({...payload,volume:{...payload.volume,sceneYears:[1550]}}).length,"tampered year must invalidate matching recipe");
       assert.throws(()=>renderCharacterSceneAssetFrame(payload,0),/REQUIRES_RASTER/);
@@ -42,6 +47,10 @@ async function main() {
       process.env.ATOLYE_CHARACTER_RENDER_MODE="2d";
       const mode2d=await new CharacterImageProvider().generateImage({sceneId:2,projectSlug:slug,prompt:"Yapay zekâ ve bilgisayar yazılımı"});assert(mode2d.success);if(mode2d.success&&mode2d.filePath){const p=readCharacterScenePayload(fs.readFileSync(resolveRuntimeLogicalPath(mode2d.filePath,runtime.runtimeStorageContext)));assert(p.status==="VALID"&&!p.payload.volume);}
       const captured=await provider.generateImage({sceneId:3,projectSlug:slug,prompt:"Ekonomi ve enflasyon"});assert(captured.success);if(captured.success&&captured.filePath){const p=readCharacterScenePayload(fs.readFileSync(resolveRuntimeLogicalPath(captured.filePath,runtime.runtimeStorageContext)));assert(p.status==="VALID"&&p.payload.volume,"provider mode captured immutably");}
+      for(const [i,prompt,profile] of [[4,'1480 yılında Osmanlı yeniçeri askerleri yürüyor.','JANISSARY_EARLY'],[5,'1550 yılında Osmanlı zırhlı sipahi askeri konuşuyor.','OTTOMAN_MAIL_PLATE'],[6,'1710 yılında Osmanlı yeniçeri ağası konuşuyor.','JANISSARY_OFFICER_18'],[7,'1860 yılında Osmanlı padişahı sarayda konuşuyor.','OTTOMAN_FEZ_COURT']] as const) {
+        const image=await provider.generateImage({sceneId:i,projectSlug:slug,prompt});assert(image.success);if(!image.success||!image.filePath) continue;
+        const p=readCharacterScenePayload(fs.readFileSync(resolveRuntimeLogicalPath(image.filePath,runtime.runtimeStorageContext)));assert(p.status==='VALID');if(p.status==='VALID'){assert(p.payload.volume?.design?.actors.some(a=>a.profile===profile),'real portable image must contain the requested era-specific uniform');if(i===7)assert.equal(p.payload.volume?.design?.setting,'OTTOMAN_COURT_19');}
+      }
       const frame={crop:{x:.1,y:.1,width:.8,height:.8},transform:{scale:1,translateX:0,translateY:0}};
       const generated=await new FFmpegSceneVideoProvider(new SpawnRunner(),()=>({ffmpegPath:ffmpeg,ffprobePath:ffprobe,timeoutMs:60000,maxOutputBytes:32*1024*1024,maxStdioBytes:1024*1024})).generateVideo({projectId:"volume-proof",projectSlug:slug,scenes:[{sceneId:1,sourceImageAssetId:"volume-source",animationAssetId:"volume-anim",imageFilePath:result.filePath,imageMimeType:"image/png",motionPlan:{sceneId:1,animationPrompt:"motion",sourceImageAssetId:"volume-source",outputAssetId:"volume-anim",animationAssetId:"volume-anim",durationSeconds:1,motionType:"zoom-in",start:frame,end:frame,transition:"fade",provider:"mock",model:"fixture",generationMode:"mock",artifactType:"motion-plan",status:"generated"}}]});
       assert(generated.success,JSON.stringify(generated));if(generated.success){const output=path.join(runtime.runtimeStorageContext.projectsRoot,slug,"assets","videos",path.posix.basename(generated.scenes[0]!.filePath));const sample=(t:string)=>execFileSync(ffmpeg,["-v","error","-ss",t,"-i",output,"-frames:v","1","-f","rawvideo","-pix_fmt","gray","-s","96x54","-"]);assert.notDeepEqual(sample("0.1"),sample("0.8"));assert.equal(generated.scenes[0]!.width,1920);assert.equal(generated.scenes[0]!.height,1080);}

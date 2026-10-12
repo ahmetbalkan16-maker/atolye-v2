@@ -21,8 +21,10 @@ async function main() {
   const piper=getPiperAudioProviderConfig(),music=selectMusicTrack("historical","volume-design");
   if(!music||!isProductionAdmissibleRightsStatus(classifyMediaRightsStatus(music.license))) throw new Error("PREVIEW_LICENSED_MUSIC_REQUIRED");
   const descriptions=[
-    {prompt:"1453 yılında Osmanlı padişahı sarayda konuşuyor.",narration:"Bir hükümdarın kıyafeti bize ne anlatır? Şimdi 1453 yılına gidiyoruz. Bu saray sahnesi bir canlandırma. Padişah konuşurken danışmanı onu dinliyor."},
-    {prompt:"1550 yılında Osmanlı padişahı sarayda kıyafetini gösteriyor ve konuşuyor.",narration:"Yüzyıl değiştiğinde kıyafet de değişir. Başlık, kaftan ve kumaş desenleri döneme göre seçilmelidir. Tarihi anlatırken bu ayrıntılar önemlidir."},
+    {prompt:"1480 yılında Osmanlı yeniçeri askerleri meydanda yürüyor.",narration:"Aynı asker, aynı kıyafet mi? Hayır! Başlık, görev ve dönem değişir. Yeniçeri ile zırhlı sipahiyi birbirine karıştırmayalım."},
+    {prompt:"1550 yılında Osmanlı zırhlı sipahi askeri sur önünde konuşuyor ve işaret ediyor.",narration:"Bu zırhta zincir halkalar ve metal plakalar birlikte kullanılıyor. Miğfer de ayrı bir tasarım."},
+    {prompt:"1710 yılında Osmanlı yeniçeri ağası sarayda konuşuyor.",narration:"Yeniçeri ağasının başlığı ve kıyafeti farklı. Bu, kaynaklardan esinlenen bir canlandırma."},
+    {prompt:"1860 yılında Osmanlı padişahı sarayda konuşuyor.",narration:"On dokuzuncu yüzyılda görünüm yine değişiyor: fes, ceket ve farklı bir saray dekoru."},
   ];
   const results: unknown[]=[],clips: string[]=[];
   await withCanonicalSmokeRuntime({name:"volume-design-preview"},async context=>{
@@ -43,7 +45,7 @@ async function main() {
       if(!video.success) throw new Error("PREVIEW_PRODUCTION_VIDEO_FAILED");
       const clip=path.join(output,`clip-${i+1}.mp4`);
       const mixed=await new SpawnRunner().run(ffmpeg,["-hide_banner","-loglevel","error","-i",resolveRuntimeLogicalPath(video.scenes[0]!.filePath,context.runtimeStorageContext),"-i",resolveRuntimeLogicalPath(narration.filePath,context.runtimeStorageContext),"-stream_loop","-1","-i",music.absolutePath,"-filter_complex","[1:a]asplit=2[voice][key];[2:a]volume=0.13[bed];[bed][key]sidechaincompress=threshold=0.03:ratio=5:attack=100:release=800[duck];[voice][duck]amix=inputs=2:normalize=0[a]","-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-movflags","+faststart",clip],{timeoutMs:120000,maxOutputBytes:65536,healthCheck:()=>assertAyasHeavyWorkloadAllowed({stage:"assembly",ownedActive:true})});
-      if(mixed.failed||mixed.exitCode!==0) throw new Error("PREVIEW_MIX_FAILED");clips.push(clip);results.push({scene:i+1,seconds:duration,year:read.payload.volume.sceneYears,recipe:read.payload.volume.wardrobes[0]!.brief.recipe,realProvider:true});
+      if(mixed.failed||mixed.exitCode!==0) throw new Error("PREVIEW_MIX_FAILED");clips.push(clip);results.push({scene:i+1,seconds:duration,year:read.payload.volume.sceneYears,recipe:read.payload.volume.wardrobes[0]!.brief.recipe,design:read.payload.volume.design,realProvider:true});
     }
   });
   const listing=path.join(output,"clips.txt");fs.writeFileSync(listing,clips.map(f=>`file '${path.basename(f)}'`).join("\n"),{flag:"wx"});

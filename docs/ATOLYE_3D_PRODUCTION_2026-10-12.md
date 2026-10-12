@@ -1,3 +1,5 @@
+13 Ekim güncellemesi: kaynaklı kıyafet, zemine bağlı hareket ve kalıcı owner-onaylı kitaplık docs/ATOLYE_CHARACTER_REUSE_2026-10-13.md içinde uygulanmıştır. En güncel canlı/build kabulünü checkpoint'ten oku; alttaki ilk tasarım kaydı tarihsel başlangıçtır.
+
 # 3D üretim tasarımı — 12 Ekim 2026
 
 Owner önceki3Dadayı tamamlayıp işleme almayı istedi. Kaynak artık görsel sağlayıcısı ve gerçek sahne-video motoruna bağlıdır; canlıya geçişin gerçek durumu checkpoint ve ignored delivery-volume-production makbuzlarından doğrulanır. Önceki aday/devam belgesi tarihsel tasarım ve YouTube inceleme kanıtıdır: [ATOLYE_3D_PERIOD_DESIGN_2026-10-12.md](ATOLYE_3D_PERIOD_DESIGN_2026-10-12.md).

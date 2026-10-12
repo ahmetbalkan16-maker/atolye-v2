@@ -1,0 +1,37 @@
+# Kaynaklı kıyafet, hareket ve karakter kitaplığı
+
+Owner'ın 12–13 Ekim devamı: duruş/el/ayak düzgün görünsün; kıyafet yıl ve millete uygun kaynaklara benzesin; beğenilen tasarımlar tekrar kullanılsın. Canlı kabulün güncel kaydı ATOLYE_CHECKPOINT.md'dedir.
+
+## Dönem araştırması ve tasarım
+
+| Aile | Tasarım aralığı | Gerçek kaynak / erişim | Uygulanan fark |
+|---|---|---|---|
+| Erken yeniçeri | 1450–1500 inceleme penceresi | [British Museum Pp,1.19](https://www.britishmuseum.org/collection/object/P_Pp-1-19), ca.1480; tam çizim görüldü | Uzun, tepesi katlanan keçe başlık; sade düğmeli kısa giysi, bol pantolon ve dış katman. Renksiz çizim renkleri kanıtlamaz. |
+| Yeniçeri ağası | 1700–1737; yalnız açık ağa/subay bağlamı | [Rijksmuseum SK-A-2025](https://www.rijksmuseum.nl/nl/collectie/object/Aga-Opperbevelhebber-der-Janitsaren--d2416ef449704f143440b192615c7fe4); tam portre görüldü | Yüksek sarık, beyaz iç giysi, koyu dış kaftan, işlemeli kuşak; ilk yanlış tüylü başlık kaldırıldı. Ağa üniforması tüm askerlere kopyalanmaz. |
+| Karakol yeniçerisi | 1780–1800 inceleme penceresi | [British Museum folio117](https://www.britishmuseum.org/collection/object/W_1974-0617-0-12-1-117), ca.1790; katalog metni | Büyük kahverengi sarık, kahverengi kaftan, bol mavi pantolon, kırmızı kuşak. Görseli gördük iddiası yok. |
+| Zincir/plaka zırh | 1451–1600 inceleme penceresi; açık zırh/sipahi bağlamı | [Met 36.25.362](https://www.metmuseum.org/art/collection/search/24193) ve [Walters51.74](https://art.thewalters.org/object/51.74/); gerçek fotoğraflar görüldü | Zincir gövde/kollar, belde iki sütun/üç sıra plakalar ve perçinler; bombeli sivrilen miğfer, burun siperi ve yan zincir. Yeniçeri ile ağır zırh aynı profil sayılmaz. Yazıt uydurulmaz. |
+| Fesli hükümdar | 1860–1861 inceleme penceresi | [NPG Ax196530](https://www.npg.org.uk/collections/search/portrait/mw261414/Abdlmecid-I-Sultan-of-the-Ottoman-Empire) katalog tarihi1860'lar; fotoğrafa güvenlik doğrulaması erişim sınırı. [RCT407268](https://www.rct.uk/collection/407268/abd-ul-mejid-1823-1861-sultan-of-turkey)1840 portre açıklaması okunabildi; resim yüklenmedi | Kırmızı fes, koyu üniforma ve pelerin. RCT açıklaması parçaları destekler, bütün1860 kişisel kıyafet ayrıntısını kanıtlamaz. |
+
+Pencereler kaynak esinli tasarım adaylarıdır; tam tarihî doğruluk sertifikası değildir. `REFERENCE_INSPIRED_NEEDS_REVIEW` korunur. Belirsiz/çoklu yıl, karma/olumsuz birlik veya kapsam dışı rol `RESEARCH_REQUIRED` kalır. Bütün millet/yıl/kişi veritabanı tamamlandı denmez. Fotoğraflar program varlığı olarak indirilmedi/kopyalanmadı; geometri ve dekorlar özgün kodla çizildi.
+
+15.yy sade tekstil,16.yy çini motifleri,19.yy perde/sütun/avize ekleri farklılaşır. [Milli Saraylar Dolmabahçe tarihi](https://www.millisaraylar.gov.tr/Lokasyon/3/dolmabahce-sarayi)1856 yerleşimini ve Batı dekoru birleşimini destekler. Bu dekor1856 öncesine uygulanmaz; aynı sarayın fotoğraf rekonstrüksiyonu diye sunulmaz. Önceki beş hükümdar ailesi ve eski portable varlıklar korunur.
+
+## Hareket
+
+`VolumePerformance.ts` sadece yeni `design.performance=GROUNDED` planında çalışır. Destek ayağı sahne koordinatında sabit, salınan ayak havadadır; iki kemikli IK bacak boylarını korur. Ölçeğe göre gerçek adım hızı, hızlanma/varış, birbirini tamamlayan kol salınımı ve yumuşak kamera vardır. Konuşma/işaret/eğilme jestlerinde ayaklar yerinde kalır. Başlık ve el nesnesi rig'i izler. Yeni düşme geometrisi zeminin altına geçmez. Eski design'sız3D/2D kayıtlar aynı eski yollarını kullanır; pipeline/audio sırası değişmez.
+
+Bu insan motion-capture veya gerçek ses sözcük hizalaması değildir. `SCENE_TEXT_ESTIMATE` devam eder. 12 yoğun yürüyüş/koşu yörüngesi, sabit jestler, kemik boyları, temas/varış/kamera ve gerçek renderer kontrolleri teknik kanıttır; owner'ın görsel kabulünün yerini almaz. İnce zincir halkalarında düşük çokgen kesit, güvenli hesap sınırını korur; test sınırı yükseltilerek hata gizlenmedi.
+
+## Kalıcı tekrar kullanım
+
+`CharacterDesignLibrary.ts` kaynak parmak iziyle bağlı küçük **parametrik karakter/kıyafet şablonları** ve ilk önizlemeyi `bin/ayas-local-visual/characters/` içinde tutar. `CharacterImageProvider` mevcut kayıt parametresini seçer; aynı kültür ve kaynaklı dönem ailesi yeniden yazılmaz, yalnız eksik aile eklenir. İfadeler/pozlar sahne için yeniden çizilir; yeniden karakter tasarımı veya ücretli görsel çağrısı yapılmaz. Kaynak ve sahne yılı karıştırılmaz; aynı kıyafet ailesinin eski önizleme yılı yeni sahne yılına kopyalanmaz.
+
+`/studio/characters`: gerçek adayları gör, kaynaklarını aç, **Beğendim, sakla ve kullan** ile owner görünüm onayını kaydet. `/visuals` mevcut alt sayfasından bağlantı vardır; homepage/shared navigation değiştirilmedi. İlk aday `PENDING_OWNER_APPROVAL`; kod kendisini owner adına onaylamaz. `OWNER_APPROVED` kayıt yeniden açılınca korunur. Onaylı dosya/önizleme kullanımdan dolayı değişmez. Kaynak/çizim sürümü değişirse eski kayıt saklanır; yeni görünüm ayrıca incelenir. Owner onayı tarihî doğruluk veya kod yürütme/bütçe yetkisi vermez.
+
+Kayıt ID/spec ve önizleme SHA,16KB metadata/512KB thumbnail/256 aile sınırı, canonical path/symlink ret, bounded kaynak URL'leri, atomik kayıt/lock ve digest karşılaştırmalı owner onayı vardır. API mevcut AYAS session +same-origin CSRF sınırını kullanır; anonymous onay yok. Kitaplık bozulursa fail-closed olur; eski owner kayıtları veya projeler silinmez. Hosted CI'a iki bağımsız pure/fixture kapısı eklendi; frozen tarih graders'ı değiştirilmedi.
+
+Yeni PC'ye Git kaynağıyla birlikte `bin/ayas-local-visual/characters/` ve mevcut reviewed backdrop library taşınmalıdır. Şablon, önizleme ve owner onayı birlikte kalır. Kaynak parmak izi satır sonlarını normalize eder; sırf Windows/Linux CRLF farkı yeni tasarım yaratmaz. Bu3D/kitaplık özelliği Blender/Three/ek GPU modeli istemez; mevcut Node/Sharp/FFmpeg/Piper kurulum ve authority aktarım kuralları devam eder.
+
+## Kabul kaydı
+
+Kitaplık restart/reuse yazmadan, missing-family, draft/owner ayrımı, CAS, bozuk SHA/path ve eski sürüm reddi; 3D provider→portable PNG→video, modern/2D/captured mode; eski15 animasyon/frozen14 tarih; backdrop/direction ve TS/lint PASS. Yeni temiz build, aynıHEAD CI, özel HTTP kitaplık/auth kabulü, son hareketli dönem demosu ve kontrollü canlı geçişin gerçek sonucu checkpoint'e işlenir. Demo/kanıtlar Git dışı `delivery-volume-production` dizinindedir. Yeni API/upload/purchase/driver/reboot yok; özgün yerel müzik/ducking, mevcut fiyat/otorite ve73°C ortak GPU koruması korunur.

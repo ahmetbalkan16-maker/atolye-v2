@@ -9,6 +9,8 @@ import {
 import { CHARACTER_SCENE_HEIGHT, CHARACTER_SCENE_WIDTH } from "@/lib/character/SvgSceneRenderer";
 import { rasterizeCharacterSceneAssetFrame } from "@/lib/animation/character/CharacterSceneRasterFrame";
 import { createVolumeScenePlan,extractCostumeSceneYears } from "@/lib/character/volume/VolumeScenePlan";
+import {periodUnitFromScene} from "@/lib/character/volume/PeriodDesign";
+import {CharacterDesignLibrary,characterDesignSpec} from "@/lib/character/volume/CharacterDesignLibrary";
 import { planCharacterScene } from "@/lib/animation/character/CharacterScenePlanner";
 import { EDITORIAL_RENDER_STYLE } from "@/lib/character/SvgSceneRenderer";
 import { planCharacterSceneDirection } from "@/lib/animation/character/CharacterSceneDirection";
@@ -38,6 +40,7 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
   private readonly backdropMode = resolveCharacterLocalBackdropMode();
   // Capture with the existing immutable dispatch instance, not per-frame env.
   private readonly volumeMode = resolveCharacterVolumeMode();
+  private readonly designLibrary=this.volumeMode?new CharacterDesignLibrary():null;
 
   createImmutableImageDispatchAdapter() {
     return createProviderDispatchAdapter(this, {
@@ -60,8 +63,21 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         language: "tr",
         contextualDirection: true,
       });
-      const direction = planCharacterSceneDirection([input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking);
+      const unit=periodUnitFromScene(input.prompt);
+      const plannedDirection = planCharacterSceneDirection(this.volumeMode?input.prompt:[input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking);
+      const direction=this.volumeMode&&unit.startsWith('JANISSARY')&&plannedDirection.art.culture==='UNKNOWN'?{...plannedDirection,art:{...plannedDirection.art,culture:'OTTOMAN' as const}}:plannedDirection;
       const background = readCharacterLocalBackdrop(this.backdropMode, direction.art, plan.request.blocking.time);
+      let volume=this.volumeMode?createVolumeScenePlan(plan.request.blocking,direction.art,extractCostumeSceneYears(input.prompt),unit):undefined;
+      const templateIds:string[]=[];
+      if(volume?.design&&this.designLibrary) {
+        const storedActors=volume.design.actors.map(actor=>{
+          const c=plan.request.blocking.characters.find(c=>c.id===actor.actorId)!,brief=volume!.wardrobes.find(w=>w.actorId===c.id)!.brief;
+          const selected=this.designLibrary!.ensure(characterDesignSpec(c,direction.art,brief,volume!.design!,this.designLibrary!.geometryFingerprint));
+          if(selected.record.previewSha256===null)templateIds.push(selected.record.id);
+          return {...actor,profile:selected.record.spec.profile};
+        });
+        volume={...volume,design:{...volume.design,actors:storedActors}};
+      }
       const payload: CharacterSceneAssetPayload = {
         schemaVersion: CHARACTER_SCENE_ASSET_SCHEMA_VERSION,
         request: plan.request,
@@ -69,11 +85,12 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         fontFamily: CHARACTER_SCENE_FONT_FAMILY,
         renderStyle: EDITORIAL_RENDER_STYLE,
         direction,
-        ...(this.volumeMode?{volume:createVolumeScenePlan(plan.request.blocking,direction.art,extractCostumeSceneYears(input.prompt))}:{}),
+        ...(volume?{volume}:{}),
         ...(background ? { background: background.metadata } : {}),
       };
       const raster = await rasterizeCharacterSceneAssetFrame(payload, CHARACTER_SCENE_STILL_SECONDS,6,{ backgroundPng: background?.png });
       if (!raster.ok) return failure(input.sceneId, createdAt);
+      if(this.designLibrary&&templateIds.length){const sharp=(await import('sharp')).default;const preview=await sharp(raster.png).resize(640,360).png().toBuffer();for(const id of new Set(templateIds))this.designLibrary.savePreviewOnce(id,preview);}
       const data = embedCharacterScenePayload(raster.png, payload, background?.png);
       const saved = trySaveImage(input.projectSlug, data);
       if (!saved) return failure(input.sceneId, createdAt);

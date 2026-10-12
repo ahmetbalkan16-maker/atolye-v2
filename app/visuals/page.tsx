@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { StudioCard, StudioLayout } from "@/components/studio";
 
 export default function VisualsPage() {
@@ -51,6 +52,7 @@ export default function VisualsPage() {
       title="Visual Studio"
       subtitle="AI destekli sinematik görsel prompt üretimi"
     >
+      <Link href="/studio/characters" className="mb-5 inline-block rounded-xl border border-zinc-700 px-4 py-3 text-blue-300">Karakter Kitaplığı — beğendiğin tasarımları sakla</Link>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <StudioCard title="Sahne Bilgileri">
           <div className="space-y-5">

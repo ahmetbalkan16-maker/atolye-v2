@@ -44,6 +44,10 @@ jobs:
         run: npx tsx scripts/smoke-ayas-graphify-state-chat.ts
       - name: Script generation schema and preserved semantic guards
         run: npx tsx scripts/smoke-script-structured-generation.ts
+      - name: Grounded local character motion and period guards
+        run: npx tsx scripts/smoke-volume-performance.ts
+      - name: Reusable character design approval and library
+        run: npx tsx scripts/smoke-character-design-library.ts
       - name: Local model thermal request cancellation
         run: npx tsx scripts/smoke-ollama-thermal-monitor.ts
       - name: Prepare bounded retrieval evidence directory
