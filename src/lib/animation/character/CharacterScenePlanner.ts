@@ -33,6 +33,8 @@ export interface CharacterScenePlanInput {
   readonly text: string;
   readonly keywords?: readonly string[];
   readonly language?: "tr" | "en";
+  /** New assets may prioritize an explicitly royal palace setting over incidental verbs. */
+  readonly contextualDirection?: boolean;
 }
 
 export type CharacterSceneKind =
@@ -63,7 +65,7 @@ const KIND_RULES: readonly (readonly [CharacterSceneKind, Stems, number?])[] = [
   ["CELEBRATION", ["victory", "celebrat", "triumph", "cheer", "conquest", "rejoic", "zafer", "kutla", "sevin", "fetih", "fethet", "fethedil", "galip", "bayram"]],
   ["VOYAGE", ["ship", "fleet", "sail", "navy", "naval", "voyage", "gemi", "donanma", "yelken", "kadirga"]],
   ["COUNCIL", ["council", "meeting", "negotiat", "treaty", "ambassador", "envoy", "strategy", "discuss", "debate", "advisor", "vizier", "plan$", "plans", "planning", "divan", "meclis", "antlasma", "elci", "toplanti", "strateji", "vezir", "danis", "muzakere"]],
-  ["COURT", ["sultan", "king", "emperor", "empress", "queen", "ruler", "throne", "enthron", "coronation", "caliph", "khan$", "padisah", "hukumdar", "kral", "imparator", "taht", "halife", "hakan", "culus", "hanedan"]],
+  ["COURT", ["sultan", "king", "emperor", "empress", "queen", "ruler", "throne", "enthron", "coronation", "caliph", "khan$", "padisah", "hukumdar", "kral", "imparator", "taht", "halife", "hakan", "culus", "hanedan", "firavun", "pharaoh"]],
   ["BUILD", ["build", "construct", "worker", "mason", "erect", "insa", "isci", "yapim", "yapildi", "kurulus", "tas$", "taslar"]],
   ["MARKET", ["market", "bazaar", "merchant", "trade", "trading", "street", "bustling", "economy", "economic", "carsi", "pazar", "tuccar", "ticaret", "sokak", "esnaf", "ekonomi"]],
   ["SCHOLAR", ["scholar", "book", "writ", "scien", "teach", "study", "astronom", "poet", "philosoph", "alim", "kitap", "yazdi", "yazar", "bilim", "ogret", "ders", "sair", "medrese", "felsef"]],
@@ -173,7 +175,10 @@ export function classifyCharacterScene(input: CharacterScenePlanInput): {
  */
 export function planCharacterScene(input: CharacterScenePlanInput): CharacterScenePlan {
   if (!Number.isSafeInteger(input.sceneId) || input.sceneId <= 0) throw new Error("CHARACTER_SCENE_PLAN_INVALID");
-  const { kind, backdrop, time, text } = classifyCharacterScene(input);
+  const classified = classifyCharacterScene(input);
+  const { time, text } = classified;
+  let { kind, backdrop } = classified;
+  if (input.contextualDirection && !["BATTLE", "DEATH"].includes(kind) && matches(text, ["saray", "palace", "throne", "taht"]) > 0 && matches(text, ["padisah", "sultan", "king", "kral", "imparator", "emperor", "firavun", "pharaoh"]) > 0) { kind = "COURT"; backdrop = "INTERIOR"; }
   const rng = seeded(`${input.sceneId}:${text}`);
   const ottoman = matches(text, OTTOMAN) > 0;
   const western = matches(text, WESTERN) > 0;

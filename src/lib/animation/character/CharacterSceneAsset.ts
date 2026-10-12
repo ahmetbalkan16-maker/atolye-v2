@@ -6,7 +6,8 @@ import {
 } from "./CharacterAnimation";
 import { findCharacterSceneRequestProblems, type CharacterSceneRequest } from "../../character/CharacterSceneManifest";
 import { renderCharacterSceneFrameSvg } from "../../character/SvgSceneRenderer";
-import { EDITORIAL_RENDER_STYLE } from "../../character/SvgSceneRenderer";
+import { EDITORIAL_RENDER_STYLE, findCharacterArtDirectionProblems } from "../../character/SvgSceneRenderer";
+import { characterDirectedFrame, findCharacterStoryBeatProblems, type CharacterSceneDirection } from "./CharacterSceneDirection";
 
 /**
  * Atölye stick-figure scene asset — the PNG the visuals stage stores for a character scene, and how the video stage
@@ -35,6 +36,7 @@ export interface CharacterSceneAssetPayload {
   readonly fontFamily: string;
   /** Absent on historical assets; their original appearance stays unchanged. */
   readonly renderStyle?: typeof EDITORIAL_RENDER_STYLE;
+  readonly direction?: CharacterSceneDirection;
 }
 
 export type CharacterScenePayloadRead =
@@ -45,7 +47,7 @@ export type CharacterScenePayloadRead =
 export function findCharacterSceneAssetPayloadProblems(value: unknown): string[] {
   const payload = value as Partial<CharacterSceneAssetPayload> | null;
   if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
-      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily", "renderStyle"].includes(key))) return ["PAYLOAD_SHAPE"];
+      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily", "renderStyle", "direction"].includes(key))) return ["PAYLOAD_SHAPE"];
   const problems: string[] = [];
   if (payload.schemaVersion !== CHARACTER_SCENE_ASSET_SCHEMA_VERSION) problems.push("PAYLOAD_SCHEMA_VERSION");
   if (payload.fontFamily !== CHARACTER_SCENE_FONT_FAMILY) problems.push("PAYLOAD_FONT");
@@ -55,15 +57,27 @@ export function findCharacterSceneAssetPayloadProblems(value: unknown): string[]
   // A drawn scene in a documentary always says what it is.
   if (!requestProblems.length && payload.request!.format !== "DOCUMENTARY") problems.push("PAYLOAD_FORMAT");
   if (!requestProblems.length) problems.push(...findCharacterAnimationProblems(payload.animation, payload.request!.blocking));
+  if (payload.direction !== undefined) {
+    const d = payload.direction;
+    if (payload.renderStyle !== EDITORIAL_RENDER_STYLE || !d || typeof d !== "object" || Array.isArray(d) || Object.keys(d).length !== 3 || Object.keys(d).some(k => !["art", "timing", "beats"].includes(k)) || d.timing !== "SCENE_TEXT_ESTIMATE") problems.push("PAYLOAD_DIRECTION");
+    else {
+      problems.push(...findCharacterArtDirectionProblems(d.art));
+      if (!requestProblems.length) {
+        const ids = new Set(payload.request!.blocking.characters.map(c => c.id));
+        if (!findCharacterArtDirectionProblems(d.art).length && (d.art.roles.length !== ids.size || d.art.roles.some(r => !ids.has(r.id)))) problems.push("PAYLOAD_DIRECTION_ROLES");
+        problems.push(...findCharacterStoryBeatProblems(d.beats, payload.request!.blocking));
+      }
+    }
+  }
   return problems;
 }
 
 /** The SVG of the scene at `t` seconds. */
-export function renderCharacterSceneAssetFrame(payload: CharacterSceneAssetPayload, t: number): string {
+export function renderCharacterSceneAssetFrame(payload: CharacterSceneAssetPayload, t: number, durationSeconds = 6): string {
   return renderCharacterSceneFrameSvg(
     payload.request.blocking,
-    characterAnimationFrame(payload.request.blocking, payload.animation, t),
-    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily, renderStyle: payload.renderStyle },
+    payload.direction ? characterDirectedFrame(payload.request.blocking, payload.animation, payload.direction.beats, t, durationSeconds) : characterAnimationFrame(payload.request.blocking, payload.animation, t),
+    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily, renderStyle: payload.renderStyle, artDirection: payload.direction?.art },
   );
 }
 

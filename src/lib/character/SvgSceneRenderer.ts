@@ -35,6 +35,7 @@ export interface SvgSceneOptions {
   /** Low-cost recurring mascot details; absent preserves the original renderer. */
   readonly mascot?: boolean;
   readonly renderStyle?: typeof EDITORIAL_RENDER_STYLE;
+  readonly artDirection?: CharacterArtDirection;
 }
 
 /**
@@ -249,12 +250,15 @@ function renderSceneDocument(
   if (options.fontFamily !== undefined && !FONT_FAMILY_PATTERN.test(options.fontFamily)) throw new Error("CHARACTER_SCENE_FONT_INVALID");
   if (options.mascot !== undefined && typeof options.mascot !== "boolean") throw new Error("CHARACTER_SCENE_MASCOT_INVALID");
   if (options.renderStyle !== undefined && options.renderStyle !== EDITORIAL_RENDER_STYLE) throw new Error("CHARACTER_SCENE_STYLE_INVALID");
+  if (options.artDirection !== undefined && findCharacterArtDirectionProblems(options.artDirection).length) throw new Error("CHARACTER_SCENE_ART_DIRECTION_INVALID");
   const font = xml(options.fontFamily ?? DEFAULT_FONT_FAMILY);
   const W = CHARACTER_SCENE_WIDTH; const H = CHARACTER_SCENE_HEIGHT;
   const drawn = [
-    ...blocking.props.map((prop, index) => ({ depth: prop.depth, order: index, svg: stageProp(prop.prop, prop.x, prop.depth, prop.facing) })),
+    ...blocking.props.map((prop, index) => ({ depth: prop.depth, order: index, svg: prop.prop === "THRONE" && options.artDirection
+      ? renderDirectedThrone(prop.x, prop.depth, options.artDirection.culture)
+      : stageProp(prop.prop, prop.x, prop.depth, prop.facing) })),
     ...blocking.characters.map((item, index) => ({ depth: item.depth, order: 100 + index, svg: options.renderStyle === EDITORIAL_RENDER_STYLE
-      ? renderEditorialCharacter(item, frameFor(item), (joints, scale) => item.handProp ? handProp(item.handProp, joints.handFront, scale) : "")
+      ? renderEditorialCharacter(item, frameFor(item), (joints, scale) => item.handProp ? handProp(item.handProp, joints.handFront, scale) : "", options.artDirection)
       : character(item, frameFor(item), options.mascot) })),
   ].sort((a, b) => b.depth - a.depth || a.order - b.order);
   const arrows = blocking.arrows.map((arrow) => {
@@ -265,11 +269,29 @@ function renderSceneDocument(
   });
   const caption = blocking.caption === null ? "" : `<rect x="60" y="60" width="${n(Math.min(W - 120, 60 + blocking.caption.length * 30))}" height="84" rx="10" fill="#1c1c1c" opacity="0.72"/><text x="90" y="118" font-family="${font}" font-size="46" fill="#ffffff">${xml(blocking.caption)}</text>`;
   const label = options.reenactmentLabel === null ? "" : `<g data-reenactment-label="${options.reenactmentLabel}"><rect x="60" y="${H - 132}" width="420" height="72" rx="8" fill="#1c1c1c" opacity="0.8"/><text x="84" y="${H - 82}" font-family="${font}" font-size="40" font-weight="bold" letter-spacing="4" fill="#ffffff">${REENACTMENT_LABELS[options.reenactmentLabel]}</text></g>`;
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${options.renderStyle === EDITORIAL_RENDER_STYLE ? renderEditorialBackdrop(blocking) : backdrop(blocking.backdrop, blocking.time)}${drawn.map((item) => item.svg).join("")}${arrows.join("")}${caption}${label}</svg>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${options.renderStyle === EDITORIAL_RENDER_STYLE ? renderEditorialBackdrop(blocking, options.artDirection) : backdrop(blocking.backdrop, blocking.time)}${drawn.map((item) => item.svg).join("")}${arrows.join("")}${caption}${label}</svg>\n`;
 }
 
 /** Permanent local art direction. Bounded SVG primitives, no downloads or image model. */
 export const EDITORIAL_RENDER_STYLE = "editorial-v2" as const;
+export const CHARACTER_ART_CULTURES = ["UNKNOWN", "OTTOMAN", "BYZANTINE", "ROMAN", "WESTERN", "STEPPE", "EGYPTIAN"] as const;
+export interface CharacterArtDirection {
+  readonly version: "1";
+  /** Explicit scene context, not an inferred ethnic identity from appearance. */
+  readonly culture: (typeof CHARACTER_ART_CULTURES)[number];
+  readonly faith: "UNSPECIFIED" | "ISLAM" | "CHRISTIANITY" | "ANCIENT_EGYPT";
+  readonly roles: readonly { readonly id: string; readonly role: "RULER" | "ADVISOR" | "GUARD" | "NARRATOR" | "CITIZEN" }[];
+}
+export function findCharacterArtDirectionProblems(value: unknown): string[] {
+  const v = value as Partial<CharacterArtDirection> | null;
+  if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some(k => !["version", "culture", "faith", "roles"].includes(k)) || v.version !== "1" || !(CHARACTER_ART_CULTURES as readonly unknown[]).includes(v.culture) || !["UNSPECIFIED", "ISLAM", "CHRISTIANITY", "ANCIENT_EGYPT"].includes(v.faith ?? "") || !Array.isArray(v.roles) || v.roles.length > 8) return ["ART_DIRECTION_SHAPE"];
+  const seen = new Set<string>();
+  for (const role of v.roles) {
+    if (!role || Object.keys(role).length !== 2 || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(role.id) || seen.has(role.id) || !["RULER", "ADVISOR", "GUARD", "NARRATOR", "CITIZEN"].includes(role.role)) return ["ART_DIRECTION_ROLES"];
+    seen.add(role.id);
+  }
+  return [];
+}
 const ART_INK = "#243044";
 const num = (v: number) => String(Math.round(v * 10) / 10);
 const rect = (x: number, y: number, w: number, h: number, fill: string, radius = 0, stroke = "none") => `<rect x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}" rx="${num(radius)}" fill="${fill}" stroke="${stroke}" stroke-width="3"/>`;
@@ -285,7 +307,7 @@ export function editorialSceneTheme(blocking: SceneBlocking): string {
 }
 
 /** Layered illustrative settings are scenery, not photographs or historical evidence. */
-export function renderEditorialBackdrop(blocking: SceneBlocking): string {
+export function renderEditorialBackdrop(blocking: SceneBlocking, direction?: CharacterArtDirection): string {
   const theme = editorialSceneTheme(blocking);
   const night = blocking.time === "NIGHT";
   const dusk = blocking.time === "DUSK";
@@ -304,6 +326,16 @@ export function renderEditorialBackdrop(blocking: SceneBlocking): string {
     if (theme === "palace") {
       for (const x of [40, 440, 940, 1440, 1830]) parts.push(rect(x, 82, 48, 553, "#f8efda", 8), rect(x - 14, 80, 76, 25, "#b89854", 6), rect(x - 10, 614, 68, 27, "#b89854", 4));
       for (const x of [470, 1390]) parts.push(path(`M${x} 90 L${x + 145} 90 L${x + 135} 340 L${x + 72} 380 L${x + 10} 340 Z`, "#763d46", "#b89854", 5));
+      if (direction?.culture === "OTTOMAN") {
+        // Tile bands and pointed decorative arches; no invented inscription or holy text.
+        for (let col = 0; col < 24; col++) parts.push(rect(col * 80, 545, 75, 36, col % 2 ? "#608f99" : "#b8d0c5", 4));
+        parts.push(path("M790 175 Q960 -5 1130 175 L1130 400 L790 400Z", "#d4c298", "#ac8b55", 5));
+      } else if (direction?.culture === "BYZANTINE") {
+        for (let col = 0; col < 24; col++) parts.push(rect(col * 80, 545, 72, 33, col % 2 ? "#c3a05e" : "#947b65", 3));
+        parts.push(ellipse(960, 260, 104, 104, "#d3b674", "#ad8e54", 6));
+      } else if (direction?.culture === "EGYPTIAN") {
+        for (const x of [440, 940, 1440]) parts.push(rect(x - 25, 180, 88, 405, "#d2b66f", 3), rect(x - 46, 170, 130, 36, "#b7a373", 4));
+      }
     } else if (theme === "library") {
       for (const x of [45, 1350]) {
         parts.push(rect(x, 210, 525, 405, "#715b4e", 12));
@@ -366,7 +398,18 @@ export function editorialActorVariant(id: string): number {
   return hash % 8;
 }
 
-export function renderEditorialCharacter(item: BlockedCharacter, frame: CharacterFrameOverride | undefined, prop: (joints: CharacterJoints, scale: number) => string): string {
+function renderDirectedThrone(x: number, depth: number, culture: CharacterArtDirection["culture"]): string {
+  const scale = scaleAt(depth); const cx = x * 1920; const base = groundY(depth);
+  const wood = culture === "EGYPTIAN" ? "#c6a25c" : culture === "OTTOMAN" ? "#765544" : "#aa8a4b";
+  const cushion = culture === "BYZANTINE" ? "#70436f" : culture === "OTTOMAN" ? "#6b9499" : "#a4545c";
+  const w = 245 * scale; const h = 375 * scale;
+  const body = [rect(cx - w / 2, base - h, w, h * 0.77, wood, 28 * scale, ART_INK), rect(cx - w * 0.4, base - h * 0.92, w * 0.8, h * 0.53, cushion, 20 * scale), rect(cx - w * 0.62, base - h * 0.36, w * 1.24, h * 0.12, wood, 9 * scale, ART_INK), rect(cx - w * 0.49, base - h * 0.33, w * 0.98, h * 0.13, cushion, 9 * scale), rect(cx - w * 0.42, base - h * 0.2, w * 0.1, h * 0.2, wood, 4), rect(cx + w * 0.32, base - h * 0.2, w * 0.1, h * 0.2, wood, 4)];
+  for (const side of [-1, 1]) body.push(ellipse(cx + side * w * 0.52, base - h * 0.43, 14 * scale, 14 * scale, "#dfc27d", ART_INK));
+  body.push(ellipse(cx, base - h * 0.97, 29 * scale, 17 * scale, "#dfc27d", ART_INK));
+  return `<g data-prop="THRONE" data-throne-culture="${culture}">${body.join("")}</g>`;
+}
+
+export function renderEditorialCharacter(item: BlockedCharacter, frame: CharacterFrameOverride | undefined, prop: (joints: CharacterJoints, scale: number) => string, direction?: CharacterArtDirection): string {
   const variant = editorialActorVariant(item.id);
   const scale = 1.28 * (1 - 0.5 * item.depth);
   const ground = { x: (frame?.x ?? item.x) * 1920, y: 900 - 260 * item.depth };
@@ -377,14 +420,18 @@ export function renderEditorialCharacter(item: BlockedCharacter, frame: Characte
   const poly = (points: Point[], fill: string, stroke = ART_INK) => path(`M${points.map(a => `${num(a.x)} ${num(a.y)}`).join(" L")}Z`, fill, stroke, 3 * scale);
   const colors = ["#d5a83e", "#527f91", "#a66568", "#778b66", "#8c7199", "#be8257", "#4d7285", "#927655"];
   const color = colors[variant]!;
-  const coat = item.costume === "TURBAN" ? ["#9c3947", "#3c6475", "#706047"][variant % 3]! : item.costume === "CROWN" ? "#514c83" : item.costume === "HELMET" || item.costume === "ARMOR" ? "#7b8997" : color;
+  const role = direction?.roles.find(r => r.id === item.id)?.role;
+  const culture = direction?.culture ?? "UNKNOWN";
+  const coat = role === "RULER" && culture === "BYZANTINE" ? "#65385c" : role === "RULER" && culture === "EGYPTIAN" ? "#eddfb5" : item.costume === "TURBAN" ? ["#9c3947", "#3c6475", "#706047"][variant % 3]! : item.costume === "CROWN" ? "#514c83" : item.costume === "HELMET" || item.costume === "ARMOR" ? "#7b8997" : color;
   const parts = [e(ground, 0, 6, 61, 10, "#b9ad98", "none")];
+  if (role === "RULER" && (culture === "WESTERN" || culture === "BYZANTINE")) parts.push(poly([p(joints.shoulder, -32, -1), p(joints.hip, -75, 49), p(joints.hip, 52, 49), p(joints.shoulder, 25, 0)], "#793d51"));
   // Black limbs, colored tunics, cuffs and shoes keep the mascot language without identical silhouettes.
   for (const [a, b, c] of [[joints.hip, joints.kneeBack, joints.footBack], [joints.hip, joints.kneeFront, joints.footFront], [joints.shoulder, joints.elbowBack, joints.handBack]] as const) parts.push(seg(a, b, 15 * scale), seg(b, c, 15 * scale));
   parts.push(poly([p(joints.shoulder, -33, 0), p(joints.shoulder, 33, 0), p(joints.hip, 42, item.costume === "NONE" ? 8 : 35), p(joints.hip, -42, item.costume === "NONE" ? 8 : 35)], coat));
   parts.push(seg(p(joints.shoulder, 0, 10), p(joints.hip, 0, 9), 3 * scale, "#e8d3a4"));
   if (item.costume !== "NONE") parts.push(seg(p(joints.hip, -34, -8), p(joints.hip, 34, -8), 12 * scale, "#d6b574"));
   for (const y of [28, 53, 78]) parts.push(e(joints.shoulder, 13, y, 3, 3, "#f6de9e", "none"));
+  if (role === "RULER") for (const y of [20, 47, 74]) for (const x of [-19, 23]) parts.push(e(joints.shoulder, x, y, 4, 6, "#d7ba76", "none"));
   parts.push(seg(joints.shoulder, joints.elbowFront, 17 * scale, coat), seg(joints.elbowFront, joints.handFront, 13 * scale));
   parts.push(e(joints.head, 0, 0, 58, variant === 2 || variant === 5 ? 62 : 57, "#fffaf1"));
   const face = EXPRESSION_SHAPES[item.expression];
@@ -399,7 +446,17 @@ export function renderEditorialCharacter(item: BlockedCharacter, frame: Characte
   else if (mouth) parts.push(poly([p(joints.head, -20, 22), p(joints.head, 24, 22), p(joints.head, 15, 42), p(joints.head, -8, 43)], ART_INK), seg(p(joints.head, -14, 25), p(joints.head, 19, 25), 5 * scale, "white"), e(joints.head, 6, 38, 10, 4, "#e97879", "none"));
   else parts.push(path(`M${num(joints.head.x - 19 * scale)} ${num(joints.head.y + 29 * scale)} q${22 * scale} ${face.mouthCurve * 70 * scale} ${39 * scale} 0`, "none", ART_INK, 4 * scale));
   // Full headwear and secondary identity details, positioned from animated head joints.
-  if (item.costume === "TURBAN") {
+  if (role === "RULER" && culture === "EGYPTIAN") {
+    parts.push(poly([p(joints.head, -60, -40), p(joints.head, -52, -74), p(joints.head, 52, -74), p(joints.head, 60, -40), p(joints.head, 77, 53), p(joints.head, 48, 50), p(joints.head, 42, -32), p(joints.head, -42, -32), p(joints.head, -48, 50), p(joints.head, -77, 53)], "#d9ba63"));
+    for (const x of [-62, 60]) for (const y of [-25, -7, 11, 29]) parts.push(seg(p(joints.head, x - 7, y), p(joints.head, x + 7, y), 7 * scale, "#47617f"));
+    parts.push(e(joints.head, 0, -55, 6, 12, "#45627a", "none"));
+  } else if (role === "RULER" && culture === "ROMAN") {
+    for (const side of [-1, 1]) for (let leaf = 0; leaf < 5; leaf++) parts.push(e(joints.head, side * (47 - leaf * 8), -16 - leaf * 9, 9, 5, "#879960", "#526c47"));
+  } else if (role === "RULER" && culture === "BYZANTINE") {
+    parts.push(rect(joints.head.x - 54 * scale, joints.head.y - 67 * scale, 108 * scale, 34 * scale, "#d7b257", 8 * scale, ART_INK), path(`M${num(joints.head.x - 48 * scale)} ${num(joints.head.y - 65 * scale)} Q${num(joints.head.x)} ${num(joints.head.y - 110 * scale)} ${num(joints.head.x + 48 * scale)} ${num(joints.head.y - 65 * scale)}`, "#b85362", "#d7b257", 5 * scale));
+    for (const x of [-50, 50]) { parts.push(seg(p(joints.head, x, -34), p(joints.head, x, 20), 3 * scale, "#d7b257")); for (const y of [-22, -8, 7, 22]) parts.push(e(joints.head, x, y, 4, 5, "#fff7dc", "none")); }
+    if (direction?.faith === "CHRISTIANITY") parts.push(seg(p(joints.head, 0, -83), p(joints.head, 0, -107), 5 * scale, "#d7b257"), seg(p(joints.head, -9, -98), p(joints.head, 9, -98), 5 * scale, "#d7b257"));
+  } else if (item.costume === "TURBAN" || (role === "RULER" && culture === "OTTOMAN")) {
     parts.push(e(joints.head, 0, -49, 68, 31, "#fcf3dc"));
     for (const y of [-66, -52, -38]) parts.push(seg(p(joints.head, -51, y + 8), p(joints.head, 52, y - 8), 4 * scale, "#d5c3a1"));
     parts.push(e(joints.head, 25, -43, 11, 14, "#d7b35e"), e(joints.head, 25, -43, 5, 8, "#af4850", "none"));
@@ -426,5 +483,5 @@ export function renderEditorialCharacter(item: BlockedCharacter, frame: Characte
   const transforms = [];
   if (item.facing === "LEFT") transforms.push(`translate(${num(ground.x * 2)} 0) scale(-1 1)`);
   if (pose.bodyRotation) transforms.push(`rotate(${num(pose.bodyRotation)} ${num(ground.x)} ${num(ground.y)})`);
-  return `<g data-character="${item.id}" data-art-identity="${variant}" data-mascot="yellow-scarf-v1"${transforms.length ? ` transform="${transforms.join(" ")}"` : ""}>${parts.join("")}</g>`;
+  return `<g data-character="${item.id}" data-art-identity="${variant}"${direction ? ` data-art-culture="${culture}" data-art-role="${role ?? "CITIZEN"}"` : ""} data-mascot="yellow-scarf-v1"${transforms.length ? ` transform="${transforms.join(" ")}"` : ""}>${parts.join("")}</g>`;
 }

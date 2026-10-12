@@ -11,6 +11,7 @@ import { CHARACTER_SCENE_HEIGHT, CHARACTER_SCENE_WIDTH } from "@/lib/character/S
 import { rasterizeCharacterSceneSvg } from "@/lib/character/CharacterSceneRasterizer";
 import { planCharacterScene } from "@/lib/animation/character/CharacterScenePlanner";
 import { EDITORIAL_RENDER_STYLE } from "@/lib/character/SvgSceneRenderer";
+import { planCharacterSceneDirection } from "@/lib/animation/character/CharacterSceneDirection";
 import type { ImageGenerationResult } from "@/types/asset";
 import { ImageStorage } from "../storage/ImageStorage";
 import type { ConfiguredImageProvider, ImageGenerationInput } from "./ImageProvider";
@@ -52,6 +53,7 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         text: typeof input.prompt === "string" ? input.prompt : "",
         keywords: input.searchKeywords,
         language: "tr",
+        contextualDirection: true,
       });
       const payload: CharacterSceneAssetPayload = {
         schemaVersion: CHARACTER_SCENE_ASSET_SCHEMA_VERSION,
@@ -59,6 +61,7 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         animation: plan.animation,
         fontFamily: CHARACTER_SCENE_FONT_FAMILY,
         renderStyle: EDITORIAL_RENDER_STYLE,
+        direction: planCharacterSceneDirection([input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking),
       };
       const raster = await rasterizeCharacterSceneSvg(renderCharacterSceneAssetFrame(payload, CHARACTER_SCENE_STILL_SECONDS));
       if (!raster.ok) return failure(input.sceneId, createdAt);

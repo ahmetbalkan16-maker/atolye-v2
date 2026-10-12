@@ -344,7 +344,7 @@ async function renderCharacterSceneFrames(
         if (!Number.isFinite(disk.blocks) || disk.blocks <= 0 || !Number.isFinite(disk.bavail) ||
             disk.bavail / disk.blocks < 0.03) throw new Error("CHARACTER_FRAME_STORAGE_PRESSURE");
       }
-      const svg = renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index));
+      const svg = renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds);
       if (svg !== previousSvg || !previousPng) {
         const raster = await rasterizeCharacterSceneSvg(svg, { fast });
         if (!raster.ok) throw new Error(SAFE_ERROR);
