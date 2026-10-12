@@ -30,7 +30,9 @@ export class VisualPromptEngine {
       "}",
       "Rules:",
       "- Use cinematic documentary style.",
-      "- Visual prompts must be realistic, historically grounded, detailed, and suitable for image generation.",
+      process.env.IMAGE_PROVIDER==="character"?"- Visual prompts must be historically grounded and suitable for clear stylised character reenactments.":"- Visual prompts must be realistic, historically grounded, detailed, and suitable for image generation.",
+      "- For each historical scene include its own explicitly supported year/era, culture and actor roles in visualPrompt. Never invent a year or borrow another scene's date; avoid anachronistic clothing, crowns, symbols and architecture.",
+      ...(process.env.IMAGE_PROVIDER==="character"?["- Use readable stylised 3D cartoon characters with distinct role clothing and faces. Describe a clear action, setting and object; avoid crowded cast or photorealistic portrait requests."]:[]),
       "- Animation prompts must describe camera motion, atmosphere, particles, and documentary movement.",
       "- searchKeywords must list concrete named real-world entities for this scene (people, " +
         "places, buildings, artifacts, events) suitable for searching a photo archive — e.g. " +

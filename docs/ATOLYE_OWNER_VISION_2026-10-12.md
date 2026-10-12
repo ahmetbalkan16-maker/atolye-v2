@@ -1,3 +1,5 @@
+12 Ekim3Duygulama devamı: yeni CharacterImageProvider→portable PNG→gerçekFFmpeg üretim yolu bağlandı; CPUXYZ/z-buffer,6ifade/hareket/nesne/giysi, sahne-yılı-kültür-rol briefing ve editorialkadraj. Eski2Dassets/SVG aynı; GPU73°C/frozen/otorite/fiyat/homepage korunur. Özgün5CC0yerelmüzik, mevcutducking ve kayıtlıbgm korunur. KontrollerPASS; CLEANbuild/CI/kontrollücanlı geçiş sırada. Ayrıntı ATOLYE_CHECKPOINT.md ve docs/ATOLYE_3D_PRODUCTION_2026-10-12.md.
+
 12 Ekim son devam: yerel3D/dönem-kıyafet/YouTube-kadraj adayları ve anlamlı kontroller hazır; canlı source03308c76/buildhtR7TBNeqdb0pk7eeDEic hâlâ2Dversion4 ve73°Ckorumalı. Yeni3D üretim/audio/scene-year bağlantısı henüz açık; app/src/env/homepage/ownerverisi değişmedi. Güncel durum ATOLYE_CHECKPOINT.md ve docs/ATOLYE_3D_PERIOD_DESIGN_2026-10-12.md. Bu kayıt aşağıdaki eski durumları supersede eder.
 
 ## 12 Ekim 2026 — v4 yerel çizgi film ve ortak GPU 73°C canlı, son kayıt

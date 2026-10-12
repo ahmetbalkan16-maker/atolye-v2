@@ -7,10 +7,10 @@ import { characterAnimationFrameCount, CHARACTER_ANIMATION_FPS } from "@/lib/ani
 import {
   characterSceneFrameSeconds,
   readCharacterScenePayload,
-  renderCharacterSceneAssetFrame,
   type CharacterSceneAssetPayload,
 } from "@/lib/animation/character/CharacterSceneAsset";
-import { rasterizeCharacterSceneSvg } from "@/lib/character/CharacterSceneRasterizer";
+import { rasterizeCharacterSceneAssetFrame } from "@/lib/animation/character/CharacterSceneRasterFrame";
+import { renderCharacterSceneAssetFrame } from "@/lib/animation/character/CharacterSceneAsset";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import {
@@ -332,22 +332,24 @@ async function renderCharacterSceneFrames(
   try {
     let previousSvg = "";
     let previousPng: Buffer | null = null;
+    let lastHealthAt=0;
     // Long scenes keep the default compression so their frames stay small on disk.
     const fast = count <= 1800;
     for (let index = 0; index < count; index++) {
       // Poll once per ten seconds of animation, with one raster in memory.
       // A refusal unwinds through this owned TEMP folder's cleanup.
-      if (index % 150 === 0) {
+      if (index % 150 === 0||Date.now()-lastHealthAt>=5000) {
         await assertAyasHeavyWorkloadAllowed({ stage: "video", ownedActive: true });
+        lastHealthAt=Date.now();
         // TEMP can be on another drive after migration; check the actual frame
         // volume too, not only the workspace volume observed by the host guard.
         const disk = fs.statfsSync(directory);
         if (!Number.isFinite(disk.blocks) || disk.blocks <= 0 || !Number.isFinite(disk.bavail) ||
             disk.bavail / disk.blocks < 0.03) throw new Error("CHARACTER_FRAME_STORAGE_PRESSURE");
       }
-      const svg = renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds);
+      const svg = payload.volume?`volume-frame-${index}`:renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds);
       if (svg !== previousSvg || !previousPng) {
-        const raster = await rasterizeCharacterSceneSvg(svg, { fast, backgroundPng });
+        const raster = await rasterizeCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds,{ fast, backgroundPng });
         if (!raster.ok) throw new Error(SAFE_ERROR);
         previousSvg = svg;
         previousPng = raster.png;

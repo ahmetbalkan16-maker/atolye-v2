@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { createVolumeCharacter, rasterizeVolumeCharacter, renderVolumeCharacterSvg, volumeCharacterObj } from "./local-visual-runtime/character-volume";
 import { planPeriodWardrobe } from "./local-visual-runtime/period-wardrobe";
 import { CHARACTER_POSES } from "../src/lib/character/CharacterPose";
+import {CHARACTER_EXPRESSIONS} from "../src/lib/character/CharacterExpression";
 
 async function main() {
   sharp.concurrency(2);
@@ -26,6 +27,13 @@ async function main() {
     images.add(createHash("sha256").update(png).digest("hex"));
   }
   assert.equal(images.size,10,"ten existing poses should remain distinct");
+  const expressions=new Set<string>();
+  for(const expression of CHARACTER_EXPRESSIONS) {
+    const mesh=createVolumeCharacter({culture:"OTTOMAN",role:"RULER",pose:"STAND",mouthOpen:false,faith:"UNSPECIFIED",expression});
+    const pixels=rasterizeVolumeCharacter(mesh,{width:512,height:640,x:256,y:620,scale:125,yaw:-12});
+    expressions.add(createHash("sha256").update(pixels).digest("hex"));
+  }
+  assert.equal(expressions.size,6,"six face expressions must remain visually distinct");
   const closed=createVolumeCharacter({culture:"BYZANTINE",role:"RULER",pose:"STAND",mouthOpen:false,faith:"UNSPECIFIED"});
   const open=createVolumeCharacter({culture:"BYZANTINE",role:"RULER",pose:"STAND",mouthOpen:true,faith:"UNSPECIFIED"});
   assert.notDeepEqual(open,closed);
@@ -59,8 +67,8 @@ async function main() {
   const faces=[{vertices:[[-1,-1,1],[1,-1,1],[0,1,1]] as const,color:"#ff0000"},{vertices:[[-1,-1,0],[1,-1,0],[0,1,0]] as const,color:"#0000ff"}];
   const rasterOptions={x:32,y:32,scale:20,yaw:0,width:64,height:64};
   assert.deepEqual(rasterizeVolumeCharacter(faces,rasterOptions),rasterizeVolumeCharacter([...faces].reverse(),rasterOptions));
-  const source=fs.readFileSync("scripts/local-visual-runtime/character-volume.ts","utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm,"");
+  const source=fs.readFileSync("src/lib/character/volume/CharacterVolume.ts","utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm,"");
   assert.doesNotMatch(source,/node:fs|child_process|fetch\s*\(|process\.|Date\.now|Math\.random|import\(/);
-  console.log("Volume candidate: PASS (4 cultures, 10 PNG poses, z-buffer occlusion, mouth/camera/faith/OBJ/bounds, period/role/BCE/ambiguity/refusal); production NOT_INTEGRATED");
+  console.log("Volume geometry: PASS (4 cultures, 10 PNG poses, z-buffer occlusion, mouth/camera/faith/OBJ/bounds, period/role/BCE/ambiguity/refusal)");
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

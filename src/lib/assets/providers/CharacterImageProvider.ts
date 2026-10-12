@@ -4,11 +4,11 @@ import {
   CHARACTER_SCENE_FONT_FAMILY,
   CHARACTER_SCENE_STILL_SECONDS,
   embedCharacterScenePayload,
-  renderCharacterSceneAssetFrame,
   type CharacterSceneAssetPayload,
 } from "@/lib/animation/character/CharacterSceneAsset";
 import { CHARACTER_SCENE_HEIGHT, CHARACTER_SCENE_WIDTH } from "@/lib/character/SvgSceneRenderer";
-import { rasterizeCharacterSceneSvg } from "@/lib/character/CharacterSceneRasterizer";
+import { rasterizeCharacterSceneAssetFrame } from "@/lib/animation/character/CharacterSceneRasterFrame";
+import { createVolumeScenePlan,extractCostumeSceneYears } from "@/lib/character/volume/VolumeScenePlan";
 import { planCharacterScene } from "@/lib/animation/character/CharacterScenePlanner";
 import { EDITORIAL_RENDER_STYLE } from "@/lib/character/SvgSceneRenderer";
 import { planCharacterSceneDirection } from "@/lib/animation/character/CharacterSceneDirection";
@@ -36,6 +36,8 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
   readonly name = "character" as const;
   // Capture once on the existing immutable provider dispatch adapter's instance.
   private readonly backdropMode = resolveCharacterLocalBackdropMode();
+  // Capture with the existing immutable dispatch instance, not per-frame env.
+  private readonly volumeMode = resolveCharacterVolumeMode();
 
   createImmutableImageDispatchAdapter() {
     return createProviderDispatchAdapter(this, {
@@ -67,9 +69,10 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         fontFamily: CHARACTER_SCENE_FONT_FAMILY,
         renderStyle: EDITORIAL_RENDER_STYLE,
         direction,
+        ...(this.volumeMode?{volume:createVolumeScenePlan(plan.request.blocking,direction.art,extractCostumeSceneYears(input.prompt))}:{}),
         ...(background ? { background: background.metadata } : {}),
       };
-      const raster = await rasterizeCharacterSceneSvg(renderCharacterSceneAssetFrame(payload, CHARACTER_SCENE_STILL_SECONDS), { backgroundPng: background?.png });
+      const raster = await rasterizeCharacterSceneAssetFrame(payload, CHARACTER_SCENE_STILL_SECONDS,6,{ backgroundPng: background?.png });
       if (!raster.ok) return failure(input.sceneId, createdAt);
       const data = embedCharacterScenePayload(raster.png, payload, background?.png);
       const saved = trySaveImage(input.projectSlug, data);
@@ -91,6 +94,13 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
       return failure(input.sceneId, createdAt);
     }
   }
+}
+
+export function resolveCharacterVolumeMode(): boolean {
+  const mode=process.env.ATOLYE_CHARACTER_RENDER_MODE??"3d";
+  if(mode==="3d") return true;
+  if(mode==="2d") return false;
+  throw new Error("CHARACTER_RENDER_MODE_INVALID");
 }
 
 function trySaveImage(

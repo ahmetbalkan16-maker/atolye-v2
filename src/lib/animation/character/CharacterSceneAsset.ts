@@ -10,6 +10,7 @@ import { EDITORIAL_RENDER_STYLE, findCharacterArtDirectionProblems } from "../..
 import { characterDirectedFrame, findCharacterStoryBeatProblems, type CharacterSceneDirection } from "./CharacterSceneDirection";
 import { isCharacterBackdropPng } from "../../character/CharacterSceneRasterizer";
 import { createHash } from "node:crypto";
+import { findVolumeScenePlanProblems, type VolumeScenePlan } from "../../character/volume/VolumeScenePlan";
 
 /**
  * Atölye stick-figure scene asset — the PNG the visuals stage stores for a character scene, and how the video stage
@@ -40,6 +41,8 @@ export interface CharacterSceneAssetPayload {
   /** Absent on historical assets; their original appearance stays unchanged. */
   readonly renderStyle?: typeof EDITORIAL_RENDER_STYLE;
   readonly direction?: CharacterSceneDirection;
+  /** New local 3D style; absent on all original 2D assets. */
+  readonly volume?: VolumeScenePlan;
   readonly background?: { readonly provider: "sdxl-local"; readonly modelRevision: string; readonly sha256: string; readonly stageLayout?: "foreground-v1" };
 }
 
@@ -51,7 +54,7 @@ export type CharacterScenePayloadRead =
 export function findCharacterSceneAssetPayloadProblems(value: unknown): string[] {
   const payload = value as Partial<CharacterSceneAssetPayload> | null;
   if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
-      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily", "renderStyle", "direction", "background"].includes(key))) return ["PAYLOAD_SHAPE"];
+      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily", "renderStyle", "direction", "background", "volume"].includes(key))) return ["PAYLOAD_SHAPE"];
   const problems: string[] = [];
   if (payload.schemaVersion !== CHARACTER_SCENE_ASSET_SCHEMA_VERSION) problems.push("PAYLOAD_SCHEMA_VERSION");
   if (payload.fontFamily !== CHARACTER_SCENE_FONT_FAMILY) problems.push("PAYLOAD_FONT");
@@ -77,11 +80,16 @@ export function findCharacterSceneAssetPayloadProblems(value: unknown): string[]
       }
     }
   }
+  if(payload.volume!==undefined) {
+    if(requestProblems.length||!payload.direction||findCharacterArtDirectionProblems(payload.direction.art).length||payload.renderStyle!==EDITORIAL_RENDER_STYLE) problems.push("PAYLOAD_VOLUME_CONTEXT");
+    else problems.push(...findVolumeScenePlanProblems(payload.volume,payload.request!.blocking,payload.direction.art));
+  }
   return problems;
 }
 
 /** The SVG of the scene at `t` seconds. */
 export function renderCharacterSceneAssetFrame(payload: CharacterSceneAssetPayload, t: number, durationSeconds = 6): string {
+  if(payload.volume) throw new Error("CHARACTER_VOLUME_REQUIRES_RASTER_FRAME");
   return renderCharacterSceneFrameSvg(
     payload.request.blocking,
     payload.direction ? characterDirectedFrame(payload.request.blocking, payload.animation, payload.direction.beats, t, durationSeconds) : characterAnimationFrame(payload.request.blocking, payload.animation, t),

@@ -32,6 +32,8 @@ export const MUSIC_MOODS = [
 export type MusicMood = (typeof MUSIC_MOODS)[number];
 
 export interface MusicTrack {
+  /** Curated preference, optional on all existing library entries. */
+  priority?: number;
   mood: MusicMood;
   /** Absolute path to the audio file on disk. */
   absolutePath: string;
@@ -87,6 +89,7 @@ function readSidecar(audioPath: string): Partial<MusicTrack> {
         ? (parsed[key] as string).trim()
         : null;
     return {
+      ...(typeof parsed.priority==="number"&&Number.isInteger(parsed.priority)&&parsed.priority>=0&&parsed.priority<=100?{priority:parsed.priority}:{}),
       title: str("title") ?? undefined,
       source: str("source"),
       sourceUrl: str("sourceUrl"),
@@ -117,6 +120,7 @@ export function listTracksForMood(
       const absolutePath = path.join(dir, fileName);
       const sidecar = readSidecar(absolutePath);
       return {
+        ...(sidecar.priority!==undefined?{priority:sidecar.priority}:{}),
         mood,
         absolutePath,
         fileName,
@@ -149,7 +153,9 @@ export function selectMusicTrack(
     for (let i = 0; i < seed.length; i += 1) {
       hash = (hash * 31 + seed.charCodeAt(i)) & 0x7fffffff;
     }
-    return tracks[hash % tracks.length];
+    const priority=Math.max(...tracks.map(t=>t.priority??0));
+    const preferredTracks=tracks.filter(t=>(t.priority??0)===priority);
+    return preferredTracks[hash % preferredTracks.length];
   }
   return null;
 }
