@@ -1,4 +1,12 @@
-## 12 Ekim 2026 — Atölye video hazırlamaya hazır; Claude devamı tamamlandı
+## 12 Ekim 2026 — Owner maskot/otonomi vizyonu: Graphify açıklamaları tamam; yeni kaynak canlı kabul bekliyor
+
+Owner örnek PNG'deki ortak sarı atkılı karakter, konuya göre anlatım/hareket/ses/müzik, mevcut fiyat sınırı, PC sağlığı, güvenli araştırma ve owner-onaylı öneri akışını istedi. Yeni owner videosu/ücretli çağrı/upload/kurulum yok. Graphify495güncel batch/19.785node açıklaması resmî assistant ingestion ile tamam,55.267ilişki ve202SHA node korunur;354eski prompt arşivlendi. Helper/14grounding testi docs/GRAPHIFY_GROUNDED_DESCRIPTIONS.md. Son kaynak refresh sonrası yeniden uygulanıp native update ile pending kapanacak.
+
+Maskot/modern aksesuarlar, yalnız fresh-local başlangıçta üç denemelik durable retry ve render boyunca kendi işini durdurabilen sağlık kontrolleri kodlandı. Tarihî14/golden6(24sahne), karakter15, stage-bounded/129.28, budget/governor, health, research/SSRF testleri ve TS0/lint0hata13eskiuyarı PASS. Owner vizyonu goal2ee07cf0 ACTIVE olarak mevcut GoalStore'a kaydedildi; authorityGrantedfalse. Ayrıntı docs/ATOLYE_OWNER_VISION_2026-10-12.md; kanıt `C:\Users\Metod\.codex\visualizations\2026\10\10\01a12594-c923-77b2-a250-4991764b40b0\atolye-owner-vision-20261012`.
+
+**Sıradaki zorunlu iş:** kaynak commit → isolated clean build/instrumentation/bundle health → aday HTTP → kimliği doğrulanmış origin/supervisor kontrollü geçiş/qualification → exactHEAD Graphify açıklama refresh/MCP → CI/protected metadata. Yeni özellikler henüz canlı değil; canlı önceki fa3434d/8PKEkaYETEkRb_7mDLUaT. Model/env/homepage/frozen/owner recovery tutmaları korunur. PC reboot/telefon daha önce OWNER_REPORTED kabulüyle kapalı; tekrar istenmez.
+
+## 12 Ekim 2026 — Atölye video hazırlamaya hazır; Claude devamı tamamlandı (önceki teslim)
 
 12 Ekim 2026 — Atölye yeni video hazırlamaya teknik olarak hazır. Claude devamı ve eski 22 başarısız suite 22/22 PASS; yeni source fa3434dd35e4b41fd6500447b5d41399ad5b03fa, CLEAN build 8PKEkaYETEkRb_7mDLUaT canlı. Instrumentation/bundle health, aday HTTP, qualification501/25976, gerçek canlı health/ready/workerReady/Studio16, local/public erişim ve source CI38229667318 PASS. Runtime2374/authority4/repoProjects2399 metadata digestleri aynı. Graphify eksik11dosya/202node/296edge yerel parser ile çözüldü; kaynak hash guard ve yerel MCP sorgusu PASS. Owner reboot/telefon kabulü OWNER_REPORTED. Yeni video/ücretli çağrı/upload/kurulum/reboot yok. Ayrıntı ve kalan isteğe bağlı tarihsel işler: docs/ATOLYE_READY_2026-10-12.md. Bu kayıt aşağıdaki eski Current/handoff paragraflarının güncel durumunu supersede eder; tarihsel kanıtlar korunur.
 
