@@ -83,7 +83,7 @@ export class FFmpegSceneVideoProvider implements ConfiguredVideoProvider {
         // frames are drawn here and encoded instead of moving one still image.
         const character = readCharacterScene(scene, context);
         const frames = character
-          ? await renderCharacterSceneFrames(character, scene.motionPlan.durationSeconds)
+          ? await renderCharacterSceneFrames(character.payload, scene.motionPlan.durationSeconds, character.backgroundPng)
           : null;
         let ffmpeg: ProcessRunResult;
         try {
@@ -308,12 +308,12 @@ export function buildCharacterSceneFFmpegArgs(
 function readCharacterScene(
   scene: VideoProviderSceneInput,
   context: RuntimeStorageContext,
-): CharacterSceneAssetPayload | null {
+): { payload: CharacterSceneAssetPayload; backgroundPng?: Buffer } | null {
   if (scene.imageMimeType !== "image/png") return null;
   const read = readCharacterScenePayload(fs.readFileSync(absoluteInput(scene.imageFilePath, context)));
   if (read.status === "ABSENT") return null;
   if (read.status === "INVALID") throw new Error(SAFE_ERROR);
-  return read.payload;
+  return { payload: read.payload, ...(read.backgroundPng ? { backgroundPng: read.backgroundPng } : {}) };
 }
 
 /**
@@ -324,6 +324,7 @@ function readCharacterScene(
 async function renderCharacterSceneFrames(
   payload: CharacterSceneAssetPayload,
   durationSeconds: number,
+  backgroundPng?: Buffer,
 ): Promise<{ readonly pattern: string; dispose(): void }> {
   const count = characterAnimationFrameCount(durationSeconds);
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-charframes-"));
@@ -346,7 +347,7 @@ async function renderCharacterSceneFrames(
       }
       const svg = renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds);
       if (svg !== previousSvg || !previousPng) {
-        const raster = await rasterizeCharacterSceneSvg(svg, { fast });
+        const raster = await rasterizeCharacterSceneSvg(svg, { fast, backgroundPng });
         if (!raster.ok) throw new Error(SAFE_ERROR);
         previousSvg = svg;
         previousPng = raster.png;

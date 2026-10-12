@@ -53,6 +53,7 @@ graphify-out/
 
 # Local AI runtime binaries + models (installed per-machine, not committed)
 /bin/piper/
+/bin/ayas-local-visual/
 /data/e2e-output/
 
 # D2 wake-word research assets (research/ayas-d2-audio-lab) — onnxruntime-web

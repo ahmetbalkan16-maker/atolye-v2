@@ -19,7 +19,7 @@ async function main() {
     const p = planCharacterScene({ sceneId: 1, text, contextualDirection: true });
     const direction = planCharacterSceneDirection(text, p.request.blocking);
     assert.equal(direction.art.culture, culture);
-    assert.equal(direction.art.version, "2");
+    assert.equal(direction.art.version, "3");
     assert.equal(direction.art.faith, culture === "BYZANTINE" ? "CHRISTIANITY" : "UNSPECIFIED");
     assert.equal(direction.art.roles[0]!.role, "RULER");
     assert.deepEqual(findCharacterStoryBeatProblems(direction.beats, p.request.blocking), []);

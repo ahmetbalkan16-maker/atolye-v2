@@ -12,6 +12,7 @@ import { rasterizeCharacterSceneSvg } from "@/lib/character/CharacterSceneRaster
 import { planCharacterScene } from "@/lib/animation/character/CharacterScenePlanner";
 import { EDITORIAL_RENDER_STYLE } from "@/lib/character/SvgSceneRenderer";
 import { planCharacterSceneDirection } from "@/lib/animation/character/CharacterSceneDirection";
+import { resolveCharacterLocalBackdropMode, readCharacterLocalBackdrop } from "@/lib/animation/character/CharacterLocalBackdrop";
 import type { ImageGenerationResult } from "@/types/asset";
 import { ImageStorage } from "../storage/ImageStorage";
 import type { ConfiguredImageProvider, ImageGenerationInput } from "./ImageProvider";
@@ -33,6 +34,8 @@ const GENERIC_ERROR = "Character scene generation failed.";
  */
 export class CharacterImageProvider implements ConfiguredImageProvider {
   readonly name = "character" as const;
+  // Capture once on the existing immutable provider dispatch adapter's instance.
+  private readonly backdropMode = resolveCharacterLocalBackdropMode();
 
   createImmutableImageDispatchAdapter() {
     return createProviderDispatchAdapter(this, {
@@ -55,17 +58,20 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         language: "tr",
         contextualDirection: true,
       });
+      const direction = planCharacterSceneDirection([input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking);
+      const background = readCharacterLocalBackdrop(this.backdropMode, direction.art);
       const payload: CharacterSceneAssetPayload = {
         schemaVersion: CHARACTER_SCENE_ASSET_SCHEMA_VERSION,
         request: plan.request,
         animation: plan.animation,
         fontFamily: CHARACTER_SCENE_FONT_FAMILY,
         renderStyle: EDITORIAL_RENDER_STYLE,
-        direction: planCharacterSceneDirection([input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking),
+        direction,
+        ...(background ? { background: background.metadata } : {}),
       };
-      const raster = await rasterizeCharacterSceneSvg(renderCharacterSceneAssetFrame(payload, CHARACTER_SCENE_STILL_SECONDS));
+      const raster = await rasterizeCharacterSceneSvg(renderCharacterSceneAssetFrame(payload, CHARACTER_SCENE_STILL_SECONDS), { backgroundPng: background?.png });
       if (!raster.ok) return failure(input.sceneId, createdAt);
-      const data = embedCharacterScenePayload(raster.png, payload);
+      const data = embedCharacterScenePayload(raster.png, payload, background?.png);
       const saved = trySaveImage(input.projectSlug, data);
       if (!saved) return failure(input.sceneId, createdAt);
 

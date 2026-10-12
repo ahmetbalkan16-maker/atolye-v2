@@ -8,6 +8,8 @@ import { findCharacterSceneRequestProblems, type CharacterSceneRequest } from ".
 import { renderCharacterSceneFrameSvg } from "../../character/SvgSceneRenderer";
 import { EDITORIAL_RENDER_STYLE, findCharacterArtDirectionProblems } from "../../character/SvgSceneRenderer";
 import { characterDirectedFrame, findCharacterStoryBeatProblems, type CharacterSceneDirection } from "./CharacterSceneDirection";
+import { isCharacterBackdropPng } from "../../character/CharacterSceneRasterizer";
+import { createHash } from "node:crypto";
 
 /**
  * Atölye stick-figure scene asset — the PNG the visuals stage stores for a character scene, and how the video stage
@@ -28,6 +30,7 @@ export const CHARACTER_SCENE_FONT_FAMILY = "Segoe UI, Arial, DejaVu Sans, sans-s
 export const CHARACTER_SCENE_STILL_SECONDS = 1.2;
 const MAX_PAYLOAD_BYTES = 256 * 1024;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const BACKDROP_CHUNK = "atBG";
 
 export interface CharacterSceneAssetPayload {
   readonly schemaVersion: typeof CHARACTER_SCENE_ASSET_SCHEMA_VERSION;
@@ -37,21 +40,26 @@ export interface CharacterSceneAssetPayload {
   /** Absent on historical assets; their original appearance stays unchanged. */
   readonly renderStyle?: typeof EDITORIAL_RENDER_STYLE;
   readonly direction?: CharacterSceneDirection;
+  readonly background?: { readonly provider: "sdxl-local"; readonly modelRevision: string; readonly sha256: string };
 }
 
 export type CharacterScenePayloadRead =
   | { readonly status: "ABSENT" }
-  | { readonly status: "VALID"; readonly payload: CharacterSceneAssetPayload }
+  | { readonly status: "VALID"; readonly payload: CharacterSceneAssetPayload; readonly backgroundPng?: Buffer }
   | { readonly status: "INVALID"; readonly reason: string };
 
 export function findCharacterSceneAssetPayloadProblems(value: unknown): string[] {
   const payload = value as Partial<CharacterSceneAssetPayload> | null;
   if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
-      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily", "renderStyle", "direction"].includes(key))) return ["PAYLOAD_SHAPE"];
+      Object.keys(payload).some((key) => !["schemaVersion", "request", "animation", "fontFamily", "renderStyle", "direction", "background"].includes(key))) return ["PAYLOAD_SHAPE"];
   const problems: string[] = [];
   if (payload.schemaVersion !== CHARACTER_SCENE_ASSET_SCHEMA_VERSION) problems.push("PAYLOAD_SCHEMA_VERSION");
   if (payload.fontFamily !== CHARACTER_SCENE_FONT_FAMILY) problems.push("PAYLOAD_FONT");
   if (payload.renderStyle !== undefined && payload.renderStyle !== EDITORIAL_RENDER_STYLE) problems.push("PAYLOAD_RENDER_STYLE");
+  if (payload.background !== undefined) {
+    const b = payload.background;
+    if (payload.renderStyle !== EDITORIAL_RENDER_STYLE || !payload.direction || !b || typeof b !== "object" || Array.isArray(b) || Object.keys(b).length !== 3 || Object.keys(b).some(k => !["provider", "modelRevision", "sha256"].includes(k)) || b.provider !== "sdxl-local" || !/^[0-9a-f]{40}$/.test(b.modelRevision) || !/^[0-9a-f]{64}$/.test(b.sha256)) problems.push("PAYLOAD_BACKGROUND");
+  }
   const requestProblems = findCharacterSceneRequestProblems(payload.request);
   problems.push(...requestProblems);
   // A drawn scene in a documentary always says what it is.
@@ -77,7 +85,7 @@ export function renderCharacterSceneAssetFrame(payload: CharacterSceneAssetPaylo
   return renderCharacterSceneFrameSvg(
     payload.request.blocking,
     payload.direction ? characterDirectedFrame(payload.request.blocking, payload.animation, payload.direction.beats, t, durationSeconds) : characterAnimationFrame(payload.request.blocking, payload.animation, t),
-    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily, renderStyle: payload.renderStyle, artDirection: payload.direction?.art },
+    { reenactmentLabel: payload.request.language, fontFamily: payload.fontFamily, renderStyle: payload.renderStyle, artDirection: payload.direction?.art, transparentBackdrop: payload.background !== undefined },
   );
 }
 
@@ -87,18 +95,19 @@ export function characterSceneFrameSeconds(index: number): number {
 }
 
 /** A copy of `png` with the payload added just before its end. */
-export function embedCharacterScenePayload(png: Buffer, payload: CharacterSceneAssetPayload): Buffer {
+export function embedCharacterScenePayload(png: Buffer, payload: CharacterSceneAssetPayload, backgroundPng?: Buffer): Buffer {
   const problems = findCharacterSceneAssetPayloadProblems(payload);
   if (problems.length) throw new Error(`CHARACTER_SCENE_PAYLOAD_INVALID: ${problems.join(", ")}`);
   const chunks = readChunks(png);
-  if (!chunks || chunks.some((chunk) => chunk.type === "tEXt" && keywordOf(png, chunk) === CHARACTER_SCENE_PNG_KEYWORD)) {
+  if (!chunks || chunks.some((chunk) => chunk.type === BACKDROP_CHUNK || (chunk.type === "tEXt" && keywordOf(png, chunk) === CHARACTER_SCENE_PNG_KEYWORD))) {
     throw new Error("CHARACTER_SCENE_PNG_INVALID");
   }
+  if (payload.background ? !backgroundPng || !isCharacterBackdropPng(backgroundPng) || createHash("sha256").update(backgroundPng).digest("hex") !== payload.background.sha256 : backgroundPng !== undefined) throw new Error("CHARACTER_SCENE_BACKGROUND_INVALID");
   const text = Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
   if (text.length > MAX_PAYLOAD_BYTES) throw new Error("CHARACTER_SCENE_PAYLOAD_TOO_LARGE");
   const data = Buffer.concat([Buffer.from(CHARACTER_SCENE_PNG_KEYWORD, "latin1"), Buffer.from([0]), Buffer.from(text, "latin1")]);
   const end = chunks[chunks.length - 1]!;
-  return Buffer.concat([png.subarray(0, end.offset), chunk("tEXt", data), png.subarray(end.offset)]);
+  return Buffer.concat([png.subarray(0, end.offset), ...(backgroundPng ? [chunk(BACKDROP_CHUNK, backgroundPng)] : []), chunk("tEXt", data), png.subarray(end.offset)]);
 }
 
 /** The payload inside a stored PNG, if there is one. A damaged or edited payload is INVALID, never ignored. */
@@ -115,7 +124,15 @@ export function readCharacterScenePayload(png: Buffer): CharacterScenePayloadRea
   let payload: unknown;
   try { payload = JSON.parse(Buffer.from(text, "base64").toString("utf8")); } catch { return { status: "INVALID", reason: "PAYLOAD_JSON" }; }
   const problems = findCharacterSceneAssetPayloadProblems(payload);
-  return problems.length ? { status: "INVALID", reason: problems.join(", ") } : { status: "VALID", payload: payload as CharacterSceneAssetPayload };
+  if (problems.length) return { status: "INVALID", reason: problems.join(", ") };
+  const typed = payload as CharacterSceneAssetPayload;
+  const backgrounds = chunks.filter(c => c.type === BACKDROP_CHUNK);
+  if (!typed.background) return backgrounds.length ? { status: "INVALID", reason: "BACKGROUND_UNEXPECTED" } : { status: "VALID", payload: typed };
+  if (backgrounds.length !== 1 || !backgrounds[0]!.crcValid) return { status: "INVALID", reason: "BACKGROUND_CHUNK" };
+  const b = backgrounds[0]!;
+  const backgroundPng = png.subarray(b.dataOffset, b.dataOffset + b.length);
+  if (!isCharacterBackdropPng(backgroundPng) || createHash("sha256").update(backgroundPng).digest("hex") !== typed.background.sha256) return { status: "INVALID", reason: "BACKGROUND_INTEGRITY" };
+  return { status: "VALID", payload: typed, backgroundPng };
 }
 
 interface PngChunk { readonly type: string; readonly offset: number; readonly dataOffset: number; readonly length: number; readonly crcValid: boolean }
