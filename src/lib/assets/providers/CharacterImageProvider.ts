@@ -66,6 +66,13 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
       const unit=periodUnitFromScene(input.prompt);
       const plannedDirection = planCharacterSceneDirection(this.volumeMode?input.prompt:[input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking);
       const direction=this.volumeMode&&unit.startsWith('JANISSARY')&&plannedDirection.art.culture==='UNKNOWN'?{...plannedDirection,art:{...plannedDirection.art,culture:'OTTOMAN' as const}}:plannedDirection;
+      const words=input.prompt.slice(0,8192).toLocaleLowerCase('tr-TR').normalize('NFD').replace(/\p{M}/gu,'').replace(/ı/g,'i');
+      const explicitTravel=/\b(yuru\w*|kos\w*|ilerle\w*|march\w*|walk\w*|run\w*|advanc\w*)\b/.test(words);
+      const speaking=/\b(konus\w*|anlat\w*|speak\w*|talk\w*|explain\w*)\b/.test(words);
+      const gesture=direction.beats.find(b=>b.action==='TALK'||b.action==='POINT');
+      // A soldier noun can select MARCH; an explicit stationary speech must not
+      // inherit that inferred walk. Existing 2D plans and explicit travel stay intact.
+      const animation=this.volumeMode&&!explicitTravel&&gesture?{...plan.animation,actors:plan.animation.actors.map((a,index)=>a.action==='WALK'||a.action==='RUN'?{...a,action:index===0?(speaking?'TALK' as const:gesture.action):'IDLE' as const,toX:null,delaySeconds:0}:a)}:plan.animation;
       const background = readCharacterLocalBackdrop(this.backdropMode, direction.art, plan.request.blocking.time);
       let volume=this.volumeMode?createVolumeScenePlan(plan.request.blocking,direction.art,extractCostumeSceneYears(input.prompt),unit):undefined;
       const templateIds:string[]=[];
@@ -81,7 +88,7 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
       const payload: CharacterSceneAssetPayload = {
         schemaVersion: CHARACTER_SCENE_ASSET_SCHEMA_VERSION,
         request: plan.request,
-        animation: plan.animation,
+        animation,
         fontFamily: CHARACTER_SCENE_FONT_FAMILY,
         renderStyle: EDITORIAL_RENDER_STYLE,
         direction,
