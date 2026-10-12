@@ -64,7 +64,8 @@ const beforeMarker = sha256(markerPath);
 const beforeInventory = collectRuntimeTrackingInventory(repositoryRoot);
 const beforeAdmission = assertRuntimeTrackingAdmission(beforeInventory, repositoryRoot);
 const beforeRuntimeDiff = runtimeDiff();
-assert.ok(beforeAdmission.tracked > 0);
+// C.2B.12 (788334e): data/projects is external-runtime authority data and nothing under it is tracked.
+assert.equal(beforeAdmission.tracked, 0);
 assert.equal(beforeRuntimeDiff, "");
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-runtime-root-"));

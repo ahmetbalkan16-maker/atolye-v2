@@ -554,27 +554,32 @@ export class PipelineStageExecutor {
         // forever. Idempotent (reuses an existing `bgm` asset), rights
         // fail-closed, local-library + ffmpeg-transcode only — no provider,
         // LLM or TTS call — and never fails the assembly stage.
-        try {
-          const music = await stageProjectBackgroundMusic({
-            projectId: state.project.id,
-            projectSlug,
-            audio,
-            musicStyleHint: script.musicStyle,
-            ambienceHints: deriveAmbienceHints(state.research, script),
-            storageContext: requireStorageContext(storageContext),
-          });
-          if (music.staged && music.audio !== audio) {
-            audio = music.audio;
-            state.audio = music.audio;
-            await ProjectManager.saveAudio(
-              projectSlug, state.audio, requireStorageContext(storageContext),
+        // Completed video/assembly regeneration admits an immutable audio
+        // package. Adding even local music would invalidate that admission;
+        // use its existing bed and leave enrichment to a normal audio run.
+        if (!acceptanceIdentity?.regeneration) {
+          try {
+            const music = await stageProjectBackgroundMusic({
+              projectId: state.project.id,
+              projectSlug,
+              audio,
+              musicStyleHint: script.musicStyle,
+              ambienceHints: deriveAmbienceHints(state.research, script),
+              storageContext: requireStorageContext(storageContext),
+            });
+            if (music.staged && music.audio !== audio) {
+              audio = music.audio;
+              state.audio = music.audio;
+              await ProjectManager.saveAudio(
+                projectSlug, state.audio, requireStorageContext(storageContext),
+              );
+            }
+          } catch (error) {
+            console.error(
+              "[PipelineStageExecutor] assembly-stage background music staging skipped (best-effort):",
+              error,
             );
           }
-        } catch (error) {
-          console.error(
-            "[PipelineStageExecutor] assembly-stage background music staging skipped (best-effort):",
-            error,
-          );
         }
         const assemblyPlan = await AssemblyManager.generateAssemblyPlan(
           script,

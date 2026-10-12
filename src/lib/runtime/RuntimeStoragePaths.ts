@@ -129,8 +129,19 @@ export interface ExistingProjectWriteAuthorityLease extends RuntimeStorageAuthor
   readonly projectFolder: string;
 }
 
+/**
+ * A context deliberately kept apart from any active operation scope (backup verification,
+ * migration target): `resolveRuntimeStorageContext` accepts it inside another scope.
+ */
 export function createIsolatedRuntimeStorageContext(
   options: RuntimeStorageResolutionOptions = {},
+): RuntimeStorageContext {
+  return buildRuntimeStorageContext(options, true);
+}
+
+function buildRuntimeStorageContext(
+  options: RuntimeStorageResolutionOptions,
+  isolated: boolean,
 ): RuntimeStorageContext {
   const environment = options.environment ?? process.env;
   const namedWorkspace = options.workspaceRoot ?? environment.ATOLYE_WORKSPACE_ROOT;
@@ -205,7 +216,9 @@ export function createIsolatedRuntimeStorageContext(
     logicalProjectsRoot: runtimeStorageLogicalProjectsRoot,
     machineRoot: containedPath(runtimeRoot, "machine"),
     authorityRoot,
-    isolated: true,
+    // Only the deliberate isolated factory may sit beside another scope; an ordinary
+    // context passed into a different active scope stays an operation-context mismatch.
+    ...(isolated ? { isolated: true } : {}),
   });
   trustedRuntimeStorageContexts.add(context);
   return context;
@@ -222,7 +235,7 @@ export function createRuntimeStorageContext(
     }
     return activeContext;
   }
-  return createIsolatedRuntimeStorageContext(options);
+  return buildRuntimeStorageContext(options, false);
 }
 
 export function resolveRuntimeStorageContext(

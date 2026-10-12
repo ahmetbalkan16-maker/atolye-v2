@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
@@ -719,7 +720,8 @@ async function runClaimOrphanConcurrencySuite() {
   }
 }
 
-runClaimOrphanConcurrencySuite().catch((err) => {
+// A run-owned TEMP runtime: implicit repository roots are never written (a971ff8).
+withCanonicalSmokeRuntime({ name: "sprint-129-39-claim-orphan" }, () => runClaimOrphanConcurrencySuite()).catch((err) => {
   console.error("❌ SUITE FAILED WITH ERROR:", err);
   process.exit(1);
 });

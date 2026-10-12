@@ -20,6 +20,7 @@ import { ProjectReader } from "../src/lib/projects/ProjectReader";
 import type { AnimationScene } from "../src/types/animation";
 import type { SceneData } from "../src/types/scene";
 import type { VisualData } from "../src/types/visual";
+import { copyHistoricalSmokeFixture, historicalSmokeSnapshots, refreshLegacySmokeMarker, withLegacySmokeWorkspace } from "./lib/LegacySmokeWorkspace";
 
 const productionSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
 const endpoint = "https://api.openai.com/v1/chat/completions";
@@ -112,7 +113,8 @@ async function main() {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-12922-"));
     const copiedProject = path.join(workspace, "data", "projects", productionSlug);
     fs.mkdirSync(path.dirname(copiedProject), { recursive: true });
-    fs.cpSync(realProject, copiedProject, { recursive: true });
+    // Sprint 129.21/22-era project: visuals done with stored images, animation failed.
+    copyHistoricalSmokeFixture(copiedProject, historicalSmokeSnapshots.animationNext);
     try {
       const child = spawnSync(process.execPath, [
         path.join(repository, "node_modules", "tsx", "dist", "cli.mjs"),
@@ -138,7 +140,12 @@ async function main() {
     }
     return;
   }
+  // Child: the run-owned TEMP copy, bound to a scoped test worker.
+  refreshLegacySmokeMarker(ProjectReader.getProjectFolder(productionSlug));
+  await withLegacySmokeWorkspace(process.env.ATOLYE_12922_WORKSPACE, isolatedScenarios);
+}
 
+async function isolatedScenarios() {
   await test("canonical schema is strict and excludes platform-owned fields", () => {
     assert.equal(canonicalAnimationProviderSchema.additionalProperties, false);
     assert.deepEqual(canonicalAnimationProviderSchema.providerOwnedFields, ["motionType", "start", "end", "transition"]);

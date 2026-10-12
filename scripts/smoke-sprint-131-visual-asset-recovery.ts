@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { AssetManager } from "../src/lib/assets/AssetManager";
 import { VisualAssetPipeline, VisualAssetGenerationError } from "../src/lib/assets/VisualAssetPipeline";
 import type { ImageProvider, ImageGenerationInput } from "../src/lib/assets/providers/ImageProvider";
@@ -172,13 +173,14 @@ async function runTests() {
   console.log("✔ TEST C PASSED: Scene 1/2 preserved, Scene 3 failed cleanly.");
 
   // Clean up scratch test directories
-  await fs.rm(path.join(process.cwd(), "data", "projects", testSlug), { recursive: true, force: true }).catch(() => {});
-  await fs.rm(path.join(process.cwd(), "data", "projects", failSlug), { recursive: true, force: true }).catch(() => {});
+  await fs.rm(path.join(process.env.ATOLYE_RUNTIME_ROOT!, "projects", testSlug), { recursive: true, force: true }).catch(() => {});
+  await fs.rm(path.join(process.env.ATOLYE_RUNTIME_ROOT!, "projects", failSlug), { recursive: true, force: true }).catch(() => {});
 
   console.log("ALL VISUAL ASSET RECOVERY SMOKE TESTS PASSED 100% CLEANLY!");
 }
 
-runTests().catch((err) => {
+// A run-owned TEMP runtime: implicit repository roots are never written (a971ff8).
+withCanonicalSmokeRuntime({ name: "sprint-131-visual-asset-recovery" }, () => runTests()).catch((err) => {
   console.error("SMOKE TEST FAILED:", err);
   process.exit(1);
 });

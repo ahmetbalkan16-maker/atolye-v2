@@ -290,11 +290,20 @@ async function main() {
     await scenario("authority claim rejects a different root for the same workspace slug", () => {
       const claimAuthority = path.join(sandbox, "claim-authority");
       const external = context(workspace, path.join(sandbox, "claim-external"), claimAuthority);
-      const legacy = createRuntimeStorageContext({
+      // An inferred root is never a write target (a971ff8); the deliberate legacy write mode is
+      // an explicit `<workspace>/data`, which must still lose to the external claim.
+      const inferred = createRuntimeStorageContext({
         workspaceRoot: workspace,
         environment: {},
         authorityRoot: claimAuthority,
       });
+      const legacy = createRuntimeStorageContext({
+        workspaceRoot: workspace,
+        environment: { ATOLYE_RUNTIME_ROOT: path.join(workspace, "data") },
+        authorityRoot: claimAuthority,
+      });
+      expectCode("RUNTIME_STORAGE_CONTEXT_REQUIRED", () =>
+        acquireProjectWriteAuthority("claim-project", inferred));
       const lease = acquireProjectWriteAuthority("claim-project", external);
       lease.release();
       const claimName = fs.readdirSync(claimAuthority).find((name) => name.endsWith(".claim.json"));

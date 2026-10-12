@@ -127,7 +127,9 @@ async function main() {
       assert.equal("runInRuntimeOperationScope" in scopeModule, false);
     });
 
-    await scenario("duplicated provenance registry fails closed", async () => {
+    await scenario("query-duplicated storage module shares the process provenance registry", async () => {
+      // 8adcbe5: a bundler-duplicated module instance adopts the one Symbol.for registry, so a
+      // factory-made context is trusted by every copy. Trust still comes only from a factory.
       const duplicateUrl = `${pathToFileURL(path.resolve("src/lib/runtime/RuntimeStoragePaths.ts")).href}?registry-duplicate=${Date.now()}`;
       const duplicate = await import(duplicateUrl) as typeof import("../src/lib/runtime/RuntimeStoragePaths");
       const duplicateContext = duplicate.createRuntimeStorageContext({
@@ -135,8 +137,10 @@ async function main() {
         workspaceRoot,
         authorityRoot: path.join(temporaryRoot, "duplicate-authority"),
       });
-      assert.throws(() => resolveRuntimeStorageContext(duplicateContext), RuntimeStorageError);
-      assert.throws(() => duplicate.resolveRuntimeStorageContext(storageContext), duplicate.RuntimeStorageError);
+      assert.equal(resolveRuntimeStorageContext(duplicateContext), duplicateContext);
+      assert.equal(duplicate.resolveRuntimeStorageContext(storageContext), storageContext);
+      assert.throws(() => resolveRuntimeStorageContext({ ...duplicateContext }), RuntimeStorageError);
+      assert.throws(() => duplicate.resolveRuntimeStorageContext({ ...storageContext }), duplicate.RuntimeStorageError);
     });
 
     await scenario("scope preserves one identity across async boundaries and environment drift", async () => {
@@ -806,20 +810,26 @@ const key = Symbol.for("@atolye/production-pipeline-execution-canonical-authorit
 const foreign = Object.freeze({ source: "foreign-preseed" });
 Object.defineProperty(globalThis, key, { configurable: false, enumerable: false, value: foreign, writable: false });
 const runtime = await import(${JSON.stringify(`${registryUrl}?foreign-preseed=${Date.now()}`)});
-let rejectionCode;
+const codeOf = (error) => error && typeof error === "object" && "code" in error ? error.code : undefined;
+// A foreign lock owner can never install the executor (8adcbe5 checks ownership first), so
+// execution finds no registration at all.
+let installCode, rejectionCode;
+try { runtime.installCanonicalProductionPipelineExecutionRuntime(undefined, undefined); }
+catch (error) { installCode = codeOf(error); }
 try {
   await runtime.executeCanonicalProductionPipelineStage(
     { projectSlug: "foreign-preseed", stage: "script", runType: "initial" },
     async () => true,
   );
 } catch (error) {
-  rejectionCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+  rejectionCode = codeOf(error);
 }
 const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
 const result = {
   descriptorLocked: descriptor?.configurable === false && descriptor?.writable === false,
   foreignSlotAdopted: descriptor?.value !== foreign,
-  unsafeAuthorityAccepted: rejectionCode !== "RUNTIME_OPERATION_CONTEXT_MISMATCH",
+  unsafeAuthorityAccepted: installCode !== "RUNTIME_OPERATION_CONTEXT_MISMATCH" ||
+    rejectionCode !== "RUNTIME_OPERATION_CONTEXT_MISSING",
 };
 console.log("DURABLE_PRESEED_RESULT:" + JSON.stringify(result));
 if (!result.descriptorLocked || result.foreignSlotAdopted || result.unsafeAuthorityAccepted) process.exitCode = 1;

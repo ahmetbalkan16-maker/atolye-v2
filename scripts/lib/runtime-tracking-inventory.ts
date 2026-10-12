@@ -121,13 +121,15 @@ function collectDeliberateProjectExclusions(
   }
   const fields = result.stdout.toString("utf8").split("\0");
   // repeating groups of 4: <source> <linenum> <pattern> <pathname>
+  // `/data/projects/` itself is C.2B.12's committed rule (788334e): the whole
+  // tree is external-runtime authority data, untracked by design.
   for (let i = 0; i + 3 < fields.length; i += 4) {
     const source = fields[i];
     const pattern = fields[i + 2];
     const pathname = fields[i + 3];
     if (
       source === ".gitignore" &&
-      /^\/data\/projects\/.+\/$/.test(pattern) &&
+      /^\/data\/projects\/(?:.+\/)?$/.test(pattern) &&
       pathname.startsWith("data/projects/")
     ) {
       excluded.add(pathname);

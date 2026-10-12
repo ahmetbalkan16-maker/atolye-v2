@@ -1,3 +1,4 @@
+import { withLegacySmokeWorkspace, refreshLegacySmokeMarker, copyHistoricalSmokeFixture, setAsideHistoricalStageLineage } from "./lib/LegacySmokeWorkspace";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -23,6 +24,7 @@ import { PipelineRecoveryPlanner } from "../src/lib/pipeline/PipelineRecoveryPla
 import { ProjectManager, VisualsArtifactConflictError } from "../src/lib/projects/ProjectManager";
 import { ProjectReader } from "../src/lib/projects/ProjectReader";
 import { productionAcceptanceConfigurationFingerprint, productionAcceptanceRequestFingerprint } from "../src/lib/production/ProductionAcceptancePolicy";
+import { withProductionAcceptanceRetryAdmission } from "../src/lib/production/ProductionAcceptanceLegacyAdmissionContext";
 import { ProductionPipelineExecutionAdapter } from "../src/lib/production/ProductionPipelineExecutionAdapter";
 import { prepareProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionFactory";
 import { reconcileFailedPipelineExecution } from "../src/lib/production/ProductionPipelineRetryReconciliation";
@@ -59,7 +61,7 @@ async function main() {
   if (!process.env.ATOLYE_12919_WORKSPACE) {
     const repo = process.cwd(), production = path.join(repo, "data", "projects", slug), before = digest(production);
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-12919-")), copy = path.join(workspace, "data", "projects", slug);
-    fs.mkdirSync(path.dirname(copy), { recursive: true }); fs.cpSync(production, copy, { recursive: true });
+    fs.mkdirSync(path.dirname(copy), { recursive: true }); copyHistoricalSmokeFixture(copy);
     try {
       const executable = path.join(repo, "node_modules", "tsx", "dist", "cli.mjs");
       const child = spawnSync(process.execPath, [executable, path.resolve(import.meta.filename)], {
@@ -86,6 +88,7 @@ async function main() {
   const workspace = process.cwd(), copy = path.join(workspace, "data", "projects", slug);
   const upstream = ["research.json", "script.json", "scenes.json"].map((name) => [name, fs.readFileSync(path.join(copy, name))] as const);
   try {
+    await withLegacySmokeWorkspace(workspace, async () => { refreshLegacySmokeMarker(copy);
     await test("canonical visual plan succeeds", () => assert.equal(validateProviderVisualPlan(plan(), scenes()), undefined));
     await test("missing top-level field has exact path", () => issue({ scenes: plan().scenes }, "$.thumbnail", "MISSING_REQUIRED_FIELD"));
     await test("unknown top-level field has exact path", () => issue({ ...plan(), metadata: {} }, "$.metadata", "UNKNOWN_FIELD"));
@@ -160,19 +163,26 @@ async function main() {
     const recovery = await PipelineRecoveryPlanner.createResumePlan(slug), jobs = (await ProjectReader.readJSON<PipelineJobList>(slug, "pipeline-jobs.json"))!, failed = jobs.jobs.find((job) => job.stage === "visuals")!;
     await test("recovery starts from visuals", () => assert(recovery.startStage === "visuals" && !recovery.stagesToRun.some((stage) => ["research", "script", "scenes"].includes(stage))));
     await test("upstream provider call counts remain zero", () => assert.equal(0, 0));
+    const legacy = await reconcileFailedPipelineExecution(failed, () => new Date(Date.parse(failed.updatedAt) + 1_000).toISOString());
+    await test("half-written legacy visuals lineage stays fail-closed", () => assert(!legacy.ok && legacy.reasonCode === "PIPELINE_RETRY_DURABLE_STATE_MISSING" && legacy.writeFree));
+    // The rest retries a visuals failure that never reached durable admission.
+    assert(setAsideHistoricalStageLineage(copy, "visuals", path.join(workspace, "set-aside-lineage")).length > 0);
     const reconciled = await reconcileFailedPipelineExecution(failed, () => new Date(Date.parse(failed.updatedAt) + 1_000).toISOString()); await test("failed visuals execution reconciles", () => assert(reconciled.ok));
     const retry = await prepareFailedStageRetry(slug, failed.id); await test("visuals retry prepares once", () => assert(retry.success));
     await test("animation cannot start before visuals", async () => assert.equal((await PipelineQueueScheduler.getNextRunnableStage(slug, ["visuals", "animation"])).stage, "visuals"));
-    const context = { projectSlug: slug, stage: "visuals" as const, runType: "retry" as const }, prepared = await prepareProductionPipelineExecution(context), adapter = new ProductionPipelineExecutionAdapter(prepared.adapter, () => prepared.request, (request) => settleSuccessfulProductionPipelineExecution(prepared.settlement, request));
+    if (!retry.success) throw new Error("visuals retry was not prepared");
+    // The runner executes a prepared retry only inside its immutable retry admission.
+    const admitted = <T>(run: () => Promise<T>) => withProductionAcceptanceRetryAdmission(retry.admission, retry.previousJob, run);
+    const context = { projectSlug: slug, stage: "visuals" as const, runType: "retry" as const }, prepared = await admitted(() => prepareProductionPipelineExecution(context)), adapter = new ProductionPipelineExecutionAdapter(prepared.adapter, () => prepared.request, (request) => settleSuccessfulProductionPipelineExecution(prepared.settlement, request));
     let planningCalls = 0, recoveryImageCalls = 0;
-    const completed = await adapter.execute(context, async () => {
+    const completed = await admitted(() => adapter.execute(context, async () => {
       await PipelineJobManager.startStage(slug, "visuals", async () => undefined);
       const source = (await ProjectReader.readJSON<SceneData>(slug, "scenes.json"))!;
       const artifact = await VisualManager.generateVisualData({ projectId: "production-project", projectSlug: slug, scenes: source, aiProvider: textProvider(providerResult(payload), () => planningCalls++), generationPolicy: strictGenerationExecutionPolicy });
       await ProjectManager.persistVisualsArtifact(slug, artifact);
       await VisualAssetPipeline.generateAssets({ projectId: "production-project", projectSlug: slug, visualData: artifact, provider: physicalProvider(() => recoveryImageCalls++) });
       return PipelineJobManager.persistStageSuccess(slug, "visuals", () => ProjectManager.updatePackageStatus(slug, "visuals", "completed").then(() => undefined));
-    }); assert(completed);
+    })); assert(completed);
     await test("visual planning provider starts once", () => assert.equal(planningCalls, 1));
     await test("recovery image calls equal scene count", () => assert.equal(recoveryImageCalls, 6));
     await test("animation opens after terminal settlement", async () => assert.equal((await PipelineQueueScheduler.getNextRunnableStage(slug, ["visuals", "animation"])).stage, "animation"));
@@ -191,6 +201,7 @@ async function main() {
     for (const [name, content] of upstream) await test(`${name} remains byte-for-byte unchanged`, () => assert.deepEqual(fs.readFileSync(path.join(copy, name)), content));
     await test("real production runtime remains byte-for-byte unchanged", () => assert.equal(digest(production), before));
     assert(passed >= 56); process.stdout.write(`Sprint 129.19 visuals structured output smoke PASS: ${passed} scenarios.\n`);
+    });
   } finally { assert.equal(process.cwd(), workspace); }
 }
 

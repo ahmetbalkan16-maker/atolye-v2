@@ -26,6 +26,7 @@ import {
 import { ProductionReadinessService } from "../src/lib/production/ProductionReadinessService";
 import type { SceneData } from "../src/types/scene";
 import { VisualManager } from "../src/lib/visuals/VisualManager";
+import { copyHistoricalSmokeFixture, refreshLegacySmokeMarker, withLegacySmokeWorkspace } from "./lib/LegacySmokeWorkspace";
 
 const productionSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
 let passed = 0;
@@ -119,7 +120,7 @@ async function main() {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-12920-"));
     const copy = path.join(workspace, "data", "projects", productionSlug);
     fs.mkdirSync(path.dirname(copy), { recursive: true });
-    fs.cpSync(production, copy, { recursive: true });
+    copyHistoricalSmokeFixture(copy);
     try {
       const executable = path.join(repository, "node_modules", "tsx", "dist", "cli.mjs");
       const child = spawnSync(process.execPath, [executable, path.resolve(import.meta.filename)], {
@@ -127,6 +128,8 @@ async function main() {
         env: {
           ...process.env,
           ATOLYE_12920_WORKSPACE: workspace,
+          ATOLYE_WORKSPACE_ROOT: workspace,
+          ATOLYE_RUNTIME_ROOT: path.join(workspace, "data"), // explicit run-owned write root
           ATOLYE_12920_REPO: repository,
           TSX_TSCONFIG_PATH: path.join(repository, "tsconfig.json"),
         },
@@ -141,7 +144,12 @@ async function main() {
       fs.rmSync(workspace, { recursive: true, force: true });
     }
   }
+  // Child: the run-owned TEMP copy, bound to a scoped test worker.
+  refreshLegacySmokeMarker(path.join(process.cwd(), "data", "projects", productionSlug));
+  await withLegacySmokeWorkspace(process.cwd(), isolatedScenarios);
+}
 
+async function isolatedScenarios() {
   const truncatedSlug = "sprint-129-20-truncated";
   const truncatedRoot = path.join(process.cwd(), "data", "projects", truncatedSlug);
   let truncatedProviderCalls = 0;
@@ -261,11 +269,19 @@ async function main() {
   });
 
   await test("invalid visuals budget fails readiness model configuration", async () => {
-    const report = await new ProductionReadinessService({
-      cwd: process.cwd(),
-      environment: { ...process.env, OPENAI_VISUALS_MAX_TOKENS: "1.5" },
-    }).evaluate();
-    assert(report.checks.some((item) => item.reasonCode === "AI_VISUALS_MAX_TOKENS_INVALID"));
+    // The stage budgets are OpenAI model configuration; readiness checks them for that provider.
+    const previous = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "openai";
+    try {
+      const report = await new ProductionReadinessService({
+        cwd: process.cwd(),
+        environment: { ...process.env, AI_PROVIDER: "openai", OPENAI_VISUALS_MAX_TOKENS: "1.5" },
+      }).evaluate();
+      assert(report.checks.some((item) => item.reasonCode === "AI_VISUALS_MAX_TOKENS_INVALID"));
+    } finally {
+      if (previous === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previous;
+    }
   });
 
   await test("recovery remains unblocked at visuals", async () => {

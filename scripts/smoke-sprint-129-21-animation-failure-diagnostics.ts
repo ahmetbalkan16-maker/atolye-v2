@@ -21,6 +21,7 @@ import type { AnimationScene } from "../src/types/animation";
 import type { AnimationMotionPlanErrorCode } from "../src/types/animationError";
 import type { SceneData } from "../src/types/scene";
 import type { VisualData } from "../src/types/visual";
+import { copyHistoricalSmokeFixture, historicalSmokeSnapshots, refreshLegacySmokeMarker, withLegacySmokeWorkspace } from "./lib/LegacySmokeWorkspace";
 
 const productionSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
 const endpoint = "https://api.openai.com/v1/chat/completions";
@@ -105,7 +106,8 @@ async function main() {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-12921-"));
     const copiedProduction = path.join(workspace, "data", "projects", productionSlug);
     fs.mkdirSync(path.dirname(copiedProduction), { recursive: true });
-    fs.cpSync(realProduction, copiedProduction, { recursive: true });
+    // Sprint 129.21-era project: visuals done with stored images, animation failed.
+    copyHistoricalSmokeFixture(copiedProduction, historicalSmokeSnapshots.animationNext);
     try {
       const tsxCli = path.join(repository, "node_modules", "tsx", "dist", "cli.mjs");
       const child = spawnSync(process.execPath, [tsxCli, path.resolve(import.meta.filename)], {
@@ -133,7 +135,8 @@ async function main() {
   const copiedProduction = ProjectReader.getProjectFolder(productionSlug);
   const previousKey = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "configured-for-smoke";
-  try {
+  try { await withLegacySmokeWorkspace(isolatedWorkspace, async () => {
+    refreshLegacySmokeMarker(copiedProduction);
     await test("empty response is classified", async () => { await expectProviderCode("ANIMATION_RESPONSE_EMPTY", async () => response("")); });
     await test("invalid JSON is classified", async () => { await expectProviderCode("ANIMATION_RESPONSE_INVALID_JSON", async () => response("not-json")); });
     await test("schema invalid is classified", async () => { await expectProviderCode("ANIMATION_RESPONSE_SCHEMA_INVALID", async () => response(JSON.stringify({ ...plan(input()), sceneId: 2 }))); });
@@ -282,7 +285,7 @@ async function main() {
     });
     assert.equal(passed, 19);
     process.stdout.write(`Sprint 129.21 animation failure diagnostics smoke PASS: ${passed} scenarios.\n`);
-  } finally {
+  }); } finally {
     if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
     else process.env.OPENAI_API_KEY = previousKey;
   }

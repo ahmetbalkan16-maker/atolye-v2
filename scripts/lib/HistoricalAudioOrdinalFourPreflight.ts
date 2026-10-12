@@ -61,6 +61,21 @@ export interface HistoricalAudioOrdinalFourPreflight {
   readonly deletionTargets: readonly string[];
 }
 
+/**
+ * File name of the one audio ordinal-four authority. The folder also holds later stages' own
+ * extensions (thumbnail ordinal four), so "the first authority-*" is not this lineage.
+ */
+export function historicalAudioOrdinalFourAuthorityFile(extensionRoot: string): string {
+  const matches = fs.readdirSync(extensionRoot)
+    .filter((name) => name.startsWith("authority-") && name.endsWith(".json"))
+    .filter((name) => {
+      const body = JSON.parse(fs.readFileSync(path.join(extensionRoot, name), "utf8"));
+      return body.stage === "audio" && body.authorizedDurableOrdinal === durableOrdinal;
+    });
+  if (matches.length !== 1) throw new Error("CANONICAL_AUDIO_ORDINAL_FOUR_AUTHORITY_AMBIGUOUS");
+  return matches[0];
+}
+
 function exactVersionPaths(root: string, directory: string, id: string, count: number) {
   return Array.from({ length: count }, (_, index) =>
     path.join(root, directory, `${id}-v${index + 1}.json`));

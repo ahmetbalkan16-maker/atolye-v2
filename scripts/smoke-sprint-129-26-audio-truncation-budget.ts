@@ -295,11 +295,19 @@ async function main() {
   });
 
   await test("invalid audio budget fails readiness model configuration", async () => {
-    const report = await new ProductionReadinessService({
-      cwd: process.cwd(),
-      environment: { ...process.env, OPENAI_AUDIO_MAX_TOKENS: "1.5" },
-    }).evaluate();
-    assert(report.checks.some((item) => item.reasonCode === "AI_AUDIO_MAX_TOKENS_INVALID"));
+    // The stage budgets are OpenAI model configuration; readiness checks them for that provider.
+    const previous = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "openai";
+    try {
+      const report = await new ProductionReadinessService({
+        cwd: process.cwd(),
+        environment: { ...process.env, AI_PROVIDER: "openai", OPENAI_AUDIO_MAX_TOKENS: "1.5" },
+      }).evaluate();
+      assert(report.checks.some((item) => item.reasonCode === "AI_AUDIO_MAX_TOKENS_INVALID"));
+    } finally {
+      if (previous === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previous;
+    }
   });
 
   assert.equal(passed, 19);

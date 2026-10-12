@@ -78,7 +78,10 @@ from "same HEAD, new edits".
   `needs_update`, dirty indexed files not covered. Fixed by a refresh.
 - **INVALID**: graph or branch metadata unreadable, empty graph, or duplicate IDs / duplicate edges
   / dangling edges / self-loops. Fixed by a refresh (classification `GRAPH_EXTRACTION_FAILED`).
-- **PARTIAL**: current, but some code files produced no node. A refresh **cannot** fix it.
+- **PARTIAL**: current, but some code files produced no node. `graphify update` alone **cannot**
+  fix it; the structural complement (§9) can, for the file kinds it parses. A complement node
+  counts only while its file still has the bytes it was parsed from (`source_sha256`), so an edited
+  `.ps1` turns the graph PARTIAL again until the complement is re-applied.
 - **SEMANTIC PENDING**: `.graphify_describe_pending` exists. The structural graph is still valid;
   nothing blocks.
 - `graphify check-update` reports `current:false` for semantic-only reasons too and always exits 0,
@@ -235,6 +238,24 @@ during Stage 10A. For local development decisions the local CLI graph is authori
   only their uniquely named helpers, the shared file node is attributed to videos). Reported as
   `CODE_FILE_UNATTRIBUTED` for thumbnails; "0 duplicate IDs" alone does not prove 1:1 file coverage.
   Review these four routes directly; the collision is in Graphify's ID derivation, not AYAS code.
+- **Structural complement (12 Oct 2026):** `scripts/graphify-structural-complement.mjs` closes these
+  gaps without installing a grammar. It parses every PowerShell file with PowerShell's own built-in
+  parser (`scripts/graphify-powershell-ast.ps1` — the target scripts are never run, dot-sourced or
+  imported), the CI workflows with Graphify's own `yaml` package, and the two colliding routes with
+  the repository's TypeScript. The file set is discovered from Git (`*.ps1`, `.github/workflows/*`,
+  the colliding routes), so a new script is picked up without editing a list. Nodes are named
+  `atolye_structural:<file>:<symbol>` and carry `source_sha256` and `extraction_parser`; dynamic
+  invocations and runtime bindings are left unresolved and listed in the receipt. `--apply` adds the
+  nodes to `graph.json` by id, exactly as `graphify update` keeps prior nodes, and replaces any
+  earlier complement; a later `graphify update` keeps them and assigns them communities. Workflow
+  nodes are typed `document` because `update` prunes code-typed nodes of files outside its code
+  extensions. `graphify build --fragment` is deliberately not used: its label dedup folded 126
+  distinct same-named methods (e.g. several `.constructor()` in one file) and cleared every
+  community on this graph. The `--out` fragment is still self-contained (anchor copies of the
+  existing nodes it links to) for anyone who wants to validate it. Measured on 12 Oct: 11/11 files,
+  202 nodes, 296 edges, 0 duplicate ids/edges, 0 dangling; status PARTIAL → no incomplete code file;
+  every complement node survived a following `graphify update`. Evidence:
+  `scripts/smoke-graphify-structural-complement.ts` (10 scenarios).
 - **Incremental update is additive (new finding):** `graphify update` builds a fresh AST graph and
   then merges back every previous node the new AST lacks and every previous edge whose endpoints still
   exist (previous attributes win). Removed imports, calls and symbols therefore survive as phantom
@@ -267,6 +288,7 @@ during Stage 10A. For local development decisions the local CLI graph is authori
 |---|---|
 | Status | `npx tsx scripts/ayas-graphify-status.ts` (`--user` adds user-level host configs) |
 | Structural refresh | `graphify update --scope all --no-description --no-label .` |
+| Complement after a refresh | `node scripts/graphify-structural-complement.mjs --apply --out <TEMP>/fragment.json --receipt <TEMP>/receipt.json` |
 | Dependents of a symbol | `graphify explain "<symbol>"` (0.17 has no `affected` command) |
 | Change impact | `graphify review-analysis --files <a,b> --graph .graphify/graph.json` |
 | Scope check | `graphify scope inspect . --scope all` |
@@ -281,7 +303,8 @@ to fake a metadata-only bump.
 1. Remove or repoint the two dead Claude PreToolUse hooks in `.claude/settings.local.json`.
 2. Antigravity: pin the Graphify package and pass an explicit graph path, or switch to
    `graphify serve .graphify/graph.json`.
-3. Decide whether to install the optional `tree-sitter-powershell` grammar for Graphify.
+3. Decide whether to install the optional `tree-sitter-powershell` grammar for Graphify. Since
+   12 Oct 2026 the structural complement (§9) covers PowerShell without it, so this is optional.
 4. Decide whether the remote VS Code/Claude MCP endpoint is still wanted.
 5. Optionally align the two daemons' `graphifyFresh` with `needs_update` (see §5). This touches the
    observer and discovery daemon sources, so Stage 10A did not do it.

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { AssetManager } from "../src/lib/assets/AssetManager";
 import { ProjectManager, VisualsArtifactConflictError } from "../src/lib/projects/ProjectManager";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
@@ -197,14 +198,15 @@ async function runTests() {
   console.log("✔ TEST D PASSED: VisualsArtifactConflictError protection maintained.");
 
   // Clean up scratch test project directories
-  await fs.rm(path.join(process.cwd(), "data", "projects", slugA), { recursive: true, force: true }).catch(() => {});
-  await fs.rm(path.join(process.cwd(), "data", "projects", slugB), { recursive: true, force: true }).catch(() => {});
-  await fs.rm(path.join(process.cwd(), "data", "projects", slugC), { recursive: true, force: true }).catch(() => {});
+  await fs.rm(path.join(process.env.ATOLYE_RUNTIME_ROOT!, "projects", slugA), { recursive: true, force: true }).catch(() => {});
+  await fs.rm(path.join(process.env.ATOLYE_RUNTIME_ROOT!, "projects", slugB), { recursive: true, force: true }).catch(() => {});
+  await fs.rm(path.join(process.env.ATOLYE_RUNTIME_ROOT!, "projects", slugC), { recursive: true, force: true }).catch(() => {});
 
   console.log("ALL VISUALS ARTIFACT REUSE SMOKE TESTS PASSED 100% CLEANLY!");
 }
 
-runTests().catch((err) => {
+// A run-owned TEMP runtime: implicit repository roots are never written (a971ff8).
+withCanonicalSmokeRuntime({ name: "sprint-131-visuals-artifact-reuse" }, () => runTests()).catch((err) => {
   console.error("SMOKE TEST FAILED:", err);
   process.exit(1);
 });

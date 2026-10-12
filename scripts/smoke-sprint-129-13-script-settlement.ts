@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { AIManager } from "../src/lib/ai/AIManager";
-import { aiProviderConfig } from "../src/lib/ai/AIProviderConfig";
+import { withLegacySmokeWorkspace, refreshLegacySmokeMarker, copyHistoricalSmokeFixture } from "./lib/LegacySmokeWorkspace";
 import { AIResponseError } from "../src/lib/ai/AIResponseError";
 import { strictGenerationExecutionPolicy } from "../src/lib/ai/GenerationExecutionPolicy";
 import { getResearchMaxTokens } from "../src/lib/ai/ResearchAIConfig";
@@ -40,16 +40,16 @@ async function fixtureProject(label: string) { const project=await ProjectManage
 
 async function main() {
   const repository=process.cwd(),productionFolder=ProjectReader.getProjectFolder(productionSlug),runtimeHashBefore=hashTree(productionFolder),workspace=fs.mkdtempSync(path.join(os.tmpdir(),"atolye-sprint-129-13-"));
-  fs.mkdirSync(path.join(workspace,"data","projects"),{recursive:true});fs.cpSync(productionFolder,path.join(workspace,"data","projects",productionSlug),{recursive:true});process.chdir(workspace);
+  fs.mkdirSync(path.join(workspace,"data","projects"),{recursive:true});copyHistoricalSmokeFixture(path.join(workspace,"data","projects",productionSlug));process.chdir(workspace);
   // A workspace alone grants no write root; name the run-owned TEMP runtime.
   const previousWorkspaceRoot=process.env.ATOLYE_WORKSPACE_ROOT,previousRuntimeRoot=process.env.ATOLYE_RUNTIME_ROOT;process.env.ATOLYE_WORKSPACE_ROOT=workspace;process.env.ATOLYE_RUNTIME_ROOT=path.join(workspace,"data");
-  try {
+  try { await withLegacySmokeWorkspace(workspace, async () => { refreshLegacySmokeMarker(path.join(workspace,"data","projects",productionSlug));
     await test("script default is stage-specific",()=>assert.equal(getScriptMaxTokens(env()),3200));
     await test("research budget does not affect script",()=>assert.equal(getScriptMaxTokens(env({OPENAI_RESEARCH_MAX_TOKENS:"4800"})),3200));
     await test("explicit script budget overrides global",()=>assert.equal(getScriptMaxTokens(env({OPENAI_MAX_TOKENS:"1200",OPENAI_SCRIPT_MAX_TOKENS:"4000"})),4000));
     await test("below minimum is rejected",()=>assert.throws(()=>getScriptMaxTokens(env({OPENAI_SCRIPT_MAX_TOKENS:String(scriptTokenBudget.minimumTokens-1)})),ScriptAIConfigError));
     await test("above maximum is rejected",()=>assert.throws(()=>getScriptMaxTokens(env({OPENAI_SCRIPT_MAX_TOKENS:String(scriptTokenBudget.maximumTokens+1)})),ScriptAIConfigError));
-    await test("non-integer readiness fails closed",async()=>{const previous=aiProviderConfig.provider;aiProviderConfig.provider="openai";try{const report=await new ProductionReadinessService({cwd:workspace,environment:{...process.env,AI_PROVIDER:"openai",OPENAI_SCRIPT_MAX_TOKENS:"3.2"}}).evaluate();assert(report.checks.some(item=>item.reasonCode==="AI_SCRIPT_MAX_TOKENS_INVALID"))}finally{aiProviderConfig.provider=previous}});
+    await test("non-integer readiness fails closed",async()=>{const previous=process.env.AI_PROVIDER;process.env.AI_PROVIDER="openai";try{const report=await new ProductionReadinessService({cwd:workspace,environment:{...process.env,AI_PROVIDER:"openai",OPENAI_SCRIPT_MAX_TOKENS:"3.2"}}).evaluate();assert(report.checks.some(item=>item.reasonCode==="AI_SCRIPT_MAX_TOKENS_INVALID"))}finally{if(previous===undefined)delete process.env.AI_PROVIDER;else process.env.AI_PROVIDER=previous}});
     await test("default-sized script fixture validates",()=>assert.equal(parseStrictScriptResponse(JSON.stringify(scriptFixture())).chapters.length,4));
     await test("finish length produces truncation",()=>expectCode(()=>AIManager.runScript("x",{projectSlug:"smoke",stage:"script"},provider(providerResult("RAW",{finishReason:"length",complete:false,truncated:true})),strictGenerationExecutionPolicy),"AI_RESPONSE_TRUNCATED"));
     await test("finish stop valid script succeeds",async()=>assert.equal((await AIManager.runScript("x",{projectSlug:"smoke",stage:"script"},provider(providerResult(JSON.stringify(scriptFixture()))),strictGenerationExecutionPolicy)).title,"Fetih"));
@@ -98,6 +98,6 @@ async function main() {
     await test("scenes success leaves visuals as the first recovery stage",()=>assert.equal(recovery.stagesToRun[0],"visuals"));
     await test("real production runtime is unchanged",()=>assert.equal(hashTree(productionFolder),runtimeHashBefore));
     assert.equal(passed,42);assert.equal(getResearchMaxTokens(env()),3200);process.stdout.write(`Sprint 129.13 script budget and settlement smoke PASS: ${passed} scenarios.\n`);
-  } finally { process.chdir(repository);if(previousWorkspaceRoot===undefined)delete process.env.ATOLYE_WORKSPACE_ROOT;else process.env.ATOLYE_WORKSPACE_ROOT=previousWorkspaceRoot;if(previousRuntimeRoot===undefined)delete process.env.ATOLYE_RUNTIME_ROOT;else process.env.ATOLYE_RUNTIME_ROOT=previousRuntimeRoot;fs.rmSync(workspace,{recursive:true,force:true}); }
+  }); } finally { process.chdir(repository);if(previousWorkspaceRoot===undefined)delete process.env.ATOLYE_WORKSPACE_ROOT;else process.env.ATOLYE_WORKSPACE_ROOT=previousWorkspaceRoot;if(previousRuntimeRoot===undefined)delete process.env.ATOLYE_RUNTIME_ROOT;else process.env.ATOLYE_RUNTIME_ROOT=previousRuntimeRoot;fs.rmSync(workspace,{recursive:true,force:true}); }
 }
 void main().catch(error=>{process.stderr.write(`Sprint 129.13 smoke FAILED: ${error instanceof Error?error.message:"unknown"}\n`);process.exitCode=1});

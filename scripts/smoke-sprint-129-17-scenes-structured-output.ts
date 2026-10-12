@@ -1,3 +1,4 @@
+import { withLegacySmokeWorkspace, refreshLegacySmokeMarker, copyHistoricalSmokeFixture } from "./lib/LegacySmokeWorkspace";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -96,7 +97,7 @@ async function main() {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-12917-"));
   const copy = path.join(workspace, "data", "projects", slug);
   fs.mkdirSync(path.dirname(copy), { recursive: true });
-  fs.cpSync(production, copy, { recursive: true });
+  copyHistoricalSmokeFixture(copy);
   const researchBefore = fs.readFileSync(path.join(copy, "research.json"));
   const scriptBefore = fs.readFileSync(path.join(copy, "script.json"));
   process.chdir(workspace);
@@ -105,7 +106,7 @@ async function main() {
   const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
   process.env.ATOLYE_WORKSPACE_ROOT = workspace;
   process.env.ATOLYE_RUNTIME_ROOT = path.join(workspace, "data");
-  try {
+  try { await withLegacySmokeWorkspace(workspace, async () => { refreshLegacySmokeMarker(copy);
     await test("canonical scenes JSON succeeds", () => assert.equal(validateProviderScenes(scenes(), script()), undefined));
     await test("missing top-level field has exact path", () => issue({}, "$.scenes", "MISSING_REQUIRED_FIELD"));
     await test("unknown top-level field has exact path", () => issue({ ...scenes(), metadata: {} }, "$.metadata", "UNKNOWN_FIELD"));
@@ -209,7 +210,7 @@ async function main() {
     await test("real production runtime remains byte-for-byte unchanged", () => assert.equal(digest(production), before));
     assert(passed >= 45);
     process.stdout.write(`Sprint 129.17 scenes structured output smoke PASS: ${passed} scenarios.\n`);
-  } finally {
+  }); } finally {
     process.chdir(repo);
     if (previousWorkspaceRoot === undefined) delete process.env.ATOLYE_WORKSPACE_ROOT;
     else process.env.ATOLYE_WORKSPACE_ROOT = previousWorkspaceRoot;

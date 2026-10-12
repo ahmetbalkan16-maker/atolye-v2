@@ -54,7 +54,7 @@ import { createAlternativeHistoricalAudioOrdinalFourChain,
   poisonHistoricalAudioOrdinalFourClaimV1Binding,
   poisonHistoricalAudioOrdinalFourLeaseV2Ownership,
   poisonHistoricalAudioOrdinalFourLeaseV2Version,
-  preflightHistoricalAudioOrdinalFour } from
+  preflightHistoricalAudioOrdinalFour, historicalAudioOrdinalFourAuthorityFile } from
   "./lib/HistoricalAudioOrdinalFourPreflight";
 
 const anchor = "2026-08-08T09:00:00.000Z";
@@ -250,7 +250,7 @@ function runRewindPreflightRegression(
     const executionRoot = path.join(projectRoot, "production-execution");
     const extensionRoot = path.join(executionRoot, "retry-budget-extensions");
     const authority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
-      fs.readdirSync(extensionRoot).find((name) => name.startsWith("authority-"))!), "utf8"));
+      historicalAudioOrdinalFourAuthorityFile(extensionRoot)), "utf8"));
     const consumed = JSON.parse(fs.readFileSync(path.join(extensionRoot,
       `receipt-${authority.authorityId}-consumed.json`), "utf8"));
     if (kind === "unknown-receipt") {
@@ -268,7 +268,8 @@ function runRewindPreflightRegression(
       const recordRoot = path.join(projectRoot, "production-execution", "idempotency");
       const canonical = fs.readdirSync(recordRoot).find((name) => {
         const value = JSON.parse(fs.readFileSync(path.join(recordRoot, name), "utf8"));
-        return value.retryBudgetExtension?.authorizedDurableOrdinal === 4;
+        // Thumbnail later gained its own ordinal-four extension; duplicate the audio record.
+        return value.stage === "audio" && value.retryBudgetExtension?.authorizedDurableOrdinal === 4;
       })!;
       fs.copyFileSync(path.join(recordRoot, canonical),
         path.join(recordRoot, "duplicate-exact-binding-sibling.json"),

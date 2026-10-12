@@ -26,6 +26,7 @@ import {
 } from "../src/lib/production/ProductionAcceptancePolicy";
 import { createProductionAcceptanceProjectSlug } from "../src/lib/production/ProductionAcceptanceTopic";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import { copyHistoricalSmokeFixture, refreshLegacySmokeMarker, withLegacySmokeWorkspace } from "./lib/LegacySmokeWorkspace";
 
 const productionSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
 const topic = "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı";
@@ -86,17 +87,21 @@ async function expectCode(action: () => Promise<unknown>, code: string) {
 
 async function main() {
   const originalCwd = process.cwd();
-  const plan = await PipelineRecoveryPlanner.createResumePlan(productionSlug);
-  const existingJobs = await PipelineJobManager.listJobsReadOnly(productionSlug);
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-sprint-129-7-"));
   fs.mkdirSync(path.join(workspace, "data", "projects", "smoke"), { recursive: true });
+  // The Sprint 129.19-era project (visuals failed, downstream queued), restored from Git into TEMP.
+  const fixture = path.join(workspace, "data", "projects", productionSlug);
+  copyHistoricalSmokeFixture(fixture);
   process.chdir(workspace);
   // Name the TEMP runtime explicitly; a workspace alone grants no write root.
   const previousWorkspaceRoot = process.env.ATOLYE_WORKSPACE_ROOT;
   const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
   process.env.ATOLYE_WORKSPACE_ROOT = workspace;
   process.env.ATOLYE_RUNTIME_ROOT = path.join(workspace, "data");
-  try {
+  try { await withLegacySmokeWorkspace(workspace, async () => {
+    refreshLegacySmokeMarker(fixture);
+    const plan = await PipelineRecoveryPlanner.createResumePlan(productionSlug);
+    const existingJobs = await PipelineJobManager.listJobsReadOnly(productionSlug);
     await test("research prompt documents trusted canonical timestamp", () => {
       const prompt = createResearchPrompt(topic);
       assert.match(prompt, /UTC RFC 3339 \/ ISO 8601/);
@@ -213,7 +218,7 @@ async function main() {
     });
 
     process.stdout.write(`Sprint 129.7 research structured output smoke PASS: ${passed} scenarios.\n`);
-  } finally {
+  }); } finally {
     process.chdir(originalCwd);
     if (previousWorkspaceRoot === undefined) delete process.env.ATOLYE_WORKSPACE_ROOT;
     else process.env.ATOLYE_WORKSPACE_ROOT = previousWorkspaceRoot;

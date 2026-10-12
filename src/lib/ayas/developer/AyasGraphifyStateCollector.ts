@@ -145,19 +145,61 @@ export function classifyAyasGraphifyExtractionGaps(indexedFiles: readonly string
   return gaps.sort((a, b) => a.path.localeCompare(b.path));
 }
 
+/**
+ * Files whose only nodes come from a project-side parser (`scripts/graphify-structural-complement.mjs`),
+ * keyed lower-case like `filesWithNodes`: those nodes carry the `source_sha256` they were parsed from.
+ * `graphify update` keeps them as prior nodes, so they describe the file only while its bytes still match.
+ */
+export interface AyasGraphifyAttestedFile { readonly path: string; readonly sha256: ReadonlySet<string> }
+
+/** Drops an attested-only file whose current bytes no longer match what its nodes were parsed from. */
+export function withoutStaleAttestedFiles(
+  root: string, filesWithNodes: ReadonlySet<string>, attestedOnlyFiles: ReadonlyMap<string, AyasGraphifyAttestedFile>,
+): ReadonlySet<string> {
+  const covered = new Set(filesWithNodes);
+  for (const [key, file] of attestedOnlyFiles) {
+    let current: string | null = null;
+    const segments = file.path.split("/");
+    const contained = !path.isAbsolute(file.path) && segments.every((segment) => segment && segment !== "." && segment !== "..");
+    if (contained) {
+      try {
+        const absolute = path.join(root, ...segments);
+        const stat = fs.statSync(absolute);
+        if (stat.isFile() && stat.size <= MAX_HASH_BYTES) current = crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
+      } catch { /* unreadable or gone: not covered */ }
+    }
+    if (current === null || !file.sha256.has(current)) covered.delete(key);
+  }
+  return covered;
+}
+
 /** Reads graph.json once and returns only structural counts; the file content itself never leaves this function. */
-export function summarizeAyasGraphifyGraph(doc: unknown): { readonly fact: AyasGraphifyGraphFact; readonly filesWithNodes: ReadonlySet<string> } | null {
+export function summarizeAyasGraphifyGraph(doc: unknown): {
+  readonly fact: AyasGraphifyGraphFact; readonly filesWithNodes: ReadonlySet<string>;
+  readonly attestedOnlyFiles: ReadonlyMap<string, AyasGraphifyAttestedFile>;
+} | null {
   if (!isRecord(doc) || !Array.isArray(doc.nodes)) return null;
   const links = Array.isArray(doc.links) ? doc.links : Array.isArray(doc.edges) ? doc.edges : [];
   const ids = new Set<string>();
   const filesWithNodes = new Set<string>();
+  const nativeFiles = new Set<string>();
+  const attested = new Map<string, { path: string; sha256: Set<string> }>();
   let duplicateIds = 0;
   for (const node of doc.nodes) {
     if (!isRecord(node)) continue;
     const id = String(node.id);
     if (ids.has(id)) duplicateIds += 1; else ids.add(id);
-    if (typeof node.source_file === "string" && node.source_file) filesWithNodes.add(posix(node.source_file).toLowerCase());
+    if (typeof node.source_file === "string" && node.source_file) {
+      const file = posix(node.source_file), key = file.toLowerCase();
+      filesWithNodes.add(key);
+      if (typeof node.source_sha256 === "string" && /^[0-9a-f]{64}$/.test(node.source_sha256)) {
+        const entry = attested.get(key) ?? { path: file, sha256: new Set<string>() };
+        entry.sha256.add(node.source_sha256);
+        attested.set(key, entry);
+      } else nativeFiles.add(key);
+    }
   }
+  for (const key of nativeFiles) attested.delete(key);
   const seen = new Set<string>();
   let duplicateEdges = 0, dangling = 0, selfLoops = 0;
   for (const link of links) {
@@ -172,7 +214,7 @@ export function summarizeAyasGraphifyGraph(doc: unknown): { readonly fact: AyasG
   const provenance = isRecord(meta.provenance) ? meta.provenance : {};
   // `provenance.source_hash` is the commit only for Graphify's git adapter; other adapters put a content hash there.
   const builtFromHead = typeof meta.built_from_commit === "string" ? meta.built_from_commit : typeof provenance.source_hash === "string" && /^[0-9a-f]{40}$/.test(provenance.source_hash) ? provenance.source_hash : null;
-  return { fact: { builtFromHead, nodes: ids.size, links: links.length, duplicateIds, duplicateEdges, dangling, selfLoops }, filesWithNodes };
+  return { fact: { builtFromHead, nodes: ids.size, links: links.length, duplicateIds, duplicateEdges, dangling, selfLoops }, filesWithNodes, attestedOnlyFiles: attested };
 }
 
 /** Subcommand names the installed CLI registers (including hidden ones such as `hook-check`), read from its own entry file. */
@@ -259,7 +301,7 @@ export async function collectAyasGraphifyFacts(options: AyasGraphifyCollectOptio
       if (isRecord(value) && typeof value.hash === "string") manifestHashes.set(rel.toLowerCase(), value.hash);
     }
   }
-  const filesWithNodes = summary?.filesWithNodes ?? new Set<string>();
+  const filesWithNodes = summary ? withoutStaleAttestedFiles(root, summary.filesWithNodes, summary.attestedOnlyFiles) : new Set<string>();
   const nodeProducingExtensions = ayasGraphifyNodeProducingExtensions(filesWithNodes);
   const extractionGaps = summary && indexedFiles.length ? classifyAyasGraphifyExtractionGaps(indexedFiles, filesWithNodes) : [];
   // Without a manifest nothing can prove coverage, so every dirty path counts.

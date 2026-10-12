@@ -970,17 +970,19 @@ export class PipelineRunner {
     runType: ProjectPackageRunType = "initial",
     onClaimConflict?: () => void,
     stageExecution?: PipelineStageExecutionOptions,
+    stopAfterStage?: PipelineRecoveryStageKey,
   ) {
     const materializedProviders = materializePipelineStageExecutionOptions(stage, stageExecution);
     const providerSelection = createProductionAcceptanceProviderSelection(
       stage, materializedProviders.options, materializedProviders.configuredOptions,
     );
+    const boundary = stopAfterStage ?? stageExecution?.stopAfterStage;
     return this.runStage(
       slug,
       stage,
       (capability, identity) => PipelineStageExecutor.execute(
         slug, stage, state,
-        { ...providerSelection.dispatchOptions, stopAfterStage: stageExecution?.stopAfterStage } as PipelineStageExecutionOptions,
+        { ...providerSelection.dispatchOptions, stopAfterStage: boundary } as PipelineStageExecutionOptions,
         capability, identity, runType,
         providerSelection,
         this.requireRuntimeStorageContext(),
@@ -1024,12 +1026,11 @@ export class PipelineRunner {
       }
       const nextStage = next.stage;
 
-      const stageOptions: PipelineStageExecutionOptions = {
-        ...stageExecution,
-        ...(stopAfterStage ? { stopAfterStage } : {}),
-      };
+      // The caller's options go through untouched: a spread copy keeps only own
+      // enumerable keys, so an admitted provider held any other way was dropped and
+      // the configured provider dispatched instead (Sprint 129.28 one-read snapshot).
       const execute = () => this.runPipelineStage(
-        slug, nextStage, state, runType, undefined, stageOptions,
+        slug, nextStage, state, runType, undefined, stageExecution, stopAfterStage,
       );
       const completed = retryAdmission?.admission.stage === nextStage
         ? await withProductionAcceptanceRetryAdmission(

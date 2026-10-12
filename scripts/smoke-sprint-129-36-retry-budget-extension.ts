@@ -68,7 +68,7 @@ import { productionAcceptanceRequestFingerprintV3Profile2 } from
 import { createAlternativeHistoricalAudioOrdinalFourChain,
   poisonHistoricalAudioOrdinalFourAttemptV1,
   poisonHistoricalAudioOrdinalFourClaimV1,
-  preflightHistoricalAudioOrdinalFour } from
+  preflightHistoricalAudioOrdinalFour, historicalAudioOrdinalFourAuthorityFile } from
   "./lib/HistoricalAudioOrdinalFourPreflight";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -740,7 +740,7 @@ function runCanonicalRewindPoisonRegression(
     const executionRoot = path.join(projectRoot, "production-execution");
     const extensionRoot = path.join(executionRoot, "retry-budget-extensions");
     const authority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
-      fs.readdirSync(extensionRoot).find((name) => name.startsWith("authority-"))!), "utf8"));
+      historicalAudioOrdinalFourAuthorityFile(extensionRoot)), "utf8"));
     const consumed = JSON.parse(fs.readFileSync(path.join(extensionRoot,
       `receipt-${authority.authorityId}-consumed.json`), "utf8"));
     const canonical = preflightHistoricalAudioOrdinalFour({
@@ -783,7 +783,7 @@ function runExactRewindOwnershipRegression(): {
     const executionRoot = path.join(projectRoot, "production-execution");
     const extensionRoot = path.join(executionRoot, "retry-budget-extensions");
     const sourceAuthority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
-      fs.readdirSync(extensionRoot).find((name) => name.startsWith("authority-"))!), "utf8"));
+      historicalAudioOrdinalFourAuthorityFile(extensionRoot)), "utf8"));
     const challengePayload = { ...sourceAuthority };
     delete challengePayload.authorityId;
     delete challengePayload.issuedAt;
@@ -833,7 +833,8 @@ function runExactRewindOwnershipRegression(): {
     const recordRoot = path.join(projectRoot, "production-execution", "idempotency");
     const canonical = fs.readdirSync(recordRoot).find((name) => {
       const value = JSON.parse(fs.readFileSync(path.join(recordRoot, name), "utf8"));
-      return value.retryBudgetExtension?.authorizedDurableOrdinal === 4;
+      // Thumbnail later gained its own ordinal-four extension; duplicate the audio record.
+      return value.stage === "audio" && value.retryBudgetExtension?.authorizedDurableOrdinal === 4;
     })!;
     const duplicatePath = path.join(recordRoot, "duplicate-exact-binding-sibling.json");
     fs.copyFileSync(path.join(recordRoot, canonical), duplicatePath,
@@ -856,8 +857,10 @@ function runExactRewindOwnershipRegression(): {
     fs.cpSync(repoProdDir, projectRoot, { recursive: true });
     const extensionRoot = path.join(projectRoot, "production-execution",
       "retry-budget-extensions");
-    const consumedPath = path.join(extensionRoot, fs.readdirSync(extensionRoot)
-      .find((name) => name.endsWith("-consumed.json"))!);
+    const audioAuthority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
+      historicalAudioOrdinalFourAuthorityFile(extensionRoot)), "utf8"));
+    const consumedPath = path.join(extensionRoot,
+      `receipt-${audioAuthority.authorityId}-consumed.json`);
     const consumed = JSON.parse(fs.readFileSync(consumedPath, "utf8"));
     consumed.jobVersion = "corrupt-rewind-candidate";
     fs.writeFileSync(consumedPath, `${JSON.stringify(consumed, null, 2)}\n`, "utf8");
@@ -880,7 +883,7 @@ function runExactRewindOwnershipRegression(): {
     const extensionRoot = path.join(projectRoot, "production-execution",
       "retry-budget-extensions");
     const authority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
-      fs.readdirSync(extensionRoot).find((name) => name.startsWith("authority-"))!), "utf8"));
+      historicalAudioOrdinalFourAuthorityFile(extensionRoot)), "utf8"));
     const consumedReceipt = JSON.parse(fs.readFileSync(path.join(extensionRoot,
       `receipt-${authority.authorityId}-consumed.json`), "utf8"));
     const unknownReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(

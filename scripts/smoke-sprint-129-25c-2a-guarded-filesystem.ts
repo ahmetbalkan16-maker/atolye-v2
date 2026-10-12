@@ -11,6 +11,7 @@ import {
 } from "../src/lib/runtime/backup/RuntimeBackupService";
 import { bootstrapTestRuntimeBackupStorageAuthority } from
   "../src/lib/runtime/backup/RuntimeBackupAuthority";
+import { runtimeBackupPathLimits } from "../src/lib/runtime/backup/RuntimeBackupPathPolicy";
 import { GuardedRuntimeFilesystem } from "../src/lib/runtime/security/GuardedRuntimeFilesystem";
 import { GuardedRuntimeMutationSession } from "../src/lib/runtime/security/GuardedRuntimeMutationSession";
 import { RuntimeMutationError } from "../src/lib/runtime/security/RuntimeMutationError";
@@ -299,13 +300,14 @@ async function main() {
         operation: "materialized-boundary",
       });
       const owned = session.createOwnedDirectory("owned");
-      const relativeLength = runtimePortablePathLimits.materializedPathUtf16 -
-        owned.absolutePath.length - 1;
+      // The backup role materializes under the long-path backup policy (7eef83a, V4 5ae502c).
+      const limit = runtimeBackupPathLimits.materializedPathUtf16;
+      const relativeLength = limit - owned.absolutePath.length - 1;
       const lastLength = 95;
       const firstLength = relativeLength - lastLength - 1;
       assert.ok(firstLength > 0 && firstLength <= runtimePortablePathLimits.projectSlugUtf16);
       const exact = `${"a".repeat(firstLength)}/${"b".repeat(lastLength)}`;
-      assert.equal(path.resolve(owned.absolutePath, ...exact.split("/")).length, 240);
+      assert.equal(path.resolve(owned.absolutePath, ...exact.split("/")).length, limit);
       owned.writeFileExclusive(exact, "boundary");
       assert.throws(
         () => owned.writeFileExclusive(`${exact}b`, "boundary-plus-one"),
