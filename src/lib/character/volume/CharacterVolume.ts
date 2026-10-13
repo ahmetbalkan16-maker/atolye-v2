@@ -201,6 +201,7 @@ export function createVolumeCharacter(options: VolumeCharacter): readonly Volume
   if(mailPlate) {
     const start=faces.length;
     garment(add(shoulder,[0,-.07,.06]),add(hip,[0,-.27,.05]),.40,.39,.26,.28,'#626f7a');
+    const detailStart=faces.length;
     for(let row=0;row<10;row++) for(let col=0;col<10;col++) {
       const center=add(shoulder,[(col-4)*.072+(row%2)*.03,-.14-row*.13,.32]),ring:V3[]=[];
       for(let j=0;j<=8;j++){const a=j*Math.PI/4;ring.push(add(center,[.04*Math.cos(a),.046*Math.sin(a),0]));}wire(ring,.009,row%2?'#b7c1c7':'#8d9ca5',4);
@@ -211,6 +212,14 @@ export function createVolumeCharacter(options: VolumeCharacter): readonly Volume
       wire([a,b,c,d,a],.012,'#d0d5d4');
       wire([add(center,[-.09,.04,.008]),add(center,[.06,.04,.008]),add(center,[.06,-.025,.008]),add(center,[-.04,-.025,.008])],.006,'#d3d6cd');
       for(const x of [-.11,.11]) for(const y of [-.065,.065]) ball(add(center,[x,y,.014]),[.014,.014,.012],'#b99961',8,4);
+    }
+    if(options.equipmentStyle==='READABLE_V2'&&options.joints) {
+      // Skin body details along the same shoulder->waist surface as the coat.
+      // Fixed world offsets used to leave rings/plates floating below a bow.
+      const span=1.37,shear=(shoulder[0]-hip[0])/span,stretch=(shoulder[1]-hip[1]+.27)/span;
+      const skin=(v:V3):V3=>[v[0]+shear*(v[1]-shoulder[1]),shoulder[1]+stretch*(v[1]-shoulder[1]),v[2]];
+      const normal=(v:V3):V3=>unit([v[0],(v[1]-shear*v[0])/stretch,v[2]]);
+      for(let i=detailStart;i<faces.length;i++){const f=faces[i]!;faces[i]={...f,vertices:f.vertices.map(skin) as unknown as typeof f.vertices,...(f.normals?{normals:f.normals.map(normal) as unknown as typeof f.normals}:{})};}
     }
     for(const side of [-1,1]) for(let row=0;row<5;row++) for(let col=0;col<3;col++) {
       const elbow=p(side===1?raw.elbowFront:raw.elbowBack,side*39,side*.10),hand=p(side===1?raw.handFront:raw.handBack,side*39,side*.10),k=(row+.4)/6,center=add(add(mul(elbow,1-k),mul(hand,k)),[(col-1)*.055,0,.17]),ring:V3[]=[];

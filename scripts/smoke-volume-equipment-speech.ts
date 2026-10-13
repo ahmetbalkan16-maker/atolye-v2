@@ -31,6 +31,10 @@ for(const prop of ['SPEAR','SWORD','SHIELD','BOW','FLAG','SCROLL','TORCH'] as co
   hashes.add(createHash('sha256').update(JSON.stringify(faces)).digest('hex'));
 }
 assert.equal(hashes.size,70);
+const bowed=computeCharacterJoints(VOLUME_RIG,POSE_ANGLES.BOW,{x:0,y:0},1);
+const armour=createVolumeCharacter({culture:'OTTOMAN',role:'GUARD',pose:'BOW',mouthOpen:false,faith:'UNSPECIFIED',designProfile:'OTTOMAN_MAIL_PLATE',joints:bowed,handProp:'SWORD',equipmentStyle:'READABLE_V2'});
+const rings=armour.filter(f=>['#b7c1c7','#8d9ca5'].includes(f.color)).flatMap(f=>f.vertices);
+assert(rings.length&&Math.min(...rings.map(v=>v[1]))> -bowed.hip.y/100-.40,'torso chain rings must stay on the coat when bowing');
 const blocking:SceneBlocking={backdrop:'FIELD',time:'DAY',characters:[{id:'c1',x:.3,depth:.3,facing:'RIGHT',pose:'STAND',expression:'HAPPY',costume:'NONE',handProp:'SPEAR'}],props:[],arrows:[],caption:null};
 for(const action of ['KNEEL_DOWN','SIT','BOW','TALK','POINT','FIGHT'] as const) {
   const actor={id:'c1',action,toX:null,delaySeconds:0},plan:CharacterAnimationPlan={schemaVersion:'1',fps:15,actors:[actor]};
