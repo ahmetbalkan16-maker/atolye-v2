@@ -28,6 +28,10 @@ async function main() {
   assert.equal(segments.size, 7); assert.equal([...segments.values()].reduce((sum, s) => sum + s.durationSeconds, 0), 56); pass();
   assert.throws(() => createChapterSceneFallback({ ...script, chapters: [script.chapters[0], script.chapters[0]] })); pass();
   assert.deepEqual(requireChapterSceneCoverage([fallback.scenes[0]], script, fallback), fallback.scenes); pass();
+  const absurd = createChapterSceneFallback({ ...script, chapters: script.chapters.map(ch => ({ ...ch, duration: 10000 })) });
+  assert.deepEqual(absurd.scenes.map(s => s.duration), fallback.scenes.map(s => s.duration)); pass();
+  const inflated = requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, duration: 300 })), script, fallback);
+  assert.deepEqual(inflated.map(s => s.duration), fallback.scenes.map(s => s.duration)); pass();
   assert.deepEqual(requireChapterSceneCoverage([...fallback.scenes].reverse(), script, fallback), fallback.scenes); pass();
   assert.deepEqual(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: 999 })), script, fallback), fallback.scenes); pass();
   assert.equal(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: undefined })), script, fallback)[6].chapterId, 7); pass();

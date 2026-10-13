@@ -1,5 +1,6 @@
 import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptData } from "@/types/script";
+import { estimateNarrationSeconds } from "./NarrationDurationEstimator";
 
 /** Explicit ordinary-pipeline mode; legacy callers and strict grading stay unchanged. */
 export function createChapterSceneFallback(script: ScriptData): SceneData {
@@ -15,7 +16,9 @@ export function createChapterSceneFallback(script: ScriptData): SceneData {
       title: chapter.title,
       description: chapter.narration,
       visualPrompt: [script.topic, chapter.title, chapter.visualGoal, chapter.narration].join(". "),
-      duration: Math.min(300, Math.max(1, Number.isFinite(chapter.duration) ? chapter.duration : 30)),
+      // Model-authored duration can be minutes per sentence. This is only an
+      // a-priori planning estimate; actual TTS remains the montage authority.
+      duration: Math.min(300, Math.max(1, Math.ceil(estimateNarrationSeconds(chapter.narration)))),
     })),
     createdAt: new Date().toISOString(),
   };
@@ -37,5 +40,12 @@ export function requireChapterSceneCoverage(
       chapterIds.some((id) => !mapped.some((scene) => scene.chapterId === id))) {
     return fallback.scenes;
   }
-  return mapped;
+  return mapped.map((scene) => {
+    const chapter = script.chapters.find((item) => item.id === scene.chapterId)!;
+    const siblings = mapped.filter((item) => item.chapterId === scene.chapterId);
+    const weight = (item: SceneItem) => Number.isFinite(item.duration) && item.duration! > 0 ? item.duration! : 1;
+    const totalWeight = siblings.reduce((sum, item) => sum + weight(item), 0);
+    const seconds = Math.max(siblings.length, Math.ceil(estimateNarrationSeconds(chapter.narration)));
+    return { ...scene, duration: Math.min(300, Math.max(1, seconds * weight(scene) / totalWeight)) };
+  });
 }

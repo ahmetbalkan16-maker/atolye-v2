@@ -599,8 +599,8 @@ export class AIManager {
                 // Scene contract guaranteed at the production point: ids are
                 // sequential and unique from 1, never the model's own numbers
                 // (a weak local model emits gaps / duplicates that sink
-                // `assembly`). The non-strict path stays chapterId-free by
-                // design — see "non-strict legacy JSON preserves ... contract".
+                // `assembly`). Legacy callers stay chapterId-free; the explicit
+                // production coverage mode binds each scene to a script chapter.
                 id: index + 1,
                 ...(policy?.failClosed || chapterCoverage
                   ? {

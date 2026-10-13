@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
+import { executePipelineRunnerProductionRuntimeOperation } from "@/lib/pipeline/PipelineRunnerCanonicalRuntime";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { PipelineJobAction } from "@/types/pipelineJob";
 import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
@@ -89,7 +90,9 @@ export async function POST(req: Request, context: RouteContext) {
       });
     }
 
-    const result = await PipelineJobManager.applyAction(slug, jobId, body.action);
+    const result = await executePipelineRunnerProductionRuntimeOperation(
+      "pipeline-job-cancel", () => PipelineJobManager.applyAction(slug, jobId, "cancel"),
+    );
 
     if (!result.success) {
       return NextResponse.json(
