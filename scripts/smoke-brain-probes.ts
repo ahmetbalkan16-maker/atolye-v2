@@ -81,38 +81,38 @@ async function run() {
 
   await scenario("A1. normal CSV row parses temp / util / power / vram", () => {
     const r = parseNvidiaSmiCsv(NVSMI_OK);
-    assert.equal(r.anyFieldParsed, true);
-    assert.equal(r.gpuTempC, 44);
-    assert.equal(r.gpuUtilizationPct, 19);
-    assert.equal(r.gpuPowerW, 14.53);
-    assert.equal(r.vramTotalGb, 12); // 12282 MiB → 12.0
-    assert.ok((r.vramUsedGb ?? 0) > 0 && (r.vramUsedGb ?? 0) < 1);
-    assert.deepEqual(r.abnormalSignals, []);
+    assert.equal(r.anyFieldParsed, true, "assert.equal(r.anyFieldParsed, true)");
+    assert.equal(r.gpuTempC, 44, "assert.equal(r.gpuTempC, 44)");
+    assert.equal(r.gpuUtilizationPct, 19, "assert.equal(r.gpuUtilizationPct, 19)");
+    assert.equal(r.gpuPowerW, 14.53, "assert.equal(r.gpuPowerW, 14.53)");
+    assert.equal(r.vramTotalGb, 12, "assert.equal(r.vramTotalGb, 12)"); // 12282 MiB → 12.0
+    assert.ok((r.vramUsedGb ?? 0) > 0 && (r.vramUsedGb ?? 0) < 1, "assert.ok((r.vramUsedGb ?? 0) > 0 && (r.vramUsedGb ?? 0) < 1)");
+    assert.deepEqual(r.abnormalSignals, [], "assert.deepEqual(r.abnormalSignals, [])");
   });
 
   await scenario("A2. multi-GPU dump uses the first row", () => {
     const r = parseNvidiaSmiCsv(NVSMI_MULTI);
-    assert.equal(r.gpuTempC, 61);
-    assert.equal(r.gpuUtilizationPct, 80);
+    assert.equal(r.gpuTempC, 61, "assert.equal(r.gpuTempC, 61)");
+    assert.equal(r.gpuUtilizationPct, 80, "assert.equal(r.gpuUtilizationPct, 80)");
   });
 
   await scenario("A3. [N/A] everywhere → nothing parsed", () => {
     const r = parseNvidiaSmiCsv(NVSMI_NA);
-    assert.equal(r.anyFieldParsed, false);
-    assert.equal(r.gpuTempC, undefined);
+    assert.equal(r.anyFieldParsed, false, "assert.equal(r.anyFieldParsed, false)");
+    assert.equal(r.gpuTempC, undefined, "assert.equal(r.gpuTempC, undefined)");
   });
 
   await scenario("A4. partial [Not Supported] still yields the readable fields", () => {
     const r = parseNvidiaSmiCsv(NVSMI_PARTIAL);
-    assert.equal(r.gpuTempC, 55);
-    assert.equal(r.gpuUtilizationPct, undefined);
-    assert.equal(r.vramUsedGb, 1); // 1024 MiB
+    assert.equal(r.gpuTempC, 55, "assert.equal(r.gpuTempC, 55)");
+    assert.equal(r.gpuUtilizationPct, undefined, "assert.equal(r.gpuUtilizationPct, undefined)");
+    assert.equal(r.vramUsedGb, 1, "assert.equal(r.vramUsedGb, 1)"); // 1024 MiB
   });
 
   await scenario("A5. 'fallen off the bus' → abnormal signal", () => {
     const r = parseNvidiaSmiCsv(NVSMI_OFF_BUS);
-    assert.equal(r.anyFieldParsed, false);
-    assert.ok(r.abnormalSignals.includes("gpu-fallen-off-bus"));
+    assert.equal(r.anyFieldParsed, false, "assert.equal(r.anyFieldParsed, false)");
+    assert.ok(r.abnormalSignals.includes("gpu-fallen-off-bus"), "assert.ok(r.abnormalSignals.includes(\"gpu-fallen-off-bus\"))");
   });
 
   /* ----------------------- B. probeBrainResources --------------------- */
@@ -123,10 +123,10 @@ async function run() {
       runNvidiaSmi: async () => NVSMI_OK,
       readHostMemory: () => ({ usedGb: 12, totalGb: 32 }),
     });
-    assert.equal(snap.source, "measured");
-    assert.equal(snap.gpuTempC, 44);
-    assert.equal(snap.ramTotalGb, 32);
-    assert.equal(snap.activeInference, false); // 19% < 25%
+    assert.equal(snap.source, "measured", "assert.equal(snap.source, \"measured\")");
+    assert.equal(snap.gpuTempC, 44, "assert.equal(snap.gpuTempC, 44)");
+    assert.equal(snap.ramTotalGb, 32, "assert.equal(snap.ramTotalGb, 32)");
+    assert.equal(snap.activeInference, false, "assert.equal(snap.activeInference, false)"); // 19% < 25%
   });
 
   await scenario("B2. nvidia-smi throwing → source 'unavailable', never throws", async () => {
@@ -135,76 +135,76 @@ async function run() {
       runNvidiaSmi: async () => { throw new Error("ENOENT nvidia-smi"); },
       readHostMemory: () => ({ usedGb: 10, totalGb: 32 }),
     });
-    assert.equal(snap.source, "unavailable");
-    assert.equal(snap.gpuTempC, undefined);
+    assert.equal(snap.source, "unavailable", "assert.equal(snap.source, \"unavailable\")");
+    assert.equal(snap.gpuTempC, undefined, "assert.equal(snap.gpuTempC, undefined)");
     assert.equal(snap.ramTotalGb, 32, "RAM still reported, but GPU-unknown ⇒ unavailable");
   });
 
   await scenario("B3. all-[N/A] telemetry → 'unavailable' ('no info' is NOT 'safe')", async () => {
     const snap = await probeBrainResources({ runNvidiaSmi: async () => NVSMI_NA, readHostMemory: () => undefined });
-    assert.equal(snap.source, "unavailable");
+    assert.equal(snap.source, "unavailable", "assert.equal(snap.source, \"unavailable\")");
   });
 
   await scenario("B4. off-the-bus signal survives into the snapshot", async () => {
     const snap = await probeBrainResources({ runNvidiaSmi: async () => NVSMI_OFF_BUS, readHostMemory: () => undefined });
-    assert.equal(snap.source, "unavailable");
-    assert.ok((snap.abnormalSignals ?? []).includes("gpu-fallen-off-bus"));
+    assert.equal(snap.source, "unavailable", "assert.equal(snap.source, \"unavailable\")");
+    assert.ok((snap.abnormalSignals ?? []).includes("gpu-fallen-off-bus"), "assert.ok((snap.abnormalSignals ?? []).includes(\"gpu-fallen-off-bus\"))");
   });
 
   /* --------------------- C. A2000 73 °C hard stop --------------------- */
 
   await scenario("C1. A2000 at / above 73 °C trips the hard stop", () => {
     const a2000 = DEFAULT_BRAIN_HARDWARE_PROFILES["rtx-a2000-12gb"];
-    assert.equal(BRAIN_A2000_GPU_HARD_STOP_C, 73);
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 73 }, a2000).tripped, true);
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 74 }, a2000).tripped, true);
+    assert.equal(BRAIN_A2000_GPU_HARD_STOP_C, 73, "assert.equal(BRAIN_A2000_GPU_HARD_STOP_C, 73)");
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 73 }, a2000).tripped, true, "assert.equal(evaluateBrainResourceHardStop({ observedAt: \"x\", source: \"measured\", gpuTempC: 73 }, a2000).tripped, true)");
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 74 }, a2000).tripped, true, "assert.equal(evaluateBrainResourceHardStop({ observedAt: \"x\", source: \"measured\", gpuTempC: 74 }, a2000).tripped, true)");
   });
 
   await scenario("C2. A2000 below 73 °C does not trip; unknown temp is honest, not 'clear'", () => {
     const a2000 = DEFAULT_BRAIN_HARDWARE_PROFILES["rtx-a2000-12gb"];
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 72.9 }, a2000).tripped, false);
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 60 }, a2000).tripped, false);
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 72.9 }, a2000).tripped, false, "assert.equal(evaluateBrainResourceHardStop({ observedAt: \"x\", source: \"measured\", gpuTempC: 72.9 }, a2000).tripped, false)");
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 60 }, a2000).tripped, false, "assert.equal(evaluateBrainResourceHardStop({ observedAt: \"x\", source: \"measured\", gpuTempC: 60 }, a2000).tripped, false)");
     const unknown = evaluateBrainResourceHardStop({ observedAt: "x", source: "unavailable" }, a2000);
-    assert.equal(unknown.tripped, false);
+    assert.equal(unknown.tripped, false, "assert.equal(unknown.tripped, false)");
     assert.match(unknown.reason, /cannot confirm below/);
   });
 
   await scenario("C3. GTX 1650 has no A2000 hard stop (its own 80 °C ceiling governs)", () => {
     const gtx = DEFAULT_BRAIN_HARDWARE_PROFILES["gtx-1650-4gb"];
-    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 75 }, gtx).tripped, false);
+    assert.equal(evaluateBrainResourceHardStop({ observedAt: "x", source: "measured", gpuTempC: 75 }, gtx).tripped, false, "assert.equal(evaluateBrainResourceHardStop({ observedAt: \"x\", source: \"measured\", gpuTempC: 75 }, gtx).tripped, false)");
   });
 
   /* ------------------------- D. ffprobe parsing ----------------------- */
 
   await scenario("D1. AV MP4 JSON → container + video + audio", () => {
     const r = parseFfprobeJson(FFPROBE_AV);
-    assert.equal(r.available, true);
+    assert.equal(r.available, true, "assert.equal(r.available, true)");
     if (!r.available) return;
     assert.match(r.container.format, /mp4/);
-    assert.ok(Math.abs(r.container.durationSeconds - 89.733333) < 1e-6);
-    assert.equal(r.video?.width, 1920);
-    assert.equal(r.video?.frameRate, 30);
-    assert.equal(r.audio?.sampleRate, 48000);
-    assert.equal(r.audio?.channels, 2);
-    assert.equal(r.container.bitRateKbps, 621);
+    assert.ok(Math.abs(r.container.durationSeconds - 89.733333) < 1e-6, "assert.ok(Math.abs(r.container.durationSeconds - 89.733333) < 1e-6)");
+    assert.equal(r.video?.width, 1920, "assert.equal(r.video?.width, 1920)");
+    assert.equal(r.video?.frameRate, 30, "assert.equal(r.video?.frameRate, 30)");
+    assert.equal(r.audio?.sampleRate, 48000, "assert.equal(r.audio?.sampleRate, 48000)");
+    assert.equal(r.audio?.channels, 2, "assert.equal(r.audio?.channels, 2)");
+    assert.equal(r.container.bitRateKbps, 621, "assert.equal(r.container.bitRateKbps, 621)");
   });
 
   await scenario("D2. video-only MP4 → audio omitted, not faked", () => {
     const r = parseFfprobeJson(FFPROBE_VIDEO_ONLY);
-    assert.equal(r.available, true);
+    assert.equal(r.available, true, "assert.equal(r.available, true)");
     if (!r.available) return;
-    assert.equal(r.audio, undefined);
-    assert.equal(r.video?.height, 1080);
+    assert.equal(r.audio, undefined, "assert.equal(r.audio, undefined)");
+    assert.equal(r.video?.height, 1080, "assert.equal(r.video?.height, 1080)");
   });
 
   await scenario("D3. malformed JSON → { available: false }, no throw", () => {
     const r = parseFfprobeJson("{ not json");
-    assert.equal(r.available, false);
+    assert.equal(r.available, false, "assert.equal(r.available, false)");
   });
 
   await scenario("D4. JSON without a format block → unavailable", () => {
     const r = parseFfprobeJson(FFPROBE_NDJSON_NO_FORMAT);
-    assert.equal(r.available, false);
+    assert.equal(r.available, false, "assert.equal(r.available, false)");
   });
 
   /* ------------------------- E. probeMediaFile ------------------------ */
@@ -215,20 +215,20 @@ async function run() {
       fileExists: () => false,
       runFfprobe: async () => { spawned = true; return ""; },
     });
-    assert.equal(r.available, false);
-    assert.equal(spawned, false);
+    assert.equal(r.available, false, "assert.equal(r.available, false)");
+    assert.equal(spawned, false, "assert.equal(spawned, false)");
   });
 
   await scenario("E2. injected ffprobe success → parsed summary", async () => {
     const r = await probeMediaFile("C:/fake/final.mp4", {
       fileExists: () => true,
       runFfprobe: async (args) => {
-        assert.ok(args.includes("-show_streams") && args.includes("-show_format"));
+        assert.ok(args.includes("-show_streams") && args.includes("-show_format"), "assert.ok(args.includes(\"-show_streams\") && args.includes(\"-show_format\"))");
         assert.ok(!args.some((a) => /-o\b|out|encode|-c:v/.test(a)), "read-only args only");
         return FFPROBE_AV;
       },
     });
-    assert.equal(r.available, true);
+    assert.equal(r.available, true, "assert.equal(r.available, true)");
   });
 
   await scenario("E3. ffprobe throwing → unavailable, never throws", async () => {
@@ -236,7 +236,7 @@ async function run() {
       fileExists: () => true,
       runFfprobe: async () => { throw new Error("ffprobe: not found"); },
     });
-    assert.equal(r.available, false);
+    assert.equal(r.available, false, "assert.equal(r.available, false)");
   });
 
   /* ------------- F. summary → BrainFinalRenderReport → judge ---------- */
@@ -264,11 +264,11 @@ async function run() {
         { sceneId: 3, plannedDurationSeconds: 30, renderedDurationSeconds: 29, visualAssetId: "a3", visualDigest: "d3", narrationCharacters: 400, meanLuma: 122 },
       ],
     });
-    assert.equal(report.container.durationSeconds, summary.container.durationSeconds);
-    assert.equal(report.video?.width, 1920);
+    assert.equal(report.container.durationSeconds, summary.container.durationSeconds, "assert.equal(report.container.durationSeconds, summary.container.durationSeconds)");
+    assert.equal(report.video?.width, 1920, "assert.equal(report.video?.width, 1920)");
     const verdict = evaluateBrainQuality(report);
-    assert.equal(verdict.outcome, "release");
-    assert.equal(verdict.repairTargets.length, 0);
+    assert.equal(verdict.outcome, "release", "assert.equal(verdict.outcome, \"release\")");
+    assert.equal(verdict.repairTargets.length, 0, "assert.equal(verdict.repairTargets.length, 0)");
   });
 
   await scenario("F2. a video-only summary → report with no audio → judge rejects (missing stream)", () => {
@@ -284,7 +284,7 @@ async function run() {
       presentAssetKinds: ["assembly"],
       scenes: [],
     });
-    assert.equal(report.audio, undefined);
+    assert.equal(report.audio, undefined, "assert.equal(report.audio, undefined)");
     const verdict = evaluateBrainQuality(report);
     assert.notEqual(verdict.outcome, "release");
   });
@@ -295,9 +295,9 @@ async function run() {
   if (nvsmi) {
     await scenario("LIVE. one read-only nvidia-smi telemetry query returns a snapshot", async () => {
       const snap = await probeBrainResources({ timeoutMs: 5_000 });
-      assert.ok(snap.source === "measured" || snap.source === "unavailable");
+      assert.ok(snap.source === "measured" || snap.source === "unavailable", "assert.ok(snap.source === \"measured\" || snap.source === \"unavailable\")");
       if (snap.source === "measured") {
-        assert.ok(typeof snap.gpuTempC === "number");
+        assert.ok(typeof snap.gpuTempC === "number", "assert.ok(typeof snap.gpuTempC === \"number\")");
         console.log(`   live GPU: ${snap.gpuTempC} °C, util ${snap.gpuUtilizationPct}%, ${snap.gpuPowerW} W, vram ${snap.vramUsedGb}/${snap.vramTotalGb} GB`);
       } else {
         console.log("   live GPU: unavailable (no NVIDIA telemetry) — treated conservatively");
