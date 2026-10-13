@@ -40,7 +40,20 @@ if (-not (Test-Path $DaemonScript)) {
 if (-not (Test-Path -LiteralPath $HiddenLauncher -PathType Leaf)) {
   throw "Hidden launcher not found at $HiddenLauncher"
 }
-if ($Existing -and ($Existing.Actions.Count -ne 1 -or $Existing.Actions[0].WorkingDirectory -ne $RepoRoot -or
+$RetiredPreviousTask = $false
+if ($Existing -and -not $Existing.Settings.Enabled -and $Existing.Actions.Count -eq 1 -and
+    -not [string]::IsNullOrWhiteSpace($PreviousRepoRoot) -and [IO.Path]::IsPathRooted($PreviousRepoRoot)) {
+  $previousTaskRoot = [IO.Path]::GetFullPath($PreviousRepoRoot).TrimEnd('\')
+  $previousTaskLauncher = Join-Path $previousTaskRoot 'scripts\ayas-access-hidden.vbs'
+  $legacyTaskLauncher = Join-Path $env:LOCALAPPDATA 'AtolyeAyasAccess\run-ayas-access-hidden.vbs'
+  $RetiredPreviousTask = $Existing.Actions[0].WorkingDirectory -eq $previousTaskRoot -and
+    $Existing.Actions[0].Execute -eq $WScriptExe -and
+    ($Existing.Actions[0].Arguments -eq "//B //NoLogo `"$previousTaskLauncher`"" -or
+     $Existing.Actions[0].Arguments -eq "//B //NoLogo `"$legacyTaskLauncher`"") -and
+    (Test-Path -LiteralPath $previousTaskLauncher -PathType Leaf)
+}
+if ($Existing -and ($Existing.Actions.Count -ne 1 -or
+    ($Existing.Actions[0].WorkingDirectory -ne $RepoRoot -and -not $RetiredPreviousTask) -or
     $Existing.Principal.RunLevel -ne 0 -or $Existing.Principal.UserId -notin $OwnerIds)) {
   throw 'AYAS_ACCESS_EXISTING_TASK_IDENTITY_UNVERIFIED'
 }
