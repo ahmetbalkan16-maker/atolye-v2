@@ -14,10 +14,13 @@ import {
 } from "@/lib/runtime/backup/RuntimeBackupInventory";
 import {
   aggregateRuntimeFileRecords,
+  runtimeBackupClassifications,
+  type RuntimeBackupManifest,
   type RuntimeBackupFileRecord,
 } from "@/lib/runtime/backup/RuntimeBackupManifest";
 import { verifyRuntimeTreeAgainstManifest } from "@/lib/runtime/backup/RuntimeBackupVerifier";
 import { runtimeAuthorityProjectsContentDigest } from "@/lib/runtime/security/RuntimeAuthorityTransition";
+import { runtimeAuthorityGenerationMarkerFileName } from "@/lib/runtime/security/RuntimeAuthorityGenerationMarker";
 import { ProductionExecutionDurableRecoveryService } from "@/lib/production/ProductionExecutionPersistence";
 import {
   runtimeMigrationCandidateDirName,
@@ -126,6 +129,8 @@ export interface RuntimeMigrationCandidateConsumeResult {
   readonly state: "consumed";
   readonly resumed: boolean;
   readonly cutoverAuthorized: false;
+  /** Source-bound marker preserved as evidence, never activated at the target. */
+  readonly archivedAuthorityMetadata?: RuntimeBackupFileRecord;
 }
 
 interface ConsumeStateFile {
@@ -232,7 +237,10 @@ async function consumeInternal(
   const sourceContent = safeContentDigest(candidateProjectsRoot);
   const manifestFileCount = candidateManifest.inventory.files;
   const manifestByteCount = candidateManifest.inventory.bytes;
-  if (sourceContent.fileCount !== manifestFileCount) {
+  const materializedManifest = projectDataManifest(candidateManifest);
+  const authorityMetadata = candidateManifest.files.find((file) =>
+    file.relativePath === runtimeAuthorityGenerationMarkerFileName);
+  if (sourceContent.fileCount !== materializedManifest.inventory.files) {
     throw new RuntimeMigrationCandidateConsumeError("CANDIDATE_NOT_VERIFIED");
   }
   if (
@@ -323,7 +331,14 @@ async function consumeInternal(
     a.relativePath < b.relativePath ? -1 : a.relativePath > b.relativePath ? 1 : 0);
 
   for (let i = 0; i < sortedFiles.length; i += 1) {
-    materializeOneFile(candidateProjectsRoot, targetProjectsRoot, sortedFiles[i]);
+    const destination = sortedFiles[i] === authorityMetadata ? metadataDirectory : targetProjectsRoot;
+    // A resumed attempt retains metadata: re-prove an existing archived marker.
+    const archivedPath = path.join(destination, sortedFiles[i].relativePath);
+    if (sortedFiles[i] === authorityMetadata && fs.existsSync(archivedPath)) {
+      verifyArchivedAuthorityMetadata(metadataDirectory, authorityMetadata);
+    } else {
+      materializeOneFile(candidateProjectsRoot, destination, sortedFiles[i]);
+    }
     dependencies.afterFileMaterialized?.(i, sortedFiles[i].relativePath);
   }
   state = advance(statePath, state, "materialized", now, dependencies);
@@ -373,13 +388,19 @@ async function verifyMaterializedTarget(
   manifestByteCount: number,
 ): Promise<MaterializedCheck> {
   requireSafeExistingDirectory(targetProjectsRoot);
+  const materializedManifest = projectDataManifest(candidateManifest);
+  const authorityMetadata = candidateManifest.files.find((file) =>
+    file.relativePath === runtimeAuthorityGenerationMarkerFileName);
+  if (authorityMetadata) {
+    verifyArchivedAuthorityMetadata(path.join(relocationTargetRoot, consumeMetadataDirectoryName), authorityMetadata);
+  }
 
   // (a) full tree ↔ candidate manifest (git-insensitive: relativePath / size /
   //     sha256 / permissionClass / projectSlug / classification / aggregate / totals)
   try {
     verifyRuntimeTreeAgainstManifest(
       targetProjectsRoot,
-      runtimeBackupManifestFromCandidateManifest(candidateManifest),
+      materializedManifest,
     );
   } catch {
     throw new RuntimeMigrationCandidateConsumeError("POST_COPY_INVENTORY_MISMATCH");
@@ -403,12 +424,12 @@ async function verifyMaterializedTarget(
     context: targetContext,
     now: () => candidateManifest.createdAt,
   });
-  if (targetManifest.inventory.files !== candidateManifest.inventory.files) {
+  if (targetManifest.inventory.files !== materializedManifest.inventory.files) {
     throw new RuntimeMigrationCandidateConsumeError("POST_COPY_FILE_COUNT_MISMATCH");
   }
   if (
-    targetManifest.inventory.bytes !== manifestByteCount ||
-    targetManifest.inventory.bytes !== candidateManifest.inventory.bytes
+    targetManifest.inventory.bytes !== materializedManifest.inventory.bytes ||
+    targetManifest.inventory.bytes + (authorityMetadata?.sizeBytes ?? 0) !== manifestByteCount
   ) {
     throw new RuntimeMigrationCandidateConsumeError("POST_COPY_BYTE_COUNT_MISMATCH");
   }
@@ -717,7 +738,43 @@ function buildResult(
     state: "consumed",
     resumed,
     cutoverAuthorized: false,
+    ...(candidateManifest.files.some((file) => file.relativePath === runtimeAuthorityGenerationMarkerFileName)
+      ? { archivedAuthorityMetadata: candidateManifest.files.find((file) => file.relativePath === runtimeAuthorityGenerationMarkerFileName)! }
+      : {}),
   });
+}
+
+/** Only the exact root authority marker moves to evidence; nested names stay data. */
+function projectDataManifest(candidate: RuntimeMigrationCandidateManifest): RuntimeBackupManifest {
+  const original = runtimeBackupManifestFromCandidateManifest(candidate);
+  const files = original.files.filter((file) => file.relativePath !== runtimeAuthorityGenerationMarkerFileName);
+  const classifications = Object.fromEntries(runtimeBackupClassifications.map((kind) => [kind, 0])) as
+    Record<RuntimeBackupFileRecord["classification"], number>;
+  files.forEach((file) => { classifications[file.classification] += 1; });
+  const tracked = files.filter((file) => file.git?.tracked).length;
+  return {
+    ...original,
+    files,
+    aggregateFingerprint: aggregateRuntimeFileRecords(files),
+    inventory: {
+      files: files.length,
+      bytes: files.reduce((sum, file) => sum + file.sizeBytes, 0),
+      projects: new Set(files.map((file) => file.projectSlug).filter(Boolean)).size,
+      tracked,
+      untracked: files.length - tracked,
+      classifications,
+    },
+  };
+}
+
+function verifyArchivedAuthorityMetadata(directory: string, file: RuntimeBackupFileRecord): void {
+  const archived = safeJoin(directory, file.relativePath);
+  validateSafeAncestorChain(directory);
+  const stat = fs.lstatSync(archived);
+  if (stat.isSymbolicLink() || !stat.isFile() || stat.size !== file.sizeBytes ||
+      sha256(fs.readFileSync(archived)) !== file.sha256) {
+    throw new RuntimeMigrationCandidateConsumeError("POST_COPY_INVENTORY_MISMATCH");
+  }
 }
 
 function safeContentDigest(projectsRoot: string): { contentDigest: string; fileCount: number } {

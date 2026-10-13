@@ -336,7 +336,7 @@ export function validateRollback(input: RollbackStepInput): RuntimeAuthorityTran
     }
     throw error;
   }
-  assertFormerTargetUntouched(input.formerTargetProjectsRoot, token);
+  assertFormerTargetUntouched(input.formerTargetProjectsRoot, token, input.store);
 
   return advanceRollback(input.store, record, "rollback-validated");
 }
@@ -507,12 +507,13 @@ function assertRollbackContentSafe(
     }
     throw error;
   }
-  assertFormerTargetUntouched(input.formerTargetProjectsRoot, token);
+  assertFormerTargetUntouched(input.formerTargetProjectsRoot, token, input.store);
 }
 
 function assertFormerTargetUntouched(
   formerTargetProjectsRoot: string,
   token: RuntimeAuthorityRollbackToken,
+  store: RuntimeAuthorityTransitionStore,
 ): void {
   let content;
   try {
@@ -523,7 +524,16 @@ function assertFormerTargetUntouched(
     }
     throw error;
   }
-  if (content.contentDigest !== token.sourceContentDigest) {
+  // F17-B targets use immutable project-id folders. Their raw digest equals
+  // the verified logical source freeze; the token still binds the old raw root.
+  const forward = store.readTransition(token.transitionId);
+  if (!forward || forward.sourceFreeze?.contentDigest !== token.sourceContentDigest) {
+    throw new RuntimeAuthorityRollbackError("ROLLBACK_TRANSITION_MISMATCH");
+  }
+  const expectedDigest = forward.sourceFreeze.logicalContentDigest ?? token.sourceContentDigest;
+  const expectedCount = forward.sourceFreeze.logicalFileCount ?? forward.sourceFreeze.fileCount;
+  if (content.contentDigest !== expectedDigest ||
+      (expectedCount !== undefined && content.fileCount !== expectedCount)) {
     throw new RuntimeAuthorityRollbackError("ROLLBACK_TARGET_DIRTY");
   }
 }
