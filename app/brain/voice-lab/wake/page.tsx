@@ -1,11 +1,7 @@
 "use client";
 
 /**
- * D2 WAKE LAB — throwaway wake-word feasibility probe (Phase 1).
- *
- * Branch: research/ayas-d2-audio-lab. NOT part of AYAS. NOT merged to any
- * production branch. Does not import or touch the AYAS voice engine, chat path,
- * TTS, execution gate, storage, Caddy, or .env.
+ * D2 WAKE LAB — isolated voice diagnostics; never an execution authority.
  *
  * Phase 0 proved on a real iPhone installed PWA: one gesture → getUserMedia →
  * AudioContext → AudioWorklet → 48k→16k mono PCM → stable foreground → clean
@@ -19,14 +15,15 @@
  * (openWakeWord / sherpa-onnx) integration in Phase 1b. It will fire on many
  * 2-syllable words; that is expected and says nothing about wake accuracy.
  *
- * NOTHING leaves the device: no upload, no MediaRecorder, no storage, no server
- * call, no chat, no TTS, no execution.
+ * Stub mode stays on-device. ONNX wake scoring also stays on-device, but after
+ * a hit the existing authenticated STT/chat/TTS paths handle the command.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { WakeRunnerStats, WakeScoreDistribution } from "@/components/brain/voice/wake/openWakeWordRunner";
 import { useBrainLifecycle } from "@/components/brain/useBrainLifecycle";
+import Link from "next/link";
 
 type MicState = "off" | "requesting" | "on" | "denied" | "ended";
 type WorkletState = "idle" | "loading" | "running" | "stopped";
@@ -254,6 +251,7 @@ export default function D2WakeLabPage() {
   const [worklet, setWorklet] = useState<WorkletState>("idle");
   const [sampleRate, setSampleRate] = useState<number>(0);
   const [tel, setTel] = useState<Telemetry>(ZERO_TEL);
+  const [maxRms, setMaxRms] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [threshold, setThreshold] = useState(0.012);
   const [hits, setHits] = useState(0);
@@ -463,6 +461,7 @@ export default function D2WakeLabPage() {
       const data = event.data;
       if (data.type === "telemetry") {
         setTel(data);
+        setMaxRms((previous) => Math.max(previous, data.rms));
         setDiag(diagRef.current); // flush numeric pipeline diagnostics ~5x/s
         return;
       }
@@ -544,6 +543,7 @@ export default function D2WakeLabPage() {
     if (armed) return;
     setLogLines([]);
     setTel(ZERO_TEL);
+    setMaxRms(0);
     setHits(0);
     setTruePos(0);
     setFalsePos(0);
@@ -696,6 +696,8 @@ export default function D2WakeLabPage() {
             audioContextState: ctxState,
             worklet,
             framesProcessed: tel.frames,
+            lastRms: tel.rms,
+            maxRms,
           },
           detection: {
             threshold,
@@ -767,7 +769,7 @@ export default function D2WakeLabPage() {
         null,
         2,
       ),
-    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, diag, sttState, lastTranscript, ayasState, ayasReply, ttsState, rearmState, elapsed, bgRecovery, life],
+    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, tel.rms, maxRms, threshold, hits, truePos, falsePos, lastDetection, wakeScore, diag, sttState, lastTranscript, ayasState, ayasReply, ttsState, rearmState, elapsed, bgRecovery, life],
   );
 
   const rmsPct = Math.min(100, Math.round(tel.rms * 400));
@@ -781,11 +783,14 @@ export default function D2WakeLabPage() {
           D2 WAKE LAB
         </h1>
         <p className="bc-note" style={{ margin: 0 }}>
-          Atılabilir wake-word fizibilite testi. <strong>Motor: HEURISTIC-STUB</strong> — gerçek
-          wake-word modeli değil; boru hattını + CPU/ısı/pil maliyetini ölçmek için. Gerçek motor
-          (openWakeWord / sherpa-onnx) = Faz 1b. Ses cihazdan çıkmaz.
+          Seçili motor: <strong>{engine === "openwakeword" ? "openWakeWord (ONNX)" : "HEURISTIC-STUB"}</strong>.
+          {engine === "openwakeword"
+            ? " Uyandırma skoru telefonda hesaplanır. Tespit sonrası komut sesi STT için kendi AYAS sunucunuza gönderilir; ardından sohbet ve sesli yanıt çalışır."
+            : " Bu seçenek yalnız ses boru hattını ölçer; AYAS kelimesini tanıyan bir model değildir. Ses cihazdan çıkmaz."}
+          {" "}START ile başlayın. STOP sonrası ölçümler son denemeden kalır.
         </p>
       </header>
+      <p><Link href="/brain/voice-lab/local-wake">Kendi PC&apos;mde Whisper ile uyandırma denemesi</Link></p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <button type="button" className="bc-btn" onClick={() => void arm()} disabled={armed} data-testid="d2w-start">
@@ -874,6 +879,8 @@ export default function D2WakeLabPage() {
           {tel.rms.toFixed(4)}
           <Bar pct={rmsPct} />
         </dd>
+        <dt>Oturumdaki en yüksek RMS</dt>
+        <dd data-testid="d2w-max-rms">{maxRms.toFixed(4)}</dd>
       </dl>
 
       <div style={{ marginTop: 14 }}>
@@ -1088,10 +1095,11 @@ export default function D2WakeLabPage() {
       </pre>
 
       <p className="bc-note" style={{ marginTop: 16 }}>
-        <strong>Faz 1b (gerçek motor):</strong> WASM + ONNX asset&apos;leri{" "}
-        <code>/public/wake/</code> altına konur (git&apos;e eklenmez — <code>.gitignore</code>).
-        Motor kararı (openWakeWord eğitim adımı kabul / sherpa-onnx İngilizce-model riski kabul)
-        yönetmene aittir — rapora bakın.
+        <strong>Tanı sınırı:</strong> Mikrofon kareleri ve model değerlendirmeleri artarken
+        skor düşük kalıyorsa bu denemede uyandırma sözcüğü tanınmamıştır. Son RMS yalnız
+        son ses aralığıdır; oturumdaki en yüksek RMS de konuşmanın anlaşılır olduğunu
+        kanıtlamaz. Bu ekranın sonucu ana sesli oturumun veya gerçek telefon kabulünün
+        yerine geçmez. Üretim eşiği bu ekrandaki deney ayarından bağımsızdır.
       </p>
     </div>
   );

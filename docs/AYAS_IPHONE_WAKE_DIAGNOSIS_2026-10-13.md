@@ -1,5 +1,11 @@
 # iPhone uyandırma teşhisi — 13 Ekim 2026
 
+## Devam — owner yöntemi seçti
+
+Owner **“Kendi PC’mde ücretsiz Whisper ile uyandırmayı hazırla”** seçimini verdi. Yeni `/brain/voice-lab/local-wake` adayı, uyandırmadan önce kısa konuşma parçalarını mevcut session/same-origin korumalı STT endpoint'ine gönderir. Sayfada ayrıca gerçek veri akışı açıklaması ve START öncesi seçim vardır. Sessizlik upload yok; clip en fazla8s/256044WAVbayt, tek istek, en az4s istek aralığı,20s istemci timeout. STOP/unmount/background epoch iptali ve AbortSignal geç yanıtı etkisiz kılar; server wake-probe native çalışması bitmeden ikinci pre-wake job kabul etmez. Mevcut server thermal/max-audio/duration/rate kapıları korunur, wake probe8s ile ayrıca sınırlanır. Sadece owner-v3 leading alias + minTokenP>=0.3/meanTokenP>=0.65 ve[0,1]geçerli güven wake sayar. Bu yeni ASR güven kapısı akustik eşiği değiştirmez ve gerçek telefon güvenilirlik kanıtı değildir.
+
+Aday test sayfası hiçbir chat/TTS/komut/proje çalıştırmaz. Ana sesli oturum mevcut akustik motoru kullanır; gerçek iPhone pozitif/negatif/STOP kabulü geçmeden main adapter değiştirilmez. Yukarıdaki kısa synthetic AYAS hâlâ reddedilir; Qiyas/Ayyes yeni alias yapılmadı. Tanı patch'i artık source'a uygulandı; eski patch yalnız bu oturumun incelenebilir tarihsel adayıdır, tekrar uygulanmaz. TypeScript/lint, yerel gate25, STTsecurity7 ve mobile36 kontrolleri geçiş öncesi doğrulanır. Temiz candidatebuild/HTTP ve kontrollü canlı test sayfası kabulü sıradadır; telefon veya wake görevinin tamamlandığı iddia edilmez. Alttaki yöntem-yanıt-bekleniyor ve source'a-uygulanmadı paragrafları önceki teşhis snapshot'ıdır.
+
 Durum: **NOT READY — güvenilir telefon uyandırması henüz çözülmedi.** Bu kayıt tanıyı ve sonraki yöntemin seçimini saklar; telefon kabulü veya model yeterlilik sertifikası değildir. Owner önce uyandırma işinin yapılmasını, sonra D:\ÜRETİM altında toplama işinin ele alınmasını istedi.
 
 ## Owner'ın gerçek telefon gözlemi

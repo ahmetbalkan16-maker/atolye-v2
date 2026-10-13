@@ -32,6 +32,9 @@ export const maxDuration = 60;
 
 const RATE_LIMIT = { limit: 30, windowSeconds: 60 };
 const attempts = new Map<string, AttemptLimiterState>();
+// The opt-in lab must not queue pre-wake GPU jobs on retries/STOP/restart.
+// Hold until the existing bounded native pipeline exits, even if HTTP aborts.
+let wakeProbeActive = false;
 
 async function requireAuthenticated(request: NextRequest): Promise<{ ok: boolean; bucket: string }> {
   const gate = resolveAccessGate(process.env);
@@ -103,7 +106,24 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "audio-too-large" }, { status: 413 });
   }
 
-  const result = await transcribeAyasAudio(audio, { config, thermalHold: ayasSttThermalHold, wakePolicy: AYAS_OWNER_WAKE_POLICY_V3 });
+  const mode = request.headers.get("x-ayas-stt-mode");
+  if (mode !== null && mode !== "wake-probe") {
+    return NextResponse.json({ error: "stt-mode-invalid" }, { status: 400 });
+  }
+  const wakeProbe = mode === "wake-probe";
+  if (wakeProbe && audio.byteLength > 256044) {
+    return NextResponse.json({ error: "audio-too-large" }, { status: 413 });
+  }
+  if (wakeProbe && wakeProbeActive) {
+    return NextResponse.json({ error: "wake-stt-busy" }, { status: 429, headers: { "Retry-After": "4" } });
+  }
+  if (wakeProbe) wakeProbeActive = true;
+  let result: Awaited<ReturnType<typeof transcribeAyasAudio>>;
+  try {
+    result = await transcribeAyasAudio(audio, { config: wakeProbe ? { ...config, maxSeconds: Math.min(8, config.maxSeconds) } : config, thermalHold: ayasSttThermalHold, wakePolicy: AYAS_OWNER_WAKE_POLICY_V3 });
+  } finally {
+    if (wakeProbe) wakeProbeActive = false;
+  }
   if (!result.ok) {
     return NextResponse.json(
       { error: result.code, detail: result.detail },
