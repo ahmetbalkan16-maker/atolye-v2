@@ -98,3 +98,13 @@ Brain UI V2 ana sayfasının son görseli `docs/ayas-execution/2026-09-27-master
 AYAS self-development / Gelişim Merkezi süreçleri homepage'e otomatik olarak hiçbir yeni kart, yazı, buton, panel, widget veya özellik ekleyemez. Yeni işlevler konuya uygun mevcut veya yeni alt sayfa/sekmede yer alır. Homepage değişikliği yalnız owner'ın homepage hakkında açık talimatıyla yapılabilir; genel otonomi veya öneri onayı bu yetkiyi vermez.
 
 Kod sınırı ve doğrulama: `docs/AYAS_HOMEPAGE_POLICY.md`. Mevcut çalışan fonksiyonlar ve gerçek durum kaynakları korunur; sahte durum veya metrik üretilemez.
+
+## Git Kapanışı — Graphify Güncelliği
+
+Son commit belge-only olsa bile Graphify son exact HEAD için yenilenip doğrulanmadan
+AYAS/Gelişim Merkezi hazır raporu verilmez. Commit/push sonrasında mevcut native
+assistant emit→source-grounded stage→ingest yolu, gerektiğinde kaynak-hashli parser
+complement ve gerçek yerel MCP sorgusu kullanılır. Pending marker elle silinmez;
+status/authority/frozen kapıları gevşetilmez. Son graph built-from/analyzed HEAD,
+yapısal/semantic durum, bütünlük, temiz Git ve gerçek sağlık/observer sonucu Git dışı
+makbuzda saklanır. Bu kontrol sonrası yeni belge commit'i yapılırsa kontrol tekrarlanır.

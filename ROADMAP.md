@@ -1,3 +1,7 @@
+## 13 Ekim 2026 — Gelişim Merkezi / Graphify exactHEAD hazırlığı
+
+Son doc-only commit'in Graphify'ı eski bırakma sorunu native/source-grounded indeks yenilemesiyle giderilir. Gerçek public/local Gelişim/Sistem200, HEALTHY/OBSERVING, inbox bağlı ve yerel MCP PASS; worker15/client13/health61/complement10/native-staging/TS PASS. Son bu belge commit'inden sonra `.graphify/devcenter-ready-20261013/FINAL_RECEIPT.json` exactHEAD CURRENT/sağlık/MCP PASS gerekir; AGENTS kapanış kontrolü eklendi. Owner yayın/authority kapıları ve eski recovery kayıtları korunur. Ayrıntı: `docs/AYAS_DEVCENTER_READY_2026-10-13.md`.
+
 ## 13 Ekim 2026 — telefon erişimi ve karakter kütüphanesi kapanışı
 
 Telefon 502 kesintisi mevcut qualification ve kanonik gizli kullanıcı Startup launcher ile giderildi; owner gerçek açılışı doğruladı. 12HTTP/20prebuilt/50daemon +TS PASS. Kod/pipeline/homepage/authority/bütçe değişmedi. Dünya Karakter Kütüphanesi V1 kaynak altyapısı tamam; gerçek ChatGPT tasarım/cutout kabulü ve production adapter ayrı sonraki sprinttir. Bu kapsamda açık implementasyon işi yok. Fiziksel reboot kabulü NOT_RUN. Ayrıntı: `docs/AYAS_PHONE_ACCESS_RECOVERY_2026-10-13.md`; altyapı planı: `docs/CHARACTER_LIBRARY_WORLD_PLAN.md`.
