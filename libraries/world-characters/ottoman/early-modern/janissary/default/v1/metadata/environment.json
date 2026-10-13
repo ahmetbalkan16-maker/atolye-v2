@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "environment",
+  "id": "ottoman.early-modern.janissary.environment-planned.v1",
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "variant": "environment-planned",
+  "version": 1,
+  "status": "placeholder",
+  "review": "pending",
+  "provenance": {
+    "source": "placeholder",
+    "rights": "pending",
+    "historicalReview": "unreviewed",
+    "sources": [],
+    "notes": "Structural example only. No generated design, historical approval or production readiness."
+  },
+  "files": [],
+  "characterId": "ottoman.early-modern.janissary.default.v1",
+  "availability": "planned",
+  "setting": "Unspecified placeholder; research and owner review required."
+}

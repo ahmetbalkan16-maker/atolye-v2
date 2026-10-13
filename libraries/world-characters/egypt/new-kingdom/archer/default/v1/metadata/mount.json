@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "mount",
+  "id": "egypt.new-kingdom.archer.mount-none.v1",
+  "civilization": "egypt",
+  "period": "new-kingdom",
+  "role": "archer",
+  "variant": "mount-none",
+  "version": 1,
+  "status": "placeholder",
+  "review": "pending",
+  "provenance": {
+    "source": "placeholder",
+    "rights": "pending",
+    "historicalReview": "unreviewed",
+    "sources": [],
+    "notes": "Structural example only. No generated design, historical approval or production readiness."
+  },
+  "files": [],
+  "characterId": "egypt.new-kingdom.archer.default.v1",
+  "availability": "none",
+  "species": "none"
+}

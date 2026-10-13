@@ -1,0 +1,33 @@
+{
+  "id": "cutout-humanoid-v1",
+  "version": 1,
+  "scope": "shared-technical-only",
+  "status": "contract-only",
+  "coordinates": "normalized-image-top-left",
+  "alphaRequiredFor": [
+    "body-part",
+    "prop",
+    "mount"
+  ],
+  "joints": [
+    "head",
+    "neck",
+    "shoulder-left",
+    "shoulder-right",
+    "elbow-left",
+    "elbow-right",
+    "hand-left",
+    "hand-right",
+    "hip",
+    "knee-left",
+    "knee-right",
+    "foot-left",
+    "foot-right"
+  ],
+  "rules": [
+    "One neutral pose, consistent canvas and scale for all cutouts.",
+    "Each body-part, prop and mount has a normalized pivot.",
+    "Reference sheets go in design/; animation cutouts go in parts/.",
+    "Adapter to existing animation renderer is deferred; this is not an installed rig."
+  ]
+}

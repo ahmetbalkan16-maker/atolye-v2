@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "World character library V1 shared definitions",
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "maxLength": 48
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*\\.v[1-9][0-9]*$",
+      "maxLength": 220
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "rights",
+        "historicalReview",
+        "sources",
+        "notes"
+      ],
+      "properties": {
+        "source": {
+          "enum": [
+            "placeholder",
+            "chatgpt",
+            "manual"
+          ]
+        },
+        "rights": {
+          "enum": [
+            "pending",
+            "owner-cleared"
+          ]
+        },
+        "historicalReview": {
+          "enum": [
+            "unreviewed",
+            "source-scoped"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "purpose",
+        "sha256",
+        "pivot"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*\\.v[1-9][0-9]*$",
+          "maxLength": 220
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(design|parts|props|mounts|environments)/[a-z0-9][a-z0-9_-]*\\.(png|webp|jpg|jpeg)$",
+          "maxLength": 160
+        },
+        "purpose": {
+          "enum": [
+            "reference-sheet",
+            "body-part",
+            "prop",
+            "mount",
+            "background"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "pivot": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

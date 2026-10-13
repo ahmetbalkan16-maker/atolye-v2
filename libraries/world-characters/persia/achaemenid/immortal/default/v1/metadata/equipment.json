@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "kind": "equipment",
+  "id": "persia.achaemenid.immortal.equipment-basic.v1",
+  "civilization": "persia",
+  "period": "achaemenid",
+  "role": "immortal",
+  "variant": "equipment-basic",
+  "version": 1,
+  "status": "placeholder",
+  "review": "pending",
+  "provenance": {
+    "source": "placeholder",
+    "rights": "pending",
+    "historicalReview": "unreviewed",
+    "sources": [],
+    "notes": "Structural example only. No generated design, historical approval or production readiness."
+  },
+  "files": [],
+  "characterId": "persia.achaemenid.immortal.default.v1",
+  "items": []
+}

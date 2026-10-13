@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "World character metadata V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "id",
+    "civilization",
+    "period",
+    "role",
+    "variant",
+    "version",
+    "status",
+    "review",
+    "provenance",
+    "files",
+    "displayName",
+    "styleId",
+    "rigId",
+    "equipmentIds",
+    "mountIds",
+    "environmentIds"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "character"
+    },
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "civilization": {
+      "$ref": "common.schema.json#/$defs/slug"
+    },
+    "period": {
+      "$ref": "common.schema.json#/$defs/slug"
+    },
+    "role": {
+      "$ref": "common.schema.json#/$defs/slug"
+    },
+    "variant": {
+      "$ref": "common.schema.json#/$defs/slug"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9999
+    },
+    "status": {
+      "enum": [
+        "placeholder",
+        "draft",
+        "ready"
+      ]
+    },
+    "review": {
+      "enum": [
+        "pending",
+        "owner-approved"
+      ]
+    },
+    "provenance": {
+      "$ref": "common.schema.json#/$defs/provenance"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/file"
+      },
+      "maxItems": 64,
+      "uniqueItems": true
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "styleId": {
+      "const": "stylized-history-v1"
+    },
+    "rigId": {
+      "const": "cutout-humanoid-v1"
+    },
+    "equipmentIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "mountIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "environmentIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "maxItems": 16,
+      "uniqueItems": true
+    }
+  }
+}

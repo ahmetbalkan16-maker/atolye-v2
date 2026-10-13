@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "mode": "deny-by-default",
+  "requireExact": [
+    "civilization",
+    "period",
+    "role",
+    "version"
+  ],
+  "crossCivilization": false,
+  "crossPeriod": false,
+  "implicitFallback": false,
+  "sharedCore": [
+    "style",
+    "rig",
+    "schema"
+  ],
+  "sharedCulturalAssets": false,
+  "selectableStatus": "ready",
+  "requiredReview": "owner-approved",
+  "onMismatch": "reject",
+  "onMissing": "reject",
+  "onPlaceholder": "reject",
+  "scope": "offline-library-contract; production integration deferred"
+}

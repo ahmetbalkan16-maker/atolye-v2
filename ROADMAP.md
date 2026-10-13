@@ -1,3 +1,7 @@
+## 13 Ekim 2026 — Dünya Medeniyetleri Karakter Kütüphanesi V1
+
+Kaynak altyapısı tamamlandı: `libraries/world-characters/`, `_core` schema/style/rig/mixing policy ve dört görselsiz placeholder pack. 45/45 yeni smoke, TypeScript, lint (0 hata/13 mevcut uyarı), mevcut karakter kitaplığı ve storage hygiene PASS. Production bağlantısı yapılmadı; mevcut aktif pipeline işleri ayrı devam eder. Sıradaki kütüphane adımı gerçek owner-reviewed ChatGPT sheet/cutout kabulü ve mevcut provider/authority üzerinden küçük adapter sprintidir. Ayrıntı: `docs/CHARACTER_LIBRARY_WORLD_PLAN.md`.
+
 <!-- Oturum kaydı 2026-10-13: araştırma girişi -->
 13 Ekim 2026 araştırma giriş düzeltmesi canlı: source b4033020 / CLEAN build Tz3FGd2asCU4cPdiq5d_h. Owner'ın 1480 yeniçeri araştırması ücretsiz Ollama ile tamamlandı; mevcut projeden “Uretime Devam Et”, sıradaki script. Önceki kayıtlar ve korumalar aynı. Güncel ayrıntı: docs/ATOLYE_RESEARCH_ENTRY_FIX_2026-10-13.md; kapanış makbuzu pipeline-first-error-20261013/DELIVERY_CLOSURE.json.
 

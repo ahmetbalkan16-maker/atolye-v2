@@ -1,3 +1,10 @@
+## 2026-10-13 — World Character Library V1 source scaffold
+
+- Added isolated Ottoman/Janissary, Byzantium/Varangian Guard, Persia/Immortal and Egypt/New Kingdom Archer placeholder packs, each with six standard folders and four metadata records.
+- Added shared JSON schemas/style/rig contract, deny-by-default mixing policy, pure metadata/selection validation and bounded read-only filesystem/hash audit. No production import or runtime writer.
+- Added 45 passing namespace/reference/path/hash/junction/readiness scenarios and `docs/CHARACTER_LIBRARY_WORLD_PLAN.md`; TypeScript, whole lint (0 errors/13 inherited warnings), existing character library and storage hygiene passed.
+- Existing homepage, pipeline, budget, authority and frozen tests were not changed by this sprint. Concurrent pipeline/CI edits stay outside this commit; production animation adapter and real image acceptance remain future work.
+
 <!-- Oturum kaydı 2026-10-13: araştırma girişi -->
 13 Ekim 2026 araştırma giriş düzeltmesi canlı: source b4033020 / CLEAN build Tz3FGd2asCU4cPdiq5d_h. Owner'ın 1480 yeniçeri araştırması ücretsiz Ollama ile tamamlandı; mevcut projeden “Uretime Devam Et”, sıradaki script. Önceki kayıtlar ve korumalar aynı. Güncel ayrıntı: docs/ATOLYE_RESEARCH_ENTRY_FIX_2026-10-13.md; kapanış makbuzu pipeline-first-error-20261013/DELIVERY_CLOSURE.json.
 

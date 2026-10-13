@@ -1,0 +1,11 @@
+{
+  "id": "stylized-history-v1",
+  "version": 1,
+  "scope": "shared-technical-only",
+  "rules": [
+    "Stylized historical reenactment; no claim of historical evidence.",
+    "Consistent proportions, line weight and palette per reviewed pack.",
+    "Civilization-specific clothing, insignia and props stay in their pack.",
+    "ChatGPT supplies design sheets; Atölye animates accepted assets without redesign."
+  ]
+}

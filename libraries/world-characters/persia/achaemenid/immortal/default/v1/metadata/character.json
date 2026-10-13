@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "character",
+  "id": "persia.achaemenid.immortal.default.v1",
+  "civilization": "persia",
+  "period": "achaemenid",
+  "role": "immortal",
+  "variant": "default",
+  "version": 1,
+  "status": "placeholder",
+  "review": "pending",
+  "provenance": {
+    "source": "placeholder",
+    "rights": "pending",
+    "historicalReview": "unreviewed",
+    "sources": [],
+    "notes": "Structural example only. No generated design, historical approval or production readiness."
+  },
+  "files": [],
+  "displayName": "Persia / Immortal",
+  "styleId": "stylized-history-v1",
+  "rigId": "cutout-humanoid-v1",
+  "equipmentIds": [
+    "persia.achaemenid.immortal.equipment-basic.v1"
+  ],
+  "mountIds": [
+    "persia.achaemenid.immortal.mount-none.v1"
+  ],
+  "environmentIds": [
+    "persia.achaemenid.immortal.environment-planned.v1"
+  ]
+}
