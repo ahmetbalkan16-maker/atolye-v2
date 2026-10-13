@@ -167,6 +167,8 @@ export interface RuntimeAuthorityTransitionRecord {
   readonly history: readonly RuntimeAuthorityTransitionHistoryEntry[];
   /** `recovery` only — why authority was forcibly moved. */
   readonly recoveryReason?: string;
+  /** Consumed token rollback that reactivated this source before relocation. */
+  readonly reactivatedFrom?: string;
   /** `rollback` only — the forward transitionId being reversed + the token used. */
   readonly rollbackOf?: string;
   readonly rollbackTokenId?: string;
@@ -415,10 +417,9 @@ export class RuntimeAuthorityTransitionStore {
     const existing = this.readQuarantine(record.resolverBindingIdentity);
     if (existing) {
       if (existing.transitionId !== record.transitionId) {
-        throw new RuntimeAuthorityTransitionError(
-          "TRANSITION_CAS_CONFLICT",
-          "root already quarantined by a different transition",
-        );
+        const transition=this.readTransition(record.transitionId),active=this.readActiveAuthority();
+        if(!transition?.reactivatedFrom || transition.state!=="published" || transition.source.resolverBindingIdentity!==record.resolverBindingIdentity || transition.source.authorityIdentity!==record.authorityIdentity || active?.transitionId!==record.transitionId || active.resolverBindingIdentity!==transition.target.resolverBindingIdentity || !this.isConsumedReactivation(record.resolverBindingIdentity,transition.reactivatedFrom)) throw new RuntimeAuthorityTransitionError("TRANSITION_CAS_CONFLICT","root already quarantined without token reactivation");
+        return this.appendOnce(path.join(this.root,"quarantine-cycles",record.resolverBindingIdentity,record.transitionId+".json"),record,(e)=>(e as RuntimeAuthorityQuarantineRecord).transitionId===record.transitionId,isQuarantineRecord,"quarantine-cycle");
       }
       return existing;
     }
@@ -460,6 +461,12 @@ export class RuntimeAuthorityTransitionStore {
     if (!isQuarantineEnforcementRecord(record)) {
       throw new RuntimeAuthorityTransitionError("QUARANTINE_ENFORCEMENT_INPUT_INVALID", "shape");
     }
+    const existing=this.readQuarantineEnforcement(record.resolverBindingIdentity);
+    if(existing && existing.transitionId!==record.transitionId){
+      const transition=this.readTransition(record.transitionId),cycle=this.readJson(path.join(this.root,"quarantine-cycles",record.resolverBindingIdentity,record.transitionId+".json"));
+      if(!transition?.reactivatedFrom || !cycle || !isQuarantineRecord(cycle) || cycle.transitionId!==record.transitionId || transition.state!=="old-root-quarantined" || transition.sourceFreeze?.contentDigest!==record.contentDigest) throw new RuntimeAuthorityTransitionError("TRANSITION_CAS_CONFLICT","unqualified quarantine enforcement cycle");
+      return this.appendOnce(path.join(this.root,"quarantine-enforcement-cycles",record.resolverBindingIdentity,record.transitionId+".json"),record,(e)=>(e as RuntimeAuthorityQuarantineEnforcementRecord).contentDigest===record.contentDigest,isQuarantineEnforcementRecord,"quarantine-enforcement-cycle");
+    }
     return this.appendOnce(
       path.join(this.root, "quarantine-enforcement", `${record.resolverBindingIdentity}.json`),
       record,
@@ -475,7 +482,9 @@ export class RuntimeAuthorityTransitionStore {
     resolverBindingIdentity: string,
   ): RuntimeAuthorityQuarantineLiftRecord | null {
     this.requireBindingDigest(resolverBindingIdentity);
-    const value = this.readJson(
+    const active=this.readActiveAuthority();
+    const cycle=active?.resolverBindingIdentity===resolverBindingIdentity ? this.readJson(path.join(this.root,"quarantine-lift-cycles",resolverBindingIdentity,active.transitionId+".json")) : null;
+    const value = cycle ?? this.readJson(
       path.join(this.root, "quarantine-lift", `${resolverBindingIdentity}.json`),
     );
     if (value === null) return null;
@@ -491,6 +500,13 @@ export class RuntimeAuthorityTransitionStore {
     if (!isQuarantineLiftRecord(record)) {
       throw new RuntimeAuthorityTransitionError("QUARANTINE_ENFORCEMENT_INPUT_INVALID", "lift shape");
     }
+    const previous=this.readQuarantineLift(record.resolverBindingIdentity);
+    if(previous && previous.rollbackTokenId!==record.rollbackTokenId){
+      const token=this.readRollbackToken(record.rollbackTokenId),rollback=this.readTransition(record.rollbackTransitionId),active=this.readActiveAuthority();
+      const cycle=token ? this.readJson(path.join(this.root,"quarantine-cycles",record.resolverBindingIdentity,token.transitionId+".json")) : null;
+      if(!token || !rollback || rollback.kind!=="rollback" || rollback.rollbackTokenId!==token.tokenId || rollback.target.resolverBindingIdentity!==record.resolverBindingIdentity || token.sourceResolverBindingIdentity!==record.resolverBindingIdentity || active?.transitionId!==record.rollbackTransitionId || !cycle || !isQuarantineRecord(cycle) || cycle.transitionId!==token.transitionId) throw new RuntimeAuthorityTransitionError("TRANSITION_CAS_CONFLICT","unqualified quarantine lift cycle");
+      return this.appendOnce(path.join(this.root,"quarantine-lift-cycles",record.resolverBindingIdentity,record.rollbackTransitionId+".json"),record,(e)=>(e as RuntimeAuthorityQuarantineLiftRecord).rollbackTokenId===record.rollbackTokenId,isQuarantineLiftRecord,"quarantine-lift-cycle");
+    }
     return this.appendOnce(
       path.join(this.root, "quarantine-lift", `${record.resolverBindingIdentity}.json`),
       record,
@@ -499,6 +515,24 @@ export class RuntimeAuthorityTransitionStore {
       isQuarantineLiftRecord,
       "quarantine-lift",
     );
+  }
+
+
+  isConsumedReactivation(binding: string, rollbackId: string): boolean {
+    this.requireBindingDigest(binding); this.requireTransitionId(rollbackId);
+    const rollback=this.readTransition(rollbackId);
+    if (!rollback || rollback.kind!=="rollback" || !["rollback-published","former-target-quarantined"].includes(rollback.state) || rollback.target.resolverBindingIdentity!==binding || !rollback.rollbackTokenId) return false;
+    const token=this.readRollbackToken(rollback.rollbackTokenId), consumed=this.readRollbackTokenConsumption(rollback.rollbackTokenId);
+    if (!token || consumed?.rollbackTransitionId!==rollbackId || token.sourceResolverBindingIdentity!==binding || token.transitionId!==rollback.rollbackOf) return false;
+    const forward=this.readTransition(token.transitionId);
+    if (!forward || forward.state!=="old-root-quarantined" || forward.source.resolverBindingIdentity!==binding || forward.source.authorityIdentity!==token.sourceAuthorityIdentity || forward.target.authorityIdentity!==token.targetAuthorityIdentity || forward.target.authorityGeneration!==token.authorityGeneration || rollback.target.authorityIdentity!==token.sourceAuthorityIdentity || rollback.source.authorityIdentity!==token.targetAuthorityIdentity || forward.target.resolverBindingIdentity!==token.targetResolverBindingIdentity) return false;
+    const original=this.readQuarantine(binding);
+    const cycle=this.readJson(path.join(this.root,"quarantine-cycles",binding,token.transitionId+".json"));
+    return original?.transitionId===token.transitionId || Boolean(cycle && isQuarantineRecord(cycle) && cycle.transitionId===token.transitionId && cycle.resolverBindingIdentity===binding);
+  }
+  isActiveTokenReactivatedAuthority(binding: string): boolean {
+    const active=this.readActiveAuthority(),lift=this.readQuarantineLift(binding);
+    return Boolean(active?.resolverBindingIdentity===binding && lift?.rollbackTransitionId===active.transitionId && this.isConsumedReactivation(binding,active.transitionId));
   }
 
   readRollbackToken(tokenId: string): RuntimeAuthorityRollbackToken | null {
@@ -921,6 +955,7 @@ export function isTransitionRecord(
       value.kind === "genesis" ||
       value.kind === "recovery" ||
       value.kind === "rollback") &&
+    (value.reactivatedFrom === undefined || isValidRuntimeAuthorityTransitionId(value.reactivatedFrom)) &&
     (value.rollbackOf === undefined || isValidRuntimeAuthorityTransitionId(value.rollbackOf)) &&
     (value.rollbackTokenId === undefined ||
       isValidRuntimeAuthorityRollbackTokenId(value.rollbackTokenId)) &&

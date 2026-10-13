@@ -18,7 +18,14 @@ projectDir = fso.GetParentFolderName(scriptsDir)
 productionRoot = fso.GetParentFolderName(fso.GetParentFolderName(projectDir))
 configCandidate = fso.BuildPath(productionRoot, "private\cloudflared\config.yml")
 configArg = ""
-If fso.FileExists(configCandidate) Then configArg = " -TunnelConfig """ & configCandidate & """"
+If fso.FileExists(configCandidate) Then
+  configArg = " -TunnelConfig """ & configCandidate & """"
+  ' Scope temporary files to this production bundle, never change Windows env.
+  If fso.FolderExists(fso.BuildPath(productionRoot, "private\temp")) Then
+    shell.Environment("Process")("TEMP") = fso.BuildPath(productionRoot, "private\temp")
+    shell.Environment("Process")("TMP") = fso.BuildPath(productionRoot, "private\temp")
+  End If
+End If
 If configArg <> "" Then
   rc = shell.Run("""" & powershell & """ -NoProfile -WindowStyle Hidden -File """ & daemon & """ -Continuous -IntervalSeconds 60" & configArg, 0, True)
 Else

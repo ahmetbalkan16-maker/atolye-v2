@@ -71,7 +71,7 @@ export function beginTransition(
   if (sourceMarker.status !== "match") {
     throw new RuntimeAuthorityTransitionError("TRANSITION_SOURCE_UNMARKED");
   }
-  if (store.readQuarantine(source.resolverBindingIdentity)) {
+  if (store.readQuarantine(source.resolverBindingIdentity) && !store.isActiveTokenReactivatedAuthority(source.resolverBindingIdentity)) {
     throw new RuntimeAuthorityTransitionError("TRANSITION_SOURCE_QUARANTINED");
   }
   const active = store.readActiveAuthority();
@@ -79,7 +79,7 @@ export function beginTransition(
     throw new RuntimeAuthorityTransitionError("TRANSITION_ALREADY_ACTIVE_ELSEWHERE");
   }
 
-  return startTransition(store, transitionId, "relocation", source, target);
+  return startTransition(store, transitionId, "relocation", source, target, store.isActiveTokenReactivatedAuthority(source.resolverBindingIdentity) ? active!.transitionId : undefined);
 }
 
 export interface BeginGenesisTransitionInput {
@@ -232,6 +232,7 @@ function startTransition(
   kind: RuntimeAuthorityTransitionKind,
   source: RuntimeAuthorityEndpoint,
   target: RuntimeAuthorityEndpoint,
+  reactivatedFrom?: string,
 ): RuntimeAuthorityTransitionRecord {
   const existing = store.readTransition(transitionId);
   if (existing) {
@@ -252,6 +253,7 @@ function startTransition(
     schemaVersion: runtimeAuthorityTransitionSchemaVersion,
     transitionId,
     kind,
+    ...(reactivatedFrom ? {reactivatedFrom} : {}),
     state: "quiesce-requested",
     source,
     target,
