@@ -3,6 +3,15 @@ import type {HandProp} from '../PropLibrary';
 import type {V3,VolumeFace} from './CharacterVolume';
 import type {SceneBlocking} from '../SceneBlocking';
 
+/** Keep the whole cast's relative order while reserving room for hands/gear.
+ * The same monotone transform applies to travel targets; old blocking is intact. */
+export function volumeStageFit(blocking:SceneBlocking) {
+  const xs=blocking.characters.map(c=>c.x),low=Math.min(...xs),high=Math.max(...xs);
+  const shift=low<.14?.14-low:high>.86?.86-high:0;
+  const x=(value:number)=>Math.max(.14,Math.min(.86,high-low>.72?.14+(value-low)*.72/(high-low):value+shift));
+  return {blocking:{...blocking,characters:blocking.characters.map(c=>({...c,x:x(c.x)}))},x};
+}
+
 /** Only a single explicit held prop changes the lead actor. Ambiguous or
  * negated equipment retains the established blocking, never a guessed weapon. */
 export function volumeSceneEquipment(text:string,blocking:SceneBlocking):SceneBlocking {
@@ -59,6 +68,8 @@ export function createVolumeEquipment(joints:CharacterJoints,prop:HandProp,back=
     const ridge:V3=[0,.72,.07];
     tri([-.115,.22,0],[0,1.30,0],ridge,'#e6edf2',true);tri([0,1.30,0],[.115,.22,0],ridge,'#a1b3c0',true);
     tri([.115,.22,0],[-.115,.22,0],ridge,'#cbd8e1',true);tri([-.115,.22,0],[.115,.22,0],[0,1.30,0],'#718591',true);
+    rod({x:-.115,y:.22},{x:0,y:1.30},.012,'#344c60',true,.085);rod({x:.115,y:.22},{x:0,y:1.30},.012,'#344c60',true,.085);
+    rod({x:0,y:.24},{x:0,y:1.22},.006,'#f7f9fa',true,.09);
     rod({x:0,y:-.25},{x:0,y:-.20},.09,'#bd9c55',true);
   } else if(prop==='BOW') {
     const points=[{x:0,y:-.72},{x:.23,y:-.36},{x:.29,y:0},{x:.23,y:.36},{x:0,y:.72}];

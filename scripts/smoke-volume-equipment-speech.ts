@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {volumeSpeechEnvelope,volumeSpeechLevel,volumeSpeakingFrame} from '../src/lib/character/volume/VolumeSpeech';
-import {createVolumeEquipment,volumeEquipmentGrip,volumeSceneEquipment} from '../src/lib/character/volume/VolumeEquipment';
+import {createVolumeEquipment,volumeEquipmentGrip,volumeSceneEquipment,volumeStageFit} from '../src/lib/character/volume/VolumeEquipment';
 import {createVolumeCharacter} from '../src/lib/character/volume/CharacterVolume';
 import {volumePerformanceFrame,VOLUME_RIG} from '../src/lib/character/volume/VolumePerformance';
 import {computeCharacterJoints} from '../src/lib/character/CharacterRig';
@@ -42,6 +42,9 @@ assert.equal(volumeSceneEquipment('1550 yılında sipahi kılıcını tutuyor.',
 assert.equal(volumeSceneEquipment('Yeniçeri mızrağını tutarak yürüyor.',blocking).characters[0]!.handProp,'SPEAR');
 assert.equal(volumeSceneEquipment('Mızrak ve kılıç karşılaştırması.',blocking),blocking,'ambiguous prop ownership must not be guessed');
 assert.equal(volumeSceneEquipment('Kılıç olmayan bir sahne.',blocking),blocking);
+const fitted=volumeStageFit({...blocking,characters:[{...blocking.characters[0]!,x:.06},{...blocking.characters[0]!,id:'c2',x:.15}]});
+assert.equal(fitted.blocking.characters[0]!.x,.14);assert(Math.abs(fitted.blocking.characters[1]!.x-.23)<1e-10);assert(Math.abs(fitted.x(.30)-.38)<1e-10,'initial position and walking target share the same shift');
+assert(fitted.x(.30)>fitted.blocking.characters[0]!.x,'fit must not reverse travel direction');
 const old=createVolumeScenePlan(blocking,art,[1480],'JANISSARY'),v2=createVolumeScenePlan(blocking,art,[1480],'JANISSARY','EQUIPMENT_MOTION_V2');
 assert(!old.presentation);assert.deepEqual(findVolumeScenePlanProblems(old,blocking,art),[]);assert.deepEqual(findVolumeScenePlanProblems(v2,blocking,art),[]);assert(findVolumeScenePlanProblems({...v2,presentation:'UNBOUNDED'},blocking,art).length);
 console.log('Equipment/speech V2: PASS (70 equipment/pose combinations; actual PCM silence, segment offset, fixed grip/free-hand speech, kneel/seat support foot and limb lengths, bounded old/new metadata)');

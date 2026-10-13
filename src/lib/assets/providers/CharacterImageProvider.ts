@@ -16,7 +16,7 @@ import { EDITORIAL_RENDER_STYLE } from "@/lib/character/SvgSceneRenderer";
 import { planCharacterSceneDirection } from "@/lib/animation/character/CharacterSceneDirection";
 import { resolveCharacterLocalBackdropMode, readCharacterLocalBackdrop } from "@/lib/animation/character/CharacterLocalBackdrop";
 import type { ImageGenerationResult } from "@/types/asset";
-import {volumeSceneEquipment} from '@/lib/character/volume/VolumeEquipment';
+import {volumeSceneEquipment,volumeStageFit} from '@/lib/character/volume/VolumeEquipment';
 import { ImageStorage } from "../storage/ImageStorage";
 import type { ConfiguredImageProvider, ImageGenerationInput } from "./ImageProvider";
 
@@ -64,7 +64,8 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
         language: "tr",
         contextualDirection: true,
       });
-      const plan=this.volumeMode?{...planned,request:{...planned.request,blocking:volumeSceneEquipment(input.prompt,planned.request.blocking)}}:planned;
+      const fitted=this.volumeMode?volumeStageFit(volumeSceneEquipment(input.prompt,planned.request.blocking)):undefined;
+      const plan=fitted?{...planned,request:{...planned.request,blocking:fitted.blocking},animation:{...planned.animation,actors:planned.animation.actors.map(a=>({...a,toX:a.toX===null?null:fitted.x(a.toX)}))}}:planned;
       const unit=periodUnitFromScene(input.prompt);
       const plannedDirection = planCharacterSceneDirection(this.volumeMode?input.prompt:[input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking);
       const direction=this.volumeMode&&unit.startsWith('JANISSARY')&&plannedDirection.art.culture==='UNKNOWN'?{...plannedDirection,art:{...plannedDirection.art,culture:'OTTOMAN' as const}}:plannedDirection;
