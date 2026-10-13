@@ -1192,6 +1192,18 @@ async function run(): Promise<void> {
       OPENAI_TTS_TIMEOUT_MS: "50", OPENAI_TTS_MAX_RESPONSE_BYTES: "4096",
     } }, async (canonicalRuntime) => {
   const root = canonicalRuntime.workspaceRoot;
+  // This suite counts narration + canonical mix assets, not optional music.
+  // A configured FFmpeg and the shipped local library otherwise add a valid
+  // third `bgm` asset, making the retry assertion depend on the host setup.
+  // Keep the original assertions; music + ducking have separate real tests.
+  const priorMusicRoot = process.env.ATOLYE_MUSIC_LIBRARY_ROOT;
+  const emptyMusicRoot = path.join(root, "empty-music-fixture");
+  fs.mkdirSync(emptyMusicRoot);
+  canonicalRuntime.deferRestore(() => {
+    if (priorMusicRoot === undefined) delete process.env.ATOLYE_MUSIC_LIBRARY_ROOT;
+    else process.env.ATOLYE_MUSIC_LIBRARY_ROOT = priorMusicRoot;
+  });
+  process.env.ATOLYE_MUSIC_LIBRARY_ROOT = emptyMusicRoot;
   const runtimeRoot = canonicalRuntime.runtimeRoot;
   const authorityRoot = canonicalRuntime.authorityRoot;
   const storageContext = canonicalRuntime.runtimeStorageContext;

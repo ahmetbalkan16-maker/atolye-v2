@@ -29,3 +29,7 @@ Bu bölüm gözlemden çıkarılan **öneridir**; izlenme artışı kanıtı vey
 Mevcut motorun gerçek3Dekipman/rig/CPU kareleri, yerelPiper ve özgünmüzik/ducking bağlantısı çalışır. Referansın ayrıntılı çizgi-illüstrasyon estetiği mevcut3D malzemesinden farklıdır;3Dboyut tek başına profesyonel görünümü sağlamaz. Sonraki kazanım daha ağır model değil, kaliteli tekrar kullanılabilir mekân/giysi varlığı ve iyi kadraj planıdır. Her geliştirmede eski2D/3Dpayload, kitaplık onayı, PCM ownership, mevcut geçiş/montaj/fiyat/73°C ve homepage sınırı korunur.
 
 Kalıcı editorial-animation skill bu ölçütlere atıf verir; öneriler Gelişim Merkezi mevcut onay/yürütme akışına konabilir. Bu inceleme kendi başına harcama, kurulum, hesap bağlama, yayın veya otomatik kod değişikliği yetkisi vermez.
+
+## 13 Ekim önerilerden uygulanmış kısım
+
+NARRATION_DIRECTION_V3 şimdi gerçek canonicalWAV +sourceText cümle zamanıyla hareket/kadraj seçer. Yerelreviewedavlu/ormanmevsimleri/erkenliman ve kapalıvectorortamları; NaturalEarthland +GeoNamesAnkara/Busankonumlu şematikbağlantı kaynakta/canlıdadır. Üstteki yalnızsaray/no-real-cümle/harita-uygulanmadı notları bu dar kapsam için tarihçedir. Başka tarih/konum/rota/illüstrasyonkalitesi hâlâ otomatikdoğrulanmış değildir. Referanssesini dinleme/tamvideoizleme veya fazlaizlenme iddiası yok. docs/ATOLYE_NARRATION_DIRECTION_2026-10-13.md ve son genel kontrolü izler.

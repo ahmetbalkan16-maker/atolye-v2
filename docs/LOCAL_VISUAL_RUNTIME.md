@@ -29,3 +29,7 @@ Arka plan için role verilmez. Gözle incelenmiş aday `review-background.ts THE
 ## Diğer PC'ye taşıma
 
 Version4 kaynakları Git'te kalır. `bin/ayas-local-visual/library/` içindeki dört PNG+JSON (~3.46MB) ve uygun lisans dosyası taşınmalıdır; cache üretimi GPU/Python olmadan mevcut Sharp/FFmpeg ile çalışır. Modelden yeni aday üretmek istenirse model/manifest/lisans verileri ayrıca taşınabilir veya resmî kaynaktan tekrar indirilebilir. Windows venv'ini başka makinede çalışır sanıp kopyalama; Python/torch/requirements o makinede ayrı kurulur ve donanım/sağlık profili yeniden doğrulanır. Bu kuruluma her videoda gerek yoktur. GTX4GB veya bilinmeyen GPU'da aynı SDXL performansı garantisi verilmez; yerel vektör+reviewed cache yolu kullanılabilir. Migration/authority kimliği ve lisans/fiyat sınırları atlanmaz.
+
+## 13 Ekim V3 son bağlantı ve temizlik
+
+NARRATION_DIRECTION_V3/measuredWhisperCPU +reviewedbeş yeni ortam canlı. Yalnızunuseduv-cacheinstaller indirmeleri kaldırıldı; .venv/modeller/cachekitaplığı/ownerkarakterler korunup Pythonimports/metadata doğrulandı. Logical6.78GBcache ağırlığı hardlinknedeniyle fiziksel kazanım değildir. docs/ATOLYE_FINAL_AUDIT_2026-10-13.md güncel kabul/kapsamdır.
