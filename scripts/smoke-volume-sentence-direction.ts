@@ -14,6 +14,17 @@ const raw=JSON.stringify({transcription:values.map(([text,from,to])=>({text,offs
 const track=alignNarrationSentences(source,parseNarrationWords(raw,4.8),4.8);
 assert.deepEqual(track.sentences.map(s=>[s.start,s.end,s.action]),[[0,2.18,'POINT'],[2.68,4.36,'BOW']]);
 assert.equal(track.coverage,1);
+for(const apostrophe of ["'",'’']){
+ const proper=`İmparatorluğu${apostrophe}nun`,year=`1480${apostrophe}de`;
+ const measured=JSON.stringify({transcription:[{text:proper,offsets:{from:1970,to:3050}},{text:year,offsets:{from:3050,to:3500}},{text:'yürüyoruz.',offsets:{from:3500,to:4100}}]});
+ const parsed=parseNarrationWords(measured,4.2);
+ assert.equal(parsed.length,3);assert.deepEqual([parsed[0]!.start,parsed[0]!.end],[1.97,3.05]);
+ const aligned=alignNarrationSentences("İmparatorluğu'nun 1480’de yürüyoruz.",parsed,4.2);
+ assert.equal(aligned.coverage,1);assert.equal(aligned.sentences[0]!.action,'WALK');
+}
+assert.throws(()=>parseNarrationWords(JSON.stringify({transcription:[{text:"İmparatorluğu 'nun",offsets:{from:0,to:1000}}]}),2),/OFFSETS/,'spaced tokens cannot masquerade as one word');
+assert.throws(()=>parseNarrationWords(JSON.stringify({transcription:[{text:"İmparatorluğu'nun",offsets:{from:0,to:2100}}]}),2),/OFFSETS/,'apostrophe normalization never relaxes measured duration');
+assert.throws(()=>parseNarrationWords(JSON.stringify({transcription:[{text:'Ankara',offsets:{from:900,to:1000}},{text:"Devri'nin",offsets:{from:100,to:500}}]}),2),/OFFSETS/,'unordered proper nouns still fail closed');
 const misheard=JSON.parse(raw);misheard.transcription[0].text='Mızağın';
 const partial=alignNarrationSentences(source,parseNarrationWords(JSON.stringify(misheard),4.8),4.8);
 assert.equal(partial.sentences[0]!.start,0,'an uncertain noun never drops the actual spoken sentence onset');

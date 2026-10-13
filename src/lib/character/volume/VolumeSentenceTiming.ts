@@ -4,7 +4,10 @@ export interface NarrationWord {readonly text:string;readonly start:number;reado
 export interface NarrationSentence {readonly text:string;readonly start:number;readonly end:number;readonly action:CharacterAction}
 export interface VolumeSentenceTiming {readonly timing:'LOCAL_NARRATION_SENTENCES';readonly durationSeconds:number;readonly coverage:number;readonly sentences:readonly NarrationSentence[]}
 const fold=(s:string)=>s.toLocaleLowerCase('tr-TR').normalize('NFD').replace(/\p{M}/gu,'').replace(/ı/g,'i');
-const words=(s:string)=>fold(s).match(/[\p{L}\p{N}]+/gu)??[];
+// Turkish proper-name/year suffixes remain one acoustic word (Ankara'nın,
+// 1480'de). Apply the same normalization to source and Whisper text; spaces
+// and other separators still delimit words, and measured offsets stay intact.
+const words=(s:string)=>fold(s).replace(/(?<=[\p{L}\p{N}])['’](?=[\p{L}\p{N}])/gu,'').match(/[\p{L}\p{N}]+/gu)??[];
 
 /** Bounded closed gestures from the actual narrated sentence, not visual prose.
  * Ambiguous/negated actions remain explanatory speech; no inferred violence. */
