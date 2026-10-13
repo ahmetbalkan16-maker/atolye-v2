@@ -58,7 +58,15 @@ export function alignNarrationSentences(source:string,timed:readonly NarrationWo
  const output:NarrationSentence[]=[];
  for(const [index,text] of sentences.entries()){
   const hits=matched.filter(m=>tokens[m.source]!.index===index);if(!hits.length)continue;
-  const first=timed[hits[0]!.heard]!,last=timed[hits.at(-1)!.heard]!;
+  const firstHit=hits[0]!,lastHit=hits.at(-1)!;
+  const sourceIndices=tokens.flatMap((token,i)=>token.index===index?[i]:[]);
+  const previous=matched.filter(m=>tokens[m.source]!.index<index).at(-1),next=matched.find(m=>tokens[m.source]!.index>index);
+  // A proper noun can be misheard while the rest matches. Preserve the actual
+  // adjacent acoustic span; do not silently drop that spoken prefix/suffix or
+  // use its unverified word to choose an action.
+  const from=Math.max(previous?previous.heard+1:0,firstHit.heard-(firstHit.source-sourceIndices[0]!));
+  const to=Math.min(next?next.heard-1:timed.length-1,lastHit.heard+(sourceIndices.at(-1)!-lastHit.source));
+  const first=timed[from]!,last=timed[to]!;
   // Do not enact an action verb the recognizer did not actually match.
   const verified=hits.map(h=>tokens[h.source]!.text).join(' ');
   const expected=narrationSentenceAction(text),actual=narrationSentenceAction(verified);

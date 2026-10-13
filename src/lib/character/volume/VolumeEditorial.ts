@@ -1,4 +1,5 @@
 import type {VolumeSentenceTiming} from './VolumeSentenceTiming';
+import {naturalEarthEditorialLand,projectEditorialLocation} from './NaturalEarthMap';
 export type EditorialEnvironment='BASE'|'COURTYARD'|'FOREST'|'HARBOR'|'LIBRARY'|'WORKSHOP'|'MARKET'|'MAP';
 export interface VolumeEditorialPlan {readonly version:'1';readonly environment:EditorialEnvironment;readonly season:'NEUTRAL'|'AUTUMN'|'WINTER';readonly route:readonly ('ANKARA'|'BUSAN')[]}
 const fold=(text:string)=>text.slice(0,8192).toLocaleLowerCase('tr-TR').normalize('NFD').replace(/\p{M}/gu,'').replace(/ı/g,'i');
@@ -29,17 +30,15 @@ export function volumeEditorialBackdrop(plan:VolumeEditorialPlan,t=0,duration=6)
   body=rect(0,0,1920,1080,'#eadbc0')+rect(220,175,1480,630,'#b9d6d4','rx="24" stroke="#716656" stroke-width="5"');
   for(let x=260;x<1700;x+=120)body+=line(x,180,x,800,'#a0bdbb',1);
   for(let y=220;y<800;y+=90)body+=line(225,y,1690,y,'#a0bdbb',1);
-  // An authored coarse Europe/Africa/Asia silhouette, with no border claims.
-  body+=path('M325 355L410 245 550 275 655 225 790 295 930 255 1020 225 1200 275 1340 220 1520 325 1610 425 1500 495 1370 455 1320 610 1210 600 1170 470 1040 465 970 420 875 480 800 440 735 365 645 420 560 355 470 410 400 390Z','#c0c79b');
-  body+=path('M610 425L735 445 835 535 805 665 705 765 640 665 575 535Z','#c9b787');
+  body+=`<path d="${naturalEarthEditorialLand()}" fill="#c0c79b" fill-rule="evenodd" stroke="#6b7058" stroke-width="2"/>`;
   const places={ANKARA:{label:'Ankara',lat:39.91987,lon:32.85427},BUSAN:{label:'Busan (Pusan)',lat:35.10168,lon:129.03004}};
-  const coords=plan.route.map(id=>{const p=places[id];return {x:260+(p.lon+25)/190*1380,y:200+(80-p.lat)/110*570,label:p.label};});
+  const coords=plan.route.map(id=>{const p=places[id],[x,y]=projectEditorialLocation(p.lon,p.lat);return {x,y,label:p.label};});
   const a=coords[0]!,b=coords[1]!,progress=Math.min(1,t/Math.max(1,duration*.8));
   body+=line(a.x,a.y,b.x,b.y,'#9b4b40',9);
   body+=`<path d="M${a.x} ${a.y}L${b.x} ${b.y}" fill="none" stroke="#f7edcd" stroke-width="3" stroke-dasharray="12 10"/>`;
   body+=circle(a.x+(b.x-a.x)*progress,a.y+(b.y-a.y)*progress,15,'#e4b552');
   for(const [i,p] of coords.entries())body+=circle(p.x,p.y,12,i?'#536e95':'#a34c3b')+`<text x="${p.x-45}" y="${p.y-28}" font-family="Arial" font-size="30" fill="#3c3934">${p.label}</text>`;
-  body+=`<text x="250" y="850" font-family="Arial" font-size="25" fill="#5e5546">Şematik konum bağlantısı</text><text x="250" y="888" font-family="Arial" font-size="19" fill="#706453">Konumlar: GeoNames (CC BY 4.0)</text>`;
+  body+=`<text x="250" y="850" font-family="Arial" font-size="25" fill="#5e5546">Şematik konum bağlantısı</text><text x="250" y="888" font-family="Arial" font-size="19" fill="#706453">Kıyılar: Natural Earth · Konumlar: GeoNames (CC BY 4.0)</text>`;
  }else if(['LIBRARY','WORKSHOP'].includes(plan.environment)){
   body=rect(0,0,1920,1080,'#d7c8b2')+rect(0,745,1920,335,'#ad9577');
   for(const x of [40,660,1320]){

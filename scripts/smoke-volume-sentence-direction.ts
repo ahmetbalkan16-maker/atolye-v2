@@ -14,6 +14,10 @@ const raw=JSON.stringify({transcription:values.map(([text,from,to])=>({text,offs
 const track=alignNarrationSentences(source,parseNarrationWords(raw,4.8),4.8);
 assert.deepEqual(track.sentences.map(s=>[s.start,s.end,s.action]),[[0,2.18,'POINT'],[2.68,4.36,'BOW']]);
 assert.equal(track.coverage,1);
+const misheard=JSON.parse(raw);misheard.transcription[0].text='Mızağın';
+const partial=alignNarrationSentences(source,parseNarrationWords(JSON.stringify(misheard),4.8),4.8);
+assert.equal(partial.sentences[0]!.start,0,'an uncertain noun never drops the actual spoken sentence onset');
+assert.equal(partial.sentences[0]!.action,'POINT');
 assert.throws(()=>parseNarrationWords(raw,2),/OFFSETS/);
 assert.throws(()=>parseNarrationWords(JSON.stringify({transcription:[{text:'x',offsets:{from:-1,to:30}}]}),1),/OFFSETS/);
 assert.throws(()=>alignNarrationSentences('Başka konu tamamen farklı.',parseNarrationWords(raw,4.8),4.8),/UNCERTAIN/);

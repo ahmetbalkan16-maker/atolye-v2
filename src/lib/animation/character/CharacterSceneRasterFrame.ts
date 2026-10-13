@@ -66,7 +66,8 @@ export async function rasterizeCharacterSceneAssetFrame(payload: CharacterSceneA
       const width=Math.floor(1920/zoom),height=Math.floor(1080/zoom);
       scene=await sharp(scene).extract({left:Math.max(0,Math.min(1920-width,Math.round(focus-width/2))),top:Math.min(1080-height,50),width,height}).resize(1920,1080).png({compressionLevel:1}).toBuffer();
     }
-    const caption=v3&&blocking.caption&&blocking.caption.length>38?blocking.caption.slice(0,35)+'…':blocking.caption;
+    const captionChars=v3&&blocking.caption?Array.from(blocking.caption):null;
+    const caption=captionChars&&captionChars.length>38?captionChars.slice(0,35).join('')+'…':blocking.caption;
     const label=renderCharacterSceneFrameSvg({...blocking,caption,characters:[],props:[]},{},{reenactmentLabel:v3?null:payload.request.language,fontFamily:payload.fontFamily,renderStyle:EDITORIAL_RENDER_STYLE,artDirection:art,transparentBackdrop:true});
     // The new foreground cache puts feet near the bottom edge. Keep the
     // mandatory label above the actors instead of covering their legs/feet.
