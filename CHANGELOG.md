@@ -1,3 +1,10 @@
+## 2026-10-14 — D collection, guarded migration and verified C rollback
+
+- Preserved root authority marker as verified consume evidence; retained exact payload/candidate/durable/count/hash gates. Added identity-mapped logical-digest rollback verification and focused isolated tests.
+- Verified native consume20/quarantine15/F17identity12/access50, TS/lint and sourceCI. Startup explicitprevious root accepts only owned limited disabled legacy task metadata; actual idempotent qualification passed.
+- Collected106778files/66.36GB with source/destinationSHA; D cleanbuild/backup/candidate/consume/publish passed. Actual protected historical WAV access failed physical/authority bindings, so applied official single-use rollback and restored qualified C service, hidden startup, observer, tunnel and latest Brain history. Historical video/audio HTTP bytes and publicWhisper/security passed after rollback. D remains NOT_READY/quarantined, original records/gates preserved.
+- Free Ollama5models now use verified Dmodelroot; local gemma3:4b HAZIR passed. Installed programs unchanged; physical iPhone/main-wake acceptance and safe audio portability remain open. See docs/AYAS_SESSION_CLOSE_2026-10-14.md; final exactHEAD Graphify/MCP/realhealth closure follows this docs commit.
+
 ## 2026-10-13 — Development Center Graphify readiness
 
 - Refreshed the Graphify index left behind by the previous docs-only commit using native assistant/source-grounded processing and existing hash-attested complement; retained failed invariant evidence and all safety rules.

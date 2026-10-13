@@ -1,3 +1,7 @@
+## 14 Ekim canlı teknik kabul kaydı
+
+Owner şu anda telefon testini yapamadığını ve PC kontrolleri geçiyorsa test sayfasını canlı kaydedip sonraki göreve geçmemizi istedi. YerelWhisperlab source1d822a3b'den beri canlı; son C rollback buildLDLP_oaxL8kg9hTiQgHbE/publicHTTPS lab200. Gerçek sentetik AYASbugünnasılsın STT min.803/mean.919/2217ms; auth401/CSRF403/mode400/cap413/parallel200+429PASS. Ana voice'e aktarılmadı; fiziksel iPhone wake güvenilirliği ve kısaAYAS kabulü hâlâaçık. Tamamlandı/telefonsertifikası verilmez. Bu lab tespitsayar; chat/TTS/komut üretmez. Rapor docs/AYAS_SESSION_CLOSE_2026-10-14.md; aşağıdaki henüzbuild/sıradadır kayıtları önceki snapshot'tır.
+
 # iPhone uyandırma teşhisi — 13 Ekim 2026
 
 ## Devam — owner yöntemi seçti
