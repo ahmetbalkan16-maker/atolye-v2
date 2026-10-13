@@ -330,6 +330,7 @@ export async function renderCharacterSceneFrames(
   durationSeconds: number,
   backgroundPng?: Buffer,
   narrationEnvelope?:VolumeSpeechEnvelope,
+  sentenceTiming?:import('../../character/volume/VolumeSentenceTiming').VolumeSentenceTiming,
 ): Promise<{ readonly pattern: string; dispose(): void }> {
   const count = characterAnimationFrameCount(durationSeconds);
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-charframes-"));
@@ -354,8 +355,8 @@ export async function renderCharacterSceneFrames(
       }
       const svg = payload.volume?`volume-frame-${index}`:renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds);
       if (svg !== previousSvg || !previousPng) {
-        const cueDuration=payload.volume?.presentation==='EQUIPMENT_MOTION_V2'&&narrationEnvelope?narrationEnvelope.durationSeconds:durationSeconds;
-        const raster = await rasterizeCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), cueDuration,{ fast, backgroundPng,narrationEnvelope });
+        const cueDuration=payload.volume?.presentation&&narrationEnvelope?narrationEnvelope.durationSeconds:durationSeconds;
+        const raster = await rasterizeCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), cueDuration,{ fast, backgroundPng,narrationEnvelope,sentenceTiming });
         if (!raster.ok) throw new Error(SAFE_ERROR);
         previousSvg = svg;
         previousPng = raster.png;

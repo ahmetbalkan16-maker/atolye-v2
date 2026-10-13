@@ -1,3 +1,10 @@
+## 13 Ekim 2026 — yeni owner görevi sürüyor: cümle-hareket V3, ortamlar, ardından temizlik/genel kontrol
+
+Yeni owner talebi önce gerçek cümle-hareket/kadraj/ortam/harita eksiklerini uygulamak; sonra yalnız kullanılmayan indirmeleri güvenli temizlemek ve AYAS+Atölye genel bağlı sistem kontrolünü bitirmektir. Bu görevin tamamı henüz hazır ilan edilmez. Canlı source94e4d618/buildDM7SPfOw9r1nP7Bwqa8vX aynı; yeni V3kaynak henüz canlıya alınmadı.
+
+V3portable/kapalıeditorial plan, CPU-only kuruluWhisper gerçek cümle zamanları, sourceText doğrulaması/negasyon, measured gesture/camera, taşınan walk-endpoint, gerçek uzun ses boyunca özel montaj klibi; özgün yerel ortamlar ve kaynaklı Ankara–Busan şematik map kaynakta uygulandı. Gerçek kısaASRcoverage1/0–2.18POINT/2.68–4.36BOW, pure/yeni+eski9suite ve ilkTSC/lint PASS. Offline avlu adayı gözle incelendi/SHAkitaplığına alındı; sonbahar adayı işleniyor. Ortam cache/night bağlantısı sonrası finalTS/test/gerçekV3demo gerekir. Fonem/dudak-kelime mükemmelliği veya bütün doğal dil/tarih/konum kapsamı iddiası yok.
+
+Sıradaki kesin sıra: ortam adayları gözle/SHAkabul → son kaynak/regresyon +gerçek V3sesli/ortamlı/montajlı demo → cleancommit/push/build/CI/privateHTTP/rollback → aynı onaylı kontrollü canlı geçiş/protected health → yalnız kanıtlanmış kullanılmayan indirmeler cleanup → AYAS/Atölye genel bağlı sistemler kontrolü/çıkan gerçek hata düzeltmesi → son doküman/Git/exactHEADGraphify/MCP/CI kapanışı. Owner projeleri, eski2D/3D, küreselSTT, homepage/frozen/bütçe ve73°Ckoruma aynı. Ayrıntı docs/ATOLYE_NARRATION_DIRECTION_2026-10-13.md; kanıt ignored narration-final-20261013. Önceki tamamlanmış aşama aşağıdadır; yeni görev için bitmiş sayılmaz.
 ## 13 Ekim 2026 — ekipman ve hareket/ses bağlantısı canlı; referans incelemesi tamam
 
 Owner görevi yeniden başlattı. Son görünümü “daha iyi duruyor” ve “biraz daha profesyonel gözüküyorlar” diye değerlendirdi. Bu geri bildirim korunur; bütün kayıtlar adına formal kitaplık/CAS onayı verilmedi.

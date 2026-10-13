@@ -6,7 +6,7 @@ import { isCharacterBackdropPng } from "../../src/lib/character/CharacterSceneRa
 /** Explicit engineering review, after visual inspection; never called by production. */
 function main() {
   const [theme, name, confirmation] = process.argv.slice(2);
-  if (!["OTTOMAN", "BYZANTINE", "ROMAN", "EGYPTIAN"].includes(theme ?? "") || !name || !new RegExp(`^${theme!.toLowerCase()}-[0-9]+\\.png$`).test(name) || confirmation !== "--engineering-reviewed") throw new Error("LOCAL_BACKDROP_REVIEW_REQUIRED");
+  if (!["OTTOMAN", "BYZANTINE", "ROMAN", "EGYPTIAN","COURTYARD_OTTOMAN","FOREST","FOREST_AUTUMN","FOREST_WINTER","HARBOR_EARLY"].includes(theme ?? "") || !name || !new RegExp(`^${theme!.toLowerCase()}-[0-9]+\\.png$`).test(name) || confirmation !== "--engineering-reviewed") throw new Error("LOCAL_BACKDROP_REVIEW_REQUIRED");
   const root = fs.realpathSync.native(process.cwd());
   const runtime = path.join(root, "bin", "ayas-local-visual");
   const candidate = path.join(runtime, "candidates", name);

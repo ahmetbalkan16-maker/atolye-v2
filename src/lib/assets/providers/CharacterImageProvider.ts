@@ -17,6 +17,7 @@ import { planCharacterSceneDirection } from "@/lib/animation/character/Character
 import { resolveCharacterLocalBackdropMode, readCharacterLocalBackdrop } from "@/lib/animation/character/CharacterLocalBackdrop";
 import type { ImageGenerationResult } from "@/types/asset";
 import {volumeSceneEquipment,volumeStageFit} from '@/lib/character/volume/VolumeEquipment';
+import {planVolumeEditorial} from '@/lib/character/volume/VolumeEditorial';
 import { ImageStorage } from "../storage/ImageStorage";
 import type { ConfiguredImageProvider, ImageGenerationInput } from "./ImageProvider";
 
@@ -76,8 +77,10 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
       // A soldier noun can select MARCH; an explicit stationary speech must not
       // inherit that inferred walk. Existing 2D plans and explicit travel stay intact.
       const animation=this.volumeMode&&!explicitTravel&&gesture?{...plan.animation,actors:plan.animation.actors.map((a,index)=>a.action==='WALK'||a.action==='RUN'?{...a,action:index===0?(speaking?'TALK' as const:gesture.action):'IDLE' as const,toX:null,delaySeconds:0}:a)}:plan.animation;
-      const background = readCharacterLocalBackdrop(this.backdropMode, direction.art, plan.request.blocking.time);
-      let volume=this.volumeMode?createVolumeScenePlan(plan.request.blocking,direction.art,extractCostumeSceneYears(input.prompt),unit,'EQUIPMENT_MOTION_V2'):undefined;
+      const editorial=this.volumeMode?planVolumeEditorial(input.prompt):undefined;
+      const years=extractCostumeSceneYears(input.prompt);
+      const background = readCharacterLocalBackdrop(this.backdropMode,direction.art,plan.request.blocking.time,editorial?{editorial,years}:undefined);
+      let volume=this.volumeMode?createVolumeScenePlan(plan.request.blocking,direction.art,years,unit,'NARRATION_DIRECTION_V3',editorial):undefined;
       const templateIds:string[]=[];
       if(volume?.design&&this.designLibrary) {
         const storedActors=volume.design.actors.map(actor=>{

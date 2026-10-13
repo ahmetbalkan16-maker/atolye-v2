@@ -37,6 +37,7 @@ async function main() {
       const oldVolume={...payload,volume:{...payload.volume,design:undefined}};
       delete oldVolume.volume.design;
       delete oldVolume.volume.presentation;
+      delete oldVolume.volume.editorial;
       assert.deepEqual(findCharacterSceneAssetPayloadProblems(oldVolume),[],'earlier volume metadata remains valid');
       assert((await rasterizeCharacterSceneAssetFrame(oldVolume,.1,8)).ok,'earlier volume geometry still renders');
       assert.deepEqual(findCharacterSceneAssetPayloadProblems(payload),[]);

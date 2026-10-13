@@ -2,11 +2,14 @@ import { characterAnimationFrame } from "./CharacterAnimation";
 import { characterDirectedFrame } from "./CharacterSceneDirection";
 import { findCharacterSceneAssetPayloadProblems,renderCharacterSceneAssetFrame,type CharacterSceneAssetPayload } from "./CharacterSceneAsset";
 import { rasterizeCharacterSceneSvg,type CharacterSceneRasterOptions,type CharacterSceneRasterResult } from "../../character/CharacterSceneRasterizer";
-import { EDITORIAL_RENDER_STYLE,renderCharacterSceneFrameSvg } from "../../character/SvgSceneRenderer";
+import { EDITORIAL_RENDER_STYLE,REENACTMENT_LABELS,renderCharacterSceneFrameSvg } from "../../character/SvgSceneRenderer";
 import { createVolumeCharacter,rasterizeVolumeCharacter } from "../../character/volume/CharacterVolume";
 import {volumePerformanceFrame,volumeCameraZoom} from "../../character/volume/VolumePerformance";
 import {periodSettingOverlay} from "../../character/volume/PeriodDesign";
 import {volumeSpeakingFrame} from '../../character/volume/VolumeSpeech';
+import {volumeSpeechLevel} from '../../character/volume/VolumeSpeech';
+import {volumeEditorialBackdrop,narrationCameraZoom} from '../../character/volume/VolumeEditorial';
+import {volumeNarratedActor} from '../../character/volume/VolumeNarratedPerformance';
 
 /** Single raster entry for gallery/provider/video. Old PNGs retain their exact
  * SVG path; new assets reconstruct bounded CPU geometry from the same rig cues.
@@ -15,10 +18,11 @@ export async function rasterizeCharacterSceneAssetFrame(payload: CharacterSceneA
   if(!payload.volume) return rasterizeCharacterSceneSvg(renderCharacterSceneAssetFrame(payload,t,durationSeconds),options);
   if(findCharacterSceneAssetPayloadProblems(payload).length||!Number.isFinite(t)||t<0||!Number.isFinite(durationSeconds)||durationSeconds<=0||durationSeconds>600) return {ok:false,reason:"SVG_REJECTED"};
   const direction=payload.direction!,blocking=payload.request.blocking;
-  const frames=characterDirectedFrame(blocking,payload.animation,direction.beats,t,durationSeconds);
+  const v3=payload.volume.presentation==='NARRATION_DIRECTION_V3',editorial=payload.volume.editorial;
+  const frames=characterDirectedFrame(blocking,payload.animation,v3&&options.sentenceTiming?[]:direction.beats,t,durationSeconds);
   const art={...direction.art,roles:[]};
   const plate=renderCharacterSceneFrameSvg({...blocking,characters:[],props:[],arrows:[],caption:null}, {},{reenactmentLabel:null,fontFamily:payload.fontFamily,renderStyle:EDITORIAL_RENDER_STYLE,artDirection:art,transparentBackdrop:payload.background!==undefined,floorLayout:payload.background?.stageLayout});
-  const base=await rasterizeCharacterSceneSvg(plate,options);if(!base.ok) return base;
+  const base=await rasterizeCharacterSceneSvg(v3&&editorial&&editorial.environment!=='BASE'&&!payload.background?volumeEditorialBackdrop(editorial,t,durationSeconds):plate,options);if(!base.ok) return base;
   try {
     const sharp=(await import("sharp")).default;
     const layers: {depth:number;order:number;overlays:import("sharp").OverlayOptions[]}[]=[];
@@ -28,15 +32,18 @@ export async function rasterizeCharacterSceneAssetFrame(payload: CharacterSceneA
       layers.push({depth:prop.depth,order:index,overlays:[{input:Buffer.from(svg)}]});
     }
     for(const [index,c] of blocking.characters.entries()) {
+      if(v3&&editorial?.environment==='MAP'&&index>0)continue;
       let frame=frames[c.id]??characterAnimationFrame(blocking,payload.animation,t)[c.id]!;
       const role=direction.art.roles.find(r=>r.id===c.id)?.role??"CITIZEN";
       const wardrobe=payload.volume.wardrobes.find(w=>w.actorId===c.id)!.brief;
       const identity=/^c[1-8]$/.test(c.id)?Number(c.id.slice(1))-1:index%8;
-      const scale=138*(1-.5*c.depth)*(role==="ADVISOR"?.94:1),y=900-260*c.depth+(payload.background?.stageLayout?140+160*c.depth:0);
-      const equipmentV2=payload.volume.presentation==='EQUIPMENT_MOTION_V2';
-      const actor=payload.animation.actors.find(a=>a.id===c.id);
+      const scale=138*(1-.5*c.depth)*(role==="ADVISOR"?.94:1)*(v3&&editorial?.environment==='MAP'?.70:1),y=v3&&editorial?.environment==='MAP'?1040:900-260*c.depth+(payload.background?.stageLayout?140+160*c.depth:0);
+      const equipmentV2=payload.volume.presentation==='EQUIPMENT_MOTION_V2'||v3;
+      let actor=payload.animation.actors.find(a=>a.id===c.id),performanceCharacter=c,clock=t;
+      if(v3&&index===0&&options.sentenceTiming){const directed=volumeNarratedActor(c,blocking,payload.animation,options.sentenceTiming,t,scale);frame=directed.frame;actor=directed.actor;performanceCharacter=directed.character;clock=directed.clock;}
       if(equipmentV2&&(actor?.action==='TALK'||actor?.action==='POINT')) frame=volumeSpeakingFrame(frame,t,!!c.handProp,options.narrationEnvelope);
-      const performance=payload.volume.design?volumePerformanceFrame(c,actor,frame,t,scale,equipmentV2):undefined;
+      if(v3&&options.narrationEnvelope)frame={...frame,mouthOpen:index===0&&volumeSpeechLevel(options.narrationEnvelope,t)>.08};
+      const performance=payload.volume.design?volumePerformanceFrame(performanceCharacter,actor,frame,clock,scale,equipmentV2):undefined;
       if(performance){frame={...frame,x:performance.x,pose:performance.pose};frames[c.id]=frame;}
       const designProfile=payload.volume.design?.actors.find(a=>a.actorId===c.id)?.profile;
       let mesh=createVolumeCharacter({culture:direction.art.culture,role,faith:direction.art.faith,pose:c.pose,poseAngles:frame.pose,mouthOpen:frame.mouthOpen,expression:c.expression,identity,handProp:c.handProp,costume:c.costume,...(wardrobe.recipe?{wardrobe}:{}),...(performance?{joints:performance.joints,designProfile}:{}),...(equipmentV2?{equipmentStyle:'READABLE_V2' as const}:{})});
@@ -47,18 +54,26 @@ export async function rasterizeCharacterSceneAssetFrame(payload: CharacterSceneA
     }
     const overlays=layers.sort((a,b)=>b.depth-a.depth||a.order-b.order).flatMap(l=>l.overlays);
     let scene=await sharp(base.png).composite(overlays).png({compressionLevel:1}).toBuffer();
+    if(v3&&editorial?.environment!=='BASE'&&blocking.time!=='DAY'){
+      const shade=blocking.time==='NIGHT'?{color:'#122239',opacity:.43}:{color:'#bc784b',opacity:.16};
+      scene=await sharp(scene).composite([{input:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><rect width="1920" height="1080" fill="${shade.color}" opacity="${shade.opacity}"/></svg>`)}]).png({compressionLevel:1}).toBuffer();
+    }
     // A modest speaker-focused move, with the label kept outside the camera crop.
     // Cues are scene-relative estimates; no claim of word/phoneme alignment.
-    const phase=t%12,zoom=payload.volume.design?volumeCameraZoom(t,durationSeconds):durationSeconds>=7&&phase>=3&&phase<9?1.18:1;
+    const phase=t%12,zoom=v3&&editorial?.environment==='MAP'?1:v3&&options.sentenceTiming?narrationCameraZoom(t,options.sentenceTiming):payload.volume.design?volumeCameraZoom(t,durationSeconds):durationSeconds>=7&&phase>=3&&phase<9?1.18:1;
     if(zoom>1&&blocking.characters.length) {
       const speaker=blocking.characters[0]!,focus=(frames[speaker.id]?.x??speaker.x)*1920;
       const width=Math.floor(1920/zoom),height=Math.floor(1080/zoom);
       scene=await sharp(scene).extract({left:Math.max(0,Math.min(1920-width,Math.round(focus-width/2))),top:Math.min(1080-height,50),width,height}).resize(1920,1080).png({compressionLevel:1}).toBuffer();
     }
-    const label=renderCharacterSceneFrameSvg({...blocking,characters:[],props:[]},{},{reenactmentLabel:payload.request.language,fontFamily:payload.fontFamily,renderStyle:EDITORIAL_RENDER_STYLE,artDirection:art,transparentBackdrop:true});
+    const caption=v3&&blocking.caption&&blocking.caption.length>38?blocking.caption.slice(0,35)+'…':blocking.caption;
+    const label=renderCharacterSceneFrameSvg({...blocking,caption,characters:[],props:[]},{},{reenactmentLabel:v3?null:payload.request.language,fontFamily:payload.fontFamily,renderStyle:EDITORIAL_RENDER_STYLE,artDirection:art,transparentBackdrop:true});
+    // The new foreground cache puts feet near the bottom edge. Keep the
+    // mandatory label above the actors instead of covering their legs/feet.
+    const v3Label=v3?[{input:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><g data-reenactment-label="${payload.request.language}"><rect x="60" y="160" width="380" height="56" rx="8" fill="#242433" opacity=".85"/><text x="82" y="198" font-family="Arial" font-size="28" font-weight="bold" letter-spacing="3" fill="#fff">${REENACTMENT_LABELS[payload.request.language]}</text></g></svg>`)}]:[];
     const year=payload.volume.sceneYears.length===1?payload.volume.sceneYears[0]:undefined;
     const yearBadge=year===undefined?[]:[{input:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><rect x="1480" y="60" width="380" height="68" rx="12" fill="#242433" opacity=".85"/><text x="1510" y="106" font-family="Arial" font-size="36" fill="#fff">${year<0?`MÖ ${Math.abs(year)}`:`MS ${year}`}</text></svg>`)}];
-    const image=sharp(scene).composite([{input:Buffer.from(label)},...yearBadge]);
+    const image=sharp(scene).composite([{input:Buffer.from(label)},...yearBadge,...v3Label]);
     const png=await (options.fast?image.png({compressionLevel:1}):image.png()).toBuffer();
     return {ok:true,png,width:1920,height:1080,rasterizer:"sharp"};
   } catch { return {ok:false,reason:"RASTERIZE_FAILED"}; }

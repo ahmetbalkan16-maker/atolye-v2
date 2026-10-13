@@ -14,6 +14,7 @@ import { planCharacterSceneDirection } from "../src/lib/animation/character/Char
 import { EDITORIAL_RENDER_STYLE } from "../src/lib/character/SvgSceneRenderer";
 import { isCharacterBackdropPng, rasterizeCharacterSceneSvg } from "../src/lib/character/CharacterSceneRasterizer";
 import { readCharacterLocalBackdrop } from "../src/lib/animation/character/CharacterLocalBackdrop";
+import {planVolumeEditorial} from '../src/lib/character/volume/VolumeEditorial';
 import { CHARACTER_SCENE_FONT_FAMILY, embedCharacterScenePayload, readCharacterScenePayload, renderCharacterSceneAssetFrame, findCharacterSceneAssetPayloadProblems } from "../src/lib/animation/character/CharacterSceneAsset";
 
 async function main() {
@@ -61,6 +62,14 @@ async function main() {
     fs.writeFileSync(path.join(library, "ottoman.json"), JSON.stringify({ schema: 1, reviewStatus: "ENGINEERING_ACCEPTED", theme: "OTTOMAN", ...background }));
     assert.equal(readCharacterLocalBackdrop("off", direction.art), null);
     assert(readCharacterLocalBackdrop("cache", direction.art)?.png.equals(png));
+    fs.writeFileSync(path.join(library,'forest_autumn.png'),png);
+    fs.writeFileSync(path.join(library,'forest_autumn.json'),JSON.stringify({schema:1,reviewStatus:'ENGINEERING_ACCEPTED',theme:'FOREST_AUTUMN',...background}));
+    const forest={editorial:planVolumeEditorial('Sonbahar ormanında karakter.'),years:[1480]};
+    const unknown={...direction.art,culture:'UNKNOWN' as const,roles:[]};
+    assert(readCharacterLocalBackdrop('cache',unknown,'DAY',forest)?.png.equals(png),'reviewed non-cultural forest works without invented royal context');
+    assert.equal(readCharacterLocalBackdrop('cache',unknown,'NIGHT',forest),null);
+    assert.equal(readCharacterLocalBackdrop('cache',unknown,'DAY',{editorial:planVolumeEditorial('Osmanlı meydanında'),years:[1950]}),null,'wrong era never reuses old courtyard');
+    fs.writeFileSync(path.join(library,'forest_autumn.png'),wrong);assert.throws(()=>readCharacterLocalBackdrop('cache',unknown,'DAY',forest),/CHANGED/);
     fs.writeFileSync(path.join(library, "ottoman.png"), wrong); assert.throws(() => readCharacterLocalBackdrop("cache", direction.art), /CHANGED/);
   } finally { fs.rmSync(library, { recursive: true, force: true }); }
   console.log("Character local backdrop: PASS (bounded raster, no SVG external reference, compositing, portable PNG chunk, SHA/CRC failure, off/cache compatibility; no model/network)");

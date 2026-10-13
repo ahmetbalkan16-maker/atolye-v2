@@ -2,6 +2,7 @@ import type { SceneBlocking } from "../SceneBlocking";
 import type { CharacterArtDirection } from "../SvgSceneRenderer";
 import { planPeriodWardrobe, type WardrobeBrief } from "./PeriodWardrobe";
 import {createPeriodDesign,type PeriodDesign,type PeriodUnit} from "./PeriodDesign";
+import {isVolumeEditorial,type VolumeEditorialPlan} from './VolumeEditorial';
 
 export interface VolumeScenePlan {
   readonly version: "1";
@@ -10,7 +11,8 @@ export interface VolumeScenePlan {
   readonly wardrobes: readonly {readonly actorId: string;readonly brief: WardrobeBrief}[];
   /** Absent on earlier volume assets, whose rendering stays unchanged. */
   readonly design?:PeriodDesign;
-  readonly presentation?:'EQUIPMENT_MOTION_V2';
+  readonly presentation?:'EQUIPMENT_MOTION_V2'|'NARRATION_DIRECTION_V3';
+  readonly editorial?:VolumeEditorialPlan;
 }
 
 /** Only explicit scene date grammar, never a count or a global topic keyword.
@@ -42,12 +44,12 @@ export function extractCostumeSceneYears(text: string): number[] {
   return years;
 }
 
-export function createVolumeScenePlan(blocking: SceneBlocking,art: CharacterArtDirection,sceneYears: readonly number[],unit?:PeriodUnit,presentation?:'EQUIPMENT_MOTION_V2'): VolumeScenePlan {
+export function createVolumeScenePlan(blocking: SceneBlocking,art: CharacterArtDirection,sceneYears: readonly number[],unit?:PeriodUnit,presentation?:VolumeScenePlan['presentation'],editorial?:VolumeEditorialPlan): VolumeScenePlan {
   const wardrobes=blocking.characters.map(c=>{
     const role=art.roles.find(r=>r.id===c.id)?.role??"CITIZEN";
     return {actorId:c.id,brief:planPeriodWardrobe({culture:art.culture,role,sceneYears})};
   });
-  return {version:"1",camera:"EDITORIAL",sceneYears:[...new Set(sceneYears)],wardrobes,...(unit!==undefined?{design:createPeriodDesign(blocking,art,[...new Set(sceneYears)],unit)}:{}),...(presentation?{presentation}:{})};
+  return {version:"1",camera:"EDITORIAL",sceneYears:[...new Set(sceneYears)],wardrobes,...(unit!==undefined?{design:createPeriodDesign(blocking,art,[...new Set(sceneYears)],unit)}:{}),...(presentation?{presentation}:{}),...(editorial?{editorial}:{})};
 }
 
 /** Same scene context reconstructs all permitted metadata. No free-form prompt,
@@ -56,8 +58,8 @@ export function createVolumeScenePlan(blocking: SceneBlocking,art: CharacterArtD
 export function findVolumeScenePlanProblems(value: unknown,blocking: SceneBlocking,art: CharacterArtDirection): string[] {
   const v=value as VolumeScenePlan|null;
   try {
-    if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).length!==(v.design===undefined?4:5)+(v.presentation===undefined?0:1)||!Array.isArray(v.sceneYears)||v.sceneYears.length>16||!Array.isArray(v.wardrobes)||v.wardrobes.length>8||v.version!=="1"||v.camera!=="EDITORIAL"||(v.presentation!==undefined&&(v.presentation!=='EQUIPMENT_MOTION_V2'||v.design===undefined))) return ["VOLUME_PLAN_SHAPE"];
-    const expected=createVolumeScenePlan(blocking,art,v.sceneYears,v.design?.unit,v.presentation);
+    if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).length!==(v.design===undefined?4:5)+(v.presentation===undefined?0:1)+(v.editorial===undefined?0:1)||!Array.isArray(v.sceneYears)||v.sceneYears.length>16||!Array.isArray(v.wardrobes)||v.wardrobes.length>8||v.version!=="1"||v.camera!=="EDITORIAL"||(v.presentation!==undefined&&(!['EQUIPMENT_MOTION_V2','NARRATION_DIRECTION_V3'].includes(v.presentation)||v.design===undefined))||(v.presentation==='NARRATION_DIRECTION_V3'?!isVolumeEditorial(v.editorial):v.editorial!==undefined)) return ["VOLUME_PLAN_SHAPE"];
+    const expected=createVolumeScenePlan(blocking,art,v.sceneYears,v.design?.unit,v.presentation,v.editorial);
     return JSON.stringify(v)===JSON.stringify(expected)?[]:["VOLUME_PLAN_CONTEXT"];
   } catch { return ["VOLUME_PLAN_CONTEXT"]; }
 }

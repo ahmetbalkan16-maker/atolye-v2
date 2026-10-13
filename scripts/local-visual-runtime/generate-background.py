@@ -9,6 +9,11 @@ from pathlib import Path
 import time
 
 THEMES = {
+    "COURTYARD_OTTOMAN": "wide empty fifteenth century Ottoman courtyard square, tall warm stone masonry gate and walls, pointed arch windows, modest tiled roofs and distant domes, timber doors, olive trees, ornate shallow fountain on far left, warm afternoon light, detailed stone pavement in perspective, clear broad empty foreground floor",
+    "FOREST": "wide empty woodland clearing, lush green layered forest, tall detailed trunks, foliage with dappled sunlight, soft hills in distance, quiet footpath, broad flat empty foreground ground, gentle storybook depth",
+    "FOREST_AUTUMN": "wide empty autumn woodland clearing, orange russet and golden foliage, detailed dark tree trunks, distant soft hills, winding footpath, broad flat empty foreground ground with fallen leaves, golden light",
+    "FOREST_WINTER": "wide empty winter woodland clearing, snowy branches and detailed bare tree trunks, blue grey distant hills, frosty footpath, broad flat empty foreground snow, soft cold daylight",
+    "HARBOR_EARLY": "wide empty sixteenth century Mediterranean wooden harbor, distant wooden sailing ships with plain cream sails and no flags, warm stone warehouses with arched doors and tiled roofs, timber dock pillars and rope, quiet blue sea, clear broad empty stone quay foreground, warm light",
     "OTTOMAN": "Ottoman imperial palace reception room, pointed arch windows overlooking Istanbul domes and minarets, ornate blue and white floral Iznik tile wall band, cream marble columns with golden trim, large red carpet, ornate empty red and gold throne on left, polished stone floor",
     "BYZANTINE": "Byzantine imperial palace reception room, domed vault, purple and gold tapestry, gold geometric mosaic wall decorations, marble columns, arched windows overlooking Constantinople, purple carpet, ornate empty purple and gold throne on left",
     "ROMAN": "ancient Roman imperial palace open atrium, fluted white marble columns, Roman red banners with laurel wreath designs, distant classical temples and cypress trees, geometric marble floor, ornate empty throne on left",
@@ -66,7 +71,10 @@ def main():
         negative = "portrait, close-up, cropped feet, large head filling frame, multiple characters, sprite sheet, contact sheet, monochrome, pencil sketch, grayscale, 3D, photograph, realistic face, scenery, pattern background, text, watermark, logo, extra limbs, blurry"
         width, height = 768, 1024
     else:
-        prompt = "Professional 2D educational cartoon animation background, hand drawn clean outlined illustration, detailed architecture, warm pastel colors, elegant soft lighting and shadows, polished high quality cartoon, widescreen composition, " + THEMES[args.theme] + ", empty room, no people, no characters, clear open foreground for animated actors, no text, no letters, no logo"
+        new_environment = args.theme in {"COURTYARD_OTTOMAN", "FOREST", "FOREST_AUTUMN", "FOREST_WINTER", "HARBOR_EARLY"}
+        setting_style = "rich layered scenery" if new_environment else "detailed architecture"
+        empty_space = "open landscape" if new_environment else "empty room"
+        prompt = "Professional 2D educational cartoon animation background, hand drawn clean outlined illustration, " + setting_style + ", warm pastel colors, elegant soft lighting and shadows, polished high quality cartoon, widescreen composition, " + THEMES[args.theme] + ", " + empty_space + ", no people, no characters, clear open foreground for animated actors, no text, no letters, no logo"
         negative = "people, person, human, character, face, crowd, text, letters, watermark, logo, photorealistic, photograph, blurry, low quality, deformed, distorted perspective, clutter, modern technology"
         width, height = 1024, 576
     # Leave idle time between CUDA steps instead of raising the machine's thermal

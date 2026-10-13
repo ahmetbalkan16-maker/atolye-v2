@@ -127,7 +127,7 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
           );
           requireSuccessfulProcess(sceneProbe, "ffprobe(scene-input)");
           sceneProbeSignatures.push(
-            validateSceneInputProbe(sceneProbe.stdout, scene.durationSeconds),
+            validateSceneInputProbe(sceneProbe.stdout, synchronized.durations.get(scene.sceneId)??scene.durationSeconds),
           );
         }
       }

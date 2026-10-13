@@ -35,6 +35,11 @@ const eslintConfig = defineConfig([
     "public/ort/**",
     "public/wake/**",
     ".venv-wake/**",
+    // Local image runtime packages/cache are third-party Python dependencies;
+    // their bundled diagnostic JS is not application source. The project's
+    // scripts/local-visual-runtime sources remain fully linted.
+    "bin/ayas-local-visual/.venv/**",
+    "bin/ayas-local-visual/uv-cache/**",
   ]),
   { files: ["scripts/smoke-production-execution-durable-attempt.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
   { files: ["src/types/productionExecutionDurableAttempt.ts"], rules: { "@typescript-eslint/no-empty-object-type": "off" } },

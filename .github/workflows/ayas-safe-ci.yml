@@ -50,6 +50,8 @@ jobs:
         run: npx tsx scripts/smoke-character-design-library.ts
       - name: Readable equipment and local speech motion
         run: npx tsx scripts/smoke-volume-equipment-speech.ts
+      - name: Narration sentence direction and original editorial scenery
+        run: npx tsx scripts/smoke-volume-sentence-direction.ts
       - name: Local model thermal request cancellation
         run: npx tsx scripts/smoke-ollama-thermal-monitor.ts
       - name: Prepare bounded retrieval evidence directory

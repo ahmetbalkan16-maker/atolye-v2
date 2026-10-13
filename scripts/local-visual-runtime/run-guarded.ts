@@ -8,9 +8,10 @@ import { createCharacterGuide } from "./character-guide";
 
 async function main() {
   const theme = process.argv[2];
-  const allowed = ["OTTOMAN", "BYZANTINE", "ROMAN", "EGYPTIAN"];
+  const allowed = ["OTTOMAN", "BYZANTINE", "ROMAN", "EGYPTIAN","COURTYARD_OTTOMAN","FOREST","FOREST_AUTUMN","FOREST_WINTER","HARBOR_EARLY"];
   if (!allowed.includes(theme ?? "")) throw new Error("LOCAL_VISUAL_THEME_REFUSED");
   const role = process.argv[3];
+  if(role!==undefined&&!['OTTOMAN','BYZANTINE','ROMAN','EGYPTIAN'].includes(theme!))throw Error('LOCAL_VISUAL_BACKGROUND_ONLY');
   if (role !== undefined && !["RULER", "ADVISOR", "GUARD"].includes(role)) throw new Error("LOCAL_VISUAL_ROLE_REFUSED");
   const guided = process.argv[4];
   if (guided !== undefined && (guided !== "guided" || !role)) throw new Error("LOCAL_VISUAL_GUIDE_REFUSED");
