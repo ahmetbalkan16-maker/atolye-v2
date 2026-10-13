@@ -1,11 +1,11 @@
-13 Ekim ekipman/ses V2: yeni varlıkta volume.presentation=EQUIPMENT_MOTION_V2; eski presentation'sız3D/2D görünümünü koru. Silah gerçek önkol tutuşuna bağlanmalı, gövde arkasında kaybolmamalı; konuşma jesti boş elde, diz/oturma destek ayağı sabit. Frozen video→audio→assembly sırasını değiştirme: gerçek WAV etkinliği yeniV2son montajın özel TEMP klibinde bağlanır, owner kaynak klipleri yeniden yazılmaz. PCM etkinliği kelime/fonem hizalaması değildir; anlamlı jestlerin scene-text tahmini sınırını açık tut. Mevcut chapter→scene allocator, narration offset, ducking/lisans/fiyat/73°C/owned health ve cleanup kuralları kullanılır. Teknik kaynak/kabul docs/ATOLYE_EQUIPMENT_SPEECH_2026-10-13.md ve checkpoint.
-
 ---
 name: editorial-animation
 description: Atölye'nin yerel çöp adam video karakterlerini, ortamlarını ve animasyon görsel dilini tasarla veya geliştir; character görsel sağlayıcısını değiştiren işlerde kullan.
 ---
 
 # Kalıcı Atölye görsel tasarım yeteneği
+
+13 Ekim ekipman/ses V2: yeni varlıkta volume.presentation=EQUIPMENT_MOTION_V2; eski presentation'sız3D/2D görünümünü koru. Silah gerçek önkol tutuşuna bağlanmalı, gövde arkasında kaybolmamalı; konuşma jesti boş elde, diz/oturma destek ayağı sabit. Frozen video→audio→assembly sırasını değiştirme: gerçek WAV etkinliği yeniV2son montajın özel TEMP klibinde bağlanır, owner kaynak klipleri yeniden yazılmaz. PCM etkinliği kelime/fonem hizalaması değildir; anlamlı jestlerin scene-text tahmini sınırını açık tut. Mevcut chapter→scene allocator, narration offset, ducking/lisans/fiyat/73°C/owned health ve cleanup kuralları kullanılır. Teknik kaynak/kabul docs/ATOLYE_EQUIPMENT_SPEECH_2026-10-13.md ve checkpoint.
 
 13 Ekim owner devamı: VolumePerformance.ts yeni design.performance=GROUNDED yolunda destek ayağını sahnede kilitler, salınan ayağı kaldırır, diz/kemik boyunu ve hızlanma/durma/kol karşılığını korur. Sabit jestlerin ayakları ve kamera geçişi süreklidir. Eski design'sız assets değişmez. PeriodDesign.ts ayrı erken yeniçeri/yeniçeri ağası/karakol/zincir-plaka/fesli hükümdar ailelerini kaynaklı sınırlı pencerelerde seçer. Ağa portresinin gerçek yüksek sarık+beyaz iç giysi+koyu dış kaftanı kullanılır; başlık tipleri birbirine karıştırılmaz. Karma/olumsuz birlik ve eksik yıl/rol araştırma gerekli kalır. docs/ATOLYE_CHARACTER_REUSE_2026-10-13.md kaynak/erişim/kalite sınırlarını taşır.
 
@@ -35,3 +35,7 @@ Owner tercihi: sade çizgili fakat özenli, eğlenceli ve eğitici YouTube anima
 - Kontrol: gerçek motorla PNG önizlemesi ve birkaç hareket karesi; eski payload eşitliği; profil testi, character animasyon/pipeline, tarihî/golden testler, TypeScript ve lint. Gözle kaliteyi incele; test başarısı tek başına estetik kalite kanıtı değildir.
 
 AYAS geliştirme önerileri bu yeteneğe atıf verebilir. Tasarım araştırması ve yeni yetenek önerileri Gelişim Merkezi'nin mevcut sahibi onay/yürütme akışını kullanır; homepage'e kart eklenmez.
+
+## 13 Ekim referans incelemesinden kalıcı kalite ölçütleri
+
+Örnek ve erişim sınırı docs/ATOLYE_YOUTUBE_REFERENCE_2026-10-13.md. Her yeni video tasarımında kıyafet silueti/başlık/kemer/manşet gibi okunaklı rol ayrımını, mevsim ve olayla ilgili özgün ortamı, ana konuşmacının yakın–orta–genel kadrajlarını ve gerektiğinde kaynaklı harita anlatımını kontrol et. Üç ana renk ve okunaklı vurgu; haritada sabit kültür renkleri, kısa etiket ve gerçek coğrafi doğruluk kullan. Geliştirme önerisi renderer özelliği değildir: olmayan harita rotası/katman/rig yeteneğini varmış gibi anlatma. Kaynak sanat/video/sesini kopyalama; mevcut yerel cache, fiyat/73°C/owned health/owner onayını koru. Artan detay için kıyafet ve ortam şablonlarını tekrar kullan, her karede model çağrısı yapma. Ses miksini dinlemediysen inceleme iddiası üretme.
