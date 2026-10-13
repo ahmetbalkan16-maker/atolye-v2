@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { isMaterializedDirectoryIdentity } from "@/lib/runtime/security/RuntimeMaterializationProof";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -440,7 +441,7 @@ export function assertProtectedAudioCanonicalResolutionAllowed(
       // is therefore never mistaken for a retired one. Only ever meaningful
       // for the cleanup root: retirement plans are never written against the
       // permanent receipt root.
-      if (kind === "cleanup" && isLogicallyRetired(root, projectSlug, entry)) {
+      if (kind === "cleanup" && isLogicallyRetired(root, projectSlug, entry, context)) {
         continue;
       }
       const current = readAudioCompensationReceiptForRetention(
@@ -570,7 +571,7 @@ export function createAudioCanonicalDescriptorRebind(input: {
     throw new AudioCompensationStoreError();
   }
   const cleanup = cleanupRootIfPresent(context, input.projectSlug);
-  if (!cleanup || isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef)) {
+  if (!cleanup || isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef, context)) {
     throw new AudioCompensationStoreError();
   }
   if (
@@ -1530,7 +1531,7 @@ function findExistingRegistryOwnedCanonicalIdentity(
         !isSafeAudioCompensationRef(entry)
       ) continue;
       if (root === cleanupRootIfPresent(context, projectSlug) &&
-        isLogicallyRetired(root, projectSlug, entry)) continue;
+        isLogicallyRetired(root, projectSlug, entry, context)) continue;
       let current: ReturnType<typeof readAudioCompensationReceiptForRetention>;
       try {
         current = readAudioCompensationReceiptForRetention(context, projectSlug, entry);
@@ -1639,7 +1640,7 @@ export function listDetachedPendingAudioCompensationRecords(
             publicationInode: current.publication.inode,
           }
         : {}),
-      logicallyRetired: isLogicallyRetired(cleanup, projectSlug, entry),
+      logicallyRetired: isLogicallyRetired(cleanup, projectSlug, entry, context),
       recovered: readDetachedPendingRecoveryAuditEntry(context, projectSlug, entry) !== undefined,
     }));
   }
@@ -1722,10 +1723,10 @@ export function recoverDetachedPendingAudioCompensationRecord(input: {
     }
     let logicallyRetired = false;
     if (input.classification === "superseded") {
-      if (!isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef)) {
+      if (!isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef, context)) {
         retireTerminalWorkspace(context, input.projectSlug, input.compensationRef, input.authority);
       }
-      logicallyRetired = isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef);
+      logicallyRetired = isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef, context);
       if (!logicallyRetired) throw new AudioCompensationStoreError();
     } else {
       if (!current.publication) throw new AudioCompensationStoreError();
@@ -1760,7 +1761,7 @@ export function recoverDetachedPendingAudioCompensationRecord(input: {
     current.state.outcome !== "awaiting-registry" ||
     current.state.sequence !== 1 ||
     priorAudit !== undefined ||
-    isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef)
+    isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef, context)
   ) {
     throw new AudioCompensationStoreError();
   }
@@ -1821,7 +1822,7 @@ export function recoverDetachedPendingAudioCompensationRecord(input: {
   let logicallyRetired = false;
   if (input.classification === "superseded") {
     retireTerminalWorkspace(context, input.projectSlug, input.compensationRef, input.authority);
-    logicallyRetired = isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef);
+    logicallyRetired = isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef, context);
     if (!logicallyRetired) throw new AudioCompensationStoreError();
   }
 
@@ -2022,7 +2023,7 @@ function activeRecordCount(
       if (entry.name === JOURNAL_STAGING_DIRECTORY || entry.name === REBIND_DIRECTORY) continue;
       if (
         isSafeAudioCompensationRef(entry.name) &&
-        isLogicallyRetired(cleanup, projectSlug, entry.name)
+        isLogicallyRetired(cleanup, projectSlug, entry.name, context)
       ) continue;
       if (
         !isSafeAudioCompensationRef(entry.name) ||
@@ -2513,7 +2514,7 @@ function resumeDetachedCompletedRecords(
       if (entry.name === JOURNAL_STAGING_DIRECTORY || entry.name === REBIND_DIRECTORY) continue;
       if (
         isSafeAudioCompensationRef(entry.name) &&
-        isLogicallyRetired(cleanup, projectSlug, entry.name)
+        isLogicallyRetired(cleanup, projectSlug, entry.name, context)
       ) continue;
       if (!isSafeAudioCompensationRef(entry.name)) {
         throw new AudioCompensationStoreError();
@@ -3445,7 +3446,7 @@ function inspectDeferredBacklog(
       if (entry.name === JOURNAL_STAGING_DIRECTORY || entry.name === REBIND_DIRECTORY) continue;
       if (
         isSafeAudioCompensationRef(entry.name) &&
-        isLogicallyRetired(cleanup, projectSlug, entry.name)
+        isLogicallyRetired(cleanup, projectSlug, entry.name, context)
       ) continue;
       recordCount += 1;
       if (
@@ -3504,6 +3505,7 @@ function isLogicallyRetired(
   cleanup: string,
   projectSlug: string,
   compensationRef: string,
+  context: RuntimeStorageContext,
 ): boolean {
   const planPath = path.join(cleanup, retirementFileName(compensationRef));
   if (!fs.existsSync(planPath)) return false;
@@ -3513,8 +3515,8 @@ function isLogicallyRetired(
   if (
     !stat.isDirectory() ||
     stat.isSymbolicLink() ||
-    stat.dev !== plan.workspaceDevice ||
-    stat.ino !== plan.workspaceInode
+    ((stat.dev !== plan.workspaceDevice || stat.ino !== plan.workspaceInode) &&
+      !isMaterializedDirectoryIdentity(context, workspace, {device: plan.workspaceDevice, inode: plan.workspaceInode}))
   ) {
     throw new AudioCompensationStoreError();
   }

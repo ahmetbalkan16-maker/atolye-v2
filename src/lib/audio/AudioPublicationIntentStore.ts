@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { isMaterializedAuthorityBinding } from "@/lib/runtime/security/RuntimeMaterializationProof";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import type { Asset } from "@/types/asset";
@@ -151,7 +152,8 @@ export function getPreparedAudioPublicationIntent(
   const intents = readIntentCollection(directory, context);
   let match: AudioPublicationIntent | undefined;
   for (const intent of intents) {
-    if (intent.runtimeAuthorityBinding !== operation.authority.resolverBindingIdentity) {
+    if ((intent.runtimeAuthorityBinding !== operation.authority.resolverBindingIdentity &&
+      !isMaterializedAuthorityBinding(context, path.join(directory, `${intent.asset.id}.json`), intent.runtimeAuthorityBinding))) {
       throw new AudioPublicationIntentError();
     }
     if (intent.compensationRef !== compensationRef) continue;
@@ -246,7 +248,8 @@ export function getCommittedAudioPublicationAssets(
     if (
       intent.projectSlug !== projectSlug ||
       intent.projectId !== projectId ||
-      intent.runtimeAuthorityBinding !== operation.authority.resolverBindingIdentity
+      (intent.runtimeAuthorityBinding !== operation.authority.resolverBindingIdentity &&
+      !isMaterializedAuthorityBinding(context, path.join(directory, `${intent.asset.id}.json`), intent.runtimeAuthorityBinding))
     ) {
       throw new AudioPublicationIntentError();
     }
@@ -302,7 +305,8 @@ export function createAudioPublicationDescriptorRebind(input: {
     intent.projectSlug !== input.projectSlug ||
     intent.projectId !== input.projectId ||
     intent.asset.id !== input.assetId ||
-    intent.runtimeAuthorityBinding !== operation.authority.resolverBindingIdentity
+    (intent.runtimeAuthorityBinding !== operation.authority.resolverBindingIdentity &&
+      !isMaterializedAuthorityBinding(context, path.join(directory, `${intent.asset.id}.json`), intent.runtimeAuthorityBinding))
   ) {
     throw new AudioPublicationRebindError();
   }

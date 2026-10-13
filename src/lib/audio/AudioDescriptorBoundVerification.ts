@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { resolveMaterializedFileIdentity } from "@/lib/runtime/security/RuntimeMaterializationProof";
 import { createHash } from "node:crypto";
 import {
   requireContainedStorageFile,
@@ -28,8 +29,9 @@ export function readContainedAudioFileDescriptorBound(
   expected: AudioDescriptorFileIdentity,
 ): Buffer {
   const contained = requireContainedStorageFile(storageRoot, filePath, context);
+  const resolvedExpected = resolveMaterializedFileIdentity(context, contained.realPath, expected);
   const bytes = readAudioFileDescriptorBound(contained.realPath, {
-    expected,
+    expected: resolvedExpected,
     openedIdentity: {
       device: contained.stat.dev,
       inode: contained.stat.ino,
@@ -38,8 +40,8 @@ export function readContainedAudioFileDescriptorBound(
   });
   const postRead = requireContainedStorageFile(storageRoot, filePath, context);
   if (
-    postRead.stat.dev !== expected.device ||
-    postRead.stat.ino !== expected.inode ||
+    postRead.stat.dev !== resolvedExpected.device ||
+    postRead.stat.ino !== resolvedExpected.inode ||
     postRead.stat.size !== expected.byteLength
   ) throw new AudioDescriptorVerificationError();
   return bytes;

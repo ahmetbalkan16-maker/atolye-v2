@@ -1,3 +1,7 @@
+## Owner güncellemesi — 2026-10-14: yeni kök D:\ÜRETİM\Atolye\atolye-v2
+
+Wake telefonda owner tarafından kabul edildi, kapalı. Güvenli D geçişine tekrar onay gerekmeden devam ediliyor. Fiziksel ses/dizin kimlikleri resmi geçiş kanıtına bağlandı; izole test, TypeScript/lint geçti. Canlı sistem henüz C rollback hizmetinde; yeni D cutover ve medya kabulü sıradaki adım. Ayrıntı: docs/AYAS_D_PRODUCTION_MIGRATION_2026-10-14.md.
+
 ## 14 Ekim 2026 — güvenli kapanış: C canlı, D toplama hazır / tam migration kabulü açık
 
 **Canonical canlı repo/runtime/authority C'dedir.** Source0d8f8ded666e6514c76b80f320a2af1bf745be29 CLEANbuildLDLP_oaxL8kg9hTiQgHbE,539build/25976dep fullqualification; CI38466684442SUCCESS. App6192/Accesswrapper23044/tünel5772; existing hiddenStartup+Observer C'ye döndü. Token-authorized rollback gerçek source byte freeze +target untouched proof ile PASS; token consumed, formerDtarget quarantined. C gerçek workerready/active0,19Studio/20physical, MP4range206+7chapter/fullmixWAV200 byte eşitliği ve publicWhisper/auth/CSRF/cap/singleflight PASS. Yeni Brain geçmişi korunur; hiçbir sourceCdata silinmedi.3derivedlookup eklendi, asıl kayıtlar aynı.

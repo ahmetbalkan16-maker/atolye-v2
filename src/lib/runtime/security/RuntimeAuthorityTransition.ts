@@ -201,6 +201,7 @@ export interface RuntimeAuthorityTransitionRecord {
     readonly targetProjectSlugs: readonly string[];
     readonly byteExact?: boolean;
     readonly validatedAt: string;
+    readonly materializationEvidenceSha256?: string;
   };
   /** Recorded at `failed`. */
   readonly failure?: { readonly reason: string; readonly failedAt: string };
@@ -925,6 +926,8 @@ export function isTransitionRecord(
       isValidRuntimeAuthorityRollbackTokenId(value.rollbackTokenId)) &&
     typeof value.state === "string" &&
     value.state in FORWARD &&
+    (value.targetValidation === undefined || !isRecord(value.targetValidation) || value.targetValidation.materializationEvidenceSha256 === undefined ||
+      (typeof value.targetValidation.materializationEvidenceSha256 === "string" && BINDING_DIGEST.test(value.targetValidation.materializationEvidenceSha256))) &&
     isEndpoint(value.source) &&
     isEndpoint(value.target) &&
     typeof value.createdAt === "string" &&
