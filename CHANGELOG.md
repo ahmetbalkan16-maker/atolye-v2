@@ -1,3 +1,10 @@
+## 2026-10-13 — Phone access restored; library/source status finalized
+
+- Restored the stopped, qualified AYAS origin and canonical hidden standard-user supervisor; retained the existing named tunnel and verified the current-user Startup shortcut without duplicate registration.
+- Confirmed public 502 was caused by missing localhost origin, while the legacy disabled Scheduled Task is an intentional prior setup. Owner confirmed the phone page opens again; the cause of process termination remains unproven.
+- Passed 12 real local/public gate probes, 20 prebuilt and 50 daemon scenarios, and TypeScript. No application/env/homepage/data/authority/budget/frozen changes or reboot/install/publication.
+- Updated checkpoint/roadmap and `docs/AYAS_PHONE_ACCESS_RECOVERY_2026-10-13.md`. World Character Library V1 source scaffold remains complete; real sheets and production adapter remain separate future work.
+
 <!-- Güncel oturum kaydı 2026-10-13: yerel ses ve gerçek montaj -->
 13 Ekim ses/sahne/süre/Türkçe kelime zamanlama onarımı canlı; ayrı owner konusu gerçek 7sahne/Piper/1080p final video olarak tamamlandı, paid0/yayın yok. Eski kayıtlar ve eşzamanlı offline dünya karakter kitaplığı korunur. Kesin canlı kaynak, kapsam ve kalan owner içerik/görünüm kabulü: ATOLYE_CHECKPOINT.md üst kaydı / docs/ATOLYE_AUDIO_SCENE_RECOVERY_2026-10-13.md. Exact finalHEAD Graphify/MCP/CI sonucu audio-local-recovery-20261013/DELIVERY_CLOSURE.json ile doğrulanır; alttaki eski sağlayıcı/canlı/WIP bilgileri tarihçedir.
 

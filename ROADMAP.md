@@ -1,3 +1,7 @@
+## 13 Ekim 2026 — telefon erişimi ve karakter kütüphanesi kapanışı
+
+Telefon 502 kesintisi mevcut qualification ve kanonik gizli kullanıcı Startup launcher ile giderildi; owner gerçek açılışı doğruladı. 12HTTP/20prebuilt/50daemon +TS PASS. Kod/pipeline/homepage/authority/bütçe değişmedi. Dünya Karakter Kütüphanesi V1 kaynak altyapısı tamam; gerçek ChatGPT tasarım/cutout kabulü ve production adapter ayrı sonraki sprinttir. Bu kapsamda açık implementasyon işi yok. Fiziksel reboot kabulü NOT_RUN. Ayrıntı: `docs/AYAS_PHONE_ACCESS_RECOVERY_2026-10-13.md`; altyapı planı: `docs/CHARACTER_LIBRARY_WORLD_PLAN.md`.
+
 <!-- Güncel oturum kaydı 2026-10-13: yerel ses ve gerçek montaj -->
 13 Ekim ses/sahne/süre/Türkçe kelime zamanlama onarımı canlı; ayrı owner konusu gerçek 7sahne/Piper/1080p final video olarak tamamlandı, paid0/yayın yok. Eski kayıtlar ve eşzamanlı offline dünya karakter kitaplığı korunur. Kesin canlı kaynak, kapsam ve kalan owner içerik/görünüm kabulü: ATOLYE_CHECKPOINT.md üst kaydı / docs/ATOLYE_AUDIO_SCENE_RECOVERY_2026-10-13.md. Exact finalHEAD Graphify/MCP/CI sonucu audio-local-recovery-20261013/DELIVERY_CLOSURE.json ile doğrulanır; alttaki eski sağlayıcı/canlı/WIP bilgileri tarihçedir.
 
