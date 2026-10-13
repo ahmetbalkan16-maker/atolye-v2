@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import type { ResearchData } from "@/types/research";
 
@@ -10,6 +11,7 @@ export default function ResearchPage() {
   const [research, setResearch] = useState<ResearchData | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [projectUrl, setProjectUrl] = useState<string | null>(null);
 
   const startResearch = async () => {
     if (!topic.trim()) {
@@ -21,6 +23,7 @@ export default function ResearchPage() {
     setResearch(null);
     setMessage("");
     setError("");
+    setProjectUrl(null);
 
     try {
       const res = await fetch("/api/research", {
@@ -32,6 +35,7 @@ export default function ResearchPage() {
       });
 
       const data = await res.json();
+      if (typeof data.projectUrl === "string" && /^\/project\/[a-z0-9-]+$/.test(data.projectUrl)) setProjectUrl(data.projectUrl);
 
       if (!res.ok || !data.success) {
         setError(data.error || "Araştırma sırasında hata oluştu.");
@@ -83,6 +87,7 @@ export default function ResearchPage() {
           {message && <p role="status" className="mt-4 text-sm text-green-400">{message}</p>}
 
           {error && <p role="alert" className="mt-4 text-sm text-red-400">{error}</p>}
+          {projectUrl && <Link href={projectUrl} className="mt-4 inline-block text-sm font-semibold text-yellow-400 underline">Projeyi aç ve üretime devam et</Link>}
         </div>
 
         {research && (

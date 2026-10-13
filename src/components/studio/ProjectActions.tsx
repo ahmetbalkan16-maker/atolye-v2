@@ -8,7 +8,7 @@ export default function ProjectActions({ slug }: ProjectActionsProps) {
   return (
     <div className="flex flex-wrap gap-3">
       <Link
-        href="/"
+        href="/studio#ayas-studio-topic"
         className="rounded-xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-300"
       >
         Üretimi Başlat

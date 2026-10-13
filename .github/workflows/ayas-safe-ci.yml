@@ -38,6 +38,8 @@ jobs:
         run: npx tsx scripts/smoke-ayas-cognitive-quality.ts
       - name: Canonical development status routing and reply
         run: npx tsx scripts/smoke-ayas-named-development-routing.ts
+      - name: Project-scoped research API and correct video entry
+        run: npx tsx scripts/smoke-research-api-entry.ts
       - name: Micro-batch age readiness and preserved guards
         run: npx tsx scripts/smoke-ayas-micro-batch-age-readiness.ts
       - name: Native Graphify state chat and authority boundaries
