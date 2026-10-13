@@ -1,0 +1,41 @@
+import type { SceneData, SceneItem } from "@/types/scene";
+import type { ScriptData } from "@/types/script";
+
+/** Explicit ordinary-pipeline mode; legacy callers and strict grading stay unchanged. */
+export function createChapterSceneFallback(script: ScriptData): SceneData {
+  const ids = script.chapters.map((chapter) => chapter.id);
+  if (!ids.length || new Set(ids).size !== ids.length ||
+      ids.some((id) => !Number.isSafeInteger(id) || id < 1)) {
+    throw new Error("SCENE_SCRIPT_CHAPTERS_INVALID");
+  }
+  return {
+    scenes: script.chapters.map((chapter, index) => ({
+      id: index + 1,
+      chapterId: chapter.id,
+      title: chapter.title,
+      description: chapter.narration,
+      visualPrompt: [script.topic, chapter.title, chapter.visualGoal, chapter.narration].join(". "),
+      duration: Math.min(300, Math.max(1, Number.isFinite(chapter.duration) ? chapter.duration : 30)),
+    })),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/** Accept complete ordered chapter ownership, otherwise use the canonical script plan. */
+export function requireChapterSceneCoverage(
+  scenes: SceneItem[], script: ScriptData, fallback: SceneData,
+): SceneItem[] {
+  const chapterIds = script.chapters.map((chapter) => chapter.id);
+  const mapped = scenes.map((scene, index) => ({
+    ...scene,
+    // A chapter-free legacy response is unambiguous only at exactly one scene per chapter.
+    chapterId: scene.chapterId ?? (scenes.length === chapterIds.length ? chapterIds[index] : undefined),
+  }));
+  const owners = mapped.map((scene) => chapterIds.indexOf(scene.chapterId as number));
+  if (!mapped.length || owners.some((owner, index) => owner < 0 ||
+      (index > 0 && owner < owners[index - 1])) ||
+      chapterIds.some((id) => !mapped.some((scene) => scene.chapterId === id))) {
+    return fallback.scenes;
+  }
+  return mapped;
+}

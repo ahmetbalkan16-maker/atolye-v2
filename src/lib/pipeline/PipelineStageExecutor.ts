@@ -371,7 +371,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "scenes",
           operation: "scenes",
-        }, dispatchOptions.aiProvider, generationPolicy, state.research);
+        }, dispatchOptions.aiProvider, generationPolicy, state.research, { requireChapterCoverage: true });
         if (persistedPolicy?.strictProductionAcceptance) {
           validateProductionAcceptancePreflight(script, state.scenes);
         }

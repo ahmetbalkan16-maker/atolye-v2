@@ -1,3 +1,11 @@
+## 13 Ekim 2026 — aktif ses / bölüm-sahne onarımı
+
+Owner ses aşamasında AUDIO_ASSET_GENERATION_FAILED gördü. Gerçek kayıt OpenAI tts-1 HTTP401; AUDIO_PROVIDER hem .env.local hem Windows User'da openai idi. Kurulu Piper gerçek özel AudioPipeline'da7bölüm/108.005s/20.137s paid0 PASS. Yalnız proje ve User AUDIO_PROVIDER=piper eşitlendi; aynı source b4033020/buildTz3FGd2asCU4cPdiq5d_h app/gözetici kontrollü yeniden başladı, tünel29440 aynı. Mevcut owner projesinde normal audioRetry HTTP200;7bölüm/46.754s gerçek Piper ses üretildi. Önceki6üst-aşama içerik hashleri aynı. Retry'nin mevcut normal devamı assembly'ye gider; assembly ayrı VIDEO_ASSEMBLY_FAILED verdi.
+
+Kök: canonical scenes tek legacy mock sahne; script/audio7bölüm. Montaj kimlik/kapsam koruması doğru ret veriyor, gevşetilmez. Güvenli mevcut yeniden üretim yolu scenes'i desteklemiyor; mevcut rootta backup inventory de RUNTIME_STORAGE_PATH_INVALID verdi. Bu sınırlar atlanmaz; eski proje/arşiv korunacak. Yeni ordinary production sahne girişine açık chapter coverage eklendi: eksik veya sırası bozuk model planı script bölümlerinin kaynak metniyle yerel plana döner, tüm chapterId'ler korunur. Eski standalone lenient ve strict yollar aynı.12yeni test, eski duration/accounting/strict/assemblyidentity, TS/lint PASS.
+
+Sıradaki: source commit/push/CI/cleanbuild/privateHTTP/rollback → kontrollü canlı → aynı konu için ayrı düzeltme projesinde gerçek yerel üretim (assembly'de bounded duruş, yayın yok) → veri/health/metadata → finalbelgeler/Git/Graphify/MCP/CI. Eski owner projesinin tamamlandığı veya montajın düzeldiği henüz iddia edilmez. Kanıt ignored audio-local-recovery-20261013; ayrıntı docs/ATOLYE_AUDIO_SCENE_RECOVERY_2026-10-13.md.
+
 ## 13 Ekim 2026 — Araştırma Motoru giriş hatası giderildi; gerçek konu kaydedildi
 
 Eski /api/research projeden önce unknown kullanım namespace'ine yazdığı için AI_USAGE_PERSISTENCE_FAILED / RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE hatası veriyordu. Giriş canonical PipelineRunner'a yalnız araştırmada duracak şekilde bağlandı; Studio “Yeni Proje” / “Üretimi Başlat” doğru Studio konu alanına gider. Eski unknown verisi ve dual-root/otorite denetimleri korunur. Homepage değiştirilmedi.

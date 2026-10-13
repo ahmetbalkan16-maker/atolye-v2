@@ -35,6 +35,7 @@ import {
   reconcileChapterDurations,
 } from "./NarrationDurationEstimator";
 import { ApplicationTimestampError } from "./CanonicalTimestamp";
+import { createChapterSceneFallback, requireChapterSceneCoverage } from "./ChapterSceneCoverage";
 import {
   createResearchPrompt,
   buildResearchResponseJsonSchema,
@@ -482,8 +483,10 @@ export class AIManager {
     provider?: AIProvider,
     policy?: GenerationExecutionPolicy,
     research?: ResearchData | null,
+    options: { requireChapterCoverage?: boolean } = {},
   ): Promise<SceneData> {
-    const fallback: SceneData = {
+    const chapterCoverage = !policy?.failClosed && options.requireChapterCoverage === true;
+    const fallback: SceneData = chapterCoverage ? createChapterSceneFallback(script) : {
       scenes: [
         {
           id: 1,
@@ -518,7 +521,7 @@ export class AIManager {
       '  "scenes": [',
       "    {",
       '      "id": 1,',
-      ...(policy?.failClosed ? ['      "chapterId": 1,'] : []),
+      ...(policy?.failClosed || chapterCoverage ? ['      "chapterId": 1,'] : []),
       '      "title": "string",',
       '      "description": "string",',
       '      "visualPrompt": "string",',
@@ -529,7 +532,7 @@ export class AIManager {
       "}",
       "Rules:",
       "- Write scene titles and descriptions in Turkish.",
-      ...(policy?.failClosed ? [
+      ...(policy?.failClosed || chapterCoverage ? [
         "- Create one or more scenes for every script chapter.",
         "- chapterId must reference an existing script chapter id.",
         "- Keep scenes grouped in script chapter order.",
@@ -599,11 +602,11 @@ export class AIManager {
                 // `assembly`). The non-strict path stays chapterId-free by
                 // design — see "non-strict legacy JSON preserves ... contract".
                 id: index + 1,
-                ...(policy?.failClosed
+                ...(policy?.failClosed || chapterCoverage
                   ? {
                       chapterId: getNumber(
                         item.chapterId,
-                        script.chapters[0]?.id ?? index + 1,
+                        chapterCoverage ? 0 : script.chapters[0]?.id ?? index + 1,
                       ),
                     }
                   : {}),
@@ -622,7 +625,7 @@ export class AIManager {
         : fallback.scenes;
 
       return {
-        scenes,
+        scenes: chapterCoverage ? requireChapterSceneCoverage(scenes, script, fallback) : scenes,
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
