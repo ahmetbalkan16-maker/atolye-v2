@@ -5,6 +5,7 @@ param(
   [int]$Port = 3000,
   [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
   [string]$CloudflaredExe = "C:\Program Files (x86)\cloudflared\cloudflared.exe",
+  [string]$TunnelConfig = "",
   [switch]$LibraryOnly
 )
 $ErrorActionPreference = "Stop"
@@ -17,7 +18,12 @@ if ($IntervalSeconds -lt 30 -or $Port -lt 1 -or $Port -gt 65535) { throw "AYAS_A
 $script:RepoRoot = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\')
 $script:Port = $Port
 $script:CloudflaredExe = [IO.Path]::GetFullPath($CloudflaredExe)
-$script:TunnelConfig = Join-Path $env:USERPROFILE ".cloudflared\config.yml"
+$script:TunnelConfig = if ([string]::IsNullOrWhiteSpace($TunnelConfig)) {
+  Join-Path $env:USERPROFILE ".cloudflared\config.yml"
+} else {
+  if (-not [IO.Path]::IsPathRooted($TunnelConfig)) { throw 'AYAS_ACCESS_TUNNEL_CONFIG_ABSOLUTE_REQUIRED' }
+  [IO.Path]::GetFullPath($TunnelConfig)
+}
 $script:StateDir = Join-Path $env:LOCALAPPDATA "AtolyeAyasAccess"
 $script:LogDir = Join-Path $script:StateDir "logs"
 $script:PhoneStatusDir = Join-Path $script:RepoRoot "data\brain\phone-access"

@@ -119,7 +119,8 @@ function collectRuntimeBackupInventoryWithPolicy(
     }
   }
   const git = options.repositoryRoot
-    ? collectGitMetadata(options.repositoryRoot, projectsRoot)
+    ? collectGitMetadata(options.repositoryRoot, projectsRoot,
+      context.classification === "explicit-external" ? context.workspaceRoot : undefined)
     : undefined;
   const files: RuntimeBackupFileRecord[] = [];
   const projectIdentitiesMap = new Map<string, string>();
@@ -362,7 +363,7 @@ function walkRuntimeTree(
   }
 }
 
-function collectGitMetadata(repositoryRoot: string, projectsRoot: string) {
+function collectGitMetadata(repositoryRoot: string, projectsRoot: string, externalWorkspaceRoot?: string) {
   const canonicalRepository = path.resolve(repositoryRoot);
   const discovered = path.resolve(execFileSync(
     "git",
@@ -372,13 +373,21 @@ function collectGitMetadata(repositoryRoot: string, projectsRoot: string) {
   if (!samePath(canonicalRepository, discovered)) {
     throw new Error("Runtime backup repository root is invalid.");
   }
-  assertPathContained(canonicalRepository, projectsRoot);
-  const sourceRelative = relativePosix(canonicalRepository, projectsRoot);
-  const output = execFileSync(
+  const relative = path.relative(canonicalRepository, projectsRoot);
+  const contained = relative.length > 0 && !path.isAbsolute(relative)
+    && relative !== ".." && !relative.startsWith(`..${path.sep}`);
+  // External runtime payload is not in Git. Keep verified workspace HEAD
+  // provenance, but never ask Git to annotate paths outside its repository.
+  // Only the context's own declared workspace may provide that provenance.
+  if (!contained && (!externalWorkspaceRoot || !samePath(canonicalRepository, path.resolve(externalWorkspaceRoot)))) {
+    assertPathContained(canonicalRepository, projectsRoot);
+  }
+  const sourceRelative = contained ? relativePosix(canonicalRepository, projectsRoot) : "";
+  const output = contained ? execFileSync(
     "git",
     ["-c", "core.quotepath=false", "ls-files", "-s", "-z", "--", sourceRelative],
     { cwd: canonicalRepository },
-  ).toString("utf8");
+  ).toString("utf8") : "";
   const entries = new Map<string, RuntimeBackupGitMetadata>();
   for (const record of output.split("\0").filter(Boolean)) {
     const match = /^(\d{6}) ([a-f0-9]{40,64}) 0\t(.+)$/.exec(record);

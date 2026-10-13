@@ -7,12 +7,21 @@
 ' its exit code for Task Scheduler. Paths come from this file's own location,
 ' so the file stays ASCII-only.
 Option Explicit
-Dim fso, shell, scriptsDir, powershell, daemon, rc
+Dim fso, shell, scriptsDir, powershell, daemon, rc, projectDir, productionRoot, configCandidate, configArg
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 scriptsDir = fso.GetParentFolderName(WScript.ScriptFullName)
 powershell = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\WindowsPowerShell\v1.0\powershell.exe"
 daemon = fso.BuildPath(scriptsDir, "ayas-access-daemon.ps1")
 shell.CurrentDirectory = fso.GetParentFolderName(scriptsDir)
+projectDir = fso.GetParentFolderName(scriptsDir)
+productionRoot = fso.GetParentFolderName(fso.GetParentFolderName(projectDir))
+configCandidate = fso.BuildPath(productionRoot, "private\cloudflared\config.yml")
+configArg = ""
+If fso.FileExists(configCandidate) Then configArg = " -TunnelConfig """ & configCandidate & """"
+If configArg <> "" Then
+  rc = shell.Run("""" & powershell & """ -NoProfile -WindowStyle Hidden -File """ & daemon & """ -Continuous -IntervalSeconds 60" & configArg, 0, True)
+Else
 rc = shell.Run("""" & powershell & """ -NoProfile -WindowStyle Hidden -File """ & daemon & """ -Continuous -IntervalSeconds 60", 0, True)
+End If
 WScript.Quit rc

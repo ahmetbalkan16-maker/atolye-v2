@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { execFileSync } from "node:child_process";
+import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
+import { collectRuntimeBackupInventory } from "../src/lib/runtime/backup/RuntimeBackupInventory";
+const root=fs.mkdtempSync(path.join(os.tmpdir(),"ayas-external-backup-"));
+const repo=path.join(root,"repo"),external=path.join(root,"external"),authority=path.join(root,"authority"),other=path.join(root,"other");
+for(const dir of [repo,external,authority,other,path.join(external,"projects/test-project")])fs.mkdirSync(dir,{recursive:true});
+for(const dir of [repo,other])execFileSync("git",["init"],{cwd:dir,stdio:"ignore",windowsHide:true});
+fs.writeFileSync(path.join(repo,"source.txt"),"original source");
+execFileSync("git",["add","source.txt"],{cwd:repo,windowsHide:true});
+execFileSync("git",["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","-m","fixture"],{cwd:repo,stdio:"ignore",windowsHide:true});
+fs.writeFileSync(path.join(external,"projects/test-project/project.json"),JSON.stringify({id:"00000000-0000-4000-8000-000000000001",slug:"test-project"}));
+fs.writeFileSync(path.join(external,"projects/test-project/asset.txt"),"private runtime payload");
+const context=createRuntimeStorageContext({workspaceRoot:repo,environment:{ATOLYE_RUNTIME_ROOT:external,ATOLYE_RUNTIME_AUTHORITY_ROOT:authority}});
+const before=collectRuntimeBackupInventory({context});
+const withGit=collectRuntimeBackupInventory({context,repositoryRoot:repo});
+assert.equal(withGit.files.length,before.files.length);
+const payload = (record: object) => Object.fromEntries(Object.entries(record).filter(([key]) => key !== "git"));
+assert.deepEqual(withGit.files.map(payload),before.files.map(payload));
+assert(withGit.files.every(f=>f.git?.tracked===false && f.git.blobOid===undefined && f.git.gitMode===undefined));
+assert.throws(()=>collectRuntimeBackupInventory({context,repositoryRoot:other}));
+// Existing payload-root safety still rejects links even for external storage.
+fs.symlinkSync(repo,path.join(external,"projects/test-project/escape"),"junction");
+assert.throws(()=>collectRuntimeBackupInventory({context,repositoryRoot:repo}));
+console.log("PASS external runtime: bytes/hashes preserved, no false Git tracking, unrelated repo and source link refused");

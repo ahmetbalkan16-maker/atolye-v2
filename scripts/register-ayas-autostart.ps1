@@ -16,7 +16,7 @@
   shortcut made by the earlier version (powershell.exe target) is rewritten in
   place to the hidden launcher; no second registration is created.
 #>
-param([switch]$Apply)
+param([switch]$Apply, [string]$PreviousRepoRoot = "")
 $ErrorActionPreference = "Stop"
 
 $TaskName = "AYAS Access Online"
@@ -54,20 +54,40 @@ if (-not $Apply) {
 if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw 'AYAS_ACCESS_PREBUILT_QUALIFICATION_REQUIRED' }
 $AlreadyRegistered = $false
 $UpgradeVisibleShortcut = $false
+$UpgradeRelocatedShortcut = $false
 if (Test-Path -LiteralPath $ShortcutPath) {
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($ShortcutPath)
-  if ($shortcut.WorkingDirectory -ne $RepoRoot -or ($Existing -and $Existing.Settings.Enabled)) {
+  if ($Existing -and $Existing.Settings.Enabled) {
     throw 'AYAS_ACCESS_EXISTING_SHORTCUT_REQUIRES_REVIEW'
   }
-  if ($shortcut.TargetPath -eq $WScriptExe -and $shortcut.Arguments -eq $LauncherArguments) { $AlreadyRegistered = $true }
+  if ($shortcut.WorkingDirectory -ne $RepoRoot) {
+    if ([string]::IsNullOrWhiteSpace($PreviousRepoRoot) -or -not [IO.Path]::IsPathRooted($PreviousRepoRoot)) { throw 'AYAS_ACCESS_EXISTING_SHORTCUT_REQUIRES_REVIEW' }
+    $previousRoot = [IO.Path]::GetFullPath($PreviousRepoRoot).TrimEnd('\')
+    $previousLauncher = Join-Path $previousRoot 'scripts\ayas-access-hidden.vbs'
+    $previousArguments = "//B //NoLogo `"$previousLauncher`""
+    if ($shortcut.WorkingDirectory -ne $previousRoot -or $shortcut.TargetPath -ne $WScriptExe -or $shortcut.Arguments -ne $previousArguments -or -not (Test-Path -LiteralPath $previousLauncher -PathType Leaf)) { throw 'AYAS_ACCESS_EXISTING_SHORTCUT_REQUIRES_REVIEW' }
+    $UpgradeRelocatedShortcut = $true
+  }
+  elseif ($shortcut.TargetPath -eq $WScriptExe -and $shortcut.Arguments -eq $LauncherArguments) { $AlreadyRegistered = $true }
   elseif ($shortcut.TargetPath -eq $PowerShellExe -and $shortcut.Arguments -eq $AccessArguments) { $UpgradeVisibleShortcut = $true }
   else { throw 'AYAS_ACCESS_EXISTING_SHORTCUT_REQUIRES_REVIEW' }
 }
 $NodeExe = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
-& $NodeExe (Join-Path $PSScriptRoot 'ayas-prebuilt-runtime.mjs') '--check' $RepoRoot $ManifestPath 'C:\Program Files (x86)\cloudflared\cloudflared.exe' (Join-Path $env:USERPROFILE '.cloudflared\config.yml')
+$ConfigCandidate = Join-Path (Split-Path -Parent (Split-Path -Parent $RepoRoot)) 'private\cloudflared\config.yml'
+$QualifiedConfig = if (Test-Path -LiteralPath $ConfigCandidate -PathType Leaf) { $ConfigCandidate } else { Join-Path $env:USERPROFILE '.cloudflared\config.yml' }
+& $NodeExe (Join-Path $PSScriptRoot 'ayas-prebuilt-runtime.mjs') '--check' $RepoRoot $ManifestPath 'C:\Program Files (x86)\cloudflared\cloudflared.exe' $QualifiedConfig
 if ($LASTEXITCODE -ne 0) { throw 'AYAS_ACCESS_PREBUILT_QUALIFICATION_FAILED' }
 if ($AlreadyRegistered) { Write-Output 'Already registered: verified current-user startup shortcut; no duplicate or overwrite.'; return }
+if ($UpgradeRelocatedShortcut) {
+  $shortcut.TargetPath = $WScriptExe
+  $shortcut.Arguments = $LauncherArguments
+  $shortcut.WorkingDirectory = $RepoRoot
+  $shortcut.Description = "Starts qualified existing AYAS build and existing tunnel in the background; never builds or installs."
+  $shortcut.Save()
+  Write-Output 'Relocated verified current-user startup shortcut; legacy tasks preserved.'
+  return
+}
 
 function Register-ViaTaskScheduler {
   $action = New-ScheduledTaskAction -Execute $WScriptExe `
