@@ -1,3 +1,6 @@
+<!-- Güncel oturum kaydı 2026-10-13: yerel ses ve gerçek montaj -->
+13 Ekim ses/sahne/süre/Türkçe kelime zamanlama onarımı canlı; ayrı owner konusu gerçek 7sahne/Piper/1080p final video olarak tamamlandı, paid0/yayın yok. Eski kayıtlar ve eşzamanlı offline dünya karakter kitaplığı korunur. Kesin canlı kaynak, kapsam ve kalan owner içerik/görünüm kabulü: ATOLYE_CHECKPOINT.md üst kaydı / docs/ATOLYE_AUDIO_SCENE_RECOVERY_2026-10-13.md. Exact finalHEAD Graphify/MCP/CI sonucu audio-local-recovery-20261013/DELIVERY_CLOSURE.json ile doğrulanır; alttaki eski sağlayıcı/canlı/WIP bilgileri tarihçedir.
+
 <!-- Oturum kaydı 2026-10-13: araştırma girişi -->
 13 Ekim 2026 araştırma giriş düzeltmesi canlı: source b4033020 / CLEAN build Tz3FGd2asCU4cPdiq5d_h. Owner'ın 1480 yeniçeri araştırması ücretsiz Ollama ile tamamlandı; mevcut projeden “Uretime Devam Et”, sıradaki script. Önceki kayıtlar ve korumalar aynı. Güncel ayrıntı: docs/ATOLYE_RESEARCH_ENTRY_FIX_2026-10-13.md; kapanış makbuzu pipeline-first-error-20261013/DELIVERY_CLOSURE.json.
 

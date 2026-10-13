@@ -1,3 +1,6 @@
+<!-- Güncel oturum kaydı 2026-10-13: yerel ses ve gerçek montaj -->
+13 Ekim ses/sahne/süre/Türkçe kelime zamanlama onarımı canlı; ayrı owner konusu gerçek 7sahne/Piper/1080p final video olarak tamamlandı, paid0/yayın yok. Eski kayıtlar ve eşzamanlı offline dünya karakter kitaplığı korunur. Kesin canlı kaynak, kapsam ve kalan owner içerik/görünüm kabulü: ATOLYE_CHECKPOINT.md üst kaydı / docs/ATOLYE_AUDIO_SCENE_RECOVERY_2026-10-13.md. Exact finalHEAD Graphify/MCP/CI sonucu audio-local-recovery-20261013/DELIVERY_CLOSURE.json ile doğrulanır; alttaki eski sağlayıcı/canlı/WIP bilgileri tarihçedir.
+
 ## 13 Ekim 2026 — Dünya Medeniyetleri Karakter Kütüphanesi V1
 
 Kaynak altyapısı tamamlandı: `libraries/world-characters/`, `_core` schema/style/rig/mixing policy ve dört görselsiz placeholder pack. 45/45 yeni smoke, TypeScript, lint (0 hata/13 mevcut uyarı), mevcut karakter kitaplığı ve storage hygiene PASS. Production bağlantısı yapılmadı; mevcut aktif pipeline işleri ayrı devam eder. Sıradaki kütüphane adımı gerçek owner-reviewed ChatGPT sheet/cutout kabulü ve mevcut provider/authority üzerinden küçük adapter sprintidir. Ayrıntı: `docs/CHARACTER_LIBRARY_WORLD_PLAN.md`.

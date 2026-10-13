@@ -1,3 +1,6 @@
+<!-- Güncel oturum kaydı 2026-10-13: yerel ses ve gerçek montaj -->
+13 Ekim ses/sahne/süre/Türkçe kelime zamanlama onarımı canlı; ayrı owner konusu gerçek 7sahne/Piper/1080p final video olarak tamamlandı, paid0/yayın yok. Eski kayıtlar ve eşzamanlı offline dünya karakter kitaplığı korunur. Kesin canlı kaynak, kapsam ve kalan owner içerik/görünüm kabulü: ATOLYE_CHECKPOINT.md üst kaydı / docs/ATOLYE_AUDIO_SCENE_RECOVERY_2026-10-13.md. Exact finalHEAD Graphify/MCP/CI sonucu audio-local-recovery-20261013/DELIVERY_CLOSURE.json ile doğrulanır; alttaki eski sağlayıcı/canlı/WIP bilgileri tarihçedir.
+
 ## 2026-10-13 — World Character Library V1 source scaffold
 
 - Added isolated Ottoman/Janissary, Byzantium/Varangian Guard, Persia/Immortal and Egypt/New Kingdom Archer placeholder packs, each with six standard folders and four metadata records.
