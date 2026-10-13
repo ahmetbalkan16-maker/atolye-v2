@@ -36,6 +36,7 @@ async function main() {
       assert.equal(payload.volume.design?.performance,'GROUNDED');assert.equal(payload.volume.design?.setting,'OTTOMAN_COURT_15');
       const oldVolume={...payload,volume:{...payload.volume,design:undefined}};
       delete oldVolume.volume.design;
+      delete oldVolume.volume.presentation;
       assert.deepEqual(findCharacterSceneAssetPayloadProblems(oldVolume),[],'earlier volume metadata remains valid');
       assert((await rasterizeCharacterSceneAssetFrame(oldVolume,.1,8)).ok,'earlier volume geometry still renders');
       assert.deepEqual(findCharacterSceneAssetPayloadProblems(payload),[]);

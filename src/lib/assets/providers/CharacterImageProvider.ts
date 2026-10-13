@@ -16,6 +16,7 @@ import { EDITORIAL_RENDER_STYLE } from "@/lib/character/SvgSceneRenderer";
 import { planCharacterSceneDirection } from "@/lib/animation/character/CharacterSceneDirection";
 import { resolveCharacterLocalBackdropMode, readCharacterLocalBackdrop } from "@/lib/animation/character/CharacterLocalBackdrop";
 import type { ImageGenerationResult } from "@/types/asset";
+import {volumeSceneEquipment} from '@/lib/character/volume/VolumeEquipment';
 import { ImageStorage } from "../storage/ImageStorage";
 import type { ConfiguredImageProvider, ImageGenerationInput } from "./ImageProvider";
 
@@ -56,13 +57,14 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
     }
 
     try {
-      const plan = planCharacterScene({
+      const planned = planCharacterScene({
         sceneId: input.sceneId,
         text: typeof input.prompt === "string" ? input.prompt : "",
         keywords: input.searchKeywords,
         language: "tr",
         contextualDirection: true,
       });
+      const plan=this.volumeMode?{...planned,request:{...planned.request,blocking:volumeSceneEquipment(input.prompt,planned.request.blocking)}}:planned;
       const unit=periodUnitFromScene(input.prompt);
       const plannedDirection = planCharacterSceneDirection(this.volumeMode?input.prompt:[input.prompt, ...(input.searchKeywords ?? [])].join(" "), plan.request.blocking);
       const direction=this.volumeMode&&unit.startsWith('JANISSARY')&&plannedDirection.art.culture==='UNKNOWN'?{...plannedDirection,art:{...plannedDirection.art,culture:'OTTOMAN' as const}}:plannedDirection;
@@ -74,7 +76,7 @@ export class CharacterImageProvider implements ConfiguredImageProvider {
       // inherit that inferred walk. Existing 2D plans and explicit travel stay intact.
       const animation=this.volumeMode&&!explicitTravel&&gesture?{...plan.animation,actors:plan.animation.actors.map((a,index)=>a.action==='WALK'||a.action==='RUN'?{...a,action:index===0?(speaking?'TALK' as const:gesture.action):'IDLE' as const,toX:null,delaySeconds:0}:a)}:plan.animation;
       const background = readCharacterLocalBackdrop(this.backdropMode, direction.art, plan.request.blocking.time);
-      let volume=this.volumeMode?createVolumeScenePlan(plan.request.blocking,direction.art,extractCostumeSceneYears(input.prompt),unit):undefined;
+      let volume=this.volumeMode?createVolumeScenePlan(plan.request.blocking,direction.art,extractCostumeSceneYears(input.prompt),unit,'EQUIPMENT_MOTION_V2'):undefined;
       const templateIds:string[]=[];
       if(volume?.design&&this.designLibrary) {
         const storedActors=volume.design.actors.map(actor=>{

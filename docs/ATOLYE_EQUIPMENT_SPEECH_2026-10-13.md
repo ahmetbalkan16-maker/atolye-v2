@@ -1,0 +1,20 @@
+# Atölye silah görünürlüğü ve hareket/ses bağlantısı — 13 Ekim 2026
+
+Owner göreve yeniden devam izni verdi. Silahların daha belirgin olması, el–ayak koordinasyonu ve kalan hareket hizalamaları bu aşamanın kapsamıdır. Owner YouTube örneği https://www.youtube.com/watch?v=vz8xkADucl0 ayrıca istedi; önce bu uygulama işi bitirilecek, sonra görüntü/renk/geçiş/haritalı anlatım incelenecek.
+
+## Uygulama
+
+- Yeni portable varlıkta yalnız kapalı `volume.presentation=EQUIPMENT_MOTION_V2` seçilir. Eski presentation'sız volume ve eski2D yolları korunur; metadata canonical doğrulaması serbest parametre/mesh/path kabul etmez.
+- VolumeEquipment: geniş okunaklı çelik kılıç ve mızrak uçları, metal yüzeyler, sap/sargı/balçak; kalkan çerçevesi, yay/kiriş ve ok, bayrak kumaşı. El bağlantısı gerçek önkol ekleminden gelir. Tutuş gövdenin dışına ve ön katmana alınır; ilk önizlemede gövde arkasında kalan silah bununla düzeltildi. Bunlar kaynak kapsamlı kıyafetlere eşlik eden şematik ekipmandır; her tarihî kişinin özgün silahının doğrulandığı iddiası yok.
+- Yeni3D sağlayıcı yalnız tek açık silah türünü ana aktöre bağlar (mızrak/mızrağını, kılıç, kalkan); karma veya olumsuz bağlamda sahipliği tahmin etmez. Eski2D planner değiştirilmedi.
+- Konuşurken silah tutan kol sabit, jest boş elde; silahlı yürüyüşte tutuş korunur. Diz çökme/oturmada ön destek ayağı etrafında gövde alçalır, ayak sürüklenmez. Eski VolumePerformance varsayılanı aynıdır.
+- VolumeSpeech mevcut PCM/float WAV'dan40ms aralıklı gerçek konuşma etkinliği çıkarır. Ağız ve açıklama jestleri ses etkinliğine bağlıdır; sessizlikte kapanır/dinlenir. Bu `NARRATION_PCM_ACTIVITY`dir, sözcük/fonem forced alignment değildir. Görsel metnin anlamına göre jest seçimi hâlâ SCENE_TEXT_ESTIMATE; bütün cümlelerin birebir semantik zamanlaması tamamlandı denmez.
+- VolumeNarration mevcut montajın aynı bölüm→sahne allocator'ını kullanır; paylaşılan bölümde gerçek audioStartSeconds korunur. Yanlış proje, eski outputAssetId, bozuk WAV veya taşan segment reddedilir. Ses bulunmadığında açık tahmini zamanlama sürer.
+- Frozen sıralama video→audio→assembly korundu. VolumeAssembly gerçek ses geldikten sonra yalnızV2 karakteri, owner verisini ve kaynak klipleri değiştirmeden özel TEMP kare/klipte çizer. Aynı FFmpeg montajı gerçek sesli klibi mevcut cut/retime/geçiş ve müzik ducking yollarında kullanır. Anlamsal jest süresi gerçek anlatım süresidir; ilk klibin tahmini süresi değildir. Son montajda ek CPU çizimi vardır; GPU/model/API yok.5s owned-health ve TEMP/disk kapısı, bounded WAV/scene ve hata halinde yalnız kendi TEMP temizliği korunur. Sürücü/fan/power/otorite/maliyet sınırları değişmedi.
+- Kalıcı kitaplık kaynak geometri parmak izine VolumeEquipment dahil eder; eski kayıtlar silinmez/yeniden onaylanmaz. Yeni çizim sürümü yeni adaydır, beğenilen eski kıyafet aileleri aynı parametrik tariflerden gelir; her kare için ücretli tasarım/model üretimi yok.
+
+## Kanıt ve devam
+
+70 silah/poz birleşimi; PCM sessizliği/başlangıç/segment offseti, sabit tutuş/boş-el jesti, diz/kol/ayak kemik uzunluğu, destek ayağı ve eski/yeni metadata kapıları PASS. Özel kanonik WAV yayın fixture'ında shared-chapter offset/absence/foreign/out-of-range/stale binding PASS. Yeni gerçek3Dprovider/portable/FFmpeg, eski15 animasyon/frozen14 tarih/28.800 yürüyüş-koşu ara kare, kitaplık/CAS; eski scene-video consumption, gerçek multi-shot geçiş, BGM/kenburns ve scene-video rendering PASS. İlk özel audio fixture'ındaki eksik validateInput ve demo müzik ownership taşıma hatası uygulama verisine ulaşmadı; fixture düzeltildi ve demo mevcut üretim stageProjectBackgroundMusic yolunu kullanır. Ham testler korunur.
+
+İlk gözle incelenen ekipman adayı gövde örtüşmesi nedeniyle final sayılmadı. Son kaynak için yeni hareketli örnek ve CLEAN build/CI/özel HTTP/controlled live switch doğrulaması sırada; başarılı gerçek sonuç checkpoint'te güncellenir. Kanıtlar Git dışı weapon-motion-20261013 dizininde. Ortak GPU73°C, mevcut $1/video/caps, homepage ve owner projeleri aynı tutulur. Owner görünüm onayı otomatik verilmez. Yeni PC'ye bin/ayas-local-visual/characters/ +backdrop kitaplığı taşınır.

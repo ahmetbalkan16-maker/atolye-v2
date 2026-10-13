@@ -10,6 +10,7 @@ export interface VolumeScenePlan {
   readonly wardrobes: readonly {readonly actorId: string;readonly brief: WardrobeBrief}[];
   /** Absent on earlier volume assets, whose rendering stays unchanged. */
   readonly design?:PeriodDesign;
+  readonly presentation?:'EQUIPMENT_MOTION_V2';
 }
 
 /** Only explicit scene date grammar, never a count or a global topic keyword.
@@ -41,12 +42,12 @@ export function extractCostumeSceneYears(text: string): number[] {
   return years;
 }
 
-export function createVolumeScenePlan(blocking: SceneBlocking,art: CharacterArtDirection,sceneYears: readonly number[],unit?:PeriodUnit): VolumeScenePlan {
+export function createVolumeScenePlan(blocking: SceneBlocking,art: CharacterArtDirection,sceneYears: readonly number[],unit?:PeriodUnit,presentation?:'EQUIPMENT_MOTION_V2'): VolumeScenePlan {
   const wardrobes=blocking.characters.map(c=>{
     const role=art.roles.find(r=>r.id===c.id)?.role??"CITIZEN";
     return {actorId:c.id,brief:planPeriodWardrobe({culture:art.culture,role,sceneYears})};
   });
-  return {version:"1",camera:"EDITORIAL",sceneYears:[...new Set(sceneYears)],wardrobes,...(unit!==undefined?{design:createPeriodDesign(blocking,art,[...new Set(sceneYears)],unit)}:{})};
+  return {version:"1",camera:"EDITORIAL",sceneYears:[...new Set(sceneYears)],wardrobes,...(unit!==undefined?{design:createPeriodDesign(blocking,art,[...new Set(sceneYears)],unit)}:{}),...(presentation?{presentation}:{})};
 }
 
 /** Same scene context reconstructs all permitted metadata. No free-form prompt,
@@ -55,8 +56,8 @@ export function createVolumeScenePlan(blocking: SceneBlocking,art: CharacterArtD
 export function findVolumeScenePlanProblems(value: unknown,blocking: SceneBlocking,art: CharacterArtDirection): string[] {
   const v=value as VolumeScenePlan|null;
   try {
-    if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).length!==(v.design===undefined?4:5)||!Array.isArray(v.sceneYears)||v.sceneYears.length>16||!Array.isArray(v.wardrobes)||v.wardrobes.length>8||v.version!=="1"||v.camera!=="EDITORIAL") return ["VOLUME_PLAN_SHAPE"];
-    const expected=createVolumeScenePlan(blocking,art,v.sceneYears,v.design?.unit);
+    if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).length!==(v.design===undefined?4:5)+(v.presentation===undefined?0:1)||!Array.isArray(v.sceneYears)||v.sceneYears.length>16||!Array.isArray(v.wardrobes)||v.wardrobes.length>8||v.version!=="1"||v.camera!=="EDITORIAL"||(v.presentation!==undefined&&(v.presentation!=='EQUIPMENT_MOTION_V2'||v.design===undefined))) return ["VOLUME_PLAN_SHAPE"];
+    const expected=createVolumeScenePlan(blocking,art,v.sceneYears,v.design?.unit,v.presentation);
     return JSON.stringify(v)===JSON.stringify(expected)?[]:["VOLUME_PLAN_CONTEXT"];
   } catch { return ["VOLUME_PLAN_CONTEXT"]; }
 }

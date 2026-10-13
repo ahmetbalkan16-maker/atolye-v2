@@ -6,6 +6,7 @@ import { EDITORIAL_RENDER_STYLE,renderCharacterSceneFrameSvg } from "../../chara
 import { createVolumeCharacter,rasterizeVolumeCharacter } from "../../character/volume/CharacterVolume";
 import {volumePerformanceFrame,volumeCameraZoom} from "../../character/volume/VolumePerformance";
 import {periodSettingOverlay} from "../../character/volume/PeriodDesign";
+import {volumeSpeakingFrame} from '../../character/volume/VolumeSpeech';
 
 /** Single raster entry for gallery/provider/video. Old PNGs retain their exact
  * SVG path; new assets reconstruct bounded CPU geometry from the same rig cues.
@@ -32,10 +33,13 @@ export async function rasterizeCharacterSceneAssetFrame(payload: CharacterSceneA
       const wardrobe=payload.volume.wardrobes.find(w=>w.actorId===c.id)!.brief;
       const identity=/^c[1-8]$/.test(c.id)?Number(c.id.slice(1))-1:index%8;
       const scale=138*(1-.5*c.depth)*(role==="ADVISOR"?.94:1),y=900-260*c.depth+(payload.background?.stageLayout?140+160*c.depth:0);
-      const performance=payload.volume.design?volumePerformanceFrame(c,payload.animation.actors.find(a=>a.id===c.id),frame,t,scale):undefined;
+      const equipmentV2=payload.volume.presentation==='EQUIPMENT_MOTION_V2';
+      const actor=payload.animation.actors.find(a=>a.id===c.id);
+      if(equipmentV2&&(actor?.action==='TALK'||actor?.action==='POINT')) frame=volumeSpeakingFrame(frame,t,!!c.handProp,options.narrationEnvelope);
+      const performance=payload.volume.design?volumePerformanceFrame(c,actor,frame,t,scale,equipmentV2):undefined;
       if(performance){frame={...frame,x:performance.x,pose:performance.pose};frames[c.id]=frame;}
       const designProfile=payload.volume.design?.actors.find(a=>a.actorId===c.id)?.profile;
-      let mesh=createVolumeCharacter({culture:direction.art.culture,role,faith:direction.art.faith,pose:c.pose,poseAngles:frame.pose,mouthOpen:frame.mouthOpen,expression:c.expression,identity,handProp:c.handProp,costume:c.costume,...(wardrobe.recipe?{wardrobe}:{}),...(performance?{joints:performance.joints,designProfile}:{})});
+      let mesh=createVolumeCharacter({culture:direction.art.culture,role,faith:direction.art.faith,pose:c.pose,poseAngles:frame.pose,mouthOpen:frame.mouthOpen,expression:c.expression,identity,handProp:c.handProp,costume:c.costume,...(wardrobe.recipe?{wardrobe}:{}),...(performance?{joints:performance.joints,designProfile}:{}),...(equipmentV2?{equipmentStyle:'READABLE_V2' as const}:{})});
       if(c.facing==="LEFT") mesh=mesh.map(f=>({...f,vertices:f.vertices.map(v=>[-v[0],v[1],v[2]] as const) as unknown as typeof f.vertices,...(f.normals?{normals:f.normals.map(v=>[-v[0],v[1],v[2]] as const) as unknown as typeof f.normals}:{})}));
       const shadow=Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><ellipse cx="${frame.x*1920}" cy="${y+4}" rx="${scale*.60}" ry="${scale*.07}" fill="#353139" opacity=".18"/></svg>`);
       const raw=rasterizeVolumeCharacter(mesh,{width:1920,height:1080,x:frame.x*1920,y,scale,yaw:c.facing==="LEFT"?12:-12});

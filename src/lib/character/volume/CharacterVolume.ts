@@ -6,6 +6,7 @@ import { isHandProp, type HandProp } from "../PropLibrary";
 import { isCharacterExpression, type CharacterExpression } from "../CharacterExpression";
 import { isHistoricalCostumeHint,type HistoricalCostumeHint } from "../HistoricalCostumeHint";
 import {isPeriodProfile,type PeriodProfile} from "./PeriodDesign";
+import {createVolumeEquipment} from './VolumeEquipment';
 
 /** Local CPU character geometry shared by stored stills and animated scenes.
  * True XYZ volumes share the established pose rig. No network, GPU or filesystem.
@@ -31,6 +32,7 @@ export interface VolumeCharacter {
   readonly designProfile?:PeriodProfile;
   /** Internally calculated bounded rig, never accepted from serialized PNG data. */
   readonly joints?:CharacterJoints;
+  readonly equipmentStyle?:'READABLE_V2';
 }
 const add = (a: V3, b: V3): V3 => [a[0]+b[0],a[1]+b[1],a[2]+b[2]];
 const sub = (a: V3, b: V3): V3 => [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
@@ -333,13 +335,18 @@ export function createVolumeCharacter(options: VolumeCharacter): readonly Volume
     const turn=(v:V3,normal=false):V3=>{const q=normal?v:sub(v,head),r:V3=[q[0]*Math.cos(tilt)+q[1]*Math.sin(tilt),-q[0]*Math.sin(tilt)+q[1]*Math.cos(tilt),q[2]];return normal?r:add(head,r);};
     for(let i=headStart;i<faces.length;i++){const f=faces[i]!;faces[i]={...f,vertices:f.vertices.map(v=>turn(v)) as unknown as typeof f.vertices,...(f.normals?{normals:f.normals.map(v=>turn(v,true)) as unknown as typeof f.normals}:{})};}
   }
-  if(guard&&options.handProp===undefined) {
+  if(options.equipmentStyle!==undefined&&options.equipmentStyle!=='READABLE_V2') throw new Error('VOLUME_EQUIPMENT_STYLE_REFUSED');
+  if(options.equipmentStyle==='READABLE_V2') {
+    if(guard&&options.handProp===undefined) {faces.push(...createVolumeEquipment(raw,'SPEAR',true),...createVolumeEquipment(raw,'SHIELD'));}
+    else if(options.handProp) faces.push(...createVolumeEquipment(raw,options.handProp));
+  }
+  if(options.equipmentStyle===undefined&&guard&&options.handProp===undefined) {
     const hand=p(raw.handBack,-39,-.10),end=add(hand,[-.04,2.4,0]);
     tube(add(hand,[0,-.65,0]),end,.025,.025,"#775637");
     tube(end,add(end,[0,.28,0]),.075,0,"#a4b5c0");
     ball(p(raw.handFront,39,.27),[.32,.45,.075],culture==="EGYPTIAN"?blue:"#763746",24,16);
   }
-  if(options.handProp) {
+  if(options.equipmentStyle===undefined&&options.handProp) {
     const start=faces.length;
     const hand=p(raw.handFront,39,.10),tip=add(hand,[0,1.25,0]);
     if(["SPEAR","FLAG","TORCH"].includes(options.handProp)) {

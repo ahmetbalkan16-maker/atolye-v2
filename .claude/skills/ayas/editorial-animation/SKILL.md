@@ -1,3 +1,5 @@
+13 Ekim ekipman/ses V2: yeni varlıkta volume.presentation=EQUIPMENT_MOTION_V2; eski presentation'sız3D/2D görünümünü koru. Silah gerçek önkol tutuşuna bağlanmalı, gövde arkasında kaybolmamalı; konuşma jesti boş elde, diz/oturma destek ayağı sabit. Frozen video→audio→assembly sırasını değiştirme: gerçek WAV etkinliği yeniV2son montajın özel TEMP klibinde bağlanır, owner kaynak klipleri yeniden yazılmaz. PCM etkinliği kelime/fonem hizalaması değildir; anlamlı jestlerin scene-text tahmini sınırını açık tut. Mevcut chapter→scene allocator, narration offset, ducking/lisans/fiyat/73°C/owned health ve cleanup kuralları kullanılır. Teknik kaynak/kabul docs/ATOLYE_EQUIPMENT_SPEECH_2026-10-13.md ve checkpoint.
+
 ---
 name: editorial-animation
 description: Atölye'nin yerel çöp adam video karakterlerini, ortamlarını ve animasyon görsel dilini tasarla veya geliştir; character görsel sağlayıcısını değiştiren işlerde kullan.

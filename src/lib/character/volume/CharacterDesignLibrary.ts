@@ -36,7 +36,7 @@ export class CharacterDesignLibrary {
   readonly geometryFingerprint:string;
   constructor(base=path.resolve('bin/ayas-local-visual/characters'),fingerprint?:string) {
     this.root=path.resolve(base);
-    this.geometryFingerprint=fingerprint??hash(['CharacterVolume.ts','PeriodDesign.ts','PeriodWardrobe.ts'].map(name=>fs.readFileSync(path.resolve('src/lib/character/volume',name),'utf8').replace(/\r\n/g,'\n')).join('\n'));
+    this.geometryFingerprint=fingerprint??hash(['CharacterVolume.ts','PeriodDesign.ts','PeriodWardrobe.ts','VolumeEquipment.ts'].map(name=>fs.readFileSync(path.resolve('src/lib/character/volume',name),'utf8').replace(/\r\n/g,'\n')).join('\n'));
     if(!identifier(this.geometryFingerprint)) throw new Error('CHARACTER_LIBRARY_REVISION');
   }
   private directory(create=false) {

@@ -10,6 +10,8 @@ import {
   type CharacterSceneAssetPayload,
 } from "@/lib/animation/character/CharacterSceneAsset";
 import { rasterizeCharacterSceneAssetFrame } from "@/lib/animation/character/CharacterSceneRasterFrame";
+import {readVolumeNarration} from '@/lib/character/volume/VolumeNarration';
+import type {VolumeSpeechEnvelope} from '@/lib/character/volume/VolumeSpeech';
 import { renderCharacterSceneAssetFrame } from "@/lib/animation/character/CharacterSceneAsset";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
@@ -82,8 +84,10 @@ export class FFmpegSceneVideoProvider implements ConfiguredVideoProvider {
         // A drawn stick-figure scene carries its animation inside the PNG: its
         // frames are drawn here and encoded instead of moving one still image.
         const character = readCharacterScene(scene, context);
+        const narration=character?.payload.volume?.presentation==='EQUIPMENT_MOTION_V2'
+          ?await readVolumeNarration(input.projectId,input.projectSlug,scene.sceneId,context,scene.narration):undefined;
         const frames = character
-          ? await renderCharacterSceneFrames(character.payload, scene.motionPlan.durationSeconds, character.backgroundPng)
+          ? await renderCharacterSceneFrames(character.payload, scene.motionPlan.durationSeconds, character.backgroundPng,narration)
           : null;
         let ffmpeg: ProcessRunResult;
         try {
@@ -261,7 +265,7 @@ export function buildSceneFFmpegArgs(
  * of every frame, never cropped away.
  */
 export function buildCharacterSceneFFmpegArgs(
-  scene: VideoProviderSceneInput,
+  scene: {readonly motionPlan:{readonly durationSeconds:number}},
   outputPath: string,
   framePattern: string,
 ) {
@@ -321,10 +325,11 @@ function readCharacterScene(
  * one after another. A frame identical to the one before it is not drawn
  * again. The caller removes the folder once FFmpeg has read it.
  */
-async function renderCharacterSceneFrames(
+export async function renderCharacterSceneFrames(
   payload: CharacterSceneAssetPayload,
   durationSeconds: number,
   backgroundPng?: Buffer,
+  narrationEnvelope?:VolumeSpeechEnvelope,
 ): Promise<{ readonly pattern: string; dispose(): void }> {
   const count = characterAnimationFrameCount(durationSeconds);
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-charframes-"));
@@ -349,7 +354,8 @@ async function renderCharacterSceneFrames(
       }
       const svg = payload.volume?`volume-frame-${index}`:renderCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds);
       if (svg !== previousSvg || !previousPng) {
-        const raster = await rasterizeCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), durationSeconds,{ fast, backgroundPng });
+        const cueDuration=payload.volume?.presentation==='EQUIPMENT_MOTION_V2'&&narrationEnvelope?narrationEnvelope.durationSeconds:durationSeconds;
+        const raster = await rasterizeCharacterSceneAssetFrame(payload, characterSceneFrameSeconds(index), cueDuration,{ fast, backgroundPng,narrationEnvelope });
         if (!raster.ok) throw new Error(SAFE_ERROR);
         previousSvg = svg;
         previousPng = raster.png;

@@ -12,14 +12,19 @@ export interface VolumePerformance {readonly x:number;readonly pose:PoseAngles;r
  * the other foot follows an eased, lifted arc. Two-bone IK bends each knee.
  * No shared/frozen 2D animation plan or provider stage is changed.
  */
-export function volumePerformanceFrame(c:BlockedCharacter,actor:CharacterActorPlan|undefined,frame:CharacterFrameOverride,t:number,scale:number):VolumePerformance {
+export function volumePerformanceFrame(c:BlockedCharacter,actor:CharacterActorPlan|undefined,frame:CharacterFrameOverride,t:number,scale:number,stabilizePosture=false):VolumePerformance {
   if(!Number.isFinite(t)||t<0||!Number.isFinite(scale)||scale<60||scale>150) throw new Error("VOLUME_PERFORMANCE_BOUNDS");
   const standing=POSE_ANGLES.STAND,base=POSE_ANGLES[c.pose];
   if(!actor||!['WALK','RUN'].includes(actor.action)||actor.toX===null||actor.toX===c.x) {
     const fixed=actor&&['TALK','POINT','CHEER','BOW','FIGHT','IDLE'].includes(actor.action);
     const rest=c.pose==='WALK'||c.pose==='RUN'?standing:base;
-    const pose=fixed?{...frame.pose,legFront:rest.legFront,legBack:rest.legBack}:frame.pose;
-    const joints=computeCharacterJoints(VOLUME_RIG,pose,{x:0,y:0},1);
+    const original=fixed?{...frame.pose,legFront:rest.legFront,legBack:rest.legBack}:frame.pose;
+    const pose=stabilizePosture&&c.handProp&&actor&&['IDLE','BOW','KNEEL_DOWN','SIT'].includes(actor.action)?{...original,armFront:{upper:40,bend:-40}}:original;
+    const raw=computeCharacterJoints(VOLUME_RIG,pose,{x:0,y:0},1);
+    // The planted front foot is the pivot when lowering onto a knee or seat.
+    // Move the body over that foot instead of dragging the foot across the stage.
+    const dx=stabilizePosture&&actor&&['KNEEL_DOWN','SIT'].includes(actor.action)?computeCharacterJoints(VOLUME_RIG,standing,{x:0,y:0},1).footFront.x-raw.footFront.x:0;
+    const joints:CharacterJoints=dx?Object.fromEntries(Object.entries(raw).map(([key,p])=>[key,{x:p.x+dx,y:p.y}])) as unknown as CharacterJoints:raw;
     return {x:frame.x,pose,joints,contacts:[joints.footFront,joints.footBack].map((p,i)=>({x:frame.x*1920+(p.x+(i===0?15:-15))*scale/100,height:-p.y/100,planted:Math.abs(p.y)<1e-6}))};
   }
   const sign=c.facing==='RIGHT'?1:-1,projection=Math.cos(12*Math.PI/180),speed=actor.action==='RUN'?2.4:1.05;
@@ -49,7 +54,7 @@ export function volumePerformanceFrame(c:BlockedCharacter,actor:CharacterActorPl
   const restHeight=-stand.hip.y/100,desiredHeight=restHeight+((actor.action==='RUN'?.90:.98)-restHeight)*ease(u/.2)*(1-ease(settle/.56));
   const height=Math.min(desiredHeight,...feet.map((f,i)=>f.height+Math.sqrt(Math.max(0,1.24**2-((f.world-center)-(i===0?.15:-.15))**2))));
   const activity=ease(u/.2)*(1-ease(settle/.56)),swing=Math.sin(2*Math.PI*moving/period),arm=c.handProp?8:actor.action==='RUN'?45:22,bend=c.handProp?6:actor.action==='RUN'?55:12;
-  const pose={...frame.pose,bodyRotation:0,torsoLean:(actor.action==='RUN'?12:4)*activity,armFront:{upper:standing.armFront.upper+arm*swing*activity,bend:bend*activity},armBack:{upper:standing.armBack.upper-arm*swing*activity,bend:bend*activity}};
+  const pose={...frame.pose,bodyRotation:0,torsoLean:(actor.action==='RUN'?12:4)*activity,armFront:stabilizePosture&&c.handProp?{upper:40,bend:-40}:{upper:standing.armFront.upper+arm*swing*activity,bend:bend*activity},armBack:{upper:standing.armBack.upper-arm*swing*activity,bend:bend*activity}};
   const raw=computeCharacterJoints(VOLUME_RIG,pose,{x:0,y:0},1),dy=-height*100-raw.hip.y;
   const shift=(p:Point):Point=>({x:p.x,y:p.y+dy});
   const joints={...raw,hip:shift(raw.hip),shoulder:shift(raw.shoulder),neck:shift(raw.neck),head:shift(raw.head),elbowFront:shift(raw.elbowFront),handFront:shift(raw.handFront),elbowBack:shift(raw.elbowBack),handBack:shift(raw.handBack)};

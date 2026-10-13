@@ -48,6 +48,8 @@ jobs:
         run: npx tsx scripts/smoke-volume-performance.ts
       - name: Reusable character design approval and library
         run: npx tsx scripts/smoke-character-design-library.ts
+      - name: Readable equipment and local speech motion
+        run: npx tsx scripts/smoke-volume-equipment-speech.ts
       - name: Local model thermal request cancellation
         run: npx tsx scripts/smoke-ollama-thermal-monitor.ts
       - name: Prepare bounded retrieval evidence directory

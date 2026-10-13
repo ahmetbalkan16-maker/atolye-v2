@@ -20,6 +20,7 @@ import type {
 } from "@/types/videoAssembly";
 import type { ConfiguredVideoAssemblyProvider } from "./VideoAssemblyProvider";
 import { getFFmpegVideoAssemblyConfig } from "./VideoAssemblyProviderConfig";
+import {prepareVolumeAssembly} from '@/lib/character/volume/VolumeAssembly';
 
 const SAFE_ERROR = "Video assembly failed.";
 const WIDTH = 1920;
@@ -105,6 +106,7 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
     const createdAt = new Date().toISOString();
     let paths: ReturnType<typeof VideoStorage.createRenderPaths> | null = null;
     let concatManifestPath: string | null = null;
+    let synchronized:Awaited<ReturnType<typeof prepareVolumeAssembly>>|undefined;
     const context = this.runtimeStorageContext ?? requireProductionRuntimeStorageContext(
       requireActiveProductionRuntimeOperationContext());
 
@@ -113,13 +115,14 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
       const config = getFFmpegVideoAssemblyConfig();
       validateExecutable(config.ffmpegPath);
       validateExecutable(config.ffprobePath);
+      synchronized=await prepareVolumeAssembly(input,context,this.runner,config);
       const sceneProbeSignatures: SceneVideoProbeSignature[] = [];
       if (input.scenes[0].inputType === "scene-video") {
         for (const scene of input.scenes) {
           if (scene.inputType !== "scene-video") throw new Error(SAFE_ERROR);
           const sceneProbe = await this.runner.run(
             config.ffprobePath,
-            buildSceneInputProbeArgs(absoluteInput(scene.filePath, context)),
+            buildSceneInputProbeArgs(synchronized.paths.get(scene.sceneId)??absoluteInput(scene.filePath, context)),
             { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
           );
           requireSuccessfulProcess(sceneProbe, "ffprobe(scene-input)");
@@ -133,13 +136,13 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
         concatManifestPath = `${paths.temporaryAbsolutePath}.concat.txt`;
         fs.writeFileSync(
           concatManifestPath,
-          buildConcatManifest(input, context),
+          buildConcatManifest(input, context,synchronized.paths),
           { encoding: "utf8", flag: "wx" },
         );
       }
       const ffmpegResult = await this.runner.run(
         config.ffmpegPath,
-        buildFFmpegArgs(input, paths.temporaryAbsolutePath, concatManifestPath, context),
+        buildFFmpegArgs(input, paths.temporaryAbsolutePath, concatManifestPath, context,synchronized.paths),
         { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes,
           healthCheck: () => assertAyasHeavyWorkloadAllowed({ stage: "assembly", ownedActive: true }) },
       );
@@ -204,7 +207,7 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
         createdAt,
         error: SAFE_ERROR,
       };
-    }
+    } finally {synchronized?.dispose();}
   }
 }
 
@@ -548,14 +551,15 @@ function buildFFmpegArgs(
   outputPath: string,
   concatManifestPath: string | null,
   context: RuntimeStorageContext,
+  synchronized?:ReadonlyMap<number,string>,
 ) {
   if (input.scenes[0].inputType === "scene-video") {
     if (concatManifestPath) {
       return buildCopyConcatArgs(input, outputPath, concatManifestPath, context);
     }
     return hasAnyBlendedJunction(input.scenes)
-      ? buildTransitionedConcatArgs(input, outputPath, context)
-      : buildRetimedConcatArgs(input, outputPath, context);
+      ? buildTransitionedConcatArgs(input, outputPath, context,synchronized)
+      : buildRetimedConcatArgs(input, outputPath, context,synchronized);
   }
 
   return hasAnyBlendedJunction(input.scenes)
@@ -796,12 +800,12 @@ function sameProbeSignature(
   );
 }
 
-function buildConcatManifest(input: VideoAssemblyInput, context: RuntimeStorageContext) {
+function buildConcatManifest(input: VideoAssemblyInput, context: RuntimeStorageContext,synchronized?:ReadonlyMap<number,string>) {
   return [
     "ffconcat version 1.0",
     ...input.scenes.map((scene) => {
       if (scene.inputType !== "scene-video") throw new Error(SAFE_ERROR);
-      const absolute = absoluteInput(scene.filePath, context).replaceAll("\\", "/");
+      const absolute = (synchronized?.get(scene.sceneId)??absoluteInput(scene.filePath, context)).replaceAll("\\", "/");
       return `file '${absolute.replaceAll("'", "'\\''")}'`;
     }),
     "",
@@ -844,6 +848,7 @@ function buildRetimedConcatArgs(
   input: VideoAssemblyInput,
   outputPath: string,
   context: RuntimeStorageContext,
+  synchronized?:ReadonlyMap<number,string>,
 ) {
   const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin", "-n"];
   const filters: string[] = [];
@@ -858,7 +863,7 @@ function buildRetimedConcatArgs(
     const padding = Math.max(0, scene.narrationDurationSeconds - scene.durationSeconds).toFixed(6);
     args.push(
       "-i",
-      absoluteInput(scene.filePath, context),
+      synchronized?.get(scene.sceneId)??absoluteInput(scene.filePath, context),
       "-i",
       absoluteInput(scene.audioFilePath, context),
     );
@@ -910,6 +915,7 @@ function buildTransitionedConcatArgs(
   input: VideoAssemblyInput,
   outputPath: string,
   context: RuntimeStorageContext,
+  synchronized?:ReadonlyMap<number,string>,
 ) {
   const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin", "-n"];
   const filters: string[] = [];
@@ -934,7 +940,7 @@ function buildTransitionedConcatArgs(
     ).toFixed(6);
     args.push(
       "-i",
-      absoluteInput(scene.filePath, context),
+      synchronized?.get(scene.sceneId)??absoluteInput(scene.filePath, context),
       "-i",
       absoluteInput(scene.audioFilePath, context),
     );

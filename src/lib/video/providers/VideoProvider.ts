@@ -13,6 +13,8 @@ export interface VideoProviderSceneInput {
   imageFilePath: string;
   imageMimeType: ImageMimeType | "image/mock";
   motionPlan: AnimationMotionPlanScene;
+  /** Optional owned local narration; the production renderer validates storage. */
+  narration?:import('../../character/volume/VolumeNarration').VolumeNarrationInput;
 }
 
 export interface VideoGenerationInput {

@@ -24,7 +24,7 @@ export function isRasterizableCharacterSceneSvg(svg: string): boolean {
 }
 
 /** `fast` trades file size for speed: animation frames are written once, read once by FFmpeg and deleted. */
-export interface CharacterSceneRasterOptions { readonly fast?: boolean; readonly backgroundPng?: Buffer }
+export interface CharacterSceneRasterOptions { readonly fast?: boolean; readonly backgroundPng?: Buffer; readonly narrationEnvelope?:import('./volume/VolumeSpeech').VolumeSpeechEnvelope }
 
 /** A small raster backdrop only: fixed PNG signature and bounded IHDR, never an SVG or path. */
 export function isCharacterBackdropPng(png: Buffer): boolean {
