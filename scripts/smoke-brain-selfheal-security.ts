@@ -79,13 +79,13 @@ async function run() {
 
   await scenario("§8 — a FORBIDDEN patch is never applied, even with an operator id, through the loop guard", () => {
     // the guard denies FORBIDDEN outright (operator applies those by hand, not via the loop)
-    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["src/lib/ayas/execution/AyasExecutionGate.ts"], operatorApprovalId: "op-1" }).allowed, false);
-    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: [".env.local"], operatorApprovalId: "op-1" }).allowed, false);
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["src/lib/ayas/execution/AyasExecutionGate.ts"], operatorApprovalId: "op-1" }).allowed, false, "assert.equal(assertSelfHealActionAllowed({ kind: \"apply-patch\", paths: [\"src/lib/ayas/execution/AyasExecutionGate.ts\"], operatorApprovalId: \"op-1\" }).allowed, false)");
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: [".env.local"], operatorApprovalId: "op-1" }).allowed, false, "assert.equal(assertSelfHealActionAllowed({ kind: \"apply-patch\", paths: [\".env.local\"], operatorApprovalId: \"op-1\" }).allowed, false)");
     // a REVIEW patch needs an operator id
-    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["public/sw.js"], operatorApprovalId: null }).allowed, false);
-    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["public/sw.js"], operatorApprovalId: "op-1" }).allowed, true);
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["public/sw.js"], operatorApprovalId: null }).allowed, false, "assert.equal(assertSelfHealActionAllowed({ kind: \"apply-patch\", paths: [\"public/sw.js\"], operatorApprovalId: null }).allowed, false)");
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["public/sw.js"], operatorApprovalId: "op-1" }).allowed, true, "assert.equal(assertSelfHealActionAllowed({ kind: \"apply-patch\", paths: [\"public/sw.js\"], operatorApprovalId: \"op-1\" }).allowed, true)");
     // a SAFE patch STILL needs the operator apply command
-    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["scripts/smoke-x.ts"], operatorApprovalId: null }).allowed, false);
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["scripts/smoke-x.ts"], operatorApprovalId: null }).allowed, false, "assert.equal(assertSelfHealActionAllowed({ kind: \"apply-patch\", paths: [\"scripts/smoke-x.ts\"], operatorApprovalId: null }).allowed, false)");
   });
 
   await scenario("§8 — the safety kernel can never be patched by the Brain", () => {
@@ -93,7 +93,7 @@ async function run() {
       const v = assertNotSelfModifyingKernel([`src/lib/brain/selfheal/${f}`]);
       assert.equal(v.allowed, false, f);
     }
-    assert.equal(assertNotSelfModifyingKernel(["scripts/smoke-x.ts"]).allowed, true);
+    assert.equal(assertNotSelfModifyingKernel(["scripts/smoke-x.ts"]).allowed, true, "assert.equal(assertNotSelfModifyingKernel([\"scripts/smoke-x.ts\"]).allowed, true)");
   });
 
   await scenario("§0 — no self-heal command may run git push / remote / deploy / network egress", () => {
@@ -120,7 +120,7 @@ async function run() {
   await scenario("§0 — a secret file is never read; a secret in a record is REJECTED (not masked)", () => {
     for (const p of [".env.local", "config/id_rsa", "certs/server.key", "keys/private.pem"]) {
       assert.equal(isSecretPath(p), true, p);
-      assert.equal(assertSelfHealActionAllowed({ kind: "read-file", path: p }).allowed, false);
+      assert.equal(assertSelfHealActionAllowed({ kind: "read-file", path: p }).allowed, false, "assert.equal(assertSelfHealActionAllowed({ kind: \"read-file\", path: p }).allowed, false)");
     }
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "sh-sec-"));
     try {
@@ -141,20 +141,20 @@ async function run() {
       "normal telemetry: wake-hit 0.72",
     ].join("\n");
     const r = sanitizeUntrustedText(attack);
-    assert.equal(r.hadInstructions, true);
-    assert.ok(r.quarantined.length >= 4);
-    assert.equal(/execution gate|writeActionsEnabled\s*=\s*true|git push --force|exfiltrate|developer mode/i.test(r.text), false);
+    assert.equal(r.hadInstructions, true, "assert.equal(r.hadInstructions, true)");
+    assert.ok(r.quarantined.length >= 4, "assert.ok(r.quarantined.length >= 4)");
+    assert.equal(/execution gate|writeActionsEnabled\s*=\s*true|git push --force|exfiltrate|developer mode/i.test(r.text), false, "assert.equal(/execution gate|writeActionsEnabled\\s*=\\s*true|git push --force|exfiltrate|developer mode/i.test(r.text), false)");
     assert.equal(r.text.includes("wake-hit 0.72"), true, "real telemetry preserved");
   });
 
   await scenario("§15 — the loop cannot grind forever (attempt / diff / files / runtime / signature caps)", () => {
-    assert.equal(checkSelfHealAttempt({ attempt: BRAIN_SELFHEAL_LIMITS.maxPatchAttempts + 1, runtimeMs: 0, filesChanged: 1, diffLines: 1 }).ok, false);
-    assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: BRAIN_SELFHEAL_LIMITS.maxRuntimeMs + 1, filesChanged: 1, diffLines: 1 }).ok, false);
-    assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: 0, filesChanged: BRAIN_SELFHEAL_LIMITS.maxFilesChanged + 1, diffLines: 1 }).ok, false);
-    assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: 0, filesChanged: 1, diffLines: BRAIN_SELFHEAL_LIMITS.maxDiffLines + 1 }).ok, false);
+    assert.equal(checkSelfHealAttempt({ attempt: BRAIN_SELFHEAL_LIMITS.maxPatchAttempts + 1, runtimeMs: 0, filesChanged: 1, diffLines: 1 }).ok, false, "assert.equal(checkSelfHealAttempt({ attempt: BRAIN_SELFHEAL_LIMITS.maxPatchAttempts + 1, runtimeMs: 0, filesChanged: 1, diffLines: 1 }).ok, false)");
+    assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: BRAIN_SELFHEAL_LIMITS.maxRuntimeMs + 1, filesChanged: 1, diffLines: 1 }).ok, false, "assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: BRAIN_SELFHEAL_LIMITS.maxRuntimeMs + 1, filesChanged: 1, diffLines: 1 }).ok, false)");
+    assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: 0, filesChanged: BRAIN_SELFHEAL_LIMITS.maxFilesChanged + 1, diffLines: 1 }).ok, false, "assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: 0, filesChanged: BRAIN_SELFHEAL_LIMITS.maxFilesChanged + 1, diffLines: 1 }).ok, false)");
+    assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: 0, filesChanged: 1, diffLines: BRAIN_SELFHEAL_LIMITS.maxDiffLines + 1 }).ok, false, "assert.equal(checkSelfHealAttempt({ attempt: 1, runtimeMs: 0, filesChanged: 1, diffLines: BRAIN_SELFHEAL_LIMITS.maxDiffLines + 1 }).ok, false)");
     const now = Date.now();
     const hist = Array.from({ length: BRAIN_SELFHEAL_LIMITS.maxIncidentsPerSignature }, () => ({ signature: "voice:a b c", openedAt: now }));
-    assert.equal(checkSignatureNotMuted("voice:a b c", hist, now).ok, false);
+    assert.equal(checkSignatureNotMuted("voice:a b c", hist, now).ok, false, "assert.equal(checkSignatureNotMuted(\"voice:a b c\", hist, now).ok, false)");
   });
 
   await scenario("STATIC — the selfheal source never imports the execution gate / sets writeActionsEnabled / pushes", () => {
@@ -202,9 +202,9 @@ async function run() {
 
   await scenario("patch-set — a mixed set takes the worst level; forbidden hits are listed", () => {
     const v = classifyPatchSet(["scripts/smoke-x.ts", "src/components/brain/voice/wakeWordVoiceAdapter.ts", "src/lib/ayas/execution/AyasExecutionGate.ts"]);
-    assert.equal(v.level, "FORBIDDEN_AUTONOMOUS");
-    assert.equal(v.autoApplicable, false);
-    assert.equal(v.forbidden.map((f) => f.path).includes("src/lib/ayas/execution/AyasExecutionGate.ts"), true);
+    assert.equal(v.level, "FORBIDDEN_AUTONOMOUS", "assert.equal(v.level, \"FORBIDDEN_AUTONOMOUS\")");
+    assert.equal(v.autoApplicable, false, "assert.equal(v.autoApplicable, false)");
+    assert.equal(v.forbidden.map((f) => f.path).includes("src/lib/ayas/execution/AyasExecutionGate.ts"), true, "assert.equal(v.forbidden.map((f) => f.path).includes(\"src/lib/ayas/execution/AyasExecutionGate.ts\"), true)");
   });
 
   /* ------------------------------- v2 (autonomous) boundaries ------------------------------- */
@@ -225,17 +225,17 @@ async function run() {
     assert.equal(decideAutoApply({ incident: verified(["public/sw.js"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true }, incidentSignature: "s" }).decision, "AWAIT_APPROVAL", "SW is never auto");
     assert.equal(decideAutoApply({ incident: verified(["src/lib/ayas/execution/AyasExecutionGate.ts"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true }, incidentSignature: "s" }).decision, "HALT", "gate → HALT");
     // even with the opt-in ON, an all-SAFE high-confidence patch → AUTO_APPLY
-    assert.equal(decideAutoApply({ incident: verified(["scripts/smoke-x.ts", "docs/y.md"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true, confidenceThreshold: 0.7 }, incidentSignature: "s" }).decision, "AUTO_APPLY");
+    assert.equal(decideAutoApply({ incident: verified(["scripts/smoke-x.ts", "docs/y.md"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true, confidenceThreshold: 0.7 }, incidentSignature: "s" }).decision, "AUTO_APPLY", "assert.equal(decideAutoApply({ incident: verified([\"scripts/smoke-x.ts\", \"docs/y.md\"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true, confidenceThreshold: 0.7 }, incidentSignature: \"s\" }).decision, \"AUTO_APPLY\")");
   });
 
   await scenario("v2 §24/§25 — autonomous apply-rate, rollback cap, cause-chain depth, and A→A loop all block", () => {
     const now = Date.parse("2026-09-12T12:00:00.000Z");
     const ts = Array.from({ length: BRAIN_SELFHEAL_LIMITS.maxAutonomousAppliesPerHour }, () => now - 60_000);
-    assert.equal(checkAutonomousApplyRate(ts, now).ok, false);
-    assert.equal(checkRollbackAttempts(BRAIN_SELFHEAL_LIMITS.maxRollbackAttempts).ok, false);
+    assert.equal(checkAutonomousApplyRate(ts, now).ok, false, "assert.equal(checkAutonomousApplyRate(ts, now).ok, false)");
+    assert.equal(checkRollbackAttempts(BRAIN_SELFHEAL_LIMITS.maxRollbackAttempts).ok, false, "assert.equal(checkRollbackAttempts(BRAIN_SELFHEAL_LIMITS.maxRollbackAttempts).ok, false)");
     const deepChain = Array.from({ length: BRAIN_SELFHEAL_LIMITS.maxCauseChainDepth }, (_, i) => ({ id: `sh-${i}`, signature: `x:sig${i}` }));
-    assert.equal(checkCauseChain(deepChain, "x:new").violation, "CAUSE_CHAIN_TOO_DEEP");
-    assert.equal(checkCauseChain([{ id: "sh-1", signature: "x:loop" }], "x:loop").violation, "SELF_HEAL_LOOP");
+    assert.equal(checkCauseChain(deepChain, "x:new").violation, "CAUSE_CHAIN_TOO_DEEP", "assert.equal(checkCauseChain(deepChain, \"x:new\").violation, \"CAUSE_CHAIN_TOO_DEEP\")");
+    assert.equal(checkCauseChain([{ id: "sh-1", signature: "x:loop" }], "x:loop").violation, "SELF_HEAL_LOOP", "assert.equal(checkCauseChain([{ id: \"sh-1\", signature: \"x:loop\" }], \"x:loop\").violation, \"SELF_HEAL_LOOP\")");
   });
 
   await scenario("v2 §26 — auto-apply guard: an autonomous apply id is NOT an operator id, FORBIDDEN still denied", () => {
@@ -246,10 +246,10 @@ async function run() {
   });
 
   await scenario("v2 — the guard token check is exact: a filename containing '-f' is not a forbidden token", () => {
-    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["node", "scripts/smoke-selfheal-fixture-test.js"] }).allowed, true);
-    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "push", "-f"] }).allowed, false);
+    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["node", "scripts/smoke-selfheal-fixture-test.js"] }).allowed, true, "assert.equal(assertSelfHealActionAllowed({ kind: \"sandbox-command\", argv: [\"node\", \"scripts/smoke-selfheal-fixture-test.js\"] }).allowed, true)");
+    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "push", "-f"] }).allowed, false, "assert.equal(assertSelfHealActionAllowed({ kind: \"sandbox-command\", argv: [\"git\", \"push\", \"-f\"] }).allowed, false)");
     assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "-C", "/tmp/x", "push"] }).allowed, false, "git -C <dir> push still caught");
-    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "-C", "/tmp/x", "diff", "--name-only"] }).allowed, true);
+    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "-C", "/tmp/x", "diff", "--name-only"] }).allowed, true, "assert.equal(assertSelfHealActionAllowed({ kind: \"sandbox-command\", argv: [\"git\", \"-C\", \"/tmp/x\", \"diff\", \"--name-only\"] }).allowed, true)");
   });
 
   console.log(`Atölye Brain self-heal security smoke: PASS (${count} scenarios)`);
