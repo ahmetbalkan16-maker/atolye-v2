@@ -38,8 +38,8 @@ async function run() {
       const store = createBrainSelfHealStore({ rootDir: root });
       const d = buildSelfHealDecision({ incidentId: "sh-abcd1234", decision: "APPROVE", now: NOW, note: "sandbox yeşil" });
       store.recordSelfHealDecision(d);
-      assert.deepEqual(store.loadSelfHealDecision("sh-abcd1234"), d);
-      assert.equal(store.listSelfHealDecisions().length, 1);
+      assert.deepEqual(store.loadSelfHealDecision("sh-abcd1234"), d, "assert.deepEqual(store.loadSelfHealDecision(\"sh-abcd1234\"), d)");
+      assert.equal(store.listSelfHealDecisions().length, 1, "assert.equal(store.listSelfHealDecisions().length, 1)");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -51,8 +51,8 @@ async function run() {
       const store = createBrainSelfHealStore({ rootDir: root });
       store.recordSelfHealDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "LATER", now: NOW }));
       store.recordSelfHealDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "APPROVE", now: "2026-09-12T11:00:00.000Z" }));
-      assert.equal(store.listSelfHealDecisions().length, 1);
-      assert.equal(store.loadSelfHealDecision("sh-1")?.decision, "APPROVE");
+      assert.equal(store.listSelfHealDecisions().length, 1, "assert.equal(store.listSelfHealDecisions().length, 1)");
+      assert.equal(store.loadSelfHealDecision("sh-1")?.decision, "APPROVE", "assert.equal(store.loadSelfHealDecision(\"sh-1\")?.decision, \"APPROVE\")");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -119,8 +119,8 @@ async function run() {
     const root = tmp();
     try {
       const store = createBrainSelfHealStore({ rootDir: root });
-      assert.equal(store.loadSelfHealDecision("sh-nope"), undefined);
-      assert.equal(store.listSelfHealDecisions().length, 0);
+      assert.equal(store.loadSelfHealDecision("sh-nope"), undefined, "assert.equal(store.loadSelfHealDecision(\"sh-nope\"), undefined)");
+      assert.equal(store.listSelfHealDecisions().length, 0, "assert.equal(store.listSelfHealDecisions().length, 0)");
       assert.throws(
         () => store.loadSelfHealDecision("../escape"),
         (e) => e instanceof BrainSelfHealStoreError && e.code === "SELFHEAL_STORE_INVALID",
