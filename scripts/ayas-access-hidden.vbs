@@ -7,7 +7,7 @@
 ' its exit code for Task Scheduler. Paths come from this file's own location,
 ' so the file stays ASCII-only.
 Option Explicit
-Dim fso, shell, scriptsDir, powershell, daemon, rc, projectDir, productionRoot, configCandidate, configArg
+Dim fso, shell, scriptsDir, powershell, daemon, rc, projectDir, productionRoot, configCandidate, configArg, tempCandidate
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 scriptsDir = fso.GetParentFolderName(WScript.ScriptFullName)
@@ -22,8 +22,10 @@ If fso.FileExists(configCandidate) Then
   configArg = " -TunnelConfig """ & configCandidate & """"
   ' Scope temporary files to this production bundle, never change Windows env.
   If fso.FolderExists(fso.BuildPath(productionRoot, "private\temp")) Then
-    shell.Environment("Process")("TEMP") = fso.BuildPath(productionRoot, "private\temp")
-    shell.Environment("Process")("TMP") = fso.BuildPath(productionRoot, "private\temp")
+    tempCandidate = shell.ExpandEnvironmentStrings("%AYAS_TEMP_ROOT%")
+    If tempCandidate = "%AYAS_TEMP_ROOT%" Or Not fso.FolderExists(tempCandidate) Then tempCandidate = fso.BuildPath(productionRoot, "private\temp")
+    shell.Environment("Process")("TEMP") = tempCandidate
+    shell.Environment("Process")("TMP") = tempCandidate
   End If
 End If
 If configArg <> "" Then

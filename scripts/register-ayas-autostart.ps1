@@ -32,6 +32,10 @@ $LauncherArguments = "//B //NoLogo `"$HiddenLauncher`""
 $CurrentUser = "$env:USERDOMAIN\$env:USERNAME"
 $Existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 $ManifestPath = Join-Path $env:LOCALAPPDATA 'AtolyeAyasAccess\prebuilt-runtime-v1.json'
+$ProductionRoot = Split-Path -Parent (Split-Path -Parent $RepoRoot)
+$ProductionManifest = Join-Path $ProductionRoot 'private\AtolyeAyasAccess\prebuilt-runtime-v1.json'
+if ((Test-Path -LiteralPath (Join-Path $ProductionRoot 'private\cloudflared\config.yml') -PathType Leaf) -and
+    (Test-Path -LiteralPath $ProductionManifest -PathType Leaf)) { $ManifestPath = $ProductionManifest }
 $OwnerIds = @($env:USERNAME, $CurrentUser, [Security.Principal.WindowsIdentity]::GetCurrent().User.Value)
 
 if (-not (Test-Path $DaemonScript)) {

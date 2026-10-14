@@ -25,6 +25,10 @@ $script:TunnelConfig = if ([string]::IsNullOrWhiteSpace($TunnelConfig)) {
   [IO.Path]::GetFullPath($TunnelConfig)
 }
 $script:StateDir = Join-Path $env:LOCALAPPDATA "AtolyeAyasAccess"
+$script:ProductionRoot = Split-Path -Parent (Split-Path -Parent $script:RepoRoot)
+$script:ProductionState = Join-Path $script:ProductionRoot 'private\AtolyeAyasAccess'
+if ((Test-Path -LiteralPath (Join-Path $script:ProductionRoot 'private\cloudflared\config.yml') -PathType Leaf) -and
+    (Test-Path -LiteralPath $script:ProductionState -PathType Container)) { $script:StateDir = $script:ProductionState }
 $script:LogDir = Join-Path $script:StateDir "logs"
 $script:PhoneStatusDir = Join-Path $script:RepoRoot "data\brain\phone-access"
 $script:PhoneStatusFile = Join-Path $script:PhoneStatusDir "status.json"
