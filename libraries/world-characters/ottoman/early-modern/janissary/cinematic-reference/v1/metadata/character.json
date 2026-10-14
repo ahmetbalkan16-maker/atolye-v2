@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "pending",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19",
+      "https://islamansiklopedisi.org.tr/yeniceri",
+      "https://islamansiklopedisi.org.tr/mehmed-ii"
+    ],
+    "notes": "Built-in imagegen performance variants of the approved master design: serious/listening/rear/drill/bowl/tired. Same identity as reference/v1, not nine new characters. Whole-body pose atlas, not continuous limb rig. Interpretive Ottoman/1480; cinematic preview only. Serving pose is a separate original sprite to avoid adjacent-cell sword bleed."
+  },
+  "kind": "character",
+  "id": "ottoman.early-modern.janissary.cinematic-reference.v1",
+  "variant": "cinematic-reference",
+  "files": [
+    {
+      "id": "ottoman.early-modern.janissary.cinematic-atlas.v1",
+      "path": "design/cinematic-atlas.png",
+      "purpose": "reference-sheet",
+      "sha256": "0c5b95927c2d4ed51ef42581cbe0c13696e1d08ebba1837eca5ba156e63ef96c",
+      "pivot": null
+    },
+    {
+      "purpose": "reference-sheet",
+      "sha256": "2d4c0ab0f59cff422ff67163f6dca7bf49980dd6d7026c74ccc85318be7c0ac7",
+      "pivot": null,
+      "id": "ottoman.early-modern.janissary.cinematic-serving.v1",
+      "path": "design/serving-pose.png"
+    }
+  ],
+  "displayName": "1480 Janissary — cinematic performance candidate",
+  "styleId": "stylized-history-v1",
+  "rigId": "cutout-humanoid-v1",
+  "equipmentIds": [
+    "ottoman.early-modern.janissary.cinematic-equipment.v1"
+  ],
+  "mountIds": [
+    "ottoman.early-modern.janissary.cinematic-mount.v1"
+  ],
+  "environmentIds": [
+    "ottoman.early-modern.janissary.cinematic-environment.v1"
+  ]
+}

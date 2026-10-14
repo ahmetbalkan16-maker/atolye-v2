@@ -10,7 +10,7 @@ import policy from '../libraries/world-characters/_core/mixing-policy.json';
 let count = 0;
 const test = (name: string, run: () => void) => { run(); count++; console.log(`PASS ${name}`); };
 const packs = readWorldCharacterLibrary();
-const pack = packs.find(p => p.character.civilization === 'ottoman')!;
+const pack = packs.find(p => p.character.civilization === 'ottoman' && p.character.variant === 'default')!;
 const context = { civilization: 'ottoman', period: 'early-modern', role: 'janissary', characterId: pack.character.id };
 const rejectMutation = (edit: (p: WorldPack) => void, code: RegExp = /WORLD_LIBRARY_/) => {
   const changed = structuredClone(pack); edit(changed);
@@ -40,6 +40,7 @@ test('policy has no implicit fallback or cultural sharing', () => {
   assert.deepEqual(policy.sharedCore, ['style', 'rig', 'schema']);
 });
 test('placeholder is never selectable', () => assert.throws(() => selectWorldCharacterPack(pack, context), /NOT_READY/));
+test('every added draft stays unselectable', () => { for (const p of packs.filter(p => p.character.status === 'draft')) assert.throws(() => selectWorldCharacterPack(p, { civilization: p.character.civilization, period: p.character.period, role: p.character.role, characterId: p.character.id }), /NOT_READY/); });
 test('metadata-ready exact context can be selected; caller cannot mutate returned pack', () => {
   const ready = readyFixture(), selected = selectWorldCharacterPack(ready, context);
   selected.assets[0].files.length = 0; assert.equal(ready.assets[0].files.length, 2);

@@ -4202,3 +4202,5 @@ Atölye artık Video Engine geliştirme aşamasına geçmeye hazırdır.
 ## 12 Ekim 2026 — Genel kontrol ara kaydı
 
 Kaynak düzeltmesi8eebc10 canlı build1osyiX6oqrIuLIy2JohQ- ile doğrulandı: strict local grammar/süre bütçesi, aktif60°C model request iptali, CPU opt-in ve test izolasyonu. Runtime/Studio/startup qualification ve27readiness kontrolü PASS; korunan üç veri metadata digest aynı. Source CI SUCCESS. Geniş taramada kalan22 eski suite henüz kapanmadı; genel hatasızlık veya yeniFull166 denmez. Sıradaki iş/kanıt ve rollback: [12 Ekim raporu](docs/ATOLYE_FULL_AUDIT_2026-10-12.md); aktif checkpoint önceliklidir.
+
+2026-10-14 WIP cinematic documentary: generic source/identity-bound story direction, preview parallax/cast/emotion camera, 48kHz spatial original ambience and four-track ducked mix; draft Janissary performance atlas; native free74.643s trial. Default production/live unchanged; actualjoint/30changes/all-world binding open. See docs/ATOLYE_CINEMATIC_DOCUMENTARY_2026-10-14.md.

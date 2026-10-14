@@ -1,0 +1,45 @@
+# Sinematik belgesel denemesi — 14 Ekim 2026
+
+Owner'ın son talimatı uygulanır: onaylanan ayrıntılı karakter üslubu korunur; yalnız Osmanlı değil bütün medeniyetler için kaynaklı hikâye, yaşayan ortam, etkileşim, kamera, duygu ve ses katmanları hedeflenir. İlk somut kabul konusu 1480 yeniçerisidir. Eski videosu, proje/stage kayıtları ve üretim verileri yeniden yazılmaz.
+
+Yeni modüller:
+
+- `CinematicStoryPlan.ts`: olayın sorusu, nedeni, insan deneyimi ve sonucu; kaynak id'leri; tam süre kapsamı; aktörün işi/bakış hedefi, etkileşim, duygu, kamera ve ölçülen konuşma aralıkları. Medeniyet adları sabit Osmanlı listesi değildir. Her aktör/dekor aynı sahnenin exact civilization/period namespace'inde olmalıdır. Rol ve kaynak byte kabulü native V1 intake sorumluluğunda kalır. Bu plan hiçbir üretim yetkisi vermez.
+- Görsel değişim, gerçek ortam SHA'sı veya temel karakter tasarım kimliğiyle ölçülür. Kamera cut'ı, yeniden adlandırılan aynı ortam, aynı asker çiziminden ek kalabalık instance'ı ya da yalnız farklı poz atlası yeni karakter sayılmaz. Kaynak SHA değişirse veya aynı ID başka master kimliği iddia ederse failclosed. Master kimliği intake sırasında aynı civilization/period/role paketinin SHA doğrulanmış referansına bağlıdır.
+- `CinematicStereoAmbience.ts`: bağımsız konumlanmış özgün procedural efektler, 48kHz/16bit/iki kanal. Eşit güç pan, ayrı gürültü kaynakları, bounded cue/süre/gain. Bu özgün kompozisyonlar proje içindeki diğer özgün müzik/efektler gibi CC0 kullanımına sunulur. AUTHORED ile MEASURED_ACTION açıkça ayrılır; planlanmış adım sesleri gerçek ayak-kontak ölçümü gibi gösterilmez.
+- `CinematicAudioMix.ts`: dört ayrı track (anlatıcı, karakter diyaloğu, ortam/eylem, müzik). Anlatıcı merkezde; diyalog sağ-sol konumunda; ortamın gerçek stereo farkı korunur. Konuşma müzik ve ortamı duck eder, limiter çıkışı sınırlar. Eski assembly filter graph değişmedi.
+- `CinematicPreviewRenderer.ts`: ölçülen shot clock, ciddi/dinleyen/yorgun/rear-view pozlar, aynı üniformalı birden fazla anonim asker, ön/orta/arka derinlik ve farklı parallax hızları, ayak-detay/iki-kişi/omuz-arkası/bağlam/uzaklaşma kamera aileleri. Preview footer kaldırıldı; küçük Canlandırma ve konuşma sırasında Dramatizasyon — tarihî alıntı değildir açıklaması kaldı. PNG hücre boşluğu yerine opak taban satırı zemine bağlanır. CPU/PNG atlas sampling; çizimler programatik olarak yeniden boyanmaz.
+
+Kaynak intake: `scripts/lib/cinematic-preview-art.ts` native V1 katalog/metadata/ancestor/link/kapasite/hash kapılarını kullanır; draft adaylarını yalnız PREVIEW_ONLY buffer'lara açar. Medeniyet/dönem/rolü farklı master'a bağlamak reddedilir. V1 schema/status enum'ları, 256pack/2048dir sınırları, dört başlangıç örneği ve mixing-policy gevşetilmedi. Sinematik yeniçeri adayı ayrı `ottoman/early-modern/janissary/cinematic-reference/v1`; review pending/status draft. Toplam 7pack/28metadata. Dokuz poz, dokuz farklı kişi veya sürekli eklem rig'i değildir. Imagegen kaynak SHA: 0c5b95927c2d4ed51ef42581cbe0c13696e1d08ebba1837eca5ba156e63ef96c. Master a45b41f3…ccc44.
+
+Çalıştırma (D canonical repo; süreç TEMP/TMP ve npm cache D):
+```powershell
+$env:TEMP='D:\ÜRETİM\private\temp'
+$env:TMP=$env:TEMP
+$env:NPM_CONFIG_CACHE='D:\ÜRETİM\private\npm-cache'
+$env:FFMPEG_PATH=(Get-Command ffmpeg).Source
+$env:FFPROBE_PATH=(Get-Command ffprobe).Source
+node --env-file=.env.local node_modules/tsx/dist/cli.mjs scripts/local-visual-runtime/preview-cinematic-documentary.ts
+```
+
+İzole CanonicalSmokeRuntime gerçek Piper WAV publication/okuma ve gerçek yerel Whisper cümle eşlemesi kullanır. Onun test provider ortamı ücretli kalite yetkisi değildir; bu runner hiçbir ücretli sağlayıcı çağırmaz. Video çıktısı ve rapor D handover/IMMERSIVE_JANISSARY_2026-10-14 içine gider, YouTube/canlı yayın yok. Ücretsiz yerel sesin kaynağı 22.050Hz mono Piper'dır; merkezde 48kHz'e resample edilir. Bu yeni 48kHz kayıt kalitesi veya phoneme hizalaması olarak sunulmaz. Gerçek stereo olan ortam ve panlı diyalog katmanıdır.
+
+İlk yeni film somut 74.642630385s kaynak clock / 74.642625s MP4, 1920×1080/H264/30fps, AAC48kHz iki kanal stereo olarak ffprobe ile doğrulandı. Yol: D handover/IMMERSIVE_JANISSARY_2026-10-14/cinematic-preview-1791974378389/cinematic-preview.mp4. Altı hikâye beat'i, 12 editorial shot, üç diyalog vardır. İlk frame QA atlas boşluğuna bağlı taban/gölge uzaklığı buldu; VISUAL_QA.json bunu kabul dışı tutar. Kaynak seslere dokunmadan yeni opak-taban renderer ile `rerender-cinematic-documentary.ts` ayrı cinematic-grounded-* klasöründe çalışır; gerçek sonuç/hash/probe/son HEAD makbuzu Git dışında tutulur. Önceki MP4 üzerine yazılmaz.
+
+Hikâye yapısı PASS, görsel tempo kabulü **FAIL**: yalnız 5 gerçek ortam/tasarım değişimi, gerekli 13; en uzun shot 9.325s. Bu 60–90s ses/etkileşim/kamera denemesidir. 180s/30 gerçek değişim kabulü veya bütün medeniyetlerin otomatik üretimi tamamlandı denmez. Hareketler hâlâ tam-gövde atlas pozlarıdır; gerçek eklemli gait/IK, nesnenin elden ele devri, fonem ve yaşayan sivil sokak kadrosu ayrı açık işlerdir. Temel tasarımı değiştirmeden reference-rig/v1 üzerinden actual joints sonraki aşamadır.
+
+Doğrulama: TypeScript ve scoped ESLint PASS; world smoke 46/46 (default fixture açıkça original default seçilir, yeni draft'ların reddi ayrıca doğrulanır); gerçek FFmpeg dört katman WAV/AAC48k stereo ve sağ/sol güç farkı PASS; plan mixing/identity/camera-only/quote/bakış/kapsam retleri PASS; gerçek kaynak atlas/zemin/yanlış master/hash/terminal frame/determinism preview smoke PASS. Önceki native legacy2D/volume/sentence/WAV-binding/cost11/governor14 kabulü kendi commit kapsamında korunur; bu ekleme o default kod yollarını değiştirmez.
+
+Bütçe: owner'ın toplam1USD/video sınırı tüm ücretli çağrı/deneme/retry işlemleri içindir. Bu denemede API0USD. Yeni ücretli dispatcher yok, mevcut model/fiyat/bütçe/env yükseltilmedi. Otomatik paid kaliteyi açmadan muhafazakâr rezervasyon, gerçek model/quality/input token/retry/concurrency hesabı zorunlu; mevcut eski auto-image fiyat tahmini tek başına kesin toplam sınır değildir.
+
+Entegrasyon: source-scoped araştırma → tekrarsız senaryo → editorial director → native V1 byte/rights/history/rig kabulü → portable kapalı PNG payload → eski video→audio→assembly içinde ölçülen gerçek WAV ile yeni render/mix → gerçek 180s/30 değişim + motion/content kabulü → CLEAN source/build/dependency qualification → mevcut publication snapshot/manifest/selector mekanizmasıyla kontrollü canlı. Yeni sayfa gerekirse studio alt sayfası; homepage aynı. Plan/preview tek başına production admission veya runtime authority vermez. Canlı AYAS halen c10d1e33/build1fTs5bb88rNOoNq20lo1u D snapshot'tır.
+
+Tarihsel kaynaklar: [TDV Yeniçeri](https://islamansiklopedisi.org.tr/yeniceri), [TDV Mehmed II](https://islamansiklopedisi.org.tr/mehmed-ii), [British Museum c.1480 Janissary](https://www.britishmuseum.org/collection/object/P_Pp-1-19). Günlük kişiler, konuşmalar, oda ve talim sahneleri yorumdur; belgelenmiş bir konuşma/gün olarak sunulmaz. Güncel YouTube AI disclosure/üçüncü taraf müzik koşulları gerçek yayın öncesi resmî kaynakla ayrıca doğrulanır; şimdi upload yok.
+
+SON kaynak/belge commit sonrası native Graphify assistant emit→source-grounded stage→ingest/complement, gerçek MCP/health/Observer/CI kapanışı gerekir. Pending marker elle silinmez. Makbuzlar bu son HEAD'i doğrulamadan Gelişim Merkezi hazır raporu verilmez.
+
+
+Son kare QA: talim kılıcı atlasın bowl hücresine taşıyordu. Yemek pozu built-in imagegen ile bağımsız design/serving-pose.png olarak üretildi (SHA2d4c0ab0…c0ac7); diğer pozlar/mastar aynı. Preview intake yalnız native metadata'da beyan edilmiş bounded index override'ı kullanır, artwork bundle SHA değişir fakat master design identity aynı kalır. Kaynak storyboard aynen source-story-plan.json'a alınır; bilinen eski preview atlas SHA'sından aynı kimliğin yeni kaynak bundle'ına geçiş ayrı artRevisions kanıtıdır. Eski proje/stage yazılmaz. Saf replacement sprite'ının gerçek baş/ayakları izole; kaynaklara programatik repaint yok. Yeni film cinematic-grounded-* altında tekrar oluşturulur.
+
+Birinci grounded MP4 394ab9ad…aaac6 / 74.642625s /1080p30/AAC48k stereo olarak doğrulandı. Gerçek FFmpeg loudnorm ölçümü INPUT_I -14.73LUFS, INPUT_TP -0.31dBTP, LRA5.50; logdaki OUTPUT değerleri null ölçüm filtresinin tahminidir, yayımlanmış normalize ses gibi sunulmaz. Serving override sonrası son artifact ayrıca probe/hash/kare ile doğrulanır; receipt Git dışındadır. Art/mix tests PASS, native üretim kabulü halen NOT_GRANTED.
+Son temiz yemek pozu render PASS_PREVIEW: D handover/IMMERSIVE_JANISSARY_2026-10-14/cinematic-grounded-1791975989898/cinematic-preview.mp4; yaklaşık74.643s. Dört source dosyası SHA değişmedi; artwork bundle06c5e865…dddcf2, masteraynı. Mutfak tek-kare QA'da komşu kılıç fragmanı yok; override sol kenarında solid piksel0 ayrıca doğrulandı. Owner'a film gösterilir; bu owner kabulü veya production-ready anlamına gelmez. Son test/probe/Graphify/MCP/health/CI receipt'i Git dışındaki SESSION_RECEIPT.json'dadır.

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "pending",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19",
+      "https://islamansiklopedisi.org.tr/yeniceri",
+      "https://islamansiklopedisi.org.tr/mehmed-ii"
+    ],
+    "notes": "Built-in imagegen performance variants of the approved master design: serious/listening/rear/drill/bowl/tired. Same identity as reference/v1, not nine new characters. Whole-body pose atlas, not continuous limb rig. Interpretive Ottoman/1480; cinematic preview only."
+  },
+  "kind": "equipment",
+  "id": "ottoman.early-modern.janissary.cinematic-equipment.v1",
+  "variant": "cinematic-equipment",
+  "files": [],
+  "characterId": "ottoman.early-modern.janissary.cinematic-reference.v1",
+  "items": []
+}
