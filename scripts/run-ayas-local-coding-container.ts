@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { ayasLocalCodingCandidatePins as pins } from "../src/lib/brain/autonomy/AyasLocalCodingPins";
+import { ayasLocalCodingCandidatePins as pins, ayasLocalCodingHostCandidatePins } from "../src/lib/brain/autonomy/AyasLocalCodingPins";
+import { AYAS_LOCAL_CODING_OWNER_THRESHOLD, evaluateAyasLocalCodingOwnerThreshold } from "../src/lib/brain/autonomy/AyasLocalCodingOwnerThreshold";
 import { AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, diagnoseAyasLocalCodingModelWith } from "../src/lib/brain/autonomy/AyasLocalCodingModelAdapter";
 import { summarizeAyasLocalCodingQualification } from "../src/lib/brain/autonomy/AyasLocalCodingQualificationReport";
 import { createAyasLocalCodingWorkspace, destroyAyasLocalCodingWorkspace } from "../src/lib/brain/autonomy/AyasLocalCodingWorkspace";
@@ -395,6 +396,27 @@ function summarize(attempts: Attempt[], evaluable: string[], inferenceId: string
     summarizer: "summarizeAyasLocalCodingQualification (committed, unchanged); negativeControlRejected is taken from FROZEN_CONTAINER_NEGATIVE_CONTROLS.",
     canonicalNumericThreshold: null, thresholdDecision: "FAIL_CLOSED_NO_CANONICAL_NUMERIC_THRESHOLD", readiness: "LOCAL_INDEPENDENCE_DEGRADED" };
 }
+type ModelDiagnostic = Awaited<ReturnType<typeof diagnoseAyasLocalCodingModelWith>>;
+/** The frozen evaluator judges an immutable candidate artifact inside the hardened container; nothing runs on the host. */
+function evaluateCandidate(evalId: string, caseId: string, model: ModelDiagnostic): Record<string, unknown> & { outcome: string } {
+  try {
+    // Bounded candidate only: the strict adapter already refused scope, schema, budget and stale-base output in memory.
+    const candidate = { caseId, sources: model.candidate.sources };
+    const artifact = fs.mkdtempSync(path.join(root, "candidate-")); const bytes = JSON.stringify(candidate);
+    fs.writeFileSync(path.join(artifact, "candidate.json"), bytes, { flag: "wx", mode: 0o444 });
+    const evaluator = create(evalId, artifact, diagnostic, "/usr/local/bin/node", ["/opt/ayas/evaluate.cjs", caseId]);
+    let evaluation; const evaluationStarted = performance.now();
+    try { evaluation = spawnSync(podman, ["start", "--attach", evaluator], { encoding: "utf8", timeout: 60000, windowsHide: true, maxBuffer: 1000000 }); }
+    finally { cleanup(evaluator); }
+    assert.equal(sha(fs.readFileSync(path.join(artifact, "candidate.json"))), sha(bytes), "IMMUTABLE_CANDIDATE_ARTIFACT_CHANGED");
+    const skipped = /"skipped"|"scenarios":0/.test(evaluation.stdout);
+    return { outcome: skipped ? "PLATFORM_UNAVAILABLE" : evaluation.status === 0 ? "PASS" : (evaluation.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT" ? "EVALUATOR_TIMEOUT" : "FAIL",
+      candidateSha256: sha(bytes), candidateArtifact: artifact, responseSha256: model.responseSha256, generationMs: model.elapsedMs,
+      evaluationMs: performance.now() - evaluationStarted, changedFiles: model.candidate.patch.edits.map(edit => edit.path), changedLines: model.candidate.changedLines,
+      patch: model.candidate.patch, evaluatorExit: evaluation.status, evaluatorStdout: evaluation.stdout.slice(-2000), evaluatorStderr: evaluation.stderr.slice(0, 4000),
+      securityScope: "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY", regression: "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX" };
+  } catch (error) { return { outcome: "EVALUATOR_RUNTIME_FAILURE", reason: String(error).slice(0, 800), generationMs: model.elapsedMs }; }
+}
 async function qualify(): Promise<void> {
   const evalId = hardenedEvaluatorImage(); const id = image("inference");
   const oracle = JSON.parse(fs.readFileSync(`${reportPath}/FROZEN_CONTAINER_NEGATIVE_CONTROLS.json`, "utf8"));
@@ -474,23 +496,7 @@ async function qualify(): Promise<void> {
       finally { try { cleanup(container); } finally { destroyAyasLocalCodingWorkspace(workspace); } }
       host = watch.stop(); releaseVmCache();
     }
-    if (model) try {
-      // Bounded candidate only: the strict adapter already refused scope, schema, budget and stale-base output in memory.
-      const candidate = { caseId: item.caseId, sources: model.candidate.sources };
-      const artifact = fs.mkdtempSync(path.join(root, "candidate-")); const bytes = JSON.stringify(candidate);
-      fs.writeFileSync(path.join(artifact, "candidate.json"), bytes, { flag: "wx", mode: 0o444 });
-      const evaluator = create(evalId, artifact, diagnostic, "/usr/local/bin/node", ["/opt/ayas/evaluate.cjs", item.caseId]);
-      let evaluation; const evaluationStarted = performance.now();
-      try { evaluation = spawnSync(podman, ["start", "--attach", evaluator], { encoding: "utf8", timeout: 60000, windowsHide: true, maxBuffer: 1000000 }); }
-      finally { cleanup(evaluator); }
-      assert.equal(sha(fs.readFileSync(path.join(artifact, "candidate.json"))), sha(bytes), "IMMUTABLE_CANDIDATE_ARTIFACT_CHANGED");
-      const skipped = /"skipped"|"scenarios":0/.test(evaluation.stdout);
-      result = { outcome: skipped ? "PLATFORM_UNAVAILABLE" : evaluation.status === 0 ? "PASS" : (evaluation.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT" ? "EVALUATOR_TIMEOUT" : "FAIL",
-        candidateSha256: sha(bytes), candidateArtifact: artifact, responseSha256: model.responseSha256, generationMs: model.elapsedMs,
-        evaluationMs: performance.now() - evaluationStarted, changedFiles: model.candidate.patch.edits.map(edit => edit.path), changedLines: model.candidate.changedLines,
-        patch: model.candidate.patch, evaluatorExit: evaluation.status, evaluatorStdout: evaluation.stdout.slice(-2000), evaluatorStderr: evaluation.stderr.slice(0, 4000),
-        securityScope: "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY", regression: "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX" };
-    } catch (error) { result = { outcome: "EVALUATOR_RUNTIME_FAILURE", reason: String(error).slice(0, 800), generationMs: model.elapsedMs }; }
+    if (model) result = evaluateCandidate(evalId, item.caseId, model);
     const facts = rawResponse ? responseFacts(rawResponse) as { toolCalls?: (string | null)[] | null } : null;
     const record: Attempt = { caseId: item.caseId, split: item.split, domain: item.domain, repeat, imageId: id, evaluatorImageId: evalId, modelSha256: pins.model.sha256,
       evaluatorBlob: item.evaluatorBlob, baseHead: item.baseHead, harness: { repositoryHead: head(), runnerSha256, adapterSha256 }, observedAt: new Date().toISOString(),
@@ -510,6 +516,119 @@ async function qualify(): Promise<void> {
   }
   persist(); console.log("LOCAL_MODEL_ATTEMPTS_RECORDED_NOT_ADMISSION");
 }
+/**
+ * Host-engine qualification (owner decision 2026-10-15). Inference runs on the pinned, installed Ollama bound to
+ * 127.0.0.1 (GPU capable); patch evaluation is unchanged in the hardened rootless evaluator container. The model still
+ * has no tool surface, its single JSON patch is validated in memory by the strict adapter, and nothing it returns runs
+ * on the host. The verdict is the owner's canonical threshold; this records evidence only and changes no registry,
+ * admission or readiness state.
+ */
+const hostPins = ayasLocalCodingHostCandidatePins;
+const HOST_ENGINE = "http://127.0.0.1:11434";
+// The prompts carry whole exact files (~15k tokens measured); Ollama's default context would silently truncate them.
+const HOST_NUM_CTX = 32768;
+const HOST_REPEATS = AYAS_LOCAL_CODING_OWNER_THRESHOLD.repeatCount;
+async function hostEngineGuard(): Promise<void> {
+  const exe = path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local"), "Programs", "Ollama", "ollama.exe");
+  assert.equal(sha(fs.readFileSync(exe)), hostPins.engine.binarySha256, "HOST_ENGINE_BINARY_MISMATCH");
+  const version = await (await fetch(`${HOST_ENGINE}/api/version`, { redirect: "error" })).json() as { version?: string };
+  assert.equal(version.version, hostPins.engine.version, "HOST_ENGINE_VERSION_MISMATCH");
+  const tags = await (await fetch(`${HOST_ENGINE}/api/tags`, { redirect: "error" })).json() as { models?: { name?: string; digest?: string }[] };
+  const tag = tags.models?.find(item => item.name === hostPins.model.servedModel);
+  assert.ok(tag && `sha256:${tag.digest}` === hostPins.model.manifestDigest, "HOST_MODEL_MANIFEST_MISMATCH");
+}
+/** Ollama's native chat API (the only one that takes num_ctx), re-expressed in the envelope the strict adapter validates. */
+async function hostTransport(body: string, signal: AbortSignal): Promise<string> {
+  const request = JSON.parse(body) as { model: string; messages: unknown; temperature: number; seed: number; max_tokens: number;
+    response_format: { json_schema: { schema: unknown } } };
+  const response = await fetch(`${HOST_ENGINE}/api/chat`, { method: "POST", redirect: "error", signal, headers: { "content-type": "application/json" },
+    body: JSON.stringify({ model: request.model, stream: false, keep_alive: 0, messages: request.messages, format: request.response_format.json_schema.schema,
+      options: { temperature: request.temperature, seed: request.seed, num_predict: request.max_tokens, num_ctx: HOST_NUM_CTX } }) });
+  const text = await response.text();
+  if (Buffer.byteLength(text) > 256000) throw Error("RESPONSE_TOO_LARGE");
+  if (!response.ok) throw Error(`HTTP_${response.status}:${text.slice(0, 300)}`);
+  const native = JSON.parse(text) as { model?: string; done_reason?: string; prompt_eval_count?: number; eval_count?: number; total_duration?: number; eval_duration?: number;
+    message?: { role?: string; content?: string; tool_calls?: unknown } };
+  // Identity and finish state are the engine's own; any tool call is passed through so the adapter refuses it.
+  return JSON.stringify({ model: native.model, choices: [{ index: 0, finish_reason: native.done_reason === "stop" ? "stop" : String(native.done_reason),
+    message: { role: native.message?.role, content: native.message?.content, ...(native.message?.tool_calls ? { tool_calls: native.message.tool_calls } : {}) } }],
+  usage: { prompt_tokens: native.prompt_eval_count ?? null, completion_tokens: native.eval_count ?? null },
+  timings: { total_ms: native.total_duration ? native.total_duration / 1e6 : null, eval_ms: native.eval_duration ? native.eval_duration / 1e6 : null } });
+}
+async function qualifyHost(): Promise<void> {
+  await hostEngineGuard();
+  const evalId = hardenedEvaluatorImage();
+  const oracle = JSON.parse(fs.readFileSync(`${reportPath}/FROZEN_CONTAINER_NEGATIVE_CONTROLS.json`, "utf8"));
+  assert.ok(oracle.imageId === evalId && oracle.allControlsValid === true, "CONTAINER_ORACLE_CONTROLS_NOT_VALID_FOR_THIS_IMAGE");
+  const evaluable: string[] = oracle.evaluable; const only = process.argv[4];
+  let budget = process.argv[5] === undefined ? Number.POSITIVE_INFINITY : Number(process.argv[5]); assert.ok(budget >= 1, "ATTEMPT_BUDGET_INVALID");
+  const bound = allCases.filter(item => evaluable.includes(item.caseId));
+  const cases = bound.filter(item => !only || item.caseId === only);
+  const binding = { engine: hostPins.engine, model: hostPins.model, evaluatorImageId: evalId,
+    adapterSha256: sha(fs.readFileSync("src/lib/brain/autonomy/AyasLocalCodingModelAdapter.ts")),
+    transport: "ollama /api/chat on 127.0.0.1, keep_alive 0, re-enveloped for the strict adapter", numCtx: HOST_NUM_CTX,
+    timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, threshold: AYAS_LOCAL_CODING_OWNER_THRESHOLD };
+  const runnerSha256 = sha(fs.readFileSync("scripts/run-ayas-local-coding-container.ts"));
+  // One recorded observation per (case, repeat); a resumed run keeps earlier attempts and never re-rolls them.
+  const file = `${reportPath}/LOCAL_MODEL_HOST_RUN_EVIDENCE.json`;
+  const prior = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
+  const sameBinding = !!prior && JSON.stringify(prior.binding) === JSON.stringify(binding);
+  const attempts: Attempt[] = sameBinding ? prior.attempts : [];
+  const superseded: object[] = [...(prior?.supersededAttempts ?? []), ...(prior && !sameBinding ? (prior.attempts as object[]).map(row => ({ ...row, earlierBinding: prior.binding })) : [])];
+  const resourceAborts: object[] = sameBinding ? prior.resourceAborts ?? [] : [];
+  const verdict = (): ReturnType<typeof evaluateAyasLocalCodingOwnerThreshold> => evaluateAyasLocalCodingOwnerThreshold({
+    cases: bound.map(item => ({ caseId: item.caseId, split: item.split })),
+    attempts: attempts.map(row => ({ caseId: row.caseId, repeat: row.repeat, pass: row.outcome === "PASS", securityViolation: row.securityViolation === true })) });
+  const persist = (): void => writeReport("LOCAL_MODEL_HOST_RUN_EVIDENCE", { evidenceClass: "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
+    observedAt: new Date().toISOString(), repositoryHead: head(), binding, attempts, supersededAttempts: superseded, resourceAborts,
+    notEvaluated: (oracle.platformUnavailable as string[]).map(caseId => ({ caseId, outcome: "PLATFORM_UNAVAILABLE", modelRequestSent: false })),
+    ownerThreshold: verdict(), readiness: "LOCAL_INDEPENDENCE_DEGRADED", productionRegistryChanged: false, cloudFallback: false });
+  for (const item of cases) for (let repeat = 1; repeat <= HOST_REPEATS; repeat++) {
+    if (attempts.some(row => row.caseId === item.caseId && row.repeat === repeat)) continue;
+    if (budget-- <= 0) { persist(); console.log("ATTEMPT_BUDGET_REACHED_NOT_ADMISSION"); return; }
+    const hostBefore = hostMemory();
+    if (hostBefore.usedPct > HOST_MAX_USED * 100) { persist(); throw Error(`HOST_PROTECTION_PAUSE:host ${hostBefore.usedPct}% used before ${item.caseId}#${repeat}`); }
+    const task = item.domain === "MEMORY_RETRIEVAL" ? projectAyasLocalCodingRetrievalTask() : projectAyasLocalCodingQualificationTask(item);
+    const workspace = createAyasLocalCodingWorkspace({ repoRoot: process.cwd(), task });
+    const started = performance.now(); let rawResponse = ""; let model: ModelDiagnostic | null = null;
+    let result: Record<string, unknown> & { outcome: string } = { outcome: "RUNTIME_FAILURE" };
+    let workspaceUnchanged = false; let scopeEscape = false; let modelRequestSent = false;
+    const guard = new AbortController(); const watch = hostWatch(() => guard.abort()); let host: ReturnType<typeof watch.stop>;
+    try {
+      const sources = task.exactFiles.map(file => ({ path: file, content: fs.readFileSync(path.join(workspace.root, file), "utf8") }));
+      const workspaceBefore = workspaceDigest(workspace.root, task.exactFiles);
+      try {
+        model = await diagnoseAyasLocalCodingModelWith({ task, sources, modelManifest: hostPins.model, signal: guard.signal,
+          endpoint: `${HOST_ENGINE}/v1/chat/completions`, timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS,
+          transport: async request => { modelRequestSent = true; rawResponse = await hostTransport(request.body, request.signal); return rawResponse; } });
+      } catch (error) { result = classify(error); }
+      workspaceUnchanged = workspaceDigest(workspace.root, task.exactFiles) === workspaceBefore;
+      // An edit naming a file outside the task is a security violation even though the adapter already refused it.
+      try {
+        const edits = JSON.parse(JSON.parse(rawResponse).choices[0].message.content).edits;
+        scopeEscape = Array.isArray(edits) && edits.some((edit: { path?: unknown }) => typeof edit?.path !== "string" || !task.exactFiles.includes(edit.path));
+      } catch { /* unparseable output is already a refused attempt */ }
+    } finally { try { destroyAyasLocalCodingWorkspace(workspace); } finally { host = watch.stop(); } }
+    if (rawResponse) fs.writeFileSync(path.join(root, `host-${item.caseId}-${repeat}-${Date.now()}-response.json`), rawResponse, { flag: "wx", mode: 0o444 });
+    if (model) result = evaluateCandidate(evalId, item.caseId, model);
+    const facts = rawResponse ? responseFacts(rawResponse) as { toolCalls?: (string | null)[] | null } : null;
+    const toolMisuse = !!facts?.toolCalls?.length;
+    const record: Attempt = { caseId: item.caseId, split: item.split, domain: item.domain, repeat, evaluatorImageId: evalId, modelDigest: hostPins.model.weightsSha256,
+      evaluatorBlob: item.evaluatorBlob, baseHead: item.baseHead, harness: { repositoryHead: head(), runnerSha256, adapterSha256: binding.adapterSha256 },
+      observedAt: new Date().toISOString(), modelRequestSent, retries: 0,
+      totalMs: performance.now() - started, hostMemory: { before: hostBefore, ...host, afterCleanup: hostMemory() },
+      toolMisuse, workspaceUnchanged, scopeEscape, securityViolation: toolMisuse || !workspaceUnchanged || scopeEscape, response: facts, ...result };
+    if (host.aborted) {
+      // Resource exhaustion says nothing about the model: kept apart and the repeat stays pending.
+      resourceAborts.push({ ...record, outcome: "RESOURCE_ABORT", countedAsModelFailure: false });
+      persist(); throw Error(`HOST_PROTECTION_PAUSE:RESOURCE_ABORT ${item.caseId}#${repeat}`);
+    }
+    attempts.push(record); persist();
+    console.log(JSON.stringify({ caseId: record.caseId, repeat, outcome: record.outcome, reason: record.reason ?? null, securityViolation: record.securityViolation,
+      generationMs: record.generationMs ?? null, totalMs: Math.round(record.totalMs as number) }));
+  }
+  persist(); console.log(JSON.stringify({ ownerThreshold: verdict() }));
+}
 // A host-protection pause is a deliberate, resumable stop (exit 3); anything else is a failure (exit 1).
 function stopped(error: unknown): void { console.error(String(error)); process.exitCode = /HOST_PROTECTION_PAUSE/.test(String(error)) ? 3 : 1; }
 machineGuard();
@@ -519,4 +638,5 @@ else if (process.argv[3] === "matrix") void matrix();
 else if (process.argv[3] === "controls") controls();
 else if (process.argv[3] === "smoke") smoke().catch(stopped);
 else if (process.argv[3] === "qualify") qualify().catch(stopped);
+else if (process.argv[3] === "qualify-host") qualifyHost().catch(stopped);
 else throw Error("EXPLICIT_DIAGNOSTIC_PHASE_REQUIRED");

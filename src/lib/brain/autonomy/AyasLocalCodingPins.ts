@@ -31,6 +31,30 @@ export const ayasLocalCodingCandidatePins = Object.freeze({
   }),
 });
 
+/**
+ * Owner-selected host-engine candidate (2026-10-15): inference by the installed Ollama bound to 127.0.0.1 (GPU capable),
+ * while patch evaluation stays in the hardened evaluator container. Not an installation, admission or execution permit.
+ */
+export const ayasLocalCodingHostCandidatePins = Object.freeze({
+  engine: Object.freeze({ name: "ollama", version: "0.40.3", binarySha256: "61b44cfb6d3aa2393a4a731af33c9329bedd58b1c454bdebd185d4a607d0303d", binarySizeBytes: 27_815_816 }),
+  model: Object.freeze({
+    servedModel: "qwen3-coder:30b", registry: "registry.ollama.ai/library/qwen3-coder:30b", license: "apache-2.0",
+    manifestDigest: "sha256:06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+    weightsSha256: "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a", weightsSizeBytes: 18_556_688_736,
+  }),
+});
+
+/** The served name and weights digest of exactly one pinned candidate; any other manifest is refused. */
+export function resolveAyasLocalCodingServedModel(value: unknown): Readonly<{ servedModel: string; modelDigest: string }> {
+  if (exact(value, ayasLocalCodingCandidatePins.model)) {
+    return Object.freeze({ servedModel: "ayas-qwen2.5-coder-14b-q4-k-m", modelDigest: ayasLocalCodingCandidatePins.model.sha256 });
+  }
+  if (exact(value, ayasLocalCodingHostCandidatePins.model)) {
+    return Object.freeze({ servedModel: ayasLocalCodingHostCandidatePins.model.servedModel, modelDigest: ayasLocalCodingHostCandidatePins.model.weightsSha256 });
+  }
+  throw new AyasLocalCodingPinError("MODEL_MANIFEST_MISMATCH");
+}
+
 export class AyasLocalCodingPinError extends Error {
   constructor(reason: string) { super(reason); this.name = "AyasLocalCodingPinError"; }
 }
