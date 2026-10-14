@@ -43,3 +43,8 @@ Observer Windows Task güvenlik tanımı yalnız Administrators/System yazabilir
 Yeni PC hazırmış gibi sertifikalandırılmadı. USB kopyasından sonra kurulu araçlar yüklenmeli, root/env/startup/key yolları hedef host'a bağlanmalı ve resmi backup/candidate/consume/materialization/authority kabulü tekrar yürütülmelidir. Mevcut host hazırlık kontrolü kopyalanmış projectsRoot inode/dev uyuşmazlığını reddeder. Mevcut geçiş kanıtlarının arşivi korunur; yeni fiziksel kimlikler eski payload kayıtlarına elle yazılmaz. Paket özel anahtar/env içerir ve Git'e girmez.
 
 Exact HEAD için son kaynak/belge commit'inden sonra Graphify/MCP/health kapanış makbuzu üretilir; önceki koleksiyon veya rollback makbuzları tarihsel kapsamlarını korur. Source build HEAD ile daha sonraki yalnız script/belge HEAD'i makbuzda ayrı tutulur.
+
+
+## 14 Ekim ek temizliği ve süreç TEMP kapsamı
+
+Ollama dahil gerçek AYAS süreçleri D temp ile doğrulandı. Existing Startup/menu aynı installed binary için scripts/ollama-production-hidden.vbs kullanır; Windows genel TEMP/TMP değişmez. İlk iki owned C Temp batch ve son trailing-dot fixture kaldırıldı, belirsiz kaynak/geçmiş D SHA readback arşivlerinde korundu. C:/ayas-iso-val ve diğer historical49-root archive devam eder; tamamlandı denmez. Güncel kapsam/receipts docs/AYAS_C_TEMP_CLEANUP_2026-10-14.md ve ATOLYE_CHECKPOINT.md ilk kaydındadır. Owner phone Graphify eski durumunu bildirdi; WIP commit sonrası native graph/Observer kabulüne öncelik verildi. Eski C host shim yolu OS-held olduğu için restore edildi; Windows/kurulu app/browser metadata korunur.

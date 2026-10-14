@@ -108,3 +108,9 @@ complement ve gerçek yerel MCP sorgusu kullanılır. Pending marker elle silinm
 status/authority/frozen kapıları gevşetilmez. Son graph built-from/analyzed HEAD,
 yapısal/semantic durum, bütünlük, temiz Git ve gerçek sağlık/observer sonucu Git dışı
 makbuzda saklanır. Bu kontrol sonrası yeni belge commit'i yapılırsa kontrol tekrarlanır.
+
+## D üretim çalışma yolları — owner talimatı, 2026-10-14
+
+Canonical repo D:\ÜRETİM\Atolye\atolye-v2. Yeni geliştirme, test, rapor, yedek ve arşiv D içinde oluşturulur. Her yerel geliştirme/test komutunda süreç TEMP/TMP D:\ÜRETİM\private\temp ve NPM_CONFIG_CACHE D:\ÜRETİM\private\npm-cache olarak ayarlanır; Windows User/Machine TEMP/TMP değişmez. Unicode generated PowerShell fixture sorunu olan mevcut Observer autostart suite'i yalnız test sürecinde ASCII D:\URETIM\private\temp bağlantısını kullanır; production Observer gerçek D temp yolu kullanır.
+
+Ollama'nın mevcut kullanıcı Startup/menu kısayolu scripts/ollama-production-hidden.vbs üzerinden aynı kurulu binary'yi D temp ile başlatır. Bu başlatıcı kendi TEMP/TMP/OLLAMA_TMPDIR ortamını sınırlar ve çalışan aynı GUI için ikinci instance başlatmaz. Kurulu Windows/program binary'leri taşınmaz, tarihsel authority/payload kimlikleri elle yeniden yazılmaz. C Temp temizliği yalnız envanter ve sınırlı sahiplik kanıtındaki AYAS/Atölye öğelerine uygulanır; bilinmeyen çalışmalar hash/readback ile D arşivinde korunur, reparse hedefleri takip edilmez.

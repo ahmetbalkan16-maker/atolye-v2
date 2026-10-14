@@ -7,7 +7,7 @@ Push-Location $repo
 try {
   & $node "--env-file=.env.local" (Join-Path $PSScriptRoot 'check-production-layout.mjs')
   if ($LASTEXITCODE -ne 0) { throw 'PRODUCTION_REQUIRES_OFFICIAL_PHYSICAL_QUALIFICATION' }
-  $launchers = @((Join-Path $PSScriptRoot 'ayas-access-hidden.vbs'), (Join-Path $production 'private\AtolyeAyasAccess\run-ayas-observer-hidden.vbs'))
+  $launchers = @((Join-Path $PSScriptRoot 'ollama-production-hidden.vbs'), (Join-Path $PSScriptRoot 'ayas-access-hidden.vbs'), (Join-Path $production 'private\AtolyeAyasAccess\run-ayas-observer-hidden.vbs'))
   foreach ($launcher in $launchers) {
     if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'QUALIFIED_PRODUCTION_LAUNCHER_MISSING' }
   }

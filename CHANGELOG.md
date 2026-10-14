@@ -1,3 +1,10 @@
+## 2026-10-14 — D scoped temp and bounded C cleanup (in progress)
+
+- Added the Ollama production launcher to existing current-host start; retained installed binary, GUI menu and singleton behavior with process-scoped D TEMP/TMP/OLLAMA_TMPDIR.
+- Documented D development/test paths; preserved global Windows temp, installed applications and frozen/authority/homepage rules.
+- Verified and retired old owned Temp fixtures; archived uncertain history with source/destination SHA readback. Full-C historical-source archive and final rescan remain open; see current checkpoint and docs/AYAS_C_TEMP_CLEANUP_2026-10-14.md.
+- TypeScript, production-layout and launcher syntax/idempotence passed. Phone Graphify/Observer closure follows this WIP source commit; final cleanup/docs commit will require another exact-HEAD closure.
+
 ## 14 Ekim 2026 — D üretim kökü aktif; C payload kaldırıldı
 
 Yeni canonical repo **D:\ÜRETİM\Atolye\atolye-v2**, runtime **D:\ÜRETİM\runtime\AtolyeRuntime-current**, authority **D:\ÜRETİM\runtime\AtolyeAuthority-current**. Yeni işler, modeller, özel konfigürasyon, yedek/rapor/arşiv bu paket içinde tutulur. Resmi byteExact transition **ayas-d-qualified-20261014** ve SHA-256 ile bağlı materialization kanıtı aktif. 2936 payload dosyası / 721610035 byte ve 20 physical proje yeterli kılındı; Studio 19 proje, gerçek MP4 range206 ve 8 WAV200 dosya hashleriyle doğrulandı. 19 projenin deferred okuması C/D eşdeğer; önceden var olan 6 geçersiz publication intent güvenli reddedilerek korunur.

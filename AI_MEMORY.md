@@ -1,3 +1,7 @@
+## 2026-10-14 — C cleanup devamı; Graphify önceliği
+
+Canonical D üretim aktif; process TEMP/TMP D, Ollama existing Startup/menu scoped launcher. İlk2 Temp batch temiz; full-C explicit49 historical-root arşivleme devam, C:/ayas-iso-val henüz kaldırılmadı. Yeni/yarım işler ATOLYE_CHECKPOINT.md ilk kaydında; literal C-zero / newPC/reboot kabulü yok. Dirty repo nedeniyle phone sağlık kısmen bozuk; WIP commit/push sonra native Graphify ve gerçek Observer/health yenilenir. Final C cleanup/docs commit sonrası exactHEAD tekrar kapanır.
+
 ## 14 Ekim 2026 — D üretim kökü aktif; C payload kaldırıldı
 
 Yeni canonical repo **D:\ÜRETİM\Atolye\atolye-v2**, runtime **D:\ÜRETİM\runtime\AtolyeRuntime-current**, authority **D:\ÜRETİM\runtime\AtolyeAuthority-current**. Yeni işler, modeller, özel konfigürasyon, yedek/rapor/arşiv bu paket içinde tutulur. Resmi byteExact transition **ayas-d-qualified-20261014** ve SHA-256 ile bağlı materialization kanıtı aktif. 2936 payload dosyası / 721610035 byte ve 20 physical proje yeterli kılındı; Studio 19 proje, gerçek MP4 range206 ve 8 WAV200 dosya hashleriyle doğrulandı. 19 projenin deferred okuması C/D eşdeğer; önceden var olan 6 geçersiz publication intent güvenli reddedilerek korunur.

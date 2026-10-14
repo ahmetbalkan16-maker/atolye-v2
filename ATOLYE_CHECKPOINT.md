@@ -1,3 +1,15 @@
+## 14 Ekim 2026 — C Temp temizliği / D süreç yolları; derin arşiv devam ediyor
+
+Canonical üretim ve repo D'de; gerçek runtime healthy/ready/workerReady, aktif0. Ollama GUI/server dahil AYAS/Atölye süreçlerinin çalışma dizini ve TEMP/TMP gerçek D yolları salt okunur doğrulandı; mevcut Startup/menu aynı kurulu binary'yi yeni D scoped launcher ile açar. Windows genel TEMP/TMP ve kurulu programlar korunur. TypeScript, launcher syntax/idempotence, resmi mevcut-host layout PASS.
+
+İlk iki Temp geçişi tamam: 696979 normal dosya ve 5166 bağlantı kaldırıldı; gerekli/belirsiz 309191 dosya/19177347093 byte kaynak+hedefSHA ile D arşivinde. Kalan 3 trailing-dot fixture dosyası/18 byte ve boş Atölye Temp alt dizini de güvenli kaldırıldı. Tam C metadata taraması generic isimli iç repo kopyalarını da kapsadı. Taze kontrolde 4029 eski aday zaten yoktu; bunlar bizim silmemiz olarak sayılmaz. 49 mevcut eski kaynak/tarihçe hedefi 262032 dosya/34443612632 byte; hash/readback arşivleme **devam ediyor**, henüz bu batch C kaynağı silinmedi. C:/ayas-iso-val aktif üretim değil, 58367dosya/6046331215byte eski validation kopyası; current D runtime'a karıştırılmadan ayrı korunacak.
+
+Aktif iş: .graphify/wake-phone-20261013/archive-full-c-owned.cjs ve handover/C_FULL_SCAN_2026-10-14/owned-manifest.json. Sıradaki: archive-receipt BYTE_VERIFIED_ARCHIVE → source-unchanged proof → explicit-root no-follow cleaner → final C rescan → son belge/commit/push → exactHEAD nativeGraphify/MCP/gerçekhealth. Kopya işlemi kaldığı yerden journal ile güvenli devam eder. Yeni checkpoint altındaki migration kayıtları tarihçedir.
+
+Owner telefonda kısmen bozuk/Graphify eski görüyor: mevcut dirty source Observer'ı PAUSED_DIRTY_REPO yapıyor, indeks source değişikliklerinin gerisinde. Öncelik bu WIP commit/push sonrası native assistant emit→grounded stage→ingest ve gerçek kabul; arşiv .graphify dış kaynak runner'ında sürer. Hazır sonucu makbuzsuz iddia edilmez. D handover/C_TEMP_PROCESS_AUDIT_2026-10-14.json ve OLLAMA_D_TEMP_ACCEPTANCE_2026-10-14.json gerçek path/model kanıtı. docs/AYAS_C_TEMP_CLEANUP_2026-10-14.md kapsam ve sınırlar.
+
+C legacy host dizinini Windows açık Codex process nedeniyle junction'a dönüştürmeye izin vermedi; hash yedekli 3 küçük shim ve scripts D bağlantısı geri yüklendi. Installed app/Windows Startup/browser state korunur. Literal C'de hiçbir referans kalmadığı, reboot veya yeniPC kabulü iddia edilmez.
+
 ## 14 Ekim 2026 — D üretim kökü aktif; C payload kaldırıldı
 
 Yeni canonical repo **D:\ÜRETİM\Atolye\atolye-v2**, runtime **D:\ÜRETİM\runtime\AtolyeRuntime-current**, authority **D:\ÜRETİM\runtime\AtolyeAuthority-current**. Yeni işler, modeller, özel konfigürasyon, yedek/rapor/arşiv bu paket içinde tutulur. Resmi byteExact transition **ayas-d-qualified-20261014** ve SHA-256 ile bağlı materialization kanıtı aktif. 2936 payload dosyası / 721610035 byte ve 20 physical proje yeterli kılındı; Studio 19 proje, gerçek MP4 range206 ve 8 WAV200 dosya hashleriyle doğrulandı. 19 projenin deferred okuması C/D eşdeğer; önceden var olan 6 geçersiz publication intent güvenli reddedilerek korunur.
