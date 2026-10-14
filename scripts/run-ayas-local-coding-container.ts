@@ -12,7 +12,8 @@ import { createAyasLocalCodingWorkspace, destroyAyasLocalCodingWorkspace } from 
 import { AYAS_LOCAL_CODING_QUALIFICATION_VAULT, projectAyasLocalCodingQualificationTask } from "./fixtures/ayas-local-coding-qualification-vault";
 import { AYAS_LOCAL_CODING_RETRIEVAL_CASE, projectAyasLocalCodingRetrievalTask } from "./fixtures/ayas-local-coding-qualification-retrieval-case";
 
-const podman = "C:/Users/Metod/AppData/Local/Programs/Podman/podman.exe";
+// Per-user install location, so a new PC or user name needs no edit; machineGuard() still pins the binary hash.
+const podman = path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local"), "Programs", "Podman", "podman.exe");
 const sha = (b: Buffer | string): string => crypto.createHash("sha256").update(b).digest("hex");
 const root = fs.realpathSync(process.argv[2]!);
 if (path.dirname(root).toLowerCase() !== fs.realpathSync(os.tmpdir()).toLowerCase()

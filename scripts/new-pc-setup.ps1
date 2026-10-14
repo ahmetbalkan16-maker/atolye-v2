@@ -106,6 +106,24 @@ if ($SkipTools) { Say 'ATLANDI' 'Arac kurulumu (-SkipTools)' } else {
   }
 }
 
+# Podman is only needed by the local coding-model qualification sandbox
+# (scripts/run-ayas-local-coding-container.ts pins podman.exe 6.0.2 and an 8 CPU /
+# 8 GiB / 40 GB rootless machine). winget stops at 5.8.x, so it is reported, not
+# installed; AYAS, phone access and the Development Center run without it.
+$podmanExe = Join-Path $env:LOCALAPPDATA 'Programs\Podman\podman.exe'
+$podmanSha = 'f6a555b075654fdb12580bdaf570ee90c2225f94a05781ecd6c1a16c8a5c95ea'
+if (-not (Test-Path -LiteralPath $podmanExe) -or (Sha $podmanExe) -ne $podmanSha) {
+  Say 'UYARI' 'Podman 6.0.2 yok (yalniz yerel kod modeli yeterlilik sandbox''i icin): https://github.com/containers/podman/releases/tag/v6.0.2 adresindeki Windows installer''i kurun, sonra bu betigi tekrar calistirin.'
+} else {
+  $machines = (& $podmanExe machine list --format '{{.Name}}' 2>$null) -join ' '
+  if ($machines -notmatch 'podman-machine-default') {
+    Plan 'Podman makinesi (8 CPU, 8 GiB, 40 GB, rootless)' {
+      & $podmanExe machine init --cpus 8 --memory 8192 --disk-size 40
+      if ($LASTEXITCODE -ne 0) { throw "podman machine init failed ($LASTEXITCODE)" }
+    }
+  } else { Say 'TAMAM' 'Podman ve makinesi' }
+}
+
 # 3. Per-user environment (Windows-wide TEMP/TMP stay untouched).
 $userEnv = [ordered]@{
   OLLAMA_MODELS = (Join-Path $production 'models\ollama\models')

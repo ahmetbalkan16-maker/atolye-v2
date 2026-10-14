@@ -54,6 +54,9 @@ Bu belge bütün AYAS/Atölye paketinin (`D:\ÜRETİM`) yeni bir bilgisayara ta�
    - `.env.local` içindeki yalnız FFmpeg yolları yeni kurulum yerine çevrilir (önce
      `private\host-settings-backup` altına yedek alınır).
    - Repo bağımlılıkları (`npm ci`, önbellek paket içinde) ve Graphify 0.17.1.
+   - Podman 6.0.2 yalnız yerel kod modeli yeterlilik sandbox'ı için gerekir ve winget'te bu
+     sürüm yoktur: betik eksikse GitHub sürüm sayfasını gösterir; kuruluysa `podman machine`'i
+     (8 CPU, 8 GiB, 40 GB, rootless) oluşturur. Telefon erişimi ve Gelişim Merkezi onsuz çalışır.
    - Üç Başlangıç kısayolu: AYAS Access Online, AYAS Autonomy Observer, Ollama. Üçü de
      yollarını kendi konumundan türeten gizli `.vbs` başlatıcılarıdır (pencere açılmaz).
 4. Bilgisayarı yeniden başlat. Oturum açılınca Ollama, telefon erişimi (tünel + uygulama) ve
