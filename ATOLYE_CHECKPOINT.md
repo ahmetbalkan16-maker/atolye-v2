@@ -1,3 +1,9 @@
+## 14 Ekim 2026 — AYAS Graphify stale uyarısı giderildi
+
+14 Ekim canlı self-improvement health sonucu DEGRADED idi; tek bulgu GRAPH_STALE_VS_HEAD: HEAD bbecfa411e11608a2aa852028d4b9f143371fce8, Graphify son analiz f542d0882757480f6acce7e6ff62a6a8023cc50d. Observer/runtime arızası değildi; graph'a bağlı keşif hatları güvenli biçimde durmuştu. Onaylı yerel commit'in oturum kapanışında origin'e gönderimi ve exact-HEAD Graphify kapanışı atlanmıştı. İlk update node sayısı azalınca eski graph'ı korudu; --force ile 20.482 node / 57.645 kenar graph yeniden üretildi, mevcut source-SHA parser complement 13/13 dosya, 231 node, 339 kenarla uygulandı. Push tamamlandı. Son grafik bbecfa411e11608a2aa852028d4b9f143371fce8 ile exact; 20.482 node / 57.660 kenar, duplicate/dangling/self-loop 0; live AYAS health HEALTHY / findings[].
+
+Tekrarını önleme: her HEAD değişiminden sonra graph refresh'i kapanış adımı olarak çalıştır ve üç HEAD alanını eşitlikte doğrula; plain refresh eski graph'ı korursa --force ve SHA complement kullan. Observer'ın stale durumda keşifleri durdurması kasıtlı güvenlik davranışıdır.
+
 ## 14 Ekim 2026 — owner kota sınırı: geliştirme %3 kalan kullanımda güvenli durdu
 
 Owner'ın yeni sinematik belgesel emri ve 300 dakikalık kullanım %3 kalınca durma talimatı etkin. Son gerçek ölçüm usedPercent97 / remaining3; bundan sonra yalnız kayıt/commit/push/exact-HEAD Graphify/sağlık kapanışı. Yeni özellik geliştirmesi durduruldu; otomatik quota reset veya ücretli çağrı yapılmadı.

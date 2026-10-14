@@ -108,6 +108,7 @@ complement ve gerçek yerel MCP sorgusu kullanılır. Pending marker elle silinm
 status/authority/frozen kapıları gevşetilmez. Son graph built-from/analyzed HEAD,
 yapısal/semantic durum, bütünlük, temiz Git ve gerçek sağlık/observer sonucu Git dışı
 makbuzda saklanır. Bu kontrol sonrası yeni belge commit'i yapılırsa kontrol tekrarlanır.
+Bir yenileme sonrası SOURCE_HEAD, LAST_ANALYZED_HEAD ve GRAPH_BUILT_FROM aynı değilse kapanış başarılı değildir. Graphify daha az node nedeniyle eski graph'ı koruduysa resmi `--force` yenilemesini çalıştırıp kaynak-hashli parser complement'i yeniden uygula; refresh komutunun exit code'u tek başına yeterli kanıt değildir.
 
 ## D üretim çalışma yolları — owner talimatı, 2026-10-14
 
