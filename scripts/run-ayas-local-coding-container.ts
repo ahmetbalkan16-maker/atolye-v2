@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
+import http from "node:http";
 import { ayasLocalCodingCandidatePins as pins, ayasLocalCodingHostCandidatePins } from "../src/lib/brain/autonomy/AyasLocalCodingPins";
 import { AYAS_LOCAL_CODING_OWNER_THRESHOLD, evaluateAyasLocalCodingOwnerThreshold } from "../src/lib/brain/autonomy/AyasLocalCodingOwnerThreshold";
 import { AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, diagnoseAyasLocalCodingModelWith } from "../src/lib/brain/autonomy/AyasLocalCodingModelAdapter";
@@ -537,16 +538,28 @@ async function hostEngineGuard(): Promise<void> {
   const tag = tags.models?.find(item => item.name === hostPins.model.servedModel);
   assert.ok(tag && `sha256:${tag.digest}` === hostPins.model.manifestDigest, "HOST_MODEL_MANIFEST_MISMATCH");
 }
-/** Ollama's native chat API (the only one that takes num_ctx), re-expressed in the envelope the strict adapter validates. */
+/**
+ * Ollama's native chat API (the only one that takes num_ctx), re-expressed in the envelope the strict adapter validates.
+ * node:http, not fetch: a non-streaming answer sends its headers only when generation ends, and fetch gives up on
+ * headers after 300 s ("fetch failed"). The adapter's abort signal is the only bound on the wait.
+ */
 async function hostTransport(body: string, signal: AbortSignal): Promise<string> {
   const request = JSON.parse(body) as { model: string; messages: unknown; temperature: number; seed: number; max_tokens: number;
     response_format: { json_schema: { schema: unknown } } };
-  const response = await fetch(`${HOST_ENGINE}/api/chat`, { method: "POST", redirect: "error", signal, headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model: request.model, stream: false, keep_alive: 0, messages: request.messages, format: request.response_format.json_schema.schema,
-      options: { temperature: request.temperature, seed: request.seed, num_predict: request.max_tokens, num_ctx: HOST_NUM_CTX } }) });
-  const text = await response.text();
-  if (Buffer.byteLength(text) > 256000) throw Error("RESPONSE_TOO_LARGE");
-  if (!response.ok) throw Error(`HTTP_${response.status}:${text.slice(0, 300)}`);
+  const payload = JSON.stringify({ model: request.model, stream: false, keep_alive: 0, messages: request.messages, format: request.response_format.json_schema.schema,
+    options: { temperature: request.temperature, seed: request.seed, num_predict: request.max_tokens, num_ctx: HOST_NUM_CTX } });
+  const engine = new URL(HOST_ENGINE);
+  const { status, text } = await new Promise<{ status: number; text: string }>((resolve, reject) => {
+    const call = http.request({ host: engine.hostname, port: Number(engine.port), path: "/api/chat", method: "POST", signal,
+      headers: { "content-type": "application/json", "content-length": Buffer.byteLength(payload) } }, response => {
+      const chunks: Buffer[] = []; let bytes = 0;
+      response.on("data", (chunk: Buffer) => { bytes += chunk.length; if (bytes > 256000) call.destroy(Error("RESPONSE_TOO_LARGE")); else chunks.push(chunk); });
+      response.on("end", () => resolve({ status: response.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }));
+      response.on("error", reject);
+    });
+    call.on("error", reject); call.end(payload);
+  });
+  if (status !== 200) throw Error(`HTTP_${status}:${text.slice(0, 300)}`);
   const native = JSON.parse(text) as { model?: string; done_reason?: string; prompt_eval_count?: number; eval_count?: number; total_duration?: number; eval_duration?: number;
     message?: { role?: string; content?: string; tool_calls?: unknown } };
   // Identity and finish state are the engine's own; any tool call is passed through so the adapter refuses it.
@@ -566,7 +579,7 @@ async function qualifyHost(): Promise<void> {
   const cases = bound.filter(item => !only || item.caseId === only);
   const binding = { engine: hostPins.engine, model: hostPins.model, evaluatorImageId: evalId,
     adapterSha256: sha(fs.readFileSync("src/lib/brain/autonomy/AyasLocalCodingModelAdapter.ts")),
-    transport: "ollama /api/chat on 127.0.0.1, keep_alive 0, re-enveloped for the strict adapter", numCtx: HOST_NUM_CTX,
+    transport: "node:http to ollama /api/chat on 127.0.0.1, no header timeout, keep_alive 0, re-enveloped for the strict adapter", numCtx: HOST_NUM_CTX,
     timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, threshold: AYAS_LOCAL_CODING_OWNER_THRESHOLD };
   const runnerSha256 = sha(fs.readFileSync("scripts/run-ayas-local-coding-container.ts"));
   // One recorded observation per (case, repeat); a resumed run keeps earlier attempts and never re-rolls them.
@@ -618,10 +631,12 @@ async function qualifyHost(): Promise<void> {
       observedAt: new Date().toISOString(), modelRequestSent, retries: 0,
       totalMs: performance.now() - started, hostMemory: { before: hostBefore, ...host, afterCleanup: hostMemory() },
       toolMisuse, workspaceUnchanged, scopeEscape, securityViolation: toolMisuse || !workspaceUnchanged || scopeEscape, response: facts, ...result };
-    if (host.aborted) {
-      // Resource exhaustion says nothing about the model: kept apart and the repeat stays pending.
-      resourceAborts.push({ ...record, outcome: "RESOURCE_ABORT", countedAsModelFailure: false });
-      persist(); throw Error(`HOST_PROTECTION_PAUSE:RESOURCE_ABORT ${item.caseId}#${repeat}`);
+    // Resource exhaustion or a harness/transport failure (no model answer at all) says nothing about the model:
+    // kept apart, never counted, and the repeat stays pending for a resumed run.
+    const harnessFailure = !model && result.outcome === "RUNTIME_FAILURE";
+    if (host.aborted || harnessFailure) {
+      resourceAborts.push({ ...record, outcome: host.aborted ? "RESOURCE_ABORT" : "HARNESS_ABORT", countedAsModelFailure: false });
+      persist(); throw Error(`HOST_PROTECTION_PAUSE:${host.aborted ? "RESOURCE_ABORT" : "HARNESS_ABORT"} ${item.caseId}#${repeat}`);
     }
     attempts.push(record); persist();
     console.log(JSON.stringify({ caseId: record.caseId, repeat, outcome: record.outcome, reason: record.reason ?? null, securityViolation: record.securityViolation,
