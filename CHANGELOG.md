@@ -1,3 +1,10 @@
+## 2026-10-14 — Completed bounded C Temp and historical-source retirement
+
+- Preserved required old source/assets/history in D SHA-verified archives; removed C:/ayas-iso-val and resolved all49 explicit targets without following reparse targets or changing ACL/authority/frozen records.
+- Final full-C metadata scan found zero project package markers and zero owned Temp matches; preserved required Codex host/Windows Startup/browser metadata and installed applications.
+- Restored phone HEALTHY/CURRENT/OBSERVING using native Graphify source-grounded assistant ingestion, actual MCP and local/public authenticated probes. Final docs HEAD receives another native closure in the ignored C_FINAL_RECEIPT.
+- Existing D temp/launch path tests, TypeScript, runtime health, five-model access and scoped singleton validation passed; reboot/new-PC acceptance remains separate.
+
 ## 2026-10-14 — D scoped temp and bounded C cleanup (in progress)
 
 - Added the Ollama production launcher to existing current-host start; retained installed binary, GUI menu and singleton behavior with process-scoped D TEMP/TMP/OLLAMA_TMPDIR.

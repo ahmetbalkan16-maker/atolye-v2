@@ -1,3 +1,7 @@
+## 2026-10-14 — C owned payload retirement completed
+
+D production and D scoped process temp accepted. C:/ayas-iso-val and all49 owned historical targets archived with SHA readback then retired/resolved. Final C user-scope scan has zero owned Temp/project markers; only necessary host/Startup/browser metadata and an unrelated installed DLL remain. Windows/installed binaries retained, protected185OS scan limit and newPC/reboot limits explicit. Phone HEALTHY/CURRENT/OBSERVING was restored at WIPf74; final docs commit must be followed by exactHEAD nativeGraphify/MCP/realhealth receipt. Latest checkpoint and docs/AYAS_C_TEMP_CLEANUP_2026-10-14.md supersede pending historical entries below.
+
 ## 2026-10-14 — C cleanup devamı; Graphify önceliği
 
 Canonical D üretim aktif; process TEMP/TMP D, Ollama existing Startup/menu scoped launcher. İlk2 Temp batch temiz; full-C explicit49 historical-root arşivleme devam, C:/ayas-iso-val henüz kaldırılmadı. Yeni/yarım işler ATOLYE_CHECKPOINT.md ilk kaydında; literal C-zero / newPC/reboot kabulü yok. Dirty repo nedeniyle phone sağlık kısmen bozuk; WIP commit/push sonra native Graphify ve gerçek Observer/health yenilenir. Final C cleanup/docs commit sonrası exactHEAD tekrar kapanır.

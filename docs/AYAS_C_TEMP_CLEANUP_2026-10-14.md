@@ -20,15 +20,15 @@ Yeni geliştirme/test komutları D repo ve D temp/npm cache ile çalıştırıl�
 
 D arşivler: `archives/retired-c-temp-20261014` ve `archives/retired-c-temp-extra-20261014`. Makbuzlar `handover/C_TEMP_CLEANUP_2026-10-14` altında. Bunlar yeniden çalıştırılacak/publish edilecek runtime değildir.
 
-## Tam C taraması ve derin kopyalar — devam ediyor
+## Tam C taraması ve derin kopyalar — tamamlandı
 
 C metadata taraması 340003 dizin ve 1187905 normal dosya gördü; dosya/dizin adları ve package.json proje kimlikleriyle sahiplik adayları çıkarıldı. Reparse hedefleri izlenmedi. 182 erişilemeyen/protected sistem yolu envanterde tutuldu; ACL veya Windows korumaları gevşetilmedi. Benzer ad taşıyan Autodesk dosyası, kurulu programlar, browser IndexedDB ve Windows Startup metadata'sı otomatik proje dosyası sayılmadı.
 
-Temp altındaki generic isimli eski repo kopyaları da package kimliğiyle yakalandı. Taze varlık kontrolünde 4029 eski aday zaten yoktu; bunlar bu temizlik tarafından silinmiş gibi raporlanmaz. Korunacak mevcut 49 açık hedef 262032 dosya / 34443612632 byte içerir. Kaynak/hash doğrulama sonrası kaldırma bekleniyor.
+Temp altındaki generic isimli eski repo kopyaları da package kimliğiyle yakalandı. Taze varlık kontrolünde 4029 eski aday zaten yoktu; bunlar bu temizlik tarafından silinmiş gibi raporlanmaz. 49 mevcut açık hedefteki 262032 mantıksal dosya / 34443612632 byte kaynak ve hedef SHA-256 ile D `archives/retired-c-projects-20261014` arşivinde doğrulandı. Son değişmemiş-source pin kontrolü ardından 48 kök ve 262031 normal dosya girişi kaldırıldı. Diğer bir hedef Windows MSIX görünümünün aynı device/inode sahibi alias’ıydı; gerçek kaynak kaldırılınca o görünüm de yok oldu. Arşivde iki görünüm korunur, fiziksel kaynak silme sayısı iki kez yazılmaz. 110 reparse girişinin hedefi takip edilmeden kaldırıldı. İlk sürücü-root guard reddi parent separator korunarak exact C:/ayas-iso-val sınırında düzeltildi; önceki partial makbuz korunur, resolved makbuz tüm49 hedefin kalmadığını gösterir.
 
-`C:\ayas-iso-val` aktif üretim değildir: eski izole validation kopyası, 58367 dosya / 6046331215 byte. İçerik current D repo/runtime'a karıştırılmaz; cold archive'da ayrı tarihçe olarak korunur. Diğer hedefler eski AYAS-WIP tasarımları, UI inceleme görselleri, AYAS'a ait Claude receipt/proje geçmişi ve eski Codex test/üretim artefaktlarıdır. Aktif Codex host çalışma dizini kaldırılacak hedefler arasında değildir.
+`C:\ayas-iso-val` aktif üretim değildi: eski izole validation kopyası, 58367 dosya / 6046331215 byte. Tamamı ayrı cold archive’da kaynak/hedef SHA ile korunup C kökü kaldırıldı; current D repo/runtime’a karıştırılmadı. Diğer hedefler eski AYAS-WIP tasarımları, UI inceleme görselleri, AYAS'a ait Claude receipt/proje geçmişi ve eski Codex test/üretim artefaktlarıdır. Aktif Codex host çalışma dizini kaldırılacak hedefler arasında değildir.
 
-Son kapsam makbuzları: `D:\ÜRETİM\handover\C_FULL_SCAN_2026-10-14`. Dosya taşıma doğrulaması ve gerçek health/Graphify/MCP kapanışı tamamlanmadan tüm görev tamamlandı sayılmaz.
+Son kapsam makbuzları: `D:\ÜRETİM\handover\C_FULL_SCAN_2026-10-14`. Son C taraması 225922 dizin / 531185 dosya; Atölye/AYAS package marker0, owned Temp eşleşmesi0, Metod kullanıcı alanında erişim hatası0. 185 protected OS dizini tarama sınırı olarak korunur. Kalan7 isim eşleşmesi: 2 açık host dizini, 2 D başlatıcısına giden Windows Startup kısayolu, 2 aktif browser IndexedDB görünümü ve ilgisiz Autodesk ARRAYASSOCIATIVITY.dll. Hiçbiri C üretim payload’ı değildir. Son 3 trailing-dot fixture dosyası/18 byte ve 5 boş Atölye temp dizini ayrıca doğrulanıp kaldırıldı; dinlemeyen portu/çalışan worker’ı olmayan eski Wrangler dev registry216byte hash ile D’ye alınıp kaldırıldı.
 
 ## Silme ve doğrulama sınırı
 
@@ -36,6 +36,9 @@ Silme yalnız açık manifest içindeki normal dosya/dizinlere ve bu köklerin k
 
 C'deki kurulu Windows/Node/Ollama/cloudflared/Python gibi programlar ve Windows metadata'sı yerinde kalır. C `.ollama`/`.cloudflared` dizinleri D'deki fiziksel verilere giden bağlantıdır. Açık Codex host klasöründe yalnız küçük README/AGENTS/gitdir ve scripts bağlantısı vardır. Bu OS/app referansları fiziksel C üretim payload'ı değildir; literal C'de hiçbir isim kalmadığı iddia edilmez. Reboot ve yeni-PC kabulü bu oturumda denenmedi.
 
-## Kapanış
+## Telefonda sağlık ve kapanış
+
+Owner telefonda kısmen bozuk / Graphify eski gördü. Gerçek Collector yalnız GRAPH_STALE_VS_HEAD ve OBSERVER_PAUSED_DIRTY_REPO verdi. WIP source kaydı f74f61820988cd0c91865e71a6a7db865bbd7ed8 push edildi; native Graphify emit→grounded stage→ingest (20316 grounded nodes, API0), gerçek MCP ve 6 authenticated local/public HTTP200 ardından HEALTHY/findings[]/OBSERVING ve structural+semanticCURRENT doğrulandı. Makbuz handover/C_FULL_SCAN_2026-10-14/graphify-phone-recovery-wip.json. Bu son temizlik belgesi commit edilince indeks yeniden son exact HEAD için yenilenir; sonuç C_FINAL_RECEIPT.json içinde tutulur.
+
 
 TypeScript, üretim launcher syntax/idempotence ve resmi mevcut-host layout kontrolü geçti. Son temiz Git commit/push ardından native Graphify assistant emit → source-grounded stage → ingest, structural complement, gerçek MCP ve authenticated health/Observer kabulü son HEAD'e bağlanır. Bu son makbuz Git dışında `handover` altında tutulur; ondan sonra kaynak belge commit'i atılırsa yeniden doğrulama gerekir.
