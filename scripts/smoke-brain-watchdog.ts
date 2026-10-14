@@ -35,9 +35,9 @@ async function run() {
       signatureRecurrences: 0,
       postApplyChecks: [{ name: "smoke", status: "PASS" }],
     });
-    assert.equal(r.verdict, "HEALED");
-    assert.equal(r.rollback, false);
-    assert.ok(r.evidence.some((e) => /did not recur/i.test(e)));
+    assert.equal(r.verdict, "HEALED", "assert.equal(r.verdict, \"HEALED\")");
+    assert.equal(r.rollback, false, "assert.equal(r.rollback, false)");
+    assert.ok(r.evidence.some((e) => /did not recur/i.test(e)), "assert.ok(r.evidence.some((e) => /did not recur/i.test(e)))");
   });
 
   await scenario("signature recurred → HEAL_FAILED + rollback, immediately (no waiting the window)", () => {
@@ -47,8 +47,8 @@ async function run() {
       eventsSinceApply: [],
       signatureRecurrences: 1,
     });
-    assert.equal(r.verdict, "HEAL_FAILED");
-    assert.equal(r.rollback, true);
+    assert.equal(r.verdict, "HEAL_FAILED", "assert.equal(r.verdict, \"HEAL_FAILED\")");
+    assert.equal(r.rollback, true, "assert.equal(r.rollback, true)");
     assert.match(r.reason, /recurred/i);
   });
 
@@ -59,8 +59,8 @@ async function run() {
       eventsSinceApply: [errEvt(), errEvt(), errEvt(), errEvt()],
       signatureRecurrences: 0,
     });
-    assert.equal(r.verdict, "HEAL_FAILED");
-    assert.equal(r.rollback, true);
+    assert.equal(r.verdict, "HEAL_FAILED", "assert.equal(r.verdict, \"HEAL_FAILED\")");
+    assert.equal(r.rollback, true, "assert.equal(r.rollback, true)");
     assert.match(r.reason, /error/i);
   });
 
@@ -75,8 +75,8 @@ async function run() {
         { name: "smoke-ayas-voice", status: "FAIL" },
       ],
     });
-    assert.equal(r.verdict, "HEAL_FAILED");
-    assert.equal(r.rollback, true);
+    assert.equal(r.verdict, "HEAL_FAILED", "assert.equal(r.verdict, \"HEAL_FAILED\")");
+    assert.equal(r.rollback, true, "assert.equal(r.rollback, true)");
     assert.match(r.reason, /smoke-ayas-voice/);
   });
 
@@ -95,8 +95,8 @@ async function run() {
         headline: null,
       },
     });
-    assert.equal(r.verdict, "HEAL_FAILED");
-    assert.equal(r.rollback, true);
+    assert.equal(r.verdict, "HEAL_FAILED", "assert.equal(r.verdict, \"HEAL_FAILED\")");
+    assert.equal(r.rollback, true, "assert.equal(r.rollback, true)");
     assert.match(r.reason, /performance metric regressed/i);
   });
 
@@ -107,9 +107,9 @@ async function run() {
       eventsSinceApply: [okEvt()],
       signatureRecurrences: 0,
     });
-    assert.equal(r.verdict, "OBSERVING");
-    assert.equal(r.rollback, false);
-    assert.ok(r.checkpoint >= 1);
+    assert.equal(r.verdict, "OBSERVING", "assert.equal(r.verdict, \"OBSERVING\")");
+    assert.equal(r.rollback, false, "assert.equal(r.rollback, false)");
+    assert.ok(r.checkpoint >= 1, "assert.ok(r.checkpoint >= 1)");
   });
 
   await scenario("a benchmark that improved → HEALED with a 'performance improved' note", () => {
@@ -127,8 +127,8 @@ async function run() {
         headline: "sttLatency: 1800 ms → 1250 ms (+30.6%)",
       },
     });
-    assert.equal(r.verdict, "HEALED");
-    assert.ok(r.evidence.some((e) => /performance improved/i.test(e)));
+    assert.equal(r.verdict, "HEALED", "assert.equal(r.verdict, \"HEALED\")");
+    assert.ok(r.evidence.some((e) => /performance improved/i.test(e)), "assert.ok(r.evidence.some((e) => /performance improved/i.test(e)))");
   });
 
   console.log(`Atölye Brain watchdog smoke: PASS (${count} scenarios)`);
