@@ -1,3 +1,10 @@
+## 14 Ekim 2026 — Araştırma sonucu owner-onaylı patch akışına bağlandı
+
+LIGHT/DEEP araştırma adayları artık yalnız bilgi/design proposal’ı olarak kalmıyor: güncel HEAD’de doğrulanmış IMPROVED kanıt, gözden geçirilmiş registry strategy ile deterministik yeniden üretim, tam diff SHA eşleşmesi ve ayrı sandbox typecheck/benchmark/regression sonrası immutable `patch-artifact:v1` owner önerisine dönüşebilir. Dış kaynak metni generator/path/command seçemez; stale hash, değişmiş HEAD veya validator hatası fail-closed’dur. Live workspace yazımı, otomatik approval ve approval öncesi execution yok; mevcut owner approval ve execution gate korunur. `docs/AYAS_RESEARCH_PATCH_PROMOTION_2026-10-14.md`.
+
+Doğrulama: TypeScript PASS; research loop 57/57 integration + 36/36 decision (gerçek cognitive evaluator dahil); discovery firewall 13/13; değişen dosyalar ESLint 0 hata/uyarı. Disposable pozitif promotion smoke: 2/2; no-evidence fail-closed ve owner artifact/candidate üretimi kanıtlandı. Tam kullanım sınırı: yalnız registry’deki stratejiler çalışabilir. Kayıtlı tek `exp-memory-render-tool-supersession@1` eski before hash kullanıyor (`eba490…`); güncel kaynakta render-tool davranışı zaten var ve hash farklı (`c5139a…`), bu yüzden o strateji yeniden promotable değil. Yeni alanlar için ayrı gözden geçirilmiş strategy gerekir. Bu değişiklikler canlı sisteme otomatik uygulanmış sayılmaz.
+
+Bu oturumda fresh kullanım kontrolü used 29% / ordinary usage allowed gösterdi; owner bu feature geliştirmesini açıkça istedi. Önceki checkpoint’teki %3 kalan kullanımda dur talimatı bu fresh ölçümde tetiklenmedi.
 ## 14 Ekim 2026 — AYAS dış araştırma sıklığı güncellendi
 
 Owner isteğiyle otomatik araştırma aralığı LIGHT 2 saat, DEEP 3 saat oldu. Kalıcı scheduler kaydı yeni varsayılanları son başarılı tarama zamanından devralır; önceki 6/24 saatlik son tarihlerin beklenmesini önler. LIGHT kontrolü her due cycle içinde çalışır; DEEP yalnız LIGHT değişiklik bildiren kaynakları işler ve mevcut saatlik kaynak istek sınırını korur.

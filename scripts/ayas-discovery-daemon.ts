@@ -24,6 +24,8 @@ import { resolveAyasResearchSourceRegistry } from "../src/lib/brain/autonomy/Aya
 import { createAyasLocalDiscoveryRunLedger } from "../src/lib/brain/autonomy/AyasLocalDiscoveryRunLedger";
 import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
 import { discoverAyasResearchExperimentProposalCandidates, discoverAyasResearchProposalCandidates } from "../src/lib/brain/autonomy/AyasResearchProposalBridge";
+import { promoteAyasResearchExperimentEvidence } from "../src/lib/brain/autonomy/AyasResearchPatchPromotion";
+import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE, runAyasResearchImprovementCycle, type AyasResearchImprovementCycleResult } from "../src/lib/brain/autonomy/AyasResearchImprovementCycle";
 import { readAyasControlledEvolutionRegister, resolveAyasControlledEvolutionRegisterFile, runAyasControlledSelfEvolutionCycle } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle";
 
@@ -171,10 +173,25 @@ async function main(): Promise<void> {
       observation.gaps.push(`research improvement cycle failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  // A measured research improvement becomes an executable patch candidate only after the registered
+  // strategy is regenerated, its diff hash matches the persisted experiment, and a separate patch sandbox
+  // reruns typecheck + regression suites. The candidate still enters the regular owner approval flow.
+  let promotedResearchCandidate: import("../src/lib/brain/autonomy/AyasAutonomyDaemon").AyasDaemonCandidate | null = null;
+  if (researchImprovementEnabled && improvement?.proposalEvidence.length && leased("discovery.research-improvement-cycle")) {
+    try {
+      const promoted = await promoteAyasResearchExperimentEvidence({ repoRoot: root, observation,
+        registry: AYAS_DEFAULT_IMPROVEMENT_REGISTRY, existingProposals: inbox.load().proposals,
+        evidences: improvement.proposalEvidence });
+      promotedResearchCandidate = promoted.candidate;
+      if (promoted.rejection) observation.gaps.push(`research patch promotion held: ${promoted.rejection}`);
+    } catch (error) {
+      observation.gaps.push(`research patch promotion failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
   const researchCandidates = [
     // With the loop enabled, a finding becomes a design-review proposal only when the loop says a design is what is missing; a failed cycle admits none.
     ...discoverAyasResearchProposalCandidates(researchFindings, inbox.load().proposals, researchImprovementEnabled ? (improvement?.designReviewGate ?? AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE) : undefined),
-    ...discoverAyasResearchExperimentProposalCandidates(improvement?.proposalEvidence ?? [], inbox.load().proposals, observation.head),
+    ...(promotedResearchCandidate ? [promotedResearchCandidate] : discoverAyasResearchExperimentProposalCandidates(improvement?.proposalEvidence ?? [], inbox.load().proposals, observation.head)),
   ];
   // Stage 15 — the optional Stage 13 JSON source uses the same canonical parser
   // as the read-only qualification CLI. Missing input admits nothing. Any

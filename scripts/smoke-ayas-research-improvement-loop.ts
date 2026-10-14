@@ -1090,7 +1090,115 @@ const SCENARIOS: readonly Scenario[] = [
     });
   } },
   // The real Stage 6 evaluator on current modules with an immutable historical gap fixture.
-  { id: "real-cognitive-evaluator-neutral-and-regression", real: true, async run(s8) {
+  { id: "research-patch-promotion-requires-persisted-improved-evidence", async run(s8) {
+    const promotion = await import("../src/lib/brain/autonomy/AyasResearchPatchPromotion");
+    const store = s8.store.createAyasResearchExperimentStore({ rootDir: s8.fixtures.tempDir("ayas-research-promotion-store-") });
+    const artifactRoot = s8.fixtures.tempDir("ayas-research-promotion-artifacts-");
+    const result = await promotion.promoteAyasResearchExperimentEvidence({
+      repoRoot: REPO_ROOT,
+      observation: { now: FIXTURE_NOW, branch: "fixture", head: "a".repeat(40), repoClean: true, graphifyFresh: true, machineAction: "ALLOW", gaps: [] },
+      registry: s8.registry.AYAS_DEFAULT_IMPROVEMENT_REGISTRY,
+      experimentStore: store,
+      artifactStore: (await import("../src/lib/brain/autonomy/AyasPatchArtifact")).createAyasPatchArtifactStore({ rootDir: artifactRoot }),
+      existingProposals: [],
+      evidences: [],
+    });
+    assert.deepEqual(result, { candidate: null, rejection: null });
+    assert.deepEqual(fs.readdirSync(artifactRoot), [], "empty evidence must not freeze an artifact");
+  } },
+  { id: "research-patch-promotion-freezes-owner-review-artifact", async run(s8) {
+    const promotion = await import("../src/lib/brain/autonomy/AyasResearchPatchPromotion");
+    const patches = await import("../src/lib/brain/autonomy/AyasPatchSandbox");
+    const artifactApi = await import("../src/lib/brain/autonomy/AyasPatchArtifact");
+    const evaluation = await import("../src/lib/brain/autonomy/AyasResearchExperimentEvaluation");
+    const goldenApi = await import("../src/lib/ayas/golden/AyasGoldenVault");
+    const goldenRegistry = await import("../src/lib/ayas/golden/AyasGoldenVaultRegistry");
+    const cloneRoot = s8.fixtures.tempDir("ayas-research-promotion-positive-");
+    const repoRoot = path.join(cloneRoot, "repo");
+    const artifactRoot = path.join(cloneRoot, "artifacts");
+    let seedSandbox: Awaited<ReturnType<typeof patches.createAyasPatchSandbox>> | undefined;
+    try {
+      execFileSync("git", ["clone", "--quiet", "--shared", "--no-tags", "--", REPO_ROOT, repoRoot], { stdio: "ignore" });
+      fs.symlinkSync(NODE_MODULES, path.join(repoRoot, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+      const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+      const sourceFile = "src/components/brain/BrainCoreOrb.tsx";
+      const validatorScript = "scripts/smoke-ayas-capability-taxonomy.ts";
+      const strategy = {
+        strategyId: "exp-promotion-fixture", version: 1, capability: "assistant-answer-quality", benchmarkId: "promotion-fixture",
+        dimensions: ["ANSWER_RELEVANCE"], component: "BrainCoreOrb", summary: "append a harmless review fixture comment",
+        exactFiles: [sourceFile], maxChangedLines: 2, regressionSuites: [validatorScript],
+        generate: (context: { readonly readFile: (file: string) => string | null }) => {
+          const source = context.readFile(sourceFile);
+          if (source === null) return [];
+          const eol = source.includes("\r\n") ? "\r\n" : "\n";
+          return [{ filePath: sourceFile, content: `${source}${source.endsWith(eol) ? "" : eol}// research promotion fixture${eol}` }];
+        },
+      };
+      const benchmark = { benchmarkId: "promotion-fixture", script: validatorScript, args: [], reportFlag: "--report", timeoutMs: 30_000, dimensions: ["ANSWER_RELEVANCE"] };
+      const registry = { ...s8.registry.AYAS_DEFAULT_IMPROVEMENT_REGISTRY, benchmarks: [benchmark], strategies: [strategy] };
+      seedSandbox = await patches.createAyasPatchSandbox(repoRoot, head);
+      const before = execFileSync("git", ["show", `HEAD:${sourceFile}`], { cwd: repoRoot, encoding: "utf8" });
+      const generated = strategy.generate({ readFile: (file) => file === sourceFile ? before : null })[0]!;
+      await patches.applyAyasPatchReplacementsInSandbox(seedSandbox, ["src/components/brain/"], [{ filePath: sourceFile,
+        expectedHash: crypto.createHash("sha256").update(before).digest("hex"), content: generated.content, allowCreate: false }]);
+      const diff = await patches.captureAyasPatchSandboxDiff(seedSandbox);
+      await patches.destroyAyasPatchSandbox(seedSandbox); seedSandbox = undefined;
+
+      const findingId = `ayas-research-${crypto.randomUUID()}`;
+      const hypothesis = {
+        schemaVersion: s8.loop.AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, hypothesisId: `ayas-hypothesis-${crypto.randomUUID()}`,
+        findingIds: [findingId], capability: strategy.capability, component: strategy.component, benchmarkId: benchmark.benchmarkId,
+        targetDimension: "ANSWER_RELEVANCE", targetCaseIds: ["fixture-case"],
+        expectedImprovement: { metric: "target-cases-fixed" as const, minDelta: 1, statement: "fixture patch improves the measured case" },
+        protectedInvariants: [], regressionSuites: strategy.regressionSuites, abortConditions: [], riskClass: "SAFE" as const,
+        strategyId: strategy.strategyId, strategyVersion: strategy.version, exactFiles: strategy.exactFiles, maxChangedLines: strategy.maxChangedLines,
+        gapEvidence: { measuredAtHead: head, evaluatorSha256: "e".repeat(64), failingTargetCount: 1 },
+      };
+      const experimentId = `ayas-experiment-${crypto.randomUUID()}`;
+      const attemptKey = "a".repeat(64);
+      const store = s8.store.createAyasResearchExperimentStore({ rootDir: path.join(cloneRoot, "store") });
+      const vault = goldenRegistry.AYAS_GOLDEN_VAULT;
+      const evidence: import("../src/lib/brain/autonomy/AyasResearchExperimentEvaluation").AyasExperimentEvidence = {
+        schemaVersion: s8.loop.AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, experimentId, attemptKey, baseHead: head,
+        findingIds: [findingId], sourceIds: ["fixture-source"], sourceBindings: [{ kind: "RESEARCH_FINDING", id: findingId }], hypothesis,
+        baseline: null, experiment: null, environment: { node: process.version, platform: process.platform, arch: process.arch, tsx: null, typescript: null },
+        change: { strategyId: strategy.strategyId, strategyVersion: strategy.version,
+          files: [{ filePath: sourceFile, addedLines: 1, removedLines: 0 }],
+          diffSha256: crypto.createHash("sha256").update(diff).digest("hex"), diffExcerpt: "" },
+        regressions: { newlyFailingCaseIds: [], heldOutDelta: 0, suites: [{ script: validatorScript, baselinePass: true, experimentPass: true }] },
+        golden: { vaultVersion: vault.version, vaultDigest: goldenApi.ayasGoldenVaultDigest(vault), decision: "GOLDEN_HELD", reasonCodes: ["GOLDEN_HELD"],
+          cases: vault.cases.map((item) => ({ id: item.id, script: item.script, pass: true, timedOut: false, reused: false })),
+          failingCaseIds: [], regressedCaseIds: [], gapDomains: [] },
+        performance: { baselineMs: 1, experimentMs: 1, ratio: 1 },
+        risk: { riskClass: "SAFE", isolation: evaluation.AYAS_EXPERIMENT_ISOLATION, liveWorkspaceUnchanged: true, sandboxDiscarded: true },
+        analysisRoute: null, verdict: "IMPROVED", reasonCodes: ["TARGET_IMPROVED"], targetGain: 1,
+        fixedCaseIds: ["fixture-case"], remainingTargetFailures: 0, completedAt: FIXTURE_NOW, authority: "NONE",
+      };
+      const evidenceHash = store.writeEvidence(evidence);
+      store.writeExperiment({ schemaVersion: s8.loop.AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, experimentId, hypothesisId: hypothesis.hypothesisId,
+        attemptKey, attempt: 1, baseHead: head, strategyId: strategy.strategyId, strategyVersion: strategy.version, inputsDigest: "d".repeat(64),
+        status: "COMPLETED", reservedAt: FIXTURE_NOW, updatedAt: FIXTURE_NOW,
+        owner: { pid: process.pid, processStartEpochMs: Date.now(), runId: crypto.randomUUID() }, leaseExpiresAt: FIXTURE_NOW,
+        verdict: "IMPROVED", evidenceHash, completedAt: FIXTURE_NOW });
+      const artifacts = artifactApi.createAyasPatchArtifactStore({ rootDir: artifactRoot });
+      const result = await promotion.promoteAyasResearchExperimentEvidence({ repoRoot, observation: {
+        now: FIXTURE_NOW, branch: execFileSync("git", ["branch", "--show-current"], { cwd: repoRoot, encoding: "utf8" }).trim(),
+        head, repoClean: true, graphifyFresh: true, machineAction: "ALLOW", gaps: [],
+      }, registry, experimentStore: store, artifactStore: artifacts, existingProposals: [], evidences: [{ evidence, evidenceHash }] });
+      assert.ok(result.candidate, result.rejection ?? "promotion candidate missing");
+      assert.equal(result.candidate.mutationKind, "patch-artifact:v1");
+      assert.equal(result.candidate.sourceReference, experimentId);
+      assert.equal(result.candidate.exactFiles[0], sourceFile);
+      const artifact = artifacts.loadVerified(result.candidate.patchArtifactId!);
+      assert.equal(artifact.patchHash, result.candidate.patchHash);
+      assert.equal(artifact.controlledEvolutionBinding?.evidenceHash, evidenceHash);
+      assert.equal(artifact.baseHead, head);
+      assert.ok(artifact.sandboxValidationSummary.every((row) => row.includes("PASS")));
+    } finally {
+      if (seedSandbox) await patches.destroyAyasPatchSandbox(seedSandbox);
+      fs.rmSync(cloneRoot, { recursive: true, force: true });
+    }
+  } },  { id: "real-cognitive-evaluator-neutral-and-regression", real: true, async run(s8) {
     const clone = s8.fixtures.tempDir("ayas-research-real-clone-");
     const storeDir = s8.fixtures.tempDir("ayas-research-real-store-");
     try {
