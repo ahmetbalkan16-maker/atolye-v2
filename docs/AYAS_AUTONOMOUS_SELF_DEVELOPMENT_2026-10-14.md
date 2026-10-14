@@ -2,6 +2,14 @@
 
 Durum: **hedef açık, uygulama tamamlanmadı.** Bu kayıt, sahibin 14 Ekim talimatıyla kapsamı hafıza/yanıt kalitesinin ötesine genişletir: AYAS kendi yeteneklerini ve Atölye’nin bütün üretim alanlarını geliştirecek. Kapsamı sonraki oturumlarda yalnız bilişsel kaliteye daraltmayın.
 
+## Güvenli durma noktası — 14 Ekim 2026
+
+Owner bu oturumda güvenli kaydetme, gerekli kayıtları güncelleme ve durma talimatı verdi; yeni production kodu veya canlı uygulama başlatılmadı. Kapsam, AYAS’ın tüm yeteneklerini ve Atölye’nin tüm üretim alanlarını içerir.
+
+- Kaynak incelemesi, araştırma daemon’unun kanıtı patch-promotion akışına taşıdığını gösterdi. Promotion kapalı registry’deki strategy.generate fonksiyonunu çağırıyor. AyasLocalCodingModelAdapter.ts içindeki yerel model request/diagnostic API’si production araştırma/promotion yoluna bağlı değil; modelle patch üretiminin güvenli bağlantısı tamamlanmadı.
+- Qwen2.5-Coder-14B ve qwen3:8b ön eleme kanıtı production admission için yeterli değil. Her iki model de reddedilmiş durumda; LOCAL_INDEPENDENCE_DEGRADED korunuyor.
+- Devam sırası: güvenli yeterlilik eşiğini ve kapsamlı model kabul matrisini tamamla; kabul edilen yerel generator’ı mevcut izole sandbox → immutable patch artifact → Gelişim Merkezi owner inbox yoluna bağla; sonra her AYAS yeteneği ve Atölye üretim alanı için evaluator/benchmark ve gözden geçirilmiş exact-file strategy oluştur. Owner onayı, bağımsız doğrulama, sınırlı onarım ve rollback kapıları aynen korunmalı.
+
 ## İstenen işletim biçimi
 
 - Hafif dış araştırma 2 saatte, derin araştırma 3 saatte bir çalışır.
