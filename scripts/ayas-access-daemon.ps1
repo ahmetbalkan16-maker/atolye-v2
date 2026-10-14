@@ -1,4 +1,4 @@
-<# AYAS access owner: starts only a qualified existing build; never builds/installs. #>
+﻿<# AYAS access owner: starts only a qualified existing build; never builds/installs. #>
 param(
   [switch]$Continuous,
   [int]$IntervalSeconds = 60,
@@ -50,11 +50,30 @@ $script:CooldownSeconds = 120
 $script:RuntimeManifestFile = Join-Path $script:StateDir 'prebuilt-runtime-v1.json'
 $script:NodeExe = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 
+# Explicitly published clean application; canonical cwd and data are retained.
+$script:PublishedApplicationRoot = $null
+$publicationFile = Join-Path $script:StateDir 'published-application-v1.json'
+if (Test-Path -LiteralPath $publicationFile) {
+  $publicationItem = Get-Item -LiteralPath $publicationFile
+  if ($publicationItem.PSIsContainer -or ($publicationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $publicationItem.Length -gt 4096) { throw 'AYAS_ACCESS_PUBLICATION_INVALID' }
+  $publication = Get-Content -Raw -Encoding UTF8 -LiteralPath $publicationFile | ConvertFrom-Json
+  if ($publication.schemaVersion -ne 1 -or $publication.workspaceRoot -cne $script:RepoRoot -or -not [IO.Path]::IsPathRooted($publication.applicationRoot)) { throw 'AYAS_ACCESS_PUBLICATION_INVALID' }
+  $application = [IO.Path]::GetFullPath($publication.applicationRoot).TrimEnd('\')
+  $allowedParent = (Join-Path $script:ProductionRoot 'Atolye').TrimEnd('\') + '\'
+  if (-not $application.StartsWith($allowedParent, [StringComparison]::OrdinalIgnoreCase)) { throw 'AYAS_ACCESS_PUBLICATION_OUTSIDE_BUNDLE' }
+  $applicationItem = Get-Item -LiteralPath $application
+  if (-not $applicationItem.PSIsContainer -or ($applicationItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'AYAS_ACCESS_PUBLICATION_INVALID' }
+  $script:PublishedApplicationRoot = $application
+}
+function Get-ApplicationRoot {
+  if ($script:PublishedApplicationRoot) { return $script:PublishedApplicationRoot }
+  return $script:RepoRoot
+}
 function Test-PrebuiltRuntime([string]$Mode = '--check') {
   try {
     $checker = Join-Path $PSScriptRoot 'ayas-prebuilt-runtime.mjs'
     if (-not (Test-Path -LiteralPath $script:RuntimeManifestFile -PathType Leaf)) { return $false }
-    $null = & $script:NodeExe $checker $Mode $script:RepoRoot $script:RuntimeManifestFile $script:CloudflaredExe $script:TunnelConfig 2>&1
+    $null = & $script:NodeExe $checker $Mode (Get-ApplicationRoot) $script:RuntimeManifestFile $script:CloudflaredExe $script:TunnelConfig 2>&1
     return $LASTEXITCODE -eq 0
   } catch { return $false }
 }
@@ -118,8 +137,10 @@ function Test-ExpectedOrigin($Process) {
   if (-not $Process -or $Process.Name -ine 'node.exe' -or -not $Process.ExecutablePath -or -not $Process.CommandLine) { return $false }
   if ([IO.Path]::GetFileName([string]$Process.ExecutablePath) -ine 'node.exe') { return $false }
   $command = ([string]$Process.CommandLine).Replace('/', '\')
-  $expectedScript = [regex]::Escape($script:RepoRoot) + '\\node_modules\\(?:\.bin\\+(?:\.\.\\+)+)?next\\dist\\bin\\next'
-  return $command -match ('(?i)"?' + $expectedScript + '"?\s+start\s+-p\s+' + $script:Port + '(?:\s|$)')
+  $applicationRoot = Get-ApplicationRoot
+  $expectedScript = [regex]::Escape($applicationRoot) + '\\node_modules\\(?:\.bin\\+(?:\.\.\\+)+)?next\\dist\\bin\\next'
+  $directoryArgument = if ($script:PublishedApplicationRoot) { '\s+"?' + [regex]::Escape($applicationRoot) + '"?' } else { '' }
+  return $command -match ('(?i)"?' + $expectedScript + '"?\s+start' + $directoryArgument + '\s+-p\s+' + $script:Port + '(?:\s|$)')
 }
 function Test-ExpectedTunnel($Process) {
   if (-not $Process -or $Process.Name -ine 'cloudflared.exe' -or -not $Process.ExecutablePath -or -not $Process.CommandLine) { return $false }
@@ -232,8 +253,12 @@ function Start-Origin {
   if ((Get-AccessSnapshot).origin -ne 'down') { return [pscustomobject]@{ ok = $false; stage = 'origin-race'; wrapperPid = $null } }
   if (-not (Test-PrebuiltRuntime)) { return [pscustomobject]@{ ok = $false; stage = 'prebuilt-runtime-unverified'; wrapperPid = $null } }
   if ((Get-AccessSnapshot).origin -ne 'down') { return [pscustomobject]@{ ok = $false; stage = 'origin-race'; wrapperPid = $null } }
-  $nextCli = Join-Path $script:RepoRoot 'node_modules\next\dist\bin\next'
-  $wrapper = Start-OwnedProcess $script:NodeExe @(('"' + $nextCli + '"'),'start','-p',[string]$script:Port) $script:AppLog $script:AppErrLog $script:RepoRoot
+  $applicationRoot = Get-ApplicationRoot
+  $nextCli = Join-Path $applicationRoot 'node_modules\next\dist\bin\next'
+  $nextArguments = @(('"' + $nextCli + '"'),'start')
+  if ($script:PublishedApplicationRoot) { $nextArguments += ('"' + $applicationRoot + '"') }
+  $nextArguments += @('-p',[string]$script:Port)
+  $wrapper = Start-OwnedProcess $script:NodeExe $nextArguments $script:AppLog $script:AppErrLog $script:RepoRoot
   Write-AtomicText $script:AppWrapperPidFile ([string]$wrapper.Id)
   for ($attempt = 0; $attempt -lt 15; $attempt++) {
     Start-Sleep -Seconds 2

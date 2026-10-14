@@ -2,6 +2,8 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'ayas-access-daemon.ps1') -LibraryOnly
+# These fixtures exercise the default canonical-root mode, independently of live publication.
+$script:PublishedApplicationRoot = $null
 $count = 0
 function Scenario([string]$Name, [scriptblock]$Action) {
   try { & $Action; $script:count++; Write-Output "PASS $Name" }
