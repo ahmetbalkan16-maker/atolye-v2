@@ -45,8 +45,9 @@ function linuxTemp(file: string): string {
   const absolute = fs.realpathSync(file);
   assert.equal(fs.lstatSync(absolute).isSymbolicLink(), false);
   assert.ok(absolute.toLowerCase().startsWith(fs.realpathSync(os.tmpdir()).toLowerCase() + path.sep));
-  assert.match(absolute, /^C:\\/i);
-  return `/mnt/c/${absolute.slice(3).split(path.sep).join("/")}`;
+  const drive = /^([a-z]):\\/i.exec(absolute)?.[1]?.toLowerCase();
+  if (drive !== "c" && drive !== "d") throw Error("UNSUPPORTED_TEMP_DRIVE");
+  return `/mnt/${drive}/${absolute.slice(3).split(path.sep).join("/")}`;
 }
 type Profile = { memory: number; cpus: number; tmpSize: string };
 const diagnostic: Profile = { memory: 4294967296, cpus: 2, tmpSize: "256m" };

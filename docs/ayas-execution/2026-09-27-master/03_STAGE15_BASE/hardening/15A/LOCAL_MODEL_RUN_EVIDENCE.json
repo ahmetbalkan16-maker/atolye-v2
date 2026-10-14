@@ -1,7 +1,7 @@
 {
   "evidenceClass": "REAL_LOCAL_MODEL_ATTEMPTS_DIAGNOSTIC_NOT_ADMISSION",
-  "observedAt": "2026-10-01T09:01:14.908Z",
-  "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+  "observedAt": "2026-10-14T18:25:29.062Z",
+  "repositoryHead": "d697b0d4c3559b1f59013f55ca9923d9fce69d45",
   "binding": {
     "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
     "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
@@ -69,7 +69,9 @@
       {
         "caseId": "historical-explicit-computer-plan",
         "split": "PRIMARY",
-        "outcomes": [],
+        "outcomes": [
+          "FAIL"
+        ],
         "repeatedConsistency": false
       },
       {
@@ -100,7 +102,7 @@
       }
     ],
     "outcomes": {
-      "FAIL": 1
+      "FAIL": 2
     },
     "timeouts": 0,
     "invalidOutput": 0,
@@ -246,6 +248,128 @@
       "evaluatorExit": 1,
       "evaluatorStdout": "",
       "evaluatorStderr": "node:internal/process/promises:394\n    triggerUncaughtException(err, true /* fromPromise */);\n    ^\n\nAssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async /tmp/ayas-evaluator-sv3EQM/scripts/smoke-ayas-bounded-file-write.ts:115:13\n    at async main (/tmp/ayas-evaluator-sv3EQM/scripts/smoke-ayas-bounded-file-write.ts:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: /injected second-file commit failure/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 1,
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "d697b0d4c3559b1f59013f55ca9923d9fce69d45",
+        "runnerSha256": "e334e6b93d7fbfefaa0aa665c6c3fcc5d424570bd7b155049bb1b8b1c363decc",
+        "adapterSha256": "88eb1342532fe6ed68682de2aff1d98ba176b16758db53b8a31357cddc9a7542"
+      },
+      "observedAt": "2026-10-14T18:25:29.061Z",
+      "modelRequestSent": true,
+      "requestSha256": "ccc1e0a90b45c240d534b27b8157d87f1b8dfc5e1411a848bdbb59fc6b84ddda",
+      "requestBytes": 54093,
+      "retries": 0,
+      "timeoutMs": 1800000,
+      "sandboxCreateMs": 559.6118999999999,
+      "loadAndSandboxStartupMs": 14220.383,
+      "totalMs": 944103.0149000001,
+      "resources": {
+        "cpuStat": "usage_usec 7297822005\nuser_usec 7288945697\nsystem_usec 8876307\nnice_usec 0\nnr_periods 9376\nnr_throttled 2359\nthrottled_usec 7620621\nnr_bursts 0\nburst_usec 0",
+        "memoryMaxBytes": 13421772800,
+        "memoryPeakBytes": 13421772800,
+        "memoryCurrentBytes": 13396533248,
+        "memoryStat": {
+          "anon": 9861824512,
+          "file": 3488268288,
+          "kernel": 43327488,
+          "shmem": 0,
+          "file_mapped": 2767441920,
+          "workingset_refault_file": 439063,
+          "pgmajfault": 154128
+        },
+        "pidsMax": 64,
+        "pidsPeak": 26,
+        "pidsEvents": "max 0",
+        "memoryEvents": "low 0\nhigh 0\nmax 17\noom 0\noom_kill 0\noom_group_kill 0",
+        "cpuOnly": true,
+        "gpuTelemetry": null,
+        "vramTelemetry": null
+      },
+      "serverState": {
+        "status": "running",
+        "exitCode": 0,
+        "oomKilled": false
+      },
+      "workspaceUnchanged": true,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18646511616,
+          "usedPct": 45.2,
+          "requiredFreeBytes": 17898849485,
+          "waitedMs": 10000
+        },
+        "peakUsedPct": 85.4,
+        "minFreeBytes": 4964093952,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 5811179520,
+          "usedPct": 82.9
+        }
+      },
+      "toolMisuse": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "completion_tokens": 163,
+          "prompt_tokens": 14620,
+          "total_tokens": 14783,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 14620,
+          "prompt_ms": 818800.889,
+          "prompt_per_token_ms": 56.00553276333789,
+          "prompt_per_second": 17.85537875741119,
+          "predicted_n": 163,
+          "predicted_ms": 104786.177,
+          "predicted_per_token_ms": 646.8282530864197,
+          "predicted_per_second": 1.5460054430652623
+        },
+        "toolCalls": null,
+        "contentChars": 369,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"const IDENTITY_TITLE = \\\"Kullanıcı kimliği / hitap tercihi\\\";\",\n      \"replace\": \"const IDENTITY_TITLE = \\\"User Identity / Greeting Preference\\\";\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "ecf81d0812f13ae9a62049d38817c81189d4bce0d0b81c0e94bb2084ff4da9a9",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-LwvjQW",
+      "responseSha256": "bcb251d9f1f6d205fffa5bfe030a3adb1b01e80850b3c32e7f230fc084678534",
+      "generationMs": 924124.3776,
+      "evaluationMs": 2391.5829000000376,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "changedLines": 2,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "const IDENTITY_TITLE = \"Kullanıcı kimliği / hitap tercihi\";",
+            "replace": "const IDENTITY_TITLE = \"User Identity / Greeting Preference\";"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-maaA2K/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-maaA2K/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-maaA2K/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-maaA2K/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
       "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
       "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
     }
