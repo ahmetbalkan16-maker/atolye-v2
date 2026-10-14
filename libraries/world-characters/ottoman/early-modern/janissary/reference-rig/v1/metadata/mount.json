@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "pending",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19"
+    ],
+    "notes": "Original imagegen rig atlas derived from the owner-approved character style. Import samples 4x4 cells without repainting the source; actual pivots recorded. Draft until assembled anatomy/joint motion and frame quality are verified. Interpretive Ottoman/1480 only; not a certified historical uniform."
+  },
+  "kind": "mount",
+  "id": "ottoman.early-modern.janissary.rig-mount.v1",
+  "variant": "rig-mount",
+  "files": [],
+  "characterId": "ottoman.early-modern.janissary.reference-rig.v1",
+  "availability": "none",
+  "species": "none"
+}

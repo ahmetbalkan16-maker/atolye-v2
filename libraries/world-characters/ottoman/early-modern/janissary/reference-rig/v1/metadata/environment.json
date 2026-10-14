@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "pending",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19"
+    ],
+    "notes": "Original imagegen rig atlas derived from the owner-approved character style. Import samples 4x4 cells without repainting the source; actual pivots recorded. Draft until assembled anatomy/joint motion and frame quality are verified. Interpretive Ottoman/1480 only; not a certified historical uniform."
+  },
+  "kind": "environment",
+  "id": "ottoman.early-modern.janissary.rig-environments.v1",
+  "variant": "rig-environments",
+  "files": [
+    {
+      "id": "ottoman.early-modern.janissary.rig-courtyard-plate.v1",
+      "path": "environments/courtyard.png",
+      "purpose": "background",
+      "sha256": "c8bda4bdc19ef5a60ecac65a9f5e7966f1bf835dd96e77b621946eb0eb8eb983",
+      "pivot": null
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-barracks-plate.v1",
+      "path": "environments/barracks.png",
+      "purpose": "background",
+      "sha256": "96c7f72d779760bf92a183cd685d4d04f5f9dedd04186192441a3095bca89386",
+      "pivot": null
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-kitchen-plate.v1",
+      "path": "environments/kitchen.png",
+      "purpose": "background",
+      "sha256": "151931602deaa1bf9fd5447998d0ab9e2fd9d411497b1e87ab9b525b2d03fe3e",
+      "pivot": null
+    }
+  ],
+  "characterId": "ottoman.early-modern.janissary.reference-rig.v1",
+  "availability": "present",
+  "setting": "Interpretive Ottoman/1480 courtyard, barracks and kitchen; own namespace copies."
+}

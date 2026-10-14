@@ -30,8 +30,8 @@ function readyFixture(): WorldPack {
 }
 
 test('exact four requested namespaces; all structural placeholders', () => {
-  assert.deepEqual(packs.map(p => p.character.civilization).sort(), ['byzantium', 'egypt', 'ottoman', 'persia']);
-  assert(packs.every(p => p.assets.length === 4 && p.assets.every(a => a.status === 'placeholder' && a.files.length === 0)));
+  assert.deepEqual(packs.filter(p => p.character.variant === 'default').map(p => p.character.civilization).sort(), ['byzantium', 'egypt', 'ottoman', 'persia']);
+  assert(packs.filter(p => p.character.variant === 'default').every(p => p.assets.length === 4 && p.assets.every(a => a.status === 'placeholder' && a.files.length === 0)));
 });
 test('policy has no implicit fallback or cultural sharing', () => {
   assert.equal(policy.mode, 'deny-by-default');
@@ -85,13 +85,13 @@ try {
   fs.cpSync(path.resolve('libraries/world-characters'), root, { recursive: true });
   const recordPath = path.join(root, pack.directory, 'metadata', 'character.json');
   const original = fs.readFileSync(recordPath);
-  test('filesystem audit is read-only', () => { assert.equal(readWorldCharacterLibrary(root).length, 4); assert.deepEqual(fs.readFileSync(recordPath), original); });
+  test('filesystem audit is read-only', () => { assert.equal(readWorldCharacterLibrary(root).length, packs.length); assert.deepEqual(fs.readFileSync(recordPath), original); });
   const ready = readyFixture();
   for (const a of ready.assets) fs.writeFileSync(path.join(root, ready.directory, 'metadata', `${a.kind}.json`), JSON.stringify(a));
   const sheetPath = path.join(root, ready.directory, 'design', 'front.png');
   const partPath = path.join(root, ready.directory, 'parts', 'torso.png');
   fs.writeFileSync(sheetPath, sheet); fs.writeFileSync(partPath, part);
-  test('declared bytes verified by hash (fixture is not an image decoder test)', () => assert.equal(readWorldCharacterLibrary(root).length, 4));
+  test('declared bytes verified by hash (fixture is not an image decoder test)', () => assert.equal(readWorldCharacterLibrary(root).length, packs.length));
   test('tampered file rejected', () => { fs.writeFileSync(sheetPath, 'tamper'); assert.throws(() => readWorldCharacterLibrary(root), /FILE_HASH/); fs.writeFileSync(sheetPath, sheet); });
   test('missing file rejected', () => { fs.unlinkSync(partPath); assert.throws(() => readWorldCharacterLibrary(root), /ENOENT/); fs.writeFileSync(partPath, part); });
   test('unregistered cultural file rejected', () => { const extra = path.join(root, ready.directory, 'props', 'foreign.png'); fs.writeFileSync(extra, 'foreign'); assert.throws(() => readWorldCharacterLibrary(root), /UNDECLARED_FILE/); fs.unlinkSync(extra); });

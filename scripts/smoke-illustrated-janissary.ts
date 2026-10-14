@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import {createHash} from "node:crypto";
+import {withCanonicalSmokeRuntime} from "./lib/CanonicalSmokeRuntime";
+import {readWorldCharacterLibrary} from "./lib/world-character-library-files";
+import {selectWorldCharacterPack} from "../src/lib/character/WorldCharacterLibrary";
+import {ProjectManager} from "../src/lib/projects/ProjectManager";
+import {CharacterImageProvider} from "../src/lib/assets/providers/CharacterImageProvider";
+import {readCharacterScenePayload} from "../src/lib/animation/character/CharacterSceneAsset";
+import {rasterizeCharacterSceneAssetFrame} from "../src/lib/animation/character/CharacterSceneRasterFrame";
+import {resolveRuntimeLogicalPath} from "../src/lib/runtime/RuntimeStoragePaths";
+import {loadIllustratedJanissaryPreview,illustratedPerformance,ILLUSTRATED_JANISSARY_ID,renderIllustratedJanissaryFrame,illustratedStageFit} from "../src/lib/character/illustrated/IllustratedJanissaryPreview";
+import {originalSceneAmbience} from "../src/lib/audio/sfx/OriginalSceneAmbience";
+import type {VolumeSentenceTiming} from "../src/lib/character/volume/VolumeSentenceTiming";
+const hash=(b:Buffer)=>createHash("sha256").update(b).digest("hex");
+async function main(){
+ const context={civilization:"ottoman",period:"early-modern",role:"janissary",characterId:ILLUSTRATED_JANISSARY_ID,year:1480,environment:"courtyard" as const};
+ assert(illustratedStageFit("barracks").canvas>illustratedStageFit("courtyard").canvas);
+ const candidate=readWorldCharacterLibrary().find(p=>p.character.id===ILLUSTRATED_JANISSARY_ID)!;
+ assert(candidate);assert.throws(()=>selectWorldCharacterPack(candidate,context),/NOT_READY/);
+ const art=await loadIllustratedJanissaryPreview(context);
+ assert.equal(art.admission,"PREVIEW_ONLY");assert.equal(art.poses.length,9);
+ for(const bad of [{...context,civilization:"persia"},{...context,year:1550},{...context,characterId:"ottoman.early-modern.janissary.default.v1"},{...context,environment:"../../private"}])
+  await assert.rejects(()=>loadIllustratedJanissaryPreview(bad as typeof context),/CONTEXT/);
+ const timing:VolumeSentenceTiming={timing:"LOCAL_NARRATION_SENTENCES",durationSeconds:6,coverage:1,sentences:[{text:"Yeniçeri yürüyor.",start:1,end:3,action:"WALK"},{text:"Sonra diz çöküyor.",start:3,end:5,action:"KNEEL_DOWN"}]};
+ const mid=illustratedPerformance(2,timing),stop=illustratedPerformance(3.5,timing);
+ assert(mid.x>.4&&mid.x<.54);assert.equal(stop.x,.54);assert.equal(stop.cell,7);assert.equal(illustratedPerformance(3.5,timing).action,"KNEEL_DOWN");
+ const wav=originalSceneAmbience(6,"courtyard",timing);
+ assert.equal(wav.toString("ascii",0,4),"RIFF");assert.equal(wav.length,44+6*16000*2);
+ const energy=(from:number,to:number)=>{let v=0;for(let i=from*16000;i<to*16000;i++)v+=Math.abs(wav.readInt16LE(44+Math.round(i)*2));return v/((to-from)*16000);};
+ assert(energy(1.08,1.20)>energy(.8,.92)*2,"footstep starts within measured walking cue");
+ assert.throws(()=>originalSceneAmbience(121,"courtyard",timing),/INPUT/);
+ assert.throws(()=>originalSceneAmbience(5,"courtyard",timing),/INPUT/);
+ await withCanonicalSmokeRuntime({name:"illustrated-janissary-smoke"},async r=>{
+  const project=await ProjectManager.createProject("illustrated-smoke-"+r.runId.slice(0,8));
+  const result=await new CharacterImageProvider().generateImage({sceneId:1,projectSlug:project.slug,prompt:"1480 yılında Osmanlı yeniçeri askeri avluda yürüyor."});
+  assert(result.success&&result.filePath);
+  const read=readCharacterScenePayload(fs.readFileSync(resolveRuntimeLogicalPath(result.filePath!,r.runtimeStorageContext)));
+  assert.equal(read.status,"VALID");if(read.status!=="VALID")throw Error("PAYLOAD");
+  const normal1=await rasterizeCharacterSceneAssetFrame(read.payload,2,6),normal2=await rasterizeCharacterSceneAssetFrame(read.payload,2,6);
+  assert(normal1.ok&&normal2.ok);assert.equal(hash(normal1.png),hash(normal2.png),"default renderer deterministic without preview");
+  const preview=await rasterizeCharacterSceneAssetFrame(read.payload,2,6,{illustratedPreview:art,sentenceTiming:timing});
+  assert(preview.ok);assert.notEqual(hash(preview.png),hash(normal1.png));
+  const knee=await renderIllustratedJanissaryFrame(read.payload,3.5,6,art,timing);
+  assert.notEqual(hash(knee),hash(preview.png));
+  const end=await renderIllustratedJanissaryFrame(read.payload,6,6,art,timing);
+  assert.equal(hash(await renderIllustratedJanissaryFrame(read.payload,6.04,6,art,timing)),hash(end),"terminal coverage frame holds end pose");
+  await assert.rejects(()=>renderIllustratedJanissaryFrame(read.payload,6.2,6,art,timing),/CONTEXT/);
+  const mixed={...read.payload,direction:{...read.payload.direction!,art:{...read.payload.direction!.art,culture:"UNKNOWN" as const}}};
+  await assert.rejects(()=>renderIllustratedJanissaryFrame(mixed,2,6,art,timing),/CONTEXT/);
+ });
+ console.log('Illustrated Janissary: PASS (draft admission, 4 context refusals, 4 hash-bound images, alpha, native default/preview render, measured walk/kneel, contextual sound).');
+}
+void main().catch(e=>{console.error(e);process.exitCode=1;});

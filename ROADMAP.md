@@ -1,3 +1,7 @@
+## 14 Ekim 2026 — ayrıntılı belgesel hareket sprinti (DEVAM)
+
+Owner ayrıntılı karakter üslubunu kabul etti; oda ölçeği düzeltildi. D'de iki yalnız Ottoman/1480 draft aday (poz atlası ve gerçek13parça rig),6pack24metadata ve94s gerçek sesli/1080p30 yerel önizleme hazır; API0. Senaryo çoğunluk-kopya reddi ve180s30gerçekkarakter/ortamdeğişimi plan kontrolü kaynakta. Asıl joint renderer, portable native üretim adapter'i,180s30değişimli kabul ve qualifiedlive geçiş açık. Mevcut homepage/frozen/authority/$1bütçe/canlıc10d korunur. WIP source kaydı sonrası SONHEADGraphify/CI/health kapanışı gerekir. En güncel adımlar ATOLYE_CHECKPOINT.md ve docs/ATOLYE_ILLUSTRATED_DOCUMENTARY_2026-10-14.md.
+
 ## 13 Ekim 2026 — Gelişim Merkezi / Graphify exactHEAD hazırlığı
 
 Son doc-only commit'in Graphify'ı eski bırakma sorunu native/source-grounded indeks yenilemesiyle giderilir. Gerçek public/local Gelişim/Sistem200, HEALTHY/OBSERVING, inbox bağlı ve yerel MCP PASS; worker15/client13/health61/complement10/native-staging/TS PASS. Son bu belge commit'inden sonra `.graphify/devcenter-ready-20261013/FINAL_RECEIPT.json` exactHEAD CURRENT/sağlık/MCP PASS gerekir; AGENTS kapanış kontrolü eklendi. Owner yayın/authority kapıları ve eski recovery kayıtları korunur. Ayrıntı: `docs/AYAS_DEVCENTER_READY_2026-10-13.md`.

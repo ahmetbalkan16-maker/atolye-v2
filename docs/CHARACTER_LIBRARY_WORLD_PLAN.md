@@ -272,3 +272,14 @@ Test fixture'ları özel OS temp dizininde oluşturulur ve doğrulanmış sını
 Mevcut iki chapter-scene dosyasının oturum öncesi değişiklikleri korunur ve bu
 sprint commit'ine dahil edilmez. Exact HEAD ve tam değişen dosyalar Git teslim
 raporunda belirtilir; canlı deploy veya genel sistem sertifikasyonu iddia edilmez.
+
+
+## 14 Ekim 2026 — owner'ın ayrıntılı belgesel yönü
+
+Owner referansına göre yeni Ottoman/early-modern/janissary/reference/v1 draft pack eklendi: imagegen dokuz poz atlası ve üç ayrıntılı ortam (avlu, koğuş, mutfak). Kaynak/byteSHA metadata'ya bağlı; 4 orijinal placeholder korunur. Tasarımın kullanım/üslup izni owner tarafından bu konuşmada verildi; status halen draft, tam gövde pozlar cutout-humanoid eklem rig'i yerine geçirilmez. Varsayılan üretim seçimi NOT_READY reddini sürdürür. Yerel açık PREVIEW_ONLY adapter'i gerçek renderer/FFmpeg/Piper/Whisper ile somut önizleme hazırlar.
+
+Ortak estetik hedef `_core/styles/detailed-documentary-v1.json`; millet/dönem kıyafeti değildir. Sultan, prenses, kral, politikacı, halk, zanaatkâr, demirci, denizci ayrı role/variant kapsamında üretilir; tek yeniçeri görüntüsü başka meslek/millete yeniden etiketlenmez. Büyük otomatik katalog doldurma yok.
+
+180 saniyede en az30 gerçek karakter/ortam değişimi; aynı aktör/odaya yapılan zoom'lar bu sayıya katılmaz. Bu editorial alt-plan frozen pipeline scene aşamalarından ayrıdır: 30'luk legacy scene cap veya stage sırası değiştirilmez. `ImmersiveDocumentaryPlan` namespace/süre/devamlılık/değişim denetimi yapar; resim üretmez ve tek başına production admission vermez. Güncel 6 bölümlü önizleme bu 3 dakikalık kabulün tamamlandığı anlamına gelmez.
+
+Owner ayrıca kaliteli sonuç için toplam en fazla1USD/video OpenAIAPI kullanımını yetkilendirdi. Mevcut bütçe/fiyat tablosu değiştirilmedi; ücretsiz kütüphane tekrar kullanımı önceliklidir. Ayrıntı ve canlı/rig sınırlaması docs/ATOLYE_ILLUSTRATED_DOCUMENTARY_2026-10-14.md.

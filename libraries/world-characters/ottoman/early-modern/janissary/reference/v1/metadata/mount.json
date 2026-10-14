@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "owner-approved",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19",
+      "https://islamansiklopedisi.org.tr/yeniceri",
+      "https://islamansiklopedisi.org.tr/mehmed-ii"
+    ],
+    "notes": "Original built-in imagegen design from the owner style reference. Owner requested its use and approved the shown detailed style on 2026-10-14. Draft remains: whole-body poses are not a limb rig; animation admission and exact historic reconstruction are not certified. Scope: interpretive Ottoman/1480 only; courtyard skyline was corrected."
+  },
+  "kind": "mount",
+  "id": "ottoman.early-modern.janissary.reference-mount.v1",
+  "variant": "reference-mount",
+  "files": [],
+  "characterId": "ottoman.early-modern.janissary.reference.v1",
+  "availability": "none",
+  "species": "none"
+}

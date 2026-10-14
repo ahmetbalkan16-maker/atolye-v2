@@ -15,6 +15,7 @@ import {volumeNarratedActor} from '../../character/volume/VolumeNarratedPerforma
  * SVG path; new assets reconstruct bounded CPU geometry from the same rig cues.
  */
 export async function rasterizeCharacterSceneAssetFrame(payload: CharacterSceneAssetPayload,t: number,durationSeconds=6,options: CharacterSceneRasterOptions={}): Promise<CharacterSceneRasterResult> {
+  if(options.illustratedPreview){try{const {renderIllustratedJanissaryFrame}=await import('../../character/illustrated/IllustratedJanissaryPreview');return {ok:true,png:await renderIllustratedJanissaryFrame(payload,t,durationSeconds,options.illustratedPreview,options.sentenceTiming,options.narrationEnvelope),width:1920,height:1080,rasterizer:'sharp'};}catch{return {ok:false,reason:'RASTERIZE_FAILED'};}}
   if(!payload.volume) return rasterizeCharacterSceneSvg(renderCharacterSceneAssetFrame(payload,t,durationSeconds),options);
   if(findCharacterSceneAssetPayloadProblems(payload).length||!Number.isFinite(t)||t<0||!Number.isFinite(durationSeconds)||durationSeconds<=0||durationSeconds>600) return {ok:false,reason:"SVG_REJECTED"};
   const direction=payload.direction!,blocking=payload.request.blocking;

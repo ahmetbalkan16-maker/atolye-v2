@@ -1,3 +1,10 @@
+## 2026-10-14 — WIP: detailed documentary character candidates
+
+- Added isolated Ottoman/1480 pose and actual part-rig candidates, original imagery with hashes, clear draft admission, and owner style/use feedback.
+- Prepared a real 94s/1080p30 local narrated preview with measured sentence cues, music ducking and contextual original effects; corrected the owner-rejected small interior character scale.
+- Added copied-majority narration refusal and a real character/environment change plan checker (180s requires30); camera zooms do not satisfy it.
+- Native joint renderer, portable production binding,180s/30-change acceptance and qualified live deployment remain open. Total paidAPI0; $1/video authorization recorded without raising budgets or providers.
+
 ## 2026-10-14 — Read-only world-character ZIP assessment
 
 - Audited31432 ZIP entries,22723 PNG and132330 metadata/template hash references without executing archive code or importing assets. Documented incomplete global checksum coverage and visual template reuse.

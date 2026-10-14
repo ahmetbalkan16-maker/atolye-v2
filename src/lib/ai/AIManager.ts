@@ -12,6 +12,7 @@ import {
   type ObservedAIRequestResult,
 } from "./runObservedAIRequest";
 import { AIResponseError } from "./AIResponseError";
+import {assertDistinctDocumentaryNarration,DocumentaryNarrationRepetitionError} from "./DocumentaryNarrationQuality";
 import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig";
 import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
 import { getSceneMaxTokens, SceneAIConfigError } from "./SceneAIConfig";
@@ -327,6 +328,7 @@ export class AIManager {
       "- introduction: one or two sentences of context only - who, when, why it matters.",
       "- Order the chapters as rising action: context -> build-up / preparation -> the central confrontation -> the climax (the decisive turning point, told with the most vivid detail and shortest sentences) -> consequences -> legacy.",
       "- Narration craft: concrete sensory detail over abstract summary; prefer active voice over passive constructions; vary sentence length; name the key people and places explicitly; build cause and effect between chapters. Avoid vague filler ('with great vision', 'will be examined in detail', 'played an important role').",
+      "- Every chapter must add a distinct concrete beat. Never paste one narration across several chapters or invent a repeated meeting to fill a day-in-the-life topic. Describe the environment, visible action and relevant ambience for each visualGoal; change setting when the story changes place.",
       "- transition: end each chapter on a forward pull into the next, not a summary.",
       "- conclusion: land the meaning in one or two lines. callToAction: one short, natural line.",
       "Historical accuracy (non-negotiable):",
@@ -383,6 +385,8 @@ export class AIManager {
             };
           })
         : fallback.chapters;
+
+      if(policy?.failClosed||context?.provider==="ollama"||context?.provider==="openai")assertDistinctDocumentaryNarration(rawChapters);
 
       const estimatedDuration = getNumber(
         parsed.estimatedDuration,
@@ -462,6 +466,7 @@ export class AIManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if(error instanceof DocumentaryNarrationRepetitionError)throw error;
       if (
         policy?.failClosed &&
         (error instanceof AIResponseError || error instanceof ScriptAIConfigError || error instanceof ApplicationTimestampError)

@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "pending",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19"
+    ],
+    "notes": "Original imagegen rig atlas derived from the owner-approved character style. Import samples 4x4 cells without repainting the source; actual pivots recorded. Draft until assembled anatomy/joint motion and frame quality are verified. Interpretive Ottoman/1480 only; not a certified historical uniform."
+  },
+  "kind": "character",
+  "id": "ottoman.early-modern.janissary.reference-rig.v1",
+  "variant": "reference-rig",
+  "files": [
+    {
+      "id": "ottoman.early-modern.janissary.rig-atlas.v1",
+      "path": "design/rig-atlas.png",
+      "purpose": "reference-sheet",
+      "sha256": "0d9ecc29d56e972e351a0815b2ff607900b7707fa567d736b352e86d2fe35a11",
+      "pivot": null
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-head.v1",
+      "path": "parts/head.png",
+      "purpose": "body-part",
+      "sha256": "c8e7f30db28b5eea878c6f7b84d2293518cd66aea7acbeba3987c64eb69d486c",
+      "pivot": {
+        "x": 0.56,
+        "y": 0.94
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-torso.v1",
+      "path": "parts/torso.png",
+      "purpose": "body-part",
+      "sha256": "04566b8b0ab1b60480112bfe0f3b0f8b86610486464e60d32c8358c534e5e3e3",
+      "pivot": {
+        "x": 0.5,
+        "y": 0.16
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-upper-arm-front.v1",
+      "path": "parts/upper-arm-front.png",
+      "purpose": "body-part",
+      "sha256": "c9001552f8b21bccafe71757dedbac24a9c10efc6c1b88fe121fafc375e87829",
+      "pivot": {
+        "x": 0.29,
+        "y": 0.28
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-forearm-front.v1",
+      "path": "parts/forearm-front.png",
+      "purpose": "body-part",
+      "sha256": "b33a7a8acd9736a04bffe040ddc3ef40d6bf85b89d5138d66dd6e4fab63f2102",
+      "pivot": {
+        "x": 0.15,
+        "y": 0.53
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-upper-arm-back.v1",
+      "path": "parts/upper-arm-back.png",
+      "purpose": "body-part",
+      "sha256": "c69eaa77437a4aacac6b0692bc5c1f45cbc257d5ff94be51dcad671843e0b464",
+      "pivot": {
+        "x": 0.7,
+        "y": 0.25
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-forearm-back.v1",
+      "path": "parts/forearm-back.png",
+      "purpose": "body-part",
+      "sha256": "a9590927c649f465cd589af48c7b93adb32bb8eecb0e315e0a833a4e286f3106",
+      "pivot": {
+        "x": 0.81,
+        "y": 0.47
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-hand-front.v1",
+      "path": "parts/hand-front.png",
+      "purpose": "body-part",
+      "sha256": "9ab64f18885ab3dac627c5af8c767c037c12bd6c109ea5dc1f7cc73b861a54c3",
+      "pivot": {
+        "x": 0.47,
+        "y": 0.24
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-hand-back.v1",
+      "path": "parts/hand-back.png",
+      "purpose": "body-part",
+      "sha256": "59f6f8833f8857468f5924d02c57ec669f73cc19f6c5816cd76049665d9a16b3",
+      "pivot": {
+        "x": 0.51,
+        "y": 0.25
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-thigh-front.v1",
+      "path": "parts/thigh-front.png",
+      "purpose": "body-part",
+      "sha256": "cea5179f63261b3005d6e47a1dc2dbc416059efe955cae7b661dedc83fd4afba",
+      "pivot": {
+        "x": 0.44,
+        "y": 0.17
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-shin-front.v1",
+      "path": "parts/shin-front.png",
+      "purpose": "body-part",
+      "sha256": "6fe6e1c49685714a2213338bb30a6c8dd70ce12530098db453c37e49b5d0266d",
+      "pivot": {
+        "x": 0.42,
+        "y": 0.16
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-thigh-back.v1",
+      "path": "parts/thigh-back.png",
+      "purpose": "body-part",
+      "sha256": "f62c801a58c78c7402f7f5546891f02416467a03a282e7dca7dd894c674f4f79",
+      "pivot": {
+        "x": 0.51,
+        "y": 0.14
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-shin-back.v1",
+      "path": "parts/shin-back.png",
+      "purpose": "body-part",
+      "sha256": "175cfc8f91c82177443a31b4232b6b1757adf333a4600a71a266ed5cf41f8243",
+      "pivot": {
+        "x": 0.45,
+        "y": 0.17
+      }
+    },
+    {
+      "id": "ottoman.early-modern.janissary.rig-head-speaking.v1",
+      "path": "parts/head-speaking.png",
+      "purpose": "body-part",
+      "sha256": "f427dbca9d85459e80ee47a12b1f86ad38037b19e932712bde6d1a00bcd59b8d",
+      "pivot": {
+        "x": 0.57,
+        "y": 0.95
+      }
+    }
+  ],
+  "displayName": "1480 Janissary — textured joint rig candidate",
+  "styleId": "stylized-history-v1",
+  "rigId": "cutout-humanoid-v1",
+  "equipmentIds": [
+    "ottoman.early-modern.janissary.rig-equipment.v1"
+  ],
+  "mountIds": [
+    "ottoman.early-modern.janissary.rig-mount.v1"
+  ],
+  "environmentIds": [
+    "ottoman.early-modern.janissary.rig-environments.v1"
+  ]
+}

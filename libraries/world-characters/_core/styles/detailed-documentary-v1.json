@@ -1,0 +1,56 @@
+{
+  "id": "detailed-documentary-v1",
+  "version": 1,
+  "scope": "shared-technical-only",
+  "inheritsStyleId": "stylized-history-v1",
+  "ownerStyleFeedback": "approved-in-chat-2026-10-14",
+  "appearance": {
+    "form": "rounded stylized 3D characters",
+    "materials": [
+      "cloth folds",
+      "embroidery",
+      "leather",
+      "metal",
+      "wood"
+    ],
+    "clarity": "crisp readable silhouettes and detailed faces",
+    "identity": "same character across poses and views",
+    "historicalClothes": "specific civilization, period and role; style reference is not costume evidence"
+  },
+  "roles": [
+    "soldier",
+    "sultan",
+    "princess",
+    "king",
+    "politician",
+    "citizen",
+    "artisan",
+    "blacksmith",
+    "sailor"
+  ],
+  "staging": {
+    "floorPerspectiveRequired": true,
+    "interiorForegroundStandingCanvasRatio": 0.7777777777777778,
+    "exteriorForegroundStandingCanvasRatio": 0.7037037037037037,
+    "bodyScalePreservedAcrossPoses": true,
+    "review": "owner rejected the earlier small-room framing; adjusted preview is reviewable"
+  },
+  "editing": {
+    "targetSecondsPerChange": 6,
+    "minimumActualCharacterOrEnvironmentChangesAt180Seconds": 30,
+    "cameraOnlyDoesNotCount": true,
+    "narrationActionAndEnvironmentMustAgree": true
+  },
+  "audio": {
+    "narration": "clear and intelligible",
+    "music": "appropriate restrained documentary bed with ducking",
+    "effects": "scene and action-specific; verified rights or original synthesis"
+  },
+  "budget": {
+    "maximumTotalPaidApiUsdPerVideo": 1,
+    "scope": "all stages, retries and attempts for the same video",
+    "unknownCost": "refuse dispatch",
+    "reuseLibraryFirst": true
+  },
+  "admission": "design policy only; no rig, asset approval or production-authority bypass"
+}
