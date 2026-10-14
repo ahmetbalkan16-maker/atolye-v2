@@ -70,10 +70,10 @@ async function run() {
     withWs(async (root) => {
       const store = createBrainTaskStore({ rootDir: root });
       const outcome = runBrainWorkerCycle(store, opts());
-      assert.equal(outcome.tasksProcessed, 0);
-      assert.equal(outcome.stopReason, "nothing-runnable");
-      assert.equal(outcome.report.tasksRun, 0);
-      assert.equal(store.listCycleIds().length, 1);
+      assert.equal(outcome.tasksProcessed, 0, "assert.equal(outcome.tasksProcessed, 0)");
+      assert.equal(outcome.stopReason, "nothing-runnable", "assert.equal(outcome.stopReason, \"nothing-runnable\")");
+      assert.equal(outcome.report.tasksRun, 0, "assert.equal(outcome.report.tasksRun, 0)");
+      assert.equal(store.listCycleIds().length, 1, "assert.equal(store.listCycleIds().length, 1)");
     }));
 
   await scenario("2. one auto-safe task → processed once, marked succeeded, result persisted", () =>
@@ -81,12 +81,12 @@ async function run() {
       const store = createBrainTaskStore({ rootDir: root });
       store.enqueue(task({ title: "only" }));
       const outcome = runBrainWorkerCycle(store, opts());
-      assert.equal(outcome.tasksProcessed, 1);
-      assert.equal(outcome.results[0].status, "succeeded");
+      assert.equal(outcome.tasksProcessed, 1, "assert.equal(outcome.tasksProcessed, 1)");
+      assert.equal(outcome.results[0].status, "succeeded", "assert.equal(outcome.results[0].status, \"succeeded\")");
       assert.match(outcome.results[0].summary, new RegExp(`\\[${BRAIN_SAFE_STUB_MARKER}\\]`));
-      assert.equal(store.loadQueue()[0].status, "succeeded");
+      assert.equal(store.loadQueue()[0].status, "succeeded", "assert.equal(store.loadQueue()[0].status, \"succeeded\")");
       const persisted = store.loadCycleResults(outcome.report.cycleId);
-      assert.equal(persisted?.results.length, 1);
+      assert.equal(persisted?.results.length, 1, "assert.equal(persisted?.results.length, 1)");
     }));
 
   await scenario("3. deterministic ordering — priority, then createdAt, then taskId", () =>
@@ -109,10 +109,10 @@ async function run() {
       const outcome = runBrainWorkerCycle(store, opts({
         config: { ...DEFAULT_BRAIN_WORKER_CONFIG, maxTasksPerCycle: 2 },
       }));
-      assert.equal(outcome.tasksProcessed, 2);
-      assert.equal(outcome.stopReason, "max-tasks");
-      assert.equal(store.loadQueue().filter((t) => t.status === "succeeded").length, 2);
-      assert.equal(store.loadQueue().filter((t) => t.status === "queued").length, 3);
+      assert.equal(outcome.tasksProcessed, 2, "assert.equal(outcome.tasksProcessed, 2)");
+      assert.equal(outcome.stopReason, "max-tasks", "assert.equal(outcome.stopReason, \"max-tasks\")");
+      assert.equal(store.loadQueue().filter((t) => t.status === "succeeded").length, 2, "assert.equal(store.loadQueue().filter((t) => t.status === \"succeeded\").length, 2)");
+      assert.equal(store.loadQueue().filter((t) => t.status === "queued").length, 3, "assert.equal(store.loadQueue().filter((t) => t.status === \"queued\").length, 3)");
     }));
 
   await scenario("5. cycleBudgetMs stops the run (injected elapsed clock)", () =>
@@ -124,8 +124,8 @@ async function run() {
         config: { ...DEFAULT_BRAIN_WORKER_CONFIG, cycleBudgetMs: 100 },
         elapsedMs: () => (ticks++ >= 2 ? 999 : 0),
       }));
-      assert.equal(outcome.tasksProcessed, 2);
-      assert.equal(outcome.stopReason, "budget-exhausted");
+      assert.equal(outcome.tasksProcessed, 2, "assert.equal(outcome.tasksProcessed, 2)");
+      assert.equal(outcome.stopReason, "budget-exhausted", "assert.equal(outcome.stopReason, \"budget-exhausted\")");
     }));
 
   await scenario("6. approval-required task is parked, never processed", () =>
@@ -134,11 +134,11 @@ async function run() {
       store.enqueue(task({ kind: "apply-improvement", title: "apply 12" }));
       store.enqueue(task({ kind: "modify-production-code", title: "wire orchestrator" }));
       const outcome = runBrainWorkerCycle(store, opts());
-      assert.equal(outcome.tasksProcessed, 0);
-      assert.equal(outcome.parkedForApproval.length, 2);
+      assert.equal(outcome.tasksProcessed, 0, "assert.equal(outcome.tasksProcessed, 0)");
+      assert.equal(outcome.parkedForApproval.length, 2, "assert.equal(outcome.parkedForApproval.length, 2)");
       assert.deepEqual(
         store.loadQueue().map((t) => t.status).sort(),
-        ["blocked-on-approval", "blocked-on-approval"],
+        ["blocked-on-approval", "blocked-on-approval"], "assert.deepEqual(\n        store.loadQueue().map((t) => t.status).sort(),\n        [\"blocked-on-approval\", \"blocked-on-approval\"],\n      )",
       );
     }));
 
@@ -148,8 +148,8 @@ async function run() {
       store.enqueue(task({ kind: "analyze-codebase", payload: { pullsModel: true } }));
       store.enqueue(task({ kind: "run-tests", payload: { disablesHvci: true } }));
       const outcome = runBrainWorkerCycle(store, opts());
-      assert.equal(outcome.tasksProcessed, 0);
-      assert.equal(outcome.skippedUnsafe.length, 2);
+      assert.equal(outcome.tasksProcessed, 0, "assert.equal(outcome.tasksProcessed, 0)");
+      assert.equal(outcome.skippedUnsafe.length, 2, "assert.equal(outcome.skippedUnsafe.length, 2)");
     }));
 
   await scenario("7b. auto-safe-reversible tasks are NOT run this sprint (auto-safe ceiling)", () =>
@@ -161,8 +161,8 @@ async function run() {
         // even if the config allows reversible, the cycle pins selection to auto-safe
         config: { ...DEFAULT_BRAIN_WORKER_CONFIG, maxAutonomy: "auto-safe-reversible" },
       }));
-      assert.equal(outcome.tasksProcessed, 0);
-      assert.deepEqual(store.loadQueue().map((t) => t.status), ["queued", "queued"]);
+      assert.equal(outcome.tasksProcessed, 0, "assert.equal(outcome.tasksProcessed, 0)");
+      assert.deepEqual(store.loadQueue().map((t) => t.status), ["queued", "queued"], "assert.deepEqual(store.loadQueue().map((t) => t.status), [\"queued\", \"queued\"])");
     }));
 
   await scenario("8+9. results persist and re-saving the same cycle is idempotent", () =>
@@ -172,7 +172,7 @@ async function run() {
       const outcome = runBrainWorkerCycle(store, opts());
       const before = store.loadCycleResults(outcome.report.cycleId)?.results.length;
       store.saveCycleResults({ report: outcome.report, results: [...outcome.results, ...outcome.results] });
-      assert.equal(store.loadCycleResults(outcome.report.cycleId)?.results.length, before);
+      assert.equal(store.loadCycleResults(outcome.report.cycleId)?.results.length, before, "assert.equal(store.loadCycleResults(outcome.report.cycleId)?.results.length, before)");
     }));
 
   await scenario("10. restart/reload — a fresh store sees the persisted queue + cycle", () =>
@@ -182,10 +182,10 @@ async function run() {
       const outcome = runBrainWorkerCycle(first, opts());
 
       const reopened = createBrainTaskStore({ rootDir: root });
-      assert.equal(reopened.loadQueue()[0].status, "succeeded");
-      assert.deepEqual(reopened.listCycleIds(), [outcome.report.cycleId]);
+      assert.equal(reopened.loadQueue()[0].status, "succeeded", "assert.equal(reopened.loadQueue()[0].status, \"succeeded\")");
+      assert.deepEqual(reopened.listCycleIds(), [outcome.report.cycleId], "assert.deepEqual(reopened.listCycleIds(), [outcome.report.cycleId])");
       // a second cycle on the reloaded store has nothing to do
-      assert.equal(runBrainWorkerCycle(reopened, opts({ startedAtIso: END, finishedAtIso: END })).tasksProcessed, 0);
+      assert.equal(runBrainWorkerCycle(reopened, opts({ startedAtIso: END, finishedAtIso: END })).tasksProcessed, 0, "assert.equal(runBrainWorkerCycle(reopened, opts({ startedAtIso: END, finishedAtIso: END })).tasksProcessed, 0)");
     }));
 
   await scenario("11. the cycle report is deterministic for the same inputs", () =>
@@ -198,9 +198,9 @@ async function run() {
       }
       const r1 = runBrainWorkerCycle(s1, opts()).report;
       const r2 = runBrainWorkerCycle(s2, opts()).report;
-      assert.equal(r1.cycleId, r2.cycleId);
-      assert.deepEqual(r1, r2);
-      assert.ok(renderBrainWorkerCycleReport(r1).includes("Overnight Report"));
+      assert.equal(r1.cycleId, r2.cycleId, "assert.equal(r1.cycleId, r2.cycleId)");
+      assert.deepEqual(r1, r2, "assert.deepEqual(r1, r2)");
+      assert.ok(renderBrainWorkerCycleReport(r1).includes("Overnight Report"), "assert.ok(renderBrainWorkerCycleReport(r1).includes(\"Overnight Report\"))");
       void root;
     }));
 
@@ -211,7 +211,7 @@ async function run() {
     const forbidden = { ...buildBrainTask(task({ kind: "analyze-codebase" })), autonomy: "forbidden" as const, status: "queued" as const };
     const outcome = planBrainWorkerCycle([forbidden], opts());
     assert.equal(outcome.tasksProcessed, 0, "forbidden task is never processed");
-    assert.equal(outcome.stopReason, "nothing-runnable");
+    assert.equal(outcome.stopReason, "nothing-runnable", "assert.equal(outcome.stopReason, \"nothing-runnable\")");
   });
 
   await scenario("13. STATIC: BrainWorkerCycle.ts contains no execution primitive", () => {
@@ -243,17 +243,17 @@ async function run() {
     assert.ok(imports.length > 0, "sanity: found import specifiers");
     const thermalPolicy = fs.readFileSync(path.join(REPO_ROOT, "src/lib/brain/probe/GpuThermalPolicy.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim();
     assert.equal(thermalPolicy, "export const A2000_GPU_HARD_STOP_C = 73;", "shared thermal policy contains no import, probe, or execution");
-    assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 73);
+    assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 73, "assert.equal(DEFAULT_BRAIN_WORKER_CONFIG.gpuHardStopCelsius, 73)");
   });
 
   await scenario("14. safe-stub processor is pure and deterministic", () => {
     const t = buildBrainTask(task({ title: "pure" }));
     const ctx = { startedAtIso: START, finishedAtIso: END };
-    assert.deepEqual(brainSafeStubProcessor(t, ctx), brainSafeStubProcessor(t, ctx));
+    assert.deepEqual(brainSafeStubProcessor(t, ctx), brainSafeStubProcessor(t, ctx), "assert.deepEqual(brainSafeStubProcessor(t, ctx), brainSafeStubProcessor(t, ctx))");
     const r = brainSafeStubProcessor(t, ctx);
-    assert.equal(r.durationMs, 0);
-    assert.equal(r.status, "succeeded");
-    assert.equal(r.producedTaskIds.length, 0);
+    assert.equal(r.durationMs, 0, "assert.equal(r.durationMs, 0)");
+    assert.equal(r.status, "succeeded", "assert.equal(r.status, \"succeeded\")");
+    assert.equal(r.producedTaskIds.length, 0, "assert.equal(r.producedTaskIds.length, 0)");
   });
 
   await scenario("15. describeBrainWorkerCycleOutcome mentions safe-stub + counts", () =>
