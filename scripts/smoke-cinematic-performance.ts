@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {cinematicActorPerformance} from "../src/lib/documentary/CinematicActorPerformance";
+import type {CinematicActor} from "../src/lib/documentary/CinematicStoryPlan";
+const binding={id:"ottoman.early-modern.janissary.reference.v1",contentSha256:"a".repeat(64),designIdentitySha256:"a".repeat(64)};
+const hero:CinematicActor={instanceId:"hero",character:binding,x:.35,depth:.95,facing:"right",action:"walk",emotion:"serious",lookAt:"travel",clockOriginSeconds:10};
+const peer={...hero,instanceId:"companion",x:.18};
+const a=cinematicActorPerformance(hero,12,10,840,false),b=cinematicActorPerformance(peer,12,10,840,false);
+assert.notEqual(a.phase,b.phase);assert.notEqual(a.delaySeconds,b.delaySeconds);
+assert.notDeepEqual(a.joints,b.joints,"separate actors do not walk in unison");
+assert.deepEqual(cinematicActorPerformance(hero,12,10,840,false),a,"camera cuts retain the shared scene clock");
+const order={...hero,action:"drill" as const};
+assert.notEqual(cinematicActorPerformance(order,11.8,10,840,false,12).action,"WALK");
+assert.equal(cinematicActorPerformance(order,12.4,10,840,false,12).action,"WALK");
+assert.throws(()=>cinematicActorPerformance(hero,9,10,840,false),/CLOCK/);
+assert.ok(a.contacts.every(p=>Number.isFinite(p.x)&&p.height>=0));
+console.log("Cinematic performance: PASS independent phase, shared cut clock, order response and grounded contacts.");

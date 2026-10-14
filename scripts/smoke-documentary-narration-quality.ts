@@ -16,5 +16,8 @@ void withCanonicalSmokeRuntime({name:"documentary-quality-gate"},async context=>
  let calls=0;const provider={generate:async()=>{calls++;return JSON.stringify({chapters:Array.from({length:6},(_,i)=>({id:i+1,title:"Bölüm "+(i+1),narration:original,duration:15,visualGoal:"Aynı odadaki toplantı.",emotion:"neutral",transition:"Sonra devam."}))});}};
  await assert.rejects(()=>AIManager.runScript("1480 yeniçeri günü",{projectSlug:project.slug,provider:"ollama"},provider),DocumentaryNarrationRepetitionError);
  assert.equal(calls,1,"bad narration is rejected, never retried invisibly or replaced with mock output");
- console.log("Native AIManager lenient-local gate: PASS; one stub/free call, copied narration refused before writer.");
+ process.env.AI_PROVIDER="ollama";
+ await assert.rejects(()=>AIManager.runScript("1480 yeniçeri günü",{projectSlug:project.slug},provider),DocumentaryNarrationRepetitionError);
+ assert.equal(calls,2,"configured real provider also rejects copied narration without a context provider override");
+ console.log("Native AIManager local gate: PASS; explicit and configured provider selection both reject copied narration, one free stub call per request.");
 }).catch(error=>{console.error(error);process.exitCode=1;});

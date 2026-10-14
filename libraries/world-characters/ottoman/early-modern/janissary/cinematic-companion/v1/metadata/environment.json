@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "pending",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19",
+      "https://islamansiklopedisi.org.tr/yeniceri",
+      "https://islamansiklopedisi.org.tr/mehmed-ii"
+    ],
+    "notes": "Original built-in imagegen anonymous moustached Janissary companion in the approved style, interpretive Ottoman/1480. Distinct fictional person, not a named historical portrait. Two source states; preview only until motion/identity/history/rights qualification."
+  },
+  "kind": "environment",
+  "id": "ottoman.early-modern.janissary.companion-environment.v1",
+  "variant": "companion-environment",
+  "files": [
+    {
+      "id": "ottoman.early-modern.janissary.companion-courtyard-plate.v1",
+      "path": "environments/courtyard.png",
+      "purpose": "background",
+      "sha256": "c8bda4bdc19ef5a60ecac65a9f5e7966f1bf835dd96e77b621946eb0eb8eb983",
+      "pivot": null
+    },
+    {
+      "id": "ottoman.early-modern.janissary.companion-barracks-plate.v1",
+      "path": "environments/barracks.png",
+      "purpose": "background",
+      "sha256": "96c7f72d779760bf92a183cd685d4d04f5f9dedd04186192441a3095bca89386",
+      "pivot": null
+    },
+    {
+      "id": "ottoman.early-modern.janissary.companion-kitchen-plate.v1",
+      "path": "environments/kitchen.png",
+      "purpose": "background",
+      "sha256": "151931602deaa1bf9fd5447998d0ab9e2fd9d411497b1e87ab9b525b2d03fe3e",
+      "pivot": null
+    }
+  ],
+  "characterId": "ottoman.early-modern.janissary.cinematic-companion.v1",
+  "availability": "present",
+  "setting": "Interpretive c.1480 Ottoman barracks courtyard, dormitory and communal kitchen; preview only."
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "civilization": "ottoman",
+  "period": "early-modern",
+  "role": "janissary",
+  "version": 1,
+  "status": "draft",
+  "review": "pending",
+  "provenance": {
+    "source": "chatgpt",
+    "rights": "owner-cleared",
+    "historicalReview": "source-scoped",
+    "sources": [
+      "https://www.britishmuseum.org/collection/object/P_Pp-1-19",
+      "https://islamansiklopedisi.org.tr/yeniceri",
+      "https://islamansiklopedisi.org.tr/mehmed-ii"
+    ],
+    "notes": "Original built-in imagegen anonymous moustached Janissary companion in the approved style, interpretive Ottoman/1480. Distinct fictional person, not a named historical portrait. Two source states; preview only until motion/identity/history/rights qualification."
+  },
+  "kind": "equipment",
+  "id": "ottoman.early-modern.janissary.companion-equipment.v1",
+  "variant": "companion-equipment",
+  "files": [],
+  "characterId": "ottoman.early-modern.janissary.cinematic-companion.v1",
+  "items": []
+}

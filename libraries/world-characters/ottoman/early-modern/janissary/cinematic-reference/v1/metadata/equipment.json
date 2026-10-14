@@ -15,12 +15,28 @@
       "https://islamansiklopedisi.org.tr/yeniceri",
       "https://islamansiklopedisi.org.tr/mehmed-ii"
     ],
-    "notes": "Built-in imagegen performance variants of the approved master design: serious/listening/rear/drill/bowl/tired. Same identity as reference/v1, not nine new characters. Whole-body pose atlas, not continuous limb rig. Interpretive Ottoman/1480; cinematic preview only."
+    "notes": "Original interpretive earthenware bowl, built-in imagegen; own Ottoman/1480 namespace. Draft preview prop; no archaeological provenance or exact historic reconstruction claimed."
   },
   "kind": "equipment",
   "id": "ottoman.early-modern.janissary.cinematic-equipment.v1",
   "variant": "cinematic-equipment",
-  "files": [],
+  "files": [
+    {
+      "sha256": "c8e7ab10bc03f591340578ea05731336b62635ece5a80a039b0ea272938fbb29",
+      "purpose": "prop",
+      "path": "props/bowl.png",
+      "id": "ottoman.early-modern.janissary.cinematic-bowl.v1",
+      "pivot": {
+        "y": 0.8,
+        "x": 0.5
+      }
+    }
+  ],
   "characterId": "ottoman.early-modern.janissary.cinematic-reference.v1",
-  "items": []
+  "items": [
+    {
+      "fileId": "ottoman.early-modern.janissary.cinematic-bowl.v1",
+      "slot": "hand-right"
+    }
+  ]
 }

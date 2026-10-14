@@ -12,6 +12,7 @@ import {
   type ObservedAIRequestResult,
 } from "./runObservedAIRequest";
 import { AIResponseError } from "./AIResponseError";
+import { aiProviderConfig } from "./AIProviderConfig";
 import {assertDistinctDocumentaryNarration,DocumentaryNarrationRepetitionError} from "./DocumentaryNarrationQuality";
 import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig";
 import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
@@ -343,6 +344,7 @@ export class AIManager {
       `Topic: ${topic}`,
     ].join("\n");
     try {
+      const scriptProviderName=context?.provider??aiProviderConfig.provider;
       const observed = await runObservedAIRequest({
         prompt,
         provider,
@@ -386,7 +388,9 @@ export class AIManager {
           })
         : fallback.chapters;
 
-      if(policy?.failClosed||context?.provider==="ollama"||context?.provider==="openai")assertDistinctDocumentaryNarration(rawChapters);
+      // Apply content quality to the same real provider selection as observation.
+      // Mock schema/transport fixtures retain their frozen semantics.
+      if(scriptProviderName!=="mock")assertDistinctDocumentaryNarration(rawChapters);
 
       const estimatedDuration = getNumber(
         parsed.estimatedDuration,

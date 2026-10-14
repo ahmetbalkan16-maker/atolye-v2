@@ -12,7 +12,7 @@ export interface CinematicActor {
  readonly instanceId:string;readonly character:CinematicAssetBinding & {readonly designIdentitySha256:string};
  readonly x:number;readonly depth:number;readonly facing:"left"|"right";
  readonly action:CinematicAction;readonly emotion:CinematicEmotion;
- readonly lookAt:"work"|"travel"|string;
+ readonly lookAt:"work"|"travel"|string;readonly clockOriginSeconds?:number;readonly reactionAtSeconds?:number;
 }
 export interface CinematicShot {
  readonly id:string;readonly startSeconds:number;readonly endSeconds:number;
@@ -20,7 +20,11 @@ export interface CinematicShot {
  readonly environment:CinematicAssetBinding;
  readonly camera:CinematicCamera;readonly purpose:string;readonly narrationAnchor:string;
  readonly actors:readonly CinematicActor[];
+ readonly propTransfers?:readonly CinematicPropTransfer[];
  readonly interactions:readonly {readonly from:string;readonly to:string;readonly kind:"order"|"response"|"handover"}[];
+}
+export interface CinematicPropTransfer {
+ readonly asset:CinematicAssetBinding;readonly from:string;readonly to:string;readonly startSeconds:number;readonly endSeconds:number;
 }
 export interface CinematicSource {readonly id:string;readonly url:string;readonly claim:string}
 export interface CinematicSpeech {
@@ -95,12 +99,21 @@ export function inspectCinematicStoryPlan(plan:CinematicStoryPlan){
    const knownIdentity=designIdentities.get(a.character.id);
    if(knownIdentity&&knownIdentity!==a.character.designIdentitySha256)throw Error("CINEMATIC_DESIGN_IDENTITY_CHANGED");
    designIdentities.set(a.character.id,a.character.designIdentitySha256);
+   if(a.clockOriginSeconds!==undefined&&(!Number.isFinite(a.clockOriginSeconds)||a.clockOriginSeconds<0||a.clockOriginSeconds>s.startSeconds))throw Error("CINEMATIC_ACTOR_CLOCK");
+   if(a.reactionAtSeconds!==undefined&&(!Number.isFinite(a.reactionAtSeconds)||a.reactionAtSeconds<0||a.reactionAtSeconds>plan.durationSeconds))throw Error("CINEMATIC_ACTOR_REACTION_CLOCK");
    cast.add(a.instanceId);binding(a.character,s);
   }
   for(const a of s.actors)if(!["work","travel"].includes(a.lookAt)&&(!cast.has(a.lookAt)||a.lookAt===a.instanceId))throw Error("CINEMATIC_LOOK_TARGET");
   for(const i of s.interactions){
    if(!i||!cast.has(i.from)||!cast.has(i.to)||i.from===i.to||!["order","response","handover"].includes(i.kind))throw Error("CINEMATIC_INTERACTION");
    interactions++;
+  }
+  if(s.propTransfers!==undefined){
+   if(!Array.isArray(s.propTransfers)||s.propTransfers.length>8)throw Error("CINEMATIC_PROP_CAPACITY");
+   for(const p of s.propTransfers){
+    if(!cast.has(p.from)||!cast.has(p.to)||p.from===p.to||!Number.isFinite(p.startSeconds)||!Number.isFinite(p.endSeconds)||p.startSeconds<0||p.endSeconds<=p.startSeconds||p.endSeconds>plan.durationSeconds)throw Error("CINEMATIC_PROP_TRANSFER");
+    binding(p.asset,s);
+   }
   }
   if(s.camera!=="context"&&!s.actors.length)throw Error("CINEMATIC_EMPTY_STAGE");
   const signature=(shot:CinematicShot)=>[...new Set(shot.actors.map(a=>a.character.designIdentitySha256))].sort().join(".");
