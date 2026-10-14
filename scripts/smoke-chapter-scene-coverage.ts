@@ -21,32 +21,32 @@ const pass = () => { scenarios += 1; };
 
 async function main() {
   const fallback = createChapterSceneFallback(script);
-  assert.deepEqual(fallback.scenes.map(s => s.chapterId), script.chapters.map(c => c.id));
+  assert.deepEqual(fallback.scenes.map(s => s.chapterId), script.chapters.map(c => c.id), "assert.deepEqual(fallback.scenes.map(s => s.chapterId), script.chapters.map(c => c.id))");
   assert(fallback.scenes.every((s, i) => s.description === script.chapters[i].narration)); pass();
   const durations = new Map(script.chapters.map(c => [c.id, 8]));
   const segments = allocateProductionSceneAudioSegments(fallback, durations);
-  assert.equal(segments.size, 7); assert.equal([...segments.values()].reduce((sum, s) => sum + s.durationSeconds, 0), 56); pass();
+  assert.equal(segments.size, 7, "assert.equal(segments.size, 7)"); assert.equal([...segments.values()].reduce((sum, s) => sum + s.durationSeconds, 0), 56, "assert.equal([...segments.values()].reduce((sum, s) => sum + s.durationSeconds, 0), 56)"); pass();
   assert.throws(() => createChapterSceneFallback({ ...script, chapters: [script.chapters[0], script.chapters[0]] })); pass();
-  assert.deepEqual(requireChapterSceneCoverage([fallback.scenes[0]], script, fallback), fallback.scenes); pass();
+  assert.deepEqual(requireChapterSceneCoverage([fallback.scenes[0]], script, fallback), fallback.scenes, "assert.deepEqual(requireChapterSceneCoverage([fallback.scenes[0]], script, fallback), fallback.scenes)"); pass();
   const absurd = createChapterSceneFallback({ ...script, chapters: script.chapters.map(ch => ({ ...ch, duration: 10000 })) });
-  assert.deepEqual(absurd.scenes.map(s => s.duration), fallback.scenes.map(s => s.duration)); pass();
+  assert.deepEqual(absurd.scenes.map(s => s.duration), fallback.scenes.map(s => s.duration), "assert.deepEqual(absurd.scenes.map(s => s.duration), fallback.scenes.map(s => s.duration))"); pass();
   const inflated = requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, duration: 300 })), script, fallback);
-  assert.deepEqual(inflated.map(s => s.duration), fallback.scenes.map(s => s.duration)); pass();
-  assert.deepEqual(requireChapterSceneCoverage([...fallback.scenes].reverse(), script, fallback), fallback.scenes); pass();
-  assert.deepEqual(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: 999 })), script, fallback), fallback.scenes); pass();
-  assert.equal(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: undefined })), script, fallback)[6].chapterId, 7); pass();
+  assert.deepEqual(inflated.map(s => s.duration), fallback.scenes.map(s => s.duration), "assert.deepEqual(inflated.map(s => s.duration), fallback.scenes.map(s => s.duration))"); pass();
+  assert.deepEqual(requireChapterSceneCoverage([...fallback.scenes].reverse(), script, fallback), fallback.scenes, "assert.deepEqual(requireChapterSceneCoverage([...fallback.scenes].reverse(), script, fallback), fallback.scenes)"); pass();
+  assert.deepEqual(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: 999 })), script, fallback), fallback.scenes, "assert.deepEqual(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: 999 })), script, fallback), fallback.scenes)"); pass();
+  assert.equal(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: undefined })), script, fallback)[6].chapterId, 7, "assert.equal(requireChapterSceneCoverage(fallback.scenes.map(s => ({ ...s, chapterId: undefined })), script, fallback)[6].chapterId, 7)"); pass();
   await withCanonicalSmokeRuntime({ name: "chapter-scene-coverage", projectSlug: "chapter-scene-coverage", operationType: "pipeline.run" }, async () => {
     const context = { projectSlug: "chapter-scene-coverage", stage: "scenes", operation: "scenes" } as const;
     const provider = { async generate() { return ""; } };
     const current = await AIManager.runScenes(script, context, provider, undefined, undefined, { requireChapterCoverage: true });
-    assert.equal(current.scenes.length, 7); assert.equal(current.scenes[6].chapterId, 7); pass();
+    assert.equal(current.scenes.length, 7, "assert.equal(current.scenes.length, 7)"); assert.equal(current.scenes[6].chapterId, 7, "assert.equal(current.scenes[6].chapterId, 7)"); pass();
     const old = await AIManager.runScenes(script, context, provider);
-    assert.equal(old.scenes.length, 1); assert.equal(old.scenes[0].chapterId, undefined); pass();
+    assert.equal(old.scenes.length, 1, "assert.equal(old.scenes.length, 1)"); assert.equal(old.scenes[0].chapterId, undefined, "assert.equal(old.scenes[0].chapterId, undefined)"); pass();
     await assert.rejects(() => AIManager.runScenes(script, context, provider, { failClosed: true }, undefined, { requireChapterCoverage: true }), GenerationFallbackBlockedError); pass();
     const partial = await AIManager.runScenes(script, context, { async generate() { return JSON.stringify({ scenes: [fallback.scenes[0]], createdAt: script.createdAt }); } }, undefined, undefined, { requireChapterCoverage: true });
-    assert.deepEqual(partial.scenes, fallback.scenes); pass();
+    assert.deepEqual(partial.scenes, fallback.scenes, "assert.deepEqual(partial.scenes, fallback.scenes)"); pass();
     const complete = await AIManager.runScenes(script, context, { async generate() { return JSON.stringify(fallback); } }, undefined, undefined, { requireChapterCoverage: true });
-    assert.equal(complete.scenes.length, 7); assert.equal(allocateProductionSceneAudioSegments(complete, durations).size, 7); pass();
+    assert.equal(complete.scenes.length, 7, "assert.equal(complete.scenes.length, 7)"); assert.equal(allocateProductionSceneAudioSegments(complete, durations).size, 7, "assert.equal(allocateProductionSceneAudioSegments(complete, durations).size, 7)"); pass();
   });
   console.log(JSON.stringify({ status: "PASS", scenarios, paidCalls: 0 }));
 }
