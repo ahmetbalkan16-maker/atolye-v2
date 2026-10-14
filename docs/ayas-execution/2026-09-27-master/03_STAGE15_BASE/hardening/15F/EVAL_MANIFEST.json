@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v61",
+  "version": "15F.4-v62",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1840,7 +1840,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-sandbox-run.ts",
-          "sha256": "1fbd4fb5d9ace17b954bed1dff25bf91d9c4758c6e7296e64bf93493270ff331"
+          "sha256": "d3517b4ea1eb5950c18c8cc5c097b96fdbc74c3e426fd6d7c1999f46dbb5db63"
         }
       ],
       "slices": [

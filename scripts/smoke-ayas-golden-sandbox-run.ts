@@ -40,7 +40,7 @@ async function main(): Promise<void> {
     const started = performance.now();
     sandbox = await createAyasResearchExperimentSandbox({ repoRoot: source, baseHead: head, nodeModulesDir: fs.realpathSync(path.join(repo, "node_modules")), timeoutMs: 120_000 });
     const before = await captureAyasSandboxChange(sandbox);
-    const golden = await runAyasGoldenVaultInSandbox(sandbox, AYAS_GOLDEN_VAULT, { caseTimeoutMs: () => 60_000, remainingMs: () => 600_000 });
+    const golden = await runAyasGoldenVaultInSandbox(sandbox, AYAS_GOLDEN_VAULT, { caseTimeoutMs: () => 120_000, remainingMs: () => 600_000 });
     const after = await captureAyasSandboxChange(sandbox);
     const decision = evaluateAyasGoldenRegression({ vault: AYAS_GOLDEN_VAULT, candidate: golden.run });
     // The committed bytes are the pinned bytes: a line-ending policy applied at checkout would show here as drift.

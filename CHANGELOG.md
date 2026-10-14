@@ -1,3 +1,10 @@
+## 2026-10-15 — Owner maintenance window and new-PC portability
+
+- EVAL manifest 15F.4-v62: `smoke-ayas-golden-sandbox-run` gives each golden case the same 120 s budget production uses (was 60 s; the retrieval case needs ~60 s here). Owner-approved; only that pin changed, v61 archived byte-identical.
+- Local `node_modules` reinstalled with `npm ci` (lockfile-exact, e.g. `eslint-config-next` 16.3.8), so local lint matches CI.
+- Observer restarted on the current code (owner-approved); `scripts/ayas-observer-hidden.vbs` derives every path from its own location instead of the hard-coded private launcher.
+- `scripts/new-pc-setup.ps1` (dry-run by default, `-Apply`): exact hash-pinned Node/cloudflared and the other tools via winget, user env, profile junctions, `.env.local` FFmpeg paths, dependencies, Graphify and the three Startup launchers. Guide: `docs/AYAS_NEW_PC_SETUP.md`.
+
 ## 2026-10-14 — AYAS safe-pause closure and self-check regression repair
 
 - Restored CI: EVAL manifest 15F.4-v61 re-pins only the six reviewed suites changed since v60 (no assertion weakened); v60 archived byte-identical.
