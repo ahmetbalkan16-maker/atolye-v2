@@ -109,14 +109,14 @@ async function main() {
     assert.ok(result.state.nextDeepAt, "nextDeepAt must be scheduled after a run");
   });
 
-  await scenario("nextLightAt/nextDeepAt are scheduled ~6h / ~24h out, not some other cadence", async () => {
+  await scenario("nextLightAt/nextDeepAt follow the configured 2h / 3h cadence", async () => {
     const gateRoot = tempDir("ayas-sched-cadence-");
     const before = Date.now();
     const result = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });
     const nextLightMs = Date.parse(result.state.nextLightAt!);
     const nextDeepMs = Date.parse(result.state.nextDeepAt!);
-    assert.ok(Math.abs(nextLightMs - (before + AYAS_RESEARCH_LIGHT_INTERVAL_MS)) < 5000, "nextLightAt should be ~6h out");
-    assert.ok(Math.abs(nextDeepMs - (before + AYAS_RESEARCH_DEEP_INTERVAL_MS)) < 5000, "nextDeepAt should be ~24h out");
+    assert.ok(Math.abs(nextLightMs - (before + AYAS_RESEARCH_LIGHT_INTERVAL_MS)) < 5000, "nextLightAt should follow the 2h interval");
+    assert.ok(Math.abs(nextDeepMs - (before + AYAS_RESEARCH_DEEP_INTERVAL_MS)) < 5000, "nextDeepAt should follow the 3h interval");
   });
 
   await scenario("right after a run, neither LIGHT nor DEEP is due again", async () => {

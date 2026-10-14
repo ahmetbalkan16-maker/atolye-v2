@@ -13,7 +13,7 @@ import type { AyasResearchSourceStateStore } from "./AyasResearchSourceStateStor
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part B — the durable
- * scheduler tying LIGHT (every ~6h) and DEEP (every ~24h) research together
+ * scheduler tying LIGHT (every ~2h) and DEEP (every ~3h) research together
  * into one logical, lease-protected cycle. Deliberately reuses
  * `AyasExecutionAuthorityLock` — the exact same proven, PID+start-time
  * verified, stale-reclaimable mutual-exclusion primitive Package C's own
@@ -28,8 +28,8 @@ import type { AyasResearchSourceStateStore } from "./AyasResearchSourceStateStor
  * is coalesced into at most one cycle after restart. A reservation surviving
  * a crash is uncertain: its occurrence is skipped rather than replayed.
  */
-export const AYAS_RESEARCH_LIGHT_INTERVAL_MS = 6 * 60 * 60_000;
-export const AYAS_RESEARCH_DEEP_INTERVAL_MS = 24 * 60 * 60_000;
+export const AYAS_RESEARCH_LIGHT_INTERVAL_MS = 2 * 60 * 60_000;
+export const AYAS_RESEARCH_DEEP_INTERVAL_MS = 3 * 60 * 60_000;
 
 export function resolveAyasResearchGateRoot(repoRoot: string = process.cwd()): string {
   return path.join(repoRoot, "data", "brain", "self-improvement", "research");
@@ -38,6 +38,14 @@ export function resolveAyasResearchGateRoot(repoRoot: string = process.cwd()): s
 function isDue(nextAt: string | undefined, nowIso: string): boolean {
   if (!nextAt) return true;
   return Date.parse(nowIso) >= Date.parse(nextAt);
+}
+
+function nextAtFromLastCompletion(
+  lastCompletedAt: string | undefined,
+  interval: number,
+  fallback: string | undefined,
+): string | undefined {
+  return lastCompletedAt ? new Date(Date.parse(lastCompletedAt) + interval).toISOString() : fallback;
 }
 
 export type AyasResearchSchedulerTickOutcome = "NONE_DUE" | "ANOTHER_RUN_ACTIVE" | "RECOVERED_UNCERTAIN" | "GOAL_RECONCILED" | "GOAL_WAITING" | "GOAL_SKIPPED" | "GOAL_DEFERRED" | "GOAL_SUCCEEDED" | "GOAL_FAILED" | "LIGHT" | "DEEP";
@@ -142,6 +150,15 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
           goalTick = undefined;
         }
         if (goalTick) return { outcome: goalTick.outcome, state: goalTick.state, deep: goalTick.deep, constitution: constitution.evidence };
+      }
+
+      // Adopt changed cadence defaults from the last completed occurrence.
+      // Scheduler state survives deployments and otherwise retains the old
+      // 6h/24h deadlines until they expire, delaying the new schedule.
+      const nextLightAt = nextAtFromLastCompletion(state.lastLightCompletedAt, lightInterval, state.nextLightAt);
+      const nextDeepAt = nextAtFromLastCompletion(state.lastDeepCompletedAt, deepInterval, state.nextDeepAt);
+      if (nextLightAt !== state.nextLightAt || nextDeepAt !== state.nextDeepAt) {
+        state = stateStore.write({ ...state, nextLightAt, nextDeepAt });
       }
 
       const lightDue = isDue(state.nextLightAt, nowIso);

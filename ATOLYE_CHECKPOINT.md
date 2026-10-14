@@ -1,3 +1,7 @@
+## 14 Ekim 2026 — AYAS dış araştırma sıklığı güncellendi
+
+Owner isteğiyle otomatik araştırma aralığı LIGHT 2 saat, DEEP 3 saat oldu. Kalıcı scheduler kaydı yeni varsayılanları son başarılı tarama zamanından devralır; önceki 6/24 saatlik son tarihlerin beklenmesini önler. LIGHT kontrolü her due cycle içinde çalışır; DEEP yalnız LIGHT değişiklik bildiren kaynakları işler ve mevcut saatlik kaynak istek sınırını korur.
+
 ## 14 Ekim 2026 — AYAS Graphify stale uyarısı giderildi
 
 14 Ekim canlı self-improvement health sonucu DEGRADED idi; tek bulgu GRAPH_STALE_VS_HEAD: HEAD bbecfa411e11608a2aa852028d4b9f143371fce8, Graphify son analiz f542d0882757480f6acce7e6ff62a6a8023cc50d. Observer/runtime arızası değildi; graph'a bağlı keşif hatları güvenli biçimde durmuştu. Onaylı yerel commit'in oturum kapanışında origin'e gönderimi ve exact-HEAD Graphify kapanışı atlanmıştı. İlk update node sayısı azalınca eski graph'ı korudu; --force ile 20.482 node / 57.645 kenar graph yeniden üretildi, mevcut source-SHA parser complement 13/13 dosya, 231 node, 339 kenarla uygulandı. Push tamamlandı. Son grafik bbecfa411e11608a2aa852028d4b9f143371fce8 ile exact; 20.482 node / 57.660 kenar, duplicate/dangling/self-loop 0; live AYAS health HEALTHY / findings[].
