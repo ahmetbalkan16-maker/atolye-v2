@@ -1,3 +1,9 @@
+## 2026-10-14 — Read-only world-character ZIP assessment
+
+- Audited31432 ZIP entries,22723 PNG and132330 metadata/template hash references without executing archive code or importing assets. Documented incomplete global checksum coverage and visual template reuse.
+- Verified624 soldier V1 packs structurally pass but remain unselectable drafts;5616 civil packs fail current closed schema/companion requirements. Kept mixing, capacity, owner approval and all production boundaries.
+- Added inspection report/checkpoint; native exactHEAD Graphify/MCP/health closure follows the docs commit.
+
 ## 2026-10-14 — Completed bounded C Temp and historical-source retirement
 
 - Preserved required old source/assets/history in D SHA-verified archives; removed C:/ayas-iso-val and resolved all49 explicit targets without following reparse targets or changing ACL/authority/frozen records.

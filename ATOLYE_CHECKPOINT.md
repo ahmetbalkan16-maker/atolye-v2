@@ -1,3 +1,11 @@
+## 14 Ekim 2026 — owner ZIP incelemesi tamam; import yapılmadı
+
+D archives/user-imports içindeki ATOLYE_DUNYA_MEDENIYETLERI_624_ASKER_5616_SIVIL_TEK_KURULUM.zip salt okunur incelendi;31432 CRC/22723 PNG decode ve132330 metadata-templateSHA kontrol PASS, namespace/ID çakışması0.624 asker+5616 sivil metadata var; sivil front yalnız135 ortak çizim, asker front395 byte-farklı çizim. Referansın ayrıntılı maskot kalitesi gerçek programatik cutout'larda yok. GlobalSHA listed17495 PASS ama13936 yeni dosyayı kapsamıyor; bozukdosya iddiası yok.
+
+Native V1 validator624 asker pack'i yapısal kabul, selection624 NOT_READY beklenen reddi; sivil5616 unknown-field/companionmetadata eksik reddi. rights/history/owner pending ve mixing/256pack/2048dir sınırları korunur. Arşiv ve4PNG örneği D'de; script/code çalıştırma/import/production değişikliği yok. Uygun sonraki iş ayrı seçili1-2namespace kontrollü adapter ve görsel/rights incelemesi; burada başlamadı. docs/WORLD_CHARACTER_ZIP_REVIEW_2026-10-14.md ve handover/ZIP_REVIEW_2026-10-14/validation.json/native-compatibility.json.
+
+D üretim/C cleanup önceki kabulü korunur, başlangıç runtime healthy-ready-workerReady aktif0. Son bu belge commit/push ardından Graphify/MCP/gerçekhealth/Observer SON HEAD için yenilenir; son makbuz handover/ZIP_REVIEW_2026-10-14/FINAL_RECEIPT.json. Alttaki tarihsel kabul kayıtları kendi HEAD kapsamındadır.
+
 ## 14 Ekim 2026 — C temizliği tamam; D üretim aktif / son Graphify kapanışı
 
 Canonical repo D:\ÜRETİM\Atolye\atolye-v2; runtime/authority/model/özel dosyalar ve yeni işler D paketinde. Gerçek tüm AYAS/Atölye/Ollama süreçlerinin cwd ve TEMP/TMP D, mevcut startup/menu D scoped launcher; Windows genel TEMP/TMP ve kurulu programlar korunur. Runtime healthy/ready/workerReady aktif0, beş Ollama model erişilebilir. TS/launcher syntax-idempotence/current-host layout PASS. Wake owner telefon kabulüyle kapalı. Reboot/yeniPC fiziksel kabulü NOT_RUN; USB kopyası sonrası resmi restore/qualification gerekir.

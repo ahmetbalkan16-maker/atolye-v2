@@ -1,3 +1,7 @@
+## 2026-10-14 — 624/5616 ZIP read-only review
+
+Archive remains D archives/user-imports, SHA1c345cc6…203aa; no import/activation. All CRC/PNG and metadata hashes passed; global original checksum omits13936 civil-extension files.624 soldier V1 shapes pass but draft selection denied;5616 civil shapes reject unknown fields/missing companion records and shared templates need namespace-safe adapter. Civil5616 has135 distinct front PNG hashes; moodboard detail is absent in actual flat cutouts. Latest checkpoint and docs/WORLD_CHARACTER_ZIP_REVIEW_2026-10-14.md; final docs HEAD Graphify/health receipt in handover/ZIP_REVIEW_2026-10-14.
+
 ## 2026-10-14 — C owned payload retirement completed
 
 D production and D scoped process temp accepted. C:/ayas-iso-val and all49 owned historical targets archived with SHA readback then retired/resolved. Final C user-scope scan has zero owned Temp/project markers; only necessary host/Startup/browser metadata and an unrelated installed DLL remain. Windows/installed binaries retained, protected185OS scan limit and newPC/reboot limits explicit. Phone HEALTHY/CURRENT/OBSERVING was restored at WIPf74; final docs commit must be followed by exactHEAD nativeGraphify/MCP/realhealth receipt. Latest checkpoint and docs/AYAS_C_TEMP_CLEANUP_2026-10-14.md supersede pending historical entries below.
