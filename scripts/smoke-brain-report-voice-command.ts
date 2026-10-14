@@ -61,24 +61,24 @@ function assertSpoken(text: string) {
 
 async function run() {
   await scenario("detect — 'AYAS, rapor ver' → summary", () => {
-    assert.deepEqual(detectAyasReportIntent("AYAS, rapor ver"), { kind: "summary" });
-    assert.deepEqual(detectAyasReportIntent("rapor ver bakalım"), { kind: "summary" });
-    assert.deepEqual(detectAyasReportIntent("durum raporu göster"), { kind: "summary" });
-    assert.deepEqual(detectAyasReportIntent("raporu oku"), { kind: "summary" });
-    assert.deepEqual(detectAyasReportIntent("kendini kontrol et"), { kind: "summary" });
+    assert.deepEqual(detectAyasReportIntent("AYAS, rapor ver"), { kind: "summary" }, "assert.deepEqual(detectAyasReportIntent(\"AYAS, rapor ver\"), { kind: \"summary\" })");
+    assert.deepEqual(detectAyasReportIntent("rapor ver bakalım"), { kind: "summary" }, "assert.deepEqual(detectAyasReportIntent(\"rapor ver bakalım\"), { kind: \"summary\" })");
+    assert.deepEqual(detectAyasReportIntent("durum raporu göster"), { kind: "summary" }, "assert.deepEqual(detectAyasReportIntent(\"durum raporu göster\"), { kind: \"summary\" })");
+    assert.deepEqual(detectAyasReportIntent("raporu oku"), { kind: "summary" }, "assert.deepEqual(detectAyasReportIntent(\"raporu oku\"), { kind: \"summary\" })");
+    assert.deepEqual(detectAyasReportIntent("kendini kontrol et"), { kind: "summary" }, "assert.deepEqual(detectAyasReportIntent(\"kendini kontrol et\"), { kind: \"summary\" })");
   });
 
   await scenario("detect — 'onay bekleyen ne' → pending-detail", () => {
-    assert.deepEqual(detectAyasReportIntent("onay bekleyen ne"), { kind: "pending-detail" });
-    assert.deepEqual(detectAyasReportIntent("Onay bekleyen konu nedir?"), { kind: "pending-detail" });
-    assert.deepEqual(detectAyasReportIntent("hangi çözüm onay bekliyor"), { kind: "pending-detail" });
+    assert.deepEqual(detectAyasReportIntent("onay bekleyen ne"), { kind: "pending-detail" }, "assert.deepEqual(detectAyasReportIntent(\"onay bekleyen ne\"), { kind: \"pending-detail\" })");
+    assert.deepEqual(detectAyasReportIntent("Onay bekleyen konu nedir?"), { kind: "pending-detail" }, "assert.deepEqual(detectAyasReportIntent(\"Onay bekleyen konu nedir?\"), { kind: \"pending-detail\" })");
+    assert.deepEqual(detectAyasReportIntent("hangi çözüm onay bekliyor"), { kind: "pending-detail" }, "assert.deepEqual(detectAyasReportIntent(\"hangi çözüm onay bekliyor\"), { kind: \"pending-detail\" })");
   });
 
   await scenario("detect — a normal sentence with 'rapor' does NOT trigger", () => {
-    assert.equal(detectAyasReportIntent("bu proje için bir rapor hazırlıyorum"), null);
-    assert.equal(detectAyasReportIntent("kaç proje var"), null);
-    assert.equal(detectAyasReportIntent("Mimar Sinan kimdir"), null);
-    assert.equal(detectAyasReportIntent(""), null);
+    assert.equal(detectAyasReportIntent("bu proje için bir rapor hazırlıyorum"), null, "assert.equal(detectAyasReportIntent(\"bu proje için bir rapor hazırlıyorum\"), null)");
+    assert.equal(detectAyasReportIntent("kaç proje var"), null, "assert.equal(detectAyasReportIntent(\"kaç proje var\"), null)");
+    assert.equal(detectAyasReportIntent("Mimar Sinan kimdir"), null, "assert.equal(detectAyasReportIntent(\"Mimar Sinan kimdir\"), null)");
+    assert.equal(detectAyasReportIntent(""), null, "assert.equal(detectAyasReportIntent(\"\"), null)");
   });
 
   await scenario("spoken — clean system → 'açık sorun yok', spoken-safe", () => {
