@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {createHash} from "node:crypto";
 import sharp from "sharp";
-import {validateWorldPack, type WorldAsset} from "../WorldCharacterLibrary";
+import {validateWorldPack, type WorldAsset} from "../world/WorldCharacterLibrary";
 import type {CharacterSceneAssetPayload} from "../../animation/character/CharacterSceneAsset";
 import {findCharacterSceneAssetPayloadProblems} from "../../animation/character/CharacterSceneAsset";
 import type {VolumeSentenceTiming} from "../volume/VolumeSentenceTiming";

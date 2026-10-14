@@ -1,8 +1,8 @@
-import commonSchema from '../../../libraries/world-characters/_core/schemas/common.schema.json';
-import characterSchema from '../../../libraries/world-characters/_core/schemas/character.schema.json';
-import equipmentSchema from '../../../libraries/world-characters/_core/schemas/equipment.schema.json';
-import mountSchema from '../../../libraries/world-characters/_core/schemas/mount.schema.json';
-import environmentSchema from '../../../libraries/world-characters/_core/schemas/environment.schema.json';
+import commonSchema from '../../../../libraries/world-characters/_core/schemas/common.schema.json';
+import characterSchema from '../../../../libraries/world-characters/_core/schemas/character.schema.json';
+import equipmentSchema from '../../../../libraries/world-characters/_core/schemas/equipment.schema.json';
+import mountSchema from '../../../../libraries/world-characters/_core/schemas/mount.schema.json';
+import environmentSchema from '../../../../libraries/world-characters/_core/schemas/environment.schema.json';
 
 /** Offline source-library contract. No runtime registration, IO, approval or provider calls. */
 export const WORLD_METADATA_KINDS = ['character', 'equipment', 'mount', 'environment'] as const;

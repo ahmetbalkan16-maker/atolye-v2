@@ -1,4 +1,5 @@
 import {NextResponse,type NextRequest} from 'next/server';
+import { ayasSafeModeHold } from "@/lib/ayas/safety/AyasSafeModeReader";
 import {CharacterDesignLibrary} from '@/lib/character/volume/CharacterDesignLibrary';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -11,6 +12,9 @@ export async function GET(request:NextRequest) {
   } catch{return NextResponse.json({success:false,error:'Karakter kitaplığı okunamadı. Kayıtlar değiştirilmedi.'},{status:409});}
 }
 export async function POST(request:NextRequest) {
+  // Stage 15R: nothing but a read starts while AYAS is in SAFE_READ_ONLY.
+  const safeMode = ayasSafeModeHold();
+  if (safeMode) return NextResponse.json({ success: false, error: safeMode }, { status: 423 });
   try {
     if(Number(request.headers.get('content-length')??0)>4096)return NextResponse.json({success:false,error:'İstek çok büyük.'},{status:413});
     const raw=await request.text();if(raw.length>4096)return NextResponse.json({success:false,error:'İstek çok büyük.'},{status:413});

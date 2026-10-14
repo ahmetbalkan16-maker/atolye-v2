@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import {createHash} from "node:crypto";
-import {validateWorldPack} from "../src/lib/character/WorldCharacterLibrary";
+import {validateWorldPack} from "../src/lib/character/world/WorldCharacterLibrary";
 const sha=(b:Buffer)=>createHash("sha256").update(b).digest("hex");
 async function main(){
  const root=fs.realpathSync.native(process.cwd()),relative="ottoman/early-modern/janissary/reference-rig/v1",output=path.join(root,"libraries/world-characters",relative);

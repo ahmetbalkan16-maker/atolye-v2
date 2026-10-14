@@ -12,12 +12,17 @@ import { createAyasAutonomyDaemon, type AyasDaemonCandidate, type AyasDaemonObse
  * ACTIONABLE status (PENDING/APPROVED/REJECTED/DEFERRED/RESERVED). This
  * suite proves the other half of that boundary, which had no coverage: once
  * a prior instance has reached a TERMINAL outcome (COMPLETED, ABANDONED,
- * RECOVERY_REQUIRED, STALE, FAILED), re-proposing the exact same content
- * must create a genuinely NEW, independent proposal — never silently reuse
- * or resurrect the old one — while the old terminal record stays intact in
- * history. Without this, a real improvement that legitimately recurs after
- * a prior execution finished (successfully or not) could never be proposed
- * again, or worse, could be silently conflated with a closed case.
+ * STALE, FAILED), re-proposing the exact same content must create a
+ * genuinely NEW, independent proposal — never silently reuse or resurrect
+ * the old one — while the old terminal record stays intact in history.
+ * Without this, a real improvement that legitimately recurs after a prior
+ * execution finished (successfully or not) could never be proposed again,
+ * or worse, could be silently conflated with a closed case.
+ *
+ * RECOVERY_REQUIRED is the exception (Stage 17, 2026-10-08): its mutation is
+ * unresolved, so rediscovering the same exact hash returns the original
+ * recovery proposal instead of minting fresh PENDING state. The full
+ * contract lives in smoke-ayas-recovery-proposal-dedup.ts.
  */
 
 let count = 0;
@@ -67,7 +72,7 @@ function driveToTerminal(inbox: ReturnType<typeof createAyasApprovalInboxStore>,
 }
 
 const ACTIONABLE: readonly AyasInboxProposalStatus[] = ["PENDING", "APPROVED", "REJECTED", "DEFERRED", "RESERVED"];
-const TERMINAL: readonly ("COMPLETED" | "FAILED" | "STALE" | "ABANDONED" | "RECOVERY_REQUIRED")[] = ["COMPLETED", "FAILED", "STALE", "ABANDONED", "RECOVERY_REQUIRED"];
+const TERMINAL: readonly ("COMPLETED" | "FAILED" | "STALE" | "ABANDONED")[] = ["COMPLETED", "FAILED", "STALE", "ABANDONED"];
 
 async function main() {
   await scenario("baseline: an identical PENDING candidate is deduped (returns the same instance)", () => {
@@ -110,6 +115,16 @@ async function main() {
       assert.equal(state.proposals.find((p) => p.proposalId === p1.proposalId)?.status, status, "the old terminal proposal must remain untouched in history");
     });
   }
+
+  await scenario("an identical candidate never reopens an unresolved RECOVERY_REQUIRED proposal as fresh PENDING state", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const p1 = inbox.createProposal(proposalInput());
+    driveToTerminal(inbox, p1.proposalId, p1.proposalHash, p1.baseHead, p1.exactFiles, "RECOVERY_REQUIRED");
+    const p2 = inbox.createProposal(proposalInput());
+    assert.equal(p2.proposalId, p1.proposalId, "an unresolved recovery keeps its original identity");
+    assert.equal(p2.status, "RECOVERY_REQUIRED");
+    assert.equal(inbox.load().proposals.length, 1);
+  });
 
   await scenario("a genuinely different candidate (different exactFiles) is never deduped against a PENDING one", () => {
     const inbox = createAyasApprovalInboxStore({ rootDir: root() });

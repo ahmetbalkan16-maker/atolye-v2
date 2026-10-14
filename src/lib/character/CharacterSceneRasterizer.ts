@@ -47,9 +47,10 @@ export async function rasterizeCharacterSceneSvg(svg: string, options: Character
   let sharp: typeof import("sharp").default;
   try { sharp = (await import("sharp")).default; } catch { return { ok: false, reason: "RASTERIZER_UNAVAILABLE" }; }
   try {
-    const image = options.backgroundPng
-      ? sharp(options.backgroundPng, { limitInputPixels: 1024 * 576 }).resize(CHARACTER_SCENE_WIDTH, CHARACTER_SCENE_HEIGHT, { fit: "fill" }).composite([{ input: Buffer.from(svg, "utf8") }])
-      : sharp(Buffer.from(svg, "utf8")).resize(CHARACTER_SCENE_WIDTH, CHARACTER_SCENE_HEIGHT, { fit: "fill" });
+    // One resize for both inputs, so the output size is decided in exactly one place.
+    const base = options.backgroundPng ? sharp(options.backgroundPng, { limitInputPixels: 1024 * 576 }) : sharp(Buffer.from(svg, "utf8"));
+    const sized = base.resize(CHARACTER_SCENE_WIDTH, CHARACTER_SCENE_HEIGHT, { fit: "fill" });
+    const image = options.backgroundPng ? sized.composite([{ input: Buffer.from(svg, "utf8") }]) : sized;
     const png = await (options.fast ? image.png({ compressionLevel: 1 }) : image.png()).toBuffer();
     // PNG signature, then the IHDR chunk's width and height.
     if (png.length < 24 || png.readUInt32BE(0) !== 0x89504e47 || png.readUInt32BE(4) !== 0x0d0a1a0a || png.readUInt32BE(16) !== CHARACTER_SCENE_WIDTH || png.readUInt32BE(20) !== CHARACTER_SCENE_HEIGHT) return { ok: false, reason: "RASTERIZE_FAILED" };

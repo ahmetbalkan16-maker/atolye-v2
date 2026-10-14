@@ -259,7 +259,8 @@ scenario("evidence, not authority: the contract is pure, the registry is data, a
   assert.deepEqual(importers.filter((file) => file.startsWith("src/")).sort(), [
     "src/lib/ayas/evolution/AyasControlledSelfEvolutionArtifact.ts", "src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge.ts", "src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle.ts",
     "src/lib/brain/autonomy/AyasExactProposalSafety.ts", "src/lib/brain/autonomy/AyasRegisteredImprovementExperiment.ts", "src/lib/brain/autonomy/AyasResearchExperimentEvaluation.ts",
-    "src/lib/brain/autonomy/AyasResearchExperimentSandbox.ts", "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts", "src/lib/brain/selfheal/BrainPatchSafety.ts",
+    "src/lib/brain/autonomy/AyasResearchExperimentSandbox.ts", "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts", "src/lib/brain/autonomy/AyasResearchPatchPromotion.ts",
+    "src/lib/brain/selfheal/BrainPatchSafety.ts",
   ].filter((file) => fs.existsSync(path.join(repo, file))));
   // Outside src/ only the operator script, its library, the fixtures and the suites read it; no page or route does.
   assert.deepEqual(importers.filter((file) => !file.startsWith("src/") && !/^scripts\/(?:ayas-golden-vault\.ts|lib\/AyasGoldenVaultFiles\.ts|fixtures\/ayas-golden-fixtures\.ts|smoke-ayas-[a-z0-9-]+\.ts)$/.test(file)), []);

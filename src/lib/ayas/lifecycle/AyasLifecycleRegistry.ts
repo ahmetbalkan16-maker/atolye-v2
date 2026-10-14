@@ -215,11 +215,20 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
   },
   {
     id: "evaluator.research-improvement.15o-v3", kind: "evaluator", role: "research-improvement-evaluator", label: "smoke-ayas-research-improvement-loop (golden vault in the loop)",
-    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "0eb404efe5225b9663dde0c28212c6f8dc7e7c33b3a1a269a48322a75e67cfd7" },
-    state: "PINNED", admission: "NONE", compatibility: "developer TEMP baseline only; the loop as of Stage 15O, where a fixture experiment is measured against the fixture repository's own golden vault; every case and assertion retained.",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "0eb404efe5225b9663dde0c28212c6f8dc7e7c33b3a1a269a48322a75e67cfd7", revision: "37e416e0d72e19ba7c11e6a5da82f8adc5e6e382" },
+    state: "PINNED", admission: "NONE", compatibility: "archived pre-research-promotion evaluator; preserved in Git as a rollback artifact, never admitted as current source.",
     record: unmeasured("new evaluator identity; owner/human calibration pending"), rollbackTarget: "evaluator.research-improvement.15f4-v2",
     history: [{ state: "DISCOVERED", on: "2026-10-02", basis: "Stage 15O put the golden vault between held-out and review; without a vault no fixture experiment is IMPROVED" },
       { state: "PINNED", on: "2026-10-02", basis: "one line of the harness passes the fixture vault to the cycle; cases, graders, expectations and held-out set unchanged" }],
+    notes: "No qualification, promotion or serving admission. The previous bytes and their digest are preserved at the rollback target, readable at its revision.",
+  },
+  {
+    id: "evaluator.research-improvement.promotion-v4", kind: "evaluator", role: "research-improvement-evaluator", label: "smoke-ayas-research-improvement-loop (research patch promotion)",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "56d3e0a3f57a6d7e312b80d31bd617d6f2a3191561bc4b344b2a82e6118c8d7a" },
+    state: "PINNED", admission: "NONE", compatibility: "developer TEMP baseline only; the Stage 15O loop plus two promotion scenarios (no evidence freezes nothing; persisted IMPROVED evidence freezes one owner-review artifact); every earlier case and assertion retained.",
+    record: unmeasured("new evaluator identity; owner/human calibration pending"), rollbackTarget: "evaluator.research-improvement.15o-v3",
+    history: [{ state: "DISCOVERED", on: "2026-10-14", basis: "verified research evidence can now become an owner-review patch artifact; the loop had no scenario for that step" },
+      { state: "PINNED", on: "2026-10-14", basis: "two scenarios appended for the promotion step; existing cases, graders, expectations and held-out set unchanged" }],
     notes: "No qualification, promotion or serving admission. The previous bytes and their digest are preserved at the rollback target, readable at its revision.",
   },
   {

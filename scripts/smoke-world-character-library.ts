@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { validateWorldPack, selectWorldCharacterPack, type WorldAssetFile, type WorldPack } from '../src/lib/character/WorldCharacterLibrary';
+import { validateWorldPack, selectWorldCharacterPack, type WorldAssetFile, type WorldPack } from '../src/lib/character/world/WorldCharacterLibrary';
 import { readWorldCharacterLibrary } from './lib/world-character-library-files';
 import policy from '../libraries/world-characters/_core/mixing-policy.json';
 

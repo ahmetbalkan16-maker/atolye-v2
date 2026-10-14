@@ -49,6 +49,42 @@ async function main() {
     assert.equal(second.state.phase, "OBSERVING", "assert.equal(second.state.phase, \"OBSERVING\")");
   });
 
+  await scenario("observation HEAD/branch/Graphify binding is persisted and survives restart", () => {
+    const workspace = root();
+    const stateFile = path.join(workspace, "observer-state.json");
+    const first = createAyasAutonomyObserver({ stateFile, now: () => "2026-09-15T12:00:00.000Z" });
+    first.observe({ now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "abc123", repoClean: true, graphifyFresh: true, machineAction: "ALLOW", gaps: [] });
+    const persisted = JSON.parse(fs.readFileSync(stateFile, "utf8")) as Record<string, unknown>;
+    assert.equal(persisted.lastObservationHead, "abc123");
+    assert.equal(persisted.lastObservationBranch, "wip/test");
+    assert.equal(persisted.lastObservationGraphifyFresh, true);
+    const second = createAyasAutonomyObserver({ stateFile });
+    assert.equal(second.state.lastObservationHead, "abc123");
+  });
+
+  await scenario("paused observations still record the HEAD they saw", () => {
+    const observer = createAyasAutonomyObserver();
+    observer.observe({ now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "def456", repoClean: false, graphifyFresh: false, machineAction: "ALLOW", gaps: [] });
+    assert.equal(observer.state.phase, "PAUSED_DIRTY_REPO");
+    assert.equal(observer.state.lastObservationHead, "def456");
+    assert.equal(observer.state.lastObservationGraphifyFresh, false);
+    observer.observe({ now: "2026-09-15T12:05:00.000Z", branch: "wip/test", head: "fed789", repoClean: true, graphifyFresh: true, machineAction: "PAUSE", gaps: [] });
+    assert.equal(observer.state.phase, "PAUSED_MACHINE_HEALTH");
+    assert.equal(observer.state.lastObservationHead, "fed789");
+  });
+
+  await scenario("a state file written before the HEAD binding existed still loads", () => {
+    const workspace = root();
+    const stateFile = path.join(workspace, "observer-state.json");
+    fs.writeFileSync(stateFile, JSON.stringify({ schemaVersion: "1", phase: "OBSERVING", updatedAt: "2026-09-15T12:00:00.000Z", heartbeatCount: 7, lastObservationAt: "2026-09-15T12:00:00.000Z" }));
+    const observer = createAyasAutonomyObserver({ stateFile });
+    assert.equal(observer.state.heartbeatCount, 7);
+    assert.equal(observer.state.lastObservationHead, undefined);
+    observer.observe({ now: "2026-09-15T12:05:00.000Z", branch: "wip/test", head: "abc123", repoClean: true, graphifyFresh: true, machineAction: "ALLOW", gaps: [] });
+    assert.equal(observer.state.heartbeatCount, 8);
+    assert.equal(observer.state.lastObservationHead, "abc123");
+  });
+
   await scenario("corrupt observer state file fails loudly", () => {
     const workspace = root();
     const stateFile = path.join(workspace, "observer-state.json");

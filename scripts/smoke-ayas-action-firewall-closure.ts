@@ -102,6 +102,9 @@ const PROBES: Readonly<Record<string, Guard>> = {
   "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE",
   "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE",
   "src/lib/pipeline/PipelineJobMutationLock.ts": "READ_ONLY_PROBE",
+  // Reached through ProjectManager -> RuntimeMaterializationProof -> RuntimeBackupVerifier, which imports only
+  // assertRuntimeBackupTreeMatchesManifest: it passes no repositoryRoot, so the fixed read-only Git probe never runs here.
+  "src/lib/runtime/backup/RuntimeBackupInventory.ts": "READ_ONLY_PROBE",
 };
 /** Owner-approved self-development: the daemon admits the owner lease before the mutation callback runs. */
 const SELF_DEVELOPMENT: Readonly<Record<string, Guard>> = {
@@ -138,6 +141,7 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       // Stage 15Q.3: imported with the production stage runtime's resource occupancy (process identity of a record's owner).
       "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE",
       "src/lib/pipeline/PipelineJobMutationLock.ts": "READ_ONLY_PROBE",
+      "src/lib/runtime/backup/RuntimeBackupInventory.ts": "READ_ONLY_PROBE",
       "src/lib/ayas/developer/AyasGraphifyStateCollector.ts": "TOOL_LEASE",
       "src/lib/ayas/execution/AyasDeveloperEvidence.ts": "TOOL_LEASE",
       "src/lib/ayas/execution/AyasGuidedRepairProduction.ts": "OWNER_LEASE",
@@ -168,6 +172,8 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       "src/lib/brain/autonomy/AyasRegisteredImprovementExperiment.ts": "DISCOVERY_LEASE",
       "src/lib/brain/autonomy/AyasResearchExperimentSandbox.ts": "DISCOVERY_LEASE",
       "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts": "DISCOVERY_LEASE",
+      // Read-only Git plus sandbox validation and an artifact freeze, run only under the research-improvement-cycle capability.
+      "src/lib/brain/autonomy/AyasResearchPatchPromotion.ts": "DISCOVERY_LEASE",
       "src/lib/brain/autonomy/AyasSafePublicFetch.ts": "DISCOVERY_LEASE",
     },
   },

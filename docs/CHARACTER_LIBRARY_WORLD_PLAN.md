@@ -10,7 +10,7 @@ Mevcut `src/lib/character/volume/CharacterDesignLibrary.ts` parametrik karakterl
 runtime'da saklar; mevcut owner onayı, CAS, preview hash ve sürüm korumaları vardır.
 `CharacterImageProvider`, `CharacterSceneManifest` ve animasyon/montaj hattı çalışır.
 Bu sistemler yeniden yazılmadı. Yeni kaynak sözleşmesi `libraries/world-characters/`
-altında izole tutulur. `src/lib/character/WorldCharacterLibrary.ts` saf metadata ve
+altında izole tutulur. `src/lib/character/world/WorldCharacterLibrary.ts` saf metadata ve
 seçim doğrulamasıdır; hiçbir production modülü tarafından import edilmez.
 `scripts/lib/world-character-library-files.ts` yalnız kaynak dizinini okur ve denetler.
 

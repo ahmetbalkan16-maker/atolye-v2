@@ -31,8 +31,8 @@ import {
 /** Same default as `scripts/ayas-autonomy-daemon.ts` (`5 * 60_000`). */
 export const AYAS_HEALTH_DEFAULT_OBSERVER_INTERVAL_MS = 5 * 60_000;
 /** Mirror `AyasResearchScheduler`'s cadence; a test pins them equal so the two cannot drift. Not imported, to keep the scheduler's module graph out of this read-only path. */
-export const AYAS_HEALTH_DEFAULT_LIGHT_INTERVAL_MS = 6 * 60 * 60_000;
-export const AYAS_HEALTH_DEFAULT_DEEP_INTERVAL_MS = 24 * 60 * 60_000;
+export const AYAS_HEALTH_DEFAULT_LIGHT_INTERVAL_MS = 2 * 60 * 60_000;
+export const AYAS_HEALTH_DEFAULT_DEEP_INTERVAL_MS = 3 * 60 * 60_000;
 
 export interface AyasHealthCollectorDeps {
   readonly repoRoot?: string;

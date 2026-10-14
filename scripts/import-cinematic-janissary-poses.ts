@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {createHash} from "node:crypto";
 import sharp from "sharp";
-import {validateWorldPack} from "../src/lib/character/WorldCharacterLibrary";
+import {validateWorldPack} from "../src/lib/character/world/WorldCharacterLibrary";
 const sha=(b:Buffer)=>createHash("sha256").update(b).digest("hex");
 async function main(){
  const root=fs.realpathSync.native(process.cwd()),relative="ottoman/early-modern/janissary/cinematic-reference/v1";

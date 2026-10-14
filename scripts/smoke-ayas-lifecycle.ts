@@ -281,21 +281,24 @@ async function main() {
     const previous = findAyasLifecycleEntry("evaluator.research-improvement.2026-10-01")!;
     // Stage 15O replaced the evaluator once more: the 15F.4 identity is now a second historical rollback target.
     const replaced = findAyasLifecycleEntry("evaluator.research-improvement.15f4-v2")!;
-    const current = findAyasLifecycleEntry("evaluator.research-improvement.15o-v3")!;
-    assert.equal(previous.identity.type, "source-digest"); assert.equal(replaced.identity.type, "source-digest"); assert.equal(current.identity.type, "source-digest");
-    if (previous.identity.type !== "source-digest" || replaced.identity.type !== "source-digest" || current.identity.type !== "source-digest") throw new Error("fixture identity");
+    // Research patch promotion (2026-10-14) appended two scenarios: the 15O identity is now a third historical rollback target.
+    const superseded = findAyasLifecycleEntry("evaluator.research-improvement.15o-v3")!;
+    const current = findAyasLifecycleEntry("evaluator.research-improvement.promotion-v4")!;
+    assert.equal(previous.identity.type, "source-digest"); assert.equal(replaced.identity.type, "source-digest"); assert.equal(superseded.identity.type, "source-digest"); assert.equal(current.identity.type, "source-digest");
+    if (previous.identity.type !== "source-digest" || replaced.identity.type !== "source-digest" || superseded.identity.type !== "source-digest" || current.identity.type !== "source-digest") throw new Error("fixture identity");
     const previousIdentity = previous.identity;
-    assert.equal(current.rollbackTarget, replaced.id); assert.equal(replaced.rollbackTarget, previous.id);
+    assert.equal(current.rollbackTarget, superseded.id); assert.equal(superseded.rollbackTarget, replaced.id); assert.equal(replaced.rollbackTarget, previous.id);
     assert.equal(previous.identity.sha256, "32f6fdb2262781a38d6609c41aba2b16b2c9c5725af7eadfd3c92920bbb092ab");
     assert.equal(replaced.identity.sha256, "5d1901da1169cab5d2b496ed26522c4df0526ea9e47ae094b898f281572e66a9");
-    assert.equal(previous.admission, "NONE"); assert.equal(replaced.admission, "NONE"); assert.equal(current.admission, "NONE"); assert.equal(current.identity.revision, undefined);
-    for (const historical of [previous.identity, replaced.identity]) {
+    assert.equal(superseded.identity.sha256, "0eb404efe5225b9663dde0c28212c6f8dc7e7c33b3a1a269a48322a75e67cfd7");
+    assert.equal(previous.admission, "NONE"); assert.equal(replaced.admission, "NONE"); assert.equal(superseded.admission, "NONE"); assert.equal(current.admission, "NONE"); assert.equal(current.identity.revision, undefined);
+    for (const historical of [previous.identity, replaced.identity, superseded.identity]) {
       assert.match(String(historical.revision), /^[a-f0-9]{40}$/);
       assert.notEqual(computeAyasLifecycleSourceDigest(repo, historical.files), historical.sha256);
       assert.equal(computeAyasLifecycleSourceDigest(repo, historical.files, historical.revision, readHistoricalSource), historical.sha256);
     }
     assert.equal(computeAyasLifecycleSourceDigest(repo, current.identity.files), current.identity.sha256);
-    for (const task of AYAS_LIFECYCLE_TASK_CLASSES) for (const entry of [previous, replaced, current]) assert.equal(ayasLifecycleMayServe(entry, task), false);
+    for (const task of AYAS_LIFECYCLE_TASK_CLASSES) for (const entry of [previous, replaced, superseded, current]) assert.equal(ayasLifecycleMayServe(entry, task), false);
     const forged = { ...previous, admission: "OWNER_SELECTED" as const };
     assert.ok(auditAyasLifecycleEntry(forged).some((v) => v.code === "IDENTITY_INVALID"));
     assert.equal(verifyAyasLifecycleIdentities([forged], { repoRoot: repo })[0]!.status, "MISMATCH");

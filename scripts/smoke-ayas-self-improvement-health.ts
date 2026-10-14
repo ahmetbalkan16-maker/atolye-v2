@@ -238,13 +238,13 @@ async function main() {
     assert.equal(critical.findings[0]?.severity, "CRITICAL");
   });
 
-  await scenario("the DEEP cadence is judged against its own (24h) interval, not LIGHT's", () => {
+  await scenario("the DEEP cadence is judged against its own (3h) interval, not LIGHT's (2h)", () => {
     const at = (offset: number) => evaluateAyasSelfImprovementHealth(variant((i) => {
       i.research = { ...i.research, state: { kind: "ok", value: { schemaVersion: "1", consecutiveFailures: 0, nextLightAt: iso(3 * 60 * MIN), nextDeepAt: iso(offset) } } };
     }));
-    assert.equal(at(-7 * 60 * MIN).verdict, "DEGRADED", "7h late is only a delay for a 24h cadence");
-    assert.equal(at(-24 * 60 * MIN).verdict, "STALLED");
-    assert.equal(at(-24 * 60 * MIN).findings[0]?.code, "RESEARCH_DEEP_OVERDUE");
+    assert.equal(at(-150 * MIN).verdict, "DEGRADED", "2.5h late is only a delay for a 3h cadence, though it exceeds LIGHT's 2h");
+    assert.equal(at(-3 * 60 * MIN).verdict, "STALLED");
+    assert.equal(at(-3 * 60 * MIN).findings[0]?.code, "RESEARCH_DEEP_OVERDUE");
   });
 
   await scenario("a never-scheduled cadence (no nextAt yet) is not an overdue finding", () => {

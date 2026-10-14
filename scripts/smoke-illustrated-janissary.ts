@@ -3,7 +3,7 @@ import fs from "node:fs";
 import {createHash} from "node:crypto";
 import {withCanonicalSmokeRuntime} from "./lib/CanonicalSmokeRuntime";
 import {readWorldCharacterLibrary} from "./lib/world-character-library-files";
-import {selectWorldCharacterPack} from "../src/lib/character/WorldCharacterLibrary";
+import {selectWorldCharacterPack} from "../src/lib/character/world/WorldCharacterLibrary";
 import {ProjectManager} from "../src/lib/projects/ProjectManager";
 import {CharacterImageProvider} from "../src/lib/assets/providers/CharacterImageProvider";
 import {readCharacterScenePayload} from "../src/lib/animation/character/CharacterSceneAsset";

@@ -289,12 +289,12 @@ async function main() {
   });
 
   // ===================================================================
-  // Scheduler cadence is unchanged by this sprint
+  // Scheduler cadence is pinned to the owner-set values (2026-10-14)
   // ===================================================================
 
-  await scenario("the established research cadence is preserved exactly: LIGHT every 6h, DEEP every 24h", () => {
-    assert.equal(AYAS_RESEARCH_LIGHT_INTERVAL_MS, 6 * 60 * 60_000, "LIGHT cadence must stay 6h — more coverage is never a reason to poll harder");
-    assert.equal(AYAS_RESEARCH_DEEP_INTERVAL_MS, 24 * 60 * 60_000, "DEEP cadence must stay 24h");
+  await scenario("the owner-set research cadence is preserved exactly: LIGHT every 2h, DEEP every 3h", () => {
+    assert.equal(AYAS_RESEARCH_LIGHT_INTERVAL_MS, 2 * 60 * 60_000, "LIGHT cadence is owner-set to 2h — more coverage is never a reason to poll harder");
+    assert.equal(AYAS_RESEARCH_DEEP_INTERVAL_MS, 3 * 60 * 60_000, "DEEP cadence is owner-set to 3h");
   });
 
   console.log(`AYAS research intelligence smoke: PASS (${count} scenarios)`);

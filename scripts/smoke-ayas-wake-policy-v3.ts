@@ -70,7 +70,9 @@ async function main() {
   await scenario("production hook and authenticated STT route select V3 explicitly", () => {
     const hook = fs.readFileSync("src/components/brain/useAyasVoice.ts", "utf8"), route = fs.readFileSync("app/api/ayas/stt/route.ts", "utf8");
     assert.equal((hook.match(/wakePolicy: AYAS_OWNER_WAKE_POLICY_V3/g) ?? []).length, 2, "assert.equal((hook.match(/wakePolicy: AYAS_OWNER_WAKE_POLICY_V3/g) ?? []).length, 2)");
-    assert.match(route, /transcribeAyasAudio\(audio, \{ config, thermalHold: ayasSttThermalHold, wakePolicy: AYAS_OWNER_WAKE_POLICY_V3 \}\)/);
+    // The bounded wake probe (2026-10-13) only shortens maxSeconds to at most 8 s; the policy and thermal hold are the same.
+    assert.match(route, /transcribeAyasAudio\(audio, \{ config: wakeProbe \? \{ \.\.\.config, maxSeconds: Math\.min\(8, config\.maxSeconds\) \} : config, thermalHold: ayasSttThermalHold, wakePolicy: AYAS_OWNER_WAKE_POLICY_V3 \}\)/);
+    assert.equal((route.match(/transcribeAyasAudio\(/g) ?? []).length, 1, "exactly one call: no second STT path without the policy");
   });
   for (const text of ["Ayaz kaç proje var", "Hayas ne durumda", "ayazlı bir gün", "ayaslı proje"]) {
     await scenario(`V3 STT service ${text}`, async () => {

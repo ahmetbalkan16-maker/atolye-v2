@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { validateWorldPack, WORLD_METADATA_KINDS, type WorldPack } from '../../src/lib/character/WorldCharacterLibrary';
+import { validateWorldPack, WORLD_METADATA_KINDS, type WorldPack } from '../../src/lib/character/world/WorldCharacterLibrary';
 
 const fail = (code: string): never => { throw new Error(`WORLD_LIBRARY_${code}`); };
 const packFolders = ['design', 'parts', 'props', 'mounts', 'environments', 'metadata'];

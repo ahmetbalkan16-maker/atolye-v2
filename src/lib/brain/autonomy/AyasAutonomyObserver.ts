@@ -9,6 +9,10 @@ export interface AyasAutonomyObserverState {
   readonly phase: AyasAutonomyObserverPhase;
   readonly updatedAt: string;
   readonly lastObservationAt?: string;
+  /** Exact repository binding of the last observation, so a closure receipt can attest which HEAD the Observer actually saw. Optional: state files written before this field existed still load. */
+  readonly lastObservationHead?: string;
+  readonly lastObservationBranch?: string;
+  readonly lastObservationGraphifyFresh?: boolean;
   readonly lastError?: string;
   readonly heartbeatCount: number;
 }
@@ -55,9 +59,10 @@ export function createAyasAutonomyObserver(options: AyasAutonomyObserverOptions 
   const persist = (): void => { if (!stateFile) return; fs.mkdirSync(path.dirname(stateFile), { recursive: true }); const tmp = `${stateFile}.${process.pid}.tmp`; fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`, "utf8"); fs.renameSync(tmp, stateFile); };
   const transition = (phase: AyasAutonomyObserverPhase, extra: Partial<AyasAutonomyObserverState> = {}): AyasAutonomyObserverState => { state = { ...state, ...extra, phase, updatedAt: now(), heartbeatCount: state.heartbeatCount + 1 }; persist(); return state; };
   const observe = (observation: AyasAutonomyObserverObservation): AyasAutonomyObserverState => {
-    if (observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") return transition("PAUSED_MACHINE_HEALTH", { lastObservationAt: observation.now, lastError: `Machine Health: ${observation.machineAction}` });
-    if (!observation.repoClean) return transition("PAUSED_DIRTY_REPO", { lastObservationAt: observation.now, lastError: "working tree is dirty — no mutation allowed" });
-    return transition("OBSERVING", { lastObservationAt: observation.now, lastError: undefined });
+    const observed = { lastObservationAt: observation.now, lastObservationHead: observation.head, lastObservationBranch: observation.branch, lastObservationGraphifyFresh: observation.graphifyFresh };
+    if (observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") return transition("PAUSED_MACHINE_HEALTH", { ...observed, lastError: `Machine Health: ${observation.machineAction}` });
+    if (!observation.repoClean) return transition("PAUSED_DIRTY_REPO", { ...observed, lastError: "working tree is dirty — no mutation allowed" });
+    return transition("OBSERVING", { ...observed, lastError: undefined });
   };
 
   return { get state() { return state; }, observe };

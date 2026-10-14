@@ -56,10 +56,13 @@ async function main() {
   await scenario("already awake HAYAS command is ordinary command text", () => {
     const h = engineHarness(); try { h.emit("AYAZ"); assert.equal(h.wakes, 1); h.emit("hayas kelimesini açıkla"); assert.deepEqual(h.commands, ["hayas kelimesini açıkla"]); } finally { h.engine.dispose(); }
   });
-  await scenario("production hook and authenticated STT route select V2 explicitly", () => {
+  await scenario("production hook and authenticated STT route no longer select V2: the owner bound V3 on 2026-10-08", () => {
+    // V2 stays a tested predecessor policy; smoke-ayas-wake-policy-v3.ts pins the exact production V3 wiring.
     const hook = fs.readFileSync("src/components/brain/useAyasVoice.ts", "utf8"), route = fs.readFileSync("app/api/ayas/stt/route.ts", "utf8");
-    assert.equal((hook.match(/wakePolicy: AYAS_OWNER_WAKE_POLICY_V2/g) ?? []).length, 2);
-    assert.match(route, /transcribeAyasAudio\(audio, \{ config, thermalHold: ayasSttThermalHold, wakePolicy: AYAS_OWNER_WAKE_POLICY_V2 \}\)/);
+    assert.equal((hook.match(/wakePolicy: AYAS_OWNER_WAKE_POLICY_V2/g) ?? []).length, 0);
+    assert.doesNotMatch(route, /AYAS_OWNER_WAKE_POLICY_V2/);
+    assert.equal((hook.match(/wakePolicy: AYAS_OWNER_WAKE_POLICY_V3/g) ?? []).length, 2);
+    assert.match(route, /wakePolicy: AYAS_OWNER_WAKE_POLICY_V3 \}\)/);
   });
   for (const text of ["Ayaz kaç proje var", "Hayas ne durumda", "ayazlı bir gün", "ayaslı proje"]) {
     await scenario(`V2 STT service ${text}`, async () => {

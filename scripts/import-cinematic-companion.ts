@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import {createHash} from "node:crypto";
-import {validateWorldPack} from "../src/lib/character/WorldCharacterLibrary";
+import {validateWorldPack} from "../src/lib/character/world/WorldCharacterLibrary";
 const sha=(b:Buffer)=>createHash("sha256").update(b).digest("hex");
 async function main(){
  const base=path.resolve("libraries/world-characters/ottoman/early-modern/janissary/cinematic-reference/v1"),relative="ottoman/early-modern/janissary/cinematic-companion/v1",output=path.resolve("libraries/world-characters",relative);

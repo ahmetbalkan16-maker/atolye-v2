@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v60",
+  "version": "15F.4-v61",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -129,7 +129,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-action-firewall-closure.ts",
-          "sha256": "a5643ded0a7c198acfa9d1771adefb47f3957542ba664d0d1d3d30a85441ac79"
+          "sha256": "1e235dc64dfeb2478f376be20b816c33f98d55c02d62170390d241d89b0b1d86"
         }
       ],
       "slices": [
@@ -889,7 +889,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-lifecycle.ts",
-          "sha256": "4e6488c7d8d623df8e1347a4347c61b3143b611af355fbb66b503ad651c349f0"
+          "sha256": "8db562244a05ebf7cb75c68def88047981d7cd1f2c3e658058fe897382b526fe"
         }
       ],
       "slices": [
@@ -969,7 +969,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-research-scheduler.ts",
-          "sha256": "aea6af7146fbf90a41e52dd01d8b962074d076e61236226abb296c62a603ad46"
+          "sha256": "240bcf6c2742928671a4fd28ba8ae60679a5bce1e3bcc9e9d8c46abdeaf99ebf"
         }
       ],
       "slices": [
@@ -1001,7 +1001,7 @@
         },
         {
           "file": "scripts/smoke-ayas-research-improvement-loop.ts",
-          "sha256": "2fa2bbd212d4ea39154df81140685d1a614d10875e297914b4325a4ce0443e27"
+          "sha256": "c38944e6d18318789d2b68f9531b782be201f6a11866257d10e8836c6b29d14a"
         }
       ],
       "slices": [
@@ -1712,7 +1712,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault.ts",
-          "sha256": "9255c742a2a4d96897982f5354102832d2af8568e7eb48656a5df2c877cda0d4"
+          "sha256": "3b63b60b1fbd70367dba8d0079debb75ebb3f14efcb3fcc04d4b075b63a9c002"
         },
         {
           "file": "scripts/lib/AyasGoldenVaultFiles.ts",
@@ -2070,7 +2070,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-safe-mode.ts",
-          "sha256": "992e86c0263cae2a285033196d245cf9987507322fab3cf31d4812122686d3f8"
+          "sha256": "f6910f04deb9c1bb8490f4e397bb2dcb8bdba3c64b543bfb1492ee791af26d85"
         }
       ],
       "slices": [
@@ -2092,7 +2092,7 @@
         },
         {
           "file": "scripts/smoke-ayas-safe-mode.ts",
-          "sha256": "992e86c0263cae2a285033196d245cf9987507322fab3cf31d4812122686d3f8"
+          "sha256": "f6910f04deb9c1bb8490f4e397bb2dcb8bdba3c64b543bfb1492ee791af26d85"
         }
       ],
       "slices": [

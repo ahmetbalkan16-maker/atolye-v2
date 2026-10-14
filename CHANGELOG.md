@@ -1,3 +1,12 @@
+## 2026-10-14 — AYAS safe-pause closure and self-check regression repair
+
+- Restored CI: EVAL manifest 15F.4-v61 re-pins only the six reviewed suites changed since v60 (no assertion weakened); v60 archived byte-identical.
+- Self-Improvement Health now judges research lateness against the owner 2h/3h cadence; the Observer persists the HEAD, branch and Graphify freshness it observed.
+- Classified the research patch promotion step in the firewall closure map, the golden-vault reader list and the lifecycle registry (`evaluator.research-improvement.promotion-v4`, 15o-v3 kept as rollback target).
+- Unblocked the golden vault (broken since 2026-10-13) without changing it: `WorldCharacterLibrary` moved to `src/lib/character/world/`; the character rasterizer resizes in one place (same output).
+- Security: `POST /api/studio/characters` now honours the SAFE_READ_ONLY emergency stop like every other mutating production route.
+- Stale assertions aligned with reviewed production changes: recovery-required dedup, wake policy V3 and its bounded wake probe.
+
 ## 2026-10-14 — WIP: detailed documentary character candidates
 
 - Added isolated Ottoman/1480 pose and actual part-rig candidates, original imagery with hashes, clear draft admission, and owner style/use feedback.

@@ -264,7 +264,7 @@ async function main() {
 
   /** Every mutating production route, and the mutating routes that stay open in the mode with the reason. */
   const GUARDED_ROUTES = ["animations", "assembly", "assets", "audio", "export", "pipeline", "projects/[slug]/pipeline/jobs/[jobId]", "projects/[slug]/pipeline/resume", "projects/[slug]/pipeline/retry",
-    "research", "seo", "thumbnail", "thumbnails", "video", "visuals", "youtube"].map((route) => `app/api/${route}/route.ts`);
+    "research", "seo", "studio/characters", "thumbnail", "thumbnails", "video", "visuals", "youtube"].map((route) => `app/api/${route}/route.ts`);
   const OPEN_ROUTES: Readonly<Record<string, string>> = {
     "app/api/auth/login/route.ts": "the owner signs in; leaving the mode needs a session",
     "app/api/auth/logout/route.ts": "ends a session",
