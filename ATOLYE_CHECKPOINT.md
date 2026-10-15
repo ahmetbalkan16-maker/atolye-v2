@@ -52,7 +52,39 @@ Yapılan (owner'ın açık onaylarıyla: Observer yeniden başlatma, `npm ci`, g
    - **Yayın betiği** (`7fe6ad9a`, `1884c313`): `scripts/ayas-publish-live.ps1` (kuru çalışma / `-Prepare` / `-Apply`), belge `docs/AYAS_LIVE_PUBLISH.md`. Denetçi Başlangıç kısayoluyla Windows kabuğu üzerinden yeniden açılır.
    - **Görev 2 — sesli araştırma yanıtında radar: TAMAM** (`7bd27b93`). Özet yanıtı radarı tek cümleyle ekler ve hiçbir şeyin kendiliğinden uygulanmadığını söyler; araştırma motoru DEGRADED ise sebeplerini söyler. Yeni "updates" niyeti ("Güncelleme var mı?"); komutlar ve proje soruları eşleşmez. Düzeltme: konsol önce `/api/ayas/chat/stream`'e gidiyordu ve bu rota araştırma niyetlerini hiç denetlemiyordu; artık `resolveAyasPreReasoningIntent` "research-status" döndürür ve rota modelsiz yanıtı verir.
    - **Canlıya alındı (11:52, owner talimatıyla, bir Claude oturumundan):** `ayas-publish-live.ps1 -Commit 7bd27b93 -Apply` → `PUBLISHED`. Canlı `ayas-live-c10d1e33` (Next 16.2.10) → `ayas-live-7bd27b93` (Next 16.4.1 kurulu = kilitli, build `0KUMNqNW5MRP6uM6lNEtT`, 1269 build / 26469 bağımlılık dosyası, damga CLEAN). HEAD `1884c313` ile uygulama dosyaları aynı (fark yalnız belge ve betik). Yeni denetçi zinciri: `explorer.exe /factory,… -Embedding` (DCOM, oturumdan bağımsız) → wscript → powershell → `next start` PID 14496; tünel PID 28152 kesilmedi; `recovery-state` healthy, dış erişim healthy. Yedek `D:\ÜRETİM\handover\live-publish\20261015-115214-7bd27b93`; eski kopya geri dönüş için duruyor.
-   - **Görev 3 — AYAS beyin modelinin yeni modellerle karşılaştırılması:** aşağıdaki kayıtta.
+   - **Görev 3 — AYAS sohbet modelinin yeni modellerle karşılaştırılması: TAMAM** (`618abc9e`, `62025240`, `f822b162`, `856d9ca3`; kılavuz `docs/AYAS_MODEL_COMPARISON.md`).
+     - Bulgu: AYAS `gemma3:12b` kullanıyor (10 Ekim'de elle denenerek seçilmiş). Ne donmuş bir ölçümü vardı ne de yaşam döngüsü kaydında yer alıyordu (router "UNREGISTERED" bildiriyor; kayda eklenmedi).
+     - `AyasChatModelBenchmark`: donmuş Türkçe set `ayas-chat-tr-v3`, 21 soru (bilgi 6, hesap 4, talimat 4, geçmiş 3, dürüstlük 4). Sorular AYAS'ın kendi sohbet yolundan sorulur (doğal konuşma politikası, keep_alive 0, 420 token, ayarlı sıcaklık); süreye model yükleme dahildir. Puanlama belirlenimcidir. Her cevap sesli Türkçe denetiminden de geçer; yazıyla söylenen sayı doğru sayılır.
+     - **Kalibrasyon (gerçek koşular, kalan her cevap elle incelendi):**
+       - v1: "yüz derece" ve "Yedi" haksız yere kalıyordu (commit'ten önce düzeltildi). Doğru belirsizlik ifadeleri ("kesin bir tahmin yapamam", "cevaplanamaz") ve soruyu tekrar eden bir ret ("sildim mi diye bir şey yapmadım") yanlış puanlanıyordu; soru işaretiyle biten uydurma ("etli yemek yedin, nasıl oluyordu?") geçebiliyordu → v2.
+       - v2: aynı model iki koşu arasında 2 soru oynadı (gemma3:12b 19→17, qwen2.5:3b 14→12) → v3: her soru 3 kez sorulur, çoğunlukla geçer.
+       - Kalan sınır: dürüstlük işaretleri sözcük listesidir; nadir bir belirsizlik ifadesi ("bilebileceğini sanmıyorum") tanınmayabilir. Bu, 3 denemede çoğunluk kuralıyla sınırlanır.
+     - `AyasModelWatch`:
+       - İzleme listesi: `gemma4:12b`, `qwen3.5:9b`, `gemma4:e4b`, `ministral-3:8b/14b`, `granite4.2:8b`. Hepsi Apache-2.0; boyutlar ve özetler registry.ollama.ai'den, yetenekler Ollama kütüphanesinden okundu. Manifest SHA-256'sı = Ollama'daki model özeti.
+       - Karşılaştırma: "daha iyi" için 2 soru fazla gerekir; ayrıca dürüstlükte, GPU payında (≥%90) ve gecikmede (≤1,5×) gerileme olmamalı. Sonuç, test kimliğine ve kurulu özete bağlıdır.
+       - Tek öneri: ölç / değiştir / ölçmek için indir / koru.
+     - `scripts/ayas-model-benchmark.ts` (`npm run ayas:model-benchmark`): hiçbir modeli indirmez ve ayarları değiştirmez. GPU yoklaması `scripts/lib/AyasModelHardwareProbe.ts`'te; ürün koduna yeni ağ çağrısı eklenmedi. Böylece sabitlenmiş `smoke-ayas-action-firewall-closure` (EVAL pinli) değiştirilmeden geçti.
+     - `/brain` araştırma paneli: salt okunur "Yapay Zekâ Modeli" bölümü, onay düğmesi yok. Sesli: "Daha iyi bir model var mı?" yeni `model` niyeti; araştırma özeti modeli yalnız owner'ın karar vermesi gerektiğinde anar.
+     - **Ölçüm (15 Ekim, v3, bu PC, RTX A2000 12 GB; hepsi %100 GPU'da):**
+
+       | Model | Geçen | Deneme | Ortanca süre |
+       |---|---|---|---|
+       | qwen3:8b | 19/21 | 58/63 | 3,2 sn |
+       | gemma3:12b (mevcut) | 18/21 | 55/63 | 5,1 sn |
+       | gemma3:4b | 17/21 | 51/63 | 3,3 sn |
+       | qwen2.5:7b | 15/21 | 47/63 | 3,1 sn |
+       | qwen2.5:3b | 12/21 | 36/63 | 2,0 sn |
+
+       - gemma3:12b iki soruda tutarlı olarak kalıyor: önceden verilen adı soran soruya "Ben AYAS" diyor ve tatili uyduruyor. qwen3:8b 1 soru önde ve daha hızlı; fark kuralın altında kaldığı için "benzer".
+       - **Öneri: `gemma4:12b` (8,0 GB, mevcut modelin halefi) indirilip ölçülsün — owner onayı bekleniyor.**
+       - `gemma4` ve `qwen3.5` düşünme kipine sahip; `OllamaAyasProvider` düşünmeyi yalnız `qwen3` için kapatıyor. Ölçüm farkı gösterecek; gerekirse sağlayıcı ayrı bir değişiklikle güncellenir.
+     - Testler:
+       - Yeni `smoke-ayas-model-watch` 12/12.
+       - Değişen modülleri içe aktaran 30 suite geçti: araştırma niyeti 17, niyet yönlendirme 37, chat-stream 31, model profili 6, model router 22, doğal sohbet 42, bilişsel kalite, Gelişim Merkezi 59, kontrol merkezi, ana sayfa 11, owner UI 36, executive briefing 30, firewall kapanışı 12 ve diğerleri.
+       - `smoke-ayas-security-request-body-isolated` yalnız geçici arşivde çalışır; değişikliklerle oluşturulan kopyada 2/2 (413/413).
+       - tsc 0, lint 0, CI (`618abc9e`) başarılı.
+     - **Canlıya alındı (13:01):** `ayas-publish-live.ps1 -Apply` → `PUBLISHED`. `ayas-live-7bd27b93` → `ayas-live-856d9ca3` (Next 16.4.1, build `XRJfWeawFVIlD1GNnJIGr`, damga CLEAN `856d9ca3`, 1269 build / 26469 bağımlılık dosyası). `next start` PID 20524; denetçi Windows kabuğu altında; tünel PID 28152 kesilmedi; dış erişim healthy. Derlenmiş sunucu dosyalarında yeni bölüm ve `ayas-chat-tr-v3` var. Yedek `D:\ÜRETİM\handover\live-publish\20261015-130122-856d9ca3`; önceki kopya geri dönüş için duruyor.
+     - Ölçüm sonuçları git dışında: `data/brain/self-improvement/model-watch/state.json`. Canlı uygulama da aynı kanonik veri kökünden okur.
 
 **Sıradaki (bu sırayla):**
 1. Yeni PC kurtarma geçişini taşımadan önce bu PC'de benzet: runtime/authority'nin kopyası üzerinde, tek kullanımlık köklerde `runtime:backup:create/verify` → `candidate:create/consume` → `authority:begin-recovery` → `quiesce/prepare/validate/publish`; canlı kayıtlara dokunmadan. Sonucu `docs/AYAS_NEW_PC_SETUP.md` adım 3'e işle.
