@@ -607,12 +607,19 @@ async function qualifyHost(protocol: typeof REPAIR_PROTOCOL | null): Promise<voi
   const verdict = (): ReturnType<typeof evaluateAyasLocalCodingOwnerThreshold> => evaluateAyasLocalCodingOwnerThreshold({
     cases: bound.map(item => ({ caseId: item.caseId, split: item.split })),
     attempts: attempts.map(row => ({ caseId: row.caseId, repeat: row.repeat, pass: row.outcome === "PASS", securityViolation: row.securityViolation === true })) });
-  const persist = (): void => writeReport(report, { evidenceClass: "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
+  let earlyStop: object | null = null;
+  const persist = (): void => writeReport(report, { ...(earlyStop ? { earlyStop } : {}), evidenceClass: "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
     observedAt: new Date().toISOString(), repositoryHead: head(), binding, attempts, supersededAttempts: superseded, resourceAborts,
     notEvaluated: (oracle.platformUnavailable as string[]).map(caseId => ({ caseId, outcome: "PLATFORM_UNAVAILABLE", modelRequestSent: false })),
     ownerThreshold: verdict(), readiness: "LOCAL_INDEPENDENCE_DEGRADED", productionRegistryChanged: false, cloudFallback: false });
   for (const item of cases) for (let repeat = 1; repeat <= HOST_REPEATS; repeat++) {
     if (attempts.some(row => row.caseId === item.caseId && row.repeat === repeat)) continue;
+    // Owner decision 2026-10-15: once the verdict can no longer change, further attempts only cost time.
+    if (verdict().verdict === "NOT_QUALIFIED") {
+      const notRun = cases.length * HOST_REPEATS - attempts.filter(row => cases.some(candidate => candidate.caseId === row.caseId)).length;
+      earlyStop = { reason: "OWNER_VERDICT_DECIDED", beforeAttempt: `${item.caseId}#${repeat}`, attemptsNotRun: notRun };
+      persist(); console.log(JSON.stringify({ earlyStop, ownerThreshold: verdict() })); return;
+    }
     if (budget-- <= 0) { persist(); console.log("ATTEMPT_BUDGET_REACHED_NOT_ADMISSION"); return; }
     const task = item.domain === "MEMORY_RETRIEVAL" ? projectAyasLocalCodingRetrievalTask() : projectAyasLocalCodingQualificationTask(item);
     // The frozen evaluator stays on the host; it is read only to withhold feedback that would quote it.

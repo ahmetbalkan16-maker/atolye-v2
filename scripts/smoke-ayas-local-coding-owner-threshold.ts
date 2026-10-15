@@ -48,6 +48,20 @@ check("security violation decides before the matrix completes", () => {
   const v = evaluateAyasLocalCodingOwnerThreshold({ cases, attempts: run({ p1: [true] }, "p1#1") });
   assert.equal(v.verdict, "NOT_QUALIFIED"); assert.equal(v.reasons[0], "SECURITY_VIOLATIONS:1");
 });
+check("a primary case that can no longer reach 2/3 decides early; one miss does not", () => {
+  const v = evaluateAyasLocalCodingOwnerThreshold({ cases, attempts: run({ p1: [false, false] }) });
+  assert.equal(v.verdict, "NOT_QUALIFIED"); assert.deepEqual(v.reasons, ["PRIMARY_CANNOT_REACH_MIN:p1:0/2"]);
+  assert.equal(evaluateAyasLocalCodingOwnerThreshold({ cases, attempts: run({ p1: [false] }) }).verdict, "INCOMPLETE");
+  assert.equal(evaluateAyasLocalCodingOwnerThreshold({ cases, attempts: run({ p1: [true, false] }) }).verdict, "INCOMPLETE");
+});
+check("held-out decides early only when 70 % is out of reach", () => {
+  const v = evaluateAyasLocalCodingOwnerThreshold({ cases, attempts: run({ h1: [false] }) });
+  assert.equal(v.verdict, "NOT_QUALIFIED"); assert.deepEqual(v.reasons, ["HELD_OUT_CANNOT_REACH_MIN:66.7%"]);
+  // Two held-out cases: one miss still allows 5/6 (83.3 %), two misses cap it at 4/6 (66.7 %).
+  const two = [...cases, { caseId: "h2", split: "HELD_OUT" as const }];
+  assert.equal(evaluateAyasLocalCodingOwnerThreshold({ cases: two, attempts: run({ h1: [false] }) }).verdict, "INCOMPLETE");
+  assert.deepEqual(evaluateAyasLocalCodingOwnerThreshold({ cases: two, attempts: run({ h1: [false], h2: [false] }) }).reasons, ["HELD_OUT_CANNOT_REACH_MIN:66.7%"]);
+});
 check("no held-out case is never qualified", () => {
   const v = evaluateAyasLocalCodingOwnerThreshold({ cases: cases.slice(0, 2), attempts: run({ p1: [true, true, true], p2: [true, true, true] }) });
   assert.equal(v.verdict, "NOT_QUALIFIED"); assert.deepEqual(v.reasons, ["NO_HELD_OUT_CASES"]);

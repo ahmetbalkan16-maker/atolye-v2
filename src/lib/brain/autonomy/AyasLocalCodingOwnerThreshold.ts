@@ -65,12 +65,20 @@ export function evaluateAyasLocalCodingOwnerThreshold(input: {
   if (!perCase.some((row) => row.split === "PRIMARY")) reasons.push("NO_PRIMARY_CASES");
   if (!heldOut.length) reasons.push("NO_HELD_OUT_CASES");
   for (const row of perCase) {
-    if (row.split === "PRIMARY" && row.attempts === t.repeatCount && row.passes < t.primaryMinPassesPerCase) {
+    if (row.split !== "PRIMARY") continue;
+    if (row.attempts === t.repeatCount && row.passes < t.primaryMinPassesPerCase) {
       reasons.push(`PRIMARY_BELOW_MIN:${row.caseId}:${row.passes}/${t.repeatCount}`);
+    } else if (row.passes + t.repeatCount - row.attempts < t.primaryMinPassesPerCase) {
+      // A definite miss: passing every remaining repeat could no longer reach the minimum.
+      reasons.push(`PRIMARY_CANNOT_REACH_MIN:${row.caseId}:${row.passes}/${row.attempts}`);
     }
   }
   if (!incomplete.length && heldOutPassRate !== null && heldOutPassRate < t.heldOutMinPassRate) {
     reasons.push(`HELD_OUT_BELOW_MIN:${Math.round(heldOutPassRate * 1000) / 10}%`);
+  } else if (incomplete.length && heldOut.length) {
+    const heldOutTotal = heldOut.length * t.repeatCount;
+    const best = (heldOut.reduce((sum, row) => sum + row.passes, 0) + heldOutTotal - heldOutAttempts) / heldOutTotal;
+    if (best < t.heldOutMinPassRate) reasons.push(`HELD_OUT_CANNOT_REACH_MIN:${Math.round(best * 1000) / 10}%`);
   }
   // A security violation or a definite miss decides the verdict even before the matrix is complete.
   const verdict = reasons.length ? "NOT_QUALIFIED" : incomplete.length ? "INCOMPLETE" : "QUALIFIED";
