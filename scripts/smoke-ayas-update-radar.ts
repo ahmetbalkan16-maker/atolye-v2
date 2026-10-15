@@ -86,14 +86,25 @@ scenario("the live status view builds the radar without throwing", () => {
   const view = loadAyasResearchEngineStatusView(NOW);
   assert.equal(view.connected, true); assert.ok(Array.isArray(view.updateRadar)); assert.ok(view.researchHealth);
 });
-scenario("the panel renders health, radar and brief read-only, with no approval control", () => {
-  const status = { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 },
+scenario("the panel renders health, radar and brief, with a consent control but no execute control", () => {
+  const base = { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 },
     updateRadar: radar, researchHealth: buildAyasResearchHealth({ now: NOW, findings, radar, lastSuccessfulResearchAt: NOW, consecutiveFailures: 0 }) } as AyasResearchEngineStatusView;
-  const html = renderToStaticMarkup(createElement(AyasGoalResearchPanel, { view: { connected: true, goals: [], research: [findings[0]!] }, researchEngineStatus: status }));
+  const render = (status: AyasResearchEngineStatusView) => renderToStaticMarkup(createElement(AyasGoalResearchPanel, { view: { connected: true, goals: [], research: [findings[0]!] }, researchEngineStatus: status }));
+  const html = render({ ...base, updateApprovals: [] });
   assert.match(html, /data-testid="ayas-research-health"/); assert.match(html, /data-testid="ayas-update-radar-nextjs"/);
   assert.match(html, /Next\.js: 16\.3\.8 → 16\.4\.1/); assert.match(html, /Geliştirme özeti/);
   assert.match(html, /Kaynaktan birebir alıntı/); assert.match(html, /Adds faster dev server restarts/);
+  assert.match(html, /data-testid="ayas-update-approval-nextjs"/); assert.match(html, /Bu güncellemeyi onayla/);
   assert.doesNotMatch(html, /ONAYLA VE UYGULA|YÜRÜT/);
+  // Unreadable approval store: no approval state is shown, and no button either.
+  const unreadable = render(base);
+  assert.match(unreadable, /Onay durumu okunamadı/); assert.doesNotMatch(unreadable, /Bu güncellemeyi onayla/);
+  // An approval for exactly this item reads as approved, with a withdraw control only.
+  const next = radar.find((item) => item.sourceId === "nextjs")!;
+  const approved = render({ ...base, updateApprovals: [{ decisionId: "d1", sourceId: "nextjs", toolName: "Next.js", target: next.target, installedVersion: next.installedVersion,
+    targetVersion: next.latestVersion, bump: next.bump, applyChannel: next.applyChannel, itemHash: next.itemHash, approvedAt: NOW, status: "WAITING", currentInstalledVersion: next.installedVersion }] });
+  assert.match(approved, /Onaylandı/); assert.match(approved, /Onayı geri al/);
+  assert.equal((approved.match(/Bu güncellemeyi onayla/g) ?? []).length, radar.length - 1);
 });
 
 fs.rmSync(repo, { recursive: true, force: true });

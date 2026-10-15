@@ -103,7 +103,7 @@ const radarItem = (sourceId: string, toolName: string, installedVersion: string,
   applyChannel: AyasUpdateRadarItem["applyChannel"] = "DEVELOPMENT_SESSION"): AyasUpdateRadarItem => ({
   sourceId, provider: "Vendor", toolName, target: `npm:${sourceId}`, installedVersion, latestVersion, bump, newerStableReleases: 1,
   latestUrl: "https://example.test", lastSeenAt: "2026-10-15T06:00:00.000Z", applyChannel, evidence: [],
-  brief: { summary: "", affectedFileCount: 0, affectedFiles: [], validation: [], risk: "" },
+  brief: { summary: "", affectedFileCount: 0, affectedFiles: [], validation: [], risk: "" }, itemHash: "0".repeat(64),
 });
 const RADAR = [radarItem("eslint", "ESLint", "9.39.4", "10.11.0", "MAJOR"), radarItem("typescript", "TypeScript", "5.9.3", "7.0.2", "MAJOR"),
   radarItem("nodejs", "Node.js", "24.18.0", "24.22.0", "MINOR", "OWNER_PINNED_RUNTIME")];

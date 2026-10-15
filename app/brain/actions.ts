@@ -41,7 +41,9 @@ import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStor
 import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
 import { type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
-import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+import { AyasUpdateApprovalError, createAyasUpdateApprovalStore, decideAyasUpdateApproval, type AyasUpdateApprovalDecision } from "@/lib/brain/autonomy/AyasUpdateApprovalStore";
+import { AyasSafeModeBlockedError } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { scheduleAyasGoalResearch, createAndScheduleAyasGoalResearch, controlAyasGoalResearchJob } from "@/lib/brain/autonomy/AyasGoalResearchSchedule";
 import { resolveAyasResearchGateRoot } from "@/lib/brain/autonomy/AyasResearchScheduler";
 import type { AyasGoalResearchCatchUpPolicy } from "@/lib/brain/autonomy/AyasResearchSchedulerStateStore";
@@ -57,6 +59,7 @@ import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } f
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { reconcileAyasStaleProposals } from "@/lib/brain/autonomy/AyasProposalStaleness";
 import {
+  AyasOwnerAdmissionError,
   admitAyasOwnerApproval,
   isAyasApprovalDecisionOwnerAdmitted,
   isAyasReservedDecisionReason,
@@ -198,6 +201,34 @@ export async function controlAyasGoalResearchAction(jobId: string, action: "CONF
   await requireBrainSession();
   const job = await controlAyasGoalResearchJob(jobId, action, { gateRoot: resolveAyasResearchGateRoot() });
   return { jobId: job.jobId, status: job.status };
+}
+
+export interface AyasUpdateRadarDecisionResult {
+  readonly ok: boolean;
+  /** Present only when `ok` is false: a short, non-secret code (see AyasUpdateApprovalStore / owner admission / safe mode). */
+  readonly code?: string;
+  readonly status: AyasResearchEngineStatusView;
+}
+
+/**
+ * Owner approval on one update radar item (2026-10-15, option A). Records consent only: nothing is installed,
+ * committed or published by this action. The radar is rebuilt on the server and the client's item hash must match it.
+ * Returns a result object, like `executeAyasApprovedProposal`, so the real refusal code survives the action boundary.
+ */
+export async function decideAyasUpdateRadarAction(input: { sourceId: string; itemHash: string; decision: AyasUpdateApprovalDecision }): Promise<AyasUpdateRadarDecisionResult> {
+  await requireBrainSession();
+  try {
+    const radar = loadAyasResearchEngineStatusView().updateRadar;
+    if (!radar) return { ok: false, code: "UPDATE_APPROVAL_RADAR_UNAVAILABLE", status: loadAyasResearchEngineStatusView() };
+    await decideAyasUpdateApproval(input, {
+      radar, store: createAyasUpdateApprovalStore(),
+      admit: (subject) => requireOwnerApprovalAdmission("decideAyasUpdateRadar", subject),
+    });
+    return { ok: true, status: loadAyasResearchEngineStatusView() };
+  } catch (error) {
+    const code = error instanceof AyasUpdateApprovalError || error instanceof AyasOwnerAdmissionError || error instanceof AyasSafeModeBlockedError ? error.code : "UPDATE_APPROVAL_FAILED";
+    return { ok: false, code, status: loadAyasResearchEngineStatusView() };
+  }
 }
 
 /** Re-read the self-heal / AYAS Report Center snapshot (read-only). */

@@ -85,6 +85,52 @@ Yapılan (owner'ın açık onaylarıyla: Observer yeniden başlatma, `npm ci`, g
        - tsc 0, lint 0, CI (`618abc9e`) başarılı.
      - **Canlıya alındı (13:01):** `ayas-publish-live.ps1 -Apply` → `PUBLISHED`. `ayas-live-7bd27b93` → `ayas-live-856d9ca3` (Next 16.4.1, build `XRJfWeawFVIlD1GNnJIGr`, damga CLEAN `856d9ca3`, 1269 build / 26469 bağımlılık dosyası). `next start` PID 20524; denetçi Windows kabuğu altında; tünel PID 28152 kesilmedi; dış erişim healthy. Derlenmiş sunucu dosyalarında yeni bölüm ve `ayas-chat-tr-v3` var. Yedek `D:\ÜRETİM\handover\live-publish\20261015-130122-856d9ca3`; önceki kopya geri dönüş için duruyor.
      - Ölçüm sonuçları git dışında: `data/brain/self-improvement/model-watch/state.json`. Canlı uygulama da aynı kanonik veri kökünden okur.
+5. **Owner talimatı (15 Ekim öğleden sonra):** gemma4:12b indirilip aynı testle ölçülsün. Radar için "A) kayıtlı onay düğmesi" yapılsın. Owner ileride Claude/Codex kullanmak istemiyor; bunun sağlıklı bir çözümü gerekiyor.
+   - **Görev 4 — radar onay düğmesi: TAMAM.** Belge: `docs/AYAS_UPDATE_RADAR.md`.
+     - `AyasUpdateApprovalStore`: owner onayını kaydeder; kayıt tek bir güncellemeye bağlıdır (araç + kurulu sürüm + hedef sürüm + kanal). Tek etkisi kayıttır: kurulum, commit ya da yayın yapmaz. Yalnız eklenir; geri alma yeni bir karardır. Dosya: `data/brain/self-improvement/update-approvals/state.json` (git dışı).
+     - Radar kalemine `itemHash` eklendi (`ayasUpdateRadarItemHash`).
+     - Owner doğrulaması: `AyasOwnerApprovalAdmission`'a yeni eylem `decideAyasUpdateRadar` ve yeni konu `update-radar` (sourceId + itemHash + APPROVE/WITHDRAW) eklendi.
+       - Bu doğrulama hiçbir öneriyi, mikro grubu ya da yürütmeyi yetkilendirmez; tersi de geçerlidir.
+       - `checkAyasOwnerExecutionAdmission` update-radar için her zaman false döner.
+     - Bir kayıt ancak şu koşullarda sayılır: owner mührü doğrulanır, doğrulama tam bu konuya bağlıdır ve kayıttaki sürüm/araç/risk alanlarından türetilen değerler mühürlü itemHash ile eşleşir. Elle değiştirilmiş kayıt yok sayılır.
+     - Sunucu eylemi `decideAyasUpdateRadarAction` (`app/brain/actions.ts`), sırayla:
+       1. Oturum denetimi.
+       2. SAFE_READ_ONLY denetimi (owner doğrulamasından önce).
+       3. Radar sunucuda yeniden kurulur; istemcinin hash'i eşleşmelidir.
+       4. Owner doğrulaması.
+       5. Doğrulama sırasında aynı araç için başka bir karar geldiyse ret.
+       6. Kayıt.
+       Eylem hata atmaz, sonuç nesnesi ve kod döndürür.
+     - Panel kartı:
+       - **Bu güncellemeyi onayla** → **Onaylarsam ne olacak?** → **Evet, onayla**.
+       - Onaydan sonra "Onaylandı" ve **Onayı geri al** görünür.
+       - Daha yeni sürüm çıkınca "X için onayın var; şimdi Y çıktı" uyarısı gelir.
+       - Onay deposu okunamazsa düğmeler gizlenir.
+       - Yürütme düğmesi yok.
+     - `npm run ayas:update-approvals` (salt okunur; `.env.local`'i yükler, anahtar yoksa hiçbir kaydı saymaz). Gerçek veride: 0 kayıt.
+     - Testler:
+       - Yeni `smoke-ayas-update-approval` 10/10: bağlama, ret sırası, SAFE_READ_ONLY, yabancı/tekrar kullanılan/bayat doğrulama, çapraz yetki, geri alma, yeni sürüm, uygulandı durumu, elle değiştirilmiş kayıt ve başka anahtar.
+       - `smoke-ayas-update-radar` 7/7: artık onay kontrolü var, yürütme kontrolü yok.
+       - Bağlı 21 suite geçti: owner-approval-admission 35, owner-session-admission 11, pinli action-firewall-closure 12 (değiştirilmedi), autonomous-execution-gate-v2 6, autonomy-approval 29, brain-control-center 22, chat 12, daemon-authority-boundary 23, development-center 59, homepage-v2 11, model-watch 12, owner-approval-resume-v2 20 + hardening 8, owner-exact-preview 20, owner-ui-v2 36, reply-fallback-truth 11, research-engine-status-view 6, research-status-intent 17, voice-turn-state-mutations 12/12, brain-core-ui 43.
+       - Dondurulmuş v1 `smoke-ayas-autonomous-execution-gate` temiz HEAD (`13464877`) worktree'sinde de aynı satırda (362) FAIL → önceden kalma.
+       - tsc 0; değişen dosyalarda lint 0 (ASCII yoldan).
+   - **gemma4:12b indirmesi (owner onayı): SÜRÜYOR.**
+     - Hız ~0,55 MB/sn; 7,4 GB'lık katman için ~3,5 saat. `ollama pull gemma4:12b` D model deposuna iniyor; kesilirse aynı komut `-partial` dosyasından devam eder.
+     - Model deposunda kayıtlı özet (09:17Z): `6114515d…`, 8,02 GB.
+     - Bitince: `npm run ayas:model-benchmark -- --models gemma4:12b` (gemma3:12b'nin v3 sonucu zaten var).
+     - Dikkat: `OllamaAyasProvider` düşünme kipini yalnız qwen3 için kapatıyor. gemma4'te düşünme 420 token'lık yanıt bütçesini tüketebilir; ölçüm bunu gösterecek.
+   - **Claude/Codex'siz güncelleme: tasarım owner onayı bekliyor (kod yok).** Öneri: AYAS'ın kendi "yerel güncelleme uygulayıcısı". Model kullanmaz, belirlenimcidir.
+     1. Observer turunda bekleyen bir onay seçilir. Koşullar: makine ALLOW, temiz ağaç, başka owner yayını yok. Yalnız yeni kapsamlı ("yerel uygula") onaylar işlenir; bugünkü kayıtlar bu kapsama girmez.
+     2. D temp'te ayrı bir git worktree açılır: `npm install <paket>@<sürüm> --save-exact --ignore-scripts` (eşlikçi paketlerle, ör. next + eslint-config-next). Ardından `npm audit signatures`; lock farkında yalnız beklenen paketler olmalı.
+     3. Kartın doğrulama planı ve çekirdek regresyon seti çalışır. Biri bile kalırsa hiçbir şey değişmez; sebep kartta görünür ("kod değişikliği gerekiyor").
+     4. Hepsi geçerse yalnız `package.json` ve `package-lock.json` commit'lenir. Ardından push, Graphify, kanonik `npm ci` (Observer turları arasında) ve `ayas-publish-live.ps1 -Apply` (sağlık kontrolü; başarısızsa otomatik geri dönüş).
+     - Aynı yol model işlemleri için de kullanılabilir: indir → ölç → daha iyiyse "değiştir" onayı → `.env.local` değişikliği ve yeniden başlatma; sağlık kontrolü geçmezse geri dönüş.
+     - **Owner kararları:**
+       - (a) CLAUDE.md'ye M18.1 benzeri dar bir commit/push istisnası. Bu tek tıklama yalnız o güncellemeyi ve yalnız tüm denetimler geçerse kapsar.
+       - (b) EVAL pinli firewall haritasına npm/git başlatan yeni modülün eklenmesi (manifest v63).
+       - (c) Yayın: otomatik mi, yoksa ayrı bir "Canlıya al" düğmesi mi?
+       - (d) Ana sürümler dahil mi?
+     - **Sınır:** kod yazmayı gerektiren işler (ana sürüm kırılmaları, yeni özellikler) yerel bir kod modeli yeterliliği geçmeden yapılamaz. Bugün geçen yok: qwen3-coder:30b 0/15, 12 GB VRAM.
 
 **Sıradaki (bu sırayla):**
 1. Yeni PC kurtarma geçişini taşımadan önce bu PC'de benzet: runtime/authority'nin kopyası üzerinde, tek kullanımlık köklerde `runtime:backup:create/verify` → `candidate:create/consume` → `authority:begin-recovery` → `quiesce/prepare/validate/publish`; canlı kayıtlara dokunmadan. Sonucu `docs/AYAS_NEW_PC_SETUP.md` adım 3'e işle.

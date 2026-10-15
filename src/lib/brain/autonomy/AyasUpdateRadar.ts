@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -36,6 +37,14 @@ export interface AyasUpdateRadarItem {
   readonly applyChannel: "DEVELOPMENT_SESSION" | "OWNER_PINNED_RUNTIME";
   readonly evidence: readonly { readonly quote: string; readonly url: string; readonly findingId: string }[];
   readonly brief: AyasDevelopmentBrief;
+  /** Binds an owner decision to exactly this tool, installed version and target version (see AyasUpdateApprovalStore). */
+  readonly itemHash: string;
+}
+
+/** sha256 over what the owner approves: which tool, from which installed version, to which version, by which channel. */
+export function ayasUpdateRadarItemHash(item: Pick<AyasUpdateRadarItem, "sourceId" | "target" | "installedVersion" | "latestVersion" | "applyChannel">): string {
+  const material = JSON.stringify(["ayas-update-radar-item:v1", item.sourceId, item.target, item.installedVersion, item.latestVersion, item.applyChannel]);
+  return crypto.createHash("sha256").update(material).digest("hex");
 }
 
 export interface AyasResearchHealth {
@@ -59,7 +68,7 @@ const CONFIG_FILES: Readonly<Record<string, readonly string[]>> = Object.freeze(
   wrangler: ["wrangler.toml", "wrangler.jsonc", "wrangler.json"],
 });
 
-function bumpOf(installed: string, latest: string): AyasUpdateRadarItem["bump"] {
+export function ayasUpdateBump(installed: string, latest: string): AyasUpdateRadarItem["bump"] {
   const [a, b] = [installed, latest].map((value) => value.split("-")[0]!.split(".").map(Number));
   return a![0] !== b![0] ? "MAJOR" : a![1] !== b![1] ? "MINOR" : "PATCH";
 }
@@ -108,7 +117,7 @@ function packageUsers(repoRoot: string, packageName: string): string[] {
   return usersCache.users.get(packageName) ?? findAyasPackageUsers(repoRoot, packageName, files, (file) => contents.get(file) ?? "");
 }
 
-function briefFor(item: Omit<AyasUpdateRadarItem, "brief">, users: readonly string[]): AyasDevelopmentBrief {
+function briefFor(item: Omit<AyasUpdateRadarItem, "brief" | "itemHash">, users: readonly string[]): AyasDevelopmentBrief {
   const pinned = item.applyChannel === "OWNER_PINNED_RUNTIME";
   const risk = pinned
     ? "Telefon erişimi yayını node.exe SHA-256'sına bağlı; güncelleme yeni sürümün kurulup sabitlenmesiyle (scripts/new-pc-setup.ps1 pinleri) owner tarafından yapılır."
@@ -148,13 +157,13 @@ export function buildAyasUpdateRadar(input: {
     const target = tracked.installed.kind === "npm" ? `npm:${tracked.installed.packageName}` : "Node.js runtime";
     const base = {
       sourceId, provider: source.provider, toolName: tracked.toolName, target, installedVersion: latest.installed, latestVersion: latest.release,
-      bump: bumpOf(latest.installed, latest.release), newerStableReleases: new Set(newer.map((entry) => entry.release)).size,
+      bump: ayasUpdateBump(latest.installed, latest.release), newerStableReleases: new Set(newer.map((entry) => entry.release)).size,
       latestUrl: latest.seen.normalizedUrl, lastSeenAt: latest.seen.lastSeenAt,
       applyChannel: tracked.installed.kind === "node" ? "OWNER_PINNED_RUNTIME" as const : "DEVELOPMENT_SESSION" as const,
       evidence: Object.freeze(evidence),
     };
     const users = tracked.installed.kind === "npm" ? packageUsers(input.repoRoot, tracked.installed.packageName) : [];
-    items.push(Object.freeze({ ...base, brief: briefFor(base, users) }));
+    items.push(Object.freeze({ ...base, brief: briefFor(base, users), itemHash: ayasUpdateRadarItemHash(base) }));
   }
   const rank = { MAJOR: 0, MINOR: 1, PATCH: 2 };
   return Object.freeze(items.sort((a, b) => rank[a.bump] - rank[b.bump] || a.provider.localeCompare(b.provider)));

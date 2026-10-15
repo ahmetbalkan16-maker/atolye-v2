@@ -44,11 +44,14 @@ export type AyasOwnerAdmissionAction =
   | "executeAyasApprovedMicroBatch"
   | "batchOnaylaVeUygula"
   | "proposalOnaylaVeUygula"
-  | "ayasOwnerApprovalDecision";
+  | "ayasOwnerApprovalDecision"
+  | "decideAyasUpdateRadar";
 
 export type AyasOwnerAdmissionSubject =
   | { readonly kind: "proposal"; readonly proposalId: string; readonly proposalHash: string; readonly decision: "APPROVE" | "REJECT" | "LATER" | "EXECUTE" }
-  | { readonly kind: "micro-batch"; readonly batchId: string; readonly batchHash: string; readonly decision: "APPROVE" | "REJECT" | "EXECUTE" };
+  | { readonly kind: "micro-batch"; readonly batchId: string; readonly batchHash: string; readonly decision: "APPROVE" | "REJECT" | "EXECUTE" }
+  /** An owner decision on one update radar item (tool + exact versions, see AyasUpdateApprovalStore). Consent only, never execution. */
+  | { readonly kind: "update-radar"; readonly sourceId: string; readonly itemHash: string; readonly decision: "APPROVE" | "WITHDRAW" };
 
 export interface AyasOwnerAdmission {
   readonly schema: typeof AYAS_OWNER_ADMISSION_SCHEMA;
@@ -78,9 +81,10 @@ export class AyasOwnerAdmissionError extends Error {
   }
 }
 
-const ACTIONS: ReadonlySet<string> = new Set<AyasOwnerAdmissionAction>(["decideAyasApproval", "executeAyasApprovedProposal", "executeAyasApprovedMicroBatch", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision"]);
+const ACTIONS: ReadonlySet<string> = new Set<AyasOwnerAdmissionAction>(["decideAyasApproval", "executeAyasApprovedProposal", "executeAyasApprovedMicroBatch", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision", "decideAyasUpdateRadar"]);
 const PROPOSAL_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "REJECT", "LATER", "EXECUTE"]);
 const BATCH_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "REJECT", "EXECUTE"]);
+const UPDATE_RADAR_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "WITHDRAW"]);
 const HEX64 = /^[0-9a-f]{64}$/;
 const ACTION_REF = /^ayas-owner-action-[0-9a-f-]{36}$/;
 const nonEmpty = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0 && value.length <= 200;
@@ -102,6 +106,9 @@ function normalizeSubject(subject: AyasOwnerAdmissionSubject): AyasOwnerAdmissio
   }
   if (subject.kind === "micro-batch" && nonEmpty(subject.batchId) && nonEmpty(subject.batchHash) && BATCH_DECISIONS.has(subject.decision)) {
     return { kind: "micro-batch", batchId: subject.batchId, batchHash: subject.batchHash, decision: subject.decision };
+  }
+  if (subject.kind === "update-radar" && nonEmpty(subject.sourceId) && typeof subject.itemHash === "string" && HEX64.test(subject.itemHash) && UPDATE_RADAR_DECISIONS.has(subject.decision)) {
+    return { kind: "update-radar", sourceId: subject.sourceId, itemHash: subject.itemHash, decision: subject.decision };
   }
   return null;
 }
@@ -233,6 +240,9 @@ export function isAyasReservedDecisionReason(reason: unknown): boolean {
 
 /** A verified action must match its exact subject and decision. */
 export function isAyasOwnerAdmissionActionCompatible(a: AyasOwnerAdmission): boolean {
+  // An update radar decision is its own action and never authorizes a proposal or batch, nor the reverse.
+  if (a.subject.kind === "update-radar") return a.action === "decideAyasUpdateRadar";
+  if (a.action === "decideAyasUpdateRadar") return false;
   if (a.subject.kind === "micro-batch") return a.subject.decision === "EXECUTE" ? a.action === "executeAyasApprovedMicroBatch" : a.action === "batchOnaylaVeUygula";
   if (a.subject.decision === "EXECUTE") return a.action === "executeAyasApprovedProposal";
   if (a.action === "decideAyasApproval") return true;
@@ -256,6 +266,8 @@ export function verifyAyasOwnerDecisionSeal(d: OwnerDecision): boolean {
 }
 
 export function checkAyasOwnerExecutionAdmission(d: OwnerDecision, admission: unknown, subject: AyasOwnerAdmissionSubject, at: string, usedActionRefs: ReadonlySet<string>): boolean {
+  // An update radar decision is consent only; nothing executes on it.
+  if (subject.kind === "update-radar") return false;
   if (!verifyAyasOwnerDecisionSeal(d) || !d.ownerAdmission || d.ownerAdmission.subject.decision !== "APPROVE" || !isAyasOwnerAdmissionShape(admission)) return false;
   const approvalSubject = { ...subject, decision: "APPROVE" } as AyasOwnerAdmissionSubject;
   if (!checkAyasOwnerAdmissionBinding(d.ownerAdmission, { subject: approvalSubject, at: d.decidedAt, usedActionRefs: new Set() }).ok) return false;

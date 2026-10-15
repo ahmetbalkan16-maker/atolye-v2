@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createAndScheduleAyasGoalResearchAction, controlAyasGoalResearchAction } from "../../../app/brain/actions";
+import { createAndScheduleAyasGoalResearchAction, controlAyasGoalResearchAction, decideAyasUpdateRadarAction } from "../../../app/brain/actions";
 import { refreshAyasResearchEngineStatus } from "../../../app/brain/observerActions";
 
 import type { AyasGoalDevelopmentView, AyasGoalDevelopmentEntry } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
@@ -9,13 +9,17 @@ import type { AyasGoalStatus } from "@/lib/brain/autonomy/AyasGoalStore";
 import type { AyasExternalResearchFinding } from "@/lib/brain/autonomy/AyasExternalResearchStore";
 import type { AyasResearchEngineStatusView, AyasResearchEngineSourceView, AyasResearchEngineSourceStatus } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import type { AyasModelCandidateView, AyasModelWatchView, AyasMeasuredModelView } from "@/lib/brain/autonomy/AyasModelWatch";
+import type { AyasUpdateRadarItem } from "@/lib/brain/autonomy/AyasUpdateRadar";
+import type { AyasUpdateApprovalView } from "@/lib/brain/autonomy/AyasUpdateApprovalStore";
 
 /**
  * M22.14 — read-only Gelişim Merkezi view of AYAS's goals and external
- * capability research. No action buttons here by design: a goal or a
+ * capability research. No execute buttons here by design: a goal or a
  * research finding is never itself an authority surface (AyasGoalStore has
- * no execute/approve/gate method at all — see its own smoke test), so this
- * panel only ever displays durable state. Any candidate that reaches
+ * no execute/approve/gate method at all — see its own smoke test). The only
+ * owner controls are goal research scheduling and the update radar's
+ * consent record (AyasUpdateApprovalStore), which installs, commits and
+ * publishes nothing. Any candidate that reaches
  * MICRO_SAFE/PRIORITY_SAFE still goes through the EXISTING
  * BatchOnaylaVeUygula / ProposalOnaylaVeUygula controls elsewhere on this
  * same page — this panel is the "what is AYAS working toward and what did
@@ -153,17 +157,85 @@ function ResearchHealthSection({ status }: { readonly status: AyasResearchEngine
   );
 }
 
+const UPDATE_APPROVAL_REASON: Readonly<Record<string, string>> = {
+  UPDATE_APPROVAL_ITEM_CHANGED: "Radar bu araç için değişti; kartın güncel hâlini yeniden onaylayın.",
+  UPDATE_APPROVAL_ITEM_NOT_FOUND: "Bu güncelleme artık radarda yok.",
+  UPDATE_APPROVAL_ALREADY_APPROVED: "Bu güncelleme zaten onaylı.",
+  UPDATE_APPROVAL_NOT_APPROVED: "Geri alınacak bir onay yok.",
+  UPDATE_APPROVAL_DECISION_CHANGED: "Bu araç için aynı anda başka bir karar kaydedildi; güncel durumu kontrol edin.",
+  UPDATE_APPROVAL_ADMISSION_REJECTED: "Owner doğrulaması bu kararı kabul etmedi; yeniden giriş yapıp tekrar deneyin.",
+  UPDATE_APPROVAL_RADAR_UNAVAILABLE: "Radar şu an okunamıyor; karar kaydedilmedi.",
+  OWNER_ADMISSION_REQUIRED: "Doğrulanmış owner oturumu gerekiyor; yeniden giriş yapın.",
+  OWNER_ADMISSION_GATE_UNAVAILABLE: "Owner doğrulaması bu sunucuda kullanılamıyor; karar kaydedilmedi.",
+  AYAS_SAFE_READ_ONLY: "AYAS güvenli salt okunur kipte; karar kaydedilmedi.",
+  AYAS_SAFE_MODE_UNAVAILABLE: "Güvenli kip durumu okunamadı; karar kaydedilmedi.",
+};
+
+function UpdateApprovalControl({ item, approval, onDecision }: {
+  readonly item: AyasUpdateRadarItem;
+  readonly approval: AyasUpdateApprovalView | undefined;
+  readonly onDecision: (input: { sourceId: string; itemHash: string; decision: "APPROVE" | "WITHDRAW" }) => Promise<string | undefined>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const decide = async (itemHash: string, decision: "APPROVE" | "WITHDRAW") => {
+    setBusy(true); setMessage("");
+    try {
+      const code = await onDecision({ sourceId: item.sourceId, itemHash, decision });
+      if (code) setMessage(UPDATE_APPROVAL_REASON[code] ?? "Karar kaydedilemedi.");
+      else setConfirming(false);
+    } catch { setMessage("Karar kaydedilemedi."); }
+    finally { setBusy(false); }
+  };
+  const pinned = item.applyChannel === "OWNER_PINNED_RUNTIME";
+  const current = approval?.itemHash === item.itemHash;
+  return (
+    <div className="bc-dev__facts" data-testid={`ayas-update-approval-${item.sourceId}`}>
+      {approval ? (
+        <div className={`bc-dev__notice ${current ? "bc-dev__notice--safe" : "bc-dev__notice--warn"}`}>
+          <strong>{current ? "Onaylandı" : `${approval.targetVersion} için onayın var; şimdi ${item.latestVersion} çıktı`}</strong>
+          <p>{formatAyasScheduleTime(approval.approvedAt)} · {pinned ? "yeniden sabitleme owner adımı" : "sıradaki geliştirme turunda uygulanacak"}</p>
+          <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(approval.itemHash, "WITHDRAW")}>{busy ? "KAYDEDİLİYOR…" : "Onayı geri al"}</button>
+        </div>
+      ) : null}
+      {!current && !confirming ? <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(true)}>{approval ? `Bunun yerine ${item.latestVersion} sürümünü onayla` : "Bu güncellemeyi onayla"}</button> : null}
+      {!current && confirming ? (
+        <div className="bc-dev__notice bc-dev__notice--warn" role="group" aria-label="Güncelleme onayı">
+          <strong>Onaylarsam ne olacak?</strong>
+          <p>Kararın {item.toolName} {item.installedVersion} → {item.latestVersion} için kaydedilir. Şu an hiçbir şey kurulmaz, değişmez ya da yayınlanmaz.
+            {pinned ? " Node.js telefon erişimine sabitli; yeni sürümü kurup sabitlemek owner adımıdır." : " Güncelleme sıradaki geliştirme turunda, doğrulama planındaki testlerden geçerse uygulanır ve canlıya alınır."} Onayı istediğin zaman geri alabilirsin.</p>
+          <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(item.itemHash, "APPROVE")}>{busy ? "KAYDEDİLİYOR…" : "Evet, onayla"}</button>
+          <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(false)}>Vazgeç</button>
+        </div>
+      ) : null}
+      {message ? <p role="status">{message}</p> : null}
+    </div>
+  );
+}
+
 /**
- * Read-only update radar with a development brief per tool. It never applies anything: an approved npm update is done
- * in a development session, and the hash-pinned Node.js runtime is re-pinned by the owner.
+ * Update radar with a development brief per tool. A card can record the owner's approval for that exact update; the
+ * approval is consent only and nothing is applied here: an approved npm update is done in a development session, and
+ * the hash-pinned Node.js runtime is re-pinned by the owner.
  */
 function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineStatusView }) {
-  const radar = status.updateRadar;
-  if (!status.connected || !radar) return null;
+  const [current, setCurrent] = useState(status);
+  const radar = current.updateRadar;
+  if (!current.connected || !radar) return null;
+  const approvals = current.updateApprovals;
+  const onDecision = async (input: { sourceId: string; itemHash: string; decision: "APPROVE" | "WITHDRAW" }) => {
+    const result = await decideAyasUpdateRadarAction(input);
+    setCurrent(result.status);
+    return result.ok ? undefined : result.code ?? "UPDATE_APPROVAL_FAILED";
+  };
+  const offRadar = (approvals ?? []).filter((approval) => !radar.some((item) => item.sourceId === approval.sourceId));
   return (
     <section className="bc-dev__section" aria-labelledby="ayas-update-radar" data-testid="ayas-update-radar">
       <h3 id="ayas-update-radar">Güncelleme Radarı <span>{radar.length}</span></h3>
-      <p>AYAS&apos;ın izlediği araçlarda kurulu sürümden yeni kararlı sürümler. Hiçbiri kendiliğinden uygulanmaz.</p>
+      <p>AYAS&apos;ın izlediği araçlarda kurulu sürümden yeni kararlı sürümler. Hiçbiri kendiliğinden uygulanmaz; onayladığın güncelleme kaydedilir ve sıradaki geliştirme turunda uygulanır.</p>
+      {!approvals ? <p className="bc-empty">Onay durumu okunamadı; onay düğmeleri gizlendi.</p> : null}
+      {offRadar.length ? <ul data-testid="ayas-update-approvals-off-radar">{offRadar.map((approval) => <li key={approval.decisionId}>{approval.toolName} {approval.targetVersion}: {approval.status === "APPLIED" ? `uygulandı (kurulu ${approval.currentInstalledVersion})` : "onaylı, uygulanmayı bekliyor"} · onay {formatAyasScheduleTime(approval.approvedAt)}</li>)}</ul> : null}
       {radar.length ? radar.map((item) => (
         <article key={item.sourceId} className="bc-dev__proposal" data-testid={`ayas-update-radar-${item.sourceId}`}>
           <header className="bc-dev__proposal-head">
@@ -185,6 +257,7 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
               <div><dt>Risk</dt><dd>{item.brief.risk}</dd></div>
             </dl>
           </details>
+          {approvals ? <UpdateApprovalControl item={item} approval={approvals.find((approval) => approval.sourceId === item.sourceId)} onDecision={onDecision} /> : null}
         </article>
       )) : <p className="bc-empty">İzlenen araçların hepsi güncel.</p>}
     </section>

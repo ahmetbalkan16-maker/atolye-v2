@@ -96,6 +96,7 @@
     "ayas:autonomy": "tsx scripts/ayas-autonomy-daemon.ts",
     "ayas:propose": "tsx scripts/ayas-propose.ts",
     "ayas:model-benchmark": "tsx --env-file-if-exists=.env.local scripts/ayas-model-benchmark.ts",
+    "ayas:update-approvals": "tsx --env-file-if-exists=.env.local scripts/ayas-update-approvals.ts",
     "smoke:ayas-model-profile": "tsx scripts/smoke-ayas-model-profile.ts",
     "smoke:ayas-chat-stream": "tsx scripts/smoke-ayas-chat-stream.ts",
     "smoke:ayas-chat-stream-client": "tsx scripts/smoke-ayas-chat-stream-client.ts",

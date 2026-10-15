@@ -7,6 +7,7 @@ import { buildAyasResearchHealth, buildAyasUpdateRadar, type AyasResearchHealth,
 import { resolveAyasResearchSourceRegistry } from "./AyasResearchSourceRegistry";
 import { createAyasLocalDiscoveryRunLedger, type AyasLocalDiscoveryRunStatus } from "./AyasLocalDiscoveryRunLedger";
 import { loadAyasModelWatchView, type AyasModelWatchView } from "./AyasModelWatch";
+import { createAyasUpdateApprovalStore, listAyasUpdateApprovals, type AyasUpdateApprovalView } from "./AyasUpdateApprovalStore";
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part O — the read-only
@@ -81,6 +82,8 @@ export interface AyasResearchEngineStatusView {
   /** Research integration Phase 2 (2026-10-15): read-only update radar and research health; absent when they could not be built. */
   readonly updateRadar?: readonly AyasUpdateRadarItem[];
   readonly researchHealth?: AyasResearchHealth;
+  /** Owner approvals recorded on radar items (2026-10-15); absent when the approval store could not be read. */
+  readonly updateApprovals?: readonly AyasUpdateApprovalView[];
   /** Model comparison (2026-10-15): the AYAS chat model against measured and newer local models; absent when unreadable. */
   readonly modelWatch?: AyasModelWatchView;
 }
@@ -120,6 +123,11 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
       radarAndHealth = { updateRadar, researchHealth: buildAyasResearchHealth({ now, findings, radar: updateRadar,
         lastSuccessfulResearchAt: schedulerState.lastSuccessfulResearchAt, consecutiveFailures: schedulerState.consecutiveFailures }) };
     } catch { radarAndHealth = undefined; }
+    // Neither does an unreadable approval store; the panel then shows no approval state rather than a wrong one.
+    let updateApprovals: readonly AyasUpdateApprovalView[] | undefined;
+    try {
+      if (radarAndHealth) updateApprovals = listAyasUpdateApprovals({ decisions: createAyasUpdateApprovalStore().load().decisions, radar: radarAndHealth.updateRadar, repoRoot: process.cwd() });
+    } catch { updateApprovals = undefined; }
     const modelWatch = loadAyasModelWatchView();
 
     const digest: AyasResearchEngineDigest = {
@@ -169,6 +177,7 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
         duplicateCount: latestDiscovery.duplicateCount,
       } } : {}),
       ...(radarAndHealth ?? {}),
+      ...(updateApprovals ? { updateApprovals } : {}),
       ...(modelWatch ? { modelWatch } : {}),
     };
   } catch (error) {
