@@ -13,6 +13,7 @@ import { describeAyasLocalCodingRefusal, summarizeAyasLocalCodingEvaluatorFailur
 import { summarizeAyasLocalCodingQualification } from "../src/lib/brain/autonomy/AyasLocalCodingQualificationReport";
 import { createAyasLocalCodingWorkspace, destroyAyasLocalCodingWorkspace } from "../src/lib/brain/autonomy/AyasLocalCodingWorkspace";
 import { AYAS_LOCAL_CODING_QUALIFICATION_VAULT, projectAyasLocalCodingQualificationTask } from "./fixtures/ayas-local-coding-qualification-vault";
+import { AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA } from "./fixtures/ayas-local-coding-qualification-criteria";
 import { AYAS_LOCAL_CODING_RETRIEVAL_CASE, projectAyasLocalCodingRetrievalTask } from "./fixtures/ayas-local-coding-qualification-retrieval-case";
 
 // Per-user install location, so a new PC or user name needs no edit; machineGuard() still pins the binary hash.
@@ -577,12 +578,22 @@ async function hostTransport(body: string, signal: AbortSignal): Promise<string>
 const REPAIR_PROTOCOL = Object.freeze({ id: "owner-sampled-repair-2026-10-15", temperature: 0.7, seed: "repeat * 100 + round",
   maxRepairRounds: AYAS_LOCAL_CODING_MAX_REPAIR_ROUNDS,
   feedback: "summarizeAyasLocalCodingEvaluatorFailure (message and actual/expected only; withheld on any frozen evaluator source fragment) or describeAyasLocalCodingRefusal" });
+/**
+ * Owner protocol v3 (2026-10-15): v2 plus the multi-edit patch format (the historical fixes touch 2-7 regions of a file,
+ * which one contiguous edit within the 80-line budget cannot express) and each case's behavioral acceptance criteria.
+ */
+const SPECIFIED_PROTOCOL = Object.freeze({ ...REPAIR_PROTOCOL, id: "owner-specified-multi-edit-2026-10-15", patchFormat: "multi-edit" as const,
+  acceptanceCriteria: `scripts/fixtures/ayas-local-coding-qualification-criteria.ts sha256 ${sha(JSON.stringify(AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA))}` });
+interface HostProtocol {
+  readonly id: string; readonly temperature: number; readonly seed: string; readonly maxRepairRounds: number; readonly feedback: string;
+  readonly patchFormat?: "multi-edit"; readonly acceptanceCriteria?: string;
+}
 const REPAIRABLE = ["FAIL", "SCOPE_OR_BUDGET_REFUSED", "UNAPPLICABLE_PATCH", "SCHEMA_FAILURE", "INVALID_OUTPUT"];
 function modelContent(raw: string): string | null {
   try { const content = JSON.parse(raw).choices?.[0]?.message?.content; return typeof content === "string" && content.length > 0 && content.length <= 24_000 ? content : null; }
   catch { return null; }
 }
-async function qualifyHost(protocol: typeof REPAIR_PROTOCOL | null): Promise<void> {
+async function qualifyHost(protocol: HostProtocol | null): Promise<void> {
   await hostEngineGuard();
   const evalId = hardenedEvaluatorImage();
   const oracle = JSON.parse(fs.readFileSync(`${reportPath}/FROZEN_CONTAINER_NEGATIVE_CONTROLS.json`, "utf8"));
@@ -597,7 +608,8 @@ async function qualifyHost(protocol: typeof REPAIR_PROTOCOL | null): Promise<voi
     timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, threshold: AYAS_LOCAL_CODING_OWNER_THRESHOLD, ...(protocol ? { protocol } : {}) };
   const runnerSha256 = sha(fs.readFileSync("scripts/run-ayas-local-coding-container.ts"));
   // One recorded observation per (case, repeat); a resumed run keeps earlier attempts and never re-rolls them.
-  const report = protocol ? "LOCAL_MODEL_HOST_REPAIR_RUN_EVIDENCE" : "LOCAL_MODEL_HOST_RUN_EVIDENCE";
+  const report = protocol?.patchFormat ? "LOCAL_MODEL_HOST_SPECIFIED_RUN_EVIDENCE" : protocol ? "LOCAL_MODEL_HOST_REPAIR_RUN_EVIDENCE" : "LOCAL_MODEL_HOST_RUN_EVIDENCE";
+  if (protocol?.patchFormat) assert.ok(cases.every(item => AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA[item.caseId]?.length), "ACCEPTANCE_CRITERIA_MISSING");
   const file = `${reportPath}/${report}.json`;
   const prior = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
   const sameBinding = !!prior && JSON.stringify(prior.binding) === JSON.stringify(binding);
@@ -627,7 +639,8 @@ async function qualifyHost(protocol: typeof REPAIR_PROTOCOL | null): Promise<voi
     const rounds: Record<string, unknown>[] = []; let repair: AyasLocalCodingRequestOptions["repair"]; let record: Attempt | undefined;
     for (let round = 0; round <= (protocol?.maxRepairRounds ?? 0); round++) {
       const options: AyasLocalCodingRequestOptions | undefined = protocol
-        ? { sampling: { temperature: protocol.temperature, seed: repeat * 100 + round }, ...(repair ? { repair } : {}) } : undefined;
+        ? { sampling: { temperature: protocol.temperature, seed: repeat * 100 + round }, ...(repair ? { repair } : {}),
+        ...(protocol.patchFormat ? { patchFormat: protocol.patchFormat, acceptanceCriteria: AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA[item.caseId]! } : {}) } : undefined;
       const hostBefore = hostMemory();
       if (hostBefore.usedPct > HOST_MAX_USED * 100) { persist(); throw Error(`HOST_PROTECTION_PAUSE:host ${hostBefore.usedPct}% used before ${item.caseId}#${repeat}`); }
       const workspace = createAyasLocalCodingWorkspace({ repoRoot: process.cwd(), task });
@@ -703,4 +716,5 @@ else if (process.argv[3] === "smoke") smoke().catch(stopped);
 else if (process.argv[3] === "qualify") qualify().catch(stopped);
 else if (process.argv[3] === "qualify-host") qualifyHost(null).catch(stopped);
 else if (process.argv[3] === "qualify-host-repair") qualifyHost(REPAIR_PROTOCOL).catch(stopped);
+else if (process.argv[3] === "qualify-host-specified") qualifyHost(SPECIFIED_PROTOCOL).catch(stopped);
 else throw Error("EXPLICIT_DIAGNOSTIC_PHASE_REQUIRED");

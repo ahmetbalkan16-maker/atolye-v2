@@ -49,9 +49,9 @@ export function summarizeAyasLocalCodingEvaluatorFailure(input: { readonly outpu
 /** Strict-adapter refusals restate rules the prompt already gives; scope escapes and tool calls never reach here. */
 const REFUSALS: Readonly<Record<string, string>> = Object.freeze({
   PATCH_LINE_BUDGET_EXCEEDED: "PATCH_LINE_BUDGET_EXCEEDED: removed plus inserted lines exceeded maxChangedLines. Make a smaller, focused change.",
-  PATCH_BASE_OR_UNIQUE_SEARCH_MISMATCH: "PATCH_BASE_OR_UNIQUE_SEARCH_MISMATCH: beforeSha256 must equal the given source sha256 and each search must occur exactly once in the original source.",
-  PATCH_SCHEMA_INVALID: "PATCH_SCHEMA_INVALID: return schemaVersion \"1\" and one edit per exact file.",
-  PATCH_SCOPE_OR_SCHEMA_INVALID: "PATCH_SCOPE_OR_SCHEMA_INVALID: each edit has only path, beforeSha256, search and replace, names an exact file once, and search differs from replace.",
+  PATCH_BASE_OR_UNIQUE_SEARCH_MISMATCH: "PATCH_BASE_OR_UNIQUE_SEARCH_MISMATCH: beforeSha256 must equal the given source sha256, each search must occur exactly once in the original source, and edits must not overlap.",
+  PATCH_SCHEMA_INVALID: "PATCH_SCHEMA_INVALID: return schemaVersion \"1\" and no more edits than allowed.",
+  PATCH_SCOPE_OR_SCHEMA_INVALID: "PATCH_SCOPE_OR_SCHEMA_INVALID: each edit has only path, beforeSha256, search and replace, names an exact file within the allowed edit count, and search differs from replace.",
   PATCH_TOO_LARGE: "PATCH_TOO_LARGE: the edit or the resulting file is too large.",
   MODEL_OUTPUT_INVALID: "MODEL_OUTPUT_INVALID: return exactly one complete submit_patch JSON object and nothing else.",
   MODEL_PATCH_JSON_INVALID: "MODEL_PATCH_JSON_INVALID: return exactly one complete submit_patch JSON object and nothing else.",
