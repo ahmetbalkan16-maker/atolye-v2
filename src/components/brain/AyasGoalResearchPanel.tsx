@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createAndScheduleAyasGoalResearchAction, controlAyasGoalResearchAction, decideAyasUpdateRadarAction } from "../../../app/brain/actions";
+import { applyAyasUpdateTrialAction, createAndScheduleAyasGoalResearchAction, controlAyasGoalResearchAction, decideAyasUpdateRadarAction } from "../../../app/brain/actions";
 import { refreshAyasResearchEngineStatus } from "../../../app/brain/observerActions";
 
 import type { AyasGoalDevelopmentView, AyasGoalDevelopmentEntry } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
@@ -11,6 +11,7 @@ import type { AyasResearchEngineStatusView, AyasResearchEngineSourceView, AyasRe
 import type { AyasModelCandidateView, AyasModelWatchView, AyasMeasuredModelView } from "@/lib/brain/autonomy/AyasModelWatch";
 import type { AyasUpdateRadarItem } from "@/lib/brain/autonomy/AyasUpdateRadar";
 import type { AyasUpdateApprovalView } from "@/lib/brain/autonomy/AyasUpdateApprovalStore";
+import type { AyasUpdateApplyRecord, AyasUpdateTrialView } from "@/lib/brain/autonomy/AyasUpdateTrialStore";
 
 /**
  * M22.14 — read-only Gelişim Merkezi view of AYAS's goals and external
@@ -18,8 +19,8 @@ import type { AyasUpdateApprovalView } from "@/lib/brain/autonomy/AyasUpdateAppr
  * research finding is never itself an authority surface (AyasGoalStore has
  * no execute/approve/gate method at all — see its own smoke test). The only
  * owner controls are goal research scheduling and the update radar's
- * consent record (AyasUpdateApprovalStore), which installs, commits and
- * publishes nothing. Any candidate that reaches
+ * decisions (AyasUpdateApprovalStore: "Onayla ve dene", "Uygula"), which only
+ * record; the observer's update executor carries them out. Any candidate that reaches
  * MICRO_SAFE/PRIORITY_SAFE still goes through the EXISTING
  * BatchOnaylaVeUygula / ProposalOnaylaVeUygula controls elsewhere on this
  * same page — this panel is the "what is AYAS working toward and what did
@@ -169,12 +170,96 @@ const UPDATE_APPROVAL_REASON: Readonly<Record<string, string>> = {
   OWNER_ADMISSION_GATE_UNAVAILABLE: "Owner doğrulaması bu sunucuda kullanılamıyor; karar kaydedilmedi.",
   AYAS_SAFE_READ_ONLY: "AYAS güvenli salt okunur kipte; karar kaydedilmedi.",
   AYAS_SAFE_MODE_UNAVAILABLE: "Güvenli kip durumu okunamadı; karar kaydedilmedi.",
+  UPDATE_APPLY_TRIAL_NOT_FOUND: "Bu deneme bulunamadı.",
+  UPDATE_APPLY_TRIAL_NOT_PASSED: "Deneme geçmediği için uygulanamaz.",
+  UPDATE_APPLY_TRIAL_CHANGED: "Denenen paket dosyaları değişmiş; güncelleme yeniden denenecek.",
+  UPDATE_APPLY_TRIAL_STALE: "Deneme yapıldıktan sonra kod değişti; güncelleme yeni koda göre yeniden denenecek.",
+  UPDATE_APPLY_APPROVAL_WITHDRAWN: "Bu denemenin onayı geri alınmış.",
+  UPDATE_APPLY_ALREADY_DECIDED: "Bu deneme için Uygula zaten kaydedildi.",
 };
 
-function UpdateApprovalControl({ item, approval, onDecision }: {
+const TRIAL_STEP_LABEL: Readonly<Record<string, string>> = {
+  WORKTREE: "ayrı kopya", NPM_CI: "mevcut bağımlılıklar", BASELINE_SMOKES: "güncelleme öncesi testler", NPM_INSTALL: "güncellemenin kurulması",
+  LOCK_CHECK: "paket dosyası denetimi", SIGNATURES: "paket imzaları", TYPECHECK: "TypeScript", LINT: "lint", BUILD: "üretim derlemesi", SMOKES: "testler",
+};
+/** A failure in these steps means the code itself would have to change; AYAS cannot do that locally today. */
+const CODE_CHANGE_STEPS = new Set(["TYPECHECK", "LINT", "BUILD", "SMOKES"]);
+const APPLY_STATUS_LABEL: Readonly<Record<string, string>> = {
+  RUNNING: "uygulanıyor", COMPLETED: "commit'lendi ve push'landı", STALE: "kod değiştiği için yeniden denenecek", REFUSED: "reddedildi; hiçbir şey değişmedi",
+  ROLLED_BACK: "başarısız; değişiklik geri alındı", RECOVERY_REQUIRED: "yarıda kaldı; depo durumu elle doğrulanmalı", FAILED: "başarısız", ABANDONED: "yarıda kesildi; hiçbir şey değişmedi, yeniden denenecek",
+};
+
+function TrialSteps({ trial }: { readonly trial: AyasUpdateTrialView }) {
+  return <ul>{trial.steps.map((step) => <li key={step.name}>{step.ok ? "✓" : "✗"} {TRIAL_STEP_LABEL[step.name] ?? step.name}: {step.summary.split("\n").at(-1)}</li>)}</ul>;
+}
+
+function UpdateTrialState({ trial, apply, onApply }: {
+  readonly trial: AyasUpdateTrialView | undefined;
+  readonly apply: AyasUpdateApplyRecord | undefined;
+  readonly onApply: (input: { trialId: string; trialHash: string }) => Promise<string | undefined>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  if (!trial) return <p>Sırada: AYAS bu güncellemeyi ayrı bir kopyada deneyecek (makine uygun ve kod temizken, Observer&apos;ın bir sonraki turunda).</p>;
+  if (apply) {
+    const live = apply.live ? (apply.live.status === "PUBLISHED" ? "canlıda" : apply.live.status === "ROLLED_BACK" ? "canlıya alma sağlık denetiminden geçmedi; önceki sürüme dönüldü" : "canlıya alınamadı") : apply.livePending ? "canlıya alınıyor" : "";
+    const tone = apply.status === "COMPLETED" && apply.live?.status === "PUBLISHED" ? "bc-dev__notice--safe" : apply.status === "RECOVERY_REQUIRED" || apply.status === "FAILED" ? "bc-dev__notice--danger" : "bc-dev__notice--warn";
+    return (
+      <div className={`bc-dev__notice ${tone}`} data-testid="ayas-update-apply-state">
+        <strong>Uygula: {APPLY_STATUS_LABEL[apply.status] ?? apply.status}{live ? ` · ${live}` : ""}</strong>
+        <p>{apply.commitSha ? `commit ${apply.commitSha.slice(0, 8)} · ` : ""}{formatAyasScheduleTime(apply.finishedAt ?? apply.startedAt)}{apply.closure && !apply.closure.ok ? " · bilgi grafiği güncellenemedi" : ""}</p>
+        {apply.reasons?.length ? <ul>{apply.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : null}
+      </div>
+    );
+  }
+  if (trial.status === "RUNNING") return <div className="bc-dev__notice bc-dev__notice--warn"><strong>Deneniyor…</strong><p>{trial.steps.length} adım bitti; sıradaki adım çalışıyor. Ana koda ve canlıya dokunulmuyor.</p><TrialSteps trial={trial} /></div>;
+  if (trial.status === "ABANDONED") return <p>Deneme yarıda kesildi; AYAS yeniden deneyecek (iki kez yarıda kalırsa onayı yenileyerek yeniden başlatabilirsin).</p>;
+  if (trial.status === "FAILED") {
+    return (
+      <div className="bc-dev__notice bc-dev__notice--danger" data-testid="ayas-update-trial-failed">
+        <strong>Deneme başarısız: {TRIAL_STEP_LABEL[trial.failedStep ?? ""] ?? trial.failedStep}</strong>
+        <p>{trial.failureReason} Ana koda ve canlıya hiçbir şey uygulanmadı.{trial.failedStep && CODE_CHANGE_STEPS.has(trial.failedStep) ? " Bu güncelleme kod değişikliği gerektiriyor; AYAS bunu şu an yerel olarak yapamaz." : ""}</p>
+        <details><summary>Adımlar</summary><TrialSteps trial={trial} /></details>
+        <p>Yeniden denemek için onayı geri alıp yeniden onayla.</p>
+      </div>
+    );
+  }
+  if (!trial.onCurrentHead || !trial.trialHash) return <p>Deneme geçti, ama o zamandan beri kod değişti; AYAS yeni koda göre yeniden deneyecek.</p>;
+  const apply_ = async () => {
+    setBusy(true); setMessage("");
+    try {
+      const code = await onApply({ trialId: trial.trialId, trialHash: trial.trialHash! });
+      if (code) setMessage(UPDATE_APPROVAL_REASON[code] ?? "Karar kaydedilemedi.");
+      else setConfirming(false);
+    } catch { setMessage("Karar kaydedilemedi."); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="bc-dev__notice bc-dev__notice--safe" data-testid="ayas-update-trial-passed">
+      <strong>Deneme geçti</strong>
+      <p>{trial.lockChanges ? `${trial.lockChanges.changed} paket değişiyor, ${trial.lockChanges.added} ekleniyor, ${trial.lockChanges.removed} kaldırılıyor. ` : ""}{trial.preExistingSmokeFailures.length ? `${trial.preExistingSmokeFailures.length} test güncellemeden önce de başarısızdı; sayılmadı.` : ""}</p>
+      <details><summary>Adımlar</summary><TrialSteps trial={trial} /></details>
+      {!confirming ? <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(true)}>Uygula</button> : (
+        <div role="group" aria-label="Uygulama onayı">
+          <strong>Uygularsam ne olacak?</strong>
+          <p>Denenen paket dosyaları (yalnız package.json ve package-lock.json) commit&apos;lenir ve push&apos;lanır, sonra uygulama canlıya alınır. Telefon erişimi yaklaşık bir dakika kesilir. Canlı uygulama sağlık denetiminden geçmezse önceki sürüme kendiliğinden döner.</p>
+          <button type="button" className="bc-btn" disabled={busy} onClick={apply_}>{busy ? "KAYDEDİLİYOR…" : "Evet, uygula"}</button>
+          <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(false)}>Vazgeç</button>
+        </div>
+      )}
+      {message ? <p role="status">{message}</p> : null}
+    </div>
+  );
+}
+
+function UpdateApprovalControl({ item, approval, trial, apply, onDecision, onApply }: {
   readonly item: AyasUpdateRadarItem;
   readonly approval: AyasUpdateApprovalView | undefined;
+  readonly trial: AyasUpdateTrialView | undefined;
+  readonly apply: AyasUpdateApplyRecord | undefined;
   readonly onDecision: (input: { sourceId: string; itemHash: string; decision: "APPROVE" | "WITHDRAW" }) => Promise<string | undefined>;
+  readonly onApply: (input: { trialId: string; trialHash: string }) => Promise<string | undefined>;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -195,17 +280,19 @@ function UpdateApprovalControl({ item, approval, onDecision }: {
       {approval ? (
         <div className={`bc-dev__notice ${current ? "bc-dev__notice--safe" : "bc-dev__notice--warn"}`}>
           <strong>{current ? "Onaylandı" : `${approval.targetVersion} için onayın var; şimdi ${item.latestVersion} çıktı`}</strong>
-          <p>{formatAyasScheduleTime(approval.approvedAt)} · {pinned ? "yeniden sabitleme owner adımı" : "sıradaki geliştirme turunda uygulanacak"}</p>
-          <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(approval.itemHash, "WITHDRAW")}>{busy ? "KAYDEDİLİYOR…" : "Onayı geri al"}</button>
+          <p>{formatAyasScheduleTime(approval.approvedAt)}{pinned ? " · yeniden sabitleme owner adımı" : ""}</p>
+          {!pinned ? <UpdateTrialState trial={trial} apply={apply} onApply={onApply} /> : null}
+          {apply?.status === "COMPLETED" ? null : <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(approval.itemHash, "WITHDRAW")}>{busy ? "KAYDEDİLİYOR…" : "Onayı geri al"}</button>}
         </div>
       ) : null}
-      {!current && !confirming ? <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(true)}>{approval ? `Bunun yerine ${item.latestVersion} sürümünü onayla` : "Bu güncellemeyi onayla"}</button> : null}
+      {!current && !confirming ? <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(true)}>{approval ? `Bunun yerine ${item.latestVersion} sürümünü onayla` : pinned ? "Bu güncellemeyi onayla" : "Onayla ve dene"}</button> : null}
       {!current && confirming ? (
         <div className="bc-dev__notice bc-dev__notice--warn" role="group" aria-label="Güncelleme onayı">
           <strong>Onaylarsam ne olacak?</strong>
-          <p>Kararın {item.toolName} {item.installedVersion} → {item.latestVersion} için kaydedilir. Şu an hiçbir şey kurulmaz, değişmez ya da yayınlanmaz.
-            {pinned ? " Node.js telefon erişimine sabitli; yeni sürümü kurup sabitlemek owner adımıdır." : " Güncelleme sıradaki geliştirme turunda, doğrulama planındaki testlerden geçerse uygulanır ve canlıya alınır."} Onayı istediğin zaman geri alabilirsin.</p>
-          <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(item.itemHash, "APPROVE")}>{busy ? "KAYDEDİLİYOR…" : "Evet, onayla"}</button>
+          <p>{pinned
+            ? `Kararın ${item.toolName} ${item.installedVersion} → ${item.latestVersion} için kaydedilir. Node.js telefon erişimine sabitli; yeni sürümü kurup sabitlemek owner adımıdır.`
+            : `AYAS ${item.toolName} ${item.installedVersion} → ${item.latestVersion} güncellemesini ayrı bir kopyada dener: kurar, paket imzalarını doğrular, TypeScript, lint, üretim derlemesi ve testleri çalıştırır. Bu sırada ana koda ve canlıya dokunmaz. Testler geçerse kartta "Uygula" çıkar; uygulama ancak sen ona basınca olur.`} Onayı istediğin zaman geri alabilirsin.</p>
+          <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(item.itemHash, "APPROVE")}>{busy ? "KAYDEDİLİYOR…" : pinned ? "Evet, onayla" : "Evet, onayla ve dene"}</button>
           <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(false)}>Vazgeç</button>
         </div>
       ) : null}
@@ -215,9 +302,10 @@ function UpdateApprovalControl({ item, approval, onDecision }: {
 }
 
 /**
- * Update radar with a development brief per tool. A card can record the owner's approval for that exact update; the
- * approval is consent only and nothing is applied here: an approved npm update is done in a development session, and
- * the hash-pinned Node.js runtime is re-pinned by the owner.
+ * Update radar with a development brief per tool (owner decisions 2026-10-15: "dene, sonra uygula"). A card records
+ * the owner's approval for that exact update; the observer's executor then tries it in a separate worktree and shows
+ * the result here. Only a passed trial offers "Uygula", whose click is the one approval for that update's commit, push
+ * and live publish. Nothing runs from this component; the hash-pinned Node.js runtime is re-pinned by the owner.
  */
 function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineStatusView }) {
   const [current, setCurrent] = useState(status);
@@ -229,11 +317,18 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
     setCurrent(result.status);
     return result.ok ? undefined : result.code ?? "UPDATE_APPROVAL_FAILED";
   };
+  const onApply = async (input: { trialId: string; trialHash: string }) => {
+    const result = await applyAyasUpdateTrialAction(input);
+    setCurrent(result.status);
+    return result.ok ? undefined : result.code ?? "UPDATE_APPLY_FAILED";
+  };
+  const trialFor = (approval: AyasUpdateApprovalView | undefined) => approval ? current.updateTrials?.find((trial) => trial.approvalDecisionId === approval.decisionId) : undefined;
+  const applyFor = (trial: AyasUpdateTrialView | undefined) => trial ? current.updateApplies?.find((apply) => apply.trialId === trial.trialId) : undefined;
   const offRadar = (approvals ?? []).filter((approval) => !radar.some((item) => item.sourceId === approval.sourceId));
   return (
     <section className="bc-dev__section" aria-labelledby="ayas-update-radar" data-testid="ayas-update-radar">
       <h3 id="ayas-update-radar">Güncelleme Radarı <span>{radar.length}</span></h3>
-      <p>AYAS&apos;ın izlediği araçlarda kurulu sürümden yeni kararlı sürümler. Hiçbiri kendiliğinden uygulanmaz; onayladığın güncelleme kaydedilir ve sıradaki geliştirme turunda uygulanır.</p>
+      <p>AYAS&apos;ın izlediği araçlarda kurulu sürümden yeni kararlı sürümler. Hiçbiri kendiliğinden uygulanmaz: onayladığını AYAS önce ayrı bir kopyada dener; testler geçerse uygulama ancak sen &quot;Uygula&quot;ya basınca olur.</p>
       {!approvals ? <p className="bc-empty">Onay durumu okunamadı; onay düğmeleri gizlendi.</p> : null}
       {offRadar.length ? <ul data-testid="ayas-update-approvals-off-radar">{offRadar.map((approval) => <li key={approval.decisionId}>{approval.toolName} {approval.targetVersion}: {approval.status === "APPLIED" ? `uygulandı (kurulu ${approval.currentInstalledVersion})` : "onaylı, uygulanmayı bekliyor"} · onay {formatAyasScheduleTime(approval.approvedAt)}</li>)}</ul> : null}
       {radar.length ? radar.map((item) => (
@@ -245,7 +340,7 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
           <dl className="bc-dev__facts">
             <div><dt>Hedef</dt><dd>{item.target} · {item.newerStableReleases} yeni kararlı sürüm</dd></div>
             <div><dt>Kaynak</dt><dd><a href={item.latestUrl} target="_blank" rel="noreferrer noopener">{item.latestUrl}</a> · görüldü {formatAyasScheduleTime(item.lastSeenAt)}</dd></div>
-            <div><dt>Uygulama</dt><dd>{item.applyChannel === "OWNER_PINNED_RUNTIME" ? "Sabitlenmiş çalışma ortamı: owner yeniden sabitler" : "Onaylarsan bir geliştirme oturumunda uygulanır"}</dd></div>
+            <div><dt>Uygulama</dt><dd>{item.applyChannel === "OWNER_PINNED_RUNTIME" ? "Sabitlenmiş çalışma ortamı: owner yeniden sabitler" : "Onaylarsan AYAS ayrı bir kopyada dener; geçerse Uygula ile commit'lenir ve canlıya alınır"}</dd></div>
           </dl>
           {item.evidence.length ? <div className="bc-dev__facts"><strong>Kaynaktan alıntılar</strong><ul>{item.evidence.map((entry) => <li key={entry.findingId}><q>{entry.quote}</q> — <a href={entry.url} target="_blank" rel="noreferrer noopener">kaynak</a></li>)}</ul></div> : null}
           <details>
@@ -257,7 +352,11 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
               <div><dt>Risk</dt><dd>{item.brief.risk}</dd></div>
             </dl>
           </details>
-          {approvals ? <UpdateApprovalControl item={item} approval={approvals.find((approval) => approval.sourceId === item.sourceId)} onDecision={onDecision} /> : null}
+          {approvals ? (() => {
+            const approval = approvals.find((entry) => entry.sourceId === item.sourceId);
+            const trial = trialFor(approval);
+            return <UpdateApprovalControl item={item} approval={approval} trial={trial} apply={applyFor(trial)} onDecision={onDecision} onApply={onApply} />;
+          })() : null}
         </article>
       )) : <p className="bc-empty">İzlenen araçların hepsi güncel.</p>}
     </section>

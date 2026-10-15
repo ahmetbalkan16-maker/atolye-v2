@@ -183,9 +183,22 @@ const SURFACES: Readonly<Record<string, Surface>> = {
     modules: { "src/lib/ayas/developer/AyasGraphifyStateCollector.ts": "DURABLE_LEASE", "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE" },
   },
   "scripts/ayas-autonomy-daemon.ts": {
-    what: "the always-on observer; it only observes and spawns the two children above", agent: true,
+    what: "the always-on observer; it only observes and spawns the two children above and the update executor below", agent: true,
     allowed: ["READ_ONLY_PROBE"],
     modules: { "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE", "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE" },
+  },
+  // Owner decisions 2026-10-15 (EVAL v63): "dene, sonra uygula". Same allowance as the resume worker below: it only
+  // carries out what the owner's sealed decision already approved. A trial is validation in a separate worktree
+  // (OWNER_LEASE); an "Uygula" is the dependency-update lane of the guarded publication plus the live publish.
+  "scripts/ayas-update-executor.ts": {
+    what: "the observer's update executor child: one owner-approved update job per run (a trial, or the owner's Uygula)", agent: true,
+    allowed: ["OWNER_LEASE", "OWNER_PUBLICATION", "READ_ONLY_PROBE"],
+    // The guarded publication's import closure is the resume worker's; the two new modules are the executor's own.
+    modules: {
+      "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE", "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE", ...SELF_DEVELOPMENT, ...PUBLICATION,
+      "src/lib/brain/autonomy/AyasUpdateTrialRunner.ts": "OWNER_LEASE",
+      "src/lib/brain/autonomy/AyasUpdateApplyRunner.ts": "OWNER_PUBLICATION",
+    },
   },
   "scripts/ayas-owner-approval-resume.ts": {
     what: "resume worker for an execution the owner already approved", agent: true,
@@ -392,7 +405,8 @@ async function main() {
     // Autonomous and model-driven surfaces never reach publication or an owner-request adapter, and nothing on them is
     // excused as import-only: each effect is a read-only probe, a local model or admitted by a lease.
     for (const [entry, surface] of Object.entries(SURFACES)) {
-      if (!surface.agent || entry === "scripts/ayas-owner-approval-resume.ts") continue;
+      // The two agent-run workers that carry out an owner's sealed decision may reach publication; no other may.
+      if (!surface.agent || entry === "scripts/ayas-owner-approval-resume.ts" || entry === "scripts/ayas-update-executor.ts") continue;
       for (const guard of Object.values(surface.modules)) assert.ok(guard !== "OWNER_PUBLICATION" && guard !== "OWNER_REQUEST" && guard !== "IMPORT_ONLY", `${entry} reaches ${guard}`);
     }
   });

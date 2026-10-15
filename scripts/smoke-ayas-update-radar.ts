@@ -94,17 +94,31 @@ scenario("the panel renders health, radar and brief, with a consent control but 
   assert.match(html, /data-testid="ayas-research-health"/); assert.match(html, /data-testid="ayas-update-radar-nextjs"/);
   assert.match(html, /Next\.js: 16\.3\.8 → 16\.4\.1/); assert.match(html, /Geliştirme özeti/);
   assert.match(html, /Kaynaktan birebir alıntı/); assert.match(html, /Adds faster dev server restarts/);
-  assert.match(html, /data-testid="ayas-update-approval-nextjs"/); assert.match(html, /Bu güncellemeyi onayla/);
-  assert.doesNotMatch(html, /ONAYLA VE UYGULA|YÜRÜT/);
+  assert.match(html, /data-testid="ayas-update-approval-nextjs"/); assert.match(html, /Onayla ve dene/);
+  assert.doesNotMatch(html, /ONAYLA VE UYGULA|YÜRÜT|>Uygula</);
   // Unreadable approval store: no approval state is shown, and no button either.
   const unreadable = render(base);
-  assert.match(unreadable, /Onay durumu okunamadı/); assert.doesNotMatch(unreadable, /Bu güncellemeyi onayla/);
-  // An approval for exactly this item reads as approved, with a withdraw control only.
+  assert.match(unreadable, /Onay durumu okunamadı/); assert.doesNotMatch(unreadable, /Onayla ve dene/);
+  // An approval for exactly this item reads as approved and queued for a trial, with a withdraw control.
   const next = radar.find((item) => item.sourceId === "nextjs")!;
-  const approved = render({ ...base, updateApprovals: [{ decisionId: "d1", sourceId: "nextjs", toolName: "Next.js", target: next.target, installedVersion: next.installedVersion,
-    targetVersion: next.latestVersion, bump: next.bump, applyChannel: next.applyChannel, itemHash: next.itemHash, approvedAt: NOW, status: "WAITING", currentInstalledVersion: next.installedVersion }] });
-  assert.match(approved, /Onaylandı/); assert.match(approved, /Onayı geri al/);
-  assert.equal((approved.match(/Bu güncellemeyi onayla/g) ?? []).length, radar.length - 1);
+  const nextApproval = { decisionId: "d1", sourceId: "nextjs", toolName: "Next.js", target: next.target, installedVersion: next.installedVersion,
+    targetVersion: next.latestVersion, bump: next.bump, applyChannel: next.applyChannel, itemHash: next.itemHash, approvedAt: NOW, status: "WAITING" as const, currentInstalledVersion: next.installedVersion };
+  const approved = render({ ...base, updateApprovals: [nextApproval] });
+  assert.match(approved, /Onaylandı/); assert.match(approved, /Onayı geri al/); assert.match(approved, /Sırada: AYAS bu güncellemeyi ayrı bir kopyada deneyecek/);
+  assert.equal((approved.match(/Onayla ve dene/g) ?? []).length, radar.filter((item) => item.applyChannel === "DEVELOPMENT_SESSION").length - 1);
+  // Trial states: only a passed trial on the observed HEAD offers Uygula; a failed one says nothing was applied.
+  const trialView = { trialId: "ayas-update-trial-00000000-0000-4000-8000-000000000000", approvalDecisionId: "d1", sourceId: "nextjs", targetVersion: next.latestVersion,
+    startedAt: NOW, baseHead: "a".repeat(40), preExistingSmokeFailures: [], steps: [{ name: "BUILD" as const, ok: true, durationMs: 1, summary: "üretim derlemesi başarılı" }] };
+  const passed = render({ ...base, updateApprovals: [nextApproval], updateTrials: [{ ...trialView, status: "PASSED", onCurrentHead: true, trialHash: "b".repeat(64) }], updateApplies: [] });
+  assert.match(passed, /Deneme geçti/); assert.match(passed, />Uygula</);
+  const stale = render({ ...base, updateApprovals: [nextApproval], updateTrials: [{ ...trialView, status: "PASSED", onCurrentHead: false, trialHash: "b".repeat(64) }], updateApplies: [] });
+  assert.doesNotMatch(stale, />Uygula</); assert.match(stale, /yeniden deneyecek/);
+  const failed = render({ ...base, updateApprovals: [nextApproval], updateTrials: [{ ...trialView, status: "FAILED", onCurrentHead: true, failedStep: "TYPECHECK", failureReason: "TypeScript hata verdi." }], updateApplies: [] });
+  assert.match(failed, /Deneme başarısız: TypeScript/); assert.match(failed, /hiçbir şey uygulanmadı/); assert.match(failed, /kod değişikliği gerektiriyor/); assert.doesNotMatch(failed, />Uygula</);
+  const applied = render({ ...base, updateApprovals: [nextApproval], updateTrials: [{ ...trialView, status: "PASSED", onCurrentHead: true, trialHash: "b".repeat(64) }],
+    updateApplies: [{ schemaVersion: 1, applyId: "r1", applyDecisionId: "a1", trialId: trialView.trialId, sourceId: "nextjs", toolName: "Next.js", installedVersion: next.installedVersion, targetVersion: next.latestVersion,
+      baseHead: "a".repeat(40), status: "COMPLETED", startedAt: NOW, commitSha: "c".repeat(40), pushed: true, live: { status: "PUBLISHED", summary: "", attempts: 1, at: NOW } }] });
+  assert.match(applied, /commit&#x27;lendi ve push&#x27;landı · canlıda|commit'lendi ve push'landı · canlıda/); assert.doesNotMatch(applied, />Uygula</); assert.doesNotMatch(applied, /Onayı geri al/);
 });
 
 fs.rmSync(repo, { recursive: true, force: true });

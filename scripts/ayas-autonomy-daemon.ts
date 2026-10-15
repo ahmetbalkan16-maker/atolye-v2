@@ -66,6 +66,23 @@ function runDurableTaskRecovery(): { readonly ok: boolean; readonly summary: str
   }
 }
 
+// Owner decisions 2026-10-15 — the update executor: the third arm's-length
+// child. It does at most one owner-approved update job (a trial in a separate
+// worktree) and exits at once when there is none. Loaded with .env.local
+// because an owner approval counts only when its seal verifies under the
+// access key; this file itself still imports nothing approval-related.
+function runAyasUpdateExecutor(): { readonly ok: boolean; readonly summary: string } {
+  const tsxCli = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
+  const script = path.join(root, "scripts", "ayas-update-executor.ts");
+  try {
+    // A trial (npm ci, tsc, lint, build, smokes twice) is long; the executor bounds each step itself.
+    const stdout = execFileSync(process.execPath, ["--env-file-if-exists=.env.local", tsxCli, script], { cwd: root, encoding: "utf8", windowsHide: true, timeout: 90 * 60_000, maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"] });
+    return { ok: true, summary: stdout.trim().split(/\r?\n/).at(-1) ?? "" };
+  } catch (error) {
+    return { ok: false, summary: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, intervalMs: number, continuous: boolean, constitution: ReturnType<typeof bindAyasConstitutionRun>): Promise<void> {
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });
@@ -90,7 +107,9 @@ async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, int
   const durableTasks = observation.machineAction === "ALLOW" || observation.machineAction === "THROTTLE" ? runDurableTaskRecovery() : { ok: true, summary: "SKIPPED_MACHINE_HEALTH", needsReview: 0 };
   if (!durableTasks.ok) observation.gaps.push(`durable task recovery failed: ${durableTasks.summary}`);
   if (durableTasks.needsReview > 0) observation.gaps.push(`${durableTasks.needsReview} durable task(s) need review`);
-  console.log(JSON.stringify({ status: "OBSERVED", phase: observer.state.phase, branch: observation.branch, head: observation.head, repoClean: observation.repoClean, graphifyFresh: observation.graphifyFresh, machineAction: observation.machineAction, gaps: observation.gaps.length, discovery: discovery.ok ? discovery.summary : "FAILED", durableTasks: durableTasks.ok ? durableTasks.summary : "FAILED", constitution: constitution.evidence }));
+  const updates = observation.machineAction === "ALLOW" && observation.repoClean ? runAyasUpdateExecutor() : { ok: true, summary: observation.repoClean ? "SKIPPED_MACHINE_HEALTH" : "SKIPPED_DIRTY_TREE" };
+  if (!updates.ok) observation.gaps.push(`update executor failed: ${updates.summary}`);
+  console.log(JSON.stringify({ status: "OBSERVED", phase: observer.state.phase, branch: observation.branch, head: observation.head, repoClean: observation.repoClean, graphifyFresh: observation.graphifyFresh, machineAction: observation.machineAction, gaps: observation.gaps.length, discovery: discovery.ok ? discovery.summary : "FAILED", durableTasks: durableTasks.ok ? durableTasks.summary : "FAILED", updates: updates.ok ? updates.summary : "FAILED", constitution: constitution.evidence }));
 }
 
 async function main(): Promise<void> {

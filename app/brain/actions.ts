@@ -42,7 +42,8 @@ import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brai
 import { type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
-import { AyasUpdateApprovalError, createAyasUpdateApprovalStore, decideAyasUpdateApproval, type AyasUpdateApprovalDecision } from "@/lib/brain/autonomy/AyasUpdateApprovalStore";
+import { AyasUpdateApprovalError, createAyasUpdateApprovalStore, decideAyasUpdateApply, decideAyasUpdateApproval, type AyasUpdateApprovalDecision } from "@/lib/brain/autonomy/AyasUpdateApprovalStore";
+import { createAyasUpdateTrialStore } from "@/lib/brain/autonomy/AyasUpdateTrialStore";
 import { AyasSafeModeBlockedError } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { scheduleAyasGoalResearch, createAndScheduleAyasGoalResearch, controlAyasGoalResearchJob } from "@/lib/brain/autonomy/AyasGoalResearchSchedule";
 import { resolveAyasResearchGateRoot } from "@/lib/brain/autonomy/AyasResearchScheduler";
@@ -227,6 +228,26 @@ export async function decideAyasUpdateRadarAction(input: { sourceId: string; ite
     return { ok: true, status: loadAyasResearchEngineStatusView() };
   } catch (error) {
     const code = error instanceof AyasUpdateApprovalError || error instanceof AyasOwnerAdmissionError || error instanceof AyasSafeModeBlockedError ? error.code : "UPDATE_APPROVAL_FAILED";
+    return { ok: false, code, status: loadAyasResearchEngineStatusView() };
+  }
+}
+
+/**
+ * The owner's "Uygula" on one passed update trial (owner decisions 2026-10-15; CLAUDE.md standing exception for this
+ * click). Records the decision only, bound to the exact trialId + trialHash; the observer's executor carries out the
+ * commit, push and live publish through the guarded dependency-update lane.
+ */
+export async function applyAyasUpdateTrialAction(input: { trialId: string; trialHash: string }): Promise<AyasUpdateRadarDecisionResult> {
+  await requireBrainSession();
+  try {
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8", windowsHide: true }).trim();
+    await decideAyasUpdateApply(input, {
+      approvals: createAyasUpdateApprovalStore(), trials: createAyasUpdateTrialStore(), head,
+      admit: (subject) => requireOwnerApprovalAdmission("applyAyasUpdate", subject),
+    });
+    return { ok: true, status: loadAyasResearchEngineStatusView() };
+  } catch (error) {
+    const code = error instanceof AyasUpdateApprovalError || error instanceof AyasOwnerAdmissionError || error instanceof AyasSafeModeBlockedError ? error.code : "UPDATE_APPLY_FAILED";
     return { ok: false, code, status: loadAyasResearchEngineStatusView() };
   }
 }

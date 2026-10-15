@@ -9,6 +9,7 @@ import {
 } from "./AyasOwnerApprovalAdmission";
 import { AYAS_TRACKED_RELEASE_SOURCES, compareAyasReleaseVersions, resolveAyasInstalledVersion } from "./AyasResearchReleaseRelevance";
 import { ayasUpdateRadarItemHash, ayasUpdateBump, type AyasUpdateRadarItem } from "./AyasUpdateRadar";
+import { isAyasUpdateTrialIntact, type AyasUpdateTrialRecord, type AyasUpdateTrialStore } from "./AyasUpdateTrialStore";
 
 /**
  * Owner approvals on the update radar (owner request 2026-10-15, option A). One click records consent for one exact
@@ -34,14 +35,30 @@ export interface AyasUpdateApprovalRecord {
   readonly ownerDecisionSeal: string;
 }
 
+/** The owner's "Uygula" on one passed trial (owner decisions 2026-10-15): the one approval for its commit, push and live publish. */
+export interface AyasUpdateApplyDecisionRecord {
+  readonly decisionId: string;
+  readonly trialId: string;
+  readonly trialHash: string;
+  readonly approvalDecisionId: string;
+  readonly sourceId: string;
+  readonly targetVersion: string;
+  readonly decision: "APPLY";
+  readonly decidedAt: string;
+  readonly ownerAdmission: AyasOwnerAdmission;
+  readonly ownerDecisionSeal: string;
+}
+
 export interface AyasUpdateApprovalState {
   readonly schemaVersion: 1;
   readonly decisions: readonly AyasUpdateApprovalRecord[];
+  readonly applyDecisions?: readonly AyasUpdateApplyDecisionRecord[];
 }
 
 export interface AyasUpdateApprovalStore {
   load(): AyasUpdateApprovalState;
   append(record: AyasUpdateApprovalRecord): void;
+  appendApply(record: AyasUpdateApplyDecisionRecord): void;
 }
 
 /** One JSON file, written atomically (temp + fsync + rename) like the other research stores. */
@@ -55,17 +72,18 @@ export function createAyasUpdateApprovalStore(options: { readonly rootDir?: stri
     if (parsed?.schemaVersion !== 1 || !Array.isArray(parsed.decisions)) throw new Error("update-approvals state has an unknown schema");
     return parsed;
   };
+  const write = (state: AyasUpdateApprovalState): void => {
+    fs.mkdirSync(dir, { recursive: true });
+    const tmp = path.join(dir, `.state.${process.pid}.${crypto.randomUUID()}.tmp`);
+    const fd = fs.openSync(tmp, "w");
+    try { fs.writeFileSync(fd, `${JSON.stringify(state, null, 2)}\n`, "utf8"); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    fs.renameSync(tmp, file);
+  };
   return {
     load,
-    append(record) {
-      // Synchronous read-modify-write: no other decision in this process can interleave.
-      const state = load();
-      fs.mkdirSync(dir, { recursive: true });
-      const tmp = path.join(dir, `.state.${process.pid}.${crypto.randomUUID()}.tmp`);
-      const fd = fs.openSync(tmp, "w");
-      try { fs.writeFileSync(fd, `${JSON.stringify({ schemaVersion: 1, decisions: [...state.decisions, record] }, null, 2)}\n`, "utf8"); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-      fs.renameSync(tmp, file);
-    },
+    // Synchronous read-modify-write: no other decision in this process can interleave.
+    append(record) { const state = load(); write({ ...state, decisions: [...state.decisions, record] }); },
+    appendApply(record) { const state = load(); write({ ...state, applyDecisions: [...(state.applyDecisions ?? []), record] }); },
   };
 }
 
@@ -76,7 +94,13 @@ export type AyasUpdateApprovalErrorCode =
   | "UPDATE_APPROVAL_ALREADY_APPROVED"
   | "UPDATE_APPROVAL_NOT_APPROVED"
   | "UPDATE_APPROVAL_DECISION_CHANGED"
-  | "UPDATE_APPROVAL_ADMISSION_REJECTED";
+  | "UPDATE_APPROVAL_ADMISSION_REJECTED"
+  | "UPDATE_APPLY_TRIAL_NOT_FOUND"
+  | "UPDATE_APPLY_TRIAL_NOT_PASSED"
+  | "UPDATE_APPLY_TRIAL_CHANGED"
+  | "UPDATE_APPLY_TRIAL_STALE"
+  | "UPDATE_APPLY_APPROVAL_WITHDRAWN"
+  | "UPDATE_APPLY_ALREADY_DECIDED";
 
 /** The message is the code, so a caller that reports `error.message` reports the reason. */
 export class AyasUpdateApprovalError extends Error {
@@ -204,4 +228,77 @@ export function listAyasUpdateApprovals(input: {
     }));
   }
   return Object.freeze(views.sort((a, b) => (a.status === b.status ? a.approvedAt.localeCompare(b.approvedAt) : a.status === "WAITING" ? -1 : 1)));
+}
+
+/* ------------------------------------------------------------ apply ("Uygula") --- */
+
+const applySubjectOf = (record: Pick<AyasUpdateApplyDecisionRecord, "trialId" | "trialHash">): AyasOwnerAdmissionSubject =>
+  ({ kind: "update-apply", trialId: record.trialId, trialHash: record.trialHash, decision: "APPLY" });
+
+/** True when an "Uygula" record carries an intact owner seal and an admission for exactly this trial at its decision time. */
+export function isAyasUpdateApplyOwnerAdmitted(record: AyasUpdateApplyDecisionRecord): boolean {
+  try {
+    return record.decision === "APPLY" && verifyAyasOwnerDecisionSeal(record)
+      && checkAyasOwnerAdmissionBinding(record.ownerAdmission, { subject: applySubjectOf(record), at: record.decidedAt, usedActionRefs: new Set() }).ok;
+  } catch { return false; }
+}
+
+/** Every owner-admitted "Uygula" decision, oldest first; an unverifiable record is ignored, never trusted. */
+export function listAyasUpdateApplyDecisions(state: AyasUpdateApprovalState): readonly AyasUpdateApplyDecisionRecord[] {
+  return Object.freeze((state.applyDecisions ?? []).filter(isAyasUpdateApplyOwnerAdmitted));
+}
+
+/**
+ * Records the owner's "Uygula" on one passed trial. Refused unless the trial passed on the current HEAD, its stored
+ * artifacts still hash to what was tested, the approval it tried is still the active one, and no "Uygula" was recorded
+ * for it before. Recording is the only effect here; the observer's executor carries it out.
+ */
+export async function decideAyasUpdateApply(
+  input: { readonly trialId: string; readonly trialHash: string },
+  deps: {
+    readonly approvals: AyasUpdateApprovalStore;
+    readonly trials: AyasUpdateTrialStore;
+    readonly head: string;
+    readonly admit: (subject: AyasOwnerAdmissionSubject) => Promise<AyasOwnerAdmission>;
+    readonly now?: () => string;
+    readonly safeModeHold?: () => "AYAS_SAFE_READ_ONLY" | "AYAS_SAFE_MODE_UNAVAILABLE" | undefined;
+  },
+): Promise<AyasUpdateApplyDecisionRecord> {
+  if (!input || typeof input.trialId !== "string" || !/^ayas-update-trial-[0-9a-f-]{36}$/.test(input.trialId) || typeof input.trialHash !== "string" || !HEX64.test(input.trialHash)) {
+    throw new AyasUpdateApprovalError("UPDATE_APPROVAL_INVALID_INPUT");
+  }
+  const hold = (deps.safeModeHold ?? (() => ayasSafeModeHold()))();
+  if (hold) throw new AyasSafeModeBlockedError(hold);
+  const now = deps.now ?? (() => new Date().toISOString());
+
+  const check = (): { readonly trial: AyasUpdateTrialRecord } => {
+    const trial = deps.trials.load().trials.find((entry) => entry.trialId === input.trialId);
+    if (!trial) throw new AyasUpdateApprovalError("UPDATE_APPLY_TRIAL_NOT_FOUND");
+    if (trial.status !== "PASSED") throw new AyasUpdateApprovalError("UPDATE_APPLY_TRIAL_NOT_PASSED");
+    if (trial.trialHash !== input.trialHash || !isAyasUpdateTrialIntact(trial, deps.trials.readArtifacts(trial.trialId))) throw new AyasUpdateApprovalError("UPDATE_APPLY_TRIAL_CHANGED");
+    if (trial.baseHead !== deps.head) throw new AyasUpdateApprovalError("UPDATE_APPLY_TRIAL_STALE");
+    const state = deps.approvals.load();
+    const active = latestAdmittedBySource(state.decisions).get(trial.sourceId);
+    if (active?.decision !== "APPROVE" || active.decisionId !== trial.approvalDecisionId) throw new AyasUpdateApprovalError("UPDATE_APPLY_APPROVAL_WITHDRAWN");
+    if (listAyasUpdateApplyDecisions(state).some((entry) => entry.trialId === trial.trialId)) throw new AyasUpdateApprovalError("UPDATE_APPLY_ALREADY_DECIDED");
+    return { trial };
+  };
+
+  check();
+  const subject = applySubjectOf(input);
+  const ownerAdmission = await deps.admit(subject);
+  // Re-checked after the session was verified: a withdrawal or another click in between wins.
+  const { trial } = check();
+  const state = deps.approvals.load();
+  const decidedAt = now();
+  const usedActionRefs = ayasUsedOwnerActionRefs([...state.decisions, ...(state.applyDecisions ?? [])]);
+  if (!checkAyasOwnerAdmissionBinding(ownerAdmission, { subject, at: decidedAt, usedActionRefs }).ok) throw new AyasUpdateApprovalError("UPDATE_APPROVAL_ADMISSION_REJECTED");
+  const decisionId = `ayas-update-apply-${crypto.randomUUID()}`;
+  const record: AyasUpdateApplyDecisionRecord = Object.freeze({
+    decisionId, trialId: trial.trialId, trialHash: input.trialHash, approvalDecisionId: trial.approvalDecisionId, sourceId: trial.sourceId,
+    targetVersion: trial.targetVersion, decision: "APPLY" as const, decidedAt, ownerAdmission,
+    ownerDecisionSeal: sealAyasOwnerDecision({ decisionId, decidedAt, ownerAdmission }),
+  });
+  deps.approvals.appendApply(record);
+  return record;
 }

@@ -155,7 +155,18 @@ This project is developed across many sequential AI sessions under strict, check
     (`AyasAutonomousExecutionGate.decideAyasOwnerApproval`) sits on top of this same primitive for a
     fully autonomous APPROVE/REJECT flow, but it stays inert unless `AYAS_AUTONOMOUS_EXECUTION_ENABLED=1`
     is explicitly set in the deployment environment — off by default, so it grants no standing
-    exception beyond what is already documented here. Every other commit/push in this repository —
+    exception beyond what is already documented here. The same single-click principle covers one
+    more owner action (owner decisions 2026-10-15, "dene, sonra uygula"): a human clicking
+    **"Uygula"** on an update radar card in Gelişim Merkezi, on a `PASSED` update trial run on the
+    current HEAD, is the one required explicit approval for that update's commit, push and live
+    publish. It is scoped to `AyasUpdateApprovalStore.decideAyasUpdateApply` (bound to the exact
+    `trialId` + `trialHash`; any drift of HEAD, the tested `package.json`/`package-lock.json` bytes
+    or the approval invalidates it) and carried out only by the observer's update executor through
+    the guarded publication's `dependency-update` lane, which accepts exactly `package.json` +
+    `package-lock.json`, never force-pushes and never resets after a commit, followed by
+    `scripts/ayas-publish-live.ps1` with its own health check and rollback. The earlier
+    "Onayla ve dene" click only lets AYAS try the update in a separate worktree; it commits nothing.
+    Every other commit/push in this repository —
     including this service's own infrastructure changes — still requires separate explicit approval
     as above.
 

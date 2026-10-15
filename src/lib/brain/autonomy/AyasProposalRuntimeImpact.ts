@@ -240,6 +240,38 @@ export function classifyAyasRuntimeImpact(exactFiles: readonly string[]): AyasRu
   });
 }
 
+/** The one file set the dependency-update lane may publish (owner decision 2026-10-15). */
+export const AYAS_DEPENDENCY_UPDATE_FILES: readonly string[] = Object.freeze(["package-lock.json", "package.json"]);
+
+/**
+ * The dependency-update lane's own declaration. It accepts exactly package.json + package-lock.json, which every other
+ * lane refuses as RUNTIME_CONFIG. Committing them restarts nothing: the canonical tree serves no process, and the live
+ * copy is republished separately, after the guard has closed, by the owner-approved live publish with its own health
+ * check and rollback. Anything else in the file list makes the whole publication unpublishable.
+ */
+export function classifyAyasDependencyUpdateImpact(exactFiles: readonly string[]): AyasRuntimeImpactDecision {
+  const files = (exactFiles ?? []).map(classifyAyasRuntimeImpactFile);
+  const exact = files.length === AYAS_DEPENDENCY_UPDATE_FILES.length
+    && [...files.map((entry) => normalize(entry.file))].sort().every((file, index) => file === AYAS_DEPENDENCY_UPDATE_FILES[index]);
+  if (!exact) {
+    const general = classifyAyasRuntimeImpact(exactFiles);
+    return Object.freeze({ ...general, publishable: false, serviceRestartApplicable: true, notApplicable: Object.freeze([]),
+      summary: `the dependency-update lane publishes exactly package.json and package-lock.json; this publication declares ${general.summary}` });
+  }
+  return Object.freeze({
+    impactClass: "RUNTIME_CONFIG",
+    files: Object.freeze(files),
+    publishable: true,
+    serviceRestartApplicable: false,
+    summary: "RUNTIME_CONFIG across package.json and package-lock.json only (dependency-update lane)",
+    notApplicable: Object.freeze([
+      "service-restart: committing the dependency manifest restarts nothing; the live copy is republished after the guard closes, with its own health check and rollback",
+      "runtime-config-reload: no environment variable or gate flag is written",
+      "process-identity-fingerprint: not captured — the commit may not restart a service, so port+pid continuity is the proof",
+    ]),
+  });
+}
+
 /** Dimensions an owner-approved publication is allowed to move. See `deriveAyasPublicationScope` for why each one is here. */
 export const AYAS_PUBLICATION_ALLOWED_DIMENSIONS: readonly AyasRuntimeImpactDimension[] = Object.freeze([
   // The mutation writes the approved files.

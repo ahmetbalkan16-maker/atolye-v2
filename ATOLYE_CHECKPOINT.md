@@ -137,6 +137,52 @@ Yapılan (owner'ın açık onaylarıyla: Observer yeniden başlatma, `npm ci`, g
        - (c) Yayın: otomatik mi, yoksa ayrı bir "Canlıya al" düğmesi mi?
        - (d) Ana sürümler dahil mi?
      - **Sınır:** kod yazmayı gerektiren işler (ana sürüm kırılmaları, yeni özellikler) yerel bir kod modeli yeterliliği geçmeden yapılamaz. Bugün geçen yok: qwen3-coder:30b 0/15, 12 GB VRAM.
+     - **Owner kararları (15 Ekim, hepsi önerilen seçenek):**
+       1. **İki adım.** İlk onay ("dene") güncellemeyi yalnız ayrı bir kopyada dener ve sonucu kartta gösterir; hiçbir şeye dokunmaz. Testler geçerse kartta **Uygula** çıkar. Bu tıklama o güncellemenin commit, push ve yayınının tek açık onayıdır (CLAUDE.md'ye M18.1 benzeri dar istisna).
+       2. **Yayın otomatik ve geri dönüşlü:** `ayas-publish-live.ps1 -Apply` sağlık kontrolü yapar; başarısızsa önceki kopyaya döner.
+       3. **Ana sürümler dahil**, aynı test kapısıyla.
+       4. **Model işlemleri de** (indir → ölç → daha iyiyse değiştir) telefondan onayla yapılır; sağlık kontrolü geçmezse eski modele dönülür.
+       5. **EVAL v63 (owner onayı):** `smoke-ayas-action-firewall-closure` güncellenecek. Yeni yüzey `scripts/ayas-update-executor.ts` eklenir (izinleri `ayas-owner-approval-resume` ile aynı). Observer'ın alt süreçleri ikiden üçe çıkar. npm/git/ollama başlatan yeni modüller gerekçeleriyle haritaya yazılır. Hiçbir kural gevşemez; yalnız bu pin değişir, v62 bayt-bayt saklanır.
+       6. **Ayrı "bağımlılık güncellemesi" yayın kulvarı (owner onayı):** yalnız `package.json` + `package-lock.json` kabul edilir. Mevcut iki kulvar aynen kalır ve bu dosyaları reddetmeye devam eder.
+     - **Görev 5 — yerel güncelleme uygulayıcısı ("dene, sonra uygula"): KOD TAMAM** (belge `docs/AYAS_UPDATE_RADAR.md`).
+       - `AyasUpdateTrialStore` (saf): deneme ve uygulama kayıtları; deneme başına denenen `package.json`/`package-lock.json` baytları; `trialHash`.
+         - Kurulum planı: tam sabit sürüm tam sabit kalır; next+eslint-config-next ve react+react-dom birlikte güncellenir.
+         - `package.json` değişiklik denetimi.
+         - Lock farkı.
+         - CI testlerinin iş akışından okunması.
+         - İş seçimi: başarısız deneme kendiliğinden tekrarlanmaz; geçen deneme yeni HEAD'de bir kez yeniden yapılır; iki kesintiden sonra durur. Uygula bir kez yürütülür.
+         - Observer'ın gördüğü HEAD dosyadan okunur (arayüz program başlatmaz).
+       - `AyasUpdateTrialRunner` (program başlatır):
+         - HEAD'in ayrı worktree'si, sonra sırayla `npm ci --ignore-scripts`, ön test, `npm install … --ignore-scripts`, paket dosyası denetimi, `npm audit signatures`, tsc, lint, build ve testler.
+         - Testler: CI testleri, paketi içe aktaranlar ve kendi testleri. Önceden kırık test sayılmaz; güncellemenin bozduğu test denemeyi düşürür.
+         - Alt süreçlere hiçbir gizli bilgi verilmez.
+         - Worktree her durumda silinir.
+         - Yol bulgusu: lint ASCII bağlantıdan (`D:\URETIM`), geri kalan her şey gerçek yoldan çalışır. tsx bağlantı yolunda JSX ayarını uygulamıyor; Turbopack bağlantıdan "distDirRoot must stay inside the project root" veriyor.
+       - `AyasUpdateApplyRunner` (program başlatır):
+         - Korumalı yayının yeni `dependency-update` kulvarı: yalnız iki dosya (`classifyAyasDependencyUpdateImpact`; öteki kulvarlar değişmedi).
+         - Sırayla: temiz ağaç, denemenin HEAD'i, denenen baytlar, iki dosyalık birebir hazırlama, tek commit (`AYAS-Update-Trial:` trailer), zorlamasız push, uzak dal eşitliği.
+         - Ardından `closeAyasPostPublication` ve `ayas-publish-live.ps1 -Apply`.
+         - Canlıya alma sağlıkta geri dönerse en fazla 3 deneme yapılır.
+         - Yarıda kalan uygulamanın uzlaştırılması: dokunulmamışsa ABANDONED; trailer'lı commit push'lanmışsa COMPLETED; aksi hâlde RECOVERY_REQUIRED.
+       - Owner doğrulaması: yeni eylem `applyAyasUpdate` ve konu `update-apply` (trialId + trialHash).
+       - `decideAyasUpdateApply` şunları ister: geçmiş ve bozulmamış deneme, güncel HEAD, etkin onay, tek karar.
+       - Sunucu eylemi: `applyAyasUpdateTrialAction`.
+       - CLAUDE.md'ye dar istisna eklendi.
+       - `scripts/ayas-update-executor.ts`: her çalıştırmada tek iş; öncelik sırası canlı yayın → Uygula → deneme.
+         - Koşullar: kilit, SAFE_READ_ONLY, erişim anahtarı (mühürler), temiz ağaç, ≥15 GB boş alan.
+         - Observer (`ayas-autonomy-daemon.ts`) uygulayıcıyı üçüncü alt süreç olarak başlatır: `--env-file-if-exists=.env.local`, yalnız ALLOW ve temiz ağaçta, 90 dk sınır.
+       - Panel:
+         - "Onayla ve dene".
+         - Deneme durumu ve adımlar.
+         - Yalnız güncel HEAD'de geçen denemede **Uygula** ve "Uygularsam ne olacak?".
+         - Uygula/canlı durumu.
+       - EVAL v63 hazırlığı: `smoke-ayas-action-firewall-closure`'a yeni yüzey eklendi. Haritası sürdürme çalışanıyla aynı, artı iki yeni modül. Yayına ulaşabilen ajan istisnası sürdürme çalışanı ve uygulayıcı ile sınırlı. Kapanış 12/12, 11 yüzey, 46 modül.
+       - **Gerçek deneme (repo `e856360e`, sahte onay, geçici kayıt): ESLint 9.39.4 → 10.11.0 GEÇTİ** (~4 dk).
+         - Adım süreleri: npm ci 42 sn; 18 ön test, 0 önceden kırık; kurulum 14 sn; imza 13 sn; tsc 14 sn; lint 34 sn; build 27 sn; 18 test geçti.
+         - Lock farkı: 23 değişti, 18 eklendi, 27 kaldırıldı.
+         - İlk koşuda build, yol bulgusu nedeniyle düşmüştü; ön testlerde görülen 5 "önceden kırık" test de aynı yol sorunuydu.
+       - Testler: yeni `smoke-ayas-update-trial` 11/11 ve `smoke-ayas-update-apply` 11/11 (gerçek git + korumalı denetim). İkinci test, porcelain çıktısının kırpılmasından doğan gerçek bir kapsam hatasını yakaladı. Denetim değişikliği geri aldı (ROLLED_BACK), düzeltildi.
+       - **Etkinleşme:** uygulayıcı, Observer'ın sürekli çalışan ana sürecinin içinden başlatıldığı için Observer yeniden başlayınca (ya da PC açılışında) devreye girer.
 
 **Sıradaki (bu sırayla):**
 1. Yeni PC kurtarma geçişini taşımadan önce bu PC'de benzet: runtime/authority'nin kopyası üzerinde, tek kullanımlık köklerde `runtime:backup:create/verify` → `candidate:create/consume` → `authority:begin-recovery` → `quiesce/prepare/validate/publish`; canlı kayıtlara dokunmadan. Sonucu `docs/AYAS_NEW_PC_SETUP.md` adım 3'e işle.

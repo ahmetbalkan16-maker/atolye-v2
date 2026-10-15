@@ -8,6 +8,7 @@ import { resolveAyasResearchSourceRegistry } from "./AyasResearchSourceRegistry"
 import { createAyasLocalDiscoveryRunLedger, type AyasLocalDiscoveryRunStatus } from "./AyasLocalDiscoveryRunLedger";
 import { loadAyasModelWatchView, type AyasModelWatchView } from "./AyasModelWatch";
 import { createAyasUpdateApprovalStore, listAyasUpdateApprovals, type AyasUpdateApprovalView } from "./AyasUpdateApprovalStore";
+import { createAyasUpdateTrialStore, listAyasUpdateTrialViews, readAyasObservedHead, type AyasUpdateApplyRecord, type AyasUpdateTrialView } from "./AyasUpdateTrialStore";
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part O — the read-only
@@ -84,6 +85,9 @@ export interface AyasResearchEngineStatusView {
   readonly researchHealth?: AyasResearchHealth;
   /** Owner approvals recorded on radar items (2026-10-15); absent when the approval store could not be read. */
   readonly updateApprovals?: readonly AyasUpdateApprovalView[];
+  /** The latest trial of each active approval, and every "Uygula" carried out (2026-10-15); absent when unreadable. */
+  readonly updateTrials?: readonly AyasUpdateTrialView[];
+  readonly updateApplies?: readonly AyasUpdateApplyRecord[];
   /** Model comparison (2026-10-15): the AYAS chat model against measured and newer local models; absent when unreadable. */
   readonly modelWatch?: AyasModelWatchView;
 }
@@ -128,6 +132,15 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
     try {
       if (radarAndHealth) updateApprovals = listAyasUpdateApprovals({ decisions: createAyasUpdateApprovalStore().load().decisions, radar: radarAndHealth.updateRadar, repoRoot: process.cwd() });
     } catch { updateApprovals = undefined; }
+    let updateTrials: readonly AyasUpdateTrialView[] | undefined;
+    let updateApplies: readonly AyasUpdateApplyRecord[] | undefined;
+    try {
+      if (updateApprovals) {
+        const trialState = createAyasUpdateTrialStore().load();
+        updateTrials = listAyasUpdateTrialViews({ approvals: updateApprovals, trials: trialState.trials, head: readAyasObservedHead() });
+        updateApplies = Object.freeze([...(trialState.applies ?? [])].sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 20));
+      }
+    } catch { updateTrials = undefined; updateApplies = undefined; }
     const modelWatch = loadAyasModelWatchView();
 
     const digest: AyasResearchEngineDigest = {
@@ -178,6 +191,8 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
       } } : {}),
       ...(radarAndHealth ?? {}),
       ...(updateApprovals ? { updateApprovals } : {}),
+      ...(updateTrials ? { updateTrials } : {}),
+      ...(updateApplies ? { updateApplies } : {}),
       ...(modelWatch ? { modelWatch } : {}),
     };
   } catch (error) {

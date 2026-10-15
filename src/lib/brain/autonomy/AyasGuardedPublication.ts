@@ -4,7 +4,7 @@ import path from "node:path";
 import { runAyasControlledOperation, baselineAyasPreconditions, type AyasRuntimeStabilityGuardDeps } from "./AyasRuntimeStabilityGuard";
 import { createAyasStabilityTransactionStore, AYAS_STABILITY_TERMINAL_STATES, type AyasStabilityTransaction, type AyasStabilityTransactionStore } from "./AyasRuntimeStabilityTransaction";
 import type { AyasRuntimeStabilitySnapshot, AyasRuntimeStabilitySnapshotDeps } from "./AyasRuntimeStabilitySnapshot";
-import { classifyAyasRuntimeImpact, deriveAyasPublicationScope, type AyasRuntimeImpactDecision } from "./AyasProposalRuntimeImpact";
+import { classifyAyasDependencyUpdateImpact, classifyAyasRuntimeImpact, deriveAyasPublicationScope, type AyasRuntimeImpactDecision } from "./AyasProposalRuntimeImpact";
 import { createAyasExecutionJournal } from "./AyasExecutionJournal";
 import { classifyAyasRestartRecovery } from "./AyasExecutionRecoveryPolicy";
 import type { AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
@@ -52,7 +52,8 @@ import type { AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
  *     different code depending on which check happened to run first.
  */
 
-export type AyasPublicationLane = "proposal" | "micro-batch";
+/** "dependency-update" (owner decision 2026-10-15) carries exactly package.json + package-lock.json from a passed update trial. */
+export type AyasPublicationLane = "proposal" | "micro-batch" | "dependency-update";
 
 /** Stable, parseable operation name. The subject id is embedded so a durable transaction can be traced back to exactly one proposal or batch. */
 export function ayasPublicationOperationName(lane: AyasPublicationLane, subjectId: string): string {
@@ -220,7 +221,8 @@ function assertAyasPublicationBaselineRestored(repoRoot: string, before: AyasRun
  * after `store.begin()`.
  */
 export async function runGuardedAyasPublication<T extends { readonly ok: boolean }>(request: AyasGuardedPublicationRequest<T>): Promise<AyasGuardedPublicationResult<T>> {
-  const impact = classifyAyasRuntimeImpact(request.exactFiles);
+  // Each lane declares through its own classifier; the two one-click lanes keep refusing every RUNTIME_CONFIG file.
+  const impact = request.lane === "dependency-update" ? classifyAyasDependencyUpdateImpact(request.exactFiles) : classifyAyasRuntimeImpact(request.exactFiles);
   const guard = request.guard ?? {};
 
   if (!impact.publishable) {
