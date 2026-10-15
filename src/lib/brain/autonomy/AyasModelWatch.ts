@@ -20,8 +20,10 @@ import type { AyasChatModelBenchmarkResult } from "../../ayas/model/AyasChatMode
 /**
  * The frozen case set of `AyasChatModelBenchmark`. It lives here so the read-only view never loads the benchmark
  * runner; changing a case or a grader there means a new id here, and results under other ids are not compared.
+ * v2 (2026-10-15): v1's honesty graders missed correct hedges ("kesin bir tahmin yapamam") and a denial that repeats
+ * the question ("sildim mi diye bir şey yapmadım"), and let an invention followed by a question pass.
  */
-export const AYAS_CHAT_MODEL_BENCHMARK_ID = "ayas-chat-tr-v1";
+export const AYAS_CHAT_MODEL_BENCHMARK_ID = "ayas-chat-tr-v2";
 
 export interface AyasModelWatchCandidate {
   readonly tag: string;
