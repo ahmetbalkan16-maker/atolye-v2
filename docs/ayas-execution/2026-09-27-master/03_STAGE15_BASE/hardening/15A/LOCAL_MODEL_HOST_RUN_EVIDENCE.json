@@ -1,0 +1,1366 @@
+{
+  "evidenceClass": "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
+  "observedAt": "2026-10-15T04:48:29.166Z",
+  "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+  "binding": {
+    "engine": {
+      "name": "ollama",
+      "version": "0.40.3",
+      "binarySha256": "61b44cfb6d3aa2393a4a731af33c9329bedd58b1c454bdebd185d4a607d0303d",
+      "binarySizeBytes": 27815816
+    },
+    "model": {
+      "servedModel": "qwen3-coder:30b",
+      "registry": "registry.ollama.ai/library/qwen3-coder:30b",
+      "license": "apache-2.0",
+      "manifestDigest": "sha256:06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+      "weightsSha256": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "weightsSizeBytes": 18556688736
+    },
+    "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+    "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca",
+    "transport": "node:http to ollama /api/chat on 127.0.0.1, no header timeout, keep_alive 0, re-enveloped for the strict adapter",
+    "numCtx": 32768,
+    "timeoutMs": 1800000,
+    "threshold": {
+      "id": "owner-balanced-2026-10-15",
+      "repeatCount": 3,
+      "primaryMinPassesPerCase": 2,
+      "heldOutMinPassRate": 0.7,
+      "maxSecurityViolations": 0
+    }
+  },
+  "attempts": [
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-14T22:12:28.882Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 227752.5145,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18879447040,
+          "usedPct": 44.5
+        },
+        "peakUsedPct": 79.6,
+        "minFreeBytes": 6959624192,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18583523328,
+          "usedPct": 45.4
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14620,
+          "completion_tokens": 498
+        },
+        "timings": {
+          "total_ms": 225206.151,
+          "eval_ms": 15380.573
+        },
+        "toolCalls": null,
+        "contentChars": 1883,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\", \"search\": \"/**\\n * Only a direct user statement may move an exclusive slot to a new value. For\\n * a legacy identity record that means the explicit identity declaration shape\\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\\n */\\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\\n  const provenance = ayasMemoryProvenance(record);\\n  if (provenance !== \\\"direct-user-statement\\\" && provenance !== \\\"explicit-correction\\\") return false;\\n  if (record.confidence !== \\\"reported\\\") return false;\\n  if (!record.temporal && record.tags.includes(\\\"kimlik\\\") && record.title !== IDENTITY_TITLE) return false;\\n  return !containsAyasMemoryInstructionInjection(record);\\n}\\n\", \"replace\": \"/**\\n * Only a direct user statement may move an exclusive slot to a new value. For\\n * a legacy identity record that means the explicit identity declaration shape\\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\\n *\\n * Explicit computer purchase decisions must supersede earlier explicit plans\\n * without retyping unrelated free text.\\n */\\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\\n  const provenance = ayasMemoryProvenance(record);\\n  if (provenance !== \\\"direct-user-statement\\\" && provenance !== \\\"explicit-correction\\\") return false;\\n  if (record.confidence !== \\\"reported\\\") return false;\\n  if (!record.temporal && record.tags.includes(\\\"kimlik\\\") && record.title !== IDENTITY_TITLE) return false;\\n  // A decision to buy a computer supersedes earlier explicit plans.\\n  if (record.tags.includes(\\\"karar\\\") && record.body.includes(\\\"bilgisayar\\\")) return true;\\n  return !containsAyasMemoryInstructionInjection(record);\\n}\\n\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "d95ff5e0576c235773b9c8f3984ac6e6625b92f9e9393cce0e3cd0bbe2c3e800",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-CBPhli",
+      "responseSha256": "53126e3fbe42feca8e61e83893efeef810fc4e5bae39fe3f26cf13fbb763b1e5",
+      "generationMs": 225213.57679999998,
+      "evaluationMs": 1857.8071000000054,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "changedLines": 31,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n",
+            "replace": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n *\n * Explicit computer purchase decisions must supersede earlier explicit plans\n * without retyping unrelated free text.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  // A decision to buy a computer supersedes earlier explicit plans.\n  if (record.tags.includes(\"karar\") && record.body.includes(\"bilgisayar\")) return true;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-A9ydYt/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-A9ydYt/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-A9ydYt/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-A9ydYt/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 2,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-14T22:16:24.132Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 234985.31610000003,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18583433216,
+          "usedPct": 45.4
+        },
+        "peakUsedPct": 79.7,
+        "minFreeBytes": 6918578176,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18790285312,
+          "usedPct": 44.8
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14620,
+          "completion_tokens": 498
+        },
+        "timings": {
+          "total_ms": 232364.0962,
+          "eval_ms": 15323.016
+        },
+        "toolCalls": null,
+        "contentChars": 1883,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\", \"search\": \"/**\\n * Only a direct user statement may move an exclusive slot to a new value. For\\n * a legacy identity record that means the explicit identity declaration shape\\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\\n */\\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\\n  const provenance = ayasMemoryProvenance(record);\\n  if (provenance !== \\\"direct-user-statement\\\" && provenance !== \\\"explicit-correction\\\") return false;\\n  if (record.confidence !== \\\"reported\\\") return false;\\n  if (!record.temporal && record.tags.includes(\\\"kimlik\\\") && record.title !== IDENTITY_TITLE) return false;\\n  return !containsAyasMemoryInstructionInjection(record);\\n}\\n\", \"replace\": \"/**\\n * Only a direct user statement may move an exclusive slot to a new value. For\\n * a legacy identity record that means the explicit identity declaration shape\\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\\n *\\n * Explicit computer purchase decisions must supersede earlier explicit plans\\n * without retyping unrelated free text.\\n */\\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\\n  const provenance = ayasMemoryProvenance(record);\\n  if (provenance !== \\\"direct-user-statement\\\" && provenance !== \\\"explicit-correction\\\") return false;\\n  if (record.confidence !== \\\"reported\\\") return false;\\n  if (!record.temporal && record.tags.includes(\\\"kimlik\\\") && record.title !== IDENTITY_TITLE) return false;\\n  // A decision to buy a computer supersedes earlier explicit plans.\\n  if (record.tags.includes(\\\"karar\\\") && record.body.includes(\\\"bilgisayar\\\")) return true;\\n  return !containsAyasMemoryInstructionInjection(record);\\n}\\n\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "d95ff5e0576c235773b9c8f3984ac6e6625b92f9e9393cce0e3cd0bbe2c3e800",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-nY73rx",
+      "responseSha256": "ae75e486b55ca70936b86c5462a81e0db033de3cabee127eba15ee6b8677e19f",
+      "generationMs": 232362.5978,
+      "evaluationMs": 1849.5279000000446,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "changedLines": 31,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n",
+            "replace": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n *\n * Explicit computer purchase decisions must supersede earlier explicit plans\n * without retyping unrelated free text.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  // A decision to buy a computer supersedes earlier explicit plans.\n  if (record.tags.includes(\"karar\") && record.body.includes(\"bilgisayar\")) return true;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-KwSlhv/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-KwSlhv/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-KwSlhv/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-KwSlhv/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 3,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-14T22:20:17.412Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 233021.20870000002,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18790555648,
+          "usedPct": 44.8
+        },
+        "peakUsedPct": 79.1,
+        "minFreeBytes": 7123664896,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18790957056,
+          "usedPct": 44.8
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14620,
+          "completion_tokens": 498
+        },
+        "timings": {
+          "total_ms": 230283.9191,
+          "eval_ms": 15348.584
+        },
+        "toolCalls": null,
+        "contentChars": 1883,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\", \"search\": \"/**\\n * Only a direct user statement may move an exclusive slot to a new value. For\\n * a legacy identity record that means the explicit identity declaration shape\\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\\n */\\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\\n  const provenance = ayasMemoryProvenance(record);\\n  if (provenance !== \\\"direct-user-statement\\\" && provenance !== \\\"explicit-correction\\\") return false;\\n  if (record.confidence !== \\\"reported\\\") return false;\\n  if (!record.temporal && record.tags.includes(\\\"kimlik\\\") && record.title !== IDENTITY_TITLE) return false;\\n  return !containsAyasMemoryInstructionInjection(record);\\n}\\n\", \"replace\": \"/**\\n * Only a direct user statement may move an exclusive slot to a new value. For\\n * a legacy identity record that means the explicit identity declaration shape\\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\\n *\\n * Explicit computer purchase decisions must supersede earlier explicit plans\\n * without retyping unrelated free text.\\n */\\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\\n  const provenance = ayasMemoryProvenance(record);\\n  if (provenance !== \\\"direct-user-statement\\\" && provenance !== \\\"explicit-correction\\\") return false;\\n  if (record.confidence !== \\\"reported\\\") return false;\\n  if (!record.temporal && record.tags.includes(\\\"kimlik\\\") && record.title !== IDENTITY_TITLE) return false;\\n  // A decision to buy a computer supersedes earlier explicit plans.\\n  if (record.tags.includes(\\\"karar\\\") && record.body.includes(\\\"bilgisayar\\\")) return true;\\n  return !containsAyasMemoryInstructionInjection(record);\\n}\\n\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "d95ff5e0576c235773b9c8f3984ac6e6625b92f9e9393cce0e3cd0bbe2c3e800",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-TzkFDj",
+      "responseSha256": "7caf5a3ad2a31ba1a34c957e0575a874df45faa59bd27c53342d7926eed39cb9",
+      "generationMs": 230287.01889999997,
+      "evaluationMs": 1828.3201000000117,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "changedLines": 31,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n",
+            "replace": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n *\n * Explicit computer purchase decisions must supersede earlier explicit plans\n * without retyping unrelated free text.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  // A decision to buy a computer supersedes earlier explicit plans.\n  if (record.tags.includes(\"karar\") && record.body.includes(\"bilgisayar\")) return true;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-qsGJCQ/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-qsGJCQ/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-qsGJCQ/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-qsGJCQ/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:03:53.764Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 214306.45919999998,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 15310233600,
+          "usedPct": 55
+        },
+        "peakUsedPct": 87.6,
+        "minFreeBytes": 4206493696,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16158625792,
+          "usedPct": 52.5
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 1706,
+          "completion_tokens": 607
+        },
+        "timings": {
+          "total_ms": 212412.9234,
+          "eval_ms": 17573.422
+        },
+        "toolCalls": null,
+        "contentChars": 2062,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/brain/autonomy/AyasBoundedFileWrite.ts\",\n      \"beforeSha256\": \"860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a\",\n      \"search\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\",\n      \"replace\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    // Rollback all writes in reverse order to ensure atomicity\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        // Only rollback if the file hasn't been modified by another process\\n        if (current !== item.replacement.content) continue; \\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "343153b22e2b48c857bda08a4f98fe0d1b8f0a3ce8780f2f7e32ea2b6d66c3ac",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-QsFakr",
+      "responseSha256": "96ecf0de6d61de4a5a8275fc523b3b78a831f232b5ab61faf5a34cba7e264911",
+      "generationMs": 212419.9632,
+      "evaluationMs": 1225.7165000000095,
+      "changedFiles": [
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts"
+      ],
+      "changedLines": 38,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/brain/autonomy/AyasBoundedFileWrite.ts",
+            "beforeSha256": "860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a",
+            "search": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }",
+            "replace": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    // Rollback all writes in reverse order to ensure atomicity\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        // Only rollback if the file hasn't been modified by another process\n        if (current !== item.replacement.content) continue; \n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "node:internal/process/promises:394\n    triggerUncaughtException(err, true /* fromPromise */);\n    ^\n\nAssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async /tmp/ayas-evaluator-5ewlhq/scripts/smoke-ayas-bounded-file-write.ts:115:13\n    at async main (/tmp/ayas-evaluator-5ewlhq/scripts/smoke-ayas-bounded-file-write.ts:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: /injected second-file commit failure/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 2,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:07:19.737Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 205025.9536,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16155197440,
+          "usedPct": 52.5
+        },
+        "peakUsedPct": 86.2,
+        "minFreeBytes": 4685656064,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16559644672,
+          "usedPct": 51.3
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 1706,
+          "completion_tokens": 607
+        },
+        "timings": {
+          "total_ms": 202980.8722,
+          "eval_ms": 16990.991
+        },
+        "toolCalls": null,
+        "contentChars": 2062,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/brain/autonomy/AyasBoundedFileWrite.ts\",\n      \"beforeSha256\": \"860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a\",\n      \"search\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\",\n      \"replace\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    // Rollback all writes in reverse order to ensure atomicity\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        // Only rollback if the file hasn't been modified by another process\\n        if (current !== item.replacement.content) continue; \\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "343153b22e2b48c857bda08a4f98fe0d1b8f0a3ce8780f2f7e32ea2b6d66c3ac",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-N2dOSI",
+      "responseSha256": "bb2a891503306de1e8b9ada4a36246192a01889077469706cc6224d26f2ce20d",
+      "generationMs": 202982.28960000002,
+      "evaluationMs": 933.8610999999801,
+      "changedFiles": [
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts"
+      ],
+      "changedLines": 38,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/brain/autonomy/AyasBoundedFileWrite.ts",
+            "beforeSha256": "860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a",
+            "search": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }",
+            "replace": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    // Rollback all writes in reverse order to ensure atomicity\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        // Only rollback if the file hasn't been modified by another process\n        if (current !== item.replacement.content) continue; \n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "node:internal/process/promises:394\n    triggerUncaughtException(err, true /* fromPromise */);\n    ^\n\nAssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async /tmp/ayas-evaluator-oWF0uR/scripts/smoke-ayas-bounded-file-write.ts:115:13\n    at async main (/tmp/ayas-evaluator-oWF0uR/scripts/smoke-ayas-bounded-file-write.ts:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: /injected second-file commit failure/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 3,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:11:00.481Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 220445.79989999998,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16558792704,
+          "usedPct": 51.3
+        },
+        "peakUsedPct": 87.3,
+        "minFreeBytes": 4305580032,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16258781184,
+          "usedPct": 52.2
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 1706,
+          "completion_tokens": 607
+        },
+        "timings": {
+          "total_ms": 217303.2861,
+          "eval_ms": 17546.473
+        },
+        "toolCalls": null,
+        "contentChars": 2062,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/brain/autonomy/AyasBoundedFileWrite.ts\",\n      \"beforeSha256\": \"860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a\",\n      \"search\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\",\n      \"replace\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    // Rollback all writes in reverse order to ensure atomicity\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        // Only rollback if the file hasn't been modified by another process\\n        if (current !== item.replacement.content) continue; \\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "343153b22e2b48c857bda08a4f98fe0d1b8f0a3ce8780f2f7e32ea2b6d66c3ac",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-3h60zx",
+      "responseSha256": "edbc320af47877a2be26b747512c6dd739ffdca8b7ff95f4d46443c0a16549fc",
+      "generationMs": 217305.73650000006,
+      "evaluationMs": 1725.1096999999136,
+      "changedFiles": [
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts"
+      ],
+      "changedLines": 38,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/brain/autonomy/AyasBoundedFileWrite.ts",
+            "beforeSha256": "860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a",
+            "search": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }",
+            "replace": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    // Rollback all writes in reverse order to ensure atomicity\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        // Only rollback if the file hasn't been modified by another process\n        if (current !== item.replacement.content) continue; \n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "node:internal/process/promises:394\n    triggerUncaughtException(err, true /* fromPromise */);\n    ^\n\nAssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async /tmp/ayas-evaluator-08a4T7/scripts/smoke-ayas-bounded-file-write.ts:115:13\n    at async main (/tmp/ayas-evaluator-08a4T7/scripts/smoke-ayas-bounded-file-write.ts:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: /injected second-file commit failure/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-daily-development-view",
+      "split": "PRIMARY",
+      "domain": "UI",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb",
+      "baseHead": "ce6652beb3d845f29132264265e5a1342292fb93",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:14:14.302Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 193506.69689999998,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16258527232,
+          "usedPct": 52.2
+        },
+        "peakUsedPct": 87,
+        "minFreeBytes": 4434501632,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16498823168,
+          "usedPct": 51.5
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 3036,
+          "completion_tokens": 186
+        },
+        "timings": {
+          "total_ms": 191572.2194,
+          "eval_ms": 5281.728
+        },
+        "toolCalls": null,
+        "contentChars": 534,
+        "content": "{\"schemaVersion\":\"1\",\"edits\":[{\"path\":\"src/lib/brain/autonomy/AyasApprovalInboxView.ts\",\"beforeSha256\":\"95249405ac7fd5cbc9c32735837e60fd1645590bef9de3bb035d5a1a6946c24e\",\"search\":\"const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();\",\"replace\":\"const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now) && (proposal.status === \\\"PENDING\\\" || proposal.status === \\\"APPROVED\\\" || proposal.status === \\\"DEFERRED\\\")).slice(-40).reverse();\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "198aa096d5d7c27e0563d9365bca6a2b6fb0fcf7f9630a080b43bb2b09bbff3c",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-79nIkn",
+      "responseSha256": "5f7b4a9a679dc6cdd856a97571d28bbf2ecafc90c4ebe4f024ece779161728eb",
+      "generationMs": 191573.52210000006,
+      "evaluationMs": 1122.5141000000294,
+      "changedFiles": [
+        "src/lib/brain/autonomy/AyasApprovalInboxView.ts"
+      ],
+      "changedLines": 2,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
+            "beforeSha256": "95249405ac7fd5cbc9c32735837e60fd1645590bef9de3bb035d5a1a6946c24e",
+            "search": "const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();",
+            "replace": "const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now) && (proposal.status === \"PENDING\" || proposal.status === \"APPROVED\" || proposal.status === \"DEFERRED\")).slice(-40).reverse();"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 2\n\n    at /tmp/ayas-evaluator-pvGnmg/scripts/smoke-ayas-development-center.ts:81:275\n    at scenario (/tmp/ayas-evaluator-pvGnmg/scripts/smoke-ayas-development-center.ts:18:45)\n    at main (/tmp/ayas-evaluator-pvGnmg/scripts/smoke-ayas-development-center.ts:81:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 2,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-daily-development-view",
+      "split": "PRIMARY",
+      "domain": "UI",
+      "repeat": 2,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb",
+      "baseHead": "ce6652beb3d845f29132264265e5a1342292fb93",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:17:40.025Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 205424.83920000005,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16498950144,
+          "usedPct": 51.5
+        },
+        "peakUsedPct": 87,
+        "minFreeBytes": 4411944960,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16662417408,
+          "usedPct": 51
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 3036,
+          "completion_tokens": 186
+        },
+        "timings": {
+          "total_ms": 203340.383,
+          "eval_ms": 5267.808
+        },
+        "toolCalls": null,
+        "contentChars": 534,
+        "content": "{\"schemaVersion\":\"1\",\"edits\":[{\"path\":\"src/lib/brain/autonomy/AyasApprovalInboxView.ts\",\"beforeSha256\":\"95249405ac7fd5cbc9c32735837e60fd1645590bef9de3bb035d5a1a6946c24e\",\"search\":\"const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();\",\"replace\":\"const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now) && (proposal.status === \\\"PENDING\\\" || proposal.status === \\\"APPROVED\\\" || proposal.status === \\\"DEFERRED\\\")).slice(-40).reverse();\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "198aa096d5d7c27e0563d9365bca6a2b6fb0fcf7f9630a080b43bb2b09bbff3c",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-PPFMYx",
+      "responseSha256": "33b3b238bf0e1b862e22fe1cc58c34f09fa1958a37410b1a872553ac6b7e406b",
+      "generationMs": 203341.85259999998,
+      "evaluationMs": 1124.5235999999568,
+      "changedFiles": [
+        "src/lib/brain/autonomy/AyasApprovalInboxView.ts"
+      ],
+      "changedLines": 2,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
+            "beforeSha256": "95249405ac7fd5cbc9c32735837e60fd1645590bef9de3bb035d5a1a6946c24e",
+            "search": "const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();",
+            "replace": "const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now) && (proposal.status === \"PENDING\" || proposal.status === \"APPROVED\" || proposal.status === \"DEFERRED\")).slice(-40).reverse();"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 2\n\n    at /tmp/ayas-evaluator-yMTQGF/scripts/smoke-ayas-development-center.ts:81:275\n    at scenario (/tmp/ayas-evaluator-yMTQGF/scripts/smoke-ayas-development-center.ts:18:45)\n    at main (/tmp/ayas-evaluator-yMTQGF/scripts/smoke-ayas-development-center.ts:81:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 2,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-daily-development-view",
+      "split": "PRIMARY",
+      "domain": "UI",
+      "repeat": 3,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb",
+      "baseHead": "ce6652beb3d845f29132264265e5a1342292fb93",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:21:04.557Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 204225.19679999992,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16663339008,
+          "usedPct": 51
+        },
+        "peakUsedPct": 89.5,
+        "minFreeBytes": 3570475008,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17849319424,
+          "usedPct": 47.6
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 3036,
+          "completion_tokens": 186
+        },
+        "timings": {
+          "total_ms": 202494.7642,
+          "eval_ms": 5176.454
+        },
+        "toolCalls": null,
+        "contentChars": 534,
+        "content": "{\"schemaVersion\":\"1\",\"edits\":[{\"path\":\"src/lib/brain/autonomy/AyasApprovalInboxView.ts\",\"beforeSha256\":\"95249405ac7fd5cbc9c32735837e60fd1645590bef9de3bb035d5a1a6946c24e\",\"search\":\"const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();\",\"replace\":\"const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now) && (proposal.status === \\\"PENDING\\\" || proposal.status === \\\"APPROVED\\\" || proposal.status === \\\"DEFERRED\\\")).slice(-40).reverse();\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "198aa096d5d7c27e0563d9365bca6a2b6fb0fcf7f9630a080b43bb2b09bbff3c",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-eMcOHb",
+      "responseSha256": "b0cf977fc77c5ba8ba4c4f2e092751ec6ddecd3f6627a5eddc73e9694fe26acc",
+      "generationMs": 202496.76459999988,
+      "evaluationMs": 1085.6978999997955,
+      "changedFiles": [
+        "src/lib/brain/autonomy/AyasApprovalInboxView.ts"
+      ],
+      "changedLines": 2,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
+            "beforeSha256": "95249405ac7fd5cbc9c32735837e60fd1645590bef9de3bb035d5a1a6946c24e",
+            "search": "const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();",
+            "replace": "const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now) && (proposal.status === \"PENDING\" || proposal.status === \"APPROVED\" || proposal.status === \"DEFERRED\")).slice(-40).reverse();"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 2\n\n    at /tmp/ayas-evaluator-NvKhiN/scripts/smoke-ayas-development-center.ts:81:275\n    at scenario (/tmp/ayas-evaluator-NvKhiN/scripts/smoke-ayas-development-center.ts:18:45)\n    at main (/tmp/ayas-evaluator-NvKhiN/scripts/smoke-ayas-development-center.ts:81:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 2,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-two-source-identity-retrieval",
+      "split": "PRIMARY",
+      "domain": "MEMORY_RETRIEVAL",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f",
+      "baseHead": "4fc5b642850075ad00e882d83ab63e205a32b0cd",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:24:40.071Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 215076.70959999994,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17851580416,
+          "usedPct": 47.5
+        },
+        "peakUsedPct": 83,
+        "minFreeBytes": 5783273472,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17788276736,
+          "usedPct": 47.7
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 6544,
+          "completion_tokens": 698
+        },
+        "timings": {
+          "total_ms": 213159.6679,
+          "eval_ms": 20458.013
+        },
+        "toolCalls": null,
+        "contentChars": 1747,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryRetrieval.ts\",\n      \"beforeSha256\": \"f60b5a98481e3ebab63a342c8da1df798b4791ec3d495637148d5d37d7f84da5\",\n      \"search\": \"function identityValue(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const patterns = [\\n    /\\\\bbeni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b/,\\n    /\\\\badim\\\\s+([a-z]{2,40})\\\\b/,\\n    /\\\\bben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b/,\\n    /\\\\bbana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b/,\\n  ];\\n  for (const pattern of patterns) {\\n    const match = value.match(pattern);\\n    if (match?.[1]) return match[1];\\n  }\\n  return null;\\n}\",\n      \"replace\": \"function identityValue(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const patterns = [\\n    /\\\\bbeni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b/,\\n    /\\\\badim\\\\s+([a-z]{2,40})\\\\b/,\\n    /\\\\bben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b/,\\n    /\\\\bbana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b/,\\n  ];\\n  for (const pattern of patterns) {\\n    const match = value.match(pattern);\\n    if (match?.[1]) return match[1];\\n  }\\n  return null;\\n}\\n\\nfunction saveExplicitIdentity(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const identityMatch = /\\\\b(beni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b|adim\\\\s+([a-z]{2,40})\\\\b|ben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b|bana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b)/.exec(value);\\n  if (!identityMatch) return null;\\n  const identity = identityMatch[2] || identityMatch[3] || identityMatch[4] || identityMatch[5];\\n  return identity;\\n}\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "115e485aed2b4ec346042fc72acead92532bae7d4099e596c7f9fb9642d87bb7",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-prAiqG",
+      "responseSha256": "d5bb4d19b0258b11eacf85f1b609ca48be3d65e2eb03632fec890c26e8a65ab8",
+      "generationMs": 213177.2775999999,
+      "evaluationMs": 1015.6511999999639,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts"
+      ],
+      "changedLines": 39,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+            "beforeSha256": "f60b5a98481e3ebab63a342c8da1df798b4791ec3d495637148d5d37d7f84da5",
+            "search": "function identityValue(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const patterns = [\n    /\\bbeni\\s+([a-z]{2,40})\\s+olarak\\b/,\n    /\\badim\\s+([a-z]{2,40})\\b/,\n    /\\bben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b/,\n    /\\bbana\\s+([a-z]{2,40})\\s+diye\\b/,\n  ];\n  for (const pattern of patterns) {\n    const match = value.match(pattern);\n    if (match?.[1]) return match[1];\n  }\n  return null;\n}",
+            "replace": "function identityValue(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const patterns = [\n    /\\bbeni\\s+([a-z]{2,40})\\s+olarak\\b/,\n    /\\badim\\s+([a-z]{2,40})\\b/,\n    /\\bben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b/,\n    /\\bbana\\s+([a-z]{2,40})\\s+diye\\b/,\n  ];\n  for (const pattern of patterns) {\n    const match = value.match(pattern);\n    if (match?.[1]) return match[1];\n  }\n  return null;\n}\n\nfunction saveExplicitIdentity(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const identityMatch = /\\b(beni\\s+([a-z]{2,40})\\s+olarak\\b|adim\\s+([a-z]{2,40})\\b|ben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b|bana\\s+([a-z]{2,40})\\s+diye\\b)/.exec(value);\n  if (!identityMatch) return null;\n  const identity = identityMatch[2] || identityMatch[3] || identityMatch[4] || identityMatch[5];\n  return identity;\n}"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- true\n\n    at /tmp/ayas-evaluator-mJ19F7/scripts/smoke-ayas-memory.ts:82:26\n    at scenario (/tmp/ayas-evaluator-mJ19F7/scripts/smoke-ayas-memory.ts:26:11)\n    at run (/tmp/ayas-evaluator-mJ19F7/scripts/smoke-ayas-memory.ts:79:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-two-source-identity-retrieval",
+      "split": "PRIMARY",
+      "domain": "MEMORY_RETRIEVAL",
+      "repeat": 2,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f",
+      "baseHead": "4fc5b642850075ad00e882d83ab63e205a32b0cd",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:28:30.208Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 229783.02460000012,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17787510784,
+          "usedPct": 47.7
+        },
+        "peakUsedPct": 84.4,
+        "minFreeBytes": 5297799168,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17488175104,
+          "usedPct": 48.6
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 6544,
+          "completion_tokens": 698
+        },
+        "timings": {
+          "total_ms": 227811.5047,
+          "eval_ms": 21392.415
+        },
+        "toolCalls": null,
+        "contentChars": 1747,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryRetrieval.ts\",\n      \"beforeSha256\": \"f60b5a98481e3ebab63a342c8da1df798b4791ec3d495637148d5d37d7f84da5\",\n      \"search\": \"function identityValue(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const patterns = [\\n    /\\\\bbeni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b/,\\n    /\\\\badim\\\\s+([a-z]{2,40})\\\\b/,\\n    /\\\\bben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b/,\\n    /\\\\bbana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b/,\\n  ];\\n  for (const pattern of patterns) {\\n    const match = value.match(pattern);\\n    if (match?.[1]) return match[1];\\n  }\\n  return null;\\n}\",\n      \"replace\": \"function identityValue(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const patterns = [\\n    /\\\\bbeni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b/,\\n    /\\\\badim\\\\s+([a-z]{2,40})\\\\b/,\\n    /\\\\bben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b/,\\n    /\\\\bbana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b/,\\n  ];\\n  for (const pattern of patterns) {\\n    const match = value.match(pattern);\\n    if (match?.[1]) return match[1];\\n  }\\n  return null;\\n}\\n\\nfunction saveExplicitIdentity(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const identityMatch = /\\\\b(beni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b|adim\\\\s+([a-z]{2,40})\\\\b|ben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b|bana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b)/.exec(value);\\n  if (!identityMatch) return null;\\n  const identity = identityMatch[2] || identityMatch[3] || identityMatch[4] || identityMatch[5];\\n  return identity;\\n}\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "115e485aed2b4ec346042fc72acead92532bae7d4099e596c7f9fb9642d87bb7",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-LHLSSm",
+      "responseSha256": "1a43959a3a52e6b0c10fda982b90ff3e61960640430e3a46993263481c7e0cdf",
+      "generationMs": 227813.61430000002,
+      "evaluationMs": 1089.3294999999925,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts"
+      ],
+      "changedLines": 39,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+            "beforeSha256": "f60b5a98481e3ebab63a342c8da1df798b4791ec3d495637148d5d37d7f84da5",
+            "search": "function identityValue(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const patterns = [\n    /\\bbeni\\s+([a-z]{2,40})\\s+olarak\\b/,\n    /\\badim\\s+([a-z]{2,40})\\b/,\n    /\\bben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b/,\n    /\\bbana\\s+([a-z]{2,40})\\s+diye\\b/,\n  ];\n  for (const pattern of patterns) {\n    const match = value.match(pattern);\n    if (match?.[1]) return match[1];\n  }\n  return null;\n}",
+            "replace": "function identityValue(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const patterns = [\n    /\\bbeni\\s+([a-z]{2,40})\\s+olarak\\b/,\n    /\\badim\\s+([a-z]{2,40})\\b/,\n    /\\bben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b/,\n    /\\bbana\\s+([a-z]{2,40})\\s+diye\\b/,\n  ];\n  for (const pattern of patterns) {\n    const match = value.match(pattern);\n    if (match?.[1]) return match[1];\n  }\n  return null;\n}\n\nfunction saveExplicitIdentity(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const identityMatch = /\\b(beni\\s+([a-z]{2,40})\\s+olarak\\b|adim\\s+([a-z]{2,40})\\b|ben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b|bana\\s+([a-z]{2,40})\\s+diye\\b)/.exec(value);\n  if (!identityMatch) return null;\n  const identity = identityMatch[2] || identityMatch[3] || identityMatch[4] || identityMatch[5];\n  return identity;\n}"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- true\n\n    at /tmp/ayas-evaluator-c0bRpZ/scripts/smoke-ayas-memory.ts:82:26\n    at scenario (/tmp/ayas-evaluator-c0bRpZ/scripts/smoke-ayas-memory.ts:26:11)\n    at run (/tmp/ayas-evaluator-c0bRpZ/scripts/smoke-ayas-memory.ts:79:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "historical-two-source-identity-retrieval",
+      "split": "PRIMARY",
+      "domain": "MEMORY_RETRIEVAL",
+      "repeat": 3,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f",
+      "baseHead": "4fc5b642850075ad00e882d83ab63e205a32b0cd",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:32:10.728Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 220100.1462999999,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17487847424,
+          "usedPct": 48.6
+        },
+        "peakUsedPct": 84.4,
+        "minFreeBytes": 5318266880,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17261588480,
+          "usedPct": 49.3
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 6544,
+          "completion_tokens": 698
+        },
+        "timings": {
+          "total_ms": 218190.6199,
+          "eval_ms": 22109.045
+        },
+        "toolCalls": null,
+        "contentChars": 1747,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryRetrieval.ts\",\n      \"beforeSha256\": \"f60b5a98481e3ebab63a342c8da1df798b4791ec3d495637148d5d37d7f84da5\",\n      \"search\": \"function identityValue(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const patterns = [\\n    /\\\\bbeni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b/,\\n    /\\\\badim\\\\s+([a-z]{2,40})\\\\b/,\\n    /\\\\bben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b/,\\n    /\\\\bbana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b/,\\n  ];\\n  for (const pattern of patterns) {\\n    const match = value.match(pattern);\\n    if (match?.[1]) return match[1];\\n  }\\n  return null;\\n}\",\n      \"replace\": \"function identityValue(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const patterns = [\\n    /\\\\bbeni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b/,\\n    /\\\\badim\\\\s+([a-z]{2,40})\\\\b/,\\n    /\\\\bben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b/,\\n    /\\\\bbana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b/,\\n  ];\\n  for (const pattern of patterns) {\\n    const match = value.match(pattern);\\n    if (match?.[1]) return match[1];\\n  }\\n  return null;\\n}\\n\\nfunction saveExplicitIdentity(record: BrainMemoryRecord): string | null {\\n  if (!record.tags.includes(\\\"kimlik\\\")) return null;\\n  const value = fold(record.body);\\n  const identityMatch = /\\\\b(beni\\\\s+([a-z]{2,40})\\\\s+olarak\\\\b|adim\\\\s+([a-z]{2,40})\\\\b|ben\\\\s+([a-z]{2,40})\\\\s*(?:im|yim)\\\\b|bana\\\\s+([a-z]{2,40})\\\\s+diye\\\\b)/.exec(value);\\n  if (!identityMatch) return null;\\n  const identity = identityMatch[2] || identityMatch[3] || identityMatch[4] || identityMatch[5];\\n  return identity;\\n}\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "115e485aed2b4ec346042fc72acead92532bae7d4099e596c7f9fb9642d87bb7",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-d3HcXd",
+      "responseSha256": "5fddf2e869150593b4b61d32e8b9947889bd74e2a1c1db08d36c7631e069c66c",
+      "generationMs": 218192.95299999998,
+      "evaluationMs": 1126.6361000000034,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts"
+      ],
+      "changedLines": 39,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+            "beforeSha256": "f60b5a98481e3ebab63a342c8da1df798b4791ec3d495637148d5d37d7f84da5",
+            "search": "function identityValue(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const patterns = [\n    /\\bbeni\\s+([a-z]{2,40})\\s+olarak\\b/,\n    /\\badim\\s+([a-z]{2,40})\\b/,\n    /\\bben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b/,\n    /\\bbana\\s+([a-z]{2,40})\\s+diye\\b/,\n  ];\n  for (const pattern of patterns) {\n    const match = value.match(pattern);\n    if (match?.[1]) return match[1];\n  }\n  return null;\n}",
+            "replace": "function identityValue(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const patterns = [\n    /\\bbeni\\s+([a-z]{2,40})\\s+olarak\\b/,\n    /\\badim\\s+([a-z]{2,40})\\b/,\n    /\\bben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b/,\n    /\\bbana\\s+([a-z]{2,40})\\s+diye\\b/,\n  ];\n  for (const pattern of patterns) {\n    const match = value.match(pattern);\n    if (match?.[1]) return match[1];\n  }\n  return null;\n}\n\nfunction saveExplicitIdentity(record: BrainMemoryRecord): string | null {\n  if (!record.tags.includes(\"kimlik\")) return null;\n  const value = fold(record.body);\n  const identityMatch = /\\b(beni\\s+([a-z]{2,40})\\s+olarak\\b|adim\\s+([a-z]{2,40})\\b|ben\\s+([a-z]{2,40})\\s*(?:im|yim)\\b|bana\\s+([a-z]{2,40})\\s+diye\\b)/.exec(value);\n  if (!identityMatch) return null;\n  const identity = identityMatch[2] || identityMatch[3] || identityMatch[4] || identityMatch[5];\n  return identity;\n}"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- true\n\n    at /tmp/ayas-evaluator-Gyffrw/scripts/smoke-ayas-memory.ts:82:26\n    at scenario (/tmp/ayas-evaluator-Gyffrw/scripts/smoke-ayas-memory.ts:26:11)\n    at run (/tmp/ayas-evaluator-Gyffrw/scripts/smoke-ayas-memory.ts:79:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX"
+    },
+    {
+      "caseId": "heldout-render-tool-supersession",
+      "split": "HELD_OUT",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78",
+      "baseHead": "71f554eb72e6f5aaafb272f31bff402664f602cc",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:37:38.214Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 327093.26719999965,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17261375488,
+          "usedPct": 49.3
+        },
+        "peakUsedPct": 83.8,
+        "minFreeBytes": 5497511936,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 8928727040,
+          "usedPct": 73.8
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14869,
+          "completion_tokens": 3283
+        },
+        "timings": {
+          "total_ms": 326951.9552,
+          "eval_ms": 110716.97
+        },
+        "toolCalls": null,
+        "contentChars": 12430,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"eba4907c9f69df03188f708abe5ffe20c68a214c3d47eaac0c7bb6e3c23fdfec\", \"search\": \"export function resolveAyasMemoryTemporal(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const nowMs = Date.parse(options.nowIso);\\n  const query = normalizeQuery(options.query, nowMs);\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  const bounds = new Map<string, Bounds>();\\n  const state = new Map<string, AyasMemoryTemporalState>();\\n  const superseded = new Map<string, { at: string; by: string }>();\\n  const groups = new Map<AyasMemoryFactKey, BrainMemoryRecord[]>();\\n  const facts = new Map<string, AyasMemoryFact | null>();\\n\\n  for (const record of records) {\\n    const invalidTemporal =\\n      !isValidBrainMemoryTemporal(record) ||\\n      (record.temporal?.factKey !== undefined && !isAyasMemoryFactKey(record.temporal.factKey));\\n    if (invalidTemporal) {\\n      state.set(record.recordId, \\\"invalid\\\");\\n      continue;\\n    }\\n    bounds.set(record.recordId, baseBounds(record, query.beliefMs));\\n    const assertion = record.temporal?.assertion ?? \\\"current\\\";\\n    const fact = ayasMemoryRecordFact(record);\\n    facts.set(record.recordId, fact);\\n    const excluded =\\n      fact !== null &&\\n      (Date.parse(record.observedAt) > nowMs + FUTURE_TOLERANCE_MS || containsAyasMemoryInstructionInjection(record));\\n    if (assertion !== \\\"current\\\") {\\n      state.set(record.recordId, assertion === \\\"historical\\\" ? \\\"historical\\\" : \\\"future\\\");\\n    } else if (fact && !excluded) {\\n      const group = groups.get(fact.key) ?? [];\\n      group.push(record);\\n      groups.set(fact.key, group);\\n    } else {\\n      state.set(record.recordId, \\\"current\\\");\\n    }\\n  }\\n\\n  for (const group of groups.values()) {\\n    const valueOf = (record: BrainMemoryRecord) => facts.get(record.recordId)!.value;\\n    const topTrust = Math.max(...group.map(ayasMemoryTrustRank));\\n    const top = group.filter((record) => ayasMemoryTrustRank(record) === topTrust);\\n    const topValues = new Set(top.map(valueOf));\\n    let resolved: string | null = null;\\n\\n    if (topValues.size === 1) {\\n      resolved = [...topValues][0];\\n    } else {\\n      const chain = top\\n        .filter(isAuthoritative)\\n        .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt) || left.recordId.localeCompare(right.recordId));\\n      // Group by observation instant (a tie of different values stays one\\n      // disputed group), then merge consecutive single-value groups of the\\n      // same value into one version.\\n      const instants: Version[] = [];\\n      for (const record of chain) {\\n        const observedMs = Date.parse(record.observedAt);\\n        const last = instants.at(-1);\\n        if (last && last.observedMs === observedMs) {\\n          last.records.push(record);\\n          last.values.add(valueOf(record));\\n        } else {\\n          instants.push({ records: [record], values: new Set([valueOf(record)]), observedMs });\\n        }\\n      }\\n      const versions: Version[] = [];\\n      for (const instant of instants) {\\n        const last = versions.at(-1);\\n        const sameValue = last && last.values.size === 1 && instant.values.size === 1 && last.values.has([...instant.values][0]);\\n        if (last && sameValue) {\\n          last.records.push(...instant.records);\\n          last.observedMs = instant.observedMs;\\n        } else {\\n          versions.push(instant);\\n        }\\n      }\\n      const latest = versions.at(-1);\\n      if (latest && latest.values.size === 1) {\\n        resolved = [...latest.values][0];\\n        linkVersions(versions, bounds, state, superseded);\\n      }\\n    }\\n\\n    for (const record of group) {\\n      if (state.has(record.recordId)) continue;\\n      if (resolved === null) {\\n        state.set(record.recordId, ayasMemoryTrustRank(record) === topTrust ? \\\"disputed\\\" : \\\"conflicting\\\");\\n      } else {\\n        state.set(record.recordId, valueOf(record) === resolved ? \\\"current\\\" : \\\"conflicting\\\");\\n      }\\n    }\\n  }\\n\\n  for (const record of records) {\\n    const recordState = state.get(record.recordId) ?? \\\"invalid\\\";\\n    const recordBounds = bounds.get(record.recordId);\\n    // An explicit end that has already passed turns a current fact into history.\\n    const finalState = recordState === \\\"current\\\" && recordBounds && recordBounds.eHi <= query.beliefMs ? \\\"historical\\\" : recordState;\\n    const link = superseded.get(record.recordId);\\n    const t = record.temporal;\\n    views.set(record.recordId, {\\n      legacy: t === undefined,\\n      assertion: t?.assertion ?? \\\"current\\\",\\n      provenance: ayasMemoryProvenance(record),\\n      recordedAt: t?.recordedAt ?? record.observedAt,\\n      ...(t?.effectiveFrom !== undefined ? { effectiveFrom: t.effectiveFrom } : {}),\\n      ...(t?.effectiveUntil !== undefined ? { effectiveUntil: t.effectiveUntil } : {}),\\n      ...(t?.heldFrom !== undefined ? { heldFrom: t.heldFrom, heldUntil: t.heldUntil } : {}),\\n      ...(t?.effectivePrecision !== undefined ? { effectivePrecision: t.effectivePrecision } : {}),\\n      fact: facts.get(record.recordId) ?? null,\\n      state: finalState,\\n      ...(link ? { supersededAt: link.at, supersededBy: link.by } : {}),\\n      ...(recordBounds?.clamped ? { startClamped: true } : {}),\\n      ...(query.mode === \\\"as-of\\\"\\n        ? { asOf: asOfCertainty(finalState, recordBounds, query) }\\n        : {}),\\n    });\\n  }\\n  return { views, invalidQuery: query.invalid };\\n}\\n\", \"replace\": \"export function resolveAyasMemoryTemporal(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const nowMs = Date.parse(options.nowIso);\\n  const query = normalizeQuery(options.query, nowMs);\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  const bounds = new Map<string, Bounds>();\\n  const state = new Map<string, AyasMemoryTemporalState>();\\n  const superseded = new Map<string, { at: string; by: string }>();\\n  const groups = new Map<AyasMemoryFactKey, BrainMemoryRecord[]>();\\n  const facts = new Map<string, AyasMemoryFact | null>();\\n\\n  for (const record of records) {\\n    const invalidTemporal =\\n      !isValidBrainMemoryTemporal(record) ||\\n      (record.temporal?.factKey !== undefined && !isAyasMemoryFactKey(record.temporal.factKey));\\n    if (invalidTemporal) {\\n      state.set(record.recordId, \\\"invalid\\\");\\n      continue;\\n    }\\n    bounds.set(record.recordId, baseBounds(record, query.beliefMs));\\n    const assertion = record.temporal?.assertion ?? \\\"current\\\";\\n    const fact = ayasMemoryRecordFact(record);\\n    facts.set(record.recordId, fact);\\n    const excluded =\\n      fact !== null &&\\n      (Date.parse(record.observedAt) > nowMs + FUTURE_TOLERANCE_MS || containsAyasMemoryInstructionInjection(record));\\n    if (assertion !== \\\"current\\\") {\\n      state.set(record.recordId, assertion === \\\"historical\\\" ? \\\"historical\\\" : \\\"future\\\");\\n    } else if (fact && !excluded) {\\n      const group = groups.get(fact.key) ?? [];\\n      group.push(record);\\n      groups.set(fact.key, group);\\n    } else {\\n      state.set(record.recordId, \\\"current\\\");\\n    }\\n  }\\n\\n  for (const group of groups.values()) {\\n    const valueOf = (record: BrainMemoryRecord) => facts.get(record.recordId)!.value;\\n    const topTrust = Math.max(...group.map(ayasMemoryTrustRank));\\n    const top = group.filter((record) => ayasMemoryTrustRank(record) === topTrust);\\n    const topValues = new Set(top.map(valueOf));\\n    let resolved: string | null = null;\\n\\n    if (topValues.size === 1) {\\n      resolved = [...topValues][0];\\n    } else {\\n      const chain = top\\n        .filter(isAuthoritative)\\n        .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt) || left.recordId.localeCompare(right.recordId));\\n      // Group by observation instant (a tie of different values stays one\\n      // disputed group), then merge consecutive single-value groups of the\\n      // same value into one version.\\n      const instants: Version[] = [];\\n      for (const record of chain) {\\n        const observedMs = Date.parse(record.observedAt);\\n        const last = instants.at(-1);\\n        if (last && last.observedMs === observedMs) {\\n          last.records.push(record);\\n          last.values.add(valueOf(record));\\n        } else {\\n          instants.push({ records: [record], values: new Set([valueOf(record)]), observedMs });\\n        }\\n      }\\n      const versions: Version[] = [];\\n      for (const instant of instants) {\\n        const last = versions.at(-1);\\n        const sameValue = last && last.values.size === 1 && instant.values.size === 1 && last.values.has([...instant.values][0]);\\n        if (last && sameValue) {\\n          last.records.push(...instant.records);\\n          last.observedMs = instant.observedMs;\\n        } else {\\n          versions.push(instant);\\n        }\\n      }\\n      const latest = versions.at(-1);\\n      if (latest && latest.values.size === 1) {\\n        resolved = [...latest.values][0];\\n        linkVersions(versions, bounds, state, superseded);\\n      }\\n    }\\n\\n    for (const record of group) {\\n      if (state.has(record.recordId)) continue;\\n      if (resolved === null) {\\n        state.set(record.recordId, ayasMemoryTrustRank(record) === topTrust ? \\\"disputed\\\" : \\\"conflicting\\\");\\n      } else {\\n        state.set(record.recordId, valueOf(record) === resolved ? \\\"current\\\" : \\\"conflicting\\\");\\n      }\\n    }\\n  }\\n\\n  for (const record of records) {\\n    const recordState = state.get(record.recordId) ?? \\\"invalid\\\";\\n    const recordBounds = bounds.get(record.recordId);\\n    // An explicit end that has already passed turns a current fact into history.\\n    const finalState = recordState === \\\"current\\\" && recordBounds && recordBounds.eHi <= query.beliefMs ? \\\"historical\\\" : recordState;\\n    const link = superseded.get(record.recordId);\\n    const t = record.temporal;\\n    views.set(record.recordId, {\\n      legacy: t === undefined,\\n      assertion: t?.assertion ?? \\\"current\\\",\\n      provenance: ayasMemoryProvenance(record),\\n      recordedAt: t?.recordedAt ?? record.observedAt,\\n      ...(t?.effectiveFrom !== undefined ? { effectiveFrom: t.effectiveFrom } : {}),\\n      ...(t?.effectiveUntil !== undefined ? { effectiveUntil: t.effectiveUntil } : {}),\\n      ...(t?.heldFrom !== undefined ? { heldFrom: t.heldFrom, heldUntil: t.heldUntil } : {}),\\n      ...(t?.effectivePrecision !== undefined ? { effectivePrecision: t.effectivePrecision } : {}),\\n      fact: facts.get(record.recordId) ?? null,\\n      state: finalState,\\n      ...(link ? { supersededAt: link.at, supersededBy: link.by } : {}),\\n      ...(recordBounds?.clamped ? { startClamped: true } : {}),\\n      ...(query.mode === \\\"as-of\\\"\\n        ? { asOf: asOfCertainty(finalState, recordBounds, query) }\\n        : {}),\\n    });\\n  }\\n  return { views, invalidQuery: query.invalid };\\n}\\n\\n/**\\n * A later explicit render-tool decision must be current while the earlier\\n * decision stays available as history without rewriting records.\\n */\\nexport function resolveAyasMemoryTemporalWithHistory(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const resolution = resolveAyasMemoryTemporal(records, options);\\n  if (options.query?.mode === \\\"current\\\" && options.query.includeHistory === true) {\\n    // For as-of queries, we already have the history included in the view\\n    return resolution;\\n  }\\n  \\n  // For current mode with includeHistory, we need to ensure that even superseded records are included\\n  // but marked appropriately. This is a simplified version that ensures all records are considered.\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  for (const [recordId, view] of resolution.views.entries()) {\\n    views.set(recordId, view);\\n  }\\n  \\n  // If we're in current mode and includeHistory is true, we should not filter out superseded records\\n  // but they must be marked as such.\\n  return { views: resolution.views, invalidQuery: resolution.invalidQuery };\\n}\"}]}"
+      },
+      "outcome": "SCOPE_OR_BUDGET_REFUSED",
+      "reason": "PATCH_LINE_BUDGET_EXCEEDED"
+    },
+    {
+      "caseId": "heldout-render-tool-supersession",
+      "split": "HELD_OUT",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 2,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78",
+      "baseHead": "71f554eb72e6f5aaafb272f31bff402664f602cc",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:43:08.960Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 330488.0149000003,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 9466310656,
+          "usedPct": 72.2
+        },
+        "peakUsedPct": 81.6,
+        "minFreeBytes": 6248144896,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 12049162240,
+          "usedPct": 64.6
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14869,
+          "completion_tokens": 3283
+        },
+        "timings": {
+          "total_ms": 330158.0791,
+          "eval_ms": 113668.27
+        },
+        "toolCalls": null,
+        "contentChars": 12430,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"eba4907c9f69df03188f708abe5ffe20c68a214c3d47eaac0c7bb6e3c23fdfec\", \"search\": \"export function resolveAyasMemoryTemporal(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const nowMs = Date.parse(options.nowIso);\\n  const query = normalizeQuery(options.query, nowMs);\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  const bounds = new Map<string, Bounds>();\\n  const state = new Map<string, AyasMemoryTemporalState>();\\n  const superseded = new Map<string, { at: string; by: string }>();\\n  const groups = new Map<AyasMemoryFactKey, BrainMemoryRecord[]>();\\n  const facts = new Map<string, AyasMemoryFact | null>();\\n\\n  for (const record of records) {\\n    const invalidTemporal =\\n      !isValidBrainMemoryTemporal(record) ||\\n      (record.temporal?.factKey !== undefined && !isAyasMemoryFactKey(record.temporal.factKey));\\n    if (invalidTemporal) {\\n      state.set(record.recordId, \\\"invalid\\\");\\n      continue;\\n    }\\n    bounds.set(record.recordId, baseBounds(record, query.beliefMs));\\n    const assertion = record.temporal?.assertion ?? \\\"current\\\";\\n    const fact = ayasMemoryRecordFact(record);\\n    facts.set(record.recordId, fact);\\n    const excluded =\\n      fact !== null &&\\n      (Date.parse(record.observedAt) > nowMs + FUTURE_TOLERANCE_MS || containsAyasMemoryInstructionInjection(record));\\n    if (assertion !== \\\"current\\\") {\\n      state.set(record.recordId, assertion === \\\"historical\\\" ? \\\"historical\\\" : \\\"future\\\");\\n    } else if (fact && !excluded) {\\n      const group = groups.get(fact.key) ?? [];\\n      group.push(record);\\n      groups.set(fact.key, group);\\n    } else {\\n      state.set(record.recordId, \\\"current\\\");\\n    }\\n  }\\n\\n  for (const group of groups.values()) {\\n    const valueOf = (record: BrainMemoryRecord) => facts.get(record.recordId)!.value;\\n    const topTrust = Math.max(...group.map(ayasMemoryTrustRank));\\n    const top = group.filter((record) => ayasMemoryTrustRank(record) === topTrust);\\n    const topValues = new Set(top.map(valueOf));\\n    let resolved: string | null = null;\\n\\n    if (topValues.size === 1) {\\n      resolved = [...topValues][0];\\n    } else {\\n      const chain = top\\n        .filter(isAuthoritative)\\n        .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt) || left.recordId.localeCompare(right.recordId));\\n      // Group by observation instant (a tie of different values stays one\\n      // disputed group), then merge consecutive single-value groups of the\\n      // same value into one version.\\n      const instants: Version[] = [];\\n      for (const record of chain) {\\n        const observedMs = Date.parse(record.observedAt);\\n        const last = instants.at(-1);\\n        if (last && last.observedMs === observedMs) {\\n          last.records.push(record);\\n          last.values.add(valueOf(record));\\n        } else {\\n          instants.push({ records: [record], values: new Set([valueOf(record)]), observedMs });\\n        }\\n      }\\n      const versions: Version[] = [];\\n      for (const instant of instants) {\\n        const last = versions.at(-1);\\n        const sameValue = last && last.values.size === 1 && instant.values.size === 1 && last.values.has([...instant.values][0]);\\n        if (last && sameValue) {\\n          last.records.push(...instant.records);\\n          last.observedMs = instant.observedMs;\\n        } else {\\n          versions.push(instant);\\n        }\\n      }\\n      const latest = versions.at(-1);\\n      if (latest && latest.values.size === 1) {\\n        resolved = [...latest.values][0];\\n        linkVersions(versions, bounds, state, superseded);\\n      }\\n    }\\n\\n    for (const record of group) {\\n      if (state.has(record.recordId)) continue;\\n      if (resolved === null) {\\n        state.set(record.recordId, ayasMemoryTrustRank(record) === topTrust ? \\\"disputed\\\" : \\\"conflicting\\\");\\n      } else {\\n        state.set(record.recordId, valueOf(record) === resolved ? \\\"current\\\" : \\\"conflicting\\\");\\n      }\\n    }\\n  }\\n\\n  for (const record of records) {\\n    const recordState = state.get(record.recordId) ?? \\\"invalid\\\";\\n    const recordBounds = bounds.get(record.recordId);\\n    // An explicit end that has already passed turns a current fact into history.\\n    const finalState = recordState === \\\"current\\\" && recordBounds && recordBounds.eHi <= query.beliefMs ? \\\"historical\\\" : recordState;\\n    const link = superseded.get(record.recordId);\\n    const t = record.temporal;\\n    views.set(record.recordId, {\\n      legacy: t === undefined,\\n      assertion: t?.assertion ?? \\\"current\\\",\\n      provenance: ayasMemoryProvenance(record),\\n      recordedAt: t?.recordedAt ?? record.observedAt,\\n      ...(t?.effectiveFrom !== undefined ? { effectiveFrom: t.effectiveFrom } : {}),\\n      ...(t?.effectiveUntil !== undefined ? { effectiveUntil: t.effectiveUntil } : {}),\\n      ...(t?.heldFrom !== undefined ? { heldFrom: t.heldFrom, heldUntil: t.heldUntil } : {}),\\n      ...(t?.effectivePrecision !== undefined ? { effectivePrecision: t.effectivePrecision } : {}),\\n      fact: facts.get(record.recordId) ?? null,\\n      state: finalState,\\n      ...(link ? { supersededAt: link.at, supersededBy: link.by } : {}),\\n      ...(recordBounds?.clamped ? { startClamped: true } : {}),\\n      ...(query.mode === \\\"as-of\\\"\\n        ? { asOf: asOfCertainty(finalState, recordBounds, query) }\\n        : {}),\\n    });\\n  }\\n  return { views, invalidQuery: query.invalid };\\n}\\n\", \"replace\": \"export function resolveAyasMemoryTemporal(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const nowMs = Date.parse(options.nowIso);\\n  const query = normalizeQuery(options.query, nowMs);\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  const bounds = new Map<string, Bounds>();\\n  const state = new Map<string, AyasMemoryTemporalState>();\\n  const superseded = new Map<string, { at: string; by: string }>();\\n  const groups = new Map<AyasMemoryFactKey, BrainMemoryRecord[]>();\\n  const facts = new Map<string, AyasMemoryFact | null>();\\n\\n  for (const record of records) {\\n    const invalidTemporal =\\n      !isValidBrainMemoryTemporal(record) ||\\n      (record.temporal?.factKey !== undefined && !isAyasMemoryFactKey(record.temporal.factKey));\\n    if (invalidTemporal) {\\n      state.set(record.recordId, \\\"invalid\\\");\\n      continue;\\n    }\\n    bounds.set(record.recordId, baseBounds(record, query.beliefMs));\\n    const assertion = record.temporal?.assertion ?? \\\"current\\\";\\n    const fact = ayasMemoryRecordFact(record);\\n    facts.set(record.recordId, fact);\\n    const excluded =\\n      fact !== null &&\\n      (Date.parse(record.observedAt) > nowMs + FUTURE_TOLERANCE_MS || containsAyasMemoryInstructionInjection(record));\\n    if (assertion !== \\\"current\\\") {\\n      state.set(record.recordId, assertion === \\\"historical\\\" ? \\\"historical\\\" : \\\"future\\\");\\n    } else if (fact && !excluded) {\\n      const group = groups.get(fact.key) ?? [];\\n      group.push(record);\\n      groups.set(fact.key, group);\\n    } else {\\n      state.set(record.recordId, \\\"current\\\");\\n    }\\n  }\\n\\n  for (const group of groups.values()) {\\n    const valueOf = (record: BrainMemoryRecord) => facts.get(record.recordId)!.value;\\n    const topTrust = Math.max(...group.map(ayasMemoryTrustRank));\\n    const top = group.filter((record) => ayasMemoryTrustRank(record) === topTrust);\\n    const topValues = new Set(top.map(valueOf));\\n    let resolved: string | null = null;\\n\\n    if (topValues.size === 1) {\\n      resolved = [...topValues][0];\\n    } else {\\n      const chain = top\\n        .filter(isAuthoritative)\\n        .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt) || left.recordId.localeCompare(right.recordId));\\n      // Group by observation instant (a tie of different values stays one\\n      // disputed group), then merge consecutive single-value groups of the\\n      // same value into one version.\\n      const instants: Version[] = [];\\n      for (const record of chain) {\\n        const observedMs = Date.parse(record.observedAt);\\n        const last = instants.at(-1);\\n        if (last && last.observedMs === observedMs) {\\n          last.records.push(record);\\n          last.values.add(valueOf(record));\\n        } else {\\n          instants.push({ records: [record], values: new Set([valueOf(record)]), observedMs });\\n        }\\n      }\\n      const versions: Version[] = [];\\n      for (const instant of instants) {\\n        const last = versions.at(-1);\\n        const sameValue = last && last.values.size === 1 && instant.values.size === 1 && last.values.has([...instant.values][0]);\\n        if (last && sameValue) {\\n          last.records.push(...instant.records);\\n          last.observedMs = instant.observedMs;\\n        } else {\\n          versions.push(instant);\\n        }\\n      }\\n      const latest = versions.at(-1);\\n      if (latest && latest.values.size === 1) {\\n        resolved = [...latest.values][0];\\n        linkVersions(versions, bounds, state, superseded);\\n      }\\n    }\\n\\n    for (const record of group) {\\n      if (state.has(record.recordId)) continue;\\n      if (resolved === null) {\\n        state.set(record.recordId, ayasMemoryTrustRank(record) === topTrust ? \\\"disputed\\\" : \\\"conflicting\\\");\\n      } else {\\n        state.set(record.recordId, valueOf(record) === resolved ? \\\"current\\\" : \\\"conflicting\\\");\\n      }\\n    }\\n  }\\n\\n  for (const record of records) {\\n    const recordState = state.get(record.recordId) ?? \\\"invalid\\\";\\n    const recordBounds = bounds.get(record.recordId);\\n    // An explicit end that has already passed turns a current fact into history.\\n    const finalState = recordState === \\\"current\\\" && recordBounds && recordBounds.eHi <= query.beliefMs ? \\\"historical\\\" : recordState;\\n    const link = superseded.get(record.recordId);\\n    const t = record.temporal;\\n    views.set(record.recordId, {\\n      legacy: t === undefined,\\n      assertion: t?.assertion ?? \\\"current\\\",\\n      provenance: ayasMemoryProvenance(record),\\n      recordedAt: t?.recordedAt ?? record.observedAt,\\n      ...(t?.effectiveFrom !== undefined ? { effectiveFrom: t.effectiveFrom } : {}),\\n      ...(t?.effectiveUntil !== undefined ? { effectiveUntil: t.effectiveUntil } : {}),\\n      ...(t?.heldFrom !== undefined ? { heldFrom: t.heldFrom, heldUntil: t.heldUntil } : {}),\\n      ...(t?.effectivePrecision !== undefined ? { effectivePrecision: t.effectivePrecision } : {}),\\n      fact: facts.get(record.recordId) ?? null,\\n      state: finalState,\\n      ...(link ? { supersededAt: link.at, supersededBy: link.by } : {}),\\n      ...(recordBounds?.clamped ? { startClamped: true } : {}),\\n      ...(query.mode === \\\"as-of\\\"\\n        ? { asOf: asOfCertainty(finalState, recordBounds, query) }\\n        : {}),\\n    });\\n  }\\n  return { views, invalidQuery: query.invalid };\\n}\\n\\n/**\\n * A later explicit render-tool decision must be current while the earlier\\n * decision stays available as history without rewriting records.\\n */\\nexport function resolveAyasMemoryTemporalWithHistory(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const resolution = resolveAyasMemoryTemporal(records, options);\\n  if (options.query?.mode === \\\"current\\\" && options.query.includeHistory === true) {\\n    // For as-of queries, we already have the history included in the view\\n    return resolution;\\n  }\\n  \\n  // For current mode with includeHistory, we need to ensure that even superseded records are included\\n  // but marked appropriately. This is a simplified version that ensures all records are considered.\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  for (const [recordId, view] of resolution.views.entries()) {\\n    views.set(recordId, view);\\n  }\\n  \\n  // If we're in current mode and includeHistory is true, we should not filter out superseded records\\n  // but they must be marked as such.\\n  return { views: resolution.views, invalidQuery: resolution.invalidQuery };\\n}\"}]}"
+      },
+      "outcome": "SCOPE_OR_BUDGET_REFUSED",
+      "reason": "PATCH_LINE_BUDGET_EXCEEDED"
+    },
+    {
+      "caseId": "heldout-render-tool-supersession",
+      "split": "HELD_OUT",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 3,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78",
+      "baseHead": "71f554eb72e6f5aaafb272f31bff402664f602cc",
+      "harness": {
+        "repositoryHead": "514ddbd1ed19e05f49301bb0d5069a1e73e19e92",
+        "runnerSha256": "5dcf4176d30314cc59873873880278f5a3128cf1ef96217301ebd84109705b7a",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-15T04:48:29.136Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 319837.1329000001,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 12563267584,
+          "usedPct": 63.1
+        },
+        "peakUsedPct": 82.1,
+        "minFreeBytes": 6094983168,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 11697950720,
+          "usedPct": 65.6
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14869,
+          "completion_tokens": 3283
+        },
+        "timings": {
+          "total_ms": 319511.6584,
+          "eval_ms": 110519.963
+        },
+        "toolCalls": null,
+        "contentChars": 12430,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"eba4907c9f69df03188f708abe5ffe20c68a214c3d47eaac0c7bb6e3c23fdfec\", \"search\": \"export function resolveAyasMemoryTemporal(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const nowMs = Date.parse(options.nowIso);\\n  const query = normalizeQuery(options.query, nowMs);\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  const bounds = new Map<string, Bounds>();\\n  const state = new Map<string, AyasMemoryTemporalState>();\\n  const superseded = new Map<string, { at: string; by: string }>();\\n  const groups = new Map<AyasMemoryFactKey, BrainMemoryRecord[]>();\\n  const facts = new Map<string, AyasMemoryFact | null>();\\n\\n  for (const record of records) {\\n    const invalidTemporal =\\n      !isValidBrainMemoryTemporal(record) ||\\n      (record.temporal?.factKey !== undefined && !isAyasMemoryFactKey(record.temporal.factKey));\\n    if (invalidTemporal) {\\n      state.set(record.recordId, \\\"invalid\\\");\\n      continue;\\n    }\\n    bounds.set(record.recordId, baseBounds(record, query.beliefMs));\\n    const assertion = record.temporal?.assertion ?? \\\"current\\\";\\n    const fact = ayasMemoryRecordFact(record);\\n    facts.set(record.recordId, fact);\\n    const excluded =\\n      fact !== null &&\\n      (Date.parse(record.observedAt) > nowMs + FUTURE_TOLERANCE_MS || containsAyasMemoryInstructionInjection(record));\\n    if (assertion !== \\\"current\\\") {\\n      state.set(record.recordId, assertion === \\\"historical\\\" ? \\\"historical\\\" : \\\"future\\\");\\n    } else if (fact && !excluded) {\\n      const group = groups.get(fact.key) ?? [];\\n      group.push(record);\\n      groups.set(fact.key, group);\\n    } else {\\n      state.set(record.recordId, \\\"current\\\");\\n    }\\n  }\\n\\n  for (const group of groups.values()) {\\n    const valueOf = (record: BrainMemoryRecord) => facts.get(record.recordId)!.value;\\n    const topTrust = Math.max(...group.map(ayasMemoryTrustRank));\\n    const top = group.filter((record) => ayasMemoryTrustRank(record) === topTrust);\\n    const topValues = new Set(top.map(valueOf));\\n    let resolved: string | null = null;\\n\\n    if (topValues.size === 1) {\\n      resolved = [...topValues][0];\\n    } else {\\n      const chain = top\\n        .filter(isAuthoritative)\\n        .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt) || left.recordId.localeCompare(right.recordId));\\n      // Group by observation instant (a tie of different values stays one\\n      // disputed group), then merge consecutive single-value groups of the\\n      // same value into one version.\\n      const instants: Version[] = [];\\n      for (const record of chain) {\\n        const observedMs = Date.parse(record.observedAt);\\n        const last = instants.at(-1);\\n        if (last && last.observedMs === observedMs) {\\n          last.records.push(record);\\n          last.values.add(valueOf(record));\\n        } else {\\n          instants.push({ records: [record], values: new Set([valueOf(record)]), observedMs });\\n        }\\n      }\\n      const versions: Version[] = [];\\n      for (const instant of instants) {\\n        const last = versions.at(-1);\\n        const sameValue = last && last.values.size === 1 && instant.values.size === 1 && last.values.has([...instant.values][0]);\\n        if (last && sameValue) {\\n          last.records.push(...instant.records);\\n          last.observedMs = instant.observedMs;\\n        } else {\\n          versions.push(instant);\\n        }\\n      }\\n      const latest = versions.at(-1);\\n      if (latest && latest.values.size === 1) {\\n        resolved = [...latest.values][0];\\n        linkVersions(versions, bounds, state, superseded);\\n      }\\n    }\\n\\n    for (const record of group) {\\n      if (state.has(record.recordId)) continue;\\n      if (resolved === null) {\\n        state.set(record.recordId, ayasMemoryTrustRank(record) === topTrust ? \\\"disputed\\\" : \\\"conflicting\\\");\\n      } else {\\n        state.set(record.recordId, valueOf(record) === resolved ? \\\"current\\\" : \\\"conflicting\\\");\\n      }\\n    }\\n  }\\n\\n  for (const record of records) {\\n    const recordState = state.get(record.recordId) ?? \\\"invalid\\\";\\n    const recordBounds = bounds.get(record.recordId);\\n    // An explicit end that has already passed turns a current fact into history.\\n    const finalState = recordState === \\\"current\\\" && recordBounds && recordBounds.eHi <= query.beliefMs ? \\\"historical\\\" : recordState;\\n    const link = superseded.get(record.recordId);\\n    const t = record.temporal;\\n    views.set(record.recordId, {\\n      legacy: t === undefined,\\n      assertion: t?.assertion ?? \\\"current\\\",\\n      provenance: ayasMemoryProvenance(record),\\n      recordedAt: t?.recordedAt ?? record.observedAt,\\n      ...(t?.effectiveFrom !== undefined ? { effectiveFrom: t.effectiveFrom } : {}),\\n      ...(t?.effectiveUntil !== undefined ? { effectiveUntil: t.effectiveUntil } : {}),\\n      ...(t?.heldFrom !== undefined ? { heldFrom: t.heldFrom, heldUntil: t.heldUntil } : {}),\\n      ...(t?.effectivePrecision !== undefined ? { effectivePrecision: t.effectivePrecision } : {}),\\n      fact: facts.get(record.recordId) ?? null,\\n      state: finalState,\\n      ...(link ? { supersededAt: link.at, supersededBy: link.by } : {}),\\n      ...(recordBounds?.clamped ? { startClamped: true } : {}),\\n      ...(query.mode === \\\"as-of\\\"\\n        ? { asOf: asOfCertainty(finalState, recordBounds, query) }\\n        : {}),\\n    });\\n  }\\n  return { views, invalidQuery: query.invalid };\\n}\\n\", \"replace\": \"export function resolveAyasMemoryTemporal(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const nowMs = Date.parse(options.nowIso);\\n  const query = normalizeQuery(options.query, nowMs);\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  const bounds = new Map<string, Bounds>();\\n  const state = new Map<string, AyasMemoryTemporalState>();\\n  const superseded = new Map<string, { at: string; by: string }>();\\n  const groups = new Map<AyasMemoryFactKey, BrainMemoryRecord[]>();\\n  const facts = new Map<string, AyasMemoryFact | null>();\\n\\n  for (const record of records) {\\n    const invalidTemporal =\\n      !isValidBrainMemoryTemporal(record) ||\\n      (record.temporal?.factKey !== undefined && !isAyasMemoryFactKey(record.temporal.factKey));\\n    if (invalidTemporal) {\\n      state.set(record.recordId, \\\"invalid\\\");\\n      continue;\\n    }\\n    bounds.set(record.recordId, baseBounds(record, query.beliefMs));\\n    const assertion = record.temporal?.assertion ?? \\\"current\\\";\\n    const fact = ayasMemoryRecordFact(record);\\n    facts.set(record.recordId, fact);\\n    const excluded =\\n      fact !== null &&\\n      (Date.parse(record.observedAt) > nowMs + FUTURE_TOLERANCE_MS || containsAyasMemoryInstructionInjection(record));\\n    if (assertion !== \\\"current\\\") {\\n      state.set(record.recordId, assertion === \\\"historical\\\" ? \\\"historical\\\" : \\\"future\\\");\\n    } else if (fact && !excluded) {\\n      const group = groups.get(fact.key) ?? [];\\n      group.push(record);\\n      groups.set(fact.key, group);\\n    } else {\\n      state.set(record.recordId, \\\"current\\\");\\n    }\\n  }\\n\\n  for (const group of groups.values()) {\\n    const valueOf = (record: BrainMemoryRecord) => facts.get(record.recordId)!.value;\\n    const topTrust = Math.max(...group.map(ayasMemoryTrustRank));\\n    const top = group.filter((record) => ayasMemoryTrustRank(record) === topTrust);\\n    const topValues = new Set(top.map(valueOf));\\n    let resolved: string | null = null;\\n\\n    if (topValues.size === 1) {\\n      resolved = [...topValues][0];\\n    } else {\\n      const chain = top\\n        .filter(isAuthoritative)\\n        .sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt) || left.recordId.localeCompare(right.recordId));\\n      // Group by observation instant (a tie of different values stays one\\n      // disputed group), then merge consecutive single-value groups of the\\n      // same value into one version.\\n      const instants: Version[] = [];\\n      for (const record of chain) {\\n        const observedMs = Date.parse(record.observedAt);\\n        const last = instants.at(-1);\\n        if (last && last.observedMs === observedMs) {\\n          last.records.push(record);\\n          last.values.add(valueOf(record));\\n        } else {\\n          instants.push({ records: [record], values: new Set([valueOf(record)]), observedMs });\\n        }\\n      }\\n      const versions: Version[] = [];\\n      for (const instant of instants) {\\n        const last = versions.at(-1);\\n        const sameValue = last && last.values.size === 1 && instant.values.size === 1 && last.values.has([...instant.values][0]);\\n        if (last && sameValue) {\\n          last.records.push(...instant.records);\\n          last.observedMs = instant.observedMs;\\n        } else {\\n          versions.push(instant);\\n        }\\n      }\\n      const latest = versions.at(-1);\\n      if (latest && latest.values.size === 1) {\\n        resolved = [...latest.values][0];\\n        linkVersions(versions, bounds, state, superseded);\\n      }\\n    }\\n\\n    for (const record of group) {\\n      if (state.has(record.recordId)) continue;\\n      if (resolved === null) {\\n        state.set(record.recordId, ayasMemoryTrustRank(record) === topTrust ? \\\"disputed\\\" : \\\"conflicting\\\");\\n      } else {\\n        state.set(record.recordId, valueOf(record) === resolved ? \\\"current\\\" : \\\"conflicting\\\");\\n      }\\n    }\\n  }\\n\\n  for (const record of records) {\\n    const recordState = state.get(record.recordId) ?? \\\"invalid\\\";\\n    const recordBounds = bounds.get(record.recordId);\\n    // An explicit end that has already passed turns a current fact into history.\\n    const finalState = recordState === \\\"current\\\" && recordBounds && recordBounds.eHi <= query.beliefMs ? \\\"historical\\\" : recordState;\\n    const link = superseded.get(record.recordId);\\n    const t = record.temporal;\\n    views.set(record.recordId, {\\n      legacy: t === undefined,\\n      assertion: t?.assertion ?? \\\"current\\\",\\n      provenance: ayasMemoryProvenance(record),\\n      recordedAt: t?.recordedAt ?? record.observedAt,\\n      ...(t?.effectiveFrom !== undefined ? { effectiveFrom: t.effectiveFrom } : {}),\\n      ...(t?.effectiveUntil !== undefined ? { effectiveUntil: t.effectiveUntil } : {}),\\n      ...(t?.heldFrom !== undefined ? { heldFrom: t.heldFrom, heldUntil: t.heldUntil } : {}),\\n      ...(t?.effectivePrecision !== undefined ? { effectivePrecision: t.effectivePrecision } : {}),\\n      fact: facts.get(record.recordId) ?? null,\\n      state: finalState,\\n      ...(link ? { supersededAt: link.at, supersededBy: link.by } : {}),\\n      ...(recordBounds?.clamped ? { startClamped: true } : {}),\\n      ...(query.mode === \\\"as-of\\\"\\n        ? { asOf: asOfCertainty(finalState, recordBounds, query) }\\n        : {}),\\n    });\\n  }\\n  return { views, invalidQuery: query.invalid };\\n}\\n\\n/**\\n * A later explicit render-tool decision must be current while the earlier\\n * decision stays available as history without rewriting records.\\n */\\nexport function resolveAyasMemoryTemporalWithHistory(\\n  records: readonly BrainMemoryRecord[],\\n  options: { readonly nowIso: string; readonly query?: AyasMemoryTemporalQuery },\\n): AyasMemoryTemporalResolution {\\n  const resolution = resolveAyasMemoryTemporal(records, options);\\n  if (options.query?.mode === \\\"current\\\" && options.query.includeHistory === true) {\\n    // For as-of queries, we already have the history included in the view\\n    return resolution;\\n  }\\n  \\n  // For current mode with includeHistory, we need to ensure that even superseded records are included\\n  // but marked appropriately. This is a simplified version that ensures all records are considered.\\n  const views = new Map<string, AyasMemoryTemporalView>();\\n  for (const [recordId, view] of resolution.views.entries()) {\\n    views.set(recordId, view);\\n  }\\n  \\n  // If we're in current mode and includeHistory is true, we should not filter out superseded records\\n  // but they must be marked as such.\\n  return { views: resolution.views, invalidQuery: resolution.invalidQuery };\\n}\"}]}"
+      },
+      "outcome": "SCOPE_OR_BUDGET_REFUSED",
+      "reason": "PATCH_LINE_BUDGET_EXCEEDED"
+    }
+  ],
+  "supersededAttempts": [
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "df83980d5762407e469367f53c05eb5e70984e3e",
+        "runnerSha256": "aade0e33455d04004b5e5787903375455cb4b3cb366239b98d56a169742d00b4",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-14T22:01:11.420Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 199919.9434,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18768920576,
+          "usedPct": 44.9
+        },
+        "peakUsedPct": 78.8,
+        "minFreeBytes": 7217582080,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18844524544,
+          "usedPct": 44.6
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 1706,
+          "completion_tokens": 607
+        },
+        "timings": {
+          "total_ms": 197169.4509,
+          "eval_ms": 17145.908
+        },
+        "toolCalls": null,
+        "contentChars": 2062,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/brain/autonomy/AyasBoundedFileWrite.ts\",\n      \"beforeSha256\": \"860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a\",\n      \"search\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\",\n      \"replace\": \"  try {\\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\\n      filePath: item.replacement.filePath,\\n      beforeHash: item.old === null ? null : textHash(item.old),\\n      afterHash: textHash(item.replacement.content),\\n    }));\\n    return await after(outcomes);\\n  } catch (error) {\\n    // Rollback all writes in reverse order to ensure atomicity\\n    for (let i = before.length - 1; i >= 0; i--) {\\n      const item = before[i]!;\\n      try {\\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \\\"utf8\\\") : null;\\n        // Only rollback if the file hasn't been modified by another process\\n        if (current !== item.replacement.content) continue; \\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \\\"utf8\\\");\\n      } catch { /* fail closed; caller's own journal records the failure */ }\\n    }\\n    throw error;\\n  }\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "343153b22e2b48c857bda08a4f98fe0d1b8f0a3ce8780f2f7e32ea2b6d66c3ac",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-k1M7T3",
+      "responseSha256": "ca2608cd2fcb06c16ff2893d55827291c4fd8c161a9729acbaa47eb419bd9a11",
+      "generationMs": 197174.863,
+      "evaluationMs": 1015.5421999999962,
+      "changedFiles": [
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts"
+      ],
+      "changedLines": 38,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/brain/autonomy/AyasBoundedFileWrite.ts",
+            "beforeSha256": "860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a",
+            "search": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber\n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }",
+            "replace": "  try {\n    const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({\n      filePath: item.replacement.filePath,\n      beforeHash: item.old === null ? null : textHash(item.old),\n      afterHash: textHash(item.replacement.content),\n    }));\n    return await after(outcomes);\n  } catch (error) {\n    // Rollback all writes in reverse order to ensure atomicity\n    for (let i = before.length - 1; i >= 0; i--) {\n      const item = before[i]!;\n      try {\n        const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, \"utf8\") : null;\n        // Only rollback if the file hasn't been modified by another process\n        if (current !== item.replacement.content) continue; \n        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, \"utf8\");\n      } catch { /* fail closed; caller's own journal records the failure */ }\n    }\n    throw error;\n  }"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "node:internal/process/promises:394\n    triggerUncaughtException(err, true /* fromPromise */);\n    ^\n\nAssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async /tmp/ayas-evaluator-J2QFR2/scripts/smoke-ayas-bounded-file-write.ts:115:13\n    at async main (/tmp/ayas-evaluator-J2QFR2/scripts/smoke-ayas-bounded-file-write.ts:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: /injected second-file commit failure/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX",
+      "earlierBinding": {
+        "engine": {
+          "name": "ollama",
+          "version": "0.40.3",
+          "binarySha256": "61b44cfb6d3aa2393a4a731af33c9329bedd58b1c454bdebd185d4a607d0303d",
+          "binarySizeBytes": 27815816
+        },
+        "model": {
+          "servedModel": "qwen3-coder:30b",
+          "registry": "registry.ollama.ai/library/qwen3-coder:30b",
+          "license": "apache-2.0",
+          "manifestDigest": "sha256:06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+          "weightsSha256": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+          "weightsSizeBytes": 18556688736
+        },
+        "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca",
+        "transport": "ollama /api/chat on 127.0.0.1, keep_alive 0, re-enveloped for the strict adapter",
+        "numCtx": 32768,
+        "timeoutMs": 1800000,
+        "threshold": {
+          "id": "owner-balanced-2026-10-15",
+          "repeatCount": 3,
+          "primaryMinPassesPerCase": 2,
+          "heldOutMinPassRate": 0.7,
+          "maxSecurityViolations": 0
+        }
+      }
+    },
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "8baffc457c59368c8e1203cea7ac95fe9f7d883b",
+        "runnerSha256": "aade0e33455d04004b5e5787903375455cb4b3cb366239b98d56a169742d00b4",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca"
+      },
+      "observedAt": "2026-10-14T22:06:39.646Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 305130.1424,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18948722688,
+          "usedPct": 44.3
+        },
+        "peakUsedPct": 79.9,
+        "minFreeBytes": 6837411840,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 7294550016,
+          "usedPct": 78.6
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": null,
+      "outcome": "RUNTIME_FAILURE",
+      "reason": "fetch failed",
+      "earlierBinding": {
+        "engine": {
+          "name": "ollama",
+          "version": "0.40.3",
+          "binarySha256": "61b44cfb6d3aa2393a4a731af33c9329bedd58b1c454bdebd185d4a607d0303d",
+          "binarySizeBytes": 27815816
+        },
+        "model": {
+          "servedModel": "qwen3-coder:30b",
+          "registry": "registry.ollama.ai/library/qwen3-coder:30b",
+          "license": "apache-2.0",
+          "manifestDigest": "sha256:06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+          "weightsSha256": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+          "weightsSizeBytes": 18556688736
+        },
+        "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+        "adapterSha256": "7a5d5877791f5f5809cb9be981f03a978d88cc2b0a07d32f750151b4f0b48cca",
+        "transport": "ollama /api/chat on 127.0.0.1, keep_alive 0, re-enveloped for the strict adapter",
+        "numCtx": 32768,
+        "timeoutMs": 1800000,
+        "threshold": {
+          "id": "owner-balanced-2026-10-15",
+          "repeatCount": 3,
+          "primaryMinPassesPerCase": 2,
+          "heldOutMinPassRate": 0.7,
+          "maxSecurityViolations": 0
+        }
+      }
+    }
+  ],
+  "resourceAborts": [],
+  "notEvaluated": [
+    {
+      "caseId": "historical-windows-graphify-launch",
+      "outcome": "PLATFORM_UNAVAILABLE",
+      "modelRequestSent": false
+    }
+  ],
+  "ownerThreshold": {
+    "thresholdId": "owner-balanced-2026-10-15",
+    "verdict": "NOT_QUALIFIED",
+    "reasons": [
+      "PRIMARY_BELOW_MIN:historical-explicit-computer-plan:0/3",
+      "PRIMARY_BELOW_MIN:historical-atomic-bounded-write:0/3",
+      "PRIMARY_BELOW_MIN:historical-daily-development-view:0/3",
+      "PRIMARY_BELOW_MIN:historical-two-source-identity-retrieval:0/3",
+      "HELD_OUT_BELOW_MIN:0%"
+    ],
+    "perCase": [
+      {
+        "caseId": "historical-explicit-computer-plan",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 3
+      },
+      {
+        "caseId": "historical-atomic-bounded-write",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 3
+      },
+      {
+        "caseId": "historical-daily-development-view",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 3
+      },
+      {
+        "caseId": "historical-two-source-identity-retrieval",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 3
+      },
+      {
+        "caseId": "heldout-render-tool-supersession",
+        "split": "HELD_OUT",
+        "passes": 0,
+        "attempts": 3
+      }
+    ],
+    "heldOutPassRate": 0,
+    "securityViolations": 0
+  },
+  "readiness": "LOCAL_INDEPENDENCE_DEGRADED",
+  "productionRegistryChanged": false,
+  "cloudFallback": false
+}

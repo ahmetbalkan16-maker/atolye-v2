@@ -4,6 +4,8 @@
 - Local `node_modules` reinstalled with `npm ci` (lockfile-exact, e.g. `eslint-config-next` 16.3.8), so local lint matches CI.
 - Observer restarted on the current code (owner-approved); `scripts/ayas-observer-hidden.vbs` derives every path from its own location instead of the hard-coded private launcher.
 - `scripts/new-pc-setup.ps1` (dry-run by default, `-Apply`): exact hash-pinned Node/cloudflared and the other tools via winget, user env, profile junctions, `.env.local` FFmpeg paths, dependencies, Graphify and the three Startup launchers. Guide: `docs/AYAS_NEW_PC_SETUP.md`.
+- Local coding model qualification on the GPU host: `run-ayas-local-coding-container.ts qualify-host` runs inference in host Ollama on 127.0.0.1 and evaluates each patch in the same hardened Podman container; the owner "Balanced" threshold is `AyasLocalCodingOwnerThreshold` (2 of 3 repeats per frozen case, at least 70% held-out, zero security violations). Podman is resolved per user. Transport and harness failures are kept apart and never counted as model failures.
+- Result: `qwen3-coder:30b` is NOT_QUALIFIED (0/15, zero security violations); registry and readiness are unchanged. Evidence: `15A/LOCAL_MODEL_HOST_RUN_EVIDENCE.json`.
 
 ## 2026-10-14 — AYAS safe-pause closure and self-check regression repair
 
