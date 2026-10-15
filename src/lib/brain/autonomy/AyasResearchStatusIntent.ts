@@ -1,4 +1,5 @@
 import type { AyasGoalDevelopmentView } from "./AyasGoalDevelopmentView";
+import { buildAyasModelWatchSpokenSummary } from "./AyasModelWatch";
 import type { AyasResearchEngineStatusView } from "./AyasResearchEngineStatusView";
 import type { AyasResearchHealth, AyasUpdateRadarItem } from "./AyasUpdateRadar";
 
@@ -16,6 +17,7 @@ export type AyasResearchStatusIntent =
   | { readonly kind: "digest" }
   | { readonly kind: "next-schedule" }
   | { readonly kind: "updates" }
+  | { readonly kind: "model" }
   | { readonly kind: "provider"; readonly providerQuery: string }
   | null;
 
@@ -44,6 +46,16 @@ export function detectAyasResearchStatusIntent(text: string): AyasResearchStatus
     /\bbir sonraki (tarama|arastirma)\b/.test(t) ||
     /\bne zaman (arastir|tekrar arastir)\w*\b/.test(t);
   if (nextSchedule) return { kind: "next-schedule" };
+
+  // Questions about AYAS's own chat model (the Gelişim Merkezi model comparison). Question-shaped only, and never a
+  // project question, so a production asset such as a 3D model stays with the project answers.
+  const model =
+    !/\bproje\w*\b/.test(t) && (
+      /\b(?:daha iyi|yeni|guncel|baska) (?:bir )?(?:yapay zek[aâ] |yerel |dil )?model\w* (?:var mi|cikti mi|cikmis mi|onerir misin)\b/.test(t) ||
+      /\bmodel (?:karsilastirma\w*|onerin\w*|onerisi\w*)\b/.test(t) ||
+      /\b(?:yapay zek[aâ]|yerel) model\w* ne durumda\b/.test(t) ||
+      /\bhangi model daha iyi\b/.test(t));
+  if (model) return { kind: "model" };
 
   // Tool-update questions (the Gelişim Merkezi update radar). Question-shaped only, so a command such as
   // "Next.js'i güncelle" never matches, and a project's own updates stay with the project answers.
@@ -123,11 +135,17 @@ export function buildAyasResearchStatusSpokenAnswer(
     return buildAyasUpdateRadarSpokenSummary(researchEngineStatus.updateRadar);
   }
 
+  if (intent.kind === "model") {
+    if (!researchEngineStatus.connected) return "Model karşılaştırması şu an okunamıyor.";
+    return buildAyasModelWatchSpokenSummary(researchEngineStatus.modelWatch);
+  }
+
   // digest
   if (!researchEngineStatus.connected) return "Araştırma motoru şu an okunamıyor.";
   const d = researchEngineStatus.digest;
   const activity = d.findingsLast24h === 0 && d.sourcesChangedLast24h === 0
     ? `Son 24 saatte ${d.sourcesRegistered} kaynak izlendi ama yeni bir değişiklik ya da bulgu yoktu.`
     : `Son 24 saatte ${d.sourcesRegistered} kaynak izlendi, ${d.sourcesChangedLast24h} tanesi değişti ve ${d.findingsLast24h} yeni bulgu kaydedildi.`;
-  return `${activity}${spokenResearchHealth(researchEngineStatus.researchHealth)} ${buildAyasUpdateRadarSpokenSummary(researchEngineStatus.updateRadar)}`;
+  const model = buildAyasModelWatchSpokenSummary(researchEngineStatus.modelWatch, { actionableOnly: true });
+  return `${activity}${spokenResearchHealth(researchEngineStatus.researchHealth)} ${buildAyasUpdateRadarSpokenSummary(researchEngineStatus.updateRadar)}${model ? ` ${model}` : ""}`;
 }

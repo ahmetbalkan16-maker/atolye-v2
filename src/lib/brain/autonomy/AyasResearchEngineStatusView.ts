@@ -6,6 +6,7 @@ import { createAyasResearchNoveltyStore } from "./AyasResearchNoveltyStore";
 import { buildAyasResearchHealth, buildAyasUpdateRadar, type AyasResearchHealth, type AyasUpdateRadarItem } from "./AyasUpdateRadar";
 import { resolveAyasResearchSourceRegistry } from "./AyasResearchSourceRegistry";
 import { createAyasLocalDiscoveryRunLedger, type AyasLocalDiscoveryRunStatus } from "./AyasLocalDiscoveryRunLedger";
+import { loadAyasModelWatchView, type AyasModelWatchView } from "./AyasModelWatch";
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part O — the read-only
@@ -80,6 +81,8 @@ export interface AyasResearchEngineStatusView {
   /** Research integration Phase 2 (2026-10-15): read-only update radar and research health; absent when they could not be built. */
   readonly updateRadar?: readonly AyasUpdateRadarItem[];
   readonly researchHealth?: AyasResearchHealth;
+  /** Model comparison (2026-10-15): the AYAS chat model against measured and newer local models; absent when unreadable. */
+  readonly modelWatch?: AyasModelWatchView;
 }
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -117,6 +120,7 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
       radarAndHealth = { updateRadar, researchHealth: buildAyasResearchHealth({ now, findings, radar: updateRadar,
         lastSuccessfulResearchAt: schedulerState.lastSuccessfulResearchAt, consecutiveFailures: schedulerState.consecutiveFailures }) };
     } catch { radarAndHealth = undefined; }
+    const modelWatch = loadAyasModelWatchView();
 
     const digest: AyasResearchEngineDigest = {
       sourcesRegistered: registry.length,
@@ -165,6 +169,7 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
         duplicateCount: latestDiscovery.duplicateCount,
       } } : {}),
       ...(radarAndHealth ?? {}),
+      ...(modelWatch ? { modelWatch } : {}),
     };
   } catch (error) {
     return {

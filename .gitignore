@@ -149,6 +149,8 @@ graphify-out/
 # PAUSED_DIRTY_REPO on its very next tick - silently halting self-improvement
 # again, exactly the failure class this sprint's forensics were chasing.
 /data/brain/self-improvement/research-novelty/
+# Model comparison (2026-10-15): benchmark results and registry observations, local working state.
+/data/brain/self-improvement/model-watch/
 
 # Continuous local-discovery run evidence. Runtime-owned like the scheduler
 # state above; tracking it would make the next observer tick pause itself as

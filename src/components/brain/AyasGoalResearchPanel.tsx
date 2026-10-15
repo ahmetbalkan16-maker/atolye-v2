@@ -8,6 +8,7 @@ import type { AyasGoalDevelopmentView, AyasGoalDevelopmentEntry } from "@/lib/br
 import type { AyasGoalStatus } from "@/lib/brain/autonomy/AyasGoalStore";
 import type { AyasExternalResearchFinding } from "@/lib/brain/autonomy/AyasExternalResearchStore";
 import type { AyasResearchEngineStatusView, AyasResearchEngineSourceView, AyasResearchEngineSourceStatus } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+import type { AyasModelCandidateView, AyasModelWatchView, AyasMeasuredModelView } from "@/lib/brain/autonomy/AyasModelWatch";
 
 /**
  * M22.14 — read-only Gelişim Merkezi view of AYAS's goals and external
@@ -190,6 +191,68 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
   );
 }
 
+const verdictLabel = { BETTER: "daha iyi", SIMILAR: "benzer", WORSE: "daha zayıf" } as const;
+const candidateStatusLabel: Record<AyasModelCandidateView["status"], string> = {
+  MEASURED: "ölçüldü", INSTALLED_UNMEASURED: "kurulu, ölçülmedi", NOT_INSTALLED: "kurulu değil",
+};
+const fitLabel: Record<AyasModelCandidateView["fit"], string> = {
+  FITS: "ekran kartına sığar", SPILLS: "ekran kartına sığmaz, bir kısmı işlemcide çalışır", UNKNOWN: "sığıp sığmadığı bilinmiyor",
+};
+const categoryLabel: Record<keyof AyasMeasuredModelView["byCategory"], string> = {
+  KNOWLEDGE: "bilgi", ARITHMETIC: "hesap", INSTRUCTION: "talimat", CONTEXT: "bağlam", HONESTY: "dürüstlük",
+};
+const formatGb = (bytes: number) => `${(bytes / 1e9).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} GB`;
+
+function MeasuredModelCard({ entry }: { readonly entry: AyasMeasuredModelView }) {
+  return (
+    <article className="bc-dev__proposal" data-testid={`ayas-model-measured-${entry.model}`}>
+      <header className="bc-dev__proposal-head">
+        <div><h3>{entry.model}{entry.isIncumbent ? " (şu an kullanılan)" : ""}: {entry.total} sorudan {entry.passed}</h3></div>
+        {entry.verdict ? <span className={`bc-dev__safety ${entry.verdict === "BETTER" ? "bc-dev__notice--safe" : "bc-dev__notice--warn"}`}>{verdictLabel[entry.verdict]}</span> : null}
+      </header>
+      <dl className="bc-dev__facts">
+        <div><dt>Konulara göre</dt><dd>{(Object.keys(entry.byCategory) as (keyof AyasMeasuredModelView["byCategory"])[]).map((category) => `${categoryLabel[category]} ${entry.byCategory[category].passed}/${entry.byCategory[category].total}`).join(" · ")}</dd></div>
+        <div><dt>Yanıt süresi (ortanca, model yükleme dahil)</dt><dd>{(entry.latencyMedianMs / 1000).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} sn</dd></div>
+        {entry.gpuShare !== undefined ? <div><dt>Ekran kartında</dt><dd>%{Math.round(entry.gpuShare * 100)}</dd></div> : null}
+        <div><dt>Ölçüldü</dt><dd>{formatAyasScheduleTime(entry.measuredAt)}</dd></div>
+        {entry.reasons.length ? <div><dt>Not</dt><dd>{entry.reasons.join("; ")}</dd></div> : null}
+      </dl>
+      {entry.failedCases.length ? <details><summary>Geçemediği sorular ({entry.failedCases.length})</summary><ul>{entry.failedCases.map((failure) => <li key={failure.id}>{failure.id}: {failure.reason}</li>)}</ul></details> : null}
+    </article>
+  );
+}
+
+/**
+ * Model comparison (owner request 2026-10-15), read-only: the AYAS chat model, the measured alternatives and newer
+ * candidates. Downloading or switching a model is an owner decision carried out in a development session.
+ */
+function ModelWatchSection({ watch }: { readonly watch: AyasModelWatchView | undefined }) {
+  if (!watch) return null;
+  const decide = watch.recommendation.kind === "SWITCH" || watch.recommendation.kind === "DOWNLOAD_TO_MEASURE";
+  return (
+    <section className="bc-dev__section" aria-labelledby="ayas-model-watch" data-testid="ayas-model-watch">
+      <h3 id="ayas-model-watch">Yapay Zekâ Modeli <span>{watch.incumbentModel}</span></h3>
+      <p>AYAS&apos;ın sohbet modeli, aynı donmuş Türkçe testle ({watch.benchmarkId}) yeni çıkan yerel modellerle karşılaştırılır. Hiçbir model kendiliğinden indirilmez veya değiştirilmez.</p>
+      <div className={`bc-dev__notice ${decide ? "bc-dev__notice--warn" : "bc-dev__notice--safe"}`} data-testid="ayas-model-recommendation"><strong>Öneri</strong><p>{watch.recommendation.text}</p></div>
+      {watch.measured.map((entry) => <MeasuredModelCard key={entry.model} entry={entry} />)}
+      <details>
+        <summary>İzlenen yeni modeller ({watch.candidates.length})</summary>
+        <ul>{watch.candidates.map((candidate) => (
+          <li key={candidate.tag} data-testid={`ayas-model-candidate-${candidate.tag}`}>
+            <strong>{candidate.tag}</strong> ({candidate.publisher}, {candidate.license}) · {candidateStatusLabel[candidate.status]}
+            {candidate.totalBytes ? ` · ${formatGb(candidate.totalBytes)}` : ""} · {fitLabel[candidate.fit]} — {candidate.note}
+          </li>
+        ))}</ul>
+      </details>
+      <dl className="bc-dev__facts">
+        <div><dt>Son ölçüm</dt><dd>{formatAyasScheduleTime(watch.lastMeasuredAt)}</dd></div>
+        <div><dt>Model deposu son kontrol</dt><dd>{formatAyasScheduleTime(watch.registryCheckedAt)}</dd></div>
+        {watch.gpuName ? <div><dt>Ekran kartı</dt><dd>{watch.gpuName}</dd></div> : null}
+      </dl>
+    </section>
+  );
+}
+
 /** Stable scheduler codes only (validated `[A-Z_]`); never raw errors or source text. */
 const GOAL_JOB_REASON: Readonly<Record<string, string>> = {
   INSUFFICIENT_SOURCE_EVIDENCE: "kayıtlı resmî kaynaklarda hedefe uygun yeni bilgi bulunamadı",
@@ -292,6 +355,7 @@ export function AyasGoalResearchPanel({ view, researchEngineStatus }: { readonly
       {researchEngineStatus ? <ResearchEngineStatusSection status={researchEngineStatus} /> : null}
       {researchEngineStatus ? <ResearchHealthSection status={researchEngineStatus} /> : null}
       {researchEngineStatus ? <UpdateRadarSection status={researchEngineStatus} /> : null}
+      {researchEngineStatus?.connected ? <ModelWatchSection watch={researchEngineStatus.modelWatch} /> : null}
       {researchEngineStatus?.connected ? <GoalResearchScheduleControls status={researchEngineStatus} /> : null}
       {researchEngineStatus ? <ResearchSourcesSection status={researchEngineStatus} /> : null}
       <section className="bc-dev__section" aria-labelledby="ayas-goals-active"><h3 id="ayas-goals-active">Aktif Hedefler <span>{view.goals.filter((g) => g.status !== "COMPLETED" && g.status !== "CANCELLED").length}</span></h3>
