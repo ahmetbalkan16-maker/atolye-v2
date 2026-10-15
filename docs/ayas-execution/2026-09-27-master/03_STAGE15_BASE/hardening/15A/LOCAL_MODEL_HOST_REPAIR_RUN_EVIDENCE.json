@@ -1,0 +1,418 @@
+{
+  "earlyStop": {
+    "reason": "OWNER_VERDICT_DECIDED",
+    "beforeAttempt": "historical-explicit-computer-plan#3",
+    "attemptsNotRun": 13
+  },
+  "evidenceClass": "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
+  "observedAt": "2026-10-15T05:40:09.337Z",
+  "repositoryHead": "c00da1d3ae746f37b8cf2bcb564eba8479e453a9",
+  "binding": {
+    "engine": {
+      "name": "ollama",
+      "version": "0.40.3",
+      "binarySha256": "61b44cfb6d3aa2393a4a731af33c9329bedd58b1c454bdebd185d4a607d0303d",
+      "binarySizeBytes": 27815816
+    },
+    "model": {
+      "servedModel": "qwen3-coder:30b",
+      "registry": "registry.ollama.ai/library/qwen3-coder:30b",
+      "license": "apache-2.0",
+      "manifestDigest": "sha256:06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+      "weightsSha256": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "weightsSizeBytes": 18556688736
+    },
+    "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+    "adapterSha256": "1c9cc2e5cacbdc846a331406cae1e2b72203c8593aa389b87dfa692fb476dddf",
+    "transport": "node:http to ollama /api/chat on 127.0.0.1, no header timeout, keep_alive 0, re-enveloped for the strict adapter",
+    "numCtx": 32768,
+    "timeoutMs": 1800000,
+    "threshold": {
+      "id": "owner-balanced-2026-10-15",
+      "repeatCount": 3,
+      "primaryMinPassesPerCase": 2,
+      "heldOutMinPassRate": 0.7,
+      "maxSecurityViolations": 0
+    },
+    "protocol": {
+      "id": "owner-sampled-repair-2026-10-15",
+      "temperature": 0.7,
+      "seed": "repeat * 100 + round",
+      "maxRepairRounds": 2,
+      "feedback": "summarizeAyasLocalCodingEvaluatorFailure (message and actual/expected only; withheld on any frozen evaluator source fragment) or describeAyasLocalCodingRefusal"
+    }
+  },
+  "attempts": [
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "2d3fc049e7701723b00a416f7555f2fde9ae3485",
+        "runnerSha256": "cc2dc9bfdb3c58308edf7c96b39ca7a6e84d78a99acc598631dd426f86a54a8d",
+        "adapterSha256": "1c9cc2e5cacbdc846a331406cae1e2b72203c8593aa389b87dfa692fb476dddf"
+      },
+      "observedAt": "2026-10-15T05:26:51.449Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 241963.3603,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17870811136,
+          "usedPct": 47.5
+        },
+        "peakUsedPct": 85.6,
+        "minFreeBytes": 4908580864,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16847499264,
+          "usedPct": 50.5
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14939,
+          "completion_tokens": 198
+        },
+        "timings": {
+          "total_ms": 238738.8727,
+          "eval_ms": 6837.582
+        },
+        "toolCalls": null,
+        "contentChars": 560,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\", \"search\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n] as const;\\n\", \"replace\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n  \\\"user.decision.computer-purchase-plan\\\",\\n] as const;\\n\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "2f1dab89c233cbbcf8b227cedb46cd7b3dd134bcf02f2aeccd5198d77263ca46",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-Anj97B",
+      "responseSha256": "4a4e596e0e5ca76830fd9a769d5fca9bcdd2248f85cd24d4049db109a72186a3",
+      "generationMs": 238742.20670000004,
+      "evaluationMs": 2300.906200000085,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "changedLines": 13,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;\n",
+            "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;\n"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX",
+      "repairRounds": 2,
+      "rounds": [
+        {
+          "round": 0,
+          "seed": 100,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "e7b5042f715f53fe49d5bf003058372d659c4f0abd935bcacb0ead07c47e015f",
+          "changedLines": 31,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n",
+                "replace": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n *\n * Explicit computer purchase decisions must supersede earlier explicit plans\n * without retyping unrelated free text.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  // A decision is explicit and must supersede earlier plans.\n  if (record.kind === \"decision\") return true;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-AKjBwf/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-AKjBwf/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-AKjBwf/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-AKjBwf/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 247332.9272,
+          "totalMs": 250554.31389999998,
+          "feedbackForNextRound": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\nactual: undefined,\nexpected: 'user.decision.computer-purchase-plan',\noperator: 'strictEqual',",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 1,
+          "seed": 101,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "2f1dab89c233cbbcf8b227cedb46cd7b3dd134bcf02f2aeccd5198d77263ca46",
+          "changedLines": 13,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;\n",
+                "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;\n"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-AufbFl/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-AufbFl/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-AufbFl/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-AufbFl/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 240631.751,
+          "totalMs": 243376.66419999997,
+          "feedbackForNextRound": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\nactual: undefined,\nexpected: 'user.decision.computer-purchase-plan',\noperator: 'strictEqual',",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 2,
+          "seed": 102,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "2f1dab89c233cbbcf8b227cedb46cd7b3dd134bcf02f2aeccd5198d77263ca46",
+          "changedLines": 13,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;\n",
+                "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;\n"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-tovQ9Q/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 238742.20670000004,
+          "totalMs": 241963.3603,
+          "feedbackForNextRound": null,
+          "feedbackWithheld": false
+        }
+      ]
+    },
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 2,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "c00da1d3ae746f37b8cf2bcb564eba8479e453a9",
+        "runnerSha256": "cc2dc9bfdb3c58308edf7c96b39ca7a6e84d78a99acc598631dd426f86a54a8d",
+        "adapterSha256": "1c9cc2e5cacbdc846a331406cae1e2b72203c8593aa389b87dfa692fb476dddf"
+      },
+      "observedAt": "2026-10-15T05:39:34.084Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 291548.3783,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17160556544,
+          "usedPct": 49.6
+        },
+        "peakUsedPct": 84.4,
+        "minFreeBytes": 5311856640,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 17304915968,
+          "usedPct": 49.2
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 14939,
+          "completion_tokens": 198
+        },
+        "timings": {
+          "total_ms": 288241.5524,
+          "eval_ms": 6803.169
+        },
+        "toolCalls": null,
+        "contentChars": 560,
+        "content": "{\"schemaVersion\": \"1\", \"edits\": [{\"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\", \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\", \"search\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n] as const;\\n\", \"replace\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n  \\\"user.decision.computer-purchase-plan\\\",\\n] as const;\\n\"}]}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "2f1dab89c233cbbcf8b227cedb46cd7b3dd134bcf02f2aeccd5198d77263ca46",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-UJ931Q",
+      "responseSha256": "cca402482fd704fa1689a9f588150db321ba44230a3c9a1448acea879bfb5770",
+      "generationMs": 288245.24249999993,
+      "evaluationMs": 2312.538600000087,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "changedLines": 13,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;\n",
+            "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;\n"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX",
+      "repairRounds": 2,
+      "rounds": [
+        {
+          "round": 0,
+          "seed": 200,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "029995895d1a0b52f2f54d8559fea53211a34846f3810e89b78ef2ee362547c0",
+          "changedLines": 37,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  return !containsAyasMemoryInstructionInjection(record);\n}\n",
+                "replace": "/**\n * Only a direct user statement may move an exclusive slot to a new value. For\n * a legacy identity record that means the explicit identity declaration shape\n * (the v1 newest-wins guard); web-shaped or inferred text never qualifies.\n *\n * Explicit computer purchase decisions must supersede earlier explicit plans\n * without retyping unrelated free text.\n */\nfunction isAuthoritative(record: BrainMemoryRecord): boolean {\n  const provenance = ayasMemoryProvenance(record);\n  if (provenance !== \"direct-user-statement\" && provenance !== \"explicit-correction\") return false;\n  if (record.confidence !== \"reported\") return false;\n  if (!record.temporal && record.tags.includes(\"kimlik\") && record.title !== IDENTITY_TITLE) return false;\n  // A user statement that explicitly mentions a purchase decision\n  // supersedes earlier explicit plans without retyping unrelated free text.\n  if (provenance === \"direct-user-statement\" && record.tags.includes(\"karar\")) {\n    const lowerBody = fold(record.body);\n    if (/\\b(?:satinalma|alim|alis|almak|satin|siparis|satis|mal|urun)\\b/.test(lowerBody)) {\n      return true;\n    }\n  }\n  return !containsAyasMemoryInstructionInjection(record);\n}\n"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-QC0xdX/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-QC0xdX/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-QC0xdX/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-QC0xdX/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 235920.44480000006,
+          "totalMs": 238851.58400000003,
+          "feedbackForNextRound": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\nactual: undefined,\nexpected: 'user.decision.computer-purchase-plan',\noperator: 'strictEqual',",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 1,
+          "seed": 201,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "2f1dab89c233cbbcf8b227cedb46cd7b3dd134bcf02f2aeccd5198d77263ca46",
+          "changedLines": 13,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;\n",
+                "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;\n"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-L1KNCP/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-L1KNCP/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-L1KNCP/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-L1KNCP/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 228277.9759999999,
+          "totalMs": 231536.09239999996,
+          "feedbackForNextRound": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\nactual: undefined,\nexpected: 'user.decision.computer-purchase-plan',\noperator: 'strictEqual',",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 2,
+          "seed": 202,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "2f1dab89c233cbbcf8b227cedb46cd7b3dd134bcf02f2aeccd5198d77263ca46",
+          "changedLines": 13,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;\n",
+                "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;\n"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-GTNkJ1/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 288245.24249999993,
+          "totalMs": 291548.3783,
+          "feedbackForNextRound": null,
+          "feedbackWithheld": false
+        }
+      ]
+    }
+  ],
+  "supersededAttempts": [],
+  "resourceAborts": [],
+  "notEvaluated": [
+    {
+      "caseId": "historical-windows-graphify-launch",
+      "outcome": "PLATFORM_UNAVAILABLE",
+      "modelRequestSent": false
+    }
+  ],
+  "ownerThreshold": {
+    "thresholdId": "owner-balanced-2026-10-15",
+    "verdict": "NOT_QUALIFIED",
+    "reasons": [
+      "PRIMARY_CANNOT_REACH_MIN:historical-explicit-computer-plan:0/2"
+    ],
+    "perCase": [
+      {
+        "caseId": "historical-explicit-computer-plan",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 2
+      },
+      {
+        "caseId": "historical-atomic-bounded-write",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 0
+      },
+      {
+        "caseId": "historical-daily-development-view",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 0
+      },
+      {
+        "caseId": "historical-two-source-identity-retrieval",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 0
+      },
+      {
+        "caseId": "heldout-render-tool-supersession",
+        "split": "HELD_OUT",
+        "passes": 0,
+        "attempts": 0
+      }
+    ],
+    "heldOutPassRate": null,
+    "securityViolations": 0
+  },
+  "readiness": "LOCAL_INDEPENDENCE_DEGRADED",
+  "productionRegistryChanged": false,
+  "cloudFallback": false
+}
