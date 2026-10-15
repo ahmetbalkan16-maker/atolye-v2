@@ -9,6 +9,8 @@ import path from "node:path";
  * Sources not listed here are landscape sources: their entries are not version-gated.
  */
 export interface AyasTrackedRelease {
+  /** The tool's own name for people (the registry provider may be the vendor, e.g. Microsoft for TypeScript). */
+  readonly toolName: string;
   /** What is installed: an npm package from package-lock.json, or the Node.js runtime running AYAS. */
   readonly installed: { readonly kind: "npm"; readonly packageName: string } | { readonly kind: "node" };
   /** Captures the version of THIS package from a release title; any other title belongs to a sibling package or tool. */
@@ -21,15 +23,15 @@ const SEMVER = String.raw`(\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.]+)?)`;
 const VERSION_ONLY = new RegExp(String.raw`^v?${SEMVER}(?:\s|$)`);
 
 export const AYAS_TRACKED_RELEASE_SOURCES: Readonly<Record<string, AyasTrackedRelease>> = Object.freeze({
-  nextjs: Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "next" }), titlePattern: VERSION_ONLY }),
-  react: Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "react" }), titlePattern: VERSION_ONLY }),
-  typescript: Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "typescript" }),
+  nextjs: Object.freeze({ toolName: "Next.js", installed: Object.freeze({ kind: "npm", packageName: "next" }), titlePattern: VERSION_ONLY }),
+  react: Object.freeze({ toolName: "React", installed: Object.freeze({ kind: "npm", packageName: "react" }), titlePattern: VERSION_ONLY }),
+  typescript: Object.freeze({ toolName: "TypeScript", installed: Object.freeze({ kind: "npm", packageName: "typescript" }),
     titlePattern: new RegExp(String.raw`^TypeScript ${SEMVER}((?:\s+(?:Beta|RC|Dev)\b.*)?)$`, "i") }),
-  eslint: Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "eslint" }), titlePattern: VERSION_ONLY }),
-  tailwindcss: Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "tailwindcss" }), titlePattern: VERSION_ONLY }),
-  "transformers-js": Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "@huggingface/transformers" }), titlePattern: VERSION_ONLY }),
-  "workers-sdk": Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "wrangler" }), titlePattern: new RegExp(String.raw`^wrangler@${SEMVER}$`) }),
-  nodejs: Object.freeze({ installed: Object.freeze({ kind: "node" }), titlePattern: new RegExp(String.raw`\bVersion ${SEMVER}\b`), channelPattern: /\(LTS\)/ }),
+  eslint: Object.freeze({ toolName: "ESLint", installed: Object.freeze({ kind: "npm", packageName: "eslint" }), titlePattern: VERSION_ONLY }),
+  tailwindcss: Object.freeze({ toolName: "Tailwind CSS", installed: Object.freeze({ kind: "npm", packageName: "tailwindcss" }), titlePattern: VERSION_ONLY }),
+  "transformers-js": Object.freeze({ toolName: "Transformers.js", installed: Object.freeze({ kind: "npm", packageName: "@huggingface/transformers" }), titlePattern: VERSION_ONLY }),
+  "workers-sdk": Object.freeze({ toolName: "Wrangler", installed: Object.freeze({ kind: "npm", packageName: "wrangler" }), titlePattern: new RegExp(String.raw`^wrangler@${SEMVER}$`) }),
+  nodejs: Object.freeze({ toolName: "Node.js", installed: Object.freeze({ kind: "node" }), titlePattern: new RegExp(String.raw`\bVersion ${SEMVER}\b`), channelPattern: /\(LTS\)/ }),
 });
 
 export type AyasReleaseRelevance =

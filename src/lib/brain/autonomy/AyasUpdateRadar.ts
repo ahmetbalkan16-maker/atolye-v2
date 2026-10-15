@@ -24,6 +24,8 @@ export interface AyasDevelopmentBrief {
 export interface AyasUpdateRadarItem {
   readonly sourceId: string;
   readonly provider: string;
+  /** The tool's name for people ("TypeScript", not the registry vendor "Microsoft"). */
+  readonly toolName: string;
   readonly target: string;
   readonly installedVersion: string;
   readonly latestVersion: string;
@@ -118,7 +120,7 @@ function briefFor(item: Omit<AyasUpdateRadarItem, "brief">, users: readonly stri
     ? ["Yeni Node.js sürümünü kur ve SHA-256'sını doğrula", "ayas-prebuilt-runtime pinlerini güncelle ve telefon erişimini yeniden yayınla", "npx tsc --noEmit", "CI-eşdeğeri lint (git'teki dosyalar)"]
     : ["npx tsc --noEmit", "CI-eşdeğeri lint (git'teki dosyalar)", ...(item.target === "npm:next" || item.target === "npm:react" ? ["npm run build"] : []), ...smokes.map((file) => `npx tsx ${file}`)];
   return Object.freeze({
-    summary: `${item.provider} ${item.installedVersion} → ${item.latestVersion} (${item.newerStableReleases} yeni kararlı sürüm, ${item.bump === "MAJOR" ? "ana" : item.bump === "MINOR" ? "ara" : "yama"} sürüm)`,
+    summary: `${item.toolName} ${item.installedVersion} → ${item.latestVersion} (${item.newerStableReleases} yeni kararlı sürüm, ${item.bump === "MAJOR" ? "ana" : item.bump === "MINOR" ? "ara" : "yama"} sürüm)`,
     affectedFileCount: users.length,
     affectedFiles: Object.freeze(users.slice(0, MAX_LISTED_FILES)),
     validation: Object.freeze(validation),
@@ -145,7 +147,7 @@ export function buildAyasUpdateRadar(input: {
       .map((finding) => Object.freeze({ quote: finding.evidenceQuote!, url: finding.sourceUrl, findingId: finding.findingId }));
     const target = tracked.installed.kind === "npm" ? `npm:${tracked.installed.packageName}` : "Node.js runtime";
     const base = {
-      sourceId, provider: source.provider, target, installedVersion: latest.installed, latestVersion: latest.release,
+      sourceId, provider: source.provider, toolName: tracked.toolName, target, installedVersion: latest.installed, latestVersion: latest.release,
       bump: bumpOf(latest.installed, latest.release), newerStableReleases: new Set(newer.map((entry) => entry.release)).size,
       latestUrl: latest.seen.normalizedUrl, lastSeenAt: latest.seen.lastSeenAt,
       applyChannel: tracked.installed.kind === "node" ? "OWNER_PINNED_RUNTIME" as const : "DEVELOPMENT_SESSION" as const,

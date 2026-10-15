@@ -48,6 +48,14 @@ scenario("bug report request prefers Report Center over repair", () => expectRou
 scenario("today bug-discovery question prefers Report Center", () => expectRoute("Bugün bir bug buldun mu?", "report-center"));
 scenario("today report availability routes to Report Center", () => expectRoute("Bugün rapor var mı?", "report-center"));
 scenario("reporting the day remains ordinary reasoning", () => expectRoute("Bugünü raporla", "reasoning"));
+scenario("research status question routes to the deterministic research answer", () => expectRoute("AYAS, araştırma ne durumda?", "research-status"));
+scenario("tool update question routes to the research answer", () => expectRoute("Güncelleme var mı?", "research-status"));
+scenario("research intent carries its kind to the route", () => {
+  const intent = resolveAyasPreReasoningIntent("Yeni sürüm çıktı mı?");
+  assert.deepEqual(intent, { kind: "research-status", researchIntent: { kind: "updates" } });
+});
+scenario("self-development learning keeps development status precedence", () => expectRoute("Kendini geliştirmek için ne öğrendin?", "development-status"));
+scenario("an update command is not a research question", () => expectRoute("Next.js'i güncelle", "reasoning"));
 
 scenario("development status resolves to its deterministic read-only tool", () => {
   assert.equal(resolveDeterministicToolCandidate("Benden ne onay bekliyorsun?")?.action, "ayas-development-status", "assert.equal(resolveDeterministicToolCandidate(\"Benden ne onay bekliyorsun?\")?.action, \"ayas-development-status\")");

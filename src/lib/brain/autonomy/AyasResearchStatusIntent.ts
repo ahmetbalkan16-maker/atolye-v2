@@ -1,5 +1,6 @@
 import type { AyasGoalDevelopmentView } from "./AyasGoalDevelopmentView";
 import type { AyasResearchEngineStatusView } from "./AyasResearchEngineStatusView";
+import type { AyasResearchHealth, AyasUpdateRadarItem } from "./AyasUpdateRadar";
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint — "Natural Language Status"
@@ -14,6 +15,7 @@ import type { AyasResearchEngineStatusView } from "./AyasResearchEngineStatusVie
 export type AyasResearchStatusIntent =
   | { readonly kind: "digest" }
   | { readonly kind: "next-schedule" }
+  | { readonly kind: "updates" }
   | { readonly kind: "provider"; readonly providerQuery: string }
   | null;
 
@@ -43,7 +45,19 @@ export function detectAyasResearchStatusIntent(text: string): AyasResearchStatus
     /\bne zaman (arastir|tekrar arastir)\w*\b/.test(t);
   if (nextSchedule) return { kind: "next-schedule" };
 
+  // Tool-update questions (the Gelişim Merkezi update radar). Question-shaped only, so a command such as
+  // "Next.js'i güncelle" never matches, and a project's own updates stay with the project answers.
+  const updates =
+    !/\bproje\w*\b/.test(t) && (
+      /\bguncelleme radar\w*\b/.test(t) ||
+      /\bhangi guncelleme\w*\b/.test(t) ||
+      /\bguncelleme\w* (var mi|ne durumda|neler|nedir)\b/.test(t) ||
+      /\byeni (surum|versiyon)\w*\b.*\b(var mi|cikti mi|cikmis mi|neler)\b/.test(t));
+  if (updates) return { kind: "updates" };
+
   const digest =
+    // "AYAS, araştırma ne durumda?" — anchored, so "<proje> araştırması ne durumda" stays a project question.
+    /^(?:ayas\W+)?(?:dis |internet |otomatik )?arastirma(?:lar)?(?:in|nin)? (?:ne durumda|durumu\w*|nasil gidiyor)\b/.test(t) ||
     /\bson internette ne arastirdin\b/.test(t) ||
     /\bhangi.*platform\w*.*bakt\w*\b/.test(t) ||
     /\bson 24 saatte\b.*\b(ozellik|kesfet)\w*\b/.test(t) ||
@@ -61,6 +75,26 @@ function formatSpokenTime(iso: string | undefined): string {
   if (!iso) return "henüz planlanmadı";
   const d = new Date(iso);
   return d.toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+}
+
+const MAX_SPOKEN_RADAR_ITEMS = 4;
+const SPOKEN_BUMP: Readonly<Record<AyasUpdateRadarItem["bump"], string>> = { MAJOR: "ana sürüm", MINOR: "ara sürüm", PATCH: "yama" };
+
+/** The update radar as one spoken sentence; undefined means the radar could not be built and says so. */
+export function buildAyasUpdateRadarSpokenSummary(radar: readonly AyasUpdateRadarItem[] | undefined): string {
+  if (!radar) return "Güncelleme radarı şu an okunamıyor.";
+  if (!radar.length) return "Güncelleme radarında bekleyen yeni sürüm yok; izlenen araçlar güncel.";
+  const items = radar.slice(0, MAX_SPOKEN_RADAR_ITEMS).map((item) => item.applyChannel === "OWNER_PINNED_RUNTIME"
+    ? `${item.toolName} ${item.installedVersion} yerine ${item.latestVersion} (kurulumu sen yaparsın)`
+    : `${item.toolName} ${item.installedVersion} yerine ${item.latestVersion} (${SPOKEN_BUMP[item.bump]})`);
+  const more = radar.length > MAX_SPOKEN_RADAR_ITEMS ? ` ve ${radar.length - MAX_SPOKEN_RADAR_ITEMS} araç daha` : "";
+  return `Güncelleme radarında ${radar.length} araç için yeni sürüm var: ${items.join(", ")}${more}. Hiçbiri kendiliğinden uygulanmaz; onaylarsan bir geliştirme oturumunda uygulanır, ayrıntılar Gelişim Merkezi'nde.`;
+}
+
+/** Only a degraded research engine is worth saying aloud; healthy and quiet states add nothing to the digest. */
+function spokenResearchHealth(health: AyasResearchHealth | undefined): string {
+  if (!health || health.status !== "DEGRADED") return "";
+  return ` Araştırmada sorun var: ${health.reasons.join(" ")}`;
 }
 
 export function buildAyasResearchStatusSpokenAnswer(
@@ -84,11 +118,16 @@ export function buildAyasResearchStatusSpokenAnswer(
     return `${top.provider} tarafında son bulgu: ${top.capability}. ${top.problemSolved}${extra}`;
   }
 
+  if (intent.kind === "updates") {
+    if (!researchEngineStatus.connected) return "Güncelleme radarı şu an okunamıyor.";
+    return buildAyasUpdateRadarSpokenSummary(researchEngineStatus.updateRadar);
+  }
+
   // digest
   if (!researchEngineStatus.connected) return "Araştırma motoru şu an okunamıyor.";
   const d = researchEngineStatus.digest;
-  if (d.findingsLast24h === 0 && d.sourcesChangedLast24h === 0) {
-    return `Son 24 saatte ${d.sourcesRegistered} kaynak izlendi ama yeni bir değişiklik ya da bulgu yoktu.`;
-  }
-  return `Son 24 saatte ${d.sourcesRegistered} kaynak izlendi, ${d.sourcesChangedLast24h} tanesi değişti ve ${d.findingsLast24h} yeni bulgu kaydedildi.`;
+  const activity = d.findingsLast24h === 0 && d.sourcesChangedLast24h === 0
+    ? `Son 24 saatte ${d.sourcesRegistered} kaynak izlendi ama yeni bir değişiklik ya da bulgu yoktu.`
+    : `Son 24 saatte ${d.sourcesRegistered} kaynak izlendi, ${d.sourcesChangedLast24h} tanesi değişti ve ${d.findingsLast24h} yeni bulgu kaydedildi.`;
+  return `${activity}${spokenResearchHealth(researchEngineStatus.researchHealth)} ${buildAyasUpdateRadarSpokenSummary(researchEngineStatus.updateRadar)}`;
 }

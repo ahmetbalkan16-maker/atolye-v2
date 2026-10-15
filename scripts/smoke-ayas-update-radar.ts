@@ -52,7 +52,7 @@ const radar = buildAyasUpdateRadar({ repoRoot: repo, seenItems, findings });
 scenario("only newer stable releases of tracked tools appear, major bumps first", () => {
   assert.deepEqual(radar.map((item) => `${item.sourceId}:${item.latestVersion}:${item.bump}`), ["eslint:10.11.0:MAJOR", "nodejs:99.1.0:MAJOR", "nextjs:16.4.1:MINOR"]);
   const next = radar.find((item) => item.sourceId === "nextjs")!;
-  assert.equal(next.installedVersion, "16.3.8"); assert.equal(next.newerStableReleases, 2); assert.equal(next.target, "npm:next");
+  assert.equal(next.installedVersion, "16.3.8"); assert.equal(next.newerStableReleases, 2); assert.equal(next.target, "npm:next"); assert.equal(next.toolName, "Next.js");
   assert.equal(next.applyChannel, "DEVELOPMENT_SESSION"); assert.match(next.latestUrl, /v16\.4\.1$/);
 });
 scenario("Node.js follows the LTS channel and is re-pinned by the owner", () => {
@@ -91,7 +91,7 @@ scenario("the panel renders health, radar and brief read-only, with no approval 
     updateRadar: radar, researchHealth: buildAyasResearchHealth({ now: NOW, findings, radar, lastSuccessfulResearchAt: NOW, consecutiveFailures: 0 }) } as AyasResearchEngineStatusView;
   const html = renderToStaticMarkup(createElement(AyasGoalResearchPanel, { view: { connected: true, goals: [], research: [findings[0]!] }, researchEngineStatus: status }));
   assert.match(html, /data-testid="ayas-research-health"/); assert.match(html, /data-testid="ayas-update-radar-nextjs"/);
-  assert.match(html, /Next\.js|Vercel/); assert.match(html, /16\.3\.8 → 16\.4\.1/); assert.match(html, /Geliştirme özeti/);
+  assert.match(html, /Next\.js: 16\.3\.8 → 16\.4\.1/); assert.match(html, /Geliştirme özeti/);
   assert.match(html, /Kaynaktan birebir alıntı/); assert.match(html, /Adds faster dev server restarts/);
   assert.doesNotMatch(html, /ONAYLA VE UYGULA|YÜRÜT/);
 });

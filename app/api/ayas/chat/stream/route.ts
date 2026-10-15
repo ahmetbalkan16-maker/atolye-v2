@@ -23,6 +23,9 @@ import { resolveAyasPreReasoningIntent } from "@/lib/ayas/AyasIntentRouting";
 import {
   buildAyasReportSpokenAnswer,
 } from "@/lib/brain/selfheal/BrainReportCenter";
+import { buildAyasResearchStatusSpokenAnswer } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
+import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import type { BrainChatMessage } from "@/components/brain/brainCore";
 
 /**
@@ -188,6 +191,16 @@ async function respondToAyasTurn({ request, text, history, seq, sessionKey, trac
         "X-Ayas-Trace-Id": trace.traceId,
       },
     });
+  }
+
+  // "Araştırma ne durumda?" / "Güncelleme var mı?" — the same deterministic
+  // research-status answer as the askAyas Server Action: read-only views, one
+  // terminal SSE frame, no model call.
+  if (preReasoningIntent.kind === "research-status") {
+    const answer = buildAyasResearchStatusSpokenAnswer(loadAyasGoalDevelopmentView(), loadAyasResearchEngineStatusView(), preReasoningIntent.researchIntent);
+    finishTurn("fallback");
+    const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoder.encode(ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }))); controller.close(); } });
+    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no", "X-Ayas-Trace-Id": trace.traceId } });
   }
 
   const contextSpan = trace.startSpan("context", "ayas-route", "load-context", turnSpan.spanId);

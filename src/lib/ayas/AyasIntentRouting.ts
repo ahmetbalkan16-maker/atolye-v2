@@ -1,4 +1,5 @@
 import { detectAyasReportIntent, type AyasReportIntent } from "@/lib/brain/selfheal/BrainReportCenter";
+import { detectAyasResearchStatusIntent, type AyasResearchStatusIntent } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { isAyasDevelopmentStatusQuery } from "./model/AyasComplexityRouter";
 
 const GUIDED_REPAIR_TOKENS = new Set([
@@ -52,19 +53,23 @@ export function isAyasGuidedRepairQuery(text: string): boolean {
 export type AyasPreReasoningIntent =
   | { readonly kind: "development-status" }
   | { readonly kind: "report-center"; readonly reportIntent: Exclude<AyasReportIntent, null> }
+  | { readonly kind: "research-status"; readonly researchIntent: Exclude<AyasResearchStatusIntent, null> }
   | { readonly kind: "guided-repair" }
   | { readonly kind: "reasoning" };
 
 /**
  * Resolves only the route-level intents that can otherwise intercept one
  * another before the normal AYAS reasoning/tool pipeline. Specificity wins:
- * AYAS self-development status, then explicit Report Center requests, then a
+ * AYAS self-development status, then explicit Report Center requests, then
+ * external research status (answered as in the askAyas Server Action), then a
  * repair symptom. The normal reasoning path handles everything else.
  */
 export function resolveAyasPreReasoningIntent(text: string): AyasPreReasoningIntent {
   if (isAyasDevelopmentStatusQuery(text)) return { kind: "development-status" };
   const reportIntent = detectAyasReportIntent(text);
   if (reportIntent) return { kind: "report-center", reportIntent };
+  const researchIntent = detectAyasResearchStatusIntent(text);
+  if (researchIntent) return { kind: "research-status", researchIntent };
   if (isAyasGuidedRepairQuery(text)) return { kind: "guided-repair" };
   return { kind: "reasoning" };
 }

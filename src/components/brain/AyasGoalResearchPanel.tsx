@@ -166,7 +166,7 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
       {radar.length ? radar.map((item) => (
         <article key={item.sourceId} className="bc-dev__proposal" data-testid={`ayas-update-radar-${item.sourceId}`}>
           <header className="bc-dev__proposal-head">
-            <div><h3>{item.provider}: {item.installedVersion} → {item.latestVersion}</h3></div>
+            <div><h3>{item.toolName}: {item.installedVersion} → {item.latestVersion}</h3></div>
             <span className={`bc-dev__safety ${item.bump === "MAJOR" ? "bc-dev__notice--warn" : "bc-dev__notice--safe"}`}>{bumpLabel[item.bump]}</span>
           </header>
           <dl className="bc-dev__facts">
