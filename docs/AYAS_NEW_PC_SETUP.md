@@ -18,8 +18,10 @@ Bu belge bütün AYAS/Atölye paketinin (`D:\ÜRETİM`) yeni bir bilgisayara ta�
     Silme; istersen ayrı bir diskte sakla.
   - `private\temp` (7 GB): geçici çalışma dosyaları. Klasörün kendisi boş da olsa var olmalı.
   - `Atolye\atolye-v2\node_modules` (1,1 GB): kurulum betiği `npm ci` ile yeniden kurar.
-- **Kopyalanmaması gereken yok:** `Atolye\ayas-live-c10d1e33` (telefon erişiminin çalıştırdığı
-  yayınlanmış uygulama) kendi `node_modules` klasörüyle birlikte hash'e bağlıdır; aynen taşınır.
+- **Kopyalanmaması gereken yok:** `Atolye\ayas-live-<commit>` (telefon erişiminin çalıştırdığı
+  yayınlanmış uygulama; hangisi olduğu `private\AtolyeAyasAccess\published-application-v1.json`
+  içinde yazar) kendi `node_modules` klasörüyle birlikte hash'e bağlıdır; aynen taşınır. Eski
+  `ayas-live-*` klasörleri yalnız geri dönüş içindir. Yeni sürümün yayını: `docs/AYAS_LIVE_PUBLISH.md`.
 - `private\` gizli anahtarları ve tünel kimliğini içerir; USB'yi güvenli tut. Git'e girmez.
 - Kopyalamadan önce açık çalışmanın commit/push edildiğinden emin ol (`git status` temiz).
 
