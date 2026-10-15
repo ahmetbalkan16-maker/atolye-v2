@@ -1,0 +1,441 @@
+{
+  "earlyStop": {
+    "reason": "OWNER_VERDICT_DECIDED",
+    "beforeAttempt": "historical-explicit-computer-plan#3",
+    "attemptsNotRun": 13
+  },
+  "evidenceClass": "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
+  "observedAt": "2026-10-15T06:35:08.177Z",
+  "repositoryHead": "53162f5fac908d5f0f374789f30a7d65166f04ca",
+  "binding": {
+    "engine": {
+      "name": "ollama",
+      "version": "0.40.3",
+      "binarySha256": "61b44cfb6d3aa2393a4a731af33c9329bedd58b1c454bdebd185d4a607d0303d",
+      "binarySizeBytes": 27815816
+    },
+    "model": {
+      "servedModel": "qwen3-coder:30b",
+      "registry": "registry.ollama.ai/library/qwen3-coder:30b",
+      "license": "apache-2.0",
+      "manifestDigest": "sha256:06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+      "weightsSha256": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "weightsSizeBytes": 18556688736
+    },
+    "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+    "adapterSha256": "12d4f4a3768778c13b69885ba2899364432a52a3274c7813b356835c719e0c2c",
+    "transport": "node:http to ollama /api/chat on 127.0.0.1, no header timeout, keep_alive 0, re-enveloped for the strict adapter",
+    "numCtx": 32768,
+    "timeoutMs": 1800000,
+    "threshold": {
+      "id": "owner-balanced-2026-10-15",
+      "repeatCount": 3,
+      "primaryMinPassesPerCase": 2,
+      "heldOutMinPassRate": 0.7,
+      "maxSecurityViolations": 0
+    },
+    "protocol": {
+      "id": "owner-specified-multi-edit-2026-10-15",
+      "temperature": 0.7,
+      "seed": "repeat * 100 + round",
+      "maxRepairRounds": 2,
+      "feedback": "summarizeAyasLocalCodingEvaluatorFailure (message and actual/expected only; withheld on any frozen evaluator source fragment) or describeAyasLocalCodingRefusal",
+      "patchFormat": "multi-edit",
+      "acceptanceCriteria": "scripts/fixtures/ayas-local-coding-qualification-criteria.ts sha256 023247f1d726f3113571cc3432474dea400d1f14f04c6dcbb5a351a07b1c7c30"
+    }
+  },
+  "attempts": [
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 1,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "53162f5fac908d5f0f374789f30a7d65166f04ca",
+        "runnerSha256": "a828ef4056b8bb9c00608a329f5fba4fd438c88f1db638cf0616f527bfb101ff",
+        "adapterSha256": "12d4f4a3768778c13b69885ba2899364432a52a3274c7813b356835c719e0c2c"
+      },
+      "observedAt": "2026-10-15T06:20:26.983Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 280417.1516,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18009837568,
+          "usedPct": 47.1
+        },
+        "peakUsedPct": 86,
+        "minFreeBytes": 4749225984,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 16331612160,
+          "usedPct": 52
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 16804,
+          "completion_tokens": 1792
+        },
+        "timings": {
+          "total_ms": 277685.3914,
+          "eval_ms": 63950.218
+        },
+        "toolCalls": null,
+        "contentChars": 5544,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n] as const;\",\n      \"replace\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n  \\\"user.decision.computer-purchase-plan\\\",\\n] as const;\"\n    },\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"const USER_STATEMENT_TITLES = new Set([\\n  IDENTITY_TITLE,\\n  \\\"Kullanıcı tercihi\\\",\\n  \\\"Alınan karar\\\",\\n  \\\"Çalışma ortamı bilgisi\\\",\\n  \\\"Bilinen sorun\\\",\\n]);\",\n      \"replace\": \"const USER_STATEMENT_TITLES = new Set([\\n  IDENTITY_TITLE,\\n  \\\"Kullanıcı tercihi\\\",\\n  \\\"Alınan karar\\\",\\n  \\\"Çalışma ortamı bilgisi\\\",\\n  \\\"Bilinen sorun\\\",\\n  \\\"Bilgisayar satın alma kararı\\\",\\n]);\"\n    },\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"const SHORT_CUE = /\\\\b(kisa|oz|ozet)\\\\b/;\\nconst LONG_CUE = /\\\\b(uzun|detayli|ayrintili)\\\\b/;\",\n      \"replace\": \"const SHORT_CUE = /\\\\b(kisa|oz|ozet)\\\\b/;\\nconst LONG_CUE = /\\\\b(uzun|detayli|ayrintili)\\\\b/;\\nconst COMPUTER_PURCHASE_CUE = /\\\\b(?:yeni\\\\s+(?:dizüstü|laptop|notebook|pc)|dizüstü\\\\s+(?:almak|satın\\\\s+almak)|bilgisayar\\\\s+(?:almak|satın\\\\s+almak))\\\\b/;\"\n    },\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"function deriveFactEvidence(input: {\\n  readonly kind: BrainMemoryKind;\\n  readonly body: string;\\n  readonly tags: readonly string[];\\n}): { fact: AyasMemoryFact; clause: string | null } | null {\\n  const identity = identityEvidence(input.body, input.tags);\\n  if (identity && \\\"value\\\" in identity) return { fact: { key: \\\"user.identity.name\\\", value: identity.value }, clause: identity.clause };\\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\\n  if (identity || input.tags.includes(\\\"kimlik\\\") || input.kind !== \\\"user-preference\\\") return null;\\n  const whole = fold(`${input.body} ${input.tags.join(\\\" \\\")}`);\\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \\\" \\\"));\\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\\n  // Only a cue that survives negation counts: \\\"uzun değil lütfen\\\" states no length.\\n  const text = chosen.length > 0 ? chosen.join(\\\" \\\") : fold(input.tags.join(\\\" \\\"));\\n  const polarity = SHORT_CUE.test(text) ? \\\"short\\\" : LONG_CUE.test(text) ? \\\"long\\\" : null;\\n  if (!polarity) return null;\\n  const key = /\\\\b(ses|sesli|tts|voice)\\\\b/.test(whole) ? \\\"user.preference.voice-length\\\" : \\\"user.preference.response-length\\\";\\n  const cue = polarity === \\\"short\\\" ? SHORT_CUE : LONG_CUE;\\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\\n}\",\n      \"replace\": \"function deriveFactEvidence(input: {\\n  readonly kind: BrainMemoryKind;\\n  readonly body: string;\\n  readonly tags: readonly string[];\\n}): { fact: AyasMemoryFact; clause: string | null } | null {\\n  const identity = identityEvidence(input.body, input.tags);\\n  if (identity && \\\"value\\\" in identity) return { fact: { key: \\\"user.identity.name\\\", value: identity.value }, clause: identity.clause };\\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\\n  if (identity || input.tags.includes(\\\"kimlik\\\") || input.kind !== \\\"user-preference\\\") return null;\\n  const whole = fold(`${input.body} ${input.tags.join(\\\" \\\")}`);\\n  // Computer purchase decision\\n  if (input.kind === \\\"decision\\\" && COMPUTER_PURCHASE_CUE.test(whole)) {\\n    const value = fold(input.body).replace(/[^a-z0-9]/g, \\\"\\\").substring(0, 40);\\n    return { fact: { key: \\\"user.decision.computer-purchase-plan\\\", value }, clause: input.body };\\n  }\\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \\\" \\\"));\\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\\n  // Only a cue that survives negation counts: \\\"uzun değil lütfen\\\" states no length.\\n  const text = chosen.length > 0 ? chosen.join(\\\" \\\") : fold(input.tags.join(\\\" \\\"));\\n  const polarity = SHORT_CUE.test(text) ? \\\"short\\\" : LONG_CUE.test(text) ? \\\"long\\\" : null;\\n  if (!polarity) return null;\\n  const key = /\\\\b(ses|sesli|tts|voice)\\\\b/.test(whole) ? \\\"user.preference.voice-length\\\" : \\\"user.preference.response-length\\\";\\n  const cue = polarity === \\\"short\\\" ? SHORT_CUE : LONG_CUE;\\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\\n}\"\n    }\n  ]\n}"
+      },
+      "outcome": "FAIL",
+      "candidateSha256": "c7194c4174d0891b0f6e553356684bf453b24c82686132ddd39aafff00f1d97e",
+      "candidateArtifact": "D:\\ÜRETİM\\private\\temp\\ayas-qualification-qwen2-owner-96f24483fd704886855aca060888a9a3\\candidate-ScDRWu",
+      "responseSha256": "f51c493b9eff3126d8c8c4d3464f51629989c6ee60e5d3423067b53364b7703b",
+      "generationMs": 277689.1032,
+      "evaluationMs": 2109.1933000000427,
+      "changedFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "changedLines": 80,
+      "patch": {
+        "schemaVersion": "1",
+        "edits": [
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;",
+            "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;"
+          },
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n]);",
+            "replace": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n  \"Bilgisayar satın alma kararı\",\n]);"
+          },
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;",
+            "replace": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;\nconst COMPUTER_PURCHASE_CUE = /\\b(?:yeni\\s+(?:dizüstü|laptop|notebook|pc)|dizüstü\\s+(?:almak|satın\\s+almak)|bilgisayar\\s+(?:almak|satın\\s+almak))\\b/;"
+          },
+          {
+            "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+            "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+            "search": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}",
+            "replace": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  // Computer purchase decision\n  if (input.kind === \"decision\" && COMPUTER_PURCHASE_CUE.test(whole)) {\n    const value = fold(input.body).replace(/[^a-z0-9]/g, \"\").substring(0, 40);\n    return { fact: { key: \"user.decision.computer-purchase-plan\", value }, clause: input.body };\n  }\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}"
+          }
+        ]
+      },
+      "evaluatorExit": 1,
+      "evaluatorStdout": "",
+      "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+      "securityScope": "STRICT_ADAPTER_ACCEPTED_IN_MEMORY_ONLY",
+      "regression": "FULL_FROZEN_EVALUATOR_ONLY_NO_DECLARED_ADDITIONAL_MATRIX",
+      "repairRounds": 2,
+      "rounds": [
+        {
+          "round": 0,
+          "seed": 100,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "c7194c4174d0891b0f6e553356684bf453b24c82686132ddd39aafff00f1d97e",
+          "changedLines": 80,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;",
+                "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n]);",
+                "replace": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n  \"Bilgisayar satın alma kararı\",\n]);"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;",
+                "replace": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;\nconst COMPUTER_PURCHASE_CUE = /\\b(?:yeni\\s+(?:dizüstü|laptop|notebook|pc)|dizüstü\\s+(?:almak|satın\\s+almak)|bilgisayar\\s+(?:almak|satın\\s+almak))\\b/;"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}",
+                "replace": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  // Computer purchase decision\n  if (input.kind === \"decision\" && COMPUTER_PURCHASE_CUE.test(whole)) {\n    const value = fold(input.body).replace(/[^a-z0-9]/g, \"\").substring(0, 40);\n    return { fact: { key: \"user.decision.computer-purchase-plan\", value }, clause: input.body };\n  }\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-cDjF2Y/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-cDjF2Y/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-cDjF2Y/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-cDjF2Y/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 314883.4339,
+          "totalMs": 318148.26979999995,
+          "feedbackForNextRound": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\nactual: undefined,\nexpected: 'user.decision.computer-purchase-plan',\noperator: 'strictEqual',",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 1,
+          "seed": 101,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "c7194c4174d0891b0f6e553356684bf453b24c82686132ddd39aafff00f1d97e",
+          "changedLines": 80,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;",
+                "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n]);",
+                "replace": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n  \"Bilgisayar satın alma kararı\",\n]);"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;",
+                "replace": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;\nconst COMPUTER_PURCHASE_CUE = /\\b(?:yeni\\s+(?:dizüstü|laptop|notebook|pc)|dizüstü\\s+(?:almak|satın\\s+almak)|bilgisayar\\s+(?:almak|satın\\s+almak))\\b/;"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}",
+                "replace": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  // Computer purchase decision\n  if (input.kind === \"decision\" && COMPUTER_PURCHASE_CUE.test(whole)) {\n    const value = fold(input.body).replace(/[^a-z0-9]/g, \"\").substring(0, 40);\n    return { fact: { key: \"user.decision.computer-purchase-plan\", value }, clause: input.body };\n  }\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-BhjFHs/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-BhjFHs/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-BhjFHs/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-BhjFHs/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 311634.64259999996,
+          "totalMs": 314777.84130000003,
+          "feedbackForNextRound": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\nactual: undefined,\nexpected: 'user.decision.computer-purchase-plan',\noperator: 'strictEqual',",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 2,
+          "seed": 102,
+          "outcome": "FAIL",
+          "reason": null,
+          "securityViolation": false,
+          "candidateSha256": "c7194c4174d0891b0f6e553356684bf453b24c82686132ddd39aafff00f1d97e",
+          "changedLines": 80,
+          "patch": {
+            "schemaVersion": "1",
+            "edits": [
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n] as const;",
+                "replace": "export const AYAS_MEMORY_FACT_KEYS = [\n  \"user.identity.name\",\n  \"user.preference.response-length\",\n  \"user.preference.voice-length\",\n  \"user.decision.computer-purchase-plan\",\n] as const;"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n]);",
+                "replace": "const USER_STATEMENT_TITLES = new Set([\n  IDENTITY_TITLE,\n  \"Kullanıcı tercihi\",\n  \"Alınan karar\",\n  \"Çalışma ortamı bilgisi\",\n  \"Bilinen sorun\",\n  \"Bilgisayar satın alma kararı\",\n]);"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;",
+                "replace": "const SHORT_CUE = /\\b(kisa|oz|ozet)\\b/;\nconst LONG_CUE = /\\b(uzun|detayli|ayrintili)\\b/;\nconst COMPUTER_PURCHASE_CUE = /\\b(?:yeni\\s+(?:dizüstü|laptop|notebook|pc)|dizüstü\\s+(?:almak|satın\\s+almak)|bilgisayar\\s+(?:almak|satın\\s+almak))\\b/;"
+              },
+              {
+                "path": "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+                "beforeSha256": "c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36",
+                "search": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}",
+                "replace": "function deriveFactEvidence(input: {\n  readonly kind: BrainMemoryKind;\n  readonly body: string;\n  readonly tags: readonly string[];\n}): { fact: AyasMemoryFact; clause: string | null } | null {\n  const identity = identityEvidence(input.body, input.tags);\n  if (identity && \"value\" in identity) return { fact: { key: \"user.identity.name\", value: identity.value }, clause: identity.clause };\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\n  if (identity || input.tags.includes(\"kimlik\") || input.kind !== \"user-preference\") return null;\n  const whole = fold(`${input.body} ${input.tags.join(\" \")}`);\n  // Computer purchase decision\n  if (input.kind === \"decision\" && COMPUTER_PURCHASE_CUE.test(whole)) {\n    const value = fold(input.body).replace(/[^a-z0-9]/g, \"\").substring(0, 40);\n    return { fact: { key: \"user.decision.computer-purchase-plan\", value }, clause: input.body };\n  }\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \" \"));\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\n  // Only a cue that survives negation counts: \"uzun değil lütfen\" states no length.\n  const text = chosen.length > 0 ? chosen.join(\" \") : fold(input.tags.join(\" \"));\n  const polarity = SHORT_CUE.test(text) ? \"short\" : LONG_CUE.test(text) ? \"long\" : null;\n  if (!polarity) return null;\n  const key = /\\b(ses|sesli|tts|voice)\\b/.test(whole) ? \"user.preference.voice-length\" : \"user.preference.response-length\";\n  const cue = polarity === \"short\" ? SHORT_CUE : LONG_CUE;\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\n}"
+              }
+            ]
+          },
+          "evaluatorExit": 1,
+          "evaluatorStderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-TtCExh/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "generationMs": 277689.1032,
+          "totalMs": 280417.1516,
+          "feedbackForNextRound": null,
+          "feedbackWithheld": false
+        }
+      ]
+    },
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "repeat": 2,
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelDigest": "1194192cf2a187eb02722edcc3f77b11d21f537048ce04b67ccf8ba78863006a",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "baseHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+      "harness": {
+        "repositoryHead": "53162f5fac908d5f0f374789f30a7d65166f04ca",
+        "runnerSha256": "a828ef4056b8bb9c00608a329f5fba4fd438c88f1db638cf0616f527bfb101ff",
+        "adapterSha256": "12d4f4a3768778c13b69885ba2899364432a52a3274c7813b356835c719e0c2c"
+      },
+      "observedAt": "2026-10-15T06:35:08.147Z",
+      "modelRequestSent": true,
+      "retries": 0,
+      "totalMs": 288492.0593000001,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 5260500992,
+          "usedPct": 84.5
+        },
+        "peakUsedPct": 83.8,
+        "minFreeBytes": 5525544960,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 6074716160,
+          "usedPct": 82.2
+        }
+      },
+      "toolMisuse": false,
+      "workspaceUnchanged": true,
+      "scopeEscape": false,
+      "securityViolation": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "prompt_tokens": 16905,
+          "completion_tokens": 1937
+        },
+        "timings": {
+          "total_ms": 288444.5921,
+          "eval_ms": 63365.815
+        },
+        "toolCalls": null,
+        "contentChars": 6167,
+        "content": "{\n  \"schemaVersion\": \"1\",\n  \"edits\": [\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n] as const;\\n\\nexport type AyasMemoryFactKey = (typeof AYAS_MEMORY_FACT_KEYS)[number];\",\n      \"replace\": \"export const AYAS_MEMORY_FACT_KEYS = [\\n  \\\"user.identity.name\\\",\\n  \\\"user.preference.response-length\\\",\\n  \\\"user.preference.voice-length\\\",\\n  \\\"user.decision.computer-purchase-plan\\\",\\n] as const;\\n\\nexport type AyasMemoryFactKey = (typeof AYAS_MEMORY_FACT_KEYS)[number];\"\n    },\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"const IDENTITY_TITLE = \\\"Kullanıcı kimliği / hitap tercihi\\\";\\nconst USER_STATEMENT_TITLES = new Set([\\n  IDENTITY_TITLE,\\n  \\\"Kullanıcı tercihi\\\",\\n  \\\"Alınan karar\\\",\\n  \\\"Çalışma ortamı bilgisi\\\",\\n  \\\"Bilinen sorun\\\",\\n]);\",\n      \"replace\": \"const IDENTITY_TITLE = \\\"Kullanıcı kimliği / hitap tercihi\\\";\\nconst USER_STATEMENT_TITLES = new Set([\\n  IDENTITY_TITLE,\\n  \\\"Kullanıcı tercihi\\\",\\n  \\\"Alınan karar\\\",\\n  \\\"Çalışma ortamı bilgisi\\\",\\n  \\\"Bilinen sorun\\\",\\n]);\\n\\nconst COMPUTER_PURCHASE_PHRASES = [\\n  /\\\\b(?:yeni|yeni bir)\\\\s+(?:dizüstü|laptop|notebook|pc)\\\\s+(?:bilgisayar|bilgisayari)\\\\s+(?:almaya|almasi|alma)\\\\s+karar\\\\s+verdim\\\\b/i,\\n  /\\\\b(?:yeni|yeni bir)\\\\s+(?:dizüstü|laptop|notebook|pc)\\\\s+(?:bilgisayar|bilgisayari)\\\\s+(?:kurdum|kuruyorum|kuruluyor|kurulmus)\\\\b/i,\\n  /\\\\b(?:yeni|yeni bir)\\\\s+(?:dizüstü|laptop|notebook|pc)\\\\s+(?:bilgisayar|bilgisayari)\\\\s+(?:kuruyorum|kurdum|kuruluyor|kurulmus)\\\\b/i,\\n];\"\n    },\n    {\n      \"path\": \"src/lib/ayas/memory/AyasMemoryTemporal.ts\",\n      \"beforeSha256\": \"c23594b9370636973d4283ee8bd399d40a849a2d2ef907e0d7601a9b206a6f36\",\n      \"search\": \"function deriveFactEvidence(input: {\\n  readonly kind: BrainMemoryKind;\\n  readonly body: string;\\n  readonly tags: readonly string[];\\n}): { fact: AyasMemoryFact; clause: string | null } | null {\\n  const identity = identityEvidence(input.body, input.tags);\\n  if (identity && \\\"value\\\" in identity) return { fact: { key: \\\"user.identity.name\\\", value: identity.value }, clause: identity.clause };\\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\\n  if (identity || input.tags.includes(\\\"kimlik\\\") || input.kind !== \\\"user-preference\\\") return null;\\n  const whole = fold(`${input.body} ${input.tags.join(\\\" \\\")}`);\\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \\\" \\\"));\\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\\n  // Only a cue that survives negation counts: \\\"uzun değil lütfen\\\" states no length.\\n  const text = chosen.length > 0 ? chosen.join(\\\" \\\") : fold(input.tags.join(\\\" \\\"));\\n  const polarity = SHORT_CUE.test(text) ? \\\"short\\\" : LONG_CUE.test(text) ? \\\"long\\\" : null;\\n  if (!polarity) return null;\\n  const key = /\\\\b(ses|sesli|tts|voice)\\\\b/.test(whole) ? \\\"user.preference.voice-length\\\" : \\\"user.preference.response-length\\\";\\n  const cue = polarity === \\\"short\\\" ? SHORT_CUE : LONG_CUE;\\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\\n}\",\n      \"replace\": \"function deriveFactEvidence(input: {\\n  readonly kind: BrainMemoryKind;\\n  readonly body: string;\\n  readonly tags: readonly string[];\\n}): { fact: AyasMemoryFact; clause: string | null } | null {\\n  const identity = identityEvidence(input.body, input.tags);\\n  if (identity && \\\"value\\\" in identity) return { fact: { key: \\\"user.identity.name\\\", value: identity.value }, clause: identity.clause };\\n  // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.\\n  if (identity || input.tags.includes(\\\"kimlik\\\") || input.kind !== \\\"user-preference\\\") {\\n    // Check for computer purchase decision\\n    const whole = fold(`${input.body} ${input.tags.join(\\\" \\\")}`);\\n    const segments = statementSegments(input.body);\\n    for (const segment of segments) {\\n      if (COMPUTER_PURCHASE_PHRASES.some((pattern) => pattern.test(segment))) {\\n        // Generate a unique value for each purchase decision\\n        const hash = Math.abs(segment.split('').reduce((a, b) => {\\n          a = ((a << 5) - a) + b.charCodeAt(0);\\n          return a & a;\\n        }, 0));\\n        return { fact: { key: \\\"user.decision.computer-purchase-plan\\\", value: hash.toString().substring(0, 40) }, clause: segment };\\n      }\\n    }\\n    // If this is a computer-related statement but not purchase decision, do not add fact key\\n    return null;\\n  }\\n  const whole = fold(`${input.body} ${input.tags.join(\\\" \\\")}`);\\n  const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, \\\" \\\"));\\n  const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);\\n  const present = segments.filter((segment) => hasCue(segment) && !PAST_STATE.test(segment) && !HISTORY_CUE.test(segment));\\n  const chosen = present.length > 0 ? present : segments.filter(hasCue);\\n  // Only a cue that survives negation counts: \\\"uzun değil lütfen\\\" states no length.\\n  const text = chosen.length > 0 ? chosen.join(\\\" \\\") : fold(input.tags.join(\\\" \\\"));\\n  const polarity = SHORT_CUE.test(text) ? \\\"short\\\" : LONG_CUE.test(text) ? \\\"long\\\" : null;\\n  if (!polarity) return null;\\n  const key = /\\\\b(ses|sesli|tts|voice)\\\\b/.test(whole) ? \\\"user.preference.voice-length\\\" : \\\"user.preference.response-length\\\";\\n  const cue = polarity === \\\"short\\\" ? SHORT_CUE : LONG_CUE;\\n  return { fact: { key, value: polarity }, clause: chosen.find((segment) => cue.test(segment)) ?? null };\\n}\"\n    }\n  ]\n}"
+      },
+      "outcome": "SCOPE_OR_BUDGET_REFUSED",
+      "reason": "PATCH_LINE_BUDGET_EXCEEDED",
+      "repairRounds": 2,
+      "rounds": [
+        {
+          "round": 0,
+          "seed": 200,
+          "outcome": "SCOPE_OR_BUDGET_REFUSED",
+          "reason": "PATCH_LINE_BUDGET_EXCEEDED",
+          "securityViolation": false,
+          "candidateSha256": null,
+          "changedLines": null,
+          "patch": null,
+          "evaluatorExit": null,
+          "evaluatorStderr": null,
+          "generationMs": null,
+          "totalMs": 293889.70849999995,
+          "feedbackForNextRound": "PATCH_LINE_BUDGET_EXCEEDED: removed plus inserted lines exceeded maxChangedLines. Make a smaller, focused change.",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 1,
+          "seed": 201,
+          "outcome": "SCOPE_OR_BUDGET_REFUSED",
+          "reason": "PATCH_LINE_BUDGET_EXCEEDED",
+          "securityViolation": false,
+          "candidateSha256": null,
+          "changedLines": null,
+          "patch": null,
+          "evaluatorExit": null,
+          "evaluatorStderr": null,
+          "generationMs": null,
+          "totalMs": 297893.9010999999,
+          "feedbackForNextRound": "PATCH_LINE_BUDGET_EXCEEDED: removed plus inserted lines exceeded maxChangedLines. Make a smaller, focused change.",
+          "feedbackWithheld": false
+        },
+        {
+          "round": 2,
+          "seed": 202,
+          "outcome": "SCOPE_OR_BUDGET_REFUSED",
+          "reason": "PATCH_LINE_BUDGET_EXCEEDED",
+          "securityViolation": false,
+          "candidateSha256": null,
+          "changedLines": null,
+          "patch": null,
+          "evaluatorExit": null,
+          "evaluatorStderr": null,
+          "generationMs": null,
+          "totalMs": 288492.0593000001,
+          "feedbackForNextRound": null,
+          "feedbackWithheld": false
+        }
+      ]
+    }
+  ],
+  "supersededAttempts": [],
+  "resourceAborts": [],
+  "notEvaluated": [
+    {
+      "caseId": "historical-windows-graphify-launch",
+      "outcome": "PLATFORM_UNAVAILABLE",
+      "modelRequestSent": false
+    }
+  ],
+  "ownerThreshold": {
+    "thresholdId": "owner-balanced-2026-10-15",
+    "verdict": "NOT_QUALIFIED",
+    "reasons": [
+      "PRIMARY_CANNOT_REACH_MIN:historical-explicit-computer-plan:0/2"
+    ],
+    "perCase": [
+      {
+        "caseId": "historical-explicit-computer-plan",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 2
+      },
+      {
+        "caseId": "historical-atomic-bounded-write",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 0
+      },
+      {
+        "caseId": "historical-daily-development-view",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 0
+      },
+      {
+        "caseId": "historical-two-source-identity-retrieval",
+        "split": "PRIMARY",
+        "passes": 0,
+        "attempts": 0
+      },
+      {
+        "caseId": "heldout-render-tool-supersession",
+        "split": "HELD_OUT",
+        "passes": 0,
+        "attempts": 0
+      }
+    ],
+    "heldOutPassRate": null,
+    "securityViolations": 0
+  },
+  "readiness": "LOCAL_INDEPENDENCE_DEGRADED",
+  "productionRegistryChanged": false,
+  "cloudFallback": false
+}
