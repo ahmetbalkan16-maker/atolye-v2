@@ -6,6 +6,7 @@
 - `scripts/new-pc-setup.ps1` (dry-run by default, `-Apply`): exact hash-pinned Node/cloudflared and the other tools via winget, user env, profile junctions, `.env.local` FFmpeg paths, dependencies, Graphify and the three Startup launchers. Guide: `docs/AYAS_NEW_PC_SETUP.md`.
 - Local coding model qualification on the GPU host: `run-ayas-local-coding-container.ts qualify-host` runs inference in host Ollama on 127.0.0.1 and evaluates each patch in the same hardened Podman container; the owner "Balanced" threshold is `AyasLocalCodingOwnerThreshold` (2 of 3 repeats per frozen case, at least 70% held-out, zero security violations). Podman is resolved per user. Transport and harness failures are kept apart and never counted as model failures.
 - Result: `qwen3-coder:30b` is NOT_QUALIFIED (0/15, zero security violations); registry and readiness are unchanged. Evidence: `15A/LOCAL_MODEL_HOST_RUN_EVIDENCE.json`.
+- Qualification protocol v2 (owner decision): `qualify-host-repair` samples each repeat independently (temperature 0.7, seed per repeat and round) and gives a failed patch at most two repair rounds. A repair round sees only `AyasLocalCodingRepairFeedback`'s sanitized summary: the error message and actual/expected values, with no stack, paths or line numbers, and nothing at all if the summary would quote the frozen evaluator. Without options the adapter request is byte-identical to before.
 
 ## 2026-10-14 — AYAS safe-pause closure and self-check regression repair
 

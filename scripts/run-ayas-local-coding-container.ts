@@ -8,7 +8,8 @@ import { execFileSync, spawn, spawnSync } from "node:child_process";
 import http from "node:http";
 import { ayasLocalCodingCandidatePins as pins, ayasLocalCodingHostCandidatePins } from "../src/lib/brain/autonomy/AyasLocalCodingPins";
 import { AYAS_LOCAL_CODING_OWNER_THRESHOLD, evaluateAyasLocalCodingOwnerThreshold } from "../src/lib/brain/autonomy/AyasLocalCodingOwnerThreshold";
-import { AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, diagnoseAyasLocalCodingModelWith } from "../src/lib/brain/autonomy/AyasLocalCodingModelAdapter";
+import { AYAS_LOCAL_CODING_MAX_REPAIR_ROUNDS, AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, diagnoseAyasLocalCodingModelWith, type AyasLocalCodingRequestOptions } from "../src/lib/brain/autonomy/AyasLocalCodingModelAdapter";
+import { describeAyasLocalCodingRefusal, summarizeAyasLocalCodingEvaluatorFailure } from "../src/lib/brain/autonomy/AyasLocalCodingRepairFeedback";
 import { summarizeAyasLocalCodingQualification } from "../src/lib/brain/autonomy/AyasLocalCodingQualificationReport";
 import { createAyasLocalCodingWorkspace, destroyAyasLocalCodingWorkspace } from "../src/lib/brain/autonomy/AyasLocalCodingWorkspace";
 import { AYAS_LOCAL_CODING_QUALIFICATION_VAULT, projectAyasLocalCodingQualificationTask } from "./fixtures/ayas-local-coding-qualification-vault";
@@ -568,7 +569,20 @@ async function hostTransport(body: string, signal: AbortSignal): Promise<string>
   usage: { prompt_tokens: native.prompt_eval_count ?? null, completion_tokens: native.eval_count ?? null },
   timings: { total_ms: native.total_duration ? native.total_duration / 1e6 : null, eval_ms: native.eval_duration ? native.eval_duration / 1e6 : null } });
 }
-async function qualifyHost(): Promise<void> {
+/**
+ * Owner protocol v2 (2026-10-15): each repeat is an independent sample (temperature 0.7, its own seed) and a failed
+ * patch gets at most two repair rounds that see only a sanitized failure summary. A security violation, a timeout or an
+ * engine refusal ends the attempt. The threshold is unchanged; the blind protocol stays available as qualify-host.
+ */
+const REPAIR_PROTOCOL = Object.freeze({ id: "owner-sampled-repair-2026-10-15", temperature: 0.7, seed: "repeat * 100 + round",
+  maxRepairRounds: AYAS_LOCAL_CODING_MAX_REPAIR_ROUNDS,
+  feedback: "summarizeAyasLocalCodingEvaluatorFailure (message and actual/expected only; withheld on any frozen evaluator source fragment) or describeAyasLocalCodingRefusal" });
+const REPAIRABLE = ["FAIL", "SCOPE_OR_BUDGET_REFUSED", "UNAPPLICABLE_PATCH", "SCHEMA_FAILURE", "INVALID_OUTPUT"];
+function modelContent(raw: string): string | null {
+  try { const content = JSON.parse(raw).choices?.[0]?.message?.content; return typeof content === "string" && content.length > 0 && content.length <= 24_000 ? content : null; }
+  catch { return null; }
+}
+async function qualifyHost(protocol: typeof REPAIR_PROTOCOL | null): Promise<void> {
   await hostEngineGuard();
   const evalId = hardenedEvaluatorImage();
   const oracle = JSON.parse(fs.readFileSync(`${reportPath}/FROZEN_CONTAINER_NEGATIVE_CONTROLS.json`, "utf8"));
@@ -580,10 +594,11 @@ async function qualifyHost(): Promise<void> {
   const binding = { engine: hostPins.engine, model: hostPins.model, evaluatorImageId: evalId,
     adapterSha256: sha(fs.readFileSync("src/lib/brain/autonomy/AyasLocalCodingModelAdapter.ts")),
     transport: "node:http to ollama /api/chat on 127.0.0.1, no header timeout, keep_alive 0, re-enveloped for the strict adapter", numCtx: HOST_NUM_CTX,
-    timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, threshold: AYAS_LOCAL_CODING_OWNER_THRESHOLD };
+    timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, threshold: AYAS_LOCAL_CODING_OWNER_THRESHOLD, ...(protocol ? { protocol } : {}) };
   const runnerSha256 = sha(fs.readFileSync("scripts/run-ayas-local-coding-container.ts"));
   // One recorded observation per (case, repeat); a resumed run keeps earlier attempts and never re-rolls them.
-  const file = `${reportPath}/LOCAL_MODEL_HOST_RUN_EVIDENCE.json`;
+  const report = protocol ? "LOCAL_MODEL_HOST_REPAIR_RUN_EVIDENCE" : "LOCAL_MODEL_HOST_RUN_EVIDENCE";
+  const file = `${reportPath}/${report}.json`;
   const prior = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
   const sameBinding = !!prior && JSON.stringify(prior.binding) === JSON.stringify(binding);
   const attempts: Attempt[] = sameBinding ? prior.attempts : [];
@@ -592,52 +607,78 @@ async function qualifyHost(): Promise<void> {
   const verdict = (): ReturnType<typeof evaluateAyasLocalCodingOwnerThreshold> => evaluateAyasLocalCodingOwnerThreshold({
     cases: bound.map(item => ({ caseId: item.caseId, split: item.split })),
     attempts: attempts.map(row => ({ caseId: row.caseId, repeat: row.repeat, pass: row.outcome === "PASS", securityViolation: row.securityViolation === true })) });
-  const persist = (): void => writeReport("LOCAL_MODEL_HOST_RUN_EVIDENCE", { evidenceClass: "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
+  const persist = (): void => writeReport(report, { evidenceClass: "REAL_LOCAL_MODEL_ATTEMPTS_HOST_ENGINE_NOT_ADMISSION",
     observedAt: new Date().toISOString(), repositoryHead: head(), binding, attempts, supersededAttempts: superseded, resourceAborts,
     notEvaluated: (oracle.platformUnavailable as string[]).map(caseId => ({ caseId, outcome: "PLATFORM_UNAVAILABLE", modelRequestSent: false })),
     ownerThreshold: verdict(), readiness: "LOCAL_INDEPENDENCE_DEGRADED", productionRegistryChanged: false, cloudFallback: false });
   for (const item of cases) for (let repeat = 1; repeat <= HOST_REPEATS; repeat++) {
     if (attempts.some(row => row.caseId === item.caseId && row.repeat === repeat)) continue;
     if (budget-- <= 0) { persist(); console.log("ATTEMPT_BUDGET_REACHED_NOT_ADMISSION"); return; }
-    const hostBefore = hostMemory();
-    if (hostBefore.usedPct > HOST_MAX_USED * 100) { persist(); throw Error(`HOST_PROTECTION_PAUSE:host ${hostBefore.usedPct}% used before ${item.caseId}#${repeat}`); }
     const task = item.domain === "MEMORY_RETRIEVAL" ? projectAyasLocalCodingRetrievalTask() : projectAyasLocalCodingQualificationTask(item);
-    const workspace = createAyasLocalCodingWorkspace({ repoRoot: process.cwd(), task });
-    const started = performance.now(); let rawResponse = ""; let model: ModelDiagnostic | null = null;
-    let result: Record<string, unknown> & { outcome: string } = { outcome: "RUNTIME_FAILURE" };
-    let workspaceUnchanged = false; let scopeEscape = false; let modelRequestSent = false;
-    const guard = new AbortController(); const watch = hostWatch(() => guard.abort()); let host: ReturnType<typeof watch.stop>;
-    try {
-      const sources = task.exactFiles.map(file => ({ path: file, content: fs.readFileSync(path.join(workspace.root, file), "utf8") }));
-      const workspaceBefore = workspaceDigest(workspace.root, task.exactFiles);
+    // The frozen evaluator stays on the host; it is read only to withhold feedback that would quote it.
+    const evaluatorSource = protocol ? execFileSync("git", ["cat-file", "blob", item.evaluatorBlob], { encoding: "utf8", maxBuffer: 4_000_000 }) : "";
+    const rounds: Record<string, unknown>[] = []; let repair: AyasLocalCodingRequestOptions["repair"]; let record: Attempt | undefined;
+    for (let round = 0; round <= (protocol?.maxRepairRounds ?? 0); round++) {
+      const options: AyasLocalCodingRequestOptions | undefined = protocol
+        ? { sampling: { temperature: protocol.temperature, seed: repeat * 100 + round }, ...(repair ? { repair } : {}) } : undefined;
+      const hostBefore = hostMemory();
+      if (hostBefore.usedPct > HOST_MAX_USED * 100) { persist(); throw Error(`HOST_PROTECTION_PAUSE:host ${hostBefore.usedPct}% used before ${item.caseId}#${repeat}`); }
+      const workspace = createAyasLocalCodingWorkspace({ repoRoot: process.cwd(), task });
+      const started = performance.now(); let rawResponse = ""; let model: ModelDiagnostic | null = null;
+      let result: Record<string, unknown> & { outcome: string } = { outcome: "RUNTIME_FAILURE" };
+      let workspaceUnchanged = false; let scopeEscape = false; let modelRequestSent = false;
+      const guard = new AbortController(); const watch = hostWatch(() => guard.abort()); let host: ReturnType<typeof watch.stop>;
       try {
-        model = await diagnoseAyasLocalCodingModelWith({ task, sources, modelManifest: hostPins.model, signal: guard.signal,
-          endpoint: `${HOST_ENGINE}/v1/chat/completions`, timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS,
-          transport: async request => { modelRequestSent = true; rawResponse = await hostTransport(request.body, request.signal); return rawResponse; } });
-      } catch (error) { result = classify(error); }
-      workspaceUnchanged = workspaceDigest(workspace.root, task.exactFiles) === workspaceBefore;
-      // An edit naming a file outside the task is a security violation even though the adapter already refused it.
-      try {
-        const edits = JSON.parse(JSON.parse(rawResponse).choices[0].message.content).edits;
-        scopeEscape = Array.isArray(edits) && edits.some((edit: { path?: unknown }) => typeof edit?.path !== "string" || !task.exactFiles.includes(edit.path));
-      } catch { /* unparseable output is already a refused attempt */ }
-    } finally { try { destroyAyasLocalCodingWorkspace(workspace); } finally { host = watch.stop(); } }
-    if (rawResponse) fs.writeFileSync(path.join(root, `host-${item.caseId}-${repeat}-${Date.now()}-response.json`), rawResponse, { flag: "wx", mode: 0o444 });
-    if (model) result = evaluateCandidate(evalId, item.caseId, model);
-    const facts = rawResponse ? responseFacts(rawResponse) as { toolCalls?: (string | null)[] | null } : null;
-    const toolMisuse = !!facts?.toolCalls?.length;
-    const record: Attempt = { caseId: item.caseId, split: item.split, domain: item.domain, repeat, evaluatorImageId: evalId, modelDigest: hostPins.model.weightsSha256,
-      evaluatorBlob: item.evaluatorBlob, baseHead: item.baseHead, harness: { repositoryHead: head(), runnerSha256, adapterSha256: binding.adapterSha256 },
-      observedAt: new Date().toISOString(), modelRequestSent, retries: 0,
-      totalMs: performance.now() - started, hostMemory: { before: hostBefore, ...host, afterCleanup: hostMemory() },
-      toolMisuse, workspaceUnchanged, scopeEscape, securityViolation: toolMisuse || !workspaceUnchanged || scopeEscape, response: facts, ...result };
-    // Resource exhaustion or a harness/transport failure (no model answer at all) says nothing about the model:
-    // kept apart, never counted, and the repeat stays pending for a resumed run.
-    const harnessFailure = !model && result.outcome === "RUNTIME_FAILURE";
-    if (host.aborted || harnessFailure) {
-      resourceAborts.push({ ...record, outcome: host.aborted ? "RESOURCE_ABORT" : "HARNESS_ABORT", countedAsModelFailure: false });
-      persist(); throw Error(`HOST_PROTECTION_PAUSE:${host.aborted ? "RESOURCE_ABORT" : "HARNESS_ABORT"} ${item.caseId}#${repeat}`);
+        const sources = task.exactFiles.map(file => ({ path: file, content: fs.readFileSync(path.join(workspace.root, file), "utf8") }));
+        const workspaceBefore = workspaceDigest(workspace.root, task.exactFiles);
+        try {
+          model = await diagnoseAyasLocalCodingModelWith({ task, sources, modelManifest: hostPins.model, signal: guard.signal, options,
+            endpoint: `${HOST_ENGINE}/v1/chat/completions`, timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS,
+            transport: async request => { modelRequestSent = true; rawResponse = await hostTransport(request.body, request.signal); return rawResponse; } });
+        } catch (error) { result = classify(error); }
+        workspaceUnchanged = workspaceDigest(workspace.root, task.exactFiles) === workspaceBefore;
+        // An edit naming a file outside the task is a security violation even though the adapter already refused it.
+        try {
+          const edits = JSON.parse(JSON.parse(rawResponse).choices[0].message.content).edits;
+          scopeEscape = Array.isArray(edits) && edits.some((edit: { path?: unknown }) => typeof edit?.path !== "string" || !task.exactFiles.includes(edit.path));
+        } catch { /* unparseable output is already a refused attempt */ }
+      } finally { try { destroyAyasLocalCodingWorkspace(workspace); } finally { host = watch.stop(); } }
+      if (rawResponse) fs.writeFileSync(path.join(root, `host-${item.caseId}-${repeat}${protocol ? `-r${round}` : ""}-${Date.now()}-response.json`), rawResponse, { flag: "wx", mode: 0o444 });
+      if (model) result = evaluateCandidate(evalId, item.caseId, model);
+      const facts = rawResponse ? responseFacts(rawResponse) as { toolCalls?: (string | null)[] | null } : null;
+      const toolMisuse = !!facts?.toolCalls?.length;
+      record = { caseId: item.caseId, split: item.split, domain: item.domain, repeat, evaluatorImageId: evalId, modelDigest: hostPins.model.weightsSha256,
+        evaluatorBlob: item.evaluatorBlob, baseHead: item.baseHead, harness: { repositoryHead: head(), runnerSha256, adapterSha256: binding.adapterSha256 },
+        observedAt: new Date().toISOString(), modelRequestSent, retries: 0,
+        totalMs: performance.now() - started, hostMemory: { before: hostBefore, ...host, afterCleanup: hostMemory() },
+        toolMisuse, workspaceUnchanged, scopeEscape, securityViolation: toolMisuse || !workspaceUnchanged || scopeEscape, response: facts, ...result };
+      // Resource exhaustion or a harness/transport failure (no model answer at all) says nothing about the model:
+      // kept apart, never counted, and the repeat stays pending for a resumed run.
+      const harnessFailure = !model && result.outcome === "RUNTIME_FAILURE";
+      if (host.aborted || harnessFailure) {
+        resourceAborts.push({ ...record, ...(protocol ? { round, earlierRounds: rounds } : {}), outcome: host.aborted ? "RESOURCE_ABORT" : "HARNESS_ABORT", countedAsModelFailure: false });
+        persist(); throw Error(`HOST_PROTECTION_PAUSE:${host.aborted ? "RESOURCE_ABORT" : "HARNESS_ABORT"} ${item.caseId}#${repeat}`);
+      }
+      if (!protocol) break;
+      // Repair only an ordinary miss; a security violation, timeout or engine refusal ends the attempt as it stands.
+      let feedback: string | null = null; let feedbackWithheld = false;
+      if (!record.securityViolation && round < protocol.maxRepairRounds && REPAIRABLE.includes(record.outcome)) {
+        if (record.outcome === "FAIL") {
+          const summary = summarizeAyasLocalCodingEvaluatorFailure({ output: `${record.evaluatorStderr ?? ""}\n${record.evaluatorStdout ?? ""}`, evaluatorSource });
+          feedback = summary.feedback; feedbackWithheld = summary.withheld;
+        } else feedback = describeAyasLocalCodingRefusal(String(record.reason ?? ""));
+      }
+      const previousOutput = feedback ? modelContent(rawResponse) : null;
+      rounds.push({ round, seed: options!.sampling!.seed, outcome: record.outcome, reason: record.reason ?? null, securityViolation: record.securityViolation,
+        candidateSha256: record.candidateSha256 ?? null, changedLines: record.changedLines ?? null, patch: record.patch ?? null,
+        evaluatorExit: record.evaluatorExit ?? null, evaluatorStderr: record.evaluatorStderr ?? null, generationMs: record.generationMs ?? null,
+        totalMs: record.totalMs, feedbackForNextRound: previousOutput ? feedback : null, feedbackWithheld });
+      if (!feedback || !previousOutput) break;
+      repair = { round: round + 1, previousOutput, feedback };
     }
+    // The attempt is its last round; any security violation in any round counts.
+    if (!record) throw Error("ATTEMPT_NOT_RECORDED");
+    if (protocol) record = { ...record, repairRounds: rounds.length - 1, rounds, securityViolation: rounds.some(row => row.securityViolation === true) };
     attempts.push(record); persist();
     console.log(JSON.stringify({ caseId: record.caseId, repeat, outcome: record.outcome, reason: record.reason ?? null, securityViolation: record.securityViolation,
       generationMs: record.generationMs ?? null, totalMs: Math.round(record.totalMs as number) }));
@@ -653,5 +694,6 @@ else if (process.argv[3] === "matrix") void matrix();
 else if (process.argv[3] === "controls") controls();
 else if (process.argv[3] === "smoke") smoke().catch(stopped);
 else if (process.argv[3] === "qualify") qualify().catch(stopped);
-else if (process.argv[3] === "qualify-host") qualifyHost().catch(stopped);
+else if (process.argv[3] === "qualify-host") qualifyHost(null).catch(stopped);
+else if (process.argv[3] === "qualify-host-repair") qualifyHost(REPAIR_PROTOCOL).catch(stopped);
 else throw Error("EXPLICIT_DIAGNOSTIC_PHASE_REQUIRED");
