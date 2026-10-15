@@ -2,6 +2,8 @@ import { createAyasResearchSchedulerStateStore } from "./AyasResearchSchedulerSt
 import type { AyasGoalResearchJob } from "./AyasResearchSchedulerStateStore";
 import { createAyasResearchSourceStateStore } from "./AyasResearchSourceStateStore";
 import { createAyasExternalResearchStore } from "./AyasExternalResearchStore";
+import { createAyasResearchNoveltyStore } from "./AyasResearchNoveltyStore";
+import { buildAyasResearchHealth, buildAyasUpdateRadar, type AyasResearchHealth, type AyasUpdateRadarItem } from "./AyasUpdateRadar";
 import { resolveAyasResearchSourceRegistry } from "./AyasResearchSourceRegistry";
 import { createAyasLocalDiscoveryRunLedger, type AyasLocalDiscoveryRunStatus } from "./AyasLocalDiscoveryRunLedger";
 
@@ -75,6 +77,9 @@ export interface AyasResearchEngineStatusView {
     readonly duplicateCount: number;
   };
   readonly error?: string;
+  /** Research integration Phase 2 (2026-10-15): read-only update radar and research health; absent when they could not be built. */
+  readonly updateRadar?: readonly AyasUpdateRadarItem[];
+  readonly researchHealth?: AyasResearchHealth;
 }
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -104,6 +109,14 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
         lastError: state?.lastError,
       };
     });
+
+    // A radar failure never hides the rest of the research status.
+    let radarAndHealth: { updateRadar: readonly AyasUpdateRadarItem[]; researchHealth: AyasResearchHealth } | undefined;
+    try {
+      const updateRadar = buildAyasUpdateRadar({ repoRoot: process.cwd(), seenItems: createAyasResearchNoveltyStore().list(), findings });
+      radarAndHealth = { updateRadar, researchHealth: buildAyasResearchHealth({ now, findings, radar: updateRadar,
+        lastSuccessfulResearchAt: schedulerState.lastSuccessfulResearchAt, consecutiveFailures: schedulerState.consecutiveFailures }) };
+    } catch { radarAndHealth = undefined; }
 
     const digest: AyasResearchEngineDigest = {
       sourcesRegistered: registry.length,
@@ -151,6 +164,7 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
         proposalCount: latestDiscovery.proposalCount,
         duplicateCount: latestDiscovery.duplicateCount,
       } } : {}),
+      ...(radarAndHealth ?? {}),
     };
   } catch (error) {
     return {

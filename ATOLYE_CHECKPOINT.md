@@ -29,9 +29,25 @@ Yapılan (owner'ın açık onaylarıyla: Observer yeniden başlatma, `npm ci`, g
    - Kalan sınırlar: model bazen alıntıyı tutturamıyor (TypeScript 7.0.2 elendi) ya da yorumda yanlış genelleme yapıyor (Piper "transkripsiyon"); bu yüzden birincil kanıt alıntı. Yeni sürüm sinyali Aşama 2a'da model kullanılmadan doğrudan sürüm karşılaştırmasından alınacak.
    - Observer her turda `ayas-discovery-daemon.ts`'i yeni süreçte başlattığı için yeni kod yeniden başlatma gerektirmeden bir sonraki turda devreye girer.
 2. **Aşama 3a — bayatlama: KOD DEĞİŞİKLİĞİ GEREKMEDİ.** Owner kararı: HEAD kuralı korunur (uygulama kapısı `AYAS_DAEMON_STALE_HEAD` ile reddeder; CLAUDE.md'deki HEAD-kayması kuralı). Eşdeğer öneri yeni HEAD için yeniden üretilir. İnceleme bu mekanizmanın zaten var olduğunu gösterdi: onay kutusu tekilleştirmesi STALE'i saymıyor ve `proposalHash` `baseHead`'i içeriyor. Salt okunur tanılama 124 adayın sandbox'a gidebilir durumda olduğunu gösterdi (262'si bilinen doğrulanamaz, 16'sı politika sınırında, 1'i mikro grup). Sistem ilk boş turda (07:19Z, HEAD `d1459b91`) aynı adayı yeniden PENDING önerdi. Önerilerin kaybolma sebebi geliştirme oturumlarıydı: `discoverAyasNovelPatchCandidates` yalnız temiz ağaç + taze Graphify + makine ALLOW/THROTTLE iken çalışıyor. 235 STALE önceki günlerin geçmişi; günlük görünüm onları zaten gizliyor (bugün 2). Yan bulgu: adayların tamamı `diagnostic-quality-gap-v1` (smoke testlerindeki mesajsız assert); AYAS'ın bugünkü öz-gelişimi fiilen bundan ibaret.
-3. **Aşama 2a — npm güncelleme üreticisi (LLM'siz):** sandbox kopyada güncelle → TypeScript + ilgili smoke'lar → `patch-artifact:v1` → owner onayı → mevcut guarded execution.
-4. **Aşama 2b–d:** hash'e bağlı araçlar için kanıtlı öneri (uygulama owner'da); AYAS beyin modeli için mevcut kalite benchmark'ında karşılaştırmalı öneri (indirme owner onayıyla); kod gerektiren fikirler için geliştirme özeti (sorun, alıntılı kanıt, Graphify ile etkilenen dosyalar, kabul kriterleri).
-5. **Aşama 3b — araştırma sağlığı göstergeleri** Gelişim Merkezi alt sayfasında (homepage politikası gereği ana sayfaya eklenmez).
+3. **Aşama 2 — yeniden kapsamlandı (owner onayı: "Radar + özet + sağlık").** Otomatik npm yaması mevcut güvenlik politikasıyla yapılamıyor: `checkAyasNovelPatchLimits` en fazla 2 dosya, toplam 400 satır, dosya başına 20.000 karakter ve SAFE alan listesi istiyor (`package-lock.json` bunları aşıyor); sandbox `npm install` yapmıyor. Politika genişletilmedi. Yapılacaklar:
+   - **Güncelleme radarı:** model kullanmaz, salt okunur. İzlenen araçlar için kurulu sürüm, araştırmanın gördüğü en yeni kararlı sürüm, bağlantı ve o araca ait doğrulanmış alıntılar.
+   - **Geliştirme özeti:** etkilenen dosyalar, doğrulama planı, risk. Owner onayıyla bir geliştirme oturumunda uygulanır.
+   - **Araştırma sağlığı göstergeleri** (Aşama 3b).
+   - Hepsi Gelişim Merkezi'nin bir alt bölümünde; ana sayfa politikası gereği ana sayfaya eklenmez.
+   - **UYGULANDI:**
+     - `AyasUpdateRadar`: novelty belleğindeki sürüm başlıklarından, model ve ağ kullanmadan hesaplanıyor.
+       - İzlenen her araç için en yeni kararlı ve daha yeni sürüm gösteriliyor. Kanıt yalnız aynı depodan gelen doğrulanmış alıntılardan.
+       - Geliştirme özeti: içe aktaran dosyalar ve ilgili yapılandırma dosyaları; doğrulama planı (tsc, CI-eşdeğeri lint, next/react için `npm run build`, etkilenen smoke'lar); ana/ara/yama sürüm riski.
+       - Node.js için uygulama kanalı `OWNER_PINNED_RUNTIME`; diğerleri `DEVELOPMENT_SESSION`.
+       - İçe aktarma taraması `package-lock.json` değişene kadar, en fazla 10 dk önbellekte. Gerçek veride ilk yükleme ~0,3 sn, önbellekli ~0,06 sn.
+     - `buildAyasResearchHealth`: durum HEALTHY/QUIET/DEGRADED; ardışık hata ve 6 saatten eski son başarılı araştırma DEGRADED sayılıyor.
+     - `AyasResearchReleaseRelevance`'a kanal kuralı eklendi: Node.js yalnız LTS (`OTHER_CHANNEL` → `SKIPPED_OTHER_CHANNEL`).
+     - `AyasResearchEngineStatusView`'a isteğe bağlı `updateRadar`/`researchHealth` eklendi; radar hatası görünümü bozmuyor.
+     - `/brain` → `AyasGoalResearchPanel` (ana sayfa değil) yeni bölümler gösteriyor: "Araştırma Sağlığı", "Güncelleme Radarı" ve açılır "Geliştirme özeti". Bulgu kartında "Kaynaktan birebir alıntı" ve sürüm bilgisi var. Panel salt okunur; onay düğmesi yok.
+     - Gerçek veride radar: ESLint 9.39.4 → 10.11.0 (ana), TypeScript 5.9.3 → 7.0.2 (ana, 15 dosya), Next.js 16.3.8 → 16.4.1 (ara, 67 dosya), Node.js 24.18.0 → LTS hattı (owner sabitler). Kanıt alıntıları Aşama 1 taramalarıyla dolacak.
+     - Testler: yeni `smoke-ayas-update-radar` 7/7 (paneli de render ediyor; onay kontrolü yok); deep-research-engine 22, research-engine-status-view 6, research-status-intent 12, development-center 59, brain-control-center 22, homepage-v2 11, owner-ui-v2 36. TypeScript 0, lint 0.
+     - **Not:** telefondaki canlı uygulama yayınlanmış `ayas-live-c10d1e33` kopyasından çalışıyor; yeni panel bölümleri bir sonraki yayında görünür. Araştırma tarafı Observer'ın bir sonraki turunda devreye girer.
+4. Sonra: AYAS beyin modeli için kalite benchmark'ında karşılaştırmalı öneri (indirme owner onayıyla); AYAS'ın sesli araştırma durumu yanıtına radarın eklenmesi.
 
 **Sıradaki (bu sırayla):**
 1. Yeni PC kurtarma geçişini taşımadan önce bu PC'de benzet: runtime/authority'nin kopyası üzerinde, tek kullanımlık köklerde `runtime:backup:create/verify` → `candidate:create/consume` → `authority:begin-recovery` → `quiesce/prepare/validate/publish`; canlı kayıtlara dokunmadan. Sonucu `docs/AYAS_NEW_PC_SETUP.md` adım 3'e işle.

@@ -51,7 +51,9 @@ function ResearchFindingCard({ finding }: { readonly finding: AyasExternalResear
         <span className="bc-dev__safety bc-dev__safety--review_required">{gapStatusLabel[finding.atolyeGapStatus]}</span>
       </header>
       <dl className="bc-dev__facts">
-        <div><dt>Çözdüğü problem</dt><dd>{finding.problemSolved}</dd></div>
+        {finding.evidenceQuote ? <div><dt>Kaynaktan birebir alıntı</dt><dd><q>{finding.evidenceQuote}</q></dd></div> : null}
+        {finding.releaseVersion ? <div><dt>Sürüm</dt><dd>kurulu {finding.installedVersion} → yeni {finding.releaseVersion}</dd></div> : null}
+        <div><dt>{finding.evidenceQuote ? "AYAS'ın yorumu" : "Çözdüğü problem"}</dt><dd>{finding.problemSolved}</dd></div>
         <div><dt>Kaynak</dt><dd><a href={finding.sourceUrl} target="_blank" rel="noreferrer noopener">{finding.sourceUrl}</a> {finding.isOfficialSource ? "(resmi kaynak)" : "(resmi olmayan kaynak)"}</dd></div>
         <div><dt>Kategori</dt><dd>{finding.category ?? "belirtilmemiş"}</dd></div>
         <div><dt>Güven düzeyi</dt><dd>{finding.confidence}</dd></div>
@@ -125,6 +127,65 @@ function ResearchEngineStatusSection({ status }: { readonly status: AyasResearch
         <div><dt>Son 24 saat</dt><dd>{status.digest.sourcesRegistered} kaynak izleniyor · {status.digest.sourcesChangedLast24h} değişti · {status.digest.findingsLast24h} yeni bulgu · {status.digest.sourcesFailingNow} kaynak hata veriyor</dd></div>
         {status.lastError ? <div><dt>Son hata</dt><dd>{status.lastError}</dd></div> : null}
       </dl>
+    </section>
+  );
+}
+
+const healthLabel = { HEALTHY: "sağlıklı", QUIET: "sessiz", DEGRADED: "sorunlu" } as const;
+const bumpLabel = { MAJOR: "ana sürüm", MINOR: "ara sürüm", PATCH: "yama" } as const;
+
+/** Research integration Phase 2/3b (owner plan 2026-10-15): research health, read-only. */
+function ResearchHealthSection({ status }: { readonly status: AyasResearchEngineStatusView }) {
+  const health = status.researchHealth;
+  if (!status.connected || !health) return null;
+  const tone = health.status === "DEGRADED" ? "bc-dev__notice--danger" : health.status === "HEALTHY" ? "bc-dev__notice--safe" : "bc-dev__notice--warn";
+  return (
+    <section className="bc-dev__section" aria-labelledby="ayas-research-health" data-testid="ayas-research-health">
+      <h3 id="ayas-research-health">Araştırma Sağlığı <span className={`bc-dev__safety ${tone}`}>{healthLabel[health.status]}</span></h3>
+      <dl className="bc-dev__facts">
+        <div><dt>Son yeni bulgu</dt><dd>{formatAyasScheduleTime(health.lastFindingAt)}</dd></div>
+        <div><dt>Son 7 gün</dt><dd>{health.findingsLast7d} bulgu · {health.groundedFindingsLast7d} tanesi kaynaktan birebir alıntıyla doğrulandı</dd></div>
+        <div><dt>Güncellemesi olan araç</dt><dd>{health.trackedToolsWithUpdates}</dd></div>
+      </dl>
+      {health.reasons.length ? <ul>{health.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : null}
+    </section>
+  );
+}
+
+/**
+ * Read-only update radar with a development brief per tool. It never applies anything: an approved npm update is done
+ * in a development session, and the hash-pinned Node.js runtime is re-pinned by the owner.
+ */
+function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineStatusView }) {
+  const radar = status.updateRadar;
+  if (!status.connected || !radar) return null;
+  return (
+    <section className="bc-dev__section" aria-labelledby="ayas-update-radar" data-testid="ayas-update-radar">
+      <h3 id="ayas-update-radar">Güncelleme Radarı <span>{radar.length}</span></h3>
+      <p>AYAS&apos;ın izlediği araçlarda kurulu sürümden yeni kararlı sürümler. Hiçbiri kendiliğinden uygulanmaz.</p>
+      {radar.length ? radar.map((item) => (
+        <article key={item.sourceId} className="bc-dev__proposal" data-testid={`ayas-update-radar-${item.sourceId}`}>
+          <header className="bc-dev__proposal-head">
+            <div><h3>{item.provider}: {item.installedVersion} → {item.latestVersion}</h3></div>
+            <span className={`bc-dev__safety ${item.bump === "MAJOR" ? "bc-dev__notice--warn" : "bc-dev__notice--safe"}`}>{bumpLabel[item.bump]}</span>
+          </header>
+          <dl className="bc-dev__facts">
+            <div><dt>Hedef</dt><dd>{item.target} · {item.newerStableReleases} yeni kararlı sürüm</dd></div>
+            <div><dt>Kaynak</dt><dd><a href={item.latestUrl} target="_blank" rel="noreferrer noopener">{item.latestUrl}</a> · görüldü {formatAyasScheduleTime(item.lastSeenAt)}</dd></div>
+            <div><dt>Uygulama</dt><dd>{item.applyChannel === "OWNER_PINNED_RUNTIME" ? "Sabitlenmiş çalışma ortamı: owner yeniden sabitler" : "Onaylarsan bir geliştirme oturumunda uygulanır"}</dd></div>
+          </dl>
+          {item.evidence.length ? <div className="bc-dev__facts"><strong>Kaynaktan alıntılar</strong><ul>{item.evidence.map((entry) => <li key={entry.findingId}><q>{entry.quote}</q> — <a href={entry.url} target="_blank" rel="noreferrer noopener">kaynak</a></li>)}</ul></div> : null}
+          <details>
+            <summary>Geliştirme özeti</summary>
+            <dl className="bc-dev__facts">
+              <div><dt>Özet</dt><dd>{item.brief.summary}</dd></div>
+              <div><dt>Etkilenen dosyalar</dt><dd>{item.brief.affectedFileCount}{item.brief.affectedFiles.length ? `: ${item.brief.affectedFiles.join(", ")}${item.brief.affectedFileCount > item.brief.affectedFiles.length ? " …" : ""}` : ""}</dd></div>
+              <div><dt>Doğrulama planı</dt><dd><ul>{item.brief.validation.map((step) => <li key={step}>{step}</li>)}</ul></dd></div>
+              <div><dt>Risk</dt><dd>{item.brief.risk}</dd></div>
+            </dl>
+          </details>
+        </article>
+      )) : <p className="bc-empty">İzlenen araçların hepsi güncel.</p>}
     </section>
   );
 }
@@ -229,6 +290,8 @@ export function AyasGoalResearchPanel({ view, researchEngineStatus }: { readonly
     <section className="bc-dev" aria-label="AYAS Hedefler ve Araştırma" data-testid="ayas-goal-research-panel">
       <header className="bc-dev__hero"><span>Hedef odaklı gelişim</span><h2>Hedefler ve Dış Araştırma</h2><p>AYAS&apos;ın hangi yüksek seviyeli hedefler üzerinde çalıştığını ve internetten hangi gerçek yetenekleri araştırıp Atölye ile karşılaştırdığını gör.</p></header>
       {researchEngineStatus ? <ResearchEngineStatusSection status={researchEngineStatus} /> : null}
+      {researchEngineStatus ? <ResearchHealthSection status={researchEngineStatus} /> : null}
+      {researchEngineStatus ? <UpdateRadarSection status={researchEngineStatus} /> : null}
       {researchEngineStatus?.connected ? <GoalResearchScheduleControls status={researchEngineStatus} /> : null}
       {researchEngineStatus ? <ResearchSourcesSection status={researchEngineStatus} /> : null}
       <section className="bc-dev__section" aria-labelledby="ayas-goals-active"><h3 id="ayas-goals-active">Aktif Hedefler <span>{view.goals.filter((g) => g.status !== "COMPLETED" && g.status !== "CANCELLED").length}</span></h3>

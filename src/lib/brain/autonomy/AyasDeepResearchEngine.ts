@@ -34,7 +34,7 @@ export interface AyasDeepScanEntryOutcome {
   readonly entryTitle: string;
   readonly outcome: "RECORDED" | "SKIPPED_NOT_NOTEWORTHY" | "SKIPPED_DUPLICATE" | "SKIPPED_UNCHANGED" | "SKIPPED_INVALID_MODEL_OUTPUT" | "SKIPPED_ANALYSIS_ERROR"
     // Research integration Phase 1 (2026-10-15): deterministic relevance and grounding gates.
-    | "SKIPPED_PRERELEASE" | "SKIPPED_NOT_NEWER" | "SKIPPED_OTHER_PACKAGE" | "SKIPPED_UNGROUNDED";
+    | "SKIPPED_PRERELEASE" | "SKIPPED_NOT_NEWER" | "SKIPPED_OTHER_PACKAGE" | "SKIPPED_OTHER_CHANNEL" | "SKIPPED_UNGROUNDED";
   readonly findingId?: string;
   readonly gapClaimDowngraded?: boolean;
   /** What AYAS decided this finding is FOR. Only `ACTIONABLE_PROPOSAL_CANDIDATE` may enter discovery, and even that authorizes nothing on its own. */
@@ -172,7 +172,7 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
       // package: canaries, sibling packages and older backport lines are skipped before any model call.
       const relevance = assessAyasReleaseRelevance(source.sourceId, entry.title, repoRoot);
       const gate = relevance.status === "PRERELEASE" ? "SKIPPED_PRERELEASE" : relevance.status === "NOT_NEWER" ? "SKIPPED_NOT_NEWER"
-        : relevance.status === "OTHER_PACKAGE" ? "SKIPPED_OTHER_PACKAGE" : null;
+        : relevance.status === "OTHER_PACKAGE" ? "SKIPPED_OTHER_PACKAGE" : relevance.status === "OTHER_CHANNEL" ? "SKIPPED_OTHER_CHANNEL" : null;
       if (gate) {
         noveltyStore.remember(observation, { judgedNotNoteworthy: true });
         entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: gate, noveltyReason: novelty.reasonCode });

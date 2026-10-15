@@ -13,6 +13,8 @@ export interface AyasTrackedRelease {
   readonly installed: { readonly kind: "npm"; readonly packageName: string } | { readonly kind: "node" };
   /** Captures the version of THIS package from a release title; any other title belongs to a sibling package or tool. */
   readonly titlePattern: RegExp;
+  /** Optional release channel this repository follows; a release outside it is skipped (Node.js: LTS only, as pinned). */
+  readonly channelPattern?: RegExp;
 }
 
 const SEMVER = String.raw`(\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.]+)?)`;
@@ -27,7 +29,7 @@ export const AYAS_TRACKED_RELEASE_SOURCES: Readonly<Record<string, AyasTrackedRe
   tailwindcss: Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "tailwindcss" }), titlePattern: VERSION_ONLY }),
   "transformers-js": Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "@huggingface/transformers" }), titlePattern: VERSION_ONLY }),
   "workers-sdk": Object.freeze({ installed: Object.freeze({ kind: "npm", packageName: "wrangler" }), titlePattern: new RegExp(String.raw`^wrangler@${SEMVER}$`) }),
-  nodejs: Object.freeze({ installed: Object.freeze({ kind: "node" }), titlePattern: new RegExp(String.raw`\bVersion ${SEMVER}\b`) }),
+  nodejs: Object.freeze({ installed: Object.freeze({ kind: "node" }), titlePattern: new RegExp(String.raw`\bVersion ${SEMVER}\b`), channelPattern: /\(LTS\)/ }),
 });
 
 export type AyasReleaseRelevance =
@@ -35,6 +37,7 @@ export type AyasReleaseRelevance =
   | { readonly status: "OTHER_PACKAGE" }
   | { readonly status: "INSTALLED_UNKNOWN" }
   | { readonly status: "PRERELEASE"; readonly installedVersion: string; readonly releaseVersion: string }
+  | { readonly status: "OTHER_CHANNEL"; readonly installedVersion: string; readonly releaseVersion: string }
   | { readonly status: "NOT_NEWER"; readonly installedVersion: string; readonly releaseVersion: string }
   | { readonly status: "NEWER"; readonly installedVersion: string; readonly releaseVersion: string };
 
@@ -73,6 +76,7 @@ export function assessAyasReleaseRelevance(sourceId: string, title: string, repo
   if (!installedVersion) return { status: "INSTALLED_UNKNOWN" };
   const releaseVersion = match[1]!;
   if (releaseVersion.includes("-") || PRERELEASE_WORDS.test(match[2] ?? "")) return { status: "PRERELEASE", installedVersion, releaseVersion };
+  if (tracked.channelPattern && !tracked.channelPattern.test(title)) return { status: "OTHER_CHANNEL", installedVersion, releaseVersion };
   return compareAyasReleaseVersions(releaseVersion, installedVersion) > 0
     ? { status: "NEWER", installedVersion, releaseVersion }
     : { status: "NOT_NEWER", installedVersion, releaseVersion };

@@ -250,7 +250,8 @@ async function main() {
     assert.equal(assessAyasReleaseRelevance("typescript", "TypeScript 6.0 Beta", repo).status, "PRERELEASE");
     assert.equal(assessAyasReleaseRelevance("typescript", "TypeScript 99.0.2", repo).status, "NEWER");
     assert.equal(assessAyasReleaseRelevance("nodejs", "2026-10-14, Version 99.22.0 'Krypton' (LTS), @someone", repo).status, "NEWER");
-    assert.equal(assessAyasReleaseRelevance("nodejs", "2020-01-01, Version 1.0.0 (Current), @someone", repo).status, "NOT_NEWER");
+    assert.equal(assessAyasReleaseRelevance("nodejs", "2026-10-14, Version 99.12.0 (Current), @someone", repo).status, "OTHER_CHANNEL");
+    assert.equal(assessAyasReleaseRelevance("nodejs", "2020-01-01, Version 1.0.0 'Argon' (LTS), @someone", repo).status, "NOT_NEWER");
     assert.equal(assessAyasReleaseRelevance("aider", "v0.90.0", repo).status, "UNTRACKED");
     assert.equal(compareAyasReleaseVersions("16.10.0", "16.9.9"), 1); assert.equal(compareAyasReleaseVersions("4.142.0", "4.147.0"), -1); assert.equal(compareAyasReleaseVersions("6.0", "6.0.0"), 0);
     const registered = new Set(AYAS_RESEARCH_SOURCE_REGISTRY.map((item) => item.sourceId));
