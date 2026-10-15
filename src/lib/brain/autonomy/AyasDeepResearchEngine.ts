@@ -4,7 +4,8 @@ import { bindAyasConstitutionRun } from "../../ayas/governance/AyasOwnerConstitu
 import { createAyasChatProvider } from "../../ayas/AyasModelProfile";
 import { ayasSafePublicFetch } from "./AyasSafePublicFetch";
 import { extractAyasFeedEntries, type AyasFeedEntry } from "./AyasFeedEntryExtractor";
-import { buildAyasDeepAnalysisPrompt, parseAyasDeepAnalysisOutput, corroborateAyasGapClaim, AYAS_DEEP_ANALYSIS_JSON_SCHEMA } from "./AyasDeepAnalysis";
+import { buildAyasDeepAnalysisPrompt, parseAyasDeepAnalysisOutput, corroborateAyasGapClaim, verifyAyasEvidenceQuote, AYAS_DEEP_ANALYSIS_JSON_SCHEMA } from "./AyasDeepAnalysis";
+import { assessAyasReleaseRelevance } from "./AyasResearchReleaseRelevance";
 import { createAyasExternalResearchStore, type AyasExternalResearchStore } from "./AyasExternalResearchStore";
 import { resolveAyasResearchSourcePolicy, type AyasResearchSource } from "./AyasResearchSourceRegistry";
 import { classifyAyasResearchDisposition, type AyasResearchDisposition } from "./AyasResearchDisposition";
@@ -31,7 +32,9 @@ import { createAyasResearchNoveltyStore, type AyasResearchNoveltyStore } from ".
 export interface AyasDeepScanEntryOutcome {
   readonly sourceId: string;
   readonly entryTitle: string;
-  readonly outcome: "RECORDED" | "SKIPPED_NOT_NOTEWORTHY" | "SKIPPED_DUPLICATE" | "SKIPPED_UNCHANGED" | "SKIPPED_INVALID_MODEL_OUTPUT" | "SKIPPED_ANALYSIS_ERROR";
+  readonly outcome: "RECORDED" | "SKIPPED_NOT_NOTEWORTHY" | "SKIPPED_DUPLICATE" | "SKIPPED_UNCHANGED" | "SKIPPED_INVALID_MODEL_OUTPUT" | "SKIPPED_ANALYSIS_ERROR"
+    // Research integration Phase 1 (2026-10-15): deterministic relevance and grounding gates.
+    | "SKIPPED_PRERELEASE" | "SKIPPED_NOT_NEWER" | "SKIPPED_OTHER_PACKAGE" | "SKIPPED_UNGROUNDED";
   readonly findingId?: string;
   readonly gapClaimDowngraded?: boolean;
   /** What AYAS decided this finding is FOR. Only `ACTIONABLE_PROPOSAL_CANDIDATE` may enter discovery, and even that authorizes nothing on its own. */
@@ -165,6 +168,17 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
         continue;
       }
 
+      // A source that tracks a tool this repository ships only yields findings for a newer stable release of that very
+      // package: canaries, sibling packages and older backport lines are skipped before any model call.
+      const relevance = assessAyasReleaseRelevance(source.sourceId, entry.title, repoRoot);
+      const gate = relevance.status === "PRERELEASE" ? "SKIPPED_PRERELEASE" : relevance.status === "NOT_NEWER" ? "SKIPPED_NOT_NEWER"
+        : relevance.status === "OTHER_PACKAGE" ? "SKIPPED_OTHER_PACKAGE" : null;
+      if (gate) {
+        noveltyStore.remember(observation, { judgedNotNoteworthy: true });
+        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: gate, noveltyReason: novelty.reasonCode });
+        continue;
+      }
+
       let raw: AIProviderOutput;
       admitEffect();
       try {
@@ -194,13 +208,23 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
         continue;
       }
 
-      const corroboration = corroborateAyasGapClaim(parsed.category, parsed.atolyeGapStatus, parsed.atolyeGapNotes, repoRoot);
+      // Grounding: the claim must rest on a verbatim excerpt of the entry, not on the model's own summary.
+      const evidenceQuote = verifyAyasEvidenceQuote(parsed.evidenceQuote, entry);
+      if (!evidenceQuote) {
+        noveltyStore.remember(observation, { judgedNotNoteworthy: true });
+        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_UNGROUNDED", noveltyReason: novelty.reasonCode });
+        continue;
+      }
+      // The category is the registered source's, never the model's: a model that maps a web-framework release onto a
+      // video capability must not be able to route the finding there.
+      const category = source.category;
+      const corroboration = corroborateAyasGapClaim(category, parsed.atolyeGapStatus, parsed.atolyeGapNotes, repoRoot);
 
       // What is this finding FOR? Decided deterministically from already-
       // structured, already-corroborated facts — never from the external
       // text, and never as a free-text verdict the model could inflate.
       const { disposition, reasonCode: dispositionReason } = classifyAyasResearchDisposition({
-        category: parsed.category ?? source.category,
+        category,
         atolyeGapStatus: corroboration.atolyeGapStatus,
         confidence: parsed.confidence,
         licenseCostStatus: parsed.licenseCostStatus,
@@ -212,8 +236,10 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
         const finding = researchStore.record({
           provider: source.provider,
           capability: parsed.capability,
-          category: parsed.category ?? source.category,
+          category,
           problemSolved: parsed.problemSolved,
+          evidenceQuote,
+          ...(relevance.status === "NEWER" ? { installedVersion: relevance.installedVersion, releaseVersion: relevance.releaseVersion } : {}),
           sourceUrl: entryUrl,
           isOfficialSource: source.officialSource,
           featureDate: entry.updatedAt ?? null,

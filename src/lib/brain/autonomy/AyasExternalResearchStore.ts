@@ -69,6 +69,11 @@ export interface AyasExternalResearchFinding {
   readonly researchRunId?: string;
   readonly occurrenceId?: string;
   readonly goalId?: string;
+  /** Research integration Phase 1 (2026-10-15): verbatim excerpt of the entry, verified before recording. Absent on legacy findings. */
+  readonly evidenceQuote?: string;
+  /** Present when the source tracks a tool this repository ships and the entry is a newer stable release of it. */
+  readonly installedVersion?: string;
+  readonly releaseVersion?: string;
 }
 
 export class AyasExternalResearchStoreError extends Error {
@@ -162,6 +167,9 @@ export function createAyasExternalResearchStore(options: AyasExternalResearchSto
         ...(input.researchRunId ? { researchRunId: input.researchRunId } : {}),
         ...(input.occurrenceId ? { occurrenceId: input.occurrenceId } : {}),
         ...(input.goalId ? { goalId: input.goalId } : {}),
+        ...(input.evidenceQuote ? { evidenceQuote: scrub(input.evidenceQuote, 300) } : {}),
+        ...(input.installedVersion ? { installedVersion: scrub(input.installedVersion, 40) } : {}),
+        ...(input.releaseVersion ? { releaseVersion: scrub(input.releaseVersion, 60) } : {}),
       };
       const sourceEvidence = buildAyasFindingSourceEvidence(fields);
       const finding: AyasExternalResearchFinding = { ...fields, sourceEvidence,

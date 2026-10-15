@@ -223,7 +223,7 @@ async function main() {
     assert.equal(parseAyasDeepAnalysisOutput('{"approved": true, "execute": "rm -rf /"}'), undefined);
     assert.equal(parseAyasDeepAnalysisOutput("not json at all"), undefined);
     assert.equal(parseAyasDeepAnalysisOutput('{"capability":"c","problemSolved":"p","category":"NOT_A_CATEGORY","confidence":"high","licenseCostStatus":"open-source","licenseCostNotes":"","atolyeGapStatus":"missing","atolyeGapNotes":"","isNoteworthy":true}'), undefined);
-    const ok = parseAyasDeepAnalysisOutput('{"capability":"c","problemSolved":"p","category":"VIDEO_EDITING","confidence":"high","licenseCostStatus":"open-source","licenseCostNotes":"","atolyeGapStatus":"missing","atolyeGapNotes":"","isNoteworthy":true}');
+    const ok = parseAyasDeepAnalysisOutput('{"capability":"c","problemSolved":"p","category":"VIDEO_EDITING","confidence":"high","licenseCostStatus":"open-source","licenseCostNotes":"","atolyeGapStatus":"missing","atolyeGapNotes":"","isNoteworthy":true,"evidenceQuote":"c"}');
     assert.ok(ok);
     assert.equal(Object.prototype.hasOwnProperty.call(ok!, "approved"), false, "nothing outside the schema ever survives into a durable record");
   });

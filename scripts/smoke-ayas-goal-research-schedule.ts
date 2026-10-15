@@ -25,7 +25,7 @@ const FAR_FUTURE = "2026-09-25T03:00:00.000Z";
 let count = 0;
 const scenario = async (name: string, fn: () => Promise<void> | void) => { await fn(); count++; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); };
 
-const NOTEWORTHY = { capability: "local model quality", problemSolved: "better local inference", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true } as const;
+const NOTEWORTHY = { capability: "local model quality", problemSolved: "better local inference", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true, evidenceQuote: "Improved local inference quality" } as const;
 
 function fixtureSource(url: string, sourceId = "fixture-source", provider = "Fixture"): AyasResearchSource {
   return { sourceId, provider, category: "OPEN_SOURCE_AI", kind: "atom", url, officialSource: true, notes: "TEMP fixture", expectedContentTypes: ["application/atom+xml"], policy: { minCheckIntervalMs: 2 * 60 * 60_000, maxRetries: 0 } };
@@ -57,7 +57,7 @@ function fixture(url: string) {
     stateStore.write({ ...stateStore.read(), nextLightAt: FAR_FUTURE, nextDeepAt: FAR_FUTURE });
     return job;
   };
-  const output = JSON.stringify({ capability: "local model quality", problemSolved: "better local inference", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true });
+  const output = JSON.stringify({ capability: "local model quality", problemSolved: "better local inference", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true, evidenceQuote: "Improved local inference quality" });
   let providerCalls = 0;
   const provider: AIProvider = { async generate(): Promise<AIProviderOutput> { providerCalls++; return output; } };
   const tick = (at: string, overrides: { stateStore?: AyasResearchSchedulerStateStore; provider?: AIProvider } = {}) => tickAyasResearchScheduler({
@@ -257,7 +257,7 @@ async function main() {
       const result = await tickAyasResearchScheduler({
         repoRoot: f.repoRoot, gateRoot: f.gateRoot, stateStore: f.stateStore, goalStore: f.goalStore,
         sourceStateStore: f.sourceStateStore, sources: [f.source], now: () => DUE,
-        deep: { researchStore: throwingResearchStore, provider: { async generate(): Promise<AIProviderOutput> { return JSON.stringify({ capability: "local model quality", problemSolved: "better local inference", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true }); } }, now: () => DUE, maxRetries: 0, dangerouslyAllowPrivateNetworkForTests: true },
+        deep: { researchStore: throwingResearchStore, provider: { async generate(): Promise<AIProviderOutput> { return JSON.stringify({ capability: "local model quality", problemSolved: "better local inference", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true, evidenceQuote: "Improved local inference quality" }); } }, now: () => DUE, maxRetries: 0, dangerouslyAllowPrivateNetworkForTests: true },
       });
       assert.equal(result.outcome, "GOAL_FAILED");
       assert.equal(f.researchStore.list().length, 1);
