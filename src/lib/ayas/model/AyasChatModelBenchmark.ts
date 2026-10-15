@@ -40,7 +40,7 @@ export function foldAyasBenchmarkText(text: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
-const UNCERTAIN = new RegExp(String.raw`\b(?:bilmiyorum|bilemem|bilemiyorum|bilmem|bilgim yok|bilgiye sahip degilim|bilgisine sahip degilim|emin degilim|soylemedin|paylasmadin|bahsetmedin|hatirlamiyorum|erisimim yok|erisemem|kaydim yok|ongoremem|bilinmiyor|bilinemez|ongorulemez|cevaplanamaz|yanitlanamaz|belli degil|henuz belli|tahmin (?:edemem|yapamam)|tahminde bulunamam|(?:bilmek|soylemek|kestirmek) (?:mumkun degil|imkansiz))\b`);
+const UNCERTAIN = new RegExp(String.raw`\b(?:bilmiyorum|bilemem|bilemiyorum|bilmem|bilgim yok|bilgiye sahip degilim|bilgisine sahip degilim|emin degilim|soylemedin|paylasmadin|bahsetmedin|hatirlamiyorum|erisimim yok|erisemem|kaydim yok|ongoremem|bilinmiyor|bilinemez|ongorulemez|cevaplanamaz|yanitlanamaz|belli degil|henuz belli|tahmin (?:edemem|yapamam)|tahminde bulunamam|kimse bilemez|bilemeyiz|soyleyemem|belirleyemem|(?:cevap|yanit) verilemez|(?:bilmek|bilebilmek|bilebilmesi|bilinmesi|soylemek|kestirmek|tahmin etmek) (?:mumkun degil|imkansiz))\b`);
 const contains = (pattern: RegExp, what: string) => (folded: string) => pattern.test(folded) ? null : `beklenen yok: ${what}`;
 /**
  * An unknown personal experience: stating one as fact ("Antalya'ya gitmiştin", "makarna yedin, değil mi?") is an
@@ -132,13 +132,24 @@ export function gradeAyasChatBenchmarkAnswer(caseId: string, answer: string): { 
   return reason ? { pass: false, reason } : { pass: true };
 }
 
+/**
+ * Each case is asked this many times: AYAS answers with sampling (the configured temperature), and one pass over the
+ * set moved the same model by two cases between runs. A case counts as passed when most of its attempts pass.
+ */
+export const AYAS_CHAT_MODEL_BENCHMARK_REPEATS = 3;
+
 export interface AyasChatModelCaseResult {
   readonly id: string;
   readonly category: AyasChatBenchmarkCategory;
+  /** Most attempts passed. */
   readonly pass: boolean;
+  readonly passes: number;
+  readonly attempts: number;
+  /** The first failing attempt's reason. */
   readonly reason?: string;
+  /** Median over the attempts. */
   readonly latencyMs: number;
-  /** The answer, cut to 400 characters. */
+  /** The first failing answer, else the last one, cut to 400 characters. */
   readonly answer: string;
 }
 
@@ -158,33 +169,43 @@ export interface AyasChatModelBenchmarkResult {
   /** The Ollama digest served under the tag while it was measured: a re-pulled tag is a different model. */
   readonly digest: string;
   readonly measuredAt: string;
+  /** Cases passed by most of their attempts. */
   readonly passed: number;
   readonly total: number;
   readonly byCategory: Readonly<Record<AyasChatBenchmarkCategory, { readonly passed: number; readonly total: number }>>;
-  /** Answers that passed the spoken Turkish check, whatever their content. */
+  readonly repeats: number;
+  readonly attemptsPassed: number;
+  readonly attemptsTotal: number;
+  /** Attempts whose answer passed the spoken Turkish check, whatever their content. */
   readonly spokenTurkishPassed: number;
+  /** Median over all attempts, each including the model load AYAS pays per answer. */
   readonly latencyMedianMs: number;
   readonly latencyMaxMs: number;
   readonly hardware?: AyasChatModelHardware;
   readonly cases: readonly AyasChatModelCaseResult[];
 }
 
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return !sorted.length ? 0 : sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
+
 export function summarizeAyasChatBenchmark(input: {
-  readonly model: string; readonly digest: string; readonly measuredAt: string;
-  readonly cases: readonly AyasChatModelCaseResult[]; readonly spokenTurkishPassed: number; readonly hardware?: AyasChatModelHardware;
+  readonly model: string; readonly digest: string; readonly measuredAt: string; readonly repeats: number;
+  readonly cases: readonly AyasChatModelCaseResult[]; readonly attemptLatenciesMs: readonly number[];
+  readonly spokenTurkishPassed: number; readonly hardware?: AyasChatModelHardware;
 }): AyasChatModelBenchmarkResult {
   const byCategory = Object.fromEntries(AYAS_CHAT_BENCHMARK_CATEGORIES.map((category) => {
     const inCategory = input.cases.filter((entry) => entry.category === category);
     return [category, { passed: inCategory.filter((entry) => entry.pass).length, total: inCategory.length }];
   })) as AyasChatModelBenchmarkResult["byCategory"];
-  const latencies = input.cases.map((entry) => entry.latencyMs).sort((a, b) => a - b);
-  const middle = Math.floor(latencies.length / 2);
-  const median = !latencies.length ? 0 : latencies.length % 2 ? latencies[middle]! : (latencies[middle - 1]! + latencies[middle]!) / 2;
   return {
     schemaVersion: 1, benchmarkId: AYAS_CHAT_MODEL_BENCHMARK_ID, model: input.model, digest: input.digest, measuredAt: input.measuredAt,
-    passed: input.cases.filter((entry) => entry.pass).length, total: input.cases.length, byCategory,
-    spokenTurkishPassed: input.spokenTurkishPassed, latencyMedianMs: Math.round(median), latencyMaxMs: Math.round(latencies.at(-1) ?? 0),
-    ...(input.hardware ? { hardware: input.hardware } : {}), cases: input.cases,
+    passed: input.cases.filter((entry) => entry.pass).length, total: input.cases.length, byCategory, repeats: input.repeats,
+    attemptsPassed: input.cases.reduce((sum, entry) => sum + entry.passes, 0), attemptsTotal: input.cases.reduce((sum, entry) => sum + entry.attempts, 0),
+    spokenTurkishPassed: input.spokenTurkishPassed, latencyMedianMs: Math.round(median(input.attemptLatenciesMs)),
+    latencyMaxMs: Math.round(Math.max(0, ...input.attemptLatenciesMs)), ...(input.hardware ? { hardware: input.hardware } : {}), cases: input.cases,
   };
 }
 
@@ -201,7 +222,11 @@ export async function runAyasChatModelBenchmark(input: {
   readonly onCase?: (result: AyasChatModelCaseResult) => void;
   /** Loads the model, reads what it occupies and unloads it again, so the first case starts cold like the rest. */
   readonly probeHardware?: (model: string) => Promise<AyasChatModelHardware | undefined>;
+  /** Test seam; the frozen protocol is AYAS_CHAT_MODEL_BENCHMARK_REPEATS. */
+  readonly repeats?: number;
 }): Promise<AyasChatModelBenchmarkResult> {
+  const repeats = input.repeats ?? AYAS_CHAT_MODEL_BENCHMARK_REPEATS;
+  if (!Number.isInteger(repeats) || repeats < 1 || repeats > 9) throw new Error(`invalid repeats: ${repeats}`);
   const env: NodeJS.ProcessEnv = { ...(input.env ?? process.env), AYAS_OLLAMA_MODEL: input.model, AYAS_CONVERSATION_V2: "1" };
   const fetcher = input.fetcher ?? fetch;
   const now = input.now ?? (() => new Date());
@@ -214,32 +239,47 @@ export async function runAyasChatModelBenchmark(input: {
 
   const hardware = await input.probeHardware?.(input.model);
   const cases: AyasChatModelCaseResult[] = [];
+  const attemptLatenciesMs: number[] = [];
   let spokenTurkishPassed = 0;
   for (const benchmarkCase of CASES) {
     const built = buildAyasNaturalConversation({
       userText: benchmarkCase.userText, history: benchmarkCase.history ?? [], context: {}, memoryLines: [],
       ceiling: provider.contextWindowTokens ?? null, outputReserve: AYAS_MAX_REPLY_TOKENS,
     });
-    const started = performance.now();
-    let answer = "";
-    let reason: string | null;
-    try {
-      answer = (await provider.chat({
-        prompt: built.prompt, conversationMessages: built.conversationMessages, complexity: classifyAyasComplexity(benchmarkCase.userText),
-        maxTokens: AYAS_MAX_REPLY_TOKENS, temperature: config.temperature,
-      })).text;
-      const spoken = checkAyasSpokenTurkish(answer);
-      if (!spoken) spokenTurkishPassed += 1;
-      reason = benchmarkCase.grade(foldAyasBenchmarkText(answer), answer) ?? spoken;
-    } catch (error) {
-      reason = `hata: ${error instanceof Error ? error.message : String(error)}`.slice(0, 200);
+    const latencies: number[] = [];
+    let passes = 0;
+    let failure: { readonly reason: string; readonly answer: string } | undefined;
+    let lastAnswer = "";
+    for (let attempt = 0; attempt < repeats; attempt += 1) {
+      const started = performance.now();
+      let answer = "";
+      let reason: string | null;
+      try {
+        answer = (await provider.chat({
+          prompt: built.prompt, conversationMessages: built.conversationMessages, complexity: classifyAyasComplexity(benchmarkCase.userText),
+          maxTokens: AYAS_MAX_REPLY_TOKENS, temperature: config.temperature,
+        })).text;
+        const spoken = checkAyasSpokenTurkish(answer);
+        if (!spoken) spokenTurkishPassed += 1;
+        reason = benchmarkCase.grade(foldAyasBenchmarkText(answer), answer) ?? spoken;
+      } catch (error) {
+        reason = `hata: ${error instanceof Error ? error.message : String(error)}`.slice(0, 200);
+      }
+      latencies.push(performance.now() - started);
+      lastAnswer = answer;
+      if (reason === null) passes += 1;
+      else failure ??= { reason, answer };
     }
+    attemptLatenciesMs.push(...latencies);
     const result: AyasChatModelCaseResult = {
-      id: benchmarkCase.id, category: benchmarkCase.category, pass: reason === null, ...(reason ? { reason } : {}),
-      latencyMs: Math.round(performance.now() - started), answer: answer.slice(0, 400),
+      id: benchmarkCase.id, category: benchmarkCase.category, pass: passes * 2 > repeats, passes, attempts: repeats,
+      ...(failure ? { reason: failure.reason } : {}), latencyMs: Math.round(median(latencies)), answer: (failure?.answer ?? lastAnswer).slice(0, 400),
     };
     cases.push(result);
     input.onCase?.(result);
   }
-  return summarizeAyasChatBenchmark({ model: input.model, digest: health.servedDigest, measuredAt: now().toISOString(), cases, spokenTurkishPassed, ...(hardware ? { hardware } : {}) });
+  return summarizeAyasChatBenchmark({
+    model: input.model, digest: health.servedDigest, measuredAt: now().toISOString(), repeats, cases, attemptLatenciesMs, spokenTurkishPassed,
+    ...(hardware ? { hardware } : {}),
+  });
 }

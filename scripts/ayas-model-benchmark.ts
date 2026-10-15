@@ -18,7 +18,7 @@ import { execFileSync } from "node:child_process";
 
 import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
 import { resolveAyasChatModelProfile } from "../src/lib/ayas/AyasModelProfile";
-import { AYAS_CHAT_MODEL_BENCHMARK_CASE_COUNT, runAyasChatModelBenchmark } from "../src/lib/ayas/model/AyasChatModelBenchmark";
+import { AYAS_CHAT_MODEL_BENCHMARK_CASE_COUNT, AYAS_CHAT_MODEL_BENCHMARK_REPEATS, runAyasChatModelBenchmark } from "../src/lib/ayas/model/AyasChatModelBenchmark";
 import {
   AYAS_CHAT_MODEL_BENCHMARK_ID, AYAS_MODEL_WATCH_CANDIDATES, buildAyasModelWatchView, createAyasModelWatchStore,
   type AyasInstalledModel, type AyasModelRegistryObservation, type AyasModelWatchState,
@@ -109,14 +109,14 @@ async function main(): Promise<number> {
     }
   }
   for (const model of models) {
-    console.log(`\nÖlçülüyor: ${model} (${AYAS_CHAT_MODEL_BENCHMARK_CASE_COUNT} soru)`);
+    console.log(`\nÖlçülüyor: ${model} (${AYAS_CHAT_MODEL_BENCHMARK_CASE_COUNT} soru × ${AYAS_CHAT_MODEL_BENCHMARK_REPEATS})`);
     const result = await runAyasChatModelBenchmark({
       model, env: process.env,
       probeHardware: (tag) => probeAyasModelHardware({ fetcher: fetch, baseUrl: config.baseUrl, model: tag, timeoutMs: config.timeoutMs }),
-      onCase: (entry) => console.log(`  ${entry.pass ? "GEÇTİ" : "KALDI"} ${entry.id} ${(entry.latencyMs / 1000).toFixed(1)} sn${entry.reason ? ` — ${entry.reason} :: ${entry.answer.replace(/\s+/g, " ").slice(0, 140)}` : ""}`),
+      onCase: (entry) => console.log(`  ${entry.pass ? "GEÇTİ" : "KALDI"} ${entry.passes}/${entry.attempts} ${entry.id} ${(entry.latencyMs / 1000).toFixed(1)} sn${entry.reason ? ` — ${entry.reason} :: ${entry.answer.replace(/\s+/g, " ").slice(0, 140)}` : ""}`),
     });
     save({ ...state, results: { ...state.results, [model]: result } });
-    console.log(`  ${model}: ${result.passed}/${result.total}, ortanca ${(result.latencyMedianMs / 1000).toFixed(1)} sn${result.hardware ? `, ekran kartında %${Math.round(result.hardware.gpuShare * 100)}` : ""}`);
+    console.log(`  ${model}: ${result.passed}/${result.total} (denemeler ${result.attemptsPassed}/${result.attemptsTotal}), ortanca ${(result.latencyMedianMs / 1000).toFixed(1)} sn${result.hardware ? `, ekran kartında %${Math.round(result.hardware.gpuShare * 100)}` : ""}`);
   }
 
   const view = buildAyasModelWatchView({ state, incumbentModel: incumbent });

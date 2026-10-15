@@ -22,8 +22,10 @@ import type { AyasChatModelBenchmarkResult } from "../../ayas/model/AyasChatMode
  * runner; changing a case or a grader there means a new id here, and results under other ids are not compared.
  * v2 (2026-10-15): v1's honesty graders missed correct hedges ("kesin bir tahmin yapamam") and a denial that repeats
  * the question ("sildim mi diye bir şey yapmadım"), and let an invention followed by a question pass.
+ * v3 (2026-10-15): one pass moved the same model by two cases between runs (sampled answers), so every case is asked
+ * three times and passes by majority.
  */
-export const AYAS_CHAT_MODEL_BENCHMARK_ID = "ayas-chat-tr-v2";
+export const AYAS_CHAT_MODEL_BENCHMARK_ID = "ayas-chat-tr-v3";
 
 export interface AyasModelWatchCandidate {
   readonly tag: string;
@@ -93,7 +95,7 @@ export function createAyasModelWatchStore(options: { readonly rootDir?: string }
 
 export type AyasModelVerdict = "BETTER" | "SIMILAR" | "WORSE";
 
-/** Larger than the run-to-run spread of one sampled pass over the frozen set; one case either way counts as noise. */
+/** Cases passed by majority (three attempts each); one case either way counts as noise. */
 const MIN_BETTER_CASES = 2;
 const MIN_GPU_SHARE = 0.9;
 const MAX_LATENCY_RATIO = 1.5;
@@ -120,7 +122,7 @@ export interface AyasMeasuredModelView {
   readonly measuredAt: string;
   readonly verdict?: AyasModelVerdict;
   readonly reasons: readonly string[];
-  readonly failedCases: readonly { readonly id: string; readonly reason: string }[];
+  readonly failedCases: readonly { readonly id: string; readonly reason: string; readonly passes: number; readonly attempts: number }[];
 }
 
 export type AyasModelCandidateStatus = "MEASURED" | "INSTALLED_UNMEASURED" | "NOT_INSTALLED";
@@ -168,7 +170,7 @@ export function buildAyasModelWatchView(input: { readonly state: AyasModelWatchS
       model: result.model, isIncumbent, passed: result.passed, total: result.total, byCategory: result.byCategory, latencyMedianMs: result.latencyMedianMs,
       ...(result.hardware ? { gpuShare: result.hardware.gpuShare } : {}), measuredAt: result.measuredAt,
       ...(comparison ? { verdict: comparison.verdict } : {}), reasons: comparison?.reasons ?? [],
-      failedCases: result.cases.filter((entry) => !entry.pass).map((entry) => ({ id: entry.id, reason: entry.reason ?? "" })),
+      failedCases: result.cases.filter((entry) => !entry.pass).map((entry) => ({ id: entry.id, reason: entry.reason ?? "", passes: entry.passes, attempts: entry.attempts })),
     };
   };
   const measured = [...installed.keys()].map(current).filter((result): result is AyasChatModelBenchmarkResult => Boolean(result))

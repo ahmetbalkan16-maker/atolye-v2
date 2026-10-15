@@ -217,7 +217,7 @@ function MeasuredModelCard({ entry }: { readonly entry: AyasMeasuredModelView })
         <div><dt>Ölçüldü</dt><dd>{formatAyasScheduleTime(entry.measuredAt)}</dd></div>
         {entry.reasons.length ? <div><dt>Not</dt><dd>{entry.reasons.join("; ")}</dd></div> : null}
       </dl>
-      {entry.failedCases.length ? <details><summary>Geçemediği sorular ({entry.failedCases.length})</summary><ul>{entry.failedCases.map((failure) => <li key={failure.id}>{failure.id}: {failure.reason}</li>)}</ul></details> : null}
+      {entry.failedCases.length ? <details><summary>Geçemediği sorular ({entry.failedCases.length})</summary><ul>{entry.failedCases.map((failure) => <li key={failure.id}>{failure.id} ({failure.attempts} denemede {failure.passes}): {failure.reason}</li>)}</ul></details> : null}
     </article>
   );
 }
@@ -232,7 +232,7 @@ function ModelWatchSection({ watch }: { readonly watch: AyasModelWatchView | und
   return (
     <section className="bc-dev__section" aria-labelledby="ayas-model-watch" data-testid="ayas-model-watch">
       <h3 id="ayas-model-watch">Yapay Zekâ Modeli <span>{watch.incumbentModel}</span></h3>
-      <p>AYAS&apos;ın sohbet modeli, aynı donmuş Türkçe testle ({watch.benchmarkId}) yeni çıkan yerel modellerle karşılaştırılır. Hiçbir model kendiliğinden indirilmez veya değiştirilmez.</p>
+      <p>AYAS&apos;ın sohbet modeli, aynı donmuş Türkçe testle ({watch.benchmarkId}; her soru üç kez sorulur, çoğunlukla geçer) yeni çıkan yerel modellerle karşılaştırılır. Hiçbir model kendiliğinden indirilmez veya değiştirilmez.</p>
       <div className={`bc-dev__notice ${decide ? "bc-dev__notice--warn" : "bc-dev__notice--safe"}`} data-testid="ayas-model-recommendation"><strong>Öneri</strong><p>{watch.recommendation.text}</p></div>
       {watch.measured.map((entry) => <MeasuredModelCard key={entry.model} entry={entry} />)}
       <details>
