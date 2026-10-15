@@ -132,8 +132,14 @@ function Stop-LiveProcesses {
   throw "Port $port bosalmadi; elle inceleyin."
 }
 function Start-Supervisor {
-  Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\wscript.exe') -ArgumentList @('//B', '//NoLogo', ('"' + $launcher + '"')) -WorkingDirectory $repo | Out-Null
-  Say 'YAPILDI' 'Erisim denetcisi yeniden baslatildi (Baslangic kisayoluyla ayni gizli baslatici)'
+  # Through the Windows shell, exactly like logon: a supervisor started as a child of this console (or of an agent
+  # sandbox) can be ended together with it (docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md, closing check).
+  $shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'AYAS Access Online.lnk'
+  $shell = New-Object -ComObject WScript.Shell
+  $viaShell = (Test-Path -LiteralPath $shortcut) -and ($shell.CreateShortcut($shortcut).Arguments -like "*$launcher*")
+  if ($viaShell) { Start-Process -FilePath (Join-Path $env:SystemRoot 'explorer.exe') -ArgumentList ('"' + $shortcut + '"') | Out-Null }
+  else { Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\wscript.exe') -ArgumentList @('//B', '//NoLogo', ('"' + $launcher + '"')) -WorkingDirectory $repo | Out-Null }
+  Say 'YAPILDI' ('Erisim denetcisi yeniden baslatildi (' + $(if ($viaShell) { 'Baslangic kisayolu, Windows kabugu' } else { 'gizli baslatici' }) + ')')
 }
 function Wait-Healthy([string]$root, [datetime]$since) {
   $deadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)

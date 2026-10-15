@@ -32,7 +32,10 @@ Varsayılan commit `HEAD`; başka biri için `-Commit <sha>`. Uygulama dosyalar�
 2. Canlı uygulamada çalışan bir alt iş (ör. ffmpeg) varsa durur, hiçbir şeyi değiştirmez.
 3. Eski manifest ve yayın seçicisi `D:\ÜRETİM\handover\live-publish\<zaman>-<sha8>\` altına yedeklenir.
 4. Erişim denetçisi ve uygulama durdurulur (tünel çalışmaya devam eder), manifest ve seçici birlikte
-   değiştirilir, denetçi Başlangıç kısayoluyla aynı gizli başlatıcıdan yeniden açılır.
+   değiştirilir, denetçi Başlangıç kısayoluyla Windows kabuğu (explorer) üzerinden, oturum açılışındaki
+   gibi yeniden açılır. Bir konsolun ya da ajan oturumunun alt süreci olarak açılan denetçi onunla
+   birlikte kapanabilir (`docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md`); bu yüzden geçiş bir ajan
+   oturumundan değil, owner tarafından çalıştırılır.
 5. Yeni uygulama 3000 portunda giriş kapısıyla yanıt verene ve denetçi `healthy` yazana kadar
    beklenir (varsayılan 240 sn). Olmazsa eski dosyalar geri konur ve önceki kopya yeniden başlatılır.
 
