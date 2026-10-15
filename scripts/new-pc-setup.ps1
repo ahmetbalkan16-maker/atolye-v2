@@ -13,7 +13,7 @@
   needs the official recovery transition (docs/AYAS_NEW_PC_SETUP.md, step 3).
   ASCII-only on purpose (Windows PowerShell 5.1 reads BOM-less files as ANSI).
 #>
-param([switch]$Apply, [switch]$SkipTools)
+param([switch]$Apply, [switch]$SkipTools, [switch]$LocalCodingSandbox)
 $ErrorActionPreference = 'Stop'
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -110,9 +110,13 @@ if ($SkipTools) { Say 'ATLANDI' 'Arac kurulumu (-SkipTools)' } else {
 # (scripts/run-ayas-local-coding-container.ts pins podman.exe 6.0.2 and an 8 CPU /
 # 8 GiB / 40 GB rootless machine). winget stops at 5.8.x, so it is reported, not
 # installed; AYAS, phone access and the Development Center run without it.
+# Opt-in since 2026-10-15: no local model qualified, so the owner had the
+# models and the machine removed; -LocalCodingSandbox restores the check.
 $podmanExe = Join-Path $env:LOCALAPPDATA 'Programs\Podman\podman.exe'
 $podmanSha = 'f6a555b075654fdb12580bdaf570ee90c2225f94a05781ecd6c1a16c8a5c95ea'
-if (-not (Test-Path -LiteralPath $podmanExe) -or (Sha $podmanExe) -ne $podmanSha) {
+if (-not $LocalCodingSandbox) {
+  Say 'TAMAM' 'Podman atlandi (yerel kod modeli sandbox''i kullanimda degil; gerekirse -LocalCodingSandbox)'
+} elseif (-not (Test-Path -LiteralPath $podmanExe) -or (Sha $podmanExe) -ne $podmanSha) {
   Say 'UYARI' 'Podman 6.0.2 yok (yalniz yerel kod modeli yeterlilik sandbox''i icin): https://github.com/containers/podman/releases/tag/v6.0.2 adresindeki Windows installer''i kurun, sonra bu betigi tekrar calistirin.'
 } else {
   $machines = (& $podmanExe machine list --format '{{.Name}}' 2>$null) -join ' '

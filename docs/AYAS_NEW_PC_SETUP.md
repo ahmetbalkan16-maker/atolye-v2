@@ -9,9 +9,10 @@ Bu belge bütün AYAS/Atölye paketinin (`D:\ÜRETİM`) yeni bir bilgisayara ta�
 - `D:\ÜRETİM` klasörünün tamamını USB'ye **normal kopyala-yapıştır** ile kopyala. İzinleri
   (ACL) koruyan `robocopy /COPYALL` kullanma; eski PC'nin kullanıcı kimlikleri yeni PC'de
   çözülemez.
-- 15 Ekim ölçümü: paket ~171 GB; **çalışmak için gereken ~65 GB** (`Atolye` 34,3 · `models`
+- 15 Ekim ölçümü: paket ~163 GB; **çalışmak için gereken ~57 GB** (`Atolye` ~25,9 · `models`
   21,7 · `handover` 2,9 · `backups` 2,0 · `migration` 2,0 · `runtime` 1,3 · `private` temp
-  hariç ~0,5).
+  hariç ~0,5). Yerel kod modeli denemesinin dosyaları (`qwen3-coder:30b` 18 GB, `qwen2.5-coder`
+  GGUF 8,4 GB, C'deki 50,6 GB'lık Podman sanal diski) owner isteğiyle aynı gün silindi.
 - Çalışmak için gerekmeyen, isteğe bağlı kopyalanacaklar:
   - `archives` (99,4 GB): eski C kaynakları, C Temp ve cold-copy yedekleri; yalnız geçmiş/kanıt.
     Silme; istersen ayrı bir diskte sakla.
@@ -54,9 +55,11 @@ Bu belge bütün AYAS/Atölye paketinin (`D:\ÜRETİM`) yeni bir bilgisayara ta�
    - `.env.local` içindeki yalnız FFmpeg yolları yeni kurulum yerine çevrilir (önce
      `private\host-settings-backup` altına yedek alınır).
    - Repo bağımlılıkları (`npm ci`, önbellek paket içinde) ve Graphify 0.17.1.
-   - Podman 6.0.2 yalnız yerel kod modeli yeterlilik sandbox'ı için gerekir ve winget'te bu
-     sürüm yoktur: betik eksikse GitHub sürüm sayfasını gösterir; kuruluysa `podman machine`'i
-     (8 CPU, 8 GiB, 40 GB, rootless) oluşturur. Telefon erişimi ve Gelişim Merkezi onsuz çalışır.
+   - Podman yalnız yerel kod modeli yeterlilik sandbox'ı için gerekir. Hiçbir yerel model
+     yeterliliği geçmediği için (15 Ekim) betik varsayılan olarak Podman'ı **atlar**. Ancak
+     `-LocalCodingSandbox` verilirse Podman 6.0.2'yi denetler (winget'te bu sürüm yoktur; eksikse
+     GitHub sürüm sayfasını gösterir) ve `podman machine`'i (8 CPU, 8 GiB, 40 GB, rootless)
+     oluşturur. Telefon erişimi ve Gelişim Merkezi onsuz çalışır.
    - Üç Başlangıç kısayolu: AYAS Access Online, AYAS Autonomy Observer, Ollama. Üçü de
      yollarını kendi konumundan türeten gizli `.vbs` başlatıcılarıdır (pencere açılmaz).
 4. Bilgisayarı yeniden başlat. Oturum açılınca Ollama, telefon erişimi (tünel + uygulama) ve
