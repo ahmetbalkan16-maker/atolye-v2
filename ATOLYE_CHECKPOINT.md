@@ -182,7 +182,17 @@ Yapılan (owner'ın açık onaylarıyla: Observer yeniden başlatma, `npm ci`, g
          - Lock farkı: 23 değişti, 18 eklendi, 27 kaldırıldı.
          - İlk koşuda build, yol bulgusu nedeniyle düşmüştü; ön testlerde görülen 5 "önceden kırık" test de aynı yol sorunuydu.
        - Testler: yeni `smoke-ayas-update-trial` 11/11 ve `smoke-ayas-update-apply` 11/11 (gerçek git + korumalı denetim). İkinci test, porcelain çıktısının kırpılmasından doğan gerçek bir kapsam hatasını yakaladı. Denetim değişikliği geri aldı (ROLLED_BACK), düzeltildi.
-       - **Etkinleşme:** uygulayıcı, Observer'ın sürekli çalışan ana sürecinin içinden başlatıldığı için Observer yeniden başlayınca (ya da PC açılışında) devreye girer.
+       - Regresyon: bağlı 52 suite'in 51'i geçti.
+         - Geçenler arasında: pinli guarded-publication, proposal-approval-service, runtime-stability, autonomy-daemon, action-firewall-closure (v63); ayrıca micro-batch approval/authority, owner-publication-worker, owner-approval-resume-v2 (+ hardening), safe-mode (+ mutations), research-improvement-loop, crash-injection, constitution-run-binding (+ mutations), development-center, homepage-v2, owner-ui-v2.
+         - `smoke-ayas-observer-autostart` Unicode TEMP'te bilinen fixture hatası verdi; AGENTS.md kuralıyla ASCII `D:\URETIM\private\temp` ile 35/35 geçti.
+         - Tek FAIL: dondurulmuş v1 `smoke-ayas-autonomous-execution-gate`, temiz HEAD'de de aynı satırda düşüyor.
+         - tsc 0, değişen dosyalarda lint 0.
+         - EVAL 15F.4-v63: yalnız closure pini değişti, 324 pinin hepsi commit blob'larıyla eşleşiyor, v62 bayt-bayt `EVAL_MANIFEST_V62.json`. Yerel CF49 `CLOSED_PASS`.
+       - Commit `f2211bcb`. **Canlıya alındı (14:41):** `ayas-live-9d6ca4bb` yerine `ayas-live-f2211bcb`.
+         - Build `5Z41HYA7x0hcd3JfxnBLs`; `next start` PID 14004; dış erişim healthy.
+         - Yedek `D:\ÜRETİM\handover\live-publish\20261015-144147-f2211bcb`; önceki kopya geri dönüş için duruyor.
+       - **Etkinleşme:** uygulayıcıyı Observer'ın sürekli çalışan ana süreci başlattığı için Observer yeniden başlayınca (ya da PC açılışında) devreye girer. Owner onayı bekliyor: iç node sürecini sonlandır; wrapper 30 sn sonra yeni kodla açar.
+       - Sıradaki: model işlemleri için onay düğmeleri (indir → ölç → değiştir). Owner kararıyla dahil, henüz yazılmadı.
 
 **Sıradaki (bu sırayla):**
 1. Yeni PC kurtarma geçişini taşımadan önce bu PC'de benzet: runtime/authority'nin kopyası üzerinde, tek kullanımlık köklerde `runtime:backup:create/verify` → `candidate:create/consume` → `authority:begin-recovery` → `quiesce/prepare/validate/publish`; canlı kayıtlara dokunmadan. Sonucu `docs/AYAS_NEW_PC_SETUP.md` adım 3'e işle.
