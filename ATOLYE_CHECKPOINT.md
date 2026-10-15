@@ -114,6 +114,12 @@ Yapılan (owner'ın açık onaylarıyla: Observer yeniden başlatma, `npm ci`, g
        - Bağlı 21 suite geçti: owner-approval-admission 35, owner-session-admission 11, pinli action-firewall-closure 12 (değiştirilmedi), autonomous-execution-gate-v2 6, autonomy-approval 29, brain-control-center 22, chat 12, daemon-authority-boundary 23, development-center 59, homepage-v2 11, model-watch 12, owner-approval-resume-v2 20 + hardening 8, owner-exact-preview 20, owner-ui-v2 36, reply-fallback-truth 11, research-engine-status-view 6, research-status-intent 17, voice-turn-state-mutations 12/12, brain-core-ui 43.
        - Dondurulmuş v1 `smoke-ayas-autonomous-execution-gate` temiz HEAD (`13464877`) worktree'sinde de aynı satırda (362) FAIL → önceden kalma.
        - tsc 0; değişen dosyalarda lint 0 (ASCII yoldan).
+     - Commit `9d6ca4bb`. **Canlıya alındı (13:34):** `ayas-publish-live.ps1 -Commit 9d6ca4bb -Apply` → `ayas-live-856d9ca3` yerine `ayas-live-9d6ca4bb`.
+       - Build `XjoK5DLxW28deHetMZzj3`, Next 16.4.1, 1269 build / 26469 bağımlılık dosyası.
+       - `next start` PID 25904; denetçi Windows kabuğu altında yeniden açıldı; dış erişim healthy.
+       - Derlenmiş canlı dosyalarda onay düğmesi metni var.
+       - Yedek `D:\ÜRETİM\handover\live-publish\20261015-133439-9d6ca4bb`; önceki kopya geri dönüş için duruyor.
+       - Graphify `9d6ca4bb` için CURRENT (yapısal tamamlayıcı 15/15).
    - **gemma4:12b indirmesi (owner onayı): SÜRÜYOR.**
      - Hız ~0,55 MB/sn; 7,4 GB'lık katman için ~3,5 saat. `ollama pull gemma4:12b` D model deposuna iniyor; kesilirse aynı komut `-partial` dosyasından devam eder.
      - Model deposunda kayıtlı özet (09:17Z): `6114515d…`, 8,02 GB.
