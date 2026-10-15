@@ -34,8 +34,10 @@ Varsayılan commit `HEAD`; başka biri için `-Commit <sha>`. Uygulama dosyalar�
 4. Erişim denetçisi ve uygulama durdurulur (tünel çalışmaya devam eder), manifest ve seçici birlikte
    değiştirilir, denetçi Başlangıç kısayoluyla Windows kabuğu (explorer) üzerinden, oturum açılışındaki
    gibi yeniden açılır. Bir konsolun ya da ajan oturumunun alt süreci olarak açılan denetçi onunla
-   birlikte kapanabilir (`docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md`); bu yüzden geçiş bir ajan
-   oturumundan değil, owner tarafından çalıştırılır.
+   birlikte kapanabilir (`docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md`). Kabuk üzerinden açılan
+   denetçi bundan etkilenmez: 15 Ekim yayınında (`7bd27b93`, owner talimatıyla bir Claude
+   oturumundan) denetçinin üst süreci DCOM'un açtığı `explorer.exe /factory,… -Embedding` oldu.
+   Owner talimatı gereği her geliştirme görevinden sonra yayın yapılır.
 5. Yeni uygulama 3000 portunda giriş kapısıyla yanıt verene ve denetçi `healthy` yazana kadar
    beklenir (varsayılan 240 sn). Olmazsa eski dosyalar geri konur ve önceki kopya yeniden başlatılır.
 
