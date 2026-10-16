@@ -99,6 +99,12 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**Model geçişinin yeniden başlatma adımı canlıda doğrulandı (owner onayı, 08:58):**
+- Model geçişinin kullandığı `createAyasLiveRestarter` → `ayas-publish-live.ps1 -Restart` gerçek canlı uygulamada çalıştırıldı.
+- Sonuç `RESTARTED`, 23 sn. Uygulama PID 26460 → 31764; aynı kopya `ayas-live-564d0579`. Telefon, tünel ve AYAS arka ucu çevrimiçi; dış adres 307.
+- Aynı turda model deposu bilgisi tazelendi (`ayas:model-benchmark -- --registry`, ölçüm yok). gemma4:12b özeti değişmemiş (`6114515d…`), yani inen sürüm karttakiyle aynı.
+- **Kozmetik bulgu:** PowerShell 5.1 alt süreç çıktısını konsol kod sayfasıyla yazıyor, koşucu UTF-8 okuyor. Bu yüzden adım özetlerinde Türkçe yol harfleri bozuk görünüyor (`D:\�RET�M`). Durum tanıma ASCII satırlarla yapıldığı için etkilenmiyor. Aynı durum `createAyasLivePublisher`'da da var; düzeltilmedi.
+
 **C denetimi (owner sorusu, 16 Ekim):** Bugünkü işlerden sonra C'de AYAS/Atölye verisi ya da C'yi gösteren yeni bir proje yolu yok.
 - **Kod:** bugünkü farklarda tek C olasılığı vardı. `OLLAMA_MODELS` yoksa `~/.ollama/models`'a düşülüyordu; artık `<studio>\models\ollama\models` (`615a6e44`).
 - **Bugün yazılan her şey D'de:** Ollama modelleri, indirme günlüğü, canlı kopyalar ve yedekler, `data/` kayıtları, Graphify yedeği `.graphify\2026-10-16`, npm önbelleği. 15 Ekim'den beri C npm günlüğü 0.
