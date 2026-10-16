@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v67",
+  "version": "15F.4-v68",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -129,7 +129,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-action-firewall-closure.ts",
-          "sha256": "e348cd90c297036a72cfc7ecaa402047e079a64e324cdbdfb09b67831e62552a"
+          "sha256": "9b7b82682dd0e694f12bd8a434138f0e26afc99e671a6b9b78f18cec3cdc124d"
         }
       ],
       "slices": [

@@ -20,6 +20,7 @@ import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedR
 import { AyasGuidedRepairSessionStore } from "@/lib/ayas/execution/AyasGuidedRepairSessionStore";
 import { AyasDeveloperWorkflowStore } from "@/lib/ayas/execution/AyasDeveloperWorkflowStore";
 import { resolveAyasPreReasoningIntent } from "@/lib/ayas/AyasIntentRouting";
+import { answerAyasLiveInfo } from "@/lib/ayas/liveinfo/AyasLiveInfoLookup";
 import {
   buildAyasReportSpokenAnswer,
 } from "@/lib/brain/selfheal/BrainReportCenter";
@@ -198,6 +199,16 @@ async function respondToAyasTurn({ request, text, history, seq, sessionKey, trac
   // terminal SSE frame, no model call.
   if (preReasoningIntent.kind === "research-status") {
     const answer = buildAyasResearchStatusSpokenAnswer(loadAyasGoalDevelopmentView(), loadAyasResearchEngineStatusView(), preReasoningIntent.researchIntent);
+    finishTurn("fallback");
+    const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoder.encode(ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }))); controller.close(); } });
+    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no", "X-Ayas-Trace-Id": trace.traceId } });
+  }
+
+  // "Bursa'da hava nasıl?" / "Gazze hakkındaki son haberler" — the same live
+  // answer as the askAyas Server Action: fixed public sources (Open-Meteo,
+  // Google Haberler, BBC Türkçe), one terminal SSE frame, no model call.
+  if (preReasoningIntent.kind === "live-info") {
+    const answer = await answerAyasLiveInfo(preReasoningIntent.liveInfo, { history });
     finishTurn("fallback");
     const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoder.encode(ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }))); controller.close(); } });
     return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no", "X-Ayas-Trace-Id": trace.traceId } });

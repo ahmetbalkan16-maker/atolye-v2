@@ -1,6 +1,7 @@
 import { detectAyasReportIntent, type AyasReportIntent } from "@/lib/brain/selfheal/BrainReportCenter";
 import { detectAyasResearchStatusIntent, type AyasResearchStatusIntent } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { isAyasDevelopmentStatusQuery } from "./model/AyasComplexityRouter";
+import { detectAyasLiveInfoIntent, type AyasLiveInfoIntent } from "./liveinfo/AyasLiveInfoIntent";
 
 const GUIDED_REPAIR_TOKENS = new Set([
   "hata",
@@ -55,6 +56,7 @@ export type AyasPreReasoningIntent =
   | { readonly kind: "report-center"; readonly reportIntent: Exclude<AyasReportIntent, null> }
   | { readonly kind: "research-status"; readonly researchIntent: Exclude<AyasResearchStatusIntent, null> }
   | { readonly kind: "guided-repair" }
+  | { readonly kind: "live-info"; readonly liveInfo: AyasLiveInfoIntent }
   | { readonly kind: "reasoning" };
 
 /**
@@ -62,7 +64,8 @@ export type AyasPreReasoningIntent =
  * another before the normal AYAS reasoning/tool pipeline. Specificity wins:
  * AYAS self-development status, then explicit Report Center requests, then
  * external research status (answered as in the askAyas Server Action), then a
- * repair symptom. The normal reasoning path handles everything else.
+ * repair symptom, then a weather or news question (answered from fixed public
+ * sources). The normal reasoning path handles everything else.
  */
 export function resolveAyasPreReasoningIntent(text: string): AyasPreReasoningIntent {
   if (isAyasDevelopmentStatusQuery(text)) return { kind: "development-status" };
@@ -71,5 +74,7 @@ export function resolveAyasPreReasoningIntent(text: string): AyasPreReasoningInt
   const researchIntent = detectAyasResearchStatusIntent(text);
   if (researchIntent) return { kind: "research-status", researchIntent };
   if (isAyasGuidedRepairQuery(text)) return { kind: "guided-repair" };
+  const liveInfo = detectAyasLiveInfoIntent(text);
+  if (liveInfo) return { kind: "live-info", liveInfo };
   return { kind: "reasoning" };
 }

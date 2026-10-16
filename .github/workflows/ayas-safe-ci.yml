@@ -62,6 +62,8 @@ jobs:
         run: npx tsx scripts/smoke-ollama-thermal-monitor.ts
       - name: Eval-pinned suites stay outside every AYAS mutation lane
         run: npx tsx scripts/smoke-ayas-eval-yardstick-protection.ts
+      - name: Weather and news answers from fixed public sources (offline fixtures)
+        run: npx tsx scripts/smoke-ayas-live-info.ts
       - name: Prepare bounded retrieval evidence directory
         run: mkdir "$AYAS_CI_EVIDENCE_DIR"
       # Preserve the original grader's raw exit/report. The next mandatory

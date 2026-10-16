@@ -93,6 +93,7 @@ type Guard =
   | "DISCOVERY_LEASE"       // sandbox or public-read work the leased discovery run performs
   | "DURABLE_LEASE"         // the one approved durable activity, admitted per attempt
   | "OWNER_REQUEST"         // a bounded process run for an authenticated owner request
+  | "OWNER_PUBLIC_LOOKUP"   // the owner's weather/news question: a GET to fixed public hosts, decided from the owner's text before any model call
   | "READ_ONLY_PROBE"       // fixed command or probe, read-only, no request-selected target
   | "LOCAL_MODEL"           // loopback inference, zero cost
   | "CLOUD_MODEL_DENIED"   // constructed but never selected: the router returns no provider instead
@@ -133,10 +134,12 @@ const LOCAL_MODELS: Readonly<Record<string, Guard>> = {
 interface Surface { readonly what: string; readonly agent: boolean; readonly allowed: readonly Guard[]; readonly modules: Readonly<Record<string, Guard>>; }
 const SURFACES: Readonly<Record<string, Surface>> = {
   "app/api/ayas/chat/stream/route.ts": {
-    what: "model-driven chat turn (tools, guided repair, local model)", agent: true,
-    allowed: ["TOOL_LEASE", "OWNER_LEASE", "READ_ONLY_PROBE", "LOCAL_MODEL", "CLOUD_MODEL_DENIED"],
+    what: "model-driven chat turn (tools, guided repair, local model, the owner's weather/news lookup)", agent: true,
+    allowed: ["TOOL_LEASE", "OWNER_LEASE", "OWNER_PUBLIC_LOOKUP", "READ_ONLY_PROBE", "LOCAL_MODEL", "CLOUD_MODEL_DENIED"],
     modules: {
       ...LOCAL_MODELS,
+      // AyasLiveInfoLookup: Open-Meteo / Google Haberler / BBC Türkçe only, before the model stream (asserted below).
+      "src/lib/brain/autonomy/AyasSafePublicFetch.ts": "OWNER_PUBLIC_LOOKUP",
       "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE",
       // Stage 15Q.3: imported with the production stage runtime's resource occupancy (process identity of a record's owner).
       "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE",
@@ -219,7 +222,7 @@ const SURFACES: Readonly<Record<string, Surface>> = {
   },
   "app/brain/actions.ts": {
     what: "owner-session server actions: chat, approvals, the owner's own execution and research clicks", agent: false,
-    allowed: ["TOOL_LEASE", "OWNER_LEASE", "OWNER_PUBLICATION", "READ_ONLY_PROBE", "LOCAL_MODEL", "CLOUD_MODEL_DENIED", "IMPORT_ONLY"],
+    allowed: ["TOOL_LEASE", "OWNER_LEASE", "OWNER_PUBLICATION", "OWNER_PUBLIC_LOOKUP", "READ_ONLY_PROBE", "LOCAL_MODEL", "CLOUD_MODEL_DENIED", "IMPORT_ONLY"],
     modules: {
       ...PROBES, ...LOCAL_MODELS, ...SELF_DEVELOPMENT, ...PUBLICATION,
       "app/brain/actions.ts": "READ_ONLY_PROBE",
@@ -231,8 +234,9 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       // Starts the owner publication worker below for one owner click, with the two admissions minted here.
       "src/lib/brain/autonomy/AyasOwnerPublicationWorker.ts": "OWNER_PUBLICATION",
       "src/lib/brain/autonomy/AyasPublicationActivity.ts": "READ_ONLY_PROBE",
-      // The owner schedules or cancels goal research here; the fetch itself runs in the leased discovery child.
-      "src/lib/brain/autonomy/AyasSafePublicFetch.ts": "IMPORT_ONLY",
+      // askAyas answers the owner's weather/news question from the fixed live-info hosts, like the chat route. Goal
+      // research the owner schedules or cancels here still fetches only in the leased discovery child.
+      "src/lib/brain/autonomy/AyasSafePublicFetch.ts": "OWNER_PUBLIC_LOOKUP",
     },
   },
   "scripts/ayas-owner-publication-worker.ts": {
@@ -418,6 +422,22 @@ async function main() {
     }
   });
 
+  await scenario("the owner's weather/news lookup reads only its fixed public hosts, through the safe fetch, before any model call", () => {
+    const lookup = code("src/lib/ayas/liveinfo/AyasLiveInfoLookup.ts");
+    assert.match(lookup, /export const AYAS_LIVE_INFO_HOSTS = Object\.freeze\(\["geocoding-api\.open-meteo\.com", "api\.open-meteo\.com", "news\.google\.com", "feeds\.bbci\.co\.uk"\]\);/);
+    // One transport call, after the host check; the final URL is checked again.
+    assert.equal(lookup.split("await transport(").length - 1, 1);
+    assert.ok(lookup.indexOf("if (!isAllowedHost(url))") < lookup.indexOf("await transport(") && lookup.indexOf("!isAllowedHost(outcome.finalUrl)") > lookup.indexOf("await transport("));
+    assert.doesNotMatch(lookup, /dangerouslyAllowPrivateNetworkForTests|http:\/\/|Authorization|Cookie|process\.env\.(?!AYAS_WEATHER_DEFAULT_LOCATION)/);
+    assert.doesNotMatch(code("src/lib/ayas/liveinfo/AyasLiveInfoIntent.ts"), /SafePublicFetch|AyasLiveInfoLookup|node:/, "the intent is text-only");
+    // Both surfaces answer it before the model: the route before its stream, askAyas before the governed pipeline.
+    for (const [file, model] of [["app/api/ayas/chat/stream/route.ts", "streamAyasChat({"], ["app/brain/actions.ts", "streamAyasChat({"]] as const) {
+      const source = code(file);
+      assert.equal(source.split("answerAyasLiveInfo(").length - 1, 1, file);
+      assert.ok(source.indexOf("answerAyasLiveInfo(") < source.indexOf(model), `${file} looks up after the model`);
+    }
+  });
+
   await scenario("no AYAS surface reaches a production provider, a paid model, the pipeline runner, a publisher or the dormant write bridge", () => {
     const production = new RegExp([
       "^src/lib/(?:assembly|assets|audio|video|thumbnail|animation|visuals|seo|export|youtube)/providers/",
@@ -439,7 +459,7 @@ async function main() {
   });
 
   await scenario("every entry point that reaches leased or owner-only work is a mapped surface or a named operator script", () => {
-    const sensitiveGuards: readonly Guard[] = ["TOOL_LEASE", "OWNER_LEASE", "OWNER_PUBLICATION", "DISCOVERY_LEASE", "DURABLE_LEASE", "OWNER_REQUEST"];
+    const sensitiveGuards: readonly Guard[] = ["TOOL_LEASE", "OWNER_LEASE", "OWNER_PUBLICATION", "DISCOVERY_LEASE", "DURABLE_LEASE", "OWNER_REQUEST", "OWNER_PUBLIC_LOOKUP"];
     const sensitive = new Set(Object.values(SURFACES).flatMap((surface) => Object.entries(surface.modules).filter(([, guard]) => sensitiveGuards.includes(guard)).map(([file]) => path.join(repo, file))));
     const isEntry = (file: string): boolean => rel(file).startsWith("app/") || (rel(file).startsWith("scripts/") && !/^scripts\/(?:smoke-|fixtures\/|helpers\/)/.test(rel(file)));
     const reaching = files.filter(isEntry).filter((file) => [...closure(rel(file))].some((reached) => sensitive.has(reached))).map(rel).sort();

@@ -51,6 +51,8 @@ import { scheduleAyasGoalResearch, createAndScheduleAyasGoalResearch, controlAya
 import { resolveAyasResearchGateRoot } from "@/lib/brain/autonomy/AyasResearchScheduler";
 import type { AyasGoalResearchCatchUpPolicy } from "@/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { detectAyasResearchStatusIntent, buildAyasResearchStatusSpokenAnswer } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
+import { resolveAyasPreReasoningIntent } from "@/lib/ayas/AyasIntentRouting";
+import { answerAyasLiveInfo } from "@/lib/ayas/liveinfo/AyasLiveInfoLookup";
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
 import { defaultAyasProposalApprovalDeps, AyasProposalApprovalError } from "@/lib/brain/autonomy/AyasProposalApprovalService";
@@ -115,6 +117,17 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
     const [goalDevelopment, researchEngineStatus] = [loadAyasGoalDevelopmentView(), loadAyasResearchEngineStatusView()];
     return {
       message: ayasReplyMessage(buildAyasResearchStatusSpokenAnswer(goalDevelopment, researchEngineStatus, researchStatusIntent), input.seq),
+      source: "fallback",
+    };
+  }
+
+  // "Bursa'da hava nasıl?" / "Gazze hakkındaki son haberler" — the streaming
+  // route's live answer, with the route's precedence (development status and
+  // repair symptoms first): fixed public sources, no model call.
+  const preReasoningIntent = resolveAyasPreReasoningIntent(input.text ?? "");
+  if (preReasoningIntent.kind === "live-info") {
+    return {
+      message: ayasReplyMessage(await answerAyasLiveInfo(preReasoningIntent.liveInfo, { history: input.history ?? [] }), input.seq),
       source: "fallback",
     };
   }
