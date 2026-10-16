@@ -110,6 +110,12 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - Silinmiş C dosyalarını gösteren iki eski zamanlanmış görev; silmek yönetici yetkisi ister.
   - `%LOCALAPPDATA%\AtolyeAyasAccess` yok.
 - **Claude Code'un geçici klasörü:** `AppData\Local\Temp\claude\…` oturum klasörleri çoğunlukla boş, toplam 1 MB'ın altında. AYAS kullanmıyor. Bu oturumun 65 dosyası (133 KB) silindi.
+- **C kullanıcı Temp'i:** 312 öğe, 493 MB. Owner onayıyla AYAS'tan kalan iki artık silindi; ikisinde de bağlantı yoktu:
+  - `tsx-Metod`: Atölye kaynağının tsx dönüşüm önbelleği, 5 dosya, 14 Ekim 19:43'ten, D-temp kuralından önce.
+  - Boş `podman` klasörü.
+- **Temp'te kalanlar başka programlara ait:** VS Code güncellemesi, Windows/Office tanılama ve günlükleri, Chrome eklenti CRX'leri, Claude uygulaması, Adobe, SolidWorks, bir Inno Setup kurulumu, Ollama simgeleri.
+- **`node-compile-cache`:** Node'un genel önbelleği. 2.798 dosyanın hiçbirinde D/Atölye yolu yok; bugün yazanlar Claude/VS Code araçları.
+- **AYAS süreçleri D Temp kullanıyor:** Observer ve erişim başlatıcıları `TEMP`'i D'ye ayarlıyor. C'deki tsx önbelleği 14 Ekim'den beri hiç değişmedi.
 
 **Yarım model indirmeleri artık yeniden başlatmada silinmiyor (owner seçimi, aynı liste):**
 - `scripts/ollama-production-hidden.vbs`, Ollama'yı başlatırken yalnız kendi sürecine `OLLAMA_NOPRUNE=1` verir. Ollama 0.40.3 `serve --help` bu değişkeni "Do not prune model blobs on startup" olarak listeliyor.
