@@ -99,6 +99,18 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**C denetimi (owner sorusu, 16 Ekim):** Bugünkü işlerden sonra C'de AYAS/Atölye verisi ya da C'yi gösteren yeni bir proje yolu yok.
+- **Kod:** bugünkü farklarda tek C olasılığı vardı. `OLLAMA_MODELS` yoksa `~/.ollama/models`'a düşülüyordu; artık `<studio>\models\ollama\models` (`615a6e44`).
+- **Bugün yazılan her şey D'de:** Ollama modelleri, indirme günlüğü, canlı kopyalar ve yedekler, `data/` kayıtları, Graphify yedeği `.graphify\2026-10-16`, npm önbelleği. 15 Ekim'den beri C npm günlüğü 0.
+- **C'de kalanlar, bilinçli ve proje verisi değil:**
+  - Kurulu programlar (Node, cloudflared, Ollama, PowerShell).
+  - D'yi gösteren Başlangıç kısayolları ve profil bağlantıları (`.ollama`, `.cloudflared`).
+  - Graphify'ın kendi `faster-whisper` önbelleği (141 MB, 17 Ağustos, internetten yeniden iner).
+  - Boş `graphify-snapshots`.
+  - Silinmiş C dosyalarını gösteren iki eski zamanlanmış görev; silmek yönetici yetkisi ister.
+  - `%LOCALAPPDATA%\AtolyeAyasAccess` yok.
+- **Claude Code'un geçici klasörü:** `AppData\Local\Temp\claude\…` oturum klasörleri çoğunlukla boş, toplam 1 MB'ın altında. AYAS kullanmıyor. Bu oturumun 65 dosyası (133 KB) silindi.
+
 **Yarım model indirmeleri artık yeniden başlatmada silinmiyor (owner seçimi, aynı liste):**
 - `scripts/ollama-production-hidden.vbs`, Ollama'yı başlatırken yalnız kendi sürecine `OLLAMA_NOPRUNE=1` verir. Ollama 0.40.3 `serve --help` bu değişkeni "Do not prune model blobs on startup" olarak listeliyor.
 - Windows ortam değişkenleri değişmedi.
