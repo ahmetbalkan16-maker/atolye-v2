@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,6 +16,7 @@ import {
 } from "../src/lib/brain/autonomy/AyasModelSwitchRunner";
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
 import { AYAS_CHAT_MODEL_BENCHMARK_ID, ayasModelSwitchHash, buildAyasModelWatchView, createAyasModelWatchStore, type AyasModelWatchState } from "../src/lib/brain/autonomy/AyasModelWatch";
+import { AYAS_CANONICAL_SYNC_MARKER, createAyasUpdateTrialStore } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
 import {
   admitAyasOwnerApproval, checkAyasOwnerAdmissionBinding, type AyasOwnerAdmissionAction, type AyasOwnerAdmissionSubject,
 } from "../src/lib/brain/autonomy/AyasOwnerApprovalAdmission";
@@ -366,6 +367,20 @@ async function main(): Promise<void> {
     for (const step of ["Get-BusyChildren", "exit 3", "Stop-LiveProcesses", "Start-Supervisor", "Wait-Healthy $current", "[TAMAM] Yeniden baslatildi:", "exit 1"]) assert.ok(block.includes(step.replace("[TAMAM] ", "'TAMAM' \"")) || block.includes(step), step);
     assert.ok(!/worktree|npm|Copy-Atomic|Write-Utf8Atomic/.test(block), "a restart builds and swaps nothing");
     assert.ok(/^[\x00-\x7F]*$/.test(source), "the script stays ASCII-only");
+  });
+
+  await scenario("every owner decision and job store writes outside Git, so neither the executor nor the observer sees its own state as a dirty tree", () => {
+    const repo = process.cwd();
+    const roots = [
+      createAyasModelOperationStore().rootDir, path.join(repo, "data", "brain", "self-improvement", "model-watch"),
+      createAyasUpdateTrialStore().rootDir, path.join(repo, "data", "brain", "self-improvement", "update-approvals"),
+    ];
+    for (const root of roots) {
+      for (const file of ["state.json", "jobs.json", "decisions.json", "executor.lock", AYAS_CANONICAL_SYNC_MARKER]) {
+        const relative = path.relative(repo, path.join(root, file)).split(path.sep).join("/");
+        assert.equal(spawnSync("git", ["check-ignore", "-q", "--no-index", relative], { cwd: repo, windowsHide: true }).status, 0, `${relative} must be ignored`);
+      }
+    }
   });
 
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-model-operations", scenarios: count, modelRuns: 0, networkCalls: 0 }));

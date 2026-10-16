@@ -151,6 +151,14 @@ graphify-out/
 /data/brain/self-improvement/research-novelty/
 # Model comparison (2026-10-15): benchmark results and registry observations, local working state.
 /data/brain/self-improvement/model-watch/
+# Owner update and model decisions and their jobs (2026-10-15/16): the radar approvals, the
+# update executor's trials, applies, lock and sync marker, and the model operations. Same
+# failure class as research-novelty above, found 2026-10-16: these were not ignored, so the
+# executor saw its own lock as a dirty tree and skipped every job, and the first radar
+# approval would have paused the observer (PAUSED_DIRTY_REPO).
+/data/brain/self-improvement/update-approvals/
+/data/brain/self-improvement/update-trials/
+/data/brain/self-improvement/model-operations/
 
 # Continuous local-discovery run evidence. Runtime-owned like the scheduler
 # state above; tracking it would make the next observer tick pause itself as
