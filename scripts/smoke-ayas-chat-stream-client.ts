@@ -157,12 +157,12 @@ async function run() {
         { type: "state", state: "tool-action", tool: "inspect-source-file" },
       ]),
     });
-    assert.deepEqual(states, [["tool-action", "inspect-source-file"], ["thinking", undefined], ["tool-action", undefined], ["tool-action", undefined]]);
-    assert.deepEqual(deltas, ["Tamam."]);
-    assert.equal(res.ok, true);
+    assert.deepEqual(states, [["tool-action", "inspect-source-file"], ["thinking", undefined], ["tool-action", undefined], ["tool-action", undefined]], "assert.deepEqual(states, [[\"tool-action\", \"inspect-source-file\"], [\"thinking\", undefined], [\"tool-action\", undefined], [\"tool-action\", undefined]])");
+    assert.deepEqual(deltas, ["Tamam."], "assert.deepEqual(deltas, [\"Tamam.\"])");
+    assert.equal(res.ok, true, "assert.equal(res.ok, true)");
     // A caller that passes no handler is unaffected: the same stream still resolves with its terminal text.
     const plain = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([{ type: "state", state: "tool-action", tool: "inspect-source-file" }, { type: "done", text: "Tamam.", source: "llm", corrected: false }]) });
-    assert.equal(plain.ok && plain.text, "Tamam.");
+    assert.equal(plain.ok && plain.text, "Tamam.", "assert.equal(plain.ok && plain.text, \"Tamam.\")");
   });
 
   await scenario("non-OK response → ok:false http-<status>", async () => {
