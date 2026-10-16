@@ -47,8 +47,9 @@ Adayların hepsi Apache-2.0 lisanslı:
 - `granite4.2:8b`
 
 Yeni bir aday eklemek bir kod değişikliğidir; web sayfası kazınmaz. `gemma4` ve `qwen3.5` düşünme
-kipine sahiptir. `OllamaAyasProvider` bugün düşünmeyi yalnız `qwen3` için kapatır; ölçüm bu
-modellerdeki farkı gösterir.
+kipine sahiptir. `OllamaAyasProvider` düşünmeyi `qwen3`, `qwen3.5` ve `gemma4` için kapatır
+(`think: false`, `AYAS_THINKING_MODEL_FAMILY`). Böylece yanıt bütçesi düşünmeye gitmez, ölçüm de
+sohbetle aynı ayarla yapılır.
 
 ## Komutlar
 

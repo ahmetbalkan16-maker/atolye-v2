@@ -1,3 +1,41 @@
+## 16 Ekim 2026 — önceki oturumun yarım işi: ana kopyanın node_modules eşitlemesi, düşünme kipi; gemma4 indirmesi
+
+Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
+
+**Oturum başı durumu:**
+- `f2211bcb` ("dene, sonra uygula") canlıda, belge kaydı `7e7a5db9`. Pasted transkript bu işin ortasında bitiyordu; iş zaten commit'lenmiş ve yayınlanmıştı.
+- PC 16 Ekim 06:39'da yeniden başladı. Observer, uygulayıcıyı da içeren yeni kodla kendiliğinden açıldı. Ama önceki oturumdan kalan commit'lenmemiş 5 dosya yüzünden sabahtan beri `PAUSED_DIRTY_REPO` durumundaydı; uygulayıcı hiç çalışmadı. Bekleyen onay ya da deneme yok (`npm run ayas:update-approvals`: 0).
+- **gemma4:12b indirmesi kaybolmuştu.** Ollama açılışta yarım blob'ları sildiği için kısmi dosya kalmamıştı. Owner'ın 15 Ekim onayıyla oturumdan bağımsız gizli bir süreçte yeniden başlatıldı. İlerleme `D:\ÜRETİM\private\temp\ollama-pull-gemma4-12b-20261016.err.log` dosyasında, hız ~0,9 MB/sn. Bitince: `npm run ayas:model-benchmark -- --models gemma4:12b`.
+
+**Yapılan (önceki oturumun yarım bıraktığı iş tamamlandı):**
+- **Düşünme kipi:** `OllamaAyasProvider` artık `think: false`'u qwen3, qwen3.5 ve gemma4 etiketlerine gönderiyor (`AYAS_THINKING_MODEL_FAMILY`; önceden yalnız qwen3). Canlı sohbet modeli `gemma3:12b` eşleşmediği için bugünkü davranış değişmez. gemma4 ölçümü sohbetle aynı ayarla yapılır; yanıt bütçesi düşünmeye gitmez. Model izleme notları ve `docs/AYAS_MODEL_COMPARISON.md` güncellendi.
+- **Ana kopyanın `node_modules` eşitlemesi** (15 Ekim tasarımındaki "kanonik `npm ci` (Observer turları arasında)" adımı; f2211bcb'de "bilinen sınır" olarak kalmıştı):
+  - `AyasUpdateApplyRunner` commit ve push'tan hemen sonra `update-trials/canonical-sync-required.json` işaretini yazar (`requestAyasCanonicalDependencySync`). İşaret commit'e ve kilit dosyasının özetine bağlıdır. Yarıda kalıp sonra commit+push'u tamamlanmış bulunan uygulamalar da işareti yazar. Yazma hatası commit'i geri almaz; nedenlere eklenir.
+  - Observer (`scripts/ayas-autonomy-daemon.ts`) her turdan sonra işarete yalnız `fs` ile bakar. Yeni import yoktur; kapanış haritası değişmedi. İşaret kendi açılışından yeniyse ya da açılışından beri 1 saat geçtiyse 75 koduyla çıkar. Bunu yalnız sürekli kipte ve yalnız wrapper'ın verdiği `AYAS_OBSERVER_SYNC_RESTART=1` ile yapar.
+  - Wrapper (`scripts/ayas-autonomy-daemon.ps1`) her açılıştan önce işarete bakar:
+    - Yeniden adlandırma yoklaması yapar. Klasörde dosya tutan bir süreç varsa (ör. editörün dil sunucusu) hiçbir şey kurmaz; bu Windows'ta doğrulandı.
+    - Klasör serbestse `npm ci --ignore-scripts --prefer-offline` D temp'te ayrı bir klasöre kurulur ve iki yeniden adlandırmayla yerine konur. Ardından işaret silinir.
+    - Her hata eski `node_modules`'ü olduğu gibi bırakır. Geçici klasör her durumda silinir. Yarıda kalan bir yoklama bir sonraki açılışta geri konur.
+    - 75 çökme sayılmaz, beklemeden yeniden açılır.
+  - Belge: `docs/AYAS_UPDATE_RADAR.md` "Ana kopyanın node_modules eşitlemesi".
+  - Etkinleşme: wrapper ve Observer değişikliği Observer'ın bir sonraki açılışında devreye girer (PC açılışı ya da owner onaylı yeniden başlatma). O zamana kadar çalışan eski Observer işarete bakmaz. İşaret yalnız gerçek bir Uygula'dan sonra oluşur ve bugün hiç onay yok.
+- **Testler:**
+  - `smoke-ayas-update-apply` 11/11: işaret yazılıyor, commit'e ve kilit özetine bağlı. STALE/ABANDONED işaret yazmıyor, kurtarılan commit yazıyor.
+  - `smoke-ayas-observer-autostart` 35 → 40 senaryo, ASCII temp. Wrapper'ın bir kopyası üzerinde gerçek PowerShell ile:
+    - Eşitleme yapılıyor; iki kez 75 alındığında `-MaxRestarts 1` ile çökme sayılmıyor.
+    - Kurulum hatasında hiçbir şey değişmiyor.
+    - Başka bir süreç dosyayı açık tuttuğunda kurulum hiç başlamıyor; tutma kalkınca bir sonraki açılışta eşitleniyor.
+    - Yarıda kalan yoklama geri konuyor.
+    - Daemon, wrapper ve depo aynı işaret adını kullanıyor.
+  - `smoke-ayas-model-watch` 13/13 (yeni senaryo: düşünme ailesi eşleşmesi).
+  - Değişen modüllere bağlı 22 suite'in hepsi geçti. Aralarında pinli `smoke-ayas-autonomy-daemon` 9/9 ve `smoke-ayas-action-firewall-closure` 12/12 (11 yüzey, 46 modül) var, ikisi de değiştirilmedi.
+  - tsc 0; değişen 8 dosyada lint 0 (ASCII yoldan).
+
+**Sıradaki:**
+1. gemma4:12b indirmesi bitince ölçüm. Daha iyi çıkarsa model değiştirmek için owner onayı alınır.
+2. Model işlemleri için telefondan onay düğmeleri (indir → ölç → değiştir). Owner 15 Ekim'de dahil etti, henüz yazılmadı. Model değişikliği canlı kopyanın `.env.local` dosyasını, model yaşam döngüsü kaydını (gemma3:12b henüz kayıtta yok) ve canlı uygulamanın yeniden başlatılmasını birlikte ilgilendiriyor. Yeni bir `ollama` başlatan modül pinli kapanış haritasına da dokunur. Bu yüzden tasarım kodlamadan önce owner'a sunulacak.
+3. 15 Ekim kaydındaki "Sıradaki" listesi aynen geçerli.
+
 ## 15 Ekim 2026 — owner bakım penceresi, yeni PC taşınabilirliği; öz-gelişim devam planı
 
 **Owner kalıcı talimatı (bu PC'den ayrılana kadar, her oturumda geçerli):** Yalnız Gelişim Merkezi tam kapasite. AYAS hem kendini hem Atölye'yi geliştirir; ürün çalışma zamanında Claude/Codex kullanılmaz, yalnız yerel model. Dış araştırma hafif 2 saatte, derin 3 saatte bir; AYAS bulguları kendisi süzer, gerçekten yararlı olanı Gelişim Merkezi'nde sunar, owner onayıyla yürütülür. AYAS ayrıca kendi hatalarını bulan, kendini geliştiren ve kod yazabilen yerel bir beyin olmalı. PC açılınca AYAS otomatik başlar; owner Gelişim Merkezi'ni telefondan kullanır. AYAS/Atölye'nin çalışması için gereken her şey D'de; internetten yeniden kurulabilen programlar D'ye konmaz; C'de AYAS/Atölye'ye ait hiçbir şey kalmaz; yeni PC'de "C'de kalan yol" hatası olmamalı. Çalışan hiçbir şey bozulmaz; belgeler güncel tutulur, her kilometre taşı git'e kaydedilir. Owner Claude oturumlarına 5 saatlik kullanımın %95'inde güvenli durup kaydetmeyi ve devam raporu vermeyi istedi (yüzde bu ortamda okunamıyor; aşağıya bakın).

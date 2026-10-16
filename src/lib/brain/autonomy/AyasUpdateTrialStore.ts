@@ -155,6 +155,28 @@ export function createAyasUpdateTrialStore(options: { readonly rootDir?: string 
   };
 }
 
+/**
+ * A committed update changes package-lock.json while the canonical tree's node_modules still holds the old packages;
+ * the always-on observer runs from that tree, and Windows locks files in use, so it is replaced only between two
+ * observer launches: the observer exits with a planned-restart code when this marker exists and its wrapper
+ * (scripts/ayas-autonomy-daemon.ps1) installs from the lock beside the old tree and swaps it in. Both read the file
+ * name literally; neither imports this module.
+ */
+export const AYAS_CANONICAL_SYNC_MARKER = "canonical-sync-required.json";
+export interface AyasCanonicalSyncRequest { readonly schemaVersion: 1; readonly requestedAt: string; readonly applyId: string; readonly commitSha: string; readonly packageLockSha256: string }
+
+/** Asks for the canonical node_modules sync; a later request replaces an earlier one (the wrapper installs from HEAD's lock). */
+export function requestAyasCanonicalDependencySync(rootDir: string, request: Omit<AyasCanonicalSyncRequest, "schemaVersion">): void {
+  writeAtomic(rootDir, path.join(rootDir, AYAS_CANONICAL_SYNC_MARKER), `${JSON.stringify({ schemaVersion: 1, ...request }, null, 2)}\n`);
+}
+
+export function readAyasCanonicalSyncRequest(rootDir: string): AyasCanonicalSyncRequest | undefined {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(rootDir, AYAS_CANONICAL_SYNC_MARKER), "utf8")) as AyasCanonicalSyncRequest;
+    return parsed?.schemaVersion === 1 ? parsed : undefined;
+  } catch { return undefined; }
+}
+
 export const newAyasUpdateTrialId = (): string => `ayas-update-trial-${crypto.randomUUID()}`;
 
 /** sha256 over the exact tested bytes, the approved item and the base commit; what an "Uygula" click binds to. */

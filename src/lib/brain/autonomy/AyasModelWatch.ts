@@ -38,12 +38,12 @@ export interface AyasModelWatchCandidate {
 
 /**
  * Verified 2026-10-15 against registry.ollama.ai (sizes, Apache-2.0 licence layers) and the Ollama library
- * (capabilities: gemma4 and qwen3.5 think; OllamaAyasProvider sends think:false only for qwen3 tags today).
+ * (capabilities: gemma4 and qwen3.5 think; OllamaAyasProvider sends think:false to qwen3, qwen3.5 and gemma4 tags).
  */
 export const AYAS_MODEL_WATCH_CANDIDATES: readonly AyasModelWatchCandidate[] = Object.freeze([
-  { tag: "gemma4:12b", publisher: "Google", priority: 1, license: "Apache-2.0", note: "Gemma 3'ün halefi Gemma 4, şu anki modelle aynı boyda. Düşünme kipi var; AYAS bugün düşünmeyi yalnız qwen3 için kapatıyor, ölçüm farkını gösterir." },
-  { tag: "qwen3.5:9b", publisher: "Alibaba Qwen", priority: 2, license: "Apache-2.0", note: "Qwen 3.5 ailesi. Düşünme kipi var; AYAS bugün düşünmeyi yalnız qwen3 için kapatıyor, ölçüm farkını gösterir." },
-  { tag: "gemma4:e4b", publisher: "Google", priority: 3, license: "Apache-2.0", note: "Gemma 4'ün küçük ve hızlı sürümü; düşünme kipi var." },
+  { tag: "gemma4:12b", publisher: "Google", priority: 1, license: "Apache-2.0", note: "Gemma 3'ün halefi Gemma 4, şu anki modelle aynı boyda. Düşünme kipi var; AYAS sohbette düşünmeyi kapatır (think: false), ölçüm de öyle yapılır." },
+  { tag: "qwen3.5:9b", publisher: "Alibaba Qwen", priority: 2, license: "Apache-2.0", note: "Qwen 3.5 ailesi. Düşünme kipi var; AYAS sohbette düşünmeyi kapatır (think: false), ölçüm de öyle yapılır." },
+  { tag: "gemma4:e4b", publisher: "Google", priority: 3, license: "Apache-2.0", note: "Gemma 4'ün küçük ve hızlı sürümü; düşünme kipi var, AYAS kapatır." },
   { tag: "ministral-3:8b", publisher: "Mistral AI", priority: 4, license: "Apache-2.0", note: "Uç cihazlar için Ministral 3." },
   { tag: "ministral-3:14b", publisher: "Mistral AI", priority: 5, license: "Apache-2.0", note: "Ministral 3'ün büyük sürümü; 12 GB ekran kartında sınırda." },
   { tag: "granite4.2:8b", publisher: "IBM", priority: 6, license: "Apache-2.0", note: "Çok dilli Granite 4.2." },

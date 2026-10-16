@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { acquireAyasObserverLock, releaseAyasObserverLock, AyasObserverLockError } from "../src/lib/brain/autonomy/AyasObserverSingletonLock";
 import { readProcessStartEpochMs } from "../src/lib/brain/autonomy/AyasProcessLiveness";
+import { AYAS_CANONICAL_SYNC_MARKER, requestAyasCanonicalDependencySync } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
 
 let count = 0;
 function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
@@ -433,6 +434,133 @@ async function main() {
     }
     assert.equal(code, 0);
     assert.equal(fs.readFileSync(countFile, "utf8").trim(), "1", "a clean exit must never be retried, even though -MaxRestarts allows more");
+  });
+
+  // === Owner decisions 2026-10-15: canonical node_modules sync after an owner-approved update ===
+  // Each runs a COPY of the wrapper in <tmp>\studio\Atolye\repo (so its studio temp is <tmp>\studio\private\temp)
+  // with -DependencySyncScript standing in for npm ci; the real repository and its node_modules are never touched.
+
+  function depSyncFixture(options: { readonly npxCodes: readonly number[]; readonly installExit?: number }) {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-dep-sync-"));
+    const repo = path.join(base, "studio", "Atolye", "repo");
+    fs.mkdirSync(path.join(repo, "scripts"), { recursive: true });
+    fs.copyFileSync(path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), path.join(repo, "scripts", "ayas-autonomy-daemon.ps1"));
+    const lock = `{"lockfileVersion":3,"fixture":"${path.basename(base)}"}\n`;
+    fs.writeFileSync(path.join(repo, "package.json"), "{\"name\":\"fixture\"}\n"); fs.writeFileSync(path.join(repo, "package-lock.json"), lock);
+    fs.mkdirSync(path.join(repo, "node_modules", "old-pkg"), { recursive: true }); fs.writeFileSync(path.join(repo, "node_modules", "old-pkg", "index.js"), "old\n");
+    const markerDir = path.join(repo, "data", "brain", "self-improvement", "update-trials");
+    requestAyasCanonicalDependencySync(markerDir, { requestedAt: new Date().toISOString(), applyId: "fixture-apply", commitSha: "0".repeat(40), packageLockSha256: "f".repeat(64) });
+    const shim = path.join(base, "shim"); fs.mkdirSync(shim);
+    const countFile = path.join(shim, "count.txt"); const envFile = path.join(shim, "env.txt"); const installsFile = path.join(base, "installs.txt");
+    fs.writeFileSync(countFile, "0");
+    fs.writeFileSync(path.join(shim, "npx.ps1"), [
+      `$n = [int](Get-Content -LiteralPath ${JSON.stringify(countFile)}) + 1`,
+      `Set-Content -LiteralPath ${JSON.stringify(countFile)} -Value $n`,
+      `Add-Content -LiteralPath ${JSON.stringify(envFile)} -Value ("sync-restart=" + $env:AYAS_OBSERVER_SYNC_RESTART)`,
+      `$codes = @(${options.npxCodes.join(", ")})`,
+      `exit $codes[[Math]::Min($n, $codes.Count) - 1]`,
+    ].join("\n") + "\n");
+    const installScript = path.join(base, "install.ps1");
+    fs.writeFileSync(installScript, [
+      `param([string]$staging)`,
+      `Add-Content -LiteralPath ${JSON.stringify(installsFile)} -Value $staging`,
+      `if (-not (Test-Path -LiteralPath (Join-Path $staging "package-lock.json"))) { exit 9 }`,
+      `New-Item -ItemType Directory -Force -Path (Join-Path $staging "node_modules\\new-pkg") | Out-Null`,
+      `Copy-Item -LiteralPath (Join-Path $staging "package-lock.json") -Destination (Join-Path $staging "node_modules\\new-pkg\\installed-from.json")`,
+      `exit ${options.installExit ?? 0}`,
+    ].join("\n") + "\n");
+    const run = (): { readonly code: number; readonly out: string } => {
+      try {
+        const out = execFileSync(PS, ["-NoProfile", "-File", path.join(repo, "scripts", "ayas-autonomy-daemon.ps1"), "-Continuous", "-MaxRestarts", "1", "-RestartDelaySeconds", "0", "-DependencySyncScript", installScript],
+          { encoding: "utf8", windowsHide: true, env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH ?? ""}` } });
+        return { code: 0, out };
+      } catch (error) {
+        const e = error as { stdout?: string; stderr?: string; status?: number };
+        return { code: e.status ?? 1, out: `${e.stdout ?? ""}\n${e.stderr ?? ""}` };
+      }
+    };
+    const studioTemp = path.join(base, "studio", "private", "temp");
+    const leftovers = (): string[] => [
+      ...(fs.existsSync(studioTemp) ? fs.readdirSync(studioTemp).filter((name) => name.startsWith("ayas-node-modules-sync-")) : []),
+      ...fs.readdirSync(repo).filter((name) => name.startsWith("node_modules.")),
+    ];
+    const installs = (): number => (fs.existsSync(installsFile) ? fs.readFileSync(installsFile, "utf8").split(/\r?\n/).filter(Boolean).length : 0);
+    return { repo, lock, marker: path.join(markerDir, AYAS_CANONICAL_SYNC_MARKER), countFile, envFile, run, leftovers, installs };
+  }
+
+  await scenario("an update's sync marker: the wrapper installs beside node_modules, swaps it in and clears the marker; the planned restart (75) is neither counted nor delayed", () => {
+    // -MaxRestarts 1: had either 75 been counted as a crash, the wrapper would have given up at the first one.
+    const f = depSyncFixture({ npxCodes: [75, 75, 0] });
+    const { code, out } = f.run();
+    assert.equal(code, 0, out);
+    assert.equal(fs.readFileSync(f.countFile, "utf8").trim(), "3");
+    assert.equal(f.installs(), 1, "synced once; the next launches found no marker");
+    assert.equal(fs.readFileSync(path.join(f.repo, "node_modules", "new-pkg", "installed-from.json"), "utf8"), f.lock, "installed from the tree's own lock");
+    assert.equal(fs.existsSync(path.join(f.repo, "node_modules", "old-pkg")), false, "the old tree is gone");
+    assert.equal(fs.existsSync(f.marker), false);
+    assert.deepEqual(f.leftovers(), [], "no staging or probe left behind");
+    assert.match(out, /node_modules replaced from package-lock\.json/);
+    assert.equal((out.match(/planned restart for the dependency sync/g) ?? []).length, 2);
+    assert.deepEqual(fs.readFileSync(f.envFile, "utf8").split(/\r?\n/).filter(Boolean), ["sync-restart=1", "sync-restart=1", "sync-restart=1"], "only the wrapper's continuous loop lets the observer ask for exit 75");
+  });
+
+  await scenario("a failed install leaves node_modules and the marker exactly as they were, and the observer still launches", () => {
+    const f = depSyncFixture({ npxCodes: [0], installExit: 3 });
+    const { code, out } = f.run();
+    assert.equal(code, 0, out);
+    assert.equal(fs.readFileSync(f.countFile, "utf8").trim(), "1");
+    assert.match(out, /install failed \(exit 3\); current node_modules kept/);
+    assert.equal(fs.readFileSync(path.join(f.repo, "node_modules", "old-pkg", "index.js"), "utf8"), "old\n");
+    assert.equal(fs.existsSync(path.join(f.repo, "node_modules", "new-pkg")), false);
+    assert.ok(fs.existsSync(f.marker), "kept for the next launch");
+    assert.deepEqual(f.leftovers(), []);
+  });
+
+  await scenario("a node_modules held open by another process is not touched (no install at all) and synced at a later launch", async () => {
+    const f = depSyncFixture({ npxCodes: [0] });
+    const ready = path.join(f.repo, "..", "holder-ready.txt");
+    const holder = spawn(PS, ["-NoProfile", "-Command",
+      `$h = [System.IO.File]::Open(${JSON.stringify(path.join(f.repo, "node_modules", "old-pkg", "index.js"))}, 'Open', 'Read', 'Read'); Set-Content -LiteralPath ${JSON.stringify(ready)} -Value 1; Start-Sleep -Seconds 60; $h.Close()`], { stdio: "ignore", windowsHide: true });
+    try {
+      for (let waited = 0; !fs.existsSync(ready); waited += 100) { if (waited > 20_000) throw new Error("holder did not start"); await delay(100); }
+      const held = f.run();
+      assert.equal(held.code, 0, held.out);
+      assert.match(held.out, /node_modules is in use; deferred/);
+      assert.equal(f.installs(), 0, "nothing is installed while the tree cannot be swapped");
+      assert.equal(fs.readFileSync(path.join(f.repo, "node_modules", "old-pkg", "index.js"), "utf8"), "old\n");
+      assert.ok(fs.existsSync(f.marker));
+      assert.deepEqual(f.leftovers(), []);
+    } finally { holder.kill(); }
+    await new Promise<void>((resolve) => { if (holder.exitCode !== null || holder.signalCode !== null) resolve(); else holder.once("exit", () => resolve()); });
+    fs.writeFileSync(f.countFile, "0");
+    const later = f.run();
+    assert.equal(later.code, 0, later.out);
+    assert.ok(fs.existsSync(path.join(f.repo, "node_modules", "new-pkg", "installed-from.json")));
+    assert.equal(fs.existsSync(f.marker), false);
+  });
+
+  await scenario("a probe rename left by an interrupted sync is the real tree: put back first, then synced", () => {
+    const f = depSyncFixture({ npxCodes: [0] });
+    fs.renameSync(path.join(f.repo, "node_modules"), path.join(f.repo, "node_modules.ayas-sync-probe"));
+    const { code, out } = f.run();
+    assert.equal(code, 0, out);
+    assert.ok(fs.existsSync(path.join(f.repo, "node_modules", "new-pkg", "installed-from.json")));
+    assert.deepEqual(f.leftovers(), []);
+    assert.equal(fs.existsSync(f.marker), false);
+  });
+
+  await scenario("the observer asks for the sync restart only under its wrapper and only in continuous mode; all three agree on the marker", () => {
+    const daemon = fs.readFileSync(path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ts"), "utf8");
+    const wrapper = fs.readFileSync(path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "utf8");
+    assert.match(daemon, /if \(process\.env\.AYAS_OBSERVER_SYNC_RESTART !== "1"\) return false;/);
+    assert.match(daemon, /if \(continuous && dependencySyncRestartDue\(startedAtMs\)\)/);
+    assert.match(daemon, /const SYNC_RESTART_EXIT_CODE = 75;/); assert.match(wrapper, /\$PlannedSyncExitCode = 75/);
+    assert.ok(daemon.includes(`"data", "brain", "self-improvement", "update-trials", "${AYAS_CANONICAL_SYNC_MARKER}"`));
+    assert.ok(wrapper.includes(`"data\\brain\\self-improvement\\update-trials\\${AYAS_CANONICAL_SYNC_MARKER}"`));
+    const setAt = wrapper.indexOf("$env:AYAS_OBSERVER_SYNC_RESTART = \"1\"");
+    assert.equal(wrapper.split("$env:AYAS_OBSERVER_SYNC_RESTART = \"1\"").length - 1, 1);
+    const continuousBranch = wrapper.search(/ if \(\$Continuous\) \{\r?\n/);
+    assert.ok(continuousBranch > 0 && setAt > continuousBranch && setAt < wrapper.indexOf("while ($true)"), "set once, in the continuous branch, before its loop");
   });
 
   await scenario("unregister dry-run reports what WOULD happen and removes nothing", () => {

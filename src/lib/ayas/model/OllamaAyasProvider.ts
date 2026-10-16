@@ -31,6 +31,9 @@ interface OllamaStreamLine {
 /** How long to wait on the `/api/tags` reachability probe before calling Ollama "down". */
 const HEALTH_TIMEOUT_MS = 2_500;
 
+/** Ollama families with a thinking mode; AYAS sends `think: false` to them (others get no `think` field at all). */
+export const AYAS_THINKING_MODEL_FAMILY = /^(?:qwen3|qwen3\.5|gemma4)(?::|$)/;
+
 export function createOllamaAyasProvider(
   env: NodeJS.ProcessEnv = process.env,
   fetcher: typeof fetch = fetch,
@@ -122,8 +125,9 @@ export function createOllamaAyasProvider(
             // large conversation model does not reserve VRAM between turns.
             ...(env.AYAS_CONVERSATION_V2 === "1" ? { keep_alive: 0 } : {}),
             // AYAS consumes final answer content, never hidden thinking. On
-            // Qwen3 this also keeps the bounded reply budget for the answer.
-            ...(/^qwen3(?::|$)/.test(model) ? { think: false } : {}),
+            // the thinking-capable families (Qwen3, Qwen3.5, Gemma 4) this also
+            // keeps the bounded reply budget for the answer.
+            ...(AYAS_THINKING_MODEL_FAMILY.test(model) ? { think: false } : {}),
             messages: req.conversationMessages ?? [{ role: "user", content: req.prompt }],
             stream: true,
             // Ollama's own grammar-constrained decoding (server >= 0.5) —

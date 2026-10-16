@@ -17,7 +17,9 @@ import {
   type AyasUpdateApplyDecisionRecord,
 } from "../src/lib/brain/autonomy/AyasUpdateApprovalStore";
 import { ayasUpdateRadarItemHash, type AyasUpdateRadarItem } from "../src/lib/brain/autonomy/AyasUpdateRadar";
-import { ayasUpdateTrialHash, createAyasUpdateTrialStore, newAyasUpdateTrialId, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
+import {
+  ayasUpdateTrialHash, createAyasUpdateTrialStore, newAyasUpdateTrialId, readAyasCanonicalSyncRequest, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore,
+} from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
 
 /**
  * "Uygula" for a passed update trial (owner decisions 2026-10-15; CLAUDE.md standing exception). The owner decision is
@@ -173,6 +175,10 @@ async function main(): Promise<void> {
     assert.deepEqual(f.closures, [head]); assert.deepEqual(f.published, [head]);
     assert.equal(done.live?.status, "PUBLISHED"); assert.equal(done.livePending, false); assert.equal(done.closure?.ok, true);
     assert.equal(f.trials.load().applies?.length, 1);
+    // The canonical node_modules sync is requested for exactly the committed lock (the observer's wrapper carries it out).
+    const sync = readAyasCanonicalSyncRequest(f.trials.rootDir);
+    assert.equal(sync?.commitSha, head); assert.equal(sync?.applyId, done.applyId); assert.equal(sync?.packageLockSha256, sha(NEW_LOCK));
+    assert.equal(done.reasons, undefined);
   });
 
   await scenario("HEAD moved since the trial: STALE, nothing committed", async () => {
@@ -183,6 +189,7 @@ async function main(): Promise<void> {
     const head = git(f.repoRoot, "rev-parse", "HEAD");
     const done = await runAyasUpdateApply(decision, trial, f.deps);
     assert.equal(done.status, "STALE"); assert.equal(git(f.repoRoot, "rev-parse", "HEAD"), head); assert.deepEqual(f.published, []);
+    assert.equal(readAyasCanonicalSyncRequest(f.trials.rootDir), undefined, "nothing committed, so no node_modules sync");
   });
 
   await scenario("tampered artifacts: REFUSED; a dirty tree: refused by the guard; nothing changes either way", async () => {
@@ -231,11 +238,13 @@ async function main(): Promise<void> {
     const running = (over: Partial<AyasUpdateApplyRecord> = {}): AyasUpdateApplyRecord => ({ schemaVersion: 1, applyId: `run-${crypto.randomUUID()}`, applyDecisionId: "d", trialId: trial.trialId, sourceId: "nextjs", toolName: "Next.js",
       installedVersion: "16.4.1", targetVersion: "16.4.2", baseHead: git(f.repoRoot, "rev-parse", "HEAD"), status: "RUNNING", startedAt: new Date().toISOString(), ...over });
     assert.equal(reconcileAyasUpdateApplyOrphan(running(), { repoRoot: f.repoRoot, store: f.trials }).status, "ABANDONED");
+    assert.equal(readAyasCanonicalSyncRequest(f.trials.rootDir), undefined);
     const before = running();
     fs.writeFileSync(path.join(f.repoRoot, "package.json"), NEW_PACKAGE_JSON); fs.writeFileSync(path.join(f.repoRoot, "package-lock.json"), NEW_LOCK);
     git(f.repoRoot, "commit", "-qam", "chore(deps): x", "-m", `AYAS-Update-Trial: ${trial.trialId}`); git(f.repoRoot, "push", "-q", "origin", "master");
     const recovered = reconcileAyasUpdateApplyOrphan(before, { repoRoot: f.repoRoot, store: f.trials });
     assert.equal(recovered.status, "COMPLETED"); assert.equal(recovered.livePending, true); assert.equal(recovered.commitSha, git(f.repoRoot, "rev-parse", "HEAD"));
+    assert.equal(readAyasCanonicalSyncRequest(f.trials.rootDir)?.commitSha, recovered.commitSha, "a recovered commit still asks for the node_modules sync");
     fs.writeFileSync(path.join(f.repoRoot, "README.md"), "unknown\n"); git(f.repoRoot, "commit", "-qam", "someone else");
     assert.equal(reconcileAyasUpdateApplyOrphan(running({ baseHead: "0".repeat(40) }), { repoRoot: f.repoRoot, store: f.trials }).status, "RECOVERY_REQUIRED");
   });

@@ -81,16 +81,32 @@ Yarıda kesilen bir Uygula hiçbir şeye dokunmadıysa (aynı HEAD, temiz ağaç
 Commit ve push tamamlanmış bulunursa canlıya alma sürdürülür. Bunların dışındaki her durum RECOVERY_REQUIRED
 olur ve kendiliğinden tekrarlanmaz.
 
-Bilinen sınır: ana repodaki `node_modules` güncellemeden sonra eski kalır, çünkü sürekli çalışan Observer bu
-klasörü kullanır ve Windows kullanılan dosyaları kilitler. Denemeler ve canlı kopya kendi `node_modules`
-klasörlerini kullandığı için bundan etkilenmez. Ana kopya bir bakım anında `npm ci` ile eşitlenir.
+### Ana kopyanın `node_modules` eşitlemesi
+
+Denemeler ve canlı kopya kendi `node_modules` klasörlerini kullanır. Ana repodaki klasör ise güncellemeden sonra
+eski kalır. Sürekli çalışan Observer bu klasörden çalışır ve Windows kullanılan dosyaları kilitler. Bu yüzden
+klasör yalnız Observer'ın iki açılışı arasında değiştirilir:
+
+1. Uygula commit ve push'u tamamlayınca (yarıda kalıp sonra tamamlanmış bulunan uygulamalar dahil)
+   `update-trials/canonical-sync-required.json` işaretini yazar. İşaret commit'e ve kilit dosyasının
+   özetine bağlıdır.
+2. Observer her turdan sonra işarete bakar. İşaret kendi açılışından yeniyse 75 koduyla çıkar. Bunu yalnız
+   wrapper'ın (`scripts/ayas-autonomy-daemon.ps1 -Continuous`) başlattığı Observer yapar
+   (`AYAS_OBSERVER_SYNC_RESTART=1`). 75 çökme sayılmaz, beklemeden yeniden açılır.
+3. Wrapper önce bir yeniden adlandırma yoklaması yapar. Başka bir süreç (örneğin editörün dil sunucusu)
+   klasörde dosya tutuyorsa hiçbir şey kurulmaz, işaret kalır. Observer en geç saatte bir yeniden ister.
+4. Klasör serbestse `npm ci --ignore-scripts --prefer-offline` D temp'te ayrı bir klasöre kurulur. Aynı
+   diskte iki yeniden adlandırmayla yerine konur ve işaret silinir. Kurulum ya da değiştirme hatasında eski
+   `node_modules` olduğu gibi kalır. Geçici klasör her durumda silinir.
+
+PC açılışında da aynı adım Observer'dan önce çalışır. Canlı kopyaya dokunulmaz.
 
 ## Kayıtlar ve komutlar
 
 - Kararlar: `data/brain/self-improvement/update-approvals/state.json` (git dışı). Bir kayıt ancak owner mührü
   `AYAS_ACCESS_KEY` ile doğrulanırsa sayılır; elle değiştirilmiş kayıt yok sayılır.
 - Denemeler ve uygulamalar: `data/brain/self-improvement/update-trials/` (`state.json`, deneme başına paket
-  dosyaları, `executor.lock`).
+  dosyaları, `executor.lock`, bekleyen eşitleme için `canonical-sync-required.json`).
 
 ```powershell
 npm run ayas:update-approvals                                               # bekleyen onaylar

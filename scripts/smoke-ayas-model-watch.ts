@@ -18,6 +18,7 @@ import {
 } from "../src/lib/brain/autonomy/AyasModelWatch";
 import { buildAyasResearchStatusSpokenAnswer, detectAyasResearchStatusIntent } from "../src/lib/brain/autonomy/AyasResearchStatusIntent";
 import { probeAyasModelHardware } from "./lib/AyasModelHardwareProbe";
+import { AYAS_THINKING_MODEL_FAMILY } from "../src/lib/ayas/model/OllamaAyasProvider";
 
 /**
  * Model comparison (owner request 2026-10-15): frozen Turkish chat benchmark, model watch view, spoken answer and
@@ -147,6 +148,11 @@ await scenario("the runner uses the AYAS chat transport and measures every froze
   const named = ollama.chats.find((chat) => (chat.messages as { content: string }[]).at(-1)!.content === "Adım neydi?")!;
   assert.deepEqual((named.messages as { role: string }[]).map((message) => message.role), ["system", "user", "assistant", "user"]);
   assert.deepEqual(ollama.generates.map((body) => body.keep_alive), ["2m", 0]);
+});
+
+await scenario("thinking-capable candidates are measured with thinking off, like Qwen3; other families get no think field", () => {
+  for (const tag of ["qwen3:8b", "qwen3.5:9b", "gemma4:12b", "gemma4:e4b", "gemma4"]) assert.ok(AYAS_THINKING_MODEL_FAMILY.test(tag), tag);
+  for (const tag of ["gemma3:12b", "qwen2.5:7b", "qwen30:1b", "ministral-3:8b", "granite4.2:8b", "xgemma4:1b"]) assert.equal(AYAS_THINKING_MODEL_FAMILY.test(tag), false, tag);
 });
 
 await scenario("a weak model fails with reasons and a missing tag is refused before any case", async () => {

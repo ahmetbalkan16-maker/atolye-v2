@@ -83,6 +83,24 @@ function runAyasUpdateExecutor(): { readonly ok: boolean; readonly summary: stri
   }
 }
 
+// Owner decisions 2026-10-15 — after an owner-approved update committed a new
+// package-lock.json, the update executor leaves this marker. The tree's
+// node_modules can be replaced only while no process of this tree holds it,
+// i.e. between two launches, so the continuous observer exits with this code
+// and its wrapper (ayas-autonomy-daemon.ps1, which alone sets
+// AYAS_OBSERVER_SYNC_RESTART=1) syncs before launching again. A marker older
+// than this process means the wrapper could not sync at this launch (the tree
+// was in use); that is asked again at most hourly. Read with fs only.
+const SYNC_RESTART_EXIT_CODE = 75;
+const SYNC_RETRY_MS = 60 * 60_000;
+const syncMarker = path.join(root, "data", "brain", "self-improvement", "update-trials", "canonical-sync-required.json");
+function dependencySyncRestartDue(startedAtMs: number): boolean {
+  if (process.env.AYAS_OBSERVER_SYNC_RESTART !== "1") return false;
+  let markedAtMs: number;
+  try { markedAtMs = fs.statSync(syncMarker).mtimeMs; } catch { return false; }
+  return markedAtMs > startedAtMs || Date.now() - startedAtMs >= SYNC_RETRY_MS;
+}
+
 async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, intervalMs: number, continuous: boolean, constitution: ReturnType<typeof bindAyasConstitutionRun>): Promise<void> {
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });
@@ -122,8 +140,17 @@ async function main(): Promise<void> {
   process.on("exit", () => releaseAyasObserverLock(lockFile));
   const observer = createAyasAutonomyObserver({ stateFile, now: () => new Date().toISOString() });
   const constitution = bindAyasConstitutionRun(root, "AGENT", randomUUID());
+  const startedAtMs = Date.now();
   try {
-    do { await tick(observer, intervalMs, continuous, constitution); if (continuous) await new Promise((resolve) => setTimeout(resolve, intervalMs)); } while (continuous);
+    do {
+      await tick(observer, intervalMs, continuous, constitution);
+      if (continuous && dependencySyncRestartDue(startedAtMs)) {
+        console.log(JSON.stringify({ status: "DEPENDENCY_SYNC_RESTART", marker: syncMarker }));
+        process.exitCode = SYNC_RESTART_EXIT_CODE;
+        return;
+      }
+      if (continuous) await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    } while (continuous);
     console.log(JSON.stringify({ status: observer.state.phase, stateFile }));
   } finally { releaseAyasObserverLock(lockFile); }
 }

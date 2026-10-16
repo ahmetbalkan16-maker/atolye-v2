@@ -9,7 +9,7 @@ import { AYAS_DEPENDENCY_UPDATE_FILES } from "./AyasProposalRuntimeImpact";
 import type { AyasUpdateApplyDecisionRecord } from "./AyasUpdateApprovalStore";
 import { runAyasCommand, type AyasChildEnv, type AyasCommandRunner } from "./AyasUpdateTrialRunner";
 import {
-  ayasUpdateTrialSha256, isAyasUpdateTrialIntact, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore,
+  ayasUpdateTrialSha256, isAyasUpdateTrialIntact, requestAyasCanonicalDependencySync, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore,
 } from "./AyasUpdateTrialStore";
 
 /**
@@ -176,6 +176,8 @@ export async function runAyasUpdateApply(decision: AyasUpdateApplyDecisionRecord
   }
 
   save({ commitSha: lane.commitSha, pushed: true, livePending: true });
+  const syncProblem = requestCanonicalSync(record, lane.commitSha, deps);
+  if (syncProblem) save({ reasons: [syncProblem] });
   try {
     (deps.postPublicationClosure ?? ((head) => { closeAyasPostPublication(head, { repoRoot: deps.repoRoot, remoteName }); }))(lane.commitSha);
     save({ closure: { ok: true, summary: "Graphify yeni HEAD için güncel" } });
@@ -205,7 +207,27 @@ export function reconcileAyasUpdateApplyOrphan(apply: AyasUpdateApplyRecord, dep
     next = clean && message.includes(trailer) && remote === head
       ? { ...apply, status: "COMPLETED", commitSha: head, pushed: true, livePending: true, finishedAt: now(), reasons: ["uygulama yarıda kesilmişti; commit ve push tamamlanmış bulundu"] }
       : { ...apply, status: "RECOVERY_REQUIRED", finishedAt: now(), reasons: ["uygulama yarıda kesildi; depo durumu elle doğrulanmalı"] };
+    if (next.status === "COMPLETED") {
+      const syncProblem = requestCanonicalSync(next, head, deps);
+      if (syncProblem) next = { ...next, reasons: [...(next.reasons ?? []), syncProblem] };
+    }
   }
   deps.store.upsertApply(next);
   return next;
+}
+
+/**
+ * Leaves the canonical node_modules sync request for the observer's wrapper (see AYAS_CANONICAL_SYNC_MARKER), bound
+ * to the committed lock. Best effort: the commit already stands, so a failure is reported, never thrown.
+ */
+function requestCanonicalSync(apply: AyasUpdateApplyRecord, commitSha: string, deps: Pick<AyasUpdateApplyDeps, "repoRoot" | "store" | "now">): string | undefined {
+  try {
+    requestAyasCanonicalDependencySync(deps.store.rootDir, {
+      requestedAt: (deps.now ?? (() => new Date().toISOString()))(), applyId: apply.applyId, commitSha,
+      packageLockSha256: ayasUpdateTrialSha256(fs.readFileSync(path.join(deps.repoRoot, "package-lock.json"), "utf8")),
+    });
+    return undefined;
+  } catch (error) {
+    return `ana kopyanın node_modules eşitleme isteği yazılamadı: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`;
+  }
 }
