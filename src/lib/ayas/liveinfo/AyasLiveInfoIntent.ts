@@ -12,8 +12,15 @@
  * request returns `null` and keeps its earlier route. Turkish everyday phrases
  * that only look similar stay out — "ne haber" (a greeting), "bana haber ver",
  * "haberin var mı", "bugün hava çok güzel" (a statement), "hava fritözü",
- * "hava kalitesi", a triangle's "kaç derece" — and so do requests about AYAS's
- * own development, a project, a video or code.
+ * "hava kalitesi", "temiz hava", a song's "havası", a triangle's, a room's or a
+ * processor's "kaç derece" — and so do requests about AYAS's own development,
+ * a project, a video or code.
+ *
+ * A weather question that slips past this falls to the local model, which has
+ * no live data and may invent a temperature, so the common spoken forms are
+ * covered: "nasıldır/nasılmış", "Bursa'nın havası", "hava şartları",
+ * "sıcaklık kaç", "Bursada kaç derece", a bare "Bursa hava", and a short
+ * follow-up ("Peki yarın?", "Ya İzmir'de?") right after a weather question.
  */
 import { isAyasDevelopmentStatusQuery } from "../model/AyasComplexityRouter";
 
@@ -27,6 +34,9 @@ export type AyasWeatherDay =
 export type AyasLiveInfoIntent =
   | { readonly kind: "weather"; readonly location: string | null; readonly day: AyasWeatherDay }
   | { readonly kind: "news"; readonly topic: string | null };
+
+/** An earlier turn of the conversation; only the owner's ("user") turns are read. */
+export interface AyasLiveInfoTurn { readonly role: string; readonly text: string }
 
 const MAX_TEXT = 400;
 const MAX_TOPIC_WORDS = 6;
@@ -74,20 +84,31 @@ const WEEKDAY_NUMBER: Readonly<Record<string, number>> = { pazar: 0, pazartesi: 
 
 /** Words that may stand between "hava" and its question: time, place, filler. */
 const FILLER = "(?:bugun|yarin|yarindan sonra|simdi|su an|orada|orda|burada|burda|disarida|disarisi|bu aksam|bu sabah|bu gece|aksam|sabah|gece|ogleden sonra|hafta sonu|obur gun|ertesi gun|acaba|peki|pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar|[\\p{L}\\p{N}]+'[\\p{L}]+)";
+const WEATHER_CONDITION = "(?:guzel|soguk|sicak|serin|ilik|yagmurlu|yagisli|bulutlu|acik|kapali|karli|ruzgarli|gunesli|bozuk|kotu|iyi)";
+/** "<noun> nasıl(dır)?", "<noun> soğuk mu": the noun, up to three filler words, then the question. */
+function weatherNounQuestions(noun: string): RegExp[] {
+  return [
+    new RegExp(`\\b${noun}\\s+(?:${FILLER}\\s+){0,3}(?:nasil(?:dir|mis)?|kac|ne durumda|ne alemde)\\b`, "u"),
+    new RegExp(`\\b${noun}\\s+(?:${FILLER}\\s+){0,3}${WEATHER_CONDITION}\\s+(?:olacak\\s+|mi\\s+olacak\\s+)?m[iu]\\b`, "u"),
+  ];
+}
 const WEATHER_PATTERNS: readonly RegExp[] = [
   /\bhava ?durum\w*/u,
-  new RegExp(`\\bhava(?:lar)?\\s+(?:${FILLER}\\s+){0,3}(?:nasil|kac|ne durumda|ne alemde)\\b`, "u"),
-  new RegExp(`\\bhava(?:lar)?\\s+(?:${FILLER}\\s+){0,3}(?:guzel|soguk|sicak|serin|ilik|yagmurlu|yagisli|bulutlu|acik|kapali|karli|ruzgarli|gunesli|bozuk|kotu|iyi)\\s+(?:olacak\\s+|mi\\s+olacak\\s+)?m[iu]\\b`, "u"),
+  ...weatherNounQuestions("hava(?:lar)?(?: sartlari| kosullari)?"),
   /\byagmur\w*\s+(?:\S+\s+){0,2}?(?:yagacak|yagar|yagiyor|var|bekleniyor|olacak|gelecek|gelir)\s*m[iu]\b/u,
   /\b(?:yagis|saganak|firtina)\w*\s+(?:\S+\s+){0,2}?(?:var|bekleniyor|olacak|gelecek|gelir)\s*m[iu]\b/u,
   /\b(?:kar|dolu)\s+(?:yagacak|yagar|yagiyor|bekleniyor)\b/u,
   /\bsemsiye\w*\s+(?:alayim|almali\w*|almam|lazim|gerek\w*)\b/u,
   /\bweather\b/u,
 ];
-/** "kaç derece" only with a weather context, and never for angles, ovens or the body. */
-const DEGREE_QUESTION = /\bkac derece\b/u;
+/** "Bursa'nın havası nasıl?" — "havası" alone may be a song's or a party's mood, so it needs a named place. */
+const POSSESSIVE_WEATHER_PATTERNS: readonly RegExp[] = weatherNounQuestions("hava(?:si|lari)");
+/** "kaç derece" / "sıcaklık kaç" only with a weather context, and never for angles, ovens, rooms, the body or a machine. */
+const DEGREE_QUESTION = /\b(?:kac derece|sicakli[kg]\w*\s+(?:\S+\s+){0,2}?(?:kac|ne kadar|nedir))\b/u;
 const DEGREE_CONTEXT = /\b(?:hava\w*|disari\w*|bugun|yarin|simdi|su an|[\p{L}\p{N}]+'(?:da|de|ta|te|nda|nde))\b/u;
-const DEGREE_NOT_WEATHER = /\b(?:aci\w*|ucgen\w*|kosegen\w*|egim\w*|firin\w*|ates\w*|vucut\w*|kaynar\w*|kaynama\w*|donma\w*|termometre\w*)\b/u;
+const DEGREE_NOT_WEATHER = /\b(?:aci\w*|ucgen\w*|kosegen\w*|egim\w*|firin\w*|ates\w*|vucut\w*|kaynar\w*|kaynama\w*|donma\w*|termometre\w*|oda(?:da|nin|si|m|mda)?|araba(?:da|nin|si|mda)?|buzdolab\w*|dolap\w*|klima\w*|kombi\w*|petek\w*|motor\w*|islemci\w*|cpu|gpu|rtx|gtx|ekran kart\w*|cip\w*|disk\w*|ssd\w*|bilgisayar\w*|laptop\w*|sunucu\w*|server\w*|sensor\w*|deniz(?:in|de|i)?|havuz\w*)\b/u;
+/** A typed place with a bare locative and no apostrophe: "Bursada" — capitalised, so "odada" or "evde" are not read as places. */
+const BARE_LOCATIVE = /^\p{L}{3,}(?:da|de|ta|te)$/u;
 const WEATHER_NOT = /\b(?:hava kalite\w*|hava kirlil\w*|havaalan\w*|hava liman\w*|hava yol\w*|havadan sudan|hava at\w*|hava kuvvet\w*|hava yastig\w*|hava fritoz\w*|hava temizle\w*|hava pompa\w*|hava filtre\w*|hava akim\w*|hava sartlandir\w*)\b/u;
 
 /** Folded words that are never part of a place name in a weather question. */
@@ -101,9 +122,43 @@ const WEATHER_STOP = new Set([
   "disarida", "cikalim", "cikayim", "cikmali", "miyim", "miyiz", "sicaklik", "sicakligi", "weather", "today", "tomorrow", "lutfen", "bi", "bir", "merak",
   "ediyorum", "kontrol", "et", "getir", "ver", "bilgi", "bilgisi", "tahmin", "tahmini", "nedir", "semsiye", "alayim", "almali", "lazim", "gerekir",
   "bekleniyor", "gelecek", "gelir", "orada", "orda", "burada", "burda", "selam", "merhaba", "hey", "neler", "nelerdir", "simdiki", "suan",
+  "nasildir", "nasilmis", "havasi", "havalari", "sartlari", "kosullari", "kadar", "ya", "zaman", "surada", "surda", "orasi", "burasi",
+  "bende", "sende", "onda", "bizde", "sizde", "disaridaki", "buradaki", "oradaki",
 ]);
 /** An apostrophe word that is not a place: "AYAS'a", "Atölye'nin". */
 const NOT_A_PLACE = new Set(["ayas", "atolye", "hava", "yarin", "bugun"]);
+/** Words that describe the air rather than name a place: "Temiz hava", "Biraz hava". */
+const AIR_WORDS = new Set([
+  "temiz", "taze", "kirli", "nemli", "kuru", "bol", "biraz", "bogucu", "agir", "durgun", "berrak", "tatli", "sert", "harika", "berbat", "ferah",
+  "hafif", "sisli", "puslu", "rutubetli", "cok", "pek", "boyle", "soyle", "ne",
+]);
+const HAVA_WORD = /^hava(?:lar)?$/u;
+const MAX_TERSE_WORDS = 4;
+
+/** "Bursa'da", "İzmir'in": a place the owner named with a case suffix. */
+function isApostrophePlace(token: Token): boolean {
+  return token.apostrophe && !NOT_A_PLACE.has(token.baseFolded) && !WEATHER_STOP.has(token.baseFolded) && !WEEKDAY_WORD.test(token.baseFolded);
+}
+
+function isCapitalizedLocative(token: Token): boolean {
+  return !token.apostrophe && isCapitalized(token.raw) && BARE_LOCATIVE.test(token.folded) && !WEATHER_STOP.has(token.folded) && !WEEKDAY_WORD.test(token.folded);
+}
+
+/**
+ * "Bursa hava", "Bursa'da hava?", "Yarın İzmir hava": a named place right before
+ * "hava" and nothing else but days and filler. The place is capitalised or
+ * suffixed with an apostrophe; "Temiz hava", "Ortamdaki hava", "Açık Hava
+ * Tiyatrosu" or "Hava Kuvvetleri" are not weather questions.
+ */
+function isTerseWeatherQuestion(tokens: readonly Token[]): boolean {
+  if (tokens.length < 2 || tokens.length > MAX_TERSE_WORDS) return false;
+  const at = tokens.findIndex((token) => HAVA_WORD.test(token.folded));
+  if (at < 1) return false;
+  const place = tokens[at - 1]!;
+  if (tokens.some((token, index) => index !== at && index !== at - 1 && !WEATHER_STOP.has(token.folded) && !WEEKDAY_WORD.test(token.folded))) return false;
+  if (AIR_WORDS.has(place.baseFolded) || WEATHER_STOP.has(place.baseFolded) || NOT_A_PLACE.has(place.baseFolded) || WEEKDAY_WORD.test(place.baseFolded)) return false;
+  return place.apostrophe || (isCapitalized(place.raw) && !place.folded.endsWith("ki"));
+}
 
 function weatherDay(t: string): AyasWeatherDay {
   if (/\bhafta ?sonu\w*/u.test(t)) return { kind: "weekend" };
@@ -119,7 +174,7 @@ const isCapitalized = (raw: string): boolean => /^\p{Lu}/u.test(raw);
 function weatherLocation(tokens: readonly Token[]): string | null {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
-    if (!token.apostrophe || NOT_A_PLACE.has(token.baseFolded) || WEATHER_STOP.has(token.baseFolded) || WEEKDAY_WORD.test(token.baseFolded)) continue;
+    if (!isApostrophePlace(token)) continue;
     // "New York'ta": capitalised words right before the suffixed one belong to the name.
     let start = i;
     while (start > 0 && i - start < 2) {
@@ -134,10 +189,47 @@ function weatherLocation(tokens: readonly Token[]): string | null {
   return rest.map((token) => token.raw).join(" ");
 }
 
-function isWeatherQuestion(t: string): boolean {
+function isWeatherQuestion(t: string, tokens: readonly Token[]): boolean {
   if (WEATHER_NOT.test(t)) return false;
   if (WEATHER_PATTERNS.some((pattern) => pattern.test(t))) return true;
-  return DEGREE_QUESTION.test(t) && DEGREE_CONTEXT.test(t) && !DEGREE_NOT_WEATHER.test(t);
+  if (POSSESSIVE_WEATHER_PATTERNS.some((pattern) => pattern.test(t)) && tokens.some(isApostrophePlace)) return true;
+  if (isTerseWeatherQuestion(tokens)) return true;
+  return DEGREE_QUESTION.test(t) && (DEGREE_CONTEXT.test(t) || tokens.some(isCapitalizedLocative)) && !DEGREE_NOT_WEATHER.test(t);
+}
+
+/* ------------------------------------------------------- weather follow-up --- */
+
+/** Words a short follow-up is made of besides its signal: "Peki yarın?", "Ya İzmir'de?", "Yarın hava nasıl olacak?". */
+const FOLLOW_UP_FILLER = new Set(["peki", "ya", "ve", "o", "zaman", "orada", "orda", "nasil", "olacak", "olur", "mi", "mu", "acaba", "sence", "de", "da", "hava", "havalar", "durum", "durumu", "gun", "sonu", "sonra"]);
+/** A day, a time of day or a weather word: what makes a follow-up ask about the weather again. */
+const FOLLOW_UP_SIGNAL = new Set(["bugun", "yarin", "yarindan", "obur", "ertesi", "hafta", "aksam", "sabah", "gece", "ogle", "ogleden", "simdi", "yagacak", "yagar", "yagiyor", "yagmur", "kar", "soguk", "sicak", "kac", "derece"]);
+const MAX_FOLLOW_UP_WORDS = 5;
+const MAX_FOLLOW_UP_CHAIN = 3;
+
+/** Shape only: a few words, each filler, a day/weather signal or one place ("İzmir'de", or a capitalised word that does not open the sentence). */
+function isWeatherFollowUpShape(tokens: readonly Token[]): boolean {
+  if (tokens.length === 0 || tokens.length > MAX_FOLLOW_UP_WORDS) return false;
+  let signal = false;
+  let places = 0;
+  for (const [index, token] of tokens.entries()) {
+    if (FOLLOW_UP_SIGNAL.has(token.folded) || WEEKDAY_WORD.test(token.folded)) signal = true;
+    else if (isApostrophePlace(token) || (index > 0 && isCapitalized(token.raw) && !WEATHER_STOP.has(token.folded))) places += 1;
+    else if (!FOLLOW_UP_FILLER.has(token.folded)) return false;
+  }
+  return places <= 1 && (signal || places === 1);
+}
+
+/** The owner's latest turns, skipping earlier follow-ups, lead back to a weather question. */
+function followsWeatherQuestion(history: readonly AyasLiveInfoTurn[]): boolean {
+  for (let i = history.length - 1, seen = 0; i >= 0 && seen < MAX_FOLLOW_UP_CHAIN; i--) {
+    const turn = history[i]!;
+    if (turn.role !== "user") continue;
+    seen++;
+    const earlier = detectAyasLiveInfoIntent(turn.text);
+    if (earlier) return earlier.kind === "weather";
+    if (!isWeatherFollowUpShape(tokenize(String(turn.text ?? "").slice(0, MAX_TEXT)))) return false;
+  }
+  return false;
 }
 
 /* -------------------------------------------------------------------- news --- */
@@ -190,12 +282,20 @@ function isNewsQuestion(t: string): boolean {
 
 /* ----------------------------------------------------------------- resolve --- */
 
-export function detectAyasLiveInfoIntent(text: string): AyasLiveInfoIntent | null {
+/**
+ * `history` (earlier turns of this conversation, optional) only lets a short
+ * follow-up such as "Peki yarın?" count as weather right after the owner's
+ * weather question; without it the text alone decides.
+ */
+export function detectAyasLiveInfoIntent(text: string, history: readonly AyasLiveInfoTurn[] = []): AyasLiveInfoIntent | null {
   const source = String(text ?? "").slice(0, MAX_TEXT);
   const t = foldAyasLiveInfoText(source);
   if (!t || NOT_A_LOOKUP.test(t) || isAyasDevelopmentStatusQuery(source)) return null;
   const tokens = tokenize(source);
-  if (isWeatherQuestion(t)) return { kind: "weather", location: weatherLocation(tokens), day: weatherDay(t) };
+  if (isWeatherQuestion(t, tokens)) return { kind: "weather", location: weatherLocation(tokens), day: weatherDay(t) };
   if (isNewsQuestion(t)) return { kind: "news", topic: newsTopic(tokens) };
+  if (history.length > 0 && isWeatherFollowUpShape(tokens) && followsWeatherQuestion(history)) {
+    return { kind: "weather", location: weatherLocation(tokens), day: weatherDay(t) };
+  }
   return null;
 }

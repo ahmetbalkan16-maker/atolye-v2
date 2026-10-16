@@ -124,7 +124,7 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
   // "Bursa'da hava nasıl?" / "Gazze hakkındaki son haberler" — the streaming
   // route's live answer, with the route's precedence (development status and
   // repair symptoms first): fixed public sources, no model call.
-  const preReasoningIntent = resolveAyasPreReasoningIntent(input.text ?? "");
+  const preReasoningIntent = resolveAyasPreReasoningIntent(input.text ?? "", input.history ?? []);
   if (preReasoningIntent.kind === "live-info") {
     return {
       message: ayasReplyMessage(await answerAyasLiveInfo(preReasoningIntent.liveInfo, { history: input.history ?? [] }), input.seq),

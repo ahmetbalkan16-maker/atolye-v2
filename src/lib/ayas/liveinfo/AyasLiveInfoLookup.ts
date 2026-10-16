@@ -204,7 +204,8 @@ function fallbackLocation(deps: AyasLiveInfoDeps): string | null {
     const turn = turns[i]!;
     if (turn.role !== "user") continue;
     seen++;
-    const earlier = detectAyasLiveInfoIntent(turn.text);
+    // The turns before it, so a follow-up such as "Ya İzmir'de?" counts with its place.
+    const earlier = detectAyasLiveInfoIntent(turn.text, turns.slice(0, i));
     if (earlier?.kind === "weather" && earlier.location) return earlier.location;
   }
   const configured = text((deps.env ?? process.env).AYAS_WEATHER_DEFAULT_LOCATION);

@@ -85,6 +85,17 @@ async function main(): Promise<void> {
     weather("Şemsiye alayım mı?");
   });
 
+  await scenario("spoken forms that used to reach the model (which invents a temperature) are weather questions too", () => {
+    for (const text of [
+      "Bursa'da hava nasıldır?", "Bursa'da hava nasılmış", "Bursa'nın havası nasıl?", "Bursa'da hava şartları nasıl?", "Bursa'da sıcaklık kaç?",
+      "Bursa'da hava sıcaklığı kaç?", "Bursa'da sıcaklık ne kadar?", "Bursa hava", "Bursa'da hava?", "Bursa'daki hava nasıl?",
+    ]) assert.deepEqual(weather(text), { kind: "weather", location: "Bursa", day: { kind: "today" } }, text);
+    assert.deepEqual(weather("Bursada kaç derece?"), { kind: "weather", location: "Bursada", day: { kind: "today" } }, "a capitalised bare locative is a place");
+    assert.deepEqual(weather("Yarın İzmir hava"), { kind: "weather", location: "İzmir", day: { kind: "offset", days: 1 } });
+    assert.equal(weather("Denizli'de kaç derece?").location, "Denizli", "a city that starts like deniz");
+    assert.equal(weather("Araç'ta hava nasıl?").location, "Araç", "a district that is also a word");
+  });
+
   await scenario("news questions are recognised with their topic", () => {
     assert.deepEqual(news("Gazze hakkındaki son haberler neler?"), { kind: "news", topic: "Gazze" });
     assert.deepEqual(news("Bana internetten deprem haberlerini bul"), { kind: "news", topic: "deprem" });
@@ -105,7 +116,30 @@ async function main(): Promise<void> {
       "fırın kaç derece olmalı", "ne haber", "hey aya ne haber", "Naber AYAS", "bana haber ver", "haberin var mı", "bu işten kar var mı",
       "Bugün hangi yönlerini geliştirdin?", "Bugün hangi gelişmeleri yaptın?", "AYAS, araştırma ne durumda?", "Güncelleme var mı?",
       "Projelerimdeki son gelişmeler neler?", "merhaba nasılsın", "saat kaç", "",
+      "Bu şarkının havası nasıl?", "Ortamın havası nasıldı", "Temiz hava", "Biraz hava alalım", "Ortamdaki hava", "Temiz hava iyi gelir mi?",
+      "Açık Hava Tiyatrosu", "Sıcak hava balonu", "Hava Kuvvetleri", "Türk Hava Yolları", "Hava Harp Okulu", "Vücut sıcaklığı kaç olmalı",
+      "Oda sıcaklığı kaç derece", "Odada kaç derece", "Evde kaç derece", "Arabada kaç derece", "Denizde kaç derece", "İşlemcide kaç derece",
+      "İşlemci sıcaklığı kaç", "RTX 2000'de sıcaklık neydi?", "Peki yarın?", "Yarın?",
     ]) none(text);
+  });
+
+  await scenario("a short follow-up is weather only right after the owner's weather question", () => {
+    const asked = [{ role: "user", text: "Bursa'da hava nasıl?" }, { role: "brain", text: "Bursa için şu an hava kapalı, 10 derece." }];
+    const follow = (text: string, history: readonly { role: string; text: string }[]) => detectAyasLiveInfoIntent(text, history);
+    assert.deepEqual(follow("Peki yarın?", asked), { kind: "weather", location: null, day: { kind: "offset", days: 1 } });
+    assert.deepEqual(follow("Ya İzmir'de?", asked), { kind: "weather", location: "İzmir", day: { kind: "today" } });
+    assert.deepEqual(follow("Peki Ankara?", asked), { kind: "weather", location: "Ankara", day: { kind: "today" } });
+    assert.deepEqual(follow("Ya hafta sonu?", asked), { kind: "weather", location: null, day: { kind: "weekend" } });
+    for (const text of ["Yağacak mı?", "Kaç derece?", "Soğuk mu?", "Yarın sabah?"]) assert.equal(follow(text, asked)?.kind, "weather", text);
+    for (const text of ["Teşekkürler", "Tamam", "Peki", "Emin misin?", "Yarın sabah beni uyandır"]) assert.equal(follow(text, asked), null, text);
+    // A chain of follow-ups still leads back to the weather question; news, or only AYAS's own words, do not.
+    const chain = [...asked, { role: "user", text: "Ya İzmir'de?" }, { role: "brain", text: "İzmir için şu an hava açık." }];
+    assert.deepEqual(follow("Ya cumartesi?", chain), { kind: "weather", location: null, day: { kind: "weekday", weekday: 6 } });
+    assert.equal(follow("Peki yarın?", [{ role: "user", text: "Gazze hakkındaki son haberler" }, { role: "brain", text: "…" }]), null);
+    assert.equal(follow("Peki yarın?", [{ role: "brain", text: "Bursa'da hava nasıl?" }]), null);
+    assert.equal(follow("Peki yarın?", [{ role: "user", text: "Bursa'da hava nasıl?" }, { role: "user", text: "Bu dosyayı aç" }]), null, "only the latest turns count");
+    assert.deepEqual(resolveAyasPreReasoningIntent("Peki yarın?", asked), { kind: "live-info", liveInfo: { kind: "weather", location: null, day: { kind: "offset", days: 1 } } });
+    assert.equal(resolveAyasPreReasoningIntent("Peki yarın?").kind, "reasoning");
   });
 
   await scenario("route precedence: earlier intents keep their texts, live-info only takes what went to reasoning", () => {
@@ -166,6 +200,18 @@ async function main(): Promise<void> {
     const nothing = fixtureReader([]);
     assert.match(await answerAyasLiveInfo(weather("Hava durumu"), { read: nothing, env: env({}), history: [{ role: "brain", text: "Bursa'da hava nasıl?" }] }), /^Hangi şehir için bakayım\?/);
     assert.deepEqual(nothing.urls, [], "nothing is fetched without a place; an assistant turn is not the owner's");
+  });
+
+  await scenario("a follow-up answers for the place the conversation is on, including one named in an earlier follow-up", async () => {
+    const asked = [{ role: "user", text: "Bursa'da hava nasıl?" }, { role: "brain", text: "Bursa için şu an hava kapalı." }];
+    const read = fixtureReader([["geocoding-api", geo([BURSA])], ["forecast", FORECAST]]);
+    const tomorrow = detectAyasLiveInfoIntent("Peki yarın?", asked)!;
+    assert.equal(await answerAyasLiveInfo(tomorrow, { read, history: asked }),
+      "Bursa için yarın 17 Ekim hava hafif yağmurlu; en düşük 8, en yüksek 14 derece, yağış ihtimali yüzde 85. Kaynak: Open-Meteo.");
+    const izmir = fixtureReader([["geocoding-api", geo([{ ...BURSA, name: "İzmir", latitude: 38.41273, longitude: 27.13838 }])], ["forecast", FORECAST]]);
+    const chain = [...asked, { role: "user", text: "Ya İzmir'de?" }, { role: "brain", text: "İzmir için şu an hava kapalı." }];
+    assert.match(await answerAyasLiveInfo(detectAyasLiveInfoIntent("Yarın?", chain)!, { read: izmir, history: chain }), /^İzmir için yarın 17 Ekim/);
+    assert.equal(new URL(izmir.urls[0]!).searchParams.get("name"), "İzmir");
   });
 
   await scenario("an unreachable or malformed weather source is an honest answer, never a throw", async () => {

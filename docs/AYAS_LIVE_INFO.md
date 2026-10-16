@@ -16,6 +16,17 @@ If a weather question names no place, AYAS uses the last place the owner
 named in this conversation, then `AYAS_WEATHER_DEFAULT_LOCATION` (optional
 env, e.g. `Bursa`), and otherwise asks which city.
 
+The common spoken forms count as weather questions too, because a weather
+question that slips past detection reaches the local model, which has no live
+data and invents a temperature. On 2026-10-17 gemma3 said "güneşli ve sıcak,
+32 derece" for "Bursa'da hava nasıldır?" while Bursa was 10 °C, overcast and
+rainy. Covered forms: "nasıldır" and "nasılmış", "Bursa'nın havası nasıl?",
+"hava şartları nasıl?", "sıcaklık kaç?", "Bursada kaç derece?", and a bare
+"Bursa hava" or "Bursa'da hava?". A short follow-up right after the owner's
+weather question also counts: "Peki yarın?", "Ya İzmir'de?", "Yağacak mı?",
+"Ya hafta sonu?". It answers for the place the conversation is on, including
+a place named in an earlier follow-up.
+
 Answers are plain spoken Turkish sentences with no links or symbols, because
 the console reads replies aloud. AYAS lists headlines and does not summarise
 articles: no model runs on this path, so nothing in the answer can be
@@ -26,13 +37,20 @@ invented.
 - `src/lib/ayas/liveinfo/AyasLiveInfoIntent.ts`: pure text classification.
   It returns `null` for anything that is not clearly a weather or news
   request: "ne haber", "bana haber ver", "haberin var mı", "bugün hava çok
-  güzel", "hava fritözü", "hava kalitesi", an angle's "kaç derece", and
-  requests about code, a project, a video or AYAS's own development.
+  güzel", "hava fritözü", "hava kalitesi", "temiz hava", "Açık Hava
+  Tiyatrosu", "Hava Kuvvetleri", a song's or a party's "havası" (that form
+  needs a named place), the "kaç derece" or "sıcaklık" of an angle, an oven,
+  a room, the body, a car or a processor, and requests about code, a project,
+  a video or AYAS's own development. A follow-up counts only when the owner's
+  latest turns, skipping earlier follow-ups, lead back to a weather question.
+  AYAS's own turns and a news question never start one.
 - `src/lib/ayas/liveinfo/AyasLiveInfoLookup.ts`: the lookup and the spoken
   answer. It never throws; an unreachable source becomes "ulaşamıyorum".
 - `resolveAyasPreReasoningIntent` adds `live-info` last, after development
   status, Report Center, research status and guided repair. Those keep every
-  text they matched before ("hava durumu çalışmıyor" is still a repair).
+  text they matched before ("hava durumu çalışmıyor" is still a repair). Its
+  optional `history` argument (the route's and `askAyas`'s conversation
+  turns) is read only for a weather follow-up.
 - `app/api/ayas/chat/stream/route.ts` and `askAyas` in `app/brain/actions.ts`
   answer it before any model call, as one terminal frame
   (`source: "fallback"`, no `reason`). The console labels it as a rule-layer
@@ -63,8 +81,9 @@ invented.
 ## Tests
 
 - `scripts/smoke-ayas-live-info.ts` (CI step): offline fixtures only. It
-  covers detection and near misses, route precedence, the weather and news
-  answers, place/date/topic handling, failure messages and the reader's host
+  covers detection and near misses, the spoken forms and follow-ups added on
+  2026-10-17, route precedence, the weather and news answers,
+  place/date/topic handling, failure messages and the reader's host
   allowlist.
 - Regression set run for this change: intent-routing, cognitive-quality,
   named-development-routing, action-firewall-closure, chat, chat-stream,

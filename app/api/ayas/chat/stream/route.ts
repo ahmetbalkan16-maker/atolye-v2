@@ -159,7 +159,7 @@ async function respondToAyasTurn({ request, text, history, seq, sessionKey, trac
   }
 
   const encoder = new TextEncoder();
-  const preReasoningIntent = resolveAyasPreReasoningIntent(text);
+  const preReasoningIntent = resolveAyasPreReasoningIntent(text, history);
 
   if (preReasoningIntent.kind === "guided-repair") {
     finishTurn("fallback");
