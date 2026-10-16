@@ -60,6 +60,8 @@ jobs:
         run: npx tsx scripts/smoke-volume-sentence-direction.ts
       - name: Local model thermal request cancellation
         run: npx tsx scripts/smoke-ollama-thermal-monitor.ts
+      - name: Eval-pinned suites stay outside every AYAS mutation lane
+        run: npx tsx scripts/smoke-ayas-eval-yardstick-protection.ts
       - name: Prepare bounded retrieval evidence directory
         run: mkdir "$AYAS_CI_EVIDENCE_DIR"
       # Preserve the original grader's raw exit/report. The next mandatory

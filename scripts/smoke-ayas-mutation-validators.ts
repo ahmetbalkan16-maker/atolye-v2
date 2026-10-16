@@ -75,6 +75,35 @@ async function main() {
     assert.match(skipped.summary, /skipped itself/);
     assert.equal((await createAyasSmokeTestValidator("scripts/ten.ts")(r)).pass, true, "10 scenarios is not 0");
   });
+  await scenario("createAyasSmokeTestValidator accepts the repository's plain-text PASS convention and rejects its self-skips", async () => {
+    const r = root();
+    fs.mkdirSync(path.join(r, "scripts"), { recursive: true });
+    const write = (name: string, lines: readonly string[]) => fs.writeFileSync(path.join(r, `scripts/${name}.ts`), lines.map((line) => `console.log(${JSON.stringify(line)});`).join("\n") + "\n");
+    const passing = {
+      text: ["Lifecycle revision audit: PASS (5/5 caught; TEMP only)"],
+      bare: ["PASS (12 scenarios)"],
+      ratio: ["Local coding pins/adapter: 9/9 PASS; synthetic only, model runs 0."],
+      counted: ["PASS 4 local Whisper wake checks"],
+      trailing: ["7 natural conversation scenarios PASS."],
+      partial: ["SKIP real integration (model unset)", "PASS (7 scenarios)"],
+    };
+    const skipping = { zero: ["SKIP: host dependency missing", "PASS (0 scenarios)"], "zero-ratio": ["Mutation audit: PASS (0/5 caught)"], "zero-lead": ["0/0 PASS; nothing ran"] };
+    for (const [name, lines] of Object.entries({ ...passing, ...skipping })) write(name, lines);
+    write("silent", ["done"]);
+    write("sentence", ["this smoke test never reports PASS"]);
+    write("json-fail", ['{"status":"FAIL","checks":["PASS"]}', "PASS (3 scenarios)"]);
+    fs.symlinkSync(path.join(process.cwd(), "node_modules"), path.join(r, "node_modules"), "junction");
+    const run = async (name: string) => createAyasSmokeTestValidator(`scripts/${name}.ts`)(r);
+    for (const name of Object.keys(passing)) assert.equal((await run(name)).pass, true, `${name}: a plain-text result line on a clean exit is a pass`);
+    for (const name of Object.keys(skipping)) {
+      const result = await run(name);
+      assert.equal(result.pass, false, `${name}: a self-skipped plain-text suite is not a pass`);
+      assert.match(result.summary, /skipped itself/, name);
+    }
+    assert.equal((await run("silent")).pass, false, "no PASS marker at all is not a pass");
+    assert.equal((await run("sentence")).pass, false, "a sentence that merely contains the word is not a result line");
+    assert.equal((await run("json-fail")).pass, false, "a suite that reports a JSON status is judged by that status alone");
+  });
   await scenario("createAyasSmokeTestValidator fails for a script that throws", async () => {
     const r = root();
     fs.mkdirSync(path.join(r, "scripts"), { recursive: true });

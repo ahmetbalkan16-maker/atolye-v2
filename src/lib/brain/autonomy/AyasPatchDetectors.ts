@@ -342,6 +342,9 @@ export function findAyasBareAssertionGaps(repoRoot: string): readonly AyasBareAs
   const { files } = readSmokeCorpus(repoRoot);
   const gaps: AyasBareAssertionGap[] = [];
   for (const file of files) {
+    // A file the domain classifier refuses (an eval-pinned suite, a homepage smoke) is never a candidate: it would only
+    // spend a bounded discovery attempt on a policy rejection.
+    if (classifyPatchSet([toPosix(repoRoot, file)]).level !== "SAFE") continue;
     let text: string;
     try { text = fs.readFileSync(file, "utf8"); } catch { continue; }
     if (text.split("\n").length > AYAS_NOVEL_PATCH_MAX_TOTAL_LINES) continue; // whole-file replacement — stay inside blast-radius policy

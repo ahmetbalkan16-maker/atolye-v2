@@ -149,9 +149,14 @@ async function main(): Promise<void> {
     const store2 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-restart-artifacts-2-")) });
     const tick2 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: { ...obs, now: "2026-09-16T00:05:00.000Z" }, artifactStore: store2, sandboxUnvalidatableStore, maxAttemptsPerTick: 1 });
     daemon.discover({ ...obs, now: "2026-09-16T00:05:00.000Z" }, tick2.candidates);
-    const afterTick2 = inbox.load().proposals.length;
+    const proposals = inbox.load().proposals;
 
-    assert.equal(afterTick2, afterTick1, "a second discovery tick at the same HEAD must never grow the proposal count for the same still-open gap");
+    // The count may grow when tick 1's attempt failed and tick 2's bounded attempt moved on to a different, valid gap
+    // (2026-10-16: plain-text PASS suites now validate). What must never happen is a second proposal for the same gap.
+    const keys = proposals.map((proposal) => [...proposal.exactFiles].sort().join("|"));
+    assert.equal(new Set(keys).size, keys.length, "a second discovery tick at the same HEAD must never add a second proposal for the same still-open gap");
+    assert.ok(proposals.length <= afterTick1 + tick2.candidates.length, "only tick 2's own new candidates may add proposals");
+    if (tick1.candidates[0]) assert.equal(proposals.length, afterTick1, "a gap proposed on tick 1 is the same gap on tick 2 and is not proposed again");
   });
 
   await scenario("Gap 4 (M21.4): a candidate that fails real sandbox validation is suppressed on the NEXT tick with unchanged content — no repeated attempt, no repeated rejection", async () => {

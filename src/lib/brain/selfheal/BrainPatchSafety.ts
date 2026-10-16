@@ -18,6 +18,7 @@
  */
 
 import { AYAS_GOLDEN_VAULT_MODULE_DIR, AYAS_GOLDEN_VAULT_PINNED_FILES } from "../../ayas/golden/AyasGoldenVaultRegistry";
+import { AYAS_EVAL_PINNED_FILES } from "../../ayas/observability/AyasEvalPinnedFiles";
 
 export type BrainPatchSafetyLevel = "SAFE" | "REVIEW_REQUIRED" | "FORBIDDEN_AUTONOMOUS";
 
@@ -31,11 +32,14 @@ const norm = (p: string): string => String(p ?? "").replace(/\\/g, "/").replace(
 
 /**
  * The yardstick an improvement is measured with (Stage 15O): the golden vault, every grader and fixture any of its
- * versions pins, its operator script and suites, and the eval manifest with its validator and runner. Compared without
- * case, so another spelling of the same file on a case-insensitive disk is the same file.
+ * versions pins, its operator script and suites, and the eval manifest with its validator and runner and the list and
+ * smoke that keep its pins protected. Compared without case, so another spelling of the same file on a case-insensitive
+ * disk is the same file.
  */
 const YARDSTICK_FILES: ReadonlySet<string> = new Set([
   ...AYAS_GOLDEN_VAULT_PINNED_FILES,
+  "src/lib/ayas/observability/AyasEvalPinnedFiles.ts",
+  "scripts/smoke-ayas-eval-yardstick-protection.ts",
   "scripts/ayas-golden-vault.ts",
   "scripts/lib/AyasGoldenVaultFiles.ts",
   "scripts/smoke-ayas-golden-vault.ts",
@@ -345,12 +349,24 @@ export interface BrainPatchTargetVerdict {
   readonly why: string;
 }
 
+const EVAL_PINNED: ReadonlySet<string> = new Set(AYAS_EVAL_PINNED_FILES.map((file) => file.toLowerCase()));
+
+/**
+ * Stage 15F — a file the eval manifest pins is never autonomous, whatever path rule it otherwise meets (e79162fe: an
+ * eval-pinned smoke classified SAFE was changed without a pin bump and turned CI red). Applied after the rules, and the
+ * list holds only the pins no rule forbids, so every existing protection stays the single one its mutation audit removes.
+ */
+function withEvalPin(verdict: BrainPatchTargetVerdict): BrainPatchTargetVerdict {
+  if (verdict.level === "FORBIDDEN_AUTONOMOUS" || !EVAL_PINNED.has(verdict.path.toLowerCase())) return verdict;
+  return { path: verdict.path, level: "FORBIDDEN_AUTONOMOUS", why: "an eval-pinned suite (the eval yardstick: a change may not rewrite what it is measured with)" };
+}
+
 export function classifyPatchTarget(path: string): BrainPatchTargetVerdict {
   const p = norm(path);
   for (const rule of RULES) {
-    if (rule.test(p)) return { path: p, level: rule.level, why: rule.why };
+    if (rule.test(p)) return withEvalPin({ path: p, level: rule.level, why: rule.why });
   }
-  return { path: p, level: "REVIEW_REQUIRED", why: "no rule matched — defaulting to review (fail safe)" };
+  return withEvalPin({ path: p, level: "REVIEW_REQUIRED", why: "no rule matched — defaulting to review (fail safe)" });
 }
 
 const RANK: Readonly<Record<BrainPatchSafetyLevel, number>> = Object.freeze({

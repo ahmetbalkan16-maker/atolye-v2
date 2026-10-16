@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v65",
+  "version": "15F.4-v66",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1308,7 +1308,7 @@
         },
         {
           "file": "scripts/smoke-ayas-chat-stream-client.ts",
-          "sha256": "2d9bcbe536645d6553eb3cfd20af33a13d9eb9d221e5c1e09913604dcb0b7cf3"
+          "sha256": "e87e230238afa9041bf5d7e9dafa8a26d92e8641335155fb5fdb2ba688ba515b"
         },
         {
           "file": "scripts/smoke-brain-core-ui.ts",
@@ -1712,7 +1712,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault.ts",
-          "sha256": "3b63b60b1fbd70367dba8d0079debb75ebb3f14efcb3fcc04d4b075b63a9c002"
+          "sha256": "6ec85e6f39c7026de157cb5a46c71b53f311a5585d51b70c1a6066aa1377a85d"
         },
         {
           "file": "scripts/lib/AyasGoldenVaultFiles.ts",

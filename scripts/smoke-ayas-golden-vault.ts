@@ -235,7 +235,7 @@ scenario("path protection: the vault, what it pins, the eval yardstick and the o
   // One protected file makes the whole set never-autonomous, next to any number of ordinary ones.
   assert.equal(classifyPatchSet(["scripts/smoke-x.ts", "docs/x.md", AYAS_GOLDEN_VAULT_PINNED_FILES[0]!]).level, "FORBIDDEN_AUTONOMOUS");
   // The protection is exact: an ordinary test or document is still what it was.
-  for (const ordinary of ["scripts/smoke-x.ts", "scripts/smoke-ayas-memory.ts", "docs/x.md", "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md"]) assert.equal(classifyPatchTarget(ordinary).level, "SAFE", ordinary);
+  for (const ordinary of ["scripts/smoke-x.ts", "scripts/smoke-ayas-mutation-validators.ts", "docs/x.md", "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md"]) assert.equal(classifyPatchTarget(ordinary).level, "SAFE", ordinary);
   assert.equal(classifyPatchTarget("src/lib/ayas/memory/AyasMemoryTemporal.ts").level, "REVIEW_REQUIRED");
 });
 

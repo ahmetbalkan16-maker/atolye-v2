@@ -22,6 +22,14 @@ export type AyasValidator = (repoRoot: string) => Promise<AyasValidatorResult>;
 
 const MAX_SUMMARY_LENGTH = 500;
 
+/**
+ * A plain-text result line in the repository's smoke convention — `PASS (3 scenarios)`, `Suite smoke: PASS (…)`,
+ * `PASS: name`, `PASS 12 checks`, `5/5 PASS; …`, `3 scenarios PASS.` — and not a sentence that merely contains the word.
+ */
+const TEXT_PASS_LINE = /^PASS\b|:\s*PASS\b|\bPASS\s*[(:]|\bPASS\s+\d|\b\d+\s*\/\s*\d+\s+PASS\b|\b(?:scenarios?|cases?|checks?)\s+PASS\b/;
+/** The same result line counting nothing — `PASS (0 scenarios)`, `PASS (0/5 caught)`, `0/0 PASS`: the suite skipped itself. */
+const TEXT_ZERO_COUNT = /\bPASS\s*\(\s*0(?:\s*\/|\s+(?:scenarios?|cases?|checks?)\b)|\bPASS\s+0\b|(?:^|[^\d/])0\s*\/\s*\d+\s+PASS\b|(?:^|\D)0\s+(?:scenarios?|cases?|checks?)\s+PASS\b/i;
+
 function safeSummary(value: string): string {
   return value.replace(/\s+/g, " ").trim().slice(0, MAX_SUMMARY_LENGTH);
 }
@@ -54,12 +62,21 @@ export function createAyasSmokeTestValidator(scriptRelativePath: string): AyasVa
         maxBuffer: 2_000_000,
         stdio: ["ignore", "pipe", "pipe"],
       });
-      const pass = /"status"\s*:\s*"PASS"/.test(stdout);
+      const lines = stdout.split(/\r?\n/);
+      // A suite that reports a JSON status is judged by it alone. One that does not follows the repository's own
+      // convention, a plain-text `PASS (N scenarios)` line (about 230 of 612 smokes): only accepting JSON failed every AYAS
+      // patch to those suites in the sandbox even though the suite passed (2026-10-16). Either way the exit was clean,
+      // since execFileSync throws on a non-zero status.
+      const reportsJsonStatus = lines.some((line) => /"status"\s*:/.test(line));
+      const textResults = reportsJsonStatus ? [] : lines.map((line) => line.trim()).filter((line) => TEXT_PASS_LINE.test(line));
+      const pass = /"status"\s*:\s*"PASS"/.test(stdout) || textResults.length > 0;
       // A suite whose host dependency is missing (e.g. FFmpeg) skips itself
       // and still prints PASS with 0 scenarios. That proves nothing about the
       // patch (2026-10-16: an AYAS patch "passed" its sandbox this way, then
       // failed against real FFmpeg), so it never counts as a pass.
-      if (pass && stdout.split(/\r?\n/).some((line) => /"status"\s*:\s*"PASS"/.test(line) && /"scenarios"\s*:\s*"?0"?\s*[,}]/.test(line))) {
+      const skippedItself = lines.some((line) => /"status"\s*:\s*"PASS"/.test(line) && /"scenarios"\s*:\s*"?0"?\s*[,}]/.test(line))
+        || textResults.some((line) => TEXT_ZERO_COUNT.test(line));
+      if (pass && skippedItself) {
         return { validator: scriptRelativePath, pass: false, summary: "smoke test skipped itself (PASS with 0 scenarios) — not validation evidence" };
       }
       return { validator: scriptRelativePath, pass, summary: pass ? "smoke test reported PASS" : "smoke test did not report PASS" };
