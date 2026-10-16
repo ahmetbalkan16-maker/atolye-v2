@@ -8,7 +8,7 @@ import { measureAyasGraphifyImportCount } from "./AyasBatchGraphifyCheck";
 import { AYAS_GENERATOR_SOURCES, checkAyasNovelPatchLimits, runAyasDiscoveryFindings, type AyasDiscoveryFinding, type AyasGeneratedNovelPatch } from "./AyasPatchDetectors";
 import { classifyAyasMicroCandidate } from "./AyasMicroClassifier";
 import { AyasValidatorFailedError } from "./AyasMutationValidators";
-import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox } from "./AyasPatchSandbox";
+import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox, sweepStaleAyasPatchSandboxes } from "./AyasPatchSandbox";
 import { createAyasPatchArtifactStore, computeAyasPatchHash, type AyasPatchArtifact } from "./AyasPatchArtifact";
 import { createAyasSandboxUnvalidatableStore, contentFingerprintOf, type AyasSandboxUnvalidatableStore } from "./AyasSandboxUnvalidatableStore";
 
@@ -121,6 +121,9 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
   if (!observation.repoClean || observation.graphifyFresh !== true || (observation.machineAction !== "ALLOW" && observation.machineAction !== "THROTTLE")) {
     return { candidates: [], rejections: [], findings };
   }
+
+  // A sandbox whose process was killed or whose destroy met a locked file is still registered here; reclaim it first.
+  await sweepStaleAyasPatchSandboxes(repoRoot, Date.parse(observation.now)).catch(() => []);
 
   const generatedCandidates = interleaveAyasGeneratorSources(repoRoot);
 

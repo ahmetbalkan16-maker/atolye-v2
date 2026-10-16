@@ -291,7 +291,9 @@ class StoredAssemblyProvider implements VideoAssemblyProvider {
   readonly name = "ffmpeg" as const;
   createImmutableAssemblyDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["assemble"] }); }
   async assemble(input: Parameters<VideoAssemblyProvider["assemble"]>[0]) {
-    const duration = input.scenes.reduce((sum, scene) => sum + scene.durationSeconds, 0);
+    // As the FFmpeg provider renders it: a scene-video segment lasts its narration (padded or cut), not its clip. Since
+    // fc8ad456 a clip follows the narration estimate, which this fixture's one-second WAV does not.
+    const duration = input.scenes.reduce((sum, scene) => sum + (scene.inputType === "scene-video" ? scene.narrationDurationSeconds : scene.durationSeconds), 0);
     const paths = VideoStorage.createRenderPaths(input.projectSlug); const data = mp4(duration); fsSync.writeFileSync(paths.temporaryAbsolutePath, data); VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath);
     return { success: true as const, provider: this.name, status: "rendered" as const, model: "ffmpeg-h264-aac" as const, filePath: paths.filePath, url: paths.url, mimeType: "video/mp4" as const, byteLength: data.length, durationSeconds: duration, width: 1920 as const, height: 1080 as const, videoCodec: "h264" as const, audioCodec: "aac" as const, createdAt: now };
   }

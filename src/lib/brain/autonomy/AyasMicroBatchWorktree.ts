@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -22,11 +23,15 @@ const execFileAsync = promisify(execFile);
  * worktree's own `baseHead` (see `ensureAyasMicroBatchWorktree`'s rebuild
  * path) — the batch-level analogue of M17's baseHead staleness handling.
  *
- * Location: a FIXED path under `os.tmpdir()` (never inside this repo, never
- * a random-per-call path like M17's sandboxes) so it can be found again
- * across process restarts — the durable pointer that makes it "persistent"
- * is this fixed, well-known path plus the on-disk git worktree metadata
- * itself (its own HEAD is the source of truth for what baseHead it's at).
+ * Location: a FIXED path per repository under `os.tmpdir()` (never inside
+ * this repo, never a random-per-call path like M17's sandboxes) so it can be
+ * found again across process restarts — the durable pointer that makes it
+ * "persistent" is this fixed, well-known path plus the on-disk git worktree
+ * metadata itself (its own HEAD is the source of truth for what baseHead it's
+ * at). The path is keyed by the repository's real path: with one shared name,
+ * a fixture repository under the live Observer's TEMP (a smoke test, or a
+ * validator run of one) resolved to the live worktree and deleted it with any
+ * batch accumulated in it (2026-10-16).
  */
 const AYAS_MICRO_BATCH_WORKTREE_DIRNAME = "ayas-micro-batch-worktree";
 
@@ -49,8 +54,17 @@ async function git(cwd: string, args: readonly string[], timeout = 30_000): Prom
   return stdout;
 }
 
-function resolveAyasMicroBatchWorktreeRoot(): string {
-  return path.join(os.tmpdir(), AYAS_MICRO_BATCH_WORKTREE_DIRNAME);
+function resolveAyasMicroBatchWorktreeRoot(repoRoot: string): string {
+  let identity: string;
+  try { identity = fs.realpathSync(repoRoot); } catch { identity = path.resolve(repoRoot); }
+  if (process.platform === "win32") identity = identity.toLowerCase();
+  const key = crypto.createHash("sha256").update(identity).digest("hex").slice(0, 12);
+  return path.join(realTempRoot(), `${AYAS_MICRO_BATCH_WORKTREE_DIRNAME}-${key}`);
+}
+
+/** Git records a worktree by its real path; under a junction TEMP the raw path never matched and every ensure rebuilt. */
+function realTempRoot(): string {
+  try { return fs.realpathSync(os.tmpdir()); } catch { return os.tmpdir(); }
 }
 
 function linkNodeModules(repoRoot: string, worktreeRoot: string): void {
@@ -88,10 +102,16 @@ async function destroyIfPresent(repoRoot: string, worktreeRoot: string): Promise
  * If it doesn't exist at all, it is created fresh.
  */
 export async function ensureAyasMicroBatchWorktree(repoRoot: string, baseHead: string): Promise<{ readonly handle: AyasMicroBatchWorktreeHandle; readonly rebuilt: boolean }> {
-  const worktreeRoot = resolveAyasMicroBatchWorktreeRoot();
+  const worktreeRoot = resolveAyasMicroBatchWorktreeRoot(repoRoot);
   const valid = await isValidWorktreeAt(repoRoot, worktreeRoot, baseHead);
   if (valid) return { handle: { repoRoot, worktreeRoot, baseHead }, rebuilt: false };
 
+  // The pre-2026-10-16 shared path: reclaimed only when it is still registered to this repository.
+  const legacyRoot = path.join(realTempRoot(), AYAS_MICRO_BATCH_WORKTREE_DIRNAME);
+  try {
+    const list = (await git(repoRoot, ["worktree", "list", "--porcelain"])).toLowerCase();
+    if (list.includes(`worktree ${legacyRoot.replace(/\\/g, "/").toLowerCase()}\n`) || list.includes(`worktree ${legacyRoot.toLowerCase()}\n`)) await destroyIfPresent(repoRoot, legacyRoot);
+  } catch { /* best effort: a leftover never blocks the current worktree */ }
   await destroyIfPresent(repoRoot, worktreeRoot);
   try {
     await git(repoRoot, ["worktree", "add", "--detach", "--force", worktreeRoot, baseHead]);
@@ -119,7 +139,7 @@ export async function captureAyasMicroBatchWorktreeDiff(handle: AyasMicroBatchWo
 
 /** Permanently discards the persistent worktree and everything accumulated in it — used after a batch is fully executed/committed (a fresh one starts accumulating the next batch) or when explicitly resetting. Never called merely because discovery found nothing this tick. */
 export async function destroyAyasMicroBatchWorktree(repoRoot: string): Promise<void> {
-  await destroyIfPresent(repoRoot, resolveAyasMicroBatchWorktreeRoot());
+  await destroyIfPresent(repoRoot, resolveAyasMicroBatchWorktreeRoot(repoRoot));
 }
 
 export { resolveAyasMicroBatchWorktreeRoot };

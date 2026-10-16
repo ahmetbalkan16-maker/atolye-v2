@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v66",
+  "version": "15F.4-v67",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -725,7 +725,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-durable-task-recovery.ts",
-          "sha256": "e8b765650abe4c3e335c78f646f67884b709a648bf07bf7e484d1d62bfd2e9dc"
+          "sha256": "cc0ccec6cae003d9b7d3d773080356f1786f6781987e2f8f62b78a8ed3ee937f"
         }
       ],
       "slices": [
@@ -1771,7 +1771,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-golden-vault-run.ts",
-          "sha256": "945802995515c6808f14edb4e7a2c99ae14ecd06cc14342ee8bb0d2a87b674ab"
+          "sha256": "3ce5481720fa19ccc37672d218fbfdfc7818f35215fd339fe46bd8c8d5970885"
         },
         {
           "file": "scripts/lib/AyasGoldenVaultFiles.ts",
@@ -2008,7 +2008,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-on-demand-lifecycle-mutations.ts",
-          "sha256": "9fdf2288aad28f5f618ff54f93852f7d7997ac5ea80af0b6dfa04b65a19fbbaf"
+          "sha256": "a7f9946eac897d51fae856b6beb73ab008a88d722df3daf262a60e35dfd71481"
         },
         {
           "file": "scripts/smoke-ayas-on-demand-lifecycle.ts",

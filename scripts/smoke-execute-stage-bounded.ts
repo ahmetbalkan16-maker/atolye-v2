@@ -499,7 +499,9 @@ class StoredAssemblyProvider implements VideoAssemblyProvider {
     return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["assemble"] });
   }
   async assemble(input: Parameters<VideoAssemblyProvider["assemble"]>[0]) {
-    const duration = input.scenes.reduce((sum, scene) => sum + scene.durationSeconds, 0);
+    // As the FFmpeg provider renders it: a scene-video segment lasts its narration, not its clip (fc8ad456 made the clip
+    // follow the narration estimate).
+    const duration = input.scenes.reduce((sum, scene) => sum + (scene.inputType === "scene-video" ? scene.narrationDurationSeconds : scene.durationSeconds), 0);
     const paths = VideoStorage.createRenderPaths(input.projectSlug);
     const data = mp4(duration);
     fsSync.writeFileSync(paths.temporaryAbsolutePath, data);

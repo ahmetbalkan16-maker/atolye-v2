@@ -10,6 +10,13 @@ import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatc
 import { destroyAyasMicroBatchWorktree } from "../src/lib/brain/autonomy/AyasMicroBatchWorktree";
 import type { AyasDaemonObservation } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 
+// The batch worktree has one fixed path under os.tmpdir(); under the project's TEMP that is the live Observer's own
+// worktree, which this suite's destroy calls (some on the real repository) would delete with any batch accumulated in it.
+// A private TEMP isolates it.
+const privateTemp = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-micro-suite-"));
+process.env.TEMP = privateTemp; process.env.TMP = privateTemp; process.env.TMPDIR = privateTemp;
+process.on("exit", () => { try { fs.rmSync(privateTemp, { recursive: true, force: true }); } catch { /* best effort */ } });
+
 let count = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) { await fn(); count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }
 

@@ -5,13 +5,14 @@ import path from "node:path";
 
 import { auditAyasGoldenVaultChain, ayasGoldenVaultDigest, evaluateAyasGoldenRegression, verifyAyasGoldenVaultPins } from "../src/lib/ayas/golden/AyasGoldenVault";
 import { AYAS_GOLDEN_VAULT, AYAS_GOLDEN_VAULT_RETIRED, AYAS_GOLDEN_VAULT_VERSIONS } from "../src/lib/ayas/golden/AyasGoldenVaultRegistry";
-import { runAyasGoldenVault } from "./lib/AyasGoldenVaultFiles";
+import { AYAS_GOLDEN_CASE_TIMEOUT_MS, runAyasGoldenVault } from "./lib/AyasGoldenVaultFiles";
 
 const repo = process.cwd();
 assert.deepEqual(auditAyasGoldenVaultChain(AYAS_GOLDEN_VAULT_VERSIONS, AYAS_GOLDEN_VAULT_RETIRED), [], "golden vault chain");
 const pinDrift = verifyAyasGoldenVaultPins(AYAS_GOLDEN_VAULT, (file) => fs.readFileSync(path.join(repo, file)));
 // A case gets the generic suite bound; the whole vault has to fit a baseline slot, so one slow case fails the run instead of hiding in it.
-const { results, durationsMs } = runAyasGoldenVault(repo, AYAS_GOLDEN_VAULT, process.env, 60_000);
+// 60 s was set on the earlier machine; the fsync-bound retrieval grader takes 60-90 s on the owner's current one.
+const { results, durationsMs } = runAyasGoldenVault(repo, AYAS_GOLDEN_VAULT, process.env, AYAS_GOLDEN_CASE_TIMEOUT_MS);
 const decision = evaluateAyasGoldenRegression({ vault: AYAS_GOLDEN_VAULT, candidate: { vaultDigest: ayasGoldenVaultDigest(AYAS_GOLDEN_VAULT), pinDrift, results } });
 assert.deepEqual([decision.decision, decision.failingCaseIds, pinDrift], ["GOLDEN_HELD", [], []], JSON.stringify({ decision, durationsMs }));
 assert.equal(results.length, AYAS_GOLDEN_VAULT.cases.length);

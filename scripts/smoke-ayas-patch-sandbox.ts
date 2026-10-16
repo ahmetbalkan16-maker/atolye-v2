@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox, AyasPatchSandboxError } from "../src/lib/brain/autonomy/AyasPatchSandbox";
+import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox, sweepStaleAyasPatchSandboxes, AYAS_STALE_SANDBOX_AGE_MS, AyasPatchSandboxError } from "../src/lib/brain/autonomy/AyasPatchSandbox";
 import { AyasValidatorFailedError } from "../src/lib/brain/autonomy/AyasMutationValidators";
 
 let count = 0;
@@ -170,6 +170,31 @@ async function main(): Promise<void> {
       assert.equal(fs.readFileSync(path.join(sandbox.sandboxRoot, "scripts", "unexpected-already-there.ts"), "utf8"), "export const driftedIn = true;\n", "the out-of-band file must be left exactly as found, never clobbered");
     } finally {
       await destroyAyasPatchSandbox(sandbox);
+    }
+  });
+
+  await scenario("sweepStaleAyasPatchSandboxes reclaims only this repository's old, exactly named sandboxes under the temp root", async () => {
+    const fixture = makeFixtureRepo(), other = makeFixtureRepo();
+    const now = Date.now(), old = new Date(now - AYAS_STALE_SANDBOX_AGE_MS - 60_000);
+    const stale = await createAyasPatchSandbox(fixture.repoRoot, fixture.head);
+    const fresh = await createAyasPatchSandbox(fixture.repoRoot, fixture.head);
+    const foreign = await createAyasPatchSandbox(other.repoRoot, other.head);
+    const nested = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ayas-sweep-nested-")), path.basename(stale.sandboxRoot).replace(/.{12}$/, "000000000000"));
+    const misnamed = path.join(os.tmpdir(), `ayas-not-a-sandbox-${path.basename(stale.sandboxRoot).slice(-12)}`);
+    git(fixture.repoRoot, ["worktree", "add", "--detach", nested, fixture.head]);
+    git(fixture.repoRoot, ["worktree", "add", "--detach", misnamed, fixture.head]);
+    try {
+      for (const dir of [stale.sandboxRoot, foreign.sandboxRoot, nested, misnamed]) fs.utimesSync(dir, old, old);
+      const removed = await sweepStaleAyasPatchSandboxes(fixture.repoRoot, now);
+      assert.deepEqual(removed, [path.basename(stale.sandboxRoot)]);
+      assert.equal(fs.existsSync(stale.sandboxRoot), false, "the old sandbox is gone");
+      assert.doesNotMatch(git(fixture.repoRoot, ["worktree", "list", "--porcelain"]), new RegExp(path.basename(stale.sandboxRoot)), "and unregistered");
+      for (const kept of [fresh.sandboxRoot, foreign.sandboxRoot, nested, misnamed]) assert.ok(fs.existsSync(kept), `kept: ${kept}`);
+      assert.ok(fs.existsSync(path.join(process.cwd(), "node_modules", "tsx")), "the shared node_modules behind the junction is untouched");
+      assert.deepEqual(await sweepStaleAyasPatchSandboxes(fixture.repoRoot, Number.NaN), []);
+    } finally {
+      await destroyAyasPatchSandbox(fresh); await destroyAyasPatchSandbox(foreign);
+      for (const dir of [nested, misnamed]) { try { git(fixture.repoRoot, ["worktree", "remove", "--force", dir]); } catch { /* best effort */ } }
     }
   });
 

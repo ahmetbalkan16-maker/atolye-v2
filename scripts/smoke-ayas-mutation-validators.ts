@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { runAyasValidators, createAyasSmokeTestValidator, AyasValidatorFailedError, type AyasValidator, type AyasValidatorResult } from "../src/lib/brain/autonomy/AyasMutationValidators";
+import { runAyasValidators, createAyasSmokeTestValidator, ayasValidatorChildEnv, AyasValidatorFailedError, type AyasValidator, type AyasValidatorResult } from "../src/lib/brain/autonomy/AyasMutationValidators";
 import { runAyasBoundedMutationWithValidators } from "../src/lib/brain/autonomy/AyasMutationRegistry";
 import { AyasBoundedFileWriteError } from "../src/lib/brain/autonomy/AyasBoundedFileWrite";
 
@@ -120,6 +120,49 @@ async function main() {
     const result = await validator(r);
     assert.equal(result.pass, false);
     assert.match(result.summary, /does not exist/);
+  });
+  await scenario("createAyasSmokeTestValidator runs its suite under the real temp root even when the host TEMP is a junction", async () => {
+    // The live server's TEMP is a junction to the directory the sandbox uses; both must hand a suite the same root.
+    const r = root();
+    const realTemp = fs.realpathSync(os.tmpdir());
+    const linked = path.join(r, "linked-temp");
+    fs.symlinkSync(realTemp, linked, "junction");
+    fs.mkdirSync(path.join(r, "scripts"), { recursive: true });
+    fs.writeFileSync(path.join(r, "scripts/temp.ts"), [
+      'import fs from "node:fs"; import os from "node:os";',
+      `const expected = ${JSON.stringify(realTemp)};`,
+      'if (os.tmpdir() !== expected || fs.realpathSync(os.tmpdir()) !== expected) throw new Error("TEMP is " + os.tmpdir());',
+      'console.log("PASS (1 scenarios)");',
+    ].join("\n") + "\n");
+    fs.symlinkSync(path.join(process.cwd(), "node_modules"), path.join(r, "node_modules"), "junction");
+    const names = Object.keys(process.env).filter((key) => /^(?:TEMP|TMP|TMPDIR)$/i.test(key));
+    const saved = Object.fromEntries(names.map((key) => [key, process.env[key]]));
+    try {
+      for (const key of names) delete process.env[key];
+      process.env.TEMP = linked; process.env.TMP = linked; process.env.TMPDIR = linked;
+      assert.equal(os.tmpdir(), linked);
+      const env = ayasValidatorChildEnv();
+      assert.deepEqual([env.TEMP, env.TMP, env.TMPDIR], [realTemp, realTemp, realTemp]);
+      assert.equal(Object.keys(env).filter((key) => /^(?:TEMP|TMP|TMPDIR)$/i.test(key)).length, 3, "one spelling of each");
+      assert.equal(env.PATH ?? env.Path, process.env.PATH ?? process.env.Path, "the rest of the host environment is kept");
+      const result = await createAyasSmokeTestValidator("scripts/temp.ts")(r);
+      assert.equal(result.pass, true, result.summary);
+    } finally {
+      for (const key of ["TEMP", "TMP", "TMPDIR"]) delete process.env[key];
+      for (const [key, value] of Object.entries(saved)) if (value !== undefined) process.env[key] = value;
+      fs.rmSync(linked, { recursive: false, force: true });
+    }
+    assert.equal(fs.realpathSync(os.tmpdir()), realTemp);
+  });
+  await scenario("a validator suite gets CI's environment: no secrets, live runtime roots, provider selections or Next.js state", () => {
+    // The live server has .env.local loaded and the sandbox does not; neither may reach a suite AYAS proposed.
+    const env = ayasValidatorChildEnv({
+      PATH: "p", SystemRoot: "s", NPM_CONFIG_CACHE: "c", NODE_ENV: "production", PORT: "3000",
+      OPENAI_API_KEY: "k", AYAS_ACCESS_KEY: "k", GITHUB_TOKEN: "t", ATOLYE_RUNTIME_ROOT: "D:\\live", ATOLYE_RUNTIME_AUTHORITY_ROOT: "D:\\live",
+      AYAS_AUTONOMOUS_EXECUTION_ENABLED: "1", ATOLYE_DURABLE_PIPELINE_EXECUTION: "enabled", AI_PROVIDER: "ollama", VIDEO_PROVIDER: "ffmpeg",
+      AUDIO_PROVIDER: "piper", FFMPEG_PATH: "f", OLLAMA_HOST: "h", NEXT_PUBLIC_ATOLYE_PWA_SW: "1", __NEXT_PRIVATE_ORIGIN: "o",
+    });
+    assert.deepEqual(Object.keys(env).filter((key) => !/^(?:TEMP|TMP|TMPDIR)$/.test(key)).sort(), ["NPM_CONFIG_CACHE", "PATH", "SystemRoot"]);
   });
   await scenario("createAyasSmokeTestValidator fails closed when the local tsx CLI itself is unavailable", async () => {
     const r = root();

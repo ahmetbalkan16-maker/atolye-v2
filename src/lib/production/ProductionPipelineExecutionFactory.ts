@@ -1116,9 +1116,21 @@ function runTypeFromOperation(operation: string): ProductionAcceptanceStageExecu
   return match[1] as ProductionAcceptanceStageExecutionIdentity["runType"];
 }
 
+/**
+ * The store root this module both compares and opens. Windows folds case, but only a character whose lower case
+ * folds back to it names the same file there: "İ".toLowerCase() is "i" + U+0307, which NTFS keeps apart from "İ",
+ * so under `D:\ÜRETİM` every durable record went to a sibling `D:\üreti̇m` tree that readers never opened
+ * (2026-10-16). Such a character is kept as written; for every other path the result is the plain lower case.
+ */
 function canonicalStoreRoot(value: string): string {
   const resolved = path.normalize(path.resolve(value));
-  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  if (process.platform !== "win32") return resolved;
+  let folded = "";
+  for (const character of resolved) {
+    const lower = character.toLowerCase();
+    folded += lower.toUpperCase() === character.toUpperCase() ? lower : character;
+  }
+  return folded;
 }
 
 async function physicalStoreIdentity(root: string): Promise<string> {

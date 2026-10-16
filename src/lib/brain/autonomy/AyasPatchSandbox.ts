@@ -118,9 +118,42 @@ export async function destroyAyasPatchSandbox(handle: AyasPatchSandboxHandle): P
     // gone, or removal may fail if the link/dir was partially constructed.
   }
   try {
-    fs.rmSync(handle.sandboxRoot, { recursive: true, force: true });
+    fs.rmSync(handle.sandboxRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
   } catch { /* best-effort */ }
   try {
     await git(handle.repoRoot, ["worktree", "prune"]);
   } catch { /* best-effort */ }
+}
+
+const SANDBOX_DIRNAME = /^ayas-patch-sandbox-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const AYAS_STALE_SANDBOX_AGE_MS = 6 * 3_600_000;
+
+/**
+ * Removes this repository's sandboxes that never reached `destroyAyasPatchSandbox`: a process killed mid-validation (a
+ * reboot, a stopped Observer) or a destroy that met a locked file left a registered ~100 MB worktree behind (five on
+ * 2026-10-16). Only a worktree registered to `repoRoot`, directly under the real temp root, with the exact sandbox name and
+ * untouched for `maxAgeMs` is removed — a sandbox lives minutes. Best effort; returns the names it removed.
+ */
+export async function sweepStaleAyasPatchSandboxes(repoRoot: string, nowMs: number, maxAgeMs = AYAS_STALE_SANDBOX_AGE_MS): Promise<readonly string[]> {
+  let list: string, tempRoot: string;
+  try {
+    list = await git(repoRoot, ["worktree", "list", "--porcelain"]);
+    tempRoot = fs.realpathSync(os.tmpdir()).toLowerCase();
+  } catch { return []; }
+  if (!Number.isFinite(nowMs)) return [];
+  const removed: string[] = [];
+  for (const line of list.split(/\r?\n/)) {
+    if (!line.startsWith("worktree ")) continue;
+    const sandboxRoot = path.resolve(line.slice("worktree ".length));
+    if (!SANDBOX_DIRNAME.test(path.basename(sandboxRoot))) continue;
+    let parent: string, mtimeMs: number;
+    try {
+      parent = fs.realpathSync(path.dirname(sandboxRoot)).toLowerCase();
+      mtimeMs = fs.existsSync(sandboxRoot) ? fs.statSync(sandboxRoot).mtimeMs : 0;
+    } catch { continue; }
+    if (parent !== tempRoot || nowMs - mtimeMs < maxAgeMs) continue;
+    await destroyAyasPatchSandbox({ repoRoot, sandboxRoot, baseHead: "" });
+    if (!fs.existsSync(sandboxRoot)) removed.push(path.basename(sandboxRoot)); // a still-locked file: the next tick retries
+  }
+  return removed;
 }

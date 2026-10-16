@@ -92,7 +92,8 @@ export async function diagnoseAyasLocalCodingLocalEngine(input: {
   try { actual = crypto.createHash("sha256").update(fs.readFileSync(pin.binaryPath)).digest("hex"); }
   catch { return { status: "LOCAL_ENGINE_UNAVAILABLE", reason: "reviewed local container engine is absent" }; }
   if (actual !== pin.sha256) return { status: "PROBE_REFUSED", reason: "local engine binary hash mismatch" };
-  const configRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-local-coding-cli-"));
+  // Real path, as the cleanup check below compares: under a junction TEMP the raw path never matched and the dir leaked.
+  const configRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "ayas-local-coding-cli-"));
   try {
     const env: NodeJS.ProcessEnv = process.platform === "win32"
       ? { NODE_ENV: "test", SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: process.env.PATH,

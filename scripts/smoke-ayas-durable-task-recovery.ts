@@ -835,7 +835,10 @@ async function main(): Promise<void> {
       // Source controller reads an injected journal only; inert lifecycle fixture has one explicit TEMP factory.
       "src/lib/ayas/machine/AyasOnDemandLifecycle.ts", "scripts/smoke-ayas-on-demand-lifecycle.ts",
       // Stage 15F observes existing journals only; it registers no activity and cannot append/recover.
-      "src/lib/ayas/observability/AyasReliabilityState.ts", "scripts/smoke-ayas-reliability-slo.ts"]);
+      "src/lib/ayas/observability/AyasReliabilityState.ts", "scripts/smoke-ayas-reliability-slo.ts",
+      // The eval-yardstick table lists this suite's own path as a pinned file; it is a string list that imports nothing.
+      "src/lib/ayas/observability/AyasEvalPinnedFiles.ts"]);
+    assert.doesNotMatch(fs.readFileSync(path.join(repo, "src", "lib", "ayas", "observability", "AyasEvalPinnedFiles.ts"), "utf8"), /^\s*import\b|\brequire\s*\(|\bimport\s*\(/m);
     assert.doesNotMatch(fs.readFileSync(path.join(repo, "scripts", "smoke-ayas-action-firewall-closure.ts"), "utf8"), /from\s+["'][^"']*AyasDurableTask/);
     for (const file of ["smoke-ayas-constitution-run-binding.ts", "smoke-ayas-constitution-run-binding-mutations.ts"]) {
       const probe = fs.readFileSync(path.join(repo, "scripts", file), "utf8");

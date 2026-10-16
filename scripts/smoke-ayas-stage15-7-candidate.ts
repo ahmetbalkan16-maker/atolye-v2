@@ -19,6 +19,14 @@ async function main(): Promise<void> {
   assert.deepEqual(validateAyasImprovementStrategy(strategy), []);
   assert.deepEqual(strategy.exactFiles, ["src/lib/ayas/memory/AyasMemoryTemporal.ts"]);
   assert.ok(strategy.maxChangedLines <= 80);
+  // The strategy is bound to its reviewed before-bytes. 3367d415 applied it and the file has moved on since, so at a
+  // later HEAD there is nothing to exercise: run it against such a tree with AYAS_STAGE15_7_REPO_ROOT instead.
+  const committed = execFileSync("git", ["show", `HEAD:${strategy.exactFiles[0]}`], { cwd: repoRoot, maxBuffer: 4_000_000 });
+  if (createHash("sha256").update(committed).digest("hex") !== strategy.reviewedExactPatch?.beforeSha256) {
+    console.log(`SKIP: ${strategy.exactFiles[0]} at ${head.slice(0, 8)} no longer carries the strategy's reviewed before-bytes (applied in 3367d415); set AYAS_STAGE15_7_REPO_ROOT to a tree that does.`);
+    console.log(JSON.stringify({ status: "PASS", suite: "ayas-stage15-7-candidate", scenarios: 0, skipped: "STRATEGY_BEFORE_BYTES_ABSENT", head }));
+    return;
+  }
   const benchmark = AYAS_IMPROVEMENT_BENCHMARKS.find((item) => item.benchmarkId === strategy.benchmarkId)!;
   const sandbox = await createAyasResearchExperimentSandbox({ repoRoot, baseHead: head, nodeModulesDir: path.join(workspaceRoot, "node_modules"), timeoutMs: 120_000 });
   try {

@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   const previous = { TEMP: process.env.TEMP, TMP: process.env.TMP, TMPDIR: process.env.TMPDIR };
   const privateTemp = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-age-readiness-"));
   process.env.TEMP = privateTemp; process.env.TMP = privateTemp; process.env.TMPDIR = privateTemp;
-  assert.equal(path.dirname(path.resolve(resolveAyasMicroBatchWorktreeRoot())), path.resolve(privateTemp), "fixed worktree must resolve INSIDE this suite's own private TEMP");
+  assert.equal(path.dirname(path.resolve(resolveAyasMicroBatchWorktreeRoot(process.cwd()))), fs.realpathSync(privateTemp), "fixed worktree must resolve INSIDE this suite's own private TEMP");
   try {
     const { repoRoot, head } = makeErrorClassFixtureRepo(["OnlyOneError"]);
     const stores = freshStores();

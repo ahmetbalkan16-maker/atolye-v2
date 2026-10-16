@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { parseAyasBenchmarkReport, type AyasEvidenceMeasurement } from "./AyasResearchExperimentEvaluation";
 
@@ -34,6 +35,31 @@ function safeSummary(value: string): string {
   return value.replace(/\s+/g, " ").trim().slice(0, MAX_SUMMARY_LENGTH);
 }
 
+/** Secrets, and the studio's own configuration: provider selections, live runtime roots, access keys, Next.js state. */
+const VALIDATOR_ENV_EXCLUDED = /KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|^(?:ATOLYE|AYAS|OLLAMA|OPENAI|ANTHROPIC|ELEVENLABS|YOUTUBE|FFMPEG|FFPROBE|ANIMATION|AI|IMAGE|AUDIO|VIDEO|THUMBNAIL)_|_PROVIDER$|^(?:__)?NEXT|^NODE_ENV$|^PORT$/i;
+
+/**
+ * The environment a validator child runs in: the host's own minus secrets and the studio's configuration, with
+ * TEMP/TMP/TMPDIR set to the real path of the host's temporary root — the same in the discovery sandbox, on the owner's
+ * approval and in CI, so a sandbox result predicts the approval result.
+ * - The live server runs under an ASCII junction (`D:\URETIM\private\temp`) and the sandbox under the real directory it
+ *   points to: a smoke comparing a raw `os.tmpdir()` path with its real path passed the sandbox and failed the owner's
+ *   approval (2026-10-16).
+ * - The live server has `.env.local` loaded (the live `ATOLYE_RUNTIME_ROOT`, API and access keys, provider selections,
+ *   `AYAS_AUTONOMOUS_EXECUTION_ENABLED`); the sandbox does not. A suite AYAS proposed ran in that server process with all
+ *   of it, and suites that pass in CI fail under it.
+ * If the temp root cannot be resolved the host's TEMP is kept.
+ */
+export function ayasValidatorChildEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...base };
+  for (const key of Object.keys(env)) if (VALIDATOR_ENV_EXCLUDED.test(key)) delete env[key];
+  let tempRoot: string;
+  try { tempRoot = fs.realpathSync(os.tmpdir()); } catch { return env; }
+  // Windows environment names are case-insensitive; drop every spelling so the child sees exactly one of each.
+  for (const key of Object.keys(env)) if (/^(?:TEMP|TMP|TMPDIR)$/i.test(key)) delete env[key];
+  return { ...env, TEMP: tempRoot, TMP: tempRoot, TMPDIR: tempRoot };
+}
+
 /**
  * Closed factory for "does this exact, already-committed smoke script pass
  * right now" — the only command ever run is `node <local tsx cli> <scriptRelativePath>`,
@@ -56,6 +82,7 @@ export function createAyasSmokeTestValidator(scriptRelativePath: string): AyasVa
     try {
       const stdout = execFileSync(process.execPath, [tsxCli, scriptRelativePath], {
         cwd: repoRoot,
+        env: ayasValidatorChildEnv(),
         encoding: "utf8",
         timeout: 60_000,
         windowsHide: true,
@@ -97,7 +124,7 @@ export function createAyasCognitiveEvidenceValidator(expected: AyasEvidenceMeasu
     }
     try {
       const stdout = execFileSync(process.execPath, [tsxCli, script, "--baseline"], {
-        cwd: repoRoot, encoding: "utf8", timeout: 120_000, windowsHide: true,
+        cwd: repoRoot, env: ayasValidatorChildEnv(), encoding: "utf8", timeout: 120_000, windowsHide: true,
         maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"],
       });
       const raw: unknown = JSON.parse(stdout);
@@ -131,7 +158,7 @@ export function createAyasRetrievalResolutionValidator(expectedSourceSha256: str
       const sourceHash = crypto.createHash("sha256").update(fs.readFileSync(path.join(repoRoot, target))).digest("hex");
       if (sourceHash !== expectedSourceSha256) return { validator: script, pass: false, summary: "reviewed retrieval source hash differs" };
       const stdout = execFileSync(process.execPath, [tsxCli, script], {
-        cwd: repoRoot, encoding: "utf8", timeout: 120_000, windowsHide: true,
+        cwd: repoRoot, env: ayasValidatorChildEnv(), encoding: "utf8", timeout: 120_000, windowsHide: true,
         maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"],
       });
       const lines = stdout.split(/\r?\n/);

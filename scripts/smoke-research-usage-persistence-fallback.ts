@@ -18,8 +18,8 @@
  *  - a budget-blocked call (no request dispatched) keeps the mock fallback
  *    even when its usage record cannot be written;
  *  - the pre-project `"unknown"` identity and the cost guard are unchanged;
- *  - `/api/research` returns 500 and creates no project when the unknown usage
- *    ledger cannot be written (real dual-root quarantine, not a stub).
+ *  - `/api/research` (in the registered trusted runtime since b4033020) returns
+ *    500 and saves no research when usage cannot be written.
  */
 
 import assert from "node:assert/strict";
@@ -107,7 +107,6 @@ async function run() {
   const { AIUsageManager } = await import("../src/lib/ai/AIUsageManager");
   const { strictGenerationExecutionPolicy } = await import("../src/lib/ai/GenerationExecutionPolicy");
   const { ProjectManager } = await import("../src/lib/projects/ProjectManager");
-  const { ProjectReader } = await import("../src/lib/projects/ProjectReader");
   const { clearProjectFolderIndexCache } = await import("../src/lib/projects/ProjectFolderIndex");
   const { POST } = await import("../app/api/research/route");
 
@@ -306,35 +305,47 @@ async function run() {
     assert.deepEqual(fs.readdirSync(sb.projectsRoot), [], "nothing written to the runtime root");
   });
 
+  // Since b4033020 (2026-10-13) the route enters the registered trusted runtime and books usage to the requested project,
+  // never the shared "unknown" ledger, and keeps a failed research on its project (smoke-research-api-entry is the
+  // route's own suite). These two scenarios hold this suite's contract — no mock behind an accounting failure — there.
+  const { withCanonicalSmokeRuntime } = await import("./lib/CanonicalSmokeRuntime");
+  const route = (topic: string) => POST(new Request("http://local/api/research", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic }),
+  }));
+
   // 11 --------------------------------------------------------------
-  await scenario("/api/research: unwritable unknown ledger → 500, no project created", async () => {
-    const sb = fresh();
-    fs.mkdirSync(path.join(sb.quarantineRoot, "unknown"));
-    const response = await POST(new Request("http://local/api/research", {
-      method: "POST",
-      body: JSON.stringify({ topic: "Route Persistence Topic" }),
-    }));
-    assert.equal(response.status, 500);
-    const body = await response.json() as { success: boolean };
-    assert.equal(body.success, false);
-    assert.deepEqual(fs.readdirSync(sb.projectsRoot), [], "no project, no ledger");
+  await scenario("/api/research: usage persistence failure → 500, research kept as failed, never mock", async () => {
+    await withCanonicalSmokeRuntime({ name: "research-usage-route-failure", enterOperationContext: false }, async (runtime) => {
+      clearProjectFolderIndexCache();
+      failPersistence();
+      runtime.deferRestore(restorePersistence);
+      const topic = "Route Persistence Topic";
+      const response = await route(topic);
+      assert.equal(response.status, 500);
+      const body = await response.json() as { success: boolean };
+      assert.equal(body.success, false);
+      const slug = ProjectManager.createSlug(topic);
+      assert.equal((await ProjectManager.getManifest(slug, runtime.runtimeStorageContext))?.packages.research.status, "failed");
+      assert.ok(!(await ProjectManager.getResearch(slug, runtime.runtimeStorageContext)), "no research, mock or real, is saved");
+      assert.ok(!fs.existsSync(path.join(runtime.runtimeStorageContext.projectsRoot, "unknown")), "never the shared unknown ledger");
+    });
   });
 
   // 12 --------------------------------------------------------------
   await scenario("/api/research: healthy accounting creates the project and saves research", async () => {
-    const sb = fresh();
-    const response = await POST(new Request("http://local/api/research", {
-      method: "POST",
-      body: JSON.stringify({ topic: "Route Healthy Topic" }),
-    }));
-    assert.equal(response.status, 200);
-    const body = await response.json() as { success: boolean; project: { slug: string; id: string } };
-    assert.equal(body.success, true);
-    assert.equal(body.project.slug, "route-healthy-topic");
-    assert.deepEqual(fs.readdirSync(sb.projectsRoot).sort(), ["route-healthy-topic", "unknown"]);
-    assert.ok(await ProjectManager.getResearch("route-healthy-topic"));
-    const listed = (await ProjectReader.listProjects()) as { id: string }[];
-    assert.deepEqual(listed.map((project) => project.id), [body.project.id]);
+    await withCanonicalSmokeRuntime({ name: "research-usage-route-healthy", enterOperationContext: false }, async (runtime) => {
+      clearProjectFolderIndexCache();
+      const response = await route("Route Healthy Topic");
+      assert.equal(response.status, 200);
+      const body = await response.json() as { success: boolean; project: { slug: string; id: string } };
+      assert.equal(body.success, true);
+      assert.equal(body.project.slug, "route-healthy-topic");
+      const projects = fs.readdirSync(runtime.runtimeStorageContext.projectsRoot);
+      assert.ok(projects.includes("route-healthy-topic") && !projects.includes("unknown"), projects.join(","));
+      assert.ok(await ProjectManager.getResearch("route-healthy-topic", runtime.runtimeStorageContext));
+      const usage = await AIUsageManager.getUsageLog("route-healthy-topic");
+      assert.ok(usage.records.length > 0 && usage.records.every((record) => record.projectSlug === "route-healthy-topic"));
+    });
   });
 
   console.log(`PASS (${count} scenarios)`);

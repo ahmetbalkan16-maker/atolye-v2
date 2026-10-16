@@ -46,7 +46,9 @@ const env: NodeJS.ProcessEnv = { NODE_ENV: "test" };
 for (const key of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOME"]) if (process.env[key]) env[key] = process.env[key];
 const selectedCases = [3, 3, 3, 3, 5, 3, 9, 4, 4, 7, 7, 7, 8, 8, 6, 6, 10, 10, 10, 10, 11, 11, 11, 1];
 assert.equal(selectedCases.length, mutants.length);
-const run = (selected?: number) => spawnSync(process.execPath, ["--import", "tsx", test], { cwd: temp, env: selected === undefined ? env : { ...env, AYAS_DEMAND_MUTATION_CASE: String(selected) }, encoding: "utf8", windowsHide: true, timeout: 40_000, maxBuffer: 1_000_000 });
+// The baseline runs all eleven scenarios over fsync'd TEMP journals (about 60 s on the owner's machine, more under load);
+// one mutant runs one selected scenario. A timeout still fails the audit either way.
+const run = (selected?: number) => spawnSync(process.execPath, ["--import", "tsx", test], { cwd: temp, env: selected === undefined ? env : { ...env, AYAS_DEMAND_MUTATION_CASE: String(selected) }, encoding: "utf8", windowsHide: true, timeout: selected === undefined ? 300_000 : 60_000, maxBuffer: 1_000_000 });
 try {
   copy(test); copy("tsconfig.json"); fs.symlinkSync(fs.realpathSync(path.join(repo, "node_modules")), link, process.platform === "win32" ? "junction" : "dir");
   const baseline = run(); assert.equal(baseline.status, 0, `${baseline.stderr}${baseline.stdout}`.slice(0, 2000));

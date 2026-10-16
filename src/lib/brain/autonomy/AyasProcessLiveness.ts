@@ -25,8 +25,22 @@ export function processIsAlive(pid: number): boolean {
  * cannot be determined (process gone, permission issue, platform quirk) —
  * callers are expected to treat a thrown error as "unknown", which their
  * own fail-closed policy then resolves (never as proof of death).
+ *
+ * This process's own start time never changes, so it is read once: on
+ * Windows every read spawns PowerShell (about a second, more under load),
+ * which each lock acquisition paid before it even tried its lock — long
+ * enough for a holder's bounded operation to end first, so a contender
+ * meant to be refused acquired the lock instead. A failed read is retried.
  */
+let ownStartEpochMs: Promise<number> | undefined;
+
 export async function readProcessStartEpochMs(pid: number): Promise<number> {
+  if (pid !== process.pid) return readStartEpochMs(pid);
+  ownStartEpochMs ??= readStartEpochMs(pid).catch((error: unknown) => { ownStartEpochMs = undefined; throw error; });
+  return ownStartEpochMs;
+}
+
+async function readStartEpochMs(pid: number): Promise<number> {
   if (process.platform === "win32") {
     const script = `$p=Get-Process -Id ${pid} -ErrorAction Stop;([DateTimeOffset]$p.StartTime).ToUnixTimeMilliseconds()`;
     const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { timeout: 3_000, windowsHide: true });
