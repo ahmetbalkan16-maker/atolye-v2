@@ -99,6 +99,12 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**Observer Başlangıç kısayolu taşınabilir başlatıcıya geçti (owner, 08:18):**
+- Owner `scripts\new-pc-setup.ps1 -Apply`'ı kendisi çalıştırdı. Tek değişiklik `[YAPILDI] Baslangic kisayolu: AYAS Autonomy Observer` oldu; diğer her şey `TAMAM`.
+- Kısayol artık `wscript.exe //B //NoLogo "D:\ÜRETİM\Atolye\atolye-v2\scripts\ayas-observer-hidden.vbs"` çalıştırıyor, çalışma klasörü repo. 15 Ekim'deki "kısayol hâlâ `private\AtolyeAyasAccess\run-ayas-observer-hidden.vbs`'i gösteriyor" notu kapandı.
+- Çalışan Observer'a dokunulmadı; yeni kısayol sonraki oturum açılışında kullanılır.
+- İki eski zamanlanmış görev (`AYAS Access Online`, `AYAS Autonomy Observer`) hâlâ duruyor. Zararsızlar; silmek yönetici yetkisi ister.
+
 **Canlıya alındı (08:11):** `ayas-publish-live.ps1 -Commit 564d0579 -Apply`; `ayas-live-44f0dd7f` yerine `ayas-live-564d0579` geldi.
 - Build `gmPnhJKyNrga-eQIprLe0`, 1269 build / 26469 bağımlılık dosyası.
 - `next start` PID 26460; dış erişim healthy.
