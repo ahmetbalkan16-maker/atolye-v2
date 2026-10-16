@@ -50,41 +50,41 @@ const findings = [
 
 const radar = buildAyasUpdateRadar({ repoRoot: repo, seenItems, findings });
 scenario("only newer stable releases of tracked tools appear, major bumps first", () => {
-  assert.deepEqual(radar.map((item) => `${item.sourceId}:${item.latestVersion}:${item.bump}`), ["eslint:10.11.0:MAJOR", "nodejs:99.1.0:MAJOR", "nextjs:16.4.1:MINOR"]);
+  assert.deepEqual(radar.map((item) => `${item.sourceId}:${item.latestVersion}:${item.bump}`), ["eslint:10.11.0:MAJOR", "nodejs:99.1.0:MAJOR", "nextjs:16.4.1:MINOR"], "assert.deepEqual(radar.map((item) => `${item.sourceId}:${item.latestVersion}:${item.bump}`), [\"eslint:10.11.0:MAJOR\", \"nodejs:99.1.0:MAJOR\", \"nextjs:16.4.1:MINOR\"])");
   const next = radar.find((item) => item.sourceId === "nextjs")!;
-  assert.equal(next.installedVersion, "16.3.8"); assert.equal(next.newerStableReleases, 2); assert.equal(next.target, "npm:next"); assert.equal(next.toolName, "Next.js");
-  assert.equal(next.applyChannel, "DEVELOPMENT_SESSION"); assert.match(next.latestUrl, /v16\.4\.1$/);
+  assert.equal(next.installedVersion, "16.3.8", "assert.equal(next.installedVersion, \"16.3.8\")"); assert.equal(next.newerStableReleases, 2, "assert.equal(next.newerStableReleases, 2)"); assert.equal(next.target, "npm:next", "assert.equal(next.target, \"npm:next\")"); assert.equal(next.toolName, "Next.js", "assert.equal(next.toolName, \"Next.js\")");
+  assert.equal(next.applyChannel, "DEVELOPMENT_SESSION", "assert.equal(next.applyChannel, \"DEVELOPMENT_SESSION\")"); assert.match(next.latestUrl, /v16\.4\.1$/);
 });
 scenario("Node.js follows the LTS channel and is re-pinned by the owner", () => {
   const node = radar.find((item) => item.sourceId === "nodejs")!;
-  assert.equal(node.latestVersion, "99.1.0"); assert.equal(node.applyChannel, "OWNER_PINNED_RUNTIME");
-  assert.ok(node.brief.validation.some((step) => /SHA-256/.test(step))); assert.match(node.brief.risk, /node\.exe SHA-256/);
+  assert.equal(node.latestVersion, "99.1.0", "assert.equal(node.latestVersion, \"99.1.0\")"); assert.equal(node.applyChannel, "OWNER_PINNED_RUNTIME", "assert.equal(node.applyChannel, \"OWNER_PINNED_RUNTIME\")");
+  assert.ok(node.brief.validation.some((step) => /SHA-256/.test(step)), "assert.ok(node.brief.validation.some((step) => /SHA-256/.test(step)))"); assert.match(node.brief.risk, /node\.exe SHA-256/);
 });
 scenario("evidence is only verified quotes from the same repository", () => {
-  assert.deepEqual(radar.find((item) => item.sourceId === "nextjs")!.evidence.map((entry) => entry.findingId), ["grounded"]);
-  assert.equal(radar.find((item) => item.sourceId === "eslint")!.evidence.length, 0);
+  assert.deepEqual(radar.find((item) => item.sourceId === "nextjs")!.evidence.map((entry) => entry.findingId), ["grounded"], "assert.deepEqual(radar.find((item) => item.sourceId === \"nextjs\")!.evidence.map((entry) => entry.findingId), [\"grounded\"])");
+  assert.equal(radar.find((item) => item.sourceId === "eslint")!.evidence.length, 0, "assert.equal(radar.find((item) => item.sourceId === \"eslint\")!.evidence.length, 0)");
 });
 scenario("the development brief lists real users, config files and a validation plan", () => {
   const next = radar.find((item) => item.sourceId === "nextjs")!.brief;
-  assert.deepEqual(next.affectedFiles, ["next.config.ts", "scripts/smoke-shell.ts", "src/app-shell.tsx"]);
-  assert.equal(next.affectedFileCount, 3);
-  assert.deepEqual(next.validation, ["npx tsc --noEmit", "CI-eşdeğeri lint (git'teki dosyalar)", "npm run build", "npx tsx scripts/smoke-shell.ts"]);
+  assert.deepEqual(next.affectedFiles, ["next.config.ts", "scripts/smoke-shell.ts", "src/app-shell.tsx"], "assert.deepEqual(next.affectedFiles, [\"next.config.ts\", \"scripts/smoke-shell.ts\", \"src/app-shell.tsx\"])");
+  assert.equal(next.affectedFileCount, 3, "assert.equal(next.affectedFileCount, 3)");
+  assert.deepEqual(next.validation, ["npx tsc --noEmit", "CI-eşdeğeri lint (git'teki dosyalar)", "npm run build", "npx tsx scripts/smoke-shell.ts"], "assert.deepEqual(next.validation, [\"npx tsc --noEmit\", \"CI-eşdeğeri lint (git'teki dosyalar)\", \"npm run build\", \"npx tsx scripts/smoke-shell.ts\"])");
   assert.match(next.summary, /16\.3\.8 → 16\.4\.1/); assert.match(next.risk, /Ara sürüm/);
   assert.match(radar.find((item) => item.sourceId === "eslint")!.brief.risk, /Ana sürüm/);
-  assert.deepEqual(findAyasPackageUsers(repo, "eslint"), ["eslint.config.mjs"]);
+  assert.deepEqual(findAyasPackageUsers(repo, "eslint"), ["eslint.config.mjs"], "assert.deepEqual(findAyasPackageUsers(repo, \"eslint\"), [\"eslint.config.mjs\"])");
 });
 scenario("research health reports degraded, quiet and healthy states with reasons", () => {
   const base = { now: NOW, radar, lastSuccessfulResearchAt: "2026-10-15T07:00:00.000Z", consecutiveFailures: 0 };
   const healthy = buildAyasResearchHealth({ ...base, findings });
-  assert.equal(healthy.status, "HEALTHY"); assert.equal(healthy.findingsLast7d, 3); assert.equal(healthy.groundedFindingsLast7d, 2); assert.equal(healthy.trackedToolsWithUpdates, 3);
-  assert.equal(buildAyasResearchHealth({ ...base, findings: [] }).status, "QUIET");
+  assert.equal(healthy.status, "HEALTHY", "assert.equal(healthy.status, \"HEALTHY\")"); assert.equal(healthy.findingsLast7d, 3, "assert.equal(healthy.findingsLast7d, 3)"); assert.equal(healthy.groundedFindingsLast7d, 2, "assert.equal(healthy.groundedFindingsLast7d, 2)"); assert.equal(healthy.trackedToolsWithUpdates, 3, "assert.equal(healthy.trackedToolsWithUpdates, 3)");
+  assert.equal(buildAyasResearchHealth({ ...base, findings: [] }).status, "QUIET", "assert.equal(buildAyasResearchHealth({ ...base, findings: [] }).status, \"QUIET\")");
   const failing = buildAyasResearchHealth({ ...base, findings, consecutiveFailures: 2 });
-  assert.equal(failing.status, "DEGRADED"); assert.match(failing.reasons[0]!, /2 kez/);
-  assert.equal(buildAyasResearchHealth({ ...base, findings, lastSuccessfulResearchAt: "2026-10-14T20:00:00.000Z" }).status, "DEGRADED");
+  assert.equal(failing.status, "DEGRADED", "assert.equal(failing.status, \"DEGRADED\")"); assert.match(failing.reasons[0]!, /2 kez/);
+  assert.equal(buildAyasResearchHealth({ ...base, findings, lastSuccessfulResearchAt: "2026-10-14T20:00:00.000Z" }).status, "DEGRADED", "assert.equal(buildAyasResearchHealth({ ...base, findings, lastSuccessfulResearchAt: \"2026-10-14T20:00:00.000Z\" }).status, \"DEGRADED\")");
 });
 scenario("the live status view builds the radar without throwing", () => {
   const view = loadAyasResearchEngineStatusView(NOW);
-  assert.equal(view.connected, true); assert.ok(Array.isArray(view.updateRadar)); assert.ok(view.researchHealth);
+  assert.equal(view.connected, true, "assert.equal(view.connected, true)"); assert.ok(Array.isArray(view.updateRadar), "assert.ok(Array.isArray(view.updateRadar))"); assert.ok(view.researchHealth, "assert.ok(view.researchHealth)");
 });
 scenario("the panel renders health, radar and brief, with a consent control but no execute control", () => {
   const base = { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 },
@@ -105,7 +105,7 @@ scenario("the panel renders health, radar and brief, with a consent control but 
     targetVersion: next.latestVersion, bump: next.bump, applyChannel: next.applyChannel, itemHash: next.itemHash, approvedAt: NOW, status: "WAITING" as const, currentInstalledVersion: next.installedVersion };
   const approved = render({ ...base, updateApprovals: [nextApproval] });
   assert.match(approved, /Onaylandı/); assert.match(approved, /Onayı geri al/); assert.match(approved, /Sırada: AYAS bu güncellemeyi ayrı bir kopyada deneyecek/);
-  assert.equal((approved.match(/Onayla ve dene/g) ?? []).length, radar.filter((item) => item.applyChannel === "DEVELOPMENT_SESSION").length - 1);
+  assert.equal((approved.match(/Onayla ve dene/g) ?? []).length, radar.filter((item) => item.applyChannel === "DEVELOPMENT_SESSION").length - 1, "assert.equal((approved.match(/Onayla ve dene/g) ?? []).length, radar.filter((item) => item.applyChannel === \"DEVELOPMENT_SESSION\").length - 1)");
   // Trial states: only a passed trial on the observed HEAD offers Uygula; a failed one says nothing was applied.
   const trialView = { trialId: "ayas-update-trial-00000000-0000-4000-8000-000000000000", approvalDecisionId: "d1", sourceId: "nextjs", targetVersion: next.latestVersion,
     startedAt: NOW, baseHead: "a".repeat(40), preExistingSmokeFailures: [], steps: [{ name: "BUILD" as const, ok: true, durationMs: 1, summary: "üretim derlemesi başarılı" }] };
