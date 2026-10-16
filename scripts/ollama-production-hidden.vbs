@@ -11,6 +11,11 @@ If Not fso.FolderExists(tempRoot) Or Not fso.FileExists(executable) Then WScript
 shell.Environment("Process")("TEMP") = tempRoot
 shell.Environment("Process")("TMP") = tempRoot
 shell.Environment("Process")("OLLAMA_TMPDIR") = tempRoot
+' Keep a partly downloaded model across restarts: by default Ollama prunes
+' unfinished blobs when it starts, so a reboot mid-download starts it over
+' (2026-10-16: gemma4:12b lost that way). The owner's "Indir ve olc" downloads
+' in slices over several observer rounds and relies on this.
+shell.Environment("Process")("OLLAMA_NOPRUNE") = "1"
 shell.CurrentDirectory = productionRoot
 showRequested = False
 launchStyle = 0

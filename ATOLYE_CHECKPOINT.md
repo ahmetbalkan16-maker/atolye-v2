@@ -99,6 +99,14 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**Yarım model indirmeleri artık yeniden başlatmada silinmiyor (owner seçimi, aynı liste):**
+- `scripts/ollama-production-hidden.vbs`, Ollama'yı başlatırken yalnız kendi sürecine `OLLAMA_NOPRUNE=1` verir. Ollama 0.40.3 `serve --help` bu değişkeni "Do not prune model blobs on startup" olarak listeliyor.
+- Windows ortam değişkenleri değişmedi.
+- Sabahki kayıp bu yüzden olmuştu: açılış budaması yarım gemma4 dosyasını sildi.
+- Etkinleşme: Ollama'nın bir sonraki açılışında (PC açılışı). Çalışan Ollama'ya ve süren indirmeye dokunulmadı.
+- Doğrulama: `cscript` ile sözdizimi temiz, çıkış 0, ikinci süreç açılmadı; dosya ASCII.
+- Bedel `docs/AYAS_MODEL_COMPARISON.md`'de: yeniden indirilen etiketin eski katmanları kendiliğinden silinmez.
+
 **gemma3:12b model yaşam döngüsü kaydında (owner seçimi: "beklerken"):** `llm.local-text.gemma3-12b` eklendi.
 - Kimlik `ollama-digest` `b92b2185…8ec3`, `/api/tags`'tan okundu. Durum PINNED, `OWNER_SELECTED`; geri dönüş hedefi `llm.local-text.qwen2.5-7b`.
 - Geçmiş: 10 Ekim'de owner seçti (`0fb68ea0`, `docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md`); 16 Ekim'de pinlendi.

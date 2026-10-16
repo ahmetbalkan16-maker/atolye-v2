@@ -83,6 +83,12 @@ Bir aday kartında görünür, kart model deposu özetini gösteriyorsa. Onay, o
    gösterir ve yeniden onaylanabilir.
 2. Yerel Ollama (`POST /api/pull`, yalnız loopback) her turda en fazla 20 dakika indirir. Ollama yarım
    indirmeyi tutar; sonraki tur kaldığı yerden sürer. Üst üste 5 hata denemeyi bitirir.
+   - PC yeniden başlasa da yarım indirme korunur. Bunu `scripts/ollama-production-hidden.vbs` sağlar:
+     Ollama'yı `OLLAMA_NOPRUNE=1` ile başlatır.
+   - Varsayılan davranışta Ollama açılışta yarım dosyaları siler. 16 Ekim'de gemma4:12b indirmesi bu
+     yüzden kaybolmuştu.
+   - Bedeli: bir etiket daha yeni baytlarla yeniden indirildiğinde eski, kullanılmayan katmanlar
+     kendiliğinden silinmez. D'de yer azalırsa elle temizlik gerekir.
 3. İnen modelin Ollama'daki özeti onaylanan özetle aynı değilse model ölçülmez.
 4. Ollama başka bir model çalıştırmıyorsa ölçüm başlar. Şu anki model, kurulu baytlarıyla ölçülmemişse
    önce o ölçülür; ardından aday aynı testle ölçülür. Sonuçlar kartın okuduğu dosyaya yazılır.
