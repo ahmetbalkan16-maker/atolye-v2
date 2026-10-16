@@ -99,6 +99,15 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**Bulunan hata: güncelleme ve model kayıtları git dışında değildi (`91f40580`):**
+- **Etkilenen klasörler:** `data/brain/self-improvement/update-approvals/` (9d6ca4bb), `update-trials/` (f2211bcb) ve bugünkü `model-operations/` `.gitignore`'da yoktu.
+- **Sonuç 1:** Uygulayıcı kilidini `update-trials/` içine yazıyor, sonra kendi kilidini "kirli ağaç" sayıp her işi atlıyordu. Temiz repoda bile `SKIPPED_DIRTY_TREE` veriyordu; yani f2211bcb'den beri hiçbir iş yapamazdı. Henüz hiç onay olmadığı için fark edilmedi.
+- **Sonuç 2:** Radardaki ilk "Onayla" `update-approvals/state.json` yazacak ve Observer'ı `PAUSED_DIRTY_REPO`'da durduracaktı.
+- **Aynı hata sınıfı:** `.gitignore`'daki research-novelty notuyla aynı.
+- **Düzeltme:** üç klasör, gerekçesiyle birlikte `.gitignore`'a eklendi.
+- **Koruma testi:** `smoke-ayas-model-operations` 16/16. Bütün varsayılan kayıt köklerinin (kilit ve eşitleme işareti dahil) git dışında olduğunu denetliyor. Eski `.gitignore`'la düştüğü doğrulandı.
+- **Doğrulama:** gerçek repoda kuru çalıştırma artık `IDLE` veriyor ve ağaç temiz kalıyor.
+
 **Kırık v1 testi düzeltildi (owner isteği):** `smoke-ayas-autonomous-execution-gate` 20e'de düşüyordu (0 !== 1, satır 362; temiz HEAD'de de aynı).
 - **Kök neden:** K3 güvenlik düzeltmesi (`303f36b7`, 8 Ekim, owner onaylı) gözetimsiz devam ettirmeyi bilinçli olarak kapattı. Devam ettirme işçisi artık yalnız açık owner eylemi (`explicitManualOwnerAction`), taze mühürlü EXECUTE doğrulaması ve mühürlü owner APPROVE ile yayın yapıyor. O commit eski otomatik devam FAIL'lerini ham kanıt olarak korudu; test ise eski sözleşmede kaldı. Ham kanıt dosyaları değişmedi.
 - **Değişiklik:** test bugünkü sözleşmeye göre yeniden yazıldı. Kod ve kurallar değişmedi. Test pinli değil.
