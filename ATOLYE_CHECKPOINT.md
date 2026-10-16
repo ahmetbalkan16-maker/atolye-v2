@@ -99,6 +99,15 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**gemma3:12b model yaşam döngüsü kaydında (owner seçimi: "beklerken"):** `llm.local-text.gemma3-12b` eklendi.
+- Kimlik `ollama-digest` `b92b2185…8ec3`, `/api/tags`'tan okundu. Durum PINNED, `OWNER_SELECTED`; geri dönüş hedefi `llm.local-text.qwen2.5-7b`.
+- Geçmiş: 10 Ekim'de owner seçti (`0fb68ea0`, `docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md`); 16 Ekim'de pinlendi.
+- `ayas-chat-tr-v3` sonucu (18/21, aynı baytlar, 15 Ekim) not olarak yazıldı. Yaşam döngüsü değerlendiricisi olmadığı için yeterlilik kanıtı sayılmadı. Bu, pinli `smoke-ayas-lifecycle`'ın "tek değerlendirici" kuralına uygun, pin değişmedi.
+- **Etki:** sohbet yönlendiricisi canlı modeli artık `{entryId: gemma3-12b, PINNED, pin MATCH}` olarak izliyor. Önceden karar nedeninde "model yaşam döngüsü kaydında yok" notu vardı. Bu doğrulama gerçek Ollama'ya karşı, yalnız okuma yapılarak yapıldı.
+- **Testler:** lifecycle 14/14 (21 girdi), model-router 22/22, independence-certification 13/13, on-demand lifecycle 11/11 ve mutations 24/24; tsc 0, lint 0.
+- Canlı uygulamadaki not, sonraki yayında kalkar.
+- **Not:** gemma4'e geçilirse onun için de kayıt girdisi gerekecek (bir kod değişikliği). Girdi olmadan da çalışır, yalnız "kayıtta yok" notu görünür.
+
 **Observer Başlangıç kısayolu taşınabilir başlatıcıya geçti (owner, 08:18):**
 - Owner `scripts\new-pc-setup.ps1 -Apply`'ı kendisi çalıştırdı. Tek değişiklik `[YAPILDI] Baslangic kisayolu: AYAS Autonomy Observer` oldu; diğer her şey `TAMAM`.
 - Kısayol artık `wscript.exe //B //NoLogo "D:\ÜRETİM\Atolye\atolye-v2\scripts\ayas-observer-hidden.vbs"` çalıştırıyor, çalışma klasörü repo. 15 Ekim'deki "kısayol hâlâ `private\AtolyeAyasAccess\run-ayas-observer-hidden.vbs`'i gösteriyor" notu kapandı.

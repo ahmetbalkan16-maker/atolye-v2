@@ -65,6 +65,17 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
     history: recordedAtOpening("digest read from the local Ollama runtime (GET /api/tags on loopback)"),
     notes: "An earlier informal comparison preferred it to the 3b model for AYAS chat (docs/AYAS_ACTIVATION.md). That was not a frozen benchmark and is not counted as qualification evidence.",
   },
+  {
+    id: "llm.local-text.gemma3-12b", kind: "llm", role: "local-text-generation", label: "gemma3:12b (Ollama)",
+    identity: { type: "ollama-digest", tag: "gemma3:12b", digest: "b92b218582c521ba287f38f1d6057dcd3c6cbff036f13cac97b5d861f5e58ec3" },
+    state: "PINNED", admission: "OWNER_SELECTED", compatibility: "Ollama on loopback; AYAS chat only, when the owner sets AYAS_OLLAMA_MODEL to it (AYAS_CONVERSATION_V2=1, keep_alive 0). 11.8B parameters, Q4_K_M, 8.16 GB.",
+    record: unmeasured("AYAS chat"), rollbackTarget: "llm.local-text.qwen2.5-7b",
+    history: [
+      { state: "DISCOVERED", on: "2026-10-10", basis: "owner-selected as the AYAS chat model after the Qwen2.5 3B/7B, Qwen3 8B and Gemma3 4B candidates showed Turkish errors (docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md, 0fb68ea0)" },
+      { state: "PINNED", on: "2026-10-16", basis: "digest read from the local Ollama runtime (GET /api/tags on loopback)" },
+    ],
+    notes: "The AYAS chat model since 2026-10-10. The model comparison's frozen Turkish chat benchmark ayas-chat-tr-v3 (docs/AYAS_MODEL_COMPARISON.md) recorded 18/21 for these bytes on 2026-10-15; that benchmark is not a lifecycle evaluator, so it is not counted as qualification evidence here. The tag is a label: the digest is the identity, and the chat router reports when the served digest differs.",
+  },
 
   /* --------------------------------------------------------- coding model --- */
   {
