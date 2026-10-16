@@ -44,7 +44,11 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
 - **Not:** `ayas-live-f2211bcb` sayfa sundukça önbellek yeniden oluşacak. Bu artık bir sonraki açılışta sorun değil.
 
 **Sıradaki:**
-0. 391adfbb'nin canlıya alınması: owner erişimi yeni geri aldığı için ertelendi (geçiş ~1 dk kesinti). Canlıda görünen tek fark model izleme notları.
+0. **Canlıya alındı (owner onayı, 07:19):** `ayas-publish-live.ps1 -Commit 44f0dd7f -Apply`; `ayas-live-f2211bcb` yerine `ayas-live-44f0dd7f` geldi (391adfbb + erişim düzeltmesi).
+   - Build `oszrNToooprsTDqLbkQx4`, Next 16.4.1, 1269 build / 26469 bağımlılık dosyası.
+   - `next start` PID 18440; dış erişim healthy.
+   - Erişim denetçisi Windows kabuğu altında yeni kodla yeniden açıldı; `route-cache` temizliği artık etkin.
+   - Yedek `D:\ÜRETİM\handover\live-publish\20261016-071931-44f0dd7f`; önceki kopya geri dönüş için duruyor.
 1. gemma4:12b indirmesi bitince ölçüm. Daha iyi çıkarsa model değiştirmek için owner onayı alınır.
 2. Model işlemleri için telefondan onay düğmeleri (indir → ölç → değiştir). Owner 15 Ekim'de dahil etti, henüz yazılmadı. Model değişikliği canlı kopyanın `.env.local` dosyasını, model yaşam döngüsü kaydını (gemma3:12b henüz kayıtta yok) ve canlı uygulamanın yeniden başlatılmasını birlikte ilgilendiriyor. Yeni bir `ollama` başlatan modül pinli kapanış haritasına da dokunur. Bu yüzden tasarım kodlamadan önce owner'a sunulacak.
 3. 15 Ekim kaydındaki "Sıradaki" listesi aynen geçerli.
