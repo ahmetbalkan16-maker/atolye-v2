@@ -99,6 +99,12 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**Canlıya alındı (08:11):** `ayas-publish-live.ps1 -Commit 564d0579 -Apply`; `ayas-live-44f0dd7f` yerine `ayas-live-564d0579` geldi.
+- Build `gmPnhJKyNrga-eQIprLe0`, 1269 build / 26469 bağımlılık dosyası.
+- `next start` PID 26460; dış erişim healthy.
+- Model düğmeleri canlı derlemede.
+- Yedek `D:\ÜRETİM\handover\live-publish\20261016-081124-564d0579`; önceki kopya geri dönüş için duruyor.
+
 **Bulunan hata: güncelleme ve model kayıtları git dışında değildi (`91f40580`):**
 - **Etkilenen klasörler:** `data/brain/self-improvement/update-approvals/` (9d6ca4bb), `update-trials/` (f2211bcb) ve bugünkü `model-operations/` `.gitignore`'da yoktu.
 - **Sonuç 1:** Uygulayıcı kilidini `update-trials/` içine yazıyor, sonra kendi kilidini "kirli ağaç" sayıp her işi atlıyordu. Temiz repoda bile `SKIPPED_DIRTY_TREE` veriyordu; yani f2211bcb'den beri hiçbir iş yapamazdı. Henüz hiç onay olmadığı için fark edilmedi.
