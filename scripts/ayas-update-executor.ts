@@ -20,7 +20,6 @@
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
@@ -118,7 +117,8 @@ async function main(): Promise<void> {
     const job = selectAyasUpdateTrialJob({ approvals, trials: trials.load().trials, head });
     if (job.kind === "NONE" && modelJob.kind === "TRIAL") {
       if (dryRun) return report("DRY_RUN", { job: "MODEL_TRIAL", tag: modelJob.decision.tag, status: modelJob.trial?.status ?? "NEW" });
-      const modelsDir = process.env.OLLAMA_MODELS || path.join(os.homedir(), ".ollama", "models");
+      // The studio's model store (new-pc-setup sets OLLAMA_MODELS to it); never a profile path on C.
+      const modelsDir = process.env.OLLAMA_MODELS || path.resolve(root, "..", "..", "models", "ollama", "models");
       const done = await runAyasModelTrial(modelJob.decision, modelJob.trial, {
         store: models, baseUrl: ollama.baseUrl, incumbentModel,
         measure: (model) => runAyasChatModelBenchmark({
