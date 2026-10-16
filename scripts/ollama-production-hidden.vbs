@@ -1,6 +1,6 @@
 ' Ollama for AYAS production: only this process and its children use D temp.
 Option Explicit
-Dim fso, shell, projectDir, productionRoot, tempRoot, executable, service, processes, process, showRequested, launchStyle
+Dim fso, shell, projectDir, productionRoot, tempRoot, executable, service, processes, process, showRequested, launchStyle, launchArgs
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 projectDir = fso.GetParentFolderName(fso.GetParentFolderName(WScript.ScriptFullName))
@@ -19,11 +19,16 @@ shell.Environment("Process")("OLLAMA_NOPRUNE") = "1"
 shell.CurrentDirectory = productionRoot
 showRequested = False
 launchStyle = 0
+' Ollama starts without its window only when it sees it was opened from a
+' Startup shortcut; launched through this script it cannot tell, and opened
+' its chat window at every logon. "hidden" asks for the tray-only start.
+launchArgs = " hidden"
 If WScript.Arguments.Count > 0 Then
   If WScript.Arguments.Count <> 1 Then WScript.Quit 78
   If WScript.Arguments(0) <> "--show" Then WScript.Quit 78
   showRequested = True
   launchStyle = 1
+  launchArgs = ""
 End If
 Set service = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
 Set processes = service.ExecQuery("SELECT ExecutablePath FROM Win32_Process WHERE Name = 'ollama app.exe'")
@@ -32,5 +37,5 @@ For Each process In processes
     If LCase(process.ExecutablePath) = LCase(executable) And Not showRequested Then WScript.Quit 0
   End If
 Next
-shell.Run """" & executable & """", launchStyle, False
+shell.Run """" & executable & """" & launchArgs, launchStyle, False
 WScript.Quit 0

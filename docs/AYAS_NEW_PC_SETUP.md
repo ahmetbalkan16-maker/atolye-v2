@@ -43,7 +43,7 @@ Bu belge bütün AYAS/Atölye paketinin (`D:\ÜRETİM`) yeni bir bilgisayara ta�
    ```
 
    Betik şunları yapar (her adım idempotenttir, tekrar çalıştırmak güvenlidir):
-   - winget ile **tam sürüm** kurulum: Node.js 24.18.0, cloudflared 2026.8.3, Ollama 0.40.3,
+   - winget ile **tam sürüm** kurulum: Node.js 24.18.0, cloudflared 2026.8.3, Ollama 0.40.5,
      Git 2.55.0, FFmpeg 9.0. Node ve cloudflared, telefon erişimi yayınının hash'ine bağlı
      olduğu için kurulumdan sonra hash doğrulanır ve winget'te sabitlenir (otomatik güncelleme
      telefon erişimini bozmasın diye).

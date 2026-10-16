@@ -89,6 +89,15 @@ Bir aday kartında görünür, kart model deposu özetini gösteriyorsa. Onay, o
      yüzden kaybolmuştu.
    - Bedeli: bir etiket daha yeni baytlarla yeniden indirildiğinde eski, kullanılmayan katmanlar
      kendiliğinden silinmez. D'de yer azalırsa elle temizlik gerekir.
+   - Aynı başlatıcı Ollama'yı `hidden` argümanıyla açar: yalnız tepsi simgesi ve sunucu, sohbet
+     penceresi yok. Ollama pencereyi ancak doğrudan Başlangıç kısayolundan açıldığını görürse
+     gizler; başlatıcı araya girdiği için 16 Ekim'e kadar her açılışta pencere açılıyordu.
+     Menüdeki "Ollama" kısayolu `--show` ile pencereyi açar.
+   - Ollama güncellemesinden sonra: kurulum menüdeki "Ollama" kısayolunu doğrudan exe'ye çevirir
+     (Başlangıç kısayoluna dokunmaz) ve Ollama'yı kendisi başlatır. Kurulumun başlattığı süreç
+     `%USERPROFILE%\.ollama` bağlantısını izleyemez ("untrusted mount point"); bu yüzden o süreç
+     kapatılır, menü kısayolu başlatıcıya (`--show`) geri alınır ve Ollama Başlangıç kısayoluyla
+     yeniden açılır.
 3. İnen modelin Ollama'daki özeti onaylanan özetle aynı değilse model ölçülmez.
 4. Ollama başka bir model çalıştırmıyorsa ölçüm başlar. Şu anki model, kurulu baytlarıyla ölçülmemişse
    önce o ölçülür; ardından aday aynı testle ölçülür. Sonuçlar kartın okuduğu dosyaya yazılır.

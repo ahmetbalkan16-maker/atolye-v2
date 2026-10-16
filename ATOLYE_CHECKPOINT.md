@@ -1,3 +1,16 @@
+## 16 Ekim 2026 — Ollama 0.40.5 ve penceresiz açılış
+
+Owner: "Ollama PC açılışında açılıyor, yalnız arka planda çalışsın; güncellemesi bir şey bozmayacaksa yap."
+
+- **Kök neden:** Ollama sohbet penceresini ancak doğrudan Başlangıç kısayolundan açıldığını görürse gizler (`STARTF_TITLEISLINKNAME` + yolda "Startup"). `scripts/ollama-production-hidden.vbs` araya girdiği için bu işaret kayboluyordu; pencere her açılışta geliyordu.
+- **Düzeltme:** başlatıcı varsayılan açılışta `"ollama app.exe" hidden` çalıştırır (Ollama'nın kendi argümanı; bilinmeyen argümanları yok sayar). Menüdeki `--show` değişmedi.
+- **Güncelleme 0.40.3 → 0.40.5:** sürüm notlarında kırıcı değişiklik yok. Ollama'nın kendi indirdiği `OllamaSetup.exe` imzası geçerli (Ollama Inc.), `/VERYSILENT` ile kuruldu; ardından Ollama bekleyen paketi bir kez daha kendisi kurdu (aynı sürüm, zararsız). Kurulum günlüğü `D:\ÜRETİM\private\temp\ollama-update-0.40.5-20261016\install.log`.
+  - Kurulum menüdeki `Ollama.lnk`'yi doğrudan exe'ye çevirdi; başlatıcıya (`--show`) geri alındı. Başlangıç kısayoluna dokunmadı.
+  - Kurulumun başlattığı Ollama `%USERPROFILE%\.ollama` junction'ını izleyemedi ("untrusted mount point") ve sunucusu açılmadı. Kapatılıp Başlangıç kısayoluyla açılınca sorun yok. Prosedür `docs/AYAS_MODEL_COMPARISON.md`'de.
+- **Doğrulama (canlı):** süreç `ollama app.exe hidden`, `MainWindowHandle` 0, açılışta arayüz isteği yok; sunucu 0.40.5, `OLLAMA_NOPRUNE:true`, modeller D'den (6 model, özetler aynı). `qwen2.5:3b` gerçek yanıt "TAMAM", 37/37 katman GPU, sıcak yükleme 2,1 sn. Bekleyen güncelleme 0. Gerçek reboot testi yapılmadı; Başlangıç kısayolu elle tetiklenerek açılış taklit edildi.
+- **Açık nokta:** `AyasLocalCodingPins.ayasLocalCodingHostCandidatePins.engine` hâlâ 0.40.3 exe hash'ini taşıyor. Yalnız elle çalıştırılan `run-ayas-local-coding-container.ts qualify-host` buna bakar (aday `qwen3-coder:30b` 15/15 NOT_QUALIFIED). Yeniden yeterlilik istenirse önce bu pin owner kararıyla 0.40.5'e (`ec9f3325…e57a`, 27 924 872 bayt) çekilmeli; o zamana kadar betik `HOST_ENGINE_BINARY_MISMATCH` ile kapalı kalır. Canlı sohbet, Observer ve model ölçümü exe hash'ine bakmaz.
+- `scripts/new-pc-setup.ps1` ve `docs/AYAS_NEW_PC_SETUP.md` yeni PC için Ollama 0.40.5'e çekildi (winget'te var).
+
 ## 16 Ekim 2026 — önceki oturumun yarım işi: ana kopyanın node_modules eşitlemesi, düşünme kipi; gemma4 indirmesi
 
 Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
