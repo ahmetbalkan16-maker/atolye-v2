@@ -155,6 +155,17 @@ await scenario("thinking-capable candidates are measured with thinking off, like
   for (const tag of ["gemma3:12b", "qwen2.5:7b", "qwen30:1b", "ministral-3:8b", "granite4.2:8b", "xgemma4:1b"]) assert.equal(AYAS_THINKING_MODEL_FAMILY.test(tag), false, tag);
 });
 
+await scenario("a model-switch probe runs only the named frozen cases through the same chat path (think:false on gemma4, none on gemma3)", async () => {
+  const ollama = fakeOllama((question) => GOOD[question] ?? "Bilmiyorum.", ["gemma4:12b", "gemma3:12b"]);
+  const probe = await runAyasChatModelBenchmark({ model: "gemma4:12b", env: ENV, fetcher: ollama.fetcher, caseIds: ["knowledge-capital", "honesty-meal"] });
+  assert.equal(probe.total, 2); assert.deepEqual(probe.cases.map((entry) => entry.id), ["knowledge-capital", "honesty-meal"]); assert.equal(probe.passed, 2);
+  assert.equal(ollama.chats.length, 2 * AYAS_CHAT_MODEL_BENCHMARK_REPEATS);
+  assert.ok(ollama.chats.every((chat) => chat.model === "gemma4:12b" && chat.think === false));
+  await runAyasChatModelBenchmark({ model: "gemma3:12b", env: ENV, fetcher: ollama.fetcher, caseIds: ["knowledge-capital"], repeats: 1 });
+  assert.equal("think" in ollama.chats.at(-1)!, false);
+  await assert.rejects(runAyasChatModelBenchmark({ model: "gemma4:12b", env: ENV, fetcher: ollama.fetcher, caseIds: ["no-such-case"] }), /unknown benchmark case/);
+});
+
 await scenario("a weak model fails with reasons and a missing tag is refused before any case", async () => {
   const weak = fakeOllama((question) => question.includes("başkenti") ? "**İstanbul**" : question.includes("yedim") ? "Makarna yedin." : GOOD[question] ?? "");
   const measured = await runAyasChatModelBenchmark({ model: "good:1b", env: ENV, fetcher: weak.fetcher });

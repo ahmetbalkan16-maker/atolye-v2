@@ -7,6 +7,7 @@ import { buildAyasResearchHealth, buildAyasUpdateRadar, type AyasResearchHealth,
 import { resolveAyasResearchSourceRegistry } from "./AyasResearchSourceRegistry";
 import { createAyasLocalDiscoveryRunLedger, type AyasLocalDiscoveryRunStatus } from "./AyasLocalDiscoveryRunLedger";
 import { loadAyasModelWatchView, type AyasModelWatchView } from "./AyasModelWatch";
+import { loadAyasModelOperationsView, type AyasModelOperationsView } from "./AyasModelOperationStore";
 import { createAyasUpdateApprovalStore, listAyasUpdateApprovals, type AyasUpdateApprovalView } from "./AyasUpdateApprovalStore";
 import { createAyasUpdateTrialStore, listAyasUpdateTrialViews, readAyasObservedHead, type AyasUpdateApplyRecord, type AyasUpdateTrialView } from "./AyasUpdateTrialStore";
 
@@ -90,6 +91,8 @@ export interface AyasResearchEngineStatusView {
   readonly updateApplies?: readonly AyasUpdateApplyRecord[];
   /** Model comparison (2026-10-15): the AYAS chat model against measured and newer local models; absent when unreadable. */
   readonly modelWatch?: AyasModelWatchView;
+  /** The owner's model decisions and their jobs (2026-10-16); absent when unreadable, and the model buttons are hidden. */
+  readonly modelOperations?: AyasModelOperationsView;
 }
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -142,6 +145,7 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
       }
     } catch { updateTrials = undefined; updateApplies = undefined; }
     const modelWatch = loadAyasModelWatchView();
+    const modelOperations = modelWatch ? loadAyasModelOperationsView() : undefined;
 
     const digest: AyasResearchEngineDigest = {
       sourcesRegistered: registry.length,
@@ -194,6 +198,7 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
       ...(updateTrials ? { updateTrials } : {}),
       ...(updateApplies ? { updateApplies } : {}),
       ...(modelWatch ? { modelWatch } : {}),
+      ...(modelOperations ? { modelOperations } : {}),
     };
   } catch (error) {
     return {

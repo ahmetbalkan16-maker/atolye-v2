@@ -46,7 +46,9 @@ export type AyasOwnerAdmissionAction =
   | "proposalOnaylaVeUygula"
   | "ayasOwnerApprovalDecision"
   | "decideAyasUpdateRadar"
-  | "applyAyasUpdate";
+  | "applyAyasUpdate"
+  | "decideAyasModelTrial"
+  | "switchAyasModel";
 
 export type AyasOwnerAdmissionSubject =
   | { readonly kind: "proposal"; readonly proposalId: string; readonly proposalHash: string; readonly decision: "APPROVE" | "REJECT" | "LATER" | "EXECUTE" }
@@ -54,7 +56,11 @@ export type AyasOwnerAdmissionSubject =
   /** An owner decision on one update radar item (tool + exact versions, see AyasUpdateApprovalStore). Consent only, never execution. */
   | { readonly kind: "update-radar"; readonly sourceId: string; readonly itemHash: string; readonly decision: "APPROVE" | "WITHDRAW" }
   /** The owner's "Uygula" on one passed update trial: the one approval for that trial's commit, push and live publish. */
-  | { readonly kind: "update-apply"; readonly trialId: string; readonly trialHash: string; readonly decision: "APPLY" };
+  | { readonly kind: "update-apply"; readonly trialId: string; readonly trialHash: string; readonly decision: "APPLY" }
+  /** "İndir ve ölç" on one watched model, bound to the registry digest the owner saw (see AyasModelOperationStore). */
+  | { readonly kind: "model-trial"; readonly tag: string; readonly registryDigest: string; readonly decision: "APPROVE" | "WITHDRAW" }
+  /** "Bu modele geç": the one approval for switching AYAS chat to this measured model, bound to both measurements. */
+  | { readonly kind: "model-switch"; readonly tag: string; readonly switchHash: string; readonly decision: "SWITCH" };
 
 export interface AyasOwnerAdmission {
   readonly schema: typeof AYAS_OWNER_ADMISSION_SCHEMA;
@@ -84,7 +90,9 @@ export class AyasOwnerAdmissionError extends Error {
   }
 }
 
-const ACTIONS: ReadonlySet<string> = new Set<AyasOwnerAdmissionAction>(["decideAyasApproval", "executeAyasApprovedProposal", "executeAyasApprovedMicroBatch", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision", "decideAyasUpdateRadar", "applyAyasUpdate"]);
+const ACTIONS: ReadonlySet<string> = new Set<AyasOwnerAdmissionAction>(["decideAyasApproval", "executeAyasApprovedProposal", "executeAyasApprovedMicroBatch", "batchOnaylaVeUygula", "proposalOnaylaVeUygula", "ayasOwnerApprovalDecision", "decideAyasUpdateRadar", "applyAyasUpdate", "decideAyasModelTrial", "switchAyasModel"]);
+/** An Ollama library tag such as `gemma4:12b`; the stores also require it to be on the reviewed watch list. */
+const MODEL_TAG = /^[a-z0-9][a-z0-9._-]{0,80}:[a-z0-9][a-z0-9._-]{0,80}$/;
 const PROPOSAL_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "REJECT", "LATER", "EXECUTE"]);
 const BATCH_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "REJECT", "EXECUTE"]);
 const UPDATE_RADAR_DECISIONS: ReadonlySet<string> = new Set(["APPROVE", "WITHDRAW"]);
@@ -115,6 +123,13 @@ function normalizeSubject(subject: AyasOwnerAdmissionSubject): AyasOwnerAdmissio
   }
   if (subject.kind === "update-apply" && nonEmpty(subject.trialId) && typeof subject.trialHash === "string" && HEX64.test(subject.trialHash) && subject.decision === "APPLY") {
     return { kind: "update-apply", trialId: subject.trialId, trialHash: subject.trialHash, decision: "APPLY" };
+  }
+  if (subject.kind === "model-trial" && typeof subject.tag === "string" && MODEL_TAG.test(subject.tag) && typeof subject.registryDigest === "string" && HEX64.test(subject.registryDigest)
+    && (subject.decision === "APPROVE" || subject.decision === "WITHDRAW")) {
+    return { kind: "model-trial", tag: subject.tag, registryDigest: subject.registryDigest, decision: subject.decision };
+  }
+  if (subject.kind === "model-switch" && typeof subject.tag === "string" && MODEL_TAG.test(subject.tag) && typeof subject.switchHash === "string" && HEX64.test(subject.switchHash) && subject.decision === "SWITCH") {
+    return { kind: "model-switch", tag: subject.tag, switchHash: subject.switchHash, decision: "SWITCH" };
   }
   return null;
 }
@@ -249,7 +264,9 @@ export function isAyasOwnerAdmissionActionCompatible(a: AyasOwnerAdmission): boo
   // An update radar decision is its own action and never authorizes a proposal or batch, nor the reverse.
   if (a.subject.kind === "update-radar") return a.action === "decideAyasUpdateRadar";
   if (a.subject.kind === "update-apply") return a.action === "applyAyasUpdate";
-  if (a.action === "decideAyasUpdateRadar" || a.action === "applyAyasUpdate") return false;
+  if (a.subject.kind === "model-trial") return a.action === "decideAyasModelTrial";
+  if (a.subject.kind === "model-switch") return a.action === "switchAyasModel";
+  if (a.action === "decideAyasUpdateRadar" || a.action === "applyAyasUpdate" || a.action === "decideAyasModelTrial" || a.action === "switchAyasModel") return false;
   if (a.subject.kind === "micro-batch") return a.subject.decision === "EXECUTE" ? a.action === "executeAyasApprovedMicroBatch" : a.action === "batchOnaylaVeUygula";
   if (a.subject.decision === "EXECUTE") return a.action === "executeAyasApprovedProposal";
   if (a.action === "decideAyasApproval") return true;
@@ -273,8 +290,8 @@ export function verifyAyasOwnerDecisionSeal(d: OwnerDecision): boolean {
 }
 
 export function checkAyasOwnerExecutionAdmission(d: OwnerDecision, admission: unknown, subject: AyasOwnerAdmissionSubject, at: string, usedActionRefs: ReadonlySet<string>): boolean {
-  // Update decisions are checked by their own store (AyasUpdateApprovalStore); never as a proposal or batch execution.
-  if (subject.kind === "update-radar" || subject.kind === "update-apply") return false;
+  // Update and model decisions are checked by their own stores; never as a proposal or batch execution.
+  if (subject.kind === "update-radar" || subject.kind === "update-apply" || subject.kind === "model-trial" || subject.kind === "model-switch") return false;
   if (!verifyAyasOwnerDecisionSeal(d) || !d.ownerAdmission || d.ownerAdmission.subject.decision !== "APPROVE" || !isAyasOwnerAdmissionShape(admission)) return false;
   const approvalSubject = { ...subject, decision: "APPROVE" } as AyasOwnerAdmissionSubject;
   if (!checkAyasOwnerAdmissionBinding(d.ownerAdmission, { subject: approvalSubject, at: d.decidedAt, usedActionRefs: new Set() }).ok) return false;

@@ -44,6 +44,8 @@ import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelo
 import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { AyasUpdateApprovalError, createAyasUpdateApprovalStore, decideAyasUpdateApply, decideAyasUpdateApproval, type AyasUpdateApprovalDecision } from "@/lib/brain/autonomy/AyasUpdateApprovalStore";
 import { createAyasUpdateTrialStore } from "@/lib/brain/autonomy/AyasUpdateTrialStore";
+import { AyasModelOperationError, createAyasModelOperationStore, decideAyasModelSwitch, decideAyasModelTrial } from "@/lib/brain/autonomy/AyasModelOperationStore";
+import { createAyasModelWatchStore } from "@/lib/brain/autonomy/AyasModelWatch";
 import { AyasSafeModeBlockedError } from "@/lib/ayas/safety/AyasSafeModeReader";
 import { scheduleAyasGoalResearch, createAndScheduleAyasGoalResearch, controlAyasGoalResearchJob } from "@/lib/brain/autonomy/AyasGoalResearchSchedule";
 import { resolveAyasResearchGateRoot } from "@/lib/brain/autonomy/AyasResearchScheduler";
@@ -249,6 +251,45 @@ export async function applyAyasUpdateTrialAction(input: { trialId: string; trial
   } catch (error) {
     const code = error instanceof AyasUpdateApprovalError || error instanceof AyasOwnerAdmissionError || error instanceof AyasSafeModeBlockedError ? error.code : "UPDATE_APPLY_FAILED";
     return { ok: false, code, status: loadAyasResearchEngineStatusView() };
+  }
+}
+
+const modelOperationCode = (error: unknown, fallback: string): string =>
+  error instanceof AyasModelOperationError || error instanceof AyasOwnerAdmissionError || error instanceof AyasSafeModeBlockedError ? error.code : fallback;
+
+/**
+ * "İndir ve ölç" on one watched model, or its withdrawal (owner decisions 2026-10-15 item 4, design approved
+ * 2026-10-16). Records the sealed decision only, bound to the registry digest on the owner's card; the observer's
+ * executor downloads the model and measures it with the frozen benchmark. Configuration is not changed.
+ */
+export async function decideAyasModelTrialAction(input: { tag: string; registryDigest: string; decision: "APPROVE" | "WITHDRAW" }): Promise<AyasUpdateRadarDecisionResult> {
+  await requireBrainSession();
+  try {
+    await decideAyasModelTrial(input, {
+      store: createAyasModelOperationStore(), watch: createAyasModelWatchStore().read(), incumbentModel: resolveAyasChatModelProfile().model,
+      admit: (subject) => requireOwnerApprovalAdmission("decideAyasModelTrial", subject),
+    });
+    return { ok: true, status: loadAyasResearchEngineStatusView() };
+  } catch (error) {
+    return { ok: false, code: modelOperationCode(error, "MODEL_OPERATION_FAILED"), status: loadAyasResearchEngineStatusView() };
+  }
+}
+
+/**
+ * "Bu modele geç": the one approval for switching AYAS chat to a model measured better, bound to both measurements.
+ * Records the decision only; the observer's executor sets AYAS_OLLAMA_MODEL, restarts the live app, checks a few
+ * frozen questions and rolls back on any failure.
+ */
+export async function switchAyasModelAction(input: { tag: string; switchHash: string }): Promise<AyasUpdateRadarDecisionResult> {
+  await requireBrainSession();
+  try {
+    await decideAyasModelSwitch(input, {
+      store: createAyasModelOperationStore(), watch: createAyasModelWatchStore().read(), incumbentModel: resolveAyasChatModelProfile().model,
+      admit: (subject) => requireOwnerApprovalAdmission("switchAyasModel", subject),
+    });
+    return { ok: true, status: loadAyasResearchEngineStatusView() };
+  } catch (error) {
+    return { ok: false, code: modelOperationCode(error, "MODEL_OPERATION_FAILED"), status: loadAyasResearchEngineStatusView() };
   }
 }
 

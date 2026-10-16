@@ -113,5 +113,14 @@ npm run ayas:update-approvals                                               # be
 npx tsx --env-file-if-exists=.env.local scripts/ayas-update-executor.ts --dry-run   # sıradaki iş (çalıştırmaz)
 ```
 
+Aynı uygulayıcı, owner'ın model kararlarını da yürütür ("İndir ve ölç", "Bu modele geç"; ayrıntı:
+`docs/AYAS_MODEL_COMPARISON.md`). Her çalıştırmada tek iş yapılır. Öncelik sırası:
+
+1. bekleyen canlıya alma
+2. Uygula
+3. model geçişi
+4. güncelleme denemesi
+5. model indirme/ölçme dilimi
+
 Uygulayıcı, Observer'ın sürekli çalışan sürecinin başlattığı üçüncü alt süreçtir. Bu yüzden Observer
 yeniden başlayınca (ya da PC açılışında) devreye girer.

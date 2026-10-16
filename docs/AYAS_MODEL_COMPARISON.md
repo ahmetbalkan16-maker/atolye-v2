@@ -2,7 +2,9 @@
 
 AYAS'ın sohbet modeli (`.env.local` içindeki `AYAS_OLLAMA_MODEL`) tahminle değil, ölçümle seçilir.
 Gelişim Merkezi'nde `/brain` → araştırma paneli → **Yapay Zekâ Modeli** bölümü sonucu ve tek bir öneriyi
-gösterir. Hiçbir model kendiliğinden indirilmez veya değiştirilmez.
+gösterir. Hiçbir model kendiliğinden indirilmez veya değiştirilmez. İndirme ve değiştirme, aynı bölümdeki
+**İndir ve ölç** ve **Bu modele geç** düğmeleriyle telefondan onaylanır; AYAS'ın kendi uygulayıcısı yürütür
+(aşağıda "Onaydan sonra").
 
 ## Ne ölçülür
 
@@ -64,16 +66,55 @@ Komut, Ollama'da yüklü bir model varken çalışmaz; AYAS ya da üretim o mode
 `--force` bu denetimi atlar. Komut yalnız `data/brain/self-improvement/model-watch/state.json`
 dosyasına yazar.
 
-## Onaydan sonra
+## Onaydan sonra (telefondan, Claude/Codex olmadan)
 
-- **İndirme (owner onayı):** `ollama pull <aday>`. Ardından
-  `npm run ayas:model-benchmark -- --models <şu anki>,<aday>` aynı testle ölçer. İndirilen modelin özeti,
-  `--registry` ile kaydedilen özetle karşılaştırılabilir.
-- **Değiştirme (owner onayı, geliştirme oturumunda):**
-  1. `AYAS_OLLAMA_MODEL` hem kanonik repodaki hem canlı kopyadaki (`ayas-live-<sha8>`) `.env.local`'de
-     değiştirilir.
-  2. Uygulama yeniden başlatılır.
-  3. Aynı değişken araştırma özetleyicisini (`AyasDeepResearchEngine`) de etkiler, bu yüzden araştırma
-     testleri de çalıştırılır.
-  4. Geri dönüş: eski değer.
-- Kullanılmayan bir model `ollama rm <model>` ile silinir. Bu da owner kararıdır.
+Owner kararları 15 Ekim (madde 4), tasarım onayı 16 Ekim. Her tıklama owner oturumuyla mühürlenmiş tek bir
+kayıttır (`AyasModelOperationStore`, `data/brain/self-improvement/model-operations/`). İşi Observer'ın
+güncelleme uygulayıcısı (`scripts/ayas-update-executor.ts`) her turda en fazla bir iş olarak yapar. Bu yalnız
+makine uygunken ve kod temizken olur.
+
+### İndir ve ölç
+
+Bir aday kartında görünür, kart model deposu özetini gösteriyorsa. Onay, o özete bağlıdır
+(`decideAyasModelTrial`, eylem `decideAyasModelTrial`). `AyasModelTrialRunner` sırasıyla:
+
+1. İlk bayttan önce model deposundaki manifest hâlâ aynı özete sahip olmalı. Model deposunda da modelin
+   boyutu artı 10 GB boş yer olmalı. Değilse hiçbir şey indirilmez. Özet değiştiyse kart yeni sürümü
+   gösterir ve yeniden onaylanabilir.
+2. Yerel Ollama (`POST /api/pull`, yalnız loopback) her turda en fazla 20 dakika indirir. Ollama yarım
+   indirmeyi tutar; sonraki tur kaldığı yerden sürer. Üst üste 5 hata denemeyi bitirir.
+3. İnen modelin Ollama'daki özeti onaylanan özetle aynı değilse model ölçülmez.
+4. Ollama başka bir model çalıştırmıyorsa ölçüm başlar. Şu anki model, kurulu baytlarıyla ölçülmemişse
+   önce o ölçülür; ardından aday aynı testle ölçülür. Sonuçlar kartın okuduğu dosyaya yazılır.
+
+Ayarlara ve canlı uygulamaya dokunulmaz. Onay geri alınırsa uygulayıcı durur; inmiş kısım Ollama'da kalır.
+
+### Bu modele geç
+
+Yalnız şu anki modelden daha iyi ölçülen bir modelin kartında görünür. Onay, iki ölçüme birlikte bağlıdır
+(`ayasModelSwitchHash`, eylem `switchAyasModel`); ölçümlerden biri değişirse yeniden onay gerekir.
+`AyasModelSwitchRunner` sırasıyla:
+
+1. Karar hâlâ geçerli olmalı: şu anki model, değiştirilen modelle aynı; ölçümler aynı; aday hâlâ daha iyi.
+2. İki `.env.local` dosyası değiştirilecek modeli göstermeli: canlı kopyanınki (canlı uygulama açılışta
+   okur, sonraki yayın da kopyalar) ve kanonik repodaki (Observer ve ölçüm okur). Her ikisinde yalnız
+   `AYAS_OLLAMA_MODEL` satırı değişir; diğer satırlar bayt bayt korunur.
+3. Canlı uygulama `scripts/ayas-publish-live.ps1 -Restart` ile yeniden başlar. Bu, yayının durdur →
+   denetçiyi başlat → sağlık bekle adımlarıdır; hiçbir şey derlenmez ya da değiştirilmez. Canlı uygulamada
+   çalışan bir iş varsa dosyalar eski hâline döner ve geçiş ertelenir (en fazla 12 tur).
+4. Adayın ölçümde geçtiği bilgi, hesap ve dürüstlük sorularından birer tanesi yeni modelle AYAS'ın sohbet
+   yolundan sorulur.
+
+Yeniden başlatma ya da bu test geçmezse iki dosya önceki baytlarına döner ve uygulama yeniden başlar
+(ROLLED_BACK). Önceki baytlar yalnız bellekte tutulur, çünkü dosyalar gizli bilgi içerir. Geri dönüş de
+sağlıklı olmazsa durum RECOVERY_REQUIRED olur ve elle incelenir. Yarıda kalan bir geçiş, dosyalar
+değişmemişse yeniden denenir; değişmişse elle incelenir. Geçiş git'e commit'lenmez, çalışma ayarıdır. Eski
+model diskte kalır; ona dönmek için aynı kart kullanılır, ancak o model yeniden "daha iyi" ölçülürse.
+
+`AYAS_OLLAMA_MODEL` araştırma özetleyicisini (`AyasDeepResearchEngine`) de etkiler: sonraki araştırma
+turundan itibaren o da yeni modeli kullanır. Sorun çıkarsa Gelişim Merkezi'ndeki Araştırma Sağlığı bunu
+gösterir.
+
+- Kullanılmayan bir model `ollama rm <model>` ile silinir. Bu da owner kararıdır ve bugün telefondan
+  yapılamaz.
+- Elle ölçüm için yukarıdaki komutlar aynen çalışır.

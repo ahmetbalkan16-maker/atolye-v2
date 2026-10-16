@@ -190,14 +190,19 @@ const SURFACES: Readonly<Record<string, Surface>> = {
   // Owner decisions 2026-10-15 (EVAL v63): "dene, sonra uygula". Same allowance as the resume worker below: it only
   // carries out what the owner's sealed decision already approved. A trial is validation in a separate worktree
   // (OWNER_LEASE); an "Uygula" is the dependency-update lane of the guarded publication plus the live publish.
+  // Owner model operations (2026-10-16, EVAL v64): "İndir ve ölç" downloads one watched model, bound to the registry
+  // digest the owner approved, through the loopback Ollama and measures it with the frozen benchmark (OWNER_LEASE);
+  // "Bu modele geç" sets AYAS_OLLAMA_MODEL and restarts the live app through the trial runner's command runner, then
+  // asks a few frozen questions on the loopback model (LOCAL_MODEL), rolling back on failure.
   "scripts/ayas-update-executor.ts": {
-    what: "the observer's update executor child: one owner-approved update job per run (a trial, or the owner's Uygula)", agent: true,
-    allowed: ["OWNER_LEASE", "OWNER_PUBLICATION", "READ_ONLY_PROBE"],
-    // The guarded publication's import closure is the resume worker's; the two new modules are the executor's own.
+    what: "the observer's update executor child: one owner-approved job per run (an update trial or Uygula, a model download and measurement, or a model switch)", agent: true,
+    allowed: ["OWNER_LEASE", "OWNER_PUBLICATION", "READ_ONLY_PROBE", "LOCAL_MODEL"],
+    // The guarded publication's import closure is the resume worker's; the runners below are the executor's own.
     modules: {
-      "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE", "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE", ...SELF_DEVELOPMENT, ...PUBLICATION,
+      "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE", "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE", ...SELF_DEVELOPMENT, ...PUBLICATION, ...LOCAL_MODELS,
       "src/lib/brain/autonomy/AyasUpdateTrialRunner.ts": "OWNER_LEASE",
       "src/lib/brain/autonomy/AyasUpdateApplyRunner.ts": "OWNER_PUBLICATION",
+      "src/lib/brain/autonomy/AyasModelTrialRunner.ts": "OWNER_LEASE",
     },
   },
   "scripts/ayas-owner-approval-resume.ts": {

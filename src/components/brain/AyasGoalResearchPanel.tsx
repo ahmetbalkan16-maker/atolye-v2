@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { applyAyasUpdateTrialAction, createAndScheduleAyasGoalResearchAction, controlAyasGoalResearchAction, decideAyasUpdateRadarAction } from "../../../app/brain/actions";
+import { applyAyasUpdateTrialAction, createAndScheduleAyasGoalResearchAction, controlAyasGoalResearchAction, decideAyasModelTrialAction, decideAyasUpdateRadarAction, switchAyasModelAction } from "../../../app/brain/actions";
 import { refreshAyasResearchEngineStatus } from "../../../app/brain/observerActions";
 
 import type { AyasGoalDevelopmentView, AyasGoalDevelopmentEntry } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { AyasGoalStatus } from "@/lib/brain/autonomy/AyasGoalStore";
 import type { AyasExternalResearchFinding } from "@/lib/brain/autonomy/AyasExternalResearchStore";
 import type { AyasResearchEngineStatusView, AyasResearchEngineSourceView, AyasResearchEngineSourceStatus } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
-import type { AyasModelCandidateView, AyasModelWatchView, AyasMeasuredModelView } from "@/lib/brain/autonomy/AyasModelWatch";
+import type { AyasModelCandidateView, AyasMeasuredModelView } from "@/lib/brain/autonomy/AyasModelWatch";
+import type { AyasModelOperationsView, AyasModelSwitchRecord, AyasModelTrialRecord } from "@/lib/brain/autonomy/AyasModelOperationStore";
 import type { AyasUpdateRadarItem } from "@/lib/brain/autonomy/AyasUpdateRadar";
 import type { AyasUpdateApprovalView } from "@/lib/brain/autonomy/AyasUpdateApprovalStore";
 import type { AyasUpdateApplyRecord, AyasUpdateTrialView } from "@/lib/brain/autonomy/AyasUpdateTrialStore";
@@ -18,9 +19,10 @@ import type { AyasUpdateApplyRecord, AyasUpdateTrialView } from "@/lib/brain/aut
  * capability research. No execute buttons here by design: a goal or a
  * research finding is never itself an authority surface (AyasGoalStore has
  * no execute/approve/gate method at all — see its own smoke test). The only
- * owner controls are goal research scheduling and the update radar's
- * decisions (AyasUpdateApprovalStore: "Onayla ve dene", "Uygula"), which only
- * record; the observer's update executor carries them out. Any candidate that reaches
+ * owner controls are goal research scheduling, the update radar's
+ * decisions (AyasUpdateApprovalStore: "Onayla ve dene", "Uygula") and the
+ * model decisions (AyasModelOperationStore: "İndir ve ölç", "Bu modele geç"),
+ * which only record; the observer's update executor carries them out. Any candidate that reaches
  * MICRO_SAFE/PRIORITY_SAFE still goes through the EXISTING
  * BatchOnaylaVeUygula / ProposalOnaylaVeUygula controls elsewhere on this
  * same page — this panel is the "what is AYAS working toward and what did
@@ -375,7 +377,92 @@ const categoryLabel: Record<keyof AyasMeasuredModelView["byCategory"], string> =
 };
 const formatGb = (bytes: number) => `${(bytes / 1e9).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} GB`;
 
-function MeasuredModelCard({ entry }: { readonly entry: AyasMeasuredModelView }) {
+const MODEL_OPERATION_REASON: Readonly<Record<string, string>> = {
+  MODEL_OPERATION_NOT_A_CANDIDATE: "Bu model izlenen adaylardan biri değil ya da zaten kullanılıyor.",
+  MODEL_TRIAL_REGISTRY_UNKNOWN: "Bu model için model deposu bilgisi yok; karar kaydedilmedi.",
+  MODEL_TRIAL_REGISTRY_CHANGED: "Model deposundaki sürüm değişmiş; sayfayı yenileyip yeniden onaylayın.",
+  MODEL_TRIAL_ALREADY_APPROVED: "Bu model için zaten onay var.",
+  MODEL_TRIAL_NOT_APPROVED: "Geri alınacak bir onay yok.",
+  MODEL_OPERATION_DECISION_CHANGED: "Aynı anda başka bir karar kaydedildi; güncel durumu kontrol edin.",
+  MODEL_SWITCH_NOT_BETTER: "Ölçümlere göre bu model artık daha iyi değil; karar kaydedilmedi.",
+  MODEL_SWITCH_CHANGED: "Ölçümler değişti; sayfayı yenileyip yeniden karar verin.",
+  MODEL_SWITCH_ALREADY_DECIDED: "Bu geçiş zaten kaydedildi.",
+  MODEL_SWITCH_BUSY: "Başka bir model geçişi sürüyor; bitince yeniden deneyin.",
+  MODEL_OPERATION_ADMISSION_REJECTED: "Owner doğrulaması bu kararı kabul etmedi; yeniden giriş yapıp tekrar deneyin.",
+  OWNER_ADMISSION_REQUIRED: "Doğrulanmış owner oturumu gerekiyor; yeniden giriş yapın.",
+  OWNER_ADMISSION_GATE_UNAVAILABLE: "Owner doğrulaması bu sunucuda kullanılamıyor; karar kaydedilmedi.",
+  AYAS_SAFE_READ_ONLY: "AYAS güvenli salt okunur kipte; karar kaydedilmedi.",
+  AYAS_SAFE_MODE_UNAVAILABLE: "Güvenli kip durumu okunamadı; karar kaydedilmedi.",
+};
+const SWITCH_STATUS_LABEL: Readonly<Record<AyasModelSwitchRecord["status"], string>> = {
+  RUNNING: "sürüyor", DEFERRED: "bekliyor (canlı uygulamada çalışan bir iş vardı)", SWITCHED: "tamamlandı", ROLLED_BACK: "geri dönüldü",
+  REFUSED: "yapılmadı", FAILED: "başarısız", ABANDONED: "yarıda kaldı, yeniden denenecek", RECOVERY_REQUIRED: "elle inceleme gerekiyor",
+};
+
+/** One owner click with a "what will happen" confirmation, like the update radar's controls. */
+function ConfirmButton({ label, confirmLabel, explanation, onConfirm }: {
+  readonly label: string; readonly confirmLabel: string; readonly explanation: string; readonly onConfirm: () => Promise<string | undefined>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const confirm = async () => {
+    setBusy(true); setMessage("");
+    try {
+      const code = await onConfirm();
+      if (code) setMessage(MODEL_OPERATION_REASON[code] ?? "Karar kaydedilemedi.");
+      else setConfirming(false);
+    } catch { setMessage("Karar kaydedilemedi."); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div>
+      {!confirming ? <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(true)}>{label}</button> : (
+        <div className="bc-dev__notice bc-dev__notice--warn" role="group" aria-label={label}>
+          <strong>Onaylarsam ne olacak?</strong>
+          <p>{explanation}</p>
+          <button type="button" className="bc-btn" disabled={busy} onClick={confirm}>{busy ? "KAYDEDİLİYOR…" : confirmLabel}</button>
+          <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(false)}>Vazgeç</button>
+        </div>
+      )}
+      {message ? <p role="status">{message}</p> : null}
+    </div>
+  );
+}
+
+function ModelTrialState({ trial }: { readonly trial: AyasModelTrialRecord | undefined }) {
+  if (!trial) return <p>Sırada: AYAS, makine uygun ve kod temizken Observer&apos;ın bir sonraki turunda indirmeye başlayacak.</p>;
+  const note = trial.lastError ? ` (${trial.lastError})` : "";
+  if (trial.status === "PULLING") {
+    const share = trial.totalBytes ? Math.floor(((trial.completedBytes ?? 0) / trial.totalBytes) * 100) : undefined;
+    return <p>İndiriliyor{share !== undefined ? `: %${share} (${formatGb(trial.completedBytes ?? 0)} / ${formatGb(trial.totalBytes!)})` : ""}. Her turda en fazla 20 dakika indirilir, sonraki turda kaldığı yerden sürer.{note}</p>;
+  }
+  if (trial.status === "MEASURING") return <p>İndirildi ve sürümü doğrulandı; aynı 21 soruluk testle ölçülüyor.{note}</p>;
+  if (trial.status === "MEASURED") return <p>Ölçüldü: {trial.measured ? `${trial.measured.total} sorudan ${trial.measured.passed}${trial.measured.verdict ? ` (${trial.measured.incumbentModel} modeline göre ${verdictLabel[trial.measured.verdict]})` : ""}` : ""}.</p>;
+  return <div className="bc-dev__notice bc-dev__notice--danger"><strong>Yapılamadı</strong><p>{trial.failureReason} Ayarlara ve canlıya dokunulmadı.</p></div>;
+}
+
+function ModelSwitchState({ record }: { readonly record: AyasModelSwitchRecord | undefined }) {
+  if (!record) return <p>Sırada: AYAS bir sonraki turunda modeli değiştirecek. Telefon erişimi yaklaşık bir dakika kesilir.</p>;
+  const tone = record.status === "SWITCHED" ? "bc-dev__notice--safe" : record.status === "RECOVERY_REQUIRED" || record.status === "FAILED" ? "bc-dev__notice--danger" : "bc-dev__notice--warn";
+  return (
+    <div className={`bc-dev__notice ${tone}`} data-testid="ayas-model-switch-state">
+      <strong>Model geçişi {record.fromModel} → {record.tag}: {SWITCH_STATUS_LABEL[record.status]}</strong>
+      <p>{formatAyasScheduleTime(record.finishedAt ?? record.startedAt)}{record.attempts > 1 ? ` · ${record.attempts}. deneme` : ""}</p>
+      {record.reasons?.length ? <ul>{record.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : null}
+      {record.steps.length ? <details><summary>Adımlar</summary><ul>{record.steps.map((entry, index) => <li key={`${entry.name}-${index}`}>{entry.ok ? "✓" : "✗"} {entry.name}: {entry.summary}</li>)}</ul></details> : null}
+    </div>
+  );
+}
+
+function MeasuredModelCard({ entry, incumbentModel, operations, onSwitch }: {
+  readonly entry: AyasMeasuredModelView;
+  readonly incumbentModel: string;
+  readonly operations: AyasModelOperationsView | undefined;
+  readonly onSwitch: (input: { tag: string; switchHash: string }) => Promise<string | undefined>;
+}) {
+  const decided = entry.switchHash ? operations?.switchDecisions.find((decision) => decision.switchHash === entry.switchHash) : undefined;
+  const record = decided ? operations?.switches.find((job) => job.decisionId === decided.decisionId) : undefined;
   return (
     <article className="bc-dev__proposal" data-testid={`ayas-model-measured-${entry.model}`}>
       <header className="bc-dev__proposal-head">
@@ -390,31 +477,82 @@ function MeasuredModelCard({ entry }: { readonly entry: AyasMeasuredModelView })
         {entry.reasons.length ? <div><dt>Not</dt><dd>{entry.reasons.join("; ")}</dd></div> : null}
       </dl>
       {entry.failedCases.length ? <details><summary>Geçemediği sorular ({entry.failedCases.length})</summary><ul>{entry.failedCases.map((failure) => <li key={failure.id}>{failure.id} ({failure.attempts} denemede {failure.passes}): {failure.reason}</li>)}</ul></details> : null}
+      {entry.switchHash && operations ? (decided ? <ModelSwitchState record={record} /> : (
+        <ConfirmButton
+          label="Bu modele geç"
+          confirmLabel="Evet, bu modele geç"
+          explanation={`AYAS'ın sohbet modeli ${incumbentModel} yerine ${entry.model} olur. Canlı uygulama yeniden başlar; telefon erişimi yaklaşık bir dakika kesilir. Ardından birkaç test sorusu yeni modelle sorulur. Sağlık denetimi ya da bu test geçmezse eski modele kendiliğinden dönülür. Canlı uygulamada çalışan bir iş varsa AYAS onun bitmesini bekler.`}
+          onConfirm={() => onSwitch({ tag: entry.model, switchHash: entry.switchHash! })}
+        />
+      )) : null}
     </article>
   );
 }
 
+function ModelCandidateItem({ candidate, incumbentModel, operations, onTrial }: {
+  readonly candidate: AyasModelCandidateView;
+  readonly incumbentModel: string;
+  readonly operations: AyasModelOperationsView | undefined;
+  readonly onTrial: (input: { tag: string; registryDigest: string; decision: "APPROVE" | "WITHDRAW" }) => Promise<string | undefined>;
+}) {
+  const approval = operations?.trialApprovals.find((entry) => entry.tag === candidate.tag);
+  const trial = approval ? operations?.trials.find((entry) => entry.decisionId === approval.decisionId) : undefined;
+  const size = candidate.totalBytes ? ` (${formatGb(candidate.totalBytes)})` : "";
+  const download = candidate.status === "NOT_INSTALLED";
+  return (
+    <li data-testid={`ayas-model-candidate-${candidate.tag}`}>
+      <strong>{candidate.tag}</strong> ({candidate.publisher}, {candidate.license}) · {candidateStatusLabel[candidate.status]}
+      {candidate.totalBytes ? ` · ${formatGb(candidate.totalBytes)}` : ""} · {fitLabel[candidate.fit]} — {candidate.note}
+      {!operations ? null : approval ? (
+        <div className="bc-dev__facts">
+          <ModelTrialState trial={trial} />
+          {trial?.status === "MEASURED" ? null : <ConfirmButton label="Onayı geri al" confirmLabel="Evet, geri al" explanation="AYAS bu model için indirmeyi ve ölçümü durdurur. İnmiş kısım Ollama'da kalır; yeniden onaylarsan kaldığı yerden sürer." onConfirm={() => onTrial({ tag: candidate.tag, registryDigest: approval.registryDigest, decision: "WITHDRAW" })} />}
+        </div>
+      ) : candidate.status === "MEASURED" ? null : candidate.registryDigest ? (
+        <ConfirmButton
+          label={download ? "İndir ve ölç" : "Ölç"}
+          confirmLabel={download ? "Evet, indir ve ölç" : "Evet, ölç"}
+          explanation={`${download ? `${candidate.tag}${size} D'deki model deposuna indirilir; indirme her turda en fazla 20 dakika sürer ve kaldığı yerden devam eder. İnen modelin sürümü onayladığın sürümle karşılaştırılır. Sonra` : `${candidate.tag} kurulu;`} ${incumbentModel} ile aynı 21 soruluk testle ölçülür. Canlı uygulamaya ve ayarlara dokunulmaz; daha iyi çıkarsa kartında "Bu modele geç" görünür.${candidate.fit === "SPILLS" ? " Not: bu model ekran kartına tam sığmıyor, yavaş çalışabilir." : ""}`}
+          onConfirm={() => onTrial({ tag: candidate.tag, registryDigest: candidate.registryDigest!, decision: "APPROVE" })}
+        />
+      ) : <p>Model deposu bilgisi yok; önce depo kontrolü yapılmalı.</p>}
+    </li>
+  );
+}
+
 /**
- * Model comparison (owner request 2026-10-15), read-only: the AYAS chat model, the measured alternatives and newer
- * candidates. Downloading or switching a model is an owner decision carried out in a development session.
+ * Model comparison (owner request 2026-10-15) with the owner's model operations (2026-10-16): the AYAS chat model,
+ * the measured alternatives and newer candidates. "İndir ve ölç" and "Bu modele geç" only record a sealed decision
+ * (AyasModelOperationStore); the observer's executor carries them out. Nothing runs from this component.
  */
-function ModelWatchSection({ watch }: { readonly watch: AyasModelWatchView | undefined }) {
+function ModelWatchSection({ status }: { readonly status: AyasResearchEngineStatusView }) {
+  const [current, setCurrent] = useState(status);
+  const watch = current.modelWatch;
   if (!watch) return null;
+  const operations = current.modelOperations;
+  const onTrial = async (input: { tag: string; registryDigest: string; decision: "APPROVE" | "WITHDRAW" }) => {
+    const result = await decideAyasModelTrialAction(input);
+    setCurrent(result.status);
+    return result.ok ? undefined : result.code ?? "MODEL_OPERATION_FAILED";
+  };
+  const onSwitch = async (input: { tag: string; switchHash: string }) => {
+    const result = await switchAyasModelAction(input);
+    setCurrent(result.status);
+    return result.ok ? undefined : result.code ?? "MODEL_OPERATION_FAILED";
+  };
   const decide = watch.recommendation.kind === "SWITCH" || watch.recommendation.kind === "DOWNLOAD_TO_MEASURE";
+  const lastSwitch = operations?.switches[0];
   return (
     <section className="bc-dev__section" aria-labelledby="ayas-model-watch" data-testid="ayas-model-watch">
       <h3 id="ayas-model-watch">Yapay Zekâ Modeli <span>{watch.incumbentModel}</span></h3>
-      <p>AYAS&apos;ın sohbet modeli, aynı donmuş Türkçe testle ({watch.benchmarkId}; her soru üç kez sorulur, çoğunlukla geçer) yeni çıkan yerel modellerle karşılaştırılır. Hiçbir model kendiliğinden indirilmez veya değiştirilmez.</p>
+      <p>AYAS&apos;ın sohbet modeli, aynı donmuş Türkçe testle ({watch.benchmarkId}; her soru üç kez sorulur, çoğunlukla geçer) yeni çıkan yerel modellerle karşılaştırılır. Hiçbir model kendiliğinden indirilmez veya değiştirilmez: &quot;İndir ve ölç&quot; ve &quot;Bu modele geç&quot; yalnız senin onayınla, AYAS&apos;ın kendi uygulayıcısıyla yapılır.</p>
+      {!operations ? <p className="bc-empty">Model işlemleri durumu okunamadı; düğmeler gizlendi.</p> : null}
       <div className={`bc-dev__notice ${decide ? "bc-dev__notice--warn" : "bc-dev__notice--safe"}`} data-testid="ayas-model-recommendation"><strong>Öneri</strong><p>{watch.recommendation.text}</p></div>
-      {watch.measured.map((entry) => <MeasuredModelCard key={entry.model} entry={entry} />)}
-      <details>
+      {lastSwitch && !watch.measured.some((entry) => entry.switchHash && operations?.switchDecisions.some((decision) => decision.switchHash === entry.switchHash && decision.decisionId === lastSwitch.decisionId)) ? <ModelSwitchState record={lastSwitch} /> : null}
+      {watch.measured.map((entry) => <MeasuredModelCard key={entry.model} entry={entry} incumbentModel={watch.incumbentModel} operations={operations} onSwitch={onSwitch} />)}
+      <details open={Boolean(operations?.trialApprovals.length) || watch.recommendation.kind === "DOWNLOAD_TO_MEASURE"}>
         <summary>İzlenen yeni modeller ({watch.candidates.length})</summary>
-        <ul>{watch.candidates.map((candidate) => (
-          <li key={candidate.tag} data-testid={`ayas-model-candidate-${candidate.tag}`}>
-            <strong>{candidate.tag}</strong> ({candidate.publisher}, {candidate.license}) · {candidateStatusLabel[candidate.status]}
-            {candidate.totalBytes ? ` · ${formatGb(candidate.totalBytes)}` : ""} · {fitLabel[candidate.fit]} — {candidate.note}
-          </li>
-        ))}</ul>
+        <ul>{watch.candidates.map((candidate) => <ModelCandidateItem key={candidate.tag} candidate={candidate} incumbentModel={watch.incumbentModel} operations={operations} onTrial={onTrial} />)}</ul>
       </details>
       <dl className="bc-dev__facts">
         <div><dt>Son ölçüm</dt><dd>{formatAyasScheduleTime(watch.lastMeasuredAt)}</dd></div>
@@ -527,7 +665,7 @@ export function AyasGoalResearchPanel({ view, researchEngineStatus }: { readonly
       {researchEngineStatus ? <ResearchEngineStatusSection status={researchEngineStatus} /> : null}
       {researchEngineStatus ? <ResearchHealthSection status={researchEngineStatus} /> : null}
       {researchEngineStatus ? <UpdateRadarSection status={researchEngineStatus} /> : null}
-      {researchEngineStatus?.connected ? <ModelWatchSection watch={researchEngineStatus.modelWatch} /> : null}
+      {researchEngineStatus?.connected ? <ModelWatchSection status={researchEngineStatus} /> : null}
       {researchEngineStatus?.connected ? <GoalResearchScheduleControls status={researchEngineStatus} /> : null}
       {researchEngineStatus ? <ResearchSourcesSection status={researchEngineStatus} /> : null}
       <section className="bc-dev__section" aria-labelledby="ayas-goals-active"><h3 id="ayas-goals-active">Aktif Hedefler <span>{view.goals.filter((g) => g.status !== "COMPLETED" && g.status !== "CANCELLED").length}</span></h3>

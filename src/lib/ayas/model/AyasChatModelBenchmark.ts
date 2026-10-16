@@ -224,9 +224,16 @@ export async function runAyasChatModelBenchmark(input: {
   readonly probeHardware?: (model: string) => Promise<AyasChatModelHardware | undefined>;
   /** Test seam; the frozen protocol is AYAS_CHAT_MODEL_BENCHMARK_REPEATS. */
   readonly repeats?: number;
+  /**
+   * Only these frozen cases (the model-switch check after a live restart). A subset result is a probe: it is never
+   * stored as the model's measurement.
+   */
+  readonly caseIds?: readonly string[];
 }): Promise<AyasChatModelBenchmarkResult> {
   const repeats = input.repeats ?? AYAS_CHAT_MODEL_BENCHMARK_REPEATS;
   if (!Number.isInteger(repeats) || repeats < 1 || repeats > 9) throw new Error(`invalid repeats: ${repeats}`);
+  const selected = input.caseIds ? CASES.filter((benchmarkCase) => input.caseIds!.includes(benchmarkCase.id)) : CASES;
+  if (!selected.length || (input.caseIds && selected.length !== new Set(input.caseIds).size)) throw new Error("unknown benchmark case");
   const env: NodeJS.ProcessEnv = { ...(input.env ?? process.env), AYAS_OLLAMA_MODEL: input.model, AYAS_CONVERSATION_V2: "1" };
   const fetcher = input.fetcher ?? fetch;
   const now = input.now ?? (() => new Date());
@@ -241,7 +248,7 @@ export async function runAyasChatModelBenchmark(input: {
   const cases: AyasChatModelCaseResult[] = [];
   const attemptLatenciesMs: number[] = [];
   let spokenTurkishPassed = 0;
-  for (const benchmarkCase of CASES) {
+  for (const benchmarkCase of selected) {
     const built = buildAyasNaturalConversation({
       userText: benchmarkCase.userText, history: benchmarkCase.history ?? [], context: {}, memoryLines: [],
       ceiling: provider.contextWindowTokens ?? null, outputReserve: AYAS_MAX_REPLY_TOKENS,

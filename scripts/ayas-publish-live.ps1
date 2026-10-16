@@ -25,9 +25,13 @@
   previous snapshot is started again. Old snapshots and backups are kept.
   It never edits runtime/authority/project data, never builds the canonical
   repo and refuses while the live app has a running child job.
+  -Restart: the current snapshot again, after a runtime input changed (the
+  owner's model switch writes AYAS_OLLAMA_MODEL into its .env.local): the same
+  stop, supervisor start and health wait, nothing built or swapped. Exit 3
+  while the live app has a running child job, 1 when it is not healthy in time.
   ASCII-only on purpose (Windows PowerShell 5.1 reads BOM-less files as ANSI).
 #>
-param([string]$Commit = 'HEAD', [switch]$Prepare, [switch]$Apply, [switch]$Force, [int]$HealthTimeoutSeconds = 240)
+param([string]$Commit = 'HEAD', [switch]$Prepare, [switch]$Apply, [switch]$Force, [switch]$Restart, [int]$HealthTimeoutSeconds = 240)
 $ErrorActionPreference = 'Stop'
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -173,6 +177,19 @@ $publication = Read-Json $publicationFile
 if ([string]$publication.workspaceRoot -cne $repo) { throw "Betigi $($publication.workspaceRoot)\scripts icinden calistirin (su an: $repo)." }
 $current = [IO.Path]::GetFullPath([string]$publication.applicationRoot).TrimEnd('\')
 $liveHead = [string](Read-Json $manifestFile).buildHead
+
+if ($Restart) {
+  Say 'BILGI' "Mod: YENIDEN BASLAT (ayni snapshot): $current ($liveHead)"
+  $busy = Get-BusyChildren @(Get-CimInstance Win32_Process) $current
+  if ($busy.Count -gt 0) { Say 'SORUN' "Canli uygulamada calisan bir is var ($(($busy | ForEach-Object { $_.Name }) -join ', ')); yeniden baslatilmadi."; exit 3 }
+  $started = Get-Date
+  Stop-LiveProcesses
+  Start-Supervisor
+  $result = Wait-Healthy $current $started
+  if ($result.ok) { Say 'TAMAM' "Yeniden baslatildi: $current (PID $($result.listenerPid), dis erisim: $($result.publicHealth))"; return }
+  Say 'SORUN' "Yeniden baslatilan uygulama $HealthTimeoutSeconds sn icinde saglikli olmadi; $recoveryFile ve $accessDir\logs inceleyin."
+  exit 1
+}
 
 Say 'BILGI' ('Mod: ' + $(if ($Apply) { 'UYGULA (hazirla + gecis)' } elseif ($Prepare) { 'HAZIRLA (canli uygulamaya dokunmaz)' } else { 'KURU CALISMA (degisiklik yok; -Prepare veya -Apply)' }))
 Say 'BILGI' "Canli: $current ($liveHead)"

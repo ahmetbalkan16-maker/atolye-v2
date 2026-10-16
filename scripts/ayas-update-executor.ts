@@ -8,22 +8,34 @@
  *   - LIVE_PUBLISH: a committed and pushed update whose live copy is not yet published (bounded attempts).
  *   - APPLY: an owner "Uygula" on a passed trial: commit + push through the guarded dependency-update lane, Graphify
  *     closure, then the live publish (AyasUpdateApplyRunner; CLAUDE.md standing exception for this click).
+ *   - MODEL_SWITCH: an owner "Bu modele geç": AYAS_OLLAMA_MODEL in both .env.local files, a live restart and a short
+ *     chat check, rolled back on failure (AyasModelSwitchRunner). No Git change.
  *   - TRIAL: the oldest owner-approved npm update without a trial on this HEAD is installed and checked in a separate
  *     worktree (AyasUpdateTrialRunner). The canonical tree, its node_modules and the live copy are not written.
+ *   - MODEL_TRIAL: an owner "İndir ve ölç": one bounded download slice from the loopback Ollama, then the frozen
+ *     benchmark once the approved bytes are in place (AyasModelTrialRunner). No configuration change.
  * Nothing runs without an owner approval whose seal verifies under AYAS_ACCESS_KEY (hence .env.local), nothing runs in
  * SAFE_READ_ONLY, and one executor at a time holds data/brain/self-improvement/update-trials/executor.lock. Prints one
  * JSON line; exits 0 unless something unexpected throws.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
+import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
 import { resolveAccessGate } from "../src/lib/auth/accessGate";
+import { resolveAyasChatModelProfile } from "../src/lib/ayas/AyasModelProfile";
+import { runAyasChatModelBenchmark } from "../src/lib/ayas/model/AyasChatModelBenchmark";
 import { ayasSafeModeHold } from "../src/lib/ayas/safety/AyasSafeModeReader";
+import { createAyasModelOperationStore, selectAyasModelJob } from "../src/lib/brain/autonomy/AyasModelOperationStore";
+import { reconcileAyasModelSwitchOrphan, runAyasModelSwitch } from "../src/lib/brain/autonomy/AyasModelSwitchRunner";
+import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
 import { reconcileAyasUpdateApplyOrphan, runAyasUpdateApply, runAyasUpdateLivePublish } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
 import { createAyasUpdateApprovalStore, listAyasUpdateApplyDecisions, listAyasUpdateApprovals } from "../src/lib/brain/autonomy/AyasUpdateApprovalStore";
 import { resolveAyasUpdateTrialRoots, runAyasUpdateTrial } from "../src/lib/brain/autonomy/AyasUpdateTrialRunner";
 import { createAyasUpdateTrialStore, selectAyasUpdateApplyJob, selectAyasUpdateTrialJob } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
+import { probeAyasModelHardware } from "./lib/AyasModelHardwareProbe";
 
 const root = process.cwd();
 const dryRun = process.argv.includes("--dry-run");
@@ -72,6 +84,8 @@ async function main(): Promise<void> {
       if (trial.status === "RUNNING") trials.upsert({ ...trial, status: "ABANDONED", finishedAt: new Date().toISOString(), failureReason: "deneme yarıda kesildi (süreç sonlandı)" });
     }
     for (const apply of trials.load().applies ?? []) if (apply.status === "RUNNING") reconcileAyasUpdateApplyOrphan(apply, { repoRoot: root, store: trials });
+    const models = createAyasModelOperationStore();
+    for (const entry of models.loadJobs().switches) if (entry.status === "RUNNING") reconcileAyasModelSwitchOrphan(entry, { repoRoot: root, store: models });
     if (git(["status", "--porcelain"]).length) return report("SKIPPED_DIRTY_TREE");
     const head = git(["rev-parse", "HEAD"]);
     const approvalState = createAyasUpdateApprovalStore().load();
@@ -87,8 +101,38 @@ async function main(): Promise<void> {
       return report("APPLY_" + done.status, { applyId: done.applyId, sourceId: done.sourceId, targetVersion: done.targetVersion, commit: done.commitSha?.slice(0, 8), live: done.live?.status, reasons: done.reasons });
     }
 
+    // Model operations: the same owner-sealed decisions, carried out with the AYAS chat path and the loopback Ollama.
+    const ollama = resolveOllamaConfig(process.env);
+    const incumbentModel = resolveAyasChatModelProfile(process.env).model;
+    const modelJob = selectAyasModelJob({ decisions: models.loadDecisions(), jobs: models.loadJobs() });
+    if (modelJob.kind === "SWITCH") {
+      if (dryRun) return report("DRY_RUN", { job: "MODEL_SWITCH", tag: modelJob.decision.tag, from: modelJob.decision.fromModel });
+      const done = await runAyasModelSwitch(modelJob.decision, modelJob.previous, {
+        repoRoot: root, store: models, incumbentModel,
+        probe: (model, caseIds) => runAyasChatModelBenchmark({ model, env: process.env, caseIds }),
+      });
+      return report("MODEL_SWITCH_" + done.status, { tag: done.tag, from: done.fromModel, attempts: done.attempts, reasons: done.reasons });
+    }
+
     const approvals = listAyasUpdateApprovals({ decisions: approvalState.decisions, radar: [], repoRoot: root });
     const job = selectAyasUpdateTrialJob({ approvals, trials: trials.load().trials, head });
+    if (job.kind === "NONE" && modelJob.kind === "TRIAL") {
+      if (dryRun) return report("DRY_RUN", { job: "MODEL_TRIAL", tag: modelJob.decision.tag, status: modelJob.trial?.status ?? "NEW" });
+      const modelsDir = process.env.OLLAMA_MODELS || path.join(os.homedir(), ".ollama", "models");
+      const done = await runAyasModelTrial(modelJob.decision, modelJob.trial, {
+        store: models, baseUrl: ollama.baseUrl, incumbentModel,
+        measure: (model) => runAyasChatModelBenchmark({
+          model, env: process.env,
+          probeHardware: (tag) => probeAyasModelHardware({ fetcher: fetch, baseUrl: ollama.baseUrl, model: tag, timeoutMs: ollama.timeoutMs }),
+        }),
+        freeBytes: () => { try { const stat = fs.statfsSync(modelsDir); return stat.bavail * stat.bsize; } catch { return undefined; } },
+      });
+      return report("MODEL_TRIAL_" + done.status, {
+        tag: done.tag, slices: done.slices, ...(done.totalBytes ? { progress: `${Math.floor(((done.completedBytes ?? 0) / done.totalBytes) * 100)}%` } : {}),
+        ...(done.measured ? { measured: `${done.measured.passed}/${done.measured.total}`, verdict: done.measured.verdict } : {}),
+        ...(done.failureReason ? { reason: done.failureReason } : done.lastError ? { note: done.lastError } : {}),
+      });
+    }
     if (job.kind === "NONE") return report("IDLE", { reason: job.reason });
     if (dryRun) return report("DRY_RUN", { job: job.kind, reason: job.reason, sourceId: job.approval.sourceId, targetVersion: job.approval.targetVersion, head });
 

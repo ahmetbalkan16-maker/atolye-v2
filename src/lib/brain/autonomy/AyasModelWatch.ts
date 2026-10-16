@@ -14,7 +14,8 @@ import type { AyasChatModelBenchmarkResult } from "../../ayas/model/AyasChatMode
  * - What the owner-run `scripts/ayas-model-benchmark.ts` recorded: registry sizes and digests of the candidates,
  *   the installed models, the GPU, and the frozen benchmark (`AyasChatModelBenchmark`) per installed model.
  * - A read-only view with one recommendation. Downloading a model and changing `AYAS_OLLAMA_MODEL` both stay owner
- *   decisions carried out in a development session; nothing here downloads, switches or writes configuration.
+ *   decisions: the owner's clicks ("İndir ve ölç", "Bu modele geç") are recorded by AyasModelOperationStore and
+ *   carried out by the observer's executor. Nothing here downloads, switches or writes configuration.
  */
 
 /**
@@ -114,9 +115,31 @@ export function compareAyasChatModels(incumbent: AyasChatModelBenchmarkResult, c
   return { verdict: delta <= -MIN_BETTER_CASES ? "WORSE" : "SIMILAR", reasons: Object.freeze(reasons) };
 }
 
+const canonicalJson = (value: unknown): string => Array.isArray(value) ? `[${value.map(canonicalJson).join(",")}]`
+  : value && typeof value === "object" ? `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`).join(",")}}`
+    : JSON.stringify(value);
+
+/**
+ * What a "Bu modele geç" click binds to: the candidate's and the current model's measured results (bytes, frozen set,
+ * score, time). A new measurement of either, or another current model, changes it and needs a new click.
+ */
+export function ayasModelSwitchHash(input: { readonly candidate: AyasChatModelBenchmarkResult; readonly incumbentModel: string; readonly incumbent: AyasChatModelBenchmarkResult }): string {
+  const bind = (result: AyasChatModelBenchmarkResult) => ({ model: result.model, digest: result.digest, benchmarkId: result.benchmarkId, passed: result.passed, total: result.total, measuredAt: result.measuredAt });
+  return crypto.createHash("sha256").update(canonicalJson({ candidate: bind(input.candidate), incumbentModel: input.incumbentModel, incumbent: bind(input.incumbent) }), "utf8").digest("hex");
+}
+
+/** The current results of a model under the frozen set: measured on the bytes still installed under its tag. */
+export function currentAyasModelResult(state: AyasModelWatchState | undefined, model: string): AyasChatModelBenchmarkResult | undefined {
+  const result = state?.results[model];
+  const installed = state?.installed.find((entry) => entry.name === model);
+  return result && result.benchmarkId === AYAS_CHAT_MODEL_BENCHMARK_ID && installed?.digest === result.digest ? result : undefined;
+}
+
 export interface AyasMeasuredModelView {
   readonly model: string;
   readonly isIncumbent: boolean;
+  /** Present only on a candidate measured better than the current model: what "Bu modele geç" binds to. */
+  readonly switchHash?: string;
   readonly passed: number;
   readonly total: number;
   readonly byCategory: AyasChatModelBenchmarkResult["byCategory"];
@@ -134,6 +157,8 @@ export type AyasModelFit = "FITS" | "SPILLS" | "UNKNOWN";
 export interface AyasModelCandidateView extends AyasModelWatchCandidate {
   readonly status: AyasModelCandidateStatus;
   readonly totalBytes?: number;
+  /** The registry manifest digest last read for the tag: what "İndir ve ölç" binds to. Absent until the registry was read. */
+  readonly registryDigest?: string;
   readonly fit: AyasModelFit;
   readonly checkedAt?: string;
 }
@@ -161,16 +186,15 @@ export function buildAyasModelWatchView(input: { readonly state: AyasModelWatchS
   const state = input.state;
   const installed = new Map((state?.installed ?? []).map((model) => [model.name, model]));
   // A result counts only for the frozen set it was measured on and for the bytes still installed under the tag.
-  const current = (model: string): AyasChatModelBenchmarkResult | undefined => {
-    const result = state?.results[model];
-    return result && result.benchmarkId === AYAS_CHAT_MODEL_BENCHMARK_ID && installed.get(model)?.digest === result.digest ? result : undefined;
-  };
+  const current = (model: string): AyasChatModelBenchmarkResult | undefined => currentAyasModelResult(state, model);
   const incumbentResult = current(input.incumbentModel);
   const toView = (result: AyasChatModelBenchmarkResult): AyasMeasuredModelView => {
     const isIncumbent = result.model === input.incumbentModel;
     const comparison = incumbentResult && !isIncumbent ? compareAyasChatModels(incumbentResult, result) : undefined;
     return {
-      model: result.model, isIncumbent, passed: result.passed, total: result.total, byCategory: result.byCategory, latencyMedianMs: result.latencyMedianMs,
+      model: result.model, isIncumbent,
+      ...(comparison?.verdict === "BETTER" && incumbentResult ? { switchHash: ayasModelSwitchHash({ candidate: result, incumbentModel: input.incumbentModel, incumbent: incumbentResult }) } : {}),
+      passed: result.passed, total: result.total, byCategory: result.byCategory, latencyMedianMs: result.latencyMedianMs,
       ...(result.hardware ? { gpuShare: result.hardware.gpuShare } : {}), measuredAt: result.measuredAt,
       ...(comparison ? { verdict: comparison.verdict } : {}), reasons: comparison?.reasons ?? [],
       failedCases: result.cases.filter((entry) => !entry.pass).map((entry) => ({ id: entry.id, reason: entry.reason ?? "", passes: entry.passes, attempts: entry.attempts })),
@@ -191,7 +215,7 @@ export function buildAyasModelWatchView(input: { readonly state: AyasModelWatchS
       : !totalBytes || !gpuTotal ? "UNKNOWN" : totalBytes * loadRatio <= gpuTotal ? "FITS" : "SPILLS";
     return {
       ...candidate, status,
-      ...(totalBytes ? { totalBytes } : {}), fit, ...(observation ? { checkedAt: observation.checkedAt } : {}),
+      ...(totalBytes ? { totalBytes } : {}), ...(observation ? { registryDigest: observation.digest } : {}), fit, ...(observation ? { checkedAt: observation.checkedAt } : {}),
     };
   }).sort((a, b) => a.priority - b.priority);
 
@@ -203,7 +227,7 @@ export function buildAyasModelWatchView(input: { readonly state: AyasModelWatchS
   const recommendation: AyasModelWatchView["recommendation"] = !incumbentView
     ? { kind: "MEASURE_INCUMBENT", model: input.incumbentModel, text: `Önce şu anki model ${input.incumbentModel} ölçülmeli; karşılaştırma onunla yapılır.` }
     : better
-      ? { kind: "SWITCH", model: better.model, text: `${better.model}, ${better.total} sorudan ${better.passed}'ini geçti (${input.incumbentModel}: ${score}). Onaylarsan AYAS'ın modeli bir geliştirme oturumunda değiştirilir ve yayınlanır.` }
+      ? { kind: "SWITCH", model: better.model, text: `${better.model}, ${better.total} sorudan ${better.passed}'ini geçti (${input.incumbentModel}: ${score}). "Bu modele geç" ile değiştirebilirsin; canlı uygulama yeniden başlar ve sorun çıkarsa eski modele döner.` }
       : unmeasured
         ? { kind: "MEASURE_INSTALLED", model: unmeasured.tag, text: `${unmeasured.tag} kurulu ama henüz ölçülmedi; aynı testle ölçülmeli.` }
         : download
