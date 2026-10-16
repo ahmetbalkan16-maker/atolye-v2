@@ -22,6 +22,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { deflateSync } from "node:zlib";
 import { AssetManager } from "../src/lib/assets/AssetManager";
+import { estimateNarrationSeconds } from "../src/lib/ai/NarrationDurationEstimator";
 import { AudioStorage } from "../src/lib/assets/storage/AudioStorage";
 import { ImageStorage } from "../src/lib/assets/storage/ImageStorage";
 import { ThumbnailStorage } from "../src/lib/thumbnail/ThumbnailStorage";
@@ -49,6 +50,13 @@ const slug = ProjectManager.createSlug(topic);
 const now = new Date().toISOString();
 const CHAPTER_DUR = 16;
 const CHAPTERS = [1, 2, 3];
+/**
+ * Must narrate for about CHAPTER_DUR seconds: the strict script path derives each chapter's (and so each scene
+ * clip's) duration from the narration text (NarrationDurationEstimator, ~14 chars/s), while the fixture TTS below
+ * returns exactly CHAPTER_DUR seconds. A shorter text renders short clips that the assembly coverage guard rightly
+ * refuses (VIDEO_DURATION_COVERAGE_FAILED, as the earlier ~7s text did).
+ */
+const narration = (id: number) => `Roma tarihinin ${id}. bolumunde lejyonlar sinirlara dogru ilerliyor, sehir her yil biraz daha buyuyor, senato yeni yasalar tartisiyor, tuccarlar limanlari dolduruyor ve imparatorluk yavas yavas bugun bilinen guclu sekline kavusuyor.`;
 
 function crc32(data: Buffer) {
   let crc = 0xffffffff;
@@ -100,7 +108,7 @@ class AI implements AIProvider {
     if (prompt.includes("documentary research assistant"))
       return JSON.stringify({ topic, summary: "Roma yukselisi deterministik arastirma metni.", historicalContext: "MO 8. yuzyil", timeline: ["MO 753: kurulus", "MO 509: cumhuriyet"], characters: ["Romulus", "Sezar"], locations: ["Roma", "Forum"], keyEvents: ["Kurulus", "Fetihler"], strategies: ["Lejyon duzeni"], controversies: [], interestingFacts: ["Yedi tepe"], documentaryFlow: ["Kurulus", "Cumhuriyet", "Imparatorluk"], sceneIdeas: ["Forum", "Lejyon"], imagePrompts: ["Roma forumu", "lejyon"], animationPrompts: ["yavas yaklasma"], musicIdeas: ["epik"], soundEffects: ["kalabalik"], thumbnailIdeas: ["Roma"], youtubeTitles: ["Roma'nin Yukselisi"], sources: ["fixture"], createdAt: now });
     if (prompt.includes("documentary script writer"))
-      return JSON.stringify({ topic, title: "Roma'nin Yukselisi", subtitle: "Bir imparatorlugun dogusu", hook: "Her sey yedi tepede basladi.", introduction: "Roma kuruldu ve buyudu.", chapters: CHAPTERS.map((id) => ({ id, title: `Bolum ${id}`, narration: `Roma tarihinin ${id}. bolumunde lejyonlar ilerliyor, sehir buyuyor ve imparatorluk sekilleniyor.`, duration: CHAPTER_DUR, visualGoal: "Roma forumu ve lejyonlar", emotion: "epik", transition: id === 1 ? "cut" : id === 2 ? "fade" : "crossfade" })), conclusion: "Roma bir imparatorluk oldu.", callToAction: "Takip edin.", estimatedDuration: CHAPTER_DUR * CHAPTERS.length, narrationWordCount: 45, targetAudience: "genel", language: "tr", voiceStyle: "documentary", musicStyle: "epic", thumbnailIdea: "Roma", seoKeywords: ["roma imparatorlugu", "roma tarihi"], createdAt: now });
+      return JSON.stringify({ topic, title: "Roma'nin Yukselisi", subtitle: "Bir imparatorlugun dogusu", hook: "Her sey yedi tepede basladi.", introduction: "Roma kuruldu ve buyudu.", chapters: CHAPTERS.map((id) => ({ id, title: `Bolum ${id}`, narration: narration(id), duration: CHAPTER_DUR, visualGoal: "Roma forumu ve lejyonlar", emotion: "epik", transition: id === 1 ? "cut" : id === 2 ? "fade" : "crossfade" })), conclusion: "Roma bir imparatorluk oldu.", callToAction: "Takip edin.", estimatedDuration: CHAPTER_DUR * CHAPTERS.length, narrationWordCount: 45, targetAudience: "genel", language: "tr", voiceStyle: "documentary", musicStyle: "epic", thumbnailIdea: "Roma", seoKeywords: ["roma imparatorlugu", "roma tarihi"], createdAt: now });
     if (prompt.includes("documentary scene planner"))
       return JSON.stringify({ scenes: CHAPTERS.map((id) => ({ id, title: `Bolum ${id}`, description: `Roma sahnesi ${id}`, visualPrompt: `Roma forumu, lejyonlar, sahne ${id}, sinematik`, duration: CHAPTER_DUR })), createdAt: now });
     return "";
@@ -149,6 +157,11 @@ class YT implements YouTubeProvider {
 }
 
 async function main() {
+  // Pure fixture check, runs even without FFmpeg so a drifted text fails here instead of deep inside assembly.
+  for (const id of CHAPTERS) {
+    const seconds = estimateNarrationSeconds(narration(id));
+    assert.ok(Math.abs(seconds - CHAPTER_DUR) < 0.5, `fixture narration ${id} narrates ~${seconds.toFixed(1)}s, expected ~${CHAPTER_DUR}s`);
+  }
   if (!ffmpegPath || !ffprobePath || !fsSync.existsSync(ffmpegPath) || !fsSync.existsSync(ffprobePath)) {
     process.stdout.write(
       "SKIP: FFMPEG_PATH / FFPROBE_PATH unset or pointing at missing binaries — real FFmpeg is a " +

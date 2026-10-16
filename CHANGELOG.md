@@ -1,3 +1,10 @@
+## 2026-10-16 — Design reviews reach the owner; honest e2e fixtures and validator
+
+- Research/evolution design-review proposals (`research-adaptation-plan:v1`, `evolution-opportunity-plan:v1`, listed in the new dependency-free `AyasDesignReviewKinds.ts`) are no longer deferred for "no registered mutationKind": a SAFE, approval-ready one stays PENDING as a never-executable recommendation and shows a record-only ONAYLA in Gelişim Merkezi. No execution, registry or approval gate changed.
+- Gelişim Merkezi: "Bugün" skips a STALE copy that a newer proposal for the same files replaced (history unchanged); design reviews say approval records a decision only, and an approved one shows no YÜRÜT.
+- `createAyasSmokeTestValidator` no longer counts a self-skipped suite (PASS with 0 scenarios) as a pass.
+- `smoke-character-animation-e2e-pipeline` and `smoke-isolated-e2e-live-pipeline-ffmpeg`: fixture narration now matches the 16 s chapters (it narrated ~7 s, so assembly's coverage guard refused it). The character suite uses the real local Piper voice, since V3 character assembly aligns real speech with Whisper, and skips with a stated reason when FFmpeg, Piper, Whisper or an ASCII temp dir is missing.
+
 ## 2026-10-15 — Owner maintenance window and new-PC portability
 
 - EVAL manifest 15F.4-v62: `smoke-ayas-golden-sandbox-run` gives each golden case the same 120 s budget production uses (was 60 s; the retrieval case needs ~60 s here). Owner-approved; only that pin changed, v61 archived byte-identical.

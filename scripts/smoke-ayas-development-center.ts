@@ -211,6 +211,33 @@ async function main() {
     assert.match(html, /typecheck-project: PASS/);
     assert.match(html, /scripts\/smoke-ayas-error-code-contract-widget\.ts/);
   });
+  // 2026-10-16: design-review proposals reach the owner as record-only decisions.
+  const designReview = (overrides: Partial<AyasInboxProposalRead> = {}) => proposal({ proposalId: "design-review", mutationKind: "research-adaptation-plan:v1", exactFiles: ["docs/brain/proposals/research-finding-1.md"], ...overrides });
+  await scenario("a pending design review offers a record-only ONAYLA, never ONAYLA VE UYGULA", () => {
+    const html = htmlFor(state([designReview()]));
+    assert.match(html, /TASARIM İNCELEMESİ/); assert.match(html, />ONAYLA</); assert.doesNotMatch(html, /ONAYLA VE UYGULA/);
+    assert.doesNotMatch(htmlFor(state([proposal()])), /TASARIM İNCELEMESİ/);
+    const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8");
+    assert.match(src, /Yürütme yetkisi oluşmaz/);
+  });
+  await scenario("an approved design review shows the recorded decision instead of YÜRÜT", () => {
+    for (const mutationKind of ["research-adaptation-plan:v1", "evolution-opportunity-plan:v1"]) {
+      const html = htmlFor(state([designReview({ status: "APPROVED", mutationKind })]));
+      assert.match(html, /kararın kaydedildi/); assert.doesNotMatch(html, />YÜRÜT</);
+    }
+  });
+  await scenario("Bugün lists a re-created proposal once; history keeps every record", () => {
+    const later = "2026-09-15T12:30:00.000Z";
+    const files = ["docs/brain/proposals/research-finding-1.md"];
+    const view = buildAyasApprovalInboxView(state([
+      designReview({ proposalId: "old", status: "STALE", exactFiles: files }),
+      designReview({ proposalId: "other", status: "STALE", exactFiles: ["docs/brain/proposals/research-finding-2.md"] }),
+      designReview({ proposalId: "new", createdAt: later, lastUpdatedAt: later, exactFiles: files }),
+    ]), "2026-09-15T13:00:00.000Z");
+    assert.deepEqual(view.today.map((item) => item.proposalId), ["new", "other"]);
+    assert.deepEqual(view.history.map((item) => item.proposalId).sort(), ["new", "old", "other"]);
+    assert.deepEqual(view.pending.map((item) => item.proposalId), ["new"]);
+  });
   console.log(`AYAS Gelişim Merkezi smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-development-center", scenarios: count }));
 }

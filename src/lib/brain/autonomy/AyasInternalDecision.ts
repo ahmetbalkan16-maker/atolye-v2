@@ -32,6 +32,7 @@ import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
 import { isAyasProposalApprovalReady, missingAyasApprovalExplanation, type AyasInboxProposal } from "./AyasApprovalInboxStore";
 import { evaluateAyasImpactPolicy } from "./AyasProposalImpact";
 import { isAyasMutationKindRegistered } from "./AyasMutationRegistry";
+import { isAyasDesignReviewMutationKind } from "./AyasDesignReviewKinds";
 
 export type AyasInternalDecisionKind = "REJECT" | "DEFER" | "RECOMMEND_FOR_APPROVAL";
 
@@ -51,6 +52,11 @@ function textOf(proposal: AyasInboxProposal, field: keyof AyasInboxProposal): st
   return typeof value === "string" ? value : "";
 }
 
+function namesUnresolvedLicense(proposal: AyasInboxProposal): boolean {
+  const licenseFields = [textOf(proposal, "currentProblem"), textOf(proposal, "riskIfNotDone"), textOf(proposal, "technicalRisk"), textOf(proposal, "productionImpact"), ...proposal.evidence];
+  return licenseFields.some((text) => LICENSE_UNRESOLVED_PATTERN.test(text));
+}
+
 /**
  * `mutationKind` is required for anything to ever become execution-eligible
  * (see `AyasMutationRegistry` — an unregistered kind throws before any
@@ -63,11 +69,23 @@ function hasNoExecutionPath(proposal: AyasInboxProposal): boolean {
   return !proposal.mutationKind || !proposal.mutationKind.trim() || !isAyasMutationKindRegistered(proposal.mutationKind);
 }
 
+/**
+ * A design-review proposal (`AyasDesignReviewKinds`) exists for the owner to
+ * read; its kind is unregistered on purpose, so it has no execution path by
+ * design and "no execution path yet" is never a reason to defer it. Should a
+ * kind ever be registered, it stops counting as record-only and takes the
+ * ordinary path again.
+ */
+function isRecordOnlyDesignReview(proposal: AyasInboxProposal): boolean {
+  return isAyasDesignReviewMutationKind(proposal.mutationKind) && !isAyasMutationKindRegistered(proposal.mutationKind!);
+}
+
 export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasInternalDecisionResult {
   const domain = classifyPatchSet(proposal.exactFiles);
   const exactReviewVerified = domain.level === "REVIEW_REQUIRED" && verifyAyasExactProposalSafety(proposal);
   const effectiveSafe = domain.level === "SAFE" || exactReviewVerified;
-  const executable = proposal.safetyClassification === "SAFE" && effectiveSafe;
+  const designReview = isRecordOnlyDesignReview(proposal);
+  const executable = !designReview && proposal.safetyClassification === "SAFE" && effectiveSafe;
   const safeReason = exactReviewVerified ? "verified exact patch and classification, evidence present, no unresolved concern found"
     : "SAFE domain and classification, evidence present, no unresolved concern found";
 
@@ -88,7 +106,7 @@ export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasI
     return { decision: "REJECT", reasons: ["expected benefit is missing or too weak to justify the change"], executable };
   }
 
-  if (hasNoExecutionPath(proposal)) {
+  if (!designReview && hasNoExecutionPath(proposal)) {
     return { decision: "DEFER", reasons: ["no registered mutationKind — no execution path exists yet for this candidate"], executable: false };
   }
 
@@ -99,6 +117,23 @@ export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasI
 
   if (proposal.evidence.length === 0 || proposal.graphifyEvidence.length === 0) {
     return { decision: "DEFER", reasons: ["insufficient evidence — evidence and/or graphifyEvidence is empty"], executable };
+  }
+
+  // Design review (owner request 2026-10-16): deferring one only ever hid it —
+  // every STALE rediscovery restarted the 24h defer, so it never reached the
+  // owner. A SAFE, approval-ready design review stays PENDING as a
+  // never-executable recommendation; impact, licensing and cost concerns are
+  // about executing a change, so they travel along as context for the owner
+  // instead of deferring a record that executes nothing.
+  if (designReview) {
+    if (proposal.safetyClassification === "SAFE" && effectiveSafe && isAyasProposalApprovalReady(proposal)) {
+      const context = [
+        ...(proposal.structuredImpact ? evaluateAyasImpactPolicy(proposal.structuredImpact).reasons : []),
+        ...(namesUnresolvedLicense(proposal) ? ["unresolved licensing concern named in the proposal's own text"] : []),
+      ];
+      return { decision: "RECOMMEND_FOR_APPROVAL", reasons: ["design review only — the owner's decision is recorded; the mutation kind is unregistered, so nothing executes", ...context], executable: false };
+    }
+    return { decision: "DEFER", reasons: ["design review is not SAFE and approval-ready — not shown to the owner"], executable: false };
   }
 
   // Structured impact metadata (Step 2/3 of the owner-approval-model
@@ -123,8 +158,7 @@ export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasI
       };
     }
   } else {
-    const licenseFields = [textOf(proposal, "currentProblem"), textOf(proposal, "riskIfNotDone"), textOf(proposal, "technicalRisk"), textOf(proposal, "productionImpact"), ...proposal.evidence];
-    if (licenseFields.some((text) => LICENSE_UNRESOLVED_PATTERN.test(text))) {
+    if (namesUnresolvedLicense(proposal)) {
       return { decision: "DEFER", reasons: ["unresolved licensing concern named in the proposal's own text"], executable };
     }
 

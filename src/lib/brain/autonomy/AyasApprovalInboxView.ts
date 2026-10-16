@@ -169,11 +169,18 @@ export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, no
   // proposal shown here as "pending" is always one that layer will actually
   // accept an APPROVE/REJECT for.
   const pending = all.filter((proposal) => proposal.status === "PENDING" || (proposal.status === "DEFERRED" && isAyasDeferredEligibleNow(proposal.nextEligibleAt, now))).slice(0, 20);
-  const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();
+  // A STALE record that a newer proposal for the very same files already
+  // replaced is the same attempt again, not another one (2026-10-16: every
+  // commit re-created each research proposal, so "Bugün" listed one title 3-4
+  // times). It stays in `history`; only this daily list skips it.
+  const currentDay = istanbulDay(now);
+  const createdToday = all.filter((proposal) => istanbulDay(proposal.createdAt) === currentDay);
+  const sameFiles = (a: AyasDevelopmentProposal, b: AyasDevelopmentProposal) => a.exactFiles.length > 0 && a.exactFiles.length === b.exactFiles.length && a.exactFiles.every((file) => b.exactFiles.includes(file));
+  const replaced = (proposal: AyasDevelopmentProposal) => proposal.status === "STALE" && createdToday.some((other) => other.proposalId !== proposal.proposalId && Date.parse(other.createdAt) > Date.parse(proposal.createdAt) && sameFiles(other, proposal));
+  const today = createdToday.filter((proposal) => !replaced(proposal)).slice(-40).reverse();
   // Durable history stays untouched. This is only the main-screen projection:
   // today's decisions/results remain visible, while an older terminal record
   // drops out unless it still needs owner/action recovery.
-  const currentDay = istanbulDay(now);
   const history = all.filter((proposal) => istanbulDay(proposal.createdAt) === currentDay || DAILY_VIEW_ACTION_REQUIRED_STATUSES.has(proposal.status)).slice(-100).reverse();
   return { connected: true, pending, today, history };
 }

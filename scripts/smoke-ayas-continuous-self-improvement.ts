@@ -105,7 +105,9 @@ function main() {
     const inbox = createAyasApprovalInboxStore({ rootDir: temp("ayas-research-inbox-") });
     const [proposal] = createAyasAutonomyDaemon({ inbox }).discover(observation, candidates); assert.ok(proposal);
     assert.equal(proposal.status, "PENDING"); assert.equal(proposal.discoverySource, "RESEARCH_DEEP");
-    assert.equal(evaluateAyasInternalDecision(proposal).decision, "DEFER");
+    // A design review reaches the owner (2026-10-16) but still carries no executable authority.
+    const decision = evaluateAyasInternalDecision(proposal);
+    assert.equal(decision.decision, "RECOMMEND_FOR_APPROVAL"); assert.equal(decision.executable, false);
     assert.equal(discoverAyasResearchProposalCandidates(research.list(), inbox.load().proposals).length, 0);
   });
 

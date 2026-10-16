@@ -23,7 +23,7 @@ function freezeFixtureArtifact(rootDir: string, overrides: Partial<Omit<AyasPatc
     baseHead: "abc123",
     exactFiles: ["scripts/smoke-fixture.ts"],
     allowedRoots: ["scripts/"],
-    replacements: [{ filePath: "scripts/smoke-fixture.ts", expectedHash: null, content: 'console.log(JSON.stringify({ status: "PASS", suite: "fixture", scenarios: 0 }));\n', allowCreate: true }],
+    replacements: [{ filePath: "scripts/smoke-fixture.ts", expectedHash: null, content: 'console.log(JSON.stringify({ status: "PASS", suite: "fixture", scenarios: 1 }));\n', allowCreate: true }],
     validatorScripts: ["scripts/smoke-fixture.ts"],
     graphifyEvidence: ["fixture evidence"],
     safetyClassification: "SAFE",

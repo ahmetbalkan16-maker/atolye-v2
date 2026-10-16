@@ -2,29 +2,39 @@
  * Isolated end-to-end coverage of the stick-figure animation mode through the
  * FULL live pipeline entry point (`PipelineRunner.run` — exactly what
  * `POST /api/pipeline` invokes), DURABLE execution enabled, REAL FFmpeg for the
- * scene-video and final assembly stages, and the real `CharacterImageProvider`
- * for the visuals stage. Text, audio, thumbnail and YouTube use deterministic
- * fixture providers (no model, no paid call). Derived from
+ * scene-video and final assembly stages, the real `CharacterImageProvider`
+ * for the visuals stage and the real local Piper voice for audio: since
+ * 2026-10-13 a character scene (`NARRATION_DIRECTION_V3`) is assembled only
+ * after local Whisper aligns real speech to its sentences, so a synthetic tone
+ * can never pass. Text, thumbnail and YouTube use deterministic fixture
+ * providers (no model, no paid call). Derived from
  * `smoke-isolated-e2e-live-pipeline-ffmpeg.ts`.
  *
  * Proves that every scene is a labelled, $0 stick-figure reenactment, that the
  * scene videos really move (frames differ inside one scene), and that all 12
- * stages complete into a 1920x1080 h264/aac MP4 of the expected length.
+ * stages complete into a 1920x1080 h264/aac MP4 as long as the measured narration.
  * `SMOKE_CHARACTER_E2E_FRAMES_DIR` (optional) receives a few PNG frames of the
  * final video for a human look.
  *
- * SKIPS (exit 0, PASS 0) when FFMPEG_PATH / FFPROBE_PATH are unset or point at
- * missing binaries — real FFmpeg is a host dependency.
+ * SKIPS (exit 0, PASS 0) when FFMPEG_PATH / FFPROBE_PATH, the Piper voice
+ * (PIPER_EXECUTABLE / PIPER_VOICE_MODEL, default bin/piper) or local Whisper
+ * (AYAS_WHISPER_EXECUTABLE / AYAS_WHISPER_MODEL) are missing, or the temp dir
+ * is not ASCII — all host preconditions. A skip is not validation evidence
+ * (AyasMutationValidators).
  */
 import assert from "node:assert/strict";
 import fsSync from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { deflateSync } from "node:zlib";
 import { AssetManager } from "../src/lib/assets/AssetManager";
-import { AudioStorage } from "../src/lib/assets/storage/AudioStorage";
 import { CharacterImageProvider } from "../src/lib/assets/providers/CharacterImageProvider";
 import { readCharacterScenePayload } from "../src/lib/animation/character/CharacterSceneAsset";
+import { estimateNarrationSeconds } from "../src/lib/ai/NarrationDurationEstimator";
+import { getPiperAudioProviderConfig } from "../src/lib/audio/providers/AudioProviderConfig";
+import { PiperAudioProvider } from "../src/lib/audio/providers/PiperAudioProvider";
+import { resolveAyasSttConfig } from "../src/lib/ayas/stt/AyasSttConfig";
 import { ThumbnailStorage } from "../src/lib/thumbnail/ThumbnailStorage";
 import { createMockThumbnailData } from "../src/lib/thumbnail/providers/MockThumbnailProvider";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
@@ -36,7 +46,7 @@ import { withCanonicalSmokeRuntime, type CanonicalSmokeRuntime } from "./lib/Can
 import { emitSmokeResult } from "./lib/SmokeResult";
 import { resolveRuntimeLogicalPath } from "../src/lib/runtime/RuntimeStoragePaths";
 import type { AIProvider } from "../src/lib/ai/providers";
-import type { AudioProvider } from "../src/lib/audio/providers/AudioProvider";
+import type { AudioData } from "../src/types/audio";
 import type { ThumbnailProvider } from "../src/lib/thumbnail/providers/ThumbnailProvider";
 import type { YouTubeProvider } from "../src/lib/youtube/providers/YouTubeProvider";
 
@@ -55,6 +65,14 @@ const slug = ProjectManager.createSlug(topic);
 const now = new Date().toISOString();
 const CHAPTER_DUR = 16;
 const CHAPTERS = [1, 2, 3];
+/**
+ * Must narrate for about CHAPTER_DUR seconds: the strict script path derives each chapter's (and so each scene
+ * clip's) duration from the narration text (NarrationDurationEstimator, ~14 chars/s), and assembly then targets the
+ * real spoken length. A much shorter text renders short clips against long narration, which the assembly coverage
+ * guard rightly refuses (VIDEO_DURATION_COVERAGE_FAILED: the earlier ~7s text against a fixed 16s tone). Proper
+ * Turkish spelling so Piper speaks it and Whisper can align it.
+ */
+const narration = (id: number) => `Roma tarihinin ${id}. bölümünde lejyonlar sınırlara doğru ilerliyor, şehir her yıl biraz daha büyüyor, senato yeni yasaları tartışıyor, tüccarlar limanları dolduruyor ve imparatorluk yavaş yavaş bugün bilinen güçlü şekline kavuşuyor.`;
 
 function crc32(data: Buffer) {
   let crc = 0xffffffff;
@@ -83,45 +101,16 @@ function png(w = 320, h = 180): Buffer {
   };
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]);
 }
-function wav(seconds: number): Buffer {
-  const rate = 48000, ch = 2, bits = 16;
-  const frames = Math.round(seconds * rate);
-  const dataLen = frames * ch * (bits / 8);
-  const out = Buffer.alloc(44 + dataLen);
-  out.write("RIFF", 0); out.writeUInt32LE(out.length - 8, 4); out.write("WAVE", 8);
-  out.write("fmt ", 12); out.writeUInt32LE(16, 16); out.writeUInt16LE(1, 20);
-  out.writeUInt16LE(ch, 22); out.writeUInt32LE(rate, 24);
-  out.writeUInt32LE(rate * ch * (bits / 8), 28); out.writeUInt16LE(ch * (bits / 8), 32);
-  out.writeUInt16LE(bits, 34); out.write("data", 36); out.writeUInt32LE(dataLen, 40);
-  for (let i = 0; i < frames; i++) {
-    const v = Math.round(Math.sin((2 * Math.PI * 220 * i) / rate) * 8000);
-    out.writeInt16LE(v, 44 + i * 4); out.writeInt16LE(v, 44 + i * 4 + 2);
-  }
-  return out;
-}
-
 class AI implements AIProvider {
   createImmutableAiDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: "smoke" }, requiredMethods: ["generate"] }); }
   async generate(prompt: string) {
     if (prompt.includes("documentary research assistant"))
       return JSON.stringify({ topic, summary: "Roma yukselisi deterministik arastirma metni.", historicalContext: "MO 8. yuzyil", timeline: ["MO 753: kurulus", "MO 509: cumhuriyet"], characters: ["Romulus", "Sezar"], locations: ["Roma", "Forum"], keyEvents: ["Kurulus", "Fetihler"], strategies: ["Lejyon duzeni"], controversies: [], interestingFacts: ["Yedi tepe"], documentaryFlow: ["Kurulus", "Cumhuriyet", "Imparatorluk"], sceneIdeas: ["Forum", "Lejyon"], imagePrompts: ["Roma forumu", "lejyon"], animationPrompts: ["yavas yaklasma"], musicIdeas: ["epik"], soundEffects: ["kalabalik"], thumbnailIdeas: ["Roma"], youtubeTitles: ["Roma'nin Yukselisi"], sources: ["fixture"], createdAt: now });
     if (prompt.includes("documentary script writer"))
-      return JSON.stringify({ topic, title: "Roma'nin Yukselisi", subtitle: "Bir imparatorlugun dogusu", hook: "Her sey yedi tepede basladi.", introduction: "Roma kuruldu ve buyudu.", chapters: CHAPTERS.map((id) => ({ id, title: `Bolum ${id}`, narration: `Roma tarihinin ${id}. bolumunde lejyonlar ilerliyor, sehir buyuyor ve imparatorluk sekilleniyor.`, duration: CHAPTER_DUR, visualGoal: "Roma forumu ve lejyonlar", emotion: "epik", transition: id === 1 ? "cut" : id === 2 ? "fade" : "crossfade" })), conclusion: "Roma bir imparatorluk oldu.", callToAction: "Takip edin.", estimatedDuration: CHAPTER_DUR * CHAPTERS.length, narrationWordCount: 45, targetAudience: "genel", language: "tr", voiceStyle: "documentary", musicStyle: "epic", thumbnailIdea: "Roma", seoKeywords: ["roma imparatorlugu", "roma tarihi"], createdAt: now });
+      return JSON.stringify({ topic, title: "Roma'nin Yukselisi", subtitle: "Bir imparatorlugun dogusu", hook: "Her sey yedi tepede basladi.", introduction: "Roma kuruldu ve buyudu.", chapters: CHAPTERS.map((id) => ({ id, title: `Bolum ${id}`, narration: narration(id), duration: CHAPTER_DUR, visualGoal: "Roma forumu ve lejyonlar", emotion: "epik", transition: id === 1 ? "cut" : id === 2 ? "fade" : "crossfade" })), conclusion: "Roma bir imparatorluk oldu.", callToAction: "Takip edin.", estimatedDuration: CHAPTER_DUR * CHAPTERS.length, narrationWordCount: 45, targetAudience: "genel", language: "tr", voiceStyle: "documentary", musicStyle: "epic", thumbnailIdea: "Roma", seoKeywords: ["roma imparatorlugu", "roma tarihi"], createdAt: now });
     if (prompt.includes("documentary scene planner"))
       return JSON.stringify({ scenes: CHAPTERS.map((id) => ({ id, chapterId: id, title: `Bolum ${id}`, description: SCENE_PROMPTS[id - 1], visualPrompt: SCENE_PROMPTS[id - 1], duration: CHAPTER_DUR })), createdAt: now });
     return "";
-  }
-}
-class Aud implements AudioProvider {
-  readonly name = "openai" as const;
-  createImmutableAudioDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["validateInput", "generateAudio"] }); }
-  validateInput() {}
-  async generateAudio(input: Parameters<AudioProvider["generateAudio"]>[0]) {
-    const target = input.target;
-    const id = target.kind === "mix" ? "smoke-audio-mix" : `smoke-audio-${target.chapterId}`;
-    const seconds = target.kind === "mix" ? CHAPTER_DUR * CHAPTERS.length : CHAPTER_DUR;
-    const saved = AudioStorage.saveAudio({ projectSlug: input.projectSlug, assetId: id, data: wav(seconds) });
-    return { success: true as const, target: input.target, provider: this.name, model: "smoke-audio-v1", ...saved, createdAt: now };
   }
 }
 class Thumb implements ThumbnailProvider {
@@ -146,10 +135,29 @@ class YT implements YouTubeProvider {
 }
 
 async function main() {
+  // Pure fixture check, runs even without FFmpeg so a drifted text fails here instead of deep inside assembly.
+  for (const id of CHAPTERS) {
+    const seconds = estimateNarrationSeconds(narration(id));
+    assert.ok(Math.abs(seconds - CHAPTER_DUR) < 0.5, `fixture narration ${id} narrates ~${seconds.toFixed(1)}s, expected ~${CHAPTER_DUR}s`);
+  }
   if (!ffmpegPath || !ffprobePath || !fsSync.existsSync(ffmpegPath) || !fsSync.existsSync(ffprobePath)) {
     process.stdout.write(
       "SKIP: FFMPEG_PATH / FFPROBE_PATH unset or pointing at missing binaries — real FFmpeg is a " +
       "host dependency for this suite (same as smoke-production-scene-video-rendering).\n",
+    );
+    emitSmokeResult(SUITE, 0);
+    return;
+  }
+  const piper = getPiperAudioProviderConfig();
+  const stt = resolveAyasSttConfig();
+  // Whisper alignment refuses a non-ASCII temp dir (NARRATION_ALIGNMENT_ASCII_TEMP); the live server gets an ASCII one via
+  // AYAS_TEMP_ROOT. The canonical smoke runtime places its temp under the RESOLVED temp path, so an ASCII junction
+  // (D:\URETIM -> D:\ÜRETİM) does not help here.
+  const asciiTemp = /^[\x20-\x7e]+$/.test(fsSync.realpathSync.native(os.tmpdir()));
+  if (!fsSync.existsSync(piper.executablePath) || !fsSync.existsSync(piper.voiceModelPath) || !stt.enabled || !asciiTemp) {
+    process.stdout.write(
+      `SKIP: the local Piper voice, Whisper and an ASCII temp dir are host dependencies for this suite (piper ${fsSync.existsSync(piper.executablePath) ? "found" : "missing"}, ` +
+      `voice ${fsSync.existsSync(piper.voiceModelPath) ? "found" : "missing"}, whisper ${stt.enabled ? "ready" : stt.reason ?? "missing"}, temp ${asciiTemp ? "ascii" : "non-ascii"}).\n`,
     );
     emitSmokeResult(SUITE, 0);
     return;
@@ -173,7 +181,7 @@ async function main() {
       stageExecution: {
         aiProvider: new AI(),
         visualAssetProvider: new CharacterImageProvider(),
-        audioProvider: new Aud(),
+        audioProvider: new PiperAudioProvider(() => piper),
         thumbnailProvider: new Thumb(),
         youtubeProvider: new YT(),
         youtubePublishProvider: new MockYouTubePublishProvider(),
@@ -230,9 +238,14 @@ async function main() {
     assert.equal(v?.width, 1920);
     assert.equal(v?.height, 1080);
     assert.ok(probe.format.format_name.split(",").includes("mp4"));
-    // 3 * 16s = 48s naive; transitioned assembly (cut->fade->crossfade) trims ~1s of blends.
+    // Assembly follows the real, measured Piper narration; transitioned assembly (cut->fade->crossfade) trims ~1s of blends.
+    const audio = await ProjectManager.getAudio(slug, runtime.runtimeStorageContext) as AudioData | null;
+    const spoken = (audio?.sections ?? []).map((section) => Number(section.durationSeconds));
+    assert.equal(spoken.length, CHAPTERS.length, "one narrated section per chapter");
+    assert.ok(spoken.every((seconds) => Number.isFinite(seconds) && seconds > 5), `implausible narration lengths ${spoken.join(",")}`);
+    const narrated = spoken.reduce((sum, seconds) => sum + seconds, 0);
     const duration = Number(probe.format.duration);
-    assert.ok(Number.isFinite(duration) && duration > 44 && duration < 49, `unexpected MP4 duration ${duration}`);
+    assert.ok(Number.isFinite(duration) && duration > narrated - 4 && duration < narrated + 1, `MP4 duration ${duration} does not follow the ${narrated.toFixed(2)}s narration`);
     scenarios += 1; // ffprobe: h264/aac 1920x1080, expected duration
 
     // The figures move: two moments of the same (first) scene are different pictures.

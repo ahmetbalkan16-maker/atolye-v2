@@ -1,3 +1,22 @@
+## 16 Ekim 2026 — Araştırma önerileri sahibe ulaşıyor; karakter e2e testi ve atlanan-testi-geçti-sayma açığı
+
+Owner: rapordaki iki sorunu önerilen sırayla düzelt, bağlantıları kontrol et, hiçbir şeyi bozma.
+
+1. **Araştırma/evrim tasarım incelemeleri sahibe ulaşmıyordu.** `AyasInternalDecision` bunları "kayıtlı mutationKind yok" diye 24 saat erteliyordu; her commit öneriyi STALE yapıp yeniden yarattığı için süre hep baştan başlıyordu (bugün 3 kez).
+   - Yeni bağımlılıksız `src/lib/brain/autonomy/AyasDesignReviewKinds.ts`: `research-adaptation-plan:v1`, `evolution-opportunity-plan:v1` (üreticilerin sabitleriyle smoke karşılaştırır). Tür kayıtlı olmadıkça "kayıt-only" sayılır; ileride kaydedilirse muafiyet kendiliğinden kalkar.
+   - SAFE + onaya hazır tasarım incelemesi artık `RECOMMEND_FOR_APPROVAL`, `executable: false` → PENDING kalır, bekleyen listesinde kayıt-only ONAYLA ile görünür. Kanıt yoksa, alan REVIEW_REQUIRED ise veya SAFE değilse yine DEFER. Etki/lisans/maliyet notları erteleme değil, gerekçe bağlamı olur. Yürütme kapısı, mutation registry, `decide()` SAFE-only kuralı değişmedi; `AyasOwnerRecommendationsView` (yalnız yürütülebilir) bunları hiç listelemez.
+   - "Bugün" listesi: aynı dosyalar için daha yeni bir kaydı olan STALE kopya gösterilmez (geçmiş listesi aynen korunur).
+   - Gelişim Merkezi: tasarım incelemesinde "TASARIM İNCELEMESİ" notu, onay metni "yürütme yetkisi oluşmaz"; onaylanmış tasarım incelemesinde çalışmayacak YÜRÜT yerine "kararın kaydedildi".
+2. **`smoke-character-animation-e2e-pipeline.ts` önerisi doğrulamada düştü (10:53 onayı).** Kök nedenler, hepsi doğrulandı:
+   - Fikstür anlatımı ~93 karakter (~6,6 s); katı yol (F-08) bölüm süresini metinden hesaplar → ~7 s klipler; sahte TTS sabit 16 s → kapsama 21/48 ≈ 0,44 → `VIDEO_DURATION_COVERAGE_FAILED`. Üretim doğru; fikstür eskimişti. Aynısı `smoke-isolated-e2e-live-pipeline-ffmpeg.ts`'de de vardı (HEAD sürümü gerçek FFmpeg ile düştü, düzeltilmiş sürüm PASS 4 senaryo, 46,9 s MP4).
+   - İki fikstür ~16 s'lik metne çekildi; metin kayarsa FFmpeg olmadan da anlaşılır mesajla düşen saf kontrol eklendi.
+   - Karakter sahnesi 13 Ekim'den beri `NARRATION_DIRECTION_V3`: montaj gerçek konuşmayı yerel Whisper ile cümlelere hizalamadan geçmez, sinüs tonu asla geçemez. Test artık gerçek Piper sesi (`bin/piper`) kullanır; süre ölçülen anlatımdan doğrulanır. Ön koşullar (FFmpeg, Piper, Whisper, ASCII temp) yoksa açık nedenle SKIP.
+   - **Açık nokta:** Whisper hizalaması ASCII temp ister (`NARRATION_ALIGNMENT_ASCII_TEMP`). `CanonicalSmokeRuntime` temp'i realpath ile çözer, `D:\URETIM` bağlantısı `D:\ÜRETİM`'e döner → D-temp kuralı altında bu makinede tam V3 koşusu yapılamıyor, test SKIP eder. Canlı sunucu etkilenmez (`AYAS_TEMP_ROOT=D:\URETIM\private\temp`, realpath yok). Tam koşu için owner kararı gerekir (ör. bir kez ASCII gerçek temp ile).
+   - **AYAS açığı:** keşif daemon'u `.env.local` yüklemez → FFmpeg yok → test kendini atlayıp `PASS, scenarios 0` bastı → doğrulayıcı geçti saydı; sunucu gerçek FFmpeg ile düştü. `createAyasSmokeTestValidator` artık PASS + 0 senaryoyu kanıt saymaz ("skipped itself"). AYAS şablonları gerçek sayı basar; yalnız `smoke-ayas-patch-artifact-mutation.ts` yer tutucu fikstürü 0 → 1 yapıldı.
+- **Doğrulama:** `tsc` 0, değişen dosyalarda ESLint 0. Yeni `smoke-ayas-design-review-proposals` PASS 6; development-center 62, continuous-self-improvement 10, mutation-validators 17, patch-artifact-mutation 11 ve bu modüllere dokunan ~70 suite PASS.
+- **Önceden var olan, bu işle ilgisiz:** `smoke-ayas-owner-approval-resume` (0 !== 1) ve `smoke-ayas-stage15-7-candidate` (`STRATEGY_GENERATE_FAILED`) temiz HEAD worktree'sinde de aynı şekilde düşüyor. `smoke-ayas-research-improvement-loop` yük altında iki kez düştü; değişen modüllere bağı yok, tek başına 3 kez ve HEAD'de PASS (zamanlama dengesizliği).
+- **Canlı:** karar kuralı keşif daemon'u her turda kanonik depodan başladığı için commit sonrası kendiliğinden devrede. Arayüz metinleri ve doğrulayıcı ise canlı snapshot'ta; `ayas-publish-live.ps1 -Apply` owner onayı bekliyor.
+
 ## 16 Ekim 2026 — Ollama 0.40.5 ve penceresiz açılış
 
 Owner: "Ollama PC açılışında açılıyor, yalnız arka planda çalışsın; güncellemesi bir şey bozmayacaksa yap."

@@ -64,6 +64,17 @@ async function main() {
     const result = await validator(r);
     assert.equal(result.pass, true);
   });
+  await scenario("createAyasSmokeTestValidator does not count a self-skipped suite (PASS with 0 scenarios) as a pass", async () => {
+    const r = root();
+    fs.mkdirSync(path.join(r, "scripts"), { recursive: true });
+    fs.writeFileSync(path.join(r, "scripts/skip.ts"), 'console.log("SKIP: host dependency missing");\nconsole.log("ATOLYE_SMOKE_RESULT " + JSON.stringify({ status: "PASS", suite: "s", scenarios: 0 }));\n');
+    fs.writeFileSync(path.join(r, "scripts/ten.ts"), 'console.log("ATOLYE_SMOKE_RESULT " + JSON.stringify({ status: "PASS", suite: "s", scenarios: 10 }));\n');
+    fs.symlinkSync(path.join(process.cwd(), "node_modules"), path.join(r, "node_modules"), "junction");
+    const skipped = await createAyasSmokeTestValidator("scripts/skip.ts")(r);
+    assert.equal(skipped.pass, false);
+    assert.match(skipped.summary, /skipped itself/);
+    assert.equal((await createAyasSmokeTestValidator("scripts/ten.ts")(r)).pass, true, "10 scenarios is not 0");
+  });
   await scenario("createAyasSmokeTestValidator fails for a script that throws", async () => {
     const r = root();
     fs.mkdirSync(path.join(r, "scripts"), { recursive: true });

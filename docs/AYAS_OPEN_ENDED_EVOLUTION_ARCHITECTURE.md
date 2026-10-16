@@ -251,7 +251,7 @@ The chain is: observed gap → opportunity → qualification → **existing** St
 
 - `mapAyasEvolutionToStage8` applies Stage 8's own rule: a registered benchmark, a capability-map entry from the closed taxonomy, and a snapshot at the current HEAD with the same evaluator digest. The failing target cases must be non-held-out ones the opportunity's evidence names. A registered strategy yields a real `AyasImprovementHypothesis` (EXPERIMENT_READY); only Stage 8 admission can run it. Without a strategy, the outcome is Stage 8's `NEEDS_EXPERIMENT_DESIGN`, which is the design-review path (PROPOSAL_READY). The production strategy registry stays empty.
 - `buildAyasEvolutionProposalCandidate` produces an ordinary `AyasDaemonCandidate`, for PROPOSAL_READY only, for the existing `AyasAutonomyDaemon.discover()` flow:
-  - mutation kind `evolution-opportunity-plan:v1`, **unregistered** (Stage 8's `research-adaptation-plan:v1` posture);
+  - mutation kind `evolution-opportunity-plan:v1`, **unregistered** (Stage 8's `research-adaptation-plan:v1` posture). Since 2026-10-16 both are listed in `AyasDesignReviewKinds.ts`: AYAS's internal review keeps such a SAFE, approval-ready proposal PENDING as a never-executable recommendation (impact concerns become owner context) instead of deferring it for "no execution path", so it reaches Gelişim Merkezi's pending list with a record-only ONAYLA;
   - a single planning file under `docs/brain/proposals/`;
   - structured impact with licensing `unresolved`;
   - `sourceReference` = the opportunity id.
@@ -596,7 +596,7 @@ Every Stage 13 file has nodes: 130 in `AyasEvolutionOpportunity.ts`, 53 in `Ayas
 - **Graph edges.** Graph edges from Stage 13 nodes reach 15 files. The only ones in approval or daemon modules are the `import type` of `AyasInboxProposal` (`AyasApprovalInboxStore.ts`) and of `AyasDaemonCandidate` (`AyasAutonomyDaemon.ts`), which are erased at runtime.
 - **Runtime imports.** The runtime (non-type) import closure of the three library modules is 14 files. Its only externals are `node:crypto`, `node:fs` and `node:path`. It contains no approval, execution-gate, mutation-registry, publication, pipeline, production, daemon, process or network module.
 - **Importers.** Only `scripts/ayas-evolution-qualify.ts` and the evaluator import `src/lib/ayas/evolution/`. No app route, daemon or gate does.
-- **Mutation kind.** `evolution-opportunity-plan:v1` appears only in `AyasEvolutionIntegration.ts`. It is unregistered, so the existing gate refuses to execute it.
+- **Mutation kind.** `evolution-opportunity-plan:v1` is defined in `AyasEvolutionIntegration.ts`; since 2026-10-16 the dependency-free `AyasDesignReviewKinds.ts` mirrors the literal (a smoke compares them) so the internal review and Gelişim Merkezi recognise a design review. It is unregistered, so the existing gate refuses to execute it.
 - **Typed results.** Results are typed `executionAuthority: "NONE"`, `authority.granted: "NONE"`, and `mayExecute`/`mayInstall`/`maySpend`/`mayPublish: false`. No source file sets any of these to another value.
 - **Lifecycle and owner decision.** There is no APPROVED or EXECUTED lifecycle state. `readAyasEvolutionOwnerDecision` is a pure reader, and even `APPROVED_EXTERNALLY` grants nothing.
 - **Side effects.** The three library modules and the CLI contain no file write, spawn or network call. Besides reading its explicit input file and printing, the CLI's only side effect is `process.exit(2)` on malformed input.

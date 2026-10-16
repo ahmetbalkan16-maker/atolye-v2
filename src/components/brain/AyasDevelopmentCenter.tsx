@@ -14,6 +14,8 @@ import type { AyasMicroBatchDevelopmentEntry, AyasMicroBatchDevelopmentItem, Aya
 import type { AyasOwnerPendingExecutionEntry, AyasOwnerRecommendation } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasApprovalBinding";
 import type { AyasProposalStructuredImpact } from "@/lib/brain/autonomy/AyasProposalImpact";
+// Dependency-free module, safe for this client bundle.
+import { isAyasDesignReviewMutationKind } from "@/lib/brain/autonomy/AyasDesignReviewKinds";
 
 /** Mirrors `AyasAutonomousExecutionGate.AyasOwnerDecision`, kept a local literal for the same client-bundle reason as `AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL` below. */
 type AyasOwnerDecisionLiteral = "APPROVE" | "REJECT";
@@ -347,6 +349,7 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
   const [confirming, setConfirming] = useState(false);
   const busy = pendingId === proposal.proposalId;
   const decide = (decision: Decision) => onDecision?.({ proposalId: proposal.proposalId, decision });
+  const designReview = isAyasDesignReviewMutationKind(proposal.mutationKind);
   return (
     <article className="bc-dev__proposal" data-testid={`ayas-dev-proposal-${proposal.proposalId}`}>
       <header className="bc-dev__proposal-head">
@@ -355,6 +358,7 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
       </header>
       <p className="bc-dev__valueclass" title="Bu bulgunun türü — dosya yollarından deterministik olarak hesaplanır, öneri metninden değil">{valueClassLabel[proposal.valueClass]}</p>
       <SafetyNotice proposal={proposal} />
+      {designReview ? <p className="bc-dev__notice bc-dev__notice--safe">TASARIM İNCELEMESİ · Onayın yalnız kararını kaydeder; AYAS hiçbir dosyayı değiştirmez, hiçbir şeyi yürütmez.</p> : null}
       <PublicationActivityNotice displayState={proposal.displayState} />
       <ProposalDetails proposal={proposal} />
       {confirming && proposal.approvalReady ? (
@@ -365,7 +369,9 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
           <p><b>Kapsam:</b> {proposal.exactFiles.join(", ")} · {proposal.expectedDiffScope}</p>
           <p><b>Test:</b> {proposal.testsPlanned.join(" · ")}</p>
           <p><b>Güvenlik / üretim:</b> {proposal.safetyClassification} · {proposal.productionImpact}</p>
-          <p>Bu karar tek kullanımlık bir yürütme yetkisi oluşturur; değişiklik bu ekrandaki kapsamla sınırlı kalır.</p>
+          {designReview
+            ? <p>Bu bir tasarım incelemesi: kararın yalnız kayda geçer. Yürütme yetkisi oluşmaz; uygulamak istenirse ayrı bir öneri ve ayrı bir onay gerekir.</p>
+            : <p>Bu karar tek kullanımlık bir yürütme yetkisi oluşturur; değişiklik bu ekrandaki kapsamla sınırlı kalır.</p>}
           <div className="bc-dev__actions">
             <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>ONAYI KESİNLEŞTİR</button>
             <button type="button" className="bc-btn bc-btn--ghost" disabled={busy} onClick={() => setConfirming(false)}>VAZGEÇ</button>
@@ -445,6 +451,8 @@ function ExactPreviewExecutionControl({ proposal, ...controls }: { readonly prop
 function ManualExecuteControl({ proposal, executingId, executionError, onExecute, placement = "timeline" }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string; ownerPreview?: AyasOwnerExactPreviewBinding }) => void; readonly placement?: "timeline" | "owner-pending" }) {
   const [confirming, setConfirming] = useState(false);
   if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution !== (placement === "owner-pending")) return null;
+  // A design review has no registered implementation; YÜRÜT could only fail with AYAS_MUTATION_KIND_UNKNOWN.
+  if (isAyasDesignReviewMutationKind(proposal.mutationKind)) return <p role="status">Tasarım incelemesi — kararın kaydedildi. Yürütülecek bir değişiklik yok.</p>;
   const busy = executingId === proposal.proposalId;
   const error = executionError?.proposalId === proposal.proposalId ? executionError : null;
   const errorMessage = error ? executionErrorLabel[error.code] ?? `Yürütme başarısız oldu (${error.code}).` : null;

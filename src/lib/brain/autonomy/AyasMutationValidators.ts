@@ -55,6 +55,13 @@ export function createAyasSmokeTestValidator(scriptRelativePath: string): AyasVa
         stdio: ["ignore", "pipe", "pipe"],
       });
       const pass = /"status"\s*:\s*"PASS"/.test(stdout);
+      // A suite whose host dependency is missing (e.g. FFmpeg) skips itself
+      // and still prints PASS with 0 scenarios. That proves nothing about the
+      // patch (2026-10-16: an AYAS patch "passed" its sandbox this way, then
+      // failed against real FFmpeg), so it never counts as a pass.
+      if (pass && stdout.split(/\r?\n/).some((line) => /"status"\s*:\s*"PASS"/.test(line) && /"scenarios"\s*:\s*"?0"?\s*[,}]/.test(line))) {
+        return { validator: scriptRelativePath, pass: false, summary: "smoke test skipped itself (PASS with 0 scenarios) — not validation evidence" };
+      }
       return { validator: scriptRelativePath, pass, summary: pass ? "smoke test reported PASS" : "smoke test did not report PASS" };
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
