@@ -103,7 +103,11 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
 - Model geçişinin kullandığı `createAyasLiveRestarter` → `ayas-publish-live.ps1 -Restart` gerçek canlı uygulamada çalıştırıldı.
 - Sonuç `RESTARTED`, 23 sn. Uygulama PID 26460 → 31764; aynı kopya `ayas-live-564d0579`. Telefon, tünel ve AYAS arka ucu çevrimiçi; dış adres 307.
 - Aynı turda model deposu bilgisi tazelendi (`ayas:model-benchmark -- --registry`, ölçüm yok). gemma4:12b özeti değişmemiş (`6114515d…`), yani inen sürüm karttakiyle aynı.
-- **Kozmetik bulgu:** PowerShell 5.1 alt süreç çıktısını konsol kod sayfasıyla yazıyor, koşucu UTF-8 okuyor. Bu yüzden adım özetlerinde Türkçe yol harfleri bozuk görünüyor (`D:\�RET�M`). Durum tanıma ASCII satırlarla yapıldığı için etkilenmiyor. Aynı durum `createAyasLivePublisher`'da da var; düzeltilmedi.
+- **Kozmetik bulgu, owner isteğiyle düzeltildi:** PowerShell 5.1 yönlendirilmiş çıktıyı konsol kod sayfasıyla yazıyor, koşucular UTF-8 okuyordu. Bu yüzden adım özetlerinde yol harfleri bozuk görünüyordu (`D:\�RET�M`). Durum tanıma ASCII satırlarla yapıldığı için etkilenmiyordu.
+  - `ayas-publish-live.ps1` artık yalnız çıktısı yönlendirildiğinde BOM'suz UTF-8 yazıyor; elle konsolda çalıştırınca değişen bir şey yok.
+  - Kuru çalıştırmayla doğrulandı: önce `D:\�RET�M`, sonra `D:\ÜRETİM`; BOM yok.
+  - Hem model geçişi (`-Restart`) hem güncellemenin canlıya alınması (`-Apply`) bundan yararlanıyor.
+  - `smoke-ayas-model-operations` bu satırı ve konumunu denetliyor, 16/16.
 
 **C denetimi (owner sorusu, 16 Ekim):** Bugünkü işlerden sonra C'de AYAS/Atölye verisi ya da C'yi gösteren yeni bir proje yolu yok.
 - **Kod:** bugünkü farklarda tek C olasılığı vardı. `OLLAMA_MODELS` yoksa `~/.ollama/models`'a düşülüyordu; artık `<studio>\models\ollama\models` (`615a6e44`).

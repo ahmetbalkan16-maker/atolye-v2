@@ -367,6 +367,9 @@ async function main(): Promise<void> {
     for (const step of ["Get-BusyChildren", "exit 3", "Stop-LiveProcesses", "Start-Supervisor", "Wait-Healthy $current", "[TAMAM] Yeniden baslatildi:", "exit 1"]) assert.ok(block.includes(step.replace("[TAMAM] ", "'TAMAM' \"")) || block.includes(step), step);
     assert.ok(!/worktree|npm|Copy-Atomic|Write-Utf8Atomic/.test(block), "a restart builds and swaps nothing");
     assert.ok(/^[\x00-\x7F]*$/.test(source), "the script stays ASCII-only");
+    // The runners decode its output as UTF-8; PowerShell 5.1 would otherwise write the console code page and garble D:\ÜRETİM.
+    assert.ok(source.includes("if ([Console]::IsOutputRedirected) { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false }"), "redirected output is UTF-8 without a BOM");
+    assert.ok(source.indexOf("IsOutputRedirected") < source.indexOf("Say 'BILGI'"), "set before the first outcome line");
   });
 
   await scenario("every owner decision and job store writes outside Git, so neither the executor nor the observer sees its own state as a dirty tree", () => {

@@ -33,6 +33,9 @@
 #>
 param([string]$Commit = 'HEAD', [switch]$Prepare, [switch]$Apply, [switch]$Force, [switch]$Restart, [int]$HealthTimeoutSeconds = 240)
 $ErrorActionPreference = 'Stop'
+# Read by a program (the update and model executors decode UTF-8): write UTF-8 without a BOM, so the
+# D:\<bundle> paths in the outcome lines keep their letters. An interactive console keeps its own code page.
+if ([Console]::IsOutputRedirected) { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false }
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 try {
