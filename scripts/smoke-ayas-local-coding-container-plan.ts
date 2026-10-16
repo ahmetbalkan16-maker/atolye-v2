@@ -6,7 +6,9 @@ import path from "node:path";
 import { planAyasLocalCodingContainer, AyasLocalCodingContainerPlanError } from "../src/lib/brain/autonomy/AyasLocalCodingContainerPlan";
 import { AyasLocalCodingTaskContractError, parseAyasLocalCodingTaskContract } from "../src/lib/brain/autonomy/AyasLocalCodingTaskContract";
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-local-coding-"));
+// The plan only admits a workspace under the resolved TEMP, as createAyasLocalCodingWorkspace builds it: the live
+// server's TEMP is an ASCII junction (D:\URETIM\private\temp), so a root made under the raw os.tmpdir() was refused there.
+const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "ayas-local-coding-"));
 const file = "src/lib/example.ts";
 fs.mkdirSync(path.join(root, "src", "lib"), { recursive: true });
 fs.writeFileSync(path.join(root, file), "export const answer = 42;\n");

@@ -27,7 +27,8 @@ async function main(): Promise<void> {
   for (const update of [{ sha256: "0".repeat(64) }, { file: "alternate.gguf" }, { ref: "main" }, { license: "unknown" }, { sizeBytes: 1 }, { extra: true }]) {
     await test("alternate/mutable/forged model refused", () => { assert.throws(() => parseAyasLocalCodingModelManifest({ ...pins.model, ...update })); });
   }
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-pin-smoke-"));
+  // Under the resolved TEMP: the live server's TEMP is an ASCII junction and the ownership check below compares realpaths.
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "ayas-pin-smoke-"));
   try {
     const file = path.join(root, "artifact.bin"); fs.writeFileSync(file, "GGUF fixture");
     const pin = { sizeBytes: 12, sha256: digest("GGUF fixture") };

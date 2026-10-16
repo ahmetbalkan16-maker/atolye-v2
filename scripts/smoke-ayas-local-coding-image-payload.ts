@@ -13,7 +13,8 @@ async function main(): Promise<void> {
   const moduleUrl = pathToFileURL(path.resolve("sandbox/ayas-local-coding/verify-payload.mjs")).href;
   const verifier = await import(moduleUrl) as PayloadVerifier;
   const run = (name: string, mutate: (root: string, manifest: Record<string, unknown>) => void, accepted = false): void => {
-    const ownedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-image-payload-"));
+    // Under the resolved TEMP: the live server's TEMP is an ASCII junction and the ownership check below compares realpaths.
+    const ownedRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "ayas-image-payload-"));
     const root = path.join(ownedRoot, "payload"); const manifestFile = path.join(ownedRoot, "BUILD_INPUT.json");
     fs.mkdirSync(root); fs.writeFileSync(path.join(root, "test.mjs"), "export const test = 1;\n");
     const manifest: Record<string, unknown> = { schemaVersion: "1", role: "EVALUATOR", files: [{ path: "test.mjs", sizeBytes: 23, sha256: hash("export const test = 1;\n") }] };
