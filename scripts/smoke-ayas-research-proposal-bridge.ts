@@ -24,7 +24,7 @@ const finding = (over: Partial<AyasExternalResearchFinding> = {}): AyasExternalR
 const proposal = (reference: string, status?: AyasInboxProposal["status"]) => ({ sourceReference: reference, ...(status ? { status } : {}) });
 
 scenario("the heading names the tool, the release and the verified source words, not the model's category word", () => {
-  assert.equal(ayasResearchProposalTitle(finding()), 'ComfyUI v0.40.0: "Implement the asset export API locally" — Atölye için uyarlama tasarımını incele');
+  assert.equal(ayasResearchProposalTitle(finding()), 'ComfyUI v0.40.0: "Implement the asset export API locally" — Atölye için uyarlama tasarımını incele', "assert.equal(ayasResearchProposalTitle(finding()), 'ComfyUI v0.40.0: \"Implement the asset export API locally\" — Atölye için uyarlama tasarımını incele')");
   assert.equal(ayasResearchProposalTitle(finding({ provider: "LangChain", sourceUrl: "https://github.com/langchain-ai/langchain/releases/tag/langchain-core%3D%3D1.6.11", evidenceQuote: undefined, capability: "TRANSCRIPTION" })),
     "LangChain langchain-core==1.6.11 — Atölye için uyarlama tasarımını incele", "no quote and a category word: only the tool and release");
   assert.equal(ayasResearchProposalTitle(finding({ releaseVersion: "0.40.5", provider: "Ollama", evidenceQuote: undefined, capability: "Tool calling for local models" })),
@@ -36,12 +36,12 @@ scenario("the heading names the tool, the release and the verified source words,
 
 scenario("bridged candidates carry that heading", () => {
   const [candidate] = discoverAyasResearchProposalCandidates([finding()], []);
-  assert.equal(candidate!.objective, ayasResearchProposalTitle(finding()));
+  assert.equal(candidate!.objective, ayasResearchProposalTitle(finding()), "assert.equal(candidate!.objective, ayasResearchProposalTitle(finding()))");
 });
 
 scenario("a quoted finding whose proposals all went STALE is offered again; any live or decided proposal keeps it bridged", () => {
   const f = finding();
-  assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE"), proposal(f.findingId, "STALE")]).length, 1);
+  assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE"), proposal(f.findingId, "STALE")]).length, 1, "assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, \"STALE\"), proposal(f.findingId, \"STALE\")]).length, 1)");
   for (const status of ["PENDING", "APPROVED", "REJECTED", "COMPLETED", "RECOVERY_REQUIRED", "ABANDONED"] as const) {
     assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE"), proposal(f.findingId, status)]).length, 0, status);
   }
@@ -50,16 +50,16 @@ scenario("a quoted finding whose proposals all went STALE is offered again; any 
 
 scenario("a finding without a verified quote (before 2026-10-15) is bridged once and never comes back after going STALE", () => {
   const old = finding({ evidenceQuote: undefined, capability: "AUDIO_AI" });
-  assert.equal(discoverAyasResearchProposalCandidates([old], []).length, 1);
-  assert.equal(discoverAyasResearchProposalCandidates([old], [proposal(old.findingId, "STALE")]).length, 0);
+  assert.equal(discoverAyasResearchProposalCandidates([old], []).length, 1, "assert.equal(discoverAyasResearchProposalCandidates([old], []).length, 1)");
+  assert.equal(discoverAyasResearchProposalCandidates([old], [proposal(old.findingId, "STALE")]).length, 0, "assert.equal(discoverAyasResearchProposalCandidates([old], [proposal(old.findingId, \"STALE\")]).length, 0)");
 });
 
 scenario("the design-review gate still decides: a finding it refuses is not offered, stale or not", () => {
   const f = finding();
-  assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE")], () => null).length, 0);
+  assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE")], () => null).length, 0, "assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, \"STALE\")], () => null).length, 0)");
   const [candidate] = discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE")], () => ["loop:gap-measured"]);
-  assert.ok(candidate!.evidence.includes("loop:gap-measured"));
-  assert.equal(candidate!.sourceReference, f.findingId);
+  assert.ok(candidate!.evidence.includes("loop:gap-measured"), "assert.ok(candidate!.evidence.includes(\"loop:gap-measured\"))");
+  assert.equal(candidate!.sourceReference, f.findingId, "assert.equal(candidate!.sourceReference, f.findingId)");
 });
 
 console.log(JSON.stringify({ status: "PASS", suite: "ayas-research-proposal-bridge", scenarios: count, modelRuns: 0, networkCalls: 0 }));
