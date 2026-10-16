@@ -14,6 +14,9 @@ import {
   AYAS_AUTONOMOUS_EXECUTION_ENV_VAR,
 } from "../src/lib/brain/autonomy/AyasAutonomousExecutionGate";
 import { resumeAyasOwnerApprovedProposals } from "../src/lib/brain/autonomy/AyasOwnerApprovalResume";
+import { issueSession, resolveAccessGate } from "../src/lib/auth/accessGate";
+import { admitAyasOwnerApproval, type AyasOwnerAdmission, type AyasOwnerAdmissionAction } from "../src/lib/brain/autonomy/AyasOwnerApprovalAdmission";
+import { isolatedStabilityGuardDeps } from "./ayas-isolated-stability-guard";
 import { AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON, isAyasOwnerApprovedDecisionReason } from "../src/lib/brain/autonomy/AyasOwnerApprovalProvenance";
 import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
@@ -32,6 +35,25 @@ let count = 0;
 function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
 function root() { return fs.mkdtempSync(path.join(os.tmpdir(), "ayas-autonomous-gate-")); }
 function git(cwd: string, ...args: string[]) { return execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true }).trim(); }
+
+/**
+ * K3 (303f36b7, owner-approved 2026-10-08) disabled unattended resume: the resume worker publishes only for an
+ * explicit owner action carrying a fresh sealed EXECUTE admission, on top of a sealed owner APPROVE. The scenarios
+ * that exercise it set a synthetic access key for their own duration only; every other scenario keeps the real
+ * environment.
+ */
+type AdmitProposal = (action: AyasOwnerAdmissionAction, p: Pick<AyasInboxProposal, "proposalId" | "proposalHash">, decision: "APPROVE" | "EXECUTE") => Promise<AyasOwnerAdmission>;
+async function withOwnerKey(fn: (admit: AdmitProposal) => Promise<void>): Promise<void> {
+  const key = "autonomous-gate-v1-synthetic-key";
+  const original = process.env.AYAS_ACCESS_KEY;
+  process.env.AYAS_ACCESS_KEY = key;
+  const gate = resolveAccessGate({ AYAS_ACCESS_KEY: key, NODE_ENV: "production" });
+  try {
+    await fn(async (action, p, decision) => admitAyasOwnerApproval({ gate, token: await issueSession(key), action, subject: { kind: "proposal", proposalId: p.proposalId, proposalHash: p.proposalHash, decision } }));
+  } finally {
+    if (original === undefined) delete process.env.AYAS_ACCESS_KEY; else process.env.AYAS_ACCESS_KEY = original;
+  }
+}
 
 function proposalInput(overrides: Partial<Omit<AyasInboxProposal, "schemaVersion" | "proposalId" | "lastUpdatedAt" | "proposalHash" | "status" | "createdBy">> = {}) {
   return {
@@ -345,40 +367,50 @@ async function main(): Promise<void> {
     assert.equal(decisions.length, 1, "exactly one durable APPROVE decision — never two");
   });
 
-  await scenario("20e. once the flag turns on, the resume worker picks up the durably-approved proposal automatically — no second owner click, no daemon involved", async () => {
-    const f = makeFixture();
-    const { proposal } = seedNewFileProposal(f);
-    const binding = bindAyasOwnerApproval(proposal, new Date().toISOString());
-    const disabledOutcome = await decideAyasOwnerApproval(binding, "APPROVE", f);
-    assert.equal(disabledOutcome.executed, false);
+  await scenario("20e. K3: with the flag on nothing resumes unattended; only an explicit owner action with a fresh sealed EXECUTE publishes the owner-approved proposal, once", async () => {
+    await withOwnerKey(async (admit) => {
+      const f = { ...makeFixture(), stabilityGuard: isolatedStabilityGuardDeps() };
+      const { proposal } = seedNewFileProposal(f);
+      const binding = bindAyasOwnerApproval(proposal, new Date().toISOString());
+      const disabledOutcome = await decideAyasOwnerApproval(binding, "APPROVE", { ...f, ownerAdmission: await admit("ayasOwnerApprovalDecision", proposal, "APPROVE") });
+      assert.equal(disabledOutcome.executed, false);
 
-    const stillOff = await resumeAyasOwnerApprovedProposals(f);
-    assert.deepEqual(stillOff, [], "resume must no-op while the flag is still off — never a fail-open resume");
-    assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "APPROVED");
-    assert.equal(git(f.repoRoot, "status", "--short"), "");
+      const stillOff = await resumeAyasOwnerApprovedProposals(f);
+      assert.deepEqual(stillOff, [], "resume must no-op while the flag is still off — never a fail-open resume");
+      assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "APPROVED");
+      assert.equal(git(f.repoRoot, "status", "--short"), "");
 
-    const enabled = { ...f, envOverride: { [AYAS_AUTONOMOUS_EXECUTION_ENV_VAR]: "1" } };
-    const attempts = await resumeAyasOwnerApprovedProposals(enabled);
-    assert.equal(attempts.length, 1);
-    assert.equal(attempts[0].proposalId, proposal.proposalId);
-    assert.equal(attempts[0].outcome.ok, true);
-    assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "COMPLETED");
-    assert.notEqual(git(f.repoRoot, "log", "-1", "--format=%s"), "initial", "a real commit was published");
+      const enabled = { ...f, envOverride: { [AYAS_AUTONOMOUS_EXECUTION_ENV_VAR]: "1" } };
+      assert.deepEqual(await resumeAyasOwnerApprovedProposals(enabled), [], "the flag alone resumes nothing: unattended resume is disabled (K3)");
+      assert.deepEqual(await resumeAyasOwnerApprovedProposals({ ...enabled, explicitManualOwnerAction: true }), [], "an owner action without a fresh EXECUTE admission resumes nothing");
+      assert.equal(git(f.repoRoot, "log", "-1", "--format=%s"), "initial", "nothing published so far");
 
-    const again = await resumeAyasOwnerApprovedProposals(enabled);
-    assert.deepEqual(again, [], "a completed proposal is no longer APPROVED, so a second resume call finds nothing — no double execution");
+      const execute = await admit("executeAyasApprovedProposal", proposal, "EXECUTE");
+      const attempts = await resumeAyasOwnerApprovedProposals({ ...enabled, explicitManualOwnerAction: true, executionOwnerAdmission: execute });
+      assert.equal(attempts.length, 1);
+      assert.equal(attempts[0].proposalId, proposal.proposalId);
+      assert.equal(attempts[0].outcome.ok, true, JSON.stringify(attempts[0].outcome));
+      assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "COMPLETED");
+      assert.notEqual(git(f.repoRoot, "log", "-1", "--format=%s"), "initial", "a real commit was published");
+
+      const again = await resumeAyasOwnerApprovedProposals({ ...enabled, explicitManualOwnerAction: true, executionOwnerAdmission: await admit("executeAyasApprovedProposal", proposal, "EXECUTE") });
+      assert.deepEqual(again, [], "a completed proposal is no longer APPROVED, so a second resume call finds nothing — no double execution");
+    });
   });
 
-  await scenario("20f. the resume worker never touches a proposal approved through the legacy manual ONAYLA flow (no owner-approval provenance marker)", async () => {
-    const f = makeFixture();
-    const { proposal } = seedNewFileProposal(f);
-    // Simulates the pre-existing `decideAyasApproval` path in app/brain/actions.ts, which calls
-    // `inbox.decide()` directly with no reason at all — never through the owner-approval gate.
-    f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
-    const enabled = { ...f, envOverride: { [AYAS_AUTONOMOUS_EXECUTION_ENV_VAR]: "1" } };
-    const attempts = await resumeAyasOwnerApprovedProposals(enabled);
-    assert.deepEqual(attempts, [], "a legacy-approved proposal must be left exactly alone — its own manual YÜRÜT control is still how a human resumes it");
-    assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "APPROVED", "untouched");
+  await scenario("20f. the resume worker never touches a proposal approved through the legacy manual ONAYLA flow (no owner-approval provenance marker), even with an explicit owner action and a fresh EXECUTE", async () => {
+    await withOwnerKey(async (admit) => {
+      const f = { ...makeFixture(), stabilityGuard: isolatedStabilityGuardDeps() };
+      const { proposal } = seedNewFileProposal(f);
+      // Simulates the pre-existing `decideAyasApproval` path in app/brain/actions.ts, which calls
+      // `inbox.decide()` directly with no reason at all — never through the owner-approval gate.
+      f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+      const enabled = { ...f, envOverride: { [AYAS_AUTONOMOUS_EXECUTION_ENV_VAR]: "1" }, explicitManualOwnerAction: true, executionOwnerAdmission: await admit("executeAyasApprovedProposal", proposal, "EXECUTE") };
+      const attempts = await resumeAyasOwnerApprovedProposals(enabled);
+      assert.deepEqual(attempts, [], "a legacy-approved proposal must be left exactly alone — its own manual YÜRÜT control is still how a human resumes it");
+      assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "APPROVED", "untouched");
+      assert.equal(git(f.repoRoot, "log", "-1", "--format=%s"), "initial");
+    });
   });
 
   await scenario("20g. AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON itself is recognized by isAyasOwnerApprovedDecisionReason", () => {

@@ -50,8 +50,65 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
    - Erişim denetçisi Windows kabuğu altında yeni kodla yeniden açıldı; `route-cache` temizliği artık etkin.
    - Yedek `D:\ÜRETİM\handover\live-publish\20261016-071931-44f0dd7f`; önceki kopya geri dönüş için duruyor.
 1. gemma4:12b indirmesi bitince ölçüm. Daha iyi çıkarsa model değiştirmek için owner onayı alınır.
-2. Model işlemleri için telefondan onay düğmeleri (indir → ölç → değiştir). Owner 15 Ekim'de dahil etti, henüz yazılmadı. Model değişikliği canlı kopyanın `.env.local` dosyasını, model yaşam döngüsü kaydını (gemma3:12b henüz kayıtta yok) ve canlı uygulamanın yeniden başlatılmasını birlikte ilgilendiriyor. Yeni bir `ollama` başlatan modül pinli kapanış haritasına da dokunur. Bu yüzden tasarım kodlamadan önce owner'a sunulacak.
+2. ~~Model işlemleri için telefondan onay düğmeleri~~ → aşağıda, KOD TAMAM.
 3. 15 Ekim kaydındaki "Sıradaki" listesi aynen geçerli.
+
+**Model işlemleri telefondan ("İndir ve ölç", "Bu modele geç") — owner tasarım onayı 16 Ekim ("Evet, bu tasarımla yaz", EVAL v64 dahil): KOD TAMAM.** Belge: `docs/AYAS_MODEL_COMPARISON.md` "Onaydan sonra".
+- **Owner doğrulaması:** yeni konu türleri ve eylemler.
+  - `model-trial` (etiket + model deposu manifest özeti, APPROVE/WITHDRAW) → `decideAyasModelTrial`.
+  - `model-switch` (etiket + `switchHash`) → `switchAyasModel`.
+  - Hiçbiri öneri, batch, güncelleme ya da yürütme onayı yerine geçmez.
+- **`AyasModelOperationStore`** (saf):
+  - Kararlar `decisions.json`'a (sunucu eylemi), işler `jobs.json`'a (uygulayıcı) yazılır: `data/brain/self-improvement/model-operations/`.
+  - Yalnız izleme listesindeki ve şu an kullanılmayan modeller onaylanabilir.
+  - "İndir ve ölç", karttaki model deposu özetine bağlıdır.
+  - "Bu modele geç" yalnız daha iyi ölçülen modelde ve iki ölçüme bağlı `ayasModelSwitchHash` ile kaydedilir. Aynı karar tek seferliktir; süren bir geçiş varken yenisi reddedilir.
+  - İş seçimi: önce geçiş. Ertelenen ya da yarıda kalan geçiş en fazla 12 kez yeniden denenir. Deneme, son karar APPROVE kaldıkça sürer.
+- **`AyasModelTrialRunner`** (yerel Ollama + model deposu manifesti):
+  - İlk bayttan önce depo özeti ve boş yer (boyut + 10 GB) kontrol edilir; tutmazsa hiçbir şey inmez.
+  - İndirme loopback `/api/pull` ile, tur başına en fazla 20 dakikalık dilimlerle yapılır; üst üste 5 hata denemeyi bitirir.
+  - İnen modelin özeti onaylanan özetle aynı değilse ölçülmez.
+  - Ollama boşsa ölçüm yapılır. Şu anki model kurulu baytlarıyla ölçülmemişse önce o, sonra aday ölçülür. Sonuç model-watch durumuna yazılır.
+- **`AyasModelSwitchRunner`:**
+  - Bağlama yeniden kontrol edilir.
+  - Canlı ve kanonik `.env.local` dosyaları eski modeli göstermelidir. Değişen tek şey `AYAS_OLLAMA_MODEL` satırıdır; CRLF ve diğer satırlar korunur.
+  - `ayas-publish-live.ps1 -Restart` çalışır. Bu yeni kip yayının durdur, denetçiyi başlat ve sağlığı bekle adımlarını uygular; hiçbir şey derlemez ya da değiştirmez. Canlı uygulamada iş varsa exit 3 verir ve geçiş DEFERRED olur.
+  - Ardından adayın geçtiği bilgi, hesap ve dürüstlük sorularından birer tanesiyle sohbet testi yapılır.
+  - Hata olursa dosyalar bellekte tutulan önceki baytlara döner ve uygulama yeniden başlar (ROLLED_BACK); o da olmazsa RECOVERY_REQUIRED. Yarıda kalan geçiş, dosyalar değişmemişse ABANDONED olur ve yeniden denenir; aksi hâlde RECOVERY_REQUIRED.
+  - Git'e commit edilmez.
+- **Uygulayıcı** (`ayas-update-executor.ts`):
+  - Öncelik: canlıya alma → Uygula → model geçişi → güncelleme denemesi → model dilimi.
+  - Ölçüm aynı donmuş benchmark ve GPU yoklamasıyla yapılır. Benchmark'a yalnız sohbet testi için `caseIds` seçeneği eklendi; bu alt küme ölçüm olarak saklanmaz.
+- **Arayüz** (Gelişim Merkezi → Yapay Zekâ Modeli):
+  - Aday satırında "İndir ve ölç" ya da "Ölç" ve "Onayı geri al"; indirme yüzdesi, ölçüm durumu, sonuç ve neden gösterilir.
+  - Daha iyi ölçülen kartta "Bu modele geç" ve geçiş adımları gösterilir.
+  - Her düğmede önce "Onaylarsam ne olacak?" açıklaması çıkar.
+  - Sunucu eylemleri: `decideAyasModelTrialAction`, `switchAyasModelAction`.
+- **EVAL 15F.4-v64 (owner onayı):**
+  - Kapanış haritasında uygulayıcıya `LOCAL_MODEL` sınıfı, yerel model sağlayıcıları ve `AyasModelTrialRunner` (OWNER_LEASE) eklendi.
+  - Panelin sunucu eylemleri yeni bir etkili modüle ulaşmıyor.
+  - Kapanış 12/12, 11 yüzey, 47 modül.
+  - Yalnız bu pin değişti; v63 bayt bayt `EVAL_MANIFEST_V63.json`. 324 pinin hepsi index blob'larıyla eşleşiyor.
+- **Testler:**
+  - Yeni `smoke-ayas-model-operations` 15/15: sahte loopback Ollama, sahte depo, sahte yeniden başlatma ve sahte benchmark. Gerçek `.env.local`, ağ ya da canlı uygulama kullanılmıyor.
+  - `smoke-ayas-model-watch` 14/14. Yeni senaryo: alt küme sorular ve gemma4'te `think:false`.
+  - tsc 0; değişen 13 dosyada lint 0.
+- **Etkinleşme:**
+  - Uygulayıcı her turda yeniden okunduğu için commit'ten sonraki ilk Observer turunda etkin olur.
+  - Düğmelerin telefonda görünmesi için canlıya alma gerekir.
+  - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
+4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
+
+**Kırık v1 testi düzeltildi (owner isteği):** `smoke-ayas-autonomous-execution-gate` 20e'de düşüyordu (0 !== 1, satır 362; temiz HEAD'de de aynı).
+- **Kök neden:** K3 güvenlik düzeltmesi (`303f36b7`, 8 Ekim, owner onaylı) gözetimsiz devam ettirmeyi bilinçli olarak kapattı. Devam ettirme işçisi artık yalnız açık owner eylemi (`explicitManualOwnerAction`), taze mühürlü EXECUTE doğrulaması ve mühürlü owner APPROVE ile yayın yapıyor. O commit eski otomatik devam FAIL'lerini ham kanıt olarak korudu; test ise eski sözleşmede kaldı. Ham kanıt dosyaları değişmedi.
+- **Değişiklik:** test bugünkü sözleşmeye göre yeniden yazıldı. Kod ve kurallar değişmedi. Test pinli değil.
+- 20e şunları doğruluyor:
+  - Bayrak kapalıyken hiçbir şey olmuyor.
+  - Bayrak tek başına ve EXECUTE'suz owner eylemi hiçbir şey yayınlamıyor.
+  - Açık owner eylemi ve taze EXECUTE ile tek commit yayınlanıyor; ikinci çağrıda hiçbir şey olmuyor.
+- 20f artık gerçekten köken denetimini test ediyor: EXECUTE ile bile eski elle onaylanmış öneriye dokunulmuyor. Önceden işçi erken döndüğü için yanlış sebeple geçiyordu.
+- Sentetik erişim anahtarı yalnız bu iki senaryonun süresince ayarlanıyor. Yayın izole kararlılık korumasıyla yapılıyor.
+- Sonuç 26/26; tsc 0, lint 0.
 
 ## 15 Ekim 2026 — owner bakım penceresi, yeni PC taşınabilirliği; öz-gelişim devam planı
 
