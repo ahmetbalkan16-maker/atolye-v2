@@ -20,12 +20,12 @@ async function main(): Promise<void> {
     const manifest: Record<string, unknown> = { schemaVersion: "1", role: "EVALUATOR", files: [{ path: "test.mjs", sizeBytes: 23, sha256: hash("export const test = 1;\n") }] };
     try {
       mutate(root, manifest); fs.writeFileSync(manifestFile, JSON.stringify(manifest));
-      if (accepted) assert.equal(verifier.verifyAyasLocalCodingPayload(root, manifestFile).status, "PAYLOAD_BYTES_VERIFIED_NOT_ADMITTED");
+      if (accepted) assert.equal(verifier.verifyAyasLocalCodingPayload(root, manifestFile).status, "PAYLOAD_BYTES_VERIFIED_NOT_ADMITTED", "assert.equal(verifier.verifyAyasLocalCodingPayload(root, manifestFile).status, \"PAYLOAD_BYTES_VERIFIED_NOT_ADMITTED\")");
       else assert.throws(() => verifier.verifyAyasLocalCodingPayload(root, manifestFile), /PAYLOAD_REFUSED/);
       console.log(`PASS ${++count}: ${name}`);
     } finally {
-      assert.equal(path.dirname(ownedRoot).toLowerCase(), fs.realpathSync(os.tmpdir()).toLowerCase());
-      assert.ok(path.basename(ownedRoot).startsWith("ayas-image-payload-"));
+      assert.equal(path.dirname(ownedRoot).toLowerCase(), fs.realpathSync(os.tmpdir()).toLowerCase(), "assert.equal(path.dirname(ownedRoot).toLowerCase(), fs.realpathSync(os.tmpdir()).toLowerCase())");
+      assert.ok(path.basename(ownedRoot).startsWith("ayas-image-payload-"), "assert.ok(path.basename(ownedRoot).startsWith(\"ayas-image-payload-\"))");
       fs.rmSync(ownedRoot, { recursive: true });
     }
   };
