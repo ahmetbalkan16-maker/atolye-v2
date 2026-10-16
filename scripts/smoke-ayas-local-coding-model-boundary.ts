@@ -23,8 +23,8 @@ for (const item of [...AYAS_LOCAL_CODING_QUALIFICATION_VAULT, AYAS_LOCAL_CODING_
   try {
     const sources = task.exactFiles.map(file => ({ path: file, content: fs.readFileSync(path.join(workspace.root, file), "utf8") }));
     test(`${item.domain} workspace holds only the exact baseline sources`, () => {
-      assert.deepEqual(tree(workspace.root).sort(), [...task.exactFiles].sort());
-      assert.equal(fs.existsSync(path.join(workspace.root, ".git")), false);
+      assert.deepEqual(tree(workspace.root).sort(), [...task.exactFiles].sort(), "assert.deepEqual(tree(workspace.root).sort(), [...task.exactFiles].sort())");
+      assert.equal(fs.existsSync(path.join(workspace.root, ".git")), false, "assert.equal(fs.existsSync(path.join(workspace.root, \".git\")), false)");
       for (const source of sources) {
         assert.equal(source.content, git(`${item.baseHead}:${source.path}`), "baseline bytes");
         assert.notEqual(source.content, git(`${item.fixHead}:${source.path}`), "the historical fix must not be the workspace");
@@ -32,7 +32,7 @@ for (const item of [...AYAS_LOCAL_CODING_QUALIFICATION_VAULT, AYAS_LOCAL_CODING_
     });
     test(`${item.domain} request carries no hidden case, evaluator, history or golden-fix content`, () => {
       const request = buildAyasLocalCodingModelRequest(task, sources);
-      assert.deepEqual(Object.keys(request).sort(), ["max_tokens", "messages", "model", "response_format", "seed", "stream", "temperature"]);
+      assert.deepEqual(Object.keys(request).sort(), ["max_tokens", "messages", "model", "response_format", "seed", "stream", "temperature"], "assert.deepEqual(Object.keys(request).sort(), [\"max_tokens\", \"messages\", \"model\", \"response_format\", \"seed\", \"stream\", \"temperature\"])");
       const exposed = JSON.stringify(request);
       for (const hidden of [item.fixHead, item.fixHead.slice(0, 7), item.baseHead, item.evaluatorBlob, item.evaluatorScript, item.caseId, item.split, "HELD_OUT", "qualification-vault"])
         assert.ok(!exposed.includes(hidden), `hidden host metadata exposed: ${hidden}`);
