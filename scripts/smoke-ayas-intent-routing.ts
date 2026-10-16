@@ -52,7 +52,7 @@ scenario("research status question routes to the deterministic research answer",
 scenario("tool update question routes to the research answer", () => expectRoute("Güncelleme var mı?", "research-status"));
 scenario("research intent carries its kind to the route", () => {
   const intent = resolveAyasPreReasoningIntent("Yeni sürüm çıktı mı?");
-  assert.deepEqual(intent, { kind: "research-status", researchIntent: { kind: "updates" } });
+  assert.deepEqual(intent, { kind: "research-status", researchIntent: { kind: "updates" } }, "assert.deepEqual(intent, { kind: \"research-status\", researchIntent: { kind: \"updates\" } })");
 });
 scenario("self-development learning keeps development status precedence", () => expectRoute("Kendini geliştirmek için ne öğrendin?", "development-status"));
 scenario("an update command is not a research question", () => expectRoute("Next.js'i güncelle", "reasoning"));
