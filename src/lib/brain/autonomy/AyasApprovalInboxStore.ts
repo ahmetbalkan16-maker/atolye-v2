@@ -22,7 +22,10 @@ export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
  * reused). `RECOVERY_REQUIRED`: a reservation was finalized while mutation
  * may have occurred; a human must review before the proposal is considered
  * resolved. Neither `ABANDONED` nor `RECOVERY_REQUIRED` is re-decidable —
- * a fresh proposal (new content, new hash) is required to try again.
+ * a fresh proposal (new content, new hash) is required to try again. A
+ * `RECOVERY_REQUIRED` proposal leaves that status only through
+ * `resolveRecovery`, once durable evidence proves what the attempt left
+ * behind (see `AyasRecoveryReconciliation.ts`).
  */
 export type AyasInboxProposalStatus = "PENDING" | "APPROVED" | "REJECTED" | "DEFERRED" | "STALE" | "COMPLETED" | "FAILED" | "RESERVED" | "ABANDONED" | "RECOVERY_REQUIRED";
 export type AyasInboxReservationOutcome = "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED";
@@ -109,7 +112,26 @@ export interface AyasInboxResultRecord {
   readonly outcome: "COMPLETED" | "FAILED" | "ROLLED_BACK" | "STALE";
   readonly gateAuditIdentity: string;
   readonly operatorReviewStatus: "WAITING_REVIEW" | "REVIEWED";
+  /** Present only on the result that closed a `RECOVERY_REQUIRED` proposal. */
+  readonly recoveryResolution?: AyasInboxRecoveryResolution;
 }
+
+/**
+ * How a `RECOVERY_REQUIRED` attempt was proven settled:
+ * - `ROLLBACK_VERIFIED`: the runtime stability guard proved the baseline restored.
+ * - `PUBLISHED_VERIFIED`: the attempt's own commit carries the approved content on the remote branch.
+ * - `NO_MUTATION_REMAINS`: the journal never recorded a completed mutation and the exact files are clean.
+ */
+export type AyasInboxRecoveryResolutionKind = "ROLLBACK_VERIFIED" | "PUBLISHED_VERIFIED" | "NO_MUTATION_REMAINS";
+export interface AyasInboxRecoveryResolution {
+  readonly kind: AyasInboxRecoveryResolutionKind;
+  /** A stability transaction id, a commit SHA or an execution journal id — never free text. */
+  readonly evidence: string;
+  readonly resolvedAt: string;
+  readonly resolvedBy: "ayas-recovery-reconciliation";
+}
+const AYAS_RECOVERY_RESOLUTION_KINDS: ReadonlySet<string> = new Set<AyasInboxRecoveryResolutionKind>(["ROLLBACK_VERIFIED", "PUBLISHED_VERIFIED", "NO_MUTATION_REMAINS"]);
+const AYAS_RECOVERY_EVIDENCE = /^[A-Za-z0-9._:-]{7,120}$/;
 
 export interface AyasApprovalInboxState {
   readonly schemaVersion: typeof ayasApprovalInboxSchemaVersion;
@@ -231,6 +253,14 @@ export interface AyasApprovalInboxHandle {
   /** Phase 2: durably finalizes a reservation exactly once. Does not run anything — pure record-keeping. */
   finalizeApproval(reservationId: string, outcome: AyasInboxReservationOutcome, now: string): void;
   recordResult(result: AyasInboxResultRecord, status: "COMPLETED" | "FAILED" | "STALE"): void;
+  /**
+   * Closes a `RECOVERY_REQUIRED` proposal with the evidence that settled it:
+   * `PUBLISHED_VERIFIED` -> COMPLETED, the other kinds -> FAILED. Pure
+   * record-keeping: the spent reservation stays finalized as it was, nothing
+   * is re-decided, reserved or run, and only the caller's evidence check
+   * (`AyasRecoveryReconciliation.ts`) decides that the kind is true.
+   */
+  resolveRecovery(proposalId: string, resolution: { readonly kind: AyasInboxRecoveryResolutionKind; readonly evidence: string }, now: string): AyasInboxProposal;
 }
 
 function emptyState(): AyasApprovalInboxState {
@@ -449,6 +479,35 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       const proposal = state.proposals.find((p) => p.proposalId === result.proposalId);
       if (!proposal) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "result proposal not found");
       save({ ...state, proposals: state.proposals.map((p) => p.proposalId === result.proposalId ? { ...p, status, lastUpdatedAt: result.completedAt } : p), results: [...state.results, result].slice(-100) });
+    },
+    resolveRecovery(proposalId, resolution, now) {
+      const state = load();
+      const proposal = state.proposals.find((p) => p.proposalId === proposalId);
+      if (!proposal) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "proposal not found");
+      if (proposal.status !== "RECOVERY_REQUIRED") throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", `proposal is not RECOVERY_REQUIRED: ${proposal.status}`);
+      if (!AYAS_RECOVERY_RESOLUTION_KINDS.has(resolution.kind)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "unknown recovery resolution kind");
+      if (!AYAS_RECOVERY_EVIDENCE.test(resolution.evidence)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "recovery evidence must be a record id or commit SHA");
+      const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposalId && d.finalizationOutcome === "RECOVERY_REQUIRED");
+      if (!decision?.authorizationId) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "no RECOVERY_REQUIRED reservation for this proposal");
+      const published = resolution.kind === "PUBLISHED_VERIFIED";
+      const result: AyasInboxResultRecord = {
+        resultId: `ayas-recovery-resolution-${crypto.randomUUID()}`,
+        proposalId,
+        authorizationId: decision.authorizationId,
+        startedAt: decision.reservedAt ?? decision.decidedAt,
+        completedAt: now,
+        changedFiles: published ? [...proposal.exactFiles] : [],
+        diffFingerprint: "",
+        testsRun: [],
+        testResults: [],
+        outcome: published ? "COMPLETED" : resolution.kind === "ROLLBACK_VERIFIED" ? "ROLLED_BACK" : "FAILED",
+        gateAuditIdentity: decision.authorizationId,
+        operatorReviewStatus: "WAITING_REVIEW",
+        recoveryResolution: { kind: resolution.kind, evidence: resolution.evidence, resolvedAt: now, resolvedBy: "ayas-recovery-reconciliation" },
+      };
+      const resolved = { ...proposal, status: published ? "COMPLETED" as const : "FAILED" as const, lastUpdatedAt: now };
+      save({ ...state, proposals: state.proposals.map((p) => p.proposalId === proposalId ? resolved : p), results: [...state.results, result].slice(-100) });
+      return resolved;
     },
   };
 }

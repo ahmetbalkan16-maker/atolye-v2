@@ -27,8 +27,22 @@ import { redactBrainText } from "../BrainRedaction";
  * changes" from Gap 4's own retry-condition list. A human/operator can
  * also explicitly clear a record (e.g. after fixing whatever environment
  * limitation caused it) via `clearAyasSandboxUnvalidatable`.
+ *
+ * Owner decision 2026-10-16: a VALIDATOR failure is not a property of the
+ * content alone. On 2026-10-06 the project typecheck failed for 88
+ * candidates in one day; the same content passed it ten days later, but
+ * every one of them stayed suppressed because its source never changed. So
+ * a record marked `retryable` (and a legacy "validator failed" record) is
+ * skipped only for a backoff — 24 h, doubling per failure of the same
+ * content, at most 7 days — and then tried again. Policy and freeze
+ * refusals are properties of the content and stay suppressed.
  */
 export const ayasSandboxUnvalidatableSchemaVersion = "1" as const;
+
+const AYAS_SANDBOX_RETRY_BASE_MS = 24 * 60 * 60_000;
+const AYAS_SANDBOX_RETRY_MAX_MS = 7 * 24 * 60 * 60_000;
+/** The reason prefix `AyasNovelPatchDiscovery` writes for a failed validator run. */
+const VALIDATOR_FAILURE_REASON = "sandbox validation failed: validator failed:";
 
 export interface AyasSandboxUnvalidatableRecord {
   readonly schemaVersion: typeof ayasSandboxUnvalidatableSchemaVersion;
@@ -40,15 +54,20 @@ export interface AyasSandboxUnvalidatableRecord {
   readonly firstFailedAt: string;
   readonly lastFailedAt: string;
   readonly attemptCount: number;
+  /** Set when the failure may be the environment: the content is tried again after a backoff. */
+  readonly retryable?: true;
 }
 
 export interface AyasSandboxUnvalidatableStoreOptions { readonly rootDir?: string }
 
 export interface AyasSandboxUnvalidatableStore {
   readonly dir: string;
-  record(input: { readonly semanticKey: string; readonly generatorIdentity: string; readonly contentFingerprint: string; readonly reason: string; readonly requiredCapability: string; readonly now: string }): AyasSandboxUnvalidatableRecord;
-  /** `true` when this exact (semanticKey, contentFingerprint) pair already failed sandbox validation before — the caller should skip spending another real sandbox attempt on it. */
-  shouldSkip(semanticKey: string, contentFingerprint: string): boolean;
+  record(input: { readonly semanticKey: string; readonly generatorIdentity: string; readonly contentFingerprint: string; readonly reason: string; readonly requiredCapability: string; readonly retryable?: boolean; readonly now: string }): AyasSandboxUnvalidatableRecord;
+  /**
+   * `true` when this exact (semanticKey, contentFingerprint) pair already failed sandbox validation before — the caller should skip spending another real sandbox attempt on it.
+   * With `now`, a retryable failure is skipped only until its backoff has passed.
+   */
+  shouldSkip(semanticKey: string, contentFingerprint: string, now?: string): boolean;
   load(semanticKey: string): AyasSandboxUnvalidatableRecord | undefined;
   list(): readonly AyasSandboxUnvalidatableRecord[];
   /** Operator override — explicitly forces the next tick to retry this semantic key even with unchanged content (e.g. after fixing an environment limitation). */
@@ -63,6 +82,13 @@ function fileFor(dir: string, semanticKey: string): string {
 
 export function contentFingerprintOf(content: string): string {
   return crypto.createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+/** When a retryable record may be tried again; `undefined` means it stays suppressed. */
+function retryDueAt(record: AyasSandboxUnvalidatableRecord): number | undefined {
+  if (record.retryable !== true && !record.reason.startsWith(VALIDATOR_FAILURE_REASON)) return undefined;
+  const failures = Math.max(1, record.attemptCount);
+  return Date.parse(record.lastFailedAt) + Math.min(AYAS_SANDBOX_RETRY_BASE_MS * 2 ** Math.min(failures - 1, 16), AYAS_SANDBOX_RETRY_MAX_MS);
 }
 
 export function createAyasSandboxUnvalidatableStore(options: AyasSandboxUnvalidatableStoreOptions = {}): AyasSandboxUnvalidatableStore {
@@ -105,13 +131,18 @@ export function createAyasSandboxUnvalidatableStore(options: AyasSandboxUnvalida
         firstFailedAt: existing?.contentFingerprint === input.contentFingerprint ? existing.firstFailedAt : input.now,
         lastFailedAt: input.now,
         attemptCount: existing?.contentFingerprint === input.contentFingerprint ? existing.attemptCount + 1 : 1,
+        ...(input.retryable === true ? { retryable: true as const } : {}),
       };
       writeAtomic(record);
       return record;
     },
-    shouldSkip(semanticKey, contentFingerprint) {
+    shouldSkip(semanticKey, contentFingerprint, now) {
       const existing = loadRaw(semanticKey);
-      return existing !== undefined && existing.contentFingerprint === contentFingerprint;
+      if (existing === undefined || existing.contentFingerprint !== contentFingerprint) return false;
+      if (now === undefined) return true;
+      const dueAt = retryDueAt(existing);
+      // An unreadable clock keeps the suppression.
+      return dueAt === undefined || !(Date.parse(now) >= dueAt);
     },
     load(semanticKey) { return loadRaw(semanticKey); },
     list() {

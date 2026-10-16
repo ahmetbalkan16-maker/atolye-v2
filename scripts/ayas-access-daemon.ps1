@@ -47,6 +47,10 @@ $script:TunnelStdoutLog = Join-Path $script:LogDir "cloudflared-stdout.log"
 $script:NamedTunnelUrl = "https://ayas.atolyeayas.com"
 $script:MaxFailures = 3
 $script:CooldownSeconds = 120
+# Owner decision 2026-10-16: after MaxFailures in a row the supervisor keeps
+# trying, slowly, instead of waiting for the owner; the count stays at
+# MaxFailures, so the state still says retries-exhausted and asks for a look.
+$script:ExhaustedRetrySeconds = 1800
 $script:RuntimeManifestFile = Join-Path $script:StateDir 'prebuilt-runtime-v1.json'
 $script:NodeExe = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 
@@ -217,7 +221,6 @@ function Get-AccessPlan([string]$Origin, [string]$Tunnel, [bool]$LocalHealthy) {
   return 'fail-closed'
 }
 function Test-RetryEligible($Component, [datetime]$Now) {
-  if ($Component.consecutiveFailures -ge $script:MaxFailures) { return $false }
   if (-not $Component.nextEligibleAt) { return $true }
   $eligibleUtc = if ($Component.nextEligibleAt -is [datetime]) {
     $Component.nextEligibleAt.ToUniversalTime()
@@ -231,9 +234,10 @@ function Set-AttemptStart($Component, [datetime]$Now) {
   $Component.lastAttemptAt = $Now.ToUniversalTime().ToString('o')
 }
 function Set-AttemptFailure($Component, [string]$Stage, [datetime]$Now) {
-  $Component.consecutiveFailures = [int]$Component.consecutiveFailures + 1
+  $Component.consecutiveFailures = [math]::Min([int]$Component.consecutiveFailures + 1, $script:MaxFailures)
   $Component.failureStage = $Stage
-  $Component.nextEligibleAt = if ($Component.consecutiveFailures -ge $script:MaxFailures) { $null } else { $Now.AddSeconds($script:CooldownSeconds * [math]::Pow(2, $Component.consecutiveFailures - 1)).ToUniversalTime().ToString('o') }
+  $delay = if ($Component.consecutiveFailures -ge $script:MaxFailures) { $script:ExhaustedRetrySeconds } else { $script:CooldownSeconds * [math]::Pow(2, $Component.consecutiveFailures - 1) }
+  $Component.nextEligibleAt = $Now.AddSeconds($delay).ToUniversalTime().ToString('o')
 }
 function Set-ComponentHealthy($Component, [datetime]$Now) {
   $Component.consecutiveFailures = 0; $Component.failureStage = $null; $Component.nextEligibleAt = $null

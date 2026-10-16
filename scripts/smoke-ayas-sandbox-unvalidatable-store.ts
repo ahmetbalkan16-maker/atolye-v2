@@ -82,5 +82,40 @@ scenario("list() returns every recorded semantic key; a corrupt record file is s
   assert.equal(store.list().length, 1);
 });
 
+// Owner decision 2026-10-16: a validator failure can be the environment (2026-10-06: 88 candidates failed the
+// project typecheck in one day, then passed it later), so it is retried with backoff instead of forever.
+const DAY = 24 * 60 * 60_000;
+const at = (base: string, ms: number) => new Date(Date.parse(base) + ms).toISOString();
+const T0 = "2026-10-06T03:54:07.000Z";
+
+scenario("a validator failure is skipped for 24 h, then retried; each further failure of the same content doubles the wait, capped at 7 days", () => {
+  const store = createAyasSandboxUnvalidatableStore({ rootDir: tmpDir() });
+  const fp = contentFingerprintOf("validator-failed content");
+  store.record({ semanticKey: "retry-1", generatorIdentity: "gen-v1", contentFingerprint: fp, reason: "sandbox validation failed: validator failed: typecheck-project", requiredCapability: "unknown", retryable: true, now: T0 });
+  assert.equal(store.shouldSkip("retry-1", fp, at(T0, DAY - 1)), true);
+  assert.equal(store.shouldSkip("retry-1", fp, at(T0, DAY)), false, "due after 24 h");
+  const second = at(T0, DAY);
+  store.record({ semanticKey: "retry-1", generatorIdentity: "gen-v1", contentFingerprint: fp, reason: "sandbox validation failed: validator failed: typecheck-project", requiredCapability: "unknown", retryable: true, now: second });
+  assert.equal(store.shouldSkip("retry-1", fp, at(second, 2 * DAY - 1)), true);
+  assert.equal(store.shouldSkip("retry-1", fp, at(second, 2 * DAY)), false, "due after 48 h");
+  for (let i = 0; i < 6; i += 1) store.record({ semanticKey: "retry-1", generatorIdentity: "gen-v1", contentFingerprint: fp, reason: "x", requiredCapability: "unknown", retryable: true, now: second });
+  assert.equal(store.load("retry-1")!.attemptCount, 8);
+  assert.equal(store.shouldSkip("retry-1", fp, at(second, 7 * DAY - 1)), true);
+  assert.equal(store.shouldSkip("retry-1", fp, at(second, 7 * DAY)), false, "never longer than 7 days");
+  assert.equal(store.shouldSkip("retry-1", fp), true, "a caller that passes no time keeps the original behavior");
+});
+
+scenario("records written before the retry existed: a validator failure is retryable, a policy or freeze refusal stays suppressed forever", () => {
+  const store = createAyasSandboxUnvalidatableStore({ rootDir: tmpDir() });
+  const fp = contentFingerprintOf("legacy");
+  store.record({ semanticKey: "legacy-validator", generatorIdentity: "gen-v1", contentFingerprint: fp, reason: "sandbox validation failed: validator failed: typecheck-project", requiredCapability: "unknown", now: T0 });
+  store.record({ semanticKey: "legacy-policy", generatorIdentity: "gen-v1", contentFingerprint: fp, reason: "blast-radius/domain policy: file-size: scripts/x.ts exceeds 20000 chars", requiredCapability: "none", now: T0 });
+  store.record({ semanticKey: "legacy-freeze", generatorIdentity: "gen-v1", contentFingerprint: fp, reason: "post-validation artifact freeze failed: patch artifact contains a secret-like value", requiredCapability: "unknown", now: T0 });
+  assert.equal(store.load("legacy-validator")!.retryable, undefined, "nothing is rewritten on disk");
+  assert.equal(store.shouldSkip("legacy-validator", fp, at(T0, DAY)), false);
+  assert.equal(store.shouldSkip("legacy-policy", fp, at(T0, 365 * DAY)), true);
+  assert.equal(store.shouldSkip("legacy-freeze", fp, at(T0, 365 * DAY)), true);
+});
+
 console.log(`AYAS sandbox-unvalidatable store smoke: PASS (${count} scenarios)`);
 console.log(JSON.stringify({ status: "PASS", suite: "ayas-sandbox-unvalidatable-store", scenarios: count }));

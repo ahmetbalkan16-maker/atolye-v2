@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v64",
+  "version": "15F.4-v65",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -129,7 +129,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-action-firewall-closure.ts",
-          "sha256": "7cf756ff830b023e2aca52d6cae97da8d31429c87e351de7f400e16af3dffba3"
+          "sha256": "e348cd90c297036a72cfc7ecaa402047e079a64e324cdbdfb09b67831e62552a"
         }
       ],
       "slices": [
@@ -197,7 +197,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-discovery-run-firewall.ts",
-          "sha256": "24e0637cd99ffeb08a1e83a4b8aa02bea7c00b991f72285e6f09ebe9141bc530"
+          "sha256": "226f6dabd6dd451909bbe435145cb608fc60827f0dbaecdb516a77dff9e6d76e"
         }
       ],
       "slices": [
@@ -577,7 +577,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-patch-artifact-mutation.ts",
-          "sha256": "3b5c8bb784aa5813ca9f786ee0dc27fcf98cefc22228fd3108a30e0c9f70a79f"
+          "sha256": "5a69a03817f647e0ce1cc89b1834b3357032b742bceb916816c0b2280be34521"
         }
       ],
       "slices": [

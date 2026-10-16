@@ -107,10 +107,16 @@ try {
     Set-AttemptStart $c $now; Set-AttemptFailure $c build $now
     Eq $c.attempts 1; Eq $c.failureStage build; No (Test-RetryEligible $c $now.AddSeconds(119)); Yes (Test-RetryEligible $c $now.AddSeconds(121))
   }
-  Scenario 'no restart storm after third failure' {
+  Scenario 'no restart storm after third failure: slow retry every 30 minutes, count capped' {
     $c=New-ComponentState; $now=[datetime]::UtcNow
     1..3|ForEach-Object { Set-AttemptStart $c $now; Set-AttemptFailure $c local-health $now }
-    Eq $c.consecutiveFailures 3; No (Test-RetryEligible $c $now.AddDays(10))
+    Eq $c.consecutiveFailures 3; No (Test-RetryEligible $c $now.AddMinutes(29)); Yes (Test-RetryEligible $c $now.AddMinutes(31))
+    $later=$now.AddMinutes(31); Set-AttemptStart $c $later; Set-AttemptFailure $c local-health $later
+    Eq $c.consecutiveFailures 3; Eq $c.attempts 4; No (Test-RetryEligible $c $later.AddMinutes(29)); Yes (Test-RetryEligible $c $later.AddMinutes(31))
+  }
+  Scenario 'a state exhausted before the slow retry existed is retried at once' {
+    $c=New-ComponentState; $c.consecutiveFailures=3; $c.nextEligibleAt=$null
+    Yes (Test-RetryEligible $c ([datetime]::UtcNow))
   }
   Scenario 'healthy observation resets failure state' {
     $c=New-ComponentState; Set-AttemptFailure $c build ([datetime]::UtcNow)
@@ -325,15 +331,20 @@ try {
       $null=Invoke-AccessCycle one-shot
       Eq $script:originStarts 1
     }
-    Scenario 'cycle three failures stop automatic spawning' {
+    Scenario 'cycle three failures fall back to a slow retry instead of stopping' {
       Reset-Fake down down; $script:originFailure='build'
       for($i=0;$i -lt 3;$i++) {
         if($i -gt 0) { $durable=Read-RecoveryState; $durable.origin.nextEligibleAt=[datetime]::UtcNow.AddSeconds(-1).ToString('o'); Save-RecoveryState $durable }
         $s=Invoke-AccessCycle one-shot
       }
-      Eq $s.origin.consecutiveFailures 3; Yes $s.ownerActionRecommended
-      $null=Invoke-AccessCycle one-shot
-      Eq $script:originStarts 3
+      Eq $s.origin.consecutiveFailures 3; Yes $s.ownerActionRecommended; Eq $s.result retries-exhausted
+      $s=Invoke-AccessCycle one-shot
+      Eq $script:originStarts 3; Eq $s.result retries-exhausted
+      $durable=Read-RecoveryState; Yes ([datetimeoffset]::Parse([string]$durable.origin.nextEligibleAt).UtcDateTime -gt [datetime]::UtcNow.AddMinutes(25))
+      $durable.origin.nextEligibleAt=[datetime]::UtcNow.AddSeconds(-1).ToString('o'); Save-RecoveryState $durable
+      $script:originFailure=$null
+      $s=Invoke-AccessCycle one-shot
+      Eq $script:originStarts 4; Eq $s.origin.consecutiveFailures 0; Eq $s.result healthy
     }
     Scenario 'cycle ambiguous port owner never launches' {
       Reset-Fake ambiguous down

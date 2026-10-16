@@ -64,6 +64,8 @@ export interface AyasInboxResultRead {
   readonly outcome: "COMPLETED" | "FAILED" | "ROLLED_BACK" | "STALE";
   readonly testsRun: readonly string[];
   readonly testResults: readonly string[];
+  /** Mirrors the Store's `AyasInboxRecoveryResolution` by hand, like the status union above. */
+  readonly recoveryResolution?: { readonly kind: "ROLLBACK_VERIFIED" | "PUBLISHED_VERIFIED" | "NO_MUTATION_REMAINS"; readonly evidence: string; readonly resolvedAt: string };
 }
 
 export interface AyasApprovalInboxReadState {

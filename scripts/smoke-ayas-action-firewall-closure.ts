@@ -169,6 +169,8 @@ const SURFACES: Readonly<Record<string, Surface>> = {
       "src/lib/brain/autonomy/AyasMutationScope.ts": "READ_ONLY_PROBE",
       "src/lib/brain/autonomy/AyasMutationValidators.ts": "DISCOVERY_LEASE",
       "src/lib/brain/autonomy/AyasPatchSandbox.ts": "DISCOVERY_LEASE",
+      // Read-only Git (status/log/show); its inbox bookkeeping runs under the proposal-inbox capability.
+      "src/lib/brain/autonomy/AyasRecoveryReconciliation.ts": "READ_ONLY_PROBE",
       "src/lib/brain/autonomy/AyasRegisteredImprovementExperiment.ts": "DISCOVERY_LEASE",
       "src/lib/brain/autonomy/AyasResearchExperimentSandbox.ts": "DISCOVERY_LEASE",
       "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts": "DISCOVERY_LEASE",

@@ -283,7 +283,7 @@ async function main() {
     const code = fs.readFileSync(path.join(repo, "scripts", "ayas-discovery-daemon.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     const admitAt = code.indexOf("admitAyasDiscoveryRun(");
     assert.ok(admitAt > 0);
-    const calls = ["tickAyasResearchScheduler(", "reconcileAyasStaleProposals(", "discoverAyasNovelPatchCandidates(", "runAyasResearchImprovementCycle(", "runAyasControlledSelfEvolutionCycle(",
+    const calls = ["tickAyasResearchScheduler(", "reconcileAyasStaleProposals(", "reconcileAyasRecoveryRequiredProposals(", "discoverAyasNovelPatchCandidates(", "runAyasResearchImprovementCycle(", "runAyasControlledSelfEvolutionCycle(",
       "daemon.discover(", "reviewAyasPendingProposals(", "reconcileAyasMicroBatchStaleness(", "accumulateAyasMicroBatchCandidates("];
     for (const call of calls) {
       assert.ok(code.indexOf(call) > admitAt, `${call} runs before the run is admitted`);
@@ -292,6 +292,7 @@ async function main() {
     for (const guardedCall of [
       /leased\("discovery\.research-scheduler-tick"\)\) \{[^}]*tickAyasResearchScheduler\(\{ repoRoot: root, sources: researchSources \}\)/,
       /leased\("discovery\.proposal-inbox"\) \? reconcileAyasStaleProposals\(/,
+      /if \(leased\("discovery\.proposal-inbox"\)\) \{[^}]*reconcileAyasRecoveryRequiredProposals\(/,
       /if \(leased\("discovery\.novel-patch-sandbox"\)\) \{[^}]*discoverAyasNovelPatchCandidates\(/,
       /leased\("discovery\.research-improvement-cycle"\)\) \{[^}]*runAyasResearchImprovementCycle\(/,
       /leased\("discovery\.controlled-evolution-cycle"\)\) \{[^}]*runAyasControlledSelfEvolutionCycle\(/,

@@ -158,6 +158,8 @@ async function main(): Promise<void> {
     // A real diagnostic-quality-gap candidate whose own smoke-test validator is deterministically broken (never reports {"status":"PASS"}) — a real, repeatable sandbox failure unrelated to whether the bare-assert fix itself is "correct."
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-fixture-"));
     git(repoRoot, ["init", "-q"]); git(repoRoot, ["config", "user.email", "f@example.com"]); git(repoRoot, ["config", "user.name", "f"]);
+    // Keep LF in the sandbox checkout too, so the candidate reaches its validator instead of a line-ending precondition mismatch.
+    git(repoRoot, ["config", "core.autocrlf", "false"]);
     fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
     fs.writeFileSync(path.join(repoRoot, "scripts", "smoke-always-broken.ts"), 'assert.equal(1, 1);\nconsole.log("this smoke test never reports PASS");\n', "utf8");
     git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "initial"]);
@@ -179,6 +181,16 @@ async function main(): Promise<void> {
     const store2 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-art2-")) });
     const tick2 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: { ...obs, now: "2026-09-16T00:05:00.000Z" }, artifactStore: store2, maxAttemptsPerTick: 3, sandboxUnvalidatableStore });
     assert.ok(!tick2.rejections.some((r) => r.candidateId.includes("always-broken")), "tick 2, same unchanged content, must skip it WITHOUT another real sandbox attempt — no repeated rejection");
+
+    // Owner decision 2026-10-16: a validator failure may be the environment, so once its 24 h backoff has passed the
+    // same content is tried again for real (here it fails again, and the record counts the second failure).
+    const store3 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-art3-")) });
+    const later = new Date(Date.parse(obs.now) + 25 * 60 * 60_000).toISOString();
+    const tick3 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: { ...obs, now: later }, artifactStore: store3, maxAttemptsPerTick: 3, sandboxUnvalidatableStore });
+    assert.ok(tick3.rejections.some((r) => r.candidateId.includes("always-broken")), `after the backoff the unchanged candidate gets a real retry: ${JSON.stringify({ obsNow: obs.now, later, tick1: tick1.rejections, tick3: tick3.rejections, records: sandboxUnvalidatableStore.list() })}`);
+    const record = sandboxUnvalidatableStore.list().find((r) => r.semanticKey.includes("always-broken"));
+    assert.equal(record?.retryable, true);
+    assert.equal(record?.attemptCount, 2);
   });
 
   console.log(`AYAS novel patch discovery smoke: PASS (${count} scenarios)`);

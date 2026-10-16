@@ -73,7 +73,12 @@ async function main() {
   await scenario("SAFE approval uses a concise second confirmation before authority creation", () => { const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8"); assert.match(src, /Onay verirsem ne olacak\?/); assert.match(src, /ONAYI KESİNLEŞTİR/); assert.match(src, /tek kullanımlık bir yürütme yetkisi oluşturur/); });
   await scenario("REVIEW_REQUIRED is not ordinary-approvable", () => { const html = htmlFor(state([proposal({ proposalId: "review", safetyClassification: "REVIEW_REQUIRED" })])); assert.match(html, /İNSAN İNCELEMESİ GEREKİYOR/); assert.doesNotMatch(html, />ONAYLA</); });
   await scenario("FORBIDDEN_AUTONOMOUS is not ordinary-approvable", () => { const html = htmlFor(state([proposal({ proposalId: "forbidden", safetyClassification: "FORBIDDEN_AUTONOMOUS" })])); assert.match(html, /AYAS BUNU KENDİ BAŞINA UYGULAYAMAZ/); assert.doesNotMatch(html, />ONAYLA</); });
-  await scenario("RECOVERY_REQUIRED is visible with uncertainty guidance", () => { const html = htmlFor(state([proposal({ proposalId: "recovery", status: "RECOVERY_REQUIRED" })])); assert.match(html, /RECOVERY_REQUIRED/); assert.match(html, /Yürütme sonucu belirsiz olabilir/); });
+  await scenario("RECOVERY_REQUIRED is visible with guidance on how it closes", () => { const html = htmlFor(state([proposal({ proposalId: "recovery", status: "RECOVERY_REQUIRED" })])); assert.match(html, /KURTARMA GEREKLİ/); assert.match(html, /Yürütme sonucu henüz kanıtlanamadı/); assert.match(html, /kaydı kendisi kapatır/); assert.match(html, /kendiliğinden yeniden çalıştırmaz/); });
+  await scenario("a recovery AYAS closed on evidence shows how it was proven", () => {
+    const p = proposal({ status: "FAILED" });
+    const html = htmlFor(state([p], [], [{ resultId: "r-recovery", proposalId: p.proposalId, completedAt: NOW, outcome: "ROLLED_BACK", testsRun: [], testResults: [], recoveryResolution: { kind: "ROLLBACK_VERIFIED", evidence: "ayas-stability-0123456789abcdef", resolvedAt: NOW } }]));
+    assert.match(html, /BAŞARISIZ/); assert.match(html, /Kurtarma kaydını AYAS kapattı: değişiklik geri alındı/); assert.match(html, /ayas-stability-012345678/);
+  });
   await scenario("recovery item has no ordinary retry control", () => assert.doesNotMatch(htmlFor(state([proposal({ proposalId: "recovery", status: "RECOVERY_REQUIRED" })])), /TEKRAR ÇALIŞTIR|YENİDEN DENE/));
   await scenario("rejected history item is not pending", () => { const view = buildAyasApprovalInboxView(state([proposal({ status: "REJECTED" })]), NOW); assert.equal(view.pending.length, 0); assert.equal(view.history.length, 1); });
   await scenario("completed history item is not pending", () => { const view = buildAyasApprovalInboxView(state([proposal({ status: "COMPLETED" })]), NOW); assert.equal(view.pending.length, 0); assert.equal(view.history.length, 1); });
@@ -124,7 +129,7 @@ async function main() {
   for (const status of ["PENDING", "REJECTED", "DEFERRED", "RESERVED", "COMPLETED", "ABANDONED", "RECOVERY_REQUIRED", "STALE", "FAILED"] as const) {
     await scenario(`${status} does not expose YÜRÜT`, () => assert.doesNotMatch(htmlFor(state([proposal({ status })])), />YÜRÜT</));
   }
-  await scenario("RECOVERY_REQUIRED exposes neither YÜRÜT nor ordinary replay", () => { const html = htmlFor(state([proposal({ status: "RECOVERY_REQUIRED" })])); assert.doesNotMatch(html, />YÜRÜT</); assert.doesNotMatch(html, /TEKRAR ÇALIŞTIR|YENİDEN DENE/); assert.match(html, /Yürütme sonucu belirsiz olabilir/); });
+  await scenario("RECOVERY_REQUIRED exposes neither YÜRÜT nor ordinary replay", () => { const html = htmlFor(state([proposal({ status: "RECOVERY_REQUIRED" })])); assert.doesNotMatch(html, />YÜRÜT</); assert.doesNotMatch(html, /TEKRAR ÇALIŞTIR|YENİDEN DENE/); assert.match(html, /Yürütme sonucu henüz kanıtlanamadı/); });
   await scenario("M16: a STALE proposal shows the Turkish 'lost currency' label and lands in history, not pending", () => {
     const p = proposal({ status: "STALE" });
     const view = buildAyasApprovalInboxView(state([p]), NOW);

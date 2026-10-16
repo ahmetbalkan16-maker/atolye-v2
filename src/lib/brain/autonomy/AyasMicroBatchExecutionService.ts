@@ -96,6 +96,7 @@ export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchSto
     decide: unsupported("decide") as AyasApprovalInboxHandle["decide"],
     markStale: unsupported("markStale") as AyasApprovalInboxHandle["markStale"],
     consumeApproval: unsupported("consumeApproval") as AyasApprovalInboxHandle["consumeApproval"],
+    resolveRecovery: unsupported("resolveRecovery") as AyasApprovalInboxHandle["resolveRecovery"],
     reserveApproval(_proposalId, proposalHashValue, baseHead, _exactFiles, now, executionOwnerAdmission) {
       return batchStore.reserveApproval(batchId, proposalHashValue, baseHead, now, executionOwnerAdmission);
     },

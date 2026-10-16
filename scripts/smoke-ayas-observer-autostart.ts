@@ -366,43 +366,49 @@ async function main() {
     assert.match(forwarded, /--interval-ms\s+12345\b/, "-IntervalMs must reach the real entrypoint");
   });
 
-  await scenario("M25 BEHAVIOR: a continuous observer that keeps crashing is restarted a bounded number of times, then exits non-zero rather than looping forever", () => {
-    // A `-Continuous` run has no code path that exits 0 on its own (see the
-    // wrapper's own comment), so a persistently non-zero-exiting child is
-    // the realistic crash shape this test reproduces - counted via a PATH
-    // shim, exactly like the argument-forwarding test above, but exiting 7
-    // on every invocation instead of forwarding to a recorder.
+  // A `-Continuous` run has no code path that exits 0 on its own (see the
+  // wrapper's own comment), so a non-zero-exiting child is the realistic
+  // crash shape. Counted via a PATH shim, like the argument-forwarding test
+  // above: each launch sleeps `sleepMs`, then exits 7 for the first
+  // `crashes` launches and 0 after that, which ends the wrapper's loop.
+  function crashingObserver(options: { readonly crashes: number; readonly sleepMs: number; readonly wrapperArgs: readonly string[] }): { readonly code: number; readonly out: string; readonly launches: number } {
     const shim = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-npx-crash-shim-"));
     const countFile = path.join(shim, "count.txt");
     fs.writeFileSync(countFile, "0");
-    fs.writeFileSync(
-      path.join(shim, "npx.ps1"),
-      [
-        `$n = [int](Get-Content -LiteralPath ${JSON.stringify(countFile)}) + 1`,
-        `Set-Content -LiteralPath ${JSON.stringify(countFile)} -Value $n`,
-        `exit 7`,
-      ].join("\n") + "\n",
-    );
+    fs.writeFileSync(path.join(shim, "npx.ps1"), [
+      `$n = [int](Get-Content -LiteralPath ${JSON.stringify(countFile)}) + 1`,
+      `Set-Content -LiteralPath ${JSON.stringify(countFile)} -Value $n`,
+      `Start-Sleep -Milliseconds ${options.sleepMs}`,
+      `if ($n -le ${options.crashes}) { exit 7 }`,
+      `exit 0`,
+    ].join("\n") + "\n");
     fs.writeFileSync(path.join(shim, "npx.cmd"), `@echo off\r\nexit /b 7\r\n`);
-    let code: number;
-    let combined = "";
     try {
-      const out = execFileSync(
-        PS,
-        ["-NoProfile", "-File", path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "-Continuous", "-MaxRestarts", "3", "-RestartDelaySeconds", "0"],
-        { encoding: "utf8", windowsHide: true, env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH ?? ""}` } },
-      );
-      combined = out;
-      code = 0;
+      const out = execFileSync(PS, ["-NoProfile", "-File", path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "-Continuous", ...options.wrapperArgs],
+        { encoding: "utf8", windowsHide: true, timeout: 120_000, env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH ?? ""}` } });
+      return { code: 0, out, launches: Number(fs.readFileSync(countFile, "utf8").trim()) };
     } catch (error) {
       const e = error as { stdout?: string; stderr?: string; status?: number };
-      combined = `${e.stdout ?? ""}\n${e.stderr ?? ""}`;
-      code = e.status ?? 1;
+      return { code: e.status ?? 1, out: `${e.stdout ?? ""}\n${e.stderr ?? ""}`, launches: Number(fs.readFileSync(countFile, "utf8").trim()) };
     }
-    assert.notEqual(code, 0, "a persistently crashing continuous observer must eventually report failure, never a silent success");
-    assert.equal(fs.readFileSync(countFile, "utf8").trim(), "3", "must attempt exactly -MaxRestarts launches, no more and no fewer");
-    assert.match(combined, /restarting in/i);
-    assert.match(combined, /giving up after 3 restarts/i);
+  }
+
+  await scenario("M25 + owner decision 2026-10-16: after -MaxRestarts quick crashes in a row the wrapper cools down instead of giving up, and the observer comes back once it can run", () => {
+    const run = crashingObserver({ crashes: 5, sleepMs: 0, wrapperArgs: ["-MaxRestarts", "3", "-RestartDelaySeconds", "0", "-CooldownSeconds", "1"] });
+    assert.equal(run.code, 0, run.out);
+    assert.equal(run.launches, 6, "every crash is followed by another launch; none is the last one");
+    assert.equal((run.out.match(/restarting in 0s/g) ?? []).length, 2, "the first -MaxRestarts - 1 crashes restart fast");
+    assert.equal((run.out.match(/cooling down, next attempt in 1s/g) ?? []).length, 3, "from the -MaxRestarts-th crash in a row, each further quick crash cools down");
+    assert.doesNotMatch(run.out, /giving up/i);
+  });
+
+  await scenario("owner decision 2026-10-16: a run of -HealthyRunResetSeconds or longer resets the crash count, so crashes far apart never reach the cooldown", () => {
+    // Without the reset the second crash would hit -MaxRestarts 2 and sleep 600s; the 120s timeout would fail the test.
+    const run = crashingObserver({ crashes: 4, sleepMs: 1_500, wrapperArgs: ["-MaxRestarts", "2", "-RestartDelaySeconds", "0", "-HealthyRunResetSeconds", "1", "-CooldownSeconds", "600"] });
+    assert.equal(run.code, 0, run.out);
+    assert.equal(run.launches, 5);
+    assert.equal((run.out.match(/attempt 1\/2/g) ?? []).length, 4, "each crash after a healthy run counts as the first");
+    assert.doesNotMatch(run.out, /cooling down/);
   });
 
   await scenario("M25 BEHAVIOR: a continuous observer that exits cleanly (code 0) is trusted as a deliberate stop and is never retried", () => {

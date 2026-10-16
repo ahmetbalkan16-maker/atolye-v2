@@ -92,7 +92,7 @@ const statusLabel: Record<AyasDevelopmentProposal["status"], string> = {
   FAILED: "BAŞARISIZ",
   RESERVED: "YÜRÜTME İÇİN AYRILDI",
   ABANDONED: "TERK EDİLDİ",
-  RECOVERY_REQUIRED: "RECOVERY_REQUIRED",
+  RECOVERY_REQUIRED: "KURTARMA GEREKLİ",
 };
 
 /** M20.1 — deterministic value classification labels (see `AyasFindingValueClass.ts`). Purely descriptive, never an authority signal. */
@@ -115,10 +115,16 @@ function RecoveryNotice() {
   return (
     <div className="bc-dev__recovery" role="alert">
       <strong>İnsan incelemesi gerekiyor</strong>
-      <span>Yürütme sonucu belirsiz olabilir. AYAS bunu otomatik olarak tekrar çalıştırmaz; yeniden çalıştırma seçeneği sunulmaz.</span>
+      <span>Yürütme sonucu henüz kanıtlanamadı. AYAS her turda depoyu yeniden kontrol eder; değişikliğin geri alındığını ya da kendi commit&apos;iyle yayına çıktığını kanıtlayınca kaydı kendisi kapatır. Kapanmıyorsa önerinin dosyalarında commit edilmemiş bir değişiklik vardır ya da commit yalnızca bu bilgisayardadır: değişikliği geri al ya da commit&apos;i gönder, kayıt birkaç dakika içinde kapanır. AYAS bu öneriyi kendiliğinden yeniden çalıştırmaz.</span>
     </div>
   );
 }
+
+const recoveryResolutionLabel: Record<NonNullable<NonNullable<AyasDevelopmentProposal["result"]>["recoveryResolution"]>["kind"], string> = {
+  ROLLBACK_VERIFIED: "değişiklik geri alındı (kararlılık denetimi doğruladı)",
+  PUBLISHED_VERIFIED: "değişiklik kendi commit'iyle yayına çıkmış",
+  NO_MUTATION_REMAINS: "değişiklik hiç tamamlanmadı, dosyalarda iz yok",
+};
 
 function ProposalDetails({ proposal }: { readonly proposal: AyasDevelopmentProposal }) {
   const sourceLabel = proposal.discoverySource === "RESEARCH_LIGHT" ? "LIGHT araştırma" : proposal.discoverySource === "RESEARCH_DEEP" ? "DEEP araştırma" : "Yerel discovery";
@@ -491,6 +497,7 @@ function TimelineCard({ proposal, executingId, executionError, onExecute }: { re
       <span>{new Date(proposal.lastUpdatedAt || proposal.createdAt).toLocaleString("tr-TR")}</span>
       {proposal.decision ? <p className="bc-dev__outcome">Karar: {proposal.decision.decision} · {new Date(proposal.decision.decidedAt).toLocaleString("tr-TR")}</p> : null}
       {proposal.result ? <p className="bc-dev__outcome">Yürütme sonucu: {proposal.result.outcome} · Testler: {proposal.result.testResults.join(" · ") || "kayıt yok"}</p> : null}
+      {proposal.result?.recoveryResolution ? <p className="bc-dev__outcome">Kurtarma kaydını AYAS kapattı: {recoveryResolutionLabel[proposal.result.recoveryResolution.kind]} · Kanıt: {proposal.result.recoveryResolution.evidence.slice(0, 24)}</p> : null}
       {proposal.status === "RECOVERY_REQUIRED" ? <RecoveryNotice /> : null}
       <ExecuteControl proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} />
       <details><summary>Ayrıntıları göster</summary><ProposalDetails proposal={proposal} /></details>
@@ -507,7 +514,7 @@ const microBatchStatusLabel: Record<AyasMicroBatchDevelopmentEntry["status"], st
   FAILED: "BAŞARISIZ",
   STALE: "GÜNCELLİĞİNİ YİTİRDİ",
   ABANDONED: "TERK EDİLDİ",
-  RECOVERY_REQUIRED: "RECOVERY_REQUIRED",
+  RECOVERY_REQUIRED: "KURTARMA GEREKLİ",
 };
 
 /** M18 — one micro item inside a batch card: the same sandbox-validated diff evidence a full individual proposal shows, just scoped to this one small item. */

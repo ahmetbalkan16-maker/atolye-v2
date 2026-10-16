@@ -6,6 +6,10 @@ param(
   # (the Startup shortcut / Task Scheduler action) never pass these.
   [int]$MaxRestarts = 10,
   [int]$RestartDelaySeconds = 30,
+  # A run at least this long was healthy, so a crash after it starts a fresh count.
+  [int]$HealthyRunResetSeconds = 600,
+  # After MaxRestarts quick crashes in a row: one slow attempt per this many seconds.
+  [int]$CooldownSeconds = 900,
   # Owner decisions 2026-10-15 (update executor): overridable ONLY so the
   # dependency sync is testable without a real npm install. A script that
   # receives the staging folder and installs node_modules into it.
@@ -109,23 +113,31 @@ try {
     # continuous loop has no code path that returns 0 (its only exits are an
     # uncaught exception, which reports 1, or an external termination, which
     # Windows never reports as a clean 0) - so an exact 0 is trusted as a
-    # deliberate stop, never retried. Bounded, not infinite, so a
-    # persistently broken build/config produces one final, visible non-zero
-    # exit rather than a silent, resource-consuming crash loop running forever.
+    # deliberate stop, never retried.
+    # Owner decision 2026-10-16: the wrapper never gives up for the rest of the
+    # session. The count holds only CONSECUTIVE quick crashes - a run of
+    # -HealthyRunResetSeconds or longer resets it, so rare crashes days apart
+    # can never add up to a stop. After -MaxRestarts quick crashes in a row
+    # (a persistently broken build/config) it stops the fast loop and tries
+    # once per -CooldownSeconds instead, so a later fix (a pull, a repaired
+    # dependency) brings the observer back without waiting for a logon.
     $attempt = 0
     # Only this loop handles exit 75, so only its observer may ask for it.
     $env:AYAS_OBSERVER_SYNC_RESTART = "1"
     while ($true) {
       Sync-AyasDependencies
+      $startedAt = Get-Date
       & npx @daemonArgs
       $code = $LASTEXITCODE
       if ($code -eq 0) { exit 0 }
       # A planned restart for the dependency sync is not a crash: not counted, no delay.
       if ($code -eq $PlannedSyncExitCode) { Write-Output "AYAS autonomy observer: planned restart for the dependency sync."; continue }
+      if (((Get-Date) - $startedAt).TotalSeconds -ge $HealthyRunResetSeconds) { $attempt = 0 }
       $attempt += 1
       if ($attempt -ge $MaxRestarts) {
-        Write-Error "AYAS autonomy observer exited $attempt time(s) (last exit code $code) - giving up after $MaxRestarts restarts; will resume at the next logon."
-        exit 1
+        Write-Output "AYAS autonomy observer exited $attempt time(s) in a row (last exit code $code) - cooling down, next attempt in ${CooldownSeconds}s."
+        Start-Sleep -Seconds $CooldownSeconds
+        continue
       }
       Write-Output "AYAS autonomy observer exited unexpectedly (exit code $code, attempt $attempt/$MaxRestarts) - restarting in ${RestartDelaySeconds}s."
       Start-Sleep -Seconds $RestartDelaySeconds

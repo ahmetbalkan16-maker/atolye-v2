@@ -12,6 +12,7 @@ import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasAppr
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { admitAyasDiscoveryRun, type AyasDiscoveryRunGuard } from "../src/lib/brain/autonomy/AyasDiscoveryRunGuard";
 import { reconcileAyasStaleProposals } from "../src/lib/brain/autonomy/AyasProposalStaleness";
+import { reconcileAyasRecoveryRequiredProposals, type AyasRecoveryReconciliationResult } from "../src/lib/brain/autonomy/AyasRecoveryReconciliation";
 import { reviewAyasPendingProposals } from "../src/lib/brain/autonomy/AyasAutonomousReview";
 import { discoverAyasSafeCandidates } from "../src/lib/brain/autonomy/AyasDiscoveryRegistry";
 import { discoverAyasNovelPatchCandidates } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
@@ -138,6 +139,14 @@ async function main(): Promise<void> {
   // PENDING/APPROVED -> STALE (see AyasProposalStaleness.ts) and never
   // reserves/executes/opens a gate. It runs first under the run's lease.
   const staled = leased("discovery.proposal-inbox") ? reconcileAyasStaleProposals(inbox, observation.head, now) : [];
+  // Same bookkeeping authority: a RECOVERY_REQUIRED proposal closes only on
+  // durable proof (guard rollback, its own published commit, or no mutation
+  // left); it is never re-run. Unproven ones stay for a human, with a reason.
+  let recovery: AyasRecoveryReconciliationResult = { resolved: [], unresolved: [] };
+  if (leased("discovery.proposal-inbox")) {
+    try { recovery = reconcileAyasRecoveryRequiredProposals({ repoRoot: root, inbox, now }); }
+    catch (error) { observation.gaps.push(`recovery reconciliation failed: ${error instanceof Error ? error.message : String(error)}`); }
+  }
 
   const daemon = createAyasAutonomyDaemon({ inbox, now: () => now });
   daemon.observe(observation);
@@ -270,6 +279,8 @@ async function main(): Promise<void> {
     machineReason: health.reasonCode,
     gaps: observation.gaps,
     staleReconciled: staled.map((p) => p.proposalId),
+    recoveryResolved: recovery.resolved.map((r) => `${r.proposalId}:${r.kind}`),
+    recoveryUnresolved: recovery.skipped ? [recovery.skipped] : recovery.unresolved.map((r) => `${r.proposalId}:${r.reason}`),
     discovered: discovered.map((p) => p.proposalId),
     novelRejections: novel.rejections,
     findings: novel.findings.length,

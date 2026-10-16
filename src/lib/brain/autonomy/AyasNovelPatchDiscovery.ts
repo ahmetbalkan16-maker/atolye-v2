@@ -7,6 +7,7 @@ import type { AyasDaemonCandidate, AyasDaemonObservation } from "./AyasAutonomyD
 import { measureAyasGraphifyImportCount } from "./AyasBatchGraphifyCheck";
 import { AYAS_GENERATOR_SOURCES, checkAyasNovelPatchLimits, runAyasDiscoveryFindings, type AyasDiscoveryFinding, type AyasGeneratedNovelPatch } from "./AyasPatchDetectors";
 import { classifyAyasMicroCandidate } from "./AyasMicroClassifier";
+import { AyasValidatorFailedError } from "./AyasMutationValidators";
 import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox } from "./AyasPatchSandbox";
 import { createAyasPatchArtifactStore, computeAyasPatchHash, type AyasPatchArtifact } from "./AyasPatchArtifact";
 import { createAyasSandboxUnvalidatableStore, contentFingerprintOf, type AyasSandboxUnvalidatableStore } from "./AyasSandboxUnvalidatableStore";
@@ -138,7 +139,8 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
     // below isn't; both are cheap, deterministic skips before any real
     // sandbox work happens.
     const contentFingerprint = contentFingerprintOf(generated.replacements.map((r) => r.content).join("|"));
-    if (sandboxUnvalidatableStore.shouldSkip(generated.candidateId, contentFingerprint)) continue;
+    // A validator failure is retried after its backoff (the environment may have changed); policy/freeze refusals are not.
+    if (sandboxUnvalidatableStore.shouldSkip(generated.candidateId, contentFingerprint, observation.now)) continue;
 
     // M18: a candidate classified MICRO_SAFE belongs to the batch lane
     // (AyasMicroBatchAccumulator), never an individual human-facing
@@ -193,7 +195,7 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
       // forever. A source change (new fingerprint) naturally lifts the
       // suppression on its own next tick.
       try {
-        sandboxUnvalidatableStore.record({ semanticKey: generated.candidateId, generatorIdentity: generated.generatorIdentity, contentFingerprint, reason, requiredCapability: "unknown — validator failed for a reason not necessarily related to the generated content itself; see reason", now: observation.now });
+        sandboxUnvalidatableStore.record({ semanticKey: generated.candidateId, generatorIdentity: generated.generatorIdentity, contentFingerprint, reason, requiredCapability: "unknown — validator failed for a reason not necessarily related to the generated content itself; see reason", retryable: error instanceof AyasValidatorFailedError, now: observation.now });
       } catch { /* best-effort suppression only — never blocks discovery */ }
       await destroyAyasPatchSandbox(sandbox);
       continue;
