@@ -165,13 +165,53 @@ try {
     No ($source -match '(?im)^\s*(?:git|graphify|cloudflared\s+tunnel\s+create)\b')
     No ($source -match 'AyasApproval|ExecutionGate|observerActions')
   }
+  # 2026-10-16: Next's runtime route cache is cleared before a start; only that folder, never through a link.
+  $routeApp = Join-Path $temp 'route-cache-app'
+  $savedPublished = $script:PublishedApplicationRoot
+  $script:PublishedApplicationRoot = $routeApp
+  try {
+    Scenario 'route cache written while serving is cleared; the build and other caches stay' {
+      $page = Join-Path $routeApp '.next\server\route-cache\APP_PAGE\0a\$\studio.segments'
+      New-Item -ItemType Directory -Force -Path $page | Out-Null
+      Set-Content -LiteralPath (Join-Path $page '_full.segment.rsc') -Value 'cached'
+      New-Item -ItemType Directory -Force -Path (Join-Path $routeApp '.next\cache\images') | Out-Null
+      Set-Content -LiteralPath (Join-Path $routeApp '.next\server\app.js') -Value 'build'
+      Set-Content -LiteralPath (Join-Path $routeApp '.next\cache\images\keep.txt') -Value 'keep'
+      Clear-ApplicationRouteCache
+      No (Test-Path -LiteralPath (Join-Path $routeApp '.next\server\route-cache'))
+      Eq (Get-Content -LiteralPath (Join-Path $routeApp '.next\server\app.js')) 'build'
+      Eq (Get-Content -LiteralPath (Join-Path $routeApp '.next\cache\images\keep.txt')) 'keep'
+      Eq @(Get-ChildItem -LiteralPath (Join-Path $routeApp '.next\cache') -Filter 'route-cache-cleared-*').Count 0
+      Clear-ApplicationRouteCache   # nothing to clear is a no-op
+      Yes (Test-Path -LiteralPath (Join-Path $routeApp '.next\server\app.js'))
+    }
+    Scenario 'a route cache that is a link, or a link where it would be parked, is never followed or moved' {
+      $outside = Join-Path $temp 'route-cache-outside'
+      New-Item -ItemType Directory -Force -Path $outside | Out-Null
+      Set-Content -LiteralPath (Join-Path $outside 'precious.txt') -Value 'precious'
+      $link = Join-Path $routeApp '.next\server\route-cache'
+      New-Item -ItemType Junction -Path $link -Target $outside | Out-Null
+      Clear-ApplicationRouteCache
+      Yes (Test-Path -LiteralPath $link); Eq (Get-Content -LiteralPath (Join-Path $outside 'precious.txt')) 'precious'
+      [IO.Directory]::Delete($link)
+      New-Item -ItemType Directory -Force -Path $link | Out-Null
+      Set-Content -LiteralPath (Join-Path $link 'page.rsc') -Value 'cached'
+      Remove-Item -LiteralPath (Join-Path $routeApp '.next\cache') -Recurse -Force
+      New-Item -ItemType Junction -Path (Join-Path $routeApp '.next\cache') -Target $outside | Out-Null
+      Clear-ApplicationRouteCache
+      Yes (Test-Path -LiteralPath (Join-Path $link 'page.rsc'))
+      Eq @(Get-ChildItem -LiteralPath $outside).Count 1
+      [IO.Directory]::Delete((Join-Path $routeApp '.next\cache'))
+    }
+  } finally { $script:PublishedApplicationRoot = $savedPublished }
   # Verify the real startup functions before replacing them for cycle tests.
   $startupSaved = @{}
-  foreach ($name in @('Get-AccessSnapshot','Test-PrebuiltRuntime','Start-OwnedProcess','Test-LocalHealth','Start-Sleep')) {
+  foreach ($name in @('Get-AccessSnapshot','Test-PrebuiltRuntime','Start-OwnedProcess','Test-LocalHealth','Start-Sleep','Clear-ApplicationRouteCache')) {
     $command = Get-Command $name
     $startupSaved[$name] = if ($command.CommandType -eq 'Function') { $command.ScriptBlock } else { $null }
   }
   function Get-AccessSnapshot { $script:startupSnapshot }
+  function Clear-ApplicationRouteCache { $script:routeCacheClears++ }
   function Test-PrebuiltRuntime { $script:prebuiltValid }
   function Test-LocalHealth { $true }
   function Start-Sleep { }
@@ -183,16 +223,16 @@ try {
   }
   try {
     Scenario 'already healthy origin is never relaunched' {
-      $script:startupSnapshot=[pscustomobject]@{origin='healthy';listenerPid=444}; $script:startupLaunches=0; $script:prebuiltValid=$true
-      Eq (Start-Origin).stage origin-race; Eq $script:startupLaunches 0
+      $script:startupSnapshot=[pscustomobject]@{origin='healthy';listenerPid=444}; $script:startupLaunches=0; $script:prebuiltValid=$true; $script:routeCacheClears=0
+      Eq (Start-Origin).stage origin-race; Eq $script:startupLaunches 0; Eq $script:routeCacheClears 0
     }
     Scenario 'unqualified build is refused without launch' {
       $script:startupSnapshot=[pscustomobject]@{origin='down';listenerPid=$null}; $script:startupLaunches=0; $script:prebuiltValid=$false
       Eq (Start-Origin).stage prebuilt-runtime-unverified; Eq $script:startupLaunches 0
     }
     Scenario 'qualified startup executes Next directly with quoted path, never npm build' {
-      $script:startupSnapshot=[pscustomobject]@{origin='down';listenerPid=$null}; $script:startupLaunches=0; $script:prebuiltValid=$true
-      Yes (Start-Origin).ok; Eq $script:startupLaunches 1; Eq $script:lastStartupExe $script:NodeExe
+      $script:startupSnapshot=[pscustomobject]@{origin='down';listenerPid=$null}; $script:startupLaunches=0; $script:prebuiltValid=$true; $script:routeCacheClears=0
+      Yes (Start-Origin).ok; Eq $script:startupLaunches 1; Eq $script:lastStartupExe $script:NodeExe; Eq $script:routeCacheClears 1
       Eq $script:lastStartupArgs[0] ('"' + (Join-Path $script:RepoRoot 'node_modules\next\dist\bin\next') + '"')
       Eq $script:lastStartupArgs[1] start; No ($script:lastStartupArgs -contains 'build')
     }

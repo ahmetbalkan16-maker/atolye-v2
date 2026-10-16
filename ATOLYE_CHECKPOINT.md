@@ -31,7 +31,20 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - Değişen modüllere bağlı 22 suite'in hepsi geçti. Aralarında pinli `smoke-ayas-autonomy-daemon` 9/9 ve `smoke-ayas-action-firewall-closure` 12/12 (11 yüzey, 46 modül) var, ikisi de değiştirilmedi.
   - tsc 0; değişen 8 dosyada lint 0 (ASCII yoldan).
 
+**Telefon erişimi kesintisi (16 Ekim 06:47 – 07:13) — giderildi, kalıcı düzeltme eklendi:**
+- **Belirti:** PC açılışından sonra canlı uygulama başlamadı, tünel de ona bağlı olduğu için açılmadı. Owner telefondan giremedi. Erişim denetçisi 3 denemede `prebuilt-runtime-unverified` aldı ve `retries-exhausted` durumunda kaldı. Bu durumu yalnız sağlıklı bir uygulama sıfırlar; kendiliğinden yeniden denemez.
+- **Kök neden:** Next.js 16.4.1 sayfa sunarken çizilmiş sayfa önbelleğini `.next/server/route-cache` altına yazıyor. 15 Ekim 15:15'te `/studio`, `/brain/voice-lab` ve `manifest.webmanifest` için 14 dosya yazıldı. Bu dosyalar onaylı derlemenin parçası değil. Açılıştaki tam ağaç doğrulaması (`ayas-prebuilt-runtime.mjs --check`) farkı gördü ve başlatmayı reddetti. Fark birebir bu 14 dosyaydı (+14 dosya, +61.327 bayt; node.exe ve cloudflared özetleri eşleşiyordu). 15 Ekim sabahki açılış Next 16.3.8 ile sorunsuzdu; bu davranış 16.4.1 ile geldi.
+- **Kurtarma (owner onayıyla, otomatik izin denetimi önce engellemişti):** `route-cache` klasörü `D:\ÜRETİM\handover\phone-recovery-20261016\route-cache`'e taşındı. Durum dosyası `recovery-state.before.json` olarak yedeklenip kaldırıldı. Doğrulama yeniden geçti. Denetçi 07:12:30'da uygulamayı (PID 21368), 07:12:33'te tüneli (PID 7524) açtı. Dış adres 307 döndü (giriş yönlendirmesi).
+- **Kalıcı düzeltme (owner seçimi: "başlatmadan önce önbelleği temizle"):**
+  - `ayas-access-daemon.ps1` içinde `Clear-ApplicationRouteCache`, `Start-Origin`'de uygulama kapalıyken ve doğrulamadan önce çalışır.
+  - Yalnız `.next/server/route-cache` taşınır: önce `.next/cache` altına (doğrulamanın zaten dışında tuttuğu yer; yeniden adlandırma bağlantı izlemez), sonra silinir. Klasör ya da park yeri bağlantıysa dokunulmaz ve doğrulama eskisi gibi karar verir.
+  - Doğrulama gevşetilmedi.
+  - Çalışan denetçi eski kodla sürüyor; yeni kod bir sonraki açılışta (ya da denetçi yeniden başladığında) devreye girer.
+  - `smoke-ayas-access-daemon.ps1` 52 senaryo geçti. Yeni senaryolar: temizleme, junction ile bağlantı ve park yerine dokunmama, başlatmada tek çağrı.
+- **Not:** `ayas-live-f2211bcb` sayfa sundukça önbellek yeniden oluşacak. Bu artık bir sonraki açılışta sorun değil.
+
 **Sıradaki:**
+0. 391adfbb'nin canlıya alınması: owner erişimi yeni geri aldığı için ertelendi (geçiş ~1 dk kesinti). Canlıda görünen tek fark model izleme notları.
 1. gemma4:12b indirmesi bitince ölçüm. Daha iyi çıkarsa model değiştirmek için owner onayı alınır.
 2. Model işlemleri için telefondan onay düğmeleri (indir → ölç → değiştir). Owner 15 Ekim'de dahil etti, henüz yazılmadı. Model değişikliği canlı kopyanın `.env.local` dosyasını, model yaşam döngüsü kaydını (gemma3:12b henüz kayıtta yok) ve canlı uygulamanın yeniden başlatılmasını birlikte ilgilendiriyor. Yeni bir `ollama` başlatan modül pinli kapanış haritasına da dokunur. Bu yüzden tasarım kodlamadan önce owner'a sunulacak.
 3. 15 Ekim kaydındaki "Sıradaki" listesi aynen geçerli.

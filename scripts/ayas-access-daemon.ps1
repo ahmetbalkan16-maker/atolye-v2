@@ -249,8 +249,32 @@ function Start-OwnedProcess([string]$FilePath, [string[]]$Arguments, [string]$St
   if ($Wait) { $options.Wait = $true }
   Start-Process @options
 }
+# Next 16.4 writes rendered routes into .next\server\route-cache while it serves. That cache is regenerated from
+# the build but is not part of the qualified build, so once it exists the pinned check refuses every later start
+# (2026-10-16: no phone access after a reboot). Called only while the origin is down, so nothing serves from it.
+# The folder is renamed into .next\cache (excluded from the check like Next's other caches; a rename never follows
+# a link) and then deleted. A link at either place is left alone, and the check decides as before.
+function Clear-ApplicationRouteCache {
+  try {
+    $next = Join-Path (Get-ApplicationRoot) '.next'
+    $cache = Join-Path $next 'server\route-cache'
+    if (-not (Test-Path -LiteralPath $cache)) { return }
+    $item = Get-Item -LiteralPath $cache -Force
+    if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return }
+    $parkDir = Join-Path $next 'cache'
+    if (Test-Path -LiteralPath $parkDir) {
+      $park = Get-Item -LiteralPath $parkDir -Force
+      if (-not $park.PSIsContainer -or ($park.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return }
+    } else { New-Item -ItemType Directory -Path $parkDir | Out-Null }
+    $parked = Join-Path $parkDir ('route-cache-cleared-' + (Get-Date -Format 'yyyyMMddHHmmss') + "-$PID")
+    Move-Item -LiteralPath $cache -Destination $parked
+    # .NET removes a link it meets inside, never what it points to.
+    try { [IO.Directory]::Delete($parked, $true) } catch { }
+  } catch { }
+}
 function Start-Origin {
   if ((Get-AccessSnapshot).origin -ne 'down') { return [pscustomobject]@{ ok = $false; stage = 'origin-race'; wrapperPid = $null } }
+  Clear-ApplicationRouteCache
   if (-not (Test-PrebuiltRuntime)) { return [pscustomobject]@{ ok = $false; stage = 'prebuilt-runtime-unverified'; wrapperPid = $null } }
   if ((Get-AccessSnapshot).origin -ne 'down') { return [pscustomobject]@{ ok = $false; stage = 'origin-race'; wrapperPid = $null } }
   $applicationRoot = Get-ApplicationRoot
