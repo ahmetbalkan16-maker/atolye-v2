@@ -38,24 +38,24 @@ const CONNECTED_GOALS: AyasGoalDevelopmentView = {
 };
 
 scenario("plain conversational text never matches a research-status intent", () => {
-  assert.equal(detectAyasResearchStatusIntent("bugün hava çok güzel"), null);
-  assert.equal(detectAyasResearchStatusIntent(""), null);
+  assert.equal(detectAyasResearchStatusIntent("bugün hava çok güzel"), null, "assert.equal(detectAyasResearchStatusIntent(\"bugün hava çok güzel\"), null)");
+  assert.equal(detectAyasResearchStatusIntent(""), null, "assert.equal(detectAyasResearchStatusIntent(\"\"), null)");
 });
 
 scenario('"Son internette ne araştırdın?" is detected as a digest intent', () => {
-  assert.deepEqual(detectAyasResearchStatusIntent("Son internette ne araştırdın?"), { kind: "digest" });
+  assert.deepEqual(detectAyasResearchStatusIntent("Son internette ne araştırdın?"), { kind: "digest" }, "assert.deepEqual(detectAyasResearchStatusIntent(\"Son internette ne araştırdın?\"), { kind: \"digest\" })");
 });
 
 scenario('"Son 24 saatte hangi özellikleri keşfettin?" is detected as a digest intent', () => {
-  assert.deepEqual(detectAyasResearchStatusIntent("Son 24 saatte hangi özellikleri keşfettin?"), { kind: "digest" });
+  assert.deepEqual(detectAyasResearchStatusIntent("Son 24 saatte hangi özellikleri keşfettin?"), { kind: "digest" }, "assert.deepEqual(detectAyasResearchStatusIntent(\"Son 24 saatte hangi özellikleri keşfettin?\"), { kind: \"digest\" })");
 });
 
 scenario('"Sonraki araştırma ne zaman?" is detected as a next-schedule intent', () => {
-  assert.deepEqual(detectAyasResearchStatusIntent("Sonraki araştırma ne zaman?"), { kind: "next-schedule" });
+  assert.deepEqual(detectAyasResearchStatusIntent("Sonraki araştırma ne zaman?"), { kind: "next-schedule" }, "assert.deepEqual(detectAyasResearchStatusIntent(\"Sonraki araştırma ne zaman?\"), { kind: \"next-schedule\" })");
 });
 
 scenario('"Ollama tarafında yeni ne buldun?" is detected as a provider intent for "ollama"', () => {
-  assert.deepEqual(detectAyasResearchStatusIntent("Ollama tarafında yeni ne buldun?"), { kind: "provider", providerQuery: "ollama" });
+  assert.deepEqual(detectAyasResearchStatusIntent("Ollama tarafında yeni ne buldun?"), { kind: "provider", providerQuery: "ollama" }, "assert.deepEqual(detectAyasResearchStatusIntent(\"Ollama tarafında yeni ne buldun?\"), { kind: \"provider\", providerQuery: \"ollama\" })");
 });
 
 scenario("the digest answer states real numbers from the supplied view, never invented ones", () => {
@@ -95,7 +95,7 @@ scenario("a disconnected research view yields an honest 'cannot read' answer ins
 });
 
 scenario("a null intent yields an empty answer (the caller falls through to the model), never a crash", () => {
-  assert.equal(buildAyasResearchStatusSpokenAnswer(CONNECTED_GOALS, CONNECTED_RESEARCH, null), "");
+  assert.equal(buildAyasResearchStatusSpokenAnswer(CONNECTED_GOALS, CONNECTED_RESEARCH, null), "", "assert.equal(buildAyasResearchStatusSpokenAnswer(CONNECTED_GOALS, CONNECTED_RESEARCH, null), \"\")");
 });
 
 // Research integration (owner request 2026-10-15): the update radar in the spoken research answer.
@@ -114,7 +114,7 @@ scenario('"AYAS, araştırma ne durumda?" and its variants are digest intents; a
   for (const text of ["AYAS, araştırma ne durumda?", "Araştırmaların durumu ne?", "Dış araştırma nasıl gidiyor?", "araştırmanın durumu"]) {
     assert.deepEqual(detectAyasResearchStatusIntent(text), { kind: "digest" }, text);
   }
-  assert.equal(detectAyasResearchStatusIntent("İstanbul'un Fethi araştırması ne durumda?"), null);
+  assert.equal(detectAyasResearchStatusIntent("İstanbul'un Fethi araştırması ne durumda?"), null, "assert.equal(detectAyasResearchStatusIntent(\"İstanbul'un Fethi araştırması ne durumda?\"), null)");
 });
 
 scenario("tool update questions are update intents; commands and project updates are not", () => {
