@@ -26,24 +26,49 @@ const safeId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "-").
  */
 export type AyasResearchDesignReviewGate = (finding: AyasExternalResearchFinding) => readonly string[] | null;
 
+/** A category word such as "EXPORT" or "CODING_AGENTS" says nothing to the owner. */
+const CATEGORY_LIKE = /^[A-Z0-9_]+$/;
+
+/**
+ * The heading the owner reads in Gelişim Merkezi (2026-10-16): which tool, which release and the source's own words.
+ * The local model often puts a category word in `capability`, while the evidence quote is verified verbatim against
+ * the source entry upstream (AyasDeepResearchEngine), so the quote says what was actually found.
+ */
+export function ayasResearchProposalTitle(finding: Pick<AyasExternalResearchFinding, "provider" | "capability" | "sourceUrl" | "evidenceQuote" | "releaseVersion">): string {
+  const provider = safeText(finding.provider, 60);
+  const tag = /\/releases\/tag\/([^/?#]+)/.exec(finding.sourceUrl ?? "")?.[1];
+  const release = safeText(finding.releaseVersion ?? (tag ? (() => { try { return decodeURIComponent(tag); } catch { return tag; } })() : ""), 40);
+  const quote = finding.evidenceQuote ? safeText(finding.evidenceQuote, 140) : "";
+  const capability = safeText(finding.capability, 120);
+  const what = quote ? `"${quote}"` : CATEGORY_LIKE.test(capability) ? "" : capability;
+  const where = [provider, release].filter(Boolean).join(" ");
+  if (!where && !what) return `${capability} bulgusunu Atölye için bağımsız ve güvenli bir adaptasyon tasarımına dönüştür`;
+  return `${where}${where && what ? ": " : ""}${what} — Atölye için uyarlama tasarımını incele`;
+}
+
 export function discoverAyasResearchProposalCandidates(
   findings: readonly AyasExternalResearchFinding[],
-  existingProposals: readonly Pick<AyasInboxProposal, "sourceReference">[],
+  existingProposals: readonly (Pick<AyasInboxProposal, "sourceReference"> & { readonly status?: AyasInboxProposal["status"] })[],
   designReviewGate?: AyasResearchDesignReviewGate,
 ): readonly AyasDaemonCandidate[] {
-  const alreadyBridged = new Set(existingProposals.map((proposal) => proposal.sourceReference).filter((value): value is string => Boolean(value)));
+  // A proposal retired only because the code moved on (STALE), before the owner decided anything, does not retire its
+  // finding: one with a verified source quote is offered again on the current code. Every other status (pending,
+  // decided, executed, abandoned) keeps the finding bridged, and findings from before quotes were required stay retired.
+  const references = (keep: (status: AyasInboxProposal["status"] | undefined) => boolean) => new Set(existingProposals
+    .filter((proposal) => keep(proposal.status)).map((proposal) => proposal.sourceReference).filter((value): value is string => Boolean(value)));
+  const alreadyBridged = references((status) => status !== "STALE");
+  const everBridged = references(() => true);
   return findings
     .filter((finding) => finding.disposition !== undefined && ayasFindingMayEnterDiscovery(finding.disposition))
-    .filter((finding) => !alreadyBridged.has(finding.findingId))
+    .filter((finding) => !alreadyBridged.has(finding.findingId) && (!everBridged.has(finding.findingId) || Boolean(finding.evidenceQuote)))
     .map((finding) => ({ finding, loopEvidence: designReviewGate ? designReviewGate(finding) : [] }))
     .filter((entry): entry is { finding: AyasExternalResearchFinding; loopEvidence: readonly string[] } => entry.loopEvidence !== null)
     .map(({ finding, loopEvidence }, index) => {
-      const capability = safeText(finding.capability, 200);
       const problem = safeText(finding.problemSolved, 500);
       const gap = safeText(finding.atolyeGapNotes, 500);
       const planningFile = `docs/brain/proposals/research-${safeId(finding.findingId)}.md`;
       return {
-        objective: `${capability} bulgusunu Atölye için bağımsız ve güvenli bir adaptasyon tasarımına dönüştür`,
+        objective: ayasResearchProposalTitle(finding),
         currentProblem: `${problem}${gap ? ` Atölye gap kanıtı: ${gap}` : ""}`,
         selectionReason: "Resmî kaynaktan gelen, yüksek güvenli, ücretsiz/açık ve mevcut bir Atölye alanındaki gerçek boşlukla corroborate edilmiş araştırma bulgusu.",
         expectedUserBenefit: "Değerli dış araştırma yalnız bilgi olarak kalmaz; sahibin görebildiği, kaynaklı ve yönetişim altında bir geliştirme kaydına dönüşür.",

@@ -99,6 +99,22 @@ Kalıcı talimatlar 15 Ekim kaydının başında, aynen geçerli.
   - gemma3:12b'nin model yaşam döngüsü kaydına eklenmesi ayrı bir iş olarak duruyor; geçiş bunu gerektirmiyor.
 4. gemma4:12b indirmesi sürüyor (07:43'te %30, kalan ~1 saat). Bitince kartta "Ölç" ile ya da elle ölçülebilir.
 
+**Araştırma önerileri okunur ve kalıcı (owner seçimi "2'yi yap", 09:35):**
+- **Bulgu 1 — anlamsız başlıklar:** öneri başlığı modelin `capability` alanından kuruluyordu. Bu alana çoğunlukla bir kategori kelimesi yazılıyordu: "CODING_AGENTS bulgusunu… dönüştür", "EXPORT bulgusunu…".
+- **Düzeltme 1:** `ayasResearchProposalTitle` başlığı araç, sürüm ve kaynağın birebir doğrulanmış sözüyle kuruyor. Örnek: `ComfyUI v0.40.0: "Implement the asset export API locally" — Atölye için uyarlama tasarımını incele`. Alıntı yoksa ve alan kategori kelimesiyse yalnız araç ve sürüm yazılır; ikisi de yoksa eski metin kalır.
+- **Bulgu 2 — öneriler kayboluyordu:** `ayas-discovery-daemon` köprüye bayatlamış öneriler dahil bütün önerileri veriyordu. Bu yüzden bir bulgu bir kez öneriye dönüştükten sonra, kod değişip öneri STALE olunca bir daha hiç gelmiyordu. Kayıtta 11 araştırma bulgusunun 11 önerisi de STALE'di; hiçbiri yeniden üretilmemişti. Owner bu önerileri büyük olasılıkla hiç görmedi.
+- **Düzeltme 2:** bütün önerileri yalnız STALE olan ve doğrulanmış kaynak alıntısı taşıyan bir bulgu, güncel kod üzerinde yeniden sunulur. Diğer bütün durumlar bulguyu kapalı tutar:
+  - owner kararı olanlar: APPROVED, REJECTED, COMPLETED
+  - PENDING, ABANDONED ve RECOVERY_REQUIRED
+  - durum bilgisi olmayan eski çağıranlar
+- **"Alıntısız bulgu öneri olmasın":** bu zaten 15 Ekim'den (d1459b91) beri yukarıda sağlanıyor; DeepResearchEngine birebir alıntısı olmayan bulguyu atıyor. Alıntısız üç bulgu 14 Ekim'den ve kapalı kalıyor. Köprüye ayrıca filtre konmadı, çünkü pinli `smoke-ayas-research-improvement-loop` fixture'ları alıntısız ve ilk köprülemeyi bekliyor. Pin değişmedi.
+- **Beklenen etki:** commit'ten sonraki keşif turunda alıntılı üç bulgu (Ollama 0.40.5, ComfyUI 0.41, ComfyUI 0.40) okunur başlıklarla Gelişim Merkezi'ne geri gelir.
+- **Testler:**
+  - Yeni `smoke-ayas-research-proposal-bridge` 5/5.
+  - Pinli `smoke-ayas-research-improvement-loop`: ilk koşu exit 1 verdi. Karar bölümü 28/28 geçmişti, entegrasyon bölümünde hiçbir assert mesajı olmadan düştü; o sırada gemma4'ün 8 GB özet doğrulaması diski dolduruyordu. Ardından iki tam koşu PASS oldu (36 karar, 57 entegrasyon); yük altında zamanlama dalgalanması olarak değerlendirildi.
+  - continuous-self-improvement 10/10, golden-experiment-gate 11/11 ve mutations 35/35, discovery-run-firewall 13/13, development-center 59/59, firewall closure 12/12, external-research-store 8/8.
+  - tsc 0, lint 0.
+
 **Model geçişinin yeniden başlatma adımı canlıda doğrulandı (owner onayı, 08:58):**
 - Model geçişinin kullandığı `createAyasLiveRestarter` → `ayas-publish-live.ps1 -Restart` gerçek canlı uygulamada çalıştırıldı.
 - Sonuç `RESTARTED`, 23 sn. Uygulama PID 26460 → 31764; aynı kopya `ayas-live-564d0579`. Telefon, tünel ve AYAS arka ucu çevrimiçi; dış adres 307.
