@@ -1,5 +1,5 @@
 import type { AyasDaemonCandidate } from "./AyasAutonomyDaemon";
-import type { AyasInboxProposal } from "./AyasApprovalInboxStore";
+import type { AyasInboxDecisionRecord, AyasInboxProposal } from "./AyasApprovalInboxStore";
 import type { AyasExternalResearchFinding } from "./AyasExternalResearchStore";
 import { neutralizeAyasUntrustedText } from "./AyasDeepAnalysis";
 import { ayasFindingMayEnterDiscovery } from "./AyasResearchDisposition";
@@ -48,15 +48,19 @@ export function ayasResearchProposalTitle(finding: Pick<AyasExternalResearchFind
 
 export function discoverAyasResearchProposalCandidates(
   findings: readonly AyasExternalResearchFinding[],
-  existingProposals: readonly (Pick<AyasInboxProposal, "sourceReference"> & { readonly status?: AyasInboxProposal["status"] })[],
+  existingProposals: readonly (Pick<AyasInboxProposal, "sourceReference"> & { readonly status?: AyasInboxProposal["status"]; readonly proposalId?: string })[],
   designReviewGate?: AyasResearchDesignReviewGate,
+  decisions: readonly Pick<AyasInboxDecisionRecord, "proposalId" | "decision">[] = [],
 ): readonly AyasDaemonCandidate[] {
-  // A proposal retired only because the code moved on (STALE), before the owner decided anything, does not retire its
-  // finding: one with a verified source quote is offered again on the current code. Every other status (pending,
-  // decided, executed, abandoned) keeps the finding bridged, and findings from before quotes were required stay retired.
-  const references = (keep: (status: AyasInboxProposal["status"] | undefined) => boolean) => new Set(existingProposals
-    .filter((proposal) => keep(proposal.status)).map((proposal) => proposal.sourceReference).filter((value): value is string => Boolean(value)));
-  const alreadyBridged = references((status) => status !== "STALE");
+  // A proposal retired only because the code moved on (STALE), before the owner approved or rejected it, does not retire
+  // its finding: one with a verified source quote is offered again on the current code. An APPROVE or REJECT is final
+  // even after the approved proposal later went STALE (2026-10-16: the same four design reviews were approved three
+  // times in one day, each commit re-offering them); LATER still asks again. Every other status (pending, decided,
+  // executed, abandoned) keeps the finding bridged, and findings from before quotes were required stay retired.
+  const ownerDecided = new Set(decisions.filter((record) => record.decision === "APPROVE" || record.decision === "REJECT").map((record) => record.proposalId));
+  const references = (keep: (proposal: (typeof existingProposals)[number]) => boolean) => new Set(existingProposals
+    .filter(keep).map((proposal) => proposal.sourceReference).filter((value): value is string => Boolean(value)));
+  const alreadyBridged = references((proposal) => proposal.status !== "STALE" || (proposal.proposalId !== undefined && ownerDecided.has(proposal.proposalId)));
   const everBridged = references(() => true);
   return findings
     .filter((finding) => finding.disposition !== undefined && ayasFindingMayEnterDiscovery(finding.disposition))

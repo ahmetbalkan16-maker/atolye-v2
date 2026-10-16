@@ -48,6 +48,18 @@ scenario("a quoted finding whose proposals all went STALE is offered again; any 
   assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId)]).length, 0, "a caller that passes no status keeps the earlier rule");
 });
 
+scenario("an owner's APPROVE or REJECT stays final after its proposal went STALE; LATER asks again", () => {
+  const f = finding();
+  const staled = (id: string) => ({ ...proposal(f.findingId, "STALE"), proposalId: id });
+  const history = [staled("p1"), staled("p2")];
+  for (const decision of ["APPROVE", "REJECT"] as const) {
+    assert.equal(discoverAyasResearchProposalCandidates([f], history, undefined, [{ proposalId: "p2", decision }]).length, 0, `${decision} on a proposal that later went STALE retires the finding`);
+  }
+  assert.equal(discoverAyasResearchProposalCandidates([f], history, undefined, [{ proposalId: "p2", decision: "LATER" }]).length, 1, "LATER is not a final decision");
+  assert.equal(discoverAyasResearchProposalCandidates([f], history, undefined, [{ proposalId: "elsewhere", decision: "APPROVE" }]).length, 1, "a decision on another proposal does not retire this finding");
+  assert.equal(discoverAyasResearchProposalCandidates([f], [proposal(f.findingId, "STALE")], undefined, [{ proposalId: "p1", decision: "APPROVE" }]).length, 1, "a proposal without an id cannot be matched to a decision");
+});
+
 scenario("a finding without a verified quote (before 2026-10-15) is bridged once and never comes back after going STALE", () => {
   const old = finding({ evidenceQuote: undefined, capability: "AUDIO_AI" });
   assert.equal(discoverAyasResearchProposalCandidates([old], []).length, 1, "assert.equal(discoverAyasResearchProposalCandidates([old], []).length, 1)");

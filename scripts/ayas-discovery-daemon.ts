@@ -197,9 +197,11 @@ async function main(): Promise<void> {
       observation.gaps.push(`research patch promotion failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  const inboxForResearch = inbox.load();
   const researchCandidates = [
     // With the loop enabled, a finding becomes a design-review proposal only when the loop says a design is what is missing; a failed cycle admits none.
-    ...discoverAyasResearchProposalCandidates(researchFindings, inbox.load().proposals, researchImprovementEnabled ? (improvement?.designReviewGate ?? AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE) : undefined),
+    // The decisions let an owner's APPROVE/REJECT stay final after its proposal went STALE.
+    ...discoverAyasResearchProposalCandidates(researchFindings, inboxForResearch.proposals, researchImprovementEnabled ? (improvement?.designReviewGate ?? AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE) : undefined, inboxForResearch.decisions),
     ...(promotedResearchCandidate ? [promotedResearchCandidate] : discoverAyasResearchExperimentProposalCandidates(improvement?.proposalEvidence ?? [], inbox.load().proposals, observation.head)),
   ];
   // Stage 15 — the optional Stage 13 JSON source uses the same canonical parser
