@@ -153,7 +153,7 @@ async function main() {
     assert.equal(out.episode.sahneler[1]!.satirlar[2]!.rivayet, true);
     assert.equal(out.factCheck.uygulanan, 2);
     assert.deepEqual(out.factCheck.iddialar.map((c) => c.sonuc), ["duzeltildi", "rivayet_eklendi", "rapor", "bulunamadi"]);
-    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,onarim-1,uzunluk,dogrulama");
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,onarim-1,uzunluk-1,dogrulama");
     assert.ok(budget.spentUsd > 0 && budget.spentUsd < 1);
   });
 
@@ -201,16 +201,26 @@ async function main() {
     assert.ok(openai.calls[0]!.prompt.includes("SOURCE BANK") && openai.calls[0]!.prompt.includes("[avunduk-2008] İnşa 1452 Martında başladı."));
     assert.ok(openai.calls[1]!.prompt.includes("uydurma-1992"), "onarım istemi banka dışı kaynağı söylemeli");
     assert.equal(out.episode.kaynaklar[0]!.kunye, bank.kaynaklar[0]!.kunye);
+    // The editor gets the bank as ground truth, so a verified fact is never "corrected".
+    assert.ok(openai.calls[3]!.prompt.includes("VERIFIED FACTS") && openai.calls[3]!.prompt.includes("[avunduk-2008] İnşa 1452 Martında başladı."));
+  });
+
+  await scenario("M a script with too little dialogue is asked for more exchanges in its revision round", async () => {
+    const monologue = JSON.parse(validJson());
+    monologue.sahneler[1].satirlar = monologue.sahneler[1].satirlar.filter((l: { karakter: string }) => l.karakter !== "halil");
+    const openai = new FakeProvider([JSON.stringify(monologue), JSON.stringify(monologue), JSON.stringify({ iddialar: [] })]);
+    await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 30, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }) });
+    assert.ok(openai.calls[1]!.prompt.includes("only 0% of scenes have two or more lines by visible characters"), "diyalog eksikliği istenmeli");
   });
 
   await scenario("L a script far below its spoken-word budget gets one expansion round", async () => {
     const longer = JSON.parse(validJson());
-    for (let i = 0; i < 10; i++) longer.sahneler[1].satirlar.push({ karakter: "halil", metin: "Sultanım, bu iş hiç de kolay olmayacak gibi görünüyor.", duygu: "korkmus", kurgu: true });
+    for (let i = 0; i < 6; i++) longer.sahneler[1].satirlar.push({ karakter: "halil", metin: "Sultanım, bu iş hiç de kolay olmayacak gibi görünüyor.", duygu: "korkmus", kurgu: true });
     const openai = new FakeProvider([validJson(), JSON.stringify(longer), JSON.stringify({ iddialar: [] })]);
     const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 30, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }) });
     assert.equal(out.lengthRounds, 1);
     assert.ok(openai.calls[1]!.prompt.startsWith("The JSON episode below has 21 spoken words; the target is about 69. Expand"));
-    assert.equal(out.spokenWords, 21 + 10 * 9);
+    assert.equal(out.spokenWords, 21 + 6 * 9);
     assert.equal(out.targetWords, 69);
   });
 

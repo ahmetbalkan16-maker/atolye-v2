@@ -340,7 +340,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       background: input.backgrounds[si]!,
       performers,
       props,
-      camera: normalizeCamera(camera),
+      camera: fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps),
       shakes,
       titleCards,
       mapArrows,
@@ -385,6 +385,56 @@ function dedupeByStart<T extends { start: number }>(items: readonly T[]): T[] {
     else out.push(item);
   }
   return out;
+}
+
+/** Frames inside a shot where the picture visibly changes: its start, cards, gestures, expressions, walks, effects, camera keys. */
+export function shotEventFrames(
+  performers: readonly Pick<V3Performer, "gestures" | "faces" | "moves" | "effects">[],
+  titleCards: readonly { readonly start: number }[],
+  camera: readonly V3CameraKey[],
+): number[] {
+  const t = [0, ...titleCards.map((c) => c.start), ...camera.map((k) => k.frame)];
+  for (const p of performers) t.push(...p.gestures.map((g) => g.start), ...p.faces.map((x) => x.start), ...p.moves.map((m) => m.start), ...p.effects.map((e) => e.start));
+  return [...new Set(t)].sort((a, b) => a - b);
+}
+
+/** Events closer than this count as one: a gesture and the expression it starts with are one beat. */
+export const EVENT_CLUSTER_S = 0.4;
+
+/** Event times collapsed into beats (see EVENT_CLUSTER_S), in frames. */
+export function beats(frames: readonly number[], fps: number): number[] {
+  const out: number[] = [];
+  for (const f of [...frames].sort((a, b) => a - b)) if (!out.length || f - out[out.length - 1]! > EVENT_CLUSTER_S * fps) out.push(f);
+  return out;
+}
+
+function cameraAtFrame(keys: readonly V3CameraKey[], frame: number): { zoom: number; cx: number; cy: number } {
+  const next = keys.findIndex((k) => k.frame > frame);
+  const a = keys[next < 0 ? keys.length - 1 : Math.max(0, next - 1)];
+  const b = next < 0 ? undefined : keys[next];
+  if (!a) return { zoom: 1, cx: 0.5, cy: 0.5 };
+  if (!b || b.frame <= a.frame || b.frame <= frame) return { zoom: a.zoom, cx: a.cx, cy: a.cy };
+  const u = (frame - a.frame) / (b.frame - a.frame);
+  return { zoom: a.zoom + (b.zoom - a.zoom) * u, cx: a.cx + (b.cx - a.cx) * u, cy: a.cy + (b.cy - a.cy) * u };
+}
+
+/**
+ * Tempo: no stretch longer than `maxGapS` without a visible beat. Long stretches (one long narration over a set)
+ * get gentle 5% camera pushes at even spacing, so the picture keeps moving like a filmed shot.
+ */
+export function fillTempo(camera: readonly V3CameraKey[], events: readonly number[], duration: number, fps: number, maxGapS = 5): V3CameraKey[] {
+  const all = beats([...events, ...camera.map((k) => k.frame), duration], fps);
+  const added: V3CameraKey[] = [];
+  for (let i = 1; i < all.length; i++) {
+    const gap = all[i]! - all[i - 1]!;
+    const n = Math.ceil(gap / (maxGapS * fps)) - 1;
+    for (let k = 1; k <= n; k++) {
+      const frame = Math.round(all[i - 1]! + (gap * k) / (n + 1));
+      const at = cameraAtFrame(camera, frame);
+      added.push({ frame, zoom: Math.min(2.2, at.zoom * 1.05), cx: at.cx, cy: at.cy, ease: "smooth" });
+    }
+  }
+  return added.length ? normalizeCamera([...camera, ...added]) : [...camera];
 }
 
 /** Camera keys strictly increasing in time; at equal frames the later instruction wins. */

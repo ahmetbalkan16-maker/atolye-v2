@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, buildRenderPlan, captionPages, normalizeCamera } from "../src/lib/v3/director/Director";
+import { autoSlots, beats, buildRenderPlan, captionPages, fillTempo, normalizeCamera } from "../src/lib/v3/director/Director";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -173,6 +173,17 @@ async function main() {
     const pages = captionPages({ file: "", duration: 4, visemes: [], words: [], lipSync: "rms", sceneIndex: 0, lineIndex: 0, speaker: "x", start: 1, end: 5 }, 30, ["surlar"], "Bir iki üç dört beş altı yedi sekiz dokuz on surlar");
     assert.equal(pages.length, 2);
     assert.ok(pages[1]!.words.some((w) => w.emphasis));
+  });
+
+  await scenario("J tempo: a long uneventful stretch gets gentle camera pushes so no gap passes 5 s; busy shots stay untouched", () => {
+    const cam = fillTempo([{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }], [0], 600, 30);
+    const frames = beats([...cam.map((k) => k.frame), 600], 30);
+    for (let i = 1; i < frames.length; i++) assert.ok(frames[i]! - frames[i - 1]! <= 150, `boşluk ${(frames[i]! - frames[i - 1]!) / 30} sn`);
+    assert.ok(cam.slice(1).every((k) => k.ease === "smooth" && Math.abs(k.zoom - 1.05) < 1e-9));
+    const busy = [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }];
+    assert.deepEqual(fillTempo(busy, [0, 90, 180, 270], 300, 30), busy);
+    // A gesture and the expression starting with it are one beat.
+    assert.deepEqual(beats([0, 5, 10, 30], 30), [0, 30]);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

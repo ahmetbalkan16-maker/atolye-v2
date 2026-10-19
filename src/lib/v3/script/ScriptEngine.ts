@@ -71,6 +71,23 @@ function withBankSources(episode: Episode, bank: SourceBank | undefined): Episod
 
 /** Outside this band of the spoken-word budget the episode would not fill, or would overrun, its target. */
 const LENGTH_BAND = [0.75, 1.35] as const;
+/** Share of scenes that must carry an exchange (two or more lines by visible characters). */
+export const MIN_DIALOGUE_SCENES = 0.3;
+const MAX_REVISIONS = 2;
+
+/** Scenes with at least two lines spoken by visible characters, as a share of all scenes. */
+export function dialogueSceneRatio(episode: Episode): number {
+  const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
+  if (!episode.sahneler.length) return 0;
+  return episode.sahneler.filter((s) => s.satirlar.filter((l) => visible.has(l.karakter)).length >= 2).length / episode.sahneler.length;
+}
+
+/** How far a script is from its targets: 0 is on target; length and dialogue both count. */
+function revisionGap(episode: Episode, target: number): number {
+  const words = spokenWords(episode);
+  const lengthGap = words < target * LENGTH_BAND[0] ? target * LENGTH_BAND[0] - words : words > target * LENGTH_BAND[1] ? words - target * LENGTH_BAND[1] : 0;
+  return lengthGap / Math.max(1, target) + Math.max(0, MIN_DIALOGUE_SCENES - dialogueSceneRatio(episode));
+}
 
 /** First top-level JSON object in a model answer; code fences and chatter around it are ignored. */
 export function extractJson(text: string): unknown {
@@ -200,20 +217,20 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   let validation = state.validation!;
   const targetWords = wordBudget(brief);
   let lengthRounds = 0;
-  const words = spokenWords(written);
-  if (words < targetWords * LENGTH_BAND[0] || words > targetWords * LENGTH_BAND[1]) {
-    lengthRounds = 1;
-    const next = await budget.generate("uzunluk", writerUsed, lengthPrompt(JSON.stringify(written), words, targetWords), opts);
-    const resized = check(next.result.content);
-    // A resize that breaks the episode is dropped: the valid, if short, script stays.
-    if (!resized.problems.length) {
-      written = resized.value as Episode;
-      validation = resized.validation!;
-    }
+  // Revision rounds for length and dialogue; a revision is kept only if it is valid and closer to the targets.
+  while (lengthRounds < MAX_REVISIONS && revisionGap(written, targetWords) > 0) {
+    lengthRounds++;
+    const ratio = dialogueSceneRatio(written);
+    const extra = ratio < MIN_DIALOGUE_SCENES ? [`only ${Math.round(ratio * 100)}% of scenes have two or more lines by visible characters; at least ${MIN_DIALOGUE_SCENES * 100}% must`] : [];
+    const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(JSON.stringify(written), spokenWords(written), targetWords, extra), opts);
+    const revised = check(next.result.content);
+    if (revised.problems.length || revisionGap(revised.value as Episode, targetWords) >= revisionGap(written, targetWords)) break;
+    written = revised.value as Episode;
+    validation = revised.validation!;
   }
   written = withBankSources(written, brief.kaynakBankasi);
   const lengthFields = { lengthRounds, spokenWords: spokenWords(written), targetWords };
-  const editor = await budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil), { maxTokens: FACT_CHECK_MAX_TOKENS });
+  const editor = await budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil, brief.kaynakBankasi), { maxTokens: FACT_CHECK_MAX_TOKENS });
   const report = readFactCheck(editor.result.content);
   if (!report) {
     return { episode: written, validation, factCheck: { durum: "okunamadi", iddialar: [], uygulanan: 0 }, repairs, ...lengthFields, writerUsed };

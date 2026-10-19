@@ -32,6 +32,10 @@ Chatterbox kurulum notları (diğer bilgisayar için):
 - uv venv'i `setuptools` içermez; filigran paketi (resemble-perth 1.0.1) `pkg_resources` ister, yoksa
   `PerthImplicitWatermarker` sessizce `None` olur ve model "NoneType object is not callable" ile açılmaz:
   `uv pip install --python <tts-venv>\Scripts\python.exe "setuptools<81"`.
+- Rhubarb kaynak klasörünü (`res\sphinx`) programın **gerçek** yolundan bulur; `D:\URETIM` bağlantısı `D:\ÜRETİM`'e
+  çözüldüğü için PocketSphinx açamaz ("does not contain acoustic model definition 'mdef'") ve her satır RMS yedeğine
+  düşer. Rhubarb bağlantı olmayan gerçek ASCII klasörde durmalı: `D:\atolye-ascii\rhubarb\rhubarb.exe`
+  (`ATOLYE_V3_RHUBARB_EXE`). whisper.cpp bundan etkilenmez.
 - Hugging Face indirmesi `hf_xet` ile takılabilir (bayt gelmeden asılı kalır). Takılırsa iki büyük dosyayı `curl -C -`
   ile snapshot klasörüne indirip LFS SHA-256'yı doğrulayın (`b1237586…`, `9b9ff07e…`).
 

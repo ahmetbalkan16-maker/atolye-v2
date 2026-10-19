@@ -163,21 +163,28 @@ JSON:
 ${previousJson}`;
 }
 
-/** One length round: a script far from its spoken-word budget would not fill (or would overrun) the target. */
-export function lengthPrompt(previousJson: string, words: number, target: number): string {
-  const verb = words < target ? "Expand" : "Shorten";
+/**
+ * One revision round: a script far from its spoken-word budget would not fill (or would overrun) the target;
+ * `extra` carries further requirements the script missed (e.g. too little dialogue).
+ */
+export function lengthPrompt(previousJson: string, words: number, target: number, extra: readonly string[] = []): string {
+  const verb = words < target ? "Expand" : words > target ? "Shorten" : "Keep";
   return `The JSON episode below has ${words} spoken words; the target is about ${target}. ${verb} it to about ${target} words by ${
-    words < target ? "adding lines (more dialogue, one more joke) and, if needed, one scene" : "cutting or merging lines"
-  }. Keep every rule, id, source and the cast; keep the scenes' sure_hedef adding up to hedef_sure_sn. Return the complete JSON object and nothing else.
+    words < target ? "adding lines (more dialogue between visible characters, one more joke) and, if needed, one scene" : "cutting or merging lines"
+  }. Keep every rule, id, source and the cast; keep the scenes' sure_hedef adding up to hedef_sure_sn.${extra.length ? `\nAlso fix:\n${extra.map((e) => `- ${e}`).join("\n")}` : ""}
+Return the complete JSON object and nothing else.
 
 JSON:
 ${previousJson}`;
 }
 
 /** The fact-check pass: only problem lines come back, so the answer stays short. */
-export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage): string {
+export function factCheckPrompt(episodeJson: string, dil: ScriptLanguage, bank?: SourceBank): string {
   const lang = dil === "tr" ? "Turkish" : "American English";
-  return `You are a meticulous history editor. Check the factual claims in this episode script (spoken text is ${lang}).
+  const truth = bank
+    ? `\nVERIFIED FACTS (ground truth, checked against the cited works): a line that agrees with one of these is "dogru" — never rewrite it or hedge it.\n${bank.olgular.map((o) => `- [${o.kaynak}] ${o.metin}`).join("\n")}\n`
+    : "";
+  return `You are a meticulous history editor. Check the factual claims in this episode script (spoken text is ${lang}).${truth}
 For each line that states a fact, decide: "dogru" (correct), "tartismali" (disputed / traditional account), "yanlis" (wrong) or "kaynaksiz" (plausible but its cited source does not support it or none is cited).
 - yanlis: give "yeni_metin", the corrected line in the same language, length and style.
 - tartismali: give "yeni_metin" with a hedge ("${dil === "tr" ? "rivayete göre" : "legend has it"}" or similar) added.
