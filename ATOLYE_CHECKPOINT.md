@@ -1,3 +1,23 @@
+## 19 Ekim 2026 — Çöp adam V3 (Remotion) WIP: güvenli duruş, owner "sonra devam" dedi
+
+Owner görevi: Atölye'yi Yusuf Kayaalp "Osmanlı İmparatorluğu Yıkılıyor!" tarzı çöp adam tarih anlatımına yükseltmek
+(incele → planla → uygula → pilot). İş **ayrı worktree'de**: `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal **`feature/cop-adam-v3`**
+(yedek etiketi `atolye-v2-pre-v3-backup` = `69bda564`). Ana repo/canlı AYAS'a dokunulmadı: Observer ana çalışma ağacından
+yayın yaptığı için ana repoda branch değiştirilmedi; kök `package.json` değişmedi (Remotion ayrı alt paket `remotion-v3/`).
+
+Tamam: `docs/v3/01–04` raporları (durum, donanım ORTA/A2000 12 GB, boşluk analizi 22/60, yol haritası), `episode.json`
+şeması + doğrulayıcı, owner'ın saray görseli stilinde rig'li karakter (12 jest, 8 duygu, Rhubarb vizemleri, kukla/çöp stilleri),
+Osmanlı/Bizans 1453 kostüm paketleri, yönetmen (bölüm → render planı), Commons + lisans filtresi, TTS kodu (Chatterbox owner ses
+klonu + Piper yedeği). Karakter vitrini 15 sn 1080p 13 sn'de render; owner "havada uçuyor" dedi → temas gölgesi/zemin düzeltildi.
+`smoke-v3-episode-director` PASS (9), kök/remotion `tsc` 0, v3 eslint 0. Kurulanlar (repo dışı `D:\URETIM\Atolye\v3-tools`):
+Rhubarb 1.14.0, Remotion Chrome; owner ses kaydı `D:\URETIM\private\v3-voices` (git dışı).
+
+Bulgular: mevcut SDXL venv bozuk (eski PC Codex Python yolu); mevcut Piper `dfki` sesi CC BY-NC-SA (ticari kanal için uygun değil).
+
+Yarım: Chatterbox venv'de torch 2.6.0+cu124 kurulumu duruşta sürüyordu (doğrulanmadı). Pilot `episode.json` yazılmadı.
+**Devam:** worktree'de `docs/v3/FAZ_RAPORLARI.md` → "Güvenli duruş" bölümündeki 5 adım. Owner'a sorulacak: karakter stili
+A "kukla" / B "çöp" (`output/v3/vitrin-*/kare-0040.png`), sonra ses örnekleri. Devam raporu: `D:\ÜRETİM\handover\SESSION_2026-10-19\DEVAM_RAPORU.md`.
+
 ## 19 Ekim 2026 — Görev bitince canlıya otomatik geçiş; erişim denetçisi kendini yeniliyor
 
 Owner: "Canlıya al, eski kalmasın ve onu otomatikleştirelim: otomatik olarak bir görev bitince canlıya aktarılsın." Önerilen tasarım onaylandı ("tamam onaylıyorum ve önerilerini kabul ediyorum"): push'tan hemen sonra yayın (CI beklenmez), owner son 5 dakikada sohbet ettiyse bekleme.
