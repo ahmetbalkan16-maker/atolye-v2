@@ -26,6 +26,13 @@ const BROWS: Record<V3Emotion, BrowSet> = {
   sinsi: { inner: -54, outer: -52, back: { inner: -33, outer: -40 } },
 };
 
+/** Brows between two expressions (t 0..1), back brow included, so a change of mood slides instead of jumping. */
+function mixBrows(a: BrowSet, b: BrowSet, t: number): BrowSet {
+  const m = (x: number, y: number) => x + (y - x) * t;
+  const ab = a.back ?? a, bb = b.back ?? b;
+  return { inner: m(a.inner, b.inner), outer: m(a.outer, b.outer), back: { inner: m(ab.inner, bb.inner), outer: m(ab.outer, bb.outer) } };
+}
+
 function Brow({ side, set }: { side: 1 | -1; set: { inner: number; outer: number } }) {
   const ix = LOOK + side * 14;
   const ox = LOOK + side * 50;
@@ -152,16 +159,18 @@ export function Head({
   emotion,
   viseme,
   eyesClosed,
+  brows: browBlend,
   beard,
   mustache,
 }: {
   emotion: V3Emotion;
   viseme: V3Viseme;
   eyesClosed: number;
+  brows?: { from: V3Emotion; to: V3Emotion; mix: number };
   beard?: string;
   mustache?: string;
 }) {
-  const brows = BROWS[emotion];
+  const brows = browBlend && browBlend.mix < 1 ? mixBrows(BROWS[browBlend.from], BROWS[browBlend.to], browBlend.mix) : BROWS[emotion];
   return (
     <g>
       <ellipse cx={0} cy={0} rx={102} ry={98} fill={SKIN_SHADE} />

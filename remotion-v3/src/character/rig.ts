@@ -114,7 +114,7 @@ export function solveLimb(root: Point, angles: readonly [number, number], length
  * swap arms in `gesturePose`.
  */
 export function gesturePose(g: V3Gesture, t: number, base: Pose, aimBack: boolean): Pose {
-  const wob = (speed: number, amp: number) => Math.sin(t * speed) * amp;
+  const wob = (speed: number, amp: number) => wave(t, speed, 0) * amp;
   let p: Pose;
   switch (g) {
     case "konus":
@@ -158,22 +158,35 @@ export function gesturePose(g: V3Gesture, t: number, base: Pose, aimBack: boolea
   return { ...p, armFront: p.armBack, armBack: p.armFront, handFront: p.handBack, handBack: p.handFront };
 }
 
-/** Walk/run cycle layered over a pose; `phase` advances by π per step. */
-export function walkPose(base: Pose, phase: number, run: boolean): Pose {
+/**
+ * Walk/run cycle layered over a pose; `phase` advances by π per step and `amount` (0..1) eases the cycle in at
+ * the first step and out at the last, so the feet never pop between standing and walking.
+ */
+export function walkPose(base: Pose, phase: number, run: boolean, amount = 1): Pose {
   const s = Math.sin(phase);
-  const legAmp = run ? 34 : 22;
-  const armAmp = run ? 30 : 16;
+  const c = Math.cos(phase);
+  // Squared half-waves: knees and feet leave and return to rest smoothly instead of kinking at zero.
+  const up = (v: number) => (v > 0 ? v * v : 0);
+  const legAmp = (run ? 34 : 22) * amount;
+  const armAmp = (run ? 30 : 16) * amount;
+  const knee = (run ? 40 : 22) * amount;
+  const lift = (run ? 18 : 9) * amount;
   return {
     ...base,
-    lean: base.lean + (run ? 9 : 4),
-    bob: base.bob - Math.abs(s) * (run ? 12 : 6),
-    legFront: [base.legFront[0] + s * legAmp, Math.max(0, -s) * (run ? 40 : 22)],
-    legBack: [base.legBack[0] - s * legAmp, Math.max(0, s) * (run ? 40 : 22)],
-    liftFront: Math.max(0, Math.cos(phase)) * (run ? 18 : 9),
-    liftBack: Math.max(0, -Math.cos(phase)) * (run ? 18 : 9),
-    armFront: [base.armFront[0] - s * armAmp, base.armFront[1] + (run ? 40 : 6)],
-    armBack: [base.armBack[0] + s * armAmp, base.armBack[1] + (run ? 40 : 6)],
+    lean: base.lean + (run ? 9 : 4) * amount,
+    bob: base.bob - s * s * (run ? 12 : 6) * amount,
+    legFront: [base.legFront[0] + s * legAmp, base.legFront[1] + up(-s) * knee],
+    legBack: [base.legBack[0] - s * legAmp, base.legBack[1] + up(s) * knee],
+    liftFront: base.liftFront + up(c) * lift,
+    liftBack: base.liftBack + up(-c) * lift,
+    armFront: [base.armFront[0] - s * armAmp, base.armFront[1] + (run ? 40 : 6) * amount],
+    armBack: [base.armBack[0] + s * armAmp, base.armBack[1] + (run ? 40 : 6) * amount],
   };
+}
+
+/** Two incommensurate sines: an organic sway that never visibly loops. Range about ±1. */
+export function wave(t: number, speed: number, seed: number): number {
+  return Math.sin(t * speed + seed) * 0.65 + Math.sin(t * speed * 1.618 + seed * 2.3 + 1.3) * 0.35;
 }
 
 /** Deterministic PRNG so every render of a frame is identical (Remotion renders frames in parallel). */
@@ -194,6 +207,8 @@ export function seededRandom(seed: string): () => number {
 }
 
 export const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+/** Quintic ease: zero velocity and acceleration at both ends, half the peak acceleration of `easeInOut`. */
+export const smootherstep = (t: number) => t * t * t * (t * (6 * t - 15) + 10);
 export const easeOutBack = (t: number) => {
   const c1 = 1.70158;
   const c3 = c1 + 1;

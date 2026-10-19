@@ -126,7 +126,10 @@ export interface V3CameraKey {
   /** Stage point kept at the frame centre, 0..1. */
   readonly cx: number;
   readonly cy: number;
-  /** smooth: eased over the whole segment; snap: fast move at the end; cut: instant reframe (a hard cut). */
+  /**
+   * smooth: glides through consecutive smooth keys, easing only where the camera starts or comes to rest;
+   * snap: fast move at the end; cut: instant reframe (a hard cut).
+   */
   readonly ease?: "smooth" | "snap" | "cut";
 }
 

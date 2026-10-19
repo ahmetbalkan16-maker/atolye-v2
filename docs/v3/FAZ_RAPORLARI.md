@@ -74,3 +74,26 @@ Doukas (çev. Magoulias, 1975). Kaynak metinde olmayan "en dar nokta" iddiası R
 - Doğrulama: kareler 40/80/135 (üç kılıç pozu) ve 385 (Urban el sallarken çekici yumrukta tutuyor) incelendi;
   vitrin videosu yeniden üretildi (`output/v3/vitrin-kukla/vitrin.mp4`, 14,7 sn). Kök `tsc` 0, `remotion-v3` `tsc` 0,
   `eslint src/lib/v3 scripts/v3 remotion-v3/src` 0 uyarı, `smoke-v3-episode-director` PASS (9; F senaryosu `grip` bayrağını da doğrular).
+
+## Akıcı hareket — "film gibi" (19 Ekim 2026, owner isteği)
+
+- Sorun (ölçüldü): jestler 0,2 sn'de giriyor, tüm eklemler aynı karede kilitleniyordu. Yürüyüş başında ayak tek
+  karede kalkıyor, sonunda bacaklar duruşa atlıyordu; dönüş tek karede aynalanıyor, ifade tek karede değişiyordu.
+  Kamera her anahtar karede durup yeniden kalkıyordu. Yürüyüşte kübik ease yolun ortasında hızı 3 katına çıkarıyordu.
+- `remotion-v3/src/character/dynamics.ts`: yay-sönüm takibi (savrulma + oturma, örtüşen hareket: ön kol üst koldan,
+  baş gövdeden geç gelir). Remotion kareleri paralel çizdiği için her kare son 1,5 sn'yi yeniden hesaplar; deterministik.
+- `motion.ts`: niyet edilen poz + yay katmanı; jestten 0,15 sn önce ters yönde hazırlık; jest süresi hareketin
+  büyüklüğüne göre (0,28–0,6 sn, beşinci derece yumuşatma); organik boşta salınım; konuşmada baş hecelere (vizem
+  açıklığı) göre sallanır; yürüyüş sabit seyir hızı + yumuşak başlangıç/bitiş; 7 karelik dönüş (ayna 0'dan geçer,
+  hafif esneme); ifade değişimi göz kırpmasıyla gizlenir, kaşlar 6 karede kayar.
+- `scene/camera.ts` (ShotView'dan taşındı): anahtar karelerden durmadan geçen monoton kübik eğri (beklemelerde
+  hedefi aşmaz), her çekimde %2 yavaş yaklaşma + birkaç piksel el kamerası nefesi, sarsıntı iki karede vurur ve
+  karesel söner. `snap`/`cut` davranışı korundu.
+- Ölçüm (`scripts/smoke-v3-motion.ts`, önce → sonra): kol ivmesi 35,0 → 3,5 °/kare²; gövde/baş 8,5 → 3,2; bacak
+  ivmesi 16,2 → 5,7; yürüyüş başında ayak sıçraması 9 → 0,1 birim; dönüş tek kare → 0,29/kare.
+- Doğrulama: `smoke-v3-motion` PASS (9: kol/gövde/bacak akıcılığı, dönüş, kare sırasından bağımsızlık, oturma,
+  ifade geçişi, kamera eğrisi, film kamerası sınırları); `smoke-v3-episode-director` PASS (9); kök ve `remotion-v3`
+  `tsc` 0; eslint 0 uyarı. Vitrin videosu yeniden üretildi (render 16 sn / 15 sn video); film şeritleri incelendi
+  (kılıç kaldırma yayı, ifade değişiminde göz kırpma, yürüyüş).
+- Sonraki seçenek: hareket bulanıklığı (`@remotion/motion-blur`) final render'da film hissini artırır ama render
+  süresini örnek sayısı kadar katlar; kesirli kare desteği (göz kırpma tablosu) gerekir.

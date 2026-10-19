@@ -53,7 +53,7 @@ export function Character({ member, state, accessories }: { member: V3CastMember
           {style === "cop" ? <path d={`M0 ${SHOULDER_Y - 4} L0 ${NECK_Y - 8}`} stroke={INK} strokeWidth={12} strokeLinecap="round" /> : null}
           <g transform={`rotate(${pose.headTilt} 0 ${NECK_Y}) translate(0 ${HEAD_CY})`}>
             {head?.behind ? <g dangerouslySetInnerHTML={{ __html: head.markup }} /> : null}
-            <Head emotion={state.emotion} viseme={state.viseme} eyesClosed={state.eyesClosed} beard={beard?.markup} mustache={mustache?.markup} />
+            <Head emotion={state.emotion} viseme={state.viseme} eyesClosed={state.eyesClosed} brows={state.brows} beard={beard?.markup} mustache={mustache?.markup} />
             {head && !head.behind ? <g dangerouslySetInnerHTML={{ __html: head.markup }} /> : null}
           </g>
           <Arm side={-1} angles={pose.armBack} hand={pose.handBack} sleeve={sleeve} style={style} item={rear?.markup} grip={rear?.grip} />

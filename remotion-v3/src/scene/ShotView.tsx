@@ -1,10 +1,11 @@
 import React from "react";
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import type { V3CameraKey, V3CastMember, V3Shot } from "../../../src/lib/v3/render/RenderPlanTypes";
+import type { V3CastMember, V3Shot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { type AccessoryIndex, Character } from "../character/Character";
 import { Effect } from "../character/Effects";
-import { headCenter, performerState } from "../character/motion";
+import { headCenter, performerState, turnStretch } from "../character/motion";
 import { easeInOut, HEAD_R, INK } from "../character/rig";
+import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
 
@@ -14,47 +15,10 @@ export function stageTransform(x: number, depth: number, width: number, height: 
   return { px: x * width, py: height * (0.955 - 0.2 * depth), scale: 0.86 * k * (1 - 0.34 * depth) };
 }
 
-function cameraAt(keys: readonly V3CameraKey[], frame: number, fps: number): { zoom: number; cx: number; cy: number } {
-  if (keys.length === 0) return { zoom: 1, cx: 0.5, cy: 0.5 };
-  let prev = keys[0]!;
-  for (let i = 1; i < keys.length; i++) {
-    const next = keys[i]!;
-    if (frame < next.frame) {
-      if (next.ease === "cut") return { zoom: prev.zoom, cx: prev.cx, cy: prev.cy };
-      const span = next.ease === "snap" ? Math.min(next.frame - prev.frame, Math.round(fps * 0.22)) : next.frame - prev.frame;
-      const begin = next.frame - span;
-      const t = frame <= begin ? 0 : easeInOut(Math.min(1, (frame - begin) / Math.max(1, span)));
-      return { zoom: prev.zoom + (next.zoom - prev.zoom) * t, cx: prev.cx + (next.cx - prev.cx) * t, cy: prev.cy + (next.cy - prev.cy) * t };
-    }
-    prev = next;
-  }
-  return { zoom: prev.zoom, cx: prev.cx, cy: prev.cy };
-}
-
-/** Keeps the view inside the stage so no edge of the set is ever shown. */
-function clampView(zoom: number, cx: number, cy: number) {
-  const z = Math.max(1, zoom);
-  const half = 0.5 / z;
-  return { zoom: z, cx: Math.min(1 - half, Math.max(half, cx)), cy: Math.min(1 - half, Math.max(half, cy)) };
-}
-
-function shakeAt(shot: V3Shot, frame: number): { dx: number; dy: number; rot: number } {
-  let dx = 0, dy = 0, rot = 0;
-  for (const s of shot.shakes) {
-    if (frame < s.start || frame >= s.end) continue;
-    const decay = 1 - (frame - s.start) / Math.max(1, s.end - s.start);
-    const a = s.amplitude * decay;
-    dx += a * Math.sin(frame * 2.3 + 1.1) * Math.cos(frame * 0.7);
-    dy += a * Math.sin(frame * 3.1 + 0.4);
-    rot += a * 0.04 * Math.sin(frame * 1.9);
-  }
-  return { dx, dy, rot };
-}
-
 export function ShotView({ shot, cast, accessories }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex }) {
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
-  const raw = cameraAt(shot.camera, frame, fps);
+  const raw = filmCamera(cameraAt(shot.camera, frame, fps), shot.id, frame, shot.duration, fps);
   const cam = clampView(raw.zoom, raw.cx, raw.cy);
   const shake = shakeAt(shot, frame);
   // Parallax: the set moves less than the characters; 3% overscan hides the edges during shakes.
@@ -147,9 +111,8 @@ export function ShotView({ shot, cast, accessories }: { shot: V3Shot; cast: Read
               if (!m || !s.visible) return null;
               const st = stageTransform(s.x, p.depth, W, H);
               const k = st.scale * m.scale;
-              const mirror = s.facing === "left" ? -1 : 1;
               return (
-                <g key={p.castId} transform={`translate(${st.px} ${st.py}) scale(${k * mirror} ${k})`}>
+                <g key={p.castId} transform={`translate(${st.px} ${st.py}) scale(${k * s.mirror} ${k * turnStretch(s.mirror)})`}>
                   <Character member={m} state={s} accessories={accessories} />
                 </g>
               );
@@ -159,9 +122,8 @@ export function ShotView({ shot, cast, accessories }: { shot: V3Shot; cast: Read
               const st = stageTransform(s.x, p.depth, W, H);
               const k = st.scale * m.scale;
               const hc = headCenter(s.pose);
-              const mirror = s.facing === "left" ? -1 : 1;
-              const hx = st.px + hc.x * k * mirror;
-              const hy = st.py + (hc.y + (s.seated ? 58 : 0)) * k;
+              const hx = st.px + hc.x * k * s.mirror;
+              const hy = st.py + (hc.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror);
               return (
                 <g key={`fx-${p.castId}`}>
                   {s.effects.map((e, i) => (
