@@ -6,6 +6,12 @@ export interface AIProviderGenerateOptions {
    * force schema-conforming output; providers that don't simply ignore it.
    */
   readonly jsonSchema?: Record<string, unknown>;
+  /**
+   * Optional per-call model for providers that serve several (OpenAI); others
+   * ignore it. Price it with `AiPricing` first — a model missing from the price
+   * table must not be called.
+   */
+  readonly model?: string;
 }
 
 export interface AIProviderUsage {

@@ -41,6 +41,25 @@ export async function readPackManifest(root: string, pack: string): Promise<Cost
   return raw;
 }
 
+export interface PackCatalogEntry {
+  readonly pack: string;
+  readonly title: string;
+  readonly items: Readonly<Partial<Record<V3Accessory["slot"], readonly string[]>>>;
+}
+
+/** Every installed pack and its item ids by slot — what a script writer may dress the cast in. */
+export async function packCatalog(root: string): Promise<PackCatalogEntry[]> {
+  const out: PackCatalogEntry[] = [];
+  for (const dir of (await fs.readdir(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name).sort()) {
+    if (!SAFE_ID.test(dir)) continue;
+    const manifest = await readPackManifest(root, dir);
+    const items: Partial<Record<V3Accessory["slot"], string[]>> = {};
+    for (const [id, item] of Object.entries(manifest.items)) (items[item.slot] ??= []).push(id);
+    out.push({ pack: manifest.id, title: manifest.title, items });
+  }
+  return out;
+}
+
 /** The inner markup of an accessory SVG, or a typed refusal. */
 export function svgBody(svg: string, where: string): string {
   if (Buffer.byteLength(svg, "utf8") > MAX_SVG_BYTES) throw new CostumePackError("V3_COSTUME_SVG_SIZE", where);

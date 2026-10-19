@@ -40,6 +40,20 @@ function loadEnvFile(file: string): Record<string, string> {
   return out;
 }
 
+/** Secrets V3 may borrow from another env file; nothing else is read from it. */
+const BORROWABLE_SECRETS = new Set(["OPENAI_API_KEY"]);
+
+/**
+ * A secret for this process only: the environment first, then the env file named by `ATOLYE_V3_SECRETS_ENV`
+ * (e.g. the main app's `.env.local`), so the key is never copied into the worktree. Returns undefined if absent.
+ */
+export function v3Secret(name: string, repoRoot = process.cwd(), env: Readonly<Record<string, string | undefined>> = process.env): string | undefined {
+  if (!BORROWABLE_SECRETS.has(name)) throw new Error(`V3_SECRET_NOT_ALLOWED: ${name}`);
+  if (env[name]) return env[name];
+  const from = env.ATOLYE_V3_SECRETS_ENV || loadEnvFile(path.join(repoRoot, ".env.v3.local")).ATOLYE_V3_SECRETS_ENV;
+  return (from ? loadEnvFile(from)[name] : undefined) || undefined;
+}
+
 export function resolveV3Paths(repoRoot = process.cwd(), env: NodeJS.ProcessEnv = process.env): V3Paths {
   const file = loadEnvFile(path.join(repoRoot, ".env.v3.local"));
   // An empty value (as in `.env.v3.example`) means "use the default".

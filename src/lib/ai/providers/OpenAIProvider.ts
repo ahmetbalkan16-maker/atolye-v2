@@ -27,7 +27,7 @@ export class OpenAIProvider implements ConfiguredAIProvider {
     }
 
     const response = await openai.chat.completions.create({
-      model: aiProviderConfig.openai.model,
+      model: options?.model ?? aiProviderConfig.openai.model,
       messages: [
         {
           role: "user",
