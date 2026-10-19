@@ -55,6 +55,8 @@ export interface V3Accessory {
   readonly markup: string;
   /** Draw behind the head (hair, turban tail) instead of in front. */
   readonly behind?: boolean;
+  /** A hand item the fist closes around (sword, staff): the holding hand stays a fist through every gesture. */
+  readonly grip?: boolean;
 }
 
 export interface V3CastMember {

@@ -56,8 +56,8 @@ export function Character({ member, state, accessories }: { member: V3CastMember
             <Head emotion={state.emotion} viseme={state.viseme} eyesClosed={state.eyesClosed} beard={beard?.markup} mustache={mustache?.markup} />
             {head && !head.behind ? <g dangerouslySetInnerHTML={{ __html: head.markup }} /> : null}
           </g>
-          <Arm side={-1} angles={pose.armBack} hand={pose.handBack} sleeve={sleeve} style={style} item={rear?.markup} />
-          <Arm side={1} angles={pose.armFront} hand={pose.handFront} sleeve={sleeve} style={style} item={front?.markup} />
+          <Arm side={-1} angles={pose.armBack} hand={pose.handBack} sleeve={sleeve} style={style} item={rear?.markup} grip={rear?.grip} />
+          <Arm side={1} angles={pose.armFront} hand={pose.handFront} sleeve={sleeve} style={style} item={front?.markup} grip={front?.grip} />
         </g>
       </g>
     </g>

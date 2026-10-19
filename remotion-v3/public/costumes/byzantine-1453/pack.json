@@ -24,7 +24,8 @@
       "slot": "beard"
     },
     "asa": {
-      "slot": "hand"
+      "slot": "hand",
+      "grip": true
     },
     "cenova-kalkani": {
       "slot": "hand"

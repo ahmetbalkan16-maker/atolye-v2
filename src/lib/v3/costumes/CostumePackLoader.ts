@@ -13,7 +13,7 @@ export interface CostumePackManifest {
   readonly title: string;
   readonly notes?: string;
   readonly sources?: readonly string[];
-  readonly items: Readonly<Record<string, { readonly slot: V3Accessory["slot"]; readonly behind?: boolean }>>;
+  readonly items: Readonly<Record<string, { readonly slot: V3Accessory["slot"]; readonly behind?: boolean; readonly grip?: boolean }>>;
 }
 
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -76,7 +76,7 @@ export async function loadAccessories(root: string, cast: readonly V3CastMember[
     const item = manifest.items[id];
     if (!item) throw new CostumePackError("V3_COSTUME_ITEM_UNKNOWN", ref);
     const svg = await fs.readFile(path.join(root, pack, `${id}.svg`), "utf8");
-    out.push({ id: ref, slot: item.slot, markup: svgBody(svg, ref), ...(item.behind ? { behind: true } : {}) });
+    out.push({ id: ref, slot: item.slot, markup: svgBody(svg, ref), ...(item.behind ? { behind: true } : {}), ...(item.grip ? { grip: true } : {}) });
   }
   return out;
 }

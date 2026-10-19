@@ -56,6 +56,7 @@ export function Arm({
   sleeve,
   style,
   item,
+  grip,
 }: {
   side: 1 | -1;
   angles: readonly [number, number];
@@ -63,11 +64,16 @@ export function Arm({
   sleeve: { color: string; width: number; cuff?: string };
   style: V3CharacterStyle;
   item?: string;
+  grip?: boolean;
 }) {
   const j = armJoints(side, angles);
   const d = `M${j.root.x} ${j.root.y} L${j.mid.x} ${j.mid.y} L${j.end.x} ${j.end.y}`;
   const handTransform = `translate(${j.end.x} ${j.end.y}) rotate(${j.endAngle - 90}) scale(${side} 1)`;
-  const held = item ? <g transform="translate(0 23)" dangerouslySetInnerHTML={{ __html: item }} /> : null;
+  // Held items are drawn around the palm centre, behind the glove, so a fist reads as closed around a grip.
+  const palmY = style === "cop" ? 10 : 23;
+  const held = item ? <g transform={`translate(0 ${palmY})`} dangerouslySetInnerHTML={{ __html: item }} /> : null;
+  // An open-hand gesture would drop a gripped item, so the holding hand stays a fist.
+  const shape: HandShape = item && grip ? "yumruk" : hand;
   if (style === "cop") {
     return (
       <g>
@@ -89,7 +95,7 @@ export function Arm({
       {sleeve.cuff ? <path d={`M${cuffStart.x} ${cuffStart.y} L${j.end.x - ux * 2} ${j.end.y - uy * 2}`} stroke={sleeve.cuff} strokeWidth={sleeve.width - 2} strokeLinecap="butt" /> : null}
       <g transform={handTransform}>
         {held}
-        <Glove shape={hand} />
+        <Glove shape={shape} />
       </g>
     </g>
   );

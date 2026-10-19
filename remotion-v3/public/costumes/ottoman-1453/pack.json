@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "ottoman-1453",
   "title": "Osmanlı 1453 (Fatih dönemi)",
-  "notes": "Karikatür yorum. Kavuk/sarık biçimleri Gentile Bellini'nin II. Mehmed portresi (1480) ve 15. yy minyatürlerinden esinlidir; birebir kopya değildir. Fes ve modern ay-yıldızlı bayrak bu pakette bilerek yoktur (dönem dışı).",
+  "notes": "Karikatür yorum. Kavuk/sarık biçimleri Gentile Bellini'nin II. Mehmed portresi (1480) ve 15. yy minyatürlerinden esinlidir; birebir kopya değildir. Fes ve modern ay-yıldızlı bayrak bu pakette bilerek yoktur (dönem dışı). Kılıç: hafif kavisli, yelmansız sade namlu; aşağı kıvrık topuzlu balçak, namluya inen dil, sargılı kabza ve pirinç kabza başı. Kabza yumruğun içinden 40° çapraz geçer; kılıç dinlenirken öne-aşağı, kol kalkınca yukarı bakar.",
   "sources": [
     "Gentile Bellini, Sultan Mehmet II, 1480, National Gallery London (kamu malı)",
     "Nakkaş Sinan Bey (atf.), II. Mehmed gül koklarken, Topkapı Sarayı Müzesi H.2153 (kamu malı)"
@@ -48,16 +48,19 @@
       "slot": "hand"
     },
     "kilic": {
-      "slot": "hand"
+      "slot": "hand",
+      "grip": true
     },
     "cekic": {
-      "slot": "hand"
+      "slot": "hand",
+      "grip": true
     },
     "parsomen": {
       "slot": "hand"
     },
     "tug": {
-      "slot": "hand"
+      "slot": "hand",
+      "grip": true
     }
   }
 }

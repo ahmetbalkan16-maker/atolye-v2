@@ -67,7 +67,7 @@ async function main() {
       performers: [
         performer("mehmed", 0.5, "right", { depth: 0.28, seated: true, speaking: [{ start: 0, end: s(2.6) }], visemes: fakeVisemes(0, s(2.6)), faces: [{ start: 0, emotion: "mutlu" }, { start: s(2.7), emotion: "kararli" }], gestures: [{ gesture: "konus", start: 0, end: s(2.5) }, { gesture: "isaret_et", start: s(2.8), end: s(4.8), toward: "right" }] }),
         performer("halil", 0.2, "right", { faces: [{ start: 0, emotion: "korkmus" }], gestures: [{ gesture: "dusun", start: s(0.4), end: s(4.6) }], effects: [{ effect: "ter", start: s(1.5), end: s(4.5) }] }),
-        performer("zaganos", 0.8, "left", { faces: [{ start: 0, emotion: "kararli" }, { start: s(2.8), emotion: "mutlu" }], gestures: [{ gesture: "elleri_belde", start: 0, end: s(2.4) }, { gesture: "yumruk_kaldir", start: s(2.8), end: s(4.8) }], speaking: [{ start: s(3), end: s(4.4) }], visemes: fakeVisemes(s(3), s(4.4)) }),
+        performer("zaganos", 0.8, "left", { faces: [{ start: 0, emotion: "kararli" }, { start: s(2.8), emotion: "mutlu" }], gestures: [{ gesture: "elleri_belde", start: 0, end: s(2.4) }, { gesture: "yumruk_kaldir", start: s(2.8), end: s(4.8), toward: "right" }], speaking: [{ start: s(3), end: s(4.4) }], visemes: fakeVisemes(s(3), s(4.4)) }),
         performer("yeniceri", 0.93, "left", { depth: 0.45 }),
       ],
       camera: [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }, { frame: s(2.6), zoom: 1, cx: 0.5, cy: 0.5 }, { frame: s(3.1), zoom: 1.28, cx: 0.62, cy: 0.52, ease: "snap" }],

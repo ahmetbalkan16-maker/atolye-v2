@@ -59,3 +59,18 @@ Pilot için doğrulanan kaynaklar: Avunduk, "Rumelihisarı", TDVİA 35 (2008) 23
 ~4–5 ay, "Boğazkesen" adı, deniz kenarındaki kule Çandarlı Halil, diğerleri Sarıca/Zağanos); Eyice, "Anadoluhisarı", TDVİA 3 (1991)
 147–149 (Anadoluhisarı Boğaz'ın en dar yerinde, Rumelihisarı karşısında 1452'de yapıldı); Runciman, *The Fall of Constantinople 1453* (1965);
 Doukas (çev. Magoulias, 1975). Kaynak metinde olmayan "en dar nokta" iddiası Rumeli Hisarı için değil Anadolu Hisarı için kullanılacak.
+
+## Owner kararı: stil A "kukla" + kılıç detayı (19 Ekim 2026)
+
+- Owner karakter stili olarak **A "kukla"**yı seçti; isteği: "eldeki kılıç detayına biraz daha dikkat".
+- Sorun: kabza ve balçak avuç dairesinin altında kalıyordu, kılıç ön kol yönünde ince bir şerit olarak sarkıyordu.
+  Açık el jestlerinde (`konus`, `sasir`, `el_salla`…) el açılıp kılıcı bırakıyormuş gibi görünüyordu.
+- `kilic.svg` yeniden çizildi: hafif kavisli 18 px namlu (oluk + ağız parıltısı), aşağı kıvrık topuzlu balçak, namluya
+  inen dil, sargılı kabza, pirinç kabza başı. Kabza yumruğun içinden 40° çapraz geçer: dinlenirken öne-aşağı,
+  `isaret_et`'te öne-yukarı, `yumruk_kaldir`'da dik yukarı, `elleri_belde`'de yere dayalı.
+- Paket öğesine `grip` bayrağı (`CostumePackLoader`, `V3Accessory`): kavranan nesnede el her jestte yumruk kalır.
+  Kılıç, çekiç, tuğ ve asada açık; harita/parşömen açık elde kalabilir. `cop` stilinde nesne avuç merkezine (y=10) hizalandı.
+- Vitrin: Zağanos'un `yumruk_kaldir` jesti kılıçlı arka kola yönlendirildi (`toward: "right"`).
+- Doğrulama: kareler 40/80/135 (üç kılıç pozu) ve 385 (Urban el sallarken çekici yumrukta tutuyor) incelendi;
+  vitrin videosu yeniden üretildi (`output/v3/vitrin-kukla/vitrin.mp4`, 14,7 sn). Kök `tsc` 0, `remotion-v3` `tsc` 0,
+  `eslint src/lib/v3 scripts/v3 remotion-v3/src` 0 uyarı, `smoke-v3-episode-director` PASS (9; F senaryosu `grip` bayrağını da doğrular).

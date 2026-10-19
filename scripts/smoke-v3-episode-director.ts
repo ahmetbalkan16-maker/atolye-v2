@@ -129,6 +129,10 @@ async function main() {
     const acc = await loadAccessories(costumesRoot(path.resolve(__dirname, "..")), cast);
     assert.deepEqual(acc.map((a) => a.id).sort(), ["ottoman-1453/padisah-kavugu", "ottoman-1453/sakal-beyaz", "ottoman-1453/vezir-sarigi"]);
     await assert.rejects(loadAccessories(costumesRoot(path.resolve(__dirname, "..")), [{ ...cast[0]!, costume: { ...cast[0]!.costume, head: "fes" } }]), CostumePackError);
+    // A sword is gripped (the fist never opens around it); a map is not.
+    const held = await loadAccessories(costumesRoot(path.resolve(__dirname, "..")), [{ ...cast[0]!, costume: { ...cast[0]!.costume, handBack: "kilic", handFront: "harita" } }]);
+    assert.equal(held.find((a) => a.id === "ottoman-1453/kilic")?.grip, true);
+    assert.equal(held.find((a) => a.id === "ottoman-1453/harita")?.grip, undefined);
   });
 
   await scenario("G timeline gaps", () => {
