@@ -20,17 +20,17 @@ async function main() {
       let calls = 0;
       AIManager.runResearch = async topic => { calls++; if (calls === 1) throw new AIResponseError("AI_RESPONSE_INVALID_JSON"); return fixture(topic); };
       const result = await PipelineRunner.run("Automatic local repair fixture", { automaticLocalRepair: true, stopAfterStage: "research" });
-      assert.equal(result.success, true); assert.deepEqual(result.completedStages, ["research"]); assert.equal(calls, 2);
-      assert.equal((await PipelineJobManager.getJobForStageReadOnly(result.slug, "research"))?.attempts, 1);
-      assert.deepEqual(delays, [60000]);
+      assert.equal(result.success, true, "assert.equal(result.success, true)"); assert.deepEqual(result.completedStages, ["research"], "assert.deepEqual(result.completedStages, [\"research\"])"); assert.equal(calls, 2, "assert.equal(calls, 2)");
+      assert.equal((await PipelineJobManager.getJobForStageReadOnly(result.slug, "research"))?.attempts, 1, "assert.equal((await PipelineJobManager.getJobForStageReadOnly(result.slug, \"research\"))?.attempts, 1)");
+      assert.deepEqual(delays, [60000], "assert.deepEqual(delays, [60000])");
       calls = 0;
       AIManager.runResearch = async () => { calls++; throw new AIResponseError("AI_RESPONSE_SCHEMA_INVALID"); };
       await assert.rejects(PipelineRunner.run("Bounded failure fixture", { automaticLocalRepair: true, stopAfterStage: "research" }));
-      assert.equal(calls, 3); assert.deepEqual(delays.slice(1), [60000, 120000]);
+      assert.equal(calls, 3, "assert.equal(calls, 3)"); assert.deepEqual(delays.slice(1), [60000, 120000], "assert.deepEqual(delays.slice(1), [60000, 120000])");
       calls = 0;
       AIManager.runResearch = async () => { calls++; throw new AIResponseError("AI_USAGE_PERSISTENCE_FAILED"); };
       await assert.rejects(PipelineRunner.run("Uncertain usage fixture", { automaticLocalRepair: true, stopAfterStage: "research" }));
-      assert.equal(calls, 1);
+      assert.equal(calls, 1, "assert.equal(calls, 1)");
     });
   } finally { AIManager.runResearch = original; globalThis.setTimeout = timer; }
   console.log("Automatic local repair: PASS (real scoped worker/durable retry, success, three-attempt bound and unknown-cost stop; no network or billable call)");
