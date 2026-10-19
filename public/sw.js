@@ -102,6 +102,41 @@ const PRECACHE = [
   OFFLINE_CAPABLE_ROUTE,
 ];
 
+// On-device wake word runtime + models (onnxruntime-web WASM, openWakeWord
+// ONNX, the capture worklet): ~17 MB under names that are not content-hashed.
+// A phone whose HTTP cache was evicted re-downloaded them through the home
+// tunnel — 47 s for the 14 MB WASM alone (2026-10-19) — and the first "AYAS"
+// of that session never woke. Kept here and revalidated with the copy's own
+// ETag: an unchanged file costs a 304 (~0.1 s through the tunnel), a changed
+// one is downloaded, so a stale model or runtime is never served online.
+const WAKE_CACHE = "ayas-wake-v1";
+const WAKE_ASSET_PREFIXES = ["/ort/", "/wake/"];
+const WAKE_WORKLET = "/worklets/d2-wake-lab-processor.js";
+
+function isWakeAsset(pathname) {
+  return pathname === WAKE_WORKLET || WAKE_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function wakeAsset(request) {
+  return caches
+    .open(WAKE_CACHE)
+    .then((cache) =>
+      cache.match(request).then((cached) => {
+        const keep = (response) => {
+          if (response.status === 200) cache.put(request, response.clone()).catch(() => {});
+          return response;
+        };
+        const etag = cached ? cached.headers.get("ETag") : null;
+        if (!etag) return fetch(request).then(keep);
+        return fetch(request.url, { headers: { "If-None-Match": etag }, cache: "no-store" }).then(
+          (response) => (response.status === 304 ? cached : keep(response)),
+          () => cached,
+        );
+      }),
+    )
+    .catch(() => fetch(request));
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -116,7 +151,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== WAKE_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -201,6 +236,12 @@ self.addEventListener("fetch", (event) => {
           }),
       ),
     );
+    return;
+  }
+
+  // Wake word runtime + models — revalidated against the kept copy (see WAKE_CACHE).
+  if (isWakeAsset(url.pathname)) {
+    event.respondWith(wakeAsset(request));
     return;
   }
 

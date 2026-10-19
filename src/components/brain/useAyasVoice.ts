@@ -143,6 +143,11 @@ export interface UseAyasVoiceResult {
   /** `true` while the on-device wake pipeline is re-acquiring the mic / context. */
   readonly recovering: boolean;
   /**
+   * `true` between the mic tap and the first armed frame of the wake pipeline (model load, mic, worklet). "AYAS"
+   * cannot be heard yet, so the UI must not say it is awaited.
+   */
+  readonly voiceStarting: boolean;
+  /**
    * `true` when a working wake session was interrupted (iOS took the mic away)
    * and is recovering — a mic tap retries immediately. NOT a permanent failure.
    */
@@ -201,6 +206,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const [voiceTier, setVoiceTier] = useState<string | null>(null);
   const [recognitionMode, setRecognitionMode] = useState<AyasRecognitionMode>("continuous");
   const [recovering, setRecovering] = useState(false);
+  const [voiceStarting, setVoiceStarting] = useState(false);
   const [voicePaused, setVoicePaused] = useState(false);
   const [wakeCycles, setWakeCycles] = useState(0);
   const [conversationActive, setConversationActive] = useState(false);
@@ -317,6 +323,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
         voicePausedRef.current = false;
         setVoicePaused(false);
         setRecovering(false);
+        setVoiceStarting(false);
         setConversationActive(false);
         setErrorMessage(null);
         attach(new BrowserVoiceAdapter(), "browser");
@@ -352,6 +359,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
               // `onListening` signal.
               if (s.mic === "on") setMicPermission("granted");
               setRecovering(s.mic === "recovering");
+              setVoiceStarting(s.mic === "starting");
               const paused = s.mic === "paused";
               voicePausedRef.current = paused;
               setVoicePaused(paused);
@@ -379,6 +387,8 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
           if (attachTimeout) clearTimeout(attachTimeout);
           attachTimeout = null;
           attach(adapter, "wake-engine");
+          // Load the models now, not after the mic tap: the first "AYAS" must not land in a loading window.
+          adapter.preload();
         })
         .catch(() => {
           fallBack();
@@ -405,6 +415,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       wakeAdapterRef.current = null;
       voicePausedRef.current = false;
       setVoicePaused(false);
+      setVoiceStarting(false);
       setConversationActive(false);
       setConversationClosedReason(null);
     };
@@ -569,6 +580,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     voiceName,
     voiceTier,
     recovering: ready ? recovering : false,
+    voiceStarting: ready ? voiceStarting : false,
     voicePaused: ready ? voicePaused : false,
     wakeCycles,
     conversationActive: ready ? conversationActive : false,

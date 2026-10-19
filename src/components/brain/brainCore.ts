@@ -258,6 +258,8 @@ export interface AyasPresenceInput {
     readonly mode?: "continuous" | "single-shot" | "wake-engine";
     /** `true` while the wake pipeline is re-acquiring the mic / AudioContext. */
     readonly recovering?: boolean;
+    /** `true` from the mic tap until the wake pipeline hears its first frame — "AYAS" cannot be heard yet. */
+    readonly starting?: boolean;
     /**
      * `true` when a working wake session was interrupted (iOS took the mic away)
      * and is recovering — a tap resumes it immediately. NOT a permanent failure.
@@ -365,6 +367,8 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
             ? { label: "Ses", value: "AYAS ses bağlantısını yeniden kuruyor — dokunarak sürdür", tone: "warn" }
             : recovering
               ? { label: "Ses", value: "AYAS bağlantıyı toparlıyor", tone: "warn" }
+              : input.voice?.starting && input.voice.listening
+                ? { label: "Ses", value: "Dinleme hazırlanıyor — birazdan \"AYAS\" diyebilirsin", tone: "off" }
               : readiness === "stt-unsupported"
                 ? { label: "Ses", value: "Mikrofon desteklenmiyor — AYAS sesli yanıt verebilir", tone: "warn" }
                 : readiness === "permission-needed"

@@ -861,6 +861,7 @@ export function BrainCoreConsole({
         voiceName: voice.voiceName,
         voiceTier: voice.voiceTier,
         recovering: voice.recovering,
+        starting: voice.voiceStarting,
         paused: voice.voicePaused,
         conversationActive: voice.conversationActive,
         conversationClosedReason: voice.conversationClosedReason,
