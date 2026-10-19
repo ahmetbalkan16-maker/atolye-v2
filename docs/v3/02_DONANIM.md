@@ -26,7 +26,14 @@
 | Docker, ImageMagick, Blender, ComfyUI | yok (gerekmiyor) |
 | Rhubarb Lip Sync | **kuruldu**: 1.14.0, `D:\URETIM\Atolye\v3-tools\rhubarb` (MIT, zip SHA-256 `62fa416a…1fe3`) |
 | Remotion | **kuruldu**: 4.0.536, ayrı alt paket `remotion-v3/` (kök bağımlılıkları değişmedi) |
-| Chatterbox Multilingual | **kuruluyor**: chatterbox-tts 0.1.7 (MIT), `D:\URETIM\Atolye\v3-tools\tts-venv` |
+| Chatterbox Multilingual | **kuruldu** (19 Ekim 2026): chatterbox-tts 0.1.7 (MIT) + torch 2.6.0+cu124, `D:\URETIM\Atolye\v3-tools\tts-venv`; ağırlıklar `v3-tools\hf-cache` (`t3_mtl23ls_v2.safetensors`, `s3gen.pt`, SHA-256 doğrulandı) |
+
+Chatterbox kurulum notları (diğer bilgisayar için):
+- uv venv'i `setuptools` içermez; filigran paketi (resemble-perth 1.0.1) `pkg_resources` ister, yoksa
+  `PerthImplicitWatermarker` sessizce `None` olur ve model "NoneType object is not callable" ile açılmaz:
+  `uv pip install --python <tts-venv>\Scripts\python.exe "setuptools<81"`.
+- Hugging Face indirmesi `hf_xet` ile takılabilir (bayt gelmeden asılı kalır). Takılırsa iki büyük dosyayı `curl -C -`
+  ile snapshot klasörüne indirip LFS SHA-256'yı doğrulayın (`b1237586…`, `9b9ff07e…`).
 
 ## Seviye: **ORTA** (12 GB VRAM)
 
@@ -37,7 +44,7 @@ yerel müzik (ACE-Step), Whisper hizalama.
 
 | Araç | Boyut | Lisans | Ne sağlar | Beklenen hız (bu PC) | Durum |
 | --- | --- | --- | --- | --- | --- |
-| Chatterbox Multilingual | ~3 GB model + ~4 GB torch | MIT (çıktıya Perth filigranı) | Türkçe, duygu ayarlı, **owner sesinden klon** | ~1–2× gerçek zaman (GPU) | Kuruluyor |
+| Chatterbox Multilingual | ~3 GB model + ~4 GB torch | MIT (çıktıya Perth filigranı) | Türkçe, duygu ayarlı, **owner sesinden klon** | ~1–2× gerçek zaman (GPU) | Kuruldu |
 | Rhubarb Lip Sync | 87 MB | MIT | A–H/X vizemleri | satır başına ~1–3 sn (CPU) | Kuruldu |
 | Remotion | ~300 MB + Chrome Headless Shell | Remotion License: birey / ≤3 kişilik şirket ücretsiz | React ile kare-kesin animasyon, altyazı, kamera | 1080p30: ~10–25 kare/sn (paralel) | Kuruldu |
 | SDXL base 1.0 (mevcut veri) | 6,9 GB (zaten indirilmiş) | CreativeML Open RAIL++-M (ticari kullanım serbest, kullanım kısıtları var) | stil tutarlı arka plan | ~15–20 sn/görsel | Yeni venv ile onarılıyor |

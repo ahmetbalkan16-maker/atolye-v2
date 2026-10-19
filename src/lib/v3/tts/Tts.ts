@@ -5,6 +5,7 @@ import path from "node:path";
 import type { V3Emotion } from "../render/RenderPlanTypes";
 import { runChecked, runProcess } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
+import { normalizeEnglishForSpeech } from "./EnglishText";
 import { type Lexicon, normalizeForSpeech } from "./TurkishText";
 
 export type TtsProviderId = "chatterbox" | "piper";
@@ -259,7 +260,7 @@ export class TtsService {
     const provider = req.provider ?? voice.saglayici;
     const engine = this.engine(provider);
     const language = req.language ?? "tr";
-    const speech = language === "tr" ? this.speechText(req.text) : req.text.trim();
+    const speech = language === "tr" ? this.speechText(req.text) : normalizeEnglishForSpeech(req.text);
     const boost = this.voices.duygu_ayari[req.emotion] ?? 0;
     const speed = req.speed ?? 1;
     const refHash = voice.referans && provider === "chatterbox" ? await fileHash(path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`)) : "";

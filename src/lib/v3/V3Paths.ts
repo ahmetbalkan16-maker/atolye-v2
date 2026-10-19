@@ -12,6 +12,8 @@ export interface V3Paths {
   readonly workRoot: string;
   /** Rhubarb, TTS venv, downloaded models. */
   readonly toolsRoot: string;
+  /** Third-party licensed music in MusicLibrary's layout (`<mood>/<file>` + `.license.json`), outside git. */
+  readonly musicRoot: string;
   /** Existing SDXL backdrop cache (`bin/ayas-local-visual/library`). */
   readonly backdropLibrary: string;
   readonly piperExe: string;
@@ -66,6 +68,7 @@ export function resolveV3Paths(repoRoot = process.cwd(), env: NodeJS.ProcessEnv 
     contentRoot: path.join(repoRoot, "content", "v3"),
     workRoot: get("ATOLYE_V3_WORK_ROOT", path.join(repoRoot, "output", "v3")),
     toolsRoot,
+    musicRoot: get("ATOLYE_V3_MUSIC_ROOT", path.join(toolsRoot, "music")),
     backdropLibrary: get("ATOLYE_V3_BACKDROP_LIBRARY", path.join(bin, "ayas-local-visual", "library")),
     piperExe: get("ATOLYE_V3_PIPER_EXE", path.join(bin, "piper", "piper.exe")),
     piperVoice: get("ATOLYE_V3_PIPER_VOICE", path.join(bin, "piper", "tr_TR-dfki-medium.onnx")),

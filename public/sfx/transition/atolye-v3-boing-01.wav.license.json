@@ -1,0 +1,9 @@
+{
+  "title": "Atölye V3 sentez efekti — komik boing",
+  "source": "Atölye V3; FFmpeg ile yerelde sentezlendi (scripts/v3/sfx-uret.ts), kayıt veya dış örnek yok",
+  "sourceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "license": "CC0",
+  "attribution": "",
+  "sha256": "0130598bcf5ad07dbf275ae6ba1118fd4498ec64e43dd291a68a12743ad51fdf",
+  "externalSamples": false
+}

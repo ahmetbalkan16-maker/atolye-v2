@@ -27,6 +27,9 @@ export const MUSIC_MOODS = [
   "tense",
   "calm",
   "historical",
+  // Playful beds for humorous narration (V3). Empty in the default library: an empty comedic bucket falls back to
+  // "dramatic", which is what a "komik" mood resolved to before this bucket existed.
+  "comedic",
 ] as const;
 
 export type MusicMood = (typeof MUSIC_MOODS)[number];
@@ -54,6 +57,7 @@ const MOOD_HINTS: Record<MusicMood, string[]> = {
   tense: ["tense", "gergin", "suspense", "gerilim", "dark", "karanlık", "battle", "savaş", "war"],
   calm: ["calm", "sakin", "ambient", "soft", "yumuşak", "reflective", "huzur", "peaceful"],
   historical: ["historical", "tarihi", "tarihî", "ancient", "antik", "medieval", "ortaçağ", "folk", "period"],
+  comedic: ["comedic", "komik", "funny", "eğlenceli", "playful", "quirky", "mizah"],
 };
 
 /**
@@ -145,7 +149,8 @@ export function selectMusicTrack(
   env: NodeJS.ProcessEnv = process.env,
 ): MusicTrack | null {
   const preferred = normalizeMusicMood(moodText);
-  const order: MusicMood[] = [preferred, ...MUSIC_MOODS.filter((m) => m !== preferred)];
+  const next: MusicMood[] = preferred === "comedic" ? ["dramatic"] : [];
+  const order: MusicMood[] = [preferred, ...next, ...MUSIC_MOODS.filter((m) => m !== preferred && !next.includes(m))];
   for (const mood of order) {
     const tracks = listTracksForMood(mood, env);
     if (tracks.length === 0) continue;

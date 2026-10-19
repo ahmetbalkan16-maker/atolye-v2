@@ -11,7 +11,8 @@
     "konstantinos": { "saglayici": "chatterbox", "referans": "owner-b", "perde": -1.5, "hiz": 0.95, "exaggeration": 0.5,  "cfg": 0.5,  "sicaklik": 0.7,  "not": "Ağırbaşlı imparator" },
     "giustiniani":  { "saglayici": "chatterbox", "referans": "owner-a", "perde": 2.5,  "hiz": 1.02, "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.75, "not": "Gösterişli paralı asker" },
     "yeniceri":     { "saglayici": "chatterbox", "referans": "owner-b", "perde": -1,   "hiz": 1.1,  "exaggeration": 0.85, "cfg": 0.35, "sicaklik": 0.8,  "not": "Kısa asker tepkileri" },
-    "isci":         { "saglayici": "chatterbox", "referans": "owner-a", "perde": 3,    "hiz": 1.05, "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.8,  "not": "Yorgun işçi" }
+    "isci":         { "saglayici": "chatterbox", "referans": "owner-a", "perde": 3,    "hiz": 1.05, "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.8,  "not": "Yorgun işçi" },
+    "hazir_ses":    { "saglayici": "chatterbox",                        "perde": 0,    "hiz": 1.0,  "exaggeration": 0.5,  "cfg": 0.5,  "sicaklik": 0.75, "not": "Chatterbox'ın hazır sesi (referans kaydı yok) — owner sesiyle karşılaştırma için" }
   },
   "duygu_ayari": {
     "notr": 0, "mutlu": 0.12, "kizgin": 0.25, "saskin": 0.2, "korkmus": 0.12, "uzgun": -0.05, "kararli": 0.08, "sinsi": 0.05

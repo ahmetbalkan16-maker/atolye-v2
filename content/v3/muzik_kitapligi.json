@@ -1,0 +1,92 @@
+{
+  "aciklama": "V3 müzik kitaplığı: Kevin MacLeod (incompetech.com), CC BY 4.0 — para kazanan YouTube videolarında kullanım serbest, atıf zorunlu (incompetech SSS, 19 Ekim 2026'da okundu). Dosyalar git dışında ATOLYE_V3_MUSIC_ROOT altında MusicLibrary düzeninde durur; scripts/v3/muzik-indir.ts indirir ve sha256 ile doğrular (ilk indirme sha256'yı buraya sabitler).",
+  "lisans": "CC-BY-4.0",
+  "atif_sablonu": "\"{baslik}\" Kevin MacLeod (incompetech.com)\nLicensed under Creative Commons: By Attribution 4.0\nhttp://creativecommons.org/licenses/by/4.0/",
+  "parcalar": [
+    {
+      "ruh_hali": "comedic",
+      "baslik": "Fluffing a Duck",
+      "sha256": "cb23b1833c35e391de10d998d6a40cfc760565ce31d23014c86025523ca8239b"
+    },
+    {
+      "ruh_hali": "comedic",
+      "baslik": "Monkeys Spinning Monkeys",
+      "sha256": "a5bb345c23849ad0786aa0bc5157a9f2d4039660fe00282e55754d475f36dc14"
+    },
+    {
+      "ruh_hali": "comedic",
+      "baslik": "Sneaky Snitch",
+      "sha256": "db1710333d68a215277f77e4e17e1a64bf4ed38f87c70f8d0f56b16b6aa4f884"
+    },
+    {
+      "ruh_hali": "comedic",
+      "baslik": "Investigations",
+      "sha256": "699f7a3cd227dfe5c1e88099b45af57202bfe9d56f86b8b43e4252b65dd96768"
+    },
+    {
+      "ruh_hali": "comedic",
+      "baslik": "The Builder",
+      "sha256": "e77d43a14ddf81c675d7171833ee3196a8bf8f7717039af6d48cc4f849b60577"
+    },
+    {
+      "ruh_hali": "tense",
+      "baslik": "Hitman",
+      "sha256": "005d6e28345e3c50a0715f5cf887c4cf02c3fa70910cdacc312bf348a3f2a647"
+    },
+    {
+      "ruh_hali": "tense",
+      "baslik": "Volatile Reaction",
+      "sha256": "ced1148df201a6c69062a96b7ef49c49924572ca5023c2ac5a2d6c5828ecb218"
+    },
+    {
+      "ruh_hali": "tense",
+      "baslik": "Unholy Knight",
+      "sha256": "f78d4a61bcbbcc36cbe32ce7ba6127a0e89e06f6c1d65cc8086480cd2f273d14"
+    },
+    {
+      "ruh_hali": "epic",
+      "baslik": "Five Armies",
+      "sha256": "f56746c90756db04675a80ebd29e22253177a6fcc16f56602da62af9eae8d733"
+    },
+    {
+      "ruh_hali": "epic",
+      "baslik": "Heroic Age",
+      "sha256": "d0bbd367ab8c6d744e18f317df12de67e1b40f8b5d1c3812d7025eec9e9a0e7b"
+    },
+    {
+      "ruh_hali": "epic",
+      "baslik": "Prelude and Action",
+      "sha256": "104a25f501951939fe87292b6116fa82f4a4b7be22122805154b316451d4fefd"
+    },
+    {
+      "ruh_hali": "historical",
+      "baslik": "Desert City",
+      "sha256": "aeefb582c77059aaf5b10d1e9125d7b19adca07cd841f3654e74aed7da9a3a71"
+    },
+    {
+      "ruh_hali": "historical",
+      "baslik": "Lord of the Land",
+      "sha256": "47ce185fdc1f2e5514566307d652d6cb62a06bed47ea730e28214d3cedc2f948"
+    },
+    {
+      "ruh_hali": "historical",
+      "baslik": "Teller of the Tales",
+      "sha256": "320b37a09fc37ec5962c975563541bee9bcbf1208b0181789248780286f4c1d4"
+    },
+    {
+      "ruh_hali": "calm",
+      "baslik": "Heartbreaking",
+      "sha256": "b888fa087b580959d5bd49e61340b44dc0b9f85cd3b4c2d35042d47edea77ae8"
+    },
+    {
+      "ruh_hali": "calm",
+      "baslik": "Bittersweet",
+      "sha256": "3e12763e7e1955e6017ae7195df2ab7bd5a4faca9a4147eeb81d28d7aa94e5d1"
+    },
+    {
+      "ruh_hali": "dramatic",
+      "baslik": "Impact Moderato",
+      "sha256": "a85d378af027d75014be4a95b43007b19e03b06693c4b4ad72594cf392f4bc1c"
+    }
+  ]
+}

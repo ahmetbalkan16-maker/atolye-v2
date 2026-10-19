@@ -5,7 +5,7 @@ import type {MusicMood} from "./MusicLibrary";
  * The generated arrangement is contributed under CC0-1.0 with its source.
  */
 export function composeOriginalMusic(mood: MusicMood): Buffer {
-  const profiles={epic:{bpm:100,gain:.19,minor:true},dramatic:{bpm:76,gain:.16,minor:true},tense:{bpm:112,gain:.15,minor:true},calm:{bpm:72,gain:.12,minor:false},historical:{bpm:88,gain:.16,minor:true}};
+  const profiles={epic:{bpm:100,gain:.19,minor:true},dramatic:{bpm:76,gain:.16,minor:true},tense:{bpm:112,gain:.15,minor:true},calm:{bpm:72,gain:.12,minor:false},historical:{bpm:88,gain:.16,minor:true},comedic:{bpm:120,gain:.14,minor:false}};
   const profile=profiles[mood];if(!profile) throw new Error("MUSIC_MOOD_REFUSED");
   const rate=22050,duration=32*60/profile.bpm,samples=Math.ceil(duration*rate),wav=Buffer.alloc(44+samples*2);
   wav.write("RIFF",0);wav.writeUInt32LE(wav.length-8,4);wav.write("WAVEfmt ",8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(rate,24);wav.writeUInt32LE(rate*2,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write("data",36);wav.writeUInt32LE(samples*2,40);
