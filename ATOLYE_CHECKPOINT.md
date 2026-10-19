@@ -1,3 +1,19 @@
+## 19 Ekim 2026 gece — Çöp adam V3 pilotu QC 12/12 (gpt-4.1); OpenAI anahtarı düzeldi, canlı yeniden başlatma owner onayında
+
+- **V3** (worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3`, son `63977291`, push edildi): tek komut
+  `npx tsx scripts/atolye-v3.ts uret …` senaryo → ses → senkron → görsel → render → miks → birleştir. Pilot
+  `output/v3/bolumler/fatih-pilot-openai/final.mp4` 82,6 sn, 4 görünür karakter / 4 ses, QC 12/12, maliyet 0,0385 $.
+  Commons arka planlarını yerel gemma4:12b görüntüye bakarak puanlıyor (eşik 7; owner: konuyu gösteren gerçek fotoğraf
+  serbest). Ayrıntı ve kalan işler: worktree `docs/v3/FAZ_RAPORLARI.md` son bölüm.
+- **OpenAI anahtarı:** üç kaynak SHA-256 önekiyle karşılaştırıldı (değer yazdırılmadı). Windows kullanıcı değişkeni ve ana
+  repo `.env.local` geçerli (20:45'teki 401, yeni anahtarın henüz etkinleşmemesiydi). Canlı uygulama `.env.local`'ı ana
+  repodan değil canlı anlık görüntüden (`ayas-live-9b713d78\.env.local`) okur ve her yayında onu taşır; oradaki anahtar
+  geçersizdi → yedeklendi (`D:\ÜRETİM\private\host-settings-backup\openai-key-20261019\`), yalnız o satır değişti,
+  model listesi + gpt-4.1 200. Next 16 süreç ortamını `.env.local`'a tercih eder; canlı Next 17:15'te, değişken 21:13'te
+  yazıldığı için **yeni anahtar canlıda ancak yeniden başlatmayla devreye girer** (`scripts\ayas-publish-live.ps1 -Restart`).
+  Owner şimdilik yeniden başlatmayı istemedi; çalışan alt iş 0 doğrulandı, onay bekleniyor.
+- **Owner kararı:** her doğrulanmış adım onay beklemeden commit + push edilir; canlı yeniden başlatma/yayın ayrı onay ister.
+
 ## 19 Ekim 2026 — Ollama modelleri NVMe'ye; güncelleyici sonrası çöküşün kökü kaldırıldı; AYAS gemma4:12b'ye geçti
 
 Owner: "Sıkıntı D'de çalışmasıysa C'ye sadece bunu gönderip daha hızlı çalışacaksak yapabiliriz. gemma4:12b'yi test et, daha iyi çıkarsa geçebilirsin. Telefondan AYAS dediğimde hemen uyansın, kesilmesin." Ardından: "Ollama'nın tekrar bozulmaması için ne gerekiyorsa yap; hiçbir şeyi bozma, bitince gerekenleri güncelle."
