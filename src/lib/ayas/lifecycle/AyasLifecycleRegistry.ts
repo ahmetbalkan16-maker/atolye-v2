@@ -74,7 +74,18 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
       { state: "DISCOVERED", on: "2026-10-10", basis: "owner-selected as the AYAS chat model after the Qwen2.5 3B/7B, Qwen3 8B and Gemma3 4B candidates showed Turkish errors (docs/AYAS_LOCAL_CONVERSATION_2026-10-10.md, 0fb68ea0)" },
       { state: "PINNED", on: "2026-10-16", basis: "digest read from the local Ollama runtime (GET /api/tags on loopback)" },
     ],
-    notes: "The AYAS chat model since 2026-10-10. The model comparison's frozen Turkish chat benchmark ayas-chat-tr-v3 (docs/AYAS_MODEL_COMPARISON.md) recorded 18/21 for these bytes on 2026-10-15; that benchmark is not a lifecycle evaluator, so it is not counted as qualification evidence here. The tag is a label: the digest is the identity, and the chat router reports when the served digest differs.",
+    notes: "The AYAS chat model from 2026-10-10 to 2026-10-19, now the rollback target of gemma4:12b. The model comparison's frozen Turkish chat benchmark ayas-chat-tr-v3 (docs/AYAS_MODEL_COMPARISON.md) recorded 18/21 for these bytes on 2026-10-15; that benchmark is not a lifecycle evaluator, so it is not counted as qualification evidence here. The tag is a label: the digest is the identity, and the chat router reports when the served digest differs.",
+  },
+  {
+    id: "llm.local-text.gemma4-12b", kind: "llm", role: "local-text-generation", label: "gemma4:12b (Ollama)",
+    identity: { type: "ollama-digest", tag: "gemma4:12b", digest: "6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b" },
+    state: "PINNED", admission: "OWNER_SELECTED", compatibility: "Ollama on loopback; AYAS chat only, when the owner sets AYAS_OLLAMA_MODEL to it (AYAS_CONVERSATION_V2=1, keep_alive 0, think false). 11.9B parameters, Q4_K_M, 8.02 GB.",
+    record: unmeasured("AYAS chat"), rollbackTarget: "llm.local-text.gemma3-12b",
+    history: [
+      { state: "DISCOVERED", on: "2026-10-15", basis: "first candidate of the model watch list (src/lib/brain/autonomy/AyasModelWatch.ts); the owner approved its download" },
+      { state: "PINNED", on: "2026-10-19", basis: "digest read from the local Ollama runtime (GET /api/tags on loopback)" },
+    ],
+    notes: "The AYAS chat model since 2026-10-19: the owner's sealed \"Bu modele geç\" approval switched to it from gemma3:12b, and the switch passed its three-question chat check. The model comparison's frozen Turkish chat benchmark ayas-chat-tr-v3 (docs/AYAS_MODEL_COMPARISON.md) recorded 21/21 for these bytes on 2026-10-19 (gemma3:12b 18/21); that benchmark is not a lifecycle evaluator, so it is not counted as qualification evidence here. The tag is a label: the digest is the identity, and the chat router reports when the served digest differs.",
   },
 
   /* --------------------------------------------------------- coding model --- */
