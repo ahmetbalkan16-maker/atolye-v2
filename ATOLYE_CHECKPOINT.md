@@ -1,4 +1,4 @@
-## 19 Ekim 2026 gece — Çöp adam V3 pilotu QC 12/12 (gpt-4.1); OpenAI anahtarı düzeldi, canlı yeniden başlatma owner onayında
+## 19 Ekim 2026 gece — Çöp adam V3 pilotu QC 12/12 (gpt-4.1); OpenAI anahtarı düzeldi, canlı yeni anahtarla yeniden başladı
 
 - **V3** (worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3`, son `63977291`, push edildi): tek komut
   `npx tsx scripts/atolye-v3.ts uret …` senaryo → ses → senkron → görsel → render → miks → birleştir. Pilot
@@ -11,7 +11,10 @@
   geçersizdi → yedeklendi (`D:\ÜRETİM\private\host-settings-backup\openai-key-20261019\`), yalnız o satır değişti,
   model listesi + gpt-4.1 200. Next 16 süreç ortamını `.env.local`'a tercih eder; canlı Next 17:15'te, değişken 21:13'te
   yazıldığı için **yeni anahtar canlıda ancak yeniden başlatmayla devreye girer** (`scripts\ayas-publish-live.ps1 -Restart`).
-  Owner şimdilik yeniden başlatmayı istemedi; çalışan alt iş 0 doğrulandı, onay bekleniyor.
+  Owner onayıyla 22:58'de `-Restart` çalıştı: önbellek okuma 101 sn (31.512 dosya), denetçi + uygulama durdu/başladı,
+  yeni Next pid 3084 (22:59:55), dış erişim healthy, tünel kesilmedi; kesinti ~15 sn. İlk deneme önbellek okumasında
+  (HDD, soğuk) 590 sn'lik komut süresine takıldı; durdurma adımına gelinmediği için canlı etkilenmedi — `-Restart`
+  süre sınırsız (arka planda) çalıştırılmalı.
 - **Owner kararı:** her doğrulanmış adım onay beklemeden commit + push edilir; canlı yeniden başlatma/yayın ayrı onay ister.
 
 ## 19 Ekim 2026 — Ollama modelleri NVMe'ye; güncelleyici sonrası çöküşün kökü kaldırıldı; AYAS gemma4:12b'ye geçti
