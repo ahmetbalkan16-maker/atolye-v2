@@ -88,6 +88,7 @@ export class OllamaProvider implements ConfiguredAIProvider {
           messages: [{ role: "user", content: prompt }],
           stream: false,
           ...(format !== undefined ? { format } : {}),
+          ...(config.think !== undefined ? { think: config.think } : {}),
           options: {
             temperature,
             num_predict: options?.maxTokens ?? config.maxTokens,

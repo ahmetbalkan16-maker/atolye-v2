@@ -40,7 +40,11 @@ export interface TtsLineRequest {
   readonly speed?: number;
   /** Force an engine (e.g. Piper for a quick preview). */
   readonly provider?: TtsProviderId;
+  /** Narration language; Turkish number/name normalisation applies only to `tr`. Default `tr`. */
+  readonly language?: TtsLanguage;
 }
+
+export type TtsLanguage = "tr" | "en";
 
 export interface TtsLineResult {
   /** 48 kHz mono 16-bit WAV, trimmed and level-matched. */
@@ -55,7 +59,7 @@ export interface TtsLineResult {
 interface TtsEngine {
   readonly id: TtsProviderId;
   readonly model: string;
-  synthesizeRaw(text: string, voice: VoiceProfile, emotionBoost: number, out: string, seed: number): Promise<void>;
+  synthesizeRaw(text: string, voice: VoiceProfile, emotionBoost: number, out: string, seed: number, language: TtsLanguage): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -154,13 +158,13 @@ class ChatterboxEngine implements TtsEngine {
     return this.ready;
   }
 
-  async synthesizeRaw(text: string, voice: VoiceProfile, boost: number, out: string, seed: number): Promise<void> {
+  async synthesizeRaw(text: string, voice: VoiceProfile, boost: number, out: string, seed: number, language: TtsLanguage): Promise<void> {
     await this.start();
     const ref = voice.referans ? path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`) : undefined;
     if (ref && !existsSync(ref)) throw new TtsError("V3_VOICE_REF_MISSING", ref);
     const id = `r${++this.counter}`;
     const reply = new Promise<{ ok: boolean; error?: string }>((resolve) => this.waiting.set(id, resolve));
-    const req = { id, text, ref, out, exaggeration: Math.min(1.5, Math.max(0.25, voice.exaggeration + boost)), cfg: voice.cfg, temperature: voice.sicaklik, seed };
+    const req = { id, text, ref, out, lang: language, exaggeration: Math.min(1.5, Math.max(0.25, voice.exaggeration + boost)), cfg: voice.cfg, temperature: voice.sicaklik, seed };
     this.child!.stdin.write(JSON.stringify(req) + "\n", "utf8");
     const timeout = new Promise<{ ok: boolean; error: string }>((resolve) => setTimeout(() => resolve({ ok: false, error: "satır 180 sn içinde bitmedi" }), 180_000));
     const r = await Promise.race([reply, timeout]);
@@ -179,7 +183,9 @@ class PiperEngine implements TtsEngine {
   readonly id = "piper" as const;
   readonly model = "piper-tr_TR-dfki-medium";
   constructor(private readonly paths: V3Paths) {}
-  async synthesizeRaw(text: string, _voice: VoiceProfile, _boost: number, out: string): Promise<void> {
+  async synthesizeRaw(text: string, _voice: VoiceProfile, _boost: number, out: string, _seed: number, language: TtsLanguage): Promise<void> {
+    // The only installed Piper voice is Turkish; reading English with it would be wrong, not just worse.
+    if (language !== "tr") throw new TtsError("V3_PIPER_LANGUAGE", `Piper sesi yalnız Türkçe: ${language}`);
     if (!existsSync(this.paths.piperExe)) throw new TtsError("V3_PIPER_MISSING", this.paths.piperExe);
     await runChecked(this.paths.piperExe, ["--model", this.paths.piperVoice, "--output_file", out], { input: text, timeoutMs: 120_000 });
   }
@@ -252,12 +258,13 @@ export class TtsService {
     const voice = this.voice(req.voiceId);
     const provider = req.provider ?? voice.saglayici;
     const engine = this.engine(provider);
-    const speech = this.speechText(req.text);
+    const language = req.language ?? "tr";
+    const speech = language === "tr" ? this.speechText(req.text) : req.text.trim();
     const boost = this.voices.duygu_ayari[req.emotion] ?? 0;
     const speed = req.speed ?? 1;
     const refHash = voice.referans && provider === "chatterbox" ? await fileHash(path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`)) : "";
     const key = createHash("sha256")
-      .update(JSON.stringify({ v: 1, model: engine.model, speech, voice, provider, boost, speed, refHash, filter: postProcessFilter(voice, speed) }))
+      .update(JSON.stringify({ v: 1, model: engine.model, speech, voice, provider, boost, speed, refHash, filter: postProcessFilter(voice, speed), ...(language !== "tr" ? { language } : {}) }))
       .digest("hex")
       .slice(0, 32);
     const file = path.join(this.cacheDir, `${key}.wav`);
@@ -267,7 +274,7 @@ export class TtsService {
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     const raw = path.join(this.paths.asciiTemp, `tts-${key}-raw.wav`);
     const seed = parseInt(key.slice(0, 8), 16) % 1_000_000;
-    await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, seed);
+    await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, seed, language);
     const tmp = `${file}.tmp.wav`;
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", postProcessFilter(voice, speed), "-ac", "1", "-c:a", "pcm_s16le", tmp]);
     await fs.rename(tmp, file);

@@ -10,6 +10,7 @@ import {
   SCENE_MOODS,
   SFX_IDS,
   TRANSITIONS,
+  type EpisodeSource,
   type EpisodeTone,
 } from "../episode/EpisodeTypes";
 
@@ -20,12 +21,22 @@ import {
  */
 export type ScriptLanguage = "tr" | "en";
 
+/**
+ * Verified sources for a topic and the facts each supports (`content/v3/kaynaklar/<konu>.json`). With a bank the
+ * writer may cite nothing else, which is what keeps it from inventing books.
+ */
+export interface SourceBank {
+  readonly kaynaklar: readonly EpisodeSource[];
+  readonly olgular: readonly { readonly metin: string; readonly kaynak: string }[];
+}
+
 export interface ScriptBrief {
   readonly konu: string;
   readonly donem: string;
   readonly hedefSureSn: number;
   readonly ton: EpisodeTone;
   readonly dil: ScriptLanguage;
+  readonly kaynakBankasi?: SourceBank;
 }
 
 /** Spoken words per second of narration. */
@@ -84,10 +95,22 @@ STORYTELLING RULES
 7. The last scene bridges to the next video.`,
 };
 
+function bankText(bank: SourceBank | undefined): string {
+  if (!bank) return "";
+  return `
+
+SOURCE BANK — cite ONLY these ids in "kaynaklar" and "kaynak", copy their "kunye" exactly, add no other source:
+${bank.kaynaklar.map((k) => `- ${k.id}: ${k.kunye}`).join("\n")}
+
+VERIFIED FACTS — every factual narrator claim must come from this list and cite its source id. Anything else is
+dramatisation ("kurgu": true) or carries a hedge; never present it as fact:
+${bank.olgular.map((o) => `- [${o.kaynak}] ${o.metin}`).join("\n")}`;
+}
+
 /** The writer's prompt: rules in the narration language, then one shared contract section. */
 export function writingPrompt(brief: ScriptBrief, catalog: readonly PackCatalogEntry[]): string {
   const words = wordBudget(brief);
-  return `${RULES[brief.dil](brief, words)}
+  return `${RULES[brief.dil](brief, words)}${bankText(brief.kaynakBankasi)}
 
 CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".
@@ -135,6 +158,17 @@ export function repairPrompt(previousJson: string, problems: readonly string[]):
 
 PROBLEMS:
 ${problems.map((p) => `- ${p}`).join("\n")}
+
+JSON:
+${previousJson}`;
+}
+
+/** One length round: a script far from its spoken-word budget would not fill (or would overrun) the target. */
+export function lengthPrompt(previousJson: string, words: number, target: number): string {
+  const verb = words < target ? "Expand" : "Shorten";
+  return `The JSON episode below has ${words} spoken words; the target is about ${target}. ${verb} it to about ${target} words by ${
+    words < target ? "adding lines (more dialogue, one more joke) and, if needed, one scene" : "cutting or merging lines"
+  }. Keep every rule, id, source and the cast; keep the scenes' sure_hedef adding up to hedef_sure_sn. Return the complete JSON object and nothing else.
 
 JSON:
 ${previousJson}`;

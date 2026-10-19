@@ -2,7 +2,7 @@
  * Atölye V3 — senaryo motoru: konudan doğrulanmış episode.json.
  *
  *   npx tsx scripts/v3/senaryo-yaz.ts --konu "Rumeli Hisarı'nın inşası" --donem "1452, Osmanlı" --sure 90sn
- *        [--ton mizahi|ciddi|epik] [--dil tr|en] [--saglayici openai|ollama] [--cikti <klasör>]
+ *        [--ton mizahi|ciddi|epik] [--dil tr|en] [--saglayici openai|ollama] [--kaynaklar <banka.json>] [--cikti <klasör>]
  *
  * Sağlayıcı ve modeller `.env.v3.local`'dan (ATOLYE_V3_SCRIPT_PROVIDER, ATOLYE_V3_WRITER_MODEL, ATOLYE_V3_CHECKER_MODEL);
  * varsayılan yerel Ollama. OpenAI çağrıları video başına 1 $ tavanla sınırlıdır; tavanı aşacak çağrı yapılmaz,
@@ -16,7 +16,7 @@ import { OpenAIProvider } from "../../src/lib/ai/providers/OpenAIProvider";
 import { costumesRoot, packCatalog } from "../../src/lib/v3/costumes/CostumePackLoader";
 import { EPISODE_TONES, type EpisodeTone } from "../../src/lib/v3/episode/EpisodeTypes";
 import { type ScriptOutcome, writeScript } from "../../src/lib/v3/script/ScriptEngine";
-import type { ScriptBrief, ScriptLanguage } from "../../src/lib/v3/script/ScriptPrompts";
+import type { ScriptBrief, ScriptLanguage, SourceBank } from "../../src/lib/v3/script/ScriptPrompts";
 import { V3Budget, type V3ModelChoice } from "../../src/lib/v3/script/V3Budget";
 import { resolveV3Paths, v3Secret } from "../../src/lib/v3/V3Paths";
 
@@ -54,7 +54,8 @@ function report(brief: ScriptBrief, out: ScriptOutcome, budget: V3Budget, planne
 - Konu: ${brief.konu} · Dönem: ${brief.donem} · Hedef: ${brief.hedefSureSn} sn · Ton: ${brief.ton} · Dil: ${brief.dil}
 - Yazan: ${out.writerUsed.provider}${out.writerUsed.model ? ` / ${out.writerUsed.model}` : ""}${out.writerUsed.provider !== planned.provider ? " (bütçe tavanı nedeniyle yerel modele düşüldü)" : ""}; onarım turu: ${out.repairs}
 - Sahne: ${m.sceneCount} · satır: ${m.lineCount} · diyaloglu sahne: %${Math.round(m.dialogueSceneRatio * 100)} (hedef ≥%30) · ortalama ${m.averageWordsPerLine.toFixed(1)} kelime/satır (hedef ≤14) · kaynaksız anlatıcı iddiası: ${m.narratorClaimsWithoutSource}
-- Sahne süreleri toplamı: ${out.episode.sahneler.reduce((s, x) => s + x.sure_hedef, 0)} sn
+- Sahne süreleri toplamı: ${out.episode.sahneler.reduce((s, x) => s + x.sure_hedef, 0)} sn · konuşulan kelime: ${out.spokenWords} / hedef ~${out.targetWords} (uzunluk turu: ${out.lengthRounds})
+- Kaynak bankası: ${brief.kaynakBankasi ? `${brief.kaynakBankasi.kaynaklar.length} doğrulanmış kaynak, ${brief.kaynakBankasi.olgular.length} olgu — başka kaynak gösterilemez` : "YOK — kaynaklar modelin yazdığıdır, owner doğrulamalı"}
 
 ## Tarih doğrulama (${out.factCheck.durum === "tamam" ? `${out.factCheck.uygulanan} düzeltme uygulandı` : "YANIT OKUNAMADI — bölüm doğrulanmamış sayılır"})
 
@@ -81,7 +82,9 @@ async function main() {
   if (!EPISODE_TONES.includes(ton)) throw new Error(`--ton şunlardan biri olmalı: ${EPISODE_TONES.join(", ")}`);
   const dil = (arg("--dil") ?? "tr") as ScriptLanguage;
   if (dil !== "tr" && dil !== "en") throw new Error("--dil tr ya da en olmalı");
-  const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil };
+  const bankFile = arg("--kaynaklar");
+  const bank = bankFile ? (JSON.parse(await fs.readFile(bankFile, "utf8")) as SourceBank) : undefined;
+  const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}) };
 
   const paths = resolveV3Paths();
   const local = await readEnvFile(path.join(paths.repoRoot, ".env.v3.local"));
@@ -97,20 +100,22 @@ async function main() {
     process.env.AI_PROVIDER = "openai";
   }
   const ollamaModel = setting("ATOLYE_V3_OLLAMA_MODEL", "gemma4:12b");
-  const ollama = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: ollamaModel, timeoutMs: 1_200_000 }));
+  // Measured on gemma4:12b (RTX A2000): with thinking on and the server's small default window the whole output
+  // budget went to thinking and no JSON came back; thinking off + a 16k window + plain JSON mode wrote a valid
+  // 90 s episode in ~70 s. The full schema is not sent as a grammar: the validator and repair rounds check shape.
+  const ollama = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: ollamaModel, timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false }));
   const writer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: setting("ATOLYE_V3_WRITER_MODEL", "gpt-4.1") } : { provider: "ollama" };
   const checker: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: setting("ATOLYE_V3_CHECKER_MODEL", "gpt-4.1") } : { provider: "ollama" };
   const budget = new V3Budget({ providers: { openai: new OpenAIProvider(), ollama }, fallback: { provider: "ollama" } });
 
   const catalog = await packCatalog(costumesRoot(paths.repoRoot));
-  const jsonSchema = JSON.parse(await fs.readFile(path.join(paths.repoRoot, "docs", "v3", "episode.schema.json"), "utf8")) as Record<string, unknown>;
   const outDir = arg("--cikti") ?? path.join(paths.workRoot, "bolumler", `${slug(konu)}-${dil}`);
   await fs.mkdir(outDir, { recursive: true });
 
   const t0 = Date.now();
   console.log(`senaryo: ${writer.provider}${writer.model ? `/${writer.model}` : `/${ollamaModel}`} · ${brief.hedefSureSn} sn · ${dil} · tavan $${budget.capUsd.toFixed(2)}`);
   try {
-    const out = await writeScript({ brief, catalog, writer, checker, budget, jsonSchema });
+    const out = await writeScript({ brief, catalog, writer, checker, budget });
     await fs.writeFile(path.join(outDir, "episode.json"), `${JSON.stringify(out.episode, null, 2)}\n`);
     await fs.writeFile(path.join(outDir, "dogrulama.json"), `${JSON.stringify(out.factCheck, null, 2)}\n`);
     await fs.writeFile(path.join(outDir, "rapor.md"), report(brief, out, budget, writer));

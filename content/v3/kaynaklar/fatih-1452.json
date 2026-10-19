@@ -1,0 +1,19 @@
+{
+  "aciklama": "Fatih pilotu (Rumeli Hisarı, 1452) için kaynak bankası. avunduk-2008 ve eyice-1991 olguları 19 Ekim 2026'da TDVİA maddelerinden okunarak doğrulandı; runciman-1965 ve doukas-1975'e dayanan iki olgu yaygın kabul görür ama sayfa düzeyinde doğrulanmadı. Senaryo yazarı yalnız bu kaynakları gösterebilir.",
+  "kaynaklar": [
+    { "id": "avunduk-2008", "kunye": "Uğur Avunduk, \"Rumelihisarı\", TDV İslâm Ansiklopedisi, c. 35, İstanbul 2008, s. 237–240", "url": "https://islamansiklopedisi.org.tr/rumelihisari" },
+    { "id": "eyice-1991", "kunye": "Semavi Eyice, \"Anadoluhisarı\", TDV İslâm Ansiklopedisi, c. 3, İstanbul 1991, s. 147–149", "url": "https://islamansiklopedisi.org.tr/anadoluhisari" },
+    { "id": "runciman-1965", "kunye": "Steven Runciman, The Fall of Constantinople 1453, Cambridge University Press, 1965" },
+    { "id": "doukas-1975", "kunye": "Doukas, Decline and Fall of Byzantium to the Ottoman Turks, çev. Harry J. Magoulias, Wayne State University Press, 1975" }
+  ],
+  "olgular": [
+    { "metin": "Rumeli Hisarı'nın inşasına 1452 Mart ayının sonunda başlandı.", "kaynak": "avunduk-2008" },
+    { "metin": "Hisar 1452 yılının Temmuz–Ağustos aylarında tamamlandı; yapım yaklaşık dört–beş ay sürdü.", "kaynak": "avunduk-2008" },
+    { "metin": "Hisar kaynaklarda \"Boğazkesen\" adıyla da anılır.", "kaynak": "avunduk-2008" },
+    { "metin": "Deniz kıyısındaki büyük kuleyi Çandarlı Halil Paşa, diğer büyük kuleleri Sarıca Paşa ve Zağanos Paşa yaptırdı.", "kaynak": "avunduk-2008" },
+    { "metin": "Rumeli Hisarı Boğaz'ın Avrupa yakasındadır; karşı kıyıda Anadolu Hisarı bulunur.", "kaynak": "avunduk-2008" },
+    { "metin": "Anadolu Hisarı Boğaz'ın en dar yerlerinden birinde, Rumeli Hisarı'nın karşısındadır.", "kaynak": "eyice-1991" },
+    { "metin": "Hisarın amacı Boğaz'dan Konstantinopolis'e deniz yoluyla gelecek yardımı denetlemek ve kesmekti.", "kaynak": "runciman-1965" },
+    { "metin": "Bizans imparatoru XI. Konstantinos, hisarın yapımına karşı II. Mehmed'e elçiler gönderdi.", "kaynak": "doukas-1975" }
+  ]
+}

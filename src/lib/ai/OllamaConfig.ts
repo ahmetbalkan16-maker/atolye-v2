@@ -19,6 +19,8 @@
  *                         one JSON object) or `text`
  *  - `OLLAMA_NUM_GPU`     optional per-request GPU layer count; 0 uses CPU
  *  - `OLLAMA_NUM_THREADS` optional bounded CPU threads for these requests
+ *  - `OLLAMA_THINK`       optional `true`/`false` for thinking models (gemma4,
+ *                         qwen3); unset sends nothing and keeps the model default
  */
 
 export interface OllamaConfig {
@@ -41,6 +43,10 @@ export interface OllamaConfig {
    * lower temperature each time) often lands a complete JSON object. `0` keeps
    * the single-shot behaviour. */
   readonly maxRetries: number;
+  /** Thinking on/off for models that think by default; their thinking tokens
+   * count against `num_predict` and can leave no room for the JSON answer.
+   * `undefined` sends nothing (the model's own default). */
+  readonly think?: boolean;
 }
 
 export const OLLAMA_DEFAULTS = Object.freeze({
@@ -126,6 +132,8 @@ export function resolveOllamaConfig(env: NodeJS.ProcessEnv = process.env): Ollam
   if (format !== "json" && format !== "text") throw new OllamaConfigurationError();
   const numGpu = optionalInteger(env.OLLAMA_NUM_GPU, 0, 200);
   const numThreads = optionalInteger(env.OLLAMA_NUM_THREADS, 1, 32);
+  const thinkRaw = env.OLLAMA_THINK?.trim().toLowerCase();
+  if (thinkRaw && thinkRaw !== "true" && thinkRaw !== "false") throw new OllamaConfigurationError();
   return Object.freeze({
     baseUrl: resolveOllamaBaseUrl(env),
     model,
@@ -137,5 +145,6 @@ export function resolveOllamaConfig(env: NodeJS.ProcessEnv = process.env): Ollam
     ...(numGpu !== undefined ? { numGpu } : {}),
     ...(numThreads !== undefined ? { numThreads } : {}),
     maxRetries: integer(env.OLLAMA_MAX_RETRIES, OLLAMA_DEFAULTS.maxRetries, 0, 6),
+    ...(thinkRaw ? { think: thinkRaw === "true" } : {}),
   });
 }

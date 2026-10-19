@@ -45,7 +45,7 @@ def main():
                 torch.cuda.manual_seed_all(seed)
             wav = model.generate(
                 req["text"],
-                language_id="tr",
+                language_id=req.get("lang") or "tr",
                 audio_prompt_path=req.get("ref") or None,
                 exaggeration=float(req.get("exaggeration", 0.5)),
                 cfg_weight=float(req.get("cfg", 0.5)),

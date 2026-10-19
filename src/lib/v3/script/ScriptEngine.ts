@@ -1,7 +1,7 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
-import { type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
-import { factCheckPrompt, repairPrompt, type ScriptBrief, wordBudget, writingPrompt } from "./ScriptPrompts";
+import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
+import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
 
 /**
@@ -40,9 +40,37 @@ export interface ScriptOutcome {
   readonly validation: EpisodeValidation;
   readonly factCheck: FactCheckReport;
   readonly repairs: number;
+  /** Rounds spent fixing the length (0 or 1). */
+  readonly lengthRounds: number;
+  readonly spokenWords: number;
+  readonly targetWords: number;
   /** The writer actually used (the free fallback when the budget refused the paid one). */
   readonly writerUsed: V3ModelChoice;
 }
+
+export function spokenWords(episode: Episode): number {
+  return episode.sahneler.reduce((sum, s) => sum + s.satirlar.reduce((n, l) => n + countWords(l.metin), 0), 0);
+}
+
+/** Sources outside the bank, as repair problems. Lines can only cite listed sources, so the list is what to check. */
+export function bankProblems(episode: unknown, bank: SourceBank | undefined): string[] {
+  if (!bank || typeof episode !== "object" || episode === null) return [];
+  const allowed = new Set(bank.kaynaklar.map((k) => k.id));
+  const listed = Array.isArray((episode as { kaynaklar?: unknown }).kaynaklar) ? ((episode as { kaynaklar: { id?: unknown }[] }).kaynaklar) : [];
+  return listed
+    .filter((k) => typeof k.id !== "string" || !allowed.has(k.id))
+    .map((k) => `$.kaynaklar: "${String(k.id)}" is not in the source bank; use only: ${[...allowed].join(", ")}`);
+}
+
+/** Bank sources replace the written ones, so the citation text is exactly the verified one. */
+function withBankSources(episode: Episode, bank: SourceBank | undefined): Episode {
+  if (!bank) return episode;
+  const byId = new Map(bank.kaynaklar.map((k) => [k.id, k]));
+  return { ...episode, kaynaklar: episode.kaynaklar.map((k) => byId.get(k.id) ?? k) };
+}
+
+/** Outside this band of the spoken-word budget the episode would not fill, or would overrun, its target. */
+const LENGTH_BAND = [0.75, 1.35] as const;
 
 /** First top-level JSON object in a model answer; code fences and chatter around it are ignored. */
 export function extractJson(text: string): unknown {
@@ -150,28 +178,45 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   const first = await budget.generate("senaryo", input.writer, writingPrompt(brief, input.catalog), opts);
   if (first.result.refused) throw new ScriptError("V3_SCRIPT_REFUSED", "model senaryoyu yazmayı reddetti");
   const writerUsed = first.used;
+  const check = (text: string): { value?: unknown; validation?: EpisodeValidation; problems: string[] } => {
+    const parsed = parse(text);
+    if (!parsed.ok) return { problems: [parsed.error] };
+    const validation = validateEpisode(parsed.value);
+    const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(parsed.value, brief.kaynakBankasi)];
+    return { value: parsed.value, validation, problems };
+  };
   let raw = first.result.content;
-  let parsed = parse(raw);
-  let validation = parsed.ok ? validateEpisode(parsed.value) : undefined;
+  let state = check(raw);
   let repairs = 0;
-  while (!(parsed.ok && validation?.ok) && repairs < (input.maxRepairs ?? 2)) {
+  while (state.problems.length && repairs < (input.maxRepairs ?? 2)) {
     repairs++;
-    const problems = !parsed.ok ? [parsed.error] : validation!.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`);
-    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(raw, problems), opts);
+    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(raw, state.problems), opts);
     raw = next.result.content;
-    parsed = parse(raw);
-    validation = parsed.ok ? validateEpisode(parsed.value) : undefined;
+    state = check(raw);
   }
-  if (!parsed.ok) throw new ScriptError("V3_SCRIPT_INVALID", `${repairs} onarımdan sonra JSON okunamadı: ${parsed.error}`);
-  if (!validation?.ok) {
-    throw new ScriptError("V3_SCRIPT_INVALID", `${repairs} onarımdan sonra doğrulama hataları: ${validation!.errors.slice(0, 5).map((e) => `${e.path} ${e.code}`).join("; ")}`);
-  }
+  if (state.problems.length) throw new ScriptError("V3_SCRIPT_INVALID", `${repairs} onarımdan sonra: ${state.problems.slice(0, 5).join("; ")}`);
 
-  const written = parsed.value as Episode;
-  const check = await budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil), { maxTokens: FACT_CHECK_MAX_TOKENS });
-  const report = readFactCheck(check.result.content);
+  let written = state.value as Episode;
+  let validation = state.validation!;
+  const targetWords = wordBudget(brief);
+  let lengthRounds = 0;
+  const words = spokenWords(written);
+  if (words < targetWords * LENGTH_BAND[0] || words > targetWords * LENGTH_BAND[1]) {
+    lengthRounds = 1;
+    const next = await budget.generate("uzunluk", writerUsed, lengthPrompt(JSON.stringify(written), words, targetWords), opts);
+    const resized = check(next.result.content);
+    // A resize that breaks the episode is dropped: the valid, if short, script stays.
+    if (!resized.problems.length) {
+      written = resized.value as Episode;
+      validation = resized.validation!;
+    }
+  }
+  written = withBankSources(written, brief.kaynakBankasi);
+  const lengthFields = { lengthRounds, spokenWords: spokenWords(written), targetWords };
+  const editor = await budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil), { maxTokens: FACT_CHECK_MAX_TOKENS });
+  const report = readFactCheck(editor.result.content);
   if (!report) {
-    return { episode: written, validation, factCheck: { durum: "okunamadi", iddialar: [], uygulanan: 0 }, repairs, writerUsed };
+    return { episode: written, validation, factCheck: { durum: "okunamadi", iddialar: [], uygulanan: 0 }, repairs, ...lengthFields, writerUsed };
   }
   const fixed = applyFactCheck(written, report.iddialar);
   const fixedValidation = validateEpisode(fixed.episode);
@@ -187,6 +232,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       uygulanan: keep ? fixed.applied : 0,
     },
     repairs,
+    ...lengthFields,
     writerUsed,
   };
 }
