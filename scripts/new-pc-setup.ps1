@@ -130,7 +130,7 @@ if (-not $LocalCodingSandbox) {
 
 # 3. Per-user environment (Windows-wide TEMP/TMP stay untouched).
 $userEnv = [ordered]@{
-  OLLAMA_MODELS = (Join-Path $production 'models\ollama\models')
+  OLLAMA_MODELS = (Join-Path $env:USERPROFILE '.ollama\models')
   OLLAMA_TMPDIR = (Join-Path $production 'private\temp')
   NPM_CONFIG_CACHE = (Join-Path $production 'private\npm-cache')
   AYAS_TEMP_ROOT = (Join-Path $asciiAlias 'private\temp')
@@ -142,9 +142,8 @@ foreach ($key in $userEnv.Keys) {
   Plan "Kullanici ortam degiskeni $key = $want" { [Environment]::SetEnvironmentVariable($key, $want, 'User') }
 }
 
-# 4. Profile junctions: Ollama keys/models and the tunnel config live in the bundle.
+# 4. Profile junctions: the tunnel config lives in the bundle.
 $junctions = [ordered]@{
-  (Join-Path $env:USERPROFILE '.ollama') = (Join-Path $production 'models\ollama')
   (Join-Path $env:USERPROFILE '.cloudflared') = (Join-Path $production 'private\cloudflared')
 }
 foreach ($link in $junctions.Keys) {
@@ -157,6 +156,29 @@ foreach ($link in $junctions.Keys) {
       if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { cmd /c rmdir "$link" | Out-Null } else { Rename-Item -LiteralPath $link -NewName (Split-Path -Leaf $kept) }
     }
     New-Item -ItemType Junction -Path $link -Target $target | Out-Null
+  }
+}
+
+# 4b. Ollama keys and models in a real profile folder on the system disk (owner decision 2026-10-19). From the
+# bundle on the HDD a cold AYAS answer took up to 108 s, and an Ollama relaunched by its own updater refuses a profile
+# junction ("untrusted mount point") and never starts its server. Copied, not moved: the bundle stays the portable
+# source. Also turn off "automatic updates" in the Ollama app settings (docs/AYAS_NEW_PC_SETUP.md).
+$ollamaHome = Join-Path $env:USERPROFILE '.ollama'
+$bundleOllama = Join-Path $production 'models\ollama'
+$ollamaItem = Get-Item -LiteralPath $ollamaHome -Force -ErrorAction SilentlyContinue
+$ollamaIsLink = $ollamaItem -and ($ollamaItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+if ($ollamaItem -and -not $ollamaIsLink -and (Test-Path -LiteralPath (Join-Path $ollamaHome 'models\manifests'))) {
+  Say 'TAMAM' "$ollamaHome (gercek klasor, modeller yerel diskte)"
+} else {
+  Plan "Ollama anahtarlari ve modelleri $bundleOllama -> $ollamaHome kopyalanir (paketteki kopya yerinde kalir)" {
+    if ($ollamaIsLink) { Rename-Item -LiteralPath $ollamaHome -NewName ('.ollama.junction-' + (Get-Date -Format 'yyyyMMddHHmmss')) }
+    New-Item -ItemType Directory -Force -Path $ollamaHome | Out-Null
+    robocopy (Join-Path $bundleOllama 'models') (Join-Path $ollamaHome 'models') /E /COPY:DAT /R:1 /W:1 /NFL /NDL /NP /NJH /NJS | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "Ollama modelleri kopyalanamadi (robocopy $LASTEXITCODE)" }
+    foreach ($key in 'id_ed25519', 'id_ed25519.pub') {
+      $source = Join-Path $bundleOllama $key
+      if ((Test-Path -LiteralPath $source) -and -not (Test-Path -LiteralPath (Join-Path $ollamaHome $key))) { Copy-Item -LiteralPath $source -Destination $ollamaHome }
+    }
   }
 }
 

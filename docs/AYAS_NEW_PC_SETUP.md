@@ -51,9 +51,15 @@ Bu belge bütün AYAS/Atölye paketinin (`D:\ÜRETİM`) yeni bir bilgisayara ta�
    - Kullanıcı ortam değişkenleri: `OLLAMA_MODELS`, `OLLAMA_TMPDIR`, `NPM_CONFIG_CACHE`,
      `AYAS_TEMP_ROOT`, `ATOLYE_DURABLE_PIPELINE_EXECUTION`. Windows'un genel TEMP/TMP'si
      değişmez.
-   - Profil bağlantıları: `%USERPROFILE%\.ollama` → `D:\ÜRETİM\models\ollama`,
-     `%USERPROFILE%\.cloudflared` → `D:\ÜRETİM\private\cloudflared`. Ollama ilk açılışta kendi
-     klasörünü oluşturmuşsa silinmez, `.pre-ayas-<zaman>` adıyla saklanır.
+   - Profil bağlantısı: `%USERPROFILE%\.cloudflared` → `D:\ÜRETİM\private\cloudflared`. Bağlantı
+     yerinde bir klasör varsa silinmez, `.pre-ayas-<zaman>` adıyla saklanır.
+   - Ollama anahtarları ve modelleri (owner kararı 19 Ekim): `D:\ÜRETİM\models\ollama`'dan
+     `%USERPROFILE%\.ollama`'ya **kopyalanır**, `OLLAMA_MODELS` orayı gösterir. D'deki kopya
+     taşınabilir kaynak olarak kalır. Sebep: HDD'den soğuk bir cevap 108 sn sürüyordu (NVMe'den
+     ~5 sn); ayrıca Ollama'nın kendi güncelleyicisinin açtığı kopya profil junction'ını reddedip
+     ("untrusted mount point") sunucusunu hiç başlatmıyordu. Kurulumdan sonra Ollama uygulamasının
+     ayarlarında model konumunu `%USERPROFILE%\.ollama\models` yap ve otomatik güncellemeyi kapat.
+     Güncelleme elle: Ollama'yı kur, sonra Başlat menüsündeki Ollama kısayoluyla aç.
    - `.env.local` içindeki yalnız FFmpeg yolları yeni kurulum yerine çevrilir (önce
      `private\host-settings-backup` altına yedek alınır).
    - Repo bağımlılıkları (`npm ci`, önbellek paket içinde) ve Graphify 0.17.1.
@@ -102,7 +108,8 @@ operatör kararı ve worker durdurma gerektirdiği için betikle otomatik çalı
 |---|---|
 | Kurulu programlar (Node, Ollama, cloudflared, FFmpeg, Git) | Yeni PC'de betik yeniden kurar |
 | Başlangıç kısayolları | Yeni PC'de betik oluşturur |
-| `.ollama` / `.cloudflared` profil bağlantıları | Yalnız D'yi gösteren bağlantı; betik yeniden kurar |
+| `.cloudflared` profil bağlantısı | Yalnız D'yi gösteren bağlantı; betik yeniden kurar |
+| `.ollama` (gerçek klasör, ~30 GB model) | D'deki kopyadan betik yeniden kopyalar; 19 Ekim'den sonra indirilen modeller yalnız burada, taşımadan önce `robocopy %USERPROFILE%\.ollama\models D:\ÜRETİM\models\ollama\models /E` |
 | `AYAS Access Online` / `AYAS Autonomy Observer` zamanlanmış görevleri | Silinmiş C dosyalarını gösteren eski kayıtlar; zararsız. Silmek için yönetici PowerShell: `Unregister-ScheduledTask -TaskName '<ad>' -Confirm:$false` |
 | Codex'in açık çalışma klasörü kısayolları | Codex'e ait; AYAS/Atölye verisi değil |
 

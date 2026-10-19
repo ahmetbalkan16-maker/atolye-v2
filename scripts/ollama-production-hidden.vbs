@@ -1,6 +1,6 @@
 ' Ollama for AYAS production: only this process and its children use D temp.
 Option Explicit
-Dim fso, shell, projectDir, productionRoot, tempRoot, executable, service, processes, process, showRequested, launchStyle, launchArgs
+Dim fso, shell, projectDir, productionRoot, tempRoot, executable, service, processes, process, showRequested, launchStyle, launchArgs, userModels, smi, os, uptime, waited
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 projectDir = fso.GetParentFolderName(fso.GetParentFolderName(WScript.ScriptFullName))
@@ -16,6 +16,10 @@ shell.Environment("Process")("OLLAMA_TMPDIR") = tempRoot
 ' (2026-10-16: gemma4:12b lost that way). The owner's "Indir ve olc" downloads
 ' in slices over several observer rounds and relies on this.
 shell.Environment("Process")("OLLAMA_NOPRUNE") = "1"
+' The model store moved to the NVMe disk (owner decision 2026-10-19). A caller started before that change
+' still carries the old OLLAMA_MODELS, so the user's current value wins.
+userModels = shell.Environment("User")("OLLAMA_MODELS")
+If userModels <> "" Then shell.Environment("Process")("OLLAMA_MODELS") = userModels
 shell.CurrentDirectory = productionRoot
 showRequested = False
 launchStyle = 0
@@ -37,5 +41,19 @@ For Each process In processes
     If LCase(process.ExecutablePath) = LCase(executable) And Not showRequested Then WScript.Quit 0
   End If
 Next
+' A logon start can come before the NVIDIA driver answers: Ollama then finds no GPU and runs every model on the
+' CPU (2026-10-19 11:30, three minutes per answer). Wait until 90 s after boot and until nvidia-smi lists a GPU,
+' at most 90 s more. Without the NVIDIA tool there is nothing to wait for.
+For Each os In service.ExecQuery("SELECT SystemUpTime FROM Win32_PerfFormattedData_PerfOS_System")
+  uptime = CLng(os.SystemUpTime)
+Next
+If uptime > 0 And uptime < 90 Then WScript.Sleep (90 - uptime) * 1000
+smi = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\nvidia-smi.exe"
+If fso.FileExists(smi) Then
+  For waited = 1 To 45
+    If shell.Run("""" & smi & """ -L", 0, True) = 0 Then Exit For
+    WScript.Sleep 2000
+  Next
+End If
 shell.Run """" & executable & """" & launchArgs, launchStyle, False
 WScript.Quit 0
