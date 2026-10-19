@@ -199,7 +199,7 @@ function isWeatherQuestion(t: string, tokens: readonly Token[]): boolean {
 
 /* ------------------------------------------------------- weather follow-up --- */
 
-/** Words a short follow-up is made of besides its signal: "Peki yarın?", "Ya İzmir'de?", "Yarın hava nasıl olacak?". */
+/** Words a short follow-up is made of besides its signal: "Peki yarın?", "Ya İzmir'de?", "Ya hafta sonu?". */
 const FOLLOW_UP_FILLER = new Set(["peki", "ya", "ve", "o", "zaman", "orada", "orda", "nasil", "olacak", "olur", "mi", "mu", "acaba", "sence", "de", "da", "hava", "havalar", "durum", "durumu", "gun", "sonu", "sonra"]);
 /** A day, a time of day or a weather word: what makes a follow-up ask about the weather again. */
 const FOLLOW_UP_SIGNAL = new Set(["bugun", "yarin", "yarindan", "obur", "ertesi", "hafta", "aksam", "sabah", "gece", "ogle", "ogleden", "simdi", "yagacak", "yagar", "yagiyor", "yagmur", "kar", "soguk", "sicak", "kac", "derece"]);
