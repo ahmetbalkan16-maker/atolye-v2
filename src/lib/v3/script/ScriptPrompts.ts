@@ -39,8 +39,11 @@ export interface ScriptBrief {
   readonly kaynakBankasi?: SourceBank;
 }
 
-/** Spoken words per second of narration. */
-export const WORDS_PER_SECOND: Readonly<Record<ScriptLanguage, number>> = { tr: 2.3, en: 2.5 };
+/**
+ * Spoken words per second of finished video (pauses between lines and scenes included). Turkish is measured: the
+ * second pilot had 135 words in 76.0 s (speech alone 1.93 words/s); English is not measured yet.
+ */
+export const WORDS_PER_SECOND: Readonly<Record<ScriptLanguage, number>> = { tr: 1.8, en: 2.5 };
 
 export const SHOES = ["kahve-cizme", "kahve-mest", "kirmizi-cizme", "kirmizi-mest", "sari-cizme", "sari-mest", "siyah-cizme"] as const;
 
@@ -118,6 +121,13 @@ CAST / KADRO
 - Costumes come ONLY from the catalog below. If no catalog item fits the period, use "giysi": "sade" with period colors and leave
   "bas", "sakal", "biyik", "el_on", "el_arka" out. An item from another pack is written "pack/item".
 
+BACKGROUNDS / ARKA PLAN
+- "arka_plan_sorgusu.tur": "set" when the characters act out an event of the period (a drawn set of that place is used);
+  "archival" when the scene is about a real place, building, object, artwork or map that can be shown as it is (a period
+  painting or map, or the building as it stands today) — the characters then talk in front of that real image.
+- "en" is a concrete Wikimedia Commons search: proper name + what it is ("Rumelihisarı fortress", "Constantinople map
+  Buondelmonti", "Mehmed II portrait Bellini"), never a generic word such as "Construction Site" or "Palace".
+
 COSTUME CATALOG
 giysi: ${GARMENTS.join(", ")}
 ayakkabi: ${SHOES.join(", ")}
@@ -144,7 +154,7 @@ JSON SHAPE (an example — fill every value for this topic):
   {"id":"karakter-1","ad":"…","rol":"…","kostum_paketi":"ottoman-1453","renk":"#b3263a","ses_id":"karakter-1","konusma_tarzi":"…","gorunur":true,
    "kostum":{"giysi":"kaftan","renkler":{"ana":"#b3263a","ikincil":"#e8b23a","ic":"#f3d27a","sus":"#e8b23a"},"bas":"padisah-kavugu","sakal":"sakal-genc","ayakkabi":"sari-mest"}}],
  "sahneler":[
-  {"id":"s1-kanca","sure_hedef":12,"mekan":"…","arka_plan_sorgusu":{"tr":"…","en":"…","commons_kategori":"…"},"duygu":"merak","muzik_ruh_hali":"gizemli","gecis":"kes",
+  {"id":"s1-kanca","sure_hedef":12,"mekan":"…","arka_plan_sorgusu":{"tr":"…","en":"…","commons_kategori":"…","tur":"set"},"duygu":"merak","muzik_ruh_hali":"gizemli","gecis":"kes",
    "yazi_karti":[{"metin":"…","alt_metin":"…","stil":"yer_tarih"}],
    "sahne_duzeni":[{"karakter":"karakter-1","x":0.35,"yon":"sag"}],
    "satirlar":[

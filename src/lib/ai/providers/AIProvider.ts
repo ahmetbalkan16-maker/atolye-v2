@@ -12,6 +12,12 @@ export interface AIProviderGenerateOptions {
    * table must not be called.
    */
   readonly model?: string;
+  /**
+   * Optional base64 images for multimodal models (Ollama vision models such as
+   * gemma4). Only Ollama sends them; do not route an image task to a provider
+   * that ignores them.
+   */
+  readonly images?: readonly string[];
 }
 
 export interface AIProviderUsage {

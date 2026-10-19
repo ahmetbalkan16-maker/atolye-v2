@@ -148,6 +148,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
     else {
       str(s.arka_plan_sorgusu, "tr", `${p}.arka_plan_sorgusu`);
       str(s.arka_plan_sorgusu, "en", `${p}.arka_plan_sorgusu`);
+      oneOf(s.arka_plan_sorgusu, "tur", `${p}.arka_plan_sorgusu`, ["set", "archival"] as const, true);
     }
     (arr(s, "sahne_duzeni", p, true) ?? []).forEach((b, bi) => {
       const bp = `${p}.sahne_duzeni[${bi}]`;

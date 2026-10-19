@@ -85,7 +85,7 @@ export class OllamaProvider implements ConfiguredAIProvider {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: config.model,
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: "user", content: prompt, ...(options?.images?.length ? { images: options.images } : {}) }],
           stream: false,
           ...(format !== undefined ? { format } : {}),
           ...(config.think !== undefined ? { think: config.think } : {}),

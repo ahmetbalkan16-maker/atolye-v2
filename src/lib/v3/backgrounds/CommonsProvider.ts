@@ -15,6 +15,10 @@ export interface CommonsCandidate {
   readonly url: string;
   /** Standard-size rendition (Commons refuses arbitrary thumbnail widths). */
   readonly downloadUrl: string;
+  /** A small standard rendition (960 px) for judging a candidate before downloading it in full. */
+  readonly previewUrl: string;
+  /** Commons description and date, plain text (for judging relevance). */
+  readonly description: string;
   readonly width: number;
   readonly height: number;
   readonly mime: string;
@@ -57,6 +61,9 @@ function toCandidate(title: string, info: ImageInfo): CommonsCandidate | undefin
     title,
     url: info.url,
     downloadUrl: info.thumburl ?? info.url,
+    // 960 is one of Commons' standard thumbnail steps; an original smaller than the requested width has no thumb.
+    previewUrl: info.thumburl ? info.thumburl.replace(/\/\d+px-/, "/960px-") : info.url,
+    description: [stripHtml(m.ImageDescription?.value), stripHtml(m.DateTimeOriginal?.value)].filter(Boolean).join(" · ").slice(0, 400),
     width: info.width,
     height: info.height,
     mime: info.mime,
@@ -83,20 +90,21 @@ export async function searchCommons(cacheDir: string, query: string, opts: { min
     gsrlimit: String(opts.limit ?? 30),
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
-    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName",
+    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
     iiurlwidth: "3840",
   });
-  const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { pages?: Record<string, { title: string; imageinfo?: ImageInfo[] }> } };
-  const out: CommonsCandidate[] = [];
+  const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { pages?: Record<string, { title: string; index?: number; imageinfo?: ImageInfo[] }> } };
+  const out: { c: CommonsCandidate; rank: number }[] = [];
   for (const page of Object.values(json.query?.pages ?? {})) {
     const info = page.imageinfo?.[0];
     if (!info || !/^image\/(jpeg|png)$/.test(info.mime)) continue;
     if (info.width < (opts.minWidth ?? 1600)) continue;
     if (opts.landscape !== false && info.width < info.height * 1.15) continue;
     const c = toCandidate(page.title, info);
-    if (c) out.push(c);
+    if (c) out.push({ c, rank: page.index ?? out.length });
   }
-  return out.sort((a, b) => b.width - a.width);
+  // Commons' relevance order (pages arrive keyed by id): the first candidates are the ones worth judging.
+  return out.sort((a, b) => a.rank - b.rank).map((x) => x.c);
 }
 
 /** One file by its exact title ("File:…"), or undefined when missing or not freely licensed. */
@@ -107,7 +115,7 @@ export async function commonsByTitle(cacheDir: string, title: string): Promise<C
     titles: title,
     prop: "imageinfo",
     iiprop: "url|size|mime|extmetadata",
-    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName",
+    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
     iiurlwidth: "3840",
   });
   const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { pages?: Record<string, { title: string; imageinfo?: ImageInfo[] }> } };
@@ -124,4 +132,16 @@ export async function downloadCommons(c: CommonsCandidate, outFile: string): Pro
   await fs.mkdir(path.dirname(outFile), { recursive: true });
   await fs.writeFile(outFile, buf);
   return { ...c.credit, assetId: path.basename(outFile), kind: "image", sha256: createHash("sha256").update(buf).digest("hex") };
+}
+
+/** The candidate's small preview (for judging), downloaded once into the cache. */
+export async function commonsPreview(cacheDir: string, c: CommonsCandidate): Promise<Buffer> {
+  const file = path.join(cacheDir, "onizleme", `${createHash("sha256").update(c.previewUrl).digest("hex").slice(0, 24)}${path.extname(new URL(c.previewUrl).pathname) || ".jpg"}`);
+  if (existsSync(file)) return fs.readFile(file);
+  const res = await fetch(c.previewUrl, { headers: { "User-Agent": USER_AGENT } });
+  if (!res.ok) throw new Error(`COMMONS_PREVIEW_${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, buf);
+  return buf;
 }

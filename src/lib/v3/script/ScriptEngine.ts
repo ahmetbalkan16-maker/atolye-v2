@@ -69,11 +69,19 @@ function withBankSources(episode: Episode, bank: SourceBank | undefined): Episod
   return { ...episode, kaynaklar: episode.kaynaklar.map((k) => byId.get(k.id) ?? k) };
 }
 
-/** Outside this band of the spoken-word budget the episode would not fill, or would overrun, its target. */
-const LENGTH_BAND = [0.75, 1.35] as const;
+/**
+ * Outside this band of the spoken-word budget the episode would not fill, or would overrun, its target: the same
+ * ±10% the QC checks on the finished video.
+ */
+const LENGTH_BAND = [0.9, 1.1] as const;
 /** Share of scenes that must carry an exchange (two or more lines by visible characters). */
 export const MIN_DIALOGUE_SCENES = 0.3;
-const MAX_REVISIONS = 2;
+/** Visible characters an episode needs (the narrator is not drawn). */
+export const MIN_VISIBLE_CAST = 3;
+/** Revision attempts; one that does not get closer is dropped and the best version is tried again. */
+const MAX_REVISIONS = 3;
+
+const visibleCast = (episode: Episode) => episode.oyuncu_kadrosu.filter((c) => c.gorunur).length;
 
 /** Scenes with at least two lines spoken by visible characters, as a share of all scenes. */
 export function dialogueSceneRatio(episode: Episode): number {
@@ -86,7 +94,7 @@ export function dialogueSceneRatio(episode: Episode): number {
 function revisionGap(episode: Episode, target: number): number {
   const words = spokenWords(episode);
   const lengthGap = words < target * LENGTH_BAND[0] ? target * LENGTH_BAND[0] - words : words > target * LENGTH_BAND[1] ? words - target * LENGTH_BAND[1] : 0;
-  return lengthGap / Math.max(1, target) + Math.max(0, MIN_DIALOGUE_SCENES - dialogueSceneRatio(episode));
+  return lengthGap / Math.max(1, target) + Math.max(0, MIN_DIALOGUE_SCENES - dialogueSceneRatio(episode)) + 0.2 * Math.max(0, MIN_VISIBLE_CAST - visibleCast(episode));
 }
 
 /** First top-level JSON object in a model answer; code fences and chatter around it are ignored. */
@@ -217,14 +225,18 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   let validation = state.validation!;
   const targetWords = wordBudget(brief);
   let lengthRounds = 0;
-  // Revision rounds for length and dialogue; a revision is kept only if it is valid and closer to the targets.
+  // Revision attempts for length, dialogue and cast; one is kept only if it is valid and closer to the targets,
+  // otherwise the best version so far is tried again.
   while (lengthRounds < MAX_REVISIONS && revisionGap(written, targetWords) > 0) {
     lengthRounds++;
+    const extra: string[] = [];
     const ratio = dialogueSceneRatio(written);
-    const extra = ratio < MIN_DIALOGUE_SCENES ? [`only ${Math.round(ratio * 100)}% of scenes have two or more lines by visible characters; at least ${MIN_DIALOGUE_SCENES * 100}% must`] : [];
+    if (ratio < MIN_DIALOGUE_SCENES) extra.push(`only ${Math.round(ratio * 100)}% of scenes have two or more lines by visible characters; at least ${MIN_DIALOGUE_SCENES * 100}% must`);
+    const cast = visibleCast(written);
+    if (cast < MIN_VISIBLE_CAST) extra.push(`only ${cast} visible characters; add ${MIN_VISIBLE_CAST - cast} more fitting the period (costume from the catalog, own colour, own speaking style) and give them lines`);
     const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(JSON.stringify(written), spokenWords(written), targetWords, extra), opts);
     const revised = check(next.result.content);
-    if (revised.problems.length || revisionGap(revised.value as Episode, targetWords) >= revisionGap(written, targetWords)) break;
+    if (revised.problems.length || revisionGap(revised.value as Episode, targetWords) >= revisionGap(written, targetWords)) continue;
     written = revised.value as Episode;
     validation = revised.validation!;
   }

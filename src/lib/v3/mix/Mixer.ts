@@ -200,8 +200,9 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const raw = path.join(tmp, "mix-raw.wav");
   await runChecked(paths.ffmpeg, [...args, "-filter_complex", chains.join(";"), "-map", "[mix]", "-t", input.duration.toFixed(3), "-ar", String(SAMPLE_RATE), "-c:a", "pcm_f32le", raw], { timeoutMs: 30 * 60_000 });
 
-  // Two-pass loudness: measure, then apply with the measured values (linear when possible).
-  const target = "I=-14:TP=-1:LRA=11";
+  // Two-pass loudness: measure, then apply with the measured values (linear when possible). The true-peak target
+  // keeps 0.5 dB of headroom: AAC encoding of the final file lifts inter-sample peaks (−1.0 here became −0.9).
+  const target = "I=-14:TP=-1.5:LRA=11";
   const pass1 = await runChecked(paths.ffmpeg, ["-hide_banner", "-nostats", "-i", raw, "-af", `loudnorm=${target}:print_format=json`, "-f", "null", "-"]);
   const s = loudnormStats(pass1.stderr);
   const pass2 = `loudnorm=${target}:measured_I=${s.input_i}:measured_TP=${s.input_tp}:measured_LRA=${s.input_lra}:measured_thresh=${s.input_thresh}:offset=${s.target_offset}:linear=true`;

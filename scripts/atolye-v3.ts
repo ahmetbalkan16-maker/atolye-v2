@@ -15,7 +15,9 @@ import { listTracksForMood } from "../src/lib/audio/music/MusicLibrary";
 import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
-import { downloadCommons, searchCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
+import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
+import { type CandidateVerdict, MIN_FIT_SCORE, pickBackground } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { commonsPreview, downloadCommons, searchCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { costumesRoot, loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -81,9 +83,9 @@ function assignVoices(episode: Episode, known: ReadonlySet<string>): Map<string,
 /** Local SDXL sets by keyword; anything else goes to Commons. */
 const THEMES: readonly [RegExp, string][] = [
   [/bizans|konstantinopol|sur(lar)?\b|ayasofya|kilise|byzant/i, "byzantine"],
-  [/saray|divan|taht|çadır|palace|throne/i, "ottoman"],
+  [/saray|divan|taht|çadır|masa|meclis|palace|throne|tent|council/i, "ottoman"],
   [/liman|deniz|boğaz|kıyı|gemi|harbor|bosphorus|sea|shore/i, "harbor_early"],
-  [/avlu|bahçe|inşaat|hisar|kale|şantiye|courtyard|fortress|castle/i, "courtyard_ottoman"],
+  [/avlu|bahçe|inşaat|iskele|hisar|kale|şantiye|courtyard|fortress|castle|scaffold|building site/i, "courtyard_ottoman"],
   [/roma|senato|forum|rome|roman/i, "roman"],
   [/mısır|piramit|egypt|pyramid/i, "egyptian"],
   [/orman|forest/i, "forest"],
@@ -91,9 +93,17 @@ const THEMES: readonly [RegExp, string][] = [
 
 interface ResolvedBackground extends V3Background {
   readonly credit: CreditRecord;
+  /** The vision judge's verdict, for an image picked from Commons. */
+  readonly secim?: CandidateVerdict;
+  /** Nothing fitting was found: a generic set stands in (a QC miss). */
+  readonly yedek?: boolean;
 }
 
-async function resolveBackground(paths: V3Paths, work: string, episode: Episode, si: number, log: (s: string) => void): Promise<ResolvedBackground> {
+/**
+ * Background of one scene: the episode's own file → a local set (acted-out scenes) → a Commons image the vision
+ * judge scored at least MIN_FIT_SCORE (real photos allowed when they show the subject) → a generic set.
+ */
+async function resolveBackground(paths: V3Paths, work: string, episode: Episode, si: number, judge: AIProvider, log: (s: string) => void): Promise<ResolvedBackground> {
   const scene = episode.sahneler[si]!;
   const q = scene.arka_plan_sorgusu;
   const pub = path.join(work, "public", "bg");
@@ -114,20 +124,27 @@ async function resolveBackground(paths: V3Paths, work: string, episode: Episode,
     return local(theme);
   }
   try {
-    const found = await searchCommons(path.join(paths.workRoot, "_onbellek", "commons"), q.commons_kategori ? `${q.en} incategory:"${q.commons_kategori}"` : q.en, { minWidth: 1600, landscape: true, limit: 8 });
-    const c = found[0];
-    if (c) {
+    const cache = path.join(paths.workRoot, "_onbellek", "commons");
+    // incategory: matches only files directly in that category, so a broad one ("Architecture") often finds
+    // nothing; then the search runs without it.
+    let found = await searchCommons(cache, q.commons_kategori ? `${q.en} incategory:"${q.commons_kategori}"` : q.en, { minWidth: 1600, landscape: true, limit: 12 });
+    if (!found.length && q.commons_kategori) found = await searchCommons(cache, q.en, { minWidth: 1600, landscape: true, limit: 12 });
+    const said = scene.satirlar.slice(0, 3).map((l) => l.metin).join(" ");
+    const pick = await pickBackground(found, { konu: episode.konu, donem: episode.donem, mekan: scene.mekan, tr: q.tr, en: q.en, anlatim: said }, judge, (c) => commonsPreview(cache, c), log);
+    for (const v of pick.verdicts) log(`  ${scene.id} aday ${v.puan}/10 · ${v.title.replace(/^File:/, "").slice(0, 70)} · ${v.gosterilen}`);
+    if (pick.chosen && pick.verdict) {
+      const c = pick.chosen;
       const file = path.join(pub, `${scene.id}${path.extname(new URL(c.downloadUrl).pathname) || ".jpg"}`);
       const credit = await downloadCommons(c, file);
-      return { src: `bg/${path.basename(file)}`, kind: "archival", kenBurns: { fromZoom: 1.02, toZoom: 1.1, fromX: 0, toX: -0.015 }, credit };
+      return { src: `bg/${path.basename(file)}`, kind: "archival", kenBurns: { fromZoom: 1.02, toZoom: 1.1, fromX: 0, toX: -0.015 }, credit, secim: pick.verdict };
     }
   } catch (e) {
     log(`Commons araması başarısız (${scene.id}): ${(e as Error).message.slice(0, 160)}`);
   }
-  log(`sahne ${scene.id}: uygun görsel bulunamadı, genel set kullanıldı`);
+  log(`sahne ${scene.id}: uygun görsel bulunamadı, ${theme ? `"${theme}" seti` : "genel set"} kullanıldı`);
   const fallback = theme ?? "courtyard_ottoman";
   await fs.copyFile(path.join(paths.backdropLibrary, `${fallback}.png`), path.join(pub, `${fallback}.png`));
-  return local(fallback);
+  return theme ? local(fallback) : { ...local(fallback), yedek: true };
 }
 
 /** Visual beats of a render plan (the Director's own event definition, near-simultaneous events merged), in seconds. */
@@ -273,8 +290,10 @@ async function main() {
   let backgrounds: ResolvedBackground[];
   if (need("gorsel", "gorseller.json")) {
     backgrounds = await step("gorsel", async () => {
+      // Free local vision judge; the same gemma4 AYAS chats with, so it is not unloaded afterwards.
+      const judge = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }));
       const out: ResolvedBackground[] = [];
-      for (let si = 0; si < episode.sahneler.length; si++) out.push(await resolveBackground(paths, work, episode, si, log));
+      for (let si = 0; si < episode.sahneler.length; si++) out.push(await resolveBackground(paths, work, episode, si, judge, log));
       await writeJson(f("gorseller.json"), out);
       return out;
     });
@@ -331,6 +350,7 @@ async function main() {
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", f(silent), "-i", f("miks.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", f(final)], { timeoutMs: 30 * 60_000 });
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
     const images = backgrounds.map((b) => b.credit);
+    const picked = backgrounds.filter((b) => b.secim);
     const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine))];
     await fs.writeFile(
       f("CREDITS.md"),
@@ -360,6 +380,7 @@ async function main() {
       row(dialogScenes >= 0.3, `Diyaloglu sahne oranı %${Math.round(dialogScenes * 100)} (hedef ≥ %30)`),
       row(lipsync.every((l) => l.lipSync === "rhubarb"), `Ağız senkronu: ${lipsync.filter((l) => l.lipSync === "rhubarb").length}/${lipsync.length} satır Rhubarb, ${lipsync.filter((l) => l.lipSync === "rms").length} RMS yedeği`),
       row(images.every((c) => !/NC|ND/.test(c.license)), `Görsel lisansları: ${[...new Set(images.map((c) => c.license))].join(", ")} (NC/ND yok)`),
+      row(!backgrounds.some((b) => b.yedek), `Arka planlar: ${backgrounds.length - picked.length} çizili set, ${picked.length} gerçek görsel${picked.length ? ` (hakem puanı ${picked.map((b) => b.secim!.puan).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}, ${backgrounds.filter((b) => b.yedek).length} genel yedek set`),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
