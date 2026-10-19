@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "byzantine-1453",
+  "title": "Bizans 1453 (XI. Konstantinos dönemi)",
+  "notes": "Stemma tacı ve pendilia (inci sarkıtlar), loros kuşağı ve imparatorluk kırmızı çizmeleri Paleologos dönemi tasvirlerinden esinli karikatür yorum. Cenova kalkanı beyaz zemin üzerine kırmızı haç (Cenova Cumhuriyeti arması).",
+  "sources": [
+    "Bizans imparator tasvirleri, Paleologos dönemi el yazmaları (kamu malı)",
+    "Cenova Cumhuriyeti bayrağı (Aziz George haçı)"
+  ],
+  "items": {
+    "bizans-taci": {
+      "slot": "head"
+    },
+    "sakal-koyu": {
+      "slot": "beard"
+    },
+    "biyik-koyu": {
+      "slot": "mustache"
+    },
+    "italyan-migferi": {
+      "slot": "head"
+    },
+    "sakal-kizil": {
+      "slot": "beard"
+    },
+    "asa": {
+      "slot": "hand"
+    },
+    "cenova-kalkani": {
+      "slot": "hand"
+    }
+  }
+}

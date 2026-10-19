@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atolye.local/v3/episode.schema.json",
+  "title": "Atölye V3 bölüm dosyası (episode.json)",
+  "description": "Senaryo motorunun yazdığı, bütün V3 modüllerinin okuduğu bölüm sözleşmesi. Anlamsal kurallar (kadro/kaynak referansları, argo yasağı, diyalog oranı) src/lib/v3/episode/EpisodeValidator.ts içindedir.",
+  "type": "object",
+  "required": ["id", "baslik", "konu", "donem", "hedef_sure_sn", "ton", "kaynaklar", "oyuncu_kadrosu", "sahneler"],
+  "additionalProperties": false,
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,79}$" },
+    "hex": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "aksesuar": { "type": "string", "pattern": "^([a-z0-9-]+/)?[a-z0-9-]+$" },
+    "duygu": { "enum": ["notr", "mutlu", "kizgin", "saskin", "korkmus", "uzgun", "kararli", "sinsi"] },
+    "jest": { "enum": ["konus", "isaret_et", "el_salla", "sasir", "egil", "kollari_kavustur", "dusun", "omuz_silk", "yumruk_kaldir", "elleri_belde", "yuz_avucla", "kutla"] },
+    "kostum": {
+      "type": "object",
+      "required": ["giysi", "renkler", "ayakkabi"],
+      "additionalProperties": false,
+      "properties": {
+        "giysi": { "enum": ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade"] },
+        "renkler": {
+          "type": "object",
+          "required": ["ana", "ikincil", "ic", "sus"],
+          "additionalProperties": false,
+          "properties": { "ana": { "$ref": "#/$defs/hex" }, "ikincil": { "$ref": "#/$defs/hex" }, "ic": { "$ref": "#/$defs/hex" }, "sus": { "$ref": "#/$defs/hex" } }
+        },
+        "bas": { "$ref": "#/$defs/aksesuar" },
+        "sakal": { "$ref": "#/$defs/aksesuar" },
+        "biyik": { "$ref": "#/$defs/aksesuar" },
+        "el_on": { "$ref": "#/$defs/aksesuar" },
+        "el_arka": { "$ref": "#/$defs/aksesuar" },
+        "sirt": { "$ref": "#/$defs/aksesuar" },
+        "yaka": { "enum": ["kurk", "yok"] },
+        "ayakkabi": { "type": "string" }
+      }
+    },
+    "oyuncu": {
+      "type": "object",
+      "required": ["id", "ad", "rol", "kostum_paketi", "renk", "ses_id", "konusma_tarzi", "gorunur"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "ad": { "type": "string", "maxLength": 80 },
+        "rol": { "type": "string", "maxLength": 120 },
+        "kostum_paketi": { "type": "string" },
+        "renk": { "$ref": "#/$defs/hex" },
+        "ses_id": { "$ref": "#/$defs/slug" },
+        "konusma_tarzi": { "type": "string", "maxLength": 300 },
+        "gorunur": { "type": "boolean" },
+        "kostum": { "$ref": "#/$defs/kostum" },
+        "olcek": { "type": "number", "minimum": 0.5, "maximum": 1.5 }
+      }
+    },
+    "satir": {
+      "type": "object",
+      "required": ["karakter", "metin", "duygu"],
+      "additionalProperties": false,
+      "properties": {
+        "karakter": { "$ref": "#/$defs/slug" },
+        "metin": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "duygu": { "$ref": "#/$defs/duygu" },
+        "jest": { "$ref": "#/$defs/jest" },
+        "hareket": { "enum": ["yuru", "kos", "dur", "gir", "cik"] },
+        "hedef": { "oneOf": [{ "$ref": "#/$defs/slug" }, { "type": "number", "minimum": 0, "maximum": 1 }] },
+        "sfx": { "enum": ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil"] },
+        "efekt": { "enum": ["ter", "unlem", "soru", "ofke", "parilti", "kalp"] },
+        "kaynak": { "type": "array", "items": { "$ref": "#/$defs/slug" } },
+        "kurgu": { "type": "boolean" },
+        "rivayet": { "type": "boolean" },
+        "vurgu": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "sahne": {
+      "type": "object",
+      "required": ["id", "sure_hedef", "mekan", "arka_plan_sorgusu", "duygu", "muzik_ruh_hali", "satirlar"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "sure_hedef": { "type": "number", "minimum": 2, "maximum": 600 },
+        "mekan": { "type": "string", "maxLength": 160 },
+        "arka_plan_sorgusu": {
+          "type": "object",
+          "required": ["tr", "en"],
+          "additionalProperties": false,
+          "properties": {
+            "tr": { "type": "string" },
+            "en": { "type": "string" },
+            "commons_kategori": { "type": "string" },
+            "yerel_tema": { "type": "string" },
+            "dosya": { "type": "string" },
+            "tur": { "enum": ["set", "archival"] }
+          }
+        },
+        "duygu": { "enum": ["gerilim", "komik", "huzun", "zafer", "gizem", "merak"] },
+        "muzik_ruh_hali": { "type": "string" },
+        "kamera": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tip", "t"],
+            "additionalProperties": false,
+            "properties": { "tip": { "enum": ["zoom", "pan", "shake", "cut"] }, "t": { "type": "number", "minimum": 0 }, "hedef": { "type": "string" } }
+          }
+        },
+        "harita": {
+          "type": "object",
+          "required": ["oklar"],
+          "properties": {
+            "oklar": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["noktalar"],
+                "properties": {
+                  "noktalar": { "type": "array", "minItems": 2, "items": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }], "minItems": 2, "maxItems": 2 } },
+                  "renk": { "$ref": "#/$defs/hex" },
+                  "etiket": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "yazi_karti": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["metin", "stil"],
+            "additionalProperties": false,
+            "properties": { "metin": { "type": "string" }, "alt_metin": { "type": "string" }, "stil": { "enum": ["yer_tarih", "bolum", "bilgi"] }, "satir": { "type": "integer", "minimum": 0 } }
+          }
+        },
+        "sahne_duzeni": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["karakter", "x"],
+            "additionalProperties": false,
+            "properties": {
+              "karakter": { "$ref": "#/$defs/slug" },
+              "x": { "type": "number", "minimum": 0, "maximum": 1 },
+              "derinlik": { "type": "number", "minimum": 0, "maximum": 1 },
+              "yon": { "enum": ["sol", "sag"] },
+              "oturuyor": { "type": "boolean" }
+            }
+          }
+        },
+        "dekor": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tur", "x"],
+            "additionalProperties": false,
+            "properties": {
+              "tur": { "enum": ["taht", "top", "kule_iskelesi", "gemi", "masa", "sancak"] },
+              "x": { "type": "number", "minimum": -0.2, "maximum": 1.2 },
+              "derinlik": { "type": "number", "minimum": 0, "maximum": 1 },
+              "olcek": { "type": "number" },
+              "ters": { "type": "boolean" }
+            }
+          }
+        },
+        "gecis": { "enum": ["kes", "kaydir", "murekkep", "beyaz"] },
+        "satirlar": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/satir" } }
+      }
+    }
+  },
+  "properties": {
+    "id": { "$ref": "#/$defs/slug" },
+    "baslik": { "type": "string", "maxLength": 120 },
+    "konu": { "type": "string", "maxLength": 300 },
+    "donem": { "type": "string", "maxLength": 120 },
+    "hedef_sure_sn": { "type": "number", "minimum": 20, "maximum": 1800 },
+    "ton": { "enum": ["mizahi", "ciddi", "epik"] },
+    "kaynaklar": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kunye"],
+        "additionalProperties": false,
+        "properties": { "id": { "$ref": "#/$defs/slug" }, "kunye": { "type": "string", "maxLength": 400 }, "url": { "type": "string", "pattern": "^https://" } }
+      }
+    },
+    "oyuncu_kadrosu": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/oyuncu" } },
+    "sahneler": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sahne" } }
+  }
+}

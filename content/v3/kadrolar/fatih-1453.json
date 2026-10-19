@@ -1,0 +1,162 @@
+{
+  "id": "fatih-1453",
+  "donem": "1451–1453, İstanbul'un fethine hazırlık",
+  "notlar": "Karikatür yorum. Yüzler bilerek tek tip beyaz maskot; kişileri kıyafet, aksesuar, renk ve ses ayırır. Fes ve modern ay-yıldızlı bayrak dönem dışıdır, kullanılmaz.",
+  "oyuncular": [
+    {
+      "id": "anlatici",
+      "ad": "Anlatıcı",
+      "rol": "Ekranda görünmeyen anlatıcı; izleyiciyle ve karakterlerle konuşur",
+      "kostum_paketi": "",
+      "renk": "#1d1b26",
+      "ses_id": "anlatici",
+      "konusma_tarzi": "Samimi, hızlı, esprili; izleyiciye 'düşünün', 'peki' diye seslenir, karakterlere laf atar.",
+      "gorunur": false
+    },
+    {
+      "id": "mehmed",
+      "ad": "II. Mehmed",
+      "rol": "Osmanlı padişahı (1451'de 19 yaşında tahta çıktı)",
+      "kostum_paketi": "ottoman-1453",
+      "renk": "#b3263a",
+      "ses_id": "mehmed",
+      "konusma_tarzi": "Genç, kararlı, kısa ve iddialı cümleler; sakin ama alaycı bir özgüven.",
+      "gorunur": true,
+      "kostum": {
+        "giysi": "kaftan",
+        "renkler": { "ana": "#b3263a", "ikincil": "#e8b23a", "ic": "#f3d27a", "sus": "#e8b23a" },
+        "bas": "padisah-kavugu",
+        "sakal": "sakal-genc",
+        "biyik": "biyik-ince",
+        "yaka": "kurk",
+        "ayakkabi": "sari-mest"
+      }
+    },
+    {
+      "id": "halil",
+      "ad": "Çandarlı Halil Paşa",
+      "rol": "Sadrazam; kuşatmaya temkinli yaklaşan kanat",
+      "kostum_paketi": "ottoman-1453",
+      "renk": "#245c4f",
+      "ses_id": "halil",
+      "konusma_tarzi": "Yaşlı, temkinli, endişeli; cümlelere 'Sultanım…' diye başlar, hep riskleri sayar.",
+      "gorunur": true,
+      "kostum": {
+        "giysi": "cubbe",
+        "renkler": { "ana": "#245c4f", "ikincil": "#1b3f37", "ic": "#e9dfc6", "sus": "#e1ad3e" },
+        "bas": "vezir-sarigi",
+        "sakal": "sakal-beyaz",
+        "biyik": "biyik-beyaz",
+        "ayakkabi": "kirmizi-mest"
+      }
+    },
+    {
+      "id": "zaganos",
+      "ad": "Zağanos Paşa",
+      "rol": "Vezir; kuşatmayı savunan savaş kanadı",
+      "kostum_paketi": "ottoman-1453",
+      "renk": "#7a1f2b",
+      "ses_id": "zaganos",
+      "konusma_tarzi": "Gür sesli, coşkulu asker; kısa, ünlemli cümleler, hep hazır.",
+      "gorunur": true,
+      "kostum": {
+        "giysi": "zirh",
+        "renkler": { "ana": "#7a1f2b", "ikincil": "#3b2a22", "ic": "#2f3a56", "sus": "#e1ad3e" },
+        "bas": "zaganos-migferi",
+        "biyik": "biyik-pala",
+        "el_arka": "kilic",
+        "ayakkabi": "kahve-cizme"
+      }
+    },
+    {
+      "id": "urban",
+      "ad": "Usta Urban",
+      "rol": "Macar asıllı top dökümcüsü (kökeni kaynaklarda tartışmalı)",
+      "kostum_paketi": "ottoman-1453",
+      "renk": "#6b4428",
+      "ses_id": "urban",
+      "konusma_tarzi": "Pratik, biraz kendini beğenmiş usta; teknik ayrıntıyı abartır, parayı unutmaz.",
+      "gorunur": true,
+      "kostum": {
+        "giysi": "onluk",
+        "renkler": { "ana": "#6b4428", "ikincil": "#3e3a46", "ic": "#d9c9a8", "sus": "#e1ad3e" },
+        "bas": "usta-kecesi",
+        "sakal": "sakal-kahve",
+        "el_on": "cekic",
+        "ayakkabi": "kahve-cizme"
+      }
+    },
+    {
+      "id": "konstantinos",
+      "ad": "XI. Konstantinos",
+      "rol": "Bizans imparatoru (1449–1453)",
+      "kostum_paketi": "byzantine-1453",
+      "renk": "#5a2a78",
+      "ses_id": "konstantinos",
+      "konusma_tarzi": "Ağırbaşlı ama gergin; resmi konuşur, şaşırınca resmiyet bozulur.",
+      "gorunur": true,
+      "kostum": {
+        "giysi": "bizans",
+        "renkler": { "ana": "#8e2443", "ikincil": "#5a2a78", "ic": "#c62839", "sus": "#e3b23c" },
+        "bas": "bizans-taci",
+        "sakal": "sakal-koyu",
+        "biyik": "biyik-koyu",
+        "el_arka": "asa",
+        "ayakkabi": "kirmizi-cizme"
+      }
+    },
+    {
+      "id": "giustiniani",
+      "ad": "Giovanni Giustiniani",
+      "rol": "Cenevizli komutan; Ocak 1453'te yaklaşık 700 askerle geldi",
+      "kostum_paketi": "byzantine-1453",
+      "renk": "#c62839",
+      "ses_id": "giustiniani",
+      "konusma_tarzi": "Kendinden emin paralı asker; kısa, net, biraz gösterişli.",
+      "gorunur": true,
+      "kostum": {
+        "giysi": "zirh",
+        "renkler": { "ana": "#efe6d2", "ikincil": "#3b2a22", "ic": "#8e2443", "sus": "#c62839" },
+        "bas": "italyan-migferi",
+        "sakal": "sakal-kizil",
+        "el_arka": "cenova-kalkani",
+        "ayakkabi": "siyah-cizme"
+      }
+    },
+    {
+      "id": "yeniceri",
+      "ad": "Yeniçeri",
+      "rol": "Figüran asker",
+      "kostum_paketi": "ottoman-1453",
+      "renk": "#2f5d8a",
+      "ses_id": "yeniceri",
+      "konusma_tarzi": "Kısa tepkiler: 'Emredersiniz!'",
+      "gorunur": true,
+      "olcek": 0.95,
+      "kostum": {
+        "giysi": "yeniceri",
+        "renkler": { "ana": "#2f5d8a", "ikincil": "#e1ad3e", "ic": "#b3263a", "sus": "#e1ad3e" },
+        "bas": "yeniceri-burku",
+        "biyik": "biyik-pala",
+        "ayakkabi": "sari-cizme"
+      }
+    },
+    {
+      "id": "isci",
+      "ad": "İşçi",
+      "rol": "Figüran inşaat işçisi",
+      "kostum_paketi": "ottoman-1453",
+      "renk": "#a8794e",
+      "ses_id": "isci",
+      "konusma_tarzi": "Yorgun, esprili kısa tepkiler.",
+      "gorunur": true,
+      "olcek": 0.92,
+      "kostum": {
+        "giysi": "sade",
+        "renkler": { "ana": "#a8794e", "ikincil": "#5a3a22", "ic": "#6b5a48", "sus": "#e1ad3e" },
+        "bas": "isci-sarigi",
+        "ayakkabi": "kahve-mest"
+      }
+    }
+  ]
+}

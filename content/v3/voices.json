@@ -1,0 +1,19 @@
+{
+  "aciklama": "Karakter başına ses haritası. Chatterbox Multilingual (MIT) owner'ın kendi ses kaydından klonlar; karakterler perde (yarım ton), hız ve duygu yoğunluğu (exaggeration) ile ayrışır. Referans klipler repoya girmez (ATOLYE_V3_VOICE_REFS).",
+  "varsayilan_saglayici": "chatterbox",
+  "yedek_saglayici": "piper",
+  "sesler": {
+    "anlatici":     { "saglayici": "chatterbox", "referans": "owner-a", "perde": 0,    "hiz": 1.04, "exaggeration": 0.55, "cfg": 0.45, "sicaklik": 0.75, "not": "Owner sesi, enerjik anlatıcı" },
+    "mehmed":       { "saglayici": "chatterbox", "referans": "owner-b", "perde": 1.5,  "hiz": 1.0,  "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.75, "not": "Genç, kararlı" },
+    "halil":        { "saglayici": "chatterbox", "referans": "owner-a", "perde": -2.5, "hiz": 0.92, "exaggeration": 0.45, "cfg": 0.5,  "sicaklik": 0.7,  "titreme": true, "not": "Yaşlı, temkinli" },
+    "zaganos":      { "saglayici": "chatterbox", "referans": "owner-b", "perde": -3.5, "hiz": 1.02, "exaggeration": 0.8,  "cfg": 0.35, "sicaklik": 0.8,  "not": "Gür, coşkulu asker" },
+    "urban":        { "saglayici": "chatterbox", "referans": "owner-a", "perde": 0.8,  "hiz": 1.08, "exaggeration": 0.65, "cfg": 0.4,  "sicaklik": 0.8,  "not": "Kendini beğenmiş usta" },
+    "konstantinos": { "saglayici": "chatterbox", "referans": "owner-b", "perde": -1.5, "hiz": 0.95, "exaggeration": 0.5,  "cfg": 0.5,  "sicaklik": 0.7,  "not": "Ağırbaşlı imparator" },
+    "giustiniani":  { "saglayici": "chatterbox", "referans": "owner-a", "perde": 2.5,  "hiz": 1.02, "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.75, "not": "Gösterişli paralı asker" },
+    "yeniceri":     { "saglayici": "chatterbox", "referans": "owner-b", "perde": -1,   "hiz": 1.1,  "exaggeration": 0.85, "cfg": 0.35, "sicaklik": 0.8,  "not": "Kısa asker tepkileri" },
+    "isci":         { "saglayici": "chatterbox", "referans": "owner-a", "perde": 3,    "hiz": 1.05, "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.8,  "not": "Yorgun işçi" }
+  },
+  "duygu_ayari": {
+    "notr": 0, "mutlu": 0.12, "kizgin": 0.25, "saskin": 0.2, "korkmus": 0.12, "uzgun": -0.05, "kararli": 0.08, "sinsi": 0.05
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "id": "ottoman-1453",
+  "title": "Osmanlı 1453 (Fatih dönemi)",
+  "notes": "Karikatür yorum. Kavuk/sarık biçimleri Gentile Bellini'nin II. Mehmed portresi (1480) ve 15. yy minyatürlerinden esinlidir; birebir kopya değildir. Fes ve modern ay-yıldızlı bayrak bu pakette bilerek yoktur (dönem dışı).",
+  "sources": [
+    "Gentile Bellini, Sultan Mehmet II, 1480, National Gallery London (kamu malı)",
+    "Nakkaş Sinan Bey (atf.), II. Mehmed gül koklarken, Topkapı Sarayı Müzesi H.2153 (kamu malı)"
+  ],
+  "items": {
+    "padisah-kavugu": {
+      "slot": "head"
+    },
+    "vezir-sarigi": {
+      "slot": "head"
+    },
+    "zaganos-migferi": {
+      "slot": "head"
+    },
+    "usta-kecesi": {
+      "slot": "head"
+    },
+    "yeniceri-burku": {
+      "slot": "head"
+    },
+    "isci-sarigi": {
+      "slot": "head"
+    },
+    "sakal-genc": {
+      "slot": "beard"
+    },
+    "biyik-ince": {
+      "slot": "mustache"
+    },
+    "sakal-beyaz": {
+      "slot": "beard"
+    },
+    "biyik-beyaz": {
+      "slot": "mustache"
+    },
+    "biyik-pala": {
+      "slot": "mustache"
+    },
+    "sakal-kahve": {
+      "slot": "beard"
+    },
+    "harita": {
+      "slot": "hand"
+    },
+    "kilic": {
+      "slot": "hand"
+    },
+    "cekic": {
+      "slot": "hand"
+    },
+    "parsomen": {
+      "slot": "hand"
+    },
+    "tug": {
+      "slot": "hand"
+    }
+  }
+}

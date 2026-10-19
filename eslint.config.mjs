@@ -40,6 +40,10 @@ const eslintConfig = defineConfig([
     // scripts/local-visual-runtime sources remain fully linted.
     "bin/ayas-local-visual/.venv/**",
     "bin/ayas-local-visual/uv-cache/**",
+    // V3 Remotion render package: its own dependencies and its own `tsc --noEmit`.
+    "remotion-v3/**",
+    // V3 episode work folders (generated media, render plans).
+    "output/**",
   ]),
   { files: ["scripts/smoke-production-execution-durable-attempt.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
   { files: ["src/types/productionExecutionDurableAttempt.ts"], rules: { "@typescript-eslint/no-empty-object-type": "off" } },

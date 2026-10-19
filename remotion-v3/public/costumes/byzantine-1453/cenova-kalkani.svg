@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-170 -300 340 380">
+<path d="M-50 -40 L50 -40 L50 20 Q50 64 0 84 Q-50 64 -50 20 Z" style="fill:#fffdf6;stroke:#1d1b26;stroke-width:6;stroke-linejoin:round"/>
+<path d="M-10 -40 L10 -40 L10 0 L50 0 L50 18 L10 18 L10 82 L-10 82 L-10 18 L-50 18 L-50 0 L-10 0 Z" style="fill:#c62839"/>
+<path d="M-50 -40 L50 -40 L50 20 Q50 64 0 84 Q-50 64 -50 20 Z" style="fill:none;stroke:#1d1b26;stroke-width:6;stroke-linejoin:round"/>
+</svg>

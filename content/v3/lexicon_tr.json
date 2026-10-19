@@ -1,0 +1,30 @@
+{
+  "aciklama": "Seslendirme telaffuz sözlüğü. Altyazı özgün yazımı gösterir; yalnız sese giden metin değişir. Uzun anahtarlar önce uygulanır.",
+  "kelimeler": {
+    "Giustiniani": "Custiniyani",
+    "Giovanni": "Covanni",
+    "Paleologos": "Paleologos",
+    "Palaiologos": "Paleologos",
+    "Konstantinos": "Konstantinos",
+    "Konstantiniyye": "Konstantiniyye",
+    "Urban": "Urban",
+    "Orban": "Orban",
+    "Zağanos": "Zağanos",
+    "Çandarlı": "Çandarlı",
+    "Boğazkesen": "Boğaz kesen",
+    "Rumeli Hisarı": "Rumeli Hisarı",
+    "Anadolu Hisarı": "Anadolu Hisarı",
+    "Haliç": "Haliç",
+    "Cenevizli": "Cenevizli",
+    "Venedikli": "Venedikli",
+    "Theodosius": "Teodosius",
+    "Rizzo": "Rizzo"
+  },
+  "kisaltmalar": {
+    "MS": "milattan sonra",
+    "MÖ": "milattan önce",
+    "yy.": "yüzyıl",
+    "km": "kilometre",
+    "vb.": "ve benzeri"
+  }
+}

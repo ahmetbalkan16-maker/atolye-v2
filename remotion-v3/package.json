@@ -1,0 +1,22 @@
+{
+  "name": "atolye-remotion-v3",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Atölye V3 çöp adam render motoru (Remotion). Kök Next uygulamasından bağımsız bağımlılık seti.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts",
+    "still": "remotion still src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.536",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.536"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

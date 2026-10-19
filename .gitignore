@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+/remotion-v3/node_modules/
+
+# V3 episode work folders and Remotion renders (generated media; never source)
+/output/
+/remotion-v3/out/
 /.pnp
 .pnp.*
 .yarn/*
@@ -36,6 +41,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# V3 machine paths live in .env.v3.local (ignored above); the template is shared.
+!.env.v3.example
 
 # vercel
 .vercel
