@@ -97,3 +97,34 @@ Doukas (çev. Magoulias, 1975). Kaynak metinde olmayan "en dar nokta" iddiası R
   (kılıç kaldırma yayı, ifade değişiminde göz kırpma, yürüyüş).
 - Sonraki seçenek: hareket bulanıklığı (`@remotion/motion-blur`) final render'da film hissini artırır ama render
   süresini örnek sayısı kadar katlar; kesirli kare desteği (göz kırpma tablosu) gerekir.
+
+## FAZ 5.1 / 5.3–5.6 / 5.8 — Senaryo, ses, senkron, müzik/miks, orkestratör (19 Ekim 2026)
+
+Ayrıntılar commit mesajlarında (`4d5e9ed6`, `0a0819ce`, `94d72e65`, `7a13d7bf`); özet:
+- Senaryo motoru: yaz → doğrula/onar → ayrı tarih doğrulama geçişi; kaynak bankası (`content/v3/kaynaklar/`);
+  video başına 1 $ tavan (`V3Budget`, Atölye'nin fiyat tablosu ve maliyet yöneticisi).
+- Ses: Chatterbox Multilingual 0.1.7 (MIT, Perth filigranı), owner sesinden klon; Rhubarb (gerçek ASCII klasör
+  `D:\atolye-ascii\rhubarb`) + RMS yedeği; whisper.cpp kelime zamanları.
+- Müzik Kevin MacLeod (CC BY 4.0, git dışı, sha256 sabitli), 10 sentez efekt (CC0), sidechain ducking,
+  iki geçişli loudnorm.
+- `npx tsx scripts/atolye-v3.ts uret …`: adım önbelleği, `--from-step`, `--onizleme`, QC.md / CREDITS.md / altyazi.srt.
+- İlk pilot (yerel gemma4) QC 6/11 → 10/11; kalan: süre (76 sn / hedef 90).
+
+## Pilot — OpenAI gpt-4.1, görüntüye bakan arka plan hakemi (19 Ekim 2026 gece)
+
+- OpenAI çalışıyor (Windows kullanıcı değişkeni; `v3Secret` önce ona bakar). Yazım + doğrulama gpt-4.1: 0,0385 $.
+- Arka plan hakemi (`BackgroundJudge`, `a78064b7`): Commons'un ilk 6 adayı yerel gemma4:12b'ye görüntü olarak
+  gider, 0–10 puan, eşik 7; owner kararıyla konuyu gösteren gerçek fotoğraf serbest. Önceki pilotun 2. sahnesindeki
+  ilgisiz İsviçre sokağı fotoğrafı bu kapıdan geçemez; "araçlar ve insanlar önde" fotoğraf 3/10 aldı.
+- Süre: Türkçe kelime bütçesi ölçülen hıza (1,8 kelime/sn bitmiş video), uzunluk bandı QC ile aynı ±%10.
+- Kare incelemesi iki hata buldu, düzeltildi (`bf12eeab`): yapışık altyazı kelimeleri (kontur boşluğu yiyordu) ve
+  iki sahnede aynı fotoğraf.
+- Sonuç `output/v3/bolumler/fatih-pilot-openai/final.mp4`: 82,6 sn, 6 sahne, 4 görünür karakter / 4 ses,
+  QC **12/12** (kanca 0,3 sn; olay aralığı 2,6 sn, en uzun 4,9 sn; diyaloglu sahne %83; 16/16 Rhubarb; 4 set +
+  2 farklı gerçek görsel, puan 10/10; −14,0 LUFS / −1,2 dBTP; süre ±%10 içinde). İlk hali `fatih-pilot-openai-ilk/`.
+- Doğrulama: smoke-v3-backgrounds (6), -script (13), -episode-director (10), -mix (6), -lipsync (5), -motion (9),
+  smoke-script-structured-generation (22), smoke-local-providers (71, ASCII TEMP) PASS; kök ve remotion-v3 tsc 0; eslint 0.
+- Kalan (öncelik sırasıyla): yerel setlerin dönem kimliği zayıf (`harbor_early` İtalyan kasabası gibi, 1. ve 2. sahnede
+  art arda) → Osmanlı/Boğaz 1452 setleri üret; karakter seçimi ve ses seçimi owner'da (`v3-voices\ornekler`);
+  Bizans elçisi imparator tacı taşıyor (kostüm anlamı); yakın çekimde kenardaki karakterler kadrajdan taşıyor;
+  tam bölüm (6–10 dk) ve referansla önce/sonra puan kartı (FAZ 6.2–6.4).
