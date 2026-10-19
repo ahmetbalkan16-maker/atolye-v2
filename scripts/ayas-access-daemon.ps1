@@ -175,6 +175,7 @@ function Resolve-AccessSnapshot([object[]]$Listeners, [object[]]$AllProcesses) {
   $owners = @($listeners | Select-Object -ExpandProperty OwningProcess -Unique)
   $expectedApps = @($all | Where-Object { Test-ExpectedOrigin $_ })
   $origin = 'down'; $listenerPid = $null; $wrapperPid = $null
+  $expectedAppPid = if ($expectedApps.Count -eq 1) { [int]$expectedApps[0].ProcessId } else { $null }
   if ($owners.Count -gt 1 -or $expectedApps.Count -gt 1) { $origin = 'ambiguous' }
   elseif ($owners.Count -eq 1) {
     $listenerPid = [int]$owners[0]
@@ -189,7 +190,7 @@ function Resolve-AccessSnapshot([object[]]$Listeners, [object[]]$AllProcesses) {
   $tunnel = 'down'; $tunnelPid = $null
   if ($expectedTunnels.Count -gt 1 -or $ambiguousTunnels.Count -gt 0) { $tunnel = 'ambiguous' }
   elseif ($expectedTunnels.Count -eq 1) { $tunnel = 'healthy'; $tunnelPid = [int]$expectedTunnels[0].ProcessId }
-  [pscustomobject]@{ origin = $origin; listenerPid = $listenerPid; wrapperPid = $wrapperPid; tunnel = $tunnel; tunnelPid = $tunnelPid; expectedAppCount = $expectedApps.Count; expectedTunnelCount = $expectedTunnels.Count }
+  [pscustomobject]@{ origin = $origin; listenerPid = $listenerPid; wrapperPid = $wrapperPid; tunnel = $tunnel; tunnelPid = $tunnelPid; expectedAppCount = $expectedApps.Count; expectedAppPid = $expectedAppPid; expectedTunnelCount = $expectedTunnels.Count }
 }
 function Test-AccessGateResponse([int]$StatusCode, [string]$GateHeader, [string]$Location, [string]$Path) {
   $expectedNext = if ($Path -eq '/') { '%2F' } else { '%2Fbrain' }
@@ -291,7 +292,12 @@ function Start-Origin {
   for ($attempt = 0; $attempt -lt 15; $attempt++) {
     Start-Sleep -Seconds 2
     $snapshot = Get-AccessSnapshot
-    if ($snapshot.origin -eq 'ambiguous') { return [pscustomobject]@{ ok = $false; stage = 'origin-identity'; wrapperPid = $wrapper.Id } }
+    # Next opens its port a moment after its process appears (2.4 s on the cold disk at the 2026-10-19 boot, so the
+    # first poll refused the start and phone access waited one more cycle). Only the process launched here, with no
+    # listener on the port at all, is waited for; any other identity still fails closed.
+    $ownStartPending = $snapshot.origin -eq 'ambiguous' -and $null -eq $snapshot.listenerPid -and
+      $snapshot.expectedAppCount -eq 1 -and $snapshot.expectedAppPid -eq $wrapper.Id
+    if ($snapshot.origin -eq 'ambiguous' -and -not $ownStartPending) { return [pscustomobject]@{ ok = $false; stage = 'origin-identity'; wrapperPid = $wrapper.Id } }
     if ($snapshot.origin -eq 'healthy' -and (Test-LocalHealth $script:Port)) {
       Write-AtomicText $script:AppListenerPidFile ([string]$snapshot.listenerPid)
       return [pscustomobject]@{ ok = $true; stage = $null; wrapperPid = $wrapper.Id }

@@ -1,3 +1,9 @@
+## 2026-10-19 — Phone access no longer waits an extra cycle at boot
+
+- At the 2026-10-19 boot the access supervisor started Next and polled 2 s later, but Next was ready only after 2.4 s. Its process was there and the port was not yet open, which `Resolve-AccessSnapshot` reports as `ambiguous`, so `Start-Origin` refused its own launch with `origin-identity`. The same process opened the port moments later and the next cycle saw it healthy; the tunnel came up one cycle late.
+- `Resolve-AccessSnapshot` now also returns `expectedAppPid` when exactly one expected app exists. `Start-Origin` keeps waiting only while there is no listener on the port at all and that single expected app is the process it just launched. Any other identity still fails closed at once, and the wait bound is unchanged (15 × 2 s, then `local-health`).
+- `smoke-ayas-access-daemon.ps1` has 56 scenarios (was 53). Not EVAL-pinned. The running supervisor picks up the change at its next start.
+
 ## 2026-10-17 — Weather questions no longer reach the model, which invented the temperature
 
 - The owner asked about the weather in Bursa and got a wrong answer. A phrasing the weather intent did not catch went to the local model, which has no live data and makes up a figure: for "Bursa'da hava nasıldır?" gemma3 said "güneşli ve sıcak, 32 derece" while Open-Meteo (consistent with ECMWF, ICON, GFS and wttr.in) had Bursa at 10 °C, overcast and rainy. The model path's fresh-fact refusal needs a word such as "bugün", so it did not stop this. The Open-Meteo answers themselves were correct.

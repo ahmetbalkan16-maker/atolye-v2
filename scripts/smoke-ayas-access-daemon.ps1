@@ -82,6 +82,10 @@ try {
     $s=Resolve-AccessSnapshot @([pscustomobject]@{LocalPort=3000;OwningProcess=666}) @($unknown,$expectedTunnel)
     Eq $s.origin ambiguous; Eq (Get-AccessPlan $s.origin $s.tunnel $false) fail-closed
   }
+  Scenario 'expected app without a listener yet is ambiguous and named' {
+    $s=Resolve-AccessSnapshot @() @($expectedNode,$expectedTunnel)
+    Eq $s.origin ambiguous; Eq $s.listenerPid $null; Eq $s.expectedAppCount 1; Eq $s.expectedAppPid 444
+  }
   Scenario 'duplicate expected app fails closed' {
     $copy=$expectedNode.PSObject.Copy(); $copy.ProcessId=777
     $s=Resolve-AccessSnapshot @($listener) @($appChain+$copy+$expectedTunnel)
@@ -216,7 +220,15 @@ try {
     $command = Get-Command $name
     $startupSaved[$name] = if ($command.CommandType -eq 'Function') { $command.ScriptBlock } else { $null }
   }
-  function Get-AccessSnapshot { $script:startupSnapshot }
+  # bindAfterPolls > 0: the launched app process shows up first and opens the port only at that poll.
+  $script:bindAfterPolls = 0; $script:unboundAppPid = 444
+  function Get-AccessSnapshot {
+    if ($script:startupLaunches -gt 0 -and $script:bindAfterPolls -gt 0) {
+      $script:bindAfterPolls--
+      if ($script:bindAfterPolls -eq 0) { $script:startupSnapshot=[pscustomobject]@{origin='healthy';listenerPid=444;expectedAppCount=1;expectedAppPid=444} }
+    }
+    $script:startupSnapshot
+  }
   function Clear-ApplicationRouteCache { $script:routeCacheClears++ }
   function Test-PrebuiltRuntime { $script:prebuiltValid }
   function Test-LocalHealth { $true }
@@ -224,7 +236,9 @@ try {
   function Start-OwnedProcess([string]$FilePath, [string[]]$Arguments, [string]$Stdout, [string]$Stderr, [string]$WorkingDirectory, [switch]$Wait) {
     $script:startupLaunches++
     $script:lastStartupExe = $FilePath; $script:lastStartupArgs = $Arguments
-    $script:startupSnapshot.origin='healthy'; $script:startupSnapshot.listenerPid=444
+    if ($script:bindAfterPolls -gt 0) {
+      $script:startupSnapshot=[pscustomobject]@{origin='ambiguous';listenerPid=$null;expectedAppCount=1;expectedAppPid=$script:unboundAppPid}
+    } else { $script:startupSnapshot.origin='healthy'; $script:startupSnapshot.listenerPid=444 }
     [pscustomobject]@{Id=444}
   }
   try {
@@ -245,6 +259,18 @@ try {
     Scenario 'ambiguous origin refuses even a qualified runtime' {
       $script:startupSnapshot=[pscustomobject]@{origin='ambiguous';listenerPid=444}; $script:startupLaunches=0; $script:prebuiltValid=$true
       Eq (Start-Origin).stage origin-race; Eq $script:startupLaunches 0
+    }
+    Scenario 'own launched Next still opening its port is waited for, not refused' {
+      $script:startupSnapshot=[pscustomobject]@{origin='down';listenerPid=$null}; $script:startupLaunches=0; $script:prebuiltValid=$true
+      $script:bindAfterPolls=3; $script:unboundAppPid=444
+      try { $outcome=Start-Origin; Yes $outcome.ok; Eq $outcome.wrapperPid 444; Eq $script:startupLaunches 1; Eq $script:bindAfterPolls 0 }
+      finally { $script:bindAfterPolls=0 }
+    }
+    Scenario 'unbound app that is not the launched process still fails closed' {
+      $script:startupSnapshot=[pscustomobject]@{origin='down';listenerPid=$null}; $script:startupLaunches=0; $script:prebuiltValid=$true
+      $script:bindAfterPolls=5; $script:unboundAppPid=777
+      try { Eq (Start-Origin).stage origin-identity; Eq $script:startupLaunches 1 }
+      finally { $script:bindAfterPolls=0; $script:unboundAppPid=444 }
     }
   } finally {
     foreach ($name in $startupSaved.Keys) {

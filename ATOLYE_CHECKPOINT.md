@@ -1,3 +1,12 @@
+## 19 Ekim 2026 — Telefon erişimi açılışta bir tur geç geliyordu: denetçi kendi başlattığı Next'i reddediyordu
+
+Owner: "Çalışma ağacında yapılanları kaydet, gereken dosyaları güncelle."
+
+- **Teşhis (kanıtlı):** Bugünkü açılışta erişim denetçisi (`scripts/ayas-access-daemon.ps1`) 06:55'te (03:55Z) Next'i başlattı. `Start-Origin` 2 sn sonra ilk kez yokladı, ama Next "Ready in 2.4s" (`app-server.log`): süreç vardı, port henüz açık değildi. `Resolve-AccessSnapshot` dinleyicisiz beklenen uygulamayı `ambiguous` sayar; bu yüzden başlatma `origin-identity` ile reddedildi (`recovery-audit.jsonl`, deneme 11, `newPid 12608`). Aynı süreç 12608 portu biraz sonra açtı ve sonraki turda sağlıklı görüldü. Tünel ancak 06:56'da (03:56Z) kalktı: telefon erişimi bir tur geç geldi. Kalıcı arıza değil.
+- **Düzeltme (dar):** `Resolve-AccessSnapshot` tek beklenen uygulama varken PID'ini `expectedAppPid` olarak döndürür. `Start-Origin` yalnız şu durumda beklemeyi sürdürür: `ambiguous`, portta hiç dinleyici yok, tam bir beklenen uygulama var ve onun PID'i burada başlatılan süreç (`$wrapper.Id`). Wrapper doğrudan `node.exe` olduğundan bu tam kendi sürecidir. Başka her kimlik (yabancı dinleyici, ikinci uygulama, başka PID'li uygulama) eskisi gibi hemen `origin-identity` ile reddedilir. Bekleme süresi değişmedi (15 × 2 sn), sonunda yine `local-health`.
+- **Doğrulama:** `smoke-ayas-access-daemon.ps1` 56 senaryo PASS (53'tü). Yeni senaryolar: dinleyicisiz beklenen uygulama `ambiguous` döner ve PID'i adlandırılır; kendi başlattığı, portu 3. yoklamada açan Next beklenir (tek başlatma, `ok`); başka PID'li dinleyicisiz uygulama yine `origin-identity`. Daemon'u kütüphane olarak yükleyen `smoke-ayas-published-application.ps1` PASS. Smoke EVAL pinli değil. TS dosyası değişmedi.
+- **Canlı:** Çalışan denetçi (PID 11200, 06:44'te açıldı) çalışma kopyasındaki betiği çalıştırıyor. PowerShell betiği açılışta bir kez yüklediği için düzeltme bir sonraki açılışta ya da denetçi yeniden başlatılınca devreye girer. Denetçi bu oturumda yeniden başlatılmadı; şu an uygulama (12608) ve tünel (14608) `healthy`, public healthy. `D:\ÜRETİM\private\AtolyeAyasAccess\run-ayas-access-hidden.vbs` eski bir C: yolunu gösteriyor, ama açılış zinciri onu kullanmıyor: Başlangıç kısayolu "AYAS Access Online" depodaki `scripts/ayas-access-hidden.vbs`'yi çalıştırıyor. Kullanılmayan dosyaya dokunulmadı.
+
 ## 17 Ekim 2026 — Hava sorusu modele düşüp uydurma derece söylüyordu
 
 Owner: "Bursa'da hava durumu sordum, yanlış cevap verdi, kontrol eder misin?"
