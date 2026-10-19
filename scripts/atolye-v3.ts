@@ -103,7 +103,7 @@ interface ResolvedBackground extends V3Background {
  * Background of one scene: the episode's own file → a local set (acted-out scenes) → a Commons image the vision
  * judge scored at least MIN_FIT_SCORE (real photos allowed when they show the subject) → a generic set.
  */
-async function resolveBackground(paths: V3Paths, work: string, episode: Episode, si: number, judge: AIProvider, log: (s: string) => void): Promise<ResolvedBackground> {
+async function resolveBackground(paths: V3Paths, work: string, episode: Episode, si: number, judge: AIProvider, used: Set<string>, log: (s: string) => void): Promise<ResolvedBackground> {
   const scene = episode.sahneler[si]!;
   const q = scene.arka_plan_sorgusu;
   const pub = path.join(work, "public", "bg");
@@ -129,6 +129,8 @@ async function resolveBackground(paths: V3Paths, work: string, episode: Episode,
     // nothing; then the search runs without it.
     let found = await searchCommons(cache, q.commons_kategori ? `${q.en} incategory:"${q.commons_kategori}"` : q.en, { minWidth: 1600, landscape: true, limit: 12 });
     if (!found.length && q.commons_kategori) found = await searchCommons(cache, q.en, { minWidth: 1600, landscape: true, limit: 12 });
+    // An image already on screen in an earlier scene is not judged again (the pilot showed one photo twice).
+    found = found.filter((c) => !used.has(c.title));
     const said = scene.satirlar.slice(0, 3).map((l) => l.metin).join(" ");
     const pick = await pickBackground(found, { konu: episode.konu, donem: episode.donem, mekan: scene.mekan, tr: q.tr, en: q.en, anlatim: said }, judge, (c) => commonsPreview(cache, c), log);
     for (const v of pick.verdicts) log(`  ${scene.id} aday ${v.puan}/10 · ${v.title.replace(/^File:/, "").slice(0, 70)} · ${v.gosterilen}`);
@@ -136,6 +138,7 @@ async function resolveBackground(paths: V3Paths, work: string, episode: Episode,
       const c = pick.chosen;
       const file = path.join(pub, `${scene.id}${path.extname(new URL(c.downloadUrl).pathname) || ".jpg"}`);
       const credit = await downloadCommons(c, file);
+      used.add(c.title);
       return { src: `bg/${path.basename(file)}`, kind: "archival", kenBurns: { fromZoom: 1.02, toZoom: 1.1, fromX: 0, toX: -0.015 }, credit, secim: pick.verdict };
     }
   } catch (e) {
@@ -293,7 +296,8 @@ async function main() {
       // Free local vision judge; the same gemma4 AYAS chats with, so it is not unloaded afterwards.
       const judge = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }));
       const out: ResolvedBackground[] = [];
-      for (let si = 0; si < episode.sahneler.length; si++) out.push(await resolveBackground(paths, work, episode, si, judge, log));
+      const used = new Set<string>();
+      for (let si = 0; si < episode.sahneler.length; si++) out.push(await resolveBackground(paths, work, episode, si, judge, used, log));
       await writeJson(f("gorseller.json"), out);
       return out;
     });
@@ -380,7 +384,7 @@ async function main() {
       row(dialogScenes >= 0.3, `Diyaloglu sahne oranı %${Math.round(dialogScenes * 100)} (hedef ≥ %30)`),
       row(lipsync.every((l) => l.lipSync === "rhubarb"), `Ağız senkronu: ${lipsync.filter((l) => l.lipSync === "rhubarb").length}/${lipsync.length} satır Rhubarb, ${lipsync.filter((l) => l.lipSync === "rms").length} RMS yedeği`),
       row(images.every((c) => !/NC|ND/.test(c.license)), `Görsel lisansları: ${[...new Set(images.map((c) => c.license))].join(", ")} (NC/ND yok)`),
-      row(!backgrounds.some((b) => b.yedek), `Arka planlar: ${backgrounds.length - picked.length} çizili set, ${picked.length} gerçek görsel${picked.length ? ` (hakem puanı ${picked.map((b) => b.secim!.puan).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}, ${backgrounds.filter((b) => b.yedek).length} genel yedek set`),
+      row(!backgrounds.some((b) => b.yedek) && new Set(picked.map((b) => b.credit.sha256)).size === picked.length, `Arka planlar: ${backgrounds.length - picked.length} çizili set, ${picked.length} gerçek görsel${picked.length ? ` (hakem puanı ${picked.map((b) => b.secim!.puan).join(", ")}; eşik ${MIN_FIT_SCORE}; ${new Set(picked.map((b) => b.credit.sha256)).size} farklı)` : ""}, ${backgrounds.filter((b) => b.yedek).length} genel yedek set`),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),

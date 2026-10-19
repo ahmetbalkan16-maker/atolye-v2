@@ -15,6 +15,8 @@ export function Captions({ pages }: { pages: readonly V3CaptionPage[] }) {
         style={{
           maxWidth: W * 0.78,
           textAlign: "center",
+          // Two even lines instead of a long one and an orphan word.
+          textWrap: "balance",
           font: `900 ${52 * k}px 'Segoe UI Black', 'Arial Black', 'Segoe UI', sans-serif`,
           lineHeight: 1.18,
           color: "#ffffff",
@@ -25,8 +27,10 @@ export function Captions({ pages }: { pages: readonly V3CaptionPage[] }) {
         {page.words.map((w, i) => {
           const active = frame >= w.start && frame < w.end;
           const color = active ? "#ffd23f" : w.emphasis ? "#ffb18a" : "#ffffff";
+          // The gap is a space (~13 px at this weight) plus the 11 px stroke both neighbours paint into it: at 14 px
+          // the words read as glued together ("Boğazkesenhisar"), at 32 px as double spaces.
           return (
-            <span key={i} style={{ color, display: "inline-block", transform: active ? "scale(1.07)" : undefined, margin: `0 ${7 * k}px` }}>
+            <span key={i} style={{ color, display: "inline-block", transform: active ? "scale(1.07)" : undefined, margin: `0 ${12 * k}px` }}>
               {w.text}
             </span>
           );
