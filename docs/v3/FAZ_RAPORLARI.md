@@ -31,3 +31,31 @@ Her fazın doğrulaması (komut + sonuç). En yeni en altta.
     zemin tonlaması; yürürken ayaklar yerde kalıyor. Paralaks arka planın kenar boşluğu giderildi.
   - `npx tsx scripts/smoke-v3-episode-director.ts` → PASS (9 senaryo).
   - `npx tsc --noEmit` (kök) 0 hata; `remotion-v3` `tsc --noEmit` 0 hata; `eslint src/lib/v3 scripts/v3` 0 uyarı.
+
+## Güvenli duruş — 19 Ekim 2026 (owner isteği: "güvenli yerde dur, sonra devam")
+
+Tamam:
+- Commons sağlayıcısı + lisans filtresi (`src/lib/v3/backgrounds/`), `scripts/v3/commons-ara.ts` (arama ve başlığa göre indirme).
+  Commons artık standart dışı küçük resim genişliğini reddediyor (HTTP 400); API `iiurlwidth=3840` ile resmî adres kullanılıyor.
+  Doğrulama: "File:Rumeli Hisarı - Otağtepeden Görünüşü.jpg" CC0 indirildi (`output/v3/_aday/`, SHA-256 `80a19335…4939`).
+- TTS katmanı kodu (`src/lib/v3/tts/`, `scripts/v3/tts_server.py`), `content/v3/voices.json`, `content/v3/lexicon_tr.json`.
+- Owner ses kaydı `D:\URETIM\private\v3-voices\owner-source.mp3` (47,7 sn, git dışı); Whisper dökümü temiz.
+- Kontroller: kök `tsc` 0, `remotion-v3` `tsc` 0, `eslint src/lib/v3 scripts/v3` 0 uyarı, `smoke-v3-episode-director` PASS (9).
+
+Yarım / doğrulanmadı:
+- Chatterbox venv kurulumu (`D:\URETIM\Atolye\v3-tools\tts-venv`): Python 3.11.16 + venv hazır; torch 2.6.0+cu124
+  indirmesi/çıkarması duruş anında sürüyordu. Devamda: `tts-venv\Scripts\python.exe -c "import torch, chatterbox"` ile doğrula;
+  yoksa aynı `uv pip install` komutlarını yeniden çalıştır (02_DONANIM.md).
+- Pilot senaryo `content/v3/bolumler/fatih-pilot.json` henüz yazılmadı (taslak ve doğrulanmış kaynaklar aşağıda).
+
+Sıradaki adımlar (sırayla):
+1. Chatterbox doğrula → `prepareOwnerReferences` ile `owner-a.wav` / `owner-b.wav` → 5 karakter × 2 satır ses örneği (owner seçecek).
+2. Lip-sync modülü: Rhubarb (ASCII TEMP kopyası) + RMS yedeği; whisper.cpp kelime zamanları.
+3. Müzik: Kevin MacLeod (CC BY 4.0) parçaları `v3-tools/music` + `content/v3/music_index.json`; SFX sentezi; FFmpeg mix (sidechain + 2 geçiş loudnorm −14 LUFS).
+4. SDXL için yeni görsel venv (torch uv önbelleğinden) → Rumeli Hisarı inşaat arka planı.
+5. Pilot `episode.json` (5 sahne, ~80 sn) → `scripts/atolye-v3.ts uret` orkestratörü → render → QC raporu.
+
+Pilot için doğrulanan kaynaklar: Avunduk, "Rumelihisarı", TDVİA 35 (2008) 237–240 (Mart 1452 sonu başlangıç, Temmuz–Ağustos 1452 bitiş,
+~4–5 ay, "Boğazkesen" adı, deniz kenarındaki kule Çandarlı Halil, diğerleri Sarıca/Zağanos); Eyice, "Anadoluhisarı", TDVİA 3 (1991)
+147–149 (Anadoluhisarı Boğaz'ın en dar yerinde, Rumelihisarı karşısında 1452'de yapıldı); Runciman, *The Fall of Constantinople 1453* (1965);
+Doukas (çev. Magoulias, 1975). Kaynak metinde olmayan "en dar nokta" iddiası Rumeli Hisarı için değil Anadolu Hisarı için kullanılacak.
