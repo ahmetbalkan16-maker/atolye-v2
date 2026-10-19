@@ -64,6 +64,8 @@ jobs:
         run: npx tsx scripts/smoke-ayas-eval-yardstick-protection.ts
       - name: Weather and news answers from fixed public sources (offline fixtures)
         run: npx tsx scripts/smoke-ayas-live-info.ts
+      - name: Automatic live publish of a finished task (decision, record, wiring; publish stubbed)
+        run: npx tsx scripts/smoke-ayas-auto-live-publish.ts
       - name: Prepare bounded retrieval evidence directory
         run: mkdir "$AYAS_CI_EVIDENCE_DIR"
       # Preserve the original grader's raw exit/report. The next mandatory

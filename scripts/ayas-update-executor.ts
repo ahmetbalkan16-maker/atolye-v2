@@ -10,11 +10,15 @@
  *     closure, then the live publish (AyasUpdateApplyRunner; CLAUDE.md standing exception for this click).
  *   - MODEL_SWITCH: an owner "Bu modele geç": AYAS_OLLAMA_MODEL in both .env.local files, a live restart and a short
  *     chat check, rolled back on failure (AyasModelSwitchRunner). No Git change.
+ *   - AUTO_LIVE_PUBLISH: a finished task, i.e. the pushed HEAD with an application change the live copy lacks, goes
+ *     live through the same publish as an "Uygula" (owner decision 2026-10-19, AyasAutoLivePublish; it waits while
+ *     the owner chatted in the last 5 minutes; AYAS_AUTO_LIVE_PUBLISH=0 turns it off). No Git change.
  *   - TRIAL: the oldest owner-approved npm update without a trial on this HEAD is installed and checked in a separate
  *     worktree (AyasUpdateTrialRunner). The canonical tree, its node_modules and the live copy are not written.
  *   - MODEL_TRIAL: an owner "İndir ve ölç": one bounded download slice from the loopback Ollama, then the frozen
  *     benchmark once the approved bytes are in place (AyasModelTrialRunner). No configuration change.
- * Nothing runs without an owner approval whose seal verifies under AYAS_ACCESS_KEY (hence .env.local), nothing runs in
+ * Nothing runs without an owner approval whose seal verifies under AYAS_ACCESS_KEY (hence .env.local), apart from the
+ * automatic live publish that the owner's standing decision covers (CLAUDE.md, 2026-10-19), nothing runs in
  * SAFE_READ_ONLY, and one executor at a time holds data/brain/self-improvement/update-trials/executor.lock. Prints one
  * JSON line; exits 0 unless something unexpected throws.
  */
@@ -30,7 +34,9 @@ import { ayasSafeModeHold } from "../src/lib/ayas/safety/AyasSafeModeReader";
 import { createAyasModelOperationStore, selectAyasModelJob } from "../src/lib/brain/autonomy/AyasModelOperationStore";
 import { reconcileAyasModelSwitchOrphan, runAyasModelSwitch } from "../src/lib/brain/autonomy/AyasModelSwitchRunner";
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
-import { reconcileAyasUpdateApplyOrphan, runAyasUpdateApply, runAyasUpdateLivePublish } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
+import { readAyasOwnerChatActivityAt } from "../src/lib/ayas/AyasOwnerChatActivity";
+import { AYAS_LIVE_APP_PATHS, decideAyasAutoLivePublish, readAyasAutoLiveAttempts, type AyasAutoLiveFacts } from "../src/lib/brain/autonomy/AyasAutoLivePublish";
+import { reconcileAyasUpdateApplyOrphan, runAyasAutoLivePublish, runAyasUpdateApply, runAyasUpdateLivePublish } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
 import { createAyasUpdateApprovalStore, listAyasUpdateApplyDecisions, listAyasUpdateApprovals } from "../src/lib/brain/autonomy/AyasUpdateApprovalStore";
 import { resolveAyasUpdateTrialRoots, runAyasUpdateTrial } from "../src/lib/brain/autonomy/AyasUpdateTrialRunner";
 import { createAyasUpdateTrialStore, selectAyasUpdateApplyJob, selectAyasUpdateTrialJob } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
@@ -43,6 +49,34 @@ const MIN_FREE_BYTES = 15 * 1024 ** 3;
 
 const report = (status: string, extra: Record<string, unknown> = {}): void => { console.log(JSON.stringify({ status, ...extra })); };
 const git = (args: readonly string[]): string => execFileSync("git", [...args], { cwd: root, encoding: "utf8", windowsHide: true }).trim();
+
+const tryGit = (args: readonly string[]): string | undefined => { try { return git(args); } catch { return undefined; } };
+
+/** The live snapshot's build commit from the files scripts/ayas-publish-live.ps1 swaps; undefined without a live copy here. */
+function readLiveHead(): string | undefined {
+  const accessDir = path.resolve(root, "..", "..", "private", "AtolyeAyasAccess");
+  try {
+    if (!fs.statSync(path.join(accessDir, "published-application-v1.json")).isFile()) return undefined;
+    const head = (JSON.parse(fs.readFileSync(path.join(accessDir, "prebuilt-runtime-v1.json"), "utf8")) as { readonly buildHead?: unknown }).buildHead;
+    return typeof head === "string" && /^[0-9a-f]{40}$/.test(head) ? head : undefined;
+  } catch { return undefined; }
+}
+
+function autoLiveFacts(head: string, storeRoot: string): AyasAutoLiveFacts {
+  const liveHead = readLiveHead();
+  return {
+    enabled: process.env.AYAS_AUTO_LIVE_PUBLISH !== "0",
+    head,
+    // The upstream as this repository last saw it (a push updates it); no fetch.
+    upstreamHead: tryGit(["rev-parse", "--verify", "--quiet", "@{u}"]),
+    liveHead,
+    liveIsAncestor: () => liveHead !== undefined && tryGit(["merge-base", "--is-ancestor", liveHead, head]) !== undefined,
+    appChanged: () => liveHead !== undefined && (tryGit(["diff", "--name-only", liveHead, head, "--", ...AYAS_LIVE_APP_PATHS]) ?? "").length > 0,
+    ownerChatAt: readAyasOwnerChatActivityAt(root),
+    nowMs: Date.now(),
+    attempts: readAyasAutoLiveAttempts(storeRoot),
+  };
+}
 
 function processAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code === "EPERM"; }
@@ -113,6 +147,18 @@ async function main(): Promise<void> {
       return report("MODEL_SWITCH_" + done.status, { tag: done.tag, from: done.fromModel, attempts: done.attempts, reasons: done.reasons });
     }
 
+    // Owner decision 2026-10-19: after the owner's own clicks and before the background trials, so a finished task
+    // does not wait behind a long trial.
+    const autoLive = decideAyasAutoLivePublish(autoLiveFacts(head, trials.rootDir));
+    if (autoLive.kind === "PUBLISH") {
+      if (dryRun) return report("DRY_RUN", { job: "AUTO_LIVE_PUBLISH", commit: autoLive.commitSha.slice(0, 8), live: autoLive.liveHead.slice(0, 8) });
+      // A publish builds a new snapshot next to the live one (node_modules and .next).
+      const free = fs.statfsSync(path.resolve(root, ".."));
+      if (free.bavail * free.bsize < MIN_FREE_BYTES) return report("SKIPPED_LOW_DISK", { job: "AUTO_LIVE_PUBLISH", freeGb: Math.floor((free.bavail * free.bsize) / 1024 ** 3) });
+      const done = await runAyasAutoLivePublish(autoLive.commitSha, { repoRoot: root, store: trials });
+      return report("AUTO_LIVE_" + done.status, { commit: done.commitSha.slice(0, 8), from: autoLive.liveHead.slice(0, 8), summary: done.summary });
+    }
+
     const approvals = listAyasUpdateApprovals({ decisions: approvalState.decisions, radar: [], repoRoot: root });
     const job = selectAyasUpdateTrialJob({ approvals, trials: trials.load().trials, head });
     if (job.kind === "NONE" && modelJob.kind === "TRIAL") {
@@ -133,7 +179,7 @@ async function main(): Promise<void> {
         ...(done.failureReason ? { reason: done.failureReason } : done.lastError ? { note: done.lastError } : {}),
       });
     }
-    if (job.kind === "NONE") return report("IDLE", { reason: job.reason });
+    if (job.kind === "NONE") return report("IDLE", { reason: job.reason, autoLive: autoLive.reason });
     if (dryRun) return report("DRY_RUN", { job: job.kind, reason: job.reason, sourceId: job.approval.sourceId, targetVersion: job.approval.targetVersion, head });
 
     const trialRoots = resolveAyasUpdateTrialRoots(root);

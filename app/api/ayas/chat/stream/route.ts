@@ -13,6 +13,7 @@ import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
 import { streamAyasChat, ayasChatStreamEventToSse } from "@/lib/ayas/AyasChatStream";
 import { readAyasBoundedJsonBody } from "@/lib/ayas/security/AyasBoundedRequestBody";
+import { markAyasOwnerChatActivity } from "@/lib/ayas/AyasOwnerChatActivity";
 import { ayasTraceSessionScope, startAyasTrace, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStatus } from "@/lib/ayas/trace/AyasUnifiedTrace";
 import { createAyasTraceEvidenceSink } from "@/lib/ayas/observability/AyasOperationEvidenceStore";
 import { AyasGuidedRepairSessionRuntime, type AyasGuidedRepairDurability } from "@/lib/ayas/execution/AyasGuidedRepairSessionRuntime";
@@ -96,6 +97,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!text || text.length > MAX_TEXT) {
     return NextResponse.json({ error: "invalid_text" }, { status: 400 });
   }
+  // The automatic live publish waits while the owner is talking (owner decision 2026-10-19).
+  markAyasOwnerChatActivity();
   const history: { role: BrainChatMessage["role"]; text: string }[] = Array.isArray(b.history)
     ? (b.history as unknown[])
         .filter(

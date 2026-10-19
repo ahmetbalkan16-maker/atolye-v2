@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import { recordAyasAutoLiveAttempt, type AyasAutoLiveAttempt } from "./AyasAutoLivePublish";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { AYAS_DEPENDENCY_UPDATE_FILES } from "./AyasProposalRuntimeImpact";
@@ -19,7 +20,8 @@ import {
  * plain push, local HEAD equal to the remote afterwards, then the established post-publication closure (Graphify for
  * the new HEAD). Only after the guard has closed is the live copy republished by scripts/ayas-publish-live.ps1, whose
  * health check rolls the live copy back by itself. Nothing is ever force-pushed, reset after a commit, or retried
- * after something real may have happened.
+ * after something real may have happened. The same live publish also carries a finished task's pushed commit to the
+ * live copy (runAyasAutoLivePublish, owner decision 2026-10-19).
  *
  * Effectful (git, PowerShell): reached only from scripts/ayas-update-executor.ts.
  */
@@ -122,7 +124,7 @@ export function createAyasLivePublisher(repoRoot: string, run: AyasCommandRunner
   };
 }
 
-function childEnv(deps: AyasUpdateApplyDeps): AyasChildEnv {
+function childEnv(deps: Pick<AyasUpdateApplyDeps, "repoRoot" | "env">): AyasChildEnv {
   if (deps.env) return deps.env;
   const studioPrivate = path.resolve(deps.repoRoot, "..", "..", "private");
   const env: Record<string, string | undefined> = { ...process.env };
@@ -139,6 +141,26 @@ export async function runAyasUpdateLivePublish(apply: AyasUpdateApplyRecord, dep
   const next: AyasUpdateApplyRecord = { ...apply, live: { ...live, attempts, at: now() }, livePending: live.status !== "PUBLISHED" };
   deps.store.upsertApply(next);
   return next;
+}
+
+/**
+ * Owner decision 2026-10-19: publishes a pushed commit that decideAyasAutoLivePublish admitted, through the same live
+ * publish as an "Uygula". The attempt is recorded as RUNNING first, so an interrupted publish still counts.
+ */
+export async function runAyasAutoLivePublish(commitSha: string, deps: Pick<AyasUpdateApplyDeps, "repoRoot" | "store" | "now" | "publishLive" | "run" | "env">): Promise<AyasAutoLiveAttempt> {
+  const now = deps.now ?? (() => new Date().toISOString());
+  const startedAt = now();
+  recordAyasAutoLiveAttempt(deps.store.rootDir, { commitSha, status: "RUNNING", startedAt });
+  const publish = deps.publishLive ?? createAyasLivePublisher(deps.repoRoot, deps.run ?? runAyasCommand, childEnv(deps));
+  let finished: AyasAutoLiveAttempt;
+  try {
+    const live = await publish(commitSha);
+    finished = { commitSha, status: live.status, startedAt, finishedAt: now(), summary: live.summary };
+  } catch (error) {
+    finished = { commitSha, status: "FAILED", startedAt, finishedAt: now(), summary: (error instanceof Error ? error.message : String(error)).slice(0, 600) };
+  }
+  recordAyasAutoLiveAttempt(deps.store.rootDir, finished);
+  return finished;
 }
 
 /**

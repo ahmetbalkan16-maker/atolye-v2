@@ -169,6 +169,19 @@ This project is developed across many sequential AI sessions under strict, check
     Every other commit/push in this repository —
     including this service's own infrastructure changes — still requires separate explicit approval
     as above.
+  - **Automatic live publish (owner decision 2026-10-19, "bir görev bitince otomatik olarak canlıya
+    aktarılsın"):** a commit that is already pushed (HEAD equals its upstream on a clean tree) and
+    changes application files the live snapshot lacks goes live without a further owner click. The
+    observer's update executor decides with `AyasAutoLivePublish` and runs the existing
+    `scripts/ayas-publish-live.ps1 -Commit <sha> -Apply` through
+    `AyasUpdateApplyRunner.runAyasAutoLivePublish` (own snapshot build, refusal while the live app
+    has a running job, health check, automatic rollback). It never publishes an unpushed, older or
+    non-descendant commit, tries a commit at most twice, never retries one that was rolled back,
+    waits while the owner chatted with AYAS in the last 5 minutes, and stops with
+    `AYAS_AUTO_LIVE_PUBLISH=0`. A committed change to `scripts/ayas-access-daemon.ps1` reaches the
+    running access supervisor through its own handover between two cycles. This covers the live
+    publish only: it grants no commit or push, which still need the approval described above (for a
+    Claude session, the AGENTS.md session-end rule).
 
 ## graphify
 

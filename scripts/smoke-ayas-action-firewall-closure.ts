@@ -199,8 +199,11 @@ const SURFACES: Readonly<Record<string, Surface>> = {
   // digest the owner approved, through the loopback Ollama and measures it with the frozen benchmark (OWNER_LEASE);
   // "Bu modele geç" sets AYAS_OLLAMA_MODEL and restarts the live app through the trial runner's command runner, then
   // asks a few frozen questions on the loopback model (LOCAL_MODEL), rolling back on failure.
+  // Owner decision 2026-10-19 (EVAL v69): a finished task's pushed HEAD goes live through the same live publish as an
+  // "Uygula" (AyasUpdateApplyRunner, OWNER_PUBLICATION), under the owner's standing decision in CLAUDE.md instead of a
+  // per-commit seal. It changes no Git state and the decision module (AyasAutoLivePublish) starts no process.
   "scripts/ayas-update-executor.ts": {
-    what: "the observer's update executor child: one owner-approved job per run (an update trial or Uygula, a model download and measurement, or a model switch)", agent: true,
+    what: "the observer's update executor child: one owner-approved job per run (an update trial or Uygula, a model download and measurement, a model switch, or the standing automatic live publish of the pushed HEAD)", agent: true,
     allowed: ["OWNER_LEASE", "OWNER_PUBLICATION", "READ_ONLY_PROBE", "LOCAL_MODEL"],
     // The guarded publication's import closure is the resume worker's; the runners below are the executor's own.
     modules: {

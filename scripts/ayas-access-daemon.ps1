@@ -51,6 +51,12 @@ $script:CooldownSeconds = 120
 # trying, slowly, instead of waiting for the owner; the count stays at
 # MaxFailures, so the state still says retries-exhausted and asks for a look.
 $script:ExhaustedRetrySeconds = 1800
+# Owner decision 2026-10-19: a committed change to this file reaches the running supervisor without a logon.
+$script:SelfPath = $PSCommandPath
+$script:HiddenLauncher = Join-Path $PSScriptRoot 'ayas-access-hidden.vbs'
+$script:HandoverPolls = 30
+$script:HandoverPollSeconds = 2
+$script:RejectedSelfHash = $null
 $script:RuntimeManifestFile = Join-Path $script:StateDir 'prebuilt-runtime-v1.json'
 $script:NodeExe = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 
@@ -391,10 +397,70 @@ function Invoke-AccessCycle([string]$Mode) {
   Write-PhoneStatus $snapshot $localHealthy $publicHealthy
   return $state
 }
+# Owner decision 2026-10-19: between two cycles the supervisor hands over to a fresh copy of itself when a committed
+# change to this file is on disk, through the same hidden launcher as the Startup shortcut. The app and the tunnel keep
+# running. A copy that does not take the supervisor lock in time leaves this one running on its old code.
+function Get-SelfHash { (Get-FileHash -LiteralPath $script:SelfPath -Algorithm SHA256).Hash }
+function Test-SelfCommitted {
+  # Read-only and without the optional index refresh, so it never takes Git's index lock.
+  $changes = @(& git -C $script:RepoRoot --no-optional-locks status --porcelain -- $script:SelfPath 2>$null)
+  return $LASTEXITCODE -eq 0 -and $changes.Count -eq 0
+}
+function Get-SelfReloadHash([string]$LoadedHash) {
+  # The new file's hash when a fresh copy should take over, else $null: unchanged, an edit in progress, or unparsable.
+  try {
+    $current = Get-SelfHash
+    if ($current -eq $LoadedHash -or $current -eq $script:RejectedSelfHash) { return $null }
+    if (-not (Test-SelfCommitted)) { return $null }
+    $tokens = $null; $errors = $null
+    [void][Management.Automation.Language.Parser]::ParseFile($script:SelfPath, [ref]$tokens, [ref]$errors)
+    if (@($errors).Count -gt 0) { $script:RejectedSelfHash = $current; return $null }
+    return $current
+  } catch { return $null }
+}
+function Test-AccessLockHeldElsewhere {
+  try {
+    $probe = [IO.File]::Open($script:MonitorLockFile, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+    $probe.Dispose(); return $false
+  } catch [IO.FileNotFoundException] { return $false }
+  catch [IO.DirectoryNotFoundException] { return $false }
+  catch [IO.IOException] { return $true }
+  catch { return $false }
+}
+function Start-HiddenLauncher {
+  Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\wscript.exe') -ArgumentList @('//B', '//NoLogo', ('"' + $script:HiddenLauncher + '"')) -WorkingDirectory $script:RepoRoot | Out-Null
+}
+function Invoke-SelfHandover($Lock, [string]$NewHash) {
+  # $null when the fresh copy holds the lock (this copy then exits), else the lock this copy keeps running with.
+  if (-not (Test-Path -LiteralPath $script:HiddenLauncher -PathType Leaf)) { $script:RejectedSelfHash = $NewHash; return $Lock }
+  $Lock.Dispose()
+  $env:AYAS_ACCESS_HANDOVER_FROM = [string]$PID
+  try { Start-HiddenLauncher } catch { } finally { Remove-Item -Path Env:AYAS_ACCESS_HANDOVER_FROM -ErrorAction SilentlyContinue }
+  for ($poll = 0; $poll -lt $script:HandoverPolls; $poll++) {
+    Start-Sleep -Seconds $script:HandoverPollSeconds
+    if (Test-AccessLockHeldElsewhere) { Write-AccessAudit 'reload' 'supervisor' 'handover' 'success' '' $PID $null; return $null }
+  }
+  $kept = Acquire-AccessLock
+  if (-not $kept) { Write-AccessAudit 'reload' 'supervisor' 'handover' 'success' '' $PID $null; return $null }
+  $script:RejectedSelfHash = $NewHash
+  Write-AccessAudit 'reload' 'supervisor' 'handover' 'failure' 'new-copy-not-running' $PID $null
+  return $kept
+}
+function Enter-SupervisorLock {
+  $held = Acquire-AccessLock
+  if (-not $held -and $env:AYAS_ACCESS_HANDOVER_FROM) {
+    # Started by Invoke-SelfHandover: the previous copy lets go of the lock right after starting this one.
+    for ($wait = 0; $wait -lt 30 -and -not $held; $wait++) { Start-Sleep -Seconds 1; $held = Acquire-AccessLock }
+  }
+  Remove-Item -Path Env:AYAS_ACCESS_HANDOVER_FROM -ErrorAction SilentlyContinue
+  return $held
+}
 if ($LibraryOnly) { return }
 New-Item -ItemType Directory -Force -Path $script:StateDir, $script:LogDir, $script:PhoneStatusDir | Out-Null
-$lock = Acquire-AccessLock
+$lock = Enter-SupervisorLock
 if (-not $lock) { throw 'AYAS_ACCESS_MONITOR_ALREADY_RUNNING_OR_LOCK_UNAVAILABLE' }
+$loadedHash = $null
+if ($Continuous) { try { $loadedHash = Get-SelfHash } catch { } }
 try {
   do {
     try { $result = Invoke-AccessCycle $(if ($Continuous) { 'continuous' } else { 'one-shot' }) }
@@ -402,6 +468,10 @@ try {
       Write-AccessAudit 'error' 'runtime' 'observe' 'failure' 'cycle' $null $null
       if (-not $Continuous) { throw }
     }
+    if ($loadedHash) {
+      $newHash = Get-SelfReloadHash $loadedHash
+      if ($newHash) { $lock = Invoke-SelfHandover $lock $newHash; if (-not $lock) { break } }
+    }
     if ($Continuous) { Start-Sleep -Seconds $IntervalSeconds }
   } while ($Continuous)
-} finally { $lock.Dispose() }
+} finally { if ($lock) { $lock.Dispose() } }

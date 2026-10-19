@@ -174,6 +174,63 @@ try {
     No ($source -match '(?im)^\s*Stop-Process\b')
     No ($source -match '(?im)^\s*(?:git|graphify|cloudflared\s+tunnel\s+create)\b')
     No ($source -match 'AyasApproval|ExecutionGate|observerActions')
+    # The one Git call reads whether its own file is committed, without Git's optional index lock.
+    $gitCalls=@([regex]::Matches($source, '&\s*git\b[^\r\n]*'))
+    Eq $gitCalls.Count 1
+    Yes ($gitCalls[0].Value.Contains('--no-optional-locks status --porcelain -- $script:SelfPath'))
+  }
+  # Owner decision 2026-10-19: a committed change to the supervisor reaches the running copy without a logon.
+  $selfSaved=@{ SelfPath=$script:SelfPath; HiddenLauncher=$script:HiddenLauncher; Polls=$script:HandoverPolls; PollSeconds=$script:HandoverPollSeconds; Committed=(Get-Command Test-SelfCommitted).ScriptBlock; Launch=(Get-Command Start-HiddenLauncher).ScriptBlock }
+  try {
+    $script:SelfPath=Join-Path $temp 'self-daemon.ps1'
+    [IO.File]::WriteAllText($script:SelfPath, 'Write-Output 1', (New-Object Text.UTF8Encoding($false)))
+    function Test-SelfCommitted { $script:selfCommitted }
+    Scenario 'only a committed, parsable change to the supervisor script hands over' {
+      $script:RejectedSelfHash=$null; $loaded=Get-SelfHash; $script:selfCommitted=$true
+      Eq (Get-SelfReloadHash $loaded) $null
+      [IO.File]::WriteAllText($script:SelfPath, 'Write-Output 2', (New-Object Text.UTF8Encoding($false)))
+      $script:selfCommitted=$false; Eq (Get-SelfReloadHash $loaded) $null
+      $script:selfCommitted=$true; Eq (Get-SelfReloadHash $loaded) (Get-SelfHash)
+      [IO.File]::WriteAllText($script:SelfPath, 'function Broken {', (New-Object Text.UTF8Encoding($false)))
+      Eq (Get-SelfReloadHash $loaded) $null; Eq $script:RejectedSelfHash (Get-SelfHash)
+      $script:RejectedSelfHash=$null
+    }
+    $script:HandoverPolls=3; $script:HandoverPollSeconds=0; $script:HiddenLauncher=$script:SelfPath
+    Scenario 'handover: the fresh copy takes the lock and the old copy exits' {
+      $script:launches=0; $script:handoverFrom=$null
+      function Start-HiddenLauncher { $script:launches++; $script:handoverFrom=$env:AYAS_ACCESS_HANDOVER_FROM; $script:freshCopy=Acquire-AccessLock }
+      $old=Acquire-AccessLock; if(-not $old){throw 'lock'}
+      try { Eq (Invoke-SelfHandover $old 'H2') $null; Eq $script:launches 1; Eq $script:handoverFrom ([string]$PID); No (Test-Path Env:AYAS_ACCESS_HANDOVER_FROM) }
+      finally { if ($script:freshCopy) { $script:freshCopy.Dispose(); $script:freshCopy=$null } }
+    }
+    Scenario 'handover: a fresh copy that never starts leaves the old copy running and is not retried' {
+      $script:RejectedSelfHash=$null; $script:launches=0
+      function Start-HiddenLauncher { $script:launches++ }
+      $old=Acquire-AccessLock; if(-not $old){throw 'lock'}
+      $kept=Invoke-SelfHandover $old 'H3'
+      try { Yes $kept; Eq $script:launches 1; Eq $script:RejectedSelfHash 'H3'; No (Acquire-AccessLock) } finally { if ($kept) { $kept.Dispose() } }
+      $script:RejectedSelfHash=$null
+    }
+    Scenario 'handover without the hidden launcher keeps the old copy and launches nothing' {
+      $script:launches=0; $script:HiddenLauncher=Join-Path $temp 'missing.vbs'
+      function Start-HiddenLauncher { $script:launches++ }
+      $old=Acquire-AccessLock; if(-not $old){throw 'lock'}
+      try { $kept=Invoke-SelfHandover $old 'H4'; Yes ([object]::ReferenceEquals($kept, $old)); Eq $script:launches 0 } finally { $old.Dispose(); $script:RejectedSelfHash=$null }
+    }
+    Scenario 'the fresh copy waits for the old copy to let go of the lock, and only in a handover' {
+      $script:holder=Acquire-AccessLock; if(-not $script:holder){throw 'lock'}
+      $script:waits=0
+      function Start-Sleep { $script:waits++; if ($script:holder) { $script:holder.Dispose(); $script:holder=$null } }
+      try {
+        $env:AYAS_ACCESS_HANDOVER_FROM='1'
+        $fresh=Enter-SupervisorLock; Yes $fresh; $fresh.Dispose(); Eq $script:waits 1; No (Test-Path Env:AYAS_ACCESS_HANDOVER_FROM)
+        $script:holder=Acquire-AccessLock; $script:waits=0
+        No (Enter-SupervisorLock); Eq $script:waits 0
+      } finally { if ($script:holder) { $script:holder.Dispose(); $script:holder=$null }; Remove-Item -Path Env:AYAS_ACCESS_HANDOVER_FROM -ErrorAction SilentlyContinue }
+    }
+  } finally {
+    $script:SelfPath=$selfSaved.SelfPath; $script:HiddenLauncher=$selfSaved.HiddenLauncher; $script:HandoverPolls=$selfSaved.Polls; $script:HandoverPollSeconds=$selfSaved.PollSeconds
+    Set-Item -Path Function:Test-SelfCommitted -Value $selfSaved.Committed; Set-Item -Path Function:Start-HiddenLauncher -Value $selfSaved.Launch
   }
   # 2026-10-16: Next's runtime route cache is cleared before a start; only that folder, never through a link.
   $routeApp = Join-Path $temp 'route-cache-app'
@@ -419,6 +476,24 @@ exit 7
     }
     Eq $launch.ExitCode 7
     Eq ([IO.File]::ReadAllText((Join-Path $fixtureScripts 'record.txt'))) "True|60|$fixtureRoot"
+  }
+  Scenario 'real handover launch reaches the fresh copy through the hidden launcher, marked as a handover' {
+    $fixtureScripts=Join-Path $temp 'Atölye hv\scripts'
+    New-Item -ItemType Directory -Path $fixtureScripts -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'ayas-access-hidden.vbs') -Destination $fixtureScripts
+    $fakeDaemon=@'
+param([switch]$Continuous, [int]$IntervalSeconds)
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'handover.txt'), "$Continuous|$env:AYAS_ACCESS_HANDOVER_FROM")
+'@
+    [IO.File]::WriteAllText((Join-Path $fixtureScripts 'ayas-access-daemon.ps1'), $fakeDaemon, (New-Object Text.UTF8Encoding($false)))
+    $record=Join-Path $fixtureScripts 'handover.txt'
+    $previousLauncher=$script:HiddenLauncher; $script:HiddenLauncher=Join-Path $fixtureScripts 'ayas-access-hidden.vbs'
+    try {
+      $env:AYAS_ACCESS_HANDOVER_FROM='4242'
+      try { Start-HiddenLauncher } finally { Remove-Item -Path Env:AYAS_ACCESS_HANDOVER_FROM -ErrorAction SilentlyContinue }
+      for ($i=0; $i -lt 100 -and -not (Test-Path -LiteralPath $record); $i++) { Start-Sleep -Milliseconds 300 }
+      Eq ([IO.File]::ReadAllText($record)) 'True|4242'
+    } finally { $script:HiddenLauncher=$previousLauncher }
   }
   Scenario 'native cold-start boundary launches one quoted Next fixture and preserves running AYAS' {
     $previousRoot=$script:RepoRoot; $previousPort=$script:Port
