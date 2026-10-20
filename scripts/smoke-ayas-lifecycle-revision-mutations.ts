@@ -14,7 +14,7 @@ function copy(file: string) {
   for (const match of source.matchAll(/(?:from\s+|import\s*)['"](\.[^'"]+)['"]/g)) {
     const base = path.resolve(path.dirname(path.join(repo, file)), match[1]!);
     const found = [base + ".ts", base + ".tsx", base + ".json", path.join(base, "index.ts")].find((file) => fs.existsSync(file));
-    if (found) { const relative = path.relative(repo, found); assert.ok(!relative.startsWith("..") && !path.isAbsolute(relative)); copy(relative); }
+    if (found) { const relative = path.relative(repo, found); assert.ok(!relative.startsWith("..") && !path.isAbsolute(relative), "assert.ok(!relative.startsWith(\"..\") && !path.isAbsolute(relative))"); copy(relative); }
   }
 }
 const contract = "src/lib/ayas/lifecycle/AyasLifecycle.ts";
@@ -39,6 +39,6 @@ try {
   }
   console.log(`Lifecycle revision audit: PASS (${mutants.length}/${mutants.length} caught; TEMP only)`);
 } finally {
-  assert.equal(path.dirname(path.resolve(temp)), path.resolve(os.tmpdir())); assert.ok(path.basename(temp).startsWith("ayas-lifecycle-revision-audit-"));
+  assert.equal(path.dirname(path.resolve(temp)), path.resolve(os.tmpdir()), "assert.equal(path.dirname(path.resolve(temp)), path.resolve(os.tmpdir()))"); assert.ok(path.basename(temp).startsWith("ayas-lifecycle-revision-audit-"), "assert.ok(path.basename(temp).startsWith(\"ayas-lifecycle-revision-audit-\"))");
   fs.rmSync(temp, { recursive: true, force: true });
 }
