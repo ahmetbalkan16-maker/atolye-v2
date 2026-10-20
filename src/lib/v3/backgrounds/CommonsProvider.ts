@@ -8,10 +8,14 @@ import { type CreditRecord, judgeLicense } from "./LicenseFilter";
  * downloaded once and kept as local assets (never hotlinked). Only whitelisted licenses are returned.
  */
 const API = "https://commons.wikimedia.org/w/api.php";
-const USER_AGENT = "AtolyeV3/0.1 (personal documentary studio; local tool)";
+export const USER_AGENT = "AtolyeV3/0.1 (personal documentary studio; local tool)";
 
 export interface CommonsCandidate {
   readonly title: string;
+  /** Where it was found: a Wikipedia article about the subject, a Commons search, or a museum collection. */
+  readonly source?: "wikipedia" | "commons" | "met";
+  /** Year the image was made, when the metadata says (a 2013 photo of a 1452 fortress is not a period image). */
+  readonly year?: number;
   readonly url: string;
   /** Standard-size rendition (Commons refuses arbitrary thumbnail widths). */
   readonly downloadUrl: string;
@@ -38,7 +42,7 @@ interface ImageInfo {
 
 const stripHtml = (s: string | undefined) => (s ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 
-async function cachedJson(cacheDir: string, url: string): Promise<unknown> {
+export async function cachedJson(cacheDir: string, url: string): Promise<unknown> {
   const key = createHash("sha256").update(url).digest("hex").slice(0, 24);
   const file = path.join(cacheDir, `${key}.json`);
   if (existsSync(file)) {
@@ -53,12 +57,21 @@ async function cachedJson(cacheDir: string, url: string): Promise<unknown> {
   return json;
 }
 
-function toCandidate(title: string, info: ImageInfo): CommonsCandidate | undefined {
+/** First plausible year (1000–2099, or a three-digit one) in a metadata date such as "circa 1838" or "2013-09-21". */
+export function yearOf(text: string | undefined): number | undefined {
+  const m = /\b(1\d{3}|20\d{2}|[1-9]\d{2})\b/.exec(text ?? "");
+  return m ? Number(m[1]) : undefined;
+}
+
+function toCandidate(title: string, info: ImageInfo, source: CommonsCandidate["source"] = "commons"): CommonsCandidate | undefined {
   const m = info.extmetadata ?? {};
   const verdict = judgeLicense(stripHtml(m.LicenseShortName?.value), stripHtml(m.UsageTerms?.value));
   if (!verdict.ok) return undefined;
+  const year = yearOf(stripHtml(m.DateTimeOriginal?.value));
   return {
     title,
+    source,
+    ...(year ? { year } : {}),
     url: info.url,
     downloadUrl: info.thumburl ?? info.url,
     // 960 is one of Commons' standard thumbnail steps; an original smaller than the requested width has no thumb.
@@ -122,6 +135,32 @@ export async function commonsByTitle(cacheDir: string, title: string): Promise<C
   const page = Object.values(json.query?.pages ?? {})[0];
   const info = page?.imageinfo?.[0];
   return page && info ? toCandidate(page.title, info) : undefined;
+}
+
+/** Several files by exact title (≤ 50, any order kept), skipping missing and non-free ones. */
+export async function commonsByTitles(cacheDir: string, titles: readonly string[], source: CommonsCandidate["source"] = "commons"): Promise<CommonsCandidate[]> {
+  if (!titles.length) return [];
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    titles: titles.slice(0, 50).join("|"),
+    prop: "imageinfo",
+    iiprop: "url|size|mime|extmetadata",
+    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+    iiurlwidth: "3840",
+  });
+  const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { normalized?: { from: string; to: string }[]; pages?: Record<string, { title: string; imageinfo?: ImageInfo[] }> } };
+  const byTitle = new Map(Object.values(json.query?.pages ?? {}).map((p) => [p.title, p]));
+  const norm = new Map((json.query?.normalized ?? []).map((n) => [n.from, n.to]));
+  const out: CommonsCandidate[] = [];
+  for (const t of titles.slice(0, 50)) {
+    const page = byTitle.get(norm.get(t) ?? t);
+    const info = page?.imageinfo?.[0];
+    if (!page || !info || !/^image\/(jpeg|png)$/.test(info.mime)) continue;
+    const c = toCandidate(page.title, info, source);
+    if (c) out.push(c);
+  }
+  return out;
 }
 
 /** Downloads a candidate (standard rendition, at most 3840 px wide) as a local asset with its credit. */

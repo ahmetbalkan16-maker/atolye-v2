@@ -13,7 +13,18 @@ export interface CostumePackManifest {
   readonly title: string;
   readonly notes?: string;
   readonly sources?: readonly string[];
-  readonly items: Readonly<Record<string, { readonly slot: V3Accessory["slot"]; readonly behind?: boolean; readonly grip?: boolean }>>;
+  readonly items: Readonly<
+    Record<
+      string,
+      {
+        readonly slot: V3Accessory["slot"];
+        readonly behind?: boolean;
+        readonly grip?: boolean;
+        /** Who may wear it (rank, role), told to the script writer. */
+        readonly not?: string;
+      }
+    >
+  >;
 }
 
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -45,6 +56,8 @@ export interface PackCatalogEntry {
   readonly pack: string;
   readonly title: string;
   readonly items: Readonly<Partial<Record<V3Accessory["slot"], readonly string[]>>>;
+  /** Item id → who may wear it (e.g. "only the reigning emperor"). */
+  readonly notes?: Readonly<Record<string, string>>;
 }
 
 /** Every installed pack and its item ids by slot — what a script writer may dress the cast in. */
@@ -54,8 +67,12 @@ export async function packCatalog(root: string): Promise<PackCatalogEntry[]> {
     if (!SAFE_ID.test(dir)) continue;
     const manifest = await readPackManifest(root, dir);
     const items: Partial<Record<V3Accessory["slot"], string[]>> = {};
-    for (const [id, item] of Object.entries(manifest.items)) (items[item.slot] ??= []).push(id);
-    out.push({ pack: manifest.id, title: manifest.title, items });
+    const notes: Record<string, string> = {};
+    for (const [id, item] of Object.entries(manifest.items)) {
+      (items[item.slot] ??= []).push(id);
+      if (item.not) notes[id] = item.not;
+    }
+    out.push({ pack: manifest.id, title: manifest.title, items, ...(Object.keys(notes).length ? { notes } : {}) });
   }
   return out;
 }

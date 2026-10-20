@@ -9,7 +9,8 @@
   ],
   "items": {
     "bizans-taci": {
-      "slot": "head"
+      "slot": "head",
+      "not": "only the reigning emperor wears it — never an envoy, noble, priest or soldier"
     },
     "sakal-koyu": {
       "slot": "beard"
@@ -18,7 +19,8 @@
       "slot": "mustache"
     },
     "italyan-migferi": {
-      "slot": "head"
+      "slot": "head",
+      "not": "soldiers and mercenary captains (Genoese, Venetian)"
     },
     "sakal-kizil": {
       "slot": "beard"

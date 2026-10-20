@@ -67,7 +67,8 @@
         "kaynak": { "type": "array", "items": { "$ref": "#/$defs/slug" } },
         "kurgu": { "type": "boolean" },
         "rivayet": { "type": "boolean" },
-        "vurgu": { "type": "array", "items": { "type": "string" } }
+        "vurgu": { "type": "array", "items": { "type": "string" } },
+        "balon": { "type": "string", "minLength": 1, "maxLength": 70, "description": "Words floating over a visible speaker: punchline or key phrase, at most 8 words" }
       }
     },
     "sahne": {
@@ -85,6 +86,9 @@
           "properties": {
             "tr": { "type": "string" },
             "en": { "type": "string" },
+            "wiki": { "type": "string", "maxLength": 120 },
+            "ara": { "type": "array", "maxItems": 3, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+            "tasarim": { "type": "string", "maxLength": 700 },
             "commons_kategori": { "type": "string" },
             "yerel_tema": { "type": "string" },
             "dosya": { "type": "string" },
@@ -126,7 +130,7 @@
             "type": "object",
             "required": ["metin", "stil"],
             "additionalProperties": false,
-            "properties": { "metin": { "type": "string" }, "alt_metin": { "type": "string" }, "stil": { "enum": ["yer_tarih", "bolum", "bilgi"] }, "satir": { "type": "integer", "minimum": 0 } }
+            "properties": { "metin": { "type": "string" }, "alt_metin": { "type": "string" }, "stil": { "enum": ["yer_tarih", "bolum", "bilgi", "kelime"] }, "satir": { "type": "integer", "minimum": 0 } }
           }
         },
         "sahne_duzeni": {
@@ -156,6 +160,23 @@
               "derinlik": { "type": "number", "minimum": 0, "maximum": 1 },
               "olcek": { "type": "number" },
               "ters": { "type": "boolean" }
+            }
+          }
+        },
+        "kalabalik": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ad", "kostum_paketi", "kostum", "sayi", "duzen"],
+            "additionalProperties": false,
+            "properties": {
+              "ad": { "type": "string", "maxLength": 80 },
+              "kostum_paketi": { "$ref": "#/$defs/slug" },
+              "kostum": { "$ref": "#/$defs/kostum" },
+              "sayi": { "type": "integer", "minimum": 2, "maximum": 40 },
+              "duzen": { "enum": ["sira", "meclis", "ordu"] },
+              "taraf": { "enum": ["sol", "sag", "tum"] },
+              "ruh_hali": { "enum": ["notr", "coskulu", "korkmus"] }
             }
           }
         },

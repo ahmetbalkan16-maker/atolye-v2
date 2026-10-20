@@ -37,6 +37,8 @@ export interface ScriptBrief {
   readonly ton: EpisodeTone;
   readonly dil: ScriptLanguage;
   readonly kaynakBankasi?: SourceBank;
+  /** Voices the writer picks from for this language (`ses_id`), by what they sound like. */
+  readonly sesler?: readonly { readonly id: string; readonly tarif: string }[];
 }
 
 /**
@@ -53,7 +55,10 @@ export function wordBudget(brief: ScriptBrief): number {
 
 function catalogText(catalog: readonly PackCatalogEntry[]): string {
   return catalog
-    .map((c) => `- paket ${c.pack} (${c.title}): ${Object.entries(c.items).map(([slot, ids]) => `${slot}=${(ids ?? []).join(", ")}`).join(" | ")}`)
+    .map((c) => {
+      const item = (id: string) => (c.notes?.[id] ? `${id} (${c.notes[id]})` : id);
+      return `- paket ${c.pack} (${c.title}): ${Object.entries(c.items).map(([slot, ids]) => `${slot}=${(ids ?? []).map(item).join(", ")}`).join(" | ")}`;
+    })
     .join("\n");
 }
 
@@ -79,7 +84,7 @@ ANLATIM KURALLARI
 7. Son sahnede bir sonraki videoya köprü cümlesi.`,
   en: (b, words) => `You are Atölye's head writer: funny but historically accurate American-English YouTube documentaries told with puppet/stick-figure characters.
 
-TASK: Write the episode script for the topic below as ONE JSON object. Output nothing but the JSON. JSON keys stay exactly as in the shape below (they are Turkish); all spoken text ("metin", "baslik", card texts) is natural American English.
+TASK: Write the episode script for the topic below as ONE JSON object. Output nothing but the JSON. JSON keys stay exactly as in the shape below (they are Turkish); all text the viewer hears or sees ("metin", "balon", "baslik", card texts, the cast's "ad" and "rol") is natural American English, written for an American audience (explain who and where in a few words; no Turkish words they would not know, except names). Character names in their usual English form ("Mehmed II", "Constantine XI", "Halil Pasha").
 
 TOPIC: ${b.konu}
 PERIOD: ${b.donem}
@@ -89,7 +94,10 @@ TONE: ${b.ton}
 STORYTELLING RULES
 1. Hook: a question, a conflict or a surprising fact within the first 10 seconds; a clear "what you'll learn" promise within 30 seconds.
 2. Mix narrator and character dialogue; in at least 30% of scenes at least two lines belong to visible characters.
-3. A joke or twist every 20–40 seconds. Clever and respectful humor; no slurs, no profanity, no insults.
+3. Comedy in the spirit of the best animated history channels (write your own jokes, never borrow theirs): a deadpan
+   narrator with dry asides ("Now that's embarrassing."), historical figures who talk like modern people (casual,
+   petty, overconfident, bickering), absurd comparisons, understatement, running gags and callbacks — a punchline every
+   15–25 seconds, and the facts still exact. Clever and respectful; no slurs, no profanity, no insults.
 4. Short sentences: at most 14 words per line on average, never more than 22; conversational.
 5. Accuracy: every factual narrator claim links to the source list through "kaynak". Disputed accounts get "rivayet": true
    and the line says so ("legend has it", "according to some sources"). Invented character dialogue gets "kurgu": true.
@@ -117,16 +125,42 @@ export function writingPrompt(brief: ScriptBrief, catalog: readonly PackCatalogE
 
 CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".
-- 3–6 visible characters, each with a distinct "renk" (#RRGGBB), a distinct "konusma_tarzi", "ses_id" equal to its id.
-- Costumes come ONLY from the catalog below. If no catalog item fits the period, use "giysi": "sade" with period colors and leave
-  "bas", "sakal", "biyik", "el_on", "el_arka" out. An item from another pack is written "pack/item".
+- 3–6 visible characters, each with a distinct "renk" (#RRGGBB), a distinct "konusma_tarzi", ${voiceRule(brief)}
+- "rol": a short role line shown under the name the first time they speak (at most 5 words, e.g. "Ottoman Sultan, age 20").
+- Costumes come ONLY from the catalog below and must fit the character's rank (the notes in brackets say who may wear an
+  item). If no catalog item fits the period, use "giysi": "sade" with period colors and leave "bas", "sakal", "biyik",
+  "el_on", "el_arka" out. An item from another pack is written "pack/item".
 
-BACKGROUNDS / ARKA PLAN
-- "arka_plan_sorgusu.tur": "set" when the characters act out an event of the period (a drawn set of that place is used);
-  "archival" when the scene is about a real place, building, object, artwork or map that can be shown as it is (a period
-  painting or map, or the building as it stands today) — the characters then talk in front of that real image.
-- "en" is a concrete Wikimedia Commons search: proper name + what it is ("Rumelihisarı fortress", "Constantinople map
-  Buondelmonti", "Mehmed II portrait Bellini"), never a generic word such as "Construction Site" or "Palace".
+SCREEN TEXT — there are NO subtitles. The only words on screen are title cards and the characters' floating speech:
+- "balon": on lines spoken by visible characters only — the words floating over the speaker's head: the punchline or
+  the key phrase of the line, 2–8 words, same language as the line, quoting or condensing it (end a shout with "!").
+  Give it to most character lines, always to the funny ones; never to the narrator.
+- A "kelime" title card (one big word on black, e.g. "CRISIS", "BETRAYAL") once or twice per episode for an emphasis beat.
+
+CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
+  [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,
+    "duzen": "sira" (a row or two) | "meclis" (council benches) | "ordu" (a block of soldiers),
+    "taraf": "sol" | "sag" | "tum", "ruh_hali": "notr" | "coskulu" (cheering) | "korkmus" (scared)}]
+  An army scene can have two groups, one per side. Their costumes follow the same catalog and rank rules.
+
+PERIOD IMAGES AND SETS / ARKA PLAN
+- Every scene has a drawn set the characters act in; while the narrator speaks, the film cuts away to a real image of the
+  period found online (painting, miniature, engraving, manuscript, period map; from the 1850s on also a period photograph).
+  Open most scenes with a narrator line — that is when the period image is on screen. A photo of the place as it stands
+  today is NOT a period image and is never used.
+- "arka_plan_sorgusu.wiki": the exact English Wikipedia article title of the scene's main place, person or event
+  ("Rumelihisarı", "Mehmed II", "Fall of Constantinople").
+- "arka_plan_sorgusu.en": a search for a PERIOD image: proper name + medium ("Rumelihisarı engraving", "Mehmed II portrait
+  Bellini", "Constantinople map Buondelmonti", "Ottoman miniature siege"); never a generic word such as "Palace".
+- "arka_plan_sorgusu.ara": 1–3 more searches with the historical names and spellings that old books, travellers and
+  artists used ("Roumeli Hissar", "Castle of Europe Bosphorus", "Constantinople 1453 siege painting").
+- "arka_plan_sorgusu.tasarim": the drawn set in English, 25–50 words: the place as it looked then — landscape, period
+  architecture, ships or vehicles, objects, light and weather — then "no …" for the anachronisms to avoid. An empty place with
+  open ground in front, never people (characters are drawn separately). Example: "Wooded hills on the European shore of the
+  Bosphorus in spring 1452, a half-built stone fortress with round towers and wooden scaffolding, Ottoman galleys on calm
+  water, morning light; no modern houses, no roads, no ferries".
+- "arka_plan_sorgusu.tr": the same place in Turkish (for the owner's notes); "tur": "set" (default), or "archival" when the
+  scene is mainly about a surviving artwork, map or document.
 
 COSTUME CATALOG
 giysi: ${GARMENTS.join(", ")}
@@ -143,23 +177,31 @@ sfx: ${SFX_IDS.join(", ")}
 efekt: ${EFFECTS.join(", ")}
 gecis: ${TRANSITIONS.join(", ")}
 dekor tur: ${PROP_KINDS.join(", ")}
-yazi_karti stil: yer_tarih, bolum, bilgi
+yazi_karti stil: yer_tarih, bolum, bilgi, kelime
 ids: lowercase kebab-case (a-z, 0-9, -). x and derinlik: 0..1. metin: at most 240 characters.
 
 JSON SHAPE (an example — fill every value for this topic):
 {"id":"konu-kimligi","baslik":"…","konu":"…","donem":"…","hedef_sure_sn":${brief.hedefSureSn},"ton":"${brief.ton}",
  "kaynaklar":[{"id":"yazar-yil","kunye":"Author, Title, Publisher, Year"}],
  "oyuncu_kadrosu":[
-  {"id":"anlatici","ad":"Anlatıcı","rol":"…","kostum_paketi":"","renk":"#333333","ses_id":"anlatici","konusma_tarzi":"…","gorunur":false},
-  {"id":"karakter-1","ad":"…","rol":"…","kostum_paketi":"ottoman-1453","renk":"#b3263a","ses_id":"karakter-1","konusma_tarzi":"…","gorunur":true,
+  {"id":"anlatici","ad":"…","rol":"…","kostum_paketi":"","renk":"#333333","ses_id":"${brief.dil === "en" ? "en-anlatici" : "anlatici"}","konusma_tarzi":"…","gorunur":false},
+  {"id":"karakter-1","ad":"…","rol":"…","kostum_paketi":"ottoman-1453","renk":"#b3263a","ses_id":"${brief.sesler?.[0]?.id ?? "karakter-1"}","konusma_tarzi":"…","gorunur":true,
    "kostum":{"giysi":"kaftan","renkler":{"ana":"#b3263a","ikincil":"#e8b23a","ic":"#f3d27a","sus":"#e8b23a"},"bas":"padisah-kavugu","sakal":"sakal-genc","ayakkabi":"sari-mest"}}],
  "sahneler":[
-  {"id":"s1-kanca","sure_hedef":12,"mekan":"…","arka_plan_sorgusu":{"tr":"…","en":"…","commons_kategori":"…","tur":"set"},"duygu":"merak","muzik_ruh_hali":"gizemli","gecis":"kes",
+  {"id":"s1-kanca","sure_hedef":12,"mekan":"…","arka_plan_sorgusu":{"tr":"…","en":"…","wiki":"…","ara":["…"],"tasarim":"…","tur":"set"},"duygu":"merak","muzik_ruh_hali":"gizemli","gecis":"kes",
    "yazi_karti":[{"metin":"…","alt_metin":"…","stil":"yer_tarih"}],
    "sahne_duzeni":[{"karakter":"karakter-1","x":0.35,"yon":"sag"}],
    "satirlar":[
     {"karakter":"anlatici","metin":"…","duygu":"notr","kaynak":["yazar-yil"]},
-    {"karakter":"karakter-1","metin":"…","duygu":"kararli","jest":"isaret_et","kurgu":true}]}]}`;
+    {"karakter":"karakter-1","metin":"…","duygu":"kararli","jest":"isaret_et","kurgu":true,"balon":"…"}]}]}`;
+}
+
+/** How the writer fills `ses_id`: from the voice list when there is one (English), else the character's own id. */
+function voiceRule(brief: ScriptBrief): string {
+  if (!brief.sesler?.length) return `"ses_id" equal to its id.`;
+  return `and a "ses_id" from this voice list chosen by the character's age, temperament and origin — a different voice for every
+  character:
+${brief.sesler.map((v) => `  - ${v.id}: ${v.tarif}`).join("\n")}`;
 }
 
 /** One validation repair round: same content, fixed shape. */

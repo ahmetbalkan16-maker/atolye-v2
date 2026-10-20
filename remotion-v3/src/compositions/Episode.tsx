@@ -3,6 +3,7 @@ import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
 import type { V3RenderPlan } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { ShotView } from "../scene/ShotView";
 import { Captions } from "../scene/Captions";
+import "../scene/fonts";
 
 export interface EpisodeProps {
   readonly plan: V3RenderPlan;
@@ -17,7 +18,7 @@ export const Episode: React.FC<EpisodeProps> = ({ plan }) => {
     <AbsoluteFill style={{ backgroundColor: "#15121c" }}>
       {plan.shots.map((shot) => (
         <Sequence key={shot.id} from={shot.start} durationInFrames={shot.duration} name={shot.id}>
-          <ShotView shot={shot} cast={cast} accessories={accessories} />
+          <ShotView shot={shot} cast={cast} accessories={accessories} language={plan.language ?? "tr"} />
         </Sequence>
       ))}
       {plan.showCaptions ? <Captions pages={plan.captions} /> : null}

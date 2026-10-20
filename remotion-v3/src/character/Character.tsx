@@ -20,7 +20,8 @@ function markup(index: AccessoryIndex, pack: string, ref: string | undefined): V
 }
 
 /** A full character in character space (feet at the origin, facing +x). Placement and mirroring are the caller's. */
-export function Character({ member, state, accessories }: { member: V3CastMember; state: PerformerState; accessories: AccessoryIndex }) {
+/** `cheap`: no blurred contact shadow (crowds of extras; forty blur filters per frame are slow to render). */
+export function Character({ member, state, accessories, cheap = false }: { member: V3CastMember; state: PerformerState; accessories: AccessoryIndex; cheap?: boolean }) {
   const { costume, style } = member;
   const { pose } = state;
   const head = markup(accessories, costume.pack, costume.head);
@@ -39,7 +40,7 @@ export function Character({ member, state, accessories }: { member: V3CastMember
   return (
     <g>
       <g transform={`scale(${shadowK} ${shadowK})`} opacity={shadowK}>
-        <ellipse cx={4} cy={0} rx={128} ry={26} fill="#120c18" opacity={0.32} filter="url(#v3-golge)" />
+        {cheap ? null : <ellipse cx={4} cy={0} rx={128} ry={26} fill="#120c18" opacity={0.32} filter="url(#v3-golge)" />}
         <ellipse cx={2} cy={-1} rx={84} ry={13} fill="#120c18" opacity={0.42} />
       </g>
       <g transform={`scale(${inv} ${pose.squash})`}>

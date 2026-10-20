@@ -152,7 +152,7 @@ export interface V3TitleCard {
   readonly subtext?: string;
   readonly start: number;
   readonly end: number;
-  readonly style: "yer_tarih" | "bolum" | "bilgi";
+  readonly style: "yer_tarih" | "bolum" | "bilgi" | "kelime";
 }
 
 export interface V3MapArrow {
@@ -174,6 +174,48 @@ export interface V3Prop {
 
 export type V3Transition = "kes" | "kaydir" | "murekkep" | "beyaz";
 
+/** A crowd member: a costume copy standing still with a little life (sway, blinks, a cheer). Never speaks. */
+export interface V3Extra {
+  readonly castId: string;
+  readonly x: number;
+  readonly depth: number;
+  readonly facing: "left" | "right";
+  readonly scale: number;
+  readonly mood: "notr" | "coskulu" | "korkmus";
+  /** Idle phase seed so copies do not move in step. */
+  readonly seed: number;
+}
+
+/** A short line (joke, punchline, key phrase) in a comic speech bubble above the speaking character. */
+export interface V3Bubble {
+  readonly castId: string;
+  readonly text: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+/** Name and role under a character the first time they speak in the episode. */
+export interface V3NameTag {
+  readonly castId: string;
+  readonly name: string;
+  readonly role?: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * A period image (painting, engraving, map, period photo) shown full frame over the set while the narrator
+ * speaks, with a small source plate — the documentary cutaway. Characters keep acting underneath.
+ */
+export interface V3Insert {
+  readonly src: string;
+  readonly start: number;
+  readonly end: number;
+  readonly kenBurns: { readonly fromZoom: number; readonly toZoom: number; readonly fromX: number; readonly toX: number };
+  /** Source plate, e.g. "Rumelihisarı, engraving by W. H. Bartlett (1838)". */
+  readonly caption?: string;
+}
+
 export interface V3Shot {
   readonly id: string;
   readonly sceneId: string;
@@ -187,8 +229,12 @@ export interface V3Shot {
   readonly titleCards: readonly V3TitleCard[];
   readonly mapArrows: readonly V3MapArrow[];
   readonly transitionIn: V3Transition;
-  /** Small "CANLANDIRMA" label: dramatised dialogue is labelled, like the existing documentary rule. */
+  /** Small "CANLANDIRMA" / "DRAMATIZATION" label: dramatised dialogue is labelled, like the existing documentary rule. */
   readonly dramatized: boolean;
+  readonly bubbles?: readonly V3Bubble[];
+  readonly nameTags?: readonly V3NameTag[];
+  readonly inserts?: readonly V3Insert[];
+  readonly extras?: readonly V3Extra[];
 }
 
 export interface V3CaptionWord {
@@ -217,7 +263,10 @@ export interface V3RenderPlan {
   readonly accessories: readonly V3Accessory[];
   readonly shots: readonly V3Shot[];
   readonly captions: readonly V3CaptionPage[];
+  /** Burned-in captions; off for finished episodes (speech bubbles + a separate .srt instead). */
   readonly showCaptions: boolean;
+  /** On-screen label language (dramatization badge). Default "tr". */
+  readonly language?: "tr" | "en";
   /** Mixed soundtrack (voice + music + sfx) relative to the public dir; rendered video carries it for preview. */
   readonly audio?: string;
 }

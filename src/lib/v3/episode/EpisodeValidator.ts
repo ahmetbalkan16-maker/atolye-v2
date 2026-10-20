@@ -148,6 +148,10 @@ export function validateEpisode(input: unknown): EpisodeValidation {
     else {
       str(s.arka_plan_sorgusu, "tr", `${p}.arka_plan_sorgusu`);
       str(s.arka_plan_sorgusu, "en", `${p}.arka_plan_sorgusu`);
+      str(s.arka_plan_sorgusu, "wiki", `${p}.arka_plan_sorgusu`, { optional: true, max: 120 });
+      const extra = s.arka_plan_sorgusu.ara;
+      if (extra !== undefined && (!Array.isArray(extra) || extra.length > 3 || extra.some((x) => typeof x !== "string" || !x.trim() || x.length > 80))) err("ARKA_PLAN_ARA", `${p}.arka_plan_sorgusu.ara`, "en fazla 3 arama metni (her biri ≤ 80 karakter)");
+      str(s.arka_plan_sorgusu, "tasarim", `${p}.arka_plan_sorgusu`, { optional: true, max: 700 });
       oneOf(s.arka_plan_sorgusu, "tur", `${p}.arka_plan_sorgusu`, ["set", "archival"] as const, true);
     }
     (arr(s, "sahne_duzeni", p, true) ?? []).forEach((b, bi) => {
@@ -164,6 +168,23 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       oneOf(d, "tur", dp, PROP_KINDS);
       num(d, "x", dp, -0.2, 1.2);
     });
+    (arr(s, "kalabalik", p, true) ?? []).forEach((c, ci) => {
+      const cp = `${p}.kalabalik[${ci}]`;
+      if (!isObj(c)) return err("KALABALIK", cp, "nesne bekleniyor");
+      str(c, "ad", cp, { max: 80 });
+      str(c, "kostum_paketi", cp, { pattern: SLUG });
+      num(c, "sayi", cp, 2, 40);
+      oneOf(c, "duzen", cp, ["sira", "meclis", "ordu"] as const);
+      oneOf(c, "taraf", cp, ["sol", "sag", "tum"] as const, true);
+      oneOf(c, "ruh_hali", cp, ["notr", "coskulu", "korkmus"] as const, true);
+      const k = c.kostum;
+      if (!isObj(k)) return err("KOSTUM", `${cp}.kostum`, "kalabalığın kostümü olmalı");
+      oneOf(k, "giysi", `${cp}.kostum`, GARMENTS);
+      str(k, "ayakkabi", `${cp}.kostum`);
+      if (!isObj(k.renkler)) err("KOSTUM_RENK", `${cp}.kostum.renkler`, "ana/ikincil/ic/sus renkleri gerekli");
+      else for (const key of ["ana", "ikincil", "ic", "sus"]) str(k.renkler, key, `${cp}.kostum.renkler`, { pattern: HEX });
+      for (const key of ["bas", "sakal", "biyik", "el_on", "el_arka", "sirt"]) str(k, key, `${cp}.kostum`, { optional: true, pattern: /^([a-z0-9-]+\/)?[a-z0-9-]+$/ });
+    });
     const speakers = new Set<string>();
     const lines = arr(s, "satirlar", p) ?? [];
     if (lines.length === 0) err("SATIR_YOK", `${p}.satirlar`, "en az bir satır gerekli");
@@ -177,6 +198,9 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       oneOf(l, "hareket", lp, MOVES, true);
       oneOf(l, "sfx", lp, SFX_IDS, true);
       oneOf(l, "efekt", lp, EFFECTS, true);
+      const bubble = str(l, "balon", lp, { optional: true, max: 70 });
+      if (bubble !== undefined && who && !visible.has(who)) err("BALON_ANLATICI", `${lp}.balon`, "konuşma balonu yalnız görünür karakterin satırında olur");
+      if (bubble !== undefined && countWords(bubble) > 8) warn("BALON_UZUN", `${lp}.balon`, `${countWords(bubble)} kelime; balon en fazla 8 kelime`);
       if (who && !castIds.has(who)) err("SATIR_KARAKTER", lp, `kadroda yok: ${who}`);
       if (who && visible.has(who)) speakers.add(who);
       const target = l.hedef;

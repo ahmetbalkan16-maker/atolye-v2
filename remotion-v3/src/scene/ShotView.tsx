@@ -3,9 +3,11 @@ import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoCo
 import type { V3CastMember, V3Shot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { type AccessoryIndex, Character } from "../character/Character";
 import { Effect } from "../character/Effects";
+import { extraState } from "../character/extras";
 import { headCenter, performerState, turnStretch } from "../character/motion";
 import { easeInOut, HEAD_R, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
+import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
 
@@ -15,7 +17,7 @@ export function stageTransform(x: number, depth: number, width: number, height: 
   return { px: x * width, py: height * (0.955 - 0.2 * depth), scale: 0.86 * k * (1 - 0.34 * depth) };
 }
 
-export function ShotView({ shot, cast, accessories }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex }) {
+export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en" }) {
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
   const raw = filmCamera(cameraAt(shot.camera, frame, fps), shot.id, frame, shot.duration, fps);
@@ -36,6 +38,30 @@ export function ShotView({ shot, cast, accessories }: { shot: V3Shot; cast: Read
 
   const performers = [...shot.performers].sort((a, b) => b.depth - a.depth);
   const states = performers.map((p) => ({ p, s: performerState(p, frame, fps), m: cast.get(p.castId) }));
+  // The crowd stands behind every actor, slightly hazed by distance (one filter for the whole group).
+  const extras = [...(shot.extras ?? [])].sort((a, b) => b.depth - a.depth);
+
+  // Screen position of each visible head (camera, shake and stage depth applied), for bubbles and name tags.
+  const toScreen = (x: number, y: number) => ({ x: W / 2 + shake.dx + cam.zoom * (x - cam.cx * W), y: H / 2 + shake.dy + cam.zoom * (y - cam.cy * H) });
+  const heads = new Map<string, { x: number; top: number; r: number }>();
+  for (const { p, s, m } of states) {
+    if (!m || !s.visible) continue;
+    const st = stageTransform(s.x, p.depth, W, H);
+    const k = st.scale * m.scale;
+    const hc = headCenter(s.pose);
+    const centre = toScreen(st.px + hc.x * k * s.mirror, st.py + (hc.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror));
+    // Headwear (turbans, crowns) reaches about one head radius above the head.
+    heads.set(p.castId, { x: centre.x, top: centre.y - 2.05 * HEAD_R * k * cam.zoom, r: HEAD_R * k * cam.zoom });
+  }
+  const anchorOf = (castId: string): HeadAnchor | undefined => {
+    const h = heads.get(castId);
+    if (!h) return undefined;
+    let neighbourX: number | undefined;
+    for (const [id, o] of heads) if (id !== castId && o.x > 0 && o.x < W && (neighbourX === undefined || Math.abs(o.x - h.x) < Math.abs(neighbourX - h.x))) neighbourX = o.x;
+    return { x: h.x, top: h.top, r: h.r, ...(neighbourX !== undefined ? { neighbourX } : {}) };
+  };
+  // While a period image is cut in, the set and everything on it is hidden.
+  const insertOn = (shot.inserts ?? []).some((i) => frame >= i.start && frame < i.end);
 
   // Transition in.
   let wrapStyle: React.CSSProperties = {};
@@ -107,6 +133,22 @@ export function ShotView({ shot, cast, accessories }: { shot: V3Shot; cast: Read
                 </g>
               );
             })}
+            {extras.length ? (
+              <g style={{ filter: "saturate(0.8) brightness(0.93) contrast(0.92)" }}>
+                {extras.map((e, i) => {
+                  const m = cast.get(e.castId);
+                  if (!m) return null;
+                  const s = extraState(e, frame, fps);
+                  const st = stageTransform(e.x, e.depth, W, H);
+                  const k = st.scale * m.scale * e.scale;
+                  return (
+                    <g key={`x-${i}`} transform={`translate(${st.px} ${st.py}) scale(${k * s.mirror} ${k})`}>
+                      <Character member={m} state={s} accessories={accessories} cheap />
+                    </g>
+                  );
+                })}
+              </g>
+            ) : null}
             {states.map(({ p, s, m }) => {
               if (!m || !s.visible) return null;
               const st = stageTransform(s.x, p.depth, W, H);
@@ -136,12 +178,27 @@ export function ShotView({ shot, cast, accessories }: { shot: V3Shot; cast: Read
         </AbsoluteFill>
       </AbsoluteFill>
 
+      {(shot.inserts ?? []).map((ins, i) => (
+        <InsertView key={`ins-${i}`} insert={ins} />
+      ))}
+      {insertOn
+        ? null
+        : (shot.bubbles ?? []).map((b, i) => {
+            const anchor = anchorOf(b.castId);
+            return anchor ? <SpeechBubble key={`b-${i}`} bubble={b} anchor={anchor} language={language} /> : null;
+          })}
+      {insertOn
+        ? null
+        : (shot.nameTags ?? []).map((t, i) => {
+            const a = anchorOf(t.castId);
+            return a ? <NameTag key={`n-${i}`} tag={t} anchor={a} language={language} /> : null;
+          })}
       {shot.titleCards.map((c, i) => (
         <TitleCard key={i} card={c} />
       ))}
-      {shot.dramatized ? (
+      {shot.dramatized && !insertOn ? (
         <div style={{ position: "absolute", left: 36, top: 30, padding: "6px 14px", borderRadius: 8, background: "rgba(20,16,28,0.55)", color: "#f3ead7", font: "700 20px 'Segoe UI', Arial, sans-serif", letterSpacing: 2 }}>
-          CANLANDIRMA
+          {language === "en" ? "DRAMATIZATION" : "CANLANDIRMA"}
         </div>
       ) : null}
       {flash > 0 ? <AbsoluteFill style={{ backgroundColor: "#ffffff", opacity: flash }} /> : null}

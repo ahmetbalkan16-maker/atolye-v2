@@ -1,5 +1,5 @@
 {
-  "aciklama": "Karakter başına ses haritası. Chatterbox Multilingual (MIT) owner'ın kendi ses kaydından klonlar; karakterler perde (yarım ton), hız ve duygu yoğunluğu (exaggeration) ile ayrışır. Referans klipler repoya girmez (ATOLYE_V3_VOICE_REFS).",
+  "aciklama": "Karakter başına ses haritası. Chatterbox Multilingual (MIT) owner'ın kendi ses kaydından klonlar; karakterler perde (yarım ton), hız ve duygu yoğunluğu (exaggeration) ile ayrışır. Referans klipler repoya girmez (ATOLYE_V3_VOICE_REFS). İngilizce anlatım (dil: en) Kokoro-82M (Apache-2.0) yerel seslerini kullanır; senarist karakterin sesini tarif alanına göre seçer.",
   "varsayilan_saglayici": "chatterbox",
   "yedek_saglayici": "piper",
   "sesler": {
@@ -12,7 +12,21 @@
     "giustiniani":  { "saglayici": "chatterbox", "referans": "owner-a", "perde": 2.5,  "hiz": 1.02, "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.75, "not": "Gösterişli paralı asker" },
     "yeniceri":     { "saglayici": "chatterbox", "referans": "owner-b", "perde": -1,   "hiz": 1.1,  "exaggeration": 0.85, "cfg": 0.35, "sicaklik": 0.8,  "not": "Kısa asker tepkileri" },
     "isci":         { "saglayici": "chatterbox", "referans": "owner-a", "perde": 3,    "hiz": 1.05, "exaggeration": 0.6,  "cfg": 0.4,  "sicaklik": 0.8,  "not": "Yorgun işçi" },
-    "hazir_ses":    { "saglayici": "chatterbox",                        "perde": 0,    "hiz": 1.0,  "exaggeration": 0.5,  "cfg": 0.5,  "sicaklik": 0.75, "not": "Chatterbox'ın hazır sesi (referans kaydı yok) — owner sesiyle karşılaştırma için" }
+    "hazir_ses":    { "saglayici": "chatterbox",                        "perde": 0,    "hiz": 1.0,  "exaggeration": 0.5,  "cfg": 0.5,  "sicaklik": 0.75, "not": "Chatterbox'ın hazır sesi (referans kaydı yok) — owner sesiyle karşılaştırma için" },
+    "en-anlatici":        { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "am_michael", "perde": 0,    "hiz": 1,    "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "warm, clear American documentary narrator (male)" },
+    "en-anlatici-kadin":  { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "af_heart",   "perde": 0,    "hiz": 1,    "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "warm, clear American documentary narrator (female)" },
+    "en-genc-lider":      { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "am_puck",    "perde": 0.5,  "hiz": 1.02, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "young, confident, energetic man: a young ruler, a hero, an ambitious prince" },
+    "en-yasli-temkinli":  { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "am_onyx",    "perde": -1,   "hiz": 0.94, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "titreme": true, "tarif": "older, deep, cautious man: an old vizier, a worried advisor, an elder" },
+    "en-gur-asker":       { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "am_fenrir",  "perde": -2,   "hiz": 1,    "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "booming, gruff man: a general, a soldier, a pasha who loves a fight" },
+    "en-kurnaz":          { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "am_echo",    "perde": 0,    "hiz": 1.04, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "smooth, sly man: a schemer, a courtier, a merchant with a plan" },
+    "en-telasli":         { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "am_liam",    "perde": 1.5,  "hiz": 1.08, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "nervous, fast-talking man: a worker, a messenger, a servant" },
+    "en-gundelik":        { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "am_eric",    "perde": 0,    "hiz": 1.02, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "everyday man: a townsman, a sailor, a craftsman" },
+    "en-ingiliz-asil":    { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "bm_fable",   "perde": 0,    "hiz": 1,    "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "refined British-accented man: a foreign envoy, a European noble, a diplomat" },
+    "en-ingiliz-yasli":   { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "bm_george",  "perde": -1,   "hiz": 0.96, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "older British-accented man: an emperor, an old aristocrat, a bishop" },
+    "en-ingiliz-genc":    { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "bm_lewis",   "perde": 0,    "hiz": 1.02, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "younger British-accented man: a foreign soldier, an adventurer, a mercenary captain" },
+    "en-kadin-lider":     { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "af_bella",   "perde": 0,    "hiz": 1,    "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "confident woman: a queen, a leader, a commander" },
+    "en-kadin-genc":      { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "af_nicole",  "perde": 0.5,  "hiz": 1.02, "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "soft, young woman: a princess, a student, a villager" },
+    "en-kadin-ingiliz":   { "saglayici": "kokoro", "dil": "en", "kokoro_ses": "bf_emma",    "perde": 0,    "hiz": 1,    "exaggeration": 0.5, "cfg": 0.5, "sicaklik": 0.7, "tarif": "British-accented woman: a European queen, a noblewoman" }
   },
   "duygu_ayari": {
     "notr": 0, "mutlu": 0.12, "kizgin": 0.25, "saskin": 0.2, "korkmus": 0.12, "uzgun": -0.05, "kararli": 0.08, "sinsi": 0.05

@@ -57,7 +57,17 @@ export interface CastEntry {
 
 export interface SceneBackgroundQuery {
   readonly tr: string;
+  /** Search for a period image (artwork, engraving, map, period photo) of the scene's place or subject. */
   readonly en: string;
+  /** Exact English Wikipedia article title of the place/subject: its images are searched first. */
+  readonly wiki?: string;
+  /** 1–3 more searches: historical spellings and the names travellers and artists used ("Roumeli Hissar"). */
+  readonly ara?: readonly string[];
+  /**
+   * The drawn set as it looked in the period, in English (for the background designer when no period image
+   * exists): place, time of day, period architecture/vessels/objects, and what must not appear.
+   */
+  readonly tasarim?: string;
   readonly commons_kategori?: string;
   /** Existing local SDXL theme (cache) or a new prompt theme id. */
   readonly yerel_tema?: string;
@@ -80,7 +90,8 @@ export interface SceneMap {
 export interface SceneTitleCard {
   readonly metin: string;
   readonly alt_metin?: string;
-  readonly stil: "yer_tarih" | "bolum" | "bilgi";
+  /** kelime: one big word full screen on black ("CRISIS"), the hard-cut emphasis of the reference channel. */
+  readonly stil: "yer_tarih" | "bolum" | "bilgi" | "kelime";
   /** Index of the line the card appears with (default 0). */
   readonly satir?: number;
 }
@@ -101,6 +112,23 @@ export interface SceneProp {
   readonly ters?: boolean;
 }
 
+/**
+ * Extras that make a scene feel big (an army, a council, a work crew): one costume, many copies standing in rows
+ * behind the actors. They never speak.
+ */
+export interface SceneCrowd {
+  /** What they are, e.g. "Ottoman workers" (for the log). */
+  readonly ad: string;
+  readonly kostum_paketi: string;
+  readonly kostum: CastCostume;
+  /** 2–40. */
+  readonly sayi: number;
+  /** sira: one or two rows; meclis: benches of a council; ordu: a dense block of soldiers. */
+  readonly duzen: "sira" | "meclis" | "ordu";
+  readonly taraf?: "sol" | "sag" | "tum";
+  readonly ruh_hali?: "notr" | "coskulu" | "korkmus";
+}
+
 export interface SceneLine {
   readonly karakter: string;
   readonly metin: string;
@@ -119,6 +147,11 @@ export interface SceneLine {
   readonly rivayet?: boolean;
   /** Words to tint in captions. */
   readonly vurgu?: readonly string[];
+  /**
+   * Speech bubble over a visible character while the line is spoken: the joke's punchline or the line's key
+   * phrase, at most 8 words. Burned-in captions are gone, so only these lines show text on screen.
+   */
+  readonly balon?: string;
 }
 
 export interface EpisodeScene {
@@ -133,6 +166,7 @@ export interface EpisodeScene {
   readonly yazi_karti?: readonly SceneTitleCard[];
   readonly sahne_duzeni?: readonly SceneBlocking[];
   readonly dekor?: readonly SceneProp[];
+  readonly kalabalik?: readonly SceneCrowd[];
   readonly gecis?: V3Transition;
   readonly satirlar: readonly SceneLine[];
 }

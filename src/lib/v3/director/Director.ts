@@ -1,15 +1,20 @@
-import type { Episode, EpisodeScene, SceneLine } from "../episode/EpisodeTypes";
+import { crowdId } from "../costumes/CastMapper";
+import type { Episode, EpisodeScene, SceneCrowd, SceneLine } from "../episode/EpisodeTypes";
 import type {
   V3Accessory,
   V3Background,
+  V3Bubble,
   V3CameraKey,
   V3CaptionPage,
   V3CastMember,
   V3EffectEvent,
   V3Emotion,
+  V3Extra,
   V3FaceEvent,
   V3GestureEvent,
+  V3Insert,
   V3MoveEvent,
+  V3NameTag,
   V3Performer,
   V3Prop,
   V3RenderPlan,
@@ -21,6 +26,12 @@ import type {
 } from "../render/RenderPlanTypes";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
+/** A scene's period image, cut in over the set while the narrator speaks. */
+export interface SceneInsert {
+  readonly src: string;
+  readonly caption?: string;
+}
+
 export interface DirectorInput {
   readonly episode: Episode;
   readonly timeline: EpisodeTimeline;
@@ -28,6 +39,9 @@ export interface DirectorInput {
   readonly accessories: readonly V3Accessory[];
   /** One background per scene, already resolved into the render public dir. */
   readonly backgrounds: readonly V3Background[];
+  /** Per scene: a period image for the narrator's lines, or nothing. */
+  readonly inserts?: readonly (SceneInsert | undefined)[];
+  readonly language?: "tr" | "en";
   readonly fps: number;
   readonly width: number;
   readonly height: number;
@@ -141,12 +155,115 @@ function clampCam(zoom: number, cx: number, cy: number): { zoom: number; cx: num
   return { zoom: z, cx: Math.min(1 - half, Math.max(half, cx)), cy: Math.min(1 - half, Math.max(half, cy)) };
 }
 
+/** Half the width a front-row character takes on stage (body, open arms, headwear), in stage units. */
+export const BODY_HALF = 0.065;
+
+/**
+ * Reframes a close shot so no character is cut by the frame edge (the pilot showed half a neighbour at the edge
+ * of every close-up): a neighbour half in shot is panned fully out or fully in, whichever is the smaller move that
+ * keeps `keep` in frame; when neither works the shot widens step by step.
+ */
+export function cleanFrame(zoom: number, cx: number, keep: readonly number[], others: readonly number[]): { zoom: number; cx: number } {
+  const margin = 0.015;
+  const fits = (z: number, c: number) => {
+    const half = 0.5 / z;
+    const l = c - half, r = c + half;
+    if (keep.some((x) => x - BODY_HALF < l + margin || x + BODY_HALF > r - margin)) return false;
+    return others.every((x) => x + BODY_HALF <= l || x - BODY_HALF >= r || (x - BODY_HALF >= l && x + BODY_HALF <= r));
+  };
+  for (let z = Math.max(1, zoom); z >= 1; z = z > 1.0001 ? Math.max(1, z * 0.92) : 0) {
+    const half = 0.5 / z;
+    const clamp = (c: number) => Math.min(1 - half, Math.max(half, c));
+    const c0 = clamp(cx);
+    if (fits(z, c0)) return { zoom: z, cx: c0 };
+    // Every pan that puts one neighbour's edge exactly on a frame edge, nearest first.
+    const options = others
+      .flatMap((x) => [x + BODY_HALF + half, x - BODY_HALF + half, x - BODY_HALF - half, x + BODY_HALF - half])
+      .map(clamp)
+      .sort((a, b) => Math.abs(a - c0) - Math.abs(b - c0));
+    const pick = options.find((c) => fits(z, c));
+    if (pick !== undefined) return { zoom: z, cx: pick };
+    if (z === 1) break;
+  }
+  return { zoom: 1, cx: 0.5 };
+}
+
+/** Deterministic 0..1 sequence from a string (the same crowd stands the same way in every render). */
+function rng(seed: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Where a scene's extras stand: rows well behind the actors (depth 0.72–1, so the actors stay in front and read
+ * bigger), spread over
+ * their side of the stage; council benches and army blocks stagger alternate rows. Extras face the middle of
+ * the stage, an army faces the other side.
+ */
+export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string): V3Extra[] {
+  const out: V3Extra[] = [];
+  groups.forEach((g, gi) => {
+    const castId = crowdId(sceneId, gi);
+    const rand = rng(castId);
+    const n = Math.max(2, Math.min(40, Math.round(g.sayi)));
+    const [x0, x1] = g.taraf === "sol" ? [0.03, 0.42] : g.taraf === "sag" ? [0.58, 0.97] : [0.04, 0.96];
+    const rows = g.duzen === "ordu" ? Math.min(5, Math.max(2, Math.ceil(n / 8))) : g.duzen === "meclis" ? Math.min(3, Math.max(2, Math.ceil(n / 7))) : n > 9 ? 2 : 1;
+    const perRow = Math.ceil(n / rows);
+    const step = (x1 - x0) / Math.max(1, perRow - 1);
+    let k = 0;
+    for (let r = 0; r < rows && k < n; r++) {
+      const depth = rows === 1 ? 0.8 : 0.72 + (0.28 * r) / (rows - 1);
+      const count = Math.min(perRow, n - k);
+      const stagger = g.duzen !== "sira" && r % 2 === 1 ? step / 2 : 0;
+      for (let c = 0; c < count; c++, k++) {
+        const base = count === 1 ? (x0 + x1) / 2 : x0 + stagger + step * c;
+        const x = Math.min(x1, Math.max(x0, base + (rand() - 0.5) * step * (g.duzen === "ordu" ? 0.15 : 0.4)));
+        const facing: "left" | "right" = g.duzen === "ordu" ? (g.taraf === "sag" ? "left" : "right") : x < 0.5 ? "right" : "left";
+        out.push({ castId, x, depth, facing, scale: 0.72 + rand() * 0.1, mood: g.ruh_hali ?? "notr", seed: Math.floor(rand() * 1e6) });
+      }
+    }
+  });
+  return out;
+}
+
+/**
+ * Narrator stretches of a scene (consecutive off-screen lines) as insert windows, in shot frames. A scene with no
+ * one on stage stays on the period image throughout; one where characters act silently cuts away only for its
+ * first narrator line, so the acting is seen.
+ */
+export function insertWindows(lines: readonly { start: number; end: number; onScreen: boolean }[], duration: number, fps: number, hasPerformers = true): { start: number; end: number }[] {
+  if (!lines.some((l) => l.onScreen)) {
+    if (!hasPerformers) return [{ start: 0, end: duration }];
+    lines = lines.slice(0, 1);
+  }
+  const out: { start: number; end: number }[] = [];
+  for (const l of lines) {
+    if (l.onScreen) continue;
+    const start = Math.max(0, l.start - Math.round(0.15 * fps));
+    const end = Math.min(duration, l.end + Math.round(0.25 * fps));
+    const last = out[out.length - 1];
+    // Back-to-back narrator lines stay on the same picture.
+    if (last && start - last.end < Math.round(0.8 * fps) && !lines.some((x) => x.onScreen && x.start >= last.end && x.start < start)) last.end = end;
+    else out.push({ start, end });
+  }
+  // The first stretch of a scene starts with the scene (no flash of the empty set before it).
+  if (out[0] && out[0].start <= Math.round(0.5 * fps)) out[0].start = 0;
+  return out.filter((w) => w.end - w.start >= Math.round(1.5 * fps));
+}
+
 export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
   const { episode, timeline, fps } = input;
   const f = (sec: number) => Math.round(sec * fps);
   const visibleIds = new Set(input.cast.map((c) => c.id));
   const shots: V3Shot[] = [];
   const captions: V3CaptionPage[] = [];
+  // Characters already introduced with a name tag (the first time they speak in the episode).
+  const introduced = new Set<string>();
 
   episode.sahneler.forEach((scene, si) => {
     const st = timeline.scenes[si]!;
@@ -166,8 +283,16 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const camera: V3CameraKey[] = [];
     const shakes: V3Shake[] = [];
     const key = (frame: number, zoom: number, cx: number, cy: number, ease: V3CameraKey["ease"]) => camera.push({ frame: Math.max(0, Math.min(duration - 1, frame)), ...clampCam(zoom, cx, cy), ease });
+    /** A key that keeps `keepIds` in frame and cuts nobody in half at the frame edge. */
+    const framed = (frame: number, zoom: number, cx: number, cy: number, ease: V3CameraKey["ease"], keepIds: readonly string[]) => {
+      const others = [...tracks.entries()].filter(([id]) => !keepIds.includes(id)).map(([, t]) => t.x);
+      const c = cleanFrame(zoom, cx, keepIds.map((id) => tracks.get(id)!.x), others);
+      key(frame, c.zoom, c.cx, cy, ease);
+    };
     const hasPerformers = tracks.size > 0;
     key(0, hasPerformers ? 1.0 : 1.0, 0.5, 0.5, "smooth");
+    const bubbles: V3Bubble[] = [];
+    const nameTags: V3NameTag[] = [];
 
     let prevSpeaker: string | undefined;
     let speakerChanges = 0;
@@ -222,6 +347,13 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           speaker.turns.push({ frame: ls, facing: toward });
           speaker.facing = toward;
         }
+        if (line.balon?.trim()) bubbles.push({ castId: line.karakter, text: line.balon.trim(), start: ls + f(0.08), end: Math.max(le + f(0.35), ls + f(1.6)) });
+        if (!introduced.has(line.karakter)) {
+          introduced.add(line.karakter);
+          const entry = episode.oyuncu_kadrosu.find((c) => c.id === line.karakter);
+          const member = input.cast.find((c) => c.id === line.karakter);
+          nameTags.push({ castId: line.karakter, name: entry?.ad ?? member?.name ?? line.karakter, ...(entry?.rol ? { role: entry.rol } : {}), start: ls, end: Math.min(duration, ls + f(2.8)) });
+        }
       }
 
       // Listeners turn to the speaker and react a beat later.
@@ -248,22 +380,24 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         if (changed) speakerChanges++;
         if (changed && speakerChanges % 3 === 0 && tracks.size > 1) {
           // Every third reply: back to a two-shot so the geography stays readable.
-          const other = target ?? nearestOther(tracks, line.karakter);
+          const otherId = targetId && tracks.has(targetId) ? targetId : nearestOtherId(tracks, line.karakter);
+          const other = otherId ? tracks.get(otherId) : undefined;
           const mid = other ? (speaker.x + other.x) / 2 : speaker.x;
+          const pair = otherId ? [line.karakter, otherId] : [line.karakter];
           key(ls - 1, camera[camera.length - 1]!.zoom, camera[camera.length - 1]!.cx, camera[camera.length - 1]!.cy, "smooth");
-          key(ls, 1.12, mid, 0.5, "cut");
-          key(le, 1.18, mid, 0.5, "smooth");
+          framed(ls, 1.12, mid, 0.5, "cut", pair);
+          framed(le, 1.18, mid, 0.5, "smooth", pair);
         } else if (changed) {
           const last = camera[camera.length - 1]!;
           key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
-          key(ls, tracks.size > 1 ? 1.48 : 1.3, speaker.x, FACE_Y, "cut");
-          key(le, tracks.size > 1 ? 1.56 : 1.36, speaker.x, FACE_Y, "smooth");
+          framed(ls, tracks.size > 1 ? 1.48 : 1.3, speaker.x, FACE_Y, "cut", [line.karakter]);
+          framed(le, tracks.size > 1 ? 1.56 : 1.36, speaker.x, FACE_Y, "smooth", [line.karakter]);
         } else {
-          key(le, (camera[camera.length - 1]!.zoom ?? 1.4) + 0.08, speaker.x, FACE_Y, "smooth");
+          framed(le, (camera[camera.length - 1]!.zoom ?? 1.4) + 0.08, speaker.x, FACE_Y, "smooth", [line.karakter]);
         }
         if (punch) {
           const last = camera[camera.length - 1]!;
-          key(ls + 3, last.zoom + 0.24, speaker.x, FACE_Y - 0.02, "snap");
+          framed(ls + 3, last.zoom + 0.24, speaker.x, FACE_Y - 0.02, "snap", [line.karakter]);
           shakes.push({ start: ls + 3, end: ls + f(0.3), amplitude: 9 });
         }
         prevSpeaker = line.karakter;
@@ -273,9 +407,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         const last = camera[camera.length - 1]!;
         if (last.zoom > 1.25) {
           key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
-          key(ls, 1.06, 0.5, 0.5, "cut");
+          framed(ls, 1.06, 0.5, 0.5, "cut", []);
         }
-        key(le, 1.14, drift, 0.5, "smooth");
+        framed(le, 1.14, drift, 0.5, "smooth", []);
         prevSpeaker = undefined;
       }
       if (line.sfx === "top_atisi") shakes.push({ start: ls, end: ls + f(0.7), amplitude: 26 });
@@ -296,7 +430,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const titleCards: V3TitleCard[] = (scene.yazi_karti ?? []).map((c) => {
       const anchor = lines[Math.min(c.satir ?? 0, lines.length - 1)];
       const s = anchor ? Math.max(0, local(anchor.start) - (c.stil === "bolum" ? f(0.2) : 0)) : 0;
-      const len = c.stil === "bolum" ? f(2.2) : f(2.8);
+      const len = c.stil === "kelime" ? f(1.3) : c.stil === "bolum" ? f(2.2) : f(2.8);
       return { text: c.metin, ...(c.alt_metin ? { subtext: c.alt_metin } : {}), start: s, end: Math.min(duration - 1, s + len), style: c.stil };
     });
 
@@ -332,6 +466,16 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
 
     const prevMood = si > 0 ? episode.sahneler[si - 1]!.duygu : undefined;
     const transitionIn: V3Transition = scene.gecis ?? (si === 0 ? "kes" : prevMood !== scene.duygu ? "murekkep" : "kaydir");
+    const period = input.inserts?.[si];
+    const inserts: V3Insert[] = period
+      ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) })), duration, fps, tracks.size > 0).map((w, i) => ({
+          src: period.src,
+          ...w,
+          // Alternate push-in and pull-out so two cutaways to the same picture do not look like a repeat.
+          kenBurns: i % 2 === 0 ? { fromZoom: 1.04, toZoom: 1.14, fromX: 0.012, toX: -0.012 } : { fromZoom: 1.15, toZoom: 1.05, fromX: -0.01, toX: 0.01 },
+          ...(period.caption ? { caption: period.caption } : {}),
+        }))
+      : [];
     shots.push({
       id: scene.id,
       sceneId: scene.id,
@@ -346,6 +490,10 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       mapArrows,
       transitionIn,
       dramatized: lines.some((l) => visibleIds.has(l.speaker)),
+      bubbles: settleBubbles(bubbles, duration),
+      nameTags,
+      inserts,
+      extras: placeCrowd(scene.kalabalik ?? [], scene.id),
     });
   });
 
@@ -362,6 +510,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     shots,
     captions,
     showCaptions: input.showCaptions,
+    ...(input.language ? { language: input.language } : {}),
     ...(input.audio ? { audio: input.audio } : {}),
   };
 }
@@ -375,6 +524,24 @@ function nearestOther<T extends { x: number }>(tracks: ReadonlyMap<string, T>, i
     if (!best || Math.abs(t.x - me.x) < Math.abs(best.x - me.x)) best = t;
   }
   return best;
+}
+
+function nearestOtherId<T extends { x: number }>(tracks: ReadonlyMap<string, T>, id: string): string | undefined {
+  const me = tracks.get(id);
+  if (!me) return undefined;
+  let best: string | undefined;
+  for (const [other, t] of tracks) {
+    if (other !== id && (best === undefined || Math.abs(t.x - me.x) < Math.abs(tracks.get(best)!.x - me.x))) best = other;
+  }
+  return best;
+}
+
+/** One bubble on screen at a time: each one ends before the next begins. */
+export function settleBubbles(bubbles: readonly V3Bubble[], duration: number): V3Bubble[] {
+  const sorted = [...bubbles].sort((a, b) => a.start - b.start);
+  return sorted
+    .map((b, i) => ({ ...b, end: Math.min(b.end, duration, sorted[i + 1] ? sorted[i + 1]!.start - 1 : Infinity) }))
+    .filter((b) => b.end - b.start >= 8);
 }
 
 function dedupeByStart<T extends { start: number }>(items: readonly T[]): T[] {

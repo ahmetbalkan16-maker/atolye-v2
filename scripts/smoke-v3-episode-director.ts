@@ -4,9 +4,9 @@
  */
 import assert from "node:assert/strict";
 import path from "node:path";
-import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
+import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, beats, buildRenderPlan, captionPages, fillTempo, normalizeCamera } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, normalizeCamera, placeCrowd } from "../src/lib/v3/director/Director";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -184,6 +184,77 @@ async function main() {
     assert.deepEqual(fillTempo(busy, [0, 90, 180, 270], 300, 30), busy);
     // A gesture and the expression starting with it are one beat.
     assert.deepEqual(beats([0, 5, 10, 30], 30), [0, 30]);
+  });
+
+  await scenario("K speech text and name tags: only on visible speakers' lines with a balon, one at a time; each character introduced once", () => {
+    const base = sampleEpisode();
+    const scene = base.sahneler[0]!;
+    const ep: Episode = { ...base, sahneler: [{ ...scene, satirlar: scene.satirlar.map((l, i) => (i === 1 ? { ...l, balon: "Konstantiniyye benim!" } : i === 2 ? { ...l, balon: "Bin yıl!" } : l)) }, { ...scene, id: "ikinci" }] };
+    const tl = buildTimeline(ep, [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)], [fakeAudio(2), fakeAudio(1), fakeAudio(1), fakeAudio(1)]]);
+    const plan = buildRenderPlan({ episode: ep, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }, { src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false, language: "en" });
+    assert.equal(plan.language, "en");
+    assert.equal(plan.showCaptions, false);
+    const [first, second] = plan.shots;
+    assert.deepEqual(first!.bubbles!.map((b) => [b.castId, b.text]), [["mehmed", "Konstantiniyye benim!"], ["halil", "Bin yıl!"]]);
+    assert.ok(first!.bubbles![0]!.end < first!.bubbles![1]!.start, "aynı anda tek balon");
+    assert.deepEqual(first!.nameTags!.map((t) => [t.castId, t.name, t.role]), [["mehmed", "II. Mehmed", "padişah"], ["halil", "Halil Paşa", "sadrazam"]]);
+    assert.equal(second!.nameTags!.length, 0, "ikinci sahnede yeniden tanıtılmaz");
+    assert.equal(second!.bubbles!.length, 0, "balonsuz satır yazı göstermez");
+  });
+
+  await scenario("L period cutaways: narrator stretches become inserts; a silent-acting scene cuts away only for its first narrator line", () => {
+    const fps = 30;
+    const lines = [{ start: 0, end: 60, onScreen: false }, { start: 70, end: 100, onScreen: false }, { start: 110, end: 150, onScreen: true }, { start: 160, end: 230, onScreen: false }];
+    assert.deepEqual(insertWindows(lines, 300, fps), [{ start: 0, end: 108 }, { start: 155, end: 238 }]);
+    assert.deepEqual(insertWindows(lines.filter((l) => !l.onScreen), 300, fps, false), [{ start: 0, end: 300 }], "sahnede kimse yok: tüm sahne");
+    assert.deepEqual(insertWindows(lines.filter((l) => !l.onScreen), 300, fps, true), [{ start: 0, end: 68 }], "sessiz oyun: yalnız ilk satır");
+    assert.deepEqual(insertWindows([{ start: 0, end: 20, onScreen: false }], 300, fps), [], "1,5 sn'den kısa ara plan yok");
+    const ep = sampleEpisode();
+    const tl = buildTimeline(ep, [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const plan = buildRenderPlan({ episode: ep, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], inserts: [{ src: "bg/donem.jpg", caption: "Buondelmonti, 1430" }], fps, width: 1920, height: 1080, showCaptions: false });
+    const ins = plan.shots[0]!.inserts!;
+    assert.equal(ins.length, 1);
+    assert.equal(ins[0]!.start, 0);
+    assert.equal(ins[0]!.caption, "Buondelmonti, 1430");
+    assert.ok(ins[0]!.end <= Math.round(tl.lines[1]!.start * fps), "karakter konuşmadan önce sete dönülür");
+  });
+
+  await scenario("M clean framing: no character is left half in shot at a frame edge", () => {
+    const cut = (zoom: number, cx: number, xs: readonly number[]) => {
+      const half = 0.5 / zoom;
+      return xs.some((x) => (x - BODY_HALF < cx - half && x + BODY_HALF > cx - half) || (x - BODY_HALF < cx + half && x + BODY_HALF > cx + half));
+    };
+    // The pilot's close-up: speaker at 0.35, neighbour at 0.65 straddling the right edge.
+    assert.ok(cut(1.48, 0.35, [0.65]));
+    const c = cleanFrame(1.48, 0.35, [0.35], [0.65]);
+    assert.ok(!cut(c.zoom, c.cx, [0.65]) && !cut(c.zoom, c.cx, [0.35]), JSON.stringify(c));
+    assert.ok(Math.abs(c.cx - 0.35) < 0.12 && c.zoom > 1.3, "küçük bir kaydırma yeter");
+    // Three in a row: whatever the frame, nobody is cut and the speaker stays in.
+    for (const sx of [0.18, 0.5, 0.82]) {
+      const others = [0.18, 0.5, 0.82].filter((x) => x !== sx);
+      const f = cleanFrame(1.56, sx, [sx], others);
+      assert.ok(!cut(f.zoom, f.cx, [sx, ...others]), `${sx}: ${JSON.stringify(f)}`);
+    }
+    assert.deepEqual(cleanFrame(1, 0.5, [], [0.12, 0.88]), { zoom: 1, cx: 0.5 });
+  });
+
+  await scenario("N crowds: extras stand behind the actors, deterministic, on their side, an army facing across", () => {
+    const g = { ad: "yeniçeriler", kostum_paketi: "ottoman-1453", kostum: castBase.kostum, sayi: 20, duzen: "ordu" as const, taraf: "sol" as const, ruh_hali: "coskulu" as const };
+    const a = placeCrowd([g], "s1");
+    assert.deepEqual(a, placeCrowd([g], "s1"), "aynı dizilim");
+    assert.equal(a.length, 20);
+    assert.ok(a.every((e) => e.depth >= 0.72 && e.depth <= 1 && e.x >= 0.03 && e.x <= 0.42 && e.facing === "right" && e.mood === "coskulu" && e.castId === "kalabalik-s1-0"));
+    assert.ok(new Set(a.map((e) => e.depth)).size >= 3, "ordu birkaç sıra");
+    const row = placeCrowd([{ ...g, sayi: 6, duzen: "sira", taraf: "tum", ruh_hali: undefined }], "s2");
+    assert.equal(new Set(row.map((e) => e.depth)).size, 1);
+    assert.ok(row.every((e) => e.mood === "notr" && e.facing === (e.x < 0.5 ? "right" : "left")));
+    const ep = sampleEpisode();
+    const withCrowd: Episode = { ...ep, sahneler: [{ ...ep.sahneler[0]!, kalabalik: [g] }] };
+    assert.equal(validateEpisode(withCrowd).ok, true, JSON.stringify(validateEpisode(withCrowd).errors));
+    assert.equal(crowdCast(withCrowd, "kukla")[0]!.id, "kalabalik-acilis-0");
+    const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, kalabalik: [{ ...g, sayi: 90 }], satirlar: [{ ...ep.sahneler[0]!.satirlar[0]!, balon: "anlatıcıya balon" }] }] });
+    assert.ok(bad.errors.some((e) => e.path.endsWith("kalabalik[0].sayi")));
+    assert.ok(bad.errors.some((e) => e.code === "BALON_ANLATICI"));
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

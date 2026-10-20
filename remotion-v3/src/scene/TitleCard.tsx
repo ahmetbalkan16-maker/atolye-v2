@@ -25,6 +25,19 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
     );
   }
 
+  if (card.style === "kelime") {
+    // One word, full screen, hard cut in and out: the emphasis beat.
+    const punch = interpolate(local, [0, 4], [1.12, 1], { extrapolateRight: "clamp" });
+    return (
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#0d0c12" }}>
+        <div style={{ transform: `scale(${punch})`, textAlign: "center", color: "#ffffff", font: `600 ${230 * k}px 'Bahnschrift', 'Arial Narrow', sans-serif`, fontStretch: "condensed", letterSpacing: 6 * k, lineHeight: 1 }}>
+          {card.text.toLocaleUpperCase("en-US")}
+          {card.subtext ? <div style={{ font: `600 ${44 * k}px 'Bahnschrift', 'Segoe UI', sans-serif`, letterSpacing: 2 * k, color: "#cfc8d8", marginTop: 18 * k }}>{card.subtext}</div> : null}
+        </div>
+      </div>
+    );
+  }
+
   if (card.style === "bilgi") {
     return (
       <div

@@ -9,22 +9,28 @@
   ],
   "items": {
     "padisah-kavugu": {
-      "slot": "head"
+      "slot": "head",
+      "not": "only the sultan"
     },
     "vezir-sarigi": {
-      "slot": "head"
+      "slot": "head",
+      "not": "viziers, pashas, scholars, officials"
     },
     "zaganos-migferi": {
-      "slot": "head"
+      "slot": "head",
+      "not": "military commanders in the field"
     },
     "usta-kecesi": {
-      "slot": "head"
+      "slot": "head",
+      "not": "master craftsmen, engineers, cannon founders"
     },
     "yeniceri-burku": {
-      "slot": "head"
+      "slot": "head",
+      "not": "janissaries only"
     },
     "isci-sarigi": {
-      "slot": "head"
+      "slot": "head",
+      "not": "workers, laborers, townsmen"
     },
     "sakal-genc": {
       "slot": "beard"

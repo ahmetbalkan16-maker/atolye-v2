@@ -1,14 +1,15 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { V3Emotion } from "../render/RenderPlanTypes";
-import { runChecked, runProcess } from "../util/Proc";
+import { waitForCoolGpu } from "../util/Gpu";
+import { runChecked } from "../util/Proc";
+import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
 import { normalizeEnglishForSpeech } from "./EnglishText";
 import { type Lexicon, normalizeForSpeech } from "./TurkishText";
 
-export type TtsProviderId = "chatterbox" | "piper";
+export type TtsProviderId = "chatterbox" | "piper" | "kokoro";
 
 export interface VoiceProfile {
   readonly saglayici: TtsProviderId;
@@ -23,6 +24,15 @@ export interface VoiceProfile {
   readonly sicaklik: number;
   /** Light vibrato for an older voice. */
   readonly titreme?: boolean;
+  /**
+   * Kokoro voice: one id ("am_michael") or a weighted blend ("am_michael:0.6,am_fenrir:0.4"). American voices
+   * start with "a", British with "b".
+   */
+  readonly kokoro_ses?: string;
+  /** Narration language this voice is for; voices without it are Turkish. */
+  readonly dil?: TtsLanguage;
+  /** What the voice sounds like (the script writer picks English voices by it). */
+  readonly tarif?: string;
   readonly not?: string;
 }
 
@@ -70,114 +80,83 @@ export class TtsError extends Error {
   }
 }
 
-/** GPU temperature in °C, or undefined when it cannot be read (an unreadable sensor never blocks). */
-export async function gpuTemperature(): Promise<number | undefined> {
-  try {
-    const r = await runProcess("nvidia-smi", ["--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"], { timeoutMs: 10_000 });
-    const t = Number(r.stdout.trim().split(/\r?\n/)[0]);
-    return Number.isFinite(t) ? t : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/** Owner rule: no GPU work at or above 73 °C; wait in 15 s steps for up to 10 minutes, then refuse. */
-export async function waitForCoolGpu(log: (s: string) => void, limit = 73, maxWaitMs = 10 * 60_000): Promise<void> {
-  const deadline = Date.now() + maxWaitMs;
-  for (;;) {
-    const t = await gpuTemperature();
-    if (t === undefined || t < limit) return;
-    if (Date.now() > deadline) throw new TtsError("V3_GPU_TOO_HOT", `GPU ${t} °C ≥ ${limit} °C, ${maxWaitMs / 60000} dk beklendi`);
-    log(`GPU ${t} °C — soğuması bekleniyor (sınır ${limit} °C)`);
-    await new Promise((r) => setTimeout(r, 15_000));
-  }
-}
-
 class ChatterboxEngine implements TtsEngine {
   readonly id = "chatterbox" as const;
   readonly model = "chatterbox-tts-0.1.7-multilingual";
-  private child?: ChildProcessWithoutNullStreams;
-  private ready?: Promise<void>;
-  private waiting = new Map<string, (msg: { ok: boolean; error?: string }) => void>();
-  private counter = 0;
+  private readonly server: PythonLineServer;
 
-  constructor(private readonly paths: V3Paths, private readonly log: (s: string) => void) {}
-
-  private start(): Promise<void> {
-    if (this.ready) return this.ready;
-    this.ready = (async () => {
-      await waitForCoolGpu(this.log);
-      if (!existsSync(this.paths.ttsPython)) throw new TtsError("V3_TTS_PYTHON_MISSING", this.paths.ttsPython);
-      const script = path.join(this.paths.repoRoot, "scripts", "v3", "tts_server.py");
-      const env = {
-        ...process.env,
-        HF_HOME: path.join(this.paths.toolsRoot, "hf-cache"),
-        HF_HUB_DISABLE_TELEMETRY: "1",
-        PYTHONIOENCODING: "utf-8",
-        PYTHONUTF8: "1",
-        TEMP: this.paths.asciiTemp,
-        TMP: this.paths.asciiTemp,
-      };
-      await fs.mkdir(this.paths.asciiTemp, { recursive: true });
-      const child = spawn(this.paths.ttsPython, ["-u", script], { env, windowsHide: true });
-      this.child = child;
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      let buffer = "";
-      let resolveReady!: () => void, rejectReady!: (e: Error) => void;
-      const readyPromise = new Promise<void>((res, rej) => ((resolveReady = res), (rejectReady = rej)));
-      child.stdout.on("data", (d: string) => {
-        buffer += d;
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim().startsWith("{")) continue;
-          const msg = JSON.parse(line) as { ready?: boolean; id?: string; ok?: boolean; error?: string; device?: string; load_seconds?: number };
-          if (msg.ready) {
-            this.log(`Chatterbox hazır (${msg.device}, ${msg.load_seconds} sn)`);
-            resolveReady();
-          } else if (msg.id && this.waiting.has(msg.id)) {
-            this.waiting.get(msg.id)!({ ok: !!msg.ok, ...(msg.error ? { error: msg.error } : {}) });
-            this.waiting.delete(msg.id);
-          }
-        }
-      });
-      let stderrTail = "";
-      child.stderr.on("data", (d: string) => {
-        stderrTail = (stderrTail + d).slice(-4000);
-      });
-      child.on("exit", (code) => {
-        rejectReady(new TtsError("V3_TTS_EXIT", `Chatterbox süreci kapandı (${code}): ${stderrTail.slice(-800)}`));
-        for (const [, cb] of this.waiting) cb({ ok: false, error: `süreç kapandı (${code})` });
-        this.waiting.clear();
-        this.child = undefined;
-        this.ready = undefined;
-      });
-      const timer = setTimeout(() => rejectReady(new TtsError("V3_TTS_START_TIMEOUT", "model 15 dk içinde yüklenmedi")), 15 * 60_000);
-      await readyPromise.finally(() => clearTimeout(timer));
-    })();
-    return this.ready;
+  constructor(private readonly paths: V3Paths, private readonly log: (s: string) => void) {
+    this.server = new PythonLineServer({
+      python: paths.ttsPython,
+      script: path.join(paths.repoRoot, "scripts", "v3", "tts_server.py"),
+      env: sideProcessEnv(paths),
+      label: "Chatterbox",
+      startTimeoutMs: 15 * 60_000,
+      requestTimeoutMs: 180_000,
+      log,
+    });
   }
 
   async synthesizeRaw(text: string, voice: VoiceProfile, boost: number, out: string, seed: number, language: TtsLanguage): Promise<void> {
-    await this.start();
+    await waitForCoolGpu(this.log);
+    await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     const ref = voice.referans ? path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`) : undefined;
     if (ref && !existsSync(ref)) throw new TtsError("V3_VOICE_REF_MISSING", ref);
-    const id = `r${++this.counter}`;
-    const reply = new Promise<{ ok: boolean; error?: string }>((resolve) => this.waiting.set(id, resolve));
-    const req = { id, text, ref, out, lang: language, exaggeration: Math.min(1.5, Math.max(0.25, voice.exaggeration + boost)), cfg: voice.cfg, temperature: voice.sicaklik, seed };
-    this.child!.stdin.write(JSON.stringify(req) + "\n", "utf8");
-    const timeout = new Promise<{ ok: boolean; error: string }>((resolve) => setTimeout(() => resolve({ ok: false, error: "satır 180 sn içinde bitmedi" }), 180_000));
-    const r = await Promise.race([reply, timeout]);
+    const r = await this.server.request({ text, ref, out, lang: language, exaggeration: Math.min(1.5, Math.max(0.25, voice.exaggeration + boost)), cfg: voice.cfg, temperature: voice.sicaklik, seed });
     if (!r.ok) throw new TtsError("V3_TTS_LINE", r.error ?? "bilinmeyen hata");
   }
 
-  async close(): Promise<void> {
-    if (!this.child) return;
-    this.child.stdin.write(JSON.stringify({ cmd: "quit" }) + "\n");
-    await new Promise((r) => setTimeout(r, 300));
-    this.child?.kill();
+  close(): Promise<void> {
+    return this.server.close();
   }
+}
+
+/**
+ * Kokoro-82M (Apache-2.0): native American and British English voices, for English narration. Runs in the
+ * separate generation venv (`ATOLYE_V3_GEN_PYTHON`), not in the Chatterbox one, so neither pins the other.
+ */
+class KokoroEngine implements TtsEngine {
+  readonly id = "kokoro" as const;
+  readonly model = "kokoro-82m-v1.0";
+  private readonly server: PythonLineServer;
+
+  constructor(private readonly paths: V3Paths, private readonly log: (s: string) => void) {
+    this.server = new PythonLineServer({
+      python: paths.genPython,
+      script: path.join(paths.repoRoot, "scripts", "v3", "kokoro_server.py"),
+      env: sideProcessEnv(paths),
+      label: "Kokoro",
+      startTimeoutMs: 10 * 60_000,
+      requestTimeoutMs: 120_000,
+      log,
+    });
+  }
+
+  async synthesizeRaw(text: string, voice: VoiceProfile, boost: number, out: string, _seed: number, language: TtsLanguage): Promise<void> {
+    if (language !== "en") throw new TtsError("V3_KOKORO_LANGUAGE", `Kokoro sesleri yalnız İngilizce: ${language}`);
+    if (!voice.kokoro_ses) throw new TtsError("V3_KOKORO_VOICE", "ses profilinde kokoro_ses yok");
+    await fs.mkdir(this.paths.asciiTemp, { recursive: true });
+    // Kokoro has no emotion control; an excited line is read a touch faster instead.
+    const r = await this.server.request({ text, voice: voice.kokoro_ses, speed: 1 + Math.max(-0.04, Math.min(0.06, boost * 0.2)), out });
+    if (!r.ok) throw new TtsError("V3_TTS_LINE", r.error ?? "bilinmeyen hata");
+  }
+
+  close(): Promise<void> {
+    return this.server.close();
+  }
+}
+
+/** Environment of a Python model process: models cached in the tools folder, an ASCII temp, UTF-8, no telemetry. */
+export function sideProcessEnv(paths: V3Paths): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    HF_HOME: path.join(paths.toolsRoot, "hf-cache"),
+    HF_HUB_DISABLE_TELEMETRY: "1",
+    PYTHONIOENCODING: "utf-8",
+    PYTHONUTF8: "1",
+    TEMP: paths.asciiTemp,
+    TMP: paths.asciiTemp,
+  };
 }
 
 class PiperEngine implements TtsEngine {
@@ -239,7 +218,7 @@ export class TtsService {
   private engine(id: TtsProviderId): TtsEngine {
     let e = this.engines.get(id);
     if (!e) {
-      e = id === "chatterbox" ? new ChatterboxEngine(this.paths, this.log) : new PiperEngine(this.paths);
+      e = id === "chatterbox" ? new ChatterboxEngine(this.paths, this.log) : id === "kokoro" ? new KokoroEngine(this.paths, this.log) : new PiperEngine(this.paths);
       this.engines.set(id, e);
     }
     return e;
