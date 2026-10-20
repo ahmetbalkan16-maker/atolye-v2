@@ -13,6 +13,7 @@ function toCostume(pack: string, k: CastCostume): V3Costume {
     ...(k.el_arka ? { handBack: k.el_arka } : {}),
     ...(k.sirt ? { back: k.sirt } : {}),
     collar: k.yaka ?? "yok",
+    ...(k.pelerin ? { cape: k.pelerin } : {}),
     shoes: k.ayakkabi,
     ...(k.sac ? { hair: { style: k.sac.stil, color: k.sac.renk } } : {}),
     ...(k.sac_parca ? { hairPart: k.sac_parca } : {}),

@@ -8,11 +8,11 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
-import { distinctLooks } from "../src/lib/v3/costumes/LookVariety";
+import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, likenessOrders, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, castLooks, cloakFromNote, likenessOrders, noteColours, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
 import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
@@ -219,6 +219,62 @@ function main() {
     const p = sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Pompey", undefined, undefined, ["laurel crown, portrait bare-headed"]);
     assert.match(p, /FELL SHORT. The art director's differences: laurel crown, portrait bare-headed/);
     assert.doesNotMatch(sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Pompey", undefined, undefined), /FELL SHORT/);
+  });
+
+  scenario("M cloak: the sheet's pelerin, the historian's cloak as fallback, validated, drawn by the rig", () => {
+    const base = episode().oyuncu_kadrosu[1]!.kostum!;
+    assert.equal(applySheet(base, { ...SHEET, pelerin: "#a02020" }).kostum.pelerin, "#a02020");
+    assert.equal(applySheet({ ...base, pelerin: "#a02020" }, { ...SHEET, pelerin: null }).kostum.pelerin, undefined, "null removes the cloak");
+    assert.ok(applySheet(base, { ...SHEET, pelerin: "red" }).sorunlar.some((s) => s.startsWith("pelerin")));
+    assert.equal(cloakFromNote("He wore a white Roman general's toga with a purple stripe (toga praetexta), a red military cloak (paludamentum), and a laurel wreath"), "#b3262e");
+    assert.equal(cloakFromNote("a white toga with a broad purple stripe, no headwear"), undefined);
+    assert.equal(cloakFromNote("a heavy fur-lined mantle"), "#b3262e", "a cloak with no colour word is crimson");
+    assert.equal(cloakFromNote("a blue cloak over mail"), "#2f5fa0");
+    const note = { gorunus: "", giyim: "toga and a red military cloak (paludamentum)", simge: "", fark: "" };
+    assert.equal(withNoteCloak(base, note).pelerin, "#b3262e");
+    assert.equal(withNoteCloak({ ...base, pelerin: "#123456" }, note).pelerin, "#123456", "the designer's cloak wins");
+    assert.deepEqual(noteColours("white toga with a broad purple stripe"), ["#f3f3f3", "#6b2d7b"]);
+    const ep = episode();
+    const caped = { ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "caesar" ? { ...c, kostum: { ...c.kostum!, pelerin: "#b3262e" } } : c)) };
+    assert.ok(validateEpisode(caped).ok);
+    assert.ok(!validateEpisode({ ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "caesar" ? { ...c, kostum: { ...c.kostum!, pelerin: "red" } } : c)) }).ok, "a cloak colour must be #RRGGBB");
+    const [m] = toRenderCast([caped.oyuncu_kadrosu[1]!], "kukla");
+    assert.equal(m!.costume.cape, "#b3262e");
+    const schema = JSON.parse(readFileSync(path.resolve("docs/v3/episode.schema.json"), "utf8")) as { $defs: { kostum: { properties: Record<string, unknown> } } };
+    assert.ok(schema.$defs.kostum.properties.pelerin, "the schema knows the cloak");
+  });
+
+  scenario("N clothes: named characters in the same clothes are told apart, from the historian's colours first", () => {
+    const toga = (ikincil: string): CastCostume => ({ giysi: "toga", renkler: { ana: "#f3f3f3", ikincil, ic: "#f6e7d8", sus: "#b8283a" }, ayakkabi: "kahve-mest" });
+    const ep = episode();
+    const romans: Episode = {
+      ...ep,
+      oyuncu_kadrosu: [
+        ep.oyuncu_kadrosu[0]!,
+        { ...ep.oyuncu_kadrosu[1]!, kostum: { ...toga("#b8283a"), bas: "gardirop/laurel-a" } },
+        { ...ep.oyuncu_kadrosu[4]!, id: "pompey", ad: "Pompey", portre: { wiki: "Pompey" }, kostum: { ...toga("#b8283a"), bas: "gardirop/laurel-b", pelerin: "#b3262e" } },
+        { ...ep.oyuncu_kadrosu[4]!, id: "cicero", ad: "Cicero", renk: "#2f6fb0", portre: { wiki: "Cicero" }, kostum: { ...toga("#b8283a"), sac: { stil: "seyrek", renk: "#e0c080" } } },
+      ],
+    };
+    assert.deepEqual(clothesClashes(romans), ["caesar + cicero"], "Pompey's cloak already sets him apart");
+    const { episode: out, fixes } = distinctLooks(romans, new Map([["cicero", noteColours("a white senator's toga with a broad purple stripe")]]));
+    const k = (id: string) => out.oyuncu_kadrosu.find((c) => c.id === id)!.kostum!;
+    assert.equal(k("caesar").renkler.ikincil, "#b8283a", "the first real person keeps his colours");
+    assert.equal(k("cicero").renkler.ikincil, "#6b2d7b", "white is skipped (it is the toga), purple from the note");
+    assert.ok(fixes.some((f) => f.includes("tarihçinin notundan")));
+    assert.deepEqual(clothesClashes(out), []);
+    const noNote = distinctLooks(romans).episode.oyuncu_kadrosu.find((c) => c.id === "cicero")!.kostum!;
+    assert.equal(noNote.renkler.ikincil, "#2f6fb0", "without a note: the character's own colour");
+    const brownish = { ...romans, oyuncu_kadrosu: romans.oyuncu_kadrosu.map((c) => (c.id === "cicero" ? { ...c, renk: "#8a5a2b" } : c)) };
+    assert.equal(distinctLooks(brownish).episode.oyuncu_kadrosu.find((c) => c.id === "cicero")!.kostum!.renkler.ikincil, "#6e1823", "an own colour too close to the red sash gives way to a dark shade");
+    assert.equal(distinctLooks(out).fixes.length, 0, "a second pass changes nothing");
+    const p = sheetPrompt(romans.oyuncu_kadrosu[3]!, romans, "Cicero", undefined, undefined, undefined, ["Every named character wears different clothes."]);
+    assert.match(p, /- Caesar: toga #f3f3f3 with #b8283a, headwear "laurel a"/);
+    assert.match(p, /- Pompey: toga #f3f3f3 with #b8283a, cloak #b3262e/);
+    assert.match(p, /told apart from every one of them at a glance by the clothes too/);
+    assert.match(p, /LESSONS FROM EARLIER EPISODES \(follow them\):\n- Every named character wears different clothes\./);
+    assert.match(p, /"pelerin": the colour #RRGGBB of the cloak/);
+    assert.deepEqual(castLooks(romans, "caesar").length, 2);
   });
 
   console.log(`V3 likeness smoke: PASS (${scenarios} scenarios)`);

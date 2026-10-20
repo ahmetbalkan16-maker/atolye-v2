@@ -11,6 +11,7 @@ import type {
   V3Emotion,
   V3Extra,
   V3FaceEvent,
+  V3Gesture,
   V3GestureEvent,
   V3Insert,
   V3MoveEvent,
@@ -24,7 +25,7 @@ import type {
   V3Transition,
   V3VisemeKey,
 } from "../render/RenderPlanTypes";
-import { buildGeoMap, type MapData } from "../maps/MapBuilder";
+import { buildGeoMap, type MapData, mapStageX } from "../maps/MapBuilder";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
 /** A scene's period image, cut in over the set while the narrator speaks. */
@@ -63,6 +64,9 @@ const OFFSTAGE_RIGHT = 1.14;
 const FACE_Y = 0.58;
 /** Two-shots and narrator shots sit lower still: the cast fills the frame and the legs leave it. */
 const TWO_SHOT_Y = 0.6;
+
+/** Gestures a silent character on stage makes to the narration, in turn. */
+const SILENT_ACTS: readonly V3Gesture[] = ["isaret_et", "omuz_silk", "kollari_kavustur", "dusun"];
 
 /** How a listener's face answers the speaker's emotion; others keep their own face. */
 const LISTENER_REACTION: Partial<Record<V3Emotion, V3Emotion>> = { kizgin: "korkmus", saskin: "saskin", mutlu: "mutlu", korkmus: "saskin" };
@@ -269,6 +273,53 @@ export function insertWindows(lines: readonly { start: number; end: number; onSc
   return out.filter((w) => w.end - w.start >= Math.round(1.5 * fps));
 }
 
+/**
+ * A narrated scene with no one on stage was a still period picture for its whole length (the Rubicon outro: 17.9 s
+ * of one engraving, owner review 20 Oct 2026). Such a scene gets the episode's lead — the visible character with the
+ * most lines — standing silently in the middle, so its set is drawn, the period picture becomes a cutaway of at most
+ * MAX_INSERT_S and the character acts the narration out. Map scenes, scenes with a given background file and crowd
+ * scenes are left alone.
+ */
+export function stageEmptyScenes(episode: Episode): { episode: Episode; fixes: string[] } {
+  const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.kostum).map((c) => c.id));
+  const count = new Map<string, number>();
+  for (const s of episode.sahneler) for (const l of s.satirlar) if (visible.has(l.karakter)) count.set(l.karakter, (count.get(l.karakter) ?? 0) + 1);
+  const lead = [...visible].sort((a, b) => (count.get(b) ?? 0) - (count.get(a) ?? 0))[0];
+  if (!lead) return { episode, fixes: [] };
+  const fixes: string[] = [];
+  const sahneler = episode.sahneler.map((s) => {
+    const onStage = s.satirlar.some((l) => visible.has(l.karakter)) || (s.sahne_duzeni ?? []).some((b) => visible.has(b.karakter));
+    if (onStage || s.harita?.merkez || s.arka_plan_sorgusu.dosya || s.kalabalik?.length) return s;
+    fixes.push(`${s.id}: sahnede kimse yoktu; ${lead} sessiz oyuncu olarak sahneye kondu`);
+    return { ...s, sahne_duzeni: [{ karakter: lead, x: 0.5 }] };
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
+}
+
+/**
+ * The longest run of the finished video with no character on screen, in seconds: a shot with no one on stage and no
+ * drawn map counts whole, a period-picture cutaway counts its window (the opening cover is left out). The QC's
+ * "event gap" missed the Rubicon outro because the camera's slow drift counts as an event.
+ */
+export function longestEmptyStretch(plan: V3RenderPlan): number {
+  let best = 0;
+  let run = 0;
+  for (const s of plan.shots) {
+    if (s.id === "kapak") continue;
+    if (!s.performers.length && !s.geoMap) {
+      run += s.duration;
+      best = Math.max(best, run);
+      continue;
+    }
+    // A cutaway at the very start of a shot continues the empty run of the shot before it.
+    const first = (s.inserts ?? [])[0];
+    best = Math.max(best, run + (first && first.start === 0 ? first.end : 0));
+    run = 0;
+    for (const w of s.inserts ?? []) best = Math.max(best, w.end - w.start);
+  }
+  return best / plan.fps;
+}
+
 export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
   const { episode, timeline, fps } = input;
   const f = (sec: number) => Math.round(sec * fps);
@@ -286,6 +337,16 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const local = (sec: number) => f(sec) - start;
     const lines = timeline.lines.filter((l) => l.sceneIndex === si);
     const slots = placeScene(scene, visibleIds);
+    // A geographic map scene: things appear with the line that names them (satir), else one after another.
+    const geo = scene.harita?.merkez && scene.harita.genislik_km && input.mapData
+      ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)))
+      : undefined;
+    // A lone character on a map stands where they hide the fewest names, unless the script placed them.
+    const lone = geo && slots.size === 1 ? [...slots.entries()][0]! : undefined;
+    if (lone && !(scene.sahne_duzeni ?? []).some((b) => b.karakter === lone[0])) {
+      const x = mapStageX(geo!, input.width, input.height);
+      slots.set(lone[0], { ...lone[1], x, facing: x < 0.5 ? "right" : "left" });
+    }
 
     // Per-performer tracks.
     type Track = { x: number; initialX: number; moves: V3MoveEvent[]; gestures: V3GestureEvent[]; faces: V3FaceEvent[]; visemes: V3VisemeKey[]; effects: V3EffectEvent[]; speaking: { start: number; end: number }[]; turns: { frame: number; facing: "left" | "right" }[]; facing: "left" | "right"; lastFace?: V3Emotion };
@@ -309,6 +370,11 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
 
     let prevSpeaker: string | undefined;
     let speakerChanges = 0;
+    // A narrated scene with someone on stage but no one speaking: the cast acts the narration out (faces follow its
+    // mood, a gesture on each longer line, a wave goodbye on the episode's last line) instead of standing still.
+    const silentScene = tracks.size > 0 && !lines.some((l) => tracks.has(l.speaker));
+    const actors = [...tracks.values()];
+    let acted = 0;
     lines.forEach((lt, idx) => {
       const line: SceneLine = scene.satirlar[lt.lineIndex]!;
       const ls = local(lt.start), le = local(lt.end);
@@ -426,6 +492,20 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         }
         framed(le, wide.to, drift, wide.y, "smooth", []);
         prevSpeaker = undefined;
+        if (silentScene) {
+          for (const tr of actors) {
+            if (line.duygu !== tr.lastFace) {
+              tr.faces.push({ start: ls + f(0.2), emotion: line.duygu });
+              tr.lastFace = line.duygu;
+            }
+          }
+          const finale = si === episode.sahneler.length - 1 && idx === lines.length - 1;
+          if (finale || le - ls >= f(1.6)) {
+            const actor = actors[acted % actors.length]!;
+            actor.gestures.push({ gesture: finale ? "el_salla" : SILENT_ACTS[acted % SILENT_ACTS.length]!, start: ls + f(0.3), end: Math.max(ls + f(1.2), le - f(0.2)) });
+            acted++;
+          }
+        }
       }
       if (line.sfx === "top_atisi") shakes.push({ start: ls, end: ls + f(0.7), amplitude: 26 });
 
@@ -449,10 +529,6 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       return { text: c.metin, ...(c.alt_metin ? { subtext: c.alt_metin } : {}), start: s, end: Math.min(duration - 1, s + len), style: c.stil };
     });
 
-    // A geographic map scene: things appear with the line that names them (satir), else one after another.
-    const geo = scene.harita?.merkez && scene.harita.genislik_km && input.mapData
-      ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)))
-      : undefined;
     const mapArrows = (geo ? [] : (scene.harita?.oklar ?? [])).map((o, i) => ({
       points: o.noktalar.map(([x, y]) => ({ x, y })),
       start: f(0.5 + i * 1.3),

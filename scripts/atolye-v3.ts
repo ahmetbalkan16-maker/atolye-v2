@@ -25,8 +25,8 @@ import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/Commo
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
-import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord } from "../src/lib/v3/faces/LikenessDesigner";
-import { distinctLooks } from "../src/lib/v3/costumes/LookVariety";
+import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
+import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames } from "../src/lib/v3/maps/HistoricalBorders";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
@@ -34,13 +34,13 @@ import { chapters, chapterText, packagePrompt, readPackage, type YoutubePackage 
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
-import { learnedRemedy, recall, remedyTopic, remember } from "../src/lib/v3/council/ExperienceMemory";
+import { learnedRemedy, type OwnerRule, recall, remedyTopic, remember, seedRules } from "../src/lib/v3/council/ExperienceMemory";
 import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
-import { beats, buildRenderPlan, type SceneInsert, shotEventFrames } from "../src/lib/v3/director/Director";
+import { beats, buildRenderPlan, longestEmptyStretch, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { EPISODE_TONES, type Episode, type EpisodeTone } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
@@ -404,6 +404,12 @@ async function main() {
   const redo = (s: Step) => fromStep !== undefined && STEPS.indexOf(s) >= STEPS.indexOf(fromStep);
   const need = (s: Step, file: string) => redo(s) || !existsSync(f(file));
   const t0 = Date.now();
+  // The owner's standing rules (faults found in finished videos) reach every brain's memory before anyone works.
+  const rulesFile = path.join(paths.contentRoot, "owner-kurallari.json");
+  if (existsSync(rulesFile)) {
+    const added = await seedRules(paths.workRoot, (await readJson<{ kurallar: OwnerRule[] }>(rulesFile)).kurallar).catch((e: Error) => (log(`owner kuralları hafızaya yazılamadı: ${e.message}`), 0));
+    if (added) log(`owner kuralları: ${added} yeni kural beyinlerin hafızasına yazıldı`);
+  }
   const bordersDir = path.join(paths.mapsDir, "historical");
   // The retouch brain's plan for this round (written by the previous run of this production), if any.
   const retouch: RetouchPlan | undefined = rotusTuru > 0 && existsSync(f("rotus-plani.json")) ? await readJson<RetouchPlan>(f("rotus-plani.json")) : undefined;
@@ -529,7 +535,7 @@ async function main() {
         const redo = new Map((retouch?.kisiler ?? []).map((k) => [k.castId, k.farklar] as const));
         const likeness = await designLikenesses(episode, { paths, commonsCache: path.join(paths.workRoot, "_onbellek", "commons"), wikiCache: path.join(paths.workRoot, "_onbellek", "wikipedia"), judge, budget, designer, critic, council, log, ...(redo.size ? { redo } : {}) });
         episode = likeness.episode;
-        const variety = distinctLooks(episode);
+        const variety = distinctLooks(episode, new Map(likeness.records.flatMap((r) => (r.not ? [[r.castId, noteColours(r.not.giyim)] as const] : []))));
         episode = variety.episode;
         for (const fix of variety.fixes) log(`  görünüş: ${fix}`);
         const orders = partOrders(episode);
@@ -558,6 +564,14 @@ async function main() {
       await writeJson(f("gardirop.json"), []);
       return [];
     });
+  }
+
+  // A narrated scene with no one on stage gets the lead as a silent actor, so it is not one still picture throughout.
+  const staged = stageEmptyScenes(episode);
+  if (staged.fixes.length) {
+    episode = assertEpisode(staged.episode);
+    for (const fix of staged.fixes) log(`  sahne: ${fix}`);
+    await writeJson(f("episode.json"), episode);
   }
 
   // 3) Ses
@@ -735,6 +749,8 @@ async function main() {
     const gaps = events.slice(1).map((t, i) => t - events[i]!);
     const avgGap = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : Infinity;
     const maxGap = Math.max(0, ...gaps, timeline.duration - (events[events.length - 1] ?? 0));
+    const emptyStretch = longestEmptyStretch(plan);
+    const clashes = clothesClashes(episode);
     const visible = episode.oyuncu_kadrosu.filter((c) => c.gorunur);
     const voices = (await readJson<{ sesler: Record<string, string> }>(f("ses.json"))).sesler;
     const lipsync = synced.flat();
@@ -747,6 +763,8 @@ async function main() {
       row((timeline.lines[0]?.start ?? 99) < 10, `İlk konuşma ${timeline.lines[0]?.start.toFixed(1)} sn'de (kanca ilk 10 sn içinde)`),
       row(avgGap >= 1.5 && avgGap <= 4, `Ortalama görsel olay aralığı ${avgGap.toFixed(1)} sn (hedef 2–4)`),
       row(maxGap <= 6, `En uzun olaysız aralık ${maxGap.toFixed(1)} sn (hedef ≤ 6)`),
+      row(emptyStretch <= 6, `Karaktersiz en uzun süre ${emptyStretch.toFixed(1)} sn (hedef ≤ 6; ekranda kimsenin olmadığı arşiv/tablo kareleri, kapak hariç)`),
+      row(!clashes.length, `Adlı karakterlerin kıyafeti: ${clashes.length ? `AYNI — ${clashes.join(", ")}` : `${visible.filter((c) => c.kostum).length} karakter, hepsi farklı`}`),
       row(visible.length >= 3 && new Set(visible.map((c) => voices[c.id])).size === visible.length, `${visible.length} görünür karakter, ${new Set(visible.map((c) => voices[c.id])).size} farklı ses`),
       row(dialogScenes >= 0.3, `Diyaloglu sahne oranı %${Math.round(dialogScenes * 100)} (hedef ≥ %30)`),
       row(lipsync.every((l) => l.lipSync === "rhubarb"), `Ağız senkronu: ${lipsync.filter((l) => l.lipSync === "rhubarb").length}/${lipsync.length} satır Rhubarb, ${lipsync.filter((l) => l.lipSync === "rms").length} RMS yedeği`),
@@ -788,7 +806,8 @@ async function main() {
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
-    const quality = await qualityReview({ paths, video: f(final), durationS, donem: episode.donem, judge: visionJudge(), council, log });
+    const qualityRules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
+    const quality = await qualityReview({ paths, video: f(final), durationS, donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10`);
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
     try {

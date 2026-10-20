@@ -166,11 +166,56 @@ function labelPoint(v: MapView, polys: readonly Polygon[]): [number, number] | u
   return n ? [sx / n, sy / n] : undefined;
 }
 
+/** Half the size of an army block with its name above it, in 1080p pixels (MapView draws 68×44 and the name 48 above). */
+const ARMY_HALF_W = 40;
+const ARMY_REACH_UP = 70;
+
+/**
+ * Keeps a map readable (the Rubicon map showed "CAESAR" twice and an army block on top of "Ariminum"): an arrow whose
+ * label repeats an army's name loses its label, and an army standing on a city moves beside it — to the left, since
+ * the city's name is written to its right, or above when the left is off the frame.
+ */
+export function declutterMap(m: V3GeoMap, height: number): V3GeoMap {
+  const k = height / 1080;
+  const armyNames = new Set(m.armies.map((a) => a.label.trim().toLowerCase()));
+  const arrows = m.arrows.map((ar) => (ar.label && armyNames.has(ar.label.trim().toLowerCase()) ? { points: ar.points, color: ar.color, start: ar.start } : ar));
+  const armies = m.armies.map((a) => {
+    const city = m.cities.find((c) => Math.abs(c.x - a.x) < (ARMY_HALF_W + 30) * k && Math.abs(c.y - a.y) < 50 * k);
+    if (!city) return a;
+    const left = city.x - (ARMY_HALF_W + 40) * k;
+    return left - ARMY_HALF_W * k >= 20 * k ? { ...a, x: r1(left), y: city.y } : { ...a, x: city.x, y: r1(Math.max(ARMY_REACH_UP * k, city.y - 90 * k)) };
+  });
+  return { ...m, armies, arrows };
+}
+
+/**
+ * Where a lone character stands on a map (stage x 0..1): the place that hides the fewest names, cities and armies
+ * (the Rubicon map's character stood on "Rome"). The figure covers about a fifth of the width and the lower 60% of
+ * the frame; the middle wins a tie.
+ */
+export function mapStageX(m: V3GeoMap, width: number, height: number): number {
+  const k = height / 1080;
+  const marks: { x0: number; x1: number; y: number }[] = [
+    ...m.cities.map((c) => ({ x0: c.x - 12 * k, x1: c.x + (18 + c.label.length * 17) * k, y: c.y })),
+    ...m.armies.map((a) => ({ x0: a.x - ARMY_HALF_W * k, x1: a.x + ARMY_HALF_W * k, y: a.y })),
+    ...m.territories.flatMap((t) => (t.labelX !== undefined && t.labelY !== undefined ? [{ x0: t.labelX - t.label.length * 14 * k, x1: t.labelX + t.label.length * 14 * k, y: t.labelY }] : [])),
+    ...m.arrows.flatMap((ar) => (ar.points.length ? [{ x0: ar.points[ar.points.length - 1]!.x - 20 * k, x1: ar.points[ar.points.length - 1]!.x + 20 * k, y: ar.points[ar.points.length - 1]!.y }] : [])),
+  ];
+  const hidden = (x: number) => marks.filter((p) => p.y > height * 0.38 && p.x1 > (x - 0.11) * width && p.x0 < (x + 0.11) * width).length;
+  let best = 0.5;
+  for (const x of [0.5, 0.26, 0.74, 0.16, 0.84]) if (hidden(x) < hidden(best)) best = x;
+  return best;
+}
+
 /**
  * The render map of a scene's geographic `harita` (needs `merkez` and `genislik_km`). Line indexes (`satir`) become
  * frames through `lineStart`, so a territory or an arrow appears when the narrator mentions it.
  */
 export function buildGeoMap(map: SceneMap, data: MapData, width: number, height: number, lineStart: (index: number | undefined, order: number) => number): V3GeoMap {
+  return declutterMap(projectGeoMap(map, data, width, height, lineStart), height);
+}
+
+function projectGeoMap(map: SceneMap, data: MapData, width: number, height: number, lineStart: (index: number | undefined, order: number) => number): V3GeoMap {
   const v = mapView(map.merkez!, map.genislik_km!, width, height);
   const territories = (map.bolgeler ?? []).map((b, i) => {
     const polys: Polygon[] = [

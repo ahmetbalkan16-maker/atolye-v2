@@ -70,6 +70,8 @@ export interface V3Costume {
   readonly handBack?: string;
   readonly back?: string;
   readonly collar?: "kurk" | "yok";
+  /** Colour of a cloak hanging from the shoulders behind the body, pinned on one shoulder (none: no cloak). */
+  readonly cape?: string;
   readonly shoes: string;
   /** Hair under (or without) headwear; none draws the bare puppet head. */
   readonly hair?: V3Hair;

@@ -8,11 +8,11 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
+import { BRAIN_NAMES, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityPrompt } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
 import { type ExamManifest, type ExamQuestion, gradeAnswer } from "../src/lib/v3/council/BrainExam";
-import { errorSignature, learnedRemedy, overlap, recall, remedyTopic, remember } from "../src/lib/v3/council/ExperienceMemory";
+import { errorSignature, learnedRemedy, MAX_RULES, type OwnerRule, overlap, recall, remedyTopic, remember, seedRules } from "../src/lib/v3/council/ExperienceMemory";
 import { designFor } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { judgePrompt, parseVerdict } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { partPrompt } from "../src/lib/v3/costumes/PartDesigner";
@@ -155,6 +155,37 @@ async function main() {
       assert.ok(["arsiv", "set", "portre", "parca", "referans"].includes(x.mod), x.id);
       assert.ok(Object.keys(x.beklenen).length > 0 && x.neden, x.id);
     }
+  });
+
+  await scenario("owner rules: a 'kural' lesson is recalled every time whatever the topic, never under a type filter, at most MAX_RULES", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kural-"));
+    await remember(root, { bolum: "rubicon", beyin: "kurgu", tur: "kural", konu: "boş sahne", metin: "Never leave a scene to the narrator alone: put a visible character on stage." });
+    await remember(root, { bolum: "rubicon", beyin: "kurgu", tur: "ders", konu: "senaryo", metin: "Put one sfx on a gag in every scene." });
+    const any = await recall(root, "kurgu", { konu: "Ottoman navy sfx", limit: 1 });
+    assert.deepEqual(any.map((l) => l.tur), ["kural", "ders"], "the rule comes first and does not count against the limit");
+    assert.deepEqual((await recall(root, "kurgu", { konu: "completely unrelated words" })).map((l) => l.tur), ["kural"], "a rule needs no shared words");
+    assert.deepEqual((await recall(root, "kurgu", { tur: "ders" })).map((l) => l.tur), ["ders"], "a type filter leaves rules out (the part drawer asks for ders)");
+    assert.equal((await recall(root, "kurgu", { tur: "kural" })).length, 1);
+    await remember(root, { bolum: "rubicon", beyin: "kurgu", tur: "kural", konu: "boş sahne", metin: "Never leave a scene to the narrator alone: put a visible character on stage." });
+    assert.equal((await recall(root, "kurgu", { tur: "kural" })).length, 1, "the same rule twice is recalled once");
+    for (let i = 0; i < MAX_RULES + 3; i++) await remember(root, { bolum: "x", beyin: "kalite", tur: "kural", konu: "k", metin: `rule ${i}` });
+    const rules = await recall(root, "kalite", { tur: "kural" });
+    assert.equal(rules.length, MAX_RULES);
+    assert.equal(rules[rules.length - 1]!.metin, `rule ${MAX_RULES + 2}`, "the newest rules are kept");
+    const prompt = qualityPrompt("49 BC", ["the same name written twice on a map"]);
+    assert.match(prompt, /The owner also found these faults in earlier videos that this check missed — look for them too:\n- the same name written twice on a map/);
+    assert.doesNotMatch(qualityPrompt("49 BC"), /owner also found/);
+    // The checked-in owner rules: valid brains, within the memory's 300 characters, seeded once.
+    const file = JSON.parse(readFileSync(path.resolve("content/v3/owner-kurallari.json"), "utf8")) as { kurallar: OwnerRule[] };
+    assert.ok(file.kurallar.length >= 3);
+    for (const r of file.kurallar) {
+      assert.ok(r.beyin in BRAIN_NAMES, r.beyin);
+      assert.ok(r.metin.length <= 300 && r.konu.length > 0, r.metin);
+    }
+    const fresh = mkdtempSync(path.join(os.tmpdir(), "v3-tohum-"));
+    assert.equal(await seedRules(fresh, file.kurallar), file.kurallar.length);
+    assert.equal(await seedRules(fresh, file.kurallar), 0, "a second seed adds nothing");
+    assert.ok((await recall(fresh, "kurgu", { konu: "anything", limit: 0 })).every((l) => l.tur === "kural"));
   });
 
   console.log(`V3 council smoke: PASS (${scenarios} scenarios)`);

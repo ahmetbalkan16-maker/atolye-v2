@@ -78,6 +78,32 @@ function robePath(hem: number, k: number, flare: number): string {
   return `M${-nx} -334 C${-sx + 8} -330 ${-sx + 2} -318 ${-sx} -300 C${-sx - 4} -230 ${-hx + 4} ${hem - 90} ${-hx} ${hem} Q0 ${hem + 14} ${hx} ${hem} C${hx - 4} ${hem - 90} ${sx + 4} -230 ${sx} -300 C${sx - 2} -318 ${sx - 8} -330 ${nx} -334 Q0 -318 ${-nx} -334 Z`;
 }
 
+/**
+ * A cloak (a Roman general's paludamentum, a mantle): the back hangs from the shoulders behind the body and the legs,
+ * wider than the body so it shows at both sides, its inside a shade darker; drawn before the legs.
+ */
+export function CapeBack({ color, seated }: { color: string; seated: boolean }) {
+  const hem = seated ? -150 : -46;
+  return (
+    <g>
+      {outlined(`M-78 -334 C-126 -280 -138 -160 -128 ${hem} Q-64 ${hem + 18} 0 ${hem + 6} Q64 ${hem + 18} 128 ${hem} C138 -160 126 -280 78 -334 Q0 -350 -78 -334 Z`, color)}
+      <path d={`M-104 -250 C-112 -180 -110 -110 -100 ${hem + 6} M104 -250 C112 -180 110 -110 100 ${hem + 6}`} fill="none" stroke={shade(color, -0.28)} strokeWidth={4.5} strokeLinecap="round" />
+      <path d={`M-118 ${hem - 6} Q-64 ${hem + 10} 0 ${hem - 2} Q64 ${hem + 10} 118 ${hem - 6}`} fill="none" stroke={shade(color, -0.22)} strokeWidth={4} />
+    </g>
+  );
+}
+
+/** The cloak's front: a band over both shoulders and a round brooch (fibula) where it is pinned, over the garment. */
+export function CapeFront({ color }: { color: string }) {
+  return (
+    <g>
+      {outlined("M-90 -312 C-74 -350 74 -350 90 -312 L84 -292 C54 -318 -54 -318 -84 -292 Z", color, 4.5)}
+      <circle cx={58} cy={-312} r={13} fill="#e8b23a" stroke={INK} strokeWidth={4.5} />
+      <circle cx={58} cy={-312} r={5} fill={shade("#e8b23a", -0.35)} />
+    </g>
+  );
+}
+
 export function GarmentBody({ costume, style, seated }: { costume: V3Costume; style: V3CharacterStyle; seated: boolean }) {
   const c = costume.colors;
   const k = style === "cop" ? 0.62 : 1;

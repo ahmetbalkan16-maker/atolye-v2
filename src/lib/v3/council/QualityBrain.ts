@@ -13,10 +13,11 @@ import { type CouncilLog, readJsonAnswer } from "./Council";
  */
 export const QUALITY_BAR = 7;
 
-export function qualityPrompt(donem: string): string {
+/** `rules`: the owner's standing rules from the brain's memory (faults the owner found that this check missed). */
+export function qualityPrompt(donem: string, rules: readonly string[] = []): string {
   return `You are the quality checker of an animated history show for an American YouTube channel (flat cartoon puppets, drawn sets, maps, period pictures). The story is set in ${donem}.
 Look at this frame for production faults only (not taste): a character cut in half by the frame edge, text cut off or printed over other text, unreadable text, a missing, empty or broken face or head, black or empty areas, a stretched or glitched image, an obviously modern object in a historical scene.
-Score 0–10 how clean the frame is (10 = no fault). Return ONLY JSON: {"puan": <0-10>, "sorunlar": ["<fault, Turkish, at most 12 words>"]}`;
+${rules.length ? `The owner also found these faults in earlier videos that this check missed — look for them too:\n${rules.map((r) => `- ${r}`).join("\n")}\n` : ""}Score 0–10 how clean the frame is (10 = no fault). Return ONLY JSON: {"puan": <0-10>, "sorunlar": ["<fault, Turkish, at most 12 words>"]}`;
 }
 
 export async function qualityReview(input: {
@@ -29,6 +30,7 @@ export async function qualityReview(input: {
   readonly log: (s: string) => void;
   readonly everyS?: number;
   readonly maxFrames?: number;
+  readonly rules?: readonly string[];
 }): Promise<{ checked: number; faulty: number; averageScore: number }> {
   const { paths, council } = input;
   const every = input.everyS ?? 6;
@@ -41,7 +43,7 @@ export async function qualityReview(input: {
     const frame = path.join(paths.asciiTemp, `kalite-${Date.now()}-${Math.round(t * 10)}.jpg`);
     try {
       await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-ss", t.toFixed(2), "-i", input.video, "-frames:v", "1", "-vf", "scale=960:-2", "-q:v", "4", frame]);
-      const out = await input.judge.generate(qualityPrompt(input.donem), { images: [(await fs.readFile(frame)).toString("base64")], maxTokens: 200, jsonSchema: { type: "object", properties: { puan: { type: "integer" }, sorunlar: { type: "array", items: { type: "string" } } }, required: ["puan", "sorunlar"] } });
+      const out = await input.judge.generate(qualityPrompt(input.donem, input.rules), { images: [(await fs.readFile(frame)).toString("base64")], maxTokens: 200, jsonSchema: { type: "object", properties: { puan: { type: "integer" }, sorunlar: { type: "array", items: { type: "string" } } }, required: ["puan", "sorunlar"] } });
       const v = readJsonAnswer<{ puan?: unknown; sorunlar?: unknown[] }>(typeof out === "string" ? out : out.content);
       const score = typeof v?.puan === "number" ? Math.max(0, Math.min(10, Math.round(v.puan))) : QUALITY_BAR;
       sum += score;

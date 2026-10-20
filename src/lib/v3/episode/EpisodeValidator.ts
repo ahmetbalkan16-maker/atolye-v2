@@ -139,6 +139,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       if (!isObj(k.renkler)) err("KOSTUM_RENK", `${p}.kostum.renkler`, "ana/ikincil/ic/sus renkleri gerekli");
       else for (const key of ["ana", "ikincil", "ic", "sus"]) str(k.renkler, key, `${p}.kostum.renkler`, { pattern: HEX });
       for (const key of PART_FIELDS) str(k, key, `${p}.kostum`, { optional: true, pattern: ITEM_REF });
+      str(k, "pelerin", `${p}.kostum`, { optional: true, pattern: HEX });
       if (k.sac !== undefined) {
         if (!isObj(k.sac)) err("KOSTUM_SAC", `${p}.kostum.sac`, "stil ve renk gerekli");
         else {

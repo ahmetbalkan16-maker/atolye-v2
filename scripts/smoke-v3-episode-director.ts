@@ -6,10 +6,10 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, MAX_INSERT_S, normalizeCamera, placeCrowd } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { buildGeoMap, clipRing, mapView, project } from "../src/lib/v3/maps/MapBuilder";
+import { buildGeoMap, clipRing, declutterMap, mapStageX, mapView, project } from "../src/lib/v3/maps/MapBuilder";
 import { nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -334,6 +334,60 @@ async function main() {
     const noCover = buildRenderPlan({ episode: ep, timeline: plain, cast: [], accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false });
     assert.equal(noCover.shots[0]!.id, ep.sahneler[0]!.id, "kapak yoksa ilk çekim sahnedir");
     assert.equal(noCover.shots[0]!.titleCards.find((c) => c.style === "abone")!.text, "ABONE OL");
+  });
+
+  await scenario("R map readability (owner review of the Rubicon map): no name twice, no army on a city, a lone character off the names", () => {
+    const base = { land: "", lakes: "", rivers: "", territories: [], cities: [{ x: 960, y: 300, label: "Ariminum" }, { x: 960, y: 900, label: "Rome" }] };
+    const m = declutterMap({ ...base, armies: [{ x: 961, y: 302, label: "Caesar", color: "#b8283a", start: 0 }], arrows: [{ points: [{ x: 900, y: 320 }, { x: 960, y: 900 }], color: "#b8283a", label: "CAESAR ", start: 0 }, { points: [{ x: 0, y: 0 }, { x: 5, y: 5 }], color: "#000000", label: "Pompey", start: 0 }] }, 1080);
+    assert.equal(m.arrows[0]!.label, undefined, "the arrow repeats the army's name: its label goes");
+    assert.equal(m.arrows[1]!.label, "Pompey", "a different name stays");
+    assert.ok(m.armies[0]!.x < 960 - 60 && m.armies[0]!.y === 300, `the army moves left of the city, whose name is on its right: ${JSON.stringify(m.armies[0])}`);
+    const edge = declutterMap({ ...base, cities: [{ x: 40, y: 500, label: "Brundisium" }], armies: [{ x: 40, y: 500, label: "Pompey", color: "#2f6fb0", start: 0 }], arrows: [] }, 1080);
+    assert.ok(edge.armies[0]!.x === 40 && edge.armies[0]!.y < 500, "no room on the left: the army goes above");
+    const far = declutterMap({ ...base, armies: [{ x: 300, y: 300, label: "Caesar", color: "#b8283a", start: 0 }], arrows: [] }, 1080);
+    assert.deepEqual(far.armies[0], { x: 300, y: 300, label: "Caesar", color: "#b8283a", start: 0 }, "an army away from cities stays");
+    // The Rubicon map: Rome low in the middle of the frame; the lone character moves aside.
+    assert.notEqual(mapStageX({ ...base, cities: [{ x: 960, y: 900, label: "Rome" }], armies: [], arrows: [] }, 1920, 1080), 0.5);
+    assert.equal(mapStageX({ ...base, cities: [{ x: 960, y: 200, label: "Rome" }], armies: [], arrows: [] }, 1920, 1080), 0.5, "names high in the frame: the middle stays");
+    const ep = sampleEpisode();
+    const mapScene: Episode = { ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 700, sehirler: [{ ad: "Rome", konum: [12.5, 42.2] }] }, satirlar: [ep.sahneler[0]!.satirlar[0]!, ep.sahneler[0]!.satirlar[1]!] }] };
+    const square = [[[5, 35], [20, 35], [20, 50], [5, 50], [5, 35]] as const] as const;
+    const data = { land: [square], lakes: [], rivers: [], countries: new Map() };
+    const tl = buildTimeline(mapScene, [[fakeAudio(2), fakeAudio(1.5)]]);
+    const plan = buildRenderPlan({ episode: mapScene, timeline: tl, cast: toRenderCast(mapScene.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }], mapData: data as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const mehmed = plan.shots[0]!.performers.find((p) => p.castId === "mehmed")!;
+    assert.notEqual(mehmed.x, 0.5, "the lone speaker on the map does not stand on Rome");
+  });
+
+  await scenario("S an empty narrated scene gets the lead as a silent actor, who acts the narration out; the QC measures empty stretches", () => {
+    const ep = sampleEpisode();
+    const outro = { ...ep.sahneler[0]!, id: "kapanis", satirlar: [{ karakter: "anlatici", metin: "Ve böylece her şey değişti.", duygu: "uzgun" as const, kaynak: ["tdv-rumeli"] }, { karakter: "anlatici", metin: "Abone olmayı unutmayın, bir dahaki sefere görüşürüz!", duygu: "mutlu" as const, kurgu: true }] };
+    const withOutro: Episode = { ...ep, sahneler: [ep.sahneler[0]!, outro] };
+    const { episode: staged, fixes } = stageEmptyScenes(withOutro);
+    assert.deepEqual(staged.sahneler[1]!.sahne_duzeni, [{ karakter: "mehmed", x: 0.5 }], "the lead (most lines) stands in");
+    assert.equal(fixes.length, 1);
+    assert.equal(staged.sahneler[0], withOutro.sahneler[0], "a scene with someone on stage is untouched");
+    assert.equal(stageEmptyScenes(staged).fixes.length, 0, "a second pass changes nothing");
+    assert.ok(validateEpisode(staged).ok, JSON.stringify(validateEpisode(staged).errors));
+    for (const keep of [{ harita: { merkez: [12, 43] as [number, number], genislik_km: 500 } }, { kalabalik: [{ ad: "halk", kostum_paketi: "ottoman-1453", kostum: castBase.kostum, sayi: 6, duzen: "sira" as const }] }]) {
+      assert.equal(stageEmptyScenes({ ...withOutro, sahneler: [ep.sahneler[0]!, { ...outro, ...keep }] }).fixes.length, 0, "maps and crowd scenes are left alone");
+    }
+    const tl = buildTimeline(staged, [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)], [fakeAudio(2.5), fakeAudio(3)]]);
+    const input = { timeline: tl, cast: toRenderCast(staged.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" as const }, { src: "bg/b.png", kind: "set" as const }], inserts: [undefined, { src: "bg/donem.jpg" }], fps: 30, width: 1920, height: 1080, showCaptions: false };
+    const plan = buildRenderPlan({ ...input, episode: staged });
+    const shot = plan.shots[1]!;
+    const lead = shot.performers.find((p) => p.castId === "mehmed")!;
+    assert.ok(lead, "the lead is on stage in the outro");
+    assert.deepEqual(lead.gestures.map((g) => g.gesture), ["isaret_et", "el_salla"], "a gesture on the longer line, a wave on the episode's last");
+    assert.ok(lead.faces.some((x) => x.emotion === "uzgun") && lead.faces.some((x) => x.emotion === "mutlu"), "faces follow the narration");
+    assert.ok(shot.inserts!.length === 1 && shot.inserts![0]!.end - shot.inserts![0]!.start <= Math.round(MAX_INSERT_S * 30), "the period picture is a short cutaway");
+    assert.ok(longestEmptyStretch(plan) <= MAX_INSERT_S + 0.01, `${longestEmptyStretch(plan)}`);
+    // Before the fix: the outro was one picture with nobody, the whole scene long.
+    const before = buildRenderPlan({ ...input, episode: withOutro, backgrounds: [{ src: "bg/a.png", kind: "set" }, { src: "bg/donem.jpg", kind: "archival" }], inserts: [undefined, undefined] });
+    assert.ok(Math.abs(longestEmptyStretch(before) - before.shots[1]!.duration / 30) < 0.01, "an empty shot counts whole");
+    assert.equal(before.shots[0]!.performers.length > 0 && before.shots[1]!.performers.length, 0);
+    // The scene where someone speaks keeps its own acting.
+    assert.ok(!plan.shots[0]!.performers.some((p) => p.gestures.some((g) => g.gesture === "el_salla")));
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

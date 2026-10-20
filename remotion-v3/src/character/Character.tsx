@@ -2,7 +2,7 @@ import React from "react";
 import type { V3Accessory, V3CastMember } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { Arm } from "./Arms";
 import { HairBack, HairTop, Head } from "./Face";
-import { GarmentBody, Legs, sleeveFor } from "./Garments";
+import { CapeBack, CapeFront, GarmentBody, Legs, sleeveFor } from "./Garments";
 import type { PerformerState } from "./motion";
 import { HEAD_CY, HIP_Y, INK, NECK_Y, SHOULDER_Y } from "./rig";
 
@@ -40,6 +40,9 @@ export function Character({ member, state, accessories, cheap = false }: { membe
   // Contact shadow keeps the feet on the floor; it shrinks and fades while the body is in the air.
   const lift = Math.max(0, -pose.bob);
   const shadowK = Math.max(0.5, 1 - lift / 150);
+  // The Byzantine robe draws its own imperial cape.
+  const cape = style === "kukla" && costume.cape && costume.garment !== "bizans" ? costume.cape : undefined;
+  const bodyTransform = `translate(0 ${pose.bob + drop}) rotate(${pose.lean} 0 ${HIP_Y})`;
 
   return (
     <g>
@@ -48,13 +51,19 @@ export function Character({ member, state, accessories, cheap = false }: { membe
         <ellipse cx={2} cy={-1} rx={84} ry={13} fill="#120c18" opacity={0.42} />
       </g>
       <g transform={`scale(${inv} ${pose.squash})`}>
+        {cape ? (
+          <g transform={bodyTransform}>
+            <CapeBack color={cape} seated={state.seated} />
+          </g>
+        ) : null}
         {/* Small bobs (walking, talking) move only the body; the feet leave the floor only in a real jump. */}
         <g transform={`translate(0 ${lift > 14 ? pose.bob : 0})`}>
           <Legs costume={costume} pose={pose} style={style} seated={state.seated} />
         </g>
-        <g transform={`translate(0 ${pose.bob + drop}) rotate(${pose.lean} 0 ${HIP_Y})`}>
+        <g transform={bodyTransform}>
           {back ? <g transform={`translate(0 ${SHOULDER_Y})`} dangerouslySetInnerHTML={{ __html: back.markup }} /> : null}
           <GarmentBody costume={costume} style={style} seated={state.seated} />
+          {cape ? <CapeFront color={cape} /> : null}
           {chest ? <g transform={`translate(0 ${SHOULDER_Y})`} dangerouslySetInnerHTML={{ __html: chest.markup }} /> : null}
           {style === "cop" ? <path d={`M0 ${SHOULDER_Y - 4} L0 ${NECK_Y - 8}`} stroke={INK} strokeWidth={12} strokeLinecap="round" /> : null}
           <g transform={`rotate(${pose.headTilt} 0 ${NECK_Y}) translate(0 ${HEAD_CY})`}>

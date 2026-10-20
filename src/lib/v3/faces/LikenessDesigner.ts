@@ -2,6 +2,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
 import { type CouncilLog, type DebateEntry, readJsonAnswer } from "../council/Council";
+import { recall } from "../council/ExperienceMemory";
 import { LIKENESS_OK } from "../council/RetouchBrain";
 import { toLook, toRenderCast } from "../costumes/CastMapper";
 import { loadAccessories, packCatalog } from "../costumes/CostumePackLoader";
@@ -107,15 +108,71 @@ export function readPeriodNote(text: string): PeriodNote | undefined {
   return { ...(yas !== undefined ? { yas } : {}), gorunus: s(v.gorunus, 400), giyim: s(v.giyim, 400), simge: s(v.simge, 120), fark: s(v.fark, 300) };
 }
 
-export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined, fixes?: readonly string[]): string {
+/** Flat cartoon colours for the colour words a historian's note uses, in the order the words are tried. */
+const COLOUR_WORDS: readonly (readonly [RegExp, string])[] = [
+  [/\b(scarlet|crimson|red)\b/i, "#b3262e"],
+  [/\b(purple|violet|tyrian)\b/i, "#6b2d7b"],
+  [/\b(blue|azure|navy)\b/i, "#2f5fa0"],
+  [/\bgreen\b/i, "#3e7b3a"],
+  [/\b(gold(en)?|yellow|saffron)\b/i, "#d9a521"],
+  [/\bbrown\b/i, "#7a4b2a"],
+  [/\b(grey|gray)\b/i, "#8a8a8a"],
+  [/\bblack\b/i, "#2a2630"],
+  [/\bwhite\b/i, "#f3f3f3"],
+];
+
+/** The colours a text names, in the order they appear (each once). */
+export function noteColours(text: string): string[] {
+  return COLOUR_WORDS.map(([re, hex]) => ({ hex, at: text.search(re) }))
+    .filter((x) => x.at >= 0)
+    .sort((a, b) => a.at - b.at)
+    .map((x) => x.hex);
+}
+
+const CLOAK = /\b(cloak|cape|mantle|paludamentum|sagum|chlamys|lacerna|pelisse)\b/i;
+
+/**
+ * The cloak the historian's note says the person wore ("a red military cloak (paludamentum)"), as a colour: the colour
+ * named in the same clause, else crimson. Undefined when the note names no cloak.
+ */
+export function cloakFromNote(giyim: string): string | undefined {
+  const clause = giyim.split(/[,;]|\band\b/i).find((p) => CLOAK.test(p));
+  if (!clause) return undefined;
+  return noteColours(clause).find((hex) => hex !== "#f3f3f3") ?? "#b3262e";
+}
+
+/** A costume with the note's cloak when the designer left it off (a cloak drawn since 21 Oct 2026; older sheets lack it). */
+export function withNoteCloak(k: CastCostume, note: PeriodNote | undefined): CastCostume {
+  if (k.pelerin || !note) return k;
+  const cape = cloakFromNote(note.giyim);
+  return cape ? { ...k, pelerin: cape } : k;
+}
+
+/** One line per other named character: what they already wear, so the designer makes this person look different. */
+export function castLooks(episode: Episode, exceptId: string): string[] {
+  const name = (ref: string) => ref.replace(/^yeni:/, "").replace(/^.*\//, "").replace(/-[0-9a-f]{6}$/, "").replace(/[-_]+/g, " ");
+  return episode.oyuncu_kadrosu
+    .filter((o) => o.id !== exceptId && o.gorunur && o.kostum)
+    .map((o) => {
+      const k = o.kostum!;
+      return `${o.ad}: ${k.giysi} ${k.renkler.ana} with ${k.renkler.ikincil}${k.pelerin ? `, cloak ${k.pelerin}` : ""}${k.bas ? `, headwear "${name(k.bas)}"` : ""}`;
+    });
+}
+
+export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined, fixes?: readonly string[], lessons: readonly string[] = []): string {
   const retouch = fixes?.length ? `\nA PREVIOUS CARTOON OF ${wiki} WAS SET NEXT TO THE PORTRAIT AND FELL SHORT. The art director's differences: ${fixes.join("; ")}. Fix exactly these (order new parts where needed); keep what was right.\n` : "";
+  const others = castLooks(episode, c.id);
+  const othersBlock = others.length
+    ? `\nTHE OTHER NAMED CHARACTERS OF THE EPISODE ALREADY LOOK LIKE THIS:\n${others.map((o) => `- ${o}`).join("\n")}\n${wiki} must be told apart from every one of them at a glance by the clothes too, not only the face: where history allows, a different garment, colours, cloak or headwear (the reference channel colour-codes its characters).\n`
+    : "";
+  const lessonBlock = lessons.length ? `\nLESSONS FROM EARLIER EPISODES (follow them):\n${lessons.map((l) => `- ${l}`).join("\n")}\n` : "";
   return `You design the cartoon of a real historical person for an animated history show in the style of OverSimplified: flat colours, bold dark outlines, a simple puppet body — the person recognisable from their headwear, hair, beard, face shape and clothes, the way OverSimplified draws Henry VIII after Holbein's portrait.
 PERSON: ${wiki} — ${c.rol}
 THE EPISODE: "${episode.konu}", set in ${episode.donem}. Draw them as they looked THEN.
 HISTORIAN'S NOTE for ${episode.donem}: ${note ? `age ${note.yas ?? "unknown"}; looks: ${note.gorunus}; dress: ${note.giyim}${note.simge ? `; carries: ${note.simge}` : ""}${note.fark ? `; differs from the famous portraits: ${note.fark}` : ""}` : "none"}
 ${portraitTitle ? `PORTRAIT (attached): ${portraitTitle.replace(/^File:/, "")} — take their features and dress from it, corrected by the historian's note for ${episode.donem}.` : "No portrait was found: work from the historian's note."}
 THE SCRIPT'S COSTUME (keep what already fits): ${JSON.stringify(c.kostum ?? {})}
-${retouch}
+${othersBlock}${lessonBlock}${retouch}
 Choose:
 - "yuz": {"sekil": yuvarlak (round) | oval | uzun (long) | genis (wide, heavy jowls) | kare (square jaw); "ten": skin colour #RRGGBB for a flat cartoon (light skin is a pale warm white like #f6e7d8; darker skins true to the person); "burun": kucuk (small) | duz (straight) | iri (big, round) | kemerli (aquiline, Roman) | kalkik (upturned); "kas_renk": eyebrow colour #RRGGBB (their hair colour; grey or white when old); "yas": genc (under 35) | orta (35–55) | yasli (over 55)}
 - "sac": parametric hair {"stil": kisa (short) | dalgali (wavy) | yan_ayrik (side part) | uzun (to the shoulders) | topuz (bun) | orgu (braids) | kel (bald) | kivircik (curly) | kakul (fringe) | geriye (combed back) | seyrek (receding: bald crown, hair at the back and sides); "renk": #RRGGBB}, or null when a drawn haircut is ordered or the headwear hides all the hair.
@@ -125,6 +182,7 @@ Choose:
 - "giysi": kaftan | cubbe (robe) | zirh (armour) | onluk (apron) | bizans | yeniceri | sade (plain tunic) | tunik | toga | ceket (long coat, 1600s on) | uniforma | takim (modern suit) | elbise (long dress).
 - "renkler": {"ana": main, "ikincil": second, "ic": undergarment, "sus": trim}, each #RRGGBB, true to the portrait and the period.
 - "yaka": "kurk" (fur collar and fur front bands) or "yok".
+- "pelerin": the colour #RRGGBB of the cloak or cape they wore over the shoulders in ${episode.donem} (a Roman general's paludamentum, a royal mantle), or null when they wore none.
 - "gogus": what they wore on the chest (chain of office, order sash, medals, pendant): "yeni:${wiki}'s <description>", or null.
 - "el_on": an object they held ("yeni:${wiki}'s <description>"), the script's item to keep, or null.
 - "tarif": one sentence: what makes this cartoon recognisably ${wiki} in ${episode.donem}.
@@ -171,6 +229,9 @@ export function applySheet(costume: CastCostume, raw: unknown): { kostum: CastCo
   if (r && ["ana", "ikincil", "ic", "sus"].every((key) => typeof r[key] === "string" && HEX.test(r[key] as string))) k.renkler = { ana: r.ana, ikincil: r.ikincil, ic: r.ic, sus: r.sus };
   else sorunlar.push("renkler okunamadı; senaryonun renkleri kaldı");
   if (sheet.yaka === "kurk" || sheet.yaka === "yok") k.yaka = sheet.yaka;
+  if (typeof sheet.pelerin === "string" && HEX.test(sheet.pelerin)) k.pelerin = sheet.pelerin;
+  else if (sheet.pelerin === null || (typeof sheet.pelerin === "string" && /^(none|null|yok|-)?$/i.test(sheet.pelerin.trim()))) delete k.pelerin;
+  else if (sheet.pelerin !== undefined) sorunlar.push(`pelerin okunamadı: ${String(sheet.pelerin)}`);
   for (const field of SHEET_PARTS) {
     if (!(field in sheet)) continue;
     const v = partValue(sheet[field]);
@@ -264,13 +325,13 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const lastCheck = saved ? await readCheck(saved) : undefined;
     const fixes = deps.redo?.get(c.id) ?? (lastCheck && lastCheck.benzerlik < LIKENESS_OK ? lastCheck.farklar : undefined);
     if (saved && !fixes) {
-      const stored = JSON.parse(await fs.readFile(saved, "utf8")) as { kostum: CastCostume; tarif?: string };
+      const stored = JSON.parse(await fs.readFile(saved, "utf8")) as { kostum: CastCostume; tarif?: string; not?: PeriodNote };
       const parts = PART_FIELDS.map((f) => (stored.kostum as unknown as Record<string, unknown>)[f]).filter((v): v is string => typeof v === "string");
       const resolvable = parts.every((ref) => known.has(ref.includes("/") ? ref : `${c.kostum_paketi}/${ref}`));
-      const next = withCostume(current, c.id, { ...stored.kostum, ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
+      const next = withCostume(current, c.id, { ...withNoteCloak(stored.kostum, stored.not), ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
       if (resolvable && validateEpisode(next).ok) {
         current = next;
-        records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.tarif ? { tarif: stored.tarif } : {}), siparisler: [], sorunlar: [] });
+        records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.not ? { not: stored.not } : {}), ...(stored.tarif ? { tarif: stored.tarif } : {}), siparisler: [], sorunlar: [] });
         log(`  benzerlik: ${c.ad} — ${episode.donem} için kişi kütüphanesinde`);
         continue;
       }
@@ -284,8 +345,10 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const portrait = await findPortrait({ cacheDir: deps.commonsCache, judge: deps.judge, person: { id: c.id, ad: c.ad, rol: c.rol, wiki }, donem: episode.donem, log }).catch(() => undefined);
     if (portrait) portraits.set(c.id, portrait);
     talk.push({ rol: "Resim araştırmacısı", metin: portrait ? `portre: ${portrait.candidate.title.replace(/^File:/, "")} (kişi ${portrait.secim.puan}/10, dönem ${portrait.secim.donem ?? "?"}/10)` : "uygun portre yok; tarihçinin notundan çizilecek" });
+    // The costume brain's memory: the owner's standing rules and lessons about this person or their dress.
+    const lessons = (await recall(paths.workRoot, "kostum", { konu: `${wiki} ${c.rol} ${episode.donem} ${note?.giyim ?? ""}`, limit: 3 }).catch(() => [])).map((l) => l.metin);
     const sheetOut = await deps.budget
-      .generate("benzerlik-tasarim", deps.designer, sheetPrompt(c, episode, wiki, note, portrait?.candidate.title, fixes), { maxTokens: 900, ...(portrait ? { images: [portrait.preview.toString("base64")] } : {}) })
+      .generate("benzerlik-tasarim", deps.designer, sheetPrompt(c, current, wiki, note, portrait?.candidate.title, fixes, lessons), { maxTokens: 900, ...(portrait ? { images: [portrait.preview.toString("base64")] } : {}) })
       .catch((e: Error) => (log(`  benzerlik: ${c.ad} kart yazılamadı (${e.message.slice(0, 100)})`), undefined));
     const sheet = sheetOut ? readJsonAnswer<Record<string, unknown>>(sheetOut.result.content) : undefined;
     if (!sheet) {
@@ -293,7 +356,8 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
       deps.council?.find({ beyin: "kostum", onem: "uyari", baslik: "benzerlik kartı yazılamadı", ayrinti: `${c.ad}: senaryonun kostümü kullanıldı`, tur: "veri", yer: c.id });
       continue;
     }
-    const applied = applySheet(c.kostum!, sheet);
+    const sheetApplied = applySheet(c.kostum!, sheet);
+    const applied = { ...sheetApplied, kostum: withNoteCloak(sheetApplied.kostum, note) };
     // Catalog refs the sheet named but the wardrobe lacks become orders, like the script normalizer does.
     const rec = applied.kostum as unknown as Record<string, unknown>;
     for (const f of SHEET_PARTS) {

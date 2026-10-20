@@ -15,8 +15,11 @@ export interface Lesson {
   readonly tarih: string;
   readonly bolum: string;
   readonly beyin: BrainId;
-  /** ilac: a remedy for a failure; ders: why something was rejected; onlem: the chief's measure for next time. */
-  readonly tur: "ilac" | "ders" | "onlem";
+  /**
+   * ilac: a remedy for a failure; ders: why something was rejected; onlem: the chief's measure for next time;
+   * kural: a standing rule from the owner's review of a finished video, recalled every time whatever the topic.
+   */
+  readonly tur: "ilac" | "ders" | "onlem" | "kural";
   /** What it is about: an error signature, a place and period, a part, a step. */
   readonly konu: string;
   readonly metin: string;
@@ -65,25 +68,60 @@ export function overlap(a: string, b: string): number {
   return common / (x.size + y.size - common);
 }
 
+export interface OwnerRule {
+  readonly beyin: BrainId;
+  readonly konu: string;
+  readonly metin: string;
+  /** Where the rule came from (the owner's review of which video, when). */
+  readonly kaynak?: string;
+}
+
+/**
+ * The owner's standing rules (`content/v3/owner-kurallari.json`, in git) written into the brains' memory as "kural"
+ * lessons; a rule already there is not written again. Run at the start of every production, so a new work root (the
+ * live runtime) gets them too.
+ */
+export async function seedRules(workRoot: string, rules: readonly OwnerRule[]): Promise<number> {
+  let added = 0;
+  for (const r of rules) {
+    const text = r.metin.replace(/\s+/g, " ").trim().slice(0, MAX_TEXT).toLowerCase();
+    if ((await readAll(workRoot, r.beyin)).some((l) => l.tur === "kural" && l.metin.toLowerCase() === text)) continue;
+    await remember(workRoot, { bolum: r.kaynak ?? "owner", beyin: r.beyin, tur: "kural", konu: r.konu, metin: r.metin });
+    added++;
+  }
+  return added;
+}
+
+/** At most this many standing rules go into one prompt (the newest when there are more). */
+export const MAX_RULES = 8;
+
 /**
  * A brain's lessons about `konu`, most relevant first (shared words; newer wins a tie), each text once. Without
- * `konu` the newest come first.
+ * `konu` the newest come first. The owner's standing rules ("kural") come first and do not count against `limit`
+ * whenever no type is asked for; a type filter ("ders") leaves them out.
  */
 export async function recall(workRoot: string, beyin: BrainId, opts: { readonly konu?: string; readonly tur?: Lesson["tur"]; readonly limit?: number; readonly minOverlap?: number } = {}): Promise<Lesson[]> {
-  const all = (await readAll(workRoot, beyin)).filter((l) => !opts.tur || l.tur === opts.tur);
+  const everything = await readAll(workRoot, beyin);
+  const seen = new Set<string>();
+  const once = (l: Lesson) => {
+    const key = l.metin.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  };
+  const rules = !opts.tur || opts.tur === "kural" ? everything.filter((l) => l.tur === "kural").reverse().filter(once).slice(0, MAX_RULES).reverse() : [];
+  if (opts.tur === "kural") return rules;
+  const all = everything.filter((l) => l.tur !== "kural" && (!opts.tur || l.tur === opts.tur));
   const scored = all.map((l, i) => ({ l, s: opts.konu ? Math.max(overlap(opts.konu, l.konu), overlap(opts.konu, l.metin)) : 0, i }));
   const relevant = opts.konu ? scored.filter((x) => x.s >= (opts.minOverlap ?? 0.12)) : scored;
   relevant.sort((a, b) => b.s - a.s || b.i - a.i);
-  const seen = new Set<string>();
   const out: Lesson[] = [];
   for (const { l } of relevant) {
-    const key = l.metin.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
+    if (!once(l)) continue;
     out.push(l);
     if (out.length >= (opts.limit ?? 5)) break;
   }
-  return out;
+  return [...rules, ...out];
 }
 
 /**

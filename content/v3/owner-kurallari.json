@@ -1,0 +1,53 @@
+{
+  "aciklama": "Owner'ın bitmiş videoları izleyip bulduğu, beyinlerin bir daha yapmaması gereken hatalar. Her üretimin başında beyinlerin deneyim hafızasına 'kural' olarak yazılır (ExperienceMemory.seedRules) ve konudan bağımsız her seferinde okunur. Metinler beyinlerin İngilizce istemlerine girer; en fazla 300 karakter.",
+  "kurallar": [
+    {
+      "beyin": "kurgu",
+      "konu": "boş sahne",
+      "metin": "Never leave a scene to the narrator alone: every scene except a map shows at least one named character on stage, speaking or acting silently — above all the closing scene, where the lead says goodbye under the subscribe card.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "harita etiketleri",
+      "metin": "On a map write each name once: an army and its arrow must not both carry the same name (label the army, leave its arrow unlabelled), and never put an army exactly on a city — set it beside the city so the city's name stays readable.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "kostüm farkı",
+      "metin": "Give every named character different clothes, not only a different face: another garment, colours, cloak or headwear. Three Romans in the same white toga and red sash were told apart only by their hair.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kostum",
+      "konu": "kostüm farkı",
+      "metin": "Every named character must be told apart by the clothes too: never give two named characters the same garment in the same colours; use what history allows — a general's red cloak, a senator's purple stripe, other headwear.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kostum",
+      "konu": "pelerin",
+      "metin": "When the historian's note names a cloak or cape (paludamentum, mantle, chlamys), put it in the costume as \"pelerin\" with its colour; it is part of how viewers recognise the person.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "harita",
+      "metin": "On a map: the same name written twice, a marker or army block covering a city name, or a speech text printed over a map label.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "gizlenen yazı",
+      "metin": "A city or place name hidden behind a character, or a name label printed over a character's face.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "kostüm farkı",
+      "metin": "Two named characters in the same frame wearing identical clothes (same garment, same colours), told apart only by hair or face.",
+      "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    }
+  ]
+}

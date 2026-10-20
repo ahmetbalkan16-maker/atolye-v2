@@ -93,9 +93,13 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
   const fs = 54 * k;
   const w = Math.max(name.length * fs * 0.72, (tag.role?.length ?? 0) * 26 * k * 0.55) + 20 * k;
   const room = { left: anchor.x - anchor.r * 1.3, right: W - anchor.x - anchor.r * 1.3 };
-  const onLeft = anchor.neighbourX !== undefined ? anchor.neighbourX > anchor.x : room.left > room.right;
+  const preferLeft = anchor.neighbourX !== undefined ? anchor.neighbourX > anchor.x : room.left > room.right;
   const gap = anchor.r * 1.25 + 70 * k;
-  const left = Math.min(W - 30 * k - w, Math.max(30 * k, onLeft ? anchor.x - gap - w : anchor.x + gap));
+  const place = (leftSide: boolean) => Math.min(W - 30 * k - w, Math.max(30 * k, leftSide ? anchor.x - gap - w : anchor.x + gap));
+  // Squeezed against the frame edge the label would slide onto the face: then it goes to the other side.
+  const onFace = (l: number) => l < anchor.x + anchor.r * 1.4 && l + w > anchor.x - anchor.r * 1.4;
+  const onLeft = onFace(place(preferLeft)) && !onFace(place(!preferLeft)) ? !preferLeft : preferLeft;
+  const left = place(onLeft);
   // Beside the face (the speech floats above the head).
   const face = anchor.top + 2.05 * anchor.r;
   const top = Math.min(H - 160 * k, Math.max(40 * k, face - fs * 0.75));

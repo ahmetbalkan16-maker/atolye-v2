@@ -42,6 +42,8 @@ export interface CastCostume {
   readonly el_arka?: string;
   readonly sirt?: string;
   readonly yaka?: "kurk" | "yok";
+  /** A cloak or cape over the shoulders (a Roman general's paludamentum, a mantle), in this colour (#RRGGBB). */
+  readonly pelerin?: string;
   readonly ayakkabi: string;
   readonly sac?: { readonly stil: V3HairStyle; readonly renk: string };
   /** A drawn haircut (catalog item or "yeni:<description>") instead of the parametric "sac". */

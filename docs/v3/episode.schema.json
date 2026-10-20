@@ -48,6 +48,7 @@
         "el_arka": { "$ref": "#/$defs/aksesuar" },
         "sirt": { "$ref": "#/$defs/aksesuar" },
         "yaka": { "enum": ["kurk", "yok"] },
+        "pelerin": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "ayakkabi": { "type": "string" }
       }
     },
