@@ -3,7 +3,7 @@
  * works in Turkish and the file is meant to be read and edited by the owner. JSON Schema:
  * `docs/v3/episode.schema.json`; validator: `EpisodeValidator.ts`.
  */
-import type { V3Effect, V3Emotion, V3Garment, V3Gesture, V3HairStyle, V3Prop, V3Transition } from "../render/RenderPlanTypes";
+import type { V3Age, V3Effect, V3Emotion, V3EyeStyle, V3FaceShape, V3Garment, V3Gesture, V3HairStyle, V3Nose, V3Prop, V3Transition } from "../render/RenderPlanTypes";
 
 export const EPISODE_TONES = ["mizahi", "ciddi", "epik"] as const;
 export const SCENE_MOODS = ["gerilim", "komik", "huzun", "zafer", "gizem", "merak"] as const;
@@ -14,7 +14,11 @@ export const EFFECTS: readonly V3Effect[] = ["ter", "unlem", "soru", "ofke", "pa
 export const GARMENTS: readonly V3Garment[] = ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade", "tunik", "toga", "ceket", "uniforma", "takim", "elbise"];
 export const PROP_KINDS: readonly V3Prop["kind"][] = ["taht", "top", "kule_iskelesi", "gemi", "masa", "sancak"];
 export const TRANSITIONS: readonly V3Transition[] = ["kes", "kaydir", "murekkep", "beyaz"];
-export const HAIR_STYLES: readonly V3HairStyle[] = ["kisa", "dalgali", "yan_ayrik", "uzun", "topuz", "orgu", "kel"];
+export const HAIR_STYLES: readonly V3HairStyle[] = ["kisa", "dalgali", "yan_ayrik", "uzun", "topuz", "orgu", "kel", "kivircik", "kakul", "geriye", "seyrek"];
+export const FACE_SHAPES: readonly V3FaceShape[] = ["yuvarlak", "oval", "uzun", "genis", "kare"];
+export const NOSES: readonly V3Nose[] = ["yok", "kucuk", "duz", "iri", "kemerli", "kalkik"];
+export const EYE_STYLES: readonly V3EyeStyle[] = ["nokta", "detayli"];
+export const AGES: readonly V3Age[] = ["genc", "orta", "yasli"];
 export const SFX_IDS = ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil"] as const;
 
 export type EpisodeTone = (typeof EPISODE_TONES)[number];
@@ -40,6 +44,21 @@ export interface CastCostume {
   readonly yaka?: "kurk" | "yok";
   readonly ayakkabi: string;
   readonly sac?: { readonly stil: V3HairStyle; readonly renk: string };
+  /** A drawn haircut (catalog item or "yeni:<description>") instead of the parametric "sac". */
+  readonly sac_parca?: string;
+  /** Worn on the chest: chain of office, sash, medals, pendant (catalog item or "yeni:<description>"). */
+  readonly gogus?: string;
+  /** The drawn likeness of a real person, read from their portrait (see LikenessDesigner). */
+  readonly yuz?: CastFace;
+}
+
+export interface CastFace {
+  readonly sekil?: V3FaceShape;
+  readonly ten?: string;
+  readonly burun?: V3Nose;
+  readonly goz?: V3EyeStyle;
+  readonly kas_renk?: string;
+  readonly yas?: V3Age;
 }
 
 export interface CastEntry {
@@ -55,7 +74,10 @@ export interface CastEntry {
   readonly gorunur: boolean;
   readonly kostum?: CastCostume;
   readonly olcek?: number;
-  /** A real historical person among the main characters: their face is cut from a portrait (English Wikipedia article). */
+  /**
+   * A real historical person: their portrait (English Wikipedia article) is looked at, and their head and clothes are
+   * drawn after it in the house style (face shape, hair, beard, headwear, garment) — never a photo on the puppet.
+   */
   readonly portre?: { readonly wiki: string };
 }
 

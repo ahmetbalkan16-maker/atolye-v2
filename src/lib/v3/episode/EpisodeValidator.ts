@@ -1,9 +1,13 @@
 import {
+  AGES,
   EFFECTS,
   EMOTIONS,
   EPISODE_TONES,
+  EYE_STYLES,
+  FACE_SHAPES,
   GARMENTS,
   HAIR_STYLES,
+  NOSES,
   GESTURES,
   MOVES,
   PROP_KINDS,
@@ -36,6 +40,8 @@ export interface EpisodeValidation {
 const SLUG = /^[a-z0-9][a-z0-9-]{0,79}$/;
 /** A costume part: "item" or "pack/item" from the catalog, or "yeni:<description>" for the part designer to draw. */
 const ITEM_REF = /^(([a-z0-9-]+\/)?[a-z0-9-]+|yeni:.{3,80})$/;
+/** Costume fields that hold a part reference. */
+export const PART_FIELDS = ["bas", "sakal", "biyik", "el_on", "el_arka", "sirt", "sac_parca", "gogus"] as const;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 /** Slang/insults the house style forbids (the reference channel's "lan/ulan" included). Whole words only. */
 const FORBIDDEN_WORDS = ["lan", "ulan", "amk", "siktir", "piç", "yavşak", "gavur", "salak", "gerizekalı"];
@@ -132,12 +138,25 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       str(k, "ayakkabi", `${p}.kostum`);
       if (!isObj(k.renkler)) err("KOSTUM_RENK", `${p}.kostum.renkler`, "ana/ikincil/ic/sus renkleri gerekli");
       else for (const key of ["ana", "ikincil", "ic", "sus"]) str(k.renkler, key, `${p}.kostum.renkler`, { pattern: HEX });
-      for (const key of ["bas", "sakal", "biyik", "el_on", "el_arka", "sirt"]) str(k, key, `${p}.kostum`, { optional: true, pattern: ITEM_REF });
+      for (const key of PART_FIELDS) str(k, key, `${p}.kostum`, { optional: true, pattern: ITEM_REF });
       if (k.sac !== undefined) {
         if (!isObj(k.sac)) err("KOSTUM_SAC", `${p}.kostum.sac`, "stil ve renk gerekli");
         else {
           oneOf(k.sac, "stil", `${p}.kostum.sac`, HAIR_STYLES);
           str(k.sac, "renk", `${p}.kostum.sac`, { pattern: HEX });
+        }
+      }
+      if (k.yuz !== undefined) {
+        const y = k.yuz;
+        const yp = `${p}.kostum.yuz`;
+        if (!isObj(y)) err("KOSTUM_YUZ", yp, "nesne bekleniyor");
+        else {
+          oneOf(y, "sekil", yp, FACE_SHAPES, true);
+          oneOf(y, "burun", yp, NOSES, true);
+          oneOf(y, "goz", yp, EYE_STYLES, true);
+          oneOf(y, "yas", yp, AGES, true);
+          str(y, "ten", yp, { optional: true, pattern: HEX });
+          str(y, "kas_renk", yp, { optional: true, pattern: HEX });
         }
       }
     }
@@ -224,7 +243,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       str(k, "ayakkabi", `${cp}.kostum`);
       if (!isObj(k.renkler)) err("KOSTUM_RENK", `${cp}.kostum.renkler`, "ana/ikincil/ic/sus renkleri gerekli");
       else for (const key of ["ana", "ikincil", "ic", "sus"]) str(k.renkler, key, `${cp}.kostum.renkler`, { pattern: HEX });
-      for (const key of ["bas", "sakal", "biyik", "el_on", "el_arka", "sirt"]) str(k, key, `${cp}.kostum`, { optional: true, pattern: ITEM_REF });
+      for (const key of PART_FIELDS) str(k, key, `${cp}.kostum`, { optional: true, pattern: ITEM_REF });
     });
     const speakers = new Set<string>();
     const lines = arr(s, "satirlar", p) ?? [];

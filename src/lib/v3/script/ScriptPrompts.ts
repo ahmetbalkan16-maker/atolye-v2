@@ -148,12 +148,16 @@ CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".
 - 3–6 visible characters, each with a distinct "renk" (#RRGGBB), a distinct "konusma_tarzi", ${voiceRule(brief)}
 - "rol": a short role line shown under the name the first time they speak (at most 5 words, e.g. "Ottoman Sultan, age 20").
-- "portre": {"wiki": "<exact English Wikipedia article title>"} for the 2–3 MAIN characters who are real historical people
-  with a known likeness (a portrait, miniature, engraving or photo): their real face is cut from that portrait and put on
-  the cartoon body. They still need their full "kostum" (garment, colours, headwear): only the face comes from the
-  portrait. Leave "portre" out for invented, anonymous or minor characters — they get hair, beard and hat parts instead.
+- "portre": {"wiki": "<exact English Wikipedia article title>"} for EVERY visible character who is a real, named
+  historical person: Atölye's costume team reads their article, looks at their portrait and draws their own face shape,
+  hair, beard, headwear and clothes as they were in this episode's period (like OverSimplified's Henry VIII after
+  Holbein). Still give them a full "kostum" as your best guess; the team corrects it. Leave "portre" out for invented
+  or anonymous characters (a legionary, a messenger) and crowds.
+- Everyone looks different: no two visible characters share the same headwear-or-hair AND garment colours. A
+  character without headwear gets "sac" ({"stil": kisa|dalgali|yan_ayrik|uzun|topuz|orgu|kel|kivircik|kakul|geriye|
+  seyrek, "renk": "#RRGGBB"}). Crowds may share one look.
 - Costumes: "giysi" is one of the body garments below, in period colours. Parts ("bas", "sakal", "biyik", "el_on",
-  "el_arka", "sirt") come from the catalog when an item fits the period and the character's rank (the notes in brackets
+  "el_arka", "sirt", "gogus" on the chest, "sac_parca" a drawn haircut) come from the catalog when an item fits the period and the character's rank (the notes in brackets
   say who may wear it; an item from another pack is written "pack/item"). When nothing in the catalog fits, ORDER the
   part instead: "bas": "yeni:<English description, 3–12 words>", e.g. "yeni:Roman legionary helmet with a red crest",
   "yeni:WWI British Brodie helmet", "yeni:Napoleon's black bicorne hat" — Atölye draws it once, checks it and keeps it

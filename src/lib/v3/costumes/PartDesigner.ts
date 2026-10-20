@@ -4,7 +4,7 @@ import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
 import { type CandidateVerdict, passes, pickBackground } from "../backgrounds/BackgroundJudge";
 import type { CastCostume, Episode } from "../episode/EpisodeTypes";
-import type { V3Accessory, V3CastMember, V3RenderPlan } from "../render/RenderPlanTypes";
+import type { V3Accessory, V3CastMember, V3Costume, V3FaceShape, V3Gesture, V3Look, V3RenderPlan } from "../render/RenderPlanTypes";
 import { renderWithRemotion } from "../render/RemotionRunner";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runChecked } from "../util/Proc";
@@ -27,7 +27,7 @@ const MAX_ROUNDS = 3;
 const MAX_ELEMENTS = 45;
 
 export type PartSlot = V3Accessory["slot"];
-const FIELD_SLOT: Readonly<Record<string, PartSlot>> = { bas: "head", sakal: "beard", biyik: "mustache", el_on: "hand", el_arka: "hand", sirt: "back" };
+const FIELD_SLOT: Readonly<Record<string, PartSlot>> = { bas: "head", sakal: "beard", biyik: "mustache", el_on: "hand", el_arka: "hand", sirt: "back", sac_parca: "hair", gogus: "chest" };
 
 /** Root that holds the generated pack (`<root>/gardirop/pack.json`); packs are looked up in the repo first, then here. */
 export function wardrobeRoot(paths: V3Paths): string {
@@ -43,7 +43,9 @@ export interface PartOrder {
   readonly tarif: string;
 }
 
-const key = (o: PartOrder) => `${o.slot}:${o.tarif.toLowerCase().replace(/\s+/g, " ").trim()}`;
+/** One key per ordered part (slot + description), shared by the orders, the library and the likeness references. */
+export const partKey = (o: PartOrder) => `${o.slot}:${o.tarif.toLowerCase().replace(/\s+/g, " ").trim()}`;
+const key = partKey;
 
 /** Every "yeni:" request in the cast's and the crowds' costumes, once each. */
 export function partOrders(episode: Episode): PartOrder[] {
@@ -78,17 +80,33 @@ export function applyParts(episode: Episode, made: ReadonlyMap<string, string | 
   };
 }
 
+/** The puppet's face, measured on the rig (remotion-v3/src/character/Face.tsx): every head-slot rule is told this. */
+const FACE_FRAME = `Coordinates are centred on the puppet's head: radius 100 at (0,0); y grows downwards; the face looks slightly
+towards +x: eyes at (-21,-4) and (41,-4), brows at about y = -45, nose near (22,20), mouth at (8,46), the face's
+middle line at x = 10.`;
+
+/** Chin height of each likeness face shape (Face.tsx FACE_PATHS); the plain puppet head is round (chin at y = 98). */
+const CHIN_Y: Readonly<Record<V3FaceShape, number>> = { yuvarlak: 98, oval: 114, uzun: 128, genis: 124, kare: 118 };
+
 const SLOT_RULES: Readonly<Record<PartSlot, string>> = {
-  head: `HEADWEAR. Coordinates are centred on the puppet's head: a circle of radius 100 at (0,0); y grows downwards; the
-face looks towards +x (eyes near (30,-10) and (62,-10), mouth near (45,40)). The headwear sits ON the head: its lower
-rim wraps the head at about y = -40…-60 (the rim may be a band of height 20–30), the crown rises above (top no higher
-than y = -290), width at most ±150 (brims, plumes, crests). It may cover the top of the head but never the eyes or the
-face (nothing in x 0…95, y -35…70). Cheek guards may hang at the sides (x < -60).`,
-  beard: `BEARD. Coordinates are centred on the puppet's head (radius 100, face looking +x, mouth near (45,40)). The beard
-grows from the jaw: from about y = 20 down to at most y = 170, x within -75…95, and leaves the mouth line (y 30…50,
-x 20…70) visible.`,
-  mustache: `MOUSTACHE. Head-centred coordinates (radius 100, face looking +x); it sits above the mouth at about (45,30),
-at most 80 wide and 30 tall.`,
+  head: `HEADWEAR. ${FACE_FRAME} The headwear sits ON the head: its lower rim wraps the head at about y = -40…-60 (the
+rim may be a band of height 20–30), the crown rises above (top no higher than y = -290), width at most ±150 (brims,
+plumes, crests). It may cover the top of the head but never the eyes or the face (nothing in x -45…75, y -35…75).
+Cheek guards may hang at the sides (x < -60).`,
+  beard: `BEARD. ${FACE_FRAME} The beard grows from the jaw and cheeks: its upper edge rises from the chin to the cheeks
+(about y = 30 at x = -70 and x = 90) and passes BELOW the mouth in the middle (about y = 66 under x = 8), so the
+mouth (x -22…38, y 34…62) stays visible; it hangs down to at most y = 190, x within -80…100.`,
+  mustache: `MOUSTACHE. ${FACE_FRAME} It sits between the nose and the mouth, centred at about (10,34), at most 100 wide
+and 30 tall, not covering the mouth opening below y = 44.`,
+  hair: `HAIRCUT (the person's own hair; headwear, if any, is a separate part drawn over it). ${FACE_FRAME} The hair
+covers the skull from the back of the head (x ≈ -105) over the crown (top no higher than y = -150, for volume) to a
+hairline above the forehead (above y = -55 for x > -40, so the eyes and brows stay visible). Short hair ends at the
+back of the neck (y ≈ 10, x ≈ -100); long hair may fall at the back and side down to y = 200 (x < -40); sideburns at
+x ≈ -80…-55 may reach y = 40. Nothing over the eyes, brows or face (x -40…80, y -50…80). A balding person: only the
+fringe around the back and sides, a bare crown.`,
+  chest: `ON THE CHEST, over the garment (chain of office, pendant, order sash, medals, breastplate decoration).
+Coordinates are centred between the shoulders at (0,0); the neckline is at y ≈ -16, the shoulders at x ±88, the belt
+at y ≈ 114, the hips at y ≈ 168. Keep within x -95…95, y -20…170.`,
   hand: `HELD OBJECT. Coordinates are centred on the closed fist at (0,0). Draw the object inside <g transform="rotate(-40)">
 with its handle through the fist (handle from about y = -45 to y = 35) and its long axis along +y (a sword blade from
 y = 35 to about y = 215, a staff or spear from y = -200 to y = 260, a flag pole with the flag near the top). Small
@@ -97,14 +115,15 @@ objects (scroll, book, cup, letter, pistol) sit around the fist within ±70.`,
 hangs down to about y = 330, shoulders at x ±88. Keep within x -150…150, y -60…340.`,
 };
 
-export function partPrompt(o: PartOrder, donem: string, reference: string, feedback?: string, realExample?: string): string {
+export function partPrompt(o: PartOrder, donem: string, reference: string, feedback?: string, realExample?: string, faceShape?: V3FaceShape): string {
+  const face = faceShape && faceShape !== "yuvarlak" && ["head", "beard", "mustache", "hair"].includes(o.slot) ? `\nTHIS CHARACTER'S FACE is ${faceShape === "genis" ? "wide with heavy jowls" : faceShape === "uzun" ? "long" : faceShape === "kare" ? "square-jawed" : "oval"}: the chin is at y = ${CHIN_Y[faceShape]} (not 98); fit the part to it.\n` : "";
   return `You draw costume parts for a flat cartoon puppet in an animated history show. Draw ONE part as SVG.
 
 PART: ${o.tarif}
 PERIOD: ${donem}
 
 ${SLOT_RULES[o.slot]}
-
+${face}
 STYLE (the house style, see the reference part below): flat fills, every shape outlined with stroke #1d1b26,
 stroke-width 4–6.5, stroke-linejoin round; simple, bold, readable at small size; 2–4 colours true to the period; one
 optional highlight stroke (#ffffff, opacity 0.5). Historically accurate shape for ${donem}.
@@ -137,6 +156,7 @@ export function partProblems(svg: string, slot: PartSlot): string[] {
   const numbers = (geometry.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
   if (numbers.some((n) => Math.abs(n) > 400)) problems.push("coordinates outside the part frame (|n| > 400)");
   if (slot === "head" && !numbers.some((n) => n <= -100)) problems.push("headwear does not rise above the head (no y ≤ -100)");
+  if (slot === "hair" && !numbers.some((n) => n <= -90)) problems.push("the haircut does not reach the crown (no y ≤ -90)");
   return problems;
 }
 
@@ -166,24 +186,30 @@ async function readLibrary(root: string): Promise<CostumePackManifest> {
 
 /** A sample part of the same slot from the hand-drawn packs, as the style and frame reference. */
 async function referencePart(paths: V3Paths, slot: PartSlot): Promise<string> {
-  const prefer: Readonly<Record<PartSlot, string>> = { head: "ottoman-1453/zaganos-migferi", beard: "ottoman-1453/sakal-genc", mustache: "ottoman-1453/biyik-pala", hand: "ottoman-1453/kilic", back: "ottoman-1453/zaganos-migferi" };
+  const prefer: Readonly<Record<PartSlot, string>> = { head: "ottoman-1453/zaganos-migferi", beard: "ottoman-1453/sakal-genc", mustache: "ottoman-1453/biyik-pala", hand: "ottoman-1453/kilic", back: "ottoman-1453/zaganos-migferi", hair: "ortak/sac-kisa-yan", chest: "ortak/altin-zincir" };
   const [pack, id] = prefer[slot].split("/") as [string, string];
   return (await fs.readFile(path.join(costumesRoot(paths.repoRoot), pack, `${id}.svg`), "utf8")).trim();
 }
 
-/** Puppets wearing the candidates, in a row, rendered in one still; each one's region is cropped for the judge. */
-async function fittingStills(paths: V3Paths, candidates: readonly { order: PartOrder; svg: string; behind: boolean; grip: boolean }[], workDir: string): Promise<string[]> {
+/** One puppet of a still row: who, in what pose, and which crop the judge gets. */
+export interface StillPuppet {
+  readonly member: V3CastMember;
+  readonly gesture: V3Gesture;
+  /** "head": a close square on the head; "figure": the whole body. */
+  readonly crop: "head" | "figure";
+}
+
+/**
+ * Puppets in a row on a plain backdrop, rendered in one still; each one's region is cropped to a JPEG for a judge.
+ * Used by the part fittings and the likeness check.
+ */
+export async function puppetStills(paths: V3Paths, puppets: readonly StillPuppet[], accessories: readonly V3Accessory[], workDir: string): Promise<string[]> {
   const pub = path.join(workDir, "public");
   await fs.mkdir(path.join(pub, "bg"), { recursive: true });
   const bg = path.join(pub, "bg", "duz.png");
   if (!existsSync(bg)) await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0xd9d4c7:s=1920x1080", "-frames:v", "1", bg]);
-  const n = candidates.length;
-  const accessories: V3Accessory[] = candidates.map((c, i) => ({ id: `${WARDROBE_PACK}/aday-${i}`, slot: c.order.slot, markup: svgBody(c.svg, `aday-${i}`), ...(c.behind ? { behind: true } : {}), ...(c.grip ? { grip: true } : {}) }));
-  const cast: V3CastMember[] = candidates.map((c, i) => {
-    const ref = `aday-${i}`;
-    const slotField = c.order.slot === "head" ? { head: ref } : c.order.slot === "beard" ? { beard: ref } : c.order.slot === "mustache" ? { mustache: ref } : c.order.slot === "hand" ? { handFront: ref } : { back: ref };
-    return { id: `p${i}`, name: c.order.tarif, scale: 1, style: "kukla", costume: { pack: WARDROBE_PACK, garment: "tunik", colors: { main: "#8c8f99", second: "#5d6170", inner: "#d8d2c4", trim: "#b59a5a" }, shoes: "kahve-cizme", collar: "yok", ...slotField } };
-  });
+  const n = puppets.length;
+  const cast = puppets.map((p) => p.member);
   const fps = 30;
   const plan: V3RenderPlan = {
     version: 1,
@@ -204,7 +230,7 @@ async function fittingStills(paths: V3Paths, candidates: readonly { order: PartO
         start: 0,
         duration: 30,
         background: { src: "bg/duz.png", kind: "set" },
-        performers: cast.map((c, i) => ({ castId: c.id, x: (i + 0.5) / n, depth: 0, facing: "right", moves: [], gestures: [{ gesture: candidates[i]!.order.slot === "hand" ? "yumruk_kaldir" : "konus", start: 0, end: 30 }], faces: [{ start: 0, emotion: "notr" }], visemes: [], effects: [], speaking: [] })),
+        performers: puppets.map((p, i) => ({ castId: p.member.id, x: (i + 0.5) / n, depth: 0, facing: "right", moves: [], gestures: [{ gesture: p.gesture, start: 0, end: 30 }], faces: [{ start: 0, emotion: "notr" }], visemes: [], effects: [], speaking: [] })),
         props: [],
         camera: [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }],
         shakes: [],
@@ -215,6 +241,7 @@ async function fittingStills(paths: V3Paths, candidates: readonly { order: PartO
       },
     ],
   };
+  await fs.mkdir(workDir, { recursive: true });
   const planFile = path.join(workDir, "prova-plan.json");
   await fs.writeFile(planFile, JSON.stringify({ plan }));
   const still = path.join(workDir, "prova.png");
@@ -225,13 +252,26 @@ async function fittingStills(paths: V3Paths, candidates: readonly { order: PartO
     const crop = path.join(workDir, `aday-${i}.jpg`);
     const cx = Math.round((i + 0.5) * cell);
     // Head parts: a close square on the head (the judge must see the part, not a small figure); others: the figure.
-    const head = candidates[i]!.order.slot !== "hand" && candidates[i]!.order.slot !== "back";
-    const w = head ? Math.min(cell, 440) : Math.min(cell, 640);
-    const box = head ? `crop=${w}:${w}:${Math.max(0, cx - Math.round(w / 2))}:${Math.round(640 - w * 0.62)},scale=640:640` : `crop=${w}:820:${Math.max(0, cx - Math.round(w / 2))}:200,scale=-2:640`;
+    const head = puppets[i]!.crop === "head";
+    const w = head ? Math.min(cell, 500) : Math.min(cell, 640);
+    // The head square ends just below the longest likeness chin (y ≈ 846) and reaches up as far as its width allows.
+    const box = head ? `crop=${w}:${w}:${Math.max(0, cx - Math.round(w / 2))}:${846 - w},scale=640:640` : `crop=${w}:820:${Math.max(0, cx - Math.round(w / 2))}:200,scale=-2:640`;
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", still, "-vf", box, "-q:v", "3", crop]);
     out.push(crop);
   }
   return out;
+}
+
+const SLOT_FIELD: Readonly<Record<PartSlot, keyof V3Costume>> = { head: "head", beard: "beard", mustache: "mustache", hand: "handFront", back: "back", hair: "hairPart", chest: "chest" };
+
+/** Puppets wearing the candidates (with the character's own face shape when it has a likeness), in one still. */
+async function fittingStills(paths: V3Paths, candidates: readonly { order: PartOrder; svg: string; behind: boolean; grip: boolean; look?: V3Look }[], workDir: string): Promise<string[]> {
+  const accessories: V3Accessory[] = candidates.map((c, i) => ({ id: `${WARDROBE_PACK}/aday-${i}`, slot: c.order.slot, markup: svgBody(c.svg, `aday-${i}`), ...(c.behind ? { behind: true } : {}), ...(c.grip ? { grip: true } : {}) }));
+  const puppets: StillPuppet[] = candidates.map((c, i) => {
+    const costume: V3Costume = { pack: WARDROBE_PACK, garment: "tunik", colors: { main: "#8c8f99", second: "#5d6170", inner: "#d8d2c4", trim: "#b59a5a" }, shoes: "kahve-cizme", collar: "yok", [SLOT_FIELD[c.order.slot]]: `aday-${i}`, ...(c.look ? { look: c.look } : {}) };
+    return { member: { id: `p${i}`, name: c.order.tarif, scale: 1, style: "kukla", costume }, gesture: c.order.slot === "hand" ? "yumruk_kaldir" : "konus", crop: c.order.slot === "hand" || c.order.slot === "back" || c.order.slot === "chest" ? "figure" : "head" };
+  });
+  return puppetStills(paths, puppets, accessories, workDir);
 }
 
 export interface PartRecord {
@@ -259,6 +299,11 @@ export async function designParts(input: {
   readonly log: (s: string) => void;
   /** The costume brain: real references before drawing, historian and chief after (none = the judge alone). */
   readonly brain?: BrainDeps;
+  /**
+   * Parts of a real person's likeness, by part key: their portrait as the reference (instead of a museum search) and
+   * their face, so the part is drawn and tried on for that face.
+   */
+  readonly likeness?: ReadonlyMap<string, { readonly ref?: PartReference; readonly look?: V3Look }>;
 }): Promise<{ made: Map<string, string | undefined>; records: PartRecord[] }> {
   const { paths, log } = input;
   const root = wardrobeRoot(paths);
@@ -269,7 +314,7 @@ export async function designParts(input: {
   const made = new Map<string, string | undefined>();
   const records: PartRecord[] = [];
   const byTarif = new Map(Object.entries(library.items).map(([id, it]) => [key({ slot: it.slot, tarif: it.not ?? "" }), id]));
-  let pending: { order: PartOrder; feedback?: string; tries: number; problems: string[]; ref?: PartReference; talk: DebateEntry[] }[] = [];
+  let pending: { order: PartOrder; feedback?: string; tries: number; problems: string[]; ref?: PartReference; look?: V3Look; talk: DebateEntry[] }[] = [];
   const talks: { order: PartOrder; talk: DebateEntry[] }[] = [];
   for (const o of input.orders) {
     const found = byTarif.get(key(o));
@@ -279,12 +324,14 @@ export async function designParts(input: {
       log(`  gardırop: "${o.tarif}" kütüphanede (${found})`);
     } else {
       const talk: DebateEntry[] = [];
-      pending.push({ order: o, tries: 0, problems: [], talk });
+      const person = input.likeness?.get(key(o));
+      pending.push({ order: o, tries: 0, problems: [], talk, ...(person?.ref ? { ref: person.ref } : {}), ...(person?.look ? { look: person.look } : {}) });
+      if (person?.ref) talk.push({ rol: "Araştırmacı", metin: `kişinin portresi örnek: ${person.ref.title.replace(/^File:/, "")} — ${person.ref.description}` });
       talks.push({ order: o, talk });
     }
   }
   if (input.brain) {
-    for (const p of pending) {
+    for (const p of pending.filter((x) => !x.ref)) {
       const ref = await findPartReference(p.order, input.donem, input.brain).catch(() => undefined);
       if (ref) p.ref = ref;
       p.talk.push({ rol: "Araştırmacı", metin: ref ? `gerçek örnek bulundu: ${ref.title.replace(/^File:/, "")} — ${ref.description}` : "gerçek örnek bulunamadı; tariften çizilecek" });
@@ -295,7 +342,7 @@ export async function designParts(input: {
     const drawn: { p: (typeof pending)[number]; svg: string; behind: boolean; grip: boolean }[] = [];
     for (const p of pending) {
       p.tries++;
-      const out = await input.budget.generate(`parca-${round}`, input.model, partPrompt(p.order, input.donem, await referencePart(paths, p.order.slot), p.feedback, p.ref?.description), { maxTokens: 3_000, ...(p.ref ? { images: [p.ref.imageB64] } : {}) });
+      const out = await input.budget.generate(`parca-${round}`, input.model, partPrompt(p.order, input.donem, await referencePart(paths, p.order.slot), p.feedback, p.ref?.description, p.look?.faceShape), { maxTokens: 3_000, ...(p.ref ? { images: [p.ref.imageB64] } : {}) });
       const ans = readJsonAnswer(out.result.content);
       const problems = ans.svg ? partProblems(ans.svg, p.order.slot) : ["no svg in the answer"];
       if (problems.length) {
@@ -308,9 +355,9 @@ export async function designParts(input: {
       drawn.push({ p, svg: ans.svg!.trim(), behind: ans.behind === true, grip: ans.grip === true || p.order.slot === "hand" });
     }
     if (drawn.length) {
-      const crops = await fittingStills(paths, drawn.map((d) => ({ order: d.p.order, svg: d.svg, behind: d.behind, grip: d.grip })), path.join(input.workDir, `tur-${round}`));
+      const crops = await fittingStills(paths, drawn.map((d) => ({ order: d.p.order, svg: d.svg, behind: d.behind, grip: d.grip, ...(d.p.look ? { look: d.p.look } : {}) })), path.join(input.workDir, `tur-${round}`));
       for (const [i, d] of drawn.entries()) {
-        const slotName = { head: "headwear", beard: "beard", mustache: "moustache", hand: "held object", back: "worn on the back" }[d.p.order.slot];
+        const slotName = { head: "headwear", beard: "beard", mustache: "moustache", hand: "held object", back: "worn on the back", hair: "haircut", chest: "worn on the chest" }[d.p.order.slot];
         const pick = await pickBackground([{ title: d.p.order.tarif, crop: crops[i]! }], { konu: d.p.order.tarif, donem: input.donem, mekan: slotName, tr: d.p.order.tarif, en: d.p.order.tarif, anlatim: "" }, input.judge, (c) => fs.readFile(c.crop), log, { mode: "parca", max: 1 });
         const v = pick.verdicts[0];
         d.p.talk.push({ rol: "Sanat yönetmeni", metin: v ? `tur ${round}: ${v.puan}/10 — ${v.gosterilen}; ${v.sorun}` : `tur ${round}: okunamadı` });

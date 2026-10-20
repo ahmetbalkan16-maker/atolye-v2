@@ -30,7 +30,7 @@ export interface CostumePackManifest {
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const OUTSIDE = /<script\b|<foreignObject\b|<image\b|<use\b|<style\b|<!DOCTYPE|<!ENTITY|\bhref\s*=|url\s*\(|@import|javascript:|\bon[a-z]+\s*=/i;
 const MAX_SVG_BYTES = 64 * 1024;
-const SLOTS: readonly V3Accessory["slot"][] = ["head", "beard", "mustache", "hand", "back"];
+const SLOTS: readonly V3Accessory["slot"][] = ["head", "beard", "mustache", "hand", "back", "hair", "chest"];
 
 export class CostumePackError extends Error {
   constructor(readonly code: string, message: string) {
@@ -108,7 +108,7 @@ export function accessoryRefs(cast: readonly V3CastMember[]): string[] {
   const refs = new Set<string>();
   for (const member of cast) {
     const c = member.costume;
-    for (const ref of [c.head, c.beard, c.mustache, c.handFront, c.handBack, c.back]) {
+    for (const ref of [c.head, c.beard, c.mustache, c.handFront, c.handBack, c.back, c.hairPart, c.chest]) {
       if (ref) refs.add(ref.includes("/") ? ref : `${c.pack}/${ref}`);
     }
   }

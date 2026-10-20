@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "id": "ortak",
+  "title": "Ortak parçalar (her dönem)",
+  "notes": "Döneme bağlı olmayan, elle çizilmiş temel parçalar; aynı zamanda gardırop tasarımcısının saç ve göğüs süsü için ev stili örneği.",
+  "items": {
+    "altin-zincir": {
+      "slot": "chest",
+      "not": "chain of office: kings, mayors, chancellors, nobles (late medieval to early modern)"
+    },
+    "nisan-kusagi": {
+      "slot": "chest",
+      "not": "order sash with a star: monarchs, marshals, high nobility (17th–20th c.)"
+    },
+    "sac-kisa-yan": {
+      "slot": "hair",
+      "not": "short side-parted brown haircut, any man"
+    }
+  }
+}

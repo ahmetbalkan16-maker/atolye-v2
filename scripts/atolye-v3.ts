@@ -1,11 +1,11 @@
 /**
- * Atölye V3 — tek komutla bölüm, her dönem ve konu için: konu → araştırma + senaryo → gardırop → ses → ağız senkronu
- * → portre yüzler → dönem görselleri + setler → render → miks → final.
+ * Atölye V3 — tek komutla bölüm, her dönem ve konu için: konu → araştırma + senaryo → gardırop (gerçek kişilerin
+ * portreden, o yıla göre çizilen benzerliği dahil) → ses → ağız senkronu → dönem görselleri + setler → render → miks → final.
  *
  *   npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil tr|en]
  *        [--kaynaklar <banka.json> | --wiki "Makale 1|Makale 2" | --arastirma-yok] [--saglayici ollama|openai]
  *        [--anlatici <ses id>] [--bolum <episode.json>] [--cikti <klasör>] [--altyazi-gom]
- *        [--from-step senaryo|gardirop|ses|senkron|portre|gorsel|render|miks|birlestir] [--onizleme]
+ *        [--from-step senaryo|gardirop|ses|senkron|gorsel|render|miks|birlestir] [--onizleme]
  *
  * Her adımın sonucu bölüm klasöründe dosya olarak durur; var olan adım atlanır, --from-step o adımdan itibaren
  * yeniden üretir. --onizleme 480p/15 fps render eder. OpenAI çağrıları video başına 1 $ tavanla sınırlıdır.
@@ -24,7 +24,8 @@ import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/Commo
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
-import { findPortraitFace, type PortraitResult } from "../src/lib/v3/faces/PortraitFaces";
+import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord } from "../src/lib/v3/faces/LikenessDesigner";
+import { distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData } from "../src/lib/v3/maps/MapBuilder";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
@@ -51,7 +52,7 @@ import { runChecked } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 import { sfxFileName } from "./v3/sfx-uret";
 
-const STEPS = ["senaryo", "gardirop", "ses", "senkron", "portre", "gorsel", "render", "miks", "birlestir"] as const;
+const STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "miks", "birlestir"] as const;
 
 /**
  * Paid-text providers for the script and part stages: OpenAI when chosen (the key is borrowed for this process
@@ -374,7 +375,8 @@ async function main() {
   const dil = (arg("--dil") ?? "tr") as ScriptLanguage;
   const ton = (arg("--ton") ?? "mizahi") as EpisodeTone;
   if (!EPISODE_TONES.includes(ton)) throw new Error(`--ton şunlardan biri olmalı: ${EPISODE_TONES.join(", ")}`);
-  const fromStep = (arg("--from-step") ?? undefined) as Step | undefined;
+  // "portre" was a step of its own until the likeness moved into the wardrobe (20 Oct 2026).
+  const fromStep = (arg("--from-step") === "portre" ? "gardirop" : (arg("--from-step") ?? undefined)) as Step | undefined;
   if (fromStep && !STEPS.includes(fromStep)) throw new Error(`--from-step şunlardan biri olmalı: ${STEPS.join(", ")}`);
   const preview = process.argv.includes("--onizleme");
   const given = arg("--bolum");
@@ -473,6 +475,7 @@ async function main() {
 
   // 2) Gardırop: parts the catalog lacks ("yeni:…") are drawn, tried on, judged and added to the wardrobe library.
   let parts: PartRecord[] = existsSync(f("gardirop.json")) ? await readJson<PartRecord[]>(f("gardirop.json")) : [];
+  let likenesses: LikenessRecord[] = existsSync(f("benzerlik.json")) ? await readJson<LikenessRecord[]>(f("benzerlik.json")) : [];
   if (need("gardirop", "gardirop.json")) {
     parts = await step("gardirop", async () => {
       // The script's own orders are kept, so a rerun of this step can try again the parts that were left off.
@@ -485,14 +488,28 @@ async function main() {
       const judge = visionJudge();
       const brain = providerName === "openai" ? { cacheDir: path.join(paths.workRoot, "_onbellek", "commons"), judge, budget, critic: { provider: "openai" as const, model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" }, council, log } : undefined;
       try {
-        // First the historian reviews the whole cast's costumes (it may order new parts), then the parts are made.
+        // First the historian reviews the whole cast's costumes (it may order new parts); then the real people are
+        // drawn after their portraits as they looked in the episode's period (their parts are ordered too); every named
+        // character is made distinct; then the parts are made.
         if (brain) episode = await reviewCostumes(episode, await packCatalog(costumeRootsFor(paths)), brain);
+        const designer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
+        const critic: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" };
+        const likeness = await designLikenesses(episode, { paths, commonsCache: path.join(paths.workRoot, "_onbellek", "commons"), wikiCache: path.join(paths.workRoot, "_onbellek", "wikipedia"), judge, budget, designer, critic, council, log });
+        episode = likeness.episode;
+        const variety = distinctLooks(episode);
+        episode = variety.episode;
+        for (const fix of variety.fixes) log(`  görünüş: ${fix}`);
         const orders = partOrders(episode);
         if (orders.length) {
-          const r = await designParts({ paths, orders, donem: episode.donem, budget, model: providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" }, judge, workDir: path.join(work, "gardirop-prova"), log, ...(brain ? { brain } : {}) });
+          const r = await designParts({ paths, orders, donem: episode.donem, budget, model: designer, judge, workDir: path.join(work, "gardirop-prova"), log, likeness: likeness.references, ...(brain ? { brain } : {}) });
           records = r.records;
           episode = assertEpisode(applyParts(episode, r.made));
         }
+        const kept = await keepLikenesses(paths, episode, likeness.records, records);
+        if (kept) log(`  benzerlik: ${kept} kişi kişi kütüphanesine eklendi`);
+        const checked = await checkLikenesses({ paths, episode, outcome: likeness, budget, designer, workDir: path.join(work, "benzerlik-prova"), council, log }).catch((e: Error) => (log(`  benzerlik kontrolü yapılamadı: ${e.message.slice(0, 160)}`), likeness.records));
+        await writeJson(f("benzerlik.json"), checked);
+        likenesses = checked;
         await writeJson(f("episode.json"), episode);
       } finally {
         await writeJson(f("maliyet.json"), { tavanUsd: 1, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
@@ -501,7 +518,9 @@ async function main() {
       return records;
     }, async () => {
       // Without the wardrobe step the video still gets made: ordered parts are left off.
-      episode = assertEpisode(applyParts(episode, new Map()));
+      episode = assertEpisode(applyParts(distinctLooks(episode).episode, new Map()));
+      likenesses = [];
+      await writeJson(f("benzerlik.json"), []);
       await writeJson(f("episode.json"), episode);
       await writeJson(f("gardirop.json"), []);
       return [];
@@ -558,25 +577,7 @@ async function main() {
   // The opening cover (episode title over the first picture) is 3.5 s of the timeline; --kapak-yok drops it.
   const timeline = buildTimeline(episode, audio, { ...DEFAULT_TIMELINE, introS: process.argv.includes("--kapak-yok") ? 0 : 3.5 });
 
-  // 5) Portre yüzleri: the main historical characters get their real face from a portrait.
-  let portraits: PortraitResult[];
-  if (need("portre", "portreler.json")) {
-    portraits = await step("portre", async () => {
-      const out: PortraitResult[] = [];
-      const judge = visionJudge();
-      for (const c of episode.oyuncu_kadrosu.filter((x) => x.gorunur && x.portre?.wiki)) {
-        const r = await findPortraitFace({ paths, publicDir: path.join(work, "public"), cacheDir: path.join(paths.workRoot, "_onbellek", "commons"), judge, person: { id: c.id, ad: c.ad, rol: c.rol, wiki: c.portre!.wiki }, donem: episode.donem, log });
-        if (r) out.push(r);
-      }
-      await writeJson(f("portreler.json"), out);
-      return out;
-    }, async () => {
-      await writeJson(f("portreler.json"), []);
-      return [];
-    });
-  } else portraits = await readJson<PortraitResult[]>(f("portreler.json"));
-
-  // 6) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
+  // 5) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
   let visuals: SceneVisual[];
   if (need("gorsel", "gorseller-v2.json")) {
     visuals = await step("gorsel", async () => {
@@ -587,10 +588,10 @@ async function main() {
   } else visuals = await readJson<SceneVisual[]>(f("gorseller-v2.json"));
   const backgrounds = visuals.map((v) => v.set);
 
-  // 7) Render (sessiz; ses izi miksten gelir)
+  // 6) Render (sessiz; ses izi miksten gelir)
   const fps = preview ? 15 : 30;
   // Actors and every scene's crowd groups (extras load their costumes the same way).
-  const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla", new Map(portraits.map((p) => [p.castId, p.face]))), ...crowdCast(episode, "kukla")];
+  const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla"), ...crowdCast(episode, "kukla")];
   const mapData = episode.sahneler.some((s) => s.harita?.merkez) ? await loadMapData(paths.mapsDir) : undefined;
   const plan = buildRenderPlan({
     ...(mapData ? { mapData } : {}),
@@ -620,7 +621,7 @@ async function main() {
     });
   }
 
-  // 8) Miks
+  // 7) Miks
   type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[] };
   let mix: MixMeta;
   if (need("miks", "miks.json")) {
@@ -639,12 +640,12 @@ async function main() {
     });
   } else mix = await readJson<MixMeta>(f("miks.json"));
 
-  // 9) Birleştir + altyazı + jenerik + QC
+  // 8) Birleştir + altyazı + jenerik + QC
   await step("birlestir", async () => {
     const final = preview ? "final-onizleme.mp4" : "final.mp4";
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", f(silent), "-i", f("miks.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", f(final)], { timeoutMs: 30 * 60_000 });
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
-    const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : [])), ...portraits.map((p) => p.credit)].map((c) => [c.sha256 ?? c.assetId, c])).values()];
+    const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : []))].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
     const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine))];
     const en = dil === "en";
@@ -687,7 +688,7 @@ async function main() {
         `Dönem görselleri: ${periodShown.length}/${visuals.filter((v) => v.donemGorseli !== "aranmadi" && v.donemGorseli !== "bolum").length} aranan sahnede bulundu${periodShown.length ? ` (konu/dönem ${periodShown.map((v) => `${v.arsiv!.secim.puan}/${v.arsiv!.secim.donem ?? "?"}`).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}; ${visuals.filter((v) => v.donemGorseli === "bulunamadi").length} sahnede bulunamadı — ilgisiz görsel kullanılmadı`,
       ),
       row(!parts.some((p) => p.kaynak === "basarisiz"), `Gardırop: ${parts.filter((p) => p.kaynak === "tasarim").length} yeni parça tasarlandı, ${parts.filter((p) => p.kaynak === "kutuphane").length} kütüphaneden${parts.some((p) => p.kaynak === "basarisiz") ? `, ${parts.filter((p) => p.kaynak === "basarisiz").length} parça kabul edilmedi (kostümden çıkarıldı: ${parts.filter((p) => p.kaynak === "basarisiz").map((p) => p.tarif).join("; ")})` : ""}`),
-      row(true, `Portre yüzleri: ${portraits.length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} ana karakter${portraits.length ? ` (${portraits.map((p) => `${p.castId} ${p.secim.puan}/${p.secim.donem ?? "?"}`).join(", ")})` : ""}`),
+      row(likenesses.every((l) => l.kaynak !== "degismedi" && (l.benzerlik ?? 10) >= 6), `Gerçek kişiler: ${likenesses.filter((l) => l.kaynak !== "degismedi").length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} portreden ve ${episode.donem} yılına göre çizildi${likenesses.length ? ` (${likenesses.map((l) => `${l.castId}: ${l.kaynak === "kutuphane" ? "kişi kütüphanesinden" : l.kaynak === "degismedi" ? "çizilemedi" : `portre ${l.portre ? "var" : "yok"}${l.benzerlik !== undefined ? `, benzerlik ${l.benzerlik}/10` : ""}`}`).join("; ")})` : ""}`),
       row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),
@@ -710,7 +711,7 @@ async function main() {
       if (v.donemGorseli === "bulunamadi") council.find({ beyin: "ortam", onem: "uyari", baslik: "dönem görseli bulunamadı", ayrinti: v.not, oneri: "sahnenin 'ara' alanına eski adlar ve yazımlar, 'wiki' alanına doğru makale", tur: "veri", yer: where });
       if (v.set.esikAlti) council.find({ beyin: "ortam", onem: "eksik", baslik: "set hakem eşiğinin altında", ayrinti: `tasarlanan set geçemedi (${v.set.secim ? verdictLine(v.set.secim) : "puan yok"})`, oneri: "tasarim tarifini somutlaştır, yeniden çiz", tur: "veri", yer: where });
     }
-    for (const c of episode.oyuncu_kadrosu.filter((x) => x.portre?.wiki && !portraits.some((p) => p.castId === x.id))) council.find({ beyin: "kostum", onem: "uyari", baslik: "portre yüzü bulunamadı", ayrinti: `${c.ad}: çizili yüz kullanıldı`, oneri: "portre.wiki makale adını kontrol et", tur: "veri", yer: c.id });
+    for (const l of likenesses.filter((x) => x.kaynak === "tasarim" && !x.portre)) council.find({ beyin: "kostum", onem: "bilgi", baslik: "portre bulunamadı", ayrinti: `${l.kisi}: görünüş yalnız tarihçinin notundan çizildi`, oneri: "portre.wiki makale adını kontrol et", tur: "veri", yer: l.castId });
     for (const p of parts.filter((x) => x.kaynak === "basarisiz")) if (!council.findings.some((x) => x.yer === p.tarif)) council.find({ beyin: "kostum", onem: "eksik", baslik: "parça tasarlanamadı", ayrinti: p.tarif, tur: "veri", yer: p.tarif });
     const rms = lipsync.filter((l) => l.lipSync === "rms").length;
     if (rms) council.find({ beyin: "ses", onem: "uyari", baslik: "ağız senkronu yedekte", ayrinti: `${rms}/${lipsync.length} satır Rhubarb yerine ses düzeyiyle`, oneri: "Rhubarb çalıştırma ortamını kontrol et", tur: "ayar" });

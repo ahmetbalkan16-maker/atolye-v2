@@ -103,25 +103,25 @@ ${answer}`;
 PART: ${scene.konu} (${scene.mekan})
 PERIOD: ${scene.donem}
 
-Look at the puppet's ${scene.mekan === "held object" ? "hand" : scene.mekan === "worn on the back" ? "back" : "head and face"} and score 0–10:
-- "puan": at first glance, is what it wears or holds clearly this part, sitting where it belongs (headwear on the head, a beard on the chin, a held object in the hand, a cape or shield on the back) at a sensible size, in the same clean flat style with dark outlines as the puppet? 0–3 if it is unrecognisable, floating off the body, covering the eyes, far too big or too small, or made of broken, stray or messy shapes.
+Look at the puppet's ${scene.mekan === "held object" ? "hand" : scene.mekan === "worn on the back" ? "back" : scene.mekan === "worn on the chest" ? "chest" : "head and face"} and score 0–10:
+- "puan": at first glance, is what it wears or holds clearly this part, sitting where it belongs (headwear on the head, hair on the skull around the face, a beard on the chin, a held object in the hand, a cape or shield on the back, a chain or sash on the chest) at a sensible size, in the same clean flat style with dark outlines as the puppet? 0–3 if it is unrecognisable, floating off the body, covering the eyes, far too big or too small, or made of broken, stray or messy shapes.
 - "donem": does its shape fit ${scene.donem}?
 - "modern": true if it looks like a modern object when it should not.
 - "tur": "cizim".
 ${answer}`;
   }
   if (mode === "portre") {
-    return `You are the picture researcher of a history documentary for an American YouTube channel. The face of a real historical person will be cut out of a portrait and put on their cartoon character.
+    return `You are the picture researcher of a history documentary for an American YouTube channel. The cartoon of a real historical person will be drawn after this portrait: their face shape, hair, beard, headwear and clothes.
 
 PERSON: ${scene.konu} — ${scene.mekan}
 WIKIPEDIA ARTICLE: ${scene.en}
-PERIOD: ${scene.donem}
+THE EPISODE IS SET IN: ${scene.donem} (draw them as they looked then)
 FILE (from ${SOURCE_NAME[c.source ?? "commons"] ?? "Wikimedia Commons"}, may be wrong): ${c.title.replace(/^File:/, "")}${c.description ? ` — ${c.description.slice(0, 300)}` : ""}
 MADE IN (metadata, may be missing or wrong): ${c.year ?? "unknown"}
 
 Score 0–10:
-- "puan": is this a portrait of this very person with ONE face clearly visible, large and uncovered (frontal, three-quarter or profile)? 0–3 for another person, a group where the face is tiny, a coin or seal too small to read, a signature, a building, a map.
-- "donem": is it a historical likeness — painted, drawn or photographed in or near their lifetime, or a well-known later portrait of them? 0–3 for a modern illustration, a film still, an actor or a reenactor.
+- "puan": is this a portrait of this very person with ONE face clearly visible, large and uncovered (frontal, three-quarter or profile), and enough of the head and clothes to draw from? 0–3 for another person, a group where the face is tiny, a coin or seal too small to read, a signature, a building, a map.
+- "donem": is it a historical likeness — painted, drawn, sculpted or photographed in or near their lifetime, or a well-known later portrait of them — showing them at about the age they had in ${scene.donem}? Score lower when it shows them much younger or older than then. 0–3 for a modern illustration, a film still, an actor or a reenactor.
 - "modern": true for a modern actor, reenactor, wax figure or a recent reconstruction.
 - "tur": "eser" for a painting, miniature, engraving or drawing; "fotograf" for a photograph; else "diger".
 ${answer}`;

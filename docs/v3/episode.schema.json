@@ -18,7 +18,22 @@
       "required": ["giysi", "renkler", "ayakkabi"],
       "additionalProperties": false,
       "properties": {
-        "sac": { "type": "object", "required": ["stil", "renk"], "additionalProperties": false, "properties": { "stil": { "enum": ["kisa", "dalgali", "yan_ayrik", "uzun", "topuz", "orgu", "kel"] }, "renk": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" } } },
+        "sac": { "type": "object", "required": ["stil", "renk"], "additionalProperties": false, "properties": { "stil": { "enum": ["kisa", "dalgali", "yan_ayrik", "uzun", "topuz", "orgu", "kel", "kivircik", "kakul", "geriye", "seyrek"] }, "renk": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" } } },
+        "sac_parca": { "$ref": "#/$defs/aksesuar" },
+        "gogus": { "$ref": "#/$defs/aksesuar" },
+        "yuz": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Gerçek kişinin portresinden okunan çizili benzerlik (LikenessDesigner).",
+          "properties": {
+            "sekil": { "enum": ["yuvarlak", "oval", "uzun", "genis", "kare"] },
+            "ten": { "$ref": "#/$defs/hex" },
+            "burun": { "enum": ["yok", "kucuk", "duz", "iri", "kemerli", "kalkik"] },
+            "goz": { "enum": ["nokta", "detayli"] },
+            "kas_renk": { "$ref": "#/$defs/hex" },
+            "yas": { "enum": ["genc", "orta", "yasli"] }
+          }
+        },
         "giysi": { "enum": ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade", "tunik", "toga", "ceket", "uniforma", "takim", "elbise"] },
         "renkler": {
           "type": "object",

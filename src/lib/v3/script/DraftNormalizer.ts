@@ -1,5 +1,6 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { GARMENTS } from "../episode/EpisodeTypes";
+import { PART_FIELDS } from "../episode/EpisodeValidator";
 import type { V3Garment } from "../render/RenderPlanTypes";
 
 /**
@@ -31,7 +32,6 @@ const GARMENT_ALIASES: Readonly<Record<string, V3Garment>> = {
   "byzantine robe": "bizans",
 };
 
-const PART_FIELDS = ["bas", "sakal", "biyik", "el_on", "el_arka", "sirt"] as const;
 const EMPTY = /^(none|no|null|yok|-|n\/a)?$/i;
 
 type Obj = Record<string, unknown>;

@@ -1,20 +1,14 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
-import { type CandidateVerdict, fitScore, passes, pickBackground, verdictLine } from "../backgrounds/BackgroundJudge";
-import { type CommonsCandidate, cachedJson, commonsByTitles, commonsPreview, downloadCommons, searchCommons } from "../backgrounds/CommonsProvider";
+import { type CandidateVerdict, passes, pickBackground, verdictLine } from "../backgrounds/BackgroundJudge";
+import { type CommonsCandidate, cachedJson, commonsByTitles, commonsPreview, searchCommons } from "../backgrounds/CommonsProvider";
 import { wikipediaCandidates } from "../backgrounds/HistorySources";
-import type { CreditRecord } from "../backgrounds/LicenseFilter";
-import type { V3Face } from "../render/RenderPlanTypes";
-import { runChecked } from "../util/Proc";
-import type { V3Paths } from "../V3Paths";
 
 /**
- * Real faces for the main historical characters (the reference channel puts real faces on cartoon bodies): the
- * person's portrait is found on their Wikipedia article and Commons (free licences only), the vision judge checks
- * it is this person with one clear face and a historical likeness, and a local face detector (OpenCV YuNet) cuts
- * the face and finds the mouth line for the talking jaw. A candidate whose face cannot be found is skipped; when
- * none works the character keeps the drawn face — never someone else's.
+ * Portraits of the real people in an episode, to draw them after (the reference channel draws its main characters
+ * from their famous portraits: Henry VIII's cap, beard and fur robe from Holbein): the portrait is found on their
+ * Wikipedia article and Commons (free licences only) and the vision judge checks it is this person, clearly visible,
+ * a historical likeness near the episode's period. The picture is only looked at — nothing of it is shown in the
+ * video; see LikenessDesigner.
  */
 const WIKI = "https://en.wikipedia.org/w/api.php";
 
@@ -27,8 +21,9 @@ export interface PortraitPerson {
 
 export interface PortraitResult {
   readonly castId: string;
-  readonly face: V3Face;
-  readonly credit: CreditRecord;
+  readonly candidate: CommonsCandidate;
+  /** The small JPEG preview the designer and the likeness check look at. */
+  readonly preview: Buffer;
   readonly secim: CandidateVerdict;
 }
 
@@ -51,60 +46,31 @@ export async function portraitCandidates(cacheDir: string, p: PortraitPerson): P
   return out.filter((c) => !seen.has(c.url) && seen.add(c.url) && (c.width === 0 || c.height >= 400));
 }
 
-export interface FaceCut {
-  readonly ok: boolean;
-  readonly mouth_y?: number;
-  readonly mouth_x?: number;
-  readonly flipped?: boolean;
-  readonly error?: string;
-}
-
-/** Runs the local face cutter; the PNG goes to `out`. */
-export async function cutFace(paths: V3Paths, image: string, out: string): Promise<FaceCut> {
-  const r = await runChecked(paths.genPython, [path.join(paths.repoRoot, "scripts", "v3", "face_cut.py"), image, out, paths.faceModel], { timeoutMs: 120_000, env: { ...process.env, PYTHONUTF8: "1", TEMP: paths.asciiTemp, TMP: paths.asciiTemp } });
-  const line = r.stdout.trim().split(/\r?\n/).pop() ?? "{}";
-  return JSON.parse(line) as FaceCut;
-}
-
-export async function findPortraitFace(input: {
-  readonly paths: V3Paths;
-  /** Episode public dir; faces go to `faces/`. */
-  readonly publicDir: string;
+/**
+ * The best portrait of the person for drawing them (the judge must confirm it is them, ideally at the age they had in
+ * the episode's period), with its small preview for the designer. Undefined when none passes — then the likeness is
+ * drawn from the historian's notes alone, never from someone else's picture.
+ */
+export async function findPortrait(input: {
   readonly cacheDir: string;
   readonly judge: AIProvider;
   readonly person: PortraitPerson;
   readonly donem: string;
   readonly log: (s: string) => void;
 }): Promise<PortraitResult | undefined> {
-  const { paths, person, log } = input;
+  const { person, log } = input;
   const candidates = (await portraitCandidates(input.cacheDir, person)).slice(0, 6);
   if (!candidates.length) {
-    log(`⚠ ${person.ad}: portre adayı bulunamadı ("${person.wiki}"); çizili yüz kalır`);
+    log(`⚠ ${person.ad}: portre adayı bulunamadı ("${person.wiki}")`);
     return undefined;
   }
   const scene = { konu: person.ad, donem: input.donem, mekan: person.rol, tr: person.ad, en: person.wiki, anlatim: "" };
   const pick = await pickBackground(candidates, scene, input.judge, (c) => commonsPreview(input.cacheDir, c), log, { mode: "portre", max: 6 });
-  const ranked = candidates
-    .map((c, i) => ({ c, v: pick.verdicts[i] }))
-    .filter((x): x is { c: CommonsCandidate; v: CandidateVerdict } => !!x.v && passes(x.v))
-    .sort((a, b) => fitScore(b.v) - fitScore(a.v));
   for (const v of pick.verdicts) log(`  ${person.ad} portre ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
-  const dir = path.join(input.publicDir, "faces");
-  await fs.mkdir(dir, { recursive: true });
-  await fs.mkdir(paths.asciiTemp, { recursive: true });
-  for (const { c, v } of ranked) {
-    const raw = path.join(paths.asciiTemp, `portre-${person.id}${path.extname(new URL(c.downloadUrl).pathname) || ".jpg"}`);
-    const credit = await downloadCommons(c, raw).catch((e: Error) => (log(`  ${person.ad}: indirilemedi (${e.message})`), undefined));
-    if (!credit) continue;
-    const outName = `${person.id}.png`;
-    const cut = await cutFace(paths, raw, path.join(dir, outName)).catch((e: Error) => ({ ok: false, error: e.message }) as FaceCut);
-    await fs.rm(raw, { force: true });
-    if (cut.ok && cut.mouth_y !== undefined && cut.mouth_x !== undefined) {
-      log(`  ${person.ad}: yüz kesildi (${c.title.replace(/^File:/, "").slice(0, 60)}${cut.flipped ? ", aynalandı" : ""})`);
-      return { castId: person.id, face: { src: `faces/${outName}`, mouthY: cut.mouth_y, mouthX: cut.mouth_x }, credit, secim: v };
-    }
-    log(`  ${person.ad}: ${c.title.slice(0, 50)} — yüz kesilemedi (${cut.error ?? "?"})`);
+  if (!pick.chosen || !pick.verdict) {
+    log(`⚠ ${person.ad}: uygun portre bulunamadı; görünüş tarihçinin notundan çizilecek (başka birinin resmi kullanılmaz)`);
+    return undefined;
   }
-  log(`⚠ ${person.ad}: uygun portre yüzü bulunamadı; çizili yüz kalır (başka birinin yüzü kullanılmaz)`);
-  return undefined;
+  const preview = await commonsPreview(input.cacheDir, pick.chosen);
+  return { castId: person.id, candidate: pick.chosen, preview, secim: pick.verdict };
 }

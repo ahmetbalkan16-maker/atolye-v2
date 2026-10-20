@@ -32,22 +32,29 @@ export type V3CharacterStyle = "kukla" | "cop";
 
 export type V3Garment = "kaftan" | "cubbe" | "zirh" | "onluk" | "bizans" | "yeniceri" | "sade" | "tunik" | "toga" | "ceket" | "uniforma" | "takim" | "elbise";
 
-export type V3HairStyle = "kisa" | "dalgali" | "yan_ayrik" | "uzun" | "topuz" | "orgu" | "kel";
+export type V3HairStyle = "kisa" | "dalgali" | "yan_ayrik" | "uzun" | "topuz" | "orgu" | "kel" | "kivircik" | "kakul" | "geriye" | "seyrek";
 
 export interface V3Hair {
   readonly style: V3HairStyle;
   readonly color: string;
 }
 
+export type V3FaceShape = "yuvarlak" | "oval" | "uzun" | "genis" | "kare";
+export type V3Nose = "yok" | "kucuk" | "duz" | "iri" | "kemerli" | "kalkik";
+export type V3EyeStyle = "nokta" | "detayli";
+export type V3Age = "genc" | "orta" | "yasli";
+
 /**
- * A real face cut from a portrait (main characters, the reference channel's look): a square PNG in the public dir
- * that fills the head, split at the mouth line so the jaw drops while the character talks.
+ * A drawn likeness (the reference channel's main characters): the puppet head keeps the house style, but its shape,
+ * skin, nose, eyes, brows and age lines follow the real person's portrait. Absent fields keep the plain puppet head.
  */
-export interface V3Face {
-  readonly src: string;
-  /** Mouth line and mouth centre as fractions of the image (0 top/left .. 1). */
-  readonly mouthY: number;
-  readonly mouthX: number;
+export interface V3Look {
+  readonly faceShape?: V3FaceShape;
+  readonly skin?: string;
+  readonly nose?: V3Nose;
+  readonly eyes?: V3EyeStyle;
+  readonly browColor?: string;
+  readonly age?: V3Age;
 }
 
 export interface V3Costume {
@@ -66,13 +73,16 @@ export interface V3Costume {
   readonly shoes: string;
   /** Hair under (or without) headwear; none draws the bare puppet head. */
   readonly hair?: V3Hair;
-  /** A portrait face instead of the drawn one (no drawn eyes, brows, beard or hair then). */
-  readonly face?: V3Face;
+  /** A drawn hair part (slot "hair") instead of the parametric hair: a person's own haircut. */
+  readonly hairPart?: string;
+  /** Worn on the chest over the garment (slot "chest"): a chain of office, a sash, medals. */
+  readonly chest?: string;
+  readonly look?: V3Look;
 }
 
 export interface V3Accessory {
   readonly id: string;
-  readonly slot: "head" | "beard" | "mustache" | "hand" | "back";
+  readonly slot: "head" | "beard" | "mustache" | "hand" | "back" | "hair" | "chest";
   /** Inner SVG markup (no outer <svg>), coordinates relative to the slot anchor, head radius = 100. */
   readonly markup: string;
   /** Draw behind the head (hair, turban tail) instead of in front. */
