@@ -391,7 +391,9 @@ export async function checkLikenesses(input: {
     await fs.writeFile(left, portrait.preview);
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", left, "-i", crops[i]!, "-filter_complex", "[0]scale=-2:640[a];[1]scale=-2:640[b];[a][b]hstack=inputs=2", "-q:v", "3", pair]);
     const prompt = `LEFT: a portrait of ${outcome.records[r]!.kisi}. RIGHT: our flat cartoon of them as they looked in ${input.episode.donem}, in the style of OverSimplified (simple puppet body, flat colours, bold outlines; a different age than the portrait may be intended).
-Would a viewer who knows this person's portraits recognise the cartoon (headwear, hair, beard, face shape, clothes, colours)? "benzerlik" 0–10. List at most 3 concrete differences that matter most.
+${outcome.records[r]!.not ? `HISTORIAN'S NOTE for ${input.episode.donem}: ${outcome.records[r]!.not!.gorunus} Dress: ${outcome.records[r]!.not!.giyim}\n` : ""}Would a viewer who knows this person's portraits recognise the cartoon (headwear, hair, beard, face shape, clothes, colours)? "benzerlik" 0–10.
+Judge only what a caricature should carry. Never count against it: the flat cartoon style itself (simple shapes, flat colours, no wrinkles, texture or realistic shading), the puppet body, or headwear and clothes the person wore in ${input.episode.donem} (see the note) that a bust or a head-only portrait cannot show.
+List at most 3 concrete, fixable differences that matter most (e.g. "hair too dark", "the face should be longer", "no beard in the portrait").
 Return ONLY JSON: {"benzerlik": <0-10>, "farklar": ["…"]}`;
     const res = await input.budget.generate("benzerlik-kontrol", input.designer, prompt, { maxTokens: 250, images: [(await fs.readFile(pair)).toString("base64")] }).catch(() => undefined);
     const v = res ? readJsonAnswer<{ benzerlik?: unknown; farklar?: unknown }>(res.result.content) : undefined;
