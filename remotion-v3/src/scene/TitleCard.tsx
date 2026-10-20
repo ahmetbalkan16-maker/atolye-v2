@@ -42,6 +42,18 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
     );
   }
 
+  if (card.style === "kucukresim") {
+    // The YouTube thumbnail's headline: 2–4 words, huge white letters with a heavy outline across the top, readable
+    // when the thumbnail is 120 px wide in a feed (still frame: no animation).
+    return (
+      <div style={{ position: "absolute", left: 0, right: 0, top: 28 * k, display: "flex", justifyContent: "center" }}>
+        <div style={{ maxWidth: W * 0.92, textAlign: "center", font: `900 ${150 * k}px ${FONT}`, lineHeight: 0.98, color: "#fffaf0", WebkitTextStroke: `${24 * k}px #1d1b26`, paintOrder: "stroke fill", letterSpacing: 1 * k, textWrap: "balance" }}>
+          {card.text.toLocaleUpperCase("en-US")}
+        </div>
+      </div>
+    );
+  }
+
   if (card.style === "abone") {
     // Closing card under the narrator's invitation: a subscribe button that pops, a bell that rings, thanks.
     const pop = spring({ frame: local, fps, config: { damping: 10, stiffness: 180 } });

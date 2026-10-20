@@ -13,7 +13,7 @@ export const MIN_FIT_SCORE = 7;
 /** Candidates judged per scene, in search order (each costs one local vision call). */
 export const MAX_JUDGED = 8;
 
-export type JudgeMode = "arsiv" | "set" | "portre" | "parca" | "referans";
+export type JudgeMode = "arsiv" | "set" | "portre" | "parca" | "referans" | "kapak";
 
 export interface SceneForJudge {
   readonly konu: string;
@@ -98,6 +98,20 @@ Score 0–10:
 - "donem": is it the form used in ${scene.donem} (not a much earlier or later type)?
 - "modern": true for a modern replica in a shop, a costume, a toy or a film prop.
 - "tur": "eser" for an artefact or artwork, "fotograf" for a photo of one, "cizim" for a drawing.
+${answer}`;
+  }
+  if (mode === "kapak") {
+    return `You judge YouTube thumbnails for an animated history channel in the style of OverSimplified. The picture is shown SMALL, the way it appears in a feed.
+
+VIDEO: ${scene.konu}
+PERIOD: ${scene.donem}
+HEADLINE ON IT: ${scene.tr}
+
+Score 0–10:
+- "puan": would a viewer scrolling past click? One clear focal character, large; a readable headline at this small size; an emotion on the face; curiosity (the picture raises a question the video answers); no clutter. 0–3 if the headline cannot be read, nothing stands out, or it is a mess.
+- "donem": does it honestly show this video (its period and people)? 0–3 if it promises something the video is not.
+- "modern": true if anything modern is visible.
+- "tur": "cizim".
 ${answer}`;
   }
   if (mode === "parca") {

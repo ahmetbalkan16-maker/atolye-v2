@@ -266,3 +266,15 @@ okur; kod değişmez, ders yalnız veri ya da beynin kendi talimatı olur.
   `da7a4b73` sabit, 54 anlık görüntü MÖ 123000–2010): yazara bölümün yılına en yakın iki anlık görüntünün devlet adları
   verilir (MÖ 49 → MÖ 100 ve MÖ 1); bölge `"tarihi": {"ad", "yil"}` ile gerçek sınırını çizer; atlasta olmayan ad hiçbir
   şey çizmez (yanlış yer asla). Dosyalar ilk kullanımda `v3-tools/maps/historical/` içine iner; CREDITS'e kaynak eklenir.
+
+### Kapak ve YouTube paketi (aynı gün; higgsfield-youtube-thumbnail ve kostja94 YouTube skill'lerinin bilgisi, ücretli servisleri olmadan)
+
+- Yeni isteğe bağlı adım **"kapak"** (render'dan sonra): `src/lib/v3/thumbnail/ThumbnailDesigner.ts` bölümün kendi
+  karakterleri ve setleriyle 3 kapak çizer (baş karakter büyük ve şaşkın; iki rakip karşı karşıya; ikinci karakter),
+  üstte 2–4 kelimelik kalın konturlu başlık (`kucukresim` başlık stili); hakem her birini akış boyutunda (480×270)
+  puanlar: tek odak, okunur başlık, duygu, merak, doğruluk; en iyisi `kapak.jpg` (1280×720, YouTube'un 2 MB sınırı altı).
+- `YoutubePackage.ts` (tek ucuz çağrı, gpt-4.1-mini): 60 karakter altı başlık seçenekleri (anahtar kelime başta),
+  kapak başlıkları, sahne bölüm adları, etiketler, hashtag'ler, ilk 160 karakterde anahtar kelimeli kanca. Açıklama
+  artık paket başlığı + kanca + zaman damgalı bölümler (0:00'dan, en az 3, her biri en az 10 sn) + kaynaklar + hashtag.
+  Hepsi `youtube.json` içinde; QC'de kapak satırı.
+- Deneme: eski Roma bölümünden 3 kapak çizildi ve incelendi (başlık okunur, karakterler ve set doğru).

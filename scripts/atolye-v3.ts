@@ -29,6 +29,8 @@ import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord 
 import { distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames } from "../src/lib/v3/maps/HistoricalBorders";
+import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
+import { chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
@@ -55,7 +57,7 @@ import { coolGpuProvider, freeGpuMemory, waitForCoolGpu } from "../src/lib/v3/ut
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 
-const STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "miks", "birlestir"] as const;
+const STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "kapak", "miks", "birlestir"] as const;
 
 /**
  * Paid-text providers for the script and part stages: OpenAI when chosen (the key is borrowed for this process
@@ -656,6 +658,28 @@ async function main() {
     });
   }
 
+  // 6b) Kapak + YouTube paketi: the thumbnail from the episode's own cast and sets, titles, chapters, tags. Optional:
+  // without it the video is still made.
+  type YoutubeFile = { paket: YoutubePackage; kapak?: Omit<ThumbnailResult, "file"> & { file: string } };
+  let youtube: YoutubeFile | undefined = existsSync(f("youtube.json")) ? await readJson<YoutubeFile>(f("youtube.json")) : undefined;
+  if (need("kapak", "youtube.json")) {
+    youtube = await step("kapak", async () => {
+      const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
+      const { budget, providerName } = scriptBudget(paths, Math.max(0, 1 - before.toplamUsd));
+      let paket: YoutubePackage;
+      try {
+        const out = await budget.generate("youtube-paketi", providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" }, packagePrompt(episode), { maxTokens: 900 });
+        paket = readPackage(out.result.content, episode);
+      } finally {
+        await writeJson(f("maliyet.json"), { tavanUsd: 1, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
+      }
+      const kapak = await designThumbnail({ paths, episode, cast: plan.cast, accessories: plan.accessories, sets: backgrounds.map((b) => ({ src: b.src, kind: b.kind })), publicDir: path.join(work, "public"), headlines: paket.kapakBasliklari, judge: visionJudge(), workDir: work, log });
+      const result: YoutubeFile = { paket, ...(kapak ? { kapak } : {}) };
+      await writeJson(f("youtube.json"), result);
+      return result;
+    }, async () => undefined);
+  }
+
   // 7) Miks
   type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[] };
   let mix: MixMeta;
@@ -697,7 +721,13 @@ async function main() {
       f("CREDITS.md"),
       `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
     );
-    await fs.writeFile(f("aciklama.txt"), `${episode.baslik}\n\n${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${mix.credits.join("\n\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceCredit}\n\n${H.note}\n`);
+    // YouTube: the package's title, the hook sentences and the chapters first, hashtags last.
+    const chs = youtube ? chapters(timeline.scenes.map((sc) => sc.start), youtube.paket.bolumler, timeline.duration) : [];
+    if (youtube) await writeJson(f("youtube.json"), { ...youtube, bolumler: chs });
+    const hook = youtube?.paket.aciklamaGiris ? `${youtube.paket.aciklamaGiris}\n\n` : "";
+    const chapterBlock = chs.length ? `${en ? "Chapters" : "Bölümler"}:\n${chapterText(chs)}\n\n` : "";
+    const hashtags = youtube?.paket.hashtagler.length ? `\n${youtube.paket.hashtagler.join(" ")}\n` : "";
+    await fs.writeFile(f("aciklama.txt"), `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${hook}${chapterBlock}${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${mix.credits.join("\n\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceCredit}\n\n${H.note}\n${hashtags}`);
 
     const durationS = Number((await runChecked(paths.ffprobe, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f(final)])).stdout.trim());
     const loud = await measureLoudness(paths, f(final));
@@ -727,6 +757,7 @@ async function main() {
       ),
       row(!parts.some((p) => p.kaynak === "basarisiz"), `Gardırop: ${parts.filter((p) => p.kaynak === "tasarim").length} yeni parça tasarlandı, ${parts.filter((p) => p.kaynak === "kutuphane").length} kütüphaneden${parts.some((p) => p.kaynak === "basarisiz") ? `, ${parts.filter((p) => p.kaynak === "basarisiz").length} parça kabul edilmedi (kostümden çıkarıldı: ${parts.filter((p) => p.kaynak === "basarisiz").map((p) => p.tarif).join("; ")})` : ""}`),
       row(likenesses.every((l) => l.kaynak !== "degismedi" && (l.benzerlik ?? 10) >= LIKENESS_OK), `Gerçek kişiler: ${likenesses.filter((l) => l.kaynak !== "degismedi").length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} portreden ve ${episode.donem} yılına göre çizildi${likenesses.length ? ` (${likenesses.map((l) => `${l.castId}: ${l.kaynak === "kutuphane" ? "kişi kütüphanesinden" : l.kaynak === "degismedi" ? "çizilemedi" : `portre ${l.portre ? "var" : "yok"}${l.benzerlik !== undefined ? `, benzerlik ${l.benzerlik}/10` : ""}`}`).join("; ")})` : ""}`),
+      row(!!youtube?.kapak && !youtube.kapak.esikAlti, `Kapak: ${youtube?.kapak ? `${youtube.kapak.varyantlar.length} çeşit, en iyisi ${youtube.kapak.secim ? verdictLine(youtube.kapak.secim) : "puansız"}${youtube.kapak.esikAlti ? " — HAKEM EŞİĞİNİN ALTINDA" : ""}` : "yok"}; YouTube paketi: ${youtube ? `${youtube.paket.basliklar.length} başlık, ${chs.length} bölüm, ${youtube.paket.etiketler.length} etiket` : "yok"}`),
       row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),

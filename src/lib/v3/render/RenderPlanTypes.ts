@@ -184,8 +184,11 @@ export interface V3TitleCard {
   readonly subtext?: string;
   readonly start: number;
   readonly end: number;
-  /** kapak: the opening title cover; abone: the closing subscribe end card (both placed by the director). */
-  readonly style: "yer_tarih" | "bolum" | "bilgi" | "kelime" | "kapak" | "abone";
+  /**
+   * kapak: the opening title cover; abone: the closing subscribe end card (both placed by the director); kucukresim:
+   * the YouTube thumbnail's headline (ThumbnailDesigner).
+   */
+  readonly style: "yer_tarih" | "bolum" | "bilgi" | "kelime" | "kapak" | "abone" | "kucukresim";
 }
 
 export interface V3MapArrow {
