@@ -1,0 +1,59 @@
+{
+  "surum": 1,
+  "sorular": [
+    {
+      "id": "sokak-gunbatimi",
+      "mod": "set",
+      "gorsel": "sokak-gunbatimi.png",
+      "kaynak": "_kutuphane/setler/121685fccb67e5776332aa4b.png",
+      "sahne": { "konu": "Julius Caesar crosses the Rubicon", "donem": "49 BC", "mekan": "a street in Rome", "tr": "Roma sokağı", "en": "Roman street", "anlatim": "Rome panics as Caesar marches south.", "tasarim": "a street in ancient Rome in 49 BC in daylight: two-storey houses with red tiled roofs, a small temple, paved stone road" },
+      "beklenen": { "puanMax": 5 },
+      "neden": "Gündüz istenen sette gün batımı göğü: stil kuralı en fazla 5 der."
+    },
+    {
+      "id": "sokak-gunduz",
+      "mod": "set",
+      "gorsel": "sokak-gunduz.png",
+      "kaynak": "_kutuphane/setler/555938d1b27a7465e5548b96.png",
+      "sahne": { "konu": "Julius Caesar crosses the Rubicon", "donem": "49 BC", "mekan": "a street in Rome", "tr": "Roma sokağı", "en": "Roman street", "anlatim": "Rome panics as Caesar marches south.", "tasarim": "a street in ancient Rome in 49 BC in daylight: two-storey houses with red tiled roofs, a small temple, paved stone road" },
+      "beklenen": { "gecmeli": true },
+      "neden": "Düz, konturlu, gündüz, dönem dışı yapı yok: geçmeli."
+    },
+    {
+      "id": "rubikon-yeni",
+      "mod": "set",
+      "gorsel": "rubikon-yeni.png",
+      "kaynak": "_kutuphane/setler/134adac53aedbc642628fdbe.png",
+      "sahne": { "konu": "Julius Caesar crosses the Rubicon", "donem": "49 BC", "mekan": "the Rubicon river", "tr": "Rubikon", "en": "Rubicon", "anlatim": "Caesar stands at the small river that marks the border of Italy.", "tasarim": "the Rubicon, a small shallow river with grassy banks in northern Italy, gentle hills and cypress trees" },
+      "beklenen": { "gecmeli": true },
+      "neden": "Yeni ev stili, gündüz, nehir görünüyor: geçmeli."
+    },
+    {
+      "id": "kilise-kasaba",
+      "mod": "set",
+      "gorsel": "kilise-kasaba.png",
+      "kaynak": "bolumler/rubicon-en-2/public/bg/s5-march-on-rome-set.png",
+      "sahne": { "konu": "Julius Caesar crosses the Rubicon", "donem": "49 BC", "mekan": "a Roman town on the road to Rome", "tr": "Roma kasabası", "en": "Roman town", "anlatim": "Town after town opens its gates to Caesar.", "tasarim": "a small Roman town in Italy in 49 BC: houses with tiled roofs, a paved road" },
+      "beklenen": { "donemMax": 4 },
+      "neden": "Çan kulesi/kilise MÖ 49'da yoktu: dönem puanı en fazla 4 (eski hakem 10 vermişti)."
+    },
+    {
+      "id": "roma-salon",
+      "mod": "set",
+      "gorsel": "roma-salon.png",
+      "kaynak": "bolumler/rubicon-en-2/public/bg/roman.png",
+      "sahne": { "konu": "Julius Caesar crosses the Rubicon", "donem": "49 BC", "mekan": "the Roman Senate hall", "tr": "Roma senatosu", "en": "Roman Senate", "anlatim": "The senators argue about what to do with Caesar.", "tasarim": "the interior of the Roman Senate hall in 49 BC: marble columns, steps, a red floor" },
+      "beklenen": { "gecmeli": true },
+      "neden": "Düz konturlu Roma salonu, insan yok: geçmeli."
+    },
+    {
+      "id": "boulanger-arsiv",
+      "mod": "arsiv",
+      "gorsel": "boulanger-arsiv.jpg",
+      "kaynak": "bolumler/rubicon-en-2/public/bg/s3-crossing-donem.jpg",
+      "sahne": { "konu": "Julius Caesar crosses the Rubicon", "donem": "49 BC", "mekan": "the Rubicon river", "tr": "Sezar Rubikon'da", "en": "Caesar at the Rubicon", "anlatim": "Caesar reaches the Rubicon with one legion and hesitates before crossing." },
+      "beklenen": { "gecmeli": true },
+      "neden": "Gustave Boulanger, Jules-César arrivé au Rubicon (1854): sahnenin kendisini gösteren tarihî tablo."
+    }
+  ]
+}

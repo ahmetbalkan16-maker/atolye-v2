@@ -11,6 +11,7 @@ import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIPro
 import { CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityPrompt } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
+import { type ExamManifest, type ExamQuestion, gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { errorSignature, learnedRemedy, overlap, recall, remedyTopic, remember } from "../src/lib/v3/council/ExperienceMemory";
 import { designFor } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { judgePrompt, parseVerdict } from "../src/lib/v3/backgrounds/BackgroundJudge";
@@ -134,6 +135,23 @@ async function main() {
     assert.equal(parseVerdict('{"puan": 4, "donem": 3, "gosterilen": "sokak", "sorun": "gün batımı", "kacin": "sunset sky"}')?.kacin, "sunset sky");
     assert.match(judgePrompt({ konu: "x", donem: "49 BC", mekan: "y", tr: "y", en: "y", anlatim: "" }, { title: "t" }, "set"), /"kacin"/);
     assert.doesNotMatch(judgePrompt({ konu: "x", donem: "49 BC", mekan: "y", tr: "y", en: "y", anlatim: "" }, { title: "t" }, "arsiv"), /"kacin"/);
+  });
+
+  await scenario("H brains' exam: expectations graded, the question file is consistent", () => {
+    const q = (beklenen: ExamQuestion["beklenen"]): ExamQuestion => ({ id: "q", mod: "set", gorsel: "x.png", kaynak: "x", sahne: { konu: "", donem: "", mekan: "", tr: "", en: "", anlatim: "" }, beklenen, neden: "" });
+    const v = (puan: number, donem: number, modern = false) => ({ title: "x", puan, donem, modern, gosterilen: "", sorun: "" });
+    assert.equal(gradeAnswer(q({ gecmeli: true }), v(8, 8)).dogru, true);
+    assert.equal(gradeAnswer(q({ gecmeli: true }), v(8, 8, true)).dogru, false, "modern never passes");
+    assert.equal(gradeAnswer(q({ donemMax: 4 }), v(9, 10)).dogru, false, "the church-tower town the old judge passed");
+    assert.equal(gradeAnswer(q({ puanMax: 5 }), v(5, 9)).dogru, true);
+    assert.equal(gradeAnswer(q({ gecmeli: true }), undefined).neden, "cevap yok");
+    const manifest = JSON.parse(readFileSync(path.join(__dirname, "..", "content", "v3", "beyin-sinavi.json"), "utf8")) as ExamManifest;
+    const ids = manifest.sorular.map((x) => x.id);
+    assert.equal(new Set(ids).size, ids.length, "unique question ids");
+    for (const x of manifest.sorular) {
+      assert.ok(["arsiv", "set", "portre", "parca", "referans"].includes(x.mod), x.id);
+      assert.ok(Object.keys(x.beklenen).length > 0 && x.neden, x.id);
+    }
   });
 
   console.log(`V3 council smoke: PASS (${scenarios} scenarios)`);
