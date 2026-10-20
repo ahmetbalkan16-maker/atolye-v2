@@ -70,10 +70,13 @@ export interface PieceStats {
   readonly longestSilenceS: number;
 }
 
-/** Why a composed piece cannot be used (empty when it can). */
+/**
+ * Why a composed piece cannot be used (empty when it can). Measured after its silent head and tail are cut; a bed
+ * loops in the mixer, so a piece down to 60% of the bed (at least 8 s) is fine.
+ */
 export function pieceProblems(s: PieceStats, wantS: number): string[] {
   const out: string[] = [];
-  if (Math.abs(s.durationS - wantS) > Math.max(2, wantS * 0.1)) out.push(`süre ${s.durationS.toFixed(1)} sn (istenen ${wantS.toFixed(1)})`);
+  if (s.durationS < Math.max(8, wantS * 0.6) || s.durationS > wantS * 1.2 + 2) out.push(`süre ${s.durationS.toFixed(1)} sn (istenen ${wantS.toFixed(1)})`);
   if (s.meanDb < -40) out.push(`çok sessiz (ortalama ${s.meanDb.toFixed(1)} dB)`);
   if (s.peakDb > -0.1) out.push(`tepe ${s.peakDb.toFixed(1)} dB (kırpılmış olabilir)`);
   if (s.longestSilenceS > 3) out.push(`${s.longestSilenceS.toFixed(1)} sn sessizlik`);
@@ -154,12 +157,25 @@ export class MusicComposer {
       return { problems: [why] };
     }
     this.failures = 0;
+    // The composer may open or close on silence (the first Rubicon test piece had 3.8 s of it): head and tail are cut,
+    // so only a silence inside the piece counts and the mixer's loop has no gap.
+    const raw = `${tmp}.ham.wav`;
+    await fs.rename(tmp, raw);
+    const edge = "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1";
+    await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", `${edge},areverse,${edge},areverse`, tmp]);
     const stats = await measurePiece(this.paths, tmp);
     const problems = pieceProblems(stats, req.seconds);
     if (problems.length) {
+      // Kept for a look (append-only), never used.
+      const rejected = path.join(this.libraryDir, "reddedilen", path.basename(file));
+      await fs.mkdir(path.dirname(rejected), { recursive: true });
+      if (!existsSync(rejected)) await fs.copyFile(raw, rejected);
+      await fs.writeFile(rejected.replace(/\.wav$/, ".json"), `${JSON.stringify({ ...req, stats, problems, created: new Date().toISOString() }, null, 2)}\n`);
       await fs.rm(tmp, { force: true });
+      await fs.rm(raw, { force: true });
       return { problems };
     }
+    await fs.rm(raw, { force: true });
     // Append-only: copy, never overwrite.
     if (!existsSync(file)) await fs.copyFile(tmp, file);
     await fs.rm(tmp, { force: true });

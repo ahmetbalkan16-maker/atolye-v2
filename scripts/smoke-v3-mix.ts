@@ -147,7 +147,9 @@ async function main() {
     assert.notEqual(compositionKey(req), compositionKey({ ...req, seed: 8 }));
     const ok = { durationS: 31, meanDb: -18, peakDb: -1.2, longestSilenceS: 0.4 };
     assert.deepEqual(pieceProblems(ok, 31.4), []);
-    assert.equal(pieceProblems({ ...ok, durationS: 20 }, 31.4).length, 1, "too short");
+    assert.equal(pieceProblems({ ...ok, durationS: 12 }, 31.4).length, 1, "too short even to loop");
+    assert.deepEqual(pieceProblems({ ...ok, durationS: 20 }, 31.4), [], "a shorter piece loops in the mixer");
+    assert.equal(pieceProblems({ ...ok, durationS: 60 }, 31.4).length, 1, "far too long");
     assert.ok(pieceProblems({ ...ok, meanDb: -52 }, 31.4)[0]!.startsWith("çok sessiz"));
     assert.ok(pieceProblems({ ...ok, longestSilenceS: 5 }, 31.4)[0]!.includes("sessizlik"));
     assert.ok(pieceProblems({ ...ok, peakDb: 0 }, 31.4)[0]!.startsWith("tepe"));
