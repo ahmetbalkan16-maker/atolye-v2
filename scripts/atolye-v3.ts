@@ -31,7 +31,7 @@ import { loadMapData } from "../src/lib/v3/maps/MapBuilder";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair } from "../src/lib/v3/council/RepairBrain";
-import { planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
+import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -517,7 +517,7 @@ async function main() {
         }
         const kept = await keepLikenesses(paths, episode, likeness.records, records);
         if (kept.size) log(`  benzerlik: ${kept.size} kişi kişi kütüphanesine eklendi`);
-        const checked = await checkLikenesses({ paths, episode, outcome: likeness, budget, designer, workDir: path.join(work, `benzerlik-prova${rotusTuru ? `-rotus${rotusTuru}` : ""}`), council, log, kept }).catch((e: Error) => (log(`  benzerlik kontrolü yapılamadı: ${e.message.slice(0, 160)}`), likeness.records));
+        const checked = await checkLikenesses({ paths, episode, outcome: likeness, budget, designer, workDir: path.join(work, `benzerlik-prova${rotusTuru ? `-rotus${rotusTuru}` : ""}`), council, log, kept, lastRound: rotusTuru >= MAX_RETOUCH_ROUNDS || process.argv.includes("--rotus-yok") }).catch((e: Error) => (log(`  benzerlik kontrolü yapılamadı: ${e.message.slice(0, 160)}`), likeness.records));
         await writeJson(f("benzerlik.json"), checked);
         likenesses = checked;
         await writeJson(f("episode.json"), episode);
@@ -701,7 +701,7 @@ async function main() {
         `Dönem görselleri: ${periodShown.length}/${visuals.filter((v) => v.donemGorseli !== "aranmadi" && v.donemGorseli !== "bolum").length} aranan sahnede bulundu${periodShown.length ? ` (konu/dönem ${periodShown.map((v) => `${v.arsiv!.secim.puan}/${v.arsiv!.secim.donem ?? "?"}`).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}; ${visuals.filter((v) => v.donemGorseli === "bulunamadi").length} sahnede bulunamadı — ilgisiz görsel kullanılmadı`,
       ),
       row(!parts.some((p) => p.kaynak === "basarisiz"), `Gardırop: ${parts.filter((p) => p.kaynak === "tasarim").length} yeni parça tasarlandı, ${parts.filter((p) => p.kaynak === "kutuphane").length} kütüphaneden${parts.some((p) => p.kaynak === "basarisiz") ? `, ${parts.filter((p) => p.kaynak === "basarisiz").length} parça kabul edilmedi (kostümden çıkarıldı: ${parts.filter((p) => p.kaynak === "basarisiz").map((p) => p.tarif).join("; ")})` : ""}`),
-      row(likenesses.every((l) => l.kaynak !== "degismedi" && (l.benzerlik ?? 10) >= 6), `Gerçek kişiler: ${likenesses.filter((l) => l.kaynak !== "degismedi").length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} portreden ve ${episode.donem} yılına göre çizildi${likenesses.length ? ` (${likenesses.map((l) => `${l.castId}: ${l.kaynak === "kutuphane" ? "kişi kütüphanesinden" : l.kaynak === "degismedi" ? "çizilemedi" : `portre ${l.portre ? "var" : "yok"}${l.benzerlik !== undefined ? `, benzerlik ${l.benzerlik}/10` : ""}`}`).join("; ")})` : ""}`),
+      row(likenesses.every((l) => l.kaynak !== "degismedi" && (l.benzerlik ?? 10) >= LIKENESS_OK), `Gerçek kişiler: ${likenesses.filter((l) => l.kaynak !== "degismedi").length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} portreden ve ${episode.donem} yılına göre çizildi${likenesses.length ? ` (${likenesses.map((l) => `${l.castId}: ${l.kaynak === "kutuphane" ? "kişi kütüphanesinden" : l.kaynak === "degismedi" ? "çizilemedi" : `portre ${l.portre ? "var" : "yok"}${l.benzerlik !== undefined ? `, benzerlik ${l.benzerlik}/10` : ""}`}`).join("; ")})` : ""}`),
       row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),

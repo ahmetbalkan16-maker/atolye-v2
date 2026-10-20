@@ -189,7 +189,7 @@ function main() {
 
   scenario("K retouch brain: a weak likeness or a set under the bar starts one more round, never two", () => {
     const likenesses = [
-      { castId: "caesar", kisi: "Julius Caesar", kaynak: "tasarim", benzerlik: 7, farklar: ["rounder face"] },
+      { castId: "caesar", kisi: "Julius Caesar", kaynak: "tasarim", benzerlik: 8, farklar: ["rounder face"] },
       { castId: "pompey", kisi: "Pompey", kaynak: "tasarim", benzerlik: 6, farklar: ["laurel crown, portrait bare-headed", "cheeks not full enough"] },
       { castId: "cicero", kisi: "Cicero", kaynak: "kutuphane" },
     ];
@@ -203,7 +203,8 @@ function main() {
     assert.equal(planRetouch({ round: 0, likenesses: likenesses.slice(0, 1), sets: [] }), undefined, "nothing weak: no retouch");
     assert.equal(planRetouch({ round: MAX_RETOUCH_ROUNDS, likenesses, sets }), undefined, "the production always ends");
     assert.equal(planRetouch({ round: 0, likenesses: [], sets })!.adim, "gorsel");
-    assert.equal(LIKENESS_OK, 7);
+    assert.equal(LIKENESS_OK, 8, "owner: the worst acceptable likeness is 8/10");
+    assert.deepEqual(planRetouch({ round: 1, likenesses: [{ ...likenesses[1]!, benzerlik: 7 }], sets: [] })?.tur, 2, "a second round for what is still under 8");
   });
 
   scenario("L people library: versions are never overwritten; a redesign gets the art director's differences", () => {

@@ -231,10 +231,10 @@ script 16, backgrounds 11, motion 9, mix 7, lipsync 5; smoke-ayas-video-order 4;
 
 ### Devretme ve PC sağlığı (aynı gün, owner: "bu komutları yardımcı beyinlere devret"; "PC sağlığı kurallarını atlama")
 
-- **Rötuş beyni** (`src/lib/v3/council/RetouchBrain.ts`): bitmiş üretimde benzerlik puanı < 7 olan kişiyi sanat
+- **Rötuş beyni** (`src/lib/v3/council/RetouchBrain.ts`): bitmiş üretimde benzerlik puanı < 8 olan kişiyi sanat
   yönetmeninin fark listesiyle yeniden tasarlatır, eşiğin altındaki seti yeni tohumlarla yeniden çizdirir; üretim kendini
-  en erken ilgili adımdan (`gardirop`/`gorsel`) **bir kez** yeniden çalıştırır (`--rotus-turu`, plan `rotus-plani.json`,
-  ilk kesim `final-tur0.mp4`). Kod değiştirmez, en fazla 1 tur (`MAX_RETOUCH_ROUNDS`), `--rotus-yok` ile kapanır.
+  en erken ilgili adımdan (`gardirop`/`gorsel`) yeniden çalıştırır (`--rotus-turu`, plan `rotus-plani.json`,
+  ilk kesim `final-tur0.mp4`). Kod değiştirmez, en fazla 2 tur (`MAX_RETOUCH_ROUNDS`), `--rotus-yok` ile kapanır. Owner kararı: benzerlikte en düşük kabul 8/10 (`LIKENESS_OK`); 2 turdan sonra hâlâ altındaysa "eksik" olarak AYAS'a bildirilir.
 - Kişi kütüphanesi sürümlü (`…--v2.json`), eski sürüm silinmez; her sürümün yanında `.kontrol.json` (yan yana puan +
   farklar). Puanı düşük sürüm sonraki bölümlerde yeniden kullanılmaz; farkları tasarımcıya talimat olur.
 - **Otomatik efektler** (mikser, yazar unutsa da): kelime kartına düşüş, girişe adım, koşuya hışırtı, ünlem/sürprize

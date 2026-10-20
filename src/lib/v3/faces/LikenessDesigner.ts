@@ -373,6 +373,8 @@ export async function checkLikenesses(input: {
   readonly log: (s: string) => void;
   /** People library files written this run (keepLikenesses): each gets its check next to it. */
   readonly kept?: ReadonlyMap<string, string>;
+  /** No retouch round is left: a likeness still under the bar is reported as missing, not as a warning. */
+  readonly lastRound?: boolean;
 }): Promise<LikenessRecord[]> {
   const { paths, outcome, log } = input;
   const ids = outcome.records.filter((r) => r.kaynak === "tasarim" && outcome.portraits.has(r.castId)).map((r) => r.castId);
@@ -401,7 +403,7 @@ Return ONLY JSON: {"benzerlik": <0-10>, "farklar": ["…"]}`;
     const keptFile = input.kept?.get(member.id);
     if (keptFile && !existsSync(`${keptFile}.kontrol.json`)) await fs.writeFile(`${keptFile}.kontrol.json`, `${JSON.stringify({ benzerlik: score, farklar, tarih: new Date().toISOString() }, null, 2)}
 `);
-    if (score < LIKENESS_OK) input.council?.find({ beyin: "kostum", onem: "uyari", baslik: "benzerlik zayıf", ayrinti: `${member.name}: ${score}/10 — ${farklar.join("; ")}`, oneri: "rötuş beyni bu farklarla yeniden tasarlatır; kişi kütüphanesi bu sürümü yeniden kullanmaz", tur: "veri", yer: member.id });
+    if (score < LIKENESS_OK) input.council?.find({ beyin: "kostum", onem: input.lastRound ? "eksik" : "uyari", baslik: `benzerlik ${LIKENESS_OK}/10 altında`, ayrinti: `${member.name}: ${score}/10 — ${farklar.join("; ")}`, oneri: input.lastRound ? "rötuş turları bitti; portreyi ya da kişinin makale adını kontrol et" : "rötuş beyni bu farklarla yeniden tasarlatır; kişi kütüphanesi bu sürümü yeniden kullanmaz", tur: "veri", yer: member.id });
   }
   return out;
 }
