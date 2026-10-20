@@ -34,6 +34,8 @@ export interface V3Paths {
   readonly mossRoot: string;
   /** VoxCPM2 folder with its own `.venv` and `checkpoints/VoxCPM2` (the acted voices, VoxcpmEngine). */
   readonly voxcpmRoot: string;
+  /** Folder with the CLIP model (`CLIP-ViT-B-32-laion2B/`, safetensors) for pre-ranking period images (ClipRanker). */
+  readonly clipRoot: string;
   /** espeak-ng data in a real ASCII folder (espeak cannot open the Unicode venv path); empty = the package's own. */
   readonly espeakData: string;
   /** Owner voice reference clips for cloning; never inside the repository. */
@@ -97,6 +99,7 @@ export function resolveV3Paths(repoRoot = process.cwd(), env: NodeJS.ProcessEnv 
     acestepRoot: get("ATOLYE_V3_ACESTEP_ROOT", path.join(toolsRoot, "acestep")),
     mossRoot: get("ATOLYE_V3_MOSS_ROOT", path.join(toolsRoot, "moss")),
     voxcpmRoot: get("ATOLYE_V3_VOXCPM_ROOT", path.join(toolsRoot, "voxcpm")),
+    clipRoot: get("ATOLYE_V3_CLIP_ROOT", path.join(toolsRoot, "clip")),
     voiceRefRoot: get("ATOLYE_V3_VOICE_REFS", path.join(repoRoot, "output", "v3-voices")),
     asciiTemp: get("ATOLYE_V3_ASCII_TEMP", path.join(repoRoot, "output", "v3-tmp")),
     ffmpeg: get("ATOLYE_V3_FFMPEG", "ffmpeg"),

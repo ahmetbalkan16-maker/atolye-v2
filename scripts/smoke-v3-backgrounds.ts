@@ -9,6 +9,7 @@ import { designFor, periodNegatives } from "../src/lib/v3/backgrounds/Background
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
+import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
@@ -196,6 +197,16 @@ async function main() {
     assert.equal(cleanObjectName(labels, "File:x.png"), "Cicero Denounces Catiline", "the English label wins");
     const noEnglish = 'Italian: Cicerone denuncia Catilina title QS:P1476,it:"Cicerone denuncia Catilina" label QS:Lit,"Cicerone denuncia Catilina"';
     assert.equal(cleanObjectName(noEnglish, "File:Cicero_Denounces_Catiline_by_Cesare_Maccari.png"), "Cicero Denounces Catiline by Cesare Maccari", "no English: the file name");
+  });
+
+  await scenario("L CLIP pre-ranking only reorders: best score first, unscored keep their place after, beyond the pool unchanged", () => {
+    const c = ["a", "b", "c", "d", "e", "f"];
+    assert.deepEqual(orderByClip(c, [0.1, 0.3, null, 0.3, 0.2]), ["b", "d", "e", "a", "c", "f"], "ties keep search order; f was beyond the pool");
+    assert.deepEqual(orderByClip(c, []), c, "no scores: search order");
+    assert.deepEqual(orderByClip(c, [null, null]), c);
+    assert.equal(orderByClip(c, [0.5, 0.1, 0.2, 0.3, 0.4, 0.6]).length, c.length, "nothing is dropped");
+    assert.equal(clipQuery({ en: "Roman Senate painting", mekan: "Roman Senate, Rome" }), "Roman Senate painting. Roman Senate, Rome.");
+    assert.ok(CLIP_POOL > MAX_JUDGED, "the judge sees the best of a larger pool");
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

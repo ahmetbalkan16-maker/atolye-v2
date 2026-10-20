@@ -19,6 +19,7 @@ import { resolveOllamaBaseUrl, resolveOllamaConfig } from "../src/lib/ai/OllamaC
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
+import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
 import { BackgroundDesigner, designFor, type DesignedSet } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -200,6 +201,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   await fs.mkdir(pub, { recursive: true });
   const cache = path.join(paths.workRoot, "_onbellek", "commons");
   const judge = visionJudge();
+  const clip = new ClipRanker(paths, log);
   const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
   const periodEnd = periodEndYear(episode.donem);
   const used = new Set<string>();
@@ -233,7 +235,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     const narrated = scene.satirlar.some((l) => !visible.has(l.karakter));
     if (narrated) {
       const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd);
-      const fresh = found.candidates.filter((c) => !used.has(c.url));
+      // CLIP orders the candidates first, so the judge's looks go to the likeliest pictures (search order without it).
+      const fresh = await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: scene.mekan }), (c) => commonsPreview(cache, c));
       log(`${scene.id}: dönem görseli aranıyor — ${found.report.join(", ")}`);
       // The cutaway is on screen while the narrator speaks: it must show what those lines name.
       const narration = scene.satirlar.filter((l) => !visible.has(l.karakter)).map((l) => l.metin).join(" ");
@@ -289,6 +292,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   }
 
   // 2) Design the remaining sets: draw two seeds per scene, free the card, judge; one more round for the failures.
+  // CLIP is only needed for the period-image search above.
+  await clip.close();
   const designer = new BackgroundDesigner(paths, log);
   const tried = new Map<number, { d: DesignedSet; v?: CandidateVerdict }[]>();
   // A set the judge accepted for a scene in an earlier run of this episode is shown to the judge again first, unless
