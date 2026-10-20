@@ -8,6 +8,7 @@ import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
+import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
 let scenarios = 0;
@@ -128,6 +129,51 @@ async function main() {
     }
     assert.match(sfxLibraryFile(sfxDir, "kilic")!, /kilic-kenney.wav$/, "the recording wins over the synthesis");
     assert.match(sfxLibraryFile(sfxDir, "whoosh")!, /whoosh-01.wav$/);
+  });
+
+  await scenario("composer: period and mood in the caption, stable keys, checked pieces, a failing bed keeps its library track", async () => {
+    const rome = { id: "rubicon", donem: "49 BC", konu: "Julius Caesar crosses the Rubicon" };
+    assert.match(periodInstruments(rome), /ancient Mediterranean/);
+    assert.match(periodInstruments({ donem: "1453", konu: "Fatih Sultan Mehmed takes Constantinople" }), /Ottoman instruments/);
+    assert.match(periodInstruments({ donem: "1066", konu: "Battle of Hastings" }), /medieval/);
+    assert.match(periodInstruments({ donem: "1940", konu: "Battle of Britain" }), /modern cinematic/);
+    const cap = compositionCaption(rome, "comedic");
+    assert.match(cap, /^Instrumental underscore for an animated history cartoon set in 49 BC\. playful and comedic/);
+    assert.match(cap, /No vocals, no singing, no lyrics/);
+    const req = { mood: "comedic" as const, seconds: 31.4, caption: cap, seed: 7 };
+    assert.equal(compositionKey(req), compositionKey({ ...req, seconds: 31.2 }), "the length counts to the second");
+    assert.notEqual(compositionKey(req), compositionKey({ ...req, seed: 8 }));
+    const ok = { durationS: 31, meanDb: -18, peakDb: -1.2, longestSilenceS: 0.4 };
+    assert.deepEqual(pieceProblems(ok, 31.4), []);
+    assert.equal(pieceProblems({ ...ok, durationS: 20 }, 31.4).length, 1, "too short");
+    assert.ok(pieceProblems({ ...ok, meanDb: -52 }, 31.4)[0]!.startsWith("çok sessiz"));
+    assert.ok(pieceProblems({ ...ok, longestSilenceS: 5 }, 31.4)[0]!.includes("sessizlik"));
+    assert.ok(pieceProblems({ ...ok, peakDb: 0 }, 31.4)[0]!.startsWith("tepe"));
+    const lib = (mood: MusicMood): MusicTrack => track(mood, `lib-${mood}`);
+    const segs = [
+      { start: 0, end: 30, mood: "historical" as const, track: lib("historical"), scenes: [0, 1] },
+      { start: 30, end: 50, mood: "tense" as const, track: lib("tense"), scenes: [2] },
+      { start: 50, end: 70, mood: "comedic" as const, track: lib("comedic"), scenes: [3] },
+    ];
+    const asked: number[] = [];
+    const fake = {
+      compose: async (r: { mood: MusicMood; seconds: number; seed: number }) => {
+        asked.push(r.seed);
+        if (r.mood === "tense") return { problems: ["4.0 sn sessizlik"] };
+        if (r.mood === "comedic") throw new Error("CUDA out of memory");
+        return { file: `D:/muzik/${r.mood}.wav`, cached: false };
+      },
+    };
+    const out = await composeBeds(segs, rome, fake, () => undefined);
+    assert.equal(out.segments[0]!.track.absolutePath, "D:/muzik/historical.wav");
+    assert.match(out.segments[0]!.track.attribution!, /ACE-Step 1\.5 \(MIT\)/);
+    assert.equal(out.segments[1]!.track.title, "lib-tense", "a failed check keeps the library track");
+    assert.equal(out.segments[2]!.track.title, "lib-comedic", "a crash keeps the library track");
+    assert.ok(out.report[2]!.includes("CUDA out of memory"));
+    assert.deepEqual([out.segments[0]!.start, out.segments[0]!.end], [0, 30], "bed timing unchanged");
+    const again: number[] = [];
+    await composeBeds(segs, rome, { compose: async (r) => (again.push(r.seed), { file: "x", cached: true }) }, () => undefined);
+    assert.deepEqual(again, asked, "the same episode asks for the same seeds (rerun = library)");
   });
 
   console.log(`V3 mix smoke: PASS (${scenarios} scenarios)`);

@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { designFor, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, pickBackground, type SceneForJudge } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { cleanObjectName, type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
@@ -77,21 +78,35 @@ async function main() {
   await scenario("C an unreadable answer, a judge error or a failed preview scores 0 and never wins", async () => {
     const judge = new FakeJudge({ okunmaz: "üzgünüm, göremiyorum", hata: new Error("ollama kapalı"), iyi: verdict(8) });
     const lines: string[] = [];
+    const before = unreadableVerdicts();
     const pick = await pickBackground(["okunmaz", "hata", "onizlemesiz", "iyi"].map(candidate), SCENE, judge, async (c) => {
       if (c.title.includes("onizlemesiz")) throw new Error("COMMONS_PREVIEW_404");
       return preview(c);
     }, (s) => lines.push(s));
     assert.deepEqual(pick.verdicts.map((v) => v.puan), [0, 0, 0, 8]);
     assert.equal(pick.chosen?.title, "File:iyi.jpg");
-    assert.equal(lines.length, 2, "hata ve önizleme hatası loglanır");
-    assert.equal(judge.calls.length, 3, "önizlemesi inmeyen aday modele gitmez");
+    assert.equal(lines.length, 3, "okunamayan yanıt, hata ve önizleme hatası loglanır");
+    assert.equal(judge.calls.length, 4, "okunamayan yanıt bir kez daha sorulur; önizlemesi inmeyen aday modele gitmez");
+    assert.deepEqual([judge.calls[0]!.options?.maxTokens, judge.calls[1]!.options?.maxTokens], [VERDICT_TOKENS, VERDICT_RETRY_TOKENS]);
+    assert.equal(pick.verdicts[0]!.okunamadi, true, "the judge's fault is marked, not passed off as the image's");
+    assert.equal(pick.verdicts[1]!.okunamadi, undefined, "a thrown error is a different fault");
+    assert.equal(unreadableVerdicts() - before, 1);
+  });
+
+  await scenario("C2 a model that thinks first: the second, larger budget gets the answer", async () => {
+    const thinker: AIProvider = { generate: async (_p, o) => ({ content: (o?.maxTokens ?? 0) > VERDICT_TOKENS ? verdict(9) : "", finishReason: "length", refused: false, complete: false, truncated: true }) };
+    const pick = await pickBackground(["bellini"].map(candidate), SCENE, thinker, preview);
+    assert.equal(pick.verdicts[0]!.puan, 9);
+    assert.equal(pick.verdicts[0]!.okunamadi, undefined);
+    const blank = { ...pick.verdicts[0]!, puan: 0, okunamadi: true as const };
+    assert.deepEqual(gradeAnswer({ id: "x", mod: "set", gorsel: "x.png", kaynak: "", sahne: SCENE, beklenen: { puanMax: 5 }, neden: "" }, blank), { dogru: false, neden: "okunamayan yanıt" }, "a blank answer never passes a must-fail question");
   });
 
   await scenario("D only the first MAX_JUDGED candidates in search order are judged", async () => {
     const names = Array.from({ length: MAX_JUDGED + 3 }, (_, i) => `aday-${i}`);
     const judge = new FakeJudge({ [`aday-${MAX_JUDGED + 1}`]: verdict(10) });
     const pick = await pickBackground(names.map(candidate), SCENE, judge, preview);
-    assert.equal(judge.calls.length, MAX_JUDGED);
+    assert.equal(judge.calls.length, 2 * MAX_JUDGED, "only the first MAX_JUDGED are judged (each blank answer asked twice)");
     assert.equal(pick.chosen, undefined);
   });
 

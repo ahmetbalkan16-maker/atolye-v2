@@ -38,6 +38,8 @@ export interface ExamManifest {
 /** Whether a verdict is the expected answer, and if not, why. */
 export function gradeAnswer(q: ExamQuestion, v: CandidateVerdict | undefined): { readonly dogru: boolean; readonly neden: string } {
   if (!v) return { dogru: false, neden: "cevap yok" };
+  // An empty answer scores 0 and would "pass" every must-fail question (Qwen3-VL's first exam: 1/6 out of blanks).
+  if (v.okunamadi) return { dogru: false, neden: "okunamayan yanıt" };
   const e = q.beklenen;
   const fails: string[] = [];
   if (e.gecmeli !== undefined && passes(v) !== e.gecmeli) fails.push(e.gecmeli ? "geçmesi gerekirdi" : "geçmemesi gerekirdi");

@@ -20,7 +20,7 @@ import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { BackgroundDesigner, designFor, type DesignedSet } from "../src/lib/v3/backgrounds/BackgroundDesigner";
-import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, pickBackground, type SceneForJudge, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
@@ -45,6 +45,7 @@ import { EPISODE_TONES, type Episode, type EpisodeTone } from "../src/lib/v3/epi
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
 import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
+import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { renderWithRemotion } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
@@ -343,6 +344,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   for (let si = 0; si < n; si++) {
     if (sets[si]) continue;
     // Still nothing the judge passes: the best attempt is used and the QC says so — never an unrelated stock image.
+    const unreadable = (tried.get(si) ?? []).filter((t) => t.v?.okunamadi).length;
+    if (unreadable) log(`⚠ ${episode.sahneler[si]!.id}: görüntü hakemi ${unreadable} set için okunabilir yanıt vermedi (hakem modeli: ${process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b"})`);
     const best = [...(tried.get(si) ?? [])].sort((a, b) => (b.v ? fitScore(b.v) : -1) - (a.v ? fitScore(a.v) : -1))[0];
     if (!best) throw new Error(`sahne ${episode.sahneler[si]!.id}: set tasarlanamadı`);
     sets[si] = await designedSet(pub, episode, si, best.d, best.v, true);
@@ -651,6 +654,8 @@ async function main() {
     visuals = await step("gorsel", async () => {
       const out = await resolveVisuals(paths, work, episode, dil, log, new Set((retouch?.setler ?? []).map((x) => x.sahne)));
       await writeJson(f("gorseller-v2.json"), out);
+      // A judge that gives no readable answers rejects every image silently: said plainly, as the judge's fault.
+      if (unreadableVerdicts()) council.find({ beyin: "ortam", onem: "eksik", baslik: "görüntü hakemi okunamayan yanıt verdi", ayrinti: `${unreadableVerdicts()} değerlendirmede okunabilir yanıt yok (model: ${process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b"}); "bulunamadı" ve "eşik altı" sonuçları hakemden kaynaklanıyor olabilir`, oneri: "beyin sınavını çalıştır (scripts/v3/beyin-sinavi.ts calistir); ATOLYE_V3_VISION_MODEL'i kontrol et", tur: "ayar", yer: "gorsel" });
       return out;
     });
   } else visuals = await readJson<SceneVisual[]>(f("gorseller-v2.json"));
@@ -723,7 +728,19 @@ async function main() {
       const env = { ...process.env, ATOLYE_MUSIC_LIBRARY_ROOT: paths.musicRoot };
       // Music starts under the opening cover.
       const scenes = timeline.scenes.map((s) => ({ start: s.sceneIndex === 0 ? 0 : s.start, end: s.end, mood: sceneMusicMood(episode.sahneler[s.sceneIndex]!.duygu, episode.sahneler[s.sceneIndex]!.muzik_ruh_hali) }));
-      const music = planMusic(scenes, (m) => listTracksForMood(m, env), episode.id);
+      let music = planMusic(scenes, (m) => listTracksForMood(m, env), episode.id);
+      // The composer: an original piece for every bed (ACE-Step, local); a bed it cannot make keeps its library track.
+      const composer = new MusicComposer(paths, log);
+      if (process.env.ATOLYE_V3_MUSIC_COMPOSER !== "0" && composer.available()) {
+        try {
+          const composed = await composeBeds(music, episode, composer, log);
+          music = composed.segments;
+          for (const line of composed.report) log(`  müzik: ${line}`);
+          for (const line of composed.report.filter((l) => l.includes("kütüphane parçası kaldı"))) council.find({ beyin: "ses", onem: "uyari", baslik: "özgün müzik yapılamadı", ayrinti: line, tur: "veri", yer: "miks" });
+        } finally {
+          await composer.close();
+        }
+      } else log(`  müzik: besteci ${composer.available() ? "kapalı (ATOLYE_V3_MUSIC_COMPOSER=0)" : "kurulu değil"}; kütüphane parçaları`);
       const sfxDir = path.join(paths.repoRoot, "public", "sfx");
       const sfx = sfxCues(episode, timeline).flatMap((c) => {
         const file = sfxLibraryFile(sfxDir, c.id);

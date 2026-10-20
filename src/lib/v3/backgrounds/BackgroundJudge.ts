@@ -49,6 +49,8 @@ export interface CandidateVerdict {
   readonly sorun: string;
   /** Set mode: what to avoid when a set like this is drawn again (English, for the image model; the setting brain's lesson). */
   readonly kacin?: string;
+  /** The judge gave no readable answer even after a second try: scored 0, but a fault of the judge, not of the image. */
+  readonly okunamadi?: boolean;
 }
 
 export interface BackgroundPick<T> {
@@ -204,9 +206,23 @@ export function parseVerdict(content: string): Omit<CandidateVerdict, "title"> |
   }
 }
 
+/** Token budget of a verdict, and of the one retry after an unreadable answer (a model that thinks first needs room). */
+export const VERDICT_TOKENS = 220;
+export const VERDICT_RETRY_TOKENS = 1_200;
+
+let unreadableAnswers = 0;
+
+/** Verdicts this process got no readable answer for (a judge fault the production reports to the council). */
+export function unreadableVerdicts(): number {
+  return unreadableAnswers;
+}
+
 /**
  * Judges up to `max` candidates and returns the best one that passes (both scores ≥ MIN_FIT_SCORE, nothing
- * modern; ties: earlier in search order). A preview or judge call that fails scores nothing for that candidate.
+ * modern; ties: earlier in search order). A preview or judge call that fails scores nothing for that candidate. An
+ * unreadable answer is asked once more with a larger budget (the brains' exam found Qwen3-VL's thinking eat the 220
+ * tokens and leave an empty answer); still unreadable, it is marked `okunamadi` so the caller can report a judge
+ * fault instead of silently rejecting every image.
  */
 export async function pickBackground<T extends JudgeCandidate>(
   candidates: readonly T[],
@@ -222,9 +238,16 @@ export async function pickBackground<T extends JudgeCandidate>(
     let v: CandidateVerdict;
     try {
       const image = (await preview(c)).toString("base64");
-      const out = await judge.generate(judgePrompt(scene, c, opts.mode), { images: [image], jsonSchema: VERDICT_SCHEMA, maxTokens: 220 });
-      const parsed = parseVerdict(typeof out === "string" ? out : out.content);
-      v = parsed ? { title: c.title, ...parsed } : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt" };
+      const ask = async (maxTokens: number) => {
+        const out = await judge.generate(judgePrompt(scene, c, opts.mode), { images: [image], jsonSchema: VERDICT_SCHEMA, maxTokens });
+        return parseVerdict(typeof out === "string" ? out : out.content);
+      };
+      const parsed = (await ask(VERDICT_TOKENS)) ?? (await ask(VERDICT_RETRY_TOKENS));
+      v = parsed ? { title: c.title, ...parsed } : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
+      if (!parsed) {
+        unreadableAnswers++;
+        log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);
+      }
     } catch (e) {
       log(`aday değerlendirilemedi (${c.title.slice(0, 60)}): ${(e as Error).message.slice(0, 120)}`);
       v = { title: c.title, puan: 0, gosterilen: "", sorun: "değerlendirilemedi" };
