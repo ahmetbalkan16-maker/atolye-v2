@@ -610,8 +610,8 @@ async function main() {
       const narrator = arg("--anlatici") ?? (dil === "en" ? "en-anlatici" : "anlatici");
       if (!known.has(narrator)) throw new Error(`--anlatici: bu dilde böyle bir ses yok: ${narrator}`);
       const voices = assignVoices(episode, known, dil, narrator);
-      const out: Voiced[][] = [];
-      try {
+      const voiceAll = async (): Promise<Voiced[][]> => {
+        const out: Voiced[][] = [];
         for (const scene of episode.sahneler) {
           const lines: Voiced[] = [];
           for (const [li, line] of scene.satirlar.entries()) {
@@ -625,10 +625,26 @@ async function main() {
           }
           out.push(lines);
         }
+        return out;
+      };
+      let out: Voiced[][];
+      let motor = tts.voxcpmActive() ? "voxcpm" : "profil";
+      try {
+        try {
+          out = await voiceAll();
+        } catch (e) {
+          // VoxCPM failed: the whole episode is voiced again with the voices' own engines (never half and half).
+          if (!/V3_VOXCPM/.test((e as Error).message) || !tts.voxcpmActive()) throw e;
+          log(`⚠ VoxCPM2 kullanılamadı (${(e as Error).message.slice(0, 160)}); bölüm seslerin kendi motorlarıyla seslendiriliyor`);
+          council.find({ beyin: "ses", onem: "uyari", baslik: "VoxCPM2 kullanılamadı", ayrinti: (e as Error).message.slice(0, 300), oneri: "kurulumu ve sesleri kontrol et; bu bölüm Kokoro/Chatterbox ile seslendirildi", tur: "ayar", yer: "ses" });
+          await tts.disableVoxcpm();
+          motor = "profil";
+          out = await voiceAll();
+        }
       } finally {
         await tts.close();
       }
-      await writeJson(f("ses.json"), { sesler: Object.fromEntries(voices), satirlar: out });
+      await writeJson(f("ses.json"), { sesler: Object.fromEntries(voices), satirlar: out, motor });
       return out;
     });
   } else voiced = (await readJson<{ satirlar: Voiced[][] }>(f("ses.json"))).satirlar;

@@ -8,8 +8,9 @@ import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
 import { normalizeEnglishForSpeech } from "./EnglishText";
 import { type Lexicon, normalizeForSpeech } from "./TurkishText";
+import { chooseEngine, REFERENCE_TEXT, VOXCPM_MODEL_ID, voxcpmDescription, voxcpmLanguages, voxcpmText } from "./Voxcpm";
 
-export type TtsProviderId = "chatterbox" | "piper" | "kokoro";
+export type TtsProviderId = "chatterbox" | "piper" | "kokoro" | "voxcpm";
 
 export interface VoiceProfile {
   readonly saglayici: TtsProviderId;
@@ -33,6 +34,8 @@ export interface VoiceProfile {
   readonly dil?: TtsLanguage;
   /** What the voice sounds like (the script writer picks English voices by it). */
   readonly tarif?: string;
+  /** VoxCPM2 voice design description (English); default: `tarif` with the voice's accent (see voxcpmDescription). */
+  readonly voxcpm_tarif?: string;
   readonly not?: string;
 }
 
@@ -70,7 +73,7 @@ export interface TtsLineResult {
 interface TtsEngine {
   readonly id: TtsProviderId;
   readonly model: string;
-  synthesizeRaw(text: string, voice: VoiceProfile, emotionBoost: number, out: string, seed: number, language: TtsLanguage): Promise<void>;
+  synthesizeRaw(text: string, voice: VoiceProfile, emotionBoost: number, out: string, seed: number, language: TtsLanguage, emotion?: V3Emotion): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -146,6 +149,88 @@ class KokoroEngine implements TtsEngine {
   }
 }
 
+/**
+ * VoxCPM2 (Apache-2.0): every line cloned from the voice's reference clip — the owner's recording for the Turkish
+ * voices, else a clip designed once from the voice description and kept in `<workRoot>/_kutuphane/sesler/` — with the
+ * line's emotion as a style instruction. Its own environment (`<voxcpmRoot>/.venv`). A failed line is tried once more
+ * with the next seed; a process that cannot start fails with V3_VOXCPM_UNAVAILABLE (the voice step then voices the
+ * whole episode with the voices' own engines).
+ */
+class VoxcpmEngine implements TtsEngine {
+  readonly id = "voxcpm" as const;
+  readonly model = "voxcpm2-2.0.3";
+  private server?: PythonLineServer;
+
+  constructor(private readonly paths: V3Paths, private readonly log: (s: string) => void) {}
+
+  private python(): string {
+    return path.join(this.paths.voxcpmRoot, ".venv", "Scripts", "python.exe");
+  }
+
+  available(): boolean {
+    return existsSync(this.python()) && existsSync(path.join(this.paths.voxcpmRoot, "checkpoints", "VoxCPM2", "model.safetensors"));
+  }
+
+  private async request(body: Readonly<Record<string, unknown>>): Promise<Awaited<ReturnType<PythonLineServer["request"]>>> {
+    if (!this.available()) throw new TtsError("V3_VOXCPM_UNAVAILABLE", "VoxCPM2 kurulu değil");
+    this.server ??= new PythonLineServer({
+      python: this.python(),
+      script: path.join(this.paths.repoRoot, "scripts", "v3", "voxcpm_server.py"),
+      env: { ...sideProcessEnv(this.paths), ATOLYE_V3_VOXCPM_ROOT: this.paths.voxcpmRoot },
+      label: "VoxCPM2",
+      startTimeoutMs: 15 * 60_000,
+      requestTimeoutMs: 240_000,
+      log: this.log,
+    });
+    await waitForCoolGpu(this.log);
+    return this.server.request(body).catch((e: Error) => {
+      throw new TtsError("V3_VOXCPM_UNAVAILABLE", e.message.slice(0, 200));
+    });
+  }
+
+  /** The clip the voice is cloned from (designed and kept the first time a voice without a recording speaks). */
+  async reference(voice: VoiceProfile, language: TtsLanguage): Promise<string> {
+    if (voice.referans) {
+      const ref = path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`);
+      if (!existsSync(ref)) throw new TtsError("V3_VOICE_REF_MISSING", ref);
+      return ref;
+    }
+    const description = voxcpmDescription(voice);
+    if (!description) throw new TtsError("V3_VOXCPM_VOICE", "ses profilinde tarif yok");
+    const dir = path.join(this.paths.workRoot, "_kutuphane", "sesler");
+    const key = createHash("sha256").update(JSON.stringify({ v: 1, model: this.model, description, text: REFERENCE_TEXT[language] })).digest("hex").slice(0, 20);
+    const file = path.join(dir, `voxcpm-${key}.wav`);
+    if (existsSync(file)) return file;
+    await fs.mkdir(dir, { recursive: true });
+    const tmp = path.join(this.paths.asciiTemp, `voxcpm-ref-${key}.wav`);
+    const r = await this.request({ mode: "design", text: `(${description})${REFERENCE_TEXT[language]}`, seed: 7, out: tmp });
+    if (!r.ok) throw new TtsError("V3_VOXCPM_LINE", `ses tasarlanamadı: ${r.error ?? "bilinmeyen hata"}`);
+    // Append-only: a designed voice is never replaced (its lines in earlier episodes were cloned from it).
+    if (!existsSync(file)) await fs.copyFile(tmp, file);
+    await fs.rm(tmp, { force: true });
+    await fs.writeFile(file.replace(/\.wav$/, ".json"), `${JSON.stringify({ model: VOXCPM_MODEL_ID, description, text: REFERENCE_TEXT[language], language, created: new Date().toISOString(), license: "Apache-2.0 (VoxCPM2)" }, null, 2)}\n`);
+    this.log(`  ses tasarlandı (VoxCPM2): ${description}`);
+    return file;
+  }
+
+  async synthesizeRaw(text: string, voice: VoiceProfile, _boost: number, out: string, seed: number, language: TtsLanguage, emotion: V3Emotion = "notr"): Promise<void> {
+    await fs.mkdir(this.paths.asciiTemp, { recursive: true });
+    const reference = await this.reference(voice, language);
+    let error = "";
+    for (const s of [seed, seed + 1]) {
+      const r = await this.request({ mode: "clone", text: voxcpmText(text, emotion), reference, seed: s, out });
+      if (r.ok) return;
+      error = r.error ?? "bilinmeyen hata";
+    }
+    throw new TtsError("V3_VOXCPM_LINE", error);
+  }
+
+  async close(): Promise<void> {
+    await this.server?.close();
+    this.server = undefined;
+  }
+}
+
 /** Environment of a Python model process: models cached in the tools folder, an ASCII temp, UTF-8, no telemetry. */
 export function sideProcessEnv(paths: V3Paths): NodeJS.ProcessEnv {
   return {
@@ -200,6 +285,9 @@ export function postProcessFilter(voice: VoiceProfile, speed: number): string {
 export class TtsService {
   private engines = new Map<TtsProviderId, TtsEngine>();
   private readonly cacheDir: string;
+  /** Languages the owner turned VoxCPM on for; off for the rest of the run after a VoxCPM failure. */
+  private readonly prefer = voxcpmLanguages();
+  private voxcpmOff = false;
 
   constructor(
     private readonly paths: V3Paths,
@@ -219,10 +307,21 @@ export class TtsService {
   private engine(id: TtsProviderId): TtsEngine {
     let e = this.engines.get(id);
     if (!e) {
-      e = id === "chatterbox" ? new ChatterboxEngine(this.paths, this.log) : id === "kokoro" ? new KokoroEngine(this.paths, this.log) : new PiperEngine(this.paths);
+      e = id === "chatterbox" ? new ChatterboxEngine(this.paths, this.log) : id === "kokoro" ? new KokoroEngine(this.paths, this.log) : id === "voxcpm" ? new VoxcpmEngine(this.paths, this.log) : new PiperEngine(this.paths);
       this.engines.set(id, e);
     }
     return e;
+  }
+
+  /** VoxCPM will read lines of some language in this run. */
+  voxcpmActive(): boolean {
+    return this.prefer.size > 0 && !this.voxcpmOff;
+  }
+
+  /** After a VoxCPM failure the whole run goes back to the voices' own engines (one engine per character). */
+  async disableVoxcpm(): Promise<void> {
+    this.voxcpmOff = true;
+    await this.engines.get("voxcpm")?.close();
   }
 
   voice(voiceId: string): VoiceProfile {
@@ -237,15 +336,15 @@ export class TtsService {
 
   async synthesize(req: TtsLineRequest): Promise<TtsLineResult> {
     const voice = this.voice(req.voiceId);
-    const provider = req.provider ?? voice.saglayici;
-    const engine = this.engine(provider);
     const language = req.language ?? "tr";
+    const provider = req.provider ?? chooseEngine(voice, language, this.prefer, this.voxcpmOff);
+    const engine = this.engine(provider);
     const speech = language === "tr" ? this.speechText(req.text) : normalizeEnglishForSpeech(req.text);
     const boost = this.voices.duygu_ayari[req.emotion] ?? 0;
     const speed = req.speed ?? 1;
-    const refHash = voice.referans && provider === "chatterbox" ? await fileHash(path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`)) : "";
+    const refHash = voice.referans && (provider === "chatterbox" || provider === "voxcpm") ? await fileHash(path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`)) : "";
     const key = createHash("sha256")
-      .update(JSON.stringify({ v: 1, model: engine.model, speech, voice, provider, boost, speed, refHash, filter: postProcessFilter(voice, speed), ...(language !== "tr" ? { language } : {}) }))
+      .update(JSON.stringify({ v: 1, model: engine.model, speech, voice, provider, boost, speed, refHash, filter: postProcessFilter(voice, speed), ...(language !== "tr" ? { language } : {}), ...(provider === "voxcpm" ? { emotion: req.emotion, description: voxcpmDescription(voice) ?? "" } : {}) }))
       .digest("hex")
       .slice(0, 32);
     const file = path.join(this.cacheDir, `${key}.wav`);
@@ -255,7 +354,7 @@ export class TtsService {
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     const raw = path.join(this.paths.asciiTemp, `tts-${key}-raw.wav`);
     const seed = parseInt(key.slice(0, 8), 16) % 1_000_000;
-    await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, seed, language);
+    await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, seed, language, req.emotion);
     const tmp = `${file}.tmp.wav`;
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", postProcessFilter(voice, speed), "-ac", "1", "-c:a", "pcm_s16le", tmp]);
     await fs.rename(tmp, file);

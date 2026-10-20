@@ -10,6 +10,7 @@ import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { AMBIENCE_LUFS, ambienceChain, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
+import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
 let scenarios = 0;
@@ -211,6 +212,25 @@ async function main() {
     const chain = ambienceChain(5, "o0", 3, 15);
     assert.match(chain, /^\[5:a\]aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-38:TP=-9:LRA=11,afade=t=in:d=0\.6,afade=t=out:st=11\.400:d=0\.6,adelay=3000\|3000\[o0\]$/);
     assert.ok(AMBIENCE_LUFS < -26, "ambience sits under the music");
+  });
+
+  await scenario("VoxCPM voices: style per emotion, description with accent, engine choice and the off switch", async () => {
+    assert.equal(voxcpmText("Retreat!", "korkmus"), "(scared, trembling voice)Retreat!");
+    assert.equal(voxcpmText("The die is cast.", "notr"), "The die is cast.", "a neutral line has no instruction");
+    const general = { saglayici: "kokoro" as const, perde: 0, hiz: 1, exaggeration: 0, cfg: 0, sicaklik: 0, dil: "en" as const, kokoro_ses: "am_fenrir", tarif: "booming, gruff man: a general, a soldier, a pasha who loves a fight" };
+    assert.equal(voxcpmDescription(general), "booming, gruff man, American English accent, clear studio recording");
+    assert.equal(voxcpmDescription({ ...general, kokoro_ses: "bm_george", tarif: "older British-accented man: an emperor" }), "older man, British English accent, clear studio recording");
+    assert.equal(voxcpmDescription({ ...general, voxcpm_tarif: "a raspy old Roman senator" }), "a raspy old Roman senator", "an explicit description wins");
+    const owner = { saglayici: "chatterbox" as const, referans: "owner-a", perde: -2.5, hiz: 0.92, exaggeration: 0.45, cfg: 0.5, sicaklik: 0.7 };
+    assert.deepEqual([...voxcpmLanguages({})], [], "off unless the owner turns it on");
+    assert.deepEqual([...voxcpmLanguages({ ATOLYE_V3_TTS_EN: "voxcpm", ATOLYE_V3_TTS_TR: "kokoro" })], ["en"]);
+    const on = new Set(["en", "tr"] as const);
+    assert.equal(chooseEngine(general, "en", on, false), "voxcpm");
+    assert.equal(chooseEngine(owner, "tr", on, false), "voxcpm", "the owner's recording is cloned");
+    assert.equal(chooseEngine(general, "en", new Set(), false), "kokoro", "not turned on: the voice's own engine");
+    assert.equal(chooseEngine(general, "en", on, true), "kokoro", "after a failure: the voice's own engine for the whole run");
+    assert.equal(chooseEngine({ ...general, tarif: undefined }, "en", on, false), "kokoro", "nothing to clone or design from");
+    assert.ok(REFERENCE_TEXT.en.length > 40 && REFERENCE_TEXT.tr.length > 40);
   });
 
   console.log(`V3 mix smoke: PASS (${scenarios} scenarios)`);
