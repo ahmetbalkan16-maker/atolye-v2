@@ -218,3 +218,6 @@ graphify-out/
 # embeds a live provider API key. Never commit: the key is a secret, and the file
 # is regenerated per machine by the OpenCode harness.
 /opencode.json
+
+# Python bayt kodu (V3 yan süreçleri; repo içinde izlenmeyen klasör Observer'ı durdurur)
+__pycache__/

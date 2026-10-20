@@ -240,6 +240,8 @@ export function sideProcessEnv(paths: V3Paths): NodeJS.ProcessEnv {
     HF_HUB_DISABLE_TELEMETRY: "1",
     PYTHONIOENCODING: "utf-8",
     PYTHONUTF8: "1",
+    // No __pycache__ next to the scripts: an untracked folder in the repo would stop the Observer.
+    PYTHONDONTWRITEBYTECODE: "1",
     TEMP: paths.asciiTemp,
     TMP: paths.asciiTemp,
     ...(paths.espeakData ? { ATOLYE_V3_ESPEAK_DATA: paths.espeakData } : {}),
