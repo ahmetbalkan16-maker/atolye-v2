@@ -46,6 +46,10 @@ def main():
     for part in ("transformer", "text_encoder", "vae", "tokenizer"):
         if not (model_dir / part).is_dir():
             raise RuntimeError(f"MOSS_MODEL_MISSING: {part}")
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from model_manifest import verify
+
+    verify(model_dir, "OpenMOSS-Team/MOSS-SoundEffect-v2.0")
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["TORCHDYNAMO_DISABLE"] = "1"

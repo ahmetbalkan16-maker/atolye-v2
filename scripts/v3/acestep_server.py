@@ -47,6 +47,10 @@ def main():
     turbo = root / "checkpoints" / "acestep-v15-turbo"
     if not turbo.is_dir() or not (root / "checkpoints" / "vae").is_dir():
         raise RuntimeError("ACESTEP_MODEL_MISSING")
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from model_manifest import verify
+
+    verify(root / "checkpoints", "ACE-Step/Ace-Step1.5")
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     sys.path.insert(0, str(root))

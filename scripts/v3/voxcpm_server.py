@@ -28,6 +28,10 @@ def main():
     model_dir = root / "checkpoints" / "VoxCPM2"
     if not (model_dir / "model.safetensors").is_file():
         raise RuntimeError("VOXCPM_MODEL_MISSING")
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from model_manifest import verify
+
+    verify(model_dir, "openbmb/VoxCPM2")
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     real_stdout = sys.stdout
