@@ -2,7 +2,7 @@
  * Atölye V3 — tek komutla bölüm, her dönem ve konu için: konu → araştırma + senaryo → gardırop (gerçek kişilerin
  * portreden, o yıla göre çizilen benzerliği dahil) → ses → ağız senkronu → dönem görselleri + setler → render → miks → final.
  *
- *   npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil tr|en]
+ *   npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil en|tr] (varsayılan en: Amerikan İngilizcesi)
  *        [--kaynaklar <banka.json> | --wiki "Makale 1|Makale 2" | --arastirma-yok] [--saglayici ollama|openai]
  *        [--anlatici <ses id>] [--bolum <episode.json>] [--cikti <klasör>] [--altyazi-gom]
  *        [--from-step senaryo|gardirop|ses|senkron|gorsel|render|miks|birlestir] [--onizleme]
@@ -35,10 +35,10 @@ import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { beats, buildRenderPlan, type SceneInsert, shotEventFrames } from "../src/lib/v3/director/Director";
-import { EPISODE_TONES, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
+import { EPISODE_TONES, type Episode, type EpisodeTone } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
-import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues } from "../src/lib/v3/mix/Mixer";
+import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { renderWithRemotion } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
@@ -50,7 +50,6 @@ import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { freeGpuMemory, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { runChecked } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
-import { sfxFileName } from "./v3/sfx-uret";
 
 const STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "miks", "birlestir"] as const;
 
@@ -372,7 +371,8 @@ async function main() {
   const log = (s: string) => console.log(s);
   // The production council: every brain's findings and debates, reported to AYAS at the end.
   const council = new CouncilLog();
-  const dil = (arg("--dil") ?? "tr") as ScriptLanguage;
+  // Owner decision (20 Oct 2026): the videos are in American English; Turkish only when asked for explicitly.
+  const dil = (arg("--dil") ?? "en") as ScriptLanguage;
   const ton = (arg("--ton") ?? "mizahi") as EpisodeTone;
   if (!EPISODE_TONES.includes(ton)) throw new Error(`--ton şunlardan biri olmalı: ${EPISODE_TONES.join(", ")}`);
   // "portre" was a step of its own until the likeness moved into the wardrobe (20 Oct 2026).
@@ -631,8 +631,10 @@ async function main() {
       const scenes = timeline.scenes.map((s) => ({ start: s.sceneIndex === 0 ? 0 : s.start, end: s.end, mood: sceneMusicMood(episode.sahneler[s.sceneIndex]!.duygu, episode.sahneler[s.sceneIndex]!.muzik_ruh_hali) }));
       const music = planMusic(scenes, (m) => listTracksForMood(m, env), episode.id);
       const sfxDir = path.join(paths.repoRoot, "public", "sfx");
-      const category: Record<SfxId, string> = { whoosh: "transition", pop: "transition", boing: "transition", kilic: "battle", top_atisi: "battle", davul: "battle", kalabalik: "crowd", cekic: "interior", zil: "interior", dalga: "nature" };
-      const sfx = sfxCues(episode, timeline).map((c) => ({ ...c, file: path.join(sfxDir, category[c.id], sfxFileName(c.id)) })).filter((c) => existsSync(c.file));
+      const sfx = sfxCues(episode, timeline).flatMap((c) => {
+        const file = sfxLibraryFile(sfxDir, c.id);
+        return file ? [{ ...c, file }] : [];
+      });
       const r = await renderMix(paths, { duration: timeline.duration, dialogue: timeline.lines.map((l) => ({ file: l.file, start: l.start })), music, sfx }, f("miks.wav"));
       const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t })) };
       await writeJson(f("miks.json"), meta);

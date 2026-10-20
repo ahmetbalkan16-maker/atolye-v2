@@ -139,6 +139,27 @@ dramatisation ("kurgu": true) or carries a hedge; never present it as fact:
 ${bank.olgular.map((o) => `- [${o.kaynak}] ${o.metin}`).join("\n")}`;
 }
 
+const SFX_NOTES: Readonly<Record<(typeof SFX_IDS)[number], string>> = {
+  whoosh: "swish, fast move",
+  pop: "comic pop",
+  boing: "cartoon boing",
+  kilic: "sword drawn",
+  top_atisi: "cannon shot",
+  davul: "war drum",
+  kalabalik: "crowd murmur",
+  cekic: "hammer on metal",
+  dalga: "waves",
+  zil: "bell",
+  yumruk: "punch",
+  dusus: "body falls, thud",
+  adim: "footsteps",
+  kapi: "door opens",
+  para: "coins",
+  kagit: "paper, book, scroll",
+  basari: "comic success sting",
+  hata: "comic failure sting (wah-wah)",
+};
+
 /** The writer's prompt: rules in the narration language, then one shared contract section. */
 export function writingPrompt(brief: ScriptBrief, catalog: readonly PackCatalogEntry[]): string {
   const words = wordBudget(brief);
@@ -216,7 +237,7 @@ sahne duygu: ${SCENE_MOODS.join(", ")}
 satir duygu: ${EMOTIONS.join(", ")}
 jest: ${GESTURES.join(", ")}
 hareket: ${MOVES.join(", ")}
-sfx: ${SFX_IDS.join(", ")}
+sfx (a sound at the start of the line — use them generously on gags, hits, entrances and punchlines, like the reference channel): ${SFX_IDS.map((id) => `${id} (${SFX_NOTES[id]})`).join(", ")}
 efekt: ${EFFECTS.join(", ")}
 gecis: ${TRANSITIONS.join(", ")}
 dekor tur: ${PROP_KINDS.join(", ")}

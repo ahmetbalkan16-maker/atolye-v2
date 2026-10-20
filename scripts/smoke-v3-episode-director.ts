@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, normalizeCamera, placeCrowd } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, MAX_INSERT_S, normalizeCamera, placeCrowd } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { buildGeoMap, clipRing, mapView, project } from "../src/lib/v3/maps/MapBuilder";
@@ -211,6 +211,9 @@ async function main() {
     assert.deepEqual(insertWindows(lines.filter((l) => !l.onScreen), 300, fps, false), [{ start: 0, end: 300 }], "sahnede kimse yok: tüm sahne");
     assert.deepEqual(insertWindows(lines.filter((l) => !l.onScreen), 300, fps, true), [{ start: 0, end: 68 }], "sessiz oyun: yalnız ilk satır");
     assert.deepEqual(insertWindows([{ start: 0, end: 20, onScreen: false }], 300, fps), [], "1,5 sn'den kısa ara plan yok");
+    const long = [{ start: 0, end: 400, onScreen: false }, { start: 420, end: 480, onScreen: true }];
+    assert.deepEqual(insertWindows(long, 500, fps), [{ start: 0, end: Math.round(MAX_INSERT_S * fps) }], "karakterler varken tablo en fazla MAX_INSERT_S");
+    assert.deepEqual(insertWindows(long.slice(0, 1), 500, fps, false), [{ start: 0, end: 500 }], "sahnede kimse yoksa tablo tüm sahne");
     const ep = sampleEpisode();
     const tl = buildTimeline(ep, [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
     const plan = buildRenderPlan({ episode: ep, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], inserts: [{ src: "bg/donem.jpg", caption: "Buondelmonti, 1430" }], fps, width: 1920, height: 1080, showCaptions: false });

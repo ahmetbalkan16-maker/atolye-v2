@@ -19,7 +19,7 @@ export const FACE_SHAPES: readonly V3FaceShape[] = ["yuvarlak", "oval", "uzun", 
 export const NOSES: readonly V3Nose[] = ["yok", "kucuk", "duz", "iri", "kemerli", "kalkik"];
 export const EYE_STYLES: readonly V3EyeStyle[] = ["nokta", "detayli"];
 export const AGES: readonly V3Age[] = ["genc", "orta", "yasli"];
-export const SFX_IDS = ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil"] as const;
+export const SFX_IDS = ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil", "yumruk", "dusus", "adim", "kapi", "para", "kagit", "basari", "hata"] as const;
 
 export type EpisodeTone = (typeof EPISODE_TONES)[number];
 export type SceneMood = (typeof SCENE_MOODS)[number];

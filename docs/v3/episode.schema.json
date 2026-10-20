@@ -80,7 +80,7 @@
         "jest": { "$ref": "#/$defs/jest" },
         "hareket": { "enum": ["yuru", "kos", "dur", "gir", "cik"] },
         "hedef": { "oneOf": [{ "$ref": "#/$defs/slug" }, { "type": "number", "minimum": 0, "maximum": 1 }] },
-        "sfx": { "enum": ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil"] },
+        "sfx": { "enum": ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil", "yumruk", "dusus", "adim", "kapi", "para", "kagit", "basari", "hata"] },
         "efekt": { "enum": ["ter", "unlem", "soru", "ofke", "parilti", "kalp"] },
         "kaynak": { "type": "array", "items": { "$ref": "#/$defs/slug" } },
         "kurgu": { "type": "boolean" },

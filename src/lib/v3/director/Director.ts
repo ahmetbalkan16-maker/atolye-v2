@@ -56,8 +56,13 @@ const WALK_SPEED = 0.26; // stage widths per second
 const RUN_SPEED = 0.62;
 const OFFSTAGE_LEFT = -0.14;
 const OFFSTAGE_RIGHT = 1.14;
-/** Head height of a front-row character, as a fraction of the frame height; medium shots centre here. */
-const FACE_Y = 0.52;
+/**
+ * Camera centre of a medium shot, as a fraction of the frame height: a little below a front-row face (≈ 0.55), so the
+ * head sits in the upper part of the frame and the body leaves it at the knees, as on the reference channel.
+ */
+const FACE_Y = 0.58;
+/** Two-shots and narrator shots sit lower still: the cast fills the frame and the legs leave it. */
+const TWO_SHOT_Y = 0.6;
 
 /** How a listener's face answers the speaker's emotion; others keep their own face. */
 const LISTENER_REACTION: Partial<Record<V3Emotion, V3Emotion>> = { kizgin: "korkmus", saskin: "saskin", mutlu: "mutlu", korkmus: "saskin" };
@@ -237,8 +242,12 @@ export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string): V3Ex
 /**
  * Narrator stretches of a scene (consecutive off-screen lines) as insert windows, in shot frames. A scene with no
  * one on stage stays on the period image throughout; one where characters act silently cuts away only for its
- * first narrator line, so the acting is seen.
+ * first narrator line, so the acting is seen. With characters on stage a cutaway lasts at most MAX_INSERT_S: the
+ * reference channel shows a real painting for a beat, then the story goes on with its characters (a 10-second still
+ * painting was the slowest part of the Rubicon pilot).
  */
+export const MAX_INSERT_S = 4.5;
+
 export function insertWindows(lines: readonly { start: number; end: number; onScreen: boolean }[], duration: number, fps: number, hasPerformers = true): { start: number; end: number }[] {
   if (!lines.some((l) => l.onScreen)) {
     if (!hasPerformers) return [{ start: 0, end: duration }];
@@ -256,6 +265,7 @@ export function insertWindows(lines: readonly { start: number; end: number; onSc
   }
   // The first stretch of a scene starts with the scene (no flash of the empty set before it).
   if (out[0] && out[0].start <= Math.round(0.5 * fps)) out[0].start = 0;
+  for (const w of out) w.end = Math.min(w.end, w.start + Math.round(MAX_INSERT_S * fps));
   return out.filter((w) => w.end - w.start >= Math.round(1.5 * fps));
 }
 
@@ -388,13 +398,13 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           const mid = other ? (speaker.x + other.x) / 2 : speaker.x;
           const pair = otherId ? [line.karakter, otherId] : [line.karakter];
           key(ls - 1, camera[camera.length - 1]!.zoom, camera[camera.length - 1]!.cx, camera[camera.length - 1]!.cy, "smooth");
-          framed(ls, 1.12, mid, 0.5, "cut", pair);
-          framed(le, 1.18, mid, 0.5, "smooth", pair);
+          framed(ls, 1.26, mid, TWO_SHOT_Y, "cut", pair);
+          framed(le, 1.32, mid, TWO_SHOT_Y, "smooth", pair);
         } else if (changed) {
           const last = camera[camera.length - 1]!;
           key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
-          framed(ls, tracks.size > 1 ? 1.48 : 1.3, speaker.x, FACE_Y, "cut", [line.karakter]);
-          framed(le, tracks.size > 1 ? 1.56 : 1.36, speaker.x, FACE_Y, "smooth", [line.karakter]);
+          framed(ls, tracks.size > 1 ? 1.62 : 1.42, speaker.x, FACE_Y, "cut", [line.karakter]);
+          framed(le, tracks.size > 1 ? 1.7 : 1.5, speaker.x, FACE_Y, "smooth", [line.karakter]);
         } else {
           framed(le, (camera[camera.length - 1]!.zoom ?? 1.4) + 0.08, speaker.x, FACE_Y, "smooth", [line.karakter]);
         }
@@ -405,14 +415,16 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         }
         prevSpeaker = line.karakter;
       } else {
-        // Narrator: wide framing that keeps drifting so the picture never freezes.
+        // Narrator: a wide medium shot (the cast large, cut at the legs, as on the reference channel) that keeps
+        // drifting so the picture never freezes; an empty stage stays wide.
         const drift = idx % 2 === 0 ? 0.46 : 0.54;
         const last = camera[camera.length - 1]!;
-        if (last.zoom > 1.25) {
+        const wide = hasPerformers ? { from: 1.18, to: 1.26, y: TWO_SHOT_Y } : { from: 1.06, to: 1.14, y: 0.5 };
+        if (last.zoom > 1.4) {
           key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
-          framed(ls, 1.06, 0.5, 0.5, "cut", []);
+          framed(ls, wide.from, 0.5, wide.y, "cut", []);
         }
-        framed(le, 1.14, drift, 0.5, "smooth", []);
+        framed(le, wide.to, drift, wide.y, "smooth", []);
         prevSpeaker = undefined;
       }
       if (line.sfx === "top_atisi") shakes.push({ start: ls, end: ls + f(0.7), amplitude: 26 });
@@ -479,7 +491,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           src: period.src,
           ...w,
           // Alternate push-in and pull-out so two cutaways to the same picture do not look like a repeat.
-          kenBurns: i % 2 === 0 ? { fromZoom: 1.04, toZoom: 1.14, fromX: 0.012, toX: -0.012 } : { fromZoom: 1.15, toZoom: 1.05, fromX: -0.01, toX: 0.01 },
+          kenBurns: i % 2 === 0 ? { fromZoom: 1.03, toZoom: 1.17, fromX: 0.02, toX: -0.02 } : { fromZoom: 1.18, toZoom: 1.04, fromX: -0.02, toX: 0.02 },
           ...(period.caption ? { caption: period.caption } : {}),
         }))
       : [];

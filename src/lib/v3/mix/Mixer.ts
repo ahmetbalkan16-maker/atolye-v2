@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
 import type { Episode, SceneMood, SfxId } from "../episode/EpisodeTypes";
@@ -75,7 +75,19 @@ export interface SfxCue {
 }
 
 /** Relative level of each effect under the dialogue. */
-const SFX_GAIN: Readonly<Record<SfxId, number>> = { whoosh: 0.45, pop: 0.55, boing: 0.55, kilic: 0.6, top_atisi: 0.85, davul: 0.6, kalabalik: 0.3, cekic: 0.55, dalga: 0.35, zil: 0.45 };
+const SFX_GAIN: Readonly<Record<SfxId, number>> = { whoosh: 0.45, pop: 0.55, boing: 0.55, kilic: 0.6, top_atisi: 0.85, davul: 0.6, kalabalik: 0.3, cekic: 0.55, dalga: 0.35, zil: 0.45, yumruk: 0.6, dusus: 0.6, adim: 0.4, kapi: 0.5, para: 0.5, kagit: 0.45, basari: 0.4, hata: 0.4 };
+
+/** Folder of each effect in Atölye's SFX library (`public/sfx/<category>/`). */
+export const SFX_CATEGORY: Readonly<Record<SfxId, string>> = { whoosh: "transition", pop: "transition", boing: "transition", kilic: "battle", top_atisi: "battle", davul: "battle", kalabalik: "crowd", cekic: "interior", zil: "interior", dalga: "nature", yumruk: "battle", dusus: "transition", adim: "interior", kapi: "interior", para: "interior", kagit: "interior", basari: "transition", hata: "transition" };
+
+/**
+ * The library file for an effect: a recording (Kenney CC0, scripts/v3/sfx-kenney.ts) before the synthesised sound
+ * (scripts/v3/sfx-uret.ts); undefined when neither is installed.
+ */
+export function sfxLibraryFile(sfxDir: string, id: SfxId): string | undefined {
+  const dir = path.join(sfxDir, SFX_CATEGORY[id]);
+  return [`atolye-v3-${id}-kenney.wav`, `atolye-v3-${id}-01.wav`].map((n) => path.join(dir, n)).find((p) => existsSync(p));
+}
 
 /**
  * Effects from the script (`sfx` on a line, at its start) and automatic ones: a whoosh into every scene that

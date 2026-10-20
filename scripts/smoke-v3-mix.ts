@@ -3,9 +3,11 @@
  * Run: npx tsx scripts/smoke-v3-mix.ts
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
-import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
-import { MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, sceneMusicMood, sfxCues } from "../src/lib/v3/mix/Mixer";
+import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
+import { MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
 let scenarios = 0;
@@ -84,6 +86,18 @@ async function main() {
     assert.deepEqual([dst[at - 1], dst[at], dst[at + 2], dst[at + 3]], [0, 0.5, 0.5, 0]);
     placeSamples(dst, new Float32Array(10).fill(1), (SAMPLE_RATE - 2) / SAMPLE_RATE);
     assert.equal(dst[SAMPLE_RATE - 1], 1);
+  });
+
+  await scenario("G every effect id has a library file: a Kenney recording when there is one, else the synthesis, with a CC0 sidecar", () => {
+    const sfxDir = path.join(__dirname, "..", "public", "sfx");
+    for (const id of SFX_IDS) {
+      const file = sfxLibraryFile(sfxDir, id);
+      assert.ok(file, `${id}: no file in public/sfx/${SFX_CATEGORY[id]}`);
+      const sidecar = JSON.parse(readFileSync(`${file}.license.json`, "utf8")) as { license: string };
+      assert.equal(sidecar.license, "CC0", id);
+    }
+    assert.match(sfxLibraryFile(sfxDir, "kilic")!, /kilic-kenney.wav$/, "the recording wins over the synthesis");
+    assert.match(sfxLibraryFile(sfxDir, "whoosh")!, /whoosh-01.wav$/);
   });
 
   console.log(`V3 mix smoke: PASS (${scenarios} scenarios)`);

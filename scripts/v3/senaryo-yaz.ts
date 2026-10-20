@@ -2,7 +2,7 @@
  * Atölye V3 — senaryo motoru: konudan doğrulanmış episode.json.
  *
  *   npx tsx scripts/v3/senaryo-yaz.ts --konu "Rumeli Hisarı'nın inşası" --donem "1452, Osmanlı" --sure 90sn
- *        [--ton mizahi|ciddi|epik] [--dil tr|en] [--saglayici openai|ollama] [--kaynaklar <banka.json>] [--cikti <klasör>]
+ *        [--ton mizahi|ciddi|epik] [--dil en|tr] [--saglayici openai|ollama] [--kaynaklar <banka.json>] [--cikti <klasör>]
  *
  * Sağlayıcı ve modeller `.env.v3.local`'dan (ATOLYE_V3_SCRIPT_PROVIDER, ATOLYE_V3_WRITER_MODEL, ATOLYE_V3_CHECKER_MODEL);
  * varsayılan yerel Ollama. OpenAI çağrıları video başına 1 $ tavanla sınırlıdır; tavanı aşacak çağrı yapılmaz,
@@ -77,10 +77,11 @@ ${rows.join("\n")}
 async function main() {
   const konu = arg("--konu");
   const donem = arg("--donem");
-  if (!konu || !donem) throw new Error('Kullanım: --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil tr]');
+  if (!konu || !donem) throw new Error('Kullanım: --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil en|tr]');
   const ton = (arg("--ton") ?? "mizahi") as EpisodeTone;
   if (!EPISODE_TONES.includes(ton)) throw new Error(`--ton şunlardan biri olmalı: ${EPISODE_TONES.join(", ")}`);
-  const dil = (arg("--dil") ?? "tr") as ScriptLanguage;
+  // Owner decision (20 Oct 2026): the videos are in American English; Turkish only when asked for explicitly.
+  const dil = (arg("--dil") ?? "en") as ScriptLanguage;
   if (dil !== "tr" && dil !== "en") throw new Error("--dil tr ya da en olmalı");
   const bankFile = arg("--kaynaklar");
   const bank = bankFile ? (JSON.parse(await fs.readFile(bankFile, "utf8")) as SourceBank) : undefined;
