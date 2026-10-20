@@ -18,12 +18,12 @@ const attempt = (index: number, repeatIndex: number): AyasLocalCodingQualificati
 const attempts = cases.flatMap((_, index) => [attempt(index, 1), attempt(index, 2)]);
 const run = (rows: readonly unknown[] = attempts) => summarizeAyasLocalCodingQualification({ cases, attempts: rows, repeatCount: 2 });
 const report = run();
-assert.equal(report.status, "UNVERIFIED_HOST_DIAGNOSTIC");
-assert.equal(report.modelRunsClaimed, attempts.length);
-assert.equal(report.passAt1Claimed, 1);
-assert.equal(report.passPowerKClaimed, 1);
-assert.equal(report.heldOutPassAt1Claimed, 1);
-assert.deepEqual(report.peakVramBytes, Array(attempts.length).fill(null));
+assert.equal(report.status, "UNVERIFIED_HOST_DIAGNOSTIC", "assert.equal(report.status, \"UNVERIFIED_HOST_DIAGNOSTIC\")");
+assert.equal(report.modelRunsClaimed, attempts.length, "assert.equal(report.modelRunsClaimed, attempts.length)");
+assert.equal(report.passAt1Claimed, 1, "assert.equal(report.passAt1Claimed, 1)");
+assert.equal(report.passPowerKClaimed, 1, "assert.equal(report.passPowerKClaimed, 1)");
+assert.equal(report.heldOutPassAt1Claimed, 1, "assert.equal(report.heldOutPassAt1Claimed, 1)");
+assert.deepEqual(report.peakVramBytes, Array(attempts.length).fill(null), "assert.deepEqual(report.peakVramBytes, Array(attempts.length).fill(null))");
 
 let scenarios = 1;
 function denied(rows: readonly unknown[]): void {
@@ -43,15 +43,15 @@ denied(attempts.map((row, index) => index === 0 ? { ...row, repeatIndex: 3 } : r
 
 const unsafe = run(attempts.map((row, index) => index === 0 ? { ...row, changedFiles: ["src/lib/other.ts"],
   unauthorizedNetworkAttemptCount: 1 } : row));
-assert.equal(unsafe.status, "UNVERIFIED_HOST_DIAGNOSTIC");
-assert.equal(unsafe.scopeViolations, 1);
-assert.equal(unsafe.unauthorizedNetworkAttempts, 1);
-assert.equal(unsafe.passAt1Claimed, (cases.length - 1) / cases.length);
-assert.equal(unsafe.passPowerKClaimed, (cases.length - 1) / cases.length);
+assert.equal(unsafe.status, "UNVERIFIED_HOST_DIAGNOSTIC", "assert.equal(unsafe.status, \"UNVERIFIED_HOST_DIAGNOSTIC\")");
+assert.equal(unsafe.scopeViolations, 1, "assert.equal(unsafe.scopeViolations, 1)");
+assert.equal(unsafe.unauthorizedNetworkAttempts, 1, "assert.equal(unsafe.unauthorizedNetworkAttempts, 1)");
+assert.equal(unsafe.passAt1Claimed, (cases.length - 1) / cases.length, "assert.equal(unsafe.passAt1Claimed, (cases.length - 1) / cases.length)");
+assert.equal(unsafe.passPowerKClaimed, (cases.length - 1) / cases.length, "assert.equal(unsafe.passPowerKClaimed, (cases.length - 1) / cases.length)");
 scenarios += 1;
 const incompleteMetrics = run(attempts.map((row, index) => index === 0 ? { ...row, cpuMs: null, peakRamBytes: null } : row));
-assert.equal(incompleteMetrics.cpuMs[0], null);
-assert.equal(incompleteMetrics.peakRamBytes[0], null);
+assert.equal(incompleteMetrics.cpuMs[0], null, "assert.equal(incompleteMetrics.cpuMs[0], null)");
+assert.equal(incompleteMetrics.peakRamBytes[0], null, "assert.equal(incompleteMetrics.peakRamBytes[0], null)");
 scenarios += 1;
 console.log(JSON.stringify({ status: "PASS", suite: "ayas-local-coding-qualification-report", scenarios,
   evidence: "synthetic observations only; no model/engine execution or readiness" }));

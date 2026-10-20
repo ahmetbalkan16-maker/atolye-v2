@@ -89,7 +89,17 @@ async function main() {
     assert.match(source, /pathname === "\/"\) return children/);
     for (const token of ["fetch(", "setInterval(", "requestAnimationFrame(", "useEffect("]) assert.ok(!source.includes(token));
     assert.equal(manifest().start_url, "/"); assert.equal(manifest().scope, "/"); assert.equal(manifest().id, "/brain");
-    assert.equal(execFileSync("git", ["diff", "98c36b2", "--", "src/components/homepage/AyasHomepage.tsx", "app/manifest.ts", "public/sw.js"], { encoding: "utf8" }), "");
+    assert.equal(execFileSync("git", ["diff", "98c36b2", "--", "src/components/homepage/AyasHomepage.tsx", "app/manifest.ts"], { encoding: "utf8" }), "");
+    // public/sw.js keeps its launch constants, precache and navigation handling byte-identical to 98c36b2. Its one
+    // permitted addition (2026-10-19, owner-requested first-wake fix) is the wake asset cache that
+    // scripts/smoke-ayas-wake-first-start.ts guards.
+    const frozenSw = execFileSync("git", ["show", "98c36b2:public/sw.js"], { encoding: "utf8" });
+    const currentSw = fs.readFileSync("public/sw.js", "utf8");
+    const launchPart = (sw: string) => sw.slice(sw.indexOf("const CACHE ="), sw.indexOf("];", sw.indexOf("const PRECACHE")) + 2);
+    const navigationPart = (sw: string) => sw.slice(sw.indexOf('self.addEventListener("fetch"'), sw.indexOf("// Content-hashed build assets"));
+    assert.equal(launchPart(currentSw), launchPart(frozenSw));
+    assert.equal(navigationPart(currentSw), navigationPart(frozenSw));
+    assert.ok(navigationPart(frozenSw).includes("PWA_LAUNCH_ROUTE"), "sanity: the compared slice holds the launch handling");
   });
   check("CSS has scoped responsive, safe-area, focus and reduced-motion contracts", () => {
     const css = fs.readFileSync("src/components/workspace/AyasWorkspace.css", "utf8");

@@ -18,26 +18,26 @@ const negative = ["Graphify'i kur", "Graphify komutunu güncelle", "Graphify ile
   "Graphify nedir?", "Git durumunu göster", "AYAS gelişim durumunu göster"];
 let count = 0;
 for (const text of positive) {
-  assert.equal(isAyasGraphifyStateQuery(text), true); assert.equal(classifyAyasComplexity(text), "TOOL");
+  assert.equal(isAyasGraphifyStateQuery(text), true, "assert.equal(isAyasGraphifyStateQuery(text), true)"); assert.equal(classifyAyasComplexity(text), "TOOL", "assert.equal(classifyAyasComplexity(text), \"TOOL\")");
   const candidate = resolveDeterministicToolCandidate(text);
-  assert.equal(candidate?.action, "query-graphify"); assert.deepEqual(candidate?.toolInput, { operation: "state" });
+  assert.equal(candidate?.action, "query-graphify", "assert.equal(candidate?.action, \"query-graphify\")"); assert.deepEqual(candidate?.toolInput, { operation: "state" }, "assert.deepEqual(candidate?.toolInput, { operation: \"state\" })");
   const selection = selectAyasAgenticRoute({ text, availableModelIds: ["ollama"] });
-  assert.equal(selection.selectedToolId, "query-graphify"); assert.equal(selection.blocked, false); count++;
+  assert.equal(selection.selectedToolId, "query-graphify", "assert.equal(selection.selectedToolId, \"query-graphify\")"); assert.equal(selection.blocked, false, "assert.equal(selection.blocked, false)"); count++;
 }
-for (const text of negative) { assert.equal(isAyasGraphifyStateQuery(text), false); assert.notEqual(resolveDeterministicToolCandidate(text)?.action, "query-graphify"); count++; }
+for (const text of negative) { assert.equal(isAyasGraphifyStateQuery(text), false, "assert.equal(isAyasGraphifyStateQuery(text), false)"); assert.notEqual(resolveDeterministicToolCandidate(text)?.action, "query-graphify"); count++; }
 for (const text of ["Graphify durumunu güncelle", "Graphify durumunu göster ve commit yap",
   "Graphify durumunu ve checkpoint'i göster", "Graphify durumunu ve git durumunu göster"]) {
   const selection = selectAyasAgenticRoute({ text, availableModelIds: ["ollama"] });
   assert.equal(selection.selectedToolId, null, text); assert.equal(selection.blocked, true, text); count++;
 }
 const unavailable = selectAyasAgenticRoute({ text: positive[0]!, availableModelIds: ["ollama"], unavailableToolIds: ["query-graphify"] });
-assert.equal(unavailable.selectedToolId, null); assert.equal(unavailable.blocked, true); count++;
+assert.equal(unavailable.selectedToolId, null, "assert.equal(unavailable.selectedToolId, null)"); assert.equal(unavailable.blocked, true, "assert.equal(unavailable.blocked, true)"); count++;
 const canonical = buildAyasGraphifyStateReply({ sourceHead: "source", lastAnalyzedHead: "source", structuralStatus: "PARTIAL",
   semanticStatus: "PENDING", classification: "GRAPH_PARTIAL", incompleteCodeFiles: 10, worktreeState: "CLEAN" });
-assert.ok(canonical.includes("PARTIAL") && canonical.includes("PENDING") && canonical.includes("10")); assert.ok(!canonical.includes("FULL")); count++;
-assert.ok(buildAyasGraphifyStateReply({}).includes("bilinmiyor")); count++;
-assert.equal(AYAS_EXECUTION_ALLOWLIST["query-graphify"].write, false);
-assert.equal(AYAS_EXECUTION_ALLOWLIST["query-graphify"].destructive, false);
+assert.ok(canonical.includes("PARTIAL") && canonical.includes("PENDING") && canonical.includes("10"), "assert.ok(canonical.includes(\"PARTIAL\") && canonical.includes(\"PENDING\") && canonical.includes(\"10\"))"); assert.ok(!canonical.includes("FULL"), "assert.ok(!canonical.includes(\"FULL\"))"); count++;
+assert.ok(buildAyasGraphifyStateReply({}).includes("bilinmiyor"), "assert.ok(buildAyasGraphifyStateReply({}).includes(\"bilinmiyor\"))"); count++;
+assert.equal(AYAS_EXECUTION_ALLOWLIST["query-graphify"].write, false, "assert.equal(AYAS_EXECUTION_ALLOWLIST[\"query-graphify\"].write, false)");
+assert.equal(AYAS_EXECUTION_ALLOWLIST["query-graphify"].destructive, false, "assert.equal(AYAS_EXECUTION_ALLOWLIST[\"query-graphify\"].destructive, false)");
 
 async function streamTruth() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-graph-state-chat-"));
@@ -59,12 +59,12 @@ async function streamTruth() {
       route: { provider, decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "fixture", reason: "fixture" } },
       memoryStore: { rootDir: path.join(root, "memory") } })) events.push(event);
   });
-  const done = events.find(event => event.type === "done"); assert.ok(done?.type === "done");
-  assert.equal(done.actionTrace?.tool, "query-graphify"); assert.equal(done.actionTrace?.executed, true);
-  assert.equal(done.source, "fallback"); assert.equal(calls, 1);
-  assert.ok(done.text.startsWith("Graphify durumu salt okunur incelendi.")); assert.ok(done.text.includes("Yapısal durum:"));
-  assert.ok(!done.text.includes("Graphify tam ve güncel"));
-  assert.equal(events.filter(event => event.type === "delta").map(event => event.type === "delta" ? event.text : "").join(""), done.text);
+  const done = events.find(event => event.type === "done"); assert.ok(done?.type === "done", "assert.ok(done?.type === \"done\")");
+  assert.equal(done.actionTrace?.tool, "query-graphify", "assert.equal(done.actionTrace?.tool, \"query-graphify\")"); assert.equal(done.actionTrace?.executed, true, "assert.equal(done.actionTrace?.executed, true)");
+  assert.equal(done.source, "fallback", "assert.equal(done.source, \"fallback\")"); assert.equal(calls, 1, "assert.equal(calls, 1)");
+  assert.ok(done.text.startsWith("Graphify durumu salt okunur incelendi."), "assert.ok(done.text.startsWith(\"Graphify durumu salt okunur incelendi.\"))"); assert.ok(done.text.includes("Yapısal durum:"), "assert.ok(done.text.includes(\"Yapısal durum:\"))");
+  assert.ok(!done.text.includes("Graphify tam ve güncel"), "assert.ok(!done.text.includes(\"Graphify tam ve güncel\"))");
+  assert.equal(events.filter(event => event.type === "delta").map(event => event.type === "delta" ? event.text : "").join(""), done.text, "assert.equal(events.filter(event => event.type === \"delta\").map(event => event.type === \"delta\" ? event.text : \"\").join(\"\"), done.text)");
   count++;
   const history = [{ role: "user" as const, text: positive[0]! }, { role: "brain" as const, text: done.text }];
   const checkFollowup = async (text: string, answer: string) => {
@@ -77,15 +77,15 @@ async function streamTruth() {
       env: { NODE_ENV: "test", AYAS_CONVERSATION_V2: "1", OLLAMA_NUM_CTX: "8192" },
       route: { provider: followupProvider, decision: { complexity: "SIMPLE", providerId: "ollama", providerKind: "local", model: "fixture", reason: "fixture" } },
       memoryStore: { rootDir: path.join(root, "followup-memory") } })) followup.push(event);
-    const result = followup.find(event => event.type === "done"); assert.ok(result?.type === "done");
+    const result = followup.find(event => event.type === "done"); assert.ok(result?.type === "done", "assert.ok(result?.type === \"done\")");
     return { result, modelCalls };
   };
   const math = await checkFollowup("37 ile 48 toplam kaç eder? Kısa Türkçe cevap ver.", "85 eder.");
-  assert.equal(math.result.text, "85 eder."); assert.equal(math.result.source, "llm"); assert.equal(math.modelCalls, 1); count++;
+  assert.equal(math.result.text, "85 eder.", "assert.equal(math.result.text, \"85 eder.\")"); assert.equal(math.result.source, "llm", "assert.equal(math.result.source, \"llm\")"); assert.equal(math.modelCalls, 1, "assert.equal(math.modelCalls, 1)"); count++;
   const ownerConstraint = await checkFollowup("Salt okunur kal. 37 ile 48 toplam kaç eder?", "85 eder.");
-  assert.equal(ownerConstraint.result.reason, "read-only-constraint"); assert.equal(ownerConstraint.result.source, "fallback"); count++;
+  assert.equal(ownerConstraint.result.reason, "read-only-constraint", "assert.equal(ownerConstraint.result.reason, \"read-only-constraint\")"); assert.equal(ownerConstraint.result.source, "fallback", "assert.equal(ownerConstraint.result.source, \"fallback\")"); count++;
   const mutation = await checkFollowup("Bu kod için kısa öneri ver.", "Dosyayı değiştir, gerekli düzenlemeleri yap.");
-  assert.equal(mutation.result.reason, "execution-claim"); assert.equal(mutation.result.source, "fallback"); count++;
+  assert.equal(mutation.result.reason, "execution-claim", "assert.equal(mutation.result.reason, \"execution-claim\")"); assert.equal(mutation.result.source, "fallback", "assert.equal(mutation.result.source, \"fallback\")"); count++;
   console.log(`AYAS Graphify state chat smoke: PASS (${count} scenarios)`);
 }
 streamTruth().catch(error => { console.error(error); process.exitCode = 1; });

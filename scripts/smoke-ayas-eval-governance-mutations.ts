@@ -37,6 +37,6 @@ try {
   }
   console.log(`Stage 15F.4 mutation audit: PASS (${mutants.length}/${mutants.length} caught; TEMP only)`);
 } finally {
-  assert.equal(path.dirname(path.resolve(temp)), path.resolve(os.tmpdir())); assert.ok(path.basename(temp).startsWith("ayas-15f4-audit-"));
+  assert.equal(path.dirname(path.resolve(temp)), path.resolve(os.tmpdir()), "assert.equal(path.dirname(path.resolve(temp)), path.resolve(os.tmpdir()))"); assert.ok(path.basename(temp).startsWith("ayas-15f4-audit-"), "assert.ok(path.basename(temp).startsWith(\"ayas-15f4-audit-\"))");
   fs.rmSync(temp, { recursive: true, force: true });
 }

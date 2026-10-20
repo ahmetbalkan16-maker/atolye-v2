@@ -148,6 +148,35 @@ function Start-Supervisor {
   else { Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\wscript.exe') -ArgumentList @('//B', '//NoLogo', ('"' + $launcher + '"')) -WorkingDirectory $repo | Out-Null }
   Say 'YAPILDI' ('Erisim denetcisi yeniden baslatildi (' + $(if ($viaShell) { 'Baslangic kisayolu, Windows kabugu' } else { 'gizli baslatici' }) + ')')
 }
+function Read-SnapshotIntoCache([string]$root) {
+  # A restart re-reads the whole snapshot: the supervisor hashes its build and dependency files before starting it.
+  # From the HDD with a cold file cache (after a 30 GB copy) that took longer than the health timeout and rolled a
+  # model switch back (2026-10-19). Read it once while the old app still serves, so the stop-start window stays short.
+  # Read-only; links and Next's own cache are not followed.
+  $buffer = New-Object byte[] (1MB)
+  $files = 0
+  $began = Get-Date
+  $pending = New-Object System.Collections.Generic.Stack[string]
+  $pending.Push($root)
+  while ($pending.Count -gt 0) {
+    $dir = $pending.Pop()
+    try {
+      foreach ($sub in [IO.Directory]::EnumerateDirectories($dir)) {
+        $info = New-Object IO.DirectoryInfo $sub
+        if (($info.Attributes -band [IO.FileAttributes]::ReparsePoint) -or ($info.Name -eq 'cache' -and $info.Parent.Name -eq '.next')) { continue }
+        $pending.Push($sub)
+      }
+      foreach ($file in [IO.Directory]::EnumerateFiles($dir)) {
+        try {
+          $stream = [IO.File]::OpenRead($file)
+          try { while ($stream.Read($buffer, 0, $buffer.Length) -gt 0) { } } finally { $stream.Dispose() }
+          $files++
+        } catch { }
+      }
+    } catch { }
+  }
+  Say 'YAPILDI' ("Snapshot onbellege okundu ($files dosya, " + [int]((Get-Date) - $began).TotalSeconds + ' sn)')
+}
 function Wait-Healthy([string]$root, [datetime]$since) {
   $deadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)
   $local = $false
@@ -183,6 +212,7 @@ $liveHead = [string](Read-Json $manifestFile).buildHead
 
 if ($Restart) {
   Say 'BILGI' "Mod: YENIDEN BASLAT (ayni snapshot): $current ($liveHead)"
+  Read-SnapshotIntoCache $current
   $busy = Get-BusyChildren @(Get-CimInstance Win32_Process) $current
   if ($busy.Count -gt 0) { Say 'SORUN' "Canli uygulamada calisan bir is var ($(($busy | ForEach-Object { $_.Name }) -join ', ')); yeniden baslatilmadi."; exit 3 }
   $started = Get-Date

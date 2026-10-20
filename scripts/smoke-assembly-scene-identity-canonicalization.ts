@@ -121,8 +121,8 @@ async function run() {
   {
     const plan = await generate([1, 2, 3, 4, 5].map((id) => ({ sceneId: id, chapterId: id, duration: "00:20" })));
     for (let i = 0; i < 5; i += 1) {
-      assert.equal(plan.scenes[i].sceneId, i + 1);
-      assert.equal(plan.scenes[i].chapterId, i + 1);
+      assert.equal(plan.scenes[i].sceneId, i + 1, "assert.equal(plan.scenes[i].sceneId, i + 1)");
+      assert.equal(plan.scenes[i].chapterId, i + 1, "assert.equal(plan.scenes[i].chapterId, i + 1)");
     }
   }
   pass("Test A: normal AI sceneId/chapterId output leaves canonical identity unchanged");
@@ -143,7 +143,7 @@ async function run() {
   {
     const plan = await generate([1, 2, 3, 4, 5].map(() => ({ sceneId: 1, chapterId: 1, duration: "00:20" })));
     const ids = plan.scenes.map((s) => s.sceneId);
-    assert.deepEqual(ids, [1, 2, 3, 4, 5]);
+    assert.deepEqual(ids, [1, 2, 3, 4, 5], "assert.deepEqual(ids, [1, 2, 3, 4, 5])");
     assert.equal(new Set(ids).size, 5, "no duplicate sceneId should survive canonicalization");
   }
   pass("Test C: duplicate AI sceneId (all 1) is overridden, canonical identity is unique and ordered");
@@ -169,8 +169,8 @@ async function run() {
       { sceneId: 5, chapterId: 5, duration: "00:20" },
     ]);
     for (let i = 0; i < 5; i += 1) {
-      assert.equal(plan.scenes[i].sceneId, i + 1);
-      assert.equal(plan.scenes[i].chapterId, i + 1);
+      assert.equal(plan.scenes[i].sceneId, i + 1, "assert.equal(plan.scenes[i].sceneId, i + 1)");
+      assert.equal(plan.scenes[i].chapterId, i + 1, "assert.equal(plan.scenes[i].chapterId, i + 1)");
     }
   }
   pass("Test E: non-numeric / missing AI identity values resolve to canonical identity");
@@ -187,9 +187,9 @@ async function run() {
     })));
     for (let i = 0; i < 5; i += 1) {
       const sceneId = i + 1;
-      assert.equal(plan.scenes[i].animationAssetId, `animation-canonical-${sceneId}`);
-      assert.equal(plan.scenes[i].videoAssetId, `video-canonical-${sceneId}`);
-      assert.equal(plan.scenes[i].audioAssetId, `audio-chapter-${sceneId}`);
+      assert.equal(plan.scenes[i].animationAssetId, `animation-canonical-${sceneId}`, "assert.equal(plan.scenes[i].animationAssetId, `animation-canonical-${sceneId}`)");
+      assert.equal(plan.scenes[i].videoAssetId, `video-canonical-${sceneId}`, "assert.equal(plan.scenes[i].videoAssetId, `video-canonical-${sceneId}`)");
+      assert.equal(plan.scenes[i].audioAssetId, `audio-chapter-${sceneId}`, "assert.equal(plan.scenes[i].audioAssetId, `audio-chapter-${sceneId}`)");
     }
   }
   pass("Test F: animationAssetId/videoAssetId/audioAssetId canonical fallback regression is intact");

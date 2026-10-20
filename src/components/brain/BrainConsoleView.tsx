@@ -75,6 +75,8 @@ export interface BrainConsoleVoiceView {
   readonly voiceTier?: string | null;
   /** `true` while the on-device wake pipeline is re-acquiring the mic / context. */
   readonly recovering?: boolean;
+  /** `true` from the mic tap until the wake pipeline is armed — "AYAS" cannot be heard yet. */
+  readonly starting?: boolean;
   /** `true` when a working wake session was interrupted and is recovering (tap resumes). */
   readonly paused?: boolean;
   /**
@@ -315,6 +317,7 @@ function presenceFromProps(props: BrainConsoleViewProps) {
           state: props.voice.state,
           mode: props.voice.recognitionMode,
           recovering: props.voice.recovering,
+          starting: props.voice.starting,
           paused: props.voice.paused,
           conversationActive: props.voice.conversationActive,
           initializing: props.voice.initializing,

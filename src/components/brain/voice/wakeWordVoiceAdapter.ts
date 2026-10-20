@@ -98,6 +98,13 @@ const PREROLL_SPEECH_RMS = 0.02;
 const REARM_COOLDOWN_MS = 350;
 /** getUserMedia / ONNX load can hang on iOS — bound it so a hang can't wedge AYAS. */
 const AUDIO_START_TIMEOUT_MS = 12_000;
+/**
+ * Bound on loading the wake runtime + models (onnxruntime-web WASM ~14 MB, three ONNX models ~3.3 MB). A cold load
+ * travels through the home tunnel: 47 s measured for the WASM alone (2026-10-19). Under the 12 s audio bound the first
+ * start timed out, latched `fatal` and dropped to the browser adapter, so the first "AYAS" of that session never woke.
+ * A slow download is not a device that cannot run the engine; a load that fails, or hangs this long, is.
+ */
+const MODEL_LOAD_TIMEOUT_MS = 180_000;
 /** Transient start failures (AbortError, timeout) get this many retries before fatal. */
 const MAX_START_ATTEMPTS = 3;
 /** Frame-flow watchdog: check this often while detecting. */
@@ -410,6 +417,8 @@ export interface WakeWordAdapterOptions {
   readonly onUnavailable?: (reason: "not-allowed" | "start-blocked" | "runner-init") => void;
   /** Re-arm cooldown after a turn (default 700 ms). Test seam. */
   readonly rearmCooldownMs?: number;
+  /** Bound on the runtime + model load (default 180 s). Test seam. */
+  readonly modelLoadTimeoutMs?: number;
   /** Backoff between mic-start retries: `n * attempt` ms (default 400). Test seam. */
   readonly startRetryBackoffMs?: number;
   /** Frame-flow watchdog tick interval (default 1500 ms). Test seam. */
@@ -534,6 +543,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       | "transcribe"
       | "onUnavailable"
       | "rearmCooldownMs"
+      | "modelLoadTimeoutMs"
       | "startRetryBackoffMs"
       | "watchdogIntervalMs"
       | "frameStallMs"
@@ -550,6 +560,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     >
   >;
   private readonly rearmCooldownMs: number;
+  private readonly modelLoadTimeoutMs: number;
   private readonly startRetryBackoffMs: number;
   private readonly watchdogIntervalMs: number;
   private readonly frameStallMs: number;
@@ -647,6 +658,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
 
   private audioUp = false;
   private starting: Promise<void> | null = null;
+  /**
+   * The one runner load (init + silence warm-up), shared by `preload` and every start attempt. It survives a timed-out
+   * wait, so a retry joins it instead of starting a second download; only a load that actually failed is cleared.
+   */
+  private preparing: Promise<void> | null = null;
   private recovering = false;
   /** A wake score-check is pending — the runner still buffers every frame. */
   private accepting = false;
@@ -717,6 +733,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.onUnavailable = options.onUnavailable;
     this.onStatus = options.onStatus;
     this.rearmCooldownMs = options.rearmCooldownMs ?? REARM_COOLDOWN_MS;
+    this.modelLoadTimeoutMs = options.modelLoadTimeoutMs ?? MODEL_LOAD_TIMEOUT_MS;
     this.startRetryBackoffMs = options.startRetryBackoffMs ?? 400;
     this.watchdogIntervalMs = options.watchdogIntervalMs ?? WATCHDOG_INTERVAL_MS;
     this.frameStallMs = options.frameStallMs ?? FRAME_STALL_MS;
@@ -804,6 +821,33 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
 
   requestMicrophonePermission(): Promise<AyasMicPermissionState> {
     return this.tts.requestMicrophonePermission?.() ?? Promise.resolve("unknown");
+  }
+
+  /**
+   * Start loading the wake runtime + models now, before the owner taps the mic. Without it the whole load ran after
+   * the tap, while the UI already invited "AYAS", and a wake said in that window was lost. No microphone, no gesture,
+   * no audio: fetch + compile + a warm-up on synthetic silence only. A failure is reported by the next start.
+   */
+  preload(): void {
+    if (this.disposed || this.fatal) return;
+    void this.prepareRunners().catch(() => {});
+  }
+
+  private prepareRunners(): Promise<void> {
+    if (!this.preparing) {
+      const prepare = async (runner: WakeRunnerLike) => {
+        if (!runner.ready) await runner.init();
+        await runner.warmUp?.();
+      };
+      const load = Promise.all([prepare(this.runner), ...(this.runnerAlias ? [prepare(this.runnerAlias)] : [])]).then(
+        () => undefined,
+      );
+      this.preparing = load;
+      load.catch(() => {
+        if (this.preparing === load) this.preparing = null;
+      });
+    }
+    return this.preparing;
   }
 
   /* ---- conversation session: wake once, then follow-ups skip the wake word ----
@@ -1034,6 +1078,8 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     } else if (!this.starting && !this.recovering) {
       this.phase = "starting";
       void this.ensureAudio(handlers);
+      // Until the first frame flows "AYAS" cannot be heard; the UI must not claim it is listening yet.
+      this.emit();
     }
 
     return {
@@ -1051,35 +1097,26 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     const run = (async () => {
       for (this.startAttempts = 1; this.startAttempts <= MAX_START_ATTEMPTS; this.startAttempts += 1) {
         try {
-          const inits: Promise<void>[] = [];
-          const prepare = async (runner: WakeRunnerLike) => {
-            if (!runner.ready) await runner.init();
-            await runner.warmUp?.();
-          };
-          inits.push(prepare(this.runner));
-          if (this.runnerAlias) inits.push(prepare(this.runnerAlias));
-          if (inits.length) {
-            try {
-              await withTimeout(Promise.all(inits).then(() => undefined), AUDIO_START_TIMEOUT_MS, "runner-init");
-            } catch (error) {
-              // A model/WASM/asset failure is not a microphone interruption and
-              // another user gesture cannot repair it. Before the wake engine
-              // has ever been healthy, hand control back to the host so it can
-              // attach BrowserVoiceAdapter immediately instead of entering the
-              // visible reconnect loop for a permanently unavailable model.
-              if (!this.everHealthy) {
-                this.lastError = (error as Error)?.name || (error as Error)?.message || "runner-init";
-                this.resetConversation("fatal");
-                this.fatal = true;
-                this.phase = "fatal";
-                this.emit();
-                this.onUnavailable?.("runner-init");
-                handlers.onError("start-blocked");
-                handlers.onEnd();
-                return;
-              }
-              throw error;
+          try {
+            await withTimeout(this.prepareRunners(), this.modelLoadTimeoutMs, "runner-init");
+          } catch (error) {
+            // A model/WASM/asset failure is not a microphone interruption and
+            // another user gesture cannot repair it. Before the wake engine
+            // has ever been healthy, hand control back to the host so it can
+            // attach BrowserVoiceAdapter immediately instead of entering the
+            // visible reconnect loop for a permanently unavailable model.
+            if (!this.everHealthy) {
+              this.lastError = (error as Error)?.name || (error as Error)?.message || "runner-init";
+              this.resetConversation("fatal");
+              this.fatal = true;
+              this.phase = "fatal";
+              this.emit();
+              this.onUnavailable?.("runner-init");
+              handlers.onError("start-blocked");
+              handlers.onEnd();
+              return;
             }
+            throw error;
           }
           this.runner.reset();
           this.runnerAlias?.reset();
