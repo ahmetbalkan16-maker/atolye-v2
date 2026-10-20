@@ -1,3 +1,14 @@
+## 20 Ekim 2026 (gece) — V3: Roma bölümü teslim edildi ve incelendi; 4 görsel hata kullanım yenilenince giderilecek
+
+Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3`; kod değişmedi (ana repo ve canlı AYAS'a dokunulmadı).
+Roma (`output/v3/bolumler/rubicon-en-4/`) 2. rötuş turunu bitirdi: `final.mp4` 111,6 sn, QC 15/15, Pompeius 8/10,
+Cicero 9/10, kalite beyni 9,6/10, 0,41 $; render bir kez çöktü, onarım beyni 2 işçiyle geçirdi. Kare incelemesinde
+QC'nin yakalamadığı 4 hata: adlı Romalılar aynı kıyafette (Pompeius'un paludamentum'u yok), harita etiketleri çakışıyor
+(çift "CAESAR", simge altında "Ariminum"), isim etiketi yüze biniyor, kapanışta ~17 sn karaktersiz arşiv karesi.
+Owner: "kullanım yenilenince bu hataları gider". Sonra sırayla: beyin sınavı + Qwen3-VL karşılaştırması, Orpheus (model
+lisansı doğrulanacak), bütün sistem taraması, birleştirme ve canlıya alma. Ayrıntı ve komutlar:
+`D:\ÜRETİM\handover\SESSION_2026-10-20\DEVAM_RAPORU.md` → "EN GÜNCEL".
+
 ## 20 Ekim 2026 (öğleden sonra) — V3: portreden çizilen benzerlik, herkes farklı, referans videoya göre görünüş ve tempo
 
 Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3` (ana repo ve canlı AYAS'a dokunulmadı). Owner Roma

@@ -288,3 +288,16 @@ okur; kod değişmez, ders yalnız veri ya da beynin kendi talimatı olur.
   kişi de ≥ 8/10 (Sezar 8, Pompeius 8, Cicero 9). Güvenli duruşta 2. tur görsel adımındaydı; son tur, kendiliğinden biter.
 - Kalan (owner onaylı sıra): beyin sınavını gemma4 ile çalıştır, Qwen3-VL indir ve karşılaştır; Orpheus duygulu ses;
   bütün sistem taraması.
+
+### Roma teslimi ve kare incelemesi (aynı gün, gece)
+
+- `rubicon-en-4` 2. rötuş turu 15:30'da bitti (`EXIT 0`): `final.mp4` 111,6 sn 1080p, kapak + YouTube paketi; QC 15/15,
+  kalite beyni 18 kare 9,6/10, 0,41 $. Kurul uyarıları: render bir kez Chrome bağlantı zaman aşımıyla çöktü (onarım
+  beyni `ATOLYE_V3_RENDER_CONCURRENCY=2` ile geçirdi); s6-mercy için dönem görseli yok.
+- Tüm videoyu kapsayan iki kare tabakasında QC'nin kaçırdığı hatalar: (1) Sezar, Pompeius, Cicero aynı beyaz toga +
+  kırmızı kuşakla — Kostüm beyninin notundaki paludamentum kuklaya geçmemiş, adlı karakterlerin kıyafeti ayrışmıyor;
+  (2) harita sahnesinde çift "CAESAR" etiketi, simgenin altında kalan "Ariminum", karakterin arkasında "Rome", etiketin
+  üstüne binen konuşma balonu; (3) yakın planda isim etiketi yüze biniyor, alt satırı sahne içinde değişiyor;
+  (4) kapanışta ~17 sn tek arşiv karesi, karakter yok — "olaysız aralık" kontrolü bunu saymıyor.
+- Owner: kullanım yenilenince bu hataları gider; ardından yukarıdaki kalan sıra, sonra birleştirme ve canlıya alma.
+  Komutlar ve ayrıntı: `D:\ÜRETİM\handover\SESSION_2026-10-20\DEVAM_RAPORU.md` → "EN GÜNCEL".
