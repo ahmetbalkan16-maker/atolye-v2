@@ -105,8 +105,9 @@ function toCandidate(title: string, info: ImageInfo, source: CommonsCandidate["s
     ...(year ? { year } : {}),
     url: info.url,
     downloadUrl: info.thumburl ?? info.url,
-    // 960 is one of Commons' standard thumbnail steps; an original smaller than the requested width has no thumb.
-    previewUrl: info.thumburl ? info.thumburl.replace(/\/\d+px-/, "/960px-") : info.url,
+    // 500 is one of Commons' standard thumbnail steps, enough for the vision judge, and the most often pre-rendered (the
+    // 960 step hit the rate limit on long judging runs); an original smaller than the requested width has no thumb.
+    previewUrl: info.thumburl ? info.thumburl.replace(/\/\d+px-/, "/500px-") : info.url,
     description: [stripHtml(m.ImageDescription?.value), stripHtml(m.DateTimeOriginal?.value)].filter(Boolean).join(" · ").slice(0, 400),
     width: info.width,
     height: info.height,
@@ -196,8 +197,15 @@ export async function commonsByTitles(cacheDir: string, titles: readonly string[
 
 /** Downloads a candidate (standard rendition, at most 3840 px wide) as a local asset with its credit. */
 export async function downloadCommons(c: CommonsCandidate, outFile: string): Promise<CreditRecord> {
-  const res = await politeFetch(c.downloadUrl);
-  if (!res.ok) throw new Error(`COMMONS_DOWNLOAD_${res.status}`);
+  // The big rendition is generated on demand and is the first to be rate-limited: then a smaller standard step,
+  // then the original file (the Rubicon run lost its chosen painting to a 429 on the 3840 px thumbnail).
+  const urls = [...new Set([c.downloadUrl, c.downloadUrl.replace(/\/3840px-/, "/1920px-"), c.url])];
+  let res: Response | undefined;
+  for (const url of urls) {
+    res = await politeFetch(url);
+    if (res.ok) break;
+  }
+  if (!res?.ok) throw new Error(`COMMONS_DOWNLOAD_${res?.status ?? "?"}`);
   const buf = Buffer.from(await res.arrayBuffer());
   await fs.mkdir(path.dirname(outFile), { recursive: true });
   await fs.writeFile(outFile, buf);

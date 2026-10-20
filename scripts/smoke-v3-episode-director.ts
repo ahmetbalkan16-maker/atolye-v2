@@ -302,6 +302,25 @@ async function main() {
     assert.equal(validateEpisode(value).ok, true, JSON.stringify(validateEpisode(value).errors.slice(0, 3)));
   });
 
+  await scenario("Q opening cover and closing subscribe card: everything shifts by the cover, the title shows on it, the last seconds carry the card", () => {
+    const ep = sampleEpisode();
+    const audio = [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]];
+    const plain = buildTimeline(ep, audio);
+    const tl = buildTimeline(ep, audio, { sceneLead: 0.3, sceneTail: 0.45, replyGap: 0.28, sameSpeakerGap: 0.16, introS: 3.5 });
+    assert.equal(tl.intro, 3.5);
+    assert.ok(Math.abs(tl.lines[0]!.start - (plain.lines[0]!.start + 3.5)) < 1e-9 && Math.abs(tl.duration - (plain.duration + 3.5)) < 1e-9);
+    const plan = buildRenderPlan({ episode: ep, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], inserts: [{ src: "bg/donem.jpg" }], language: "en", fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const [cover, scene] = plan.shots;
+    assert.deepEqual([cover!.id, cover!.start, cover!.duration, cover!.background.src], ["kapak", 0, 105, "bg/donem.jpg"]);
+    assert.deepEqual(cover!.titleCards.map((c) => [c.style, c.text, c.subtext]), [["kapak", "Test", "1452"]]);
+    assert.equal(scene!.start, 105, "ilk sahne kapaktan sonra başlar");
+    const card = scene!.titleCards.find((c) => c.style === "abone")!;
+    assert.deepEqual([card.text, card.end, card.end - card.start], ["SUBSCRIBE", scene!.duration, Math.min(scene!.duration, 150)]);
+    const noCover = buildRenderPlan({ episode: ep, timeline: plain, cast: [], accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false });
+    assert.equal(noCover.shots[0]!.id, ep.sahneler[0]!.id, "kapak yoksa ilk çekim sahnedir");
+    assert.equal(noCover.shots[0]!.titleCards.find((c) => c.style === "abone")!.text, "ABONE OL");
+  });
+
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
 }
 

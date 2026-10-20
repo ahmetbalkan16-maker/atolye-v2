@@ -25,6 +25,41 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
     );
   }
 
+  if (card.style === "kapak") {
+    // Opening cover: the title in big outlined letters over the darkened period picture, the period under it.
+    const rise = spring({ frame: local, fps, config: { damping: 14, stiffness: 120 } });
+    return (
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at 50% 55%, rgba(10,8,16,0.35) 0%, rgba(10,8,16,0.75) 100%)", opacity: exit }}>
+        <div style={{ transform: `translateY(${(1 - rise) * 60 * k}px) scale(${0.85 + 0.15 * rise})`, textAlign: "center", maxWidth: W * 0.84, font: `900 ${104 * k}px ${FONT}`, lineHeight: 1.04, color: "#fffaf0", WebkitTextStroke: `${16 * k}px #1d1b26`, paintOrder: "stroke fill", letterSpacing: 1 * k, textWrap: "balance" }}>
+          {card.text}
+        </div>
+        {card.subtext ? (
+          <div style={{ marginTop: 26 * k, padding: `${8 * k}px ${28 * k}px`, borderRadius: 10 * k, background: "#b8283a", border: `${5 * k}px solid #1d1b26`, font: `900 ${40 * k}px ${FONT}`, color: "#fffaf0", letterSpacing: 4 * k, opacity: Math.min(1, Math.max(0, (local - 8) / 8)) }}>
+            {card.subtext.toLocaleUpperCase("en-US")}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (card.style === "abone") {
+    // Closing card under the narrator's invitation: a subscribe button that pops, a bell that rings, thanks.
+    const pop = spring({ frame: local, fps, config: { damping: 10, stiffness: 180 } });
+    const ring = Math.sin(local / 2.2) * Math.max(0, 18 - local / 3);
+    return (
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 90 * k, display: "flex", flexDirection: "column", alignItems: "center", opacity: exit }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 * k, transform: `scale(${0.4 + 0.6 * pop})` }}>
+          <div style={{ padding: `${18 * k}px ${48 * k}px`, borderRadius: 14 * k, background: "#e0262f", border: `${6 * k}px solid #1d1b26`, boxShadow: `${8 * k}px ${8 * k}px 0 rgba(29,27,38,0.85)`, font: `900 ${62 * k}px ${FONT}`, color: "#ffffff", letterSpacing: 2 * k }}>{card.text}</div>
+          <svg width={92 * k} height={92 * k} viewBox="-50 -50 100 100" style={{ transform: `rotate(${ring}deg)`, transformOrigin: "50% 15%" }}>
+            <path d="M-30 18 Q-30 -32 0 -34 Q30 -32 30 18 L38 26 L-38 26 Z" fill="#ffd23f" stroke="#1d1b26" strokeWidth={7} strokeLinejoin="round" />
+            <circle cx={0} cy={34} r={9} fill="#ffd23f" stroke="#1d1b26" strokeWidth={6} />
+          </svg>
+        </div>
+        {card.subtext ? <div style={{ marginTop: 22 * k, font: `800 ${40 * k}px 'Segoe UI', Arial, sans-serif`, color: "#ffffff", WebkitTextStroke: `${9 * k}px #1d1b26`, paintOrder: "stroke fill" }}>{card.subtext}</div> : null}
+      </div>
+    );
+  }
+
   if (card.style === "kelime") {
     // One word, full screen, hard cut in and out: the emphasis beat.
     const punch = interpolate(local, [0, 4], [1.12, 1], { extrapolateRight: "clamp" });

@@ -30,6 +30,8 @@ export interface EpisodeTimeline {
   readonly lines: readonly LineTiming[];
   readonly scenes: readonly SceneTiming[];
   readonly duration: number;
+  /** Seconds of title cover before the first scene (0 = none). */
+  readonly intro?: number;
 }
 
 export interface TimelineOptions {
@@ -41,6 +43,8 @@ export interface TimelineOptions {
   readonly replyGap: number;
   /** Gap between two lines of the same speaker. */
   readonly sameSpeakerGap: number;
+  /** Title cover before the first scene, seconds (the owner's opening cover; 0 = none). */
+  readonly introS?: number;
 }
 
 export const DEFAULT_TIMELINE: TimelineOptions = { sceneLead: 0.3, sceneTail: 0.45, replyGap: 0.28, sameSpeakerGap: 0.16 };
@@ -49,7 +53,8 @@ export const DEFAULT_TIMELINE: TimelineOptions = { sceneLead: 0.3, sceneTail: 0.
 export function buildTimeline(episode: Episode, audio: readonly (readonly LineAudio[])[], opts: TimelineOptions = DEFAULT_TIMELINE): EpisodeTimeline {
   const lines: LineTiming[] = [];
   const scenes: SceneTiming[] = [];
-  let t = 0;
+  const intro = Math.max(0, opts.introS ?? 0);
+  let t = intro;
   episode.sahneler.forEach((scene, si) => {
     const sceneStart = t;
     t += opts.sceneLead;
@@ -65,5 +70,5 @@ export function buildTimeline(episode: Episode, audio: readonly (readonly LineAu
     t += opts.sceneTail;
     scenes.push({ sceneIndex: si, start: sceneStart, end: t });
   });
-  return { lines, scenes, duration: t };
+  return { lines, scenes, duration: t, ...(intro ? { intro } : {}) };
 }

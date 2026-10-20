@@ -505,6 +505,36 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     });
   });
 
+  // The opening cover (owner, 20 Oct 2026): the episode title over the first scene's period picture (or its set or
+  // map) before anyone speaks; and a subscribe end card over the closing seconds, under the narrator's invitation.
+  const intro = timeline.intro ?? 0;
+  const first = shots[0];
+  if (intro > 0 && first && first.start > 0) {
+    const period = input.inserts?.[0];
+    shots.unshift({
+      id: "kapak",
+      sceneId: "kapak",
+      start: 0,
+      duration: first.start,
+      background: period ? { src: period.src, kind: "archival", kenBurns: { fromZoom: 1.02, toZoom: 1.12, fromX: 0.01, toX: -0.01 } } : { ...first.background, kenBurns: { fromZoom: 1, toZoom: 1.08, fromX: 0, toX: 0 } },
+      performers: [],
+      props: [],
+      camera: [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }],
+      shakes: [],
+      titleCards: [{ text: episode.baslik, subtext: episode.donem, start: 0, end: first.start, style: "kapak" }],
+      mapArrows: [],
+      transitionIn: "kes",
+      dramatized: false,
+      ...(first.geoMap && !period ? { geoMap: { ...first.geoMap, territories: [], armies: [], arrows: [] } } : {}),
+    });
+  }
+  const last = shots[shots.length - 1];
+  if (last) {
+    const len = Math.min(last.duration, f(5));
+    const en = input.language === "en";
+    shots[shots.length - 1] = { ...last, titleCards: [...last.titleCards, { text: en ? "SUBSCRIBE" : "ABONE OL", subtext: en ? "Thanks for watching!" : "İzlediğin için teşekkürler!", start: last.duration - len, end: last.duration, style: "abone" }] };
+  }
+
   return {
     version: 1,
     episodeId: episode.id,

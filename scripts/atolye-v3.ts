@@ -44,7 +44,7 @@ import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/scri
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
-import { buildTimeline, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
+import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { freeGpuMemory, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { runChecked } from "../src/lib/v3/util/Proc";
@@ -231,14 +231,26 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       const narration = scene.satirlar.filter((l) => !visible.has(l.karakter)).map((l) => l.metin).join(" ");
       const pick = await pickBackground(fresh, { ...sj, anlatim: narration }, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
       for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
-      const file = pick.chosen ? path.join(pub, `${scene.id}-donem${extOf(pick.chosen.downloadUrl)}`) : "";
-      const credit = pick.chosen ? await downloadCommons(pick.chosen, file).catch((e: Error) => (log(`  ${scene.id}: seçilen görsel indirilemedi (${e.message})`), undefined)) : undefined;
-      if (pick.chosen && pick.verdict && credit) {
-        const c = pick.chosen;
-        used.add(c.url);
-        arsiv[si] = { src: `bg/${path.basename(file)}`, caption: insertCaption(c, dil), credit, secim: pick.verdict };
+      // Passing candidates best first; one that cannot be downloaded gives way to the next.
+      const passing = fresh
+        .slice(0, pick.verdicts.length)
+        .map((c, i) => ({ c, v: pick.verdicts[i]! }))
+        .filter((x) => passes(x.v))
+        .sort((a, b) => fitScore(b.v) - fitScore(a.v));
+      let got: { c: (typeof fresh)[number]; v: CandidateVerdict; credit: CreditRecord; file: string } | undefined;
+      for (const { c, v } of passing) {
+        const file = path.join(pub, `${scene.id}-donem${extOf(c.downloadUrl)}`);
+        const credit = await downloadCommons(c, file).catch((e: Error) => (log(`  ${scene.id}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
+        if (credit) {
+          got = { c, v, credit, file };
+          break;
+        }
+      }
+      if (got) {
+        used.add(got.c.url);
+        arsiv[si] = { src: `bg/${path.basename(got.file)}`, caption: insertCaption(got.c, dil), credit: got.credit, secim: got.v };
         durum[si] = "bulundu";
-        notlar[si] = `döneme ait görsel bulundu (${verdictLine(pick.verdict)})`;
+        notlar[si] = `döneme ait görsel bulundu (${verdictLine(got.v)})`;
       } else {
         const best = [...pick.verdicts].sort((a, b) => fitScore(b) - fitScore(a))[0];
         durum[si] = "bulunamadi";
@@ -543,7 +555,8 @@ async function main() {
     });
   } else synced = await readJson<LineSync[][]>(f("senkron.json"));
   const audio: LineAudio[][] = episode.sahneler.map((s, si) => s.satirlar.map((_, li) => ({ ...voiced[si]![li]!, ...synced[si]![li]! })));
-  const timeline = buildTimeline(episode, audio);
+  // The opening cover (episode title over the first picture) is 3.5 s of the timeline; --kapak-yok drops it.
+  const timeline = buildTimeline(episode, audio, { ...DEFAULT_TIMELINE, introS: process.argv.includes("--kapak-yok") ? 0 : 3.5 });
 
   // 5) Portre yüzleri: the main historical characters get their real face from a portrait.
   let portraits: PortraitResult[];
@@ -613,7 +626,8 @@ async function main() {
   if (need("miks", "miks.json")) {
     mix = await step("miks", async () => {
       const env = { ...process.env, ATOLYE_MUSIC_LIBRARY_ROOT: paths.musicRoot };
-      const scenes = timeline.scenes.map((s) => ({ start: s.start, end: s.end, mood: sceneMusicMood(episode.sahneler[s.sceneIndex]!.duygu, episode.sahneler[s.sceneIndex]!.muzik_ruh_hali) }));
+      // Music starts under the opening cover.
+      const scenes = timeline.scenes.map((s) => ({ start: s.sceneIndex === 0 ? 0 : s.start, end: s.end, mood: sceneMusicMood(episode.sahneler[s.sceneIndex]!.duygu, episode.sahneler[s.sceneIndex]!.muzik_ruh_hali) }));
       const music = planMusic(scenes, (m) => listTracksForMood(m, env), episode.id);
       const sfxDir = path.join(paths.repoRoot, "public", "sfx");
       const category: Record<SfxId, string> = { whoosh: "transition", pop: "transition", boing: "transition", kilic: "battle", top_atisi: "battle", davul: "battle", kalabalik: "crowd", cekic: "interior", zil: "interior", dalga: "nature" };

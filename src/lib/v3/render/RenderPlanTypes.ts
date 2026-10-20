@@ -174,7 +174,8 @@ export interface V3TitleCard {
   readonly subtext?: string;
   readonly start: number;
   readonly end: number;
-  readonly style: "yer_tarih" | "bolum" | "bilgi" | "kelime";
+  /** kapak: the opening title cover; abone: the closing subscribe end card (both placed by the director). */
+  readonly style: "yer_tarih" | "bolum" | "bilgi" | "kelime" | "kapak" | "abone";
 }
 
 export interface V3MapArrow {
