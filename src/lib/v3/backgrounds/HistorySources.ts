@@ -248,6 +248,9 @@ export function insertCaption(c: CommonsCandidate, language: "tr" | "en"): strin
   const where = c.source === "met" ? "The Met" : "Wikimedia Commons";
   const author = c.credit.author.replace(/\s*—\s*The Metropolitan Museum of Art$/, "").replace(/\s+/g, " ").trim();
   const head = c.credit.title.replace(/^File:/, "").replace(/\.(jpe?g|png)$/i, "").replace(/\s*\(\d{6,}\)\s*$/, "").trim();
-  const parts = [head.slice(0, 70), author && author.length <= 50 && !/wikimedia/i.test(author) ? author : "", c.year ? String(c.year) : ""].filter(Boolean);
+  // A title that already names the artist or the year ("Jules-César arrivé au Rubicon, 1854, Musée Picardie, Gustave
+  // Boulanger, 1854") does not get them again.
+  const named = (s: string) => head.toLowerCase().includes(s.toLowerCase());
+  const parts = [head.slice(0, 70), author && author.length <= 50 && !/wikimedia/i.test(author) && !named(author) ? author : "", c.year && !named(String(c.year)) ? String(c.year) : ""].filter(Boolean);
   return `${parts.join(", ")} · ${language === "en" ? "Source" : "Kaynak"}: ${where}`;
 }

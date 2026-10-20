@@ -184,6 +184,8 @@ async function main() {
     const met = { ...candidate("x"), source: "met" as const, year: 1480, credit: { title: "Sultan Mehmed II", author: "Gentile Bellini — The Metropolitan Museum of Art", license: "CC0", attributionRequired: false } };
     assert.equal(insertCaption(met, "en"), "Sultan Mehmed II, Gentile Bellini, 1480 · Source: The Met");
     assert.equal(insertCaption({ ...candidate("Rumelihisarı (8393629929)"), credit: { title: "Rumelihisarı (8393629929)", author: "Wikimedia Commons", license: "CC BY 2.0", attributionRequired: true } }, "tr"), "Rumelihisarı · Kaynak: Wikimedia Commons");
+    const boulanger = { ...candidate("x"), year: 1854, credit: { title: "Gustave Boulanger, Jules-César arrivé au Rubicon, 1854, Musée Picardie", author: "Gustave Boulanger", license: "Public domain", attributionRequired: false } };
+    assert.equal(insertCaption(boulanger, "en"), "Gustave Boulanger, Jules-César arrivé au Rubicon, 1854, Musée Picardie · Source: Wikimedia Commons", "artist and year are not repeated");
   });
 
   await scenario("K artwork names: a flattened multilingual name gives way to the file name; QuickStatements keep the English title", () => {
