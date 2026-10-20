@@ -10,6 +10,7 @@ import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame,
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { buildGeoMap, clipRing, mapView, project } from "../src/lib/v3/maps/MapBuilder";
+import { nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
@@ -280,6 +281,17 @@ async function main() {
     const ep = sampleEpisode();
     const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [200, 43], genislik_km: 5, bolgeler: [{ ad: "x", renk: "#ffffff" }] } }] });
     assert.ok(bad.errors.some((e) => e.code === "HARITA_KONUM") && bad.errors.some((e) => e.path.endsWith("genislik_km")) && bad.errors.some((e) => e.code === "HARITA_BOLGE"));
+    // Real historical borders: the atlas polygon by name and snapshot year, case-insensitive; no outline needed.
+    const withAtlas = { ...data, historical: new Map([[-100, new Map([["roman republic", [square]]])]]) };
+    const atlas = buildGeoMap({ merkez: [12.5, 43], genislik_km: 1300, bolgeler: [{ ad: "Roman Republic", renk: "#b8283a", tarihi: { ad: "Roman Republic", yil: -100 } }, { ad: "Unknown", renk: "#2f6fb0", tarihi: { ad: "Atlantis", yil: -100 } }] }, withAtlas as never, 1920, 1080, () => 0);
+    assert.deepEqual(atlas.territories.map((t) => [t.label, t.d.length > 0]), [["Roman Republic", true], ["Unknown", false]], "a name the atlas lacks draws nothing, never a wrong place");
+    const okAtlas = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 1300, bolgeler: [{ ad: "Rome", renk: "#b8283a", tarihi: { ad: "Roman Republic", yil: -100 } }] } }] });
+    assert.ok(!okAtlas.errors.some((e) => e.code === "HARITA_BOLGE"), "tarihi alone is a valid territory");
+    assert.deepEqual(nearestSnapshots(-49), [-100, -1]);
+    assert.deepEqual(nearestSnapshots(1453), [1400, 1492]);
+    assert.deepEqual(nearestSnapshots(1914), [1914]);
+    assert.equal(snapshotFile(-100), "world_bc100.geojson");
+    assert.equal(snapshotFile(1453), "world_1453.geojson");
   });
 
   await scenario("P draft normaliser: narrator never visible, English garment names, made-up parts become orders", () => {

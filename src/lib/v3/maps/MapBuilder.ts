@@ -5,8 +5,8 @@ import type { V3GeoMap } from "../render/RenderPlanTypes";
 
 /**
  * OverSimplified-style maps from Natural Earth (public domain) vector data: land, lakes and rivers of the view,
- * territories (modern countries by ISO code, or rough lon/lat outlines the script draws — clipped to the coast so
- * they look exact), cities, armies and arrows. Everything is projected here (equirectangular, x scaled by the cosine
+ * territories (real historical borders of the period from HistoricalBorders, modern countries by ISO code, or rough
+ * lon/lat outlines the script draws — clipped to the coast so they look exact), cities, armies and arrows. Everything is projected here (equirectangular, x scaled by the cosine
  * of the centre latitude) into frame pixels and clipped to the view, so the renderer only draws SVG paths.
  */
 export interface MapData {
@@ -14,10 +14,12 @@ export interface MapData {
   readonly lakes: Polygon[];
   readonly rivers: Line[];
   readonly countries: ReadonlyMap<string, Polygon[]>;
+  /** Historical borders by snapshot year → polity name (lower case) → polygons (HistoricalBorders). */
+  readonly historical?: ReadonlyMap<number, ReadonlyMap<string, Polygon[]>>;
 }
 
 type Ring = readonly (readonly [number, number])[];
-type Polygon = readonly Ring[];
+export type Polygon = readonly Ring[];
 type Line = Ring;
 
 interface GeoJson {
@@ -171,7 +173,11 @@ function labelPoint(v: MapView, polys: readonly Polygon[]): [number, number] | u
 export function buildGeoMap(map: SceneMap, data: MapData, width: number, height: number, lineStart: (index: number | undefined, order: number) => number): V3GeoMap {
   const v = mapView(map.merkez!, map.genislik_km!, width, height);
   const territories = (map.bolgeler ?? []).map((b, i) => {
-    const polys: Polygon[] = [...(b.ulkeler ?? []).flatMap((iso) => data.countries.get(iso.toUpperCase()) ?? []), ...(b.noktalar && b.noktalar.length >= 3 ? [[b.noktalar.map(([lon, lat]) => [lon, lat] as const)]] : [])];
+    const polys: Polygon[] = [
+      ...(b.tarihi ? (data.historical?.get(b.tarihi.yil)?.get(b.tarihi.ad.toLowerCase()) ?? []) : []),
+      ...(b.ulkeler ?? []).flatMap((iso) => data.countries.get(iso.toUpperCase()) ?? []),
+      ...(b.noktalar && b.noktalar.length >= 3 ? [[b.noktalar.map(([lon, lat]) => [lon, lat] as const)]] : []),
+    ];
     const at = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : labelPoint(v, polys);
     return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...(at ? { labelX: r1(at[0]), labelY: r1(at[1]) } : {}), start: lineStart(b.satir, i) };
   });

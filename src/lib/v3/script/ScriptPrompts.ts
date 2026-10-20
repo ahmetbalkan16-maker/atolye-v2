@@ -42,6 +42,8 @@ export interface ScriptBrief {
   readonly sesler?: readonly { readonly id: string; readonly tarif: string }[];
   /** The script brain's lessons from earlier episodes and the chief's measures (experience memory). */
   readonly dersler?: readonly string[];
+  /** Real historical borders available near the episode's year (HistoricalBorders): snapshot year → polity names. */
+  readonly tarihiSinirlar?: readonly { readonly yil: number; readonly adlar: readonly string[] }[];
 }
 
 /**
@@ -167,6 +169,16 @@ const SFX_NOTES: Readonly<Record<(typeof SFX_IDS)[number], string>> = {
   hata: "comic failure sting (wah-wah)",
 };
 
+/** The historical atlas's polities near the episode's year, as an option for the map territories. */
+function bordersText(snapshots: ScriptBrief["tarihiSinirlar"]): string {
+  if (!snapshots?.length) return "";
+  const year = (y: number) => (y < 0 ? `${-y} BC` : `AD ${y}`);
+  return `
+  REAL HISTORICAL BORDERS (an atlas of the period) — for a state in these lists write "tarihi": {"ad": "<exact name>", "yil": <its year>}
+  instead of rough "noktalar" (the map draws its real outline; choose the year closer to what the scene shows, add
+  "noktalar" only for land it lacks): ${snapshots.map((x) => `${year(x.yil)} (yil ${x.yil}): ${x.adlar.slice(0, 120).join(", ")}`).join(" | ")}`;
+}
+
 /** The script brain's lessons from earlier episodes and the chief's measures, as a block of the writer's prompt. */
 function lessonsText(lessons: readonly string[] | undefined): string {
   if (!lessons?.length) return "";
@@ -207,7 +219,7 @@ SCREEN TEXT — there are NO subtitles. The only words on screen are title cards
 MAPS — wherever the story moves (campaigns, borders, empires, routes) show a drawn map scene, at least one per episode:
   "harita": {"merkez": [lon, lat], "genislik_km": 150–30000,
     "bolgeler": [{"ad": "Roman Republic", "renk": "#b8283a", "noktalar": [[lon, lat], …rough outline, 6–14 points…], "satir": 0},
-                 {"ad": "France", "renk": "#2f6fb0", "ulkeler": ["FRA"]}],   // modern countries by ISO alpha-3 code
+                 {"ad": "France", "renk": "#2f6fb0", "ulkeler": ["FRA"]}],   // modern countries by ISO alpha-3 code${bordersText(brief.tarihiSinirlar)}
     "sehirler": [{"ad": "Rome", "konum": [12.5, 41.9]}],
     "ordular": [{"ad": "Caesar", "konum": [lon, lat], "renk": "#…", "satir": 1}],
     "oklar": [{"noktalar": [[lon, lat], [lon, lat], …], "renk": "#…", "etiket": "Caesar", "satir": 2}]}

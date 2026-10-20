@@ -27,7 +27,8 @@ import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/Li
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord } from "../src/lib/v3/faces/LikenessDesigner";
 import { distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { loadMapData } from "../src/lib/v3/maps/MapBuilder";
+import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
+import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames } from "../src/lib/v3/maps/HistoricalBorders";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
@@ -401,6 +402,7 @@ async function main() {
   const redo = (s: Step) => fromStep !== undefined && STEPS.indexOf(s) >= STEPS.indexOf(fromStep);
   const need = (s: Step, file: string) => redo(s) || !existsSync(f(file));
   const t0 = Date.now();
+  const bordersDir = path.join(paths.mapsDir, "historical");
   // The retouch brain's plan for this round (written by the previous run of this production), if any.
   const retouch: RetouchPlan | undefined = rotusTuru > 0 && existsSync(f("rotus-plani.json")) ? await readJson<RetouchPlan>(f("rotus-plani.json")) : undefined;
   if (retouch) log(`↺ rötuş turu ${rotusTuru}: ${retouch.kisiler.map((k) => `${k.kisi} yeniden tasarlanıyor`).concat(retouch.setler.map((x) => `${x.sahne} seti yeniden çiziliyor`)).join("; ")}`);
@@ -484,7 +486,10 @@ async function main() {
         const sesler = dil === "en" ? voicesFor(voiceMap, "en").filter((id) => !id.startsWith("en-anlatici")).map((id) => ({ id, tarif: voiceMap.sesler[id]!.tarif ?? id })) : undefined;
         // The script brain's experience: what the QC and the chief found in earlier episodes.
         const dersler = (await recall(paths.workRoot, "kurgu", { limit: 6 }).catch(() => [])).map((l) => l.metin);
-        const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}) };
+        // The historical atlas's polities nearest the episode's year, for real borders on the maps.
+        const year = periodEndYear(donem);
+        const tarihiSinirlar = year === undefined ? [] : (await Promise.all(nearestSnapshots(year).map(async (yil) => ({ yil, adlar: await snapshotNames(bordersDir, yil).catch(() => [] as string[]) })))).filter((x) => x.adlar.length);
+        const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}) };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           throw e;
@@ -618,7 +623,11 @@ async function main() {
   const fps = preview ? 15 : 30;
   // Actors and every scene's crowd groups (extras load their costumes the same way).
   const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla"), ...crowdCast(episode, "kukla")];
-  const mapData = episode.sahneler.some((s) => s.harita?.merkez) ? await loadMapData(paths.mapsDir) : undefined;
+  const borderYears = [...new Set(episode.sahneler.flatMap((s) => (s.harita?.bolgeler ?? []).flatMap((b) => (b.tarihi ? [b.tarihi.yil] : []))))];
+  const baseMap = episode.sahneler.some((s) => s.harita?.merkez) ? await loadMapData(paths.mapsDir) : undefined;
+  // Real historical borders the script picked (a missing snapshot only loses that outline, never the map).
+  const historical = new Map((await Promise.all(borderYears.map(async (y) => [y, await loadSnapshot(bordersDir, y).catch((e: Error) => (log(`⚠ tarihî sınır ${y} yüklenemedi: ${e.message.slice(0, 120)}`), undefined))] as const))).filter((x): x is [number, Map<string, Polygon[]>] => !!x[1]));
+  const mapData = baseMap ? { ...baseMap, ...(historical.size ? { historical } : {}) } : undefined;
   const plan = buildRenderPlan({
     ...(mapData ? { mapData } : {}),
     episode,
@@ -676,7 +685,7 @@ async function main() {
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
     const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : []))].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
-    const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine))];
+    const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : [])];
     const en = dil === "en";
     const voiceCredit = en
       ? "Kokoro-82M (hexgrad, Apache-2.0), synthesized locally"
@@ -686,7 +695,7 @@ async function main() {
       : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: "Atölye V3 sentez efektleri (FFmpeg, CC0)", voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
     await fs.writeFile(
       f("CREDITS.md"),
-      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
+      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
     );
     await fs.writeFile(f("aciklama.txt"), `${episode.baslik}\n\n${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${mix.credits.join("\n\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceCredit}\n\n${H.note}\n`);
 

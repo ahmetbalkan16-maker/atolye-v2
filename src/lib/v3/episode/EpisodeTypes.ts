@@ -121,7 +121,7 @@ export interface SceneMap {
   /** Width of the view in km (city ~150, region ~800, Mediterranean ~3500, world ~30000). */
   readonly genislik_km?: number;
   /** Territories: modern countries by ISO 3166 alpha-3 code and/or a rough [lon, lat] outline (clipped to the coast). */
-  readonly bolgeler?: readonly { readonly ad: string; readonly renk: string; readonly ulkeler?: readonly string[]; readonly noktalar?: readonly [number, number][]; readonly etiket_konum?: readonly [number, number]; readonly satir?: number }[];
+  readonly bolgeler?: readonly { readonly ad: string; readonly renk: string; readonly ulkeler?: readonly string[]; readonly noktalar?: readonly [number, number][]; readonly etiket_konum?: readonly [number, number]; readonly satir?: number; readonly tarihi?: { readonly ad: string; readonly yil: number } }[];
   readonly sehirler?: readonly { readonly ad: string; readonly konum: readonly [number, number] }[];
   readonly ordular?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly renk: string; readonly satir?: number }[];
 }

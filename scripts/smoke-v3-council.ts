@@ -132,6 +132,9 @@ async function main() {
     assert.match(partPrompt({ slot: "hand", tarif: "scroll" }, "49 BC", "<svg/>", undefined, undefined, undefined, ["too thick"]), /SIMILAR PARTS FAILED BEFORE[^\n]*too thick/);
     const brief = { konu: "x", donem: "49 BC", hedefSureSn: 60, ton: "mizahi" as const, dil: "en" as const, dersler: ["A 120 s episode ran 90 s"] };
     assert.match(writingPrompt(brief, []), /LESSONS FROM EARLIER EPISODES[\s\S]*A 120 s episode ran 90 s/);
+    const borders = writingPrompt({ ...brief, tarihiSinirlar: [{ yil: -100, adlar: ["Parthia", "Roman Republic"] }, { yil: -1, adlar: ["Roman Empire"] }] }, []);
+    assert.match(borders, /REAL HISTORICAL BORDERS[\s\S]*100 BC \(yil -100\): Parthia, Roman Republic \| 1 BC \(yil -1\): Roman Empire/);
+    assert.doesNotMatch(writingPrompt(brief, []), /REAL HISTORICAL BORDERS/);
     assert.equal(parseVerdict('{"puan": 4, "donem": 3, "gosterilen": "sokak", "sorun": "gün batımı", "kacin": "sunset sky"}')?.kacin, "sunset sky");
     assert.match(judgePrompt({ konu: "x", donem: "49 BC", mekan: "y", tr: "y", en: "y", anlatim: "" }, { title: "t" }, "set"), /"kacin"/);
     assert.doesNotMatch(judgePrompt({ konu: "x", donem: "49 BC", mekan: "y", tr: "y", en: "y", anlatim: "" }, { title: "t" }, "arsiv"), /"kacin"/);

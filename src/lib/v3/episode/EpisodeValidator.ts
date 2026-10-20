@@ -218,7 +218,15 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (iso.some((c) => typeof c !== "string" || !/^[A-Za-z]{3}$/.test(c))) err("HARITA_ULKE", `${bp}.ulkeler`, "ISO 3166 alfa-3 kodları bekleniyor (ITA, FRA…)");
         const pts = Array.isArray(b.noktalar) ? b.noktalar : [];
         pts.forEach((pt, k) => lonLat(pt, `${bp}.noktalar[${k}]`));
-        if (!iso.length && pts.length < 3) err("HARITA_BOLGE", bp, "ulkeler ya da en az 3 noktalı noktalar gerekli");
+        const tarihi = b.tarihi;
+        if (tarihi !== undefined) {
+          if (!isObj(tarihi)) err("HARITA_TARIHI", `${bp}.tarihi`, "{ad, yil} bekleniyor");
+          else {
+            str(tarihi, "ad", `${bp}.tarihi`, { max: 80 });
+            num(tarihi, "yil", `${bp}.tarihi`, -123_000, 2_100);
+          }
+        }
+        if (!iso.length && pts.length < 3 && tarihi === undefined) err("HARITA_BOLGE", bp, "tarihi, ulkeler ya da en az 3 noktalı noktalar gerekli");
       });
       (arr(h, "sehirler", hp, true) ?? []).forEach((c, ci) => (isObj(c) ? (str(c, "ad", `${hp}.sehirler[${ci}]`, { max: 40 }), lonLat(c.konum, `${hp}.sehirler[${ci}].konum`)) : err("HARITA", `${hp}.sehirler[${ci}]`, "nesne bekleniyor")));
       (arr(h, "ordular", hp, true) ?? []).forEach((o, oi) => (isObj(o) ? (str(o, "ad", `${hp}.ordular[${oi}]`, { max: 40 }), str(o, "renk", `${hp}.ordular[${oi}]`, { pattern: HEX }), lonLat(o.konum, `${hp}.ordular[${oi}].konum`)) : err("HARITA", `${hp}.ordular[${oi}]`, "nesne bekleniyor")));

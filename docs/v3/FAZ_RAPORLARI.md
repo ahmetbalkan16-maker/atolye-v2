@@ -256,3 +256,13 @@ okur; kod değişmez, ders yalnız veri ya da beynin kendi talimatı olur.
 - Kostüm: 3 turda çizilemeyen parçanın son sorunu kaydedilir; benzer parça siparişinde tasarımcıya verilir.
 - Kurgu: süre hedef dışı, diyalog oranı %40 altı, hiç sfx yok → ders; Şef'in önlemleri ilgili beynin dosyasına
   "onlem" olarak. Sonraki senaryonun talimatında "LESSONS FROM EARLIER EPISODES".
+
+### Beyin sınavı ve tarihî harita sınırları (aynı gün)
+
+- **Beyin sınavı** (`content/v3/beyin-sinavi.json`, `scripts/v3/beyin-sinavi.ts hazirla|calistir --modeller …`):
+  ortak görüntü hakemi bilinen cevaplı 6 soruyla ölçülür (gün batımı göklü sokak ≤5, kilise kuleli MÖ 49 kasabası dönem
+  ≤4 vb.); modeller yan yana karşılaştırılır; her çağrı 73 °C kuralıyla; rapor `_kutuphane/sinav/sonuc-*.json`.
+- **Tarihî sınırlar** (`src/lib/v3/maps/HistoricalBorders.ts`, aourednik/historical-basemaps GPL-3.0, commit
+  `da7a4b73` sabit, 54 anlık görüntü MÖ 123000–2010): yazara bölümün yılına en yakın iki anlık görüntünün devlet adları
+  verilir (MÖ 49 → MÖ 100 ve MÖ 1); bölge `"tarihi": {"ad", "yil"}` ile gerçek sınırını çizer; atlasta olmayan ad hiçbir
+  şey çizmez (yanlış yer asla). Dosyalar ilk kullanımda `v3-tools/maps/historical/` içine iner; CREDITS'e kaynak eklenir.
