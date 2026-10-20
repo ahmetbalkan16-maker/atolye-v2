@@ -96,6 +96,20 @@ export function dialogueSceneRatio(episode: Episode): number {
   return episode.sahneler.filter((s) => s.satirlar.filter((l) => visible.has(l.karakter)).length >= 2).length / episode.sahneler.length;
 }
 
+/** Scenes furthest below their share of the word target (by sure_hedef), as concrete "add N words here" asks. */
+export function sceneShortfalls(episode: Episode, targetWords: number): string[] {
+  const total = episode.sahneler.reduce((n, s) => n + s.sure_hedef, 0) || 1;
+  return episode.sahneler
+    .map((s) => {
+      const has = s.satirlar.reduce((n, l) => n + countWords(l.metin), 0);
+      return { id: s.id, has, want: Math.round((targetWords * s.sure_hedef) / total) };
+    })
+    .filter((s) => s.want - s.has >= 6)
+    .sort((a, b) => b.want - b.has - (a.want - a.has))
+    .slice(0, 5)
+    .map((s) => `scene "${s.id}" has ${s.has} spoken words and needs about ${s.want}: add ${s.want - s.has} words there (new lines — a reply, a joke, a narrator detail from the facts)`);
+}
+
 /** How far a script is from its targets: 0 is on target; length and dialogue both count. */
 function revisionGap(episode: Episode, target: number): number {
   const words = spokenWords(episode);
@@ -243,6 +257,10 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     if (ratio < MIN_DIALOGUE_SCENES) extra.push(`only ${Math.round(ratio * 100)}% of scenes have two or more lines by visible characters; at least ${MIN_DIALOGUE_SCENES * 100}% must`);
     const cast = visibleCast(written);
     if (cast < MIN_VISIBLE_CAST) extra.push(`only ${cast} visible characters; add ${MIN_VISIBLE_CAST - cast} more fitting the period (costume from the catalog, own colour, own speaking style) and give them lines`);
+    // Models stop short of a whole-script word count (the Rubicon script stayed ~20% short after three rounds); a
+    // per-scene shortfall is something they do act on.
+    const words = spokenWords(written);
+    if (words < targetWords * LENGTH_BAND[0]) extra.push(...sceneShortfalls(written, targetWords));
     const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(JSON.stringify(written), spokenWords(written), targetWords, extra), opts);
     const revised = check(next.result.content);
     if (revised.problems.length || revisionGap(revised.value as Episode, targetWords) >= revisionGap(written, targetWords)) continue;

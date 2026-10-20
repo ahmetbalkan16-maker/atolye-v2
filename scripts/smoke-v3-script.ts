@@ -11,7 +11,7 @@ import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader"
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { articleSource, sourceId, verifyFacts } from "../src/lib/v3/research/SourceResearch";
-import { applyFactCheck, extractJson, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { V3Budget, V3BudgetError } from "../src/lib/v3/script/V3Budget";
 import { v3Secret } from "../src/lib/v3/V3Paths";
@@ -267,6 +267,14 @@ async function main() {
     assert.ok(partProblems(good.replace(/#1d1b26/g, "#000000"), "head").some((p) => p.includes("outline")));
     assert.ok(partProblems(good.replace("-208", "-950"), "head").some((p) => p.includes("frame")));
     assert.ok(partProblems(good.replace(/-1\d\d|-20\d/g, "-40"), "head").some((p) => p.includes("above the head")));
+  });
+
+  await scenario("P a short script gets per-scene asks: the scenes furthest below their share of the target first", () => {
+    const ep = episode();
+    const asks = sceneShortfalls(ep, 400);
+    assert.ok(asks.length >= 1 && asks.length <= 5);
+    assert.match(asks[0]!, /^scene "[a-z0-9-]+" has \d+ spoken words and needs about \d+: add \d+ words there/);
+    assert.deepEqual(sceneShortfalls(ep, 1), [], "hedefe ulaşmış senaryoya istek yok");
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);
