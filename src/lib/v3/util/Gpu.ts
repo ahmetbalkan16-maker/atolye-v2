@@ -16,6 +16,19 @@ export async function freeGpuMemory(minFreeMb: number, log: (s: string) => void 
   }
 }
 
+/**
+ * Unloads every model Ollama keeps, whatever the card's state: on Windows its runner also holds the model in RAM (the
+ * vision judge's runner had 19 GB reserved after the visuals step on 21 Oct 2026, leaving 2 GB of RAM while the render
+ * started — the likely cause of the render's first-attempt Chrome time-outs). They load again on their next use.
+ */
+export async function unloadOllama(log: (s: string) => void = () => {}, why = ""): Promise<void> {
+  const ps = (await (await fetch("http://127.0.0.1:11434/api/ps")).json().catch(() => ({}))) as { models?: { name: string }[] };
+  for (const m of ps.models ?? []) {
+    log(`Ollama ${m.name} bellekten indiriliyor${why ? ` (${why})` : ""}`);
+    await fetch("http://127.0.0.1:11434/api/generate", { method: "POST", body: JSON.stringify({ model: m.name, keep_alive: 0 }) }).catch(() => undefined);
+  }
+}
+
 /** GPU temperature in °C, or undefined when it cannot be read (an unreadable sensor never blocks). */
 export async function gpuTemperature(): Promise<number | undefined> {
   try {

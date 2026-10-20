@@ -56,7 +56,7 @@ import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
-import { coolGpuProvider, freeGpuMemory, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
+import { coolGpuProvider, freeGpuMemory, unloadOllama, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 
@@ -711,6 +711,8 @@ async function main() {
   if (need("render", silent)) {
     await step("render", async () => {
       await writeJson(f("plan.json"), { plan });
+      // The render's Chrome workers need RAM; the vision judge is not needed until the cover (PC health first).
+      await unloadOllama(log, "render için RAM");
       let last = "";
       await renderWithRemotion(paths, { planFile: f("plan.json"), publicDir: path.join(work, "public"), out: f(silent), kind: "video", muted: true, ...(preview ? { scale: 0.4447 } : {}), ...(Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) > 0 ? { concurrency: Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) } : {}), onLine: (l) => {
         const m = /Rendered (\d+)\/(\d+)/.exec(l);
