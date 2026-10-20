@@ -30,6 +30,8 @@ export interface V3Paths {
   readonly sdxlModel: string;
   /** ACE-Step 1.5 checkout with its own uv environment (`.venv`) and `checkpoints/` (the composer, MusicComposer). */
   readonly acestepRoot: string;
+  /** MOSS-TTS checkout (`moss_soundeffect_v2/`) with its own `.venv` and `checkpoints/` (the sound designer, SfxDesigner). */
+  readonly mossRoot: string;
   /** espeak-ng data in a real ASCII folder (espeak cannot open the Unicode venv path); empty = the package's own. */
   readonly espeakData: string;
   /** Owner voice reference clips for cloning; never inside the repository. */
@@ -91,6 +93,7 @@ export function resolveV3Paths(repoRoot = process.cwd(), env: NodeJS.ProcessEnv 
     mapsDir: get("ATOLYE_V3_MAPS", path.join(toolsRoot, "maps")),
     sdxlModel: get("ATOLYE_V3_SDXL_MODEL", path.join(get("ATOLYE_V3_BACKDROP_LIBRARY", path.join(bin, "ayas-local-visual", "library")), "..", "model")),
     acestepRoot: get("ATOLYE_V3_ACESTEP_ROOT", path.join(toolsRoot, "acestep")),
+    mossRoot: get("ATOLYE_V3_MOSS_ROOT", path.join(toolsRoot, "moss")),
     voiceRefRoot: get("ATOLYE_V3_VOICE_REFS", path.join(repoRoot, "output", "v3-voices")),
     asciiTemp: get("ATOLYE_V3_ASCII_TEMP", path.join(repoRoot, "output", "v3-tmp")),
     ffmpeg: get("ATOLYE_V3_FFMPEG", "ffmpeg"),

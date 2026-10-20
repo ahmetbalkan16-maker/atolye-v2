@@ -159,6 +159,18 @@ export interface MixInput {
   readonly dialogue: readonly { readonly file: string; readonly start: number }[];
   readonly music: readonly MusicSegment[];
   readonly sfx: readonly { readonly file: string; readonly t: number; readonly id: SfxId }[];
+  /** Quiet ambience of each scene's place (SfxDesigner), looped over the scene, under everything. */
+  readonly ambience?: readonly { readonly start: number; readonly end: number; readonly file: string }[];
+}
+
+/** Level of the ambience beds (well under the music's −26 before the final loudness pass). */
+export const AMBIENCE_LUFS = -38;
+
+/** FFmpeg chain of one ambience bed (input `input`), looped to the scene, faded at both ends, delayed to its start. */
+export function ambienceChain(input: number, label: string, start: number, end: number): string {
+  const len = Math.max(0.5, end - start);
+  const ms = Math.round(start * 1000);
+  return `[${input}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=${AMBIENCE_LUFS}:TP=-9:LRA=11,afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, len - 0.6).toFixed(3)}:d=0.6,adelay=${ms}|${ms}[${label}]`;
 }
 
 export interface MixResult {
@@ -214,13 +226,20 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
     );
     beds.push(`[m${i}]`);
   });
+  const ambience = input.ambience ?? [];
+  ambience.forEach((a, i) => {
+    args.push("-stream_loop", "-1", "-t", Math.max(0.5, a.end - a.start).toFixed(3), "-i", a.file);
+    chains.push(ambienceChain(input.music.length + 2 + i, `o${i}`, a.start, a.end));
+  });
+  const amb = ambience.length ? ["[amb]"] : [];
+  if (ambience.length) chains.push(`${ambience.map((_, i) => `[o${i}]`).join("")}amix=inputs=${ambience.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[amb]`);
   if (beds.length) {
     chains.push(`${beds.join("")}amix=inputs=${beds.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[bed]`);
     // Duck the bed under speech: fast attack, gentle release.
     chains.push("[bed][key]sidechaincompress=threshold=0.05:ratio=8:attack=5:release=200[ducked]");
-    chains.push("[dlg][ducked][fx]amix=inputs=3:normalize=0:duration=first[mix]");
+    chains.push(`[dlg][ducked][fx]${amb.join("")}amix=inputs=${3 + amb.length}:normalize=0:duration=first[mix]`);
   } else {
-    chains.push("[key]anullsink", "[dlg][fx]amix=inputs=2:normalize=0:duration=first[mix]");
+    chains.push("[key]anullsink", `[dlg][fx]${amb.join("")}amix=inputs=${2 + amb.length}:normalize=0:duration=first[mix]`);
   }
   const raw = path.join(tmp, "mix-raw.wav");
   await runChecked(paths.ffmpeg, [...args, "-filter_complex", chains.join(";"), "-map", "[mix]", "-t", input.duration.toFixed(3), "-ar", String(SAMPLE_RATE), "-c:a", "pcm_f32le", raw], { timeoutMs: 30 * 60_000 });

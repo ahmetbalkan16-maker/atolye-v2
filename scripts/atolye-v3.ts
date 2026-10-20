@@ -41,11 +41,12 @@ import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { beats, buildRenderPlan, longestEmptyStretch, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
-import { EPISODE_TONES, type Episode, type EpisodeTone } from "../src/lib/v3/episode/EpisodeTypes";
+import { EPISODE_TONES, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
 import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
+import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { renderWithRemotion } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
@@ -721,7 +722,7 @@ async function main() {
   }
 
   // 7) Miks
-  type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[] };
+  type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[]; sesTasarimi?: boolean };
   let mix: MixMeta;
   if (need("miks", "miks.json")) {
     mix = await step("miks", async () => {
@@ -742,12 +743,30 @@ async function main() {
         }
       } else log(`  müzik: besteci ${composer.available() ? "kapalı (ATOLYE_V3_MUSIC_COMPOSER=0)" : "kurulu değil"}; kütüphane parçaları`);
       const sfxDir = path.join(paths.repoRoot, "public", "sfx");
-      const sfx = sfxCues(episode, timeline).flatMap((c) => {
-        const file = sfxLibraryFile(sfxDir, c.id);
+      const cues = sfxCues(episode, timeline);
+      // The sound designer: period versions of the effects and a quiet ambience per scene (MOSS, local); whatever it
+      // cannot make keeps the Kenney recording or stays silent.
+      let periodSfx = new Map<SfxId, string>();
+      let ambience: AmbienceBed[] = [];
+      const sounds = new SfxDesigner(paths, log);
+      if (process.env.ATOLYE_V3_SFX_DESIGNER !== "0" && sounds.available()) {
+        try {
+          const designed = await designSounds(episode, timeline, cues.map((c) => c.id), sounds);
+          periodSfx = designed.effects;
+          ambience = designed.ambience;
+          for (const line of designed.report) log(`  ses: ${line}`);
+          const failed = designed.report.filter((l) => l.includes(" kaldı — ") || l.includes("ortam sesi yok"));
+          if (failed.length) council.find({ beyin: "ses", onem: "uyari", baslik: "dönem efekti/ortam sesi yapılamadı", ayrinti: failed.join(" | ").slice(0, 400), tur: "veri", yer: "miks" });
+        } finally {
+          await sounds.close();
+        }
+      } else log(`  ses: efektçi ${sounds.available() ? "kapalı (ATOLYE_V3_SFX_DESIGNER=0)" : "kurulu değil"}; Kenney kayıtları, ortam sesi yok`);
+      const sfx = cues.flatMap((c) => {
+        const file = periodSfx.get(c.id) ?? sfxLibraryFile(sfxDir, c.id);
         return file ? [{ ...c, file }] : [];
       });
-      const r = await renderMix(paths, { duration: timeline.duration, dialogue: timeline.lines.map((l) => ({ file: l.file, start: l.start })), music, sfx }, f("miks.wav"));
-      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t })) };
+      const r = await renderMix(paths, { duration: timeline.duration, dialogue: timeline.lines.map((l) => ({ file: l.file, start: l.start })), music, sfx, ambience }, f("miks.wav"));
+      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0 };
       await writeJson(f("miks.json"), meta);
       return meta;
     });
@@ -767,8 +786,8 @@ async function main() {
       ? "Kokoro-82M (hexgrad, Apache-2.0), synthesized locally"
       : "Chatterbox Multilingual 0.1.7 (Resemble AI, MIT); karakter sesleri owner'ın kendi sesinden klonlandı. Çıktıda Resemble'ın duyulmayan Perth filigranı vardır.";
     const H = en
-      ? { credits: "Credits", music: "Music", images: "Images", sfx: "Sound effects", sfxLine: "Atölye V3 synthesized effects (FFmpeg, CC0)", voices: "Voices", sources: "Sources", none: "none", note: "This video contains dramatization; the dialogue is invented for storytelling. Period images are credited on screen and below." }
-      : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: "Atölye V3 sentez efektleri (FFmpeg, CC0)", voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
+      ? { credits: "Credits", music: "Music", images: "Images", sfx: "Sound effects", sfxLine: `Kenney (CC0) and Atölye V3 effects${mix.sesTasarimi ? "; period effects and ambience generated locally with MOSS-SoundEffect v2 (Apache-2.0)" : ""}`, voices: "Voices", sources: "Sources", none: "none", note: "This video contains dramatization; the dialogue is invented for storytelling. Period images are credited on screen and below." }
+      : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: `Kenney (CC0) ve Atölye V3 efektleri${mix.sesTasarimi ? "; dönem efektleri ve ortam sesleri yerelde MOSS-SoundEffect v2 (Apache-2.0) ile üretildi" : ""}`, voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
     await fs.writeFile(
       f("CREDITS.md"),
       `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,

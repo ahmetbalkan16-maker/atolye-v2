@@ -7,8 +7,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
-import { MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
+import { AMBIENCE_LUFS, ambienceChain, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
+import { ambiencePrompt, designSounds, eraOf, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
 let scenarios = 0;
@@ -174,6 +175,42 @@ async function main() {
     const again: number[] = [];
     await composeBeds(segs, rome, { compose: async (r) => (again.push(r.seed), { file: "x", cached: true }) }, () => undefined);
     assert.deepEqual(again, asked, "the same episode asks for the same seeds (rerun = library)");
+  });
+
+  await scenario("sound designer: period effects by era, ambience from the place, a failing sound keeps Kenney or silence", async () => {
+    assert.deepEqual([eraOf("49 BC"), eraOf("1066"), eraOf("1453"), eraOf("1940"), eraOf("bilinmiyor")], ["antik", "orta", "erken-modern", "modern", "modern"]);
+    assert.match(periodSfxPrompt("zil", "antik")!, /^a small bronze hand bell ringing twice\. Clean single sound effect, no music, no speech\.$/);
+    assert.match(periodSfxPrompt("kagit", "antik")!, /papyrus/);
+    assert.equal(periodSfxPrompt("whoosh", "antik"), undefined, "cartoon effects keep their recording");
+    assert.equal(periodSfxPrompt("pop", "modern"), undefined);
+    const scene = { mekan: "Corfinium, Italy", arka_plan_sorgusu: { tr: "", en: "Corfinium", tasarim: "A walled hilltop town with stone towers, Roman banners; smoke rising from campfires; no modern buildings, no cars." } };
+    const amb = ambiencePrompt(scene, "49 BC");
+    assert.match(amb, /^Quiet ambient background sound of Corfinium, Italy in 49 BC: A walled hilltop town with stone towers, Roman banners, smoke rising from campfires\. /);
+    assert.doesNotMatch(amb, /modern buildings|cars/, "negations never reach the model");
+    assert.notEqual(soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "efekt" }), soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "ortam" }));
+    const ok = { durationS: 1.2, meanDb: -22, peakDb: -2, longestSilenceS: 0 };
+    assert.deepEqual(soundProblems(ok, { prompt: "", seconds: 3, seed: 0, kind: "efekt" }), []);
+    assert.ok(soundProblems({ ...ok, durationS: 9 }, { prompt: "", seconds: 20, seed: 0, kind: "ortam" })[0]!.startsWith("süre"), "an ambience bed must be nearly as long as asked");
+    assert.ok(soundProblems({ ...ok, meanDb: -60 }, { prompt: "", seconds: 3, seed: 0, kind: "efekt" })[0]!.startsWith("çok sessiz"));
+    const ep = { id: "rubicon", donem: "49 BC", sahneler: [{ ...scene, id: "s1" }, { ...scene, id: "s2-harita", mekan: "Map of Italy", harita: { merkez: [12, 43] as [number, number], genislik_km: 700 } }, { ...scene, id: "s3", mekan: "Roman Senate" }] } as unknown as Pick<Episode, "id" | "donem" | "sahneler">;
+    const tl = { scenes: [{ sceneIndex: 0, start: 3, end: 15 }, { sceneIndex: 1, start: 15, end: 25 }, { sceneIndex: 2, start: 25, end: 40 }] } as unknown as Pick<EpisodeTimeline, "scenes">;
+    const made: string[] = [];
+    const fake = {
+      make: async (r: { prompt: string; kind: string }) => {
+        made.push(r.kind);
+        if (r.prompt.includes("Roman Senate")) return { problems: ["4.5 sn sessizlik"] };
+        if (r.prompt.includes("papyrus")) throw new Error("CUDA out of memory");
+        return { file: `D:/efekt/${made.length}.wav`, cached: false };
+      },
+    };
+    const out = await designSounds(ep, tl, ["zil", "whoosh", "zil", "kagit"], fake);
+    assert.deepEqual([...out.effects.keys()], ["zil"], "zil made once, whoosh kept, papyrus crash keeps Kenney");
+    assert.deepEqual(out.ambience.map((a) => [a.start, a.end]), [[3, 15]], "the map scene gets none, the failed Senate bed stays silent");
+    assert.ok(out.report.some((l) => l.startsWith("efekt kagit: kütüphane kaydı kaldı — efektçi çalışmadı: CUDA out of memory")));
+    assert.ok(out.report.some((l) => l.startsWith("ortam s3: ortam sesi yok")));
+    const chain = ambienceChain(5, "o0", 3, 15);
+    assert.match(chain, /^\[5:a\]aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-38:TP=-9:LRA=11,afade=t=in:d=0\.6,afade=t=out:st=11\.400:d=0\.6,adelay=3000\|3000\[o0\]$/);
+    assert.ok(AMBIENCE_LUFS < -26, "ambience sits under the music");
   });
 
   console.log(`V3 mix smoke: PASS (${scenarios} scenarios)`);
