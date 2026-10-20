@@ -2,6 +2,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
 import { type CouncilLog, type DebateEntry, readJsonAnswer } from "../council/Council";
+import { LIKENESS_OK } from "../council/RetouchBrain";
 import { toLook, toRenderCast } from "../costumes/CastMapper";
 import { loadAccessories, packCatalog } from "../costumes/CostumePackLoader";
 import { costumeRootsFor, NEW_PART, type PartRecord, type PartSlot, partKey, puppetStills } from "../costumes/PartDesigner";
@@ -43,6 +44,8 @@ export interface LikenessDeps {
   readonly critic: V3ModelChoice;
   readonly council?: CouncilLog;
   readonly log: (s: string) => void;
+  /** Cast id → the art director's differences: redesign these people (the retouch brain's order). */
+  readonly redo?: ReadonlyMap<string, readonly string[]>;
 }
 
 export interface PeriodNote {
@@ -104,14 +107,15 @@ export function readPeriodNote(text: string): PeriodNote | undefined {
   return { ...(yas !== undefined ? { yas } : {}), gorunus: s(v.gorunus, 400), giyim: s(v.giyim, 400), simge: s(v.simge, 120), fark: s(v.fark, 300) };
 }
 
-export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined): string {
+export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined, fixes?: readonly string[]): string {
+  const retouch = fixes?.length ? `\nA PREVIOUS CARTOON OF ${wiki} WAS SET NEXT TO THE PORTRAIT AND FELL SHORT. The art director's differences: ${fixes.join("; ")}. Fix exactly these (order new parts where needed); keep what was right.\n` : "";
   return `You design the cartoon of a real historical person for an animated history show in the style of OverSimplified: flat colours, bold dark outlines, a simple puppet body — the person recognisable from their headwear, hair, beard, face shape and clothes, the way OverSimplified draws Henry VIII after Holbein's portrait.
 PERSON: ${wiki} — ${c.rol}
 THE EPISODE: "${episode.konu}", set in ${episode.donem}. Draw them as they looked THEN.
 HISTORIAN'S NOTE for ${episode.donem}: ${note ? `age ${note.yas ?? "unknown"}; looks: ${note.gorunus}; dress: ${note.giyim}${note.simge ? `; carries: ${note.simge}` : ""}${note.fark ? `; differs from the famous portraits: ${note.fark}` : ""}` : "none"}
 ${portraitTitle ? `PORTRAIT (attached): ${portraitTitle.replace(/^File:/, "")} — take their features and dress from it, corrected by the historian's note for ${episode.donem}.` : "No portrait was found: work from the historian's note."}
 THE SCRIPT'S COSTUME (keep what already fits): ${JSON.stringify(c.kostum ?? {})}
-
+${retouch}
 Choose:
 - "yuz": {"sekil": yuvarlak (round) | oval | uzun (long) | genis (wide, heavy jowls) | kare (square jaw); "ten": skin colour #RRGGBB for a flat cartoon (light skin is a pale warm white like #f6e7d8; darker skins true to the person); "burun": kucuk (small) | duz (straight) | iri (big, round) | kemerli (aquiline, Roman) | kalkik (upturned); "kas_renk": eyebrow colour #RRGGBB (their hair colour; grey or white when old); "yas": genc (under 35) | orta (35–55) | yasli (over 55)}
 - "sac": parametric hair {"stil": kisa (short) | dalgali (wavy) | yan_ayrik (side part) | uzun (to the shoulders) | topuz (bun) | orgu (braids) | kel (bald) | kivircik (curly) | kakul (fringe) | geriye (combed back) | seyrek (receding: bald crown, hair at the back and sides); "renk": #RRGGBB}, or null when a drawn haircut is ordered or the headwear hides all the hair.
@@ -201,7 +205,36 @@ export function peopleDir(paths: V3Paths): string {
   return path.join(paths.workRoot, "_kutuphane", "kisiler");
 }
 
-const personFile = (paths: V3Paths, wiki: string, donem: string) => path.join(peopleDir(paths), `${slug(wiki)}--${slug(donem)}.json`);
+/**
+ * Versions of a person's likeness for a period, oldest first: `<kisi>--<donem>.json`, then `…--v2.json`, `…--v3.json`
+ * (a redesign never overwrites the earlier one). A version may carry the side-by-side check in `<file>.kontrol.json`.
+ */
+export function personVersions(paths: V3Paths, wiki: string, donem: string): string[] {
+  const base = path.join(peopleDir(paths), `${slug(wiki)}--${slug(donem)}`);
+  const out: string[] = [];
+  for (let v = 1; v < 100; v++) {
+    const file = v === 1 ? `${base}.json` : `${base}--v${v}.json`;
+    if (!existsSync(file)) break;
+    out.push(file);
+  }
+  return out;
+}
+
+function nextPersonFile(paths: V3Paths, wiki: string, donem: string): string {
+  const n = personVersions(paths, wiki, donem).length + 1;
+  const base = path.join(peopleDir(paths), `${slug(wiki)}--${slug(donem)}`);
+  return n === 1 ? `${base}.json` : `${base}--v${n}.json`;
+}
+
+interface LikenessCheck {
+  readonly benzerlik: number;
+  readonly farklar: readonly string[];
+}
+
+async function readCheck(file: string): Promise<LikenessCheck | undefined> {
+  const f = `${file}.kontrol.json`;
+  return existsSync(f) ? (JSON.parse(await fs.readFile(f, "utf8")) as LikenessCheck) : undefined;
+}
 
 async function knownRefs(paths: V3Paths): Promise<Set<string>> {
   const known = new Set<string>();
@@ -224,9 +257,13 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
   for (const c of episode.oyuncu_kadrosu.filter((x) => x.gorunur && x.kostum && x.portre?.wiki)) {
     const wiki = c.portre!.wiki;
     const talk: DebateEntry[] = [];
-    // A likeness finished for this person and period in an earlier episode: reused while all its parts still exist.
-    const saved = personFile(paths, wiki, episode.donem);
-    if (existsSync(saved)) {
+    // A likeness finished for this person and period in an earlier episode: reused while all its parts still exist,
+    // unless the retouch brain asked for a redesign or its side-by-side check fell short (then its differences are
+    // the designer's instruction).
+    const saved = personVersions(paths, wiki, episode.donem).pop();
+    const lastCheck = saved ? await readCheck(saved) : undefined;
+    const fixes = deps.redo?.get(c.id) ?? (lastCheck && lastCheck.benzerlik < LIKENESS_OK ? lastCheck.farklar : undefined);
+    if (saved && !fixes) {
       const stored = JSON.parse(await fs.readFile(saved, "utf8")) as { kostum: CastCostume; tarif?: string };
       const parts = PART_FIELDS.map((f) => (stored.kostum as unknown as Record<string, unknown>)[f]).filter((v): v is string => typeof v === "string");
       const resolvable = parts.every((ref) => known.has(ref.includes("/") ? ref : `${c.kostum_paketi}/${ref}`));
@@ -248,7 +285,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     if (portrait) portraits.set(c.id, portrait);
     talk.push({ rol: "Resim araştırmacısı", metin: portrait ? `portre: ${portrait.candidate.title.replace(/^File:/, "")} (kişi ${portrait.secim.puan}/10, dönem ${portrait.secim.donem ?? "?"}/10)` : "uygun portre yok; tarihçinin notundan çizilecek" });
     const sheetOut = await deps.budget
-      .generate("benzerlik-tasarim", deps.designer, sheetPrompt(c, episode, wiki, note, portrait?.candidate.title), { maxTokens: 900, ...(portrait ? { images: [portrait.preview.toString("base64")] } : {}) })
+      .generate("benzerlik-tasarim", deps.designer, sheetPrompt(c, episode, wiki, note, portrait?.candidate.title, fixes), { maxTokens: 900, ...(portrait ? { images: [portrait.preview.toString("base64")] } : {}) })
       .catch((e: Error) => (log(`  benzerlik: ${c.ad} kart yazılamadı (${e.message.slice(0, 100)})`), undefined));
     const sheet = sheetOut ? readJsonAnswer<Record<string, unknown>>(sheetOut.result.content) : undefined;
     if (!sheet) {
@@ -304,19 +341,19 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
  * After the wardrobe made the parts: likenesses whose parts all came out are kept in the people library (append-only:
  * an existing file is never overwritten), so the next episode with this person in this period reuses them.
  */
-export async function keepLikenesses(paths: V3Paths, episode: Episode, records: readonly LikenessRecord[], parts: readonly PartRecord[]): Promise<number> {
-  let kept = 0;
+export async function keepLikenesses(paths: V3Paths, episode: Episode, records: readonly LikenessRecord[], parts: readonly PartRecord[]): Promise<Map<string, string>> {
+  const kept = new Map<string, string>();
   await fs.mkdir(peopleDir(paths), { recursive: true });
   for (const r of records.filter((x) => x.kaynak === "tasarim")) {
     if (r.siparisler.some((t) => parts.some((p) => p.tarif === t && p.kaynak === "basarisiz"))) continue;
     const c = episode.oyuncu_kadrosu.find((x) => x.id === r.castId);
-    const file = personFile(paths, r.kisi, r.donem);
+    const file = nextPersonFile(paths, r.kisi, r.donem);
     if (!c?.kostum || existsSync(file)) continue;
     // The second hand's object belongs to the scene, not to the person.
     const kostum: Record<string, unknown> = { ...c.kostum };
     delete kostum.el_arka;
     await fs.writeFile(file, `${JSON.stringify({ kisi: r.kisi, donem: r.donem, kostum, tarif: r.tarif, not: r.not, portre: r.portre, olusturuldu: new Date().toISOString() }, null, 2)}\n`);
-    kept++;
+    kept.set(r.castId, file);
   }
   return kept;
 }
@@ -334,6 +371,8 @@ export async function checkLikenesses(input: {
   readonly workDir: string;
   readonly council?: CouncilLog;
   readonly log: (s: string) => void;
+  /** People library files written this run (keepLikenesses): each gets its check next to it. */
+  readonly kept?: ReadonlyMap<string, string>;
 }): Promise<LikenessRecord[]> {
   const { paths, outcome, log } = input;
   const ids = outcome.records.filter((r) => r.kaynak === "tasarim" && outcome.portraits.has(r.castId)).map((r) => r.castId);
@@ -359,7 +398,10 @@ Return ONLY JSON: {"benzerlik": <0-10>, "farklar": ["…"]}`;
     if (score === undefined) continue;
     out[r] = { ...out[r]!, benzerlik: score, farklar };
     log(`  benzerlik: ${member.name} portreyle yan yana ${score}/10${farklar.length ? ` — ${farklar.join("; ")}` : ""}`);
-    if (score < 6) input.council?.find({ beyin: "kostum", onem: "uyari", baslik: "benzerlik zayıf", ayrinti: `${member.name}: ${score}/10 — ${farklar.join("; ")}`, oneri: "kişi kütüphanesindeki kaydı silip bu farklarla yeniden tasarlat", tur: "veri", yer: member.id });
+    const keptFile = input.kept?.get(member.id);
+    if (keptFile && !existsSync(`${keptFile}.kontrol.json`)) await fs.writeFile(`${keptFile}.kontrol.json`, `${JSON.stringify({ benzerlik: score, farklar, tarih: new Date().toISOString() }, null, 2)}
+`);
+    if (score < LIKENESS_OK) input.council?.find({ beyin: "kostum", onem: "uyari", baslik: "benzerlik zayıf", ayrinti: `${member.name}: ${score}/10 — ${farklar.join("; ")}`, oneri: "rötuş beyni bu farklarla yeniden tasarlatır; kişi kütüphanesi bu sürümü yeniden kullanmaz", tur: "veri", yer: member.id });
   }
   return out;
 }

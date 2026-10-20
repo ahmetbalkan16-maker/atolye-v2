@@ -76,7 +76,37 @@ async function main() {
         { sceneIndex: 1, lineIndex: 1, start: 6.3, end: 8 },
       ],
     } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, Math.round(c.t * 100) / 100]), [["davul", 0.3], ["whoosh", 3.88], ["pop", 4.3]]);
+    assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, Math.round(c.t * 100) / 100]), [["davul", 0.3], ["whoosh", 3.88], ["pop", 4.3], ["basari", 6.3]]);
+  });
+
+  await scenario("E2 automatic effects: a thud under a word card, steps on an entrance, a whoosh on a run, a boing on a question", () => {
+    const ep = {
+      sahneler: [
+        {
+          id: "s1",
+          gecis: "kes",
+          yazi_karti: [{ metin: "WRONG", stil: "kelime", satir: 1 }, { metin: "Rome, 49 BC", stil: "yer_tarih" }],
+          satirlar: [
+            { karakter: "a", metin: "x", duygu: "notr", hareket: "gir" },
+            { karakter: "a", metin: "y", duygu: "notr", hareket: "kos", sfx: "para" },
+            { karakter: "b", metin: "z?", duygu: "saskin", efekt: "soru" },
+          ],
+        },
+        { id: "s2", gecis: "kes", satirlar: [{ karakter: "a", metin: "w", duygu: "notr", hareket: "kos" }, { karakter: "anlatici", metin: "Subscribe!", duygu: "mutlu" }] },
+      ],
+    } as unknown as Episode;
+    const tl = {
+      duration: 12,
+      scenes: [{ sceneIndex: 0, start: 0, end: 6 }, { sceneIndex: 1, start: 6, end: 12 }],
+      lines: [
+        { sceneIndex: 0, lineIndex: 0, start: 0.2, end: 1.5 },
+        { sceneIndex: 0, lineIndex: 1, start: 2, end: 3.5 },
+        { sceneIndex: 0, lineIndex: 2, start: 4, end: 5.5 },
+        { sceneIndex: 1, lineIndex: 0, start: 6.2, end: 8 },
+        { sceneIndex: 1, lineIndex: 1, start: 8.5, end: 11 },
+      ],
+    } as unknown as EpisodeTimeline;
+    assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, c.t]), [["adim", 0.2], ["dusus", 2], ["para", 2], ["boing", 4], ["whoosh", 6.2], ["basari", 8.5]]);
   });
 
   await scenario("F samples land on the exact sample and anything past the end is dropped", () => {

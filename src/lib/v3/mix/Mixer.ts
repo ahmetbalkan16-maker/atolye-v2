@@ -90,19 +90,32 @@ export function sfxLibraryFile(sfxDir: string, id: SfxId): string | undefined {
 }
 
 /**
- * Effects from the script (`sfx` on a line, at its start) and automatic ones: a whoosh into every scene that
- * does not open on a hard cut, a pop when someone jumps in surprise.
+ * Effects from the script (`sfx` on a line, at its start) and automatic ones, so the picture never moves in
+ * silence even when the writer gave none (the reference channel lands a sound on almost every beat): a whoosh into
+ * every scene that does not open on a hard cut, a thud under a one-word card, footsteps when someone walks in, a
+ * whoosh when someone runs, a pop on a surprise or an exclamation mark over the head, a boing on a question mark, and
+ * the success sting under the closing subscribe invitation. A line's own effect replaces its automatic one.
  */
 export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
   const cues: SfxCue[] = [];
+  const lastScene = episode.sahneler.length - 1;
   episode.sahneler.forEach((scene, si) => {
     const st = timeline.scenes[si];
     if (si > 0 && st && scene.gecis && scene.gecis !== "kes") cues.push({ t: Math.max(0, st.start - 0.12), id: "whoosh" });
+    const lineAt = (li: number) => timeline.lines.find((l) => l.sceneIndex === si && l.lineIndex === li);
+    for (const card of scene.yazi_karti ?? []) {
+      const lt = lineAt(Math.min(card.satir ?? 0, scene.satirlar.length - 1));
+      if (card.stil === "kelime" && lt) cues.push({ t: lt.start, id: "dusus" });
+    }
     scene.satirlar.forEach((line, li) => {
-      const lt = timeline.lines.find((l) => l.sceneIndex === si && l.lineIndex === li);
+      const lt = lineAt(li);
       if (!lt) return;
       if (line.sfx) cues.push({ t: lt.start, id: line.sfx });
-      else if (line.jest === "sasir") cues.push({ t: lt.start, id: "pop" });
+      else if (si === lastScene && li === scene.satirlar.length - 1) cues.push({ t: lt.start, id: "basari" });
+      else if (line.jest === "sasir" || line.efekt === "unlem") cues.push({ t: lt.start, id: "pop" });
+      else if (line.efekt === "soru") cues.push({ t: lt.start, id: "boing" });
+      else if (line.hareket === "kos") cues.push({ t: lt.start, id: "whoosh" });
+      else if (line.hareket === "gir" || line.hareket === "yuru") cues.push({ t: lt.start, id: "adim" });
     });
   });
   return cues.sort((a, b) => a.t - b.t);

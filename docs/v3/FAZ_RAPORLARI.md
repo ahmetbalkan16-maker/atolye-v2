@@ -228,3 +228,16 @@ Yapılanlar:
 
 Doğrulama: kök ve remotion-v3 tsc 0; eslint 0; smoke-v3 likeness 10 (yeni), council 4, episode-director 17,
 script 16, backgrounds 11, motion 9, mix 7, lipsync 5; smoke-ayas-video-order 4; vitrin karesi (6 kukla) incelendi.
+
+### Devretme ve PC sağlığı (aynı gün, owner: "bu komutları yardımcı beyinlere devret"; "PC sağlığı kurallarını atlama")
+
+- **Rötuş beyni** (`src/lib/v3/council/RetouchBrain.ts`): bitmiş üretimde benzerlik puanı < 7 olan kişiyi sanat
+  yönetmeninin fark listesiyle yeniden tasarlatır, eşiğin altındaki seti yeni tohumlarla yeniden çizdirir; üretim kendini
+  en erken ilgili adımdan (`gardirop`/`gorsel`) **bir kez** yeniden çalıştırır (`--rotus-turu`, plan `rotus-plani.json`,
+  ilk kesim `final-tur0.mp4`). Kod değiştirmez, en fazla 1 tur (`MAX_RETOUCH_ROUNDS`), `--rotus-yok` ile kapanır.
+- Kişi kütüphanesi sürümlü (`…--v2.json`), eski sürüm silinmez; her sürümün yanında `.kontrol.json` (yan yana puan +
+  farklar). Puanı düşük sürüm sonraki bölümlerde yeniden kullanılmaz; farkları tasarımcıya talimat olur.
+- **Otomatik efektler** (mikser, yazar unutsa da): kelime kartına düşüş, girişe adım, koşuya hışırtı, ünlem/sürprize
+  pop, soru işaretine boing, abone davetine başarı müziği; yazara "her sahnede en az bir sfx" kuralı.
+- **PC sağlığı:** yerel GPU modelleri (görüntü hakemi, ücretsiz metin yedeği; `atolye-v3.ts`, `senaryo-yaz.ts`) her
+  çağrıdan önce 73 °C kuralını bekler (`coolGpuProvider`); SDXL ve ses zaten bekliyordu. Üretim uzayabilir, sınır aşılmaz.

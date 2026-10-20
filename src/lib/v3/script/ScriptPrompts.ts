@@ -128,7 +128,8 @@ STORYTELLING RULES
    NO invented sources, page numbers or quotations: leave out any citation you are not sure exists.
 6. Living people are drawn as respectful caricatures; no unverified accusations.
 7. The last scene bridges to the next video, and the VERY LAST line is the narrator inviting viewers to subscribe (and
-   like or comment) — witty and tied to the topic, at most 25 words.`,
+   like or comment) — witty and tied to the topic, at most 25 words.
+8. Sound: every scene has at least one "sfx" on a gag, a hit, an entrance or a punchline (see the allowed values).`,
 };
 
 function bankText(bank: SourceBank | undefined): string {

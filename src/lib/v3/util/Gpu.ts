@@ -1,3 +1,4 @@
+import type { AIProvider } from "../../ai/providers/AIProvider";
 import { runChecked, runProcess } from "./Proc";
 
 /**
@@ -24,6 +25,19 @@ export async function gpuTemperature(): Promise<number | undefined> {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * A model on the local card (Ollama: the vision judge, the free text fallback) that keeps the owner's temperature
+ * rule on every call: a production may take longer, the PC is never pushed past the limit.
+ */
+export function coolGpuProvider(provider: AIProvider, log: (s: string) => void = () => {}): AIProvider {
+  return {
+    generate: async (prompt, options) => {
+      await waitForCoolGpu(log);
+      return provider.generate(prompt, options);
+    },
+  };
 }
 
 /** Owner rule: no GPU work at or above 73 °C; wait in 15 s steps for up to 10 minutes, then refuse. */

@@ -18,6 +18,7 @@ import { EPISODE_TONES, type EpisodeTone } from "../../src/lib/v3/episode/Episod
 import { type ScriptOutcome, writeScript } from "../../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../../src/lib/v3/script/ScriptPrompts";
 import { V3Budget, type V3ModelChoice } from "../../src/lib/v3/script/V3Budget";
+import { coolGpuProvider } from "../../src/lib/v3/util/Gpu";
 import { resolveV3Paths, v3Secret } from "../../src/lib/v3/V3Paths";
 
 function arg(name: string): string | undefined {
@@ -104,7 +105,8 @@ async function main() {
   // Measured on gemma4:12b (RTX A2000): with thinking on and the server's small default window the whole output
   // budget went to thinking and no JSON came back; thinking off + a 16k window + plain JSON mode wrote a valid
   // 90 s episode in ~70 s. The full schema is not sent as a grammar: the validator and repair rounds check shape.
-  const ollama = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: ollamaModel, timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false }));
+  // The local model runs on the GPU: the owner's temperature rule holds on every call.
+  const ollama = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: ollamaModel, timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false })), (s) => console.log(s));
   const writer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: setting("ATOLYE_V3_WRITER_MODEL", "gpt-4.1") } : { provider: "ollama" };
   const checker: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: setting("ATOLYE_V3_CHECKER_MODEL", "gpt-4.1") } : { provider: "ollama" };
   const budget = new V3Budget({ providers: { openai: new OpenAIProvider(), ollama }, fallback: { provider: "ollama" } });

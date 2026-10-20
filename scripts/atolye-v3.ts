@@ -16,6 +16,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { listTracksForMood } from "../src/lib/audio/music/MusicLibrary";
 import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
+import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { BackgroundDesigner, designFor, type DesignedSet } from "../src/lib/v3/backgrounds/BackgroundDesigner";
@@ -30,6 +31,7 @@ import { loadMapData } from "../src/lib/v3/maps/MapBuilder";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair } from "../src/lib/v3/council/RepairBrain";
+import { planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -47,8 +49,8 @@ import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
-import { freeGpuMemory, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
-import { runChecked } from "../src/lib/v3/util/Proc";
+import { coolGpuProvider, freeGpuMemory, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
+import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 
 const STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "miks", "birlestir"] as const;
@@ -65,13 +67,13 @@ function scriptBudget(paths: V3Paths, capUsd?: number, vision = false): { budget
     process.env.OPENAI_API_KEY = key;
     process.env.AI_PROVIDER = "openai";
   }
-  const ollama = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_OLLAMA_MODEL ?? "gemma4:12b", timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false }));
+  const ollama = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_OLLAMA_MODEL ?? "gemma4:12b", timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false })), (s) => console.log(s));
   return { providerName, budget: new V3Budget({ providers: { openai: vision ? new OpenAIVisionProvider() : new OpenAIProvider(), ollama }, fallback: { provider: "ollama" }, ...(capUsd !== undefined ? { capUsd } : {}) }) };
 }
 
-/** The free local vision judge (gemma4 through Ollama) for period images, sets and portraits. */
-function visionJudge(): OllamaProvider {
-  return new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }));
+/** The free local vision judge (gemma4 through Ollama) for period images, sets and portraits; it waits for a cool GPU before every call. */
+function visionJudge(): AIProvider {
+  return coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false })), (s) => console.log(s));
 }
 type Step = (typeof STEPS)[number];
 
@@ -187,7 +189,7 @@ function sceneForJudge(episode: Episode, si: number): SceneForJudge {
  * from the library when the judge passes it for this scene, else it is designed with local SDXL and judged the
  * same way (two rounds of two seeds). Order matters on a 12 GB card: judge (Ollama) → draw (SDXL) → judge.
  */
-async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, dil: ScriptLanguage, log: (s: string) => void): Promise<SceneVisual[]> {
+async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, dil: ScriptLanguage, log: (s: string) => void, redrawSets: ReadonlySet<string> = new Set()): Promise<SceneVisual[]> {
   const pub = path.join(work, "public", "bg");
   await fs.mkdir(pub, { recursive: true });
   const cache = path.join(paths.workRoot, "_onbellek", "commons");
@@ -267,7 +269,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       continue;
     }
     const theme = q.yerel_tema && existsSync(path.join(paths.backdropLibrary, `${q.yerel_tema}.png`)) ? q.yerel_tema : THEMES.find(([re]) => re.test(`${scene.mekan} ${q.tr} ${q.en}`))?.[1];
-    if (theme && existsSync(path.join(paths.backdropLibrary, `${theme}.png`))) {
+    // A set the retouch brain sent back is drawn anew, never taken from the library.
+    if (theme && !redrawSets.has(scene.id) && existsSync(path.join(paths.backdropLibrary, `${theme}.png`))) {
       const file = path.join(paths.backdropLibrary, `${theme}.png`);
       const pick = await pickBackground([{ title: `kütüphane seti ${theme}`, file }], sj, judge, (c) => localPreview(paths, c.file), log, { mode: "set", max: 1 });
       const v = pick.verdicts[0];
@@ -290,7 +293,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       for (const si of todo) {
         const design = designFor(episode.sahneler[si]!, episode);
         for (const k of [0, 1]) {
-          const seed = 1000 + si * 97 + (round * 2 + k) * 7919;
+          // A retouched set gets fresh seeds (rounds 2–3), so it is not the same drawing again.
+          const seed = 1000 + si * 97 + ((round + (redrawSets.has(episode.sahneler[si]!.id) ? 2 : 0)) * 2 + k) * 7919;
           drawn.push({ si, d: await designer.draw(design, seed, { bolum: episode.id, sahne: episode.sahneler[si]!.id, donem: episode.donem }) });
         }
       }
@@ -379,6 +383,8 @@ async function main() {
   const fromStep = (arg("--from-step") === "portre" ? "gardirop" : (arg("--from-step") ?? undefined)) as Step | undefined;
   if (fromStep && !STEPS.includes(fromStep)) throw new Error(`--from-step şunlardan biri olmalı: ${STEPS.join(", ")}`);
   const preview = process.argv.includes("--onizleme");
+  // Retouch round of this run (0 = the first production; the retouch brain starts round 1 by itself).
+  const rotusTuru = Number(arg("--rotus-turu") ?? 0);
   const given = arg("--bolum");
   const konu = arg("--konu") ?? (given ? (await readJson<Episode>(given)).konu : undefined);
   const donem = arg("--donem") ?? (given ? (await readJson<Episode>(given)).donem : undefined);
@@ -389,6 +395,9 @@ async function main() {
   const redo = (s: Step) => fromStep !== undefined && STEPS.indexOf(s) >= STEPS.indexOf(fromStep);
   const need = (s: Step, file: string) => redo(s) || !existsSync(f(file));
   const t0 = Date.now();
+  // The retouch brain's plan for this round (written by the previous run of this production), if any.
+  const retouch: RetouchPlan | undefined = rotusTuru > 0 && existsSync(f("rotus-plani.json")) ? await readJson<RetouchPlan>(f("rotus-plani.json")) : undefined;
+  if (retouch) log(`↺ rötuş turu ${rotusTuru}: ${retouch.kisiler.map((k) => `${k.kisi} yeniden tasarlanıyor`).concat(retouch.setler.map((x) => `${x.sahne} seti yeniden çiziliyor`)).join("; ")}`);
   // Every step runs under the repair brain: a failure is diagnosed and remedied (wait, free the GPU, change an
   // allowed setting, skip an optional step) and the step runs again; only an unrecoverable one stops the production,
   // and then the council report still goes to AYAS. The local model thinks for unknown failures (free, no agent).
@@ -494,7 +503,8 @@ async function main() {
         if (brain) episode = await reviewCostumes(episode, await packCatalog(costumeRootsFor(paths)), brain);
         const designer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
         const critic: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" };
-        const likeness = await designLikenesses(episode, { paths, commonsCache: path.join(paths.workRoot, "_onbellek", "commons"), wikiCache: path.join(paths.workRoot, "_onbellek", "wikipedia"), judge, budget, designer, critic, council, log });
+        const redo = new Map((retouch?.kisiler ?? []).map((k) => [k.castId, k.farklar] as const));
+        const likeness = await designLikenesses(episode, { paths, commonsCache: path.join(paths.workRoot, "_onbellek", "commons"), wikiCache: path.join(paths.workRoot, "_onbellek", "wikipedia"), judge, budget, designer, critic, council, log, ...(redo.size ? { redo } : {}) });
         episode = likeness.episode;
         const variety = distinctLooks(episode);
         episode = variety.episode;
@@ -506,8 +516,8 @@ async function main() {
           episode = assertEpisode(applyParts(episode, r.made));
         }
         const kept = await keepLikenesses(paths, episode, likeness.records, records);
-        if (kept) log(`  benzerlik: ${kept} kişi kişi kütüphanesine eklendi`);
-        const checked = await checkLikenesses({ paths, episode, outcome: likeness, budget, designer, workDir: path.join(work, "benzerlik-prova"), council, log }).catch((e: Error) => (log(`  benzerlik kontrolü yapılamadı: ${e.message.slice(0, 160)}`), likeness.records));
+        if (kept.size) log(`  benzerlik: ${kept.size} kişi kişi kütüphanesine eklendi`);
+        const checked = await checkLikenesses({ paths, episode, outcome: likeness, budget, designer, workDir: path.join(work, `benzerlik-prova${rotusTuru ? `-rotus${rotusTuru}` : ""}`), council, log, kept }).catch((e: Error) => (log(`  benzerlik kontrolü yapılamadı: ${e.message.slice(0, 160)}`), likeness.records));
         await writeJson(f("benzerlik.json"), checked);
         likenesses = checked;
         await writeJson(f("episode.json"), episode);
@@ -581,7 +591,7 @@ async function main() {
   let visuals: SceneVisual[];
   if (need("gorsel", "gorseller-v2.json")) {
     visuals = await step("gorsel", async () => {
-      const out = await resolveVisuals(paths, work, episode, dil, log);
+      const out = await resolveVisuals(paths, work, episode, dil, log, new Set((retouch?.setler ?? []).map((x) => x.sahne)));
       await writeJson(f("gorseller-v2.json"), out);
       return out;
     });
@@ -643,6 +653,7 @@ async function main() {
   } else mix = await readJson<MixMeta>(f("miks.json"));
 
   // 8) Birleştir + altyazı + jenerik + QC
+  let retouchPlan: RetouchPlan | undefined;
   await step("birlestir", async () => {
     const final = preview ? "final-onizleme.mp4" : "final.mp4";
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", f(silent), "-i", f("miks.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", f(final)], { timeoutMs: 30 * 60_000 });
@@ -730,13 +741,32 @@ async function main() {
     } catch (e) {
       log(`şef değerlendirmesi yapılamadı: ${(e as Error).message.slice(0, 120)}`);
     }
+    // The retouch brain: what the brains measured decides one more round, run below by the production itself.
+    const nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) });
+    if (nextRound) {
+      council.debate("sef", "rötuş kararı", retouchDebate(nextRound));
+      await writeJson(f("rotus-plani.json"), nextRound);
+    }
     // The quality brain delivers: a production with a missing piece (an "eksik" finding) is delivered with a warning.
     const missing = council.findings.filter((x) => x.onem === "eksik").length;
     const report = await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: episode.baslik, log: council, ...(chiefPlan ? { plan: chiefPlan } : {}) });
     await fs.writeFile(f("KURUL.md"), councilMarkdown(episode.baslik, council, chiefPlan));
     await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
     log(`kurul raporu: ${report} · ${missing ? `UYARIYLA teslim (${missing} eksik)` : "teslim edildi"}`);
+    retouchPlan = nextRound;
   });
+
+  // One retouch round, run by the production itself (no agent needed): the same command from the plan's step. The
+  // first cut is kept next to it for comparison. The GPU and cost rules hold in the new run as in this one.
+  if (retouchPlan) {
+    const finalName = preview ? "final-onizleme.mp4" : "final.mp4";
+    await fs.copyFile(f(finalName), f(finalName.replace(/.mp4$/, `-tur${rotusTuru}.mp4`)));
+    const keep = process.argv.slice(2).filter((a, i, all) => !["--from-step", "--rotus-turu"].includes(a) && !["--from-step", "--rotus-turu"].includes(all[i - 1] ?? ""));
+    const args = [...process.execArgv, process.argv[1]!, ...keep, ...(keep.includes("--cikti") ? [] : ["--cikti", work]), "--from-step", retouchPlan.adim, "--rotus-turu", String(retouchPlan.tur)];
+    log(`↺ rötuş beyni: ${retouchPlan.tur}. tur başlıyor ("${retouchPlan.adim}" adımından)`);
+    const r = await runProcess(process.execPath, args, { onLine: log, env: process.env });
+    if (r.code !== 0) throw new Error(`rötuş turu başarısız (çıkış ${r.code}); ilk kesim ${finalName.replace(/.mp4$/, `-tur${rotusTuru}.mp4`)} olarak duruyor`);
+  }
 }
 
 main().catch((e) => {

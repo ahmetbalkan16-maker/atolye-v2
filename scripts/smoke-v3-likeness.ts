@@ -4,14 +4,17 @@
  * Run: npx tsx scripts/smoke-v3-likeness.ts
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, likenessOrders, periodNotePrompt, readPeriodNote, sheetPrompt } from "../src/lib/v3/faces/LikenessDesigner";
+import { appearanceSentences, applySheet, likenessOrders, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt } from "../src/lib/v3/faces/LikenessDesigner";
+import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
+import type { V3Paths } from "../src/lib/v3/V3Paths";
 
 let scenarios = 0;
 function scenario(name: string, fn: () => void) {
@@ -182,6 +185,39 @@ function main() {
     assert.deepEqual(k.yuz!.properties!.burun!.enum, [...NOSES]);
     assert.deepEqual(k.yuz!.properties!.goz!.enum, [...EYE_STYLES]);
     assert.deepEqual(k.yuz!.properties!.yas!.enum, [...AGES]);
+  });
+
+  scenario("K retouch brain: a weak likeness or a set under the bar starts one more round, never two", () => {
+    const likenesses = [
+      { castId: "caesar", kisi: "Julius Caesar", kaynak: "tasarim", benzerlik: 7, farklar: ["rounder face"] },
+      { castId: "pompey", kisi: "Pompey", kaynak: "tasarim", benzerlik: 6, farklar: ["laurel crown, portrait bare-headed", "cheeks not full enough"] },
+      { castId: "cicero", kisi: "Cicero", kaynak: "kutuphane" },
+    ];
+    const sets = [{ sahne: "s1" }, { sahne: "s4", esikAlti: true, secim: { puan: 5, donem: 8, sorun: "sunset sky" } }];
+    const plan = planRetouch({ round: 0, likenesses, sets })!;
+    assert.equal(plan.tur, 1);
+    assert.equal(plan.adim, "gardirop", "a person redesign starts at the wardrobe");
+    assert.deepEqual(plan.kisiler.map((k) => [k.castId, k.puan]), [["pompey", 6]]);
+    assert.deepEqual(plan.setler.map((x) => x.sahne), ["s4"]);
+    assert.match(retouchDebate(plan).at(-1)!.metin, /1. rötuş turu/);
+    assert.equal(planRetouch({ round: 0, likenesses: likenesses.slice(0, 1), sets: [] }), undefined, "nothing weak: no retouch");
+    assert.equal(planRetouch({ round: MAX_RETOUCH_ROUNDS, likenesses, sets }), undefined, "the production always ends");
+    assert.equal(planRetouch({ round: 0, likenesses: [], sets })!.adim, "gorsel");
+    assert.equal(LIKENESS_OK, 7);
+  });
+
+  scenario("L people library: versions are never overwritten; a redesign gets the art director's differences", () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kisiler-"));
+    const paths = { workRoot: root } as unknown as V3Paths;
+    assert.deepEqual(personVersions(paths, "Pompey", "49 BC"), []);
+    mkdirSync(peopleDir(paths), { recursive: true });
+    writeFileSync(path.join(peopleDir(paths), "pompey--49-bc.json"), "{}");
+    writeFileSync(path.join(peopleDir(paths), "pompey--49-bc--v2.json"), "{}");
+    assert.deepEqual(personVersions(paths, "Pompey", "49 BC").map((x) => path.basename(x)), ["pompey--49-bc.json", "pompey--49-bc--v2.json"]);
+    const ep = episode();
+    const p = sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Pompey", undefined, undefined, ["laurel crown, portrait bare-headed"]);
+    assert.match(p, /FELL SHORT. The art director's differences: laurel crown, portrait bare-headed/);
+    assert.doesNotMatch(sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Pompey", undefined, undefined), /FELL SHORT/);
   });
 
   console.log(`V3 likeness smoke: PASS (${scenarios} scenarios)`);
