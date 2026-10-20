@@ -1,3 +1,31 @@
+## 20 Ekim 2026 — Çöp adam V3: OverSimplified hedefi, her konu için altyapı, İngilizce pilotlar
+
+Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3` (ana repo ve canlı AYAS'a dokunulmadı). Owner
+istekleri: arka plan döneme ait olsun (yoksa ilgisiz görsel konmasın, açıkça yazılsın, tasarlansın), Amerikan İngilizcesi,
+ekranda altyazı yok (yalnız konuşanın üstünde söz), referans OverSimplified, **her tarih/olay/karakter için altyapı**,
+ana karakterlerin yüzü gerçek portreden.
+
+Tamam (commit'ler `8fd5fa0e`, `000d4132`, `9b9cba04` ve bu kayıt): dönem görseli araması (Wikipedia/The Met/Commons) +
+konu/dönem/modern hakemi + ara plan; SDXL set tasarımcısı; konturlu konuşma yazısı, oklu isim, kelime kartı, figüran
+kalabalıkları; Kokoro İngilizce sesler; otomatik kaynak bankası (alıntıyla doğrulanan olgular); yapay zekâ gardırop
+tasarımcısı (kütüphane büyüyor, sonraki bölüm ücretsiz kullanıyor); 6 yeni kıyafet + 7 saç; portre yüz (YuNet) ve konuşan
+çene; Natural Earth haritaları; taslak normalleştirici; Wikimedia 429 koruması. Ayrıntı ve sayılar:
+`docs/v3/FAZ_RAPORLARI.md` → "20 Ekim 2026".
+
+Repo dışı yeni araçlar (`D:\URETIM\Atolye\v3-tools`): `gen-venv` (torch 2.6 cu124, Kokoro 0.9.4, diffusers 0.35,
+OpenCV), `models\face_detection_yunet_2023mar.onnx` (MIT), `maps\ne_50m_*.geojson` (kamu malı); ASCII kopya
+`D:\atolye-ascii\espeak-ng-data`. Gardırop ve set kütüphaneleri `output/v3/_kutuphane/` (git dışı).
+
+Doğrulama: kök ve remotion-v3 tsc 0; eslint 0; smoke-v3-episode-director 16, -script 15, -backgrounds 10, -lipsync 5,
+-motion 9, -mix 6 PASS. Pilotlar: Rumelihisarı İngilizce 96 sn (QC 11/13, iki eksik sonradan düzeltildi), Roma MÖ 49 tam
+otomatik (`output/v3/bolumler/rubicon-en-2/`).
+
+Beyin takımı (commit `22d01e12`): yapım kurulu + AYAS gelen kutusu, kostüm beyni (gerçek örnek → çizim → sanat yönetmeni/tarihçi/şef tartışması), kalite beyni (bitmiş videoyu izler, teslim eder), hata onarım beyni (her adım gözetimde, kod yazmaz), AYAS sipariş kapısı `scripts/v3/yapim.ts`. Canlı AYAS bağlantısı ayrı ve owner onaylı.
+
+Açık / sıradaki: owner izlemesi ve geri bildirimi; anlatıcı sesi seçimi (`en-anlatici` am_michael / `en-anlatici-kadin`
+af_heart); senarist hedef kelime sayısının altında kalıyor (süre ~%20 kısa); set stili tutarlılığı; ses efektlerinin
+çeşitliliği; uzun bölüm (6–10 dk) denemesi.
+
 ## 19 Ekim 2026 — Çöp adam V3 (Remotion) WIP: güvenli duruş, owner "sonra devam" dedi
 
 Owner görevi: Atölye'yi Yusuf Kayaalp "Osmanlı İmparatorluğu Yıkılıyor!" tarzı çöp adam tarih anlatımına yükseltmek

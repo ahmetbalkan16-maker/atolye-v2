@@ -128,3 +128,60 @@ Ayrıntılar commit mesajlarında (`4d5e9ed6`, `0a0819ce`, `94d72e65`, `7a13d7bf
   art arda) → Osmanlı/Boğaz 1452 setleri üret; karakter seçimi ve ses seçimi owner'da (`v3-voices\ornekler`);
   Bizans elçisi imparator tacı taşıyor (kostüm anlamı); yakın çekimde kenardaki karakterler kadrajdan taşıyor;
   tam bölüm (6–10 dk) ve referansla önce/sonra puan kartı (FAZ 6.2–6.4).
+
+## 20 Ekim 2026 — OverSimplified hedefi: dönem görselleri, İngilizce, her konu için altyapı
+
+Owner istekleri (aynı gün, sırayla): arka plan döneme ait olsun (bulunamazsa ilgisiz görsel konmasın, açıkça yazılsın,
+sahne tasarlansın); video Amerikan kanalı kalitesinde ve Amerikan İngilizcesiyle anlatılsın; ekrandaki altyazı kalksın,
+yalnız konuşanın üstünde espri/anlamlı söz çıksın; referans **OverSimplified** (video Q-nWA0WeF98 ve kanalın en çok
+izlenenleri); bu yalnız bir video için değil, **her tarih/olay/karakter için altyapı** olsun; ana karakterlerin yüzü gerçek
+portreden gelsin, diğerleri saç/şapka/sakal parçalarıyla.
+
+Referans incelemesi (yalnız meta veri, altyazı ve YouTube önizleme kareleri; video indirilmedi): 147 kelime/dk anlatım;
+balonsuz, kalın konturlu konuşma yazısı; oklu isimler; sıra sıra asker/senatör kalabalıkları; sade düz çizim setler;
+uydu/düz haritalar, bölge renkleri, ordu blokları, oklar; tam ekran tek kelime kartları; deadpan anlatıcı, modern konuşan
+tarihî karakterler.
+
+Kurulanlar (hepsi konudan bağımsız):
+- **Dönem görseli:** Wikipedia makale görselleri + yönlendirme adları (eski yazımlar, ör. "Roumeli Hissar"), The Met Open
+  Access, Commons. Hakem (yerel gemma4) iki puan verir — konu ve dönem — artı "modern öğe" bayrağı; ara plan o anda
+  anlatılan kişi/yeri göstermeli. Görsel yalnız anlatıcı satırlarında tam ekran ara plan (bulanık zemin, kaynak plakası).
+  Bulunamazsa log/QC: "DÖNEME AİT GÖRSEL BULUNAMADI — ilgisiz görsel kullanılmadı".
+- **Set:** kütüphane seti hakem onaylarsa; yoksa senaryonun `tasarim` tarifiyle yerel SDXL (gen-venv), iki tur × iki
+  tohum, düz çizgi film stili; ekleme-yalnız set kütüphanesi.
+- **Ekran yazısı:** altyazı yok (SRT ayrı, YouTube CC); konuşanın başı üstünde konturlu yazı, bağırmada büyük harf; ilk
+  konuşmada kırmızı oklu isim + rol; tam ekran `kelime` kartı; "DRAMATIZATION" etiketi.
+- **Kalabalık:** `kalabalik` (sıra/meclis/ordu; coşkulu/korkmuş), oyuncuların arkasında, mesafe sisiyle.
+- **İngilizce ses:** Kokoro-82M (Apache-2.0) 14 profil; senarist her karaktere tarife göre ses seçer; `--anlatici`.
+- **Araştırma:** el yapımı banka yoksa Wikipedia revizyonları okunur, olgu ancak alıntısı makalede birebir varsa kalır.
+- **Gardırop (Katman 2):** "yeni:<tarif>" siparişi → gpt-4.1 SVG → güvenlik/geometri kapıları → kukla provası →
+  hakem → repo dışı `gardirop` paketi; sonraki bölümler ücretsiz kullanır (Roma ikinci çalıştırmada 3 parça kütüphaneden).
+- **Kıyafet ve saç:** tunik, toga, ceket, üniforma, takım elbise, elbise; 7 parametrik saç.
+- **Portre yüz:** `portre.wiki` olan ana karakter için portre bulunur, hakem kişiyi doğrular, OpenCV YuNet yüzü keser
+  (sola bakan aynalanır); yüz kafa ovalinde, konuşurken çene düşer.
+- **Harita:** Natural Earth 1:50m; bölgeler ISO koduyla ya da yaklaşık çizgiyle (kıyıya kırpılır), şehirler, ordular,
+  kendini çizen oklar; her öğe onu anan satırla belirir.
+- **Sağlamlık:** taslak normalleştirici (görünür anlatıcı, İngilizce kıyafet adı, uydurma parça → sipariş), Wikimedia 429
+  bekle-yeniden-dene, yazar çıktı sınırı, başarısız taslak kaydı; Rhubarb Unicode TEMP çökmesi ve espeak Unicode yolu
+  (ikisi de ASCII klasörle) düzeltildi; İngilizce hız ölçüldü 2,35 kelime/sn.
+
+Pilotlar:
+- `output/v3/bolumler/rumeli-hisari-en/final.mp4` (96 sn): 2/6 sahnede dönem görseli (Buondelmonti 1430 haritası), 4'ünde
+  açık "bulunamadı" ve tasarlanmış set; QC 11/13 (RMS ağız senkronu ve süre — ikisi de sonradan düzeltildi).
+- Roma (MÖ 49, yalnız konu cümlesiyle): `output/v3/bolumler/rubicon-en-2/` — sonuçlar aşağıdaki doğrulama satırında.
+
+Doğrulama: kök ve remotion-v3 tsc 0; eslint 0; smoke-v3-episode-director (16), -script (15), -backgrounds (10),
+-lipsync (5), -motion (9), -mix (6) PASS.
+
+### Beyin takımı (20 Ekim 2026, owner fikri)
+
+AYAS yönetici; Atölye'de uzman beyinler: **Araştırma** (kaynak bankası), **Kurgu** (senarist + tarih editörü),
+**Kostüm** (tasarımcı + tarihçi + sanat yönetmeni; kafalar/portreler dahil), **Ortam** (dönem görselleri, setler,
+haritalar), **Ses** (sesler, müzik, efekt), **Kalite** (bitmiş videoyu izler, teslim eder) ve **Hata onarım** beyni.
+- Beyinler kendi içinde tartışır (öneri → eleştiri → şef kararı); kayıtlar `KURUL.md` / `yapim-raporu.json`.
+- Bulgular AYAS gelen kutusuna gider (`output/v3/_kutuphane/ayas-gelen-kutusu.jsonl`); şef bunları "önlem" (Atölye
+  kendisi alır: veri/ayar) ve "geliştirme" (kod — owner onayıyla) diye ayırır. Hiçbir beyin kod değiştirmez.
+- Hata onarım beyni her adımı gözetir: bilinen hatalara hazır ilaç, tanınmayanda yerel model yalnız izinli eylemlerden
+  seçer (bekle/yeniden, GPU boşalt, izinli ayar, isteğe bağlı adımı atla, dur). Video yapımı Claude/Codex'e bağlı değil.
+- AYAS sipariş kapısı: `npx tsx scripts/v3/yapim.ts siparis --konu "…" --donem "…"`, `… kuyruk`, `… durum`.
+  Canlı AYAS'ın bu kapıyı kullanması (konuşmada "X hakkında video yap") ayrı, owner onaylı adım; canlı sisteme dokunur.
