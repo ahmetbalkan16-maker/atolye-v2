@@ -9,6 +9,7 @@ Voices starting with "a" are American English, "b" British English; a blend uses
 Pitch, trimming and loudness are done by the Node caller with FFmpeg. Weights are cached under HF_HOME.
 """
 import json
+import os
 import sys
 import time
 
@@ -26,6 +27,14 @@ def main():
     import numpy as np
     import soundfile as sf
     import torch
+
+    # espeak-ng (misaki's fallback for unknown words) cannot open a Unicode path, and Python resolves the venv to
+    # the Unicode D: path: its data is read from a real ASCII copy instead (ATOLYE_V3_ESPEAK_DATA), set before misaki loads.
+    ascii_data = os.environ.get("ATOLYE_V3_ESPEAK_DATA")
+    if ascii_data:
+        import espeakng_loader
+
+        espeakng_loader.get_data_path = lambda: ascii_data
     from kokoro import KPipeline
 
     device = "cuda" if torch.cuda.is_available() else "cpu"

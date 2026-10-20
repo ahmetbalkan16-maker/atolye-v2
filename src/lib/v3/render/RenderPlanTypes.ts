@@ -30,7 +30,25 @@ export type V3Effect = "ter" | "unlem" | "soru" | "ofke" | "parilti" | "kalp";
 
 export type V3CharacterStyle = "kukla" | "cop";
 
-export type V3Garment = "kaftan" | "cubbe" | "zirh" | "onluk" | "bizans" | "yeniceri" | "sade";
+export type V3Garment = "kaftan" | "cubbe" | "zirh" | "onluk" | "bizans" | "yeniceri" | "sade" | "tunik" | "toga" | "ceket" | "uniforma" | "takim" | "elbise";
+
+export type V3HairStyle = "kisa" | "dalgali" | "yan_ayrik" | "uzun" | "topuz" | "orgu" | "kel";
+
+export interface V3Hair {
+  readonly style: V3HairStyle;
+  readonly color: string;
+}
+
+/**
+ * A real face cut from a portrait (main characters, the reference channel's look): a square PNG in the public dir
+ * that fills the head, split at the mouth line so the jaw drops while the character talks.
+ */
+export interface V3Face {
+  readonly src: string;
+  /** Mouth line and mouth centre as fractions of the image (0 top/left .. 1). */
+  readonly mouthY: number;
+  readonly mouthX: number;
+}
 
 export interface V3Costume {
   /** Accessory pack folder under `public/costumes/`. */
@@ -46,6 +64,10 @@ export interface V3Costume {
   readonly back?: string;
   readonly collar?: "kurk" | "yok";
   readonly shoes: string;
+  /** Hair under (or without) headwear; none draws the bare puppet head. */
+  readonly hair?: V3Hair;
+  /** A portrait face instead of the drawn one (no drawn eyes, brows, beard or hair then). */
+  readonly face?: V3Face;
 }
 
 export interface V3Accessory {

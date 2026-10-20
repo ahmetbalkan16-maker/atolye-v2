@@ -156,6 +156,7 @@ export function sideProcessEnv(paths: V3Paths): NodeJS.ProcessEnv {
     PYTHONUTF8: "1",
     TEMP: paths.asciiTemp,
     TMP: paths.asciiTemp,
+    ...(paths.espeakData ? { ATOLYE_V3_ESPEAK_DATA: paths.espeakData } : {}),
   };
 }
 

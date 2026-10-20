@@ -1,7 +1,7 @@
 import React from "react";
 import type { V3Accessory, V3CastMember } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { Arm } from "./Arms";
-import { Head } from "./Face";
+import { HairBack, HairTop, Head, PhotoHead } from "./Face";
 import { GarmentBody, Legs, sleeveFor } from "./Garments";
 import type { PerformerState } from "./motion";
 import { HEAD_CY, HIP_Y, INK, NECK_Y, SHOULDER_Y } from "./rig";
@@ -54,7 +54,14 @@ export function Character({ member, state, accessories, cheap = false }: { membe
           {style === "cop" ? <path d={`M0 ${SHOULDER_Y - 4} L0 ${NECK_Y - 8}`} stroke={INK} strokeWidth={12} strokeLinecap="round" /> : null}
           <g transform={`rotate(${pose.headTilt} 0 ${NECK_Y}) translate(0 ${HEAD_CY})`}>
             {head?.behind ? <g dangerouslySetInnerHTML={{ __html: head.markup }} /> : null}
-            <Head emotion={state.emotion} viseme={state.viseme} eyesClosed={state.eyesClosed} brows={state.brows} beard={beard?.markup} mustache={mustache?.markup} />
+            {costume.hair ? <HairBack hair={costume.hair} /> : null}
+            {costume.face ? (
+              // A portrait face carries its own eyes, beard and hair.
+              <PhotoHead face={costume.face} viseme={state.viseme} />
+            ) : (
+              <Head emotion={state.emotion} viseme={state.viseme} eyesClosed={state.eyesClosed} brows={state.brows} beard={beard?.markup} mustache={mustache?.markup} />
+            )}
+            {costume.hair && !costume.face ? <HairTop hair={costume.hair} /> : null}
             {head && !head.behind ? <g dangerouslySetInnerHTML={{ __html: head.markup }} /> : null}
           </g>
           <Arm side={-1} angles={pose.armBack} hand={pose.handBack} sleeve={sleeve} style={style} item={rear?.markup} grip={rear?.grip} />

@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { V3Accessory, V3CastMember } from "../render/RenderPlanTypes";
 
@@ -42,9 +42,21 @@ export function costumesRoot(repoRoot: string): string {
   return path.join(repoRoot, "remotion-v3", "public", "costumes");
 }
 
-export async function readPackManifest(root: string, pack: string): Promise<CostumePackManifest> {
+/**
+ * Where packs are looked up: the hand-drawn packs in the repository, then the generated wardrobe library (runtime
+ * storage, outside git; see PartDesigner). A pack id is resolved in the first root that has it.
+ */
+export type CostumeRoots = string | readonly string[];
+const rootsOf = (roots: CostumeRoots): readonly string[] => (typeof roots === "string" ? [roots] : roots);
+
+function packDir(roots: CostumeRoots, pack: string): string {
+  const list = rootsOf(roots);
+  return list.map((r) => path.join(r, pack)).find((d) => existsSync(path.join(d, "pack.json"))) ?? path.join(list[0]!, pack);
+}
+
+export async function readPackManifest(roots: CostumeRoots, pack: string): Promise<CostumePackManifest> {
   if (!SAFE_ID.test(pack)) throw new CostumePackError("V3_COSTUME_PACK_ID", pack);
-  const raw = JSON.parse(await fs.readFile(path.join(root, pack, "pack.json"), "utf8")) as CostumePackManifest;
+  const raw = JSON.parse(await fs.readFile(path.join(packDir(roots, pack), "pack.json"), "utf8")) as CostumePackManifest;
   if (raw.schema !== 1 || raw.id !== pack || typeof raw.items !== "object") throw new CostumePackError("V3_COSTUME_PACK_MANIFEST", pack);
   for (const [id, item] of Object.entries(raw.items)) {
     if (!SAFE_ID.test(id) || !SLOTS.includes(item.slot)) throw new CostumePackError("V3_COSTUME_PACK_ITEM", `${pack}/${id}`);
@@ -61,18 +73,23 @@ export interface PackCatalogEntry {
 }
 
 /** Every installed pack and its item ids by slot — what a script writer may dress the cast in. */
-export async function packCatalog(root: string): Promise<PackCatalogEntry[]> {
+export async function packCatalog(roots: CostumeRoots): Promise<PackCatalogEntry[]> {
   const out: PackCatalogEntry[] = [];
-  for (const dir of (await fs.readdir(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name).sort()) {
-    if (!SAFE_ID.test(dir)) continue;
-    const manifest = await readPackManifest(root, dir);
-    const items: Partial<Record<V3Accessory["slot"], string[]>> = {};
-    const notes: Record<string, string> = {};
-    for (const [id, item] of Object.entries(manifest.items)) {
-      (items[item.slot] ??= []).push(id);
-      if (item.not) notes[id] = item.not;
+  const seen = new Set<string>();
+  for (const root of rootsOf(roots)) {
+    if (!existsSync(root)) continue;
+    for (const dir of (await fs.readdir(root, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name).sort()) {
+      if (!SAFE_ID.test(dir) || seen.has(dir) || !existsSync(path.join(root, dir, "pack.json"))) continue;
+      seen.add(dir);
+      const manifest = await readPackManifest(root, dir);
+      const items: Partial<Record<V3Accessory["slot"], string[]>> = {};
+      const notes: Record<string, string> = {};
+      for (const [id, item] of Object.entries(manifest.items)) {
+        (items[item.slot] ??= []).push(id);
+        if (item.not) notes[id] = item.not;
+      }
+      out.push({ pack: manifest.id, title: manifest.title, items, ...(Object.keys(notes).length ? { notes } : {}) });
     }
-    out.push({ pack: manifest.id, title: manifest.title, items, ...(Object.keys(notes).length ? { notes } : {}) });
   }
   return out;
 }
@@ -99,19 +116,19 @@ export function accessoryRefs(cast: readonly V3CastMember[]): string[] {
 }
 
 /** Loads every accessory the cast uses; an unknown pack/item stops the render plan instead of drawing a gap. */
-export async function loadAccessories(root: string, cast: readonly V3CastMember[]): Promise<V3Accessory[]> {
+export async function loadAccessories(roots: CostumeRoots, cast: readonly V3CastMember[]): Promise<V3Accessory[]> {
   const manifests = new Map<string, CostumePackManifest>();
   const out: V3Accessory[] = [];
   for (const ref of accessoryRefs(cast)) {
     const [pack, id] = ref.split("/") as [string, string];
     let manifest = manifests.get(pack);
     if (!manifest) {
-      manifest = await readPackManifest(root, pack);
+      manifest = await readPackManifest(roots, pack);
       manifests.set(pack, manifest);
     }
     const item = manifest.items[id];
     if (!item) throw new CostumePackError("V3_COSTUME_ITEM_UNKNOWN", ref);
-    const svg = await fs.readFile(path.join(root, pack, `${id}.svg`), "utf8");
+    const svg = await fs.readFile(path.join(packDir(roots, pack), `${id}.svg`), "utf8");
     out.push({ id: ref, slot: item.slot, markup: svgBody(svg, ref), ...(item.behind ? { behind: true } : {}), ...(item.grip ? { grip: true } : {}) });
   }
   return out;

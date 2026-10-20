@@ -21,7 +21,9 @@ import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/Commo
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
-import { costumesRoot, loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
+import { findPortraitFace, type PortraitResult } from "../src/lib/v3/faces/PortraitFaces";
+import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
+import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { beats, buildRenderPlan, type SceneInsert, shotEventFrames } from "../src/lib/v3/director/Director";
 import { EPISODE_TONES, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -31,6 +33,7 @@ import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlan
 import { renderWithRemotion } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
+import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
@@ -39,7 +42,28 @@ import { runChecked } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 import { sfxFileName } from "./v3/sfx-uret";
 
-const STEPS = ["senaryo", "ses", "senkron", "gorsel", "render", "miks", "birlestir"] as const;
+const STEPS = ["senaryo", "gardirop", "ses", "senkron", "portre", "gorsel", "render", "miks", "birlestir"] as const;
+
+/**
+ * Paid-text providers for the script and part stages: OpenAI when chosen (the key is borrowed for this process
+ * only), gemma4 as the free fallback the budget falls back to near the cap.
+ */
+function scriptBudget(paths: V3Paths, capUsd?: number): { budget: V3Budget; providerName: "openai" | "ollama" } {
+  const providerName = (arg("--saglayici") ?? process.env.ATOLYE_V3_SCRIPT_PROVIDER ?? "ollama") as "openai" | "ollama";
+  if (providerName === "openai") {
+    const key = v3Secret("OPENAI_API_KEY", paths.repoRoot);
+    if (!key) throw new Error("OPENAI_API_KEY bulunamadı (ATOLYE_V3_SECRETS_ENV)");
+    process.env.OPENAI_API_KEY = key;
+    process.env.AI_PROVIDER = "openai";
+  }
+  const ollama = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_OLLAMA_MODEL ?? "gemma4:12b", timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false }));
+  return { providerName, budget: new V3Budget({ providers: { openai: new OpenAIProvider(), ollama }, fallback: { provider: "ollama" }, ...(capUsd !== undefined ? { capUsd } : {}) }) };
+}
+
+/** The free local vision judge (gemma4 through Ollama) for period images, sets and portraits. */
+function visionJudge(): OllamaProvider {
+  return new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }));
+}
 type Step = (typeof STEPS)[number];
 
 function arg(name: string): string | undefined {
@@ -158,7 +182,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   const pub = path.join(work, "public", "bg");
   await fs.mkdir(pub, { recursive: true });
   const cache = path.join(paths.workRoot, "_onbellek", "commons");
-  const judge = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }));
+  const judge = visionJudge();
   const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur).map((c) => c.id));
   const periodEnd = periodEndYear(episode.donem);
   const used = new Set<string>();
@@ -185,7 +209,9 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd);
       const fresh = found.candidates.filter((c) => !used.has(c.url));
       log(`${scene.id}: dönem görseli aranıyor — ${found.report.join(", ")}`);
-      const pick = await pickBackground(fresh, sj, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
+      // The cutaway is on screen while the narrator speaks: it must show what those lines name.
+      const narration = scene.satirlar.filter((l) => !visible.has(l.karakter)).map((l) => l.metin).join(" ");
+      const pick = await pickBackground(fresh, { ...sj, anlatim: narration }, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
       for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
       if (pick.chosen && pick.verdict) {
         const c = pick.chosen;
@@ -344,25 +370,33 @@ async function main() {
   if (given && need("senaryo", "episode.json")) await fs.copyFile(given, f("episode.json"));
   if (need("senaryo", "episode.json")) {
     await step("senaryo", async () => {
-      const bankFile = arg("--kaynaklar");
-      const bank = bankFile ? await readJson<SourceBank>(bankFile) : undefined;
-      const voiceMap = await readJson<VoiceMap>(path.join(paths.contentRoot, "voices.json"));
-      // English characters get native voices the writer picks by description; Turkish ones keep their own ids.
-      const sesler = dil === "en" ? voicesFor(voiceMap, "en").filter((id) => !id.startsWith("en-anlatici")).map((id) => ({ id, tarif: voiceMap.sesler[id]!.tarif ?? id })) : undefined;
-      const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}) };
-      const providerName = (arg("--saglayici") ?? process.env.ATOLYE_V3_SCRIPT_PROVIDER ?? "ollama") as "openai" | "ollama";
-      if (providerName === "openai") {
-        const key = v3Secret("OPENAI_API_KEY", paths.repoRoot);
-        if (!key) throw new Error("OPENAI_API_KEY bulunamadı (ATOLYE_V3_SECRETS_ENV)");
-        process.env.OPENAI_API_KEY = key;
-        process.env.AI_PROVIDER = "openai";
-      }
-      const ollama = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_OLLAMA_MODEL ?? "gemma4:12b", timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false }));
+      const { budget, providerName } = scriptBudget(paths);
       const writer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_WRITER_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
       const checker: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CHECKER_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
-      const budget = new V3Budget({ providers: { openai: new OpenAIProvider(), ollama }, fallback: { provider: "ollama" } });
       try {
-        const out = await writeScript({ brief, catalog: await packCatalog(costumesRoot(paths.repoRoot)), writer, checker, budget });
+        // Sources: a hand-made bank (--kaynaklar), else the one researched for this episode earlier, else research
+        // the topic now (Wikipedia revisions, every fact checked against a quote from the article).
+        const bankFile = arg("--kaynaklar");
+        let bank: SourceBank | undefined = bankFile ? await readJson<SourceBank>(bankFile) : existsSync(f("kaynak-bankasi.json")) ? await readJson<SourceBank>(f("kaynak-bankasi.json")) : undefined;
+        if (!bank && !process.argv.includes("--arastirma-yok")) {
+          const research = await researchTopic({
+            cacheDir: path.join(paths.workRoot, "_onbellek", "wikipedia"),
+            konu,
+            donem,
+            dil,
+            budget,
+            model: providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_RESEARCH_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" },
+            extraTitles: (arg("--wiki") ?? "").split("|").map((t) => t.trim()).filter(Boolean),
+            log,
+          });
+          await writeJson(f("kaynak-bankasi.json"), research.bank);
+          bank = research.bank;
+        }
+        const voiceMap = await readJson<VoiceMap>(path.join(paths.contentRoot, "voices.json"));
+        // English characters get native voices the writer picks by description; Turkish ones keep their own ids.
+        const sesler = dil === "en" ? voicesFor(voiceMap, "en").filter((id) => !id.startsWith("en-anlatici")).map((id) => ({ id, tarif: voiceMap.sesler[id]!.tarif ?? id })) : undefined;
+        const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}) };
+        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget });
         await writeJson(f("episode.json"), out.episode);
         await writeJson(f("dogrulama.json"), out.factCheck);
       } finally {
@@ -370,9 +404,32 @@ async function main() {
       }
     });
   }
-  const episode = assertEpisode(await readJson<unknown>(f("episode.json")));
+  let episode = assertEpisode(await readJson<unknown>(f("episode.json")));
 
-  // 2) Ses
+  // 2) Gardırop: parts the catalog lacks ("yeni:…") are drawn, tried on, judged and added to the wardrobe library.
+  let parts: PartRecord[] = existsSync(f("gardirop.json")) ? await readJson<PartRecord[]>(f("gardirop.json")) : [];
+  if (need("gardirop", "gardirop.json")) {
+    parts = await step("gardirop", async () => {
+      const orders = partOrders(episode);
+      let records: PartRecord[] = [];
+      if (orders.length) {
+        const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
+        const { budget, providerName } = scriptBudget(paths, Math.max(0, 1 - before.toplamUsd));
+        try {
+          const r = await designParts({ paths, orders, donem: episode.donem, budget, model: providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" }, judge: visionJudge(), workDir: path.join(work, "gardirop-prova"), log });
+          records = r.records;
+          episode = assertEpisode(applyParts(episode, r.made));
+          await writeJson(f("episode.json"), episode);
+        } finally {
+          await writeJson(f("maliyet.json"), { tavanUsd: 1, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
+        }
+      }
+      await writeJson(f("gardirop.json"), records);
+      return records;
+    });
+  }
+
+  // 3) Ses
   type Voiced = { file: string; duration: number; voice: string };
   let voiced: Voiced[][];
   if (need("ses", "ses.json")) {
@@ -421,7 +478,22 @@ async function main() {
   const audio: LineAudio[][] = episode.sahneler.map((s, si) => s.satirlar.map((_, li) => ({ ...voiced[si]![li]!, ...synced[si]![li]! })));
   const timeline = buildTimeline(episode, audio);
 
-  // 4) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
+  // 4) Portre yüzleri: the main historical characters get their real face from a portrait.
+  let portraits: PortraitResult[];
+  if (need("portre", "portreler.json")) {
+    portraits = await step("portre", async () => {
+      const out: PortraitResult[] = [];
+      const judge = visionJudge();
+      for (const c of episode.oyuncu_kadrosu.filter((x) => x.gorunur && x.portre?.wiki)) {
+        const r = await findPortraitFace({ paths, publicDir: path.join(work, "public"), cacheDir: path.join(paths.workRoot, "_onbellek", "commons"), judge, person: { id: c.id, ad: c.ad, rol: c.rol, wiki: c.portre!.wiki }, donem: episode.donem, log });
+        if (r) out.push(r);
+      }
+      await writeJson(f("portreler.json"), out);
+      return out;
+    });
+  } else portraits = await readJson<PortraitResult[]>(f("portreler.json"));
+
+  // 5) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
   let visuals: SceneVisual[];
   if (need("gorsel", "gorseller-v2.json")) {
     visuals = await step("gorsel", async () => {
@@ -435,12 +507,12 @@ async function main() {
   // 5) Render (sessiz; ses izi miksten gelir)
   const fps = preview ? 15 : 30;
   // Actors and every scene's crowd groups (extras load their costumes the same way).
-  const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla"), ...crowdCast(episode, "kukla")];
+  const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla", new Map(portraits.map((p) => [p.castId, p.face]))), ...crowdCast(episode, "kukla")];
   const plan = buildRenderPlan({
     episode,
     timeline,
     cast,
-    accessories: await loadAccessories(costumesRoot(paths.repoRoot), cast),
+    accessories: await loadAccessories(costumeRootsFor(paths), cast),
     backgrounds: backgrounds.map((b): V3Background => ({ src: b.src, kind: b.kind, ...(b.kenBurns ? { kenBurns: b.kenBurns } : {}) })),
     inserts: visuals.map((v) => (v.arsiv && v.set.kaynak !== "arsiv" ? { src: v.arsiv.src, ...(v.arsiv.caption ? { caption: v.arsiv.caption } : {}) } : undefined)),
     language: dil,
@@ -486,7 +558,7 @@ async function main() {
     const final = preview ? "final-onizleme.mp4" : "final.mp4";
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", f(silent), "-i", f("miks.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", f(final)], { timeoutMs: 30 * 60_000 });
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
-    const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : []))].map((c) => [c.sha256 ?? c.assetId, c])).values()];
+    const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : [])), ...portraits.map((p) => p.credit)].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
     const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine))];
     const en = dil === "en";
@@ -528,6 +600,8 @@ async function main() {
         periodShown.every((v) => passes(v.arsiv!.secim)) && new Set(periodShown.map((v) => v.arsiv!.credit.sha256)).size === periodShown.length,
         `Dönem görselleri: ${periodShown.length}/${visuals.filter((v) => v.donemGorseli !== "aranmadi" && v.donemGorseli !== "bolum").length} aranan sahnede bulundu${periodShown.length ? ` (konu/dönem ${periodShown.map((v) => `${v.arsiv!.secim.puan}/${v.arsiv!.secim.donem ?? "?"}`).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}; ${visuals.filter((v) => v.donemGorseli === "bulunamadi").length} sahnede bulunamadı — ilgisiz görsel kullanılmadı`,
       ),
+      row(!parts.some((p) => p.kaynak === "basarisiz"), `Gardırop: ${parts.filter((p) => p.kaynak === "tasarim").length} yeni parça tasarlandı, ${parts.filter((p) => p.kaynak === "kutuphane").length} kütüphaneden${parts.some((p) => p.kaynak === "basarisiz") ? `, ${parts.filter((p) => p.kaynak === "basarisiz").length} parça kabul edilmedi (kostümden çıkarıldı: ${parts.filter((p) => p.kaynak === "basarisiz").map((p) => p.tarif).join("; ")})` : ""}`),
+      row(true, `Portre yüzleri: ${portraits.length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} ana karakter${portraits.length ? ` (${portraits.map((p) => `${p.castId} ${p.secim.puan}/${p.secim.donem ?? "?"}`).join(", ")})` : ""}`),
       row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),

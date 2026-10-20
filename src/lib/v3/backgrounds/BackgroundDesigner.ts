@@ -16,11 +16,11 @@ import type { V3Paths } from "../V3Paths";
 export const SDXL_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0@462165984030";
 
 /** The house style, first in the prompt (CLIP reads 77 tokens; the place description goes to the second encoder in full). */
-const SET_STYLE = "2D cartoon animation background, clean ink outlines, flat colors with soft shading, storybook illustration, wide establishing shot, eye level, empty open ground in the foreground, no people";
+const SET_STYLE = "flat 2D vector cartoon background for an animated history show, clean simple shapes, full soft colors, smooth gradients, minimal detail, wide establishing shot, eye level, flat empty ground across the foreground, no people";
 
 /** Things a period set must never show; the judge checks the picture as well. */
 export const SET_NEGATIVE =
-  "people, person, human, crowd, character, face, hands, text, letters, words, caption, signature, watermark, logo, frame, border, photograph, photorealistic, 3d render, blurry, low quality, deformed, distorted perspective, cluttered foreground, modern buildings, skyscraper, apartment block, car, truck, road markings, asphalt, power lines, electric pole, street lamp, antenna, airplane, motorboat, ferry, steamship, plastic, neon";
+  "people, person, human, crowd, character, face, hands, text, letters, words, caption, signature, watermark, logo, frame, border, photograph, photorealistic, 3d render, sketch, pencil drawing, line art only, grayscale, monochrome, sepia, parchment, engraving, hatching, paper texture, blurry, low quality, deformed, distorted perspective, cluttered foreground, objects in the foreground, modern buildings, skyscraper, apartment block, car, truck, road markings, asphalt, power lines, electric pole, street lamp, antenna, airplane, motorboat, ferry, steamship, plastic, neon";
 
 export interface SetDesign {
   /** Style + place, for the first text encoder. */

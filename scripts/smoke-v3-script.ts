@@ -8,7 +8,9 @@ import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader";
+import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
+import { articleSource, sourceId, verifyFacts } from "../src/lib/v3/research/SourceResearch";
 import { applyFactCheck, extractJson, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { V3Budget, V3BudgetError } from "../src/lib/v3/script/V3Budget";
@@ -223,6 +225,48 @@ async function main() {
     assert.ok(openai.calls[1]!.prompt.startsWith("The JSON episode below has 21 spoken words; the target is about 76. Expand"));
     assert.equal(out.spokenWords, 21 + 6 * 9);
     assert.equal(out.targetWords, 76);
+  });
+
+  await scenario("N research: a fact is kept only when its quote is really in the cited article", () => {
+    const articles = [{ title: "Crossing the Rubicon", revid: 1, timestamp: "2026-08-19T00:00:00Z", text: "In January 49 BC, Julius Caesar led a single legion, Legio XIII Gemina, across the Rubicon river.\nThe phrase “the die is cast” is attributed to him." }];
+    const id = sourceId("Crossing the Rubicon");
+    assert.equal(id, "wikipedia-crossing-the-rubicon");
+    const { kept, rejected } = verifyFacts(
+      {
+        olgular: [
+          { metin: "Caesar crossed with one legion.", kaynak: id, alinti: "Julius Caesar led a single legion, Legio XIII Gemina, across the Rubicon river." },
+          { metin: "The die is cast.", kaynak: id, alinti: 'The phrase "the die is cast" is attributed to him' },
+          { metin: "Caesar had ten legions with him.", kaynak: id, alinti: "Caesar crossed the Rubicon with ten legions" },
+          { metin: "Wrong source.", kaynak: "wikipedia-x", alinti: "Julius Caesar led a single legion" },
+          { metin: "Too short.", kaynak: id, alinti: "Caesar" },
+        ],
+      },
+      articles,
+    );
+    assert.deepEqual(kept.map((f) => f.metin), ["Caesar crossed with one legion.", "The die is cast."], "akıllı tırnak ve satır sonu eşleşir");
+    assert.equal(rejected, 3, "uydurma alıntı, yanlış kaynak, çok kısa alıntı atılır");
+    assert.equal(articleSource(articles[0]!).url, "https://en.wikipedia.org/w/index.php?oldid=1");
+  });
+
+  await scenario("O wardrobe: 'yeni:' orders are collected once, replaced by library ids or dropped, and drawn parts pass the gates", () => {
+    const ep = episode();
+    const withOrders: Episode = {
+      ...ep,
+      oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.kostum ? { ...c, kostum: { ...c.kostum, bas: "yeni:Roman legionary helmet with a red crest", el_on: "yeni:short Roman sword" } } : c)),
+    };
+    const orders = partOrders(withOrders);
+    assert.deepEqual(orders.map((o) => [o.slot, o.tarif]), [["head", "Roman legionary helmet with a red crest"], ["hand", "short Roman sword"]]);
+    const made = new Map<string, string | undefined>([["head:roman legionary helmet with a red crest", "roman-helmet-ab12cd"], ["hand:short roman sword", undefined]]);
+    const fixed = applyParts(withOrders, made);
+    const k = fixed.oyuncu_kadrosu.find((c) => c.kostum)!.kostum!;
+    assert.equal(k.bas, "gardirop/roman-helmet-ab12cd");
+    assert.equal(k.el_on, undefined, "kabul edilmeyen parça kostümden çıkar");
+    const good = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-170 -300 340 380"><path d="M-106 -52 C-110 -140 -60 -204 0 -208 C60 -204 110 -140 106 -52 Z" style="fill:#b8862f;stroke:#1d1b26;stroke-width:6"/></svg>';
+    assert.deepEqual(partProblems(good, "head"), []);
+    assert.ok(partProblems(good.replace("<path", '<image href="x.png"/><path'), "head").length > 0, "dış kaynak reddedilir");
+    assert.ok(partProblems(good.replace(/#1d1b26/g, "#000000"), "head").some((p) => p.includes("outline")));
+    assert.ok(partProblems(good.replace("-208", "-950"), "head").some((p) => p.includes("frame")));
+    assert.ok(partProblems(good.replace(/-1\d\d|-20\d/g, "-40"), "head").some((p) => p.includes("above the head")));
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

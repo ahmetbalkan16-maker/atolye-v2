@@ -17,7 +17,8 @@
       "required": ["giysi", "renkler", "ayakkabi"],
       "additionalProperties": false,
       "properties": {
-        "giysi": { "enum": ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade"] },
+        "sac": { "type": "object", "required": ["stil", "renk"], "additionalProperties": false, "properties": { "stil": { "enum": ["kisa", "dalgali", "yan_ayrik", "uzun", "topuz", "orgu", "kel"] }, "renk": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" } } },
+        "giysi": { "enum": ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade", "tunik", "toga", "ceket", "uniforma", "takim", "elbise"] },
         "renkler": {
           "type": "object",
           "required": ["ana", "ikincil", "ic", "sus"],
@@ -48,7 +49,8 @@
         "konusma_tarzi": { "type": "string", "maxLength": 300 },
         "gorunur": { "type": "boolean" },
         "kostum": { "$ref": "#/$defs/kostum" },
-        "olcek": { "type": "number", "minimum": 0.5, "maximum": 1.5 }
+        "olcek": { "type": "number", "minimum": 0.5, "maximum": 1.5 },
+        "portre": { "type": "object", "required": ["wiki"], "additionalProperties": false, "properties": { "wiki": { "type": "string", "maxLength": 120 } } }
       }
     },
     "satir": {

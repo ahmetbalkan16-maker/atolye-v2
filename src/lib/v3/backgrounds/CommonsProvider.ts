@@ -57,6 +57,16 @@ export async function cachedJson(cacheDir: string, url: string): Promise<unknown
   return json;
 }
 
+/**
+ * Artwork titles often carry Wikidata QuickStatements (`title QS:P1476,en:"The Sultan Mehmet II" label QS:…`):
+ * the English title is kept, the machinery dropped.
+ */
+export function cleanObjectName(raw: string): string {
+  if (!/QS:/.test(raw)) return raw;
+  const en = /en:"([^"]+)"/.exec(raw);
+  return (en ? en[1]! : raw.replace(/\b(title|label)?\s*QS:\S+/g, "")).replace(/\s+/g, " ").trim();
+}
+
 /** First plausible year (1000–2099, or a three-digit one) in a metadata date such as "circa 1838" or "2013-09-21". */
 export function yearOf(text: string | undefined): number | undefined {
   const m = /\b(1\d{3}|20\d{2}|[1-9]\d{2})\b/.exec(text ?? "");
@@ -82,7 +92,7 @@ function toCandidate(title: string, info: ImageInfo, source: CommonsCandidate["s
     mime: info.mime,
     descriptionUrl: info.descriptionurl,
     credit: {
-      title: stripHtml(m.ObjectName?.value) || title.replace(/^File:/, ""),
+      title: cleanObjectName(stripHtml(m.ObjectName?.value)) || title.replace(/^File:/, ""),
       author: stripHtml(m.Artist?.value) || stripHtml(m.Credit?.value) || "Wikimedia Commons",
       license: stripHtml(m.LicenseShortName?.value) || verdict.family,
       ...(m.LicenseUrl?.value ? { licenseUrl: stripHtml(m.LicenseUrl.value) } : {}),

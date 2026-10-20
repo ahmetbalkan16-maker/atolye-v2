@@ -4,6 +4,7 @@ import {
   EMOTIONS,
   EPISODE_TONES,
   GARMENTS,
+  HAIR_STYLES,
   GESTURES,
   MOVES,
   PROP_KINDS,
@@ -43,9 +44,27 @@ export interface ScriptBrief {
 
 /**
  * Spoken words per second of finished video (pauses between lines and scenes included). Turkish is measured: the
- * second pilot had 135 words in 76.0 s (speech alone 1.93 words/s); English is not measured yet.
+ * second pilot had 135 words in 76.0 s (speech alone 1.93 words/s); English (Kokoro voices, 20 Oct 2026): 226 words in
+ * 96.0 s (speech alone 2.53 words/s).
  */
-export const WORDS_PER_SECOND: Readonly<Record<ScriptLanguage, number>> = { tr: 1.8, en: 2.5 };
+export const WORDS_PER_SECOND: Readonly<Record<ScriptLanguage, number>> = { tr: 1.8, en: 2.35 };
+
+/** What each body garment looks like, so the writer can dress any period with them. */
+const GARMENT_NOTES: Readonly<Record<(typeof GARMENTS)[number], string>> = {
+  kaftan: "Ottoman/Persian long robe with belt",
+  cubbe: "long scholar's or official's gown",
+  bizans: "Byzantine imperial robe with jewelled band and cape — emperors only",
+  zirh: "plate or scale armour over a short skirt",
+  onluk: "worker's shirt with apron",
+  yeniceri: "janissary long coat with sash",
+  sade: "plain long shirt with a rope belt (peasants, monks)",
+  tunik: "knee-length tunic with belt (ancient, medieval, early modern commoners and soldiers)",
+  toga: "Roman toga draped over a tunic (senators, citizens)",
+  ceket: "long tailored coat with lapels, waistcoat and cravat (1650–1900 gentlemen, officers off duty)",
+  uniforma: "military uniform tunic with belt, buttons and epaulettes (1800–1960)",
+  takim: "modern suit with shirt and tie (1900–today)",
+  elbise: "long dress with sash (women of any era)",
+};
 
 export const SHOES = ["kahve-cizme", "kahve-mest", "kirmizi-cizme", "kirmizi-mest", "sari-cizme", "sari-mest", "siyah-cizme"] as const;
 
@@ -127,9 +146,15 @@ CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".
 - 3–6 visible characters, each with a distinct "renk" (#RRGGBB), a distinct "konusma_tarzi", ${voiceRule(brief)}
 - "rol": a short role line shown under the name the first time they speak (at most 5 words, e.g. "Ottoman Sultan, age 20").
-- Costumes come ONLY from the catalog below and must fit the character's rank (the notes in brackets say who may wear an
-  item). If no catalog item fits the period, use "giysi": "sade" with period colors and leave "bas", "sakal", "biyik",
-  "el_on", "el_arka" out. An item from another pack is written "pack/item".
+- "portre": {"wiki": "<exact English Wikipedia article title>"} for the 2–3 MAIN characters who are real historical people
+  with a known likeness (a portrait, miniature, engraving or photo): their real face is cut from that portrait and put on
+  the cartoon body. Leave it out for invented, anonymous or minor characters — they get hair, beard and hat parts instead.
+- Costumes: "giysi" is one of the body garments below, in period colours. Parts ("bas", "sakal", "biyik", "el_on",
+  "el_arka", "sirt") come from the catalog when an item fits the period and the character's rank (the notes in brackets
+  say who may wear it; an item from another pack is written "pack/item"). When nothing in the catalog fits, ORDER the
+  part instead: "bas": "yeni:<English description, 3–12 words>", e.g. "yeni:Roman legionary helmet with a red crest",
+  "yeni:WWI British Brodie helmet", "yeni:Napoleon's black bicorne hat" — Atölye draws it once, checks it and keeps it
+  in the wardrobe (the "gardirop" pack) for every later episode. Order only what the story needs (at most 8 per episode).
 
 SCREEN TEXT — there are NO subtitles. The only words on screen are title cards and the characters' floating speech:
 - "balon": on lines spoken by visible characters only — the words floating over the speaker's head: the punchline or
@@ -163,8 +188,9 @@ PERIOD IMAGES AND SETS / ARKA PLAN
   scene is mainly about a surviving artwork, map or document.
 
 COSTUME CATALOG
-giysi: ${GARMENTS.join(", ")}
+giysi (body garment, coloured by "renkler"): ${GARMENTS.map((g) => `${g} (${GARMENT_NOTES[g]})`).join(", ")}
 ayakkabi: ${SHOES.join(", ")}
+sac (hair, optional; shows under or without headwear — give it to everyone without a full head covering): {"stil": one of ${HAIR_STYLES.join(", ")}, "renk": "#RRGGBB"}
 ${catalogText(catalog)}
 
 ALLOWED VALUES

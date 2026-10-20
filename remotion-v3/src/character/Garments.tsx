@@ -10,7 +10,7 @@ export function shade(hex: string, amount: number): string {
 }
 
 const STEEL = "#a7b0bc";
-const ROBES: readonly V3Garment[] = ["kaftan", "cubbe", "bizans"];
+const ROBES: readonly V3Garment[] = ["kaftan", "cubbe", "bizans", "elbise"];
 export const isRobe = (g: V3Garment) => ROBES.includes(g);
 
 /** Width (units) of the sleeve for each garment; robes have wide sleeves. */
@@ -29,6 +29,17 @@ export function sleeveFor(costume: V3Costume): { color: string; width: number; c
       return { color: costume.colors.main, width: 34, cuff: costume.colors.second };
     case "sade":
       return { color: costume.colors.main, width: 30 };
+    case "tunik":
+    case "toga":
+      return { color: costume.colors.main, width: 30, cuff: costume.colors.trim };
+    case "ceket":
+      return { color: costume.colors.main, width: 32, cuff: costume.colors.inner };
+    case "uniforma":
+      return { color: costume.colors.main, width: 32, cuff: costume.colors.second };
+    case "takim":
+      return { color: costume.colors.main, width: 30, cuff: costume.colors.inner };
+    case "elbise":
+      return { color: costume.colors.main, width: 30, cuff: costume.colors.trim };
   }
 }
 
@@ -143,6 +154,63 @@ export function GarmentBody({ costume, style, seated }: { costume: V3Costume; st
       parts.push(<path key="rope" d={`M${-84 * k} -200 Q0 -188 ${84 * k} -200`} fill="none" stroke={c.second} strokeWidth={8} strokeLinecap="round" />);
       break;
     }
+    case "tunik":
+    case "toga": {
+      // Knee-length tunic (ancient and medieval); the toga adds a drape over the left shoulder.
+      const hem = costume.garment === "toga" ? -70 : -104;
+      parts.push(<g key="tunic">{outlined(robePath(hem, k, costume.garment === "toga" ? 4 : -4), c.main)}</g>);
+      parts.push(<path key="neck" d={`M${-30 * k} -330 L0 -296 L${30 * k} -330`} fill="none" stroke={c.trim} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />);
+      parts.push(<path key="hemband" d={`M${-90 * k} ${hem - 12} Q0 ${hem + 2} ${90 * k} ${hem - 12}`} fill="none" stroke={c.trim} strokeWidth={7} strokeLinecap="round" />);
+      if (costume.garment === "toga") {
+        parts.push(<g key="drape">{outlined(`M${-74 * k} -330 C${-40 * k} -320 ${40 * k} -250 ${88 * k} -170 L${84 * k} -120 C${30 * k} -170 ${-40 * k} -240 ${-86 * k} -290 Z`, c.second)}</g>);
+        parts.push(<g key="fall">{outlined(`M${-86 * k} -300 L${-96 * k} ${hem - 6} L${-62 * k} ${hem + 2} L${-58 * k} -290 Z`, c.second)}</g>);
+        parts.push(<path key="fold" d={`M${-60 * k} -296 C${-10 * k} -270 ${40 * k} -220 ${80 * k} -150`} fill="none" stroke={shade(c.second, -0.2)} strokeWidth={4} />);
+      } else {
+        parts.push(<path key="belt" d={`M${-86 * k} -196 Q0 -184 ${86 * k} -196`} fill="none" stroke={c.second} strokeWidth={10} strokeLinecap="round" />);
+      }
+      break;
+    }
+    case "ceket":
+    case "uniforma":
+    case "takim": {
+      // Tailored coats from the 1600s on: a long coat, a military tunic with belt and epaulettes, a modern suit.
+      const hem = costume.garment === "ceket" ? -120 : costume.garment === "uniforma" ? -158 : -150;
+      const body = `M${-58 * k} -334 C${-80 * k} -330 ${-88 * k} -318 ${-88 * k} -300 L${-86 * k} ${hem} Q0 ${hem + 8} ${86 * k} ${hem} L${88 * k} -300 C${88 * k} -318 ${80 * k} -330 ${58 * k} -334 Q0 -318 ${-58 * k} -334 Z`;
+      parts.push(<g key="coat">{outlined(body, c.main)}</g>);
+      parts.push(<path key="side" d={`M${-62 * k} -300 L${-70 * k} ${hem - 2} L${-50 * k} ${hem + 2} L${-46 * k} -300 Z`} fill={shade(c.main, -0.18)} />);
+      if (costume.garment === "uniforma") {
+        parts.push(<g key="collar">{outlined(`M${-44 * k} -340 L${44 * k} -340 L${40 * k} -318 L${-40 * k} -318 Z`, c.second, 4)}</g>);
+        parts.push(<path key="placket" d={`M0 -318 L0 ${hem + 4}`} stroke={shade(c.main, -0.35)} strokeWidth={4} />);
+        for (const y of [-296, -262, -228, -184]) parts.push(<circle key={`b${y}`} cx={8} cy={y} r={6} fill={c.trim} stroke={INK} strokeWidth={3} />);
+        for (const s of [-1, 1]) {
+          parts.push(<g key={`pk${s}`}>{outlined(`M${s * 22 * k} -296 L${s * 64 * k} -296 L${s * 62 * k} -258 L${s * 24 * k} -258 Z`, shade(c.main, -0.1), 3.5)}</g>);
+          parts.push(<g key={`ep${s}`}>{outlined(`M${s * 50 * k} -336 L${s * 92 * k} -326 L${s * 94 * k} -310 L${s * 52 * k} -316 Z`, c.trim, 3.5)}</g>);
+        }
+        parts.push(<g key="belt">{outlined(`M${-88 * k} -212 L${88 * k} -212 L${88 * k} -190 L${-88 * k} -190 Z`, "#4a3424", 4)}</g>);
+        parts.push(<rect key="buckle" x={-12} y={-214} width={24} height={26} rx={4} fill="none" stroke={c.trim} strokeWidth={5} />);
+      } else {
+        // Shirt (inner) in the V, lapels a shade darker; a cravat on the coat, a tie on the suit.
+        parts.push(<g key="shirt">{outlined(`M${-30 * k} -332 L${30 * k} -332 L0 ${costume.garment === "takim" ? -236 : -262} Z`, c.inner, 3.5)}</g>);
+        parts.push(<g key="lapL">{outlined(`M${-30 * k} -332 L0 ${costume.garment === "takim" ? -236 : -262} L${-12 * k} -228 L${-46 * k} -300 Z`, shade(c.main, -0.22), 3.5)}</g>);
+        parts.push(<g key="lapR">{outlined(`M${30 * k} -332 L0 ${costume.garment === "takim" ? -236 : -262} L${12 * k} -228 L${46 * k} -300 Z`, shade(c.main, -0.22), 3.5)}</g>);
+        if (costume.garment === "takim") parts.push(<g key="tie">{outlined("M-8 -330 L8 -330 L12 -250 L0 -236 L-12 -250 Z", c.trim, 3)}</g>);
+        else parts.push(<g key="cravat">{outlined("M-20 -334 Q0 -318 20 -334 Q14 -300 0 -292 Q-14 -300 -20 -334 Z", c.inner, 3.5)}</g>);
+        for (const y of costume.garment === "takim" ? [-212, -182] : [-240, -210, -180, -150]) parts.push(<circle key={`b${y}`} cx={costume.garment === "takim" ? 0 : 14} cy={y} r={5.5} fill={c.trim} stroke={INK} strokeWidth={3} />);
+        if (costume.garment === "ceket") parts.push(<path key="tails" d={`M${-40 * k} ${hem + 2} L${-30 * k} -170 M${40 * k} ${hem + 2} L${30 * k} -170`} stroke={shade(c.main, -0.3)} strokeWidth={4} />);
+      }
+      break;
+    }
+    case "elbise": {
+      // A long dress of any era: fitted bodice, full skirt to the floor, a sash at the waist.
+      const hem = style === "cop" ? -96 : seated ? -126 : -18;
+      parts.push(<g key="skirt">{outlined(`M${-62 * k} -210 C${-90 * k} -150 ${-118 * k} -60 ${-122 * k} ${hem} Q0 ${hem + 16} ${122 * k} ${hem} C${118 * k} -60 ${90 * k} -150 ${62 * k} -210 Z`, c.main)}</g>);
+      parts.push(<path key="folds" d={`M${-30 * k} -190 L${-50 * k} ${hem} M${30 * k} -190 L${50 * k} ${hem}`} stroke={shade(c.main, -0.2)} strokeWidth={4} />);
+      parts.push(<g key="bodice">{outlined(`M${-56 * k} -334 C${-78 * k} -330 ${-84 * k} -316 ${-82 * k} -300 L${-64 * k} -204 Q0 -196 ${64 * k} -204 L${82 * k} -300 C${84 * k} -316 ${78 * k} -330 ${56 * k} -334 Q0 -318 ${-56 * k} -334 Z`, c.main)}</g>);
+      parts.push(<path key="neck" d={`M${-40 * k} -330 Q0 -300 ${40 * k} -330`} fill="none" stroke={c.trim} strokeWidth={6} strokeLinecap="round" />);
+      parts.push(<g key="sash">{outlined(`M${-66 * k} -222 L${66 * k} -222 L${64 * k} -198 L${-64 * k} -198 Z`, c.second, 4)}</g>);
+      parts.push(<path key="hem" d={`M${-118 * k} ${hem - 14} Q0 ${hem + 2} ${118 * k} ${hem - 14}`} fill="none" stroke={c.trim} strokeWidth={7} strokeLinecap="round" />);
+      break;
+    }
   }
   return <g>{parts}</g>;
 }
@@ -150,7 +218,8 @@ export function GarmentBody({ costume, style, seated }: { costume: V3Costume; st
 /** Legs and shoes. Under a robe only the shoes peek out; other garments show trousers. */
 export function Legs({ costume, pose, style, seated }: { costume: V3Costume; pose: Pose; style: V3CharacterStyle; seated: boolean }) {
   const robe = isRobe(costume.garment) && style === "kukla" && !seated;
-  const trouser = costume.garment === "zirh" ? shade(costume.colors.inner, 0) : costume.colors.inner;
+  // Tailored garments have trousers of their own colour (second); older ones show hose or leggings (inner).
+  const trouser = ["ceket", "uniforma", "takim"].includes(costume.garment) ? costume.colors.second : costume.colors.inner;
   const limbs = ([[-1, pose.legBack, pose.liftBack], [1, pose.legFront, pose.liftFront]] as const).map(([side, angles, lift]) => {
     const j = solveLimb({ x: side * HIP_X, y: HIP_Y }, angles, [THIGH, SHIN], side);
     return { side, j, foot: { x: j.end.x, y: Math.min(0, j.end.y - lift) } };

@@ -1,5 +1,6 @@
-import React from "react";
-import type { V3Emotion, V3Viseme } from "../../../src/lib/v3/render/RenderPlanTypes";
+import React, { useId } from "react";
+import { staticFile } from "remotion";
+import type { V3Emotion, V3Face, V3Hair, V3Viseme } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK, SKIN, SKIN_SHADE } from "./rig";
 
 /** Head-local space: origin at the head centre, head radius 100, facing +x. */
@@ -191,6 +192,98 @@ export function Head({
         <Mouth viseme={viseme} emotion={emotion} />
       </g>
       {mustache ? <g dangerouslySetInnerHTML={{ __html: mustache }} /> : null}
+    </g>
+  );
+}
+
+/**
+ * Parametric hair for characters without headwear (or with a hat that leaves it showing): the back layer is drawn
+ * behind the head, the cap over the skull. The face looks towards +x, so the hairline sits higher at the front.
+ */
+export function HairBack({ hair }: { hair: V3Hair }) {
+  const c = hair.color;
+  const line = { fill: c, stroke: INK, strokeWidth: 6, strokeLinejoin: "round" as const };
+  switch (hair.style) {
+    case "uzun":
+      return <path d="M-96 -40 C-130 40 -126 150 -96 196 Q-40 214 -10 190 C-30 140 -40 60 -20 0 Z" {...line} />;
+    case "orgu":
+      return (
+        <g>
+          <path d="M-96 -30 C-118 30 -110 90 -84 120 L-50 110 C-60 60 -50 10 -30 -10 Z" {...line} />
+          {[0, 1, 2, 3].map((i) => (
+            <ellipse key={i} cx={-74 + i * 2} cy={130 + i * 34} rx={20} ry={20} {...line} />
+          ))}
+        </g>
+      );
+    case "topuz":
+      return <circle cx={-78} cy={-74} r={38} {...line} />;
+    default:
+      return null;
+  }
+}
+
+export function HairTop({ hair }: { hair: V3Hair }) {
+  if (hair.style === "kel") return null;
+  const c = hair.color;
+  const line = { fill: c, stroke: INK, strokeWidth: 6, strokeLinejoin: "round" as const };
+  // Skull cap from the back of the neck over the crown to a hairline above the forehead.
+  const cap = "M-104 10 C-118 -70 -60 -114 8 -110 C66 -106 100 -72 100 -34 C84 -52 56 -62 28 -60 C0 -58 -30 -48 -54 -26 C-70 -12 -84 4 -104 10 Z";
+  return (
+    <g>
+      <path d={cap} {...line} />
+      {hair.style === "dalgali" ? <path d="M-80 -70 Q-60 -90 -40 -70 Q-20 -90 0 -72 Q20 -92 40 -74" fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" /> : null}
+      {hair.style === "yan_ayrik" ? <path d="M30 -104 C20 -86 12 -70 6 -60" fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" /> : null}
+      {hair.style === "kisa" || hair.style === "yan_ayrik" ? <path d="M-30 -96 Q10 -104 50 -88" fill="none" stroke="#ffffff" strokeWidth={5} strokeLinecap="round" opacity={0.35} /> : null}
+    </g>
+  );
+}
+
+/** How far the jaw drops for each mouth shape (0 closed .. 1 wide open). */
+const JAW_OPEN: Readonly<Record<V3Viseme, number>> = { X: 0, A: 0, B: 0.3, C: 0.65, D: 1, E: 0.55, F: 0.35, G: 0.2, H: 0.45 };
+
+/**
+ * A portrait face on the puppet head: the photo clipped to the head oval, split at the mouth line; the lower part
+ * drops with the speech (a dark mouth shows in the gap), the classic cut-out puppet. The ink outline follows both
+ * halves. Head size and coordinates are the drawn head's (rx 102, ry 98), so hats and the body fit unchanged.
+ */
+export function PhotoHead({ face, viseme }: { face: V3Face; viseme: V3Viseme }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const RX = 102, RY = 98;
+  const my = -RY + face.mouthY * 2 * RY;
+  const mx = -RX + face.mouthX * 2 * RX;
+  const drop = JAW_OPEN[viseme] * 15;
+  const half = RX * Math.sqrt(Math.max(0, 1 - (my / RY) ** 2));
+  // Below the centre the upper part is the larger arc of the oval (large-arc flag), above it the smaller.
+  const big = my > 0 ? 1 : 0;
+  const upperArc = `M${-half} ${my} A${RX} ${RY} 0 ${big} 1 ${half} ${my}`;
+  const lowerArc = `M${half} ${my} A${RX} ${RY} 0 ${1 - big} 1 ${-half} ${my}`;
+  // The jaw's clip starts 2 units above the mouth line, so no seam shows while the mouth is closed.
+  const ml = my - 2;
+  const halfL = RX * Math.sqrt(Math.max(0, 1 - (ml / RY) ** 2));
+  const jawClip = `M${halfL} ${ml} A${RX} ${RY} 0 ${ml > 0 ? 0 : 1} 1 ${-halfL} ${ml} Z`;
+  const src = staticFile(face.src);
+  return (
+    <g>
+      <defs>
+        <clipPath id={`${id}-u`}>
+          <path d={`${upperArc} Z`} />
+        </clipPath>
+        <clipPath id={`${id}-l`}>
+          <path d={jawClip} />
+        </clipPath>
+      </defs>
+      <ellipse cx={0} cy={0} rx={RX} ry={RY} fill={SKIN_SHADE} />
+      {drop > 0.5 ? <ellipse cx={mx} cy={my + drop / 2} rx={RX * 0.3} ry={drop / 2 + 3} fill="#3a1418" stroke={INK} strokeWidth={3} /> : null}
+      <g clipPath={`url(#${id}-u)`}>
+        <image href={src} x={-RX} y={-RY} width={2 * RX} height={2 * RY} preserveAspectRatio="none" />
+      </g>
+      <g transform={`translate(0 ${drop})`}>
+        <g clipPath={`url(#${id}-l)`}>
+          <image href={src} x={-RX} y={-RY} width={2 * RX} height={2 * RY} preserveAspectRatio="none" />
+        </g>
+        <path d={lowerArc} fill="none" stroke={INK} strokeWidth={6.5} strokeLinecap="round" />
+      </g>
+      <path d={upperArc} fill="none" stroke={INK} strokeWidth={6.5} strokeLinecap="round" />
     </g>
   );
 }

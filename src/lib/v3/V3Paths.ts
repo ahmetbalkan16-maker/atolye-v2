@@ -24,8 +24,12 @@ export interface V3Paths {
   readonly ttsPython: string;
   /** Second venv for Kokoro (English TTS) and SDXL (background designer); keeps Chatterbox's pins untouched. */
   readonly genPython: string;
+  /** OpenCV YuNet face detector (MIT) for cutting portrait faces. */
+  readonly faceModel: string;
   /** SDXL base 1.0 weights (diffusers layout) for designing period sets. */
   readonly sdxlModel: string;
+  /** espeak-ng data in a real ASCII folder (espeak cannot open the Unicode venv path); empty = the package's own. */
+  readonly espeakData: string;
   /** Owner voice reference clips for cloning; never inside the repository. */
   readonly voiceRefRoot: string;
   /** An ASCII-only scratch folder: whisper.cpp and Rhubarb refuse Unicode paths on Windows. */
@@ -81,6 +85,8 @@ export function resolveV3Paths(repoRoot = process.cwd(), env: NodeJS.ProcessEnv 
     rhubarbExe: get("ATOLYE_V3_RHUBARB_EXE", path.join(toolsRoot, "rhubarb", "Rhubarb-Lip-Sync-1.14.0-Windows", "rhubarb.exe")),
     ttsPython: get("ATOLYE_V3_TTS_PYTHON", path.join(toolsRoot, "tts-venv", "Scripts", "python.exe")),
     genPython: get("ATOLYE_V3_GEN_PYTHON", path.join(toolsRoot, "gen-venv", "Scripts", "python.exe")),
+    espeakData: get("ATOLYE_V3_ESPEAK_DATA", ""),
+    faceModel: get("ATOLYE_V3_FACE_MODEL", path.join(toolsRoot, "models", "face_detection_yunet_2023mar.onnx")),
     sdxlModel: get("ATOLYE_V3_SDXL_MODEL", path.join(get("ATOLYE_V3_BACKDROP_LIBRARY", path.join(bin, "ayas-local-visual", "library")), "..", "model")),
     voiceRefRoot: get("ATOLYE_V3_VOICE_REFS", path.join(repoRoot, "output", "v3-voices")),
     asciiTemp: get("ATOLYE_V3_ASCII_TEMP", path.join(repoRoot, "output", "v3-tmp")),

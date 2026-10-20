@@ -168,7 +168,9 @@ export async function analyzeLines(paths: V3Paths, lines: readonly LineToAnalyze
     try {
       const json = path.join(stage, `${k}-rhubarb.json`);
       const recognizer = l.language === "en" ? ["-r", "pocketSphinx", "-d", path.join(stage, `${k}.txt`)] : ["-r", "phonetic"];
-      await runChecked(paths.rhubarbExe, [...recognizer, "-f", "json", "--extendedShapes", "GHX", "-q", "-o", json, path.join(stage, `${k}.wav`)], { timeoutMs: 5 * 60_000 });
+      // PocketSphinx writes the dialog's language model to TEMP and crashes (0xC0000005) on a Unicode TEMP such as
+      // D:\ÜRETİM\private\temp: Rhubarb always gets the ASCII scratch folder.
+      await runChecked(paths.rhubarbExe, [...recognizer, "-f", "json", "--extendedShapes", "GHX", "-q", "-o", json, path.join(stage, `${k}.wav`)], { timeoutMs: 5 * 60_000, env: { ...process.env, TEMP: paths.asciiTemp, TMP: paths.asciiTemp } });
       visemes = parseRhubarb(JSON.parse(await fs.readFile(json, "utf8")));
       if (visemes.length === 0) throw new Error("boş");
     } catch (e) {

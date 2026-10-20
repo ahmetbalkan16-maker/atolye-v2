@@ -3,7 +3,7 @@
  * works in Turkish and the file is meant to be read and edited by the owner. JSON Schema:
  * `docs/v3/episode.schema.json`; validator: `EpisodeValidator.ts`.
  */
-import type { V3Effect, V3Emotion, V3Garment, V3Gesture, V3Prop, V3Transition } from "../render/RenderPlanTypes";
+import type { V3Effect, V3Emotion, V3Garment, V3Gesture, V3HairStyle, V3Prop, V3Transition } from "../render/RenderPlanTypes";
 
 export const EPISODE_TONES = ["mizahi", "ciddi", "epik"] as const;
 export const SCENE_MOODS = ["gerilim", "komik", "huzun", "zafer", "gizem", "merak"] as const;
@@ -11,9 +11,10 @@ export const EMOTIONS: readonly V3Emotion[] = ["notr", "mutlu", "kizgin", "saski
 export const GESTURES: readonly V3Gesture[] = ["konus", "isaret_et", "el_salla", "sasir", "egil", "kollari_kavustur", "dusun", "omuz_silk", "yumruk_kaldir", "elleri_belde", "yuz_avucla", "kutla"];
 export const MOVES = ["yuru", "kos", "dur", "gir", "cik"] as const;
 export const EFFECTS: readonly V3Effect[] = ["ter", "unlem", "soru", "ofke", "parilti", "kalp"];
-export const GARMENTS: readonly V3Garment[] = ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade"];
+export const GARMENTS: readonly V3Garment[] = ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade", "tunik", "toga", "ceket", "uniforma", "takim", "elbise"];
 export const PROP_KINDS: readonly V3Prop["kind"][] = ["taht", "top", "kule_iskelesi", "gemi", "masa", "sancak"];
 export const TRANSITIONS: readonly V3Transition[] = ["kes", "kaydir", "murekkep", "beyaz"];
+export const HAIR_STYLES: readonly V3HairStyle[] = ["kisa", "dalgali", "yan_ayrik", "uzun", "topuz", "orgu", "kel"];
 export const SFX_IDS = ["whoosh", "pop", "boing", "kilic", "top_atisi", "davul", "kalabalik", "cekic", "dalga", "zil"] as const;
 
 export type EpisodeTone = (typeof EPISODE_TONES)[number];
@@ -38,6 +39,7 @@ export interface CastCostume {
   readonly sirt?: string;
   readonly yaka?: "kurk" | "yok";
   readonly ayakkabi: string;
+  readonly sac?: { readonly stil: V3HairStyle; readonly renk: string };
 }
 
 export interface CastEntry {
@@ -53,6 +55,8 @@ export interface CastEntry {
   readonly gorunur: boolean;
   readonly kostum?: CastCostume;
   readonly olcek?: number;
+  /** A real historical person among the main characters: their face is cut from a portrait (English Wikipedia article). */
+  readonly portre?: { readonly wiki: string };
 }
 
 export interface SceneBackgroundQuery {
