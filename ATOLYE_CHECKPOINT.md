@@ -20,11 +20,20 @@ Doğrulama: kök ve remotion-v3 tsc 0; eslint 0; smoke-v3-episode-director 16, -
 -motion 9, -mix 6 PASS. Pilotlar: Rumelihisarı İngilizce 96 sn (QC 11/13, iki eksik sonradan düzeltildi), Roma MÖ 49 tam
 otomatik (`output/v3/bolumler/rubicon-en-2/`).
 
-Beyin takımı (commit `22d01e12`): yapım kurulu + AYAS gelen kutusu, kostüm beyni (gerçek örnek → çizim → sanat yönetmeni/tarihçi/şef tartışması), kalite beyni (bitmiş videoyu izler, teslim eder), hata onarım beyni (her adım gözetimde, kod yazmaz), AYAS sipariş kapısı `scripts/v3/yapim.ts`. Canlı AYAS bağlantısı ayrı ve owner onaylı.
+Beyin takımı (commit `22d01e12`): yapım kurulu + AYAS gelen kutusu, kostüm beyni (gerçek örnek → çizim → sanat yönetmeni/tarihçi/şef tartışması), kalite beyni (bitmiş videoyu izler, teslim eder), hata onarım beyni (her adım gözetimde, kod yazmaz), AYAS sipariş kapısı `scripts/v3/yapim.ts`.
 
-Açık / sıradaki: owner izlemesi ve geri bildirimi; anlatıcı sesi seçimi (`en-anlatici` am_michael / `en-anlatici-kadin`
-af_heart); senarist hedef kelime sayısının altında kalıyor (süre ~%20 kısa); set stili tutarlılığı; ses efektlerinin
-çeşitliliği; uzun bölüm (6–10 dk) denemesi.
+Sonra: açılış kapağı + abone daveti ve son ekran (`609611d6`); AYAS "X hakkında video yap" / "video durumu" niyeti —
+AYAS yalnız sipariş dosyası yazar, videoyu ayrı izleyici süreç yapar (`bb5dfe62`); izleyiciyi oturum açılışında başlatan
+`scripts/atolye-v3-yapim-hidden.vbs` (owner açık izni, `2f231afd`). AYAS regresyon seti ve iki izole güvenlik testi PASS;
+tam lint'te V3 yeni bulgu eklemiyor (ana dalla aynı yöntem, aynı sonuç).
+
+**Owner onayı (20 Ekim): "kalan görevleri yap, ne zaman canlıya alacaksan alabilirsin".** Kullanım nedeniyle güvenli duruş:
+V3 henüz ana dala birleştirilmedi ve canlıya alınmadı; Roma videosu görsel adımındaydı. Devam adımları (Roma'yı bitir →
+birleştir → ortak `v3-runtime` + `remotion-v3 npm ci` → canlı yayın → izleyici kısayolu → Graphify kapanışı):
+`D:\ÜRETİM\handover\SESSION_2026-10-20\DEVAM_RAPORU.md`.
+
+Açık / sıradaki (ayrıca): anlatıcı sesi seçimi (`en-anlatici` am_michael / `en-anlatici-kadin` af_heart); set stili
+tutarlılığı; ses efektlerinin çeşitliliği; uzun bölüm (6–10 dk) için bölüm bölüm yazım.
 
 ## 19 Ekim 2026 — Çöp adam V3 (Remotion) WIP: güvenli duruş, owner "sonra devam" dedi
 
