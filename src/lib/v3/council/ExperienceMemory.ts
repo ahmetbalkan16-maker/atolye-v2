@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { BrainId } from "./Council";
@@ -92,15 +93,110 @@ export async function seedRules(workRoot: string, rules: readonly OwnerRule[]): 
   return added;
 }
 
+/**
+ * Meaning search (owner approval 20 Oct 2026; the idea from ruflo's vector memory, kept to Atölye's own files and a
+ * local model): the question and the lessons become vectors of a small embedding model and are compared by cosine, so
+ * "a walled hilltop town" finds a lesson about "fortified villages" that shares no word with it. Off by default (word
+ * overlap, as before); the production turns it on with `enableMeaningSearch`. Vectors are cached next to the lessons;
+ * the first failure turns it off for the rest of the process, so a missing model never stops a production.
+ */
+export interface Embedder {
+  /** Model id, part of the cache file name. */
+  readonly name: string;
+  embed(texts: readonly string[]): Promise<number[][]>;
+}
+
+export const EMBED_MODEL_DEFAULT = "qwen3-embedding:0.6b";
+/**
+ * Cosine from which a lesson counts as being about the same thing. Calibrated with qwen3-embedding:0.6b on the
+ * setting brain's Rubicon lessons (20 Oct 2026): the same place 0.74–0.96, other places 0.39–0.56, short phrases
+ * 0.64 related against 0.59 unrelated.
+ */
+export const MIN_COSINE = 0.62;
+
+/**
+ * The local embedding model through Ollama, on the CPU (`num_gpu: 0`): it never takes the vision judge's place on the
+ * 12 GB card and is no GPU call under the owner's 73 °C rule. `ATOLYE_V3_EMBED_MODEL=0` turns it off.
+ */
+export function ollamaEmbedder(baseUrl: string, model = process.env.ATOLYE_V3_EMBED_MODEL?.trim() || EMBED_MODEL_DEFAULT): Embedder | undefined {
+  if (/^(0|kapali|off)$/i.test(model)) return undefined;
+  return {
+    name: model,
+    async embed(texts) {
+      const res = await fetch(`${baseUrl}/api/embed`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model, input: texts, keep_alive: "10m", options: { num_gpu: 0 } }), signal: AbortSignal.timeout(120_000) });
+      if (!res.ok) throw new Error(`EMBED_HTTP_${res.status}`);
+      const body = (await res.json()) as { embeddings?: unknown };
+      if (!Array.isArray(body.embeddings) || body.embeddings.length !== texts.length) throw new Error("EMBED_BAD_RESPONSE");
+      return body.embeddings as number[][];
+    },
+  };
+}
+
+let meaning: { embedder?: Embedder; off?: string } = { off: "açılmadı" };
+
+/** Turns meaning search on for this process after one test embedding; returns how recall will search. */
+export async function enableMeaningSearch(embedder: Embedder | undefined): Promise<string> {
+  if (!embedder) {
+    meaning = { off: "kapalı (ATOLYE_V3_EMBED_MODEL=0)" };
+    return `kelime araması — ${meaning.off}`;
+  }
+  try {
+    await embedder.embed(["test"]);
+    meaning = { embedder };
+    return `anlam araması (${embedder.name}, işlemcide)`;
+  } catch (e) {
+    meaning = { off: (e as Error).message.slice(0, 80) };
+    return `kelime araması — ${embedder.name} kullanılamadı (${meaning.off})`;
+  }
+}
+
+export function cosine(a: readonly number[], b: readonly number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    dot += a[i]! * b[i]!;
+    na += a[i]! * a[i]!;
+    nb += b[i]! * b[i]!;
+  }
+  return na && nb ? dot / Math.sqrt(na * nb) : 0;
+}
+
+const textKey = (s: string) => createHash("sha1").update(s).digest("hex").slice(0, 20);
+
+/** Cosine of `query` to each text, or undefined when meaning search is off or fails (then it stays off). */
+async function cosines(workRoot: string, query: string, texts: readonly string[]): Promise<number[] | undefined> {
+  const e = meaning.embedder;
+  if (!e) return undefined;
+  const file = path.join(memoryDir(workRoot), `.anlam-${e.name.replace(/[^a-z0-9]+/gi, "-")}.json`);
+  try {
+    const cache: Record<string, number[]> = existsSync(file) ? (JSON.parse(await fs.readFile(file, "utf8")) as Record<string, number[]>) : {};
+    const missing = [...new Set(texts.filter((t) => !cache[textKey(t)]))];
+    for (let i = 0; i < missing.length; i += 32) {
+      const part = missing.slice(i, i + 32);
+      (await e.embed(part)).forEach((v, j) => (cache[textKey(part[j]!)] = v));
+    }
+    if (missing.length) {
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(`${file}.tmp`, JSON.stringify(cache));
+      await fs.rename(`${file}.tmp`, file);
+    }
+    const [q] = await e.embed([query]);
+    return texts.map((t) => cosine(q!, cache[textKey(t)]!));
+  } catch (err) {
+    meaning = { off: (err as Error).message.slice(0, 80) };
+    return undefined;
+  }
+}
+
 /** At most this many standing rules go into one prompt (the newest when there are more). */
 export const MAX_RULES = 8;
 
 /**
- * A brain's lessons about `konu`, most relevant first (shared words; newer wins a tie), each text once. Without
+ * A brain's lessons about `konu`, most relevant first (meaning when meaning search is on, else shared words; newer
+ * wins a tie), each text once; a lesson is relevant when it shares enough words OR is close enough in meaning. Without
  * `konu` the newest come first. The owner's standing rules ("kural") come first and do not count against `limit`
  * whenever no type is asked for; a type filter ("ders") leaves them out.
  */
-export async function recall(workRoot: string, beyin: BrainId, opts: { readonly konu?: string; readonly tur?: Lesson["tur"]; readonly limit?: number; readonly minOverlap?: number } = {}): Promise<Lesson[]> {
+export async function recall(workRoot: string, beyin: BrainId, opts: { readonly konu?: string; readonly tur?: Lesson["tur"]; readonly limit?: number; readonly minOverlap?: number; readonly minCosine?: number } = {}): Promise<Lesson[]> {
   const everything = await readAll(workRoot, beyin);
   const seen = new Set<string>();
   const once = (l: Lesson) => {
@@ -112,9 +208,11 @@ export async function recall(workRoot: string, beyin: BrainId, opts: { readonly 
   const rules = !opts.tur || opts.tur === "kural" ? everything.filter((l) => l.tur === "kural").reverse().filter(once).slice(0, MAX_RULES).reverse() : [];
   if (opts.tur === "kural") return rules;
   const all = everything.filter((l) => l.tur !== "kural" && (!opts.tur || l.tur === opts.tur));
-  const scored = all.map((l, i) => ({ l, s: opts.konu ? Math.max(overlap(opts.konu, l.konu), overlap(opts.konu, l.metin)) : 0, i }));
-  const relevant = opts.konu ? scored.filter((x) => x.s >= (opts.minOverlap ?? 0.12)) : scored;
-  relevant.sort((a, b) => b.s - a.s || b.i - a.i);
+  const scored = all.map((l, i) => ({ l, s: opts.konu ? Math.max(overlap(opts.konu, l.konu), overlap(opts.konu, l.metin)) : 0, i, c: -1 }));
+  const cos = opts.konu && scored.length ? await cosines(workRoot, opts.konu, scored.map((x) => `${x.l.konu} — ${x.l.metin}`)) : undefined;
+  if (cos) scored.forEach((x, j) => (x.c = cos[j]!));
+  const relevant = opts.konu ? scored.filter((x) => x.s >= (opts.minOverlap ?? 0.12) || x.c >= (opts.minCosine ?? MIN_COSINE)) : scored;
+  relevant.sort((a, b) => (cos ? b.c - a.c : 0) || b.s - a.s || b.i - a.i);
   const out: Lesson[] = [];
   for (const { l } of relevant) {
     if (!once(l)) continue;

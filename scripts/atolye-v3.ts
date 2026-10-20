@@ -15,7 +15,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { listTracksForMood } from "../src/lib/audio/music/MusicLibrary";
-import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
+import { resolveOllamaBaseUrl, resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
@@ -34,7 +34,7 @@ import { chapters, chapterText, packagePrompt, readPackage, type YoutubePackage 
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
-import { learnedRemedy, type OwnerRule, recall, remedyTopic, remember, seedRules } from "../src/lib/v3/council/ExperienceMemory";
+import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
@@ -289,6 +289,22 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   // 2) Design the remaining sets: draw two seeds per scene, free the card, judge; one more round for the failures.
   const designer = new BackgroundDesigner(paths, log);
   const tried = new Map<number, { d: DesignedSet; v?: CandidateVerdict }[]>();
+  // A set the judge accepted for a scene in an earlier run of this episode is shown to the judge again first, unless
+  // the retouch brain sent it back (a rerun without the retouch seeds drew the Rubicon's Corfinium as a medieval
+  // castle, 6/10, although an 8/10 set existed).
+  const acceptedFile = path.join(work, "setler-kabul.json");
+  const accepted: Record<string, { dosya: string; puan: number; donem?: number; tarih: string }> = existsSync(acceptedFile) ? await readJson(acceptedFile) : {};
+  for (let si = 0; si < n; si++) {
+    const id = episode.sahneler[si]!.id;
+    const prev = accepted[id];
+    const file = prev ? path.join(designer.libraryDir, prev.dosya) : "";
+    if (sets[si] || !prev || redrawSets.has(id) || !existsSync(file) || !existsSync(file.replace(/\.png$/, ".json"))) continue;
+    const meta = await readJson<{ seed: number; prompt: string; prompt2: string; negative: string }>(file.replace(/\.png$/, ".json"));
+    const pick = await pickBackground([{ title: `önceki kabul ${prev.dosya}`, file }], sceneForJudge(episode, si), judge, (c) => localPreview(paths, c.file), log, { mode: "set", max: 1 });
+    const v = pick.verdicts[0];
+    if (v) log(`  ${id} önceki kabul edilen set ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
+    if (pick.chosen && pick.verdict) sets[si] = await designedSet(pub, episode, si, { file, seed: meta.seed, design: { prompt: meta.prompt, prompt2: meta.prompt2, negative: meta.negative }, cached: true }, pick.verdict, false);
+  }
   for (let round = 0; round < 2; round++) {
     const todo = episode.sahneler.map((_, si) => si).filter((si) => !sets[si]);
     if (!todo.length) break;
@@ -317,7 +333,11 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       for (const v of pick.verdicts) log(`  ${episode.sahneler[si]!.id} tasarım ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
       // Rejections become the setting brain's lessons for similar places and periods.
       for (const v of pick.verdicts.filter((x) => !passes(x) && x.kacin)) await remember(paths.workRoot, { bolum: episode.konu, beyin: "ortam", tur: "ders", konu: `${episode.sahneler[si]!.mekan} ${episode.sahneler[si]!.arka_plan_sorgusu.tasarim ?? ""} ${episode.donem}`, metin: v.kacin! }).catch(() => undefined);
-      if (pick.chosen && pick.verdict) sets[si] = await designedSet(pub, episode, si, pick.chosen.d, pick.verdict, false);
+      if (pick.chosen && pick.verdict) {
+        sets[si] = await designedSet(pub, episode, si, pick.chosen.d, pick.verdict, false);
+        accepted[episode.sahneler[si]!.id] = { dosya: path.basename(pick.chosen.d.file), puan: pick.verdict.puan, ...(pick.verdict.donem !== undefined ? { donem: pick.verdict.donem } : {}), tarih: new Date().toISOString() };
+        await writeJson(acceptedFile, accepted);
+      }
     }
   }
   for (let si = 0; si < n; si++) {
@@ -410,6 +430,7 @@ async function main() {
     const added = await seedRules(paths.workRoot, (await readJson<{ kurallar: OwnerRule[] }>(rulesFile)).kurallar).catch((e: Error) => (log(`owner kuralları hafızaya yazılamadı: ${e.message}`), 0));
     if (added) log(`owner kuralları: ${added} yeni kural beyinlerin hafızasına yazıldı`);
   }
+  log(`beyinlerin hafızası: ${await enableMeaningSearch(ollamaEmbedder(resolveOllamaBaseUrl()))}`);
   const bordersDir = path.join(paths.mapsDir, "historical");
   // The retouch brain's plan for this round (written by the previous run of this production), if any.
   const retouch: RetouchPlan | undefined = rotusTuru > 0 && existsSync(f("rotus-plani.json")) ? await readJson<RetouchPlan>(f("rotus-plani.json")) : undefined;

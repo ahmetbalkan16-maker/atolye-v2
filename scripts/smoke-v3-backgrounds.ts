@@ -8,7 +8,7 @@ import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "..
 import { designFor, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, pickBackground, type SceneForJudge } from "../src/lib/v3/backgrounds/BackgroundJudge";
-import { type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { cleanObjectName, type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
 
@@ -168,6 +168,14 @@ async function main() {
     const met = { ...candidate("x"), source: "met" as const, year: 1480, credit: { title: "Sultan Mehmed II", author: "Gentile Bellini — The Metropolitan Museum of Art", license: "CC0", attributionRequired: false } };
     assert.equal(insertCaption(met, "en"), "Sultan Mehmed II, Gentile Bellini, 1480 · Source: The Met");
     assert.equal(insertCaption({ ...candidate("Rumelihisarı (8393629929)"), credit: { title: "Rumelihisarı (8393629929)", author: "Wikimedia Commons", license: "CC BY 2.0", attributionRequired: true } }, "tr"), "Rumelihisarı · Kaynak: Wikimedia Commons");
+  });
+
+  await scenario("K artwork names: a flattened multilingual name gives way to the file name; QuickStatements keep the English title", () => {
+    const garbled = 'Italian: Cicerone denuncia CatilinaCicero Denounces Catilinetitle denuncia Catilina" denuncia Catilina" Denounces Catiline"';
+    assert.equal(cleanObjectName(garbled, "File:Cicero_Denounces_Catiline_in_the_Roman_Senate_by_Cesare_Maccari.png"), "Cicero Denounces Catiline in the Roman Senate by Cesare Maccari");
+    assert.equal(cleanObjectName('title QS:P1476,en:"The Sultan Mehmet II" label QS:Len,"x"', "File:a.jpg"), "The Sultan Mehmet II");
+    assert.equal(cleanObjectName("Jules-César arrivé au Rubicon", "File:Boulanger.jpg"), "Jules-César arrivé au Rubicon", "a clean name stays");
+    assert.equal(cleanObjectName(garbled), garbled, "without a file name nothing better is known");
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

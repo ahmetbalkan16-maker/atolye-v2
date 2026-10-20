@@ -80,12 +80,18 @@ export async function politeFetch(url: string, tries = 5): Promise<Response> {
 
 /**
  * Artwork titles often carry Wikidata QuickStatements (`title QS:P1476,en:"The Sultan Mehmet II" label QS:…`):
- * the English title is kept, the machinery dropped.
+ * the English title is kept, the machinery dropped. A multilingual name flattened to text without them (Maccari's
+ * painting came out as `Italian: Cicerone denuncia CatilinaCicero Denounces Catilinetitle denuncia…` on screen) gives
+ * way to the file's own name.
  */
-export function cleanObjectName(raw: string): string {
-  if (!/QS:/.test(raw)) return raw;
-  const en = /en:"([^"]+)"/.exec(raw);
-  return (en ? en[1]! : raw.replace(/\b(title|label)?\s*QS:\S+/g, "")).replace(/\s+/g, " ").trim();
+export function cleanObjectName(raw: string, fileTitle = ""): string {
+  const fromFile = fileTitle.replace(/^File:/, "").replace(/\.(jpe?g|png|tiff?|gif|webp)$/i, "").replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+  if (/QS:/.test(raw)) {
+    const en = /en:"([^"]+)"/.exec(raw);
+    return (en ? en[1]! : raw.replace(/\b(title|label)?\s*QS:\S+/g, "")).replace(/\s+/g, " ").trim();
+  }
+  if (fromFile && /"|[a-z](title|label)\b|^[A-Z][a-z]+: /.test(raw)) return fromFile;
+  return raw;
 }
 
 /** First plausible year (1000–2099, or a three-digit one) in a metadata date such as "circa 1838" or "2013-09-21". */
@@ -114,7 +120,7 @@ function toCandidate(title: string, info: ImageInfo, source: CommonsCandidate["s
     mime: info.mime,
     descriptionUrl: info.descriptionurl,
     credit: {
-      title: cleanObjectName(stripHtml(m.ObjectName?.value)) || title.replace(/^File:/, ""),
+      title: cleanObjectName(stripHtml(m.ObjectName?.value), title) || title.replace(/^File:/, ""),
       author: stripHtml(m.Artist?.value) || stripHtml(m.Credit?.value) || "Wikimedia Commons",
       license: stripHtml(m.LicenseShortName?.value) || verdict.family,
       ...(m.LicenseUrl?.value ? { licenseUrl: stripHtml(m.LicenseUrl.value) } : {}),

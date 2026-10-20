@@ -4,7 +4,7 @@
  * Run: npx tsx scripts/smoke-v3-council.ts
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
@@ -12,7 +12,7 @@ import { BRAIN_NAMES, CouncilLog, councilMarkdown, readInbox, writeCouncilReport
 import { qualityPrompt } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
 import { type ExamManifest, type ExamQuestion, gradeAnswer } from "../src/lib/v3/council/BrainExam";
-import { errorSignature, learnedRemedy, MAX_RULES, type OwnerRule, overlap, recall, remedyTopic, remember, seedRules } from "../src/lib/v3/council/ExperienceMemory";
+import { cosine, errorSignature, learnedRemedy, MAX_RULES, ollamaEmbedder, type OwnerRule, overlap, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { designFor } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { judgePrompt, parseVerdict } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { partPrompt } from "../src/lib/v3/costumes/PartDesigner";
@@ -186,6 +186,29 @@ async function main() {
     assert.equal(await seedRules(fresh, file.kurallar), file.kurallar.length);
     assert.equal(await seedRules(fresh, file.kurallar), 0, "a second seed adds nothing");
     assert.ok((await recall(fresh, "kurgu", { konu: "anything", limit: 0 })).every((l) => l.tur === "kural"));
+  });
+
+  await scenario("meaning search: a lesson with no shared word is found by meaning; vectors cached; a failing model falls back to words", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-anlam-"));
+    await remember(root, { bolum: "rubicon", beyin: "ortam", tur: "ders", konu: "fortified village", metin: "Avoid medieval castles with red tile roofs for an ancient town." });
+    await remember(root, { bolum: "rubicon", beyin: "ortam", tur: "ders", konu: "harbour", metin: "Keep the sea calm and the ships of the period." });
+    // A fake model: two meanings (walls / water) as 2-d vectors.
+    let calls = 0;
+    const fake = { name: "sahte", embed: async (texts: readonly string[]) => (calls++, texts.map((t) => (/castle|walled|fortified|town|hilltop/i.test(t) ? [1, 0.05] : /sea|ship|harbour|port/i.test(t) ? [0.05, 1] : [0.7, 0.7]))) };
+    assert.deepEqual(await recall(root, "ortam", { konu: "a walled hilltop settlement", tur: "ders" }), [], "meaning search is off by default: no shared word, nothing found");
+    assert.match(await enableMeaningSearch(fake), /^anlam araması \(sahte/);
+    const found = await recall(root, "ortam", { konu: "a walled hilltop settlement", tur: "ders" });
+    assert.deepEqual(found.map((l) => l.konu), ["fortified village"], "found by meaning, the harbour lesson is not");
+    assert.equal(cosine([1, 0], [1, 0]), 1);
+    assert.ok(existsSync(path.join(root, "_kutuphane", "deneyim", ".anlam-sahte.json")), "vectors are cached");
+    const before = calls;
+    await recall(root, "ortam", { konu: "another walled town", tur: "ders" });
+    assert.equal(calls, before + 1, "cached lessons are not embedded again (only the question)");
+    const broken = { name: "bozuk", embed: async () => Promise.reject(new Error("EMBED_HTTP_404")) };
+    assert.match(await enableMeaningSearch(broken), /kelime araması — bozuk kullanılamadı \(EMBED_HTTP_404\)/);
+    assert.deepEqual(await recall(root, "ortam", { konu: "a walled hilltop settlement", tur: "ders" }), [], "back to words");
+    assert.match(await enableMeaningSearch(undefined), /^kelime araması — kapalı/);
+    assert.equal(ollamaEmbedder("http://127.0.0.1:1", "0"), undefined, "ATOLYE_V3_EMBED_MODEL=0 turns it off");
   });
 
   console.log(`V3 council smoke: PASS (${scenarios} scenarios)`);
