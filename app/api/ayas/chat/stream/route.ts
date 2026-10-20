@@ -21,6 +21,7 @@ import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedR
 import { AyasGuidedRepairSessionStore } from "@/lib/ayas/execution/AyasGuidedRepairSessionStore";
 import { AyasDeveloperWorkflowStore } from "@/lib/ayas/execution/AyasDeveloperWorkflowStore";
 import { resolveAyasPreReasoningIntent } from "@/lib/ayas/AyasIntentRouting";
+import { answerAyasVideoIntent } from "@/lib/ayas/AyasVideoOrder";
 import { answerAyasLiveInfo } from "@/lib/ayas/liveinfo/AyasLiveInfoLookup";
 import {
   buildAyasReportSpokenAnswer,
@@ -210,6 +211,13 @@ async function respondToAyasTurn({ request, text, history, seq, sessionKey, trac
   // "Bursa'da hava nasıl?" / "Gazze hakkındaki son haberler" — the same live
   // answer as the askAyas Server Action: fixed public sources (Open-Meteo,
   // Google Haberler, BBC Türkçe), one terminal SSE frame, no model call.
+  if (preReasoningIntent.kind === "video") {
+    const answer = await answerAyasVideoIntent(preReasoningIntent.video).catch((e: Error) => `Video siparişi yazılamadı: ${e.message.slice(0, 160)}`);
+    finishTurn("fallback");
+    const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoder.encode(ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }))); controller.close(); } });
+    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no", "X-Ayas-Trace-Id": trace.traceId } });
+  }
+
   if (preReasoningIntent.kind === "live-info") {
     const answer = await answerAyasLiveInfo(preReasoningIntent.liveInfo, { history });
     finishTurn("fallback");

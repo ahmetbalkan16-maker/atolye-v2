@@ -2,6 +2,7 @@ import { detectAyasReportIntent, type AyasReportIntent } from "@/lib/brain/selfh
 import { detectAyasResearchStatusIntent, type AyasResearchStatusIntent } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { isAyasDevelopmentStatusQuery } from "./model/AyasComplexityRouter";
 import { detectAyasLiveInfoIntent, type AyasLiveInfoIntent, type AyasLiveInfoTurn } from "./liveinfo/AyasLiveInfoIntent";
+import { detectAyasVideoIntent, type AyasVideoIntent } from "./AyasVideoOrder";
 
 const GUIDED_REPAIR_TOKENS = new Set([
   "hata",
@@ -57,6 +58,7 @@ export type AyasPreReasoningIntent =
   | { readonly kind: "research-status"; readonly researchIntent: Exclude<AyasResearchStatusIntent, null> }
   | { readonly kind: "guided-repair" }
   | { readonly kind: "live-info"; readonly liveInfo: AyasLiveInfoIntent }
+  | { readonly kind: "video"; readonly video: AyasVideoIntent }
   | { readonly kind: "reasoning" };
 
 /**
@@ -75,6 +77,9 @@ export function resolveAyasPreReasoningIntent(text: string, history: readonly Ay
   if (reportIntent) return { kind: "report-center", reportIntent };
   const researchIntent = detectAyasResearchStatusIntent(text);
   if (researchIntent) return { kind: "research-status", researchIntent };
+  // "X hakkında video yap" / "video durumu": a production order for Atölye V3 (needs a video word and a making verb).
+  const video = detectAyasVideoIntent(text);
+  if (video) return { kind: "video", video };
   if (isAyasGuidedRepairQuery(text)) return { kind: "guided-repair" };
   const liveInfo = detectAyasLiveInfoIntent(text, history);
   if (liveInfo) return { kind: "live-info", liveInfo };

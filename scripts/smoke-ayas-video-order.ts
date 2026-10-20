@@ -1,0 +1,73 @@
+/**
+ * AYAS smoke: the studio-manager door — "X hakkında video yap" places an Atölye V3 production order, "video durumu"
+ * reports orders, ordinary talk about videos is not an order, and the other pre-reasoning intents keep their place.
+ * No network; orders are written to a temp work root.
+ * Run: npx tsx scripts/smoke-ayas-video-order.ts
+ */
+import assert from "node:assert/strict";
+import { mkdtempSync, readdirSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
+import { answerAyasVideoIntent, detectAyasVideoIntent, periodOf } from "../src/lib/ayas/AyasVideoOrder";
+import { listOrders } from "../src/lib/v3/orders/ProductionOrders";
+
+let scenarios = 0;
+async function scenario(name: string, fn: () => void | Promise<void>) {
+  try {
+    await fn();
+  } catch (e) {
+    console.error(`FAIL ${name}`);
+    throw e;
+  }
+  scenarios++;
+}
+
+async function main() {
+  await scenario("A orders: a video word and a making verb, the topic in the owner's casing, the period when given", () => {
+    const a = detectAyasVideoIntent("Sezar'ın Rubicon'u geçmesi hakkında video yap");
+    assert.deepEqual(a, { kind: "order", konu: "Sezar'ın Rubicon'u geçmesi", donem: "konunun geçtiği dönem", dil: "en" });
+    const b = detectAyasVideoIntent("Bana 1453 İstanbul'un fethi hakkında bir video hazırlar mısın?");
+    assert.equal(b?.kind === "order" ? b.donem : "", "1453");
+    const c = detectAyasVideoIntent("Video yap: Kurtuluş Savaşı 1919-1922");
+    assert.equal(c?.kind === "order" ? c.donem : "", "1919-1922");
+    const d = detectAyasVideoIntent("make a video about the Fall of Rome");
+    assert.equal(d?.kind === "order" ? d.konu : "", "the Fall of Rome");
+    const e = detectAyasVideoIntent("Napolyon hakkında Türkçe video hazırla");
+    assert.equal(e?.kind === "order" ? e.dil : "", "tr");
+    assert.equal(periodOf("MÖ 49 Rubicon"), "MÖ 49");
+    assert.equal(periodOf("16. yüzyıl Osmanlı donanması"), "16. yüzyıl");
+  });
+
+  await scenario("B not orders: talking about videos, watching them, a broken video, weather", () => {
+    for (const t of ["Bu video çok güzel olmuş", "Dün bir belgesel izledim", "Video çalışmıyor", "Bursa'da hava nasıl?", "Videoyu yapan kim?", "YouTube videolarımı göster"]) {
+      assert.equal(detectAyasVideoIntent(t), null, t);
+    }
+    assert.equal(resolveAyasPreReasoningIntent("Video çalışmıyor").kind, "guided-repair", "arıza cümlesi onarım akışında kalır");
+    assert.equal(resolveAyasPreReasoningIntent("Bu özellik çalışmıyor").kind, "guided-repair");
+  });
+
+  await scenario("C status questions", () => {
+    for (const t of ["video durumu", "Videom hazır mı?", "video siparişleri ne durumda"]) assert.deepEqual(detectAyasVideoIntent(t), { kind: "status" }, t);
+    assert.equal(resolveAyasPreReasoningIntent("Rubicon hakkında video yap").kind, "video");
+  });
+
+  await scenario("D the answer places exactly one order file (AYAS writes, never produces) and the status reads it back", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-"));
+    const intent = detectAyasVideoIntent("Rubicon hakkında video yap")!;
+    const said = await answerAyasVideoIntent(intent, root);
+    assert.match(said, /Siparişi aldım: "Rubicon"/);
+    const orders = await listOrders(root);
+    assert.equal(orders.length, 1);
+    assert.deepEqual([orders[0]!.order.durum, orders[0]!.order.kaynak, orders[0]!.order.dil], ["bekliyor", "ayas", "en"]);
+    assert.equal(readdirSync(path.join(root, "_kutuphane", "siparisler")).filter((n) => n.endsWith(".json")).length, 1);
+    assert.match(await answerAyasVideoIntent({ kind: "status" }, root), /"Rubicon" sırada/);
+  });
+
+  console.log(`AYAS video order smoke: PASS (${scenarios} scenarios)`);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

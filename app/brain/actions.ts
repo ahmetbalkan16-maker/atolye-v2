@@ -52,6 +52,7 @@ import { resolveAyasResearchGateRoot } from "@/lib/brain/autonomy/AyasResearchSc
 import type { AyasGoalResearchCatchUpPolicy } from "@/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { detectAyasResearchStatusIntent, buildAyasResearchStatusSpokenAnswer } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { resolveAyasPreReasoningIntent } from "@/lib/ayas/AyasIntentRouting";
+import { answerAyasVideoIntent } from "@/lib/ayas/AyasVideoOrder";
 import { answerAyasLiveInfo } from "@/lib/ayas/liveinfo/AyasLiveInfoLookup";
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
@@ -125,6 +126,12 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
   // route's live answer, with the route's precedence (development status and
   // repair symptoms first): fixed public sources, no model call.
   const preReasoningIntent = resolveAyasPreReasoningIntent(input.text ?? "", input.history ?? []);
+  if (preReasoningIntent.kind === "video") {
+    return {
+      message: ayasReplyMessage(await answerAyasVideoIntent(preReasoningIntent.video).catch((e: Error) => `Video siparişi yazılamadı: ${e.message.slice(0, 160)}`), input.seq),
+      source: "fallback",
+    };
+  }
   if (preReasoningIntent.kind === "live-info") {
     return {
       message: ayasReplyMessage(await answerAyasLiveInfo(preReasoningIntent.liveInfo, { history: input.history ?? [] }), input.seq),
