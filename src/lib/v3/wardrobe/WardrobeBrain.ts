@@ -102,6 +102,7 @@ export async function reviewCostumes(episode: Episode, catalog: readonly PackCat
   const items = catalog.map((p) => `${p.pack}: ${Object.values(p.items).flat().map((id) => (p.notes?.[id!] ? `${id} (${p.notes[id!]})` : id)).join(", ")}`).join("\n");
   const prompt = `You are the historian of an animated history show's costume team. Episode: "${episode.konu}" (${episode.donem}).
 Check each costume against the period, the place and the person's rank: body garment, colours, headwear, beard, held objects.
+Headwear only for those who wore it in that role and period (soldiers' helmets, rulers' crowns, a turban, a working cap); many went bareheaded — Roman senators and citizens in town, for example: then remove "bas" and give "sac" ({"stil", "renk"}) instead.
 Garments available: kaftan, cubbe, zirh, onluk, bizans, yeniceri, sade, tunik, toga, ceket, uniforma, takim, elbise.
 Parts: an item from the catalog ("pack/item") or an order "yeni:<English description>" for a part the team will draw.
 CATALOG:

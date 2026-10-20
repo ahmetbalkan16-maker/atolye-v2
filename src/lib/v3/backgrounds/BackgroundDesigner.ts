@@ -3,6 +3,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { Episode, EpisodeScene } from "../episode/EpisodeTypes";
 import { sideProcessEnv } from "../tts/Tts";
+import { periodEndYear } from "./HistorySources";
 import { freeGpuMemory, waitForCoolGpu } from "../util/Gpu";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
@@ -15,12 +16,16 @@ import type { V3Paths } from "../V3Paths";
  */
 export const SDXL_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0@462165984030";
 
-/** The house style, first in the prompt (CLIP reads 77 tokens; the place description goes to the second encoder in full). */
-const SET_STYLE = "flat 2D vector cartoon background for an animated history show, clean simple shapes, full soft colors, smooth gradients, minimal detail, wide establishing shot, eye level, flat empty ground across the foreground, no people";
+/**
+ * The house style, first in the prompt (CLIP reads 77 tokens; the place description goes to the second encoder in
+ * full). The reference channel's look (owner, 20 Oct 2026): flat bright colours, clean dark outlines, simple shapes,
+ * a plain sky — not a painting.
+ */
+const SET_STYLE = "flat 2D vector cartoon background, bold clean dark outlines, flat bright saturated colors, cel shading, simple geometric shapes, daytime, plain light blue sky, minimal detail, wide establishing shot, eye level, flat empty ground across the foreground, no people";
 
 /** Things a period set must never show; the judge checks the picture as well. */
 export const SET_NEGATIVE =
-  "people, person, human, crowd, character, face, hands, text, letters, words, caption, signature, watermark, logo, frame, border, photograph, photorealistic, 3d render, sketch, pencil drawing, line art only, grayscale, monochrome, sepia, parchment, engraving, hatching, paper texture, blurry, low quality, deformed, distorted perspective, cluttered foreground, objects in the foreground, modern buildings, skyscraper, apartment block, car, truck, road markings, asphalt, power lines, electric pole, street lamp, antenna, airplane, motorboat, ferry, steamship, plastic, neon";
+  "people, person, human, crowd, character, face, hands, text, letters, words, caption, signature, watermark, logo, frame, border, photograph, photorealistic, 3d render, sketch, pencil drawing, line art only, grayscale, monochrome, sepia, parchment, engraving, hatching, paper texture, painterly, brush strokes, oil painting, watercolor, impressionism, soft focus, bokeh, volumetric light, realistic lighting, anime, sunset, sunrise, dusk, twilight, night, orange sky, red sky, blurry, low quality, deformed, distorted perspective, cluttered foreground, objects in the foreground, modern buildings, skyscraper, apartment block, car, truck, road markings, asphalt, power lines, electric pole, street lamp, antenna, airplane, motorboat, ferry, steamship, plastic, neon";
 
 export interface SetDesign {
   /** Style + place, for the first text encoder. */
@@ -30,14 +35,27 @@ export interface SetDesign {
   readonly negative: string;
 }
 
+/**
+ * Buildings a set of this period must not show although models like to draw them into any "old town" (the Rubicon
+ * pilot's 49 BC street had church towers): religious buildings of later eras.
+ */
+export function periodNegatives(donem: string): string[] {
+  const year = periodEndYear(donem);
+  if (year === undefined) return [];
+  const out: string[] = [];
+  if (year < 400) out.push("church, bell tower, steeple, cross, gothic cathedral, medieval town");
+  if (year < 630) out.push("minaret, mosque, onion dome");
+  return out;
+}
+
 /** The scene's set description (script-written, else built from the place fields) as an SDXL prompt pair. */
 export function designFor(scene: EpisodeScene, episode: Pick<Episode, "donem">, extraNegative: readonly string[] = []): SetDesign {
   const q = scene.arka_plan_sorgusu;
   const place = (q.tasarim?.trim() || `${scene.mekan}; ${q.en}`).replace(/\s+/g, " ");
   return {
     prompt: `${SET_STYLE}, ${place}`,
-    prompt2: `${place}. Historically accurate for ${episode.donem}. Cartoon background illustration without people.`,
-    negative: [SET_NEGATIVE, ...extraNegative].join(", "),
+    prompt2: `${place}. Historically accurate for ${episode.donem}. Flat cartoon background illustration with clean outlines and bright flat colors, in daylight under a plain light blue sky (unless the place is indoors or the scene is at night), without people.`,
+    negative: [SET_NEGATIVE, ...periodNegatives(episode.donem), ...extraNegative].join(", "),
   };
 }
 

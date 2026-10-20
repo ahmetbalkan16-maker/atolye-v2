@@ -113,11 +113,15 @@ TONE: ${b.ton}
 
 STORYTELLING RULES
 1. Hook: a question, a conflict or a surprising fact within the first 10 seconds; a clear "what you'll learn" promise within 30 seconds.
-2. Mix narrator and character dialogue; in at least 30% of scenes at least two lines belong to visible characters.
+2. Mix narrator and character dialogue; in at least 40% of scenes at least two lines belong to visible characters.
+   Show, don't only tell: most narrator lines are acted out by the characters on screen (a gesture, a face, a sound
+   effect), and a character often answers the narrator's line with a short quip right after; now and then a character
+   talks back to the narrator.
 3. Comedy in the spirit of the best animated history channels (write your own jokes, never borrow theirs): a deadpan
    narrator with dry asides ("Now that's embarrassing."), historical figures who talk like modern people (casual,
    petty, overconfident, bickering), absurd comparisons, understatement, running gags and callbacks — a punchline every
-   15–25 seconds, and the facts still exact. Clever and respectful; no slurs, no profanity, no insults.
+   10–15 seconds, and the facts still exact. Clever and respectful; no slurs, no profanity, no insults.
+   Keep it moving: scenes of 8–15 seconds, a new place, framing or visual gag every few seconds.
 4. Short sentences: at most 14 words per line on average, never more than 22; conversational.
 5. Accuracy: every factual narrator claim links to the source list through "kaynak". Disputed accounts get "rivayet": true
    and the line says so ("legend has it", "according to some sources"). Invented character dialogue gets "kurgu": true.
@@ -188,7 +192,8 @@ SCREEN TEXT — there are NO subtitles. The only words on screen are title cards
 - "balon": on lines spoken by visible characters only — the words floating over the speaker's head: the punchline or
   the key phrase of the line, 2–8 words, same language as the line, quoting or condensing it (end a shout with "!").
   Give it to most character lines, always to the funny ones; never to the narrator.
-- A "kelime" title card (one big word on black, e.g. "CRISIS", "BETRAYAL") once or twice per episode for an emphasis beat.
+- A "kelime" title card (one big word on black, e.g. "CRISIS", "BETRAYAL", "WRONG") two to four times per episode for an
+  emphasis beat or a punchline.
 
 MAPS — wherever the story moves (campaigns, borders, empires, routes) show a drawn map scene, at least one per episode:
   "harita": {"merkez": [lon, lat], "genislik_km": 150–30000,

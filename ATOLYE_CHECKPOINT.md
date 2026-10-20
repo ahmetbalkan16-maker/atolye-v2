@@ -1,3 +1,22 @@
+## 20 Ekim 2026 (öğleden sonra) — V3: portreden çizilen benzerlik, herkes farklı, referans videoya göre görünüş ve tempo
+
+Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3` (ana repo ve canlı AYAS'a dokunulmadı). Owner Roma
+videosunu izledi: ana karakterin yüzü fotoğraftan kesilmeyecek; OverSimplified Henry VIII (`ewLpXw6uN28`) gibi bizim
+çizimimiz olacak, ama kafa ve kıyafet gerçek portreye ve konunun yılına göre; her karakter farklı; kalabalık tek tip
+olabilir; görsel kalite, renk, arka plan, akış ve anlatım referans gibi; skill gerekiyorsa kullan; videolar artık
+Amerikan İngilizcesi; hepsini video üretmeden bitir, bir yeri yaparken başka yeri bozma.
+
+Tamam: `80d2707d` benzerlik tasarımcısı (Kostüm beyni: tarihçi notu → portre → benzerlik kartı → portre referanslı
+parçalar → yan yana kontrol; kişi kütüphanesi), kukla yüz biçimi/ten/burun/detaylı göz/yaş/4 saç/saç ve göğüs
+parçaları, LookVariety, fotoğraf yüz kaldırıldı; `5bd65914` yakın kadraj, 4,5 sn tablo sınırı + Ken Burns, Kenney CC0
+ses efektleri (remotion-best-practices skill'inin önerdiği kaynak; WoW klasörü kullanılmaz), varsayılan `--dil en`;
+bu kayıtla: düz-parlak-konturlu set stili, gündüz mavi gökyüzü, döneme göre yasak yapılar, stili de puanlayan set
+hakemi, başlıksız roller (senatör), senarist temposu (10–15 sn'de şaka, 8–15 sn sahne, göster-anlatma).
+Ayrıntı: `docs/v3/FAZ_RAPORLARI.md` → "20 Ekim 2026 (öğleden sonra)".
+
+Doğrulama: kök ve remotion-v3 tsc 0; eslint 0; smoke-v3 likeness 10, council 4, episode-director 17, script 16,
+backgrounds 11, motion 9, mix 7, lipsync 5; smoke-ayas-video-order 4 PASS.
+
 ## 20 Ekim 2026 — Çöp adam V3: OverSimplified hedefi, her konu için altyapı, İngilizce pilotlar
 
 Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3` (ana repo ve canlı AYAS'a dokunulmadı). Owner

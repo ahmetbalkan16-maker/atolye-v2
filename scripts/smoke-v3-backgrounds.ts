@@ -5,6 +5,8 @@
  */
 import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
+import { designFor, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, pickBackground, type SceneForJudge } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
@@ -129,6 +131,20 @@ async function main() {
     assert.equal(passes({ title: "x", ...old }), true);
     assert.equal(fitScore({ title: "x", puan: 9, donem: 4, gosterilen: "", sorun: "" }), 4);
     assert.ok(judgePrompt(SCENE, candidate("a"), "set").includes("drawn background"));
+    assert.match(judgePrompt(SCENE, candidate("a"), "set"), /flat cartoon with clean dark outlines/);
+  });
+
+  await scenario("H2 set style: flat bright cartoon, never a painting; later-era religious buildings banned by period", () => {
+    const scene = { arka_plan_sorgusu: { tr: "Roma sokağı", en: "Roman street" }, mekan: "a street in Rome" } as unknown as EpisodeScene;
+    const rome = designFor(scene, { donem: "49 BC" });
+    assert.match(rome.prompt, /^flat 2D vector cartoon background, bold clean dark outlines, flat bright saturated colors/);
+    assert.ok(!/smooth gradients/.test(rome.prompt));
+    assert.match(rome.negative, /painterly/);
+    assert.match(rome.negative, /bell tower/);
+    assert.match(rome.negative, /minaret/);
+    const istanbul = designFor(scene, { donem: "1453" });
+    assert.ok(!/bell tower|minaret/.test(istanbul.negative), "1453'te kiliseler ve minareler vardı");
+    assert.deepEqual(periodNegatives("Sezar dönemi"), []);
   });
 
   await scenario("I years and ranking: period end from the episode, image year from metadata, period works judged first", () => {

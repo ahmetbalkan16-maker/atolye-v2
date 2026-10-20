@@ -185,3 +185,46 @@ haritalar), **Ses** (sesler, müzik, efekt), **Kalite** (bitmiş videoyu izler, 
   seçer (bekle/yeniden, GPU boşalt, izinli ayar, isteğe bağlı adımı atla, dur). Video yapımı Claude/Codex'e bağlı değil.
 - AYAS sipariş kapısı: `npx tsx scripts/v3/yapim.ts siparis --konu "…" --donem "…"`, `… kuyruk`, `… durum`.
   Canlı AYAS'ın bu kapıyı kullanması (konuşmada "X hakkında video yap") ayrı, owner onaylı adım; canlı sisteme dokunur.
+
+## 20 Ekim 2026 (öğleden sonra) — Benzerlik, "herkes farklı", referans videoya göre iyileştirmeler
+
+Owner düzeltmesi ve istekleri (sırayla): (1) ana karakterlerin yüzü fotoğraftan kesilmeyecek; OverSimplified'ın Henry
+VIII'i (referans `ewLpXw6uN28`) gibi bizim çizimimiz olacak, ama kafası (yüz, saç, sakal, şapka/taç/miğfer) ve kıyafeti
+gerçek portresine göre tasarlanacak; (2) her karakterin saçı ve kıyafeti farklı; (3) kalabalıktaki askerler tek tip
+kalabilir, yalnız önemli kişiler özel (yüz, kıyafet, taç/şapka/miğfer, kılıç); (4) görünüş ve kıyafet konunun geçtiği
+yıla göre araştırılsın, uygun yardımcı beyin yapsın; (5) son videoyu izle, referansa göre iyileştir; (6) gerekirse skill
+kullan ve sisteme entegre et; (7) en önemlisi görsel kalite, efektler, arka planın canlılığı ve renkleri, akış ve
+anlatım biçimi — PC'nin izin verdiği kadar; (8) hepsini sıraya koy, video üretmeden bitir, bir yeri yaparken başka yeri
+bozma; (9) videolar artık Amerikan İngilizcesi.
+
+Yapılanlar:
+- **Benzerlik tasarımcısı** (Kostüm beyni, `src/lib/v3/faces/LikenessDesigner.ts`): tarihçi kişinin Wikipedia
+  makalesindeki görünüş/giyim cümlelerini okuyup "o yıl kaç yaşında, neye benziyordu, ne giyiyordu, ünlü portrelerden
+  farkı" notunu yazar; resim araştırmacısı portreyi bulur (hakem o yaşa yakın olanı yüksek puanlar); tasarımcı (gpt-4.1,
+  görüntülü) portreye ve nota bakıp benzerlik kartı yazar: yüz biçimi, ten, burun, kaş rengi, yaş, saç, kıyafet,
+  renkler, kürk yaka; eksik parçalar ("yeni:Henry VIII's …") gardıroba sipariş edilir ve portre referansıyla, kişinin
+  yüz biçimindeki kukla üzerinde provayla çizilir. Sonunda çizim portreyle yan yana puanlanır (<6 → AYAS'a bulgu).
+  Biten benzerlik kişi+dönem başına `_kutuphane/kisiler/` içinde saklanır; sonraki bölüm ücretsiz kullanır.
+  Fotoğraf yüz (PhotoHead, `face_cut.py`, YuNet) ve ayrı "portre" adımı kaldırıldı (`--from-step portre` = gardırop).
+- **Kukla:** 5 yüz biçimi, ten rengi, 6 burun, detaylı (beyaz) göz, kaş rengi, yaş çizgileri, 4 yeni saç (kıvırcık,
+  kâkül, geriye, seyrek), tasarlanmış saç (`sac_parca`) ve göğüs (`gogus`: zincir, nişan, kuşak) yuvaları; "ortak"
+  paket (altın zincir, nişan kuşağı, saç örneği). Gardırop talimatındaki yüz koordinatları kuklanın gerçek göz/ağız
+  yerlerine düzeltildi (eski metin gözleri (30,-10)/(62,-10) diyordu; gerçek (-21,-4)/(41,-4), ağız (8,46)).
+- **Herkes farklı** (`LookVariety`): başı açık isimli karaktere saç; aynı görünen ikisinden ikincisine farklı saç ya da
+  ana renk tonu; gerçek kişiler korunur, kalabalıklara dokunulmaz. Kostüm tarihçisi başlık takmayan rollere (ör. Roma
+  senatörü) başlık vermez.
+- **Referans karşılaştırması** (son Roma videosu 36 kare + referansın 160 önizleme karesi): karakterler büyük (bel/diz
+  üstü), tablolar kısa ve şakalı, tepki yakın çekimleri, düz-parlak konturlu setler. Buna göre: orta çekimler daha yakın
+  ve aşağıdan (baş üst kısımda), anlatıcı çekimi 1.18–1.26; tablo ara planı karakter varken en fazla 4,5 sn ve daha
+  belirgin Ken Burns; set stili "düz, kalın konturlu, parlak düz renk, sade", yasak listesine fırça/yağlı boya/sulu boya;
+  döneme göre yasak yapılar (MS 400 öncesi kilise/çan kulesi/haç, 630 öncesi minare); set hakemi stili de puanlar
+  (resim gibi görünen set en fazla 5). Senarist: şaka 10–15 sn'de bir, 8–15 sn sahneler, "göster, sadece anlatma"
+  (anlatıcı satırını karakterler canlandırır, kısa tepki repliği), sahnelerin %40'ında diyalog, 2–4 kelime kartı.
+- **Skill (remotion-best-practices) → ses efektleri:** önerilen soundcn koleksiyonunun yalnız Kenney CC0 klasörlerinden
+  10 kayıt (`scripts/v3/sfx-kenney.ts`, commit sabitli, lisans + SHA-256 kaydı): kılıç ve çekiç (sentezin yerine),
+  yumruk, düşüş, adım, kapı, para, kâğıt, başarı/başarısızlık müziği (perde yönü ölçülerek seçildi). World of Warcraft
+  klasörü Blizzard'ın, kullanılmaz. Mikser kaydı sentezden önce dener; yazara efektler açıklamalarıyla verilir.
+- **Dil:** `atolye-v3.ts uret` ve `senaryo-yaz.ts` varsayılanı `--dil en` (sipariş kapısı ve AYAS zaten en).
+
+Doğrulama: kök ve remotion-v3 tsc 0; eslint 0; smoke-v3 likeness 10 (yeni), council 4, episode-director 17,
+script 16, backgrounds 11, motion 9, mix 7, lipsync 5; smoke-ayas-video-order 4; vitrin karesi (6 kukla) incelendi.

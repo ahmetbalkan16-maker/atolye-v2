@@ -136,8 +136,8 @@ SET WANTED: ${scene.tasarim ?? `${scene.tr} / ${scene.en}`}
 SAID IN THE SCENE: "${scene.anlatim.slice(0, 300)}"
 
 Score 0–10:
-- "puan" (place): does it show this place as wanted (landscape, buildings, what the scene needs)? 0–3 if it shows a different kind of place, or if people, faces, characters, text, letters or a watermark are visible, or the foreground is cluttered (the characters need open ground).
-- "donem" (period): would every visible thing pass for ${scene.donem}? 0–3 if anything belongs to another era or region (modern buildings, cars, asphalt, power lines, modern ships, a European town for an Ottoman scene, wrong architecture).
+- "puan" (place and style): does it show this place as wanted (landscape, buildings, what the scene needs), drawn in the show's style — a flat cartoon with clean dark outlines, flat bright colours and simple shapes? 0–3 if it shows a different kind of place, if people, faces, characters, text, letters or a watermark are visible, or the foreground is cluttered (the characters need open ground). At most 5 if it looks like a painting, a photo or a textured, soft-focused illustration instead of a flat cartoon, or if the sky is a sunset, dusk or night sky although the set wanted is not set at evening or night.
+- "donem" (period): would every visible thing pass for ${scene.donem}? 0–3 if anything belongs to another era or region (modern buildings, cars, asphalt, power lines, modern ships, a European town for an Ottoman scene, wrong architecture, religious buildings of a later era: church towers, steeples or crosses in antiquity before the 4th century AD, minarets before Islam).
 - "modern": true if anything modern is visible.
 - "tur": "cizim" for a drawn image.
 ${answer}`;
