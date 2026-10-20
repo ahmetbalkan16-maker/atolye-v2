@@ -176,6 +176,11 @@ async function main() {
     assert.equal(cleanObjectName('title QS:P1476,en:"The Sultan Mehmet II" label QS:Len,"x"', "File:a.jpg"), "The Sultan Mehmet II");
     assert.equal(cleanObjectName("Jules-César arrivé au Rubicon", "File:Boulanger.jpg"), "Jules-César arrivé au Rubicon", "a clean name stays");
     assert.equal(cleanObjectName(garbled), garbled, "without a file name nothing better is known");
+    // The real Commons field after its tags are stripped: hidden labels per language, English among them.
+    const labels = 'Italian: Cicerone denuncia Catilina Cicero Denounces Catiline title QS:P1476,it:"Cicerone denuncia Catilina" label QS:Lit,"Cicerone denuncia Catilina" label QS:Len,"Cicero Denounces Catiline"';
+    assert.equal(cleanObjectName(labels, "File:x.png"), "Cicero Denounces Catiline", "the English label wins");
+    const noEnglish = 'Italian: Cicerone denuncia Catilina title QS:P1476,it:"Cicerone denuncia Catilina" label QS:Lit,"Cicerone denuncia Catilina"';
+    assert.equal(cleanObjectName(noEnglish, "File:Cicero_Denounces_Catiline_by_Cesare_Maccari.png"), "Cicero Denounces Catiline by Cesare Maccari", "no English: the file name");
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

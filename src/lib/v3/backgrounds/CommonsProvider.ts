@@ -40,7 +40,7 @@ interface ImageInfo {
   extmetadata?: Record<string, { value?: string }>;
 }
 
-const stripHtml = (s: string | undefined) => (s ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+export const stripHtml = (s: string | undefined) => (s ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 
 export async function cachedJson(cacheDir: string, url: string): Promise<unknown> {
   const key = createHash("sha256").update(url).digest("hex").slice(0, 24);
@@ -86,12 +86,16 @@ export async function politeFetch(url: string, tries = 5): Promise<Response> {
  */
 export function cleanObjectName(raw: string, fileTitle = ""): string {
   const fromFile = fileTitle.replace(/^File:/, "").replace(/\.(jpe?g|png|tiff?|gif|webp)$/i, "").replace(/_+/g, " ").replace(/\s+/g, " ").trim();
-  if (/QS:/.test(raw)) {
-    const en = /en:"([^"]+)"/.exec(raw);
-    return (en ? en[1]! : raw.replace(/\b(title|label)?\s*QS:\S+/g, "")).replace(/\s+/g, " ").trim();
+  let t = raw;
+  if (/QS:/.test(t)) {
+    // English as `title QS:P1476,en:"…"` or as a label `label QS:Len,"…"`.
+    const en = /(?:\ben:|QS:Len,)"([^"]+)"/.exec(t);
+    if (en) return en[1]!.replace(/\s+/g, " ").trim();
+    t = t.replace(/\b(?:title|label)?\s*QS:[^,\s]*,(?:[a-z-]+:)?"[^"]*"/g, "").replace(/\b(?:title|label)?\s*QS:\S+/g, "");
   }
-  if (fromFile && /"|[a-z](title|label)\b|^[A-Z][a-z]+: /.test(raw)) return fromFile;
-  return raw;
+  t = t.replace(/\s+/g, " ").trim();
+  if (fromFile && (!t || /"|[a-z](title|label)\b|^[A-Z][a-z]+: /.test(t))) return fromFile;
+  return t;
 }
 
 /** First plausible year (1000–2099, or a three-digit one) in a metadata date such as "circa 1838" or "2013-09-21". */

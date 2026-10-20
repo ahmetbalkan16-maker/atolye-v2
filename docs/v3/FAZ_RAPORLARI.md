@@ -301,3 +301,27 @@ okur; kod değişmez, ders yalnız veri ya da beynin kendi talimatı olur.
   (4) kapanışta ~17 sn tek arşiv karesi, karakter yok — "olaysız aralık" kontrolü bunu saymıyor.
 - Owner: kullanım yenilenince bu hataları gider; ardından yukarıdaki kalan sıra, sonra birleştirme ve canlıya alma.
   Komutlar ve ayrıntı: `D:\ÜRETİM\handover\SESSION_2026-10-20\DEVAM_RAPORU.md` → "EN GÜNCEL".
+
+### Hataların giderilmesi ve owner kuralları (20 Ekim gece, 2. oturum)
+
+- (a) Kıyafet: kostümde `pelerin` (paludamentum gibi; arka kısmı bacakların arkasında, omuzda pervaz + fibula);
+  tarihçi notunda pelerin geçiyorsa rengiyle eklenir (kişi kütüphanesindeki eski kayıtlara da); `LookVariety` aynı
+  giysi/renk/pelerinli adlı karakterleri ikincil renkle ayırır (önce notun rengi: Cicero'ya senatör moru). Sonuç:
+  Sezar kırmızı kuşak, Pompeius kırmızı pelerin, Cicero mor şerit.
+- (b) Harita: `declutterMap` (aynı adlı ok etiketi düşer, şehrin üstündeki ordu solunda/üstünde), `mapStageX` (tek
+  karakter yazıları en az örttüğü yerde).
+- (c) İsim etiketi: bulgu yanlış okumaydı; yalnız ekran kenarında yüze kaymaya karşı koruma eklendi.
+- (d) Boş kapanış: `stageEmptyScenes` baş karakteri sessiz oyuncu koyar; sessiz sahnede yüz anlatımın duygusunu,
+  uzun satırda jest, bölümün son satırında el sallama. QC: `longestEmptyStretch` (karaktersiz en uzun süre) ve
+  `clothesClashes` (kıyafet farkı). Roma: 17,9 → 4,5 sn.
+- Owner kuralları: deneyim hafızasında "kural" türü konudan bağımsız her seferinde okunur (en fazla 8);
+  `content/v3/owner-kurallari.json` her üretimde hafızaya yazılır; Kurgu (senaryo), Kostüm (benzerlik kartı) ve
+  Kalite beyni (kare incelemesi) okur. Kalite beyni ilk denemede bozuk tablo künyesini yakaladı.
+- Anlamca arama (ruflo'nun vektör hafızası fikri, kendi kodumuz): yerel `qwen3-embedding:0.6b`, işlemcide; eşik
+  0,62 Rubicon dersleriyle ölçüldü (aynı yer 0,74–0,96, başka yer 0,39–0,56). Kazanç orta (küçük model); yanlış ders
+  getirmiyor, sıralamayı iyileştiriyor.
+- Onaylı setler: `setler-kabul.json`; rötuşsuz yeniden üretim Corfinium'u ortaçağ kalesi çizmişti (6/10), şimdi
+  8/10'luk set korunuyor ve SDXL çalışmıyor.
+- GitHub araştırması → owner onayı: ACE-Step 1.5, MOSS-SoundEffect v2, VoxCPM2, OmniSVG, CLIP ön eleme; hepsi yerel,
+  ağırlık lisansı ticari kullanıma açık (HF'den doğrulandı), güvenli yedekle. Elenenler: Woosh (CC-BY-NC), OpenMontage
+  (AGPL, ikinci boru hattı), IndexTTS-2 (lisans belirsiz), Orpheus (Llama şartlı; VoxCPM2 daha uygun).

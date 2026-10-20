@@ -1,3 +1,19 @@
+## 20 Ekim 2026 (gece, 2. oturum) — V3: Roma hataları giderildi, owner kuralları beyin hafızasında, yerel araç entegrasyonu başladı
+
+Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3` (ana repo ve canlı AYAS'a dokunulmadı).
+`789192ea`: kostüme pelerin (şema, doğrulayıcı, kukla çizimi; tarihçi notundaki pelerin otomatik), aynı kıyafetli adlı
+karakterler ikincil renkle ayrılır (önce notun rengi), benzerlik kartı diğer karakterleri görür; harita: ordu ile aynı
+adlı ok etiketi düşer, şehrin üstündeki ordu yana kayar, tek karakter yazıları örtmez; boş anlatım sahnesine baş karakter
+sessiz oyuncu (anlatımı oynar, sonda el sallar); QC'ye "karaktersiz en uzun süre" ve "kıyafet farkı"; deneyim hafızasına
+kalıcı "kural" türü + `content/v3/owner-kurallari.json` (her üretimde hafızaya; Kurgu/Kostüm/Kalite okur).
+`401f5fc9`: hafızada anlamca arama (yerel `qwen3-embedding:0.6b`, işlemcide, eşik 0,62 ölçülerek), hakemin onayladığı
+setler `setler-kabul.json` ile korunur (rötuşsuz yeniden üretimde set kalitesi düşmez), Commons künyesi temizliği.
+Roma yeniden üretildi: kıyafetler farklı, karaktersiz en uzun süre 17,9 → 4,5 sn, harita temiz.
+Owner talimatı: GitHub araştırmasından seçilenler sisteme entegre edilecek, Claude/Codex olmadan güvenilir çalışacak:
+ACE-Step 1.5 (müzik, MIT), MOSS-SoundEffect v2 (efekt, Apache), VoxCPM2 (ses, Apache, Türkçe), OmniSVG (SVG parça,
+Apache), CLIP ön eleme. İlki (Besteci, `src/lib/v3/mix/MusicComposer.ts` + `scripts/v3/acestep_server.py`) yazıldı,
+kurulum `D:\atolye-ascii\acestep`. Sıra ve komutlar: `D:\ÜRETİM\handover\SESSION_2026-10-20\DEVAM_RAPORU.md` → "EN GÜNCEL".
+
 ## 20 Ekim 2026 (gece) — V3: Roma bölümü teslim edildi ve incelendi; 4 görsel hata kullanım yenilenince giderilecek
 
 Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3`; kod değişmedi (ana repo ve canlı AYAS'a dokunulmadı).
