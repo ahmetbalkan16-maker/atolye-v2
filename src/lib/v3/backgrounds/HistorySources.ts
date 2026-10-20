@@ -1,4 +1,5 @@
 import { type CommonsCandidate, cachedJson, commonsByTitles, searchCommons } from "./CommonsProvider";
+import { judgeLicense } from "./LicenseFilter";
 
 /**
  * Where V3 looks for a period image of a scene, in order: the images of the subject's Wikipedia article (the
@@ -77,6 +78,55 @@ export async function metCandidates(cacheDir: string, query: string, limit = 6):
   return out;
 }
 
+interface OpenverseImage {
+  readonly id: string;
+  readonly title?: string | null;
+  readonly creator?: string | null;
+  readonly url?: string | null;
+  readonly thumbnail?: string | null;
+  readonly foreign_landing_url?: string | null;
+  readonly license?: string | null;
+  readonly license_version?: string | null;
+  readonly license_url?: string | null;
+  readonly source?: string | null;
+  readonly width?: number | null;
+  readonly height?: number | null;
+  readonly tags?: readonly { readonly name: string }[] | null;
+}
+
+/**
+ * Openly licensed images from Openverse (owner approval 20 Oct 2026: WordPress's search engine for CC and public-domain
+ * media — Flickr manuscripts, museum photos, libraries — beyond Wikipedia, The Met and Commons). Only licences that allow
+ * commercial use and changes are asked for, and every result passes the same licence judge (no NC, no ND, nothing
+ * unknown). Wikimedia results are left out (Commons is searched directly). Anonymous use: 20 requests a minute, 200 a
+ * day — one cached query per search.
+ */
+export async function openverseCandidates(cacheDir: string, query: string, limit = 8): Promise<CommonsCandidate[]> {
+  const params = new URLSearchParams({ q: query, license_type: "commercial,modification", page_size: String(limit), mature: "false" });
+  const json = (await cachedJson(cacheDir, `https://api.openverse.org/v1/images/?${params}`)) as { results?: readonly OpenverseImage[] };
+  const out: CommonsCandidate[] = [];
+  for (const r of json.results ?? []) {
+    if (!r.url || !r.thumbnail || /wikimedia/i.test(r.source ?? "")) continue;
+    const licence = judgeLicense(`${r.license ?? ""} ${r.license_version ?? ""}`.trim());
+    if (!licence.ok) continue;
+    const name = r.license === "pdm" ? "Public domain" : r.license === "cc0" ? "CC0" : `CC ${(r.license ?? "").toUpperCase()} ${r.license_version ?? ""}`.trim();
+    out.push({
+      title: `Openverse ${r.source ?? ""}: ${(r.title ?? "untitled").slice(0, 120)}`,
+      source: "openverse",
+      url: r.url,
+      downloadUrl: r.url,
+      previewUrl: r.thumbnail,
+      description: [r.title, r.creator, (r.tags ?? []).slice(0, 8).map((t) => t.name).join(", ")].filter(Boolean).join(" · ").slice(0, 400),
+      width: r.width ?? 0,
+      height: r.height ?? 0,
+      mime: "image/jpeg",
+      descriptionUrl: r.foreign_landing_url ?? r.url,
+      credit: { title: r.title ?? "untitled", author: `${r.creator ?? "unknown"} (${r.source ?? "Openverse"})`, license: name, ...(r.license_url ? { licenseUrl: r.license_url } : {}), sourceUrl: r.foreign_landing_url ?? r.url, attributionRequired: licence.attributionRequired },
+    });
+  }
+  return out;
+}
+
 export interface PeriodSearch {
   /** English Wikipedia article of the scene's place or subject. */
   readonly wiki?: string;
@@ -150,6 +200,7 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
   const commons = (q: string) => searchCommons(cacheDir, q, { minWidth: 900, landscape: false, limit: 12 });
   if (s.wiki) await take(`Wikipedia "${s.wiki}"`, () => wikipediaCandidates(cacheDir, s.wiki!));
   await take(`The Met "${s.query}"`, () => metCandidates(cacheDir, s.query));
+  await take(`Openverse "${s.query}"`, () => openverseCandidates(cacheDir, s.query));
   await take(`Commons "${s.query}"`, async () => {
     let found = await commons(s.commonsCategory ? `${s.query} incategory:"${s.commonsCategory}"` : s.query);
     if (!found.length && s.commonsCategory) found = await commons(s.query);

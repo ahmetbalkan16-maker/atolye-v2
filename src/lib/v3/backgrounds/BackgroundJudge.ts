@@ -71,7 +71,7 @@ const VERDICT_SCHEMA = {
   required: ["puan", "donem", "modern", "tur", "gosterilen", "sorun"],
 };
 
-const SOURCE_NAME: Readonly<Record<string, string>> = { wikipedia: "the Wikipedia article about the subject", met: "The Metropolitan Museum of Art", commons: "Wikimedia Commons" };
+const SOURCE_NAME: Readonly<Record<string, string>> = { wikipedia: "the Wikipedia article about the subject", met: "The Metropolitan Museum of Art", commons: "Wikimedia Commons", openverse: "Openverse (openly licensed collections)" };
 
 /** Both scores at or above the bar and nothing modern in the picture. */
 export function passes(v: CandidateVerdict): boolean {

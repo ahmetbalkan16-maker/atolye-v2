@@ -13,7 +13,7 @@ export const USER_AGENT = "AtolyeV3/0.1 (personal documentary studio; local tool
 export interface CommonsCandidate {
   readonly title: string;
   /** Where it was found: a Wikipedia article about the subject, a Commons search, or a museum collection. */
-  readonly source?: "wikipedia" | "commons" | "met";
+  readonly source?: "wikipedia" | "commons" | "met" | "openverse";
   /** Year the image was made, when the metadata says (a 2013 photo of a 1452 fortress is not a period image). */
   readonly year?: number;
   readonly url: string;
