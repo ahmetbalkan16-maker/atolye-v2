@@ -17,6 +17,15 @@ Ayrıntı: `docs/v3/FAZ_RAPORLARI.md` → "20 Ekim 2026 (öğleden sonra)".
 Doğrulama: kök ve remotion-v3 tsc 0; eslint 0; smoke-v3 likeness 10, council 4, episode-director 17, script 16,
 backgrounds 11, motion 9, mix 7, lipsync 5; smoke-ayas-video-order 4 PASS.
 
+Sonra (owner: "komutları yardımcı beyinlere devret", "PC sağlığı kurallarını atlama", "en kötü puan 8/10"):
+`85390d08` rötuş beyni (benzerlik/set zayıfsa üretim kendini en erken adımdan yeniden çalıştırır, kişi kütüphanesi
+sürümlü + `.kontrol.json`), mikserin otomatik efektleri, her yerel GPU çağrısında 73 °C (`coolGpuProvider`);
+`c786b554` benzerlik eşiği 8/10, en fazla 2 rötuş turu, sonra "eksik"; `a7b10d11` SDXL çizim SIRASINDA da 73 °C
+(her adımdan sonra soğuyana kadar dinlenir; önce tek çizimde 82 °C görülmüştü); `f5b12491` benzerlik kontrolü stili ve
+büstte görünmeyen dönem kıyafetini cezalandırmaz. Son doğrulama: smoke-v3 likeness 12, mix 8, diğerleri aynı; tsc/eslint 0.
+Roma bölümü `output/v3/bolumler/rubicon-en-4/`: ilk üretim (eski kodla başlamıştı) görsel adımında durduruldu; 1. rötuş
+turu (`uret-tur1.log`, 3 kişi 7/6/7 → yeniden tasarım) yeni kodla çalışıyor.
+
 ## 20 Ekim 2026 — Çöp adam V3: OverSimplified hedefi, her konu için altyapı, İngilizce pilotlar
 
 Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3` (ana repo ve canlı AYAS'a dokunulmadı). Owner
