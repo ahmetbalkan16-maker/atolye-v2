@@ -86,10 +86,14 @@ export function parseRepair(text: string, c: RepairContext): RepairAction | unde
   }
 }
 
-/** Known remedy first; otherwise the model chooses (free local model is fine); no answer → stop with the error. */
-export async function decideRepair(c: RepairContext, model?: AIProvider): Promise<RepairAction & { readonly kaynak: "bilinen" | "model" | "varsayilan" }> {
+/**
+ * Known remedy first; then one that cured the same failure before (the experience memory, `learned`); otherwise the
+ * model chooses (free local model is fine); no answer → stop with the error.
+ */
+export async function decideRepair(c: RepairContext, model?: AIProvider, learned?: RepairAction): Promise<RepairAction & { readonly kaynak: "bilinen" | "hafiza" | "model" | "varsayilan" }> {
   const known = knownRemedy(c);
   if (known) return { ...known, kaynak: "bilinen" };
+  if (learned && (learned.tur !== "atla" || c.optional)) return { ...learned, kaynak: "hafiza" };
   if (model) {
     try {
       const out = await model.generate(repairPrompt(c), { maxTokens: 200 });

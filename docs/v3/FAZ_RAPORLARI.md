@@ -243,3 +243,16 @@ script 16, backgrounds 11, motion 9, mix 7, lipsync 5; smoke-ayas-video-order 4;
   çağrıdan önce 73 °C kuralını bekler (`coolGpuProvider`); SDXL artık çizim SIRASINDA da her adımdan sonra sıcaklığa
   bakar ve 73 °C ve üstünde kart soğuyana kadar dinlenir (`sdxl_server.py` `max_temp`; önce yalnız başlamadan önce
   bakılıyordu ve tek çizimde 82 °C görüldü). Üretim uzayabilir, sınır aşılmaz.
+
+### Deneyim hafızası (owner onayı: "yardımcı beyinler için sistemi ileri taşıyacak, her zaman kullanılacak bir şey")
+
+`src/lib/v3/council/ExperienceMemory.ts` (fikir: mem0; kendi ekleme-yalnız JSONL dosyalarımızda,
+`_kutuphane/deneyim/<beyin>.jsonl`). Beyinler neyin işe yarayıp neyin yaramadığını yazar, bir sonraki işten önce
+okur; kod değişmez, ders yalnız veri ya da beynin kendi talimatı olur.
+- Onarım: bir hataya uygulanan ilaç sonraki denemede başarılıysa "işe yaradı", değilse "işe yaramadı" kaydı (hata
+  imzası: yol/sayı/hash ayıklanmış metin). Aynı hata tekrar gelince bilinen ilaçtan sonra, modele sormadan hafızadaki ilaç.
+- Ortam: set hakemi artık reddederken İngilizce "kacin" notu yazar; benzer yer/dönem çizilirken SDXL'in ikinci
+  kodlayıcısına "Avoid what failed before: …" olarak gider.
+- Kostüm: 3 turda çizilemeyen parçanın son sorunu kaydedilir; benzer parça siparişinde tasarımcıya verilir.
+- Kurgu: süre hedef dışı, diyalog oranı %40 altı, hiç sfx yok → ders; Şef'in önlemleri ilgili beynin dosyasına
+  "onlem" olarak. Sonraki senaryonun talimatında "LESSONS FROM EARLIER EPISODES".

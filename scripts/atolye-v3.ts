@@ -30,7 +30,8 @@ import { distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData } from "../src/lib/v3/maps/MapBuilder";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityReview } from "../src/lib/v3/council/QualityBrain";
-import { decideRepair, describeRepair } from "../src/lib/v3/council/RepairBrain";
+import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
+import { learnedRemedy, recall, remedyTopic, remember } from "../src/lib/v3/council/ExperienceMemory";
 import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
@@ -291,7 +292,10 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     const drawn: { si: number; d: DesignedSet }[] = [];
     try {
       for (const si of todo) {
-        const design = designFor(episode.sahneler[si]!, episode);
+        // The setting brain's lessons: why similar sets were rejected before.
+        const sc = episode.sahneler[si]!;
+        const lessons = await recall(paths.workRoot, "ortam", { konu: `${sc.mekan} ${sc.arka_plan_sorgusu.tasarim ?? sc.arka_plan_sorgusu.en} ${episode.donem}`, tur: "ders", limit: 3 });
+        const design = designFor(sc, episode, [], lessons.map((l) => l.metin.slice(0, 120)));
         for (const k of [0, 1]) {
           // A retouched set gets fresh seeds (rounds 2–3), so it is not the same drawing again.
           const seed = 1000 + si * 97 + ((round + (redrawSets.has(episode.sahneler[si]!.id) ? 2 : 0)) * 2 + k) * 7919;
@@ -308,6 +312,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       mine.forEach((m, i) => list.push({ d: m.d, ...(pick.verdicts[i] ? { v: pick.verdicts[i] } : {}) }));
       tried.set(si, list);
       for (const v of pick.verdicts) log(`  ${episode.sahneler[si]!.id} tasarım ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
+      // Rejections become the setting brain's lessons for similar places and periods.
+      for (const v of pick.verdicts.filter((x) => !passes(x) && x.kacin)) await remember(paths.workRoot, { bolum: episode.konu, beyin: "ortam", tur: "ders", konu: `${episode.sahneler[si]!.mekan} ${episode.sahneler[si]!.arka_plan_sorgusu.tasarim ?? ""} ${episode.donem}`, metin: v.kacin! }).catch(() => undefined);
       if (pick.chosen && pick.verdict) sets[si] = await designedSet(pub, episode, si, pick.chosen.d, pick.verdict, false);
     }
   }
@@ -403,17 +409,25 @@ async function main() {
   // and then the council report still goes to AYAS. The local model thinks for unknown failures (free, no agent).
   const repairModel = visionJudge();
   const step = async <T>(s: Step, run: () => Promise<T>, skip?: () => Promise<T>): Promise<T> => {
+    // The remedy tried for the last failure: its outcome goes to the experience memory, so a cure is reused next time.
+    let tried: { topic: string; action: RepairAction } | undefined;
+    const outcome = (sonuc: "ise_yaradi" | "ise_yaramadi") =>
+      tried ? remember(paths.workRoot, { bolum: konu, beyin: "onarim", tur: "ilac", konu: tried.topic, metin: `${s}: ${describeRepair(tried.action)}`, sonuc, eylem: tried.action }).catch(() => undefined) : undefined;
     for (let attempt = 1; ; attempt++) {
       const started = Date.now();
       try {
         const r = await run();
         log(`✓ ${s} (${Math.round((Date.now() - started) / 1000)} sn)${attempt > 1 ? ` — ${attempt}. denemede` : ""}`);
+        await outcome("ise_yaradi");
         return r;
       } catch (e) {
         const message = (e as Error).message;
-        const action = await decideRepair({ step: s, error: message, attempt, optional: !!skip, env: process.env }, repairModel);
+        await outcome("ise_yaramadi");
+        const learned = await learnedRemedy(paths.workRoot, s, message).catch(() => undefined);
+        const action = await decideRepair({ step: s, error: message, attempt, optional: !!skip, env: process.env }, repairModel, learned);
+        tried = action.tur === "dur" ? undefined : { topic: remedyTopic(s, message), action };
         log(`⚕ onarım beyni [${s}, deneme ${attempt}]: ${describeRepair(action)}`);
-        council.find({ beyin: "onarim", onem: action.tur === "dur" ? "eksik" : "uyari", baslik: `${s} adımında hata`, ayrinti: `${message.slice(0, 300)} → ${describeRepair(action)} (${action.kaynak})`, tur: action.kaynak === "bilinen" ? "ayar" : "kod", yer: s });
+        council.find({ beyin: "onarim", onem: action.tur === "dur" ? "eksik" : "uyari", baslik: `${s} adımında hata`, ayrinti: `${message.slice(0, 300)} → ${describeRepair(action)} (${action.kaynak})`, tur: action.kaynak === "bilinen" || action.kaynak === "hafiza" ? "ayar" : "kod", yer: s });
         if (action.tur === "dur" || attempt >= 4) {
           await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: konu, log: council }).catch(() => undefined);
           throw new Error(`ADIM ${s} başarısız: ${message}`);
@@ -468,7 +482,9 @@ async function main() {
         const voiceMap = await readJson<VoiceMap>(path.join(paths.contentRoot, "voices.json"));
         // English characters get native voices the writer picks by description; Turkish ones keep their own ids.
         const sesler = dil === "en" ? voicesFor(voiceMap, "en").filter((id) => !id.startsWith("en-anlatici")).map((id) => ({ id, tarif: voiceMap.sesler[id]!.tarif ?? id })) : undefined;
-        const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}) };
+        // The script brain's experience: what the QC and the chief found in earlier episodes.
+        const dersler = (await recall(paths.workRoot, "kurgu", { limit: 6 }).catch(() => [])).map((l) => l.metin);
+        const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}) };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           throw e;
@@ -741,6 +757,13 @@ async function main() {
     } catch (e) {
       log(`şef değerlendirmesi yapılamadı: ${(e as Error).message.slice(0, 120)}`);
     }
+    // The experience memory: what this episode taught the script brain, and the chief's measures for next time.
+    const lessons: { beyin: "kurgu"; metin: string }[] = [];
+    if (Math.abs(durationS - target) > target * 0.1) lessons.push({ beyin: "kurgu", metin: `A ${target} s episode ran ${durationS.toFixed(0)} s: ${durationS < target ? "write more lines per scene and fill every scene's sure_hedef" : "write fewer, shorter lines"}.` });
+    if (dialogScenes < 0.4) lessons.push({ beyin: "kurgu", metin: `Only ${Math.round(dialogScenes * 100)}% of the scenes had dialogue: let the characters speak more, a quip after the narrator.` });
+    if (!episode.sahneler.some((sc) => sc.satirlar.some((l) => l.sfx))) lessons.push({ beyin: "kurgu", metin: "The script gave no sfx at all: put one on a gag, a hit or an entrance in every scene." });
+    for (const l of lessons) await remember(paths.workRoot, { bolum: episode.konu, beyin: l.beyin, tur: "ders", konu: "senaryo", metin: l.metin }).catch(() => undefined);
+    for (const o of chiefPlan?.onlemler ?? []) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
     // The retouch brain: what the brains measured decides one more round, run below by the production itself.
     const nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) });
     if (nextRound) {

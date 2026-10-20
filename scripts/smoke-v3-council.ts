@@ -11,6 +11,12 @@ import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIPro
 import { CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { qualityPrompt } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
+import { errorSignature, learnedRemedy, overlap, recall, remedyTopic, remember } from "../src/lib/v3/council/ExperienceMemory";
+import { designFor } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { judgePrompt, parseVerdict } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { partPrompt } from "../src/lib/v3/costumes/PartDesigner";
+import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
+import { writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -89,6 +95,45 @@ async function main() {
     const md = councilMarkdown("Test", log, plan);
     assert.ok(md.includes("Önlemler (Atölye kendisi alır, kod değişmez)") && md.includes("Geliştirme önerileri (owner onayı gerekir)") && md.includes("**Tarihçi:** kenar bronz olmalı"));
     assert.ok(qualityPrompt("49 BC").includes("49 BC"));
+  });
+
+  await scenario("E experience memory: lessons are kept, the relevant ones come back once, newest first on a tie", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-deneyim-"));
+    await remember(root, { bolum: "Rubicon", beyin: "ortam", tur: "ders", konu: "a street in Rome 49 BC", metin: "sunset sky; church bell tower" });
+    await remember(root, { bolum: "Rubicon", beyin: "ortam", tur: "ders", konu: "a street in Rome 49 BC", metin: "sunset sky; church bell tower" });
+    await remember(root, { bolum: "Fatih", beyin: "ortam", tur: "ders", konu: "Ottoman tent 1453", metin: "modern camping tent" });
+    const rome = await recall(root, "ortam", { konu: "Roman street with a temple, 49 BC", tur: "ders" });
+    assert.deepEqual(rome.map((l) => l.metin), ["sunset sky; church bell tower"], "relevant only, each text once");
+    assert.equal((await recall(root, "ortam")).length, 2);
+    assert.deepEqual(await recall(root, "kurgu"), [], "another brain's file is separate");
+    assert.ok(overlap("Roman street", "a street in Rome") > 0 && overlap("tent", "river") === 0);
+  });
+
+  await scenario("F a remedy that worked is reused for the same failure; one that failed is not repeated", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-ilac-"));
+    const err1 = "Remotion still failed: Target closed at D:\\renders\\a.png (job 4a1b2c3d4e5f)";
+    const err2 = "Remotion still failed: Target closed at D:\\other\\b.png (job 99aa88bb77cc)";
+    assert.equal(errorSignature(err1), errorSignature(err2), "paths, hashes and numbers do not split a failure");
+    assert.equal(await learnedRemedy(root, "gardirop", err1), undefined);
+    const wait = { tur: "bekle_tekrar" as const, saniye: 30, neden: "geçici" };
+    await remember(root, { bolum: "x", beyin: "onarim", tur: "ilac", konu: remedyTopic("gardirop", err1), metin: "bekle", sonuc: "ise_yaradi", eylem: wait });
+    assert.deepEqual(await learnedRemedy(root, "gardirop", err2), wait);
+    const c: RepairContext = { step: "gardirop", error: err2, attempt: 1, optional: false, env: {} };
+    assert.equal((await decideRepair(c, undefined, wait)).kaynak, "hafiza", "memory before the model");
+    await remember(root, { bolum: "x", beyin: "onarim", tur: "ilac", konu: remedyTopic("gardirop", err1), metin: "bekle", sonuc: "ise_yaramadi", eylem: wait });
+    assert.equal(await learnedRemedy(root, "gardirop", err1), undefined, "the latest use did not work");
+    assert.equal((await decideRepair({ ...c, error: "ENOSPC no space left" }, undefined, wait)).kaynak, "bilinen", "a known remedy still comes first");
+  });
+
+  await scenario("G lessons reach the brains: set prompt, part prompt, writer prompt; the set judge writes an English lesson", () => {
+    const scene = { arka_plan_sorgusu: { tr: "Roma", en: "Roman street" }, mekan: "a street in Rome" } as unknown as EpisodeScene;
+    assert.match(designFor(scene, { donem: "49 BC" }, [], ["sunset sky"]).prompt2, /Avoid what failed before: sunset sky\./);
+    assert.match(partPrompt({ slot: "hand", tarif: "scroll" }, "49 BC", "<svg/>", undefined, undefined, undefined, ["too thick"]), /SIMILAR PARTS FAILED BEFORE[^\n]*too thick/);
+    const brief = { konu: "x", donem: "49 BC", hedefSureSn: 60, ton: "mizahi" as const, dil: "en" as const, dersler: ["A 120 s episode ran 90 s"] };
+    assert.match(writingPrompt(brief, []), /LESSONS FROM EARLIER EPISODES[\s\S]*A 120 s episode ran 90 s/);
+    assert.equal(parseVerdict('{"puan": 4, "donem": 3, "gosterilen": "sokak", "sorun": "gün batımı", "kacin": "sunset sky"}')?.kacin, "sunset sky");
+    assert.match(judgePrompt({ konu: "x", donem: "49 BC", mekan: "y", tr: "y", en: "y", anlatim: "" }, { title: "t" }, "set"), /"kacin"/);
+    assert.doesNotMatch(judgePrompt({ konu: "x", donem: "49 BC", mekan: "y", tr: "y", en: "y", anlatim: "" }, { title: "t" }, "arsiv"), /"kacin"/);
   });
 
   console.log(`V3 council smoke: PASS (${scenarios} scenarios)`);

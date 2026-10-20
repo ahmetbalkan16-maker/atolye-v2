@@ -40,6 +40,8 @@ export interface ScriptBrief {
   readonly kaynakBankasi?: SourceBank;
   /** Voices the writer picks from for this language (`ses_id`), by what they sound like. */
   readonly sesler?: readonly { readonly id: string; readonly tarif: string }[];
+  /** The script brain's lessons from earlier episodes and the chief's measures (experience memory). */
+  readonly dersler?: readonly string[];
 }
 
 /**
@@ -165,10 +167,16 @@ const SFX_NOTES: Readonly<Record<(typeof SFX_IDS)[number], string>> = {
   hata: "comic failure sting (wah-wah)",
 };
 
+/** The script brain's lessons from earlier episodes and the chief's measures, as a block of the writer's prompt. */
+function lessonsText(lessons: readonly string[] | undefined): string {
+  if (!lessons?.length) return "";
+  return `\n\nLESSONS FROM EARLIER EPISODES (the studio's own experience — do not repeat these faults):\n${lessons.map((d) => `- ${d}`).join("\n")}`;
+}
+
 /** The writer's prompt: rules in the narration language, then one shared contract section. */
 export function writingPrompt(brief: ScriptBrief, catalog: readonly PackCatalogEntry[]): string {
   const words = wordBudget(brief);
-  return `${RULES[brief.dil](brief, words)}${bankText(brief.kaynakBankasi)}
+  return `${RULES[brief.dil](brief, words)}${bankText(brief.kaynakBankasi)}${lessonsText(brief.dersler)}
 
 CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".

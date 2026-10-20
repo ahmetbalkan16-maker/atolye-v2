@@ -48,13 +48,16 @@ export function periodNegatives(donem: string): string[] {
   return out;
 }
 
-/** The scene's set description (script-written, else built from the place fields) as an SDXL prompt pair. */
-export function designFor(scene: EpisodeScene, episode: Pick<Episode, "donem">, extraNegative: readonly string[] = []): SetDesign {
+/**
+ * The scene's set description (script-written, else built from the place fields) as an SDXL prompt pair. `avoid`:
+ * why the judge rejected similar sets before (the setting brain's experience memory), told to the second encoder.
+ */
+export function designFor(scene: EpisodeScene, episode: Pick<Episode, "donem">, extraNegative: readonly string[] = [], avoid: readonly string[] = []): SetDesign {
   const q = scene.arka_plan_sorgusu;
   const place = (q.tasarim?.trim() || `${scene.mekan}; ${q.en}`).replace(/\s+/g, " ");
   return {
     prompt: `${SET_STYLE}, ${place}`,
-    prompt2: `${place}. Historically accurate for ${episode.donem}. Flat cartoon background illustration with clean outlines and bright flat colors, in daylight under a plain light blue sky (unless the place is indoors or the scene is at night), without people.`,
+    prompt2: `${place}. Historically accurate for ${episode.donem}. Flat cartoon background illustration with clean outlines and bright flat colors, in daylight under a plain light blue sky (unless the place is indoors or the scene is at night), without people.${avoid.length ? ` Avoid what failed before: ${avoid.join("; ")}.` : ""}`,
     negative: [SET_NEGATIVE, ...periodNegatives(episode.donem), ...extraNegative].join(", "),
   };
 }

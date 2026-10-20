@@ -10,6 +10,7 @@ import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import type { DebateEntry } from "../council/Council";
+import { recall, remember } from "../council/ExperienceMemory";
 import { type BrainDeps, chiefOnPart, findPartReference, historianOnPart, type PartReference } from "../wardrobe/WardrobeBrain";
 import { type CostumePackManifest, costumesRoot, svgBody } from "./CostumePackLoader";
 
@@ -115,7 +116,8 @@ objects (scroll, book, cup, letter, pistol) sit around the fist within ±70.`,
 hangs down to about y = 330, shoulders at x ±88. Keep within x -150…150, y -60…340.`,
 };
 
-export function partPrompt(o: PartOrder, donem: string, reference: string, feedback?: string, realExample?: string, faceShape?: V3FaceShape): string {
+export function partPrompt(o: PartOrder, donem: string, reference: string, feedback?: string, realExample?: string, faceShape?: V3FaceShape, lessons?: readonly string[]): string {
+  const learned = lessons?.length ? `\nSIMILAR PARTS FAILED BEFORE (the costume team's experience — avoid these faults): ${lessons.join(" | ")}\n` : "";
   const face = faceShape && faceShape !== "yuvarlak" && ["head", "beard", "mustache", "hair"].includes(o.slot) ? `\nTHIS CHARACTER'S FACE is ${faceShape === "genis" ? "wide with heavy jowls" : faceShape === "uzun" ? "long" : faceShape === "kare" ? "square-jawed" : "oval"}: the chin is at y = ${CHIN_Y[faceShape]} (not 98); fit the part to it.\n` : "";
   return `You draw costume parts for a flat cartoon puppet in an animated history show. Draw ONE part as SVG.
 
@@ -130,7 +132,7 @@ optional highlight stroke (#ffffff, opacity 0.5). Historically accurate shape fo
 ALLOWED: <svg xmlns="http://www.w3.org/2000/svg" viewBox="-170 -300 340 380"> with path, rect, circle, ellipse,
 polygon, polyline, line, g (transform translate/rotate/scale only); colours via style="fill:…;stroke:…" or fill/stroke
 attributes. FORBIDDEN: text, image, use, style elements, gradients, filters, href, url(), scripts. At most ${MAX_ELEMENTS} elements.
-${realExample ? `\nREAL HISTORICAL EXAMPLE (photo attached when available): ${realExample}\nDraw your part to match its shape, proportions, colours and decoration, simplified to the house style.\n` : ""}${feedback ? `\nYOUR PREVIOUS ATTEMPT WAS REJECTED: ${feedback}\nFix exactly that.\n` : ""}
+${learned}${realExample ? `\nREAL HISTORICAL EXAMPLE (photo attached when available): ${realExample}\nDraw your part to match its shape, proportions, colours and decoration, simplified to the house style.\n` : ""}${feedback ? `\nYOUR PREVIOUS ATTEMPT WAS REJECTED: ${feedback}\nFix exactly that.\n` : ""}
 REFERENCE PART of the same kind from the house wardrobe (style and coordinate frame):
 ${reference}
 
@@ -314,7 +316,7 @@ export async function designParts(input: {
   const made = new Map<string, string | undefined>();
   const records: PartRecord[] = [];
   const byTarif = new Map(Object.entries(library.items).map(([id, it]) => [key({ slot: it.slot, tarif: it.not ?? "" }), id]));
-  let pending: { order: PartOrder; feedback?: string; tries: number; problems: string[]; ref?: PartReference; look?: V3Look; talk: DebateEntry[] }[] = [];
+  let pending: { order: PartOrder; feedback?: string; tries: number; problems: string[]; ref?: PartReference; look?: V3Look; lessons?: string[]; talk: DebateEntry[] }[] = [];
   const talks: { order: PartOrder; talk: DebateEntry[] }[] = [];
   for (const o of input.orders) {
     const found = byTarif.get(key(o));
@@ -337,12 +339,20 @@ export async function designParts(input: {
       p.talk.push({ rol: "Araştırmacı", metin: ref ? `gerçek örnek bulundu: ${ref.title.replace(/^File:/, "")} — ${ref.description}` : "gerçek örnek bulunamadı; tariften çizilecek" });
     }
   }
+  // The costume brain's experience: why similar parts could not be drawn before.
+  for (const p of pending) {
+    const lessons = (await recall(paths.workRoot, "kostum", { konu: p.order.tarif, tur: "ders", limit: 3 }).catch(() => [])).map((l) => l.metin);
+    if (lessons.length) {
+      p.lessons = lessons;
+      p.talk.push({ rol: "Hafıza", metin: `benzer parçalardan dersler: ${lessons.join(" | ")}` });
+    }
+  }
   const items: Record<string, LibraryItem> = { ...(library.items as Record<string, LibraryItem>) };
   for (let round = 1; round <= MAX_ROUNDS && pending.length; round++) {
     const drawn: { p: (typeof pending)[number]; svg: string; behind: boolean; grip: boolean }[] = [];
     for (const p of pending) {
       p.tries++;
-      const out = await input.budget.generate(`parca-${round}`, input.model, partPrompt(p.order, input.donem, await referencePart(paths, p.order.slot), p.feedback, p.ref?.description, p.look?.faceShape), { maxTokens: 3_000, ...(p.ref ? { images: [p.ref.imageB64] } : {}) });
+      const out = await input.budget.generate(`parca-${round}`, input.model, partPrompt(p.order, input.donem, await referencePart(paths, p.order.slot), p.feedback, p.ref?.description, p.look?.faceShape, p.lessons), { maxTokens: 3_000, ...(p.ref ? { images: [p.ref.imageB64] } : {}) });
       const ans = readJsonAnswer(out.result.content);
       const problems = ans.svg ? partProblems(ans.svg, p.order.slot) : ["no svg in the answer"];
       if (problems.length) {
@@ -396,6 +406,7 @@ export async function designParts(input: {
   for (const p of pending) {
     made.set(key(p.order), undefined);
     records.push({ tarif: p.order.tarif, slot: p.order.slot, kaynak: "basarisiz", denemeler: p.tries, sorunlar: p.problems });
+    await remember(paths.workRoot, { bolum: input.donem, beyin: "kostum", tur: "ders", konu: p.order.tarif, metin: `"${p.order.tarif}" was not accepted in ${MAX_ROUNDS} rounds; last problem: ${p.problems[p.problems.length - 1] ?? "unknown"}` }).catch(() => undefined);
     log(`⚠ gardırop: "${p.order.tarif}" ${MAX_ROUNDS} turda kabul edilmedi; bu parça kostümden çıkarıldı`);
   }
   if (input.brain) {

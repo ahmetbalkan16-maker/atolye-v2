@@ -47,6 +47,8 @@ export interface CandidateVerdict {
   readonly tur?: string;
   readonly gosterilen: string;
   readonly sorun: string;
+  /** Set mode: what to avoid when a set like this is drawn again (English, for the image model; the setting brain's lesson). */
+  readonly kacin?: string;
 }
 
 export interface BackgroundPick<T> {
@@ -64,6 +66,7 @@ const VERDICT_SCHEMA = {
     tur: { type: "string", enum: ["eser", "harita", "fotograf", "cizim", "diger"] },
     gosterilen: { type: "string" },
     sorun: { type: "string" },
+    kacin: { type: "string" },
   },
   required: ["puan", "donem", "modern", "tur", "gosterilen", "sorun"],
 };
@@ -81,7 +84,7 @@ export function fitScore(v: CandidateVerdict): number {
 }
 
 export function judgePrompt(scene: SceneForJudge, c: JudgeCandidate, mode: JudgeMode = "arsiv"): string {
-  const answer = `Answer only JSON: {"puan": <0-10>, "donem": <0-10>, "modern": <true|false>, "tur": "eser|harita|fotograf|cizim|diger", "gosterilen": "<what the image shows, Turkish, at most 12 words>", "sorun": "<why it fits or not, Turkish, at most 15 words>"}`;
+  const answer = `Answer only JSON: {"puan": <0-10>, "donem": <0-10>, "modern": <true|false>, "tur": "eser|harita|fotograf|cizim|diger", "gosterilen": "<what the image shows, Turkish, at most 12 words>", "sorun": "<why it fits or not, Turkish, at most 15 words>"${mode === "set" ? `, "kacin": "<if a score is under 7: what to avoid when this set is drawn again, English, at most 10 words; else empty>"` : ""}}`;
   if (mode === "referans") {
     return `You are the costume researcher of an animated history show. Before a costume part is drawn, a real historical example is looked up.
 
@@ -168,7 +171,7 @@ export function parseVerdict(content: string): Omit<CandidateVerdict, "title"> |
   const end = content.lastIndexOf("}");
   if (start < 0 || end <= start) return undefined;
   try {
-    const v = JSON.parse(content.slice(start, end + 1)) as { puan?: unknown; donem?: unknown; modern?: unknown; tur?: unknown; gosterilen?: unknown; sorun?: unknown };
+    const v = JSON.parse(content.slice(start, end + 1)) as { puan?: unknown; donem?: unknown; modern?: unknown; tur?: unknown; gosterilen?: unknown; sorun?: unknown; kacin?: unknown };
     const score = (x: unknown) => (typeof x === "number" ? x : typeof x === "string" && x.trim() ? Number(x) : NaN);
     const puan = score(v.puan);
     if (!Number.isFinite(puan) || puan < 0 || puan > 10) return undefined;
@@ -180,6 +183,7 @@ export function parseVerdict(content: string): Omit<CandidateVerdict, "title"> |
       ...(typeof v.tur === "string" && v.tur ? { tur: v.tur.slice(0, 20) } : {}),
       gosterilen: String(v.gosterilen ?? "").slice(0, 120),
       sorun: String(v.sorun ?? "").slice(0, 160),
+      ...(typeof v.kacin === "string" && v.kacin.trim() ? { kacin: v.kacin.trim().slice(0, 120) } : {}),
     };
   } catch {
     return undefined;
