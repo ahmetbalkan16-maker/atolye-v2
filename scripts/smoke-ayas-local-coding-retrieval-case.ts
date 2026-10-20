@@ -15,11 +15,11 @@ const repoRoot = path.resolve(__dirname, "..");
 const git = (args: readonly string[]): Buffer => execFileSync("git", [...args], { cwd: repoRoot, windowsHide: true, maxBuffer: 4000000 });
 const hash = (bytes: Buffer): string => crypto.createHash("sha256").update(bytes).digest("hex");
 async function main(): Promise<void> {
-  assert.equal(git(["rev-parse", `${item.fixHead}^`]).toString().trim(), item.baseHead);
-  assert.equal(git(["rev-parse", `${item.fixHead}:${item.evaluatorScript}`]).toString().trim(), item.evaluatorBlob);
+  assert.equal(git(["rev-parse", `${item.fixHead}^`]).toString().trim(), item.baseHead, "assert.equal(git([\"rev-parse\", `${item.fixHead}^`]).toString().trim(), item.baseHead)");
+  assert.equal(git(["rev-parse", `${item.fixHead}:${item.evaluatorScript}`]).toString().trim(), item.evaluatorBlob, "assert.equal(git([\"rev-parse\", `${item.fixHead}:${item.evaluatorScript}`]).toString().trim(), item.evaluatorBlob)");
   const lines = git(["diff", "--numstat", item.baseHead, item.fixHead, "--", ...item.exactFiles]).toString().trim().split("\n")
     .reduce((sum, row) => { const [added, removed] = row.split("\t"); assert.match(added!, /^\d+$/); assert.match(removed!, /^\d+$/); return sum + Number(added) + Number(removed); }, 0);
-  assert.equal(lines, 49); assert.ok(lines <= item.maxChangedLines);
+  assert.equal(lines, 49, "assert.equal(lines, 49)"); assert.ok(lines <= item.maxChangedLines, "assert.ok(lines <= item.maxChangedLines)");
   const task = projectAyasLocalCodingRetrievalTask();
   const baselines = item.exactFiles.map((file) => git(["show", `${item.baseHead}:${file}`]));
   const fixes = item.exactFiles.map((file) => git(["show", `${item.fixHead}:${file}`]));
@@ -27,12 +27,12 @@ async function main(): Promise<void> {
   const workspace = createAyasLocalCodingWorkspace({ repoRoot, task });
   try {
     const sources = item.exactFiles.map((file, index) => {
-      const bytes = fs.readFileSync(path.join(workspace.root, file)); assert.deepEqual(bytes, baselines[index]);
+      const bytes = fs.readFileSync(path.join(workspace.root, file)); assert.deepEqual(bytes, baselines[index], "assert.deepEqual(bytes, baselines[index])");
       assert.notDeepEqual(bytes, fixes[index]); return { path: file, content: bytes.toString("utf8") };
     });
     const exposed = JSON.stringify(buildAyasLocalCodingModelRequest(task, sources));
-    for (const hidden of [item.fixHead, item.evaluatorBlob, item.evaluatorScript, item.caseId, item.split]) assert.ok(!exposed.includes(hidden));
-    assert.ok(!fs.existsSync(path.join(workspace.root, ".git")) && !fs.existsSync(path.join(workspace.root, item.evaluatorScript)));
+    for (const hidden of [item.fixHead, item.evaluatorBlob, item.evaluatorScript, item.caseId, item.split]) assert.ok(!exposed.includes(hidden), "assert.ok(!exposed.includes(hidden))");
+    assert.ok(!fs.existsSync(path.join(workspace.root, ".git")) && !fs.existsSync(path.join(workspace.root, item.evaluatorScript)), "assert.ok(!fs.existsSync(path.join(workspace.root, \".git\")) && !fs.existsSync(path.join(workspace.root, item.evaluatorScript)))");
   } finally { destroyAyasLocalCodingWorkspace(workspace); }
   const sandbox = await createAyasResearchExperimentSandbox({ repoRoot, baseHead: item.baseHead,
     nodeModulesDir: path.join(repoRoot, "node_modules"), timeoutMs: 120000 });
@@ -54,7 +54,7 @@ async function main(): Promise<void> {
       });
       assert.ok(!run.error && run.signal === null, `evaluator timeout/crash refused: ${String(run.error)}`);
       if (mode === "EXACT_TWO_FILE_FIX") {
-        assert.equal(run.status, 0, run.stderr); assert.ok(run.stdout.includes('"scenarios":29'));
+        assert.equal(run.status, 0, run.stderr); assert.ok(run.stdout.includes('"scenarios":29'), "assert.ok(run.stdout.includes('\"scenarios\":29'))");
       } else {
         assert.equal(run.status, 1, run.stderr); assert.match(run.stderr, /AssertionError \[ERR_ASSERTION\]/);
         assert.match(run.stderr, mode === "IDENTITY_ONLY" ? /smoke-ayas-memory\.ts:317:12/ : /smoke-ayas-memory\.ts:92:12/);
