@@ -167,6 +167,7 @@ export class SfxDesigner {
         script: path.join(this.paths.repoRoot, "scripts", "v3", "moss_sfx_server.py"),
         env: { ...sideProcessEnv(this.paths), ATOLYE_V3_MOSS_ROOT: this.root(), TORCHDYNAMO_DISABLE: "1", PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True" },
         label: "MOSS-SoundEffect",
+        cwd: this.root(),
         startTimeoutMs: 15 * 60_000,
         requestTimeoutMs: 20 * 60_000,
         log: this.log,

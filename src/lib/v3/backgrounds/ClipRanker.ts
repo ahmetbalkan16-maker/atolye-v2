@@ -65,6 +65,7 @@ export class ClipRanker {
         script: path.join(this.paths.repoRoot, "scripts", "v3", "clip_server.py"),
         env: { ...sideProcessEnv(this.paths), ATOLYE_V3_CLIP_MODEL: this.modelDir(), CUDA_VISIBLE_DEVICES: "" },
         label: "CLIP",
+        cwd: this.paths.clipRoot,
         startTimeoutMs: 5 * 60_000,
         requestTimeoutMs: 120_000,
         log: this.log,

@@ -19,6 +19,11 @@ export interface PythonLineServerOptions {
   /** Shown in errors and the ready log line. */
   readonly label: string;
   readonly startTimeoutMs: number;
+  /**
+   * Working folder of the side process (default: this process's). A tool that writes caches into its working folder
+   * (ACE-Step's `.cache/`) runs in its own folder: an untracked folder in the repo would stop the Observer.
+   */
+  readonly cwd?: string;
   readonly requestTimeoutMs: number;
   readonly log: (s: string) => void;
 }
@@ -37,7 +42,7 @@ export class PythonLineServer {
     if (this.ready) return this.ready;
     this.ready = (async () => {
       if (!existsSync(this.o.python)) throw new PythonLineServerError("V3_PYTHON_MISSING", this.o.python);
-      const child = spawn(this.o.python, ["-u", this.o.script], { env: this.o.env, windowsHide: true });
+      const child = spawn(this.o.python, ["-u", this.o.script], { env: this.o.env, windowsHide: true, ...(this.o.cwd ? { cwd: this.o.cwd } : {}) });
       this.child = child;
       child.stdout.setEncoding("utf8");
       child.stderr.setEncoding("utf8");

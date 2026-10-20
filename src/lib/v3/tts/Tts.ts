@@ -178,6 +178,7 @@ class VoxcpmEngine implements TtsEngine {
       script: path.join(this.paths.repoRoot, "scripts", "v3", "voxcpm_server.py"),
       env: { ...sideProcessEnv(this.paths), ATOLYE_V3_VOXCPM_ROOT: this.paths.voxcpmRoot },
       label: "VoxCPM2",
+      cwd: this.paths.voxcpmRoot,
       startTimeoutMs: 15 * 60_000,
       requestTimeoutMs: 240_000,
       log: this.log,

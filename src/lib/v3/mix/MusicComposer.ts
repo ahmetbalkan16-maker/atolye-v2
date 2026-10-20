@@ -132,6 +132,7 @@ export class MusicComposer {
         script: path.join(this.paths.repoRoot, "scripts", "v3", "acestep_server.py"),
         env: { ...sideProcessEnv(this.paths), ATOLYE_V3_ACESTEP_ROOT: this.paths.acestepRoot, PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True" },
         label: "ACE-Step",
+        cwd: this.paths.acestepRoot,
         startTimeoutMs: 15 * 60_000,
         requestTimeoutMs: 30 * 60_000,
         log: this.log,
