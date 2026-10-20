@@ -26,6 +26,11 @@ import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/Li
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { findPortraitFace, type PortraitResult } from "../src/lib/v3/faces/PortraitFaces";
 import { loadMapData } from "../src/lib/v3/maps/MapBuilder";
+import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
+import { qualityReview } from "../src/lib/v3/council/QualityBrain";
+import { decideRepair, describeRepair } from "../src/lib/v3/council/RepairBrain";
+import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
+import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { beats, buildRenderPlan, type SceneInsert, shotEventFrames } from "../src/lib/v3/director/Director";
@@ -41,7 +46,7 @@ import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
-import { freeGpuMemory } from "../src/lib/v3/util/Gpu";
+import { freeGpuMemory, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { runChecked } from "../src/lib/v3/util/Proc";
 import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 import { sfxFileName } from "./v3/sfx-uret";
@@ -52,7 +57,7 @@ const STEPS = ["senaryo", "gardirop", "ses", "senkron", "portre", "gorsel", "ren
  * Paid-text providers for the script and part stages: OpenAI when chosen (the key is borrowed for this process
  * only), gemma4 as the free fallback the budget falls back to near the cap.
  */
-function scriptBudget(paths: V3Paths, capUsd?: number): { budget: V3Budget; providerName: "openai" | "ollama" } {
+function scriptBudget(paths: V3Paths, capUsd?: number, vision = false): { budget: V3Budget; providerName: "openai" | "ollama" } {
   const providerName = (arg("--saglayici") ?? process.env.ATOLYE_V3_SCRIPT_PROVIDER ?? "ollama") as "openai" | "ollama";
   if (providerName === "openai") {
     const key = v3Secret("OPENAI_API_KEY", paths.repoRoot);
@@ -61,7 +66,7 @@ function scriptBudget(paths: V3Paths, capUsd?: number): { budget: V3Budget; prov
     process.env.AI_PROVIDER = "openai";
   }
   const ollama = new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_OLLAMA_MODEL ?? "gemma4:12b", timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false }));
-  return { providerName, budget: new V3Budget({ providers: { openai: new OpenAIProvider(), ollama }, fallback: { provider: "ollama" }, ...(capUsd !== undefined ? { capUsd } : {}) }) };
+  return { providerName, budget: new V3Budget({ providers: { openai: vision ? new OpenAIVisionProvider() : new OpenAIProvider(), ollama }, fallback: { provider: "ollama" }, ...(capUsd !== undefined ? { capUsd } : {}) }) };
 }
 
 /** The free local vision judge (gemma4 through Ollama) for period images, sets and portraits. */
@@ -352,6 +357,8 @@ async function main() {
   if (process.argv[2] !== "uret") throw new Error('Kullanım: npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] …');
   const paths = resolveV3Paths();
   const log = (s: string) => console.log(s);
+  // The production council: every brain's findings and debates, reported to AYAS at the end.
+  const council = new CouncilLog();
   const dil = (arg("--dil") ?? "tr") as ScriptLanguage;
   const ton = (arg("--ton") ?? "mizahi") as EpisodeTone;
   if (!EPISODE_TONES.includes(ton)) throw new Error(`--ton şunlardan biri olmalı: ${EPISODE_TONES.join(", ")}`);
@@ -368,14 +375,38 @@ async function main() {
   const redo = (s: Step) => fromStep !== undefined && STEPS.indexOf(s) >= STEPS.indexOf(fromStep);
   const need = (s: Step, file: string) => redo(s) || !existsSync(f(file));
   const t0 = Date.now();
-  const step = async <T>(s: Step, run: () => Promise<T>): Promise<T> => {
-    const started = Date.now();
-    try {
-      const r = await run();
-      log(`✓ ${s} (${Math.round((Date.now() - started) / 1000)} sn)`);
-      return r;
-    } catch (e) {
-      throw new Error(`ADIM ${s} başarısız: ${(e as Error).message}`);
+  // Every step runs under the repair brain: a failure is diagnosed and remedied (wait, free the GPU, change an
+  // allowed setting, skip an optional step) and the step runs again; only an unrecoverable one stops the production,
+  // and then the council report still goes to AYAS. The local model thinks for unknown failures (free, no agent).
+  const repairModel = visionJudge();
+  const step = async <T>(s: Step, run: () => Promise<T>, skip?: () => Promise<T>): Promise<T> => {
+    for (let attempt = 1; ; attempt++) {
+      const started = Date.now();
+      try {
+        const r = await run();
+        log(`✓ ${s} (${Math.round((Date.now() - started) / 1000)} sn)${attempt > 1 ? ` — ${attempt}. denemede` : ""}`);
+        return r;
+      } catch (e) {
+        const message = (e as Error).message;
+        const action = await decideRepair({ step: s, error: message, attempt, optional: !!skip, env: process.env }, repairModel);
+        log(`⚕ onarım beyni [${s}, deneme ${attempt}]: ${describeRepair(action)}`);
+        council.find({ beyin: "onarim", onem: action.tur === "dur" ? "eksik" : "uyari", baslik: `${s} adımında hata`, ayrinti: `${message.slice(0, 300)} → ${describeRepair(action)} (${action.kaynak})`, tur: action.kaynak === "bilinen" ? "ayar" : "kod", yer: s });
+        if (action.tur === "dur" || attempt >= 4) {
+          await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: konu, log: council }).catch(() => undefined);
+          throw new Error(`ADIM ${s} başarısız: ${message}`);
+        }
+        if (action.tur === "atla" && skip) {
+          const r = await skip();
+          log(`↷ ${s} atlandı, üretim sürüyor`);
+          return r;
+        }
+        if (action.tur === "bekle_tekrar" && action.saniye > 0) await new Promise((res) => setTimeout(res, action.saniye * 1000));
+        if (action.tur === "gpu_bosalt") {
+          await freeGpuMemory(12_000, log);
+          await waitForCoolGpu(log);
+        }
+        if (action.tur === "ayar") process.env[action.anahtar] = action.deger;
+      }
     }
   };
 
@@ -435,22 +466,33 @@ async function main() {
       // The script's own orders are kept, so a rerun of this step can try again the parts that were left off.
       if (scriptWritten || !existsSync(f("episode-siparisli.json"))) await writeJson(f("episode-siparisli.json"), episode);
       else episode = assertEpisode(await readJson<unknown>(f("episode-siparisli.json")));
-      const orders = partOrders(episode);
       let records: PartRecord[] = [];
-      if (orders.length) {
-        const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
-        const { budget, providerName } = scriptBudget(paths, Math.max(0, 1 - before.toplamUsd));
-        try {
-          const r = await designParts({ paths, orders, donem: episode.donem, budget, model: providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" }, judge: visionJudge(), workDir: path.join(work, "gardirop-prova"), log });
+      const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
+      // The costume brain (OpenAI with image input for the designer; the small model for historian and chief).
+      const { budget, providerName } = scriptBudget(paths, Math.max(0, 1 - before.toplamUsd), true);
+      const judge = visionJudge();
+      const brain = providerName === "openai" ? { cacheDir: path.join(paths.workRoot, "_onbellek", "commons"), judge, budget, critic: { provider: "openai" as const, model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" }, council, log } : undefined;
+      try {
+        // First the historian reviews the whole cast's costumes (it may order new parts), then the parts are made.
+        if (brain) episode = await reviewCostumes(episode, await packCatalog(costumeRootsFor(paths)), brain);
+        const orders = partOrders(episode);
+        if (orders.length) {
+          const r = await designParts({ paths, orders, donem: episode.donem, budget, model: providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_PART_MODEL ?? "gpt-4.1" } : { provider: "ollama" }, judge, workDir: path.join(work, "gardirop-prova"), log, ...(brain ? { brain } : {}) });
           records = r.records;
           episode = assertEpisode(applyParts(episode, r.made));
-          await writeJson(f("episode.json"), episode);
-        } finally {
-          await writeJson(f("maliyet.json"), { tavanUsd: 1, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
         }
+        await writeJson(f("episode.json"), episode);
+      } finally {
+        await writeJson(f("maliyet.json"), { tavanUsd: 1, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
       }
       await writeJson(f("gardirop.json"), records);
       return records;
+    }, async () => {
+      // Without the wardrobe step the video still gets made: ordered parts are left off.
+      episode = assertEpisode(applyParts(episode, new Map()));
+      await writeJson(f("episode.json"), episode);
+      await writeJson(f("gardirop.json"), []);
+      return [];
     });
   }
 
@@ -515,6 +557,9 @@ async function main() {
       }
       await writeJson(f("portreler.json"), out);
       return out;
+    }, async () => {
+      await writeJson(f("portreler.json"), []);
+      return [];
     });
   } else portraits = await readJson<PortraitResult[]>(f("portreler.json"));
 
@@ -554,7 +599,7 @@ async function main() {
     await step("render", async () => {
       await writeJson(f("plan.json"), { plan });
       let last = "";
-      await renderWithRemotion(paths, { planFile: f("plan.json"), publicDir: path.join(work, "public"), out: f(silent), kind: "video", muted: true, ...(preview ? { scale: 0.4447 } : {}), onLine: (l) => {
+      await renderWithRemotion(paths, { planFile: f("plan.json"), publicDir: path.join(work, "public"), out: f(silent), kind: "video", muted: true, ...(preview ? { scale: 0.4447 } : {}), ...(Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) > 0 ? { concurrency: Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) } : {}), onLine: (l) => {
         const m = /Rendered (\d+)\/(\d+)/.exec(l);
         if (m && m[1] !== last && Number(m[1]) % 300 === 0) log(`  render ${m[1]}/${m[2]}`);
         if (m) last = m[1]!;
@@ -643,6 +688,37 @@ async function main() {
     );
     log(`\nfinal: ${f(final)} (${durationS.toFixed(1)} sn) · QC: ${f("QC.md")}`);
     for (const r of qc) log(r);
+
+    // The council: each brain's findings from what this production left behind, the quality brain's watch of the
+    // finished video, the chief's plan, and the report to AYAS's inbox.
+    for (const v of visuals) {
+      const where = episode.sahneler[visuals.indexOf(v)]!.id;
+      if (v.donemGorseli === "bulunamadi") council.find({ beyin: "ortam", onem: "uyari", baslik: "dönem görseli bulunamadı", ayrinti: v.not, oneri: "sahnenin 'ara' alanına eski adlar ve yazımlar, 'wiki' alanına doğru makale", tur: "veri", yer: where });
+      if (v.set.esikAlti) council.find({ beyin: "ortam", onem: "eksik", baslik: "set hakem eşiğinin altında", ayrinti: `tasarlanan set geçemedi (${v.set.secim ? verdictLine(v.set.secim) : "puan yok"})`, oneri: "tasarim tarifini somutlaştır, yeniden çiz", tur: "veri", yer: where });
+    }
+    for (const c of episode.oyuncu_kadrosu.filter((x) => x.portre?.wiki && !portraits.some((p) => p.castId === x.id))) council.find({ beyin: "kostum", onem: "uyari", baslik: "portre yüzü bulunamadı", ayrinti: `${c.ad}: çizili yüz kullanıldı`, oneri: "portre.wiki makale adını kontrol et", tur: "veri", yer: c.id });
+    for (const p of parts.filter((x) => x.kaynak === "basarisiz")) if (!council.findings.some((x) => x.yer === p.tarif)) council.find({ beyin: "kostum", onem: "eksik", baslik: "parça tasarlanamadı", ayrinti: p.tarif, tur: "veri", yer: p.tarif });
+    const rms = lipsync.filter((l) => l.lipSync === "rms").length;
+    if (rms) council.find({ beyin: "ses", onem: "uyari", baslik: "ağız senkronu yedekte", ayrinti: `${rms}/${lipsync.length} satır Rhubarb yerine ses düzeyiyle`, oneri: "Rhubarb çalıştırma ortamını kontrol et", tur: "ayar" });
+    if (Math.abs(durationS - target) > target * 0.1) council.find({ beyin: "kurgu", onem: "uyari", baslik: "süre hedef dışı", ayrinti: `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
+    for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
+      if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
+    }
+    const quality = await qualityReview({ paths, video: f(final), durationS, donem: episode.donem, judge: visionJudge(), council, log });
+    log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10`);
+    let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
+    try {
+      const chief = scriptBudget(paths, 0.05);
+      chiefPlan = await chiefReview({ budget: chief.budget, model: chief.providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" }, konu: episode.konu, log: council });
+    } catch (e) {
+      log(`şef değerlendirmesi yapılamadı: ${(e as Error).message.slice(0, 120)}`);
+    }
+    // The quality brain delivers: a production with a missing piece (an "eksik" finding) is delivered with a warning.
+    const missing = council.findings.filter((x) => x.onem === "eksik").length;
+    const report = await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: episode.baslik, log: council, ...(chiefPlan ? { plan: chiefPlan } : {}) });
+    await fs.writeFile(f("KURUL.md"), councilMarkdown(episode.baslik, council, chiefPlan));
+    await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
+    log(`kurul raporu: ${report} · ${missing ? `UYARIYLA teslim (${missing} eksik)` : "teslim edildi"}`);
   });
 }
 

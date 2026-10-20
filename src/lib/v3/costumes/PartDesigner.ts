@@ -9,6 +9,8 @@ import { renderWithRemotion } from "../render/RemotionRunner";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
+import type { DebateEntry } from "../council/Council";
+import { type BrainDeps, chiefOnPart, findPartReference, historianOnPart, type PartReference } from "../wardrobe/WardrobeBrain";
 import { type CostumePackManifest, costumesRoot, svgBody } from "./CostumePackLoader";
 
 /**
@@ -95,7 +97,7 @@ objects (scroll, book, cup, letter, pistol) sit around the fist within ±70.`,
 hangs down to about y = 330, shoulders at x ±88. Keep within x -150…150, y -60…340.`,
 };
 
-export function partPrompt(o: PartOrder, donem: string, reference: string, feedback?: string): string {
+export function partPrompt(o: PartOrder, donem: string, reference: string, feedback?: string, realExample?: string): string {
   return `You draw costume parts for a flat cartoon puppet in an animated history show. Draw ONE part as SVG.
 
 PART: ${o.tarif}
@@ -109,7 +111,7 @@ optional highlight stroke (#ffffff, opacity 0.5). Historically accurate shape fo
 ALLOWED: <svg xmlns="http://www.w3.org/2000/svg" viewBox="-170 -300 340 380"> with path, rect, circle, ellipse,
 polygon, polyline, line, g (transform translate/rotate/scale only); colours via style="fill:…;stroke:…" or fill/stroke
 attributes. FORBIDDEN: text, image, use, style elements, gradients, filters, href, url(), scripts. At most ${MAX_ELEMENTS} elements.
-${feedback ? `\nYOUR PREVIOUS ATTEMPT WAS REJECTED: ${feedback}\nFix exactly that.\n` : ""}
+${realExample ? `\nREAL HISTORICAL EXAMPLE (photo attached when available): ${realExample}\nDraw your part to match its shape, proportions, colours and decoration, simplified to the house style.\n` : ""}${feedback ? `\nYOUR PREVIOUS ATTEMPT WAS REJECTED: ${feedback}\nFix exactly that.\n` : ""}
 REFERENCE PART of the same kind from the house wardrobe (style and coordinate frame):
 ${reference}
 
@@ -255,6 +257,8 @@ export async function designParts(input: {
   readonly judge: AIProvider;
   readonly workDir: string;
   readonly log: (s: string) => void;
+  /** The costume brain: real references before drawing, historian and chief after (none = the judge alone). */
+  readonly brain?: BrainDeps;
 }): Promise<{ made: Map<string, string | undefined>; records: PartRecord[] }> {
   const { paths, log } = input;
   const root = wardrobeRoot(paths);
@@ -265,26 +269,39 @@ export async function designParts(input: {
   const made = new Map<string, string | undefined>();
   const records: PartRecord[] = [];
   const byTarif = new Map(Object.entries(library.items).map(([id, it]) => [key({ slot: it.slot, tarif: it.not ?? "" }), id]));
-  let pending: { order: PartOrder; feedback?: string; tries: number; problems: string[] }[] = [];
+  let pending: { order: PartOrder; feedback?: string; tries: number; problems: string[]; ref?: PartReference; talk: DebateEntry[] }[] = [];
+  const talks: { order: PartOrder; talk: DebateEntry[] }[] = [];
   for (const o of input.orders) {
     const found = byTarif.get(key(o));
     if (found) {
       made.set(key(o), found);
       records.push({ tarif: o.tarif, slot: o.slot, id: found, kaynak: "kutuphane", denemeler: 0 });
       log(`  gardırop: "${o.tarif}" kütüphanede (${found})`);
-    } else pending.push({ order: o, tries: 0, problems: [] });
+    } else {
+      const talk: DebateEntry[] = [];
+      pending.push({ order: o, tries: 0, problems: [], talk });
+      talks.push({ order: o, talk });
+    }
+  }
+  if (input.brain) {
+    for (const p of pending) {
+      const ref = await findPartReference(p.order, input.donem, input.brain).catch(() => undefined);
+      if (ref) p.ref = ref;
+      p.talk.push({ rol: "Araştırmacı", metin: ref ? `gerçek örnek bulundu: ${ref.title.replace(/^File:/, "")} — ${ref.description}` : "gerçek örnek bulunamadı; tariften çizilecek" });
+    }
   }
   const items: Record<string, LibraryItem> = { ...(library.items as Record<string, LibraryItem>) };
   for (let round = 1; round <= MAX_ROUNDS && pending.length; round++) {
     const drawn: { p: (typeof pending)[number]; svg: string; behind: boolean; grip: boolean }[] = [];
     for (const p of pending) {
       p.tries++;
-      const out = await input.budget.generate(`parca-${round}`, input.model, partPrompt(p.order, input.donem, await referencePart(paths, p.order.slot), p.feedback), { maxTokens: 3_000 });
+      const out = await input.budget.generate(`parca-${round}`, input.model, partPrompt(p.order, input.donem, await referencePart(paths, p.order.slot), p.feedback, p.ref?.description), { maxTokens: 3_000, ...(p.ref ? { images: [p.ref.imageB64] } : {}) });
       const ans = readJsonAnswer(out.result.content);
       const problems = ans.svg ? partProblems(ans.svg, p.order.slot) : ["no svg in the answer"];
       if (problems.length) {
         p.feedback = problems.join("; ");
         p.problems.push(`tur ${round}: ${p.feedback}`);
+        p.talk.push({ rol: "Tasarımcı", metin: `tur ${round}: çizim kapılardan geçmedi (${p.feedback})` });
         log(`  gardırop: "${p.order.tarif}" tur ${round} geçersiz — ${p.feedback}`);
         continue;
       }
@@ -296,12 +313,25 @@ export async function designParts(input: {
         const slotName = { head: "headwear", beard: "beard", mustache: "moustache", hand: "held object", back: "worn on the back" }[d.p.order.slot];
         const pick = await pickBackground([{ title: d.p.order.tarif, crop: crops[i]! }], { konu: d.p.order.tarif, donem: input.donem, mekan: slotName, tr: d.p.order.tarif, en: d.p.order.tarif, anlatim: "" }, input.judge, (c) => fs.readFile(c.crop), log, { mode: "parca", max: 1 });
         const v = pick.verdicts[0];
-        if (v && passes(v)) {
+        d.p.talk.push({ rol: "Sanat yönetmeni", metin: v ? `tur ${round}: ${v.puan}/10 — ${v.gosterilen}; ${v.sorun}` : `tur ${round}: okunamadı` });
+        // The brain's second opinion: the historian names the errors, the chief accepts or sends it back once more.
+        let chiefSays: { karar: "kabul" | "revize"; talimat: string } = { karar: "kabul", talimat: "" };
+        if (v && passes(v) && input.brain) {
+          const historian = await historianOnPart(d.p.order, input.donem, `${v.gosterilen}; ${v.sorun}`, d.p.ref, input.brain);
+          d.p.talk.push({ rol: "Tarihçi", metin: historian.onem === "yok" ? "dönem hatası görmedi" : `(${historian.onem}) ${historian.sorunlar.join("; ")}` });
+          chiefSays = await chiefOnPart(d.p.order, round, round === MAX_ROUNDS, v.puan, historian, input.brain);
+          d.p.talk.push({ rol: "Şef", metin: chiefSays.karar === "kabul" ? `kabul${chiefSays.talimat ? ` (${chiefSays.talimat})` : ""}` : `revize: ${chiefSays.talimat}` });
+        }
+        if (v && passes(v) && chiefSays.karar === "revize") {
+          d.p.feedback = `the team leader sent it back: ${chiefSays.talimat}`;
+          d.p.problems.push(`tur ${round}: ${d.p.feedback}`);
+          log(`  gardırop: "${d.p.order.tarif}" tur ${round} şef revize istedi — ${chiefSays.talimat}`);
+        } else if (v && passes(v)) {
           const id = `${d.p.order.tarif.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}-${createHash("sha256").update(d.svg).digest("hex").slice(0, 6)}`;
           // Append-only: an existing file is never overwritten.
           const file = path.join(dir, `${id}.svg`);
           if (!existsSync(file)) await fs.writeFile(file, `${d.svg}\n`);
-          await fs.writeFile(path.join(dir, `${id}.json`), `${JSON.stringify({ tarif: d.p.order.tarif, slot: d.p.order.slot, donem: input.donem, model: input.model.model ?? input.model.provider, denemeler: d.p.tries, hakem: v, olusturuldu: new Date().toISOString() }, null, 2)}\n`);
+          await fs.writeFile(path.join(dir, `${id}.json`), `${JSON.stringify({ tarif: d.p.order.tarif, slot: d.p.order.slot, donem: input.donem, model: input.model.model ?? input.model.provider, denemeler: d.p.tries, hakem: v, ...(d.p.ref ? { referans: { baslik: d.p.ref.title, url: d.p.ref.url, tarif: d.p.ref.description } } : {}), tartisma: d.p.talk, olusturuldu: new Date().toISOString() }, null, 2)}\n`);
           items[id] = { slot: d.p.order.slot, ...(d.behind ? { behind: true } : {}), ...(d.grip ? { grip: true } : {}), not: d.p.order.tarif };
           made.set(key(d.p.order), id);
           records.push({ tarif: d.p.order.tarif, slot: d.p.order.slot, id, kaynak: "tasarim", denemeler: d.p.tries, secim: v });
@@ -320,6 +350,10 @@ export async function designParts(input: {
     made.set(key(p.order), undefined);
     records.push({ tarif: p.order.tarif, slot: p.order.slot, kaynak: "basarisiz", denemeler: p.tries, sorunlar: p.problems });
     log(`⚠ gardırop: "${p.order.tarif}" ${MAX_ROUNDS} turda kabul edilmedi; bu parça kostümden çıkarıldı`);
+  }
+  if (input.brain) {
+    for (const t of talks) input.brain.council.debate("kostum", `parça: ${t.order.tarif}`, t.talk);
+    for (const p of pending) input.brain.council.find({ beyin: "kostum", onem: "eksik", baslik: "parça tasarlanamadı", ayrinti: `"${p.order.tarif}" ${MAX_ROUNDS} turda kabul edilmedi, kostümden çıkarıldı`, oneri: "tarifi sadeleştir ya da benzer bir kütüphane parçası kullan", tur: "veri", yer: p.order.tarif });
   }
   const manifest: CostumePackManifest = { ...library, items };
   await fs.writeFile(path.join(dir, "pack.json"), `${JSON.stringify(manifest, null, 2)}\n`);

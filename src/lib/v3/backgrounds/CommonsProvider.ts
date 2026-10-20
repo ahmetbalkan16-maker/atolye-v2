@@ -61,8 +61,16 @@ export async function cachedJson(cacheDir: string, url: string): Promise<unknown
  * GET with Wikimedia's manners: our User-Agent, and on 429/503 (rate limit, the Rubicon run hit it while judging
  * dozens of previews) a wait — Retry-After when given, else 2, 4, 8, 16 s — before up to four more tries.
  */
+let lastWikimedia = 0;
+
 export async function politeFetch(url: string, tries = 5): Promise<Response> {
   for (let i = 0; ; i++) {
+    // At most one request a second to Wikimedia (its thumbnail servers rate-limit bursts).
+    if (/wikimedia\.org|wikipedia\.org/.test(url)) {
+      const wait = lastWikimedia + 1_000 - Date.now();
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      lastWikimedia = Date.now();
+    }
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
     if ((res.status !== 429 && res.status !== 503) || i >= tries - 1) return res;
     const after = Number(res.headers.get("retry-after"));

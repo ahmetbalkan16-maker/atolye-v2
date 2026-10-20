@@ -13,7 +13,7 @@ export const MIN_FIT_SCORE = 7;
 /** Candidates judged per scene, in search order (each costs one local vision call). */
 export const MAX_JUDGED = 8;
 
-export type JudgeMode = "arsiv" | "set" | "portre" | "parca";
+export type JudgeMode = "arsiv" | "set" | "portre" | "parca" | "referans";
 
 export interface SceneForJudge {
   readonly konu: string;
@@ -82,6 +82,21 @@ export function fitScore(v: CandidateVerdict): number {
 
 export function judgePrompt(scene: SceneForJudge, c: JudgeCandidate, mode: JudgeMode = "arsiv"): string {
   const answer = `Answer only JSON: {"puan": <0-10>, "donem": <0-10>, "modern": <true|false>, "tur": "eser|harita|fotograf|cizim|diger", "gosterilen": "<what the image shows, Turkish, at most 12 words>", "sorun": "<why it fits or not, Turkish, at most 15 words>"}`;
+  if (mode === "referans") {
+    return `You are the costume researcher of an animated history show. Before a costume part is drawn, a real historical example is looked up.
+
+PART: ${scene.konu}
+PERIOD: ${scene.donem}
+FILE (from ${SOURCE_NAME[c.source ?? "commons"] ?? "Wikimedia Commons"}, may be wrong): ${c.title.replace(/^File:/, "")}${c.description ? ` — ${c.description.slice(0, 300)}` : ""}
+MADE IN (metadata, may be missing or wrong): ${c.year ?? "unknown"}
+
+Score 0–10:
+- "puan": does the image clearly show this kind of object (a surviving artefact, a museum piece, a period artwork or a faithful reconstruction drawing), large enough to see its shape and decoration?
+- "donem": is it the form used in ${scene.donem} (not a much earlier or later type)?
+- "modern": true for a modern replica in a shop, a costume, a toy or a film prop.
+- "tur": "eser" for an artefact or artwork, "fotograf" for a photo of one, "cizim" for a drawing.
+${answer}`;
+  }
   if (mode === "parca") {
     return `You are the art director of an animated history show. This picture shows a cartoon puppet (white round head, simple body) wearing or holding a costume part drawn for it.
 

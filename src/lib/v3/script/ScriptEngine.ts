@@ -146,6 +146,9 @@ export function extractJson(text: string): unknown {
 /** Output budget for the writer: the JSON around each spoken word costs several tokens. */
 export function writerMaxTokens(brief: ScriptBrief): number {
   // Maps (outlines, routes), crowds and costumes add a large fixed share: the Rubicon script was cut at 4,884 tokens.
+  // The repair brain may raise it for this run (ATOLYE_V3_WRITER_MAX_TOKENS) after a cut answer.
+  const override = Number(process.env.ATOLYE_V3_WRITER_MAX_TOKENS);
+  if (Number.isFinite(override) && override >= 3_000) return Math.min(16_000, override);
   return Math.min(16_000, Math.max(5_000, 4_000 + wordBudget(brief) * 20));
 }
 

@@ -172,8 +172,12 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
     // Too small to fill a 1080p frame even as a framed cutaway.
     return c.width === 0 || c.width >= 900 || c.height >= 900;
   });
+  // Before photography a photo taken after 1900 cannot be a period image: such candidates are not even judged (the
+  // Rubicon run spent minutes on 43 photos of modern Rimini, each preview hitting Wikimedia's rate limit).
+  const ancient = periodEnd !== undefined && periodEnd < 1850;
   const candidates = all
     .map((c, i) => ({ c, i, r: periodRank(c.year, periodEnd) }))
+    .filter((x) => !(ancient && x.r === 2))
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.c);
   return { candidates, report };
