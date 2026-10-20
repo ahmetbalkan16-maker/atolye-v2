@@ -94,7 +94,8 @@ export async function findPortraitFace(input: {
   await fs.mkdir(paths.asciiTemp, { recursive: true });
   for (const { c, v } of ranked) {
     const raw = path.join(paths.asciiTemp, `portre-${person.id}${path.extname(new URL(c.downloadUrl).pathname) || ".jpg"}`);
-    const credit = await downloadCommons(c, raw);
+    const credit = await downloadCommons(c, raw).catch((e: Error) => (log(`  ${person.ad}: indirilemedi (${e.message})`), undefined));
+    if (!credit) continue;
     const outName = `${person.id}.png`;
     const cut = await cutFace(paths, raw, path.join(dir, outName)).catch((e: Error) => ({ ok: false, error: e.message }) as FaceCut);
     await fs.rm(raw, { force: true });

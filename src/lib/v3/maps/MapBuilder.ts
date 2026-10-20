@@ -1,0 +1,191 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import type { SceneMap } from "../episode/EpisodeTypes";
+import type { V3GeoMap } from "../render/RenderPlanTypes";
+
+/**
+ * OverSimplified-style maps from Natural Earth (public domain) vector data: land, lakes and rivers of the view,
+ * territories (modern countries by ISO code, or rough lon/lat outlines the script draws — clipped to the coast so
+ * they look exact), cities, armies and arrows. Everything is projected here (equirectangular, x scaled by the cosine
+ * of the centre latitude) into frame pixels and clipped to the view, so the renderer only draws SVG paths.
+ */
+export interface MapData {
+  readonly land: Polygon[];
+  readonly lakes: Polygon[];
+  readonly rivers: Line[];
+  readonly countries: ReadonlyMap<string, Polygon[]>;
+}
+
+type Ring = readonly (readonly [number, number])[];
+type Polygon = readonly Ring[];
+type Line = Ring;
+
+interface GeoJson {
+  readonly features: readonly { readonly properties: Record<string, unknown>; readonly geometry: { readonly type: string; readonly coordinates: unknown } | null }[];
+}
+
+function polygonsOf(g: { type: string; coordinates: unknown } | null): Polygon[] {
+  if (!g) return [];
+  if (g.type === "Polygon") return [g.coordinates as Polygon];
+  if (g.type === "MultiPolygon") return g.coordinates as Polygon[];
+  return [];
+}
+
+function linesOf(g: { type: string; coordinates: unknown } | null): Line[] {
+  if (!g) return [];
+  if (g.type === "LineString") return [g.coordinates as Line];
+  if (g.type === "MultiLineString") return g.coordinates as Line[];
+  return [];
+}
+
+let cached: MapData | undefined;
+
+/** Natural Earth 1:50m files from `dir` (ne_50m_land, _lakes, _rivers_lake_centerlines, _admin_0_countries). */
+export async function loadMapData(dir: string): Promise<MapData> {
+  if (cached) return cached;
+  const read = async (n: string) => JSON.parse(await fs.readFile(path.join(dir, `${n}.geojson`), "utf8")) as GeoJson;
+  const [land, lakes, rivers, countries] = await Promise.all([read("ne_50m_land"), read("ne_50m_lakes"), read("ne_50m_rivers_lake_centerlines"), read("ne_50m_admin_0_countries")]);
+  const byIso = new Map<string, Polygon[]>();
+  for (const f of countries.features) {
+    for (const k of ["ISO_A3", "ADM0_A3", "ISO_A3_EH"]) {
+      const iso = String(f.properties[k] ?? "");
+      if (/^[A-Z]{3}$/.test(iso) && !byIso.has(iso)) byIso.set(iso, polygonsOf(f.geometry));
+    }
+  }
+  cached = {
+    land: land.features.flatMap((f) => polygonsOf(f.geometry)),
+    lakes: lakes.features.flatMap((f) => polygonsOf(f.geometry)),
+    rivers: rivers.features.filter((f) => Number(f.properties.scalerank ?? 9) <= 6).flatMap((f) => linesOf(f.geometry)),
+    countries: byIso,
+  };
+  return cached;
+}
+
+export interface MapView {
+  readonly lon0: number;
+  readonly lat0: number;
+  /** Degrees of longitude and latitude the frame spans. */
+  readonly spanLon: number;
+  readonly spanLat: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export function mapView(center: readonly [number, number], widthKm: number, width: number, height: number): MapView {
+  const [lon0, lat0] = center;
+  const kx = Math.max(0.2, Math.cos((lat0 * Math.PI) / 180));
+  const spanLon = widthKm / (111.32 * kx);
+  const spanLat = (spanLon * kx * height) / width;
+  return { lon0, lat0, spanLon, spanLat, width, height };
+}
+
+export function project(v: MapView, lon: number, lat: number): [number, number] {
+  return [((lon - v.lon0) / v.spanLon + 0.5) * v.width, (0.5 - (lat - v.lat0) / v.spanLat) * v.height];
+}
+
+/** Sutherland–Hodgman clip of a closed ring to a rectangle (enough for land and territories in a frame). */
+export function clipRing(ring: readonly (readonly [number, number])[], x0: number, y0: number, x1: number, y1: number): [number, number][] {
+  let out: [number, number][] = ring.map((p) => [p[0], p[1]]);
+  const edges: [(p: [number, number]) => boolean, (a: [number, number], b: [number, number]) => [number, number]][] = [
+    [(p) => p[0] >= x0, (a, b) => [x0, a[1] + ((b[1] - a[1]) * (x0 - a[0])) / (b[0] - a[0])]],
+    [(p) => p[0] <= x1, (a, b) => [x1, a[1] + ((b[1] - a[1]) * (x1 - a[0])) / (b[0] - a[0])]],
+    [(p) => p[1] >= y0, (a, b) => [a[0] + ((b[0] - a[0]) * (y0 - a[1])) / (b[1] - a[1]), y0]],
+    [(p) => p[1] <= y1, (a, b) => [a[0] + ((b[0] - a[0]) * (y1 - a[1])) / (b[1] - a[1]), y1]],
+  ];
+  for (const [inside, cut] of edges) {
+    const input = out;
+    out = [];
+    for (let i = 0; i < input.length; i++) {
+      const cur = input[i]!;
+      const prev = input[(i + input.length - 1) % input.length]!;
+      if (inside(cur)) {
+        if (!inside(prev)) out.push(cut(prev, cur));
+        out.push(cur);
+      } else if (inside(prev)) out.push(cut(prev, cur));
+    }
+    if (!out.length) break;
+  }
+  return out;
+}
+
+const r1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Projected, clipped polygons as one SVG path (even-odd holes kept). */
+function polygonsPath(v: MapView, polys: readonly Polygon[]): string {
+  const m = Math.max(v.width, v.height) * 0.1;
+  const parts: string[] = [];
+  for (const poly of polys) {
+    for (const ring of poly) {
+      const clipped = clipRing(ring.map(([lon, lat]) => project(v, lon, lat)), -m, -m, v.width + m, v.height + m);
+      if (clipped.length < 3) continue;
+      // Drop points closer than half a pixel to the previous one.
+      const pts: [number, number][] = [];
+      for (const p of clipped) {
+        const last = pts[pts.length - 1];
+        if (!last || Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) > 0.5) pts.push(p);
+      }
+      if (pts.length >= 3) parts.push(`M${pts.map((p) => `${r1(p[0])} ${r1(p[1])}`).join("L")}Z`);
+    }
+  }
+  return parts.join("");
+}
+
+function linesPath(v: MapView, lines: readonly Line[]): string {
+  const parts: string[] = [];
+  for (const line of lines) {
+    let run: string[] = [];
+    for (const [lon, lat] of line) {
+      const [x, y] = project(v, lon, lat);
+      if (x < -50 || y < -50 || x > v.width + 50 || y > v.height + 50) {
+        if (run.length > 1) parts.push(`M${run.join("L")}`);
+        run = [];
+        continue;
+      }
+      run.push(`${r1(x)} ${r1(y)}`);
+    }
+    if (run.length > 1) parts.push(`M${run.join("L")}`);
+  }
+  return parts.join("");
+}
+
+/** Centroid of the projected territory outline (label anchor), or undefined when it is off frame. */
+function labelPoint(v: MapView, polys: readonly Polygon[]): [number, number] | undefined {
+  let sx = 0, sy = 0, n = 0;
+  for (const poly of polys) {
+    for (const [lon, lat] of poly[0] ?? []) {
+      const [x, y] = project(v, lon, lat);
+      if (x >= 0 && y >= 0 && x <= v.width && y <= v.height) {
+        sx += x;
+        sy += y;
+        n++;
+      }
+    }
+  }
+  return n ? [sx / n, sy / n] : undefined;
+}
+
+/**
+ * The render map of a scene's geographic `harita` (needs `merkez` and `genislik_km`). Line indexes (`satir`) become
+ * frames through `lineStart`, so a territory or an arrow appears when the narrator mentions it.
+ */
+export function buildGeoMap(map: SceneMap, data: MapData, width: number, height: number, lineStart: (index: number | undefined, order: number) => number): V3GeoMap {
+  const v = mapView(map.merkez!, map.genislik_km!, width, height);
+  const territories = (map.bolgeler ?? []).map((b, i) => {
+    const polys: Polygon[] = [...(b.ulkeler ?? []).flatMap((iso) => data.countries.get(iso.toUpperCase()) ?? []), ...(b.noktalar && b.noktalar.length >= 3 ? [[b.noktalar.map(([lon, lat]) => [lon, lat] as const)]] : [])];
+    const at = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : labelPoint(v, polys);
+    return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...(at ? { labelX: r1(at[0]), labelY: r1(at[1]) } : {}), start: lineStart(b.satir, i) };
+  });
+  const toPx = (p: readonly [number, number]) => {
+    const [x, y] = project(v, p[0], p[1]);
+    return { x: r1(x), y: r1(y) };
+  };
+  return {
+    land: polygonsPath(v, data.land),
+    lakes: polygonsPath(v, data.lakes),
+    rivers: linesPath(v, data.rivers),
+    territories,
+    cities: (map.sehirler ?? []).map((c) => ({ ...toPx(c.konum), label: c.ad })),
+    armies: (map.ordular ?? []).map((a, i) => ({ ...toPx(a.konum), label: a.ad, color: a.renk, start: lineStart(a.satir, i) })),
+    arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? "#e0283c", ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i) })),
+  };
+}

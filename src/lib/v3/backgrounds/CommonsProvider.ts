@@ -49,12 +49,25 @@ export async function cachedJson(cacheDir: string, url: string): Promise<unknown
     const stat = await fs.stat(file);
     if (Date.now() - stat.mtimeMs < 24 * 3600_000) return JSON.parse(await fs.readFile(file, "utf8"));
   }
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  const res = await politeFetch(url);
   if (!res.ok) throw new Error(`COMMONS_HTTP_${res.status}`);
   const json = await res.json();
   await fs.mkdir(cacheDir, { recursive: true });
   await fs.writeFile(file, JSON.stringify(json));
   return json;
+}
+
+/**
+ * GET with Wikimedia's manners: our User-Agent, and on 429/503 (rate limit, the Rubicon run hit it while judging
+ * dozens of previews) a wait — Retry-After when given, else 2, 4, 8, 16 s — before up to four more tries.
+ */
+export async function politeFetch(url: string, tries = 5): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    if ((res.status !== 429 && res.status !== 503) || i >= tries - 1) return res;
+    const after = Number(res.headers.get("retry-after"));
+    await new Promise((r) => setTimeout(r, Number.isFinite(after) && after > 0 ? Math.min(after, 60) * 1000 : 2000 * 2 ** i));
+  }
 }
 
 /**
@@ -175,7 +188,7 @@ export async function commonsByTitles(cacheDir: string, titles: readonly string[
 
 /** Downloads a candidate (standard rendition, at most 3840 px wide) as a local asset with its credit. */
 export async function downloadCommons(c: CommonsCandidate, outFile: string): Promise<CreditRecord> {
-  const res = await fetch(c.downloadUrl, { headers: { "User-Agent": USER_AGENT } });
+  const res = await politeFetch(c.downloadUrl);
   if (!res.ok) throw new Error(`COMMONS_DOWNLOAD_${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
   await fs.mkdir(path.dirname(outFile), { recursive: true });
@@ -187,7 +200,7 @@ export async function downloadCommons(c: CommonsCandidate, outFile: string): Pro
 export async function commonsPreview(cacheDir: string, c: CommonsCandidate): Promise<Buffer> {
   const file = path.join(cacheDir, "onizleme", `${createHash("sha256").update(c.previewUrl).digest("hex").slice(0, 24)}${path.extname(new URL(c.previewUrl).pathname) || ".jpg"}`);
   if (existsSync(file)) return fs.readFile(file);
-  const res = await fetch(c.previewUrl, { headers: { "User-Agent": USER_AGENT } });
+  const res = await politeFetch(c.previewUrl);
   if (!res.ok) throw new Error(`COMMONS_PREVIEW_${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
   await fs.mkdir(path.dirname(file), { recursive: true });

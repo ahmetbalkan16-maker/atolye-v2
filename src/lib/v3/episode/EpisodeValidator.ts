@@ -182,6 +182,33 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       oneOf(d, "tur", dp, PROP_KINDS);
       num(d, "x", dp, -0.2, 1.2);
     });
+    if (isObj(s.harita) && s.harita.merkez !== undefined) {
+      const h = s.harita;
+      const hp = `${p}.harita`;
+      const lonLat = (v: unknown, where: string) => {
+        if (!Array.isArray(v) || v.length !== 2 || typeof v[0] !== "number" || typeof v[1] !== "number" || Math.abs(v[0]) > 180 || Math.abs(v[1]) > 85) err("HARITA_KONUM", where, "[boylam, enlem] bekleniyor (-180..180, -85..85)");
+      };
+      lonLat(h.merkez, `${hp}.merkez`);
+      num(h, "genislik_km", hp, 20, 40_000);
+      (arr(h, "bolgeler", hp, true) ?? []).forEach((b, bi) => {
+        const bp = `${hp}.bolgeler[${bi}]`;
+        if (!isObj(b)) return err("HARITA_BOLGE", bp, "nesne bekleniyor");
+        str(b, "ad", bp, { max: 60 });
+        str(b, "renk", bp, { pattern: HEX });
+        const iso = Array.isArray(b.ulkeler) ? b.ulkeler : [];
+        if (iso.some((c) => typeof c !== "string" || !/^[A-Za-z]{3}$/.test(c))) err("HARITA_ULKE", `${bp}.ulkeler`, "ISO 3166 alfa-3 kodları bekleniyor (ITA, FRA…)");
+        const pts = Array.isArray(b.noktalar) ? b.noktalar : [];
+        pts.forEach((pt, k) => lonLat(pt, `${bp}.noktalar[${k}]`));
+        if (!iso.length && pts.length < 3) err("HARITA_BOLGE", bp, "ulkeler ya da en az 3 noktalı noktalar gerekli");
+      });
+      (arr(h, "sehirler", hp, true) ?? []).forEach((c, ci) => (isObj(c) ? (str(c, "ad", `${hp}.sehirler[${ci}]`, { max: 40 }), lonLat(c.konum, `${hp}.sehirler[${ci}].konum`)) : err("HARITA", `${hp}.sehirler[${ci}]`, "nesne bekleniyor")));
+      (arr(h, "ordular", hp, true) ?? []).forEach((o, oi) => (isObj(o) ? (str(o, "ad", `${hp}.ordular[${oi}]`, { max: 40 }), str(o, "renk", `${hp}.ordular[${oi}]`, { pattern: HEX }), lonLat(o.konum, `${hp}.ordular[${oi}].konum`)) : err("HARITA", `${hp}.ordular[${oi}]`, "nesne bekleniyor")));
+      (arr(h, "oklar", hp, true) ?? []).forEach((o, oi) => {
+        const pts = isObj(o) && Array.isArray(o.noktalar) ? o.noktalar : [];
+        if (pts.length < 2) err("HARITA_OK", `${hp}.oklar[${oi}]`, "en az 2 nokta");
+        pts.forEach((pt, k) => lonLat(pt, `${hp}.oklar[${oi}].noktalar[${k}]`));
+      });
+    }
     (arr(s, "kalabalik", p, true) ?? []).forEach((c, ci) => {
       const cp = `${p}.kalabalik[${ci}]`;
       if (!isObj(c)) return err("KALABALIK", cp, "nesne bekleniyor");

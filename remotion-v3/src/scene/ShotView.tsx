@@ -7,6 +7,7 @@ import { extraState } from "../character/extras";
 import { headCenter, performerState, turnStretch } from "../character/motion";
 import { easeInOut, HEAD_R, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
+import { MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
@@ -79,6 +80,11 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
       <AbsoluteFill style={wrapStyle}>
         <AbsoluteFill style={{ transform: view(bgCam), transformOrigin: "0 0" }}>
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>
+            {shot.geoMap ? (
+              <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>
+                <MapView map={shot.geoMap} width={W} height={H} />
+              </div>
+            ) : (
             <Img
               src={staticFile(bg.src)}
               style={{
@@ -89,6 +95,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
                 filter: bg.kind === "set" ? "saturate(0.88) contrast(1.04) brightness(1.03) blur(1.6px)" : "sepia(0.12) contrast(1.06)",
               }}
             />
+            )}
             {shot.mapArrows.length ? (
               <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>
                 {shot.mapArrows.map((a, i) => {

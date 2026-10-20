@@ -7,6 +7,7 @@
   "required": ["id", "baslik", "konu", "donem", "hedef_sure_sn", "ton", "kaynaklar", "oyuncu_kadrosu", "sahneler"],
   "additionalProperties": false,
   "$defs": {
+    "lonlat": { "type": "array", "prefixItems": [{ "type": "number", "minimum": -180, "maximum": 180 }, { "type": "number", "minimum": -85, "maximum": 85 }], "minItems": 2, "maxItems": 2 },
     "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,79}$" },
     "hex": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
     "aksesuar": { "type": "string", "pattern": "^([a-z0-9-]+/)?[a-z0-9-]+$" },
@@ -110,8 +111,13 @@
         },
         "harita": {
           "type": "object",
-          "required": ["oklar"],
+          "description": "Arrows over an archival map image (points 0..1), or with merkez + genislik_km a drawn Natural Earth map (points [lon, lat])",
           "properties": {
+            "merkez": { "$ref": "#/$defs/lonlat" },
+            "genislik_km": { "type": "number", "minimum": 20, "maximum": 40000 },
+            "bolgeler": { "type": "array", "items": { "type": "object", "required": ["ad", "renk"], "properties": { "ad": { "type": "string" }, "renk": { "$ref": "#/$defs/hex" }, "ulkeler": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z]{3}$" } }, "noktalar": { "type": "array", "items": { "$ref": "#/$defs/lonlat" } }, "etiket_konum": { "$ref": "#/$defs/lonlat" }, "satir": { "type": "integer", "minimum": 0 } } } },
+            "sehirler": { "type": "array", "items": { "type": "object", "required": ["ad", "konum"], "properties": { "ad": { "type": "string" }, "konum": { "$ref": "#/$defs/lonlat" } } } },
+            "ordular": { "type": "array", "items": { "type": "object", "required": ["ad", "konum", "renk"], "properties": { "ad": { "type": "string" }, "konum": { "$ref": "#/$defs/lonlat" }, "renk": { "$ref": "#/$defs/hex" }, "satir": { "type": "integer", "minimum": 0 } } } },
             "oklar": {
               "type": "array",
               "items": {
@@ -120,7 +126,8 @@
                 "properties": {
                   "noktalar": { "type": "array", "minItems": 2, "items": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }], "minItems": 2, "maxItems": 2 } },
                   "renk": { "$ref": "#/$defs/hex" },
-                  "etiket": { "type": "string" }
+                  "etiket": { "type": "string" },
+                  "satir": { "type": "integer", "minimum": 0 }
                 }
               }
             }

@@ -24,6 +24,8 @@ export interface V3Paths {
   readonly ttsPython: string;
   /** Second venv for Kokoro (English TTS) and SDXL (background designer); keeps Chatterbox's pins untouched. */
   readonly genPython: string;
+  /** Natural Earth 1:50m GeoJSON (public domain) for drawn maps. */
+  readonly mapsDir: string;
   /** OpenCV YuNet face detector (MIT) for cutting portrait faces. */
   readonly faceModel: string;
   /** SDXL base 1.0 weights (diffusers layout) for designing period sets. */
@@ -86,6 +88,7 @@ export function resolveV3Paths(repoRoot = process.cwd(), env: NodeJS.ProcessEnv 
     ttsPython: get("ATOLYE_V3_TTS_PYTHON", path.join(toolsRoot, "tts-venv", "Scripts", "python.exe")),
     genPython: get("ATOLYE_V3_GEN_PYTHON", path.join(toolsRoot, "gen-venv", "Scripts", "python.exe")),
     espeakData: get("ATOLYE_V3_ESPEAK_DATA", ""),
+    mapsDir: get("ATOLYE_V3_MAPS", path.join(toolsRoot, "maps")),
     faceModel: get("ATOLYE_V3_FACE_MODEL", path.join(toolsRoot, "models", "face_detection_yunet_2023mar.onnx")),
     sdxlModel: get("ATOLYE_V3_SDXL_MODEL", path.join(get("ATOLYE_V3_BACKDROP_LIBRARY", path.join(bin, "ayas-local-visual", "library")), "..", "model")),
     voiceRefRoot: get("ATOLYE_V3_VOICE_REFS", path.join(repoRoot, "output", "v3-voices")),

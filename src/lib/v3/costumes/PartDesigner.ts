@@ -221,7 +221,12 @@ async function fittingStills(paths: V3Paths, candidates: readonly { order: PartO
   const out: string[] = [];
   for (let i = 0; i < n; i++) {
     const crop = path.join(workDir, `aday-${i}.jpg`);
-    await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", still, "-vf", `crop=${Math.min(cell, 640)}:820:${Math.max(0, Math.round((i + 0.5) * cell - Math.min(cell, 640) / 2))}:200,scale=-2:640`, "-q:v", "3", crop]);
+    const cx = Math.round((i + 0.5) * cell);
+    // Head parts: a close square on the head (the judge must see the part, not a small figure); others: the figure.
+    const head = candidates[i]!.order.slot !== "hand" && candidates[i]!.order.slot !== "back";
+    const w = head ? Math.min(cell, 440) : Math.min(cell, 640);
+    const box = head ? `crop=${w}:${w}:${Math.max(0, cx - Math.round(w / 2))}:${Math.round(640 - w * 0.62)},scale=640:640` : `crop=${w}:820:${Math.max(0, cx - Math.round(w / 2))}:200,scale=-2:640`;
+    await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", still, "-vf", box, "-q:v", "3", crop]);
     out.push(crop);
   }
   return out;

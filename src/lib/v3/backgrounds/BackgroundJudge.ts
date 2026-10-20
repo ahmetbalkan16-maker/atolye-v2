@@ -83,13 +83,13 @@ export function fitScore(v: CandidateVerdict): number {
 export function judgePrompt(scene: SceneForJudge, c: JudgeCandidate, mode: JudgeMode = "arsiv"): string {
   const answer = `Answer only JSON: {"puan": <0-10>, "donem": <0-10>, "modern": <true|false>, "tur": "eser|harita|fotograf|cizim|diger", "gosterilen": "<what the image shows, Turkish, at most 12 words>", "sorun": "<why it fits or not, Turkish, at most 15 words>"}`;
   if (mode === "parca") {
-    return `You are the art director of an animated history show. The cartoon puppet in this picture wears or holds a newly drawn costume part.
+    return `You are the art director of an animated history show. This picture shows a cartoon puppet (white round head, simple body) wearing or holding a costume part drawn for it.
 
-PART WANTED: ${scene.konu} (${scene.mekan})
+PART: ${scene.konu} (${scene.mekan})
 PERIOD: ${scene.donem}
 
-Score 0–10:
-- "puan": at first glance, is it clearly the wanted part, sitting where it belongs (headwear on the head, a beard on the chin, a held object in the hand, a cape or shield on the back) at a sensible size, in the same clean flat style with dark outlines as the puppet? 0–3 if it is unrecognisable, floating off the body, covering the eyes, far too big or too small, or made of broken, stray or messy shapes.
+Look at the puppet's ${scene.mekan === "held object" ? "hand" : scene.mekan === "worn on the back" ? "back" : "head and face"} and score 0–10:
+- "puan": at first glance, is what it wears or holds clearly this part, sitting where it belongs (headwear on the head, a beard on the chin, a held object in the hand, a cape or shield on the back) at a sensible size, in the same clean flat style with dark outlines as the puppet? 0–3 if it is unrecognisable, floating off the body, covering the eyes, far too big or too small, or made of broken, stray or messy shapes.
 - "donem": does its shape fit ${scene.donem}?
 - "modern": true if it looks like a modern object when it should not.
 - "tur": "cizim".

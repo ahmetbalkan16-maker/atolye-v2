@@ -7,8 +7,10 @@ import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, normalizeCamera, placeCrowd } from "../src/lib/v3/director/Director";
-import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
+import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
+import { buildGeoMap, clipRing, mapView, project } from "../src/lib/v3/maps/MapBuilder";
+import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
 
@@ -255,6 +257,49 @@ async function main() {
     const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, kalabalik: [{ ...g, sayi: 90 }], satirlar: [{ ...ep.sahneler[0]!.satirlar[0]!, balon: "anlatıcıya balon" }] }] });
     assert.ok(bad.errors.some((e) => e.path.endsWith("kalabalik[0].sayi")));
     assert.ok(bad.errors.some((e) => e.code === "BALON_ANLATICI"));
+  });
+
+  await scenario("O drawn maps: projection, coast clipping, territories by outline or ISO code, timed by the line that names them", () => {
+    const v = mapView([12.5, 43], 1300, 1920, 1080);
+    const [cx, cy] = project(v, 12.5, 43);
+    assert.ok(Math.abs(cx - 960) < 1e-6 && Math.abs(cy - 540) < 1e-6, "merkez kare ortasında");
+    assert.ok(project(v, 13, 43)[0] > 960 && project(v, 12.5, 44)[1] < 540, "doğu sağda, kuzey yukarıda");
+    assert.equal(clipRing([[-10, -10], [10, -10], [10, 10], [-10, 10]], 0, 0, 5, 5).length, 4, "kare dikdörtgene kırpılır");
+    assert.equal(clipRing([[100, 100], [110, 100], [110, 110]], 0, 0, 5, 5).length, 0, "dışarıdaki halka düşer");
+    const square = [[[10, 40], [15, 40], [15, 46], [10, 46], [10, 40]] as const] as const;
+    const data = { land: [square], lakes: [], rivers: [[[11, 41], [12, 42], [13, 43]] as const], countries: new Map([["ITA", [square]]]) };
+    const map: SceneMap = { merkez: [12.5, 43], genislik_km: 1300, bolgeler: [{ ad: "Rome", renk: "#b8283a", noktalar: [[11, 41], [14, 41], [14, 44]], satir: 1 }, { ad: "Italy", renk: "#2f6fb0", ulkeler: ["ita"] }], sehirler: [{ ad: "Roma", konum: [12.5, 41.9] }], oklar: [{ noktalar: [[12, 44], [12.5, 42]], satir: 0 }] };
+    const geo = buildGeoMap(map, data as never, 1920, 1080, (i, order) => (i !== undefined ? i * 100 : 1000 + order));
+    assert.ok(geo.land.startsWith("M") && geo.rivers.startsWith("M"));
+    assert.deepEqual(geo.territories.map((t) => [t.label, t.start, t.d.length > 0]), [["Rome", 100, true], ["Italy", 1001, true]], "ISO kodu büyük/küçük harf duyarsız");
+    assert.equal(geo.arrows[0]!.start, 0);
+    assert.equal(geo.cities[0]!.label, "Roma");
+    const ep = sampleEpisode();
+    const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [200, 43], genislik_km: 5, bolgeler: [{ ad: "x", renk: "#ffffff" }] } }] });
+    assert.ok(bad.errors.some((e) => e.code === "HARITA_KONUM") && bad.errors.some((e) => e.path.endsWith("genislik_km")) && bad.errors.some((e) => e.code === "HARITA_BOLGE"));
+  });
+
+  await scenario("P draft normaliser: narrator never visible, English garment names, made-up parts become orders", () => {
+    const ep = sampleEpisode();
+    const draft = JSON.parse(JSON.stringify(ep)) as { oyuncu_kadrosu: Record<string, unknown>[]; sahneler: Record<string, unknown>[] };
+    draft.oyuncu_kadrosu[0] = { ...draft.oyuncu_kadrosu[0], gorunur: true, kostum: { giysi: "tunic" } };
+    (draft.oyuncu_kadrosu[1]!.kostum as Record<string, unknown>).giysi = "Military Uniform";
+    (draft.oyuncu_kadrosu[1]!.kostum as Record<string, unknown>).sakal = "sakal-koyu";
+    (draft.oyuncu_kadrosu[2]!.kostum as Record<string, unknown>).bas = "none";
+    (draft.oyuncu_kadrosu[2]!.kostum as Record<string, unknown>).el_on = "legionary-shield";
+    draft.sahneler[0] = { ...draft.sahneler[0], sahne_duzeni: [{ karakter: "anlatici", x: 0.5 }, { karakter: "mehmed", x: 0.3 }] };
+    const catalog = [{ pack: "ottoman-1453", title: "o", items: { head: ["padisah-kavugu"], beard: ["sakal-beyaz"] } }, { pack: "byzantine-1453", title: "b", items: { beard: ["sakal-koyu"] } }];
+    const { value, fixes } = normalizeDraft(draft, catalog);
+    const v = value as Episode;
+    assert.equal(v.oyuncu_kadrosu[0]!.gorunur, false);
+    assert.equal(v.oyuncu_kadrosu[0]!.kostum, undefined);
+    assert.equal(v.oyuncu_kadrosu[1]!.kostum!.giysi, "uniforma");
+    assert.equal(v.oyuncu_kadrosu[1]!.kostum!.sakal, "byzantine-1453/sakal-koyu");
+    assert.equal(v.oyuncu_kadrosu[2]!.kostum!.bas, undefined);
+    assert.equal(v.oyuncu_kadrosu[2]!.kostum!.el_on, "yeni:legionary shield");
+    assert.deepEqual(v.sahneler[0]!.sahne_duzeni!.map((b) => b.karakter), ["mehmed"]);
+    assert.ok(fixes.length >= 6);
+    assert.equal(validateEpisode(value).ok, true, JSON.stringify(validateEpisode(value).errors.slice(0, 3)));
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

@@ -148,7 +148,8 @@ CAST / KADRO
 - "rol": a short role line shown under the name the first time they speak (at most 5 words, e.g. "Ottoman Sultan, age 20").
 - "portre": {"wiki": "<exact English Wikipedia article title>"} for the 2–3 MAIN characters who are real historical people
   with a known likeness (a portrait, miniature, engraving or photo): their real face is cut from that portrait and put on
-  the cartoon body. Leave it out for invented, anonymous or minor characters — they get hair, beard and hat parts instead.
+  the cartoon body. They still need their full "kostum" (garment, colours, headwear): only the face comes from the
+  portrait. Leave "portre" out for invented, anonymous or minor characters — they get hair, beard and hat parts instead.
 - Costumes: "giysi" is one of the body garments below, in period colours. Parts ("bas", "sakal", "biyik", "el_on",
   "el_arka", "sirt") come from the catalog when an item fits the period and the character's rank (the notes in brackets
   say who may wear it; an item from another pack is written "pack/item"). When nothing in the catalog fits, ORDER the
@@ -161,6 +162,16 @@ SCREEN TEXT — there are NO subtitles. The only words on screen are title cards
   the key phrase of the line, 2–8 words, same language as the line, quoting or condensing it (end a shout with "!").
   Give it to most character lines, always to the funny ones; never to the narrator.
 - A "kelime" title card (one big word on black, e.g. "CRISIS", "BETRAYAL") once or twice per episode for an emphasis beat.
+
+MAPS — wherever the story moves (campaigns, borders, empires, routes) show a drawn map scene, at least one per episode:
+  "harita": {"merkez": [lon, lat], "genislik_km": 150–30000,
+    "bolgeler": [{"ad": "Roman Republic", "renk": "#b8283a", "noktalar": [[lon, lat], …rough outline, 6–14 points…], "satir": 0},
+                 {"ad": "France", "renk": "#2f6fb0", "ulkeler": ["FRA"]}],   // modern countries by ISO alpha-3 code
+    "sehirler": [{"ad": "Rome", "konum": [12.5, 41.9]}],
+    "ordular": [{"ad": "Caesar", "konum": [lon, lat], "renk": "#…", "satir": 1}],
+    "oklar": [{"noktalar": [[lon, lat], [lon, lat], …], "renk": "#…", "etiket": "Caesar", "satir": 2}]}
+  Real coordinates; outlines may be rough (they are clipped to the real coast). "satir" = the line of the scene that
+  mentions it, so it appears then. A map scene is mostly narrator lines; characters may stand on it for a quip.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,

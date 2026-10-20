@@ -238,6 +238,17 @@ export interface V3Insert {
   readonly caption?: string;
 }
 
+/** A drawn map (Natural Earth), already projected into frame pixels; things appear at `start` (shot frame). */
+export interface V3GeoMap {
+  readonly land: string;
+  readonly lakes: string;
+  readonly rivers: string;
+  readonly territories: readonly { readonly d: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly start: number }[];
+  readonly cities: readonly { readonly x: number; readonly y: number; readonly label: string }[];
+  readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number }[];
+  readonly arrows: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly color: string; readonly label?: string; readonly start: number }[];
+}
+
 export interface V3Shot {
   readonly id: string;
   readonly sceneId: string;
@@ -257,6 +268,8 @@ export interface V3Shot {
   readonly nameTags?: readonly V3NameTag[];
   readonly inserts?: readonly V3Insert[];
   readonly extras?: readonly V3Extra[];
+  /** A drawn geographic map instead of the background image. */
+  readonly geoMap?: V3GeoMap;
 }
 
 export interface V3CaptionWord {

@@ -1,6 +1,7 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
+import { normalizeDraft } from "./DraftNormalizer";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
 
@@ -9,7 +10,12 @@ import type { V3Budget, V3ModelChoice } from "./V3Budget";
  * corrections are applied to the lines. Every model call goes through the episode budget.
  */
 export class ScriptError extends Error {
-  constructor(readonly code: "V3_SCRIPT_NO_JSON" | "V3_SCRIPT_JSON_CUT" | "V3_SCRIPT_JSON_SYNTAX" | "V3_SCRIPT_REFUSED" | "V3_SCRIPT_INVALID", message: string) {
+  constructor(
+    readonly code: "V3_SCRIPT_NO_JSON" | "V3_SCRIPT_JSON_CUT" | "V3_SCRIPT_JSON_SYNTAX" | "V3_SCRIPT_REFUSED" | "V3_SCRIPT_INVALID",
+    message: string,
+    /** The last draft that failed, kept for diagnosis. */
+    readonly draft?: string,
+  ) {
     super(`${code}: ${message}`);
   }
 }
@@ -125,7 +131,8 @@ export function extractJson(text: string): unknown {
 
 /** Output budget for the writer: the JSON around each spoken word costs several tokens. */
 export function writerMaxTokens(brief: ScriptBrief): number {
-  return Math.min(16_000, Math.max(3_000, 1_500 + wordBudget(brief) * 12));
+  // Maps (outlines, routes), crowds and costumes add a large fixed share: the Rubicon script was cut at 4,884 tokens.
+  return Math.min(16_000, Math.max(5_000, 4_000 + wordBudget(brief) * 20));
 }
 
 const FACT_CHECK_MAX_TOKENS = 3_000;
@@ -206,20 +213,22 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   const check = (text: string): { value?: unknown; validation?: EpisodeValidation; problems: string[] } => {
     const parsed = parse(text);
     if (!parsed.ok) return { problems: [parsed.error] };
-    const validation = validateEpisode(parsed.value);
-    const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(parsed.value, brief.kaynakBankasi)];
-    return { value: parsed.value, validation, problems };
+    // Mechanical slips (visible narrator, English garment names, made-up items) are fixed here, not by a model round.
+    const value = normalizeDraft(parsed.value, input.catalog).value;
+    const validation = validateEpisode(value);
+    const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
+    return { value, validation, problems };
   };
   let raw = first.result.content;
   let state = check(raw);
   let repairs = 0;
-  while (state.problems.length && repairs < (input.maxRepairs ?? 2)) {
+  while (state.problems.length && repairs < (input.maxRepairs ?? 3)) {
     repairs++;
-    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(raw, state.problems), opts);
+    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(state.value !== undefined ? JSON.stringify(state.value) : raw, state.problems), opts);
     raw = next.result.content;
     state = check(raw);
   }
-  if (state.problems.length) throw new ScriptError("V3_SCRIPT_INVALID", `${repairs} onarımdan sonra: ${state.problems.slice(0, 5).join("; ")}`);
+  if (state.problems.length) throw new ScriptError("V3_SCRIPT_INVALID", `${repairs} onarımdan sonra: ${state.problems.slice(0, 5).join("; ")}`, raw);
 
   let written = state.value as Episode;
   let validation = state.validation!;

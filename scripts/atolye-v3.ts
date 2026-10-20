@@ -1,13 +1,16 @@
 /**
- * Atölye V3 — tek komutla bölüm: konu → senaryo → ses → ağız senkronu → görsel → render → miks → final.
+ * Atölye V3 — tek komutla bölüm, her dönem ve konu için: konu → araştırma + senaryo → gardırop → ses → ağız senkronu
+ * → portre yüzler → dönem görselleri + setler → render → miks → final.
  *
  *   npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil tr|en]
- *        [--kaynaklar <banka.json>] [--saglayici ollama|openai] [--bolum <episode.json>] [--cikti <klasör>]
- *        [--from-step senaryo|ses|senkron|gorsel|render|miks|birlestir] [--onizleme]
+ *        [--kaynaklar <banka.json> | --wiki "Makale 1|Makale 2" | --arastirma-yok] [--saglayici ollama|openai]
+ *        [--anlatici <ses id>] [--bolum <episode.json>] [--cikti <klasör>] [--altyazi-gom]
+ *        [--from-step senaryo|gardirop|ses|senkron|portre|gorsel|render|miks|birlestir] [--onizleme]
  *
  * Her adımın sonucu bölüm klasöründe dosya olarak durur; var olan adım atlanır, --from-step o adımdan itibaren
  * yeniden üretir. --onizleme 480p/15 fps render eder. OpenAI çağrıları video başına 1 $ tavanla sınırlıdır.
- * Çıktılar: final.mp4, altyazi.srt, CREDITS.md, aciklama.txt, QC.md (+ ara dosyalar).
+ * Ekranda altyazı yoktur (konuşma yazısı ve isimler; --altyazi-gom eski gömülü altyazıyı açar).
+ * Çıktılar: final.mp4, altyazi.srt (YouTube CC), CREDITS.md, aciklama.txt, QC.md (+ ara dosyalar).
  */
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
@@ -22,6 +25,7 @@ import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { findPortraitFace, type PortraitResult } from "../src/lib/v3/faces/PortraitFaces";
+import { loadMapData } from "../src/lib/v3/maps/MapBuilder";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { beats, buildRenderPlan, type SceneInsert, shotEventFrames } from "../src/lib/v3/director/Director";
@@ -31,7 +35,7 @@ import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
 import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues } from "../src/lib/v3/mix/Mixer";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { renderWithRemotion } from "../src/lib/v3/render/RemotionRunner";
-import { dialogueSceneRatio, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
@@ -135,7 +139,7 @@ const THEMES: readonly [RegExp, string][] = [
 interface SceneSet extends V3Background {
   readonly credit: CreditRecord;
   /** bolum: the episode's own file; kutuphane: an earlier library render; tasarim: designed for this scene; arsiv: the period image itself (no one on stage). */
-  readonly kaynak: "bolum" | "kutuphane" | "tasarim" | "arsiv";
+  readonly kaynak: "bolum" | "kutuphane" | "tasarim" | "arsiv" | "harita";
   readonly secim?: CandidateVerdict;
   /** A designed set the judge did not pass after every attempt (a QC miss, never silent). */
   readonly esikAlti?: boolean;
@@ -203,6 +207,15 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       notlar[si] = "arka plan bölüm dosyasında verilmiş";
       continue;
     }
+    if (scene.harita?.merkez) {
+      // A drawn map is the whole picture (characters, if any, stand on it): no set to design, no image to find.
+      const plain = path.join(pub, "harita-zemin.png");
+      if (!existsSync(plain)) await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x22406a:s=1920x1080", "-frames:v", "1", plain]);
+      sets[si] = { src: "bg/harita-zemin.png", kind: "archival", kaynak: "harita", credit: { assetId: "natural-earth-50m", kind: "image", title: "Natural Earth 1:50m (harita verisi)", author: "Natural Earth", license: "Public domain", sourceUrl: "https://www.naturalearthdata.com/", attributionRequired: false } };
+      durum[si] = "aranmadi";
+      notlar[si] = "çizili harita sahnesi (Natural Earth)";
+      continue;
+    }
     const sj = sceneForJudge(episode, si);
     const narrated = scene.satirlar.some((l) => !visible.has(l.karakter));
     if (narrated) {
@@ -213,10 +226,10 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       const narration = scene.satirlar.filter((l) => !visible.has(l.karakter)).map((l) => l.metin).join(" ");
       const pick = await pickBackground(fresh, { ...sj, anlatim: narration }, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
       for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
-      if (pick.chosen && pick.verdict) {
+      const file = pick.chosen ? path.join(pub, `${scene.id}-donem${extOf(pick.chosen.downloadUrl)}`) : "";
+      const credit = pick.chosen ? await downloadCommons(pick.chosen, file).catch((e: Error) => (log(`  ${scene.id}: seçilen görsel indirilemedi (${e.message})`), undefined)) : undefined;
+      if (pick.chosen && pick.verdict && credit) {
         const c = pick.chosen;
-        const file = path.join(pub, `${scene.id}-donem${extOf(c.downloadUrl)}`);
-        const credit = await downloadCommons(c, file);
         used.add(c.url);
         arsiv[si] = { src: `bg/${path.basename(file)}`, caption: insertCaption(c, dil), credit, secim: pick.verdict };
         durum[si] = "bulundu";
@@ -367,8 +380,14 @@ async function main() {
   };
 
   // 1) Senaryo
-  if (given && need("senaryo", "episode.json")) await fs.copyFile(given, f("episode.json"));
+  // Whether this run wrote (or copied in) the script, so the wardrobe step knows its saved orders are stale.
+  let scriptWritten = false;
+  if (given && need("senaryo", "episode.json")) {
+    await fs.copyFile(given, f("episode.json"));
+    scriptWritten = true;
+  }
   if (need("senaryo", "episode.json")) {
+    scriptWritten = true;
     await step("senaryo", async () => {
       const { budget, providerName } = scriptBudget(paths);
       const writer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_WRITER_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
@@ -396,7 +415,10 @@ async function main() {
         // English characters get native voices the writer picks by description; Turkish ones keep their own ids.
         const sesler = dil === "en" ? voicesFor(voiceMap, "en").filter((id) => !id.startsWith("en-anlatici")).map((id) => ({ id, tarif: voiceMap.sesler[id]!.tarif ?? id })) : undefined;
         const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}) };
-        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget });
+        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget }).catch(async (e: unknown) => {
+          if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
+          throw e;
+        });
         await writeJson(f("episode.json"), out.episode);
         await writeJson(f("dogrulama.json"), out.factCheck);
       } finally {
@@ -410,6 +432,9 @@ async function main() {
   let parts: PartRecord[] = existsSync(f("gardirop.json")) ? await readJson<PartRecord[]>(f("gardirop.json")) : [];
   if (need("gardirop", "gardirop.json")) {
     parts = await step("gardirop", async () => {
+      // The script's own orders are kept, so a rerun of this step can try again the parts that were left off.
+      if (scriptWritten || !existsSync(f("episode-siparisli.json"))) await writeJson(f("episode-siparisli.json"), episode);
+      else episode = assertEpisode(await readJson<unknown>(f("episode-siparisli.json")));
       const orders = partOrders(episode);
       let records: PartRecord[] = [];
       if (orders.length) {
@@ -463,7 +488,7 @@ async function main() {
     });
   } else voiced = (await readJson<{ satirlar: Voiced[][] }>(f("ses.json"))).satirlar;
 
-  // 3) Ağız senkronu + kelime zamanları
+  // 4) Ağız senkronu + kelime zamanları
   let synced: LineSync[][];
   if (need("senkron", "senkron.json")) {
     synced = await step("senkron", async () => {
@@ -478,7 +503,7 @@ async function main() {
   const audio: LineAudio[][] = episode.sahneler.map((s, si) => s.satirlar.map((_, li) => ({ ...voiced[si]![li]!, ...synced[si]![li]! })));
   const timeline = buildTimeline(episode, audio);
 
-  // 4) Portre yüzleri: the main historical characters get their real face from a portrait.
+  // 5) Portre yüzleri: the main historical characters get their real face from a portrait.
   let portraits: PortraitResult[];
   if (need("portre", "portreler.json")) {
     portraits = await step("portre", async () => {
@@ -493,7 +518,7 @@ async function main() {
     });
   } else portraits = await readJson<PortraitResult[]>(f("portreler.json"));
 
-  // 5) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
+  // 6) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
   let visuals: SceneVisual[];
   if (need("gorsel", "gorseller-v2.json")) {
     visuals = await step("gorsel", async () => {
@@ -504,11 +529,13 @@ async function main() {
   } else visuals = await readJson<SceneVisual[]>(f("gorseller-v2.json"));
   const backgrounds = visuals.map((v) => v.set);
 
-  // 5) Render (sessiz; ses izi miksten gelir)
+  // 7) Render (sessiz; ses izi miksten gelir)
   const fps = preview ? 15 : 30;
   // Actors and every scene's crowd groups (extras load their costumes the same way).
   const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla", new Map(portraits.map((p) => [p.castId, p.face]))), ...crowdCast(episode, "kukla")];
+  const mapData = episode.sahneler.some((s) => s.harita?.merkez) ? await loadMapData(paths.mapsDir) : undefined;
   const plan = buildRenderPlan({
+    ...(mapData ? { mapData } : {}),
     episode,
     timeline,
     cast,
@@ -535,7 +562,7 @@ async function main() {
     });
   }
 
-  // 6) Miks
+  // 8) Miks
   type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[] };
   let mix: MixMeta;
   if (need("miks", "miks.json")) {
@@ -553,7 +580,7 @@ async function main() {
     });
   } else mix = await readJson<MixMeta>(f("miks.json"));
 
-  // 7) Birleştir + altyazı + jenerik + QC
+  // 9) Birleştir + altyazı + jenerik + QC
   await step("birlestir", async () => {
     const final = preview ? "final-onizleme.mp4" : "final.mp4";
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", f(silent), "-i", f("miks.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", f(final)], { timeoutMs: 30 * 60_000 });

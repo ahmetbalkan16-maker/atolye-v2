@@ -24,6 +24,7 @@ import type {
   V3Transition,
   V3VisemeKey,
 } from "../render/RenderPlanTypes";
+import { buildGeoMap, type MapData } from "../maps/MapBuilder";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
 /** A scene's period image, cut in over the set while the narrator speaks. */
@@ -42,6 +43,8 @@ export interface DirectorInput {
   /** Per scene: a period image for the narrator's lines, or nothing. */
   readonly inserts?: readonly (SceneInsert | undefined)[];
   readonly language?: "tr" | "en";
+  /** Natural Earth data for scenes with a geographic map (`harita.merkez`). */
+  readonly mapData?: MapData;
   readonly fps: number;
   readonly width: number;
   readonly height: number;
@@ -434,7 +437,11 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       return { text: c.metin, ...(c.alt_metin ? { subtext: c.alt_metin } : {}), start: s, end: Math.min(duration - 1, s + len), style: c.stil };
     });
 
-    const mapArrows = (scene.harita?.oklar ?? []).map((o, i) => ({
+    // A geographic map scene: things appear with the line that names them (satir), else one after another.
+    const geo = scene.harita?.merkez && scene.harita.genislik_km && input.mapData
+      ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)))
+      : undefined;
+    const mapArrows = (geo ? [] : (scene.harita?.oklar ?? [])).map((o, i) => ({
       points: o.noktalar.map(([x, y]) => ({ x, y })),
       start: f(0.5 + i * 1.3),
       end: f(1.7 + i * 1.3),
@@ -494,6 +501,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       nameTags,
       inserts,
       extras: placeCrowd(scene.kalabalik ?? [], scene.id),
+      ...(geo ? { geoMap: geo } : {}),
     });
   });
 

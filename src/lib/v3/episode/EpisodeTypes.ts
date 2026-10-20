@@ -87,8 +87,21 @@ export interface SceneCameraCue {
   readonly hedef?: string;
 }
 
+/**
+ * Arrows over an archival map image (points 0..1 in the image), or — with `merkez` and `genislik_km` — a drawn
+ * geographic map (Natural Earth): points are [lon, lat]; territories, cities and armies are drawn on it, each appearing
+ * with line `satir` of the scene.
+ */
 export interface SceneMap {
-  readonly oklar: readonly { readonly noktalar: readonly [number, number][]; readonly renk?: string; readonly etiket?: string }[];
+  readonly oklar?: readonly { readonly noktalar: readonly [number, number][]; readonly renk?: string; readonly etiket?: string; readonly satir?: number }[];
+  /** Centre of the view, [lon, lat]. */
+  readonly merkez?: readonly [number, number];
+  /** Width of the view in km (city ~150, region ~800, Mediterranean ~3500, world ~30000). */
+  readonly genislik_km?: number;
+  /** Territories: modern countries by ISO 3166 alpha-3 code and/or a rough [lon, lat] outline (clipped to the coast). */
+  readonly bolgeler?: readonly { readonly ad: string; readonly renk: string; readonly ulkeler?: readonly string[]; readonly noktalar?: readonly [number, number][]; readonly etiket_konum?: readonly [number, number]; readonly satir?: number }[];
+  readonly sehirler?: readonly { readonly ad: string; readonly konum: readonly [number, number] }[];
+  readonly ordular?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly renk: string; readonly satir?: number }[];
 }
 
 export interface SceneTitleCard {
