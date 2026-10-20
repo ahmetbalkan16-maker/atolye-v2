@@ -95,13 +95,14 @@ export class BackgroundDesigner {
         env: { ...sideProcessEnv(this.paths), ATOLYE_V3_SDXL_MODEL: this.paths.sdxlModel, PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True" },
         label: "SDXL",
         startTimeoutMs: 15 * 60_000,
-        requestTimeoutMs: 6 * 60_000,
+        // The card rests between steps while it is hot (owner rule), so one drawing may take long.
+        requestTimeoutMs: 30 * 60_000,
         log: this.log,
       });
     }
     await waitForCoolGpu(this.log);
     const tmp = path.join(this.paths.asciiTemp, `set-${path.basename(file)}`);
-    const r = await this.server.request({ prompt: design.prompt, prompt_2: design.prompt2, negative: design.negative, seed, out: tmp, steps: 30, width: 1344, height: 768, final_width: 1920, final_height: 1080, pace: 0.2 });
+    const r = await this.server.request({ prompt: design.prompt, prompt_2: design.prompt2, negative: design.negative, seed, out: tmp, steps: 30, width: 1344, height: 768, final_width: 1920, final_height: 1080, pace: 0.2, max_temp: 73 });
     if (!r.ok) throw new Error(`V3_SDXL_FAILED: ${r.error ?? "bilinmeyen hata"}`);
     // Append-only: copy, never overwrite (another run may have drawn the same design meanwhile).
     if (!existsSync(file)) await fs.copyFile(tmp, file);

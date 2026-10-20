@@ -240,4 +240,6 @@ script 16, backgrounds 11, motion 9, mix 7, lipsync 5; smoke-ayas-video-order 4;
 - **Otomatik efektler** (mikser, yazar unutsa da): kelime kartına düşüş, girişe adım, koşuya hışırtı, ünlem/sürprize
   pop, soru işaretine boing, abone davetine başarı müziği; yazara "her sahnede en az bir sfx" kuralı.
 - **PC sağlığı:** yerel GPU modelleri (görüntü hakemi, ücretsiz metin yedeği; `atolye-v3.ts`, `senaryo-yaz.ts`) her
-  çağrıdan önce 73 °C kuralını bekler (`coolGpuProvider`); SDXL ve ses zaten bekliyordu. Üretim uzayabilir, sınır aşılmaz.
+  çağrıdan önce 73 °C kuralını bekler (`coolGpuProvider`); SDXL artık çizim SIRASINDA da her adımdan sonra sıcaklığa
+  bakar ve 73 °C ve üstünde kart soğuyana kadar dinlenir (`sdxl_server.py` `max_temp`; önce yalnız başlamadan önce
+  bakılıyordu ve tek çizimde 82 °C görüldü). Üretim uzayabilir, sınır aşılmaz.

@@ -7,14 +7,34 @@ Loads the installed SDXL weights once (diffusers layout, fp16), then reads one J
   -> {"id": "...", "ok": true, "seconds": 21.4, "peak_vram_gb": 7.9}
 
 The model folder is checked against its manifest (file names and sizes) before loading; nothing is downloaded
-(HF offline). `pace` sleeps between denoising steps so the card stays under the owner's temperature limit; the
-Node caller also waits for a cool GPU before each image. License: CreativeML Open RAIL++-M.
+(HF offline). `pace` sleeps between denoising steps, and after every step the card rests while it is at or above
+`max_temp` (default 73 °C, the owner's limit): a drawing takes longer, the card never runs hot. The Node caller also
+waits for a cool GPU before each image. License: CreativeML Open RAIL++-M.
 """
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
+
+
+def gpu_temperature():
+    """GPU temperature in °C, or None when nvidia-smi cannot be read (an unreadable sensor never blocks)."""
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=10)
+        return int(out.stdout.strip().splitlines()[0])
+    except Exception:
+        return None
+
+
+def cool_down(limit, max_wait_s=600):
+    """Owner rule, also DURING a drawing: at or above the limit the card rests between steps until it is cooler."""
+    deadline = time.monotonic() + max_wait_s
+    t = gpu_temperature()
+    while t is not None and t >= limit and time.monotonic() < deadline:
+        time.sleep(3)
+        t = gpu_temperature()
 
 
 def reply(obj):
@@ -59,10 +79,12 @@ def main():
             t0 = time.monotonic()
             torch.cuda.reset_peak_memory_stats()
             pace = float(req.get("pace", 0.2))
+            max_temp = int(req.get("max_temp", 73))
 
             def pace_step(_pipe, _step, _t, kwargs):
                 torch.cuda.synchronize()
                 time.sleep(pace)
+                cool_down(max_temp)
                 return kwargs
 
             image = pipe(
