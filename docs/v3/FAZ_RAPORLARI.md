@@ -278,3 +278,13 @@ okur; kod değişmez, ders yalnız veri ya da beynin kendi talimatı olur.
   artık paket başlığı + kanca + zaman damgalı bölümler (0:00'dan, en az 3, her biri en az 10 sn) + kaynaklar + hashtag.
   Hepsi `youtube.json` içinde; QC'de kapak satırı.
 - Deneme: eski Roma bölümünden 3 kapak çizildi ve incelendi (başlık okunur, karakterler ve set doğru).
+
+### Openverse ve güvenli duruş (aynı gün)
+
+- **Openverse** (`openverseCandidates`, HistorySources): dönem görseli aramasında The Met'ten sonra lisans filtreli ek
+  kaynak (yalnız ticari kullanım + değişiklik izni, judgeLicense'tan geçen; Wikimedia sonuçları atlanır; 24 saat
+  önbellek; anonim 20/dk, 200/gün). Bugün bir sorgu 504 verdi: hata aramayı durdurmaz, diğer kaynaklar sürer.
+- Roma (`rubicon-en-4`): 1. rötuş turu bitti (111,6 sn); rötuş beyni 2. turu kendisi başlattı; 2. turda üç gerçek
+  kişi de ≥ 8/10 (Sezar 8, Pompeius 8, Cicero 9). Güvenli duruşta 2. tur görsel adımındaydı; son tur, kendiliğinden biter.
+- Kalan (owner onaylı sıra): beyin sınavını gemma4 ile çalıştır, Qwen3-VL indir ve karşılaştır; Orpheus duygulu ses;
+  bütün sistem taraması.

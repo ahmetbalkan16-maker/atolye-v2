@@ -24,7 +24,14 @@ sürümlü + `.kontrol.json`), mikserin otomatik efektleri, her yerel GPU çağr
 (her adımdan sonra soğuyana kadar dinlenir; önce tek çizimde 82 °C görülmüştü); `f5b12491` benzerlik kontrolü stili ve
 büstte görünmeyen dönem kıyafetini cezalandırmaz. Son doğrulama: smoke-v3 likeness 12, mix 8, diğerleri aynı; tsc/eslint 0.
 Roma bölümü `output/v3/bolumler/rubicon-en-4/`: ilk üretim (eski kodla başlamıştı) görsel adımında durduruldu; 1. rötuş
-turu (`uret-tur1.log`, 3 kişi 7/6/7 → yeniden tasarım) yeni kodla çalışıyor.
+turu (`uret-tur1.log`) bitti (111,6 sn, `final-tur1.mp4`; Sezar 8, Pompeius 7), rötuş beyni 2. turu KENDİSİ başlattı
+(Pompeius 8, Cicero 9, s6 seti yeniden) — güvenli duruşta 2. tur görsel adımındaydı, bırakıldı (son tur, kendiliğinden biter).
+
+Owner onaylı GitHub/skill entegrasyonları (aynı gün, sırayla): `0752e4f6` deneyim hafızası (beyinler her bölümden
+öğrenir), `bc80d949` beyin sınavı (`content/v3/beyin-sinavi.json`, `scripts/v3/beyin-sinavi.ts`), `3731e2ca` gerçek
+tarihî harita sınırları (aourednik/historical-basemaps), `ef82236d` YouTube kapağı + paketi (yeni "kapak" adımı),
+`b9cf61ea` Openverse görsel kaynağı. Kalan: sınavı gemma4 ile çalıştır + Qwen3-VL (~6 GB) indir ve karşılaştır;
+Orpheus duygulu ses; "bütün sistem" taraması (ana AYAS dahil). Ayrıntı ve komutlar: devam raporu.
 
 ## 20 Ekim 2026 — Çöp adam V3: OverSimplified hedefi, her konu için altyapı, İngilizce pilotlar
 
