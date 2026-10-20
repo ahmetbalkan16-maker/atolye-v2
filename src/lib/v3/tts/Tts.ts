@@ -168,7 +168,7 @@ class VoxcpmEngine implements TtsEngine {
   }
 
   available(): boolean {
-    return existsSync(this.python()) && existsSync(path.join(this.paths.voxcpmRoot, "checkpoints", "VoxCPM2", "model.safetensors"));
+    return existsSync(this.python()) && existsSync(path.join(this.paths.voxcpmRoot, "checkpoints", "VoxCPM2", "atolye-manifest.json"));
   }
 
   private async request(body: Readonly<Record<string, unknown>>): Promise<Awaited<ReturnType<PythonLineServer["request"]>>> {

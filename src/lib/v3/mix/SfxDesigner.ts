@@ -147,7 +147,7 @@ export class SfxDesigner {
 
   /** Installed: its environment and the model folder are on disk. */
   available(): boolean {
-    return existsSync(path.join(this.root(), ".venv", "Scripts", "python.exe")) && existsSync(path.join(this.root(), "checkpoints", "MOSS-SoundEffect-v2.0", "transformer"));
+    return existsSync(path.join(this.root(), ".venv", "Scripts", "python.exe")) && existsSync(path.join(this.root(), "checkpoints", "MOSS-SoundEffect-v2.0", "atolye-manifest.json"));
   }
 
   fileFor(req: SoundRequest): string {

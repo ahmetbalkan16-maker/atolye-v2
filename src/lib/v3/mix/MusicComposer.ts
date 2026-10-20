@@ -103,7 +103,7 @@ export class MusicComposer {
 
   /** The composer is installed: its environment and the turbo checkpoint are on disk. */
   available(): boolean {
-    return existsSync(this.python()) && existsSync(path.join(this.paths.acestepRoot, "checkpoints", "acestep-v15-turbo"));
+    return existsSync(this.python()) && existsSync(path.join(this.paths.acestepRoot, "checkpoints", "atolye-manifest.json"));
   }
 
   private python(): string {

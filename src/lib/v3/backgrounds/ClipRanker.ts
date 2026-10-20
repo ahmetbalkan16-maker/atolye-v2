@@ -40,7 +40,7 @@ export class ClipRanker {
   }
 
   available(): boolean {
-    return !this.broken && existsSync(this.paths.genPython) && existsSync(path.join(this.modelDir(), "model.safetensors"));
+    return !this.broken && existsSync(this.paths.genPython) && existsSync(path.join(this.modelDir(), "atolye-manifest.json"));
   }
 
   /**
