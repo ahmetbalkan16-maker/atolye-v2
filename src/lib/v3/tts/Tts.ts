@@ -182,16 +182,17 @@ class VoxcpmEngine implements TtsEngine {
       label: "VoxCPM2",
       cwd: this.paths.voxcpmRoot,
       startTimeoutMs: 15 * 60_000,
-      // A line may pause inside for the card to cool (the server waits at 72 °C until below 70).
+      // A line may pause inside for the card to cool (the server waits at 70 °C until below 68).
       requestTimeoutMs: 15 * 60_000,
       log: this.log,
     });
-    // Lines come back to back in short bursts (the comparison reached 75 °C waiting at 73): start only below 70.
-    await waitForCoolGpu(this.log, 70);
+    // Lines come back to back in short bursts (the comparison reached 75 °C waiting at 73; Rome 73 °C starting at 70):
+    // start only below 68.
+    await waitForCoolGpu(this.log, 68);
     const r = await this.server.request(body).catch((e: Error) => {
       throw new TtsError("V3_VOXCPM_UNAVAILABLE", e.message.slice(0, 200));
     });
-    if (Number(r.cooled_seconds) > 0) this.log(`  VoxCPM2 satır içinde ${Number(r.cooled_seconds)} sn kartın soğumasını bekledi (72 °C)`);
+    if (Number(r.cooled_seconds) > 0) this.log(`  VoxCPM2 satır içinde ${Number(r.cooled_seconds)} sn kartın soğumasını bekledi (70 °C)`);
     return r;
   }
 

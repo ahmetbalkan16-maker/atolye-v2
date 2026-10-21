@@ -8,9 +8,10 @@ Loads `<ATOLYE_V3_VOXCPM_ROOT>/checkpoints/VoxCPM2` once, then reads one JSON re
 
 "design" makes a voice from its description (VoxCPM2 voice design); "clone" reads a line in the timbre of the
 reference clip with the style instruction in parentheses (controllable cloning). Nothing is downloaded (HF
-offline); the Node caller waits for a cool GPU (70 °C) before every request, and inside a line the generation pauses
-at 72 °C until the card is below 70 (owner rule: no GPU work at 73 °C; a single long line reached 74 °C on 21 Oct
-2026 before this). License: Apache-2.0 (VoxCPM2).
+offline); the Node caller waits for a cool GPU (68 °C) before every request, and inside a line the generation pauses
+at 70 °C until the card is below 68, checked every second (owner rule: no GPU work at 73 °C; on 21 Oct 2026 a long
+line reached 74 °C with no check inside, and 73 °C with a check every 2 s at 72 — the card heats ~1 °C/s and keeps
+rising for a moment after the work stops). License: Apache-2.0 (VoxCPM2).
 """
 import json
 import os
@@ -19,9 +20,9 @@ import sys
 import time
 from pathlib import Path
 
-PAUSE_AT_C = 72
-RESUME_BELOW_C = 70
-CHECK_EVERY_S = 2.0
+PAUSE_AT_C = 70
+RESUME_BELOW_C = 68
+CHECK_EVERY_S = 1.0
 
 
 def gpu_temperature():
