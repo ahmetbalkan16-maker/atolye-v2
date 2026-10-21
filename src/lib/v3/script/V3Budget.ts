@@ -1,13 +1,29 @@
 import { estimateTokenCallCeiling, estimateTokenCost } from "../../ai/AiPricing";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderOutput, AIProviderResult } from "../../ai/providers/AIProvider";
-import { governProductionCostCheckpoint, PRODUCTION_COST_POLICY } from "../../production/ProductionCostGovernor";
 
 /**
  * Per-episode spend guard for V3. Every paid call is priced at its worst case (prompt + the full output budget)
- * from Atölye's single price table and checked against the reserved cap with the production cost checkpoint
- * before it goes out; a call that would cross the cap is never made — it falls back to the free local model, or
- * stops when there is none. The owner's rule: one video costs at most $1 (`technicalCeilingUsd`).
+ * from Atölye's single price table and checked against the video's cap before it goes out; a call that would cross
+ * the cap is never made — it falls back to the free local model, or stops when there is none. The owner's rule: one
+ * video costs at most $1 (a long one $4).
+ *
+ * The check is V3's own (`checkpoint` below, the same decisions and reason codes as Stage 15K's production cost
+ * governor in src/lib/production): that governor is closed as a standalone governance component that nothing in the
+ * application calls yet (Stage 15R: "not wired"), which its EVAL-pinned suite smoke-ayas-production-cost-governor
+ * holds by searching the code for its name — V3 importing it broke that suite (21 Oct 2026 scan).
  */
+const SHORT_VIDEO_CAP_USD = 1;
+
+type CheckpointReason = "FREE_CALL" | "WITHIN_RESERVED_CAP" | "PROJECTED_ABOVE_RESERVED_CAP" | "INPUT_INVALID";
+
+/** Continue, pause before a billable call that would cross the cap, or block on invalid input. */
+function checkpoint(spentUsd: number, nextCallUsd: number, capUsd: number): { decision: "CONTINUE" | "PAUSE_BEFORE_BILLABLE_CALL" | "BLOCK"; reason: CheckpointReason; projectedUsd: number } {
+  const money = (v: number) => Number.isFinite(v) && v >= 0;
+  if (!money(spentUsd) || !money(nextCallUsd) || !money(capUsd)) return { decision: "BLOCK", reason: "INPUT_INVALID", projectedUsd: 0 };
+  const projectedUsd = Math.round((spentUsd + nextCallUsd) * 1e6) / 1e6;
+  if (nextCallUsd === 0) return { decision: "CONTINUE", reason: "FREE_CALL", projectedUsd };
+  return projectedUsd > capUsd ? { decision: "PAUSE_BEFORE_BILLABLE_CALL", reason: "PROJECTED_ABOVE_RESERVED_CAP", projectedUsd } : { decision: "CONTINUE", reason: "WITHIN_RESERVED_CAP", projectedUsd };
+}
 export interface V3ModelChoice {
   /** `ollama` and `mock` are free; `openai` is billed. */
   readonly provider: "openai" | "ollama" | "mock";
@@ -46,7 +62,7 @@ export const LONG_FORM_CAP_USD = 4;
 
 /** The paid-call ceiling of a whole video of `seconds` (script, costumes, YouTube package together). */
 export function videoCapUsd(seconds: number): number {
-  return seconds > LONG_FORM_MIN_S ? LONG_FORM_CAP_USD : PRODUCTION_COST_POLICY.technicalCeilingUsd;
+  return seconds > LONG_FORM_MIN_S ? LONG_FORM_CAP_USD : SHORT_VIDEO_CAP_USD;
 }
 
 export interface V3BudgetOptions {
@@ -66,7 +82,7 @@ export class V3Budget {
   private readonly entries: V3SpendEntry[] = [];
 
   constructor(private readonly options: V3BudgetOptions) {
-    this.capUsd = options.capUsd ?? PRODUCTION_COST_POLICY.technicalCeilingUsd;
+    this.capUsd = options.capUsd ?? SHORT_VIDEO_CAP_USD;
   }
 
   get spentUsd(): number {
@@ -81,13 +97,7 @@ export class V3Budget {
     const model = choice.provider === "openai" ? (choice.model ?? "") : choice.provider;
     const ceiling = estimateTokenCallCeiling({ provider: choice.provider, model, promptChars: Math.ceil(prompt.length * TURKISH_CHAR_FACTOR), maxTokens: opts.maxTokens });
     if (ceiling.status === "unknown") throw new V3BudgetError("V3_BUDGET_UNKNOWN_PRICE", `${choice.provider}/${model} fiyat tablosunda yok; çağrı yapılmadı`);
-    const decision = governProductionCostCheckpoint({
-      observedUsd: this.spentUsd,
-      observedPricing: "KNOWN",
-      nextCallUsd: ceiling.costUsd,
-      nextCallPricing: "KNOWN",
-      reservedCapUsd: this.capUsd,
-    });
+    const decision = checkpoint(this.spentUsd, ceiling.costUsd, this.capUsd);
     if (decision.decision === "BLOCK") throw new V3BudgetError("V3_BUDGET_INPUT", `${step}: ${decision.reason}`);
     if (decision.decision === "PAUSE_BEFORE_BILLABLE_CALL") {
       const fb = this.options.fallback;

@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // Locally installed Claude Code skills and their example code (git-ignored, not project source).
+    ".claude/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

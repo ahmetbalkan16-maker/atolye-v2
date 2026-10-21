@@ -1,3 +1,29 @@
+## 21 Ekim 2026 (gece, 2) — Tam tarama: AYAS + yardımcı beyinler + Atölye; 1 gerileme düzeltildi, yerel lint onarıldı
+
+**Owner:** "komple AYAS'ı, yardımcı beyinleri, Atölye'yi tara; atladığımız veya bozulan bir şey var mı; gerekenleri
+güncelle, canlıya al ve dur."
+
+**Canlı sağlık:** `3903022e` yayında (otomatik yayın PUBLISHED, dış erişim healthy); kopya kuralı uygulandı (son 3:
+3903022e, 34f3c941, 9b713d78; 8d500e0e kaldırıldı, günlük `D:\ÜRETİM\private\logs\anlik-goruntu-temizligi-2026-10-21.log`).
+Observer son gözlem HEAD = HEAD, Graphify GRAPH_CURRENT; selfheal sağlık %100, açık olay yok; CI (3903022e) success;
+V3 sipariş izleyicisi çalışıyor (her sipariş yeni süreç → yeni kod); Ollama ayakta, GPU 58 °C, disk D 676 GB boş.
+Canlı koddan harita render + Wikipedia konum denetimi çalıştı. Onay kutusunda 9 bekleyen SAFE öneri (AYAS'ın 15:25
+araştırma notları + bir test iyileştirmesi) owner'ın Gelişim Merkezi kararını bekliyor.
+
+**Smoke taraması (625 betik, worktree):** paralel 586 PASS; tek başına 9 PASS daha (paralellik/ASCII TEMP). Kalan 30:
+dondurulmuş 2 (`smoke-ayas-retrieval-evaluation.ts` → halef -v3, `smoke-ayas-owner-approval-resume.ts` → halef -v2;
+ham FAIL bilinçli korunuyor), ortam 26 (uyandırma model dosyaları 3, gerçek FFmpeg/video ortamı 4, canlı `data/projects`
+yalnız ana repoda 7, TEMP junction'ı reddeden bağlantı koruması 8, `next build` 1, Stage 9 arşiv düzeneği 2, race-worker
+yardımcı betik 1), **gerçek 1:** `smoke-ayas-production-cost-governor` — V3Budget 19 Ekim'den beri Stage 15K maliyet
+yöneticisini içe aktarıyordu (15R: "not wired"; EVAL-pinli test bunu yasaklar; `4b20b924`'te PASS). Düzeltme: V3Budget'ın
+kendi aynı-kodlu denetimi, yönetici ve pin değişmedi → PASS (14), mutasyon 35/35, V3 script PASS. Karşılaştırma
+`4b20b924` worktree'siyle yapıldı. Yeni araç `scripts/tum-smokelar.mjs` (paralel + tek tek ikinci tur + sınıflandırma).
+
+**Lint:** bu makinede `npm run lint` 167k sahte sorun veriyordu — kök neden "İ" (ÜRETİM) küçük harfte iki karakter,
+ESLint'in göreli yolları kayıyor, hiçbir ignore eşleşmiyor. `scripts/lint-yerel.mjs` (ESLint API, ASCII junction cwd):
+1960 dosya, 0 hata, 13 eski uyarı (denetim kanıtı Sprint 129 betikleri, bilinçli dokunulmadı); `.claude/**` yok sayıldı.
+CLAUDE.md güncellendi (~625 smoke, yerel lint, tam tarama).
+
 ## 21 Ekim 2026 (gece) — V3 harita sistemi hazır: Pasifik, Wikipedia konum denetimi, harita + çöp adam birleşimi
 
 **Owner:** çizilemeyenleri hallet, sistem hazır olsun; canlıya alındı mı; beyinler kendi başına yapabiliyor mu; şehir içi

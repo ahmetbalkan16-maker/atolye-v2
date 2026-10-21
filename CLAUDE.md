@@ -18,13 +18,19 @@ architectural decisions.
 
 - `npm run dev` / `npm run build` / `npm run start` — Next.js dev/build/start.
 - `npm run lint` — ESLint. Full-repo lint is expected to pass with 0 warnings before a sprint is
-  considered done.
+  considered done. On this Windows machine use `node scripts/lint-yerel.mjs` instead: under
+  `D:\ÜRETİM` the "İ" lower-cases to two characters, ESLint's repo-relative paths shift and none of the
+  config's ignores match (`npm run lint` there reports ~167k problems, all from `node_modules`). CI (Linux)
+  runs `npm run lint` unaffected. 13 unused-variable warnings in audited Sprint 129 operator/smoke scripts
+  are pre-existing and left alone (their bytes are evidence).
 - `npx tsc --noEmit` — required after any change; a change is not considered complete until this
   passes.
 - Smoke tests are plain scripts, not a test framework: `npx tsx scripts/smoke-<name>.ts` runs one
   suite and prints e.g. `PASS (N scenarios)` to stdout. There's no jest/vitest — everything is
-  `node:assert/strict` driven. There are ~110 `scripts/smoke-*.ts` files, roughly one per
-  sprint/feature area. When changing a `src/lib/...` file, `grep` `scripts/` for the filename to
+  `node:assert/strict` driven. There are ~625 `scripts/smoke-*.ts` files, roughly one per
+  sprint/feature area; `node scripts/tum-smokelar.mjs` runs them all (in a dev worktree) and sorts failures
+  into frozen evidence (v1 suites kept with their raw FAIL beside a passing successor), environment
+  (wake assets, live `data/projects`, real FFmpeg, junction TEMP…) and real ones. When changing a `src/lib/...` file, `grep` `scripts/` for the filename to
   find its smoke script(s) and any scripts that exercise it transitively, and run those — the
   matching entry in `ATOLYE_CHECKPOINT.md` (see below) usually lists the exact regression set a
   prior sprint validated for that area.
