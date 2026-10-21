@@ -177,7 +177,7 @@ export function labelLines(text: string): string[] {
  * bent state. `zoom`: the first view's scale against the drawn world, `frameHeight`: the picture's (a moving map's
  * world is far taller) — sizes are for the screen.
  */
-export function labelPoint(v: MapView, polys: readonly Polygon[], label: string, zoom = 1, frameHeight = v.height): { x: number; y: number; size: number } | undefined {
+export function labelPoint(v: MapView, polys: readonly Polygon[], label: string, zoom = 1, frameHeight = v.height): { x: number; y: number; size: number; ring: readonly (readonly [number, number])[] } | undefined {
   let best: [number, number][] | undefined;
   let bestArea = 0;
   for (const poly of polys) {
@@ -221,10 +221,15 @@ export function labelPoint(v: MapView, polys: readonly Polygon[], label: string,
   const across = ((span ? span[1] - span[0] : Math.sqrt(bestArea)) * zoom * 1080) / frameHeight;
   const lines = labelLines(label);
   const longest = Math.max(...lines.map((l) => l.length));
-  // Condensed capitals are about half as wide as they are tall; the name takes at most 80% of the span.
-  const size = Math.round(Math.max(24, Math.min(64, (Math.sqrt(bestArea) * zoom * 1080) / frameHeight / 5, (across * 0.8) / (longest * 0.55))));
-  return { x: r1(x), y: r1(y), size };
+  // Condensed capitals are a little over half as wide as they are tall; the name takes at most 75% of the span. A bit
+  // smaller than at first (owner, 21 Oct 2026: "biraz daha küçük"); placeStateLabels then fits it inside the state.
+  const size = Math.round(Math.max(LABEL_MIN, Math.min(50, (Math.sqrt(bestArea) * zoom * 1080) / frameHeight / 6, (across * 0.75) / (longest * LABEL_CHAR_W))));
+  return { x: r1(x), y: r1(y), size, ring: best };
 }
+
+/** The smallest state name, and a condensed capital's width against its height (Bahnschrift bold). */
+const LABEL_MIN = 20;
+const LABEL_CHAR_W = 0.58;
 
 /**
  * Colours of the period's other states: strong and distinct like the reference maps (teal Byzantium, green Ottomans,
@@ -301,7 +306,7 @@ const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1
  * little, then sideways, to the first place where it covers no city, badge, battle, arrow name or other state's name.
  * `px`: drawn pixels per 1080p screen pixel (MapView keeps names and marks at a constant screen size).
  */
-export function placeStateLabels(m: V3GeoMap, width: number, height: number, px: number): V3GeoMap {
+export function placeStateLabels(m: V3GeoMap, width: number, height: number, px: number, inside?: readonly (readonly (readonly [number, number])[] | undefined)[]): V3GeoMap {
   const cityMarks: Rect[] = m.cities.map((c) => ({ x0: c.x - 10 * px, y0: c.y - 16 * px, x1: c.x + (16 + c.label.length * 13) * px, y1: c.y + 16 * px }));
   // An arrow's name goes above the first point along it (middle first) where it covers no city ("CRUSADERS" sat on
   // "Belgrade" in the Nicopolis map trial).
@@ -327,28 +332,56 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
   ];
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
   const placed: (Rect & { label: string })[] = [];
-  const territories = m.territories.map((t) => {
+  const territories = m.territories.map((t, i) => {
     if (t.labelX === undefined || t.labelY === undefined || !t.label) return t;
     // A state that changes hands is written twice under one name (old colour out, new colour in): same place.
     const same = placed.find((p) => p.label === t.label);
     if (same) return { ...t, labelX: r1((same.x0 + same.x1) / 2), labelY: r1((same.y0 + same.y1) / 2) };
     const lines = labelLines(t.label.toLocaleUpperCase("en-US"));
-    // Full size first; where there is no free place, a smaller name (map still: "HUNGARY" under "CRUSADERS").
-    const free = (size: number) => {
-      const w = Math.max(...lines.map((l) => l.length)) * 0.52 * size * px;
+    const ring = inside?.[i];
+    const box = (x: number, y: number, size: number) => {
+      const w = Math.max(...lines.map((l) => l.length)) * LABEL_CHAR_W * size * px;
       const h = lines.length * size * px;
-      const at = (dx: number, dy: number) => {
-        const x = clamp(t.labelX! + dx, w / 2 + 40 * px, width - w / 2 - 40 * px);
-        const y = clamp(t.labelY! + dy, h / 2 + 40 * px, height - h / 2 - 40 * px);
-        return { x, y, size, r: { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 } };
-      };
-      const s = h * 0.6;
-      const tries = [[0, 0], [0, s], [0, -s], [0, 2 * s], [0, -2 * s], [w * 0.45, 0], [-w * 0.45, 0], [w * 0.45, s], [-w * 0.45, s], [w * 0.45, -s], [-w * 0.45, -s]] as const;
-      return { spot: tries.map(([dx, dy]) => at(dx, dy)).find((c) => ![...marks, ...placed].some((r) => overlaps(r, c.r))), first: at(0, 0) };
+      return { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 };
     };
+    // The whole name inside its own state (owner, 21 Oct 2026: "harita sınırına sığdır, başka ülkeye girmesin"): five
+    // points along each of three rows of its box must lie in the state's outline.
+    const fits = (r: Rect) => !ring || [0, 0.5, 1].every((fy) => [0, 0.25, 0.5, 0.75, 1].every((fx) => insideRing(r.x0 + (r.x1 - r.x0) * fx, r.y0 + (r.y1 - r.y0) * fy, ring)));
+    // A place, moved into the picture (40 px from its edges) for this size.
+    const placeAt = (x: number, y: number, size: number) => {
+      const b = box(0, 0, size);
+      const cx = clamp(x, b.x1 + 40 * px, width - b.x1 - 40 * px);
+      const cy = clamp(y, b.y1 + 40 * px, height - b.y1 - 40 * px);
+      return { x: cx, y: cy, size, r: box(cx, cy, size) };
+    };
+    const free = (r: Rect) => fits(r) && ![...marks, ...placed].some((o) => overlaps(o, r));
+    // Places to try: the state's visual centre first, then a grid over the state nearest the centre first (without an
+    // outline: a little up, down and sideways).
     const full = t.labelSize ?? 46;
-    const tried = [full, Math.max(24, Math.round(full * 0.75)), Math.max(22, Math.round(full * 0.55))].map((sz) => free(sz));
-    const spot = tried.find((x) => x.spot)?.spot ?? tried[0]!.first;
+    const spots: [number, number][] = [[t.labelX, t.labelY]];
+    if (!ring) {
+      const b = box(0, 0, full);
+      const s = (b.y1 - b.y0) * 0.6;
+      const w = (b.x1 - b.x0) * 0.45;
+      spots.push(...([[0, s], [0, -s], [0, 2 * s], [0, -2 * s], [w, 0], [-w, 0], [w, s], [-w, s], [w, -s], [-w, -s]] as const).map(([dx, dy]): [number, number] => [t.labelX! + dx, t.labelY! + dy]));
+    } else {
+      const xs = ring.map((p) => p[0]);
+      const ys = ring.map((p) => p[1]);
+      const [gx0, gx1, gy0, gy1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      const step = Math.max(8 * px, Math.min(gx1 - gx0, gy1 - gy0) / 14);
+      const grid: [number, number][] = [];
+      for (let gy = gy0; gy <= gy1; gy += step) for (let gx = gx0; gx <= gx1; gx += step) grid.push([gx, gy]);
+      spots.push(...grid.sort((p, q) => Math.hypot(p[0] - t.labelX!, p[1] - t.labelY!) - Math.hypot(q[0] - t.labelX!, q[1] - t.labelY!)).slice(0, 220));
+    }
+    // Full size first, then smaller: the first size with a free place inside the state wins.
+    const sizes = [...new Set([full, Math.round(full * 0.85), Math.round(full * 0.72), Math.round(full * 0.6), LABEL_MIN].map((s) => Math.max(LABEL_MIN, s)))];
+    let spot: { x: number; y: number; size: number; r: Rect } | undefined;
+    for (const size of sizes) {
+      spot = spots.map(([x, y]) => placeAt(x, y, size)).find((c) => free(c.r));
+      if (spot) break;
+    }
+    // Nowhere inside (a sliver of a state at the frame's edge): the smallest name at the centre, kept in the picture.
+    spot ??= placeAt(t.labelX, t.labelY, ring ? LABEL_MIN : full);
     placed.push({ ...spot.r, label: t.label });
     return { ...t, labelX: r1(spot.x), labelY: r1(spot.y), ...(spot.size !== full ? { labelSize: spot.size } : {}) };
   });
@@ -453,8 +486,9 @@ function projectGeoMap(
   const world = mapWorld(map, width, height);
   const v = world.view;
   const moving = world.keys.length > 1;
-  // The first view's scale against the world: name sizes are for the screen.
-  const zoom0 = moving ? (width / world.keys[0]!.view.spanLon) * (v.spanLon / v.width) : 1;
+  // The widest view's scale against the world: name sizes are for the screen, and a name that fits its state there
+  // fits it in every closer view too (MapView keeps names at one screen size, so zooming out makes them relatively larger).
+  const zoom0 = moving ? Math.min(...world.keys.map((k) => (width / k.view.spanLon) * (v.spanLon / v.width))) : 1;
   const named = (map.bolgeler ?? []).map((b) => ({
     b,
     polys: [
@@ -467,10 +501,13 @@ function projectGeoMap(
   const year = named.find((n) => n.b.tarihi)?.b.tarihi?.yil;
   const snapshot = year !== undefined ? data.historical?.get(year) : undefined;
   const others = snapshot ? backgroundStates(snapshot, world.bounds, named.flatMap((n) => (n.b.tarihi ? [{ name: n.b.tarihi.ad, color: n.b.renk, polys: n.polys }] : [])), isPolity) : [];
+  // Each named state's largest piece in view: its name must fit inside it (placeStateLabels).
+  const rings: (readonly (readonly [number, number])[] | undefined)[] = others.map(() => undefined);
   const territories = [
     ...others.map((s) => ({ d: polygonsPath(v, s.polys), color: s.color, label: "", start: 0 })),
     ...named.map(({ b, polys }, i) => {
       const at = labelPoint(v, polys, b.ad, zoom0, height);
+      rings.push(at?.ring);
       const pin = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
       const anchor = pin ? { labelX: r1(pin[0]), labelY: r1(pin[1]) } : at ? { labelX: at.x, labelY: at.y } : {};
       return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...anchor, ...(at ? { labelSize: at.size } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
@@ -501,5 +538,5 @@ function projectGeoMap(
     ...(badges.length ? { badges } : {}),
     ...(battles.length ? { battles } : {}),
   };
-  return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0);
+  return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings);
 }

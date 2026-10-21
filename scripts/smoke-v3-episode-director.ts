@@ -347,7 +347,14 @@ async function main() {
     const at = labelPoint(v, [crescent as never], "Kingdom of Hungary")!;
     const [cx0] = project(v, 22, 40);
     assert.ok(at.x > cx0, `the name is inside the bar of the C, not in its hollow: ${JSON.stringify(at)}`);
-    assert.ok(at.size >= 24 && at.size <= 64);
+    assert.ok(at.size >= 20 && at.size <= 50, `${at.size}`);
+    // A name never runs into the next state: in a long narrow state it gets smaller until its whole box is inside.
+    const strip: [number, number][] = [[200, 500], [500, 500], [500, 580], [200, 580]];
+    const fitted = placeStateLabels({ land: "", lakes: "", rivers: "", territories: [{ d: "", color: "#9a6a34", label: "Kingdom of Hungary", labelX: 350, labelY: 540, labelSize: 50, start: 0 }], cities: [], armies: [], arrows: [] }, 1920, 1080, 1, [strip]).territories[0]!;
+    const fs = fitted.labelSize!;
+    assert.ok(fs < 50, `smaller than full size: ${fs}`);
+    const half = { w: (10 * 0.58 * fs) / 2, h: fs };
+    assert.ok(fitted.labelX! - half.w >= 200 && fitted.labelX! + half.w <= 500 && fitted.labelY! - half.h >= 500 && fitted.labelY! + half.h <= 580, `inside the strip: ${JSON.stringify(fitted)}`);
     assert.deepEqual(labelLines("Kingdom of Hungary"), ["Kingdom of", "Hungary"]);
     assert.deepEqual(labelLines("Byzantium"), ["Byzantium"]);
     // Names stay in the picture and off cities; a state written twice under one name keeps one place; an arrow's
