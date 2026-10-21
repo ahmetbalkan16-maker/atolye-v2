@@ -59,6 +59,43 @@ export function periodLook(donem: string): string | undefined {
   return `Ancient-world buildings as they were in ${donem}: low houses with flat or terracotta-tiled roofs, plain square stone walls and gates.`;
 }
 
+/** Words that make an image model draw a later era (castle towns, churches) into a set. */
+const LATER_ERA_WORDS = /\b(towers?|castles?|fortress(?:es)?|keeps?|battlements?|turrets?|churche?s?|spires?|steeples?|cathedrals?|medieval)\b/i;
+
+/**
+ * The setting brain rewrites a set description whose drawings came out from a later era. SDXL drew the Rubicon's
+ * "walled hilltop town with stone towers" (49 BC) as a medieval castle town nine times out of nine; "a small ancient
+ * Italic hill town: whitewashed stone houses with terracotta tile roofs, a low wall of large fitted stones with a simple
+ * arched gate…" gave ancient villages, while only dropping "towers" did not (21 Oct 2026).
+ */
+export function periodRewritePrompt(place: string, mekan: string, donem: string, reasons: readonly string[]): string {
+  return `An image model draws flat cartoon backgrounds for a history show. It must draw this place as it looked in ${donem}: "${place}" (${mekan}).
+Its drawings came out from a later era: ${reasons.slice(0, 4).join("; ") || "later-era buildings"}.
+Rewrite the description in English, at most 45 words: name concrete things of ${donem} at this place (the typical houses, roofs, walls and gates, public buildings, landscape, season) and keep what the scene needs. Do not use words that make image models draw later eras: tower, castle, fortress, keep, battlements, turret, church, spire, steeple, cathedral, medieval.
+Return ONLY JSON: {"tasarim": "<the new description>"}`;
+}
+
+/** The rewritten description, or undefined when the answer is unreadable, too short or long, or names a later era again. */
+export function readPeriodRewrite(content: string): string | undefined {
+  const start = content.indexOf("{");
+  const end = content.lastIndexOf("}");
+  if (start < 0 || end <= start) return undefined;
+  try {
+    const text = String((JSON.parse(content.slice(start, end + 1)) as { tasarim?: unknown }).tasarim ?? "").replace(/\s+/g, " ").trim();
+    return text.length >= 20 && text.length <= 400 && !LATER_ERA_WORDS.test(text) ? text : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The last resort when every drawing of a place showed a later era: its countryside, with no buildings to get wrong. */
+export function landscapeOnly(mekan: string, donem: string): string {
+  return `The open countryside near ${mekan} in ${donem}: green hills, a dirt road, a few trees, distant mountains.`;
+}
+
+/** What the landscape-only set must not show (SDXL reads "no buildings" as buildings, so they go to the negative). */
+export const LANDSCAPE_NEGATIVE = ["buildings, houses, town, village, castle, tower, walls"];
+
 /**
  * The scene's set description (script-written, else built from the place fields) as an SDXL prompt pair. `avoid`:
  * why the judge rejected similar sets before (the setting brain's experience memory), told to the second encoder.

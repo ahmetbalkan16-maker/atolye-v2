@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { designFor, periodLook, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { designFor, LANDSCAPE_NEGATIVE, landscapeOnly, periodLook, periodNegatives, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
@@ -220,7 +220,7 @@ async function main() {
     const v = { title: "set", puan: 8, donem: 10, gosterilen: "Taş kuleli ve surlarla çevrili tepelik bir Orta Çağ/Antik yerleşimi", sorun: "" };
     const checked = periodWordsCheck(v, "49 BC");
     assert.equal(checked.donem, 3);
-    assert.ok(!passes(checked) && checked.sorun.includes("Orta Çağ"));
+    assert.ok(!passes(checked) && checked.sorun.includes("Orta Çağ") && checked.sonrakiCag === "Orta Çağ");
     assert.equal(periodWordsCheck({ ...v, gosterilen: "Kulenin tepesinde haç var" }, "MÖ 44").donem, 3);
     assert.equal(periodWordsCheck({ ...v, gosterilen: "Roma kasabası", sorun: "kilise yok, modern öğe yok" }, "49 BC").donem, 10, "a denial is no fault");
     assert.equal(periodWordsCheck({ ...v, gosterilen: "A walled town without any church towers" }, "49 BC").donem, 10);
@@ -251,8 +251,22 @@ async function main() {
     const pick = await pickBackground(["hacli", "zayif", "temiz"].map(candidate), roman, judge, preview, () => {}, { mode: "set" });
     assert.equal(pick.chosen?.title, "File:temiz.jpg");
     assert.equal(pick.verdicts[0]!.donem, 3);
-    assert.ok(pick.verdicts[0]!.sorun.includes("cross on a tower"));
+    assert.ok(pick.verdicts[0]!.sorun.includes("cross on a tower") && pick.verdicts[0]!.sonrakiCag === "cross on a tower");
+    assert.equal(pick.verdicts[2]!.sonrakiCag, undefined);
     assert.deepEqual(asked.map((x) => x.replace("img:File:", "")), ["hacli.jpg", "zayif.jpg", "temiz.jpg"], "every readable set is asked: a failing one may still become the best attempt");
+  });
+
+  await scenario("O a place drawn in a later era is rewritten for its period without castle words; the last resort is its countryside", () => {
+    const p = periodRewritePrompt("A walled hilltop town with stone towers", "Corfinium, Italy", "49 BC", ["cross on a tower", "medieval castle keep"]);
+    assert.ok(p.includes("as it looked in 49 BC") && p.includes("cross on a tower; medieval castle keep") && p.includes('{"tasarim"'));
+    const good = "A small ancient Italic hill town: whitewashed stone houses with terracotta tile roofs, a low wall of large fitted stones with a simple arched gate.";
+    assert.equal(readPeriodRewrite(JSON.stringify({ tasarim: good })), good);
+    assert.equal(readPeriodRewrite(JSON.stringify({ tasarim: "An ancient town with stone towers and walls of fitted stones" })), undefined, "a castle word again is refused");
+    assert.equal(readPeriodRewrite(JSON.stringify({ tasarim: "town" })), undefined);
+    assert.equal(readPeriodRewrite("bozuk"), undefined);
+    const land = landscapeOnly("Corfinium, Italy", "49 BC");
+    assert.ok(land.includes("countryside near Corfinium, Italy in 49 BC") && !/building/.test(land), "SDXL reads 'no buildings' as buildings");
+    assert.match(LANDSCAPE_NEGATIVE.join(","), /buildings, houses, town/);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

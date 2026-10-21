@@ -52,6 +52,8 @@ export interface CandidateVerdict {
   readonly kacin?: string;
   /** The judge gave no readable answer even after a second try: scored 0, but a fault of the judge, not of the image. */
   readonly okunamadi?: boolean;
+  /** A building or symbol of a later era was found (the plain question or the judge's own words): never a fallback set. */
+  readonly sonrakiCag?: string;
 }
 
 export interface BackgroundPick<T> {
@@ -227,7 +229,7 @@ export function periodWordsCheck(v: CandidateVerdict, donem: string): CandidateV
     if (!rule) continue;
     const m = rule.exec(text);
     if (!m || NEGATED_AFTER.test(text.slice(m.index + m[0].length)) || NEGATED_BEFORE.test(text.slice(0, m.index))) continue;
-    return { ...v, donem: 3, sorun: `${v.sorun ? `${v.sorun}; ` : ""}hakemin kendi tarifi ${donem} için sonraki bir çağ: "${m[0]}"`.slice(0, 220) };
+    return { ...v, donem: 3, sonrakiCag: m[0], sorun: `${v.sorun ? `${v.sorun}; ` : ""}hakemin kendi tarifi ${donem} için sonraki bir çağ: "${m[0]}"`.slice(0, 220) };
   }
   return v;
 }
@@ -309,7 +311,7 @@ export async function pickBackground<T extends JudgeCandidate>(
       if (question) {
         const out = await judge.generate(question, { images: [image], jsonSchema: LATER_ERA_SCHEMA, maxTokens: 120 }).catch(() => undefined);
         const seen = out ? parseLaterEra(typeof out === "string" ? out : out.content) : undefined;
-        if (seen) v = { ...v, donem: 3, sorun: `${v.sorun ? `${v.sorun}; ` : ""}sonraki çağ: ${seen}`.slice(0, 220) };
+        if (seen) v = { ...v, donem: 3, sonrakiCag: seen, sorun: `${v.sorun ? `${v.sorun}; ` : ""}sonraki çağ: ${seen}`.slice(0, 220) };
       }
     } catch (e) {
       log(`aday değerlendirilemedi (${c.title.slice(0, 60)}): ${(e as Error).message.slice(0, 120)}`);

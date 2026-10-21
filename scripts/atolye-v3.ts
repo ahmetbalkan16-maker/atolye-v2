@@ -20,7 +20,7 @@ import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
-import { BackgroundDesigner, designFor, type DesignedSet } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
@@ -313,14 +313,35 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     if (v) log(`  ${id} önceki kabul edilen set ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
     if (pick.chosen && pick.verdict) sets[si] = await designedSet(pub, episode, si, { file, seed: meta.seed, design: { prompt: meta.prompt, prompt2: meta.prompt2, negative: meta.negative }, cached: true }, pick.verdict, false);
   }
+  // A place whose drawings came out from a later era gets its description rewritten for the period before the next
+  // round (the setting brain, on the local judge model); the judge then expects the rewritten place.
+  const rewritten = new Map<number, string>();
+  const sceneFor = (si: number) => {
+    const sc = episode.sahneler[si]!;
+    return rewritten.has(si) ? { ...sc, arka_plan_sorgusu: { ...sc.arka_plan_sorgusu, tasarim: rewritten.get(si)! } } : sc;
+  };
+  const judgedAs = (si: number): SceneForJudge => ({ ...sceneForJudge(episode, si), ...(rewritten.has(si) ? { tasarim: rewritten.get(si)! } : {}) });
   for (let round = 0; round < 2; round++) {
     const todo = episode.sahneler.map((_, si) => si).filter((si) => !sets[si]);
     if (!todo.length) break;
+    for (const si of todo) {
+      const failed = (tried.get(si) ?? []).flatMap((t) => (t.v && !passes(t.v) && !t.v.okunamadi ? [t.v] : []));
+      if (round === 0 || rewritten.has(si) || !failed.some((v) => (v.donem ?? 10) <= 3)) continue;
+      const sc = episode.sahneler[si]!;
+      const place = sc.arka_plan_sorgusu.tasarim ?? `${sc.mekan}; ${sc.arka_plan_sorgusu.en}`;
+      const reasons = failed.map((v) => v.sonrakiCag ?? v.kacin ?? v.sorun).filter(Boolean);
+      const out = await judge.generate(periodRewritePrompt(place, sc.mekan, episode.donem, reasons), { maxTokens: 220 }).catch(() => undefined);
+      const text = out ? readPeriodRewrite(typeof out === "string" ? out : out.content) : undefined;
+      if (text) {
+        rewritten.set(si, text);
+        log(`  ${sc.id}: set tarifi döneme göre yeniden yazıldı — ${text}`);
+      }
+    }
     const drawn: { si: number; d: DesignedSet }[] = [];
     try {
       for (const si of todo) {
         // The setting brain's lessons: why similar sets were rejected before.
-        const sc = episode.sahneler[si]!;
+        const sc = sceneFor(si);
         const lessons = await recall(paths.workRoot, "ortam", { konu: `${sc.mekan} ${sc.arka_plan_sorgusu.tasarim ?? sc.arka_plan_sorgusu.en} ${episode.donem}`, tur: "ders", limit: 3 });
         const design = designFor(sc, episode, [], lessons.map((l) => l.metin.slice(0, 120)));
         for (const k of [0, 1]) {
@@ -334,7 +355,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     }
     for (const si of todo) {
       const mine = drawn.filter((x) => x.si === si).map((x) => ({ title: `tasarım ${path.basename(x.d.file)}`, d: x.d }));
-      const pick = await pickBackground(mine, sceneForJudge(episode, si), judge, (c) => localPreview(paths, c.d.file), log, { mode: "set" });
+      const pick = await pickBackground(mine, judgedAs(si), judge, (c) => localPreview(paths, c.d.file), log, { mode: "set" });
       const list = tried.get(si) ?? [];
       mine.forEach((m, i) => list.push({ d: m.d, ...(pick.verdicts[i] ? { v: pick.verdicts[i] } : {}) }));
       tried.set(si, list);
@@ -353,8 +374,31 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     // Still nothing the judge passes: the best attempt is used and the QC says so — never an unrelated stock image.
     const unreadable = (tried.get(si) ?? []).filter((t) => t.v?.okunamadi).length;
     if (unreadable) log(`⚠ ${episode.sahneler[si]!.id}: görüntü hakemi ${unreadable} set için okunabilir yanıt vermedi (hakem modeli: ${process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b"})`);
-    const best = [...(tried.get(si) ?? [])].sort((a, b) => (b.v ? fitScore(b.v) : -1) - (a.v ? fitScore(a.v) : -1))[0];
+    // A drawing with a building or symbol of a later era is never the fallback (Rome, 21 Oct 2026: the "best attempt"
+    // for 49 BC Corfinium had a cross on a tower). When every drawing had one, the place's countryside is drawn instead.
+    if ((tried.get(si) ?? []).every((t) => t.v?.sonrakiCag)) {
+      const sc = episode.sahneler[si]!;
+      const landscape = designFor({ ...sc, arka_plan_sorgusu: { ...sc.arka_plan_sorgusu, tasarim: landscapeOnly(sc.mekan, episode.donem) } }, episode, LANDSCAPE_NEGATIVE);
+      log(`⚠ ${sc.id}: her çizimde sonraki çağdan yapı vardı — yalnız kırsal manzara çiziliyor`);
+      const extra: { title: string; d: DesignedSet }[] = [];
+      try {
+        for (const k of [0, 1]) extra.push({ title: "", d: await designer.draw(landscape, 1000 + si * 97 + (8 + k) * 7919, { bolum: episode.id, sahne: sc.id, donem: episode.donem, manzara: "1" }) });
+      } finally {
+        await designer.close();
+      }
+      const mine = extra.map((x) => ({ title: `manzara ${path.basename(x.d.file)}`, d: x.d }));
+      const pick = await pickBackground(mine, { ...sceneForJudge(episode, si), tasarim: landscapeOnly(sc.mekan, episode.donem) }, judge, (c) => localPreview(paths, c.d.file), log, { mode: "set" });
+      for (const v of pick.verdicts) log(`  ${sc.id} manzara ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
+      tried.set(si, [...(tried.get(si) ?? []), ...mine.map((m, i) => ({ d: m.d, ...(pick.verdicts[i] ? { v: pick.verdicts[i] } : {}) }))]);
+      if (pick.chosen && pick.verdict) {
+        sets[si] = await designedSet(pub, episode, si, pick.chosen.d, pick.verdict, false);
+        continue;
+      }
+    }
+    const clean = (tried.get(si) ?? []).filter((t) => !t.v?.sonrakiCag);
+    const best = [...(clean.length ? clean : (tried.get(si) ?? []))].sort((a, b) => (b.v ? fitScore(b.v) : -1) - (a.v ? fitScore(a.v) : -1))[0];
     if (!best) throw new Error(`sahne ${episode.sahneler[si]!.id}: set tasarlanamadı`);
+    if (!clean.length) log(`⚠ ${episode.sahneler[si]!.id}: temiz çizim yok — sonraki çağ izi taşıyan en iyi deneme kullanıldı (QC'de işaretli)`);
     sets[si] = await designedSet(pub, episode, si, best.d, best.v, true);
     log(`⚠ ${episode.sahneler[si]!.id}: tasarlanan set hakem eşiğini geçemedi; en iyi deneme kullanıldı (QC'de işaretli)`);
   }
