@@ -1,3 +1,34 @@
+## 21 Ekim 2026 — V3 CANLIDA: VoxCPM2 sesler, GPU durması 85 °C, dönem setleri, gerçek fotoğraf yedeği, sistem taraması
+
+**Canlı:** `feature/cop-adam-v3` → `wip/ayas-graphify-final-execution` ileri sarma (4b20b924..34f3c941, 70 commit; kök
+package.json/lock değişmedi). Ana repo `git pull --ff-only`; ana repo `.env.v3.local` (git yok sayar; TTS_EN=voxcpm,
+WORK_ROOT=`D:\ÜRETİM\Atolye\v3-runtime`, araç yolları), `remotion-v3` `npm ci` + Remotion Chrome. Otomatik canlı yayın
+**PUBLISHED** `ayas-live-34f3c941` (PID 13088, dış erişim healthy; geri dönüş `ayas-live-9b713d78`). Canlı uygulamanın
+cwd'si ana repo → AYAS siparişleri `v3-runtime/_kutuphane/siparisler`'e. Başlangıç kısayolu `Atolye V3 Yapim.lnk`
+(owner izni 20 Ekim) → `scripts\atolye-v3-yapim-hidden.vbs`; izleyici çalışıyor, günlük `D:\ÜRETİM\private\logs\atolye-v3-yapim.log`.
+
+**Owner kararları (21 Ekim):** ses motoru seçimi Claude'a bırakıldı → İngilizce VoxCPM2 (Whisper WER %3,4; Kokoro %13,4
+ve sahne talimatlarını okuyordu), Kokoro otomatik yedek; **ortak A2000 GPU durması 73 → 85 °C** (`GpuThermalPolicy`,
+A2000 güvenlik tavanı 80 → 85; V3 başla <78, dinlen 82); "güzel görsel üretilmezse dönem/konuya ait gerçek fotoğraf,
+alakasız asla".
+
+**Commit'ler:** `5998ae0c` sahne talimatları seslendirilmez + `.env.v3.local` anahtarları uygulanır · `459bb391`/
+`6e5619c8`/`beafd122` VoxCPM ve tüm GPU işleri satır/adım içinde soğur · `eb8f9da7` 85 °C · `205f18f2` kurul raporunda
+"undefined", abone kartı yanlış alarmı · `44c894f0`/`bd3cd739`/`a622fa5e`/`1f376875` antik sette haç/Orta Çağ: hakem net
+soru, antik görünüş istemi, tarif yeniden yazımı, haçlı çizim asla yedek değil · `84a4a541`/`db4f9894` konu fotoğrafı
+yedeği (Korfinyum'un gerçek Roma kalıntıları kullanıldı) · `548e3899` render öncesi Chrome ısınması · `d835d2a3` yarıda
+kalan sipariş son "✓ adım"dan devam eder · `34f3c941` kalite beyni künye/kuşak/uzak ev.
+
+**Doğrulama:** tsc 0; dosya bazlı eslint 0; 9 V3 smoke + AYAS video-order 5, intent-routing 37, chat 12, firewall 13,
+wake-first-start 13, machine-health 20+36, brain-probes 22, worker-cycle 15, char-anim 14, resource-governor 19,
+voice 79 ve 25 bağımlı termal smoke PASS. Roma (`output/v3/bolumler/rubicon-en-4/final.mp4`): −14,3 LUFS, −2,6 dBTP.
+
+**Açık:** `npm run lint` bu makinede `node_modules`'u ve dosyaya özel kural bloklarını eşleştiremiyor (167k sahte sorun;
+video dışı, ayrı iş). gemma4 runner'ı RAM'de 19,5 GB (Ollama 0.40.6 `--load-mode none` + taslak model). Roma 105 sn
+(hedef 120). Owner kararı bekleyen: kapanıştaki Canaletto 1742 Forum tablosunda çan kulesi (konuya ait ama sonraki çağ);
+16 canlı anlık görüntü (~27 GB) saklama kuralı; onay kutusunda 392 bayat kayıt. Ayrıntı:
+`D:\ÜRETİM\handover\SESSION_2026-10-20\DEVAM_RAPORU.md`.
+
 ## 20 Ekim 2026 (gece, 2. oturum) — V3: Roma hataları giderildi, owner kuralları beyin hafızasında, yerel araç entegrasyonu başladı
 
 Worktree `D:\ÜRETİM\Atolye\atolye-v2-v3`, dal `feature/cop-adam-v3` (ana repo ve canlı AYAS'a dokunulmadı).
