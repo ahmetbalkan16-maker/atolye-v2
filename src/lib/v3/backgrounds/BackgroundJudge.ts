@@ -232,6 +232,36 @@ export function periodWordsCheck(v: CandidateVerdict, donem: string): CandidateV
   return v;
 }
 
+/**
+ * One plain question about later-era buildings and symbols, for a drawn set of an early period (undefined when the
+ * period needs none). The scoring answer misses small things: the Rubicon's Corfinium set (49 BC) had a cross on a
+ * bell tower and passed with period 10/10 three times, but asked only this, the judge found "a cross on a tower and a
+ * medieval castle keep" twice out of two and nothing in two clean Roman sets (21 Oct 2026).
+ */
+export function laterEraQuestion(donem: string): string | undefined {
+  const year = periodEndYear(donem);
+  if (year === undefined || year >= 650) return undefined;
+  const things = year < 400 ? "a cross (on a roof, a tower, a spire or a wall), a church, a bell tower or steeple, a minaret, or a medieval castle keep with battlements" : "a minaret or a mosque dome";
+  return `Look carefully at the whole picture, including small details on rooftops and tower tops.
+Is there anywhere in it: ${things}?
+Answer ONLY JSON: {"var": true or false, "ne": "<what and where, at most 10 words>"}`;
+}
+
+const LATER_ERA_SCHEMA = { type: "object", properties: { var: { type: "boolean" }, ne: { type: "string" } }, required: ["var", "ne"] } as const;
+
+/** The answer to laterEraQuestion: what was seen, or undefined for "nothing" and for an unreadable answer (no penalty). */
+export function parseLaterEra(content: string): string | undefined {
+  const start = content.indexOf("{");
+  const end = content.lastIndexOf("}");
+  if (start < 0 || end <= start) return undefined;
+  try {
+    const v = JSON.parse(content.slice(start, end + 1)) as { var?: unknown; ne?: unknown };
+    return v.var === true || v.var === "true" ? String(v.ne ?? "").trim().slice(0, 80) || "sonraki çağdan bir yapı" : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Token budget of a verdict, and of the one retry after an unreadable answer (a model that thinks first needs room). */
 export const VERDICT_TOKENS = 220;
 export const VERDICT_RETRY_TOKENS = 1_200;
@@ -273,6 +303,12 @@ export async function pickBackground<T extends JudgeCandidate>(
       if (!parsed) {
         unreadableAnswers++;
         log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);
+      }
+      const question = opts.mode === "set" && passes(v) ? laterEraQuestion(scene.donem) : undefined;
+      if (question) {
+        const out = await judge.generate(question, { images: [image], jsonSchema: LATER_ERA_SCHEMA, maxTokens: 120 }).catch(() => undefined);
+        const seen = out ? parseLaterEra(typeof out === "string" ? out : out.content) : undefined;
+        if (seen) v = { ...v, donem: 3, sorun: `${v.sorun ? `${v.sorun}; ` : ""}sonraki çağ: ${seen}`.slice(0, 220) };
       }
     } catch (e) {
       log(`aday değerlendirilemedi (${c.title.slice(0, 60)}): ${(e as Error).message.slice(0, 120)}`);

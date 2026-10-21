@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { designFor, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -223,6 +223,31 @@ async function main() {
     assert.equal(periodWordsCheck(v, "1453").donem, 10, "the Middle Ages are fine in 1453");
     assert.equal(periodWordsCheck({ ...v, gosterilen: "minareli bir şehir" }, "MS 500").donem, 3);
     assert.equal(periodWordsCheck({ ...v, gosterilen: "minareli bir şehir" }, "1453").donem, 10);
+  });
+
+  await scenario("N an antiquity set the judge passes is asked once more about crosses and churches; a yes fails the period", async () => {
+    assert.ok(laterEraQuestion("49 BC")!.includes("bell tower") && laterEraQuestion("MS 500")!.includes("minaret") && !laterEraQuestion("MS 500")!.includes("church"));
+    assert.equal(laterEraQuestion("1453"), undefined);
+    assert.equal(parseLaterEra('{"var": true, "ne": "cross on a small tower"}'), "cross on a small tower");
+    assert.equal(parseLaterEra('{"var": false, "ne": "none"}'), undefined);
+    assert.equal(parseLaterEra("bozuk"), undefined, "an unreadable answer is no penalty");
+    const asked: string[] = [];
+    const judge: AIProvider = {
+      generate: async (prompt, o) => {
+        const img = Buffer.from(o?.images?.[0] ?? "", "base64").toString();
+        if (prompt.includes("Is there anywhere in it")) {
+          asked.push(img);
+          return { content: img.includes("hacli") ? '{"var": true, "ne": "cross on a tower"}' : '{"var": false, "ne": "none"}', finishReason: "stop", refused: false, complete: true, truncated: false };
+        }
+        return { content: JSON.stringify({ puan: img.includes("zayif") ? 4 : 9, donem: 10, modern: false, tur: "cizim", gosterilen: "Roma kasabası", sorun: "" }), finishReason: "stop", refused: false, complete: true, truncated: false };
+      },
+    };
+    const roman: SceneForJudge = { ...SCENE, donem: "49 BC", konu: "Rubicon", mekan: "Corfinium" };
+    const pick = await pickBackground(["hacli", "zayif", "temiz"].map(candidate), roman, judge, preview, () => {}, { mode: "set" });
+    assert.equal(pick.chosen?.title, "File:temiz.jpg");
+    assert.equal(pick.verdicts[0]!.donem, 3);
+    assert.ok(pick.verdicts[0]!.sorun.includes("cross on a tower"));
+    assert.deepEqual(asked.map((x) => x.replace("img:File:", "")), ["hacli.jpg", "temiz.jpg"], "only sets that passed are asked");
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
