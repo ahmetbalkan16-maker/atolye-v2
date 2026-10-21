@@ -131,7 +131,7 @@
           "properties": {
             "merkez": { "$ref": "#/$defs/lonlat" },
             "genislik_km": { "type": "number", "minimum": 20, "maximum": 40000 },
-            "bolgeler": { "type": "array", "items": { "type": "object", "required": ["ad", "renk"], "properties": { "ad": { "type": "string" }, "renk": { "$ref": "#/$defs/hex" }, "ulkeler": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z]{3}$" } }, "noktalar": { "type": "array", "items": { "$ref": "#/$defs/lonlat" } }, "etiket_konum": { "$ref": "#/$defs/lonlat" }, "satir": { "type": "integer", "minimum": 0 }, "tarihi": { "type": "object", "required": ["ad", "yil"], "additionalProperties": false, "description": "Tarihî atlas sınırı (aourednik/historical-basemaps): kutup adı ve anlık görüntü yılı (MÖ negatif).", "properties": { "ad": { "type": "string", "maxLength": 80 }, "yil": { "type": "integer", "minimum": -123000, "maximum": 2100 } } } } } },
+            "bolgeler": { "type": "array", "items": { "type": "object", "required": ["ad", "renk"], "properties": { "ad": { "type": "string" }, "renk": { "$ref": "#/$defs/hex" }, "ulkeler": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z]{3}$" } }, "noktalar": { "type": "array", "items": { "$ref": "#/$defs/lonlat" } }, "etiket_konum": { "$ref": "#/$defs/lonlat" }, "satir": { "type": "integer", "minimum": 0 }, "bitis_satir": { "type": "integer", "minimum": 0, "description": "Bölgenin kaybolduğu satır (sınır değişimi)." }, "tarihi": { "type": "object", "required": ["ad", "yil"], "additionalProperties": false, "description": "Tarihî atlas sınırı (aourednik/historical-basemaps): kutup adı ve anlık görüntü yılı (MÖ negatif).", "properties": { "ad": { "type": "string", "maxLength": 80 }, "yil": { "type": "integer", "minimum": -123000, "maximum": 2100 } } } } } },
             "sehirler": { "type": "array", "items": { "type": "object", "required": ["ad", "konum"], "properties": { "ad": { "type": "string" }, "konum": { "$ref": "#/$defs/lonlat" } } } },
             "ordular": { "type": "array", "items": { "type": "object", "required": ["ad", "konum", "renk"], "properties": { "ad": { "type": "string" }, "konum": { "$ref": "#/$defs/lonlat" }, "renk": { "$ref": "#/$defs/hex" }, "satir": { "type": "integer", "minimum": 0 } } } },
             "oklar": {
@@ -146,6 +146,20 @@
                   "satir": { "type": "integer", "minimum": 0 }
                 }
               }
+            },
+            "kamera": {
+              "type": "array",
+              "description": "Harita anlatımı: satırla birlikte kamera yeni merkeze ve genişliğe kayar.",
+              "items": { "type": "object", "required": ["satir", "merkez", "genislik_km"], "properties": { "satir": { "type": "integer", "minimum": 0 }, "merkez": { "$ref": "#/$defs/lonlat" }, "genislik_km": { "type": "number", "minimum": 20, "maximum": 40000 } } }
+            },
+            "rozetler": {
+              "type": "array",
+              "description": "Hükümdar rozeti: kadrodaki karakterin başı, bir yerde; yol verilirse o rota boyunca ilerler.",
+              "items": { "type": "object", "required": ["karakter", "konum"], "properties": { "karakter": { "type": "string" }, "konum": { "$ref": "#/$defs/lonlat" }, "satir": { "type": "integer", "minimum": 0 }, "bitis_satir": { "type": "integer", "minimum": 0 }, "yol": { "type": "array", "items": { "$ref": "#/$defs/lonlat" } } } }
+            },
+            "savaslar": {
+              "type": "array",
+              "items": { "type": "object", "required": ["ad", "konum"], "properties": { "ad": { "type": "string", "maxLength": 50 }, "konum": { "$ref": "#/$defs/lonlat" }, "satir": { "type": "integer", "minimum": 0 } } }
             }
           }
         },

@@ -211,12 +211,67 @@ export function mapStageX(m: V3GeoMap, width: number, height: number): number {
  * The render map of a scene's geographic `harita` (needs `merkez` and `genislik_km`). Line indexes (`satir`) become
  * frames through `lineStart`, so a territory or an arrow appears when the narrator mentions it.
  */
-export function buildGeoMap(map: SceneMap, data: MapData, width: number, height: number, lineStart: (index: number | undefined, order: number) => number): V3GeoMap {
-  return declutterMap(projectGeoMap(map, data, width, height, lineStart), height);
+export function buildGeoMap(
+  map: SceneMap,
+  data: MapData,
+  width: number,
+  height: number,
+  lineStart: (index: number | undefined, order: number) => number,
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined } = {},
+): V3GeoMap {
+  return declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height);
 }
 
-function projectGeoMap(map: SceneMap, data: MapData, width: number, height: number, lineStart: (index: number | undefined, order: number) => number): V3GeoMap {
-  const v = mapView(map.merkez!, map.genislik_km!, width, height);
+/** The largest world (pixels a side) a moving map is drawn in; a closer view is then enlarged a little. */
+const MAX_WORLD_PX = 16_000;
+
+export interface MapWorld {
+  /** The world's own view: every feature is projected with it. */
+  readonly view: MapView;
+  /** The world in degrees (the relief image is cut to exactly this). */
+  readonly bounds: { readonly west: number; readonly east: number; readonly south: number; readonly north: number };
+  /** The scene's views: the first at `merkez`, then one per `kamera` key. */
+  readonly keys: readonly { readonly satir?: number; readonly view: MapView }[];
+}
+
+/**
+ * The map a scene draws: its own view, or — with `kamera` keys — a world spanning every view (and a margin), at the
+ * scale of the closest one, so the camera can move from region to region over one map.
+ */
+export function mapWorld(map: SceneMap, width: number, height: number): MapWorld {
+  const keys = [{ view: mapView(map.merkez!, map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(k.merkez, k.genislik_km, width, height) }))];
+  if (keys.length === 1) {
+    const v = keys[0]!.view;
+    return { view: v, bounds: { west: v.lon0 - v.spanLon / 2, east: v.lon0 + v.spanLon / 2, south: v.lat0 - v.spanLat / 2, north: v.lat0 + v.spanLat / 2 }, keys };
+  }
+  const west0 = Math.min(...keys.map((k) => k.view.lon0 - k.view.spanLon / 2));
+  const east0 = Math.max(...keys.map((k) => k.view.lon0 + k.view.spanLon / 2));
+  const south0 = Math.min(...keys.map((k) => k.view.lat0 - k.view.spanLat / 2));
+  const north0 = Math.max(...keys.map((k) => k.view.lat0 + k.view.spanLat / 2));
+  const mx = (east0 - west0) * 0.05;
+  const my = (north0 - south0) * 0.05;
+  const bounds = { west: Math.max(-180, west0 - mx), east: Math.min(180, east0 + mx), south: Math.max(-85, south0 - my), north: Math.min(85, north0 + my) };
+  const lat0 = (bounds.south + bounds.north) / 2;
+  const kx = Math.max(0.2, Math.cos((lat0 * Math.PI) / 180));
+  const spanLon = bounds.east - bounds.west;
+  const spanLat = bounds.north - bounds.south;
+  let pxPerLon = Math.max(...keys.map((k) => width / k.view.spanLon));
+  pxPerLon = Math.min(pxPerLon, MAX_WORLD_PX / spanLon, (MAX_WORLD_PX * kx) / spanLat);
+  const view: MapView = { lon0: (bounds.west + bounds.east) / 2, lat0, spanLon, spanLat, width: Math.round(spanLon * pxPerLon), height: Math.round((spanLat * pxPerLon) / kx) };
+  return { view, bounds, keys };
+}
+
+function projectGeoMap(
+  map: SceneMap,
+  data: MapData,
+  width: number,
+  height: number,
+  lineStart: (index: number | undefined, order: number) => number,
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined },
+): V3GeoMap {
+  const world = mapWorld(map, width, height);
+  const v = world.view;
+  const moving = world.keys.length > 1;
   const territories = (map.bolgeler ?? []).map((b, i) => {
     const polys: Polygon[] = [
       ...(b.tarihi ? (data.historical?.get(b.tarihi.yil)?.get(b.tarihi.ad.toLowerCase()) ?? []) : []),
@@ -224,12 +279,20 @@ function projectGeoMap(map: SceneMap, data: MapData, width: number, height: numb
       ...(b.noktalar && b.noktalar.length >= 3 ? [[b.noktalar.map(([lon, lat]) => [lon, lat] as const)]] : []),
     ];
     const at = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : labelPoint(v, polys);
-    return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...(at ? { labelX: r1(at[0]), labelY: r1(at[1]) } : {}), start: lineStart(b.satir, i) };
+    return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...(at ? { labelX: r1(at[0]), labelY: r1(at[1]) } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
   });
   const toPx = (p: readonly [number, number]) => {
     const [x, y] = project(v, p[0], p[1]);
     return { x: r1(x), y: r1(y) };
   };
+  // A key's zoom: how much of the world's width its view shows against the frame (the closest view is 1).
+  const camera = moving
+    ? world.keys
+        .map((k, i) => ({ frame: i === 0 ? 0 : lineStart(k.satir, i), ...toPx([k.view.lon0, k.view.lat0]), zoom: Math.round(((width / k.view.spanLon) * v.spanLon * 1000) / v.width) / 1000 }))
+        .sort((a, b) => a.frame - b.frame)
+    : undefined;
+  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
+  const battles = (map.savaslar ?? []).map((w, i) => ({ ...toPx(w.konum), label: w.ad, start: lineStart(w.satir, i) }));
   return {
     land: polygonsPath(v, data.land),
     lakes: polygonsPath(v, data.lakes),
@@ -238,5 +301,9 @@ function projectGeoMap(map: SceneMap, data: MapData, width: number, height: numb
     cities: (map.sehirler ?? []).map((c) => ({ ...toPx(c.konum), label: c.ad })),
     armies: (map.ordular ?? []).map((a, i) => ({ ...toPx(a.konum), label: a.ad, color: a.renk, start: lineStart(a.satir, i) })),
     arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? "#e0283c", ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i) })),
+    ...(moving ? { world: { width: v.width, height: v.height }, camera } : {}),
+    ...(opts.relief ? { relief: opts.relief } : {}),
+    ...(badges.length ? { badges } : {}),
+    ...(battles.length ? { battles } : {}),
   };
 }

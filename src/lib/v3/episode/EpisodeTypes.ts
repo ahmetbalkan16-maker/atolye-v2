@@ -123,9 +123,19 @@ export interface SceneMap {
   /** Width of the view in km (city ~150, region ~800, Mediterranean ~3500, world ~30000). */
   readonly genislik_km?: number;
   /** Territories: modern countries by ISO 3166 alpha-3 code and/or a rough [lon, lat] outline (clipped to the coast). */
-  readonly bolgeler?: readonly { readonly ad: string; readonly renk: string; readonly ulkeler?: readonly string[]; readonly noktalar?: readonly [number, number][]; readonly etiket_konum?: readonly [number, number]; readonly satir?: number; readonly tarihi?: { readonly ad: string; readonly yil: number } }[];
+  /** `bitis_satir`: the line it disappears with (a border change: the old outline goes as the new one comes). */
+  readonly bolgeler?: readonly { readonly ad: string; readonly renk: string; readonly ulkeler?: readonly string[]; readonly noktalar?: readonly [number, number][]; readonly etiket_konum?: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly tarihi?: { readonly ad: string; readonly yil: number } }[];
   readonly sehirler?: readonly { readonly ad: string; readonly konum: readonly [number, number] }[];
   readonly ordular?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly renk: string; readonly satir?: number }[];
+  /**
+   * Map narration (owner, 21 Oct 2026, like the reference channel Hayalhanem Ankara): the camera moves to a new
+   * centre and width with a line, so one map follows the story across regions.
+   */
+  readonly kamera?: readonly { readonly satir: number; readonly merkez: readonly [number, number]; readonly genislik_km: number }[];
+  /** A ruler's portrait badge (a cast member's head) at a place from a line; `yol`: the route it then travels. */
+  readonly rozetler?: readonly { readonly karakter: string; readonly konum: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly yol?: readonly [number, number][] }[];
+  /** A battle at a place from a line (crossed swords). */
+  readonly savaslar?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly satir?: number }[];
 }
 
 export interface SceneTitleCard {

@@ -28,7 +28,8 @@ import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/Li
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
+import { loadMapData, mapWorld, type Polygon } from "../src/lib/v3/maps/MapBuilder";
+import { RELIEF_CREDIT, reliefAvailable, reliefFor } from "../src/lib/v3/maps/Relief";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames } from "../src/lib/v3/maps/HistoricalBorders";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
@@ -788,7 +789,15 @@ async function main() {
   // Real historical borders the script picked (a missing snapshot only loses that outline, never the map).
   const historical = new Map((await Promise.all(borderYears.map(async (y) => [y, await loadSnapshot(bordersDir, y).catch((e: Error) => (log(`⚠ tarihî sınır ${y} yüklenemedi: ${e.message.slice(0, 120)}`), undefined))] as const))).filter((x): x is [number, Map<string, Polygon[]>] => !!x[1]));
   const mapData = baseMap ? { ...baseMap, ...(historical.size ? { historical } : {}) } : undefined;
+  // Terrain relief under every drawn map (Natural Earth, public domain), cut for the map's world; none: flat map.
+  const reliefs = new Map<string, string>();
+  for (const sc of episode.sahneler) {
+    if (!sc.harita?.merkez || !sc.harita.genislik_km) continue;
+    const src = await reliefFor(paths, mapWorld(sc.harita, 1920, 1080), path.join(work, "public"), log);
+    if (src) reliefs.set(sc.id, src);
+  }
   const plan = buildRenderPlan({
+    ...(reliefs.size ? { reliefs } : {}),
     ...(mapData ? { mapData } : {}),
     episode,
     timeline,
@@ -909,7 +918,7 @@ async function main() {
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
     const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : []))].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
-    const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : [])];
+    const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : []), ...(episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? [RELIEF_CREDIT] : [])];
     const en = dil === "en";
     const voiceCredit = en
       ? "Kokoro-82M (hexgrad, Apache-2.0), synthesized locally"
@@ -919,7 +928,7 @@ async function main() {
       : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: `Kenney (CC0) ve Atölye V3 efektleri${mix.sesTasarimi ? "; dönem efektleri ve ortam sesleri yerelde MOSS-SoundEffect v2 (Apache-2.0) ile üretildi" : ""}`, voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
     await fs.writeFile(
       f("CREDITS.md"),
-      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
+      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}${episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? `\n- ${RELIEF_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
     );
     // YouTube: the package's title, the hook sentences and the chapters first, hashtags last.
     const chs = youtube ? chapters(timeline.scenes.map((sc) => sc.start), youtube.paket.bolumler, timeline.duration) : [];

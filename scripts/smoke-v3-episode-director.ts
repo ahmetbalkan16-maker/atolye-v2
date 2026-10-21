@@ -9,7 +9,8 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { buildGeoMap, clipRing, declutterMap, mapStageX, mapView, project } from "../src/lib/v3/maps/MapBuilder";
+import { buildGeoMap, clipRing, declutterMap, mapStageX, mapView, mapWorld, project } from "../src/lib/v3/maps/MapBuilder";
+import { reliefSize } from "../src/lib/v3/maps/Relief";
 import { nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -292,6 +293,44 @@ async function main() {
     assert.deepEqual(nearestSnapshots(1914), [1914]);
     assert.equal(snapshotFile(-100), "world_bc100.geojson");
     assert.equal(snapshotFile(1453), "world_1453.geojson");
+  });
+
+  await scenario("O2 map narration: a world over every camera view, camera keys by line, badges and battles, a border change", () => {
+    const square = [[[10, 40], [15, 40], [15, 46], [10, 46], [10, 40]] as const] as const;
+    const data = { land: [square], lakes: [], rivers: [], countries: new Map() };
+    const map: SceneMap = {
+      merkez: [12.5, 43], genislik_km: 600,
+      kamera: [{ satir: 1, merkez: [20, 41], genislik_km: 2400 }, { satir: 2, merkez: [28.9, 41], genislik_km: 600 }],
+      bolgeler: [{ ad: "Old", renk: "#b8283a", noktalar: [[11, 41], [14, 41], [14, 44]], satir: 0, bitis_satir: 2 }, { ad: "New", renk: "#2f6fb0", noktalar: [[11, 41], [16, 41], [16, 45]], satir: 2 }],
+      rozetler: [{ karakter: "osman", konum: [29.06, 40.18], satir: 1, yol: [[29.5, 40.5], [29.9, 40.8]] }],
+      savaslar: [{ ad: "Bapheus", konum: [29.4, 40.7], satir: 2 }],
+    };
+    const world = mapWorld(map, 1920, 1080);
+    assert.equal(world.keys.length, 3);
+    assert.ok(world.bounds.west < 12.5 - 2 && world.bounds.east > 28.9 + 2, "the world spans every view with a margin");
+    const geo = buildGeoMap(map, data as never, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/zemin.jpg", castName: (id) => (id === "osman" ? "Osman Gazi" : undefined) });
+    assert.ok(geo.world && geo.world.width > 1920 && geo.world.width <= 16_000, "a moving map draws a world larger than the frame");
+    assert.deepEqual(geo.camera!.map((c) => c.frame), [0, 100, 200]);
+    // Both 600 km views: the one at 41° spans fewer degrees of longitude than the one at 43°, so it is the closest.
+    assert.equal(Math.max(...geo.camera!.map((c) => c.zoom)), 1, "the closest view fills the frame");
+    assert.ok(geo.camera![0]!.zoom > 0.95 && geo.camera![0]!.zoom < 1);
+    assert.ok(geo.camera![1]!.zoom < 0.3 && geo.camera![1]!.zoom > 0.2, "four times wider is a quarter zoom");
+    assert.ok(geo.camera![2]!.x > geo.camera![0]!.x, "the camera moves east");
+    assert.equal(geo.relief, "bg/zemin.jpg");
+    assert.deepEqual(geo.territories.map((t) => [t.label, t.start, t.end]), [["Old", 0, 200], ["New", 200, undefined]], "the old border goes as the new one comes");
+    assert.deepEqual([geo.badges![0]!.label, geo.badges![0]!.start, geo.badges![0]!.path.length], ["Osman Gazi", 100, 3]);
+    assert.deepEqual([geo.battles![0]!.label, geo.battles![0]!.start], ["Bapheus", 200]);
+    const still = buildGeoMap({ merkez: [12.5, 43], genislik_km: 1300 }, data as never, 1920, 1080, () => 0);
+    assert.ok(!still.world && !still.camera && !still.relief && !still.badges, "a map without keys is drawn as before");
+    // The relief image keeps the world's aspect at the source's own resolution (60 px a degree, x by cos latitude).
+    const size = reliefSize(world);
+    assert.ok(Math.abs(size.width / size.height - world.view.width / world.view.height) < 0.01 && size.width <= 4096);
+    const ep = sampleEpisode();
+    const cast = ep.oyuncu_kadrosu[0]!.id;
+    const ok = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 600, kamera: [{ satir: 0, merkez: [20, 41], genislik_km: 2400 }], rozetler: [{ karakter: cast, konum: [29, 40] }], savaslar: [{ ad: "x", konum: [29, 40] }] } }] });
+    assert.ok(!ok.errors.some((e) => e.code.startsWith("HARITA")), JSON.stringify(ok.errors));
+    const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 600, kamera: [{ satir: 99, merkez: [20, 41], genislik_km: 5 }], rozetler: [{ karakter: "yok", konum: [29, 40] }] } }] });
+    assert.ok(bad.errors.some((e) => e.code === "HARITA_SATIR") && bad.errors.some((e) => e.path.endsWith("kamera[0].genislik_km")) && bad.errors.some((e) => e.code === "HARITA_ROZET"));
   });
 
   await scenario("P draft normaliser: narrator never visible, English garment names, made-up parts become orders", () => {

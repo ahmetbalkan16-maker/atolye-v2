@@ -236,6 +236,37 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (pts.length < 2) err("HARITA_OK", `${hp}.oklar[${oi}]`, "en az 2 nokta");
         pts.forEach((pt, k) => lonLat(pt, `${hp}.oklar[${oi}].noktalar[${k}]`));
       });
+      const lines = Array.isArray(s.satirlar) ? s.satirlar.length : 0;
+      const lineIndex = (o: Record<string, unknown>, key: string, where: string) => {
+        if (o[key] === undefined) return;
+        if (typeof o[key] !== "number" || !Number.isInteger(o[key]) || (o[key] as number) < 0 || (o[key] as number) >= Math.max(1, lines)) err("HARITA_SATIR", `${where}.${key}`, `0..${Math.max(0, lines - 1)} arası satır numarası bekleniyor`);
+      };
+      (arr(h, "bolgeler", hp, true) ?? []).forEach((b, bi) => (isObj(b) ? lineIndex(b, "bitis_satir", `${hp}.bolgeler[${bi}]`) : undefined));
+      (arr(h, "kamera", hp, true) ?? []).forEach((c, ci) => {
+        const cp = `${hp}.kamera[${ci}]`;
+        if (!isObj(c)) return err("HARITA_KAMERA", cp, "nesne bekleniyor");
+        if (c.satir === undefined) err("HARITA_KAMERA", cp, "satir gerekli");
+        lineIndex(c, "satir", cp);
+        lonLat(c.merkez, `${cp}.merkez`);
+        num(c, "genislik_km", cp, 20, 40_000);
+      });
+      (arr(h, "rozetler", hp, true) ?? []).forEach((r, ri) => {
+        const rp = `${hp}.rozetler[${ri}]`;
+        if (!isObj(r)) return err("HARITA_ROZET", rp, "nesne bekleniyor");
+        const who = typeof r.karakter === "string" ? r.karakter : "";
+        if (!castIds.has(who)) err("HARITA_ROZET", `${rp}.karakter`, `kadroda yok: ${who}`);
+        lonLat(r.konum, `${rp}.konum`);
+        lineIndex(r, "satir", rp);
+        lineIndex(r, "bitis_satir", rp);
+        (Array.isArray(r.yol) ? r.yol : []).forEach((pt, k) => lonLat(pt, `${rp}.yol[${k}]`));
+      });
+      (arr(h, "savaslar", hp, true) ?? []).forEach((w, wi) => {
+        const wp = `${hp}.savaslar[${wi}]`;
+        if (!isObj(w)) return err("HARITA_SAVAS", wp, "nesne bekleniyor");
+        str(w, "ad", wp, { max: 50 });
+        lonLat(w.konum, `${wp}.konum`);
+        lineIndex(w, "satir", wp);
+      });
     }
     (arr(s, "kalabalik", p, true) ?? []).forEach((c, ci) => {
       const cp = `${p}.kalabalik[${ci}]`;

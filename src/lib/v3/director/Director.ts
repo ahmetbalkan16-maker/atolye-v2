@@ -46,6 +46,8 @@ export interface DirectorInput {
   readonly language?: "tr" | "en";
   /** Natural Earth data for scenes with a geographic map (`harita.merkez`). */
   readonly mapData?: MapData;
+  /** Per scene id: the terrain relief image cut for its map's world (public dir); absent, the flat drawn map. */
+  readonly reliefs?: ReadonlyMap<string, string>;
   readonly fps: number;
   readonly width: number;
   readonly height: number;
@@ -339,10 +341,14 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const slots = placeScene(scene, visibleIds);
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
     const geo = scene.harita?.merkez && scene.harita.genislik_km && input.mapData
-      ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)))
+      ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
+          ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
+          castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
+        })
       : undefined;
     // A lone character on a map stands where they hide the fewest names, unless the script placed them.
-    const lone = geo && slots.size === 1 ? [...slots.entries()][0]! : undefined;
+    // (On a moving map the coordinates are the world's, not the frame's: the script's own placing is kept.)
+    const lone = geo && !geo.world && slots.size === 1 ? [...slots.entries()][0]! : undefined;
     if (lone && !(scene.sahne_duzeni ?? []).some((b) => b.karakter === lone[0])) {
       const x = mapStageX(geo!, input.width, input.height);
       slots.set(lone[0], { ...lone[1], x, facing: x < 0.5 ? "right" : "left" });
