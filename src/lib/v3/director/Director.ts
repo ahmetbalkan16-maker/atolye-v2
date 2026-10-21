@@ -346,6 +346,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
           castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
+          ...(input.language ? { language: input.language } : {}),
         })
       : undefined;
     // A lone character on a map stands where they hide the fewest names, unless the script placed them.

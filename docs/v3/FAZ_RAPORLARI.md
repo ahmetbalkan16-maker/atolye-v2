@@ -379,3 +379,25 @@ sınırlar, dar kalın beyaz büyük harf adlar, koyu lacivert deniz, parşömen
 - Açık: kabartma kaynağı derece başına 60 px (Natural Earth); 1000 km altı yakın planlar için daha yüksek çözünürlüklü
   yükselti verisi (ETOPO/SRTM gölgelendirme) gerekir — öneri, owner kararı bekliyor. historical-basemaps 1400 sınırları
   kaba ve yer yer dönemle uyumsuz (Bizans Yunanistan'ın tamamı).
+
+### Gerçekçi sınırlar, atlas görünümü, dünya geneli (21 Ekim, akşam)
+
+Owner: "sınırları düz değil daha gerçekçi çizilebilir"; örnek bir atlas haritası gönderdi ("seninki daha iyiyse
+seninkini yap, kötüyse böyle yapılabilir mi"); "bütün dünya için olacak — Pers, Çin, Amerika; yardımcı yapay zekalar
+araştırıp doğru şekilde otomatik videoya uyarlayacak".
+- Sınırlar: devletler bugünkü il/eyaletlerden kurulur (Natural Earth 1:10m admin-1, kamu malı, 4552 birim, bütün
+  dünya; `src/lib/v3/maps/AdminUnits.ts`): merkezi atlas sınırında kalan iller devlete verilir, ortak kenarlar birbirini
+  götürür, geriye devletin gerçek il sınırlarını izleyen dış sınırı kalır. Öncelik: senaryonun kendi bölgeleri (Vidin),
+  sonra adı geçen atlas devletleri, sonra diğerleri. 200 km² altı kapalı halkalar (San Marino, eşleşmeyen kenar)
+  çizilmez; il arası kılcal boşlukları dolgunun 5 px'lik kendi renkli kenarı kapatır. Veri: `scripts/v3/il-sinirlari-hazirla.ts`
+  (bir kez; dosya yoksa eski atlas çizgisi).
+- Atlas görünümü (owner'ın örneğinden): deniz adları aralıklı italik (Natural Earth deniz adları, Türkçesiyle;
+  Türkçe büyük harf İ korunur), sol altta pusula + kameranın yakınlığına göre km ölçeği, ana devlet (senaryonun ilk
+  saydığı) kalın koyu sınır. Örneğin tarihî içeriği yanlıştı (Osmanlı 1299–1326'da bütün Anadolu); bizimki atlas verisi.
+- Dünya geneli: kabartma, il sınırları, tarihî atlas (MÖ 123000–2010), deniz adları, nehirler küresel. Kanıt: yeni örnek
+  `content/v3/ornekler/harita-pers-480.json` (Kserkses'in Yunanistan seferi; Susa→Sard→Çanakkale→Thermopylae, Salamis).
+- Doğrulama: smoke-v3-episode-director PASS (22; yeni O4: il atama, iç kenar silinmesi, deniz adı TR, ölçek, ana devlet),
+  diğer 9 V3 smoke + ayas-video-order PASS, tsc 0 (kök + remotion), eslint 0; Niğbolu (33 sn) ve Pers (26 sn) klipleri
+  kare kare incelendi; Roma bölümünün haritası yeni yolla sorunsuz.
+- Açık: Pasifik'i ortalayan haritalar (180. boylamı geçen dünya) desteklenmiyor; yazarın verdiği şehir/savaş
+  koordinatları henüz bağımsız bir kaynakla (Wikipedia koordinatları) denetlenmiyor — sıradaki öneri.

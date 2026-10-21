@@ -12,6 +12,7 @@ import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, clipRing, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
 import { reliefSize } from "../src/lib/v3/maps/Relief";
 import { isPolity, nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
+import { ADMIN_QUANT_DEG, assignUnits, dissolve } from "../src/lib/v3/maps/AdminUnits";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
@@ -380,6 +381,33 @@ async function main() {
     const tl = buildTimeline(ep, [[fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
     const preview = buildRenderPlan({ episode: ep, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false, endCard: false });
     assert.ok(preview.shots.every((s) => s.titleCards.every((c) => c.style !== "abone")));
+  });
+
+  await scenario("O4 realistic borders from provinces, sea names, scale and the main state (owner, 21 Oct 2026: 'not straight, more realistic')", () => {
+    // Three provinces on the grid (units of ADMIN_QUANT_DEG): two side by side in state A, one in state B.
+    const sq = (x: number, y: number, w: number) => [x, y, x + w, y, x + w, y + w, x, y + w];
+    const unit = (name: string, x: number, y: number) => ({ name, rings: [sq(x, y, 50)], box: { west: x * ADMIN_QUANT_DEG, east: (x + 50) * ADMIN_QUANT_DEG, south: y * ADMIN_QUANT_DEG, north: (y + 50) * ADMIN_QUANT_DEG }, centre: [(x + 25) * ADMIN_QUANT_DEG, (y + 25) * ADMIN_QUANT_DEG] as const });
+    const units = [unit("a1", 1000, 2000), unit("a2", 1050, 2000), unit("b1", 1100, 2000)];
+    const outlineA = [[[[19.9, 39.9], [22.05, 39.9], [22.05, 41.1], [19.9, 41.1], [19.9, 39.9]]]] as never;
+    const outlineB = [[[[22.05, 39.9], [23.2, 39.9], [23.2, 41.1], [22.05, 41.1], [22.05, 39.9]]]] as never;
+    const got = assignUnits(units, [[], [{ key: 0, polys: outlineA }], [{ key: 1, polys: outlineB }]], { west: 15, east: 30, south: 35, north: 45 });
+    assert.deepEqual([got.get(0)!.map((u) => u.name), got.get(1)!.map((u) => u.name)], [["a1", "a2"], ["b1"]]);
+    const a = dissolve(got.get(0)!);
+    assert.equal(a.rings.length, 1, "two provinces make one outline");
+    const xs = a.rings[0]!.map((p) => p[0]);
+    assert.deepEqual([Math.min(...xs), Math.max(...xs)], [20, 22], "the shared edge at 21° is gone, the outline spans both");
+    assert.ok(!a.rings[0]!.some((p) => p[0] === 21 && p[1] > 40 && p[1] < 41), "no point inside on the inner edge");
+    // The built map: provinces fill the state, its border is the dissolved outline; sea names in the narration's
+    // language (Turkish capitals keep their dotted İ), a scale, the first named state is the main one.
+    const land = [[[[15, 35], [30, 35], [30, 45], [15, 45], [15, 35]]]];
+    const seaPoly = [[[[24, 36], [29, 36], [29, 39], [24, 39], [24, 36]]]];
+    const geo = buildGeoMap({ merkez: [22, 40], genislik_km: 1200, bolgeler: [{ ad: "A", renk: "#3fae3a", tarihi: { ad: "a", yil: 1400 } }] }, { land, lakes: [], rivers: [], countries: new Map(), historical: new Map([[1400, new Map([["a", outlineA]])]]), admin: units, seas: [{ name: "Aegean Sea", nameTr: "Ege Denizi", polys: seaPoly }] } as never, 1920, 1080, () => 0, { relief: "bg/zemin.jpg", language: "tr" });
+    const t = geo.territories[geo.mainTerritory!]!;
+    assert.equal(t.label, "A");
+    assert.ok(t.border && t.border.length > 10, "the state carries its own outline");
+    assert.ok((t.d.match(/M/g) ?? []).length === 2, "filled with its two provinces");
+    assert.deepEqual(geo.seas?.map((s) => s.label), ["EGE DENİZİ"]);
+    assert.ok(geo.kmPerPx! > 0.5 && geo.kmPerPx! < 0.7, `1200 km across 1920 px: ${geo.kmPerPx}`);
   });
 
   await scenario("P draft normaliser: narrator never visible, English garment names, made-up parts become orders", () => {

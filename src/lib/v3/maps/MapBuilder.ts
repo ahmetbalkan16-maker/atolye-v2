@@ -1,7 +1,8 @@
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { SceneMap } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
+import { type AdminUnit, assignUnits, dissolve, loadAdminUnits, unitPolygons } from "./AdminUnits";
 import { isPolity } from "./HistoricalBorders";
 
 /**
@@ -17,7 +18,14 @@ export interface MapData {
   readonly countries: ReadonlyMap<string, Polygon[]>;
   /** Historical borders by snapshot year → polity name (lower case) → polygons (HistoricalBorders). */
   readonly historical?: ReadonlyMap<number, ReadonlyMap<string, Polygon[]>>;
+  /** Today's provinces the states are rebuilt from, for realistic borders (AdminUnits); absent: atlas outlines. */
+  readonly admin?: readonly AdminUnit[];
+  /** Named seas and gulfs (Natural Earth marine polygons, public domain) for the atlas-like sea names. */
+  readonly seas?: readonly { readonly name: string; readonly nameTr?: string; readonly polys: Polygon[] }[];
 }
+
+/** The sea names file (Natural Earth 1:50m marine polygons; scripts/v3/il-sinirlari-hazirla.ts fetches it). */
+export const SEAS_FILE = "ne_50m_geography_marine_polys.geojson";
 
 type Ring = readonly (readonly [number, number])[];
 export type Polygon = readonly Ring[];
@@ -55,11 +63,20 @@ export async function loadMapData(dir: string): Promise<MapData> {
       if (/^[A-Z]{3}$/.test(iso) && !byIso.has(iso)) byIso.set(iso, polygonsOf(f.geometry));
     }
   }
+  const admin = await loadAdminUnits(dir);
+  // Seas and gulfs a viewer knows (scale rank up to 5); oceans are too large to name on a regional map.
+  const seas = existsSync(path.join(dir, SEAS_FILE))
+    ? (await read(SEAS_FILE.replace(/\.geojson$/, ""))).features
+        .filter((f) => ["sea", "gulf"].includes(String(f.properties.featurecla)) && Number(f.properties.scalerank ?? 9) <= 5)
+        .map((f) => ({ name: String(f.properties.name ?? ""), ...(f.properties.name_tr ? { nameTr: String(f.properties.name_tr) } : {}), polys: polygonsOf(f.geometry) }))
+    : undefined;
   cached = {
+    ...(seas?.length ? { seas } : {}),
     land: land.features.flatMap((f) => polygonsOf(f.geometry)),
     lakes: lakes.features.flatMap((f) => polygonsOf(f.geometry)),
     rivers: rivers.features.filter((f) => Number(f.properties.scalerank ?? 9) <= 6).flatMap((f) => linesOf(f.geometry)),
     countries: byIso,
+    ...(admin ? { admin } : {}),
   };
   return cached;
 }
@@ -329,6 +346,8 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
     ...(m.badges ?? []).flatMap((b) => (b.path[0] ? [{ x0: b.path[0].x - 75 * px, y0: b.path[0].y - 140 * px, x1: b.path[0].x + 75 * px, y1: b.path[0].y + 6 * px }] : [])),
     ...(m.battles ?? []).map((b) => ({ x0: b.x - (40 + b.label.length * 8) * px, y0: b.y - 92 * px, x1: b.x + (40 + b.label.length * 8) * px, y1: b.y + 50 * px })),
     ...arrows.flatMap((ar) => (ar.label && ar.labelX !== undefined && ar.labelY !== undefined ? [arrowRect(ar.labelX, ar.labelY, ar.label)] : [])),
+    // A sea's spaced capitals: about one letter and a half of room per character.
+    ...(m.seas ?? []).map((s) => ({ x0: s.x - (s.label.length * s.size * 0.52 * px), y0: s.y - s.size * 0.6 * px, x1: s.x + s.label.length * s.size * 0.52 * px, y1: s.y + s.size * 0.6 * px })),
   ];
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
   const placed: (Rect & { label: string })[] = [];
@@ -431,7 +450,7 @@ export function buildGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined } = {},
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en" } = {},
 ): V3GeoMap {
   return declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height);
 }
@@ -481,7 +500,7 @@ function projectGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined },
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en" },
 ): V3GeoMap {
   const world = mapWorld(map, width, height);
   const v = world.view;
@@ -501,16 +520,35 @@ function projectGeoMap(
   const year = named.find((n) => n.b.tarihi)?.b.tarihi?.yil;
   const snapshot = year !== undefined ? data.historical?.get(year) : undefined;
   const others = snapshot ? backgroundStates(snapshot, world.bounds, named.flatMap((n) => (n.b.tarihi ? [{ name: n.b.tarihi.ad, color: n.b.renk, polys: n.polys }] : [])), isPolity) : [];
+  // Realistic borders: each state is rebuilt from today's provinces whose centre lies in its outline (AdminUnits) —
+  // the script's own regions first, then the named atlas states, then the rest; a state no province falls in keeps its
+  // own outline. Modern countries ("ulkeler") are drawn as they are.
+  const groups = [
+    named.flatMap((n, i) => (n.b.noktalar && n.b.noktalar.length >= 3 && !n.b.tarihi && !n.b.ulkeler?.length ? [{ key: i, polys: n.polys }] : [])),
+    named.flatMap((n, i) => (n.b.tarihi && !n.b.ulkeler?.length ? [{ key: i, polys: n.polys }] : [])),
+    others.map((o, j) => ({ key: named.length + j, polys: o.polys })),
+  ];
+  const built = data.admin ? assignUnits(data.admin, groups, world.bounds) : new Map<number, AdminUnit[]>();
+  const shape = (key: number, polys: readonly Polygon[]) => {
+    const units = built.get(key);
+    if (!units?.length) return { fill: polys, label: polys, border: undefined };
+    const outline = dissolve(units);
+    return { fill: unitPolygons(units) as Polygon[], label: outline.rings.length ? outline.rings.map((r) => [r] as Polygon) : polys, border: linesPath(v, outline.lines) };
+  };
   // Each named state's largest piece in view: its name must fit inside it (placeStateLabels).
   const rings: (readonly (readonly [number, number])[] | undefined)[] = others.map(() => undefined);
   const territories = [
-    ...others.map((s) => ({ d: polygonsPath(v, s.polys), color: s.color, label: "", start: 0 })),
+    ...others.map((s, j) => {
+      const sh = shape(named.length + j, s.polys);
+      return { d: polygonsPath(v, sh.fill), ...(sh.border ? { border: sh.border } : {}), color: s.color, label: "", start: 0 };
+    }),
     ...named.map(({ b, polys }, i) => {
-      const at = labelPoint(v, polys, b.ad, zoom0, height);
+      const sh = shape(i, polys);
+      const at = labelPoint(v, sh.label, b.ad, zoom0, height);
       rings.push(at?.ring);
       const pin = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
       const anchor = pin ? { labelX: r1(pin[0]), labelY: r1(pin[1]) } : at ? { labelX: at.x, labelY: at.y } : {};
-      return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...anchor, ...(at ? { labelSize: at.size } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
+      return { d: polygonsPath(v, sh.fill), ...(sh.border ? { border: sh.border } : {}), color: b.renk, label: b.ad, ...anchor, ...(at ? { labelSize: at.size } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
     }),
   ];
   const toPx = (p: readonly [number, number]) => {
@@ -537,6 +575,35 @@ function projectGeoMap(
     ...(opts.relief ? { relief: opts.relief } : {}),
     ...(badges.length ? { badges } : {}),
     ...(battles.length ? { battles } : {}),
+    ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),
+    // The story's main state (the script names it first) gets the stronger border, like the main state of an atlas map.
+    ...(named.length ? { mainTerritory: others.length } : {}),
   };
   return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings);
+}
+
+/**
+ * An atlas's sea names and scale (owner's example map, 21 Oct 2026): every named sea or gulf with room for its name
+ * in the world gets it at its centre, in the narration's language; and kilometres per drawn pixel for the scale bar.
+ */
+function atlasMarks(data: MapData, v: MapView, bounds: MapWorld["bounds"], zoom: number, frameHeight: number, language: "tr" | "en"): Pick<V3GeoMap, "seas" | "kmPerPx"> {
+  const seas = (data.seas ?? []).flatMap((s) => {
+    const box = boxOf(s.polys);
+    if (box.east < bounds.west || box.west > bounds.east || box.north < bounds.south || box.south > bounds.north) return [];
+    const label = language === "tr" && s.nameTr ? s.nameTr : s.name;
+    const at = labelPoint(v, s.polys, label, zoom, frameHeight);
+    // Spaced capitals take about twice the room of a state's name: a sea too small for that stays unnamed.
+    if (!at || at.size < 28) return [];
+    const size = Math.min(30, Math.round(at.size * 0.6));
+    // Kept whole inside the picture, 40 px from its edges (a sea at the edge was cut: "…ENIAN SEA").
+    const px = frameHeight / 1080 / zoom;
+    const halfW = label.length * size * 0.52 * px + 40 * px;
+    const halfH = size * 0.6 * px + 40 * px;
+    if (2 * halfW > v.width || 2 * halfH > v.height) return [];
+    const x = Math.min(Math.max(at.x, halfW), v.width - halfW);
+    const y = Math.min(Math.max(at.y, halfH), v.height - halfH);
+    return [{ x: r1(x), y: r1(y), label: label.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US"), size }];
+  });
+  const kmPerPx = Math.round(((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width) * 10000) / 10000;
+  return { ...(seas.length ? { seas } : {}), kmPerPx };
 }

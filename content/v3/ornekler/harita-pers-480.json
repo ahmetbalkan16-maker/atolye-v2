@@ -1,0 +1,64 @@
+{
+  "id": "ornek-harita-pers-480",
+  "baslik": "Xerxes Invades Greece",
+  "konu": "The Persian invasion of Greece, 480 BC",
+  "donem": "480 BC",
+  "hedef_sure_sn": 30,
+  "ton": "mizahi",
+  "kaynaklar": [
+    { "id": "britannica-persian-wars", "kunye": "Encyclopaedia Britannica, Greco-Persian Wars", "url": "https://www.britannica.com/event/Greco-Persian-Wars" }
+  ],
+  "oyuncu_kadrosu": [
+    { "id": "anlatici", "ad": "Narrator", "rol": "narrator", "kostum_paketi": "", "renk": "#333333", "ses_id": "anlatici", "konusma_tarzi": "calm, clear, lightly witty", "gorunur": false },
+    {
+      "id": "xerxes", "ad": "Xerxes I", "rol": "King of Persia", "kostum_paketi": "byzantine-1453", "renk": "#8a2b2b", "ses_id": "xerxes", "konusma_tarzi": "grand, vain", "gorunur": true,
+      "portre": { "wiki": "Xerxes I" },
+      "kostum": { "giysi": "bizans", "renkler": { "ana": "#8a2b2b", "ikincil": "#e8b23a", "ic": "#f3d27a", "sus": "#e8b23a" }, "bas": "bizans-taci", "sakal": "sakal-koyu", "ayakkabi": "kirmizi-cizme" }
+    }
+  ],
+  "sahneler": [
+    {
+      "id": "s1-harita",
+      "sure_hedef": 26,
+      "mekan": "Map of the Persian Empire and Greece, 480 BC",
+      "arka_plan_sorgusu": { "tr": "harita", "en": "map" },
+      "duygu": "gerilim",
+      "muzik_ruh_hali": "gerilim",
+      "harita": {
+        "merkez": [38.0, 35.5],
+        "genislik_km": 4200,
+        "kamera": [
+          { "satir": 2, "merkez": [27.5, 39.0], "genislik_km": 1700 },
+          { "satir": 3, "merkez": [23.2, 38.4], "genislik_km": 1000 },
+          { "satir": 4, "merkez": [38.0, 35.5], "genislik_km": 4200 }
+        ],
+        "bolgeler": [
+          { "ad": "Persian Empire", "renk": "#c94a3f", "tarihi": { "ad": "Achaemenid Empire", "yil": -500 }, "satir": 0 },
+          { "ad": "Greek City-States", "renk": "#3a7fbf", "tarihi": { "ad": "Greek city-states", "yil": -500 }, "satir": 0 }
+        ],
+        "sehirler": [
+          { "ad": "Persepolis", "konum": [52.89, 29.94] },
+          { "ad": "Susa", "konum": [48.26, 32.19] },
+          { "ad": "Babylon", "konum": [44.42, 32.54] },
+          { "ad": "Sardis", "konum": [28.04, 38.49] },
+          { "ad": "Athens", "konum": [23.73, 37.98] },
+          { "ad": "Sparta", "konum": [22.43, 37.07] }
+        ],
+        "oklar": [
+          { "noktalar": [[48.26, 32.19], [40.0, 37.0], [33.0, 38.5], [28.04, 38.49], [26.4, 40.2], [24.0, 40.6], [22.6, 38.9]], "renk": "#d7263d", "etiket": "Xerxes", "satir": 2 }
+        ],
+        "savaslar": [
+          { "ad": "Thermopylae", "konum": [22.56, 38.8], "satir": 3 },
+          { "ad": "Salamis", "konum": [23.45, 37.9], "satir": 4 }
+        ]
+      },
+      "satirlar": [
+        { "karakter": "anlatici", "metin": "In 480 BC, the Persian Empire was the largest the world had ever seen.", "duygu": "notr", "kaynak": ["britannica-persian-wars"] },
+        { "karakter": "anlatici", "metin": "From Persepolis to Egypt, King Xerxes ruled millions of people.", "duygu": "notr", "kaynak": ["britannica-persian-wars"] },
+        { "karakter": "anlatici", "metin": "He marched west, crossed the Hellespont on a bridge of boats, and came for Greece.", "duygu": "notr", "kaynak": ["britannica-persian-wars"] },
+        { "karakter": "anlatici", "metin": "At Thermopylae, a small Greek force led by Sparta held the pass for three days.", "duygu": "notr", "kaynak": ["britannica-persian-wars"] },
+        { "karakter": "anlatici", "metin": "Then, at Salamis, the Greek fleet crushed the Persian navy.", "duygu": "notr", "kaynak": ["britannica-persian-wars"] }
+      ]
+    }
+  ]
+}

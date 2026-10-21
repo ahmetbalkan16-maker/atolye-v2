@@ -38,6 +38,50 @@ function partialPath(points: readonly { x: number; y: number }[], f: number): st
   return `${d} L${end.x} ${end.y}`;
 }
 
+/** Scale bar lengths a map would print. */
+const SCALE_STEPS_KM = [25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 2500, 5000];
+
+/**
+ * An atlas's corner (owner's example map, 21 Oct 2026): a compass rose and a scale bar in kilometres that follows the
+ * camera's zoom, in the badges' parchment and sepia, at the bottom left of the screen.
+ */
+function AtlasCorner({ kmPerScreenPx, height: H }: { kmPerScreenPx: number; height: number }) {
+  const u = H / 1080;
+  const target = 230 * u * kmPerScreenPx;
+  const km = [...SCALE_STEPS_KM].reverse().find((s) => s <= target) ?? SCALE_STEPS_KM[0]!;
+  const bar = km / kmPerScreenPx;
+  // Inside the picture even under the shot camera's gentle push (a 64 px margin cut the "0").
+  const x0 = 96 * u;
+  const y0 = H - 84 * u;
+  const cx = x0 + 52 * u;
+  const cy = H - 210 * u;
+  const r = 44 * u;
+  const point = (ang: number, len: number, half: "l" | "r") => {
+    const a = (ang * Math.PI) / 180;
+    const side = ((ang + (half === "l" ? -90 : 90)) * Math.PI) / 180;
+    return `M${cx} ${cy} L${cx + Math.sin(a) * len} ${cy - Math.cos(a) * len} L${cx + Math.sin(side) * len * 0.18} ${cy - Math.cos(side) * len * 0.18} Z`;
+  };
+  const text = (s: string, x: number, y: number, size: number, anchor: "start" | "middle" = "middle") => (
+    <text x={x} y={y} textAnchor={anchor} style={{ font: `700 ${size * u}px Georgia, 'Palatino Linotype', serif` }} fill={PARCHMENT} stroke="rgba(20,12,4,0.7)" strokeWidth={3 * u} paintOrder="stroke fill">
+      {s}
+    </text>
+  );
+  return (
+    <g style={{ filter: `drop-shadow(0 ${2 * u}px ${3 * u}px rgba(0,0,0,0.5))` }}>
+      <circle cx={cx} cy={cy} r={r * 0.62} fill="none" stroke={PARCHMENT} strokeWidth={2 * u} opacity={0.85} />
+      {[45, 135, 225, 315].flatMap((ang) => [<path key={`d${ang}l`} d={point(ang, r * 0.62, "l")} fill={SEPIA} />, <path key={`d${ang}r`} d={point(ang, r * 0.62, "r")} fill={PARCHMENT} />])}
+      {[0, 90, 180, 270].flatMap((ang) => [<path key={`m${ang}l`} d={point(ang, r, "l")} fill={PARCHMENT} stroke={SEPIA} strokeWidth={1.2 * u} />, <path key={`m${ang}r`} d={point(ang, r, "r")} fill={SEPIA} stroke={SEPIA} strokeWidth={1.2 * u} />])}
+      {text("N", cx, cy - r - 8 * u, 22)}
+      {[0, 1, 2, 3].map((j) => (
+        <rect key={`b${j}`} x={x0 + (bar / 4) * j} y={y0 - 7 * u} width={bar / 4} height={9 * u} fill={j % 2 ? PARCHMENT : SEPIA} stroke={SEPIA} strokeWidth={1.5 * u} />
+      ))}
+      {text("0", x0, y0 + 24 * u, 18)}
+      {text(`${km / 2}`, x0 + bar / 2, y0 + 24 * u, 18)}
+      {text(`${km} km`, x0 + bar, y0 + 24 * u, 18)}
+    </g>
+  );
+}
+
 /** A colour darkened towards black (`f` = how much of it stays). */
 function shade(hex: string, f: number): string {
   const n = parseInt(hex.replace("#", "").slice(0, 6).padEnd(6, "0"), 16);
@@ -215,14 +259,16 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
               {map.territories.map((t, i) => {
                 const a = t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
                 const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
-                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill={t.color} fillOpacity={0.9 * a} fillRule="evenodd" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
+                // A state built from provinces is drawn opaque with a 5 px edge in its own colour and faded as a whole:
+                // the edge closes the slivers between provinces, and no inner edge shows darker.
+                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill={t.color} fillRule="evenodd" {...(t.border ? { stroke: t.color, strokeWidth: 5 * k, strokeLinejoin: "round" as const, opacity: 0.9 * a } : { fillOpacity: 0.9 * a })} mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
               })}
             </g>
             <g mask={`url(#${id}-land)`}>
               {map.territories.map((t, i) => {
                 const a = t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
                 const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
-                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill="none" stroke={shade(t.color, 0.5)} strokeOpacity={0.95 * a} strokeWidth={2.6 * k} strokeLinejoin="round" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
+                return a > 0 && frame >= t.start ? <path key={i} d={t.border ?? t.d} fill="none" stroke={shade(t.color, i === map.mainTerritory ? 0.4 : 0.5)} strokeOpacity={0.95 * a} strokeWidth={(i === map.mainTerritory ? 4.4 : 2.6) * k} strokeLinejoin="round" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
               })}
             </g>
             {/* Rivers over the colours (the reference maps name and draw them), thin and light. */}
@@ -233,13 +279,30 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
             <path d={map.land} fill="none" stroke={LAND_SHADE} strokeWidth={26 * k} opacity={0.6} />
             {map.territories.map((t, i) => {
               const a = visible(t.start, t.end);
-              return a > 0 ? <path key={i} d={t.d} fill={t.color} fillOpacity={0.78 * a} stroke="#ffffff" strokeOpacity={a} strokeWidth={4 * k} strokeLinejoin="round" fillRule="evenodd" /> : null;
+              if (a <= 0) return null;
+              // A state built from provinces: its fill has their inner edges, so only its own outline is stroked.
+              return t.border ? (
+                <g key={i}>
+                  <path d={t.d} fill={t.color} fillOpacity={0.78 * a} fillRule="evenodd" />
+                  <path d={t.border} fill="none" stroke="#ffffff" strokeOpacity={a} strokeWidth={4 * k} strokeLinejoin="round" strokeLinecap="round" />
+                </g>
+              ) : (
+                <path key={i} d={t.d} fill={t.color} fillOpacity={0.78 * a} stroke="#ffffff" strokeOpacity={a} strokeWidth={4 * k} strokeLinejoin="round" fillRule="evenodd" />
+              );
             })}
           </g>
         )}
         {relief ? (
-          // A thin dark coastline: the coloured states end cleanly at the sea.
-          <path d={map.land} fill="none" stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} strokeLinejoin="round" />
+          <>
+            {/* A thin dark coastline: the coloured states end cleanly at the sea. */}
+            <path d={map.land} fill="none" stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} strokeLinejoin="round" />
+            {/* Sea names like an atlas (owner's example map): pale spaced italic capitals. */}
+            {(map.seas ?? []).map((s, i) => (
+              <text key={`s${i}`} x={s.x} y={s.y + s.size * 0.36 * k} textAnchor="middle" style={{ font: `italic 400 ${s.size * k}px Georgia, 'Palatino Linotype', serif`, letterSpacing: s.size * 0.45 * k }} fill="#cfe4f0" fillOpacity={0.78}>
+                {s.label}
+              </text>
+            ))}
+          </>
         ) : (
           <>
             <path d={map.lakes} fill={OCEAN} stroke={COAST} strokeWidth={2 * k} fillRule="evenodd" />
@@ -413,6 +476,7 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
       </g>
       {/* A soft dark edge holds the eye in the middle of the relief map (cinematic, like the reference). */}
       {relief ? <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-vignette)`} pointerEvents="none" /> : null}
+      {relief && map.kmPerPx ? <AtlasCorner kmPerScreenPx={map.kmPerPx / cam.zoom} height={H} /> : null}
     </svg>
   );
 }

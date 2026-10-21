@@ -1,3 +1,19 @@
+## 21 Ekim 2026 (akşam) — V3 harita: gerçekçi il sınırları, atlas görünümü, dünya geneli
+
+**Owner:** "sınırlar düz değil daha gerçekçi olsun"; örnek atlas haritası; rozette isim yüzü kapatmasın; ülke adları
+küçük ve kendi sınırında kalsın; "bütün dünya için olacak, yardımcı yapay zekalar otomatik yapacak".
+
+**Yapılan (`de847e5c`, `6a263a0d`, bu commit):** rozet şeridi portrenin altında; adlar en çok 50 boy, devletin şeklinin
+içine sığdırılır (sığmazsa kayar/küçülür, en geniş kamera görüşüne göre); devletler Natural Earth il/eyaletlerinden
+kurulur (`AdminUnits.ts`, `scripts/v3/il-sinirlari-hazirla.ts` — bütün dünya, 4552 birim); deniz adları, pusula, km
+ölçeği, ana devlet kalın sınır. Örnekler: `content/v3/ornekler/harita-nigbolu-1396.json`, `harita-pers-480.json`.
+
+**Doğrulama:** 11 smoke PASS (episode-director 22, yeni O4), tsc 0 (kök + remotion), eslint 0; iki klip kare kare
+incelendi; Roma haritası sorunsuz. Klipler: `D:\ÜRETİM\Atolye\v3-runtime\harita-onizleme\ornek-harita-*-s1-harita\s1-harita.mp4`.
+
+**Açık / öneri:** yazarın koordinatlarını Wikipedia koordinatlarıyla otomatik denetleme; 180. boylamı geçen (Pasifik)
+haritalar; yakın plan için yüksek çözünürlüklü yükselti verisi. Canlıya alınmadı.
+
 ## 21 Ekim 2026 (akşamüstü) — V3 harita referansa göre yeniden: tarihî sınırlar, canlı harita anlatımı
 
 **Owner:** harita denemesinde "sınırlar çok kötü, o videodaki gibi değil", "sadece boya, harita gibi değil"; kaliteyi

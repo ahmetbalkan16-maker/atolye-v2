@@ -263,7 +263,8 @@ export interface V3GeoMap {
    * `end`: the frame it fades out from (a border change). `labelSize`: the name's height on a 1080p screen, by the
    * state's size (absent: 46). The period's other states colour the map without a name (`label` empty, no anchor).
    */
-  readonly territories: readonly { readonly d: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly labelSize?: number; readonly start: number; readonly end?: number }[];
+  /** `border`: the state's own outline when it is built from provinces (the fill `d` then has their inner edges). */
+  readonly territories: readonly { readonly d: string; readonly border?: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly labelSize?: number; readonly start: number; readonly end?: number }[];
   readonly cities: readonly { readonly x: number; readonly y: number; readonly label: string }[];
   readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number }[];
   /** `labelX`/`labelY`: where the name stands (off the cities); absent, above the middle point. */
@@ -277,6 +278,12 @@ export interface V3GeoMap {
   readonly camera?: readonly { readonly frame: number; readonly x: number; readonly y: number; readonly zoom: number }[];
   /** Terrain relief image (public dir) covering the world exactly (Natural Earth, public domain). */
   readonly relief?: string;
+  /** Sea names (relief map): spaced italic capitals at the sea's centre, like an atlas. */
+  readonly seas?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly size: number }[];
+  /** Kilometres per world pixel (the relief map's scale bar). */
+  readonly kmPerPx?: number;
+  /** Index in `territories` of the story's main state (the script's first): a stronger border. */
+  readonly mainTerritory?: number;
   /** Rulers' portrait badges (a cast member's head); with more than one point they travel the path from `moveStart` (default `start`). */
   readonly badges?: readonly { readonly castId: string; readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }[];
   readonly battles?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly start: number }[];
