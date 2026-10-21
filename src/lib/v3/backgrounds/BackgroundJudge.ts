@@ -304,7 +304,8 @@ export async function pickBackground<T extends JudgeCandidate>(
         unreadableAnswers++;
         log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);
       }
-      const question = opts.mode === "set" && passes(v) ? laterEraQuestion(scene.donem) : undefined;
+      // Every readable set, not only those that pass: when none passes, the best attempt is used (Rome, 21 Oct 2026).
+      const question = opts.mode === "set" && !v.okunamadi ? laterEraQuestion(scene.donem) : undefined;
       if (question) {
         const out = await judge.generate(question, { images: [image], jsonSchema: LATER_ERA_SCHEMA, maxTokens: 120 }).catch(() => undefined);
         const seen = out ? parseLaterEra(typeof out === "string" ? out : out.content) : undefined;

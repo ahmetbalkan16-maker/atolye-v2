@@ -43,9 +43,20 @@ export function periodNegatives(donem: string): string[] {
   const year = periodEndYear(donem);
   if (year === undefined) return [];
   const out: string[] = [];
-  if (year < 400) out.push("church, bell tower, steeple, cross, gothic cathedral, medieval town");
+  if (year < 400) out.push("church, bell tower, steeple, cross, gothic cathedral, medieval town, castle, castle keep, turrets, conical tower roofs, medieval fortress");
   if (year < 630) out.push("minaret, mosque, onion dome");
   return out;
+}
+
+/**
+ * What the buildings of an ancient period look like, for the second encoder: SDXL draws any "walled hilltop town with
+ * stone towers" as a medieval castle town (the Rubicon's Corfinium, 49 BC: five drawings, five castles, crosses on two,
+ * 21 Oct 2026). Undefined from 400 AD on.
+ */
+export function periodLook(donem: string): string | undefined {
+  const year = periodEndYear(donem);
+  if (year === undefined || year >= 400) return undefined;
+  return `Ancient-world buildings as they were in ${donem}: low houses with flat or terracotta-tiled roofs, plain square stone walls and gates.`;
 }
 
 /**
@@ -57,7 +68,7 @@ export function designFor(scene: EpisodeScene, episode: Pick<Episode, "donem">, 
   const place = (q.tasarim?.trim() || `${scene.mekan}; ${q.en}`).replace(/\s+/g, " ");
   return {
     prompt: `${SET_STYLE}, ${place}`,
-    prompt2: `${place}. Historically accurate for ${episode.donem}. Flat cartoon background illustration with clean outlines and bright flat colors, in daylight under a plain light blue sky (unless the place is indoors or the scene is at night), without people.${avoid.length ? ` Avoid what failed before: ${avoid.join("; ")}.` : ""}`,
+    prompt2: `${place}. Historically accurate for ${episode.donem}.${periodLook(episode.donem) ? ` ${periodLook(episode.donem)}` : ""} Flat cartoon background illustration with clean outlines and bright flat colors, in daylight under a plain light blue sky (unless the place is indoors or the scene is at night), without people.${avoid.length ? ` Avoid what failed before: ${avoid.join("; ")}.` : ""}`,
     negative: [SET_NEGATIVE, ...periodNegatives(episode.donem), ...extraNegative].join(", "),
   };
 }

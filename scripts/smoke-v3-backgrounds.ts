@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { designFor, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { designFor, periodLook, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
@@ -161,6 +161,11 @@ async function main() {
     const istanbul = designFor(scene, { donem: "1453" });
     assert.ok(!/bell tower|minaret/.test(istanbul.negative), "1453'te kiliseler ve minareler vardı");
     assert.deepEqual(periodNegatives("Sezar dönemi"), []);
+    // SDXL drew the 49 BC Corfinium as a medieval castle five times: ancient sets get the look of their time and no castles.
+    assert.match(rome.negative, /castle keep, turrets, conical tower roofs/);
+    assert.ok(rome.prompt2.includes("terracotta-tiled roofs") && rome.prompt2.includes("as they were in 49 BC"));
+    assert.ok(!istanbul.prompt2.includes("Ancient-world") && !/castle/.test(istanbul.negative));
+    assert.equal(periodLook("MS 500"), undefined);
   });
 
   await scenario("I years and ranking: period end from the episode, image year from metadata, period works judged first", () => {
@@ -247,7 +252,7 @@ async function main() {
     assert.equal(pick.chosen?.title, "File:temiz.jpg");
     assert.equal(pick.verdicts[0]!.donem, 3);
     assert.ok(pick.verdicts[0]!.sorun.includes("cross on a tower"));
-    assert.deepEqual(asked.map((x) => x.replace("img:File:", "")), ["hacli.jpg", "temiz.jpg"], "only sets that passed are asked");
+    assert.deepEqual(asked.map((x) => x.replace("img:File:", "")), ["hacli.jpg", "zayif.jpg", "temiz.jpg"], "every readable set is asked: a failing one may still become the best attempt");
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
