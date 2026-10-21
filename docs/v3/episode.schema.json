@@ -154,8 +154,8 @@
             },
             "rozetler": {
               "type": "array",
-              "description": "Hükümdar rozeti: kadrodaki karakterin başı, bir yerde; yol verilirse o rota boyunca ilerler.",
-              "items": { "type": "object", "required": ["karakter", "konum"], "properties": { "karakter": { "type": "string" }, "konum": { "$ref": "#/$defs/lonlat" }, "satir": { "type": "integer", "minimum": 0 }, "bitis_satir": { "type": "integer", "minimum": 0 }, "yol": { "type": "array", "items": { "$ref": "#/$defs/lonlat" } } } }
+              "description": "Hükümdar rozeti: kadrodaki karakterin başı, bir yerde; yol verilirse o rota boyunca noktalı iz bırakarak ilerler, yol_satir satırında yola çıkar (yoksa hemen).",
+              "items": { "type": "object", "required": ["karakter", "konum"], "properties": { "karakter": { "type": "string" }, "konum": { "$ref": "#/$defs/lonlat" }, "satir": { "type": "integer", "minimum": 0 }, "bitis_satir": { "type": "integer", "minimum": 0 }, "yol": { "type": "array", "items": { "$ref": "#/$defs/lonlat" } }, "yol_satir": { "type": "integer", "minimum": 0 } } }
             },
             "savaslar": {
               "type": "array",

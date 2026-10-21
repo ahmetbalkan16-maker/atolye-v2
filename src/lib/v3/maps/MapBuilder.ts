@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { SceneMap } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
+import { isPolity } from "./HistoricalBorders";
 
 /**
  * OverSimplified-style maps from Natural Earth (public domain) vector data: land, lakes and rivers of the view,
@@ -150,20 +151,123 @@ function linesPath(v: MapView, lines: readonly Line[]): string {
   return parts.join("");
 }
 
-/** Centroid of the projected territory outline (label anchor), or undefined when it is off frame. */
-function labelPoint(v: MapView, polys: readonly Polygon[]): [number, number] | undefined {
-  let sx = 0, sy = 0, n = 0;
+function insideRing(x: number, y: number, ring: readonly (readonly [number, number])[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** The two lines a long state name is written on (the reference's "SIRP / İMPARATORLUĞU"); MapView splits alike. */
+export function labelLines(text: string): string[] {
+  const t = text.trim();
+  if (t.length <= 12 || !t.includes(" ")) return [t];
+  const spaces = [...t.matchAll(/ /g)].map((m) => m.index!);
+  const cut = spaces.reduce((a, b) => (Math.abs(b - t.length / 2) < Math.abs(a - t.length / 2) ? b : a));
+  return [t.slice(0, cut), t.slice(cut + 1)];
+}
+
+/**
+ * Where a state's name goes and how big: the area centre of its largest piece in view (a point inside it: for a
+ * crescent the middle of its widest span through that centre), at a height that fits the piece — big for an empire,
+ * small for a beylik, like the reference maps. The old anchor, the mean of the outline's points, could fall outside a
+ * bent state. `zoom`: the first view's scale against the drawn world, `frameHeight`: the picture's (a moving map's
+ * world is far taller) — sizes are for the screen.
+ */
+export function labelPoint(v: MapView, polys: readonly Polygon[], label: string, zoom = 1, frameHeight = v.height): { x: number; y: number; size: number } | undefined {
+  let best: [number, number][] | undefined;
+  let bestArea = 0;
   for (const poly of polys) {
-    for (const [lon, lat] of poly[0] ?? []) {
-      const [x, y] = project(v, lon, lat);
-      if (x >= 0 && y >= 0 && x <= v.width && y <= v.height) {
-        sx += x;
-        sy += y;
-        n++;
-      }
+    const ring = clipRing((poly[0] ?? []).map(([lon, lat]) => project(v, lon, lat)), 0, 0, v.width, v.height);
+    if (ring.length < 3) continue;
+    let a = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const [x0, y0] = ring[i]!;
+      const [x1, y1] = ring[(i + 1) % ring.length]!;
+      a += x0 * y1 - x1 * y0;
+    }
+    if (Math.abs(a / 2) > bestArea) {
+      bestArea = Math.abs(a / 2);
+      best = ring;
     }
   }
-  return n ? [sx / n, sy / n] : undefined;
+  if (!best || bestArea < 1) return undefined;
+  let cx = 0, cy = 0, a2 = 0;
+  for (let i = 0; i < best.length; i++) {
+    const [x0, y0] = best[i]!;
+    const [x1, y1] = best[(i + 1) % best.length]!;
+    const c = x0 * y1 - x1 * y0;
+    a2 += c;
+    cx += (x0 + x1) * c;
+    cy += (y0 + y1) * c;
+  }
+  let x = cx / (3 * a2);
+  const y = cy / (3 * a2);
+  // The widest span of the piece along the centre's row: its middle when the centre falls outside, and the room the
+  // name has across.
+  const hits: number[] = [];
+  for (let i = 0; i < best.length; i++) {
+    const [x0, y0] = best[i]!;
+    const [x1, y1] = best[(i + 1) % best.length]!;
+    if (y0 > y !== y1 > y) hits.push(x0 + ((y - y0) * (x1 - x0)) / (y1 - y0));
+  }
+  hits.sort((p, q) => p - q);
+  let span: [number, number] | undefined;
+  for (let i = 0; i + 1 < hits.length; i += 2) if (!span || hits[i + 1]! - hits[i]! > span[1] - span[0]) span = [hits[i]!, hits[i + 1]!];
+  if (span && !insideRing(x, y, best)) x = (span[0] + span[1]) / 2;
+  const across = ((span ? span[1] - span[0] : Math.sqrt(bestArea)) * zoom * 1080) / frameHeight;
+  const lines = labelLines(label);
+  const longest = Math.max(...lines.map((l) => l.length));
+  // Condensed capitals are about half as wide as they are tall; the name takes at most 80% of the span.
+  const size = Math.round(Math.max(24, Math.min(64, (Math.sqrt(bestArea) * zoom * 1080) / frameHeight / 5, (across * 0.8) / (longest * 0.55))));
+  return { x: r1(x), y: r1(y), size };
+}
+
+/**
+ * Colours of the period's other states: strong and distinct like the reference maps (teal Byzantium, green Ottomans,
+ * orange and pink beyliks, brown Serbia, purple Bulgaria), never the colour of a neighbour.
+ */
+export const STATE_COLOURS: readonly string[] = ["#3a9e9a", "#3fae3a", "#e07b24", "#9a6a34", "#7a64b8", "#d27fb0", "#a9be3a", "#8a9cbc", "#c9a227", "#b85450", "#4f86c6", "#6fa36b"];
+
+type Box = { readonly west: number; readonly east: number; readonly south: number; readonly north: number };
+
+function boxOf(polys: readonly Polygon[]): Box {
+  let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+  for (const p of polys)
+    for (const [lon, lat] of p[0] ?? []) {
+      west = Math.min(west, lon);
+      east = Math.max(east, lon);
+      south = Math.min(south, lat);
+      north = Math.max(north, lat);
+    }
+  return { west, east, south, north };
+}
+
+const touches = (a: Box, b: Box, pad = 0) => a.west - pad <= b.east && b.west - pad <= a.east && a.south - pad <= b.north && b.south - pad <= a.north;
+
+/**
+ * The period's states in the world that the scene does not name: the reference maps colour every state's land, so the
+ * named ones stand among their neighbours instead of on bare ground. Nameless (the atlas's own names are not always the
+ * period's: "Seljuk Caliphate" in 1400), largest first, each in a colour no touching state has.
+ */
+export function backgroundStates(snapshot: ReadonlyMap<string, readonly Polygon[]>, world: Box, named: readonly { readonly name: string; readonly color: string; readonly polys: readonly Polygon[] }[], isPolity: (name: string) => boolean): { name: string; color: string; polys: readonly Polygon[] }[] {
+  const skip = new Set(named.map((n) => n.name.toLowerCase()));
+  const found = [...snapshot]
+    .filter(([name, polys]) => !skip.has(name) && isPolity(name) && polys.length && touches(boxOf(polys), world))
+    .map(([name, polys]) => ({ name, polys, box: boxOf(polys) }))
+    .sort((a, b) => (b.box.east - b.box.west) * (b.box.north - b.box.south) - (a.box.east - a.box.west) * (a.box.north - a.box.south));
+  const placed: { box: Box; color: string }[] = named.map((n) => ({ box: boxOf(n.polys), color: n.color.toLowerCase() }));
+  return found.map((s) => {
+    const near = new Set(placed.filter((p) => touches(p.box, s.box, 0.5)).map((p) => p.color));
+    let h = 0;
+    for (let i = 0; i < s.name.length; i++) h = (h * 31 + s.name.charCodeAt(i)) >>> 0;
+    const color = STATE_COLOURS.map((_, j) => STATE_COLOURS[(h + j) % STATE_COLOURS.length]!).find((c) => !near.has(c)) ?? STATE_COLOURS[h % STATE_COLOURS.length]!;
+    placed.push({ box: s.box, color });
+    return { name: s.name, color, polys: s.polys };
+  });
 }
 
 /** Half the size of an army block with its name above it, in 1080p pixels (MapView draws 68×44 and the name 48 above). */
@@ -186,6 +290,83 @@ export function declutterMap(m: V3GeoMap, height: number): V3GeoMap {
     return left - ARMY_HALF_W * k >= 20 * k ? { ...a, x: r1(left), y: city.y } : { ...a, x: city.x, y: r1(Math.max(ARMY_REACH_UP * k, city.y - 90 * k)) };
   });
   return { ...m, armies, arrows };
+}
+
+type Rect = { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number };
+const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+/**
+ * Keeps every state's name inside the picture and off the marks near its spot (map still, 21 Oct 2026: "OTTOMAN
+ * EMPIRE" covered Bursa, "KINGDOM OF HUNGARY" ran off the top under the crusaders' arrow): the name moves up or down a
+ * little, then sideways, to the first place where it covers no city, badge, battle, arrow name or other state's name.
+ * `px`: drawn pixels per 1080p screen pixel (MapView keeps names and marks at a constant screen size).
+ */
+export function placeStateLabels(m: V3GeoMap, width: number, height: number, px: number): V3GeoMap {
+  const cityMarks: Rect[] = m.cities.map((c) => ({ x0: c.x - 10 * px, y0: c.y - 16 * px, x1: c.x + (16 + c.label.length * 13) * px, y1: c.y + 16 * px }));
+  // An arrow's name goes above the first point along it (middle first) where it covers no city ("CRUSADERS" sat on
+  // "Belgrade" in the Nicopolis map trial).
+  const arrowRect = (x: number, y: number, label: string) => ({ x0: x - label.length * 10 * px, y0: y - 22 * px, x1: x + label.length * 10 * px, y1: y + 22 * px });
+  const arrows = m.arrows.map((ar) => {
+    if (!ar.label || ar.points.length < 2) return ar;
+    // Above the line first, then below it.
+    const spots = [-40, 40].flatMap((dy) =>
+      [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].map((f) => {
+        const p = alongPoints(ar.points, f);
+        return { x: p.x, y: p.y + dy * px };
+      }),
+    );
+    const spot = spots.find((s) => !cityMarks.some((r) => overlaps(r, arrowRect(s.x, s.y, ar.label!)))) ?? spots[0]!;
+    return { ...ar, labelX: r1(spot.x), labelY: r1(spot.y) };
+  });
+  const marks: Rect[] = [
+    ...cityMarks,
+    // A badge: the portrait with its name scroll stands up to 120 px above its place (MapView, relief map).
+    ...(m.badges ?? []).flatMap((b) => (b.path[0] ? [{ x0: b.path[0].x - 75 * px, y0: b.path[0].y - 125 * px, x1: b.path[0].x + 75 * px, y1: b.path[0].y + 6 * px }] : [])),
+    ...(m.battles ?? []).map((b) => ({ x0: b.x - (40 + b.label.length * 8) * px, y0: b.y - 92 * px, x1: b.x + (40 + b.label.length * 8) * px, y1: b.y + 50 * px })),
+    ...arrows.flatMap((ar) => (ar.label && ar.labelX !== undefined && ar.labelY !== undefined ? [arrowRect(ar.labelX, ar.labelY, ar.label)] : [])),
+  ];
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+  const placed: (Rect & { label: string })[] = [];
+  const territories = m.territories.map((t) => {
+    if (t.labelX === undefined || t.labelY === undefined || !t.label) return t;
+    // A state that changes hands is written twice under one name (old colour out, new colour in): same place.
+    const same = placed.find((p) => p.label === t.label);
+    if (same) return { ...t, labelX: r1((same.x0 + same.x1) / 2), labelY: r1((same.y0 + same.y1) / 2) };
+    const lines = labelLines(t.label.toLocaleUpperCase("en-US"));
+    // Full size first; where there is no free place, a smaller name (map still: "HUNGARY" under "CRUSADERS").
+    const free = (size: number) => {
+      const w = Math.max(...lines.map((l) => l.length)) * 0.52 * size * px;
+      const h = lines.length * size * px;
+      const at = (dx: number, dy: number) => {
+        const x = clamp(t.labelX! + dx, w / 2 + 40 * px, width - w / 2 - 40 * px);
+        const y = clamp(t.labelY! + dy, h / 2 + 40 * px, height - h / 2 - 40 * px);
+        return { x, y, size, r: { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 } };
+      };
+      const s = h * 0.6;
+      const tries = [[0, 0], [0, s], [0, -s], [0, 2 * s], [0, -2 * s], [w * 0.45, 0], [-w * 0.45, 0], [w * 0.45, s], [-w * 0.45, s], [w * 0.45, -s], [-w * 0.45, -s]] as const;
+      return { spot: tries.map(([dx, dy]) => at(dx, dy)).find((c) => ![...marks, ...placed].some((r) => overlaps(r, c.r))), first: at(0, 0) };
+    };
+    const full = t.labelSize ?? 46;
+    const tried = [full, Math.max(24, Math.round(full * 0.75)), Math.max(22, Math.round(full * 0.55))].map((sz) => free(sz));
+    const spot = tried.find((x) => x.spot)?.spot ?? tried[0]!.first;
+    placed.push({ ...spot.r, label: t.label });
+    return { ...t, labelX: r1(spot.x), labelY: r1(spot.y), ...(spot.size !== full ? { labelSize: spot.size } : {}) };
+  });
+  return { ...m, territories, arrows };
+}
+
+/** The point a fraction of the way along a polyline (MapView's `along`, for placing names). */
+function alongPoints(points: readonly { x: number; y: number }[], f: number): { x: number; y: number } {
+  const seg = points.slice(1).map((p, i) => Math.hypot(p.x - points[i]!.x, p.y - points[i]!.y));
+  let rest = Math.max(0, Math.min(1, f)) * seg.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < seg.length; i++) {
+    if (rest <= seg[i]! || i === seg.length - 1) {
+      const u = seg[i]! ? Math.min(1, rest / seg[i]!) : 1;
+      return { x: points[i]!.x + (points[i + 1]!.x - points[i]!.x) * u, y: points[i]!.y + (points[i + 1]!.y - points[i]!.y) * u };
+    }
+    rest -= seg[i]!;
+  }
+  return points[points.length - 1]!;
 }
 
 /**
@@ -272,15 +453,29 @@ function projectGeoMap(
   const world = mapWorld(map, width, height);
   const v = world.view;
   const moving = world.keys.length > 1;
-  const territories = (map.bolgeler ?? []).map((b, i) => {
-    const polys: Polygon[] = [
+  // The first view's scale against the world: name sizes are for the screen.
+  const zoom0 = moving ? (width / world.keys[0]!.view.spanLon) * (v.spanLon / v.width) : 1;
+  const named = (map.bolgeler ?? []).map((b) => ({
+    b,
+    polys: [
       ...(b.tarihi ? (data.historical?.get(b.tarihi.yil)?.get(b.tarihi.ad.toLowerCase()) ?? []) : []),
       ...(b.ulkeler ?? []).flatMap((iso) => data.countries.get(iso.toUpperCase()) ?? []),
       ...(b.noktalar && b.noktalar.length >= 3 ? [[b.noktalar.map(([lon, lat]) => [lon, lat] as const)]] : []),
-    ];
-    const at = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : labelPoint(v, polys);
-    return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...(at ? { labelX: r1(at[0]), labelY: r1(at[1]) } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
-  });
+    ] as Polygon[],
+  }));
+  // The period of the scene's first atlas state colours the rest of its map.
+  const year = named.find((n) => n.b.tarihi)?.b.tarihi?.yil;
+  const snapshot = year !== undefined ? data.historical?.get(year) : undefined;
+  const others = snapshot ? backgroundStates(snapshot, world.bounds, named.flatMap((n) => (n.b.tarihi ? [{ name: n.b.tarihi.ad, color: n.b.renk, polys: n.polys }] : [])), isPolity) : [];
+  const territories = [
+    ...others.map((s) => ({ d: polygonsPath(v, s.polys), color: s.color, label: "", start: 0 })),
+    ...named.map(({ b, polys }, i) => {
+      const at = labelPoint(v, polys, b.ad, zoom0, height);
+      const pin = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
+      const anchor = pin ? { labelX: r1(pin[0]), labelY: r1(pin[1]) } : at ? { labelX: at.x, labelY: at.y } : {};
+      return { d: polygonsPath(v, polys), color: b.renk, label: b.ad, ...anchor, ...(at ? { labelSize: at.size } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
+    }),
+  ];
   const toPx = (p: readonly [number, number]) => {
     const [x, y] = project(v, p[0], p[1]);
     return { x: r1(x), y: r1(y) };
@@ -291,9 +486,9 @@ function projectGeoMap(
         .map((k, i) => ({ frame: i === 0 ? 0 : lineStart(k.satir, i), ...toPx([k.view.lon0, k.view.lat0]), zoom: Math.round(((width / k.view.spanLon) * v.spanLon * 1000) / v.width) / 1000 }))
         .sort((a, b) => a.frame - b.frame)
     : undefined;
-  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
+  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
   const battles = (map.savaslar ?? []).map((w, i) => ({ ...toPx(w.konum), label: w.ad, start: lineStart(w.satir, i) }));
-  return {
+  const drawn: V3GeoMap = {
     land: polygonsPath(v, data.land),
     lakes: polygonsPath(v, data.lakes),
     rivers: linesPath(v, data.rivers),
@@ -306,4 +501,5 @@ function projectGeoMap(
     ...(badges.length ? { badges } : {}),
     ...(battles.length ? { battles } : {}),
   };
+  return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0);
 }

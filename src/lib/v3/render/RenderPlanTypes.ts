@@ -259,11 +259,15 @@ export interface V3GeoMap {
   readonly land: string;
   readonly lakes: string;
   readonly rivers: string;
-  /** `end`: the frame it fades out from (a border change). */
-  readonly territories: readonly { readonly d: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly start: number; readonly end?: number }[];
+  /**
+   * `end`: the frame it fades out from (a border change). `labelSize`: the name's height on a 1080p screen, by the
+   * state's size (absent: 46). The period's other states colour the map without a name (`label` empty, no anchor).
+   */
+  readonly territories: readonly { readonly d: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly labelSize?: number; readonly start: number; readonly end?: number }[];
   readonly cities: readonly { readonly x: number; readonly y: number; readonly label: string }[];
   readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number }[];
-  readonly arrows: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly color: string; readonly label?: string; readonly start: number }[];
+  /** `labelX`/`labelY`: where the name stands (off the cities); absent, above the middle point. */
+  readonly arrows: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly color: string; readonly label?: string; readonly labelX?: number; readonly labelY?: number; readonly start: number }[];
   /**
    * Map narration (owner, 21 Oct 2026): the map is a `world` larger than the frame, the camera moves over it. Every
    * coordinate above is then in world pixels; absent, the world is the frame.
@@ -273,8 +277,8 @@ export interface V3GeoMap {
   readonly camera?: readonly { readonly frame: number; readonly x: number; readonly y: number; readonly zoom: number }[];
   /** Terrain relief image (public dir) covering the world exactly (Natural Earth, public domain). */
   readonly relief?: string;
-  /** Rulers' portrait badges (a cast member's head); with more than one point they travel the path. */
-  readonly badges?: readonly { readonly castId: string; readonly label: string; readonly start: number; readonly end?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }[];
+  /** Rulers' portrait badges (a cast member's head); with more than one point they travel the path from `moveStart` (default `start`). */
+  readonly badges?: readonly { readonly castId: string; readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }[];
   readonly battles?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly start: number }[];
 }
 

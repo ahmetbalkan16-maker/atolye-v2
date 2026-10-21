@@ -1,3 +1,23 @@
+## 21 Ekim 2026 (akşamüstü) — V3 harita referansa göre yeniden: tarihî sınırlar, canlı harita anlatımı
+
+**Owner:** harita denemesinde "sınırlar çok kötü, o videodaki gibi değil", "sadece boya, harita gibi değil"; kaliteyi
+olabildiğince artır; harita üzerinde canlı anlatım (Bayezid sefere çıkınca rozet yol boyunca gider); bunu sonra
+yardımcı yapay zekalar Claude/Codex olmadan yapabilsin; rozetteki kişi kayıtlı değilse tasarlansın; başka bir şeyi bozma.
+
+**Yapılan:** atlas yılındaki bütün devletler renkli (komşular ayrı renk), adlar alan merkezinde/boyutlu/kadraj içinde/
+çakışmasız; kabartmada hard-light renk + koyu ton sınır + kıyı/sığ su/nehir/kenar karartması, dar kalın adlar;
+`rozetler[].yol_satir` (rozet o satırda yola çıkar, noktalı iz), noktalı sefer yolları, fetihte yayılan bölge, harita
+çekiminde yumuşak kamera; kabartma zemini Lanczos+keskinleştirme (8192 px'e kadar). Yazar istemi + 3 owner kuralı +
+`scripts/v3/harita-onizleme.ts` + örnek `content/v3/ornekler/harita-nigbolu-1396.json`. Rozet hükümdarı `portre`lu
+görünür kadro üyesi olduğundan Kostüm beyni onu da tasarlar (doğrulandı: `designLikenesses` satıra bakmaz).
+Ayrıntı: `docs/v3/FAZ_RAPORLARI.md` → "Harita referansa göre yeniden".
+
+**Doğrulama:** 11 smoke PASS (episode-director 21, yeni O3), tsc 0 (kök + remotion), eslint 0; 33 sn'lik gerçek klip
+kare kare incelendi; Roma bölümünün haritalı sahnesi yeni yolla sorunsuz.
+
+**Sıradaki:** owner klibe bakar (`D:\ÜRETİM\Atolye\v3-runtime\harita-onizleme\ornek-harita-nigbolu-1396-s1-harita\s1-harita.mp4`);
+onaylarsa kısa deneme bölümü, sonra ilk 15–20 dk'lık video. Öneri: yakın planlar için yüksek çözünürlüklü yükselti verisi.
+
 ## 21 Ekim 2026 (öğleden sonra) — V3 uzun video altyapısı tamam: parçalı render, bölüm başına müzik
 
 **Owner (21 Ekim):** videolar en az 15–20 dk, Hayalhanem tarzı harita anlatımı, uzun videoda 4 $ tavan; "önce altyapıyı

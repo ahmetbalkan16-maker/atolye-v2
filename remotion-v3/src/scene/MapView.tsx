@@ -12,6 +12,47 @@ const LAND_SHADE = "#b9c78d";
 const COAST = "#f6f2e4";
 const RIVER = "#4f8cc2";
 const LABEL_FONT = "'Segoe UI Black', 'Arial Black', sans-serif";
+/** State names on the relief map: tall condensed capitals like the reference channel's (Windows' Bahnschrift). */
+const STATE_FONT = "'Bahnschrift', 'Arial Narrow', sans-serif";
+
+/** Campaign routes and trails on the relief map, and the badges' parchment (the reference maps' look). */
+const ROUTE_RED = "#d7263d";
+const PARCHMENT = "#f1e0b5";
+const SEPIA = "#5a3d1a";
+
+function pathLength(points: readonly { x: number; y: number }[]): number {
+  return points.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - points[i]!.x, p.y - points[i]!.y), 0);
+}
+
+/** The part of a polyline from its start to a fraction of its length, as an SVG path (a travelling badge's trail). */
+function partialPath(points: readonly { x: number; y: number }[], f: number): string {
+  const end = along(points, f);
+  let rest = Math.max(0, Math.min(1, f)) * pathLength(points);
+  let d = `M${points[0]!.x} ${points[0]!.y}`;
+  for (let i = 1; i < points.length; i++) {
+    const seg = Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+    if (rest <= seg) break;
+    d += ` L${points[i]!.x} ${points[i]!.y}`;
+    rest -= seg;
+  }
+  return `${d} L${end.x} ${end.y}`;
+}
+
+/** A colour darkened towards black (`f` = how much of it stays). */
+function shade(hex: string, f: number): string {
+  const n = parseInt(hex.replace("#", "").slice(0, 6).padEnd(6, "0"), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+/** The two lines a long name is written on (same rule as MapBuilder.labelLines, which sizes it). */
+function labelLines(text: string): string[] {
+  const t = text.trim();
+  if (t.length <= 12 || !t.includes(" ")) return [t];
+  const spaces = [...t.matchAll(/ /g)].map((m) => m.index!);
+  const cut = spaces.reduce((a, b) => (Math.abs(b - t.length / 2) < Math.abs(a - t.length / 2) ? b : a));
+  return [t.slice(0, cut), t.slice(cut + 1)];
+}
 /** How long the camera takes to reach a new view (seconds), and a badge to travel its route. */
 const CAMERA_MOVE_S = 1.4;
 const BADGE_TRAVEL_S = 3;
@@ -68,6 +109,47 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
       {text.toLocaleUpperCase("en-US")}
     </text>
   );
+  // A state's name on the relief map (owner, 21 Oct 2026: "nothing like that video"): white condensed capitals on one or
+  // two lines with a soft shadow instead of the cartoon map's thick black outline.
+  const stateLabel = (text: string, x: number, y: number, size: number, opacity: number) => {
+    const lines = labelLines(text.toLocaleUpperCase("en-US"));
+    const lh = size * 0.98 * k;
+    // One <text> per line at its own height: tspans with dy under a middle baseline landed ~70 px off their anchor in
+    // Remotion's Chrome (map still, 21 Oct 2026).
+    return (
+      <g opacity={opacity} style={{ filter: `drop-shadow(0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.55))` }}>
+        {lines.map((l, i) => (
+          <text key={i} x={x} y={y + (i - (lines.length - 1) / 2) * lh + size * 0.36 * k} textAnchor="middle" style={{ font: `700 ${size * k}px ${STATE_FONT}`, fontStretch: "condensed", fontVariationSettings: "'wdth' 75, 'wght' 700", letterSpacing: 0.5 * k }} fill="#ffffff" stroke="rgba(20,20,20,0.5)" strokeWidth={2.5 * k} paintOrder="stroke fill" strokeLinejoin="round">
+            {l}
+          </text>
+        ))}
+      </g>
+    );
+  };
+  // Names of armies, arrows and battles: the relief map's style there too, the cartoon map's on the flat one.
+  const markLabel = (text: string, size: number, opacity = 1) => (relief ? stateLabel(text, 0, 0, size, opacity) : label(text, 0, 0, size, opacity));
+  const battleMarks = (map.battles ?? []).map((b, i) => {
+    if (frame < b.start) return null;
+    const pop = spring({ frame: frame - b.start, fps, config: { damping: 9, stiffness: 220 } });
+    const flash = interpolate(frame - b.start, [0, Math.round(fps * 0.5)], [1, 0], { extrapolateRight: "clamp" });
+    const blade = (rot: number) => (
+      <g transform={`rotate(${rot})`}>
+        <path d={`M0 ${-46 * k} L${7 * k} ${-36 * k} L${5 * k} ${22 * k} L${-5 * k} ${22 * k} L${-7 * k} ${-36 * k} Z`} fill="#e9edf2" stroke={INK} strokeWidth={4 * k} strokeLinejoin="round" />
+        <rect x={-17 * k} y={20 * k} width={34 * k} height={8 * k} rx={3 * k} fill="#c99a2e" stroke={INK} strokeWidth={4 * k} />
+        <rect x={-4.5 * k} y={28 * k} width={9 * k} height={20 * k} rx={3 * k} fill="#6b3f1d" stroke={INK} strokeWidth={4 * k} />
+      </g>
+    );
+    return (
+      <g key={`b${i}`} transform={`translate(${b.x} ${b.y})`}>
+        {flash > 0 ? <circle r={70 * k * (1.4 - flash * 0.4)} fill="#ffd34d" opacity={0.55 * flash} /> : null}
+        <g transform={`scale(${pop})`}>
+          {blade(-38)}
+          {blade(38)}
+        </g>
+        <g transform={`translate(0 ${-70 * k})`}>{markLabel(b.label, 30, Math.min(1, pop))}</g>
+      </g>
+    );
+  });
   const visible = (start: number, end: number | undefined) => {
     const a = interpolate(frame, [start, start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return end === undefined ? a : a * interpolate(frame, [end, end + Math.round(fps * 0.6)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -84,11 +166,26 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
         <mask id={`${id}-land`} maskUnits="userSpaceOnUse" x={0} y={0} width={world.width} height={world.height}>
           <path d={map.land} fill="#ffffff" fillRule="evenodd" />
         </mask>
+        <mask id={`${id}-sea`} maskUnits="userSpaceOnUse" x={0} y={0} width={world.width} height={world.height}>
+          <rect x={0} y={0} width={world.width} height={world.height} fill="#ffffff" />
+          <path d={map.land} fill="#000000" fillRule="evenodd" />
+        </mask>
+        <radialGradient id={`${id}-vignette`} cx="50%" cy="50%" r="72%">
+          <stop offset="62%" stopColor="#000000" stopOpacity={0} />
+          <stop offset="100%" stopColor="#000000" stopOpacity={0.38} />
+        </radialGradient>
       </defs>
       <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-sea)`} />
       <g transform={`translate(${W / 2} ${H / 2}) scale(${cam.zoom}) translate(${-cam.x} ${-cam.y})`}>
         {relief ? (
-          <image href={staticFile(map.relief!)} x={0} y={0} width={world.width} height={world.height} preserveAspectRatio="none" />
+          <>
+            <image href={staticFile(map.relief!)} x={0} y={0} width={world.width} height={world.height} preserveAspectRatio="none" />
+            {/* Shallow water: a light band along every coast on the sea side, like the reference maps' bright shores. */}
+            <g mask={`url(#${id}-sea)`}>
+              <path d={map.land} fill="none" stroke="#7fc4d8" strokeOpacity={0.16} strokeWidth={34 * k} strokeLinejoin="round" />
+              <path d={map.land} fill="none" stroke="#a6dcea" strokeOpacity={0.22} strokeWidth={14 * k} strokeLinejoin="round" />
+            </g>
+          </>
         ) : (
           <>
             {/* A soft shadow under the land lifts it off the sea. */}
@@ -96,32 +193,75 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
             <path d={map.land} fill={LAND} fillRule="evenodd" />
           </>
         )}
-        <g mask={`url(#${id}-land)`}>
-          {relief ? null : <path d={map.land} fill="none" stroke={LAND_SHADE} strokeWidth={26 * k} opacity={0.6} />}
-          {map.territories.map((t, i) => {
-            const a = visible(t.start, t.end);
-            return a > 0 ? <path key={i} d={t.d} fill={t.color} fillOpacity={(relief ? 0.55 : 0.78) * a} stroke="#ffffff" strokeOpacity={a} strokeWidth={(relief ? 3 : 4) * k} strokeLinejoin="round" fillRule="evenodd" /> : null;
-          })}
-        </g>
-        {relief ? null : (
+        {relief ? (
+          <>
+            {/* On the relief (owner, 21 Oct 2026: the 55% fill with white lines looked washed out; a plain 84% fill hid
+                the terrain — "only paint, nothing like a map"): the states' colours are laid on in hard-light, so each
+                is strong yet the mountains and valleys show through it like the reference maps; the border is a dark
+                shade of each state's own colour on top, so where two states meet it reads sharp. */}
+            {/* A state that comes in during the scene (a conquest, a new border) spreads out from its name instead of
+                fading in, so the map shows it growing. */}
+            <defs>
+              {map.territories.map((t, i) => {
+                const grow = t.start > 0 ? interpolate(frame, [t.start, t.start + Math.round(fps * 1.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }) : 1;
+                return grow < 1 ? (
+                  <mask key={i} id={`${id}-grow${i}`} maskUnits="userSpaceOnUse" x={0} y={0} width={world.width} height={world.height}>
+                    <circle cx={t.labelX ?? world.width / 2} cy={t.labelY ?? world.height / 2} r={Math.max(1, grow * Math.hypot(world.width, world.height))} fill="#ffffff" />
+                  </mask>
+                ) : null;
+              })}
+            </defs>
+            <g mask={`url(#${id}-land)`} style={{ mixBlendMode: "hard-light" }}>
+              {map.territories.map((t, i) => {
+                const a = t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
+                const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
+                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill={t.color} fillOpacity={0.9 * a} fillRule="evenodd" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
+              })}
+            </g>
+            <g mask={`url(#${id}-land)`}>
+              {map.territories.map((t, i) => {
+                const a = t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
+                const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
+                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill="none" stroke={shade(t.color, 0.5)} strokeOpacity={0.95 * a} strokeWidth={2.6 * k} strokeLinejoin="round" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
+              })}
+            </g>
+            {/* Rivers over the colours (the reference maps name and draw them), thin and light. */}
+            <path d={map.rivers} fill="none" stroke="#7cc3ea" strokeOpacity={0.85} strokeWidth={2.2 * k} strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        ) : (
+          <g mask={`url(#${id}-land)`}>
+            <path d={map.land} fill="none" stroke={LAND_SHADE} strokeWidth={26 * k} opacity={0.6} />
+            {map.territories.map((t, i) => {
+              const a = visible(t.start, t.end);
+              return a > 0 ? <path key={i} d={t.d} fill={t.color} fillOpacity={0.78 * a} stroke="#ffffff" strokeOpacity={a} strokeWidth={4 * k} strokeLinejoin="round" fillRule="evenodd" /> : null;
+            })}
+          </g>
+        )}
+        {relief ? (
+          // A thin dark coastline: the coloured states end cleanly at the sea.
+          <path d={map.land} fill="none" stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} strokeLinejoin="round" />
+        ) : (
           <>
             <path d={map.lakes} fill={OCEAN} stroke={COAST} strokeWidth={2 * k} fillRule="evenodd" />
             <path d={map.rivers} fill="none" stroke={RIVER} strokeWidth={3 * k} strokeLinecap="round" strokeLinejoin="round" />
             <path d={map.land} fill="none" stroke={COAST} strokeWidth={3.5 * k} strokeLinejoin="round" />
           </>
         )}
-        {map.cities.map((c, i) => (
-          <g key={`c${i}`}>
-            <circle cx={c.x} cy={c.y} r={11 * k} fill="#ffffff" stroke={INK} strokeWidth={5 * k} />
-            <text x={c.x + 18 * k} y={c.y + 2 * k} dominantBaseline="middle" style={{ font: `800 ${30 * k}px 'Segoe UI', Arial, sans-serif` }} fill="#ffffff" stroke={INK} strokeWidth={7 * k} paintOrder="stroke fill">
-              {c.label}
-            </text>
-          </g>
-        ))}
+        {map.cities.map((c, i) =>
+          relief ? null : (
+            <g key={`c${i}`}>
+              <circle cx={c.x} cy={c.y} r={11 * k} fill="#ffffff" stroke={INK} strokeWidth={5 * k} />
+              <text x={c.x + 18 * k} y={c.y + 2 * k} dominantBaseline="middle" style={{ font: `800 ${30 * k}px 'Segoe UI', Arial, sans-serif` }} fill="#ffffff" stroke={INK} strokeWidth={7 * k} paintOrder="stroke fill">
+                {c.label}
+              </text>
+            </g>
+          ),
+        )}
         {map.territories.map((t, i) => {
           if (t.labelX === undefined || t.labelY === undefined) return null;
           const a = visible(t.start + 6, t.end);
-          return a > 0 ? <g key={`tl${i}`}>{label(t.label, t.labelX, t.labelY, 46, a)}</g> : null;
+          if (a <= 0) return null;
+          return <g key={`tl${i}`}>{relief ? stateLabel(t.label, t.labelX, t.labelY, t.labelSize ?? 46, a) : label(t.label, t.labelX, t.labelY, 46, a)}</g>;
         })}
         {map.armies.map((a, i) => {
           if (frame < a.start) return null;
@@ -130,7 +270,7 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
             <g key={`a${i}`} transform={`translate(${a.x} ${a.y}) scale(${pop})`}>
               <rect x={-34 * k} y={-22 * k} width={68 * k} height={44 * k} rx={6 * k} fill={a.color} stroke="#ffffff" strokeWidth={5 * k} />
               <path d={`M${-34 * k} ${-22 * k} L${34 * k} ${22 * k} M${34 * k} ${-22 * k} L${-34 * k} ${22 * k}`} stroke="#ffffff" strokeWidth={4 * k} opacity={0.85} />
-              <g transform={`translate(0 ${-48 * k})`}>{label(a.label, 0, 0, 30)}</g>
+              <g transform={`translate(0 ${-48 * k})`}>{markLabel(a.label, 30)}</g>
             </g>
           );
         })}
@@ -146,47 +286,97 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
           d += ` L${last.x} ${last.y}`;
           const ang = (Math.atan2(last.y - prev.y, last.x - prev.x) * 180) / Math.PI;
           const mid = p[Math.floor((p.length - 1) / 2)]!;
+          // On the relief map a campaign is a line of red dots that draws itself, like the reference maps; the cartoon
+          // map's thick outlined arrow covered cities and names there.
+          if (relief) {
+            return (
+              <g key={`r${i}`}>
+                <defs>
+                  <mask id={`${id}-route${i}`} maskUnits="userSpaceOnUse" x={0} y={0} width={world.width} height={world.height}>
+                    <path d={d} fill="none" stroke="#ffffff" strokeWidth={30 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
+                  </mask>
+                </defs>
+                <path d={d} fill="none" stroke={ar.color} strokeWidth={10 * k} strokeLinecap="round" strokeDasharray={`0.1 ${18 * k}`} mask={`url(#${id}-route${i})`} style={{ filter: `drop-shadow(0 ${1.5 * k}px ${1.5 * k}px rgba(0,0,0,0.55))` }} />
+                {draw < 0.02 ? <path transform={`translate(${last.x} ${last.y}) rotate(${ang})`} d={`M${18 * k} 0 L${-14 * k} ${-16 * k} L${-6 * k} 0 L${-14 * k} ${16 * k} Z`} fill={ar.color} stroke="rgba(20,20,20,0.7)" strokeWidth={2.5 * k} strokeLinejoin="round" /> : null}
+                {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g> : null}
+              </g>
+            );
+          }
           return (
             <g key={`r${i}`}>
               <path d={d} fill="none" stroke={INK} strokeWidth={24 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
               <path d={d} fill="none" stroke={ar.color} strokeWidth={14 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
               {draw < 0.02 ? <path transform={`translate(${last.x} ${last.y}) rotate(${ang})`} d={`M${22 * k} 0 L${-24 * k} ${-28 * k} L${-12 * k} 0 L${-24 * k} ${28 * k} Z`} fill={ar.color} stroke={INK} strokeWidth={5 * k} strokeLinejoin="round" /> : null}
-              {ar.label && draw < 0.5 ? <g transform={`translate(${mid.x} ${mid.y - 40 * k})`}>{label(ar.label, 0, 0, 32)}</g> : null}
+              {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g> : null}
             </g>
           );
         })}
-        {(map.battles ?? []).map((b, i) => {
-          if (frame < b.start) return null;
-          const pop = spring({ frame: frame - b.start, fps, config: { damping: 9, stiffness: 220 } });
-          const flash = interpolate(frame - b.start, [0, Math.round(fps * 0.5)], [1, 0], { extrapolateRight: "clamp" });
-          const blade = (rot: number) => (
-            <g transform={`rotate(${rot})`}>
-              <path d={`M0 ${-46 * k} L${7 * k} ${-36 * k} L${5 * k} ${22 * k} L${-5 * k} ${22 * k} L${-7 * k} ${-36 * k} Z`} fill="#e9edf2" stroke={INK} strokeWidth={4 * k} strokeLinejoin="round" />
-              <rect x={-17 * k} y={20 * k} width={34 * k} height={8 * k} rx={3 * k} fill="#c99a2e" stroke={INK} strokeWidth={4 * k} />
-              <rect x={-4.5 * k} y={28 * k} width={9 * k} height={20 * k} rx={3 * k} fill="#6b3f1d" stroke={INK} strokeWidth={4 * k} />
-            </g>
-          );
-          return (
-            <g key={`b${i}`} transform={`translate(${b.x} ${b.y})`}>
-              {flash > 0 ? <circle r={70 * k * (1.4 - flash * 0.4)} fill="#ffd34d" opacity={0.55 * flash} /> : null}
-              <g transform={`scale(${pop})`}>
-                {blade(-38)}
-                {blade(38)}
+        {/* On the relief map cities are written over the routes: a dotted march through Belgrade cut its name. */}
+        {relief
+          ? map.cities.map((c, i) => (
+              <g key={`c${i}`}>
+                <circle cx={c.x} cy={c.y} r={6 * k} fill="#ffffff" stroke="rgba(20,20,20,0.7)" strokeWidth={2.5 * k} />
+                <text x={c.x + 12 * k} y={c.y + 1 * k} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
+                  {c.label}
+                </text>
               </g>
-              <g transform={`translate(0 ${-70 * k})`}>{label(b.label, 0, 0, 30, Math.min(1, pop))}</g>
-            </g>
-          );
-        })}
+            ))
+          : battleMarks}
         {(map.badges ?? []).map((b, i) => {
           const a = visible(b.start, b.end);
           const m = cast?.get(b.castId);
           if (a <= 0) return null;
-          const at = along(b.path, interpolate(frame, [b.start, b.start + fps * BADGE_TRAVEL_S], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) }));
-          const r = 48 * k;
+          // A campaign (owner, 21 Oct 2026: "Bayezid sets out, the badge moves showing where he goes"): the badge sets off
+          // with its line, takes longer on a longer road, and leaves a dotted trail behind it.
+          const moveFrom = b.moveStart ?? b.start;
+          const travelS = relief ? Math.min(7, Math.max(2.5, (pathLength(b.path) * 1080) / H / 260)) : BADGE_TRAVEL_S;
+          const progress = interpolate(frame, [moveFrom, moveFrom + fps * travelS], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
+          const at = along(b.path, progress);
           const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } });
+          const extra: V3Extra = { castId: b.castId, x: 0, depth: 0, facing: progress > 0 && progress < 1 && b.path.length > 1 && b.path[b.path.length - 1]!.x < b.path[0]!.x ? "left" : "right", scale: 1, mood: "notr", seed: i * 97 + 13 };
+          if (relief) {
+            // The reference maps' badge: a portrait in a parchment ring with the name on a scroll across its foot, a
+            // short point down to the place (about 110 px, so it covers less of the map than the cartoon pin).
+            const r = 44 * k;
+            const s = (r * 0.62) / 100;
+            const cy = -(r + 16 * k);
+            const sw = (b.label.length * 11.5 + 34) * k;
+            const trail = progress > 0 && b.path.length > 1 ? partialPath(b.path, progress) : undefined;
+            return (
+              <g key={`g${i}`}>
+                {trail ? <path d={trail} fill="none" stroke={ROUTE_RED} strokeWidth={9 * k} strokeLinecap="round" strokeDasharray={`0.1 ${17 * k}`} opacity={a} style={{ filter: `drop-shadow(0 ${1.5 * k}px ${1.5 * k}px rgba(0,0,0,0.55))` }} /> : null}
+                <g transform={`translate(${at.x} ${at.y}) scale(${pop})`} opacity={a}>
+                  <defs>
+                    <clipPath id={`${id}-badge${i}`}>
+                      <circle cy={cy} r={r} />
+                    </clipPath>
+                  </defs>
+                  <g style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
+                    <path d={`M${-10 * k} ${cy + r - 2 * k} L0 0 L${10 * k} ${cy + r - 2 * k} Z`} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2.5 * k} strokeLinejoin="round" />
+                    <circle cy={cy} r={r + 5 * k} fill={PARCHMENT} stroke={SEPIA} strokeWidth={3 * k} />
+                  </g>
+                  <circle cy={cy} r={r} fill="#d9c9a3" />
+                  {m && accessories ? (
+                    <g clipPath={`url(#${id}-badge${i})`}>
+                      <g transform={`translate(0 ${cy - HEAD_CY * s + r * 0.18}) scale(${s})`}>
+                        <Character member={m} state={extraState(extra, frame, fps)} accessories={accessories} cheap />
+                      </g>
+                    </g>
+                  ) : null}
+                  <g transform={`translate(0 ${cy + r * 0.74})`}>
+                    <path d={`M${-sw / 2 - 12 * k} ${-9 * k} L${-sw / 2 + 4 * k} ${-9 * k} L${-sw / 2 + 4 * k} ${15 * k} L${-sw / 2 - 12 * k} ${15 * k} L${-sw / 2 - 6 * k} ${3 * k} Z M${sw / 2 + 12 * k} ${-9 * k} L${sw / 2 - 4 * k} ${-9 * k} L${sw / 2 - 4 * k} ${15 * k} L${sw / 2 + 12 * k} ${15 * k} L${sw / 2 + 6 * k} ${3 * k} Z`} fill="#c9a46a" stroke={SEPIA} strokeWidth={2 * k} strokeLinejoin="round" />
+                    <rect x={-sw / 2} y={-15 * k} width={sw} height={28 * k} rx={4 * k} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2 * k} />
+                    <text x={0} y={6 * k} textAnchor="middle" style={{ font: `italic 700 ${20 * k}px Georgia, 'Times New Roman', serif` }} fill="#3a2410">
+                      {b.label}
+                    </text>
+                  </g>
+                </g>
+              </g>
+            );
+          }
+          const r = 48 * k;
           // The head (radius 100, centre HEAD_CY in character space) fills the ring with the shoulders below it.
           const s = (r * 0.62) / 100;
-          const extra: V3Extra = { castId: b.castId, x: 0, depth: 0, facing: "right", scale: 1, mood: "notr", seed: i * 97 + 13 };
           // A pin: the badge stands above its place with a point down to it and the name plate on top, so the place's
           // own name and the territory's stay readable (the map trial's badge sat on "Söğüt" and "OTTOMANS").
           const cy = -(r + 34 * k);
@@ -216,7 +406,11 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
             </g>
           );
         })}
+        {/* On the relief map a battle is drawn over the badges: a ruler arriving there must not hide its name. */}
+        {relief ? battleMarks : null}
       </g>
+      {/* A soft dark edge holds the eye in the middle of the relief map (cinematic, like the reference). */}
+      {relief ? <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-vignette)`} pointerEvents="none" /> : null}
     </svg>
   );
 }

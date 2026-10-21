@@ -6,12 +6,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { buildGeoMap, clipRing, declutterMap, mapStageX, mapView, mapWorld, project } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
 import { reliefSize } from "../src/lib/v3/maps/Relief";
-import { nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
+import { isPolity, nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
@@ -331,6 +331,48 @@ async function main() {
     assert.ok(!ok.errors.some((e) => e.code.startsWith("HARITA")), JSON.stringify(ok.errors));
     const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 600, kamera: [{ satir: 99, merkez: [20, 41], genislik_km: 5 }], rozetler: [{ karakter: "yok", konum: [29, 40] }] } }] });
     assert.ok(bad.errors.some((e) => e.code === "HARITA_SATIR") && bad.errors.some((e) => e.path.endsWith("kamera[0].genislik_km")) && bad.errors.some((e) => e.code === "HARITA_ROZET"));
+  });
+
+  await scenario("O3 map like the reference (owner, 21 Oct 2026): the period's other states coloured, names placed and sized, campaigns set off with their line, a map shot's gentle camera", () => {
+    // Other states of the atlas year: named ones and non-states left out, touching ones never the same colour.
+    const box = (w: number, s: number, e: number, n: number) => [[[w, s], [e, s], [e, n], [w, n], [w, s]] as const] as const;
+    const snapshot = new Map([["ottoman empire", [box(26, 38, 32, 42)]], ["serbia", [box(19, 42, 23, 45)]], ["bosnia", [box(16, 43, 19.5, 45)]], ["minor states", [box(20, 40, 21, 41)]], ["far away", [box(100, 10, 101, 11)]]]);
+    const others = backgroundStates(snapshot as never, { west: 15, east: 35, south: 35, north: 47 }, [{ name: "Ottoman Empire", color: "#3fae3a", polys: snapshot.get("ottoman empire")! as never }], isPolity);
+    assert.deepEqual(others.map((o) => o.name).sort(), ["bosnia", "serbia"]);
+    assert.notEqual(others[0]!.color, others[1]!.color, "touching neighbours get different colours");
+    assert.ok(others.every((o) => STATE_COLOURS.includes(o.color)));
+    // A crescent's name sits inside it, sized to the shape; long names go on two lines.
+    const v = mapView([20, 40], 2000, 1920, 1080);
+    const crescent = [[[16, 36], [24, 36], [24, 44], [16, 44], [16, 42], [22, 42], [22, 38], [16, 38], [16, 36]] as const] as const;
+    const at = labelPoint(v, [crescent as never], "Kingdom of Hungary")!;
+    const [cx0] = project(v, 22, 40);
+    assert.ok(at.x > cx0, `the name is inside the bar of the C, not in its hollow: ${JSON.stringify(at)}`);
+    assert.ok(at.size >= 24 && at.size <= 64);
+    assert.deepEqual(labelLines("Kingdom of Hungary"), ["Kingdom of", "Hungary"]);
+    assert.deepEqual(labelLines("Byzantium"), ["Byzantium"]);
+    // Names stay in the picture and off cities; a state written twice under one name keeps one place; an arrow's
+    // name moves off a city.
+    const placed = placeStateLabels({ land: "", lakes: "", rivers: "", territories: [{ d: "", color: "#3fae3a", label: "Ottoman Empire", labelX: 900, labelY: 10, labelSize: 60, start: 0 }, { d: "", color: "#7a64b8", label: "Vidin", labelX: 400, labelY: 500, labelSize: 30, start: 0 }, { d: "", color: "#3fae3a", label: "Vidin", labelX: 420, labelY: 520, labelSize: 30, start: 90 }], cities: [{ x: 380, y: 500, label: "Vidin" }, { x: 600, y: 300, label: "Belgrade" }], armies: [], arrows: [{ points: [{ x: 500, y: 340 }, { x: 700, y: 340 }], color: "#d7263d", label: "Crusaders", start: 0 }] }, 1920, 1080, 1);
+    const [ott, vid1, vid2] = placed.territories;
+    assert.ok(ott!.labelY! - 60 >= 0, "the top name is pulled into the picture");
+    assert.ok(Math.abs(vid1!.labelY! - 500) > 16 || Math.abs(vid1!.labelX! - 400) > 60, "Vidin's name moved off the city of Vidin");
+    assert.deepEqual([vid2!.labelX, vid2!.labelY], [vid1!.labelX, vid1!.labelY], "the state changing hands keeps its name's place");
+    assert.deepEqual([placed.arrows[0]!.labelX, placed.arrows[0]!.labelY], [600, 380], "Belgrade is above the short arrow: its name goes below the line");
+    // A campaign sets off with its line; a map shot keeps a quarter of the scene camera's push.
+    const ep = sampleEpisode();
+    const cast = ep.oyuncu_kadrosu[1]!.id;
+    const map: SceneMap = { merkez: [26, 42], genislik_km: 1500, rozetler: [{ karakter: cast, konum: [26.56, 41.68], satir: 0, yol: [[25.6, 43.1], [24.9, 43.6]], yol_satir: 2 }] };
+    const square = [[[15, 35], [35, 35], [35, 48], [15, 48], [15, 35]] as const] as const;
+    const geo = buildGeoMap(map, { land: [square], lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100);
+    assert.deepEqual([geo.badges![0]!.start, geo.badges![0]!.moveStart, geo.badges![0]!.path.length], [0, 200, 3]);
+    assert.ok(validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: map }] }).errors.every((e) => !e.code.startsWith("HARITA")));
+    assert.ok(validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { ...map, rozetler: [{ ...map.rozetler![0]!, yol_satir: 99 }] } }] }).errors.some((e) => e.code === "HARITA_SATIR" && e.path.endsWith("yol_satir")));
+    const gentle = mapShotCamera([{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }, { frame: 100, zoom: 1.2, cx: 0.42, cy: 0.5 }]);
+    assert.deepEqual([gentle[1]!.zoom, gentle[1]!.cx], [1.05, 0.48]);
+    // A one-scene preview has no subscribe card.
+    const tl = buildTimeline(ep, [[fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const preview = buildRenderPlan({ episode: ep, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false, endCard: false });
+    assert.ok(preview.shots.every((s) => s.titleCards.every((c) => c.style !== "abone")));
   });
 
   await scenario("P draft normaliser: narrator never visible, English garment names, made-up parts become orders", () => {

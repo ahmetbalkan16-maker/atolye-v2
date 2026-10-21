@@ -53,6 +53,8 @@ export interface DirectorInput {
   readonly height: number;
   readonly showCaptions: boolean;
   readonly audio?: string;
+  /** The closing subscribe card (default on); off for a single-scene preview (scripts/v3/harita-onizleme.ts). */
+  readonly endCard?: boolean;
 }
 
 const WALK_SPEED = 0.26; // stage widths per second
@@ -585,7 +587,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       background: input.backgrounds[si]!,
       performers,
       props,
-      camera: fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps),
+      camera: geo ? mapShotCamera(fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps)) : fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps),
       shakes,
       titleCards,
       mapArrows,
@@ -623,7 +625,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     });
   }
   const last = shots[shots.length - 1];
-  if (last) {
+  if (last && input.endCard !== false) {
     const len = Math.min(last.duration, f(5));
     const en = input.language === "en";
     shots[shots.length - 1] = { ...last, titleCards: [...last.titleCards, { text: en ? "SUBSCRIBE" : "ABONE OL", subtext: en ? "Thanks for watching!" : "İzlediğin için teşekkürler!", start: last.duration - len, end: last.duration, style: "abone" }] };
@@ -715,6 +717,16 @@ function cameraAtFrame(keys: readonly V3CameraKey[], frame: number): { zoom: num
   if (!b || b.frame <= a.frame || b.frame <= frame) return { zoom: a.zoom, cx: a.cx, cy: a.cy };
   const u = (frame - a.frame) / (b.frame - a.frame);
   return { zoom: a.zoom + (b.zoom - a.zoom) * u, cx: a.cx + (b.cx - a.cx) * u, cy: a.cy + (b.cy - a.cy) * u };
+}
+
+/**
+ * A map shot keeps a quarter of the scene camera's push and drift: the map's own camera moves between regions, and a
+ * 14–20% push on every narrator line cut the states at the edge and their names off the picture (map still, 21 Oct
+ * 2026: "Kingdom of Hungary" ran off the top, "Mamluk Sultanate" off the bottom). At most ~5% stays, the picture
+ * still breathes.
+ */
+export function mapShotCamera(camera: readonly V3CameraKey[]): V3CameraKey[] {
+  return camera.map((c) => ({ ...c, zoom: Math.round((1 + (c.zoom - 1) * 0.25) * 1000) / 1000, cx: 0.5 + (c.cx - 0.5) * 0.25, cy: 0.5 + (c.cy - 0.5) * 0.25 }));
 }
 
 /**

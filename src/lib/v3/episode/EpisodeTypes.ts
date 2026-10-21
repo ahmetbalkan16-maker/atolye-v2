@@ -132,8 +132,11 @@ export interface SceneMap {
    * centre and width with a line, so one map follows the story across regions.
    */
   readonly kamera?: readonly { readonly satir: number; readonly merkez: readonly [number, number]; readonly genislik_km: number }[];
-  /** A ruler's portrait badge (a cast member's head) at a place from a line; `yol`: the route it then travels. */
-  readonly rozetler?: readonly { readonly karakter: string; readonly konum: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly yol?: readonly [number, number][] }[];
+  /**
+   * A ruler's portrait badge (a cast member's head) at a place from a line; `yol`: the route it travels, leaving a
+   * dotted trail; `yol_satir`: the line it sets off with ("Bayezid marched north", owner 21 Oct 2026), else at once.
+   */
+  readonly rozetler?: readonly { readonly karakter: string; readonly konum: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly yol?: readonly [number, number][]; readonly yol_satir?: number }[];
   /** A battle at a place from a line (crossed swords). */
   readonly savaslar?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly satir?: number }[];
 }

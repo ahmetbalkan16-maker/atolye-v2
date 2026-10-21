@@ -258,6 +258,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         lonLat(r.konum, `${rp}.konum`);
         lineIndex(r, "satir", rp);
         lineIndex(r, "bitis_satir", rp);
+        lineIndex(r, "yol_satir", rp);
         (Array.isArray(r.yol) ? r.yol : []).forEach((pt, k) => lonLat(pt, `${rp}.yol[${k}]`));
       });
       (arr(h, "savaslar", hp, true) ?? []).forEach((w, wi) => {

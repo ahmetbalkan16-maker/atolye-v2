@@ -218,21 +218,31 @@ SCREEN TEXT — there are NO subtitles. The only words on screen are title cards
 
 MAPS — wherever the story moves (campaigns, borders, empires, routes) show a drawn map scene, at least one per episode:
   "harita": {"merkez": [lon, lat], "genislik_km": 150–30000,
-    "bolgeler": [{"ad": "Roman Republic", "renk": "#b8283a", "noktalar": [[lon, lat], …rough outline, 6–14 points…], "satir": 0},
+    "bolgeler": [{"ad": "Ottoman Empire", "renk": "#3fae3a", "tarihi": {"ad": "Ottoman Empire", "yil": 1400}, "satir": 0},
                  {"ad": "France", "renk": "#2f6fb0", "ulkeler": ["FRA"]}],   // modern countries by ISO alpha-3 code${bordersText(brief.tarihiSinirlar)}
     "sehirler": [{"ad": "Rome", "konum": [12.5, 41.9]}],
     "ordular": [{"ad": "Caesar", "konum": [lon, lat], "renk": "#…", "satir": 1}],
     "oklar": [{"noktalar": [[lon, lat], [lon, lat], …], "renk": "#…", "etiket": "Caesar", "satir": 2}]}
-  Real coordinates; outlines may be rough (they are clipped to the real coast). "satir" = the line of the scene that
-  mentions it, so it appears then. A map scene is mostly narrator lines; characters may stand on it for a quip.
+  Real coordinates. States come from the atlas ("tarihi") whenever it has them: the map then colours every other state
+  of that year by itself, so name only the states the story needs, with the name the viewer knows ("ad" is the label;
+  "tarihi.ad" the atlas's exact name, which may differ). A rough "noktalar" outline (clipped to the coast) only for a
+  small region the atlas lacks — hand-drawn outlines look crude next to real borders. Strong, distinct colours
+  (e.g. #3fae3a green, #3a9e9a teal, #e07b24 orange, #9a6a34 brown, #7a64b8 purple). "satir" = the line of the scene
+  that mentions it, so it appears then. A map scene is mostly narrator lines; characters may stand on it for a quip.
   MAP NARRATION (drawn on a terrain relief map, like the history-with-maps channels): tell geography, politics and war on
   ONE map that follows the story instead of cutting away —
     "kamera": [{"satir": 2, "merkez": [lon, lat], "genislik_km": 900–6000}]   // the camera glides there with that line
-    "rozetler": [{"karakter": "<visible cast id>", "konum": [lon, lat], "satir": 1, "yol": [[lon, lat], …]}]   // a ruler's
-        portrait pin at his capital or army; "yol" = the route he then travels (a campaign)
+    "rozetler": [{"karakter": "<visible cast id>", "konum": [lon, lat], "satir": 1, "yol": [[lon, lat], …], "yol_satir": 3}]
+        // a ruler's portrait badge at his capital or army from line "satir"; with "yol_satir" he sets off on that line
+        // and the badge travels "yol" (a campaign: real waypoints — passes, river crossings, towns — 3–8 points),
+        // leaving a dotted trail. A ruler shown only on the map is still a visible cast member with "portre", so the
+        // costume team draws his likeness and the badge shows it. End a route just beside a battle (~70 km), not on
+        // it, so the battle's name stays readable.
     "savaslar": [{"ad": "Battle of Bapheus", "konum": [lon, lat], "satir": 3}]   // crossed swords where a battle happens
     "bitis_satir" on a territory: the line it disappears with — give the new, larger or smaller outline from that same line,
-        so a border visibly grows or shrinks.
+        so a border visibly grows or shrinks (a state that appears during the scene spreads out over the map).
+  Tell events ON the map as they happen, line by line: a campaign moves a badge, a conquest grows a state, a battle
+  flashes, the camera follows. Prefer this living map narration to a still map with everything shown at once.
   Keep "genislik_km" at 800 or more on maps (closer, the terrain turns blurry); 1500–4000 suits a country or a war.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):

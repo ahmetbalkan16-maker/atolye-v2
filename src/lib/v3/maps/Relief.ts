@@ -15,10 +15,12 @@ import type { MapWorld } from "./MapBuilder";
  */
 export const RELIEF_CREDIT = "Terrain relief: Natural Earth I with Shaded Relief, Water and Drainages (public domain, naturalearthdata.com)";
 /** Bump when the colouring of scripts/v3/relief_crop.py changes, so the library cuts again. */
-const RELIEF_VERSION = 1;
+const RELIEF_VERSION = 2;
 const SOURCE_PX_PER_DEG = 60;
-const MAX_WIDTH = 4096;
+const MAX_WIDTH = 8192;
 const MIN_WIDTH = 960;
+/** How far past the source's own resolution the cut is enlarged (Lanczos + a light sharpening in relief_crop.py). */
+const MAX_UPSCALE = 2.5;
 
 export function reliefTilesDir(paths: Pick<V3Paths, "mapsDir">): string {
   return path.join(paths.mapsDir, "relief");
@@ -29,12 +31,15 @@ export function reliefAvailable(paths: Pick<V3Paths, "mapsDir">): boolean {
 }
 
 /**
- * The image size for a world: the source's own resolution across it (no detail is invented), the width shrunk by the
- * cosine of its latitude like the map's projection, kept to the world's aspect.
+ * The image size for a world: the size it is drawn at (its closest view), at most MAX_UPSCALE times the source's own
+ * resolution across it, the width shrunk by the cosine of its latitude like the map's projection, kept to the world's
+ * aspect. Enlarged here with Lanczos and a light sharpening, the terrain stays crisper on a close view than when
+ * Chrome stretched the source-sized image (owner, 21 Oct 2026: "raise the quality as far as you can").
  */
 export function reliefSize(world: Pick<MapWorld, "view" | "bounds">): { width: number; height: number } {
   const kx = Math.max(0.2, Math.cos((world.view.lat0 * Math.PI) / 180));
-  const width = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, (world.bounds.east - world.bounds.west) * SOURCE_PX_PER_DEG * kx)));
+  const source = (world.bounds.east - world.bounds.west) * SOURCE_PX_PER_DEG * kx;
+  const width = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, source, Math.min(world.view.width, source * MAX_UPSCALE))));
   return { width, height: Math.max(1, Math.round((width * world.view.height) / world.view.width)) };
 }
 

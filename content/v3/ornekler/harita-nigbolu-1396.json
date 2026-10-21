@@ -1,0 +1,77 @@
+{
+  "id": "ornek-harita-nigbolu-1396",
+  "baslik": "Nicopolis 1396: The Last Crusade",
+  "konu": "Bayezid I defeats the Crusade of Nicopolis",
+  "donem": "1396",
+  "hedef_sure_sn": 40,
+  "ton": "mizahi",
+  "kaynaklar": [
+    { "id": "britannica-nicopolis", "kunye": "Encyclopaedia Britannica, Battle of Nicopolis", "url": "https://www.britannica.com/event/Battle-of-Nicopolis" }
+  ],
+  "oyuncu_kadrosu": [
+    { "id": "anlatici", "ad": "Narrator", "rol": "narrator", "kostum_paketi": "", "renk": "#333333", "ses_id": "anlatici", "konusma_tarzi": "calm, clear, lightly witty", "gorunur": false },
+    {
+      "id": "bayezid", "ad": "Bayezid I", "rol": "Ottoman Sultan", "kostum_paketi": "ottoman-1453", "renk": "#2f7d32", "ses_id": "bayezid", "konusma_tarzi": "bold, impatient", "gorunur": true,
+      "portre": { "wiki": "Bayezid I" },
+      "kostum": { "giysi": "kaftan", "renkler": { "ana": "#2f7d32", "ikincil": "#e8b23a", "ic": "#f3d27a", "sus": "#e8b23a" }, "bas": "padisah-kavugu", "sakal": "sakal-kahve", "ayakkabi": "sari-mest" }
+    },
+    {
+      "id": "manuel", "ad": "Manuel II", "rol": "Byzantine Emperor", "kostum_paketi": "byzantine-1453", "renk": "#6a2c8a", "ses_id": "manuel", "konusma_tarzi": "worried, dignified", "gorunur": true,
+      "portre": { "wiki": "Manuel II Palaiologos" },
+      "kostum": { "giysi": "bizans", "renkler": { "ana": "#6a2c8a", "ikincil": "#e8b23a", "ic": "#f3d27a", "sus": "#e8b23a" }, "bas": "bizans-taci", "sakal": "sakal-koyu", "ayakkabi": "kirmizi-cizme" }
+    }
+  ],
+  "sahneler": [
+    {
+      "id": "s1-harita",
+      "sure_hedef": 36,
+      "mekan": "Map of the Balkans and Anatolia, 1395–1396",
+      "arka_plan_sorgusu": { "tr": "harita", "en": "map" },
+      "duygu": "gerilim",
+      "muzik_ruh_hali": "gerilim",
+      "harita": {
+        "merkez": [26.5, 41.5],
+        "genislik_km": 2600,
+        "kamera": [
+          { "satir": 2, "merkez": [22.6, 44.2], "genislik_km": 1900 },
+          { "satir": 3, "merkez": [25.4, 42.8], "genislik_km": 1500 },
+          { "satir": 4, "merkez": [24.9, 43.5], "genislik_km": 1200 },
+          { "satir": 5, "merkez": [23.6, 43.7], "genislik_km": 1500 },
+          { "satir": 6, "merkez": [26.5, 41.5], "genislik_km": 2600 }
+        ],
+        "bolgeler": [
+          { "ad": "Ottoman Empire", "renk": "#3fae3a", "tarihi": { "ad": "Ottoman Empire", "yil": 1400 }, "satir": 0 },
+          { "ad": "Byzantium", "renk": "#3a9e9a", "tarihi": { "ad": "Byzantine Empire", "yil": 1400 }, "satir": 0 },
+          { "ad": "Kingdom of Hungary", "renk": "#9a6a34", "tarihi": { "ad": "Kingdom of Hungary", "yil": 1400 }, "satir": 0 },
+          { "ad": "Aydin", "renk": "#e07b24", "tarihi": { "ad": "Beylik of Aydin", "yil": 1400 }, "satir": 0 },
+          { "ad": "Vidin", "renk": "#7a64b8", "noktalar": [[22.35, 44.25], [23.3, 44.0], [24.0, 43.75], [23.75, 43.25], [22.9, 43.15], [22.35, 43.5]], "satir": 0, "bitis_satir": 5 },
+          { "ad": "Vidin", "renk": "#3fae3a", "noktalar": [[22.35, 44.25], [23.3, 44.0], [24.0, 43.75], [23.75, 43.25], [22.9, 43.15], [22.35, 43.5]], "satir": 5 }
+        ],
+        "sehirler": [
+          { "ad": "Constantinople", "konum": [28.98, 41.01] },
+          { "ad": "Edirne", "konum": [26.56, 41.68] },
+          { "ad": "Bursa", "konum": [29.06, 40.19] },
+          { "ad": "Belgrade", "konum": [20.46, 44.82] },
+          { "ad": "Tarnovo", "konum": [25.63, 43.08] }
+        ],
+        "oklar": [
+          { "noktalar": [[19.6, 46.6], [20.46, 44.82], [22.0, 44.4], [22.88, 43.99], [24.55, 43.78]], "renk": "#d7263d", "etiket": "Crusaders", "satir": 2 }
+        ],
+        "rozetler": [
+          { "karakter": "bayezid", "konum": [26.56, 41.68], "satir": 1, "yol": [[25.95, 42.25], [25.4, 42.62], [25.32, 42.75], [25.63, 43.08], [25.6, 43.3]], "yol_satir": 3 },
+          { "karakter": "manuel", "konum": [28.98, 41.01], "satir": 1 }
+        ],
+        "savaslar": [{ "ad": "Nicopolis 1396", "konum": [24.9, 43.7], "satir": 4 }]
+      },
+      "satirlar": [
+        { "karakter": "anlatici", "metin": "By 1395, the Ottoman Empire stretched from Anatolia deep into the Balkans.", "duygu": "notr", "kaynak": ["britannica-nicopolis"] },
+        { "karakter": "anlatici", "metin": "Sultan Bayezid ruled from Edirne, and Constantinople was almost surrounded.", "duygu": "notr", "kaynak": ["britannica-nicopolis"] },
+        { "karakter": "anlatici", "metin": "Alarmed, Europe launched a crusade, and its army marched down the Danube.", "duygu": "notr", "kaynak": ["britannica-nicopolis"] },
+        { "karakter": "anlatici", "metin": "Bayezid did not wait. He rode north across the Balkan mountains to meet them.", "duygu": "notr", "kaynak": ["britannica-nicopolis"] },
+        { "karakter": "anlatici", "metin": "On the twenty-fifth of September 1396, the armies clashed at Nicopolis.", "duygu": "notr", "kaynak": ["britannica-nicopolis"] },
+        { "karakter": "anlatici", "metin": "The crusade was crushed, and Vidin, the last free Bulgarian state, fell soon after.", "duygu": "notr", "kaynak": ["britannica-nicopolis"] },
+        { "karakter": "anlatici", "metin": "Europe would not try again for half a century.", "duygu": "notr", "kaynak": ["britannica-nicopolis"] }
+      ]
+    }
+  ]
+}

@@ -37,6 +37,11 @@ export function nearestSnapshots(year: number): number[] {
 /** Names that are not polities a viewer would recognise on a map. */
 const NOT_A_STATE = /hunter|gatherer|minor states|chiefdom|tribes|nomad|pastoral|farmers|cultures?$|^\s*$/i;
 
+/** A state a map colours (not a culture area, a people or the atlas's "minor states"). */
+export function isPolity(name: string): boolean {
+  return !NOT_A_STATE.test(name);
+}
+
 const loaded = new Map<number, Map<string, Polygon[]>>();
 
 interface GeoJson {
@@ -73,6 +78,6 @@ export async function loadSnapshot(dir: string, year: number): Promise<Map<strin
 export async function snapshotNames(dir: string, year: number): Promise<string[]> {
   await loadSnapshot(dir, year);
   const json = JSON.parse(await fs.readFile(path.join(dir, snapshotFile(year)), "utf8")) as GeoJson;
-  const names = new Set(json.features.map((f) => String(f.properties.NAME ?? "").trim()).filter((n) => n && !NOT_A_STATE.test(n)));
+  const names = new Set(json.features.map((f) => String(f.properties.NAME ?? "").trim()).filter((n) => n && isPolity(n)));
   return [...names].sort();
 }

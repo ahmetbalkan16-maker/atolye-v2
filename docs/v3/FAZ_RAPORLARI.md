@@ -345,3 +345,37 @@ emin olunca video.
   motorlardan (İngilizce jenerik VoxCPM2 yerine Kokoro diyordu). Önizleme ölçeği 0,45 (eski 0,4447 yüksekliği 480,276
   yapıyordu, Remotion reddediyordu: `--onizleme` hiç çalışmıyordu). `maliyet.json`/QC gerçek tavanı yazar.
 - Kalan: tam regresyon + kısa deneme bölümü, ardından owner onayıyla ilk 15–20 dk'lık video.
+
+### Harita referansa göre yeniden: tarihî sınırlar, canlı anlatım (21 Ekim, öğleden sonra)
+
+Owner harita denemesine: "sınır çizgileri çok kötü, o videodaki gibi değil" → "renkler ve sınırlar daha net olabilir" →
+"sadece boyalar gözüküyor, haritayı andıran bir şey yok" → "kaliteyi artırabildiğin kadar artır; harita üzerinde canlı
+hareketli anlatım (Yıldırım Bayezid sefere çıkıyor, rozet hareket ederek istikameti gösterecek); bunu sonra bizim
+yardımcı yapay zekalar yapabilsin; rozetteki karakter kayıtlı değilse tasarlansın; başka bir şeyi bozma".
+Referans kareleri oynatma listesinden alındı (Malazgirt, Osmanlı tarihi): opak canlı devlet renkleri, kıyıya oturan
+sınırlar, dar kalın beyaz büyük harf adlar, koyu lacivert deniz, parşömen şeritli portre rozetleri, noktalı kırmızı yollar.
+
+- Sınırlar: sahnenin atlas yılındaki **bütün devletler** boyanır (`backgroundStates`, komşu aynı renk almaz; atlasın
+  dönemle uyuşmayan adları yüzünden adsız), adı senaryonun seçtiği devletler taşır. Ad alan merkezine (hilal biçiminde
+  bile içeride), büyüklüğe göre boyutlanır, iki satıra bölünür; kadraj içinde, şehir/rozet/savaş/ok adlarından kaçar,
+  yer yoksa küçülür (`labelPoint`, `placeStateLabels`). Ok adı şehirlere çarpmayan noktaya.
+- Kabartma üslubu (`MapView`, yalnız kabartmalı harita; düz harita değişmedi): renk hard-light karışımla (canlı ama
+  dağlar/vadiler görünür), sınır her devletin kendi koyu tonunda keskin çizgi, ince kıyı hattı, kıyıda açık sığ su
+  bandı, nehirler, kenar karartması; adlar Bahnschrift dar kalın + yumuşak gölge (çok satırlı tspan Remotion'da ~70 px
+  kayıyordu → satır başına ayrı text); şehir adları yolların üstünde; savaş rozetlerin üstünde.
+- Canlı anlatım: `rozetler[].yol_satir` — rozet o satırda yola çıkar, yol uzunluğuna göre 2,5–7 sn yürür, arkasında noktalı
+  kırmızı iz; sefer okları noktalı kırmızı çizgi olarak kendini çizer; sahne içinde gelen devlet adından dışa yayılarak
+  büyür (fetih); harita çekiminde sahne kamerasının %14–20 itişi ¼'e indi (`mapShotCamera`, kenardaki adları kesiyordu).
+- Kalite: kabartma zemini çizildiği boyuta kadar (en çok 2,5×, 8192 px) Lanczos + hafif keskinleştirme ile kesilir
+  (`RELIEF_VERSION` 2).
+- Yardımcı yapay zekalar için: senaryo yazarı istemi (atlas önceliği, adlar, renkler, `yol_satir`, savaşın ~70 km
+  yanında biten yol, rozet hükümdarı da `portre`lu görünür kadro → Kostüm beyni benzerliğini çizer, rozet onu gösterir);
+  owner kuralları `content/v3/owner-kurallari.json` (+3: harita sınırları, canlı anlatım, kalite beyni için harita
+  görünüşü); `scripts/v3/harita-onizleme.ts` (bir bölümün haritalı sahnesini seslendirmeden resim/sessiz klip;
+  Claude gerekmez); örnek `content/v3/ornekler/harita-nigbolu-1396.json`. Şema: `yol_satir`.
+- Doğrulama: smoke-v3-episode-director PASS (21; yeni O3), diğer 9 V3 smoke + ayas-video-order PASS, tsc 0 (kök +
+  remotion), eslint 0; gerçek klip `v3-runtime/harita-onizleme/ornek-harita-nigbolu-1396-s1-harita/s1-harita.mp4`
+  (33 sn) kare kare incelendi; Roma bölümünün haritalı sahnesi yeni yolla sorunsuz çizildi.
+- Açık: kabartma kaynağı derece başına 60 px (Natural Earth); 1000 km altı yakın planlar için daha yüksek çözünürlüklü
+  yükselti verisi (ETOPO/SRTM gölgelendirme) gerekir — öneri, owner kararı bekliyor. historical-basemaps 1400 sınırları
+  kaba ve yer yer dönemle uyumsuz (Bizans Yunanistan'ın tamamı).

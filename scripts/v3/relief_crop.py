@@ -52,7 +52,13 @@ def crop(tiles, west, east, south, north, out_w, out_h, out):
                 canvas.paste(t, ((c - c0) * TILE_PX, (r - r0) * TILE_PX))
     ox, oy = c0 * TILE_PX, r0 * TILE_PX
     part = canvas.crop((round(x0 - ox), round(y0 - oy), round(x1 - ox), round(y1 - oy)))
-    grade(part.resize((out_w, out_h), Image.LANCZOS)).save(out, quality=90)
+    big = part.resize((out_w, out_h), Image.LANCZOS)
+    if out_w > part.width * 1.2:
+        # Enlarged past the source: a light unsharp mask keeps ridges and coasts crisp on a close view.
+        from PIL import ImageFilter
+
+        big = big.filter(ImageFilter.UnsharpMask(radius=2, percent=70, threshold=2))
+    grade(big).save(out, quality=92)
     return {"ok": True, "source_px": [part.width, part.height], "out_px": [out_w, out_h]}
 
 

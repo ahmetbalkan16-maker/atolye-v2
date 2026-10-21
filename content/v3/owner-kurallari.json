@@ -48,6 +48,24 @@
       "konu": "kostüm farkı",
       "metin": "Two named characters in the same frame wearing identical clothes (same garment, same colours), told apart only by hair or face.",
       "kaynak": "owner, Roma (rubicon-en-4) incelemesi, 20 Ekim 2026"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "harita sınırları",
+      "metin": "Map states come from the historical atlas (\"tarihi\"), never hand-drawn \"noktalar\" boxes when the atlas has the state: rough straight-edged outlines look nothing like a real map. Use strong, distinct colours and the name viewers know.",
+      "kaynak": "owner, harita denemesi, 21 Ekim 2026 (\"sınır çizgileri çok kötü, o videodaki gibi değil\")"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "canlı harita anlatımı",
+      "metin": "Narrate on a living map, line by line: when a ruler sets out, his badge travels the route (\"yol\" + \"yol_satir\" on that line); a conquest grows a state; a battle flashes; the camera follows. A ruler shown only as a badge is still a visible cast member with \"portre\".",
+      "kaynak": "owner, harita denemesi, 21 Ekim 2026 (\"Yıldırım Bayezid sefere çıkıyor, rozet hareket ederek istikameti gösterecek\")"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "harita görünüşü",
+      "metin": "On a map: states as pale washed-out tints or as flat paint hiding the terrain, white or straight hand-drawn borders, a state name cut off at the frame's edge, or a name covering a city, a badge or another name.",
+      "kaynak": "owner, harita denemesi, 21 Ekim 2026"
     }
   ]
 }
