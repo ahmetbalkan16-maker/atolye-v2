@@ -33,7 +33,7 @@ import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNam
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { qualityReview } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
@@ -900,7 +900,7 @@ async function main() {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
     const qualityRules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
-    const quality = await qualityReview({ paths, video: f(final), durationS, donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules });
+    const quality = await qualityReview({ paths, video: f(final), durationS, donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan) });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10`);
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
     try {
@@ -915,7 +915,8 @@ async function main() {
     if (dialogScenes < 0.4) lessons.push({ beyin: "kurgu", metin: `Only ${Math.round(dialogScenes * 100)}% of the scenes had dialogue: let the characters speak more, a quip after the narrator.` });
     if (!episode.sahneler.some((sc) => sc.satirlar.some((l) => l.sfx))) lessons.push({ beyin: "kurgu", metin: "The script gave no sfx at all: put one on a gag, a hit or an entrance in every scene." });
     for (const l of lessons) await remember(paths.workRoot, { bolum: episode.konu, beyin: l.beyin, tur: "ders", konu: "senaryo", metin: l.metin }).catch(() => undefined);
-    for (const o of chiefPlan?.onlemler ?? []) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
+    // A measure the chief tied to no brain stays in the report only (no brain would recall it).
+    for (const o of chiefPlan?.onlemler ?? []) if (o.beyin) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
     // The retouch brain: what the brains measured decides one more round, run below by the production itself.
     const nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) });
     if (nextRound) {

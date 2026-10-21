@@ -8,8 +8,8 @@ import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { BRAIN_NAMES, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { qualityPrompt } from "../src/lib/v3/council/QualityBrain";
+import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
+import { designedWindows, qualityPrompt } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
 import { type ExamManifest, type ExamQuestion, gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { cosine, errorSignature, learnedRemedy, MAX_RULES, ollamaEmbedder, type OwnerRule, overlap, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
@@ -96,6 +96,17 @@ async function main() {
     const md = councilMarkdown("Test", log, plan);
     assert.ok(md.includes("Önlemler (Atölye kendisi alır, kod değişmez)") && md.includes("Geliştirme önerileri (owner onayı gerekir)") && md.includes("**Tarihçi:** kenar bronz olmalı"));
     assert.ok(qualityPrompt("49 BC").includes("49 BC"));
+  });
+
+  await scenario("D2 the chief's bare-sentence measures are kept as titles, never 'undefined'; the end card is not a quality fault", () => {
+    const items = chiefItems(["Eski adlarla ara.", { baslik: "Süre", neden: "satır ekle", beyin: "kurgu" }, { neden: "yalnız neden" }, { beyin: "uydurma" }, 7, ""]);
+    assert.deepEqual(items, [{ baslik: "Eski adlarla ara.", neden: "" }, { baslik: "Süre", neden: "satır ekle", beyin: "kurgu" }, { baslik: "yalnız neden", neden: "" }]);
+    const md = councilMarkdown("Roma", new CouncilLog(), { ozet: "Özet.", onlemler: items, gelistirmeler: [] });
+    assert.ok(md.includes("- Eski adlarla ara.\n") && md.includes("- Süre — satır ekle _(") && !md.includes("undefined"), md);
+    const plan = { fps: 30, shots: [{ start: 0, titleCards: [{ style: "kapak" as const, start: 0, end: 105 }] }, { start: 2664, titleCards: [{ style: "abone" as const, start: 342, end: 492 }, { style: "bilgi" as const, start: 0, end: 60 }] }] };
+    const windows = designedWindows(plan as unknown as Parameters<typeof designedWindows>[0]);
+    assert.deepEqual(windows.map((w) => [w.from.toFixed(1), w.to.toFixed(1)]), [["0.0", "3.5"], ["100.2", "105.2"]]);
+    assert.ok(qualityPrompt("49 BC", [], windows[1]!.what).includes("SUBSCRIBE button") && !qualityPrompt("49 BC").includes("By design"));
   });
 
   await scenario("E experience memory: lessons are kept, the relevant ones come back once, newest first on a tie", async () => {

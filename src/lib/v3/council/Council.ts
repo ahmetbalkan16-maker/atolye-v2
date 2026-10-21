@@ -65,10 +65,34 @@ export function readJsonAnswer<T>(text: string): T | undefined {
   }
 }
 
+export interface ChiefItem {
+  readonly baslik: string;
+  readonly neden: string;
+  readonly beyin?: BrainId;
+}
+
 export interface ChiefPlan {
   readonly ozet: string;
-  readonly onlemler: readonly { readonly baslik: string; readonly neden: string; readonly beyin: BrainId }[];
-  readonly gelistirmeler: readonly { readonly baslik: string; readonly neden: string; readonly beyin: BrainId }[];
+  readonly onlemler: readonly ChiefItem[];
+  readonly gelistirmeler: readonly ChiefItem[];
+}
+
+/**
+ * The chief's list as the report needs it. The model sometimes answers a measure as a bare sentence instead of
+ * {baslik, neden, beyin} (Rome, 21 Oct 2026: six "undefined — undefined" lines in KURUL.md); a sentence is kept as the
+ * title, anything else unreadable is dropped.
+ */
+export function chiefItems(value: unknown): ChiefItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((x): ChiefItem[] => {
+    if (typeof x === "string") return x.trim() ? [{ baslik: x.trim(), neden: "" }] : [];
+    if (!x || typeof x !== "object") return [];
+    const o = x as Record<string, unknown>;
+    const baslik = typeof o.baslik === "string" ? o.baslik.trim() : "";
+    const neden = typeof o.neden === "string" ? o.neden.trim() : "";
+    if (!baslik && !neden) return [];
+    return [{ baslik: baslik || neden, neden: baslik ? neden : "", ...(typeof o.beyin === "string" && o.beyin in BRAIN_NAMES ? { beyin: o.beyin as BrainId } : {}) }];
+  });
 }
 
 /**
@@ -90,7 +114,9 @@ Decide, in Turkish:
 Each item: {"baslik": "...", "neden": "...", "beyin": "arastirma|kurgu|kostum|ortam|ses|kalite"}.
 Return ONLY JSON: {"ozet": "...", "onlemler": [...], "gelistirmeler": [...]}`;
   const out = await input.budget.generate("sef-degerlendirme", input.model, prompt, { maxTokens: 1_500 });
-  return readJsonAnswer<ChiefPlan>(out.result.content);
+  const raw = readJsonAnswer<{ ozet?: unknown; onlemler?: unknown; gelistirmeler?: unknown }>(out.result.content);
+  if (!raw) return undefined;
+  return { ozet: typeof raw.ozet === "string" ? raw.ozet : "", onlemler: chiefItems(raw.onlemler), gelistirmeler: chiefItems(raw.gelistirmeler) };
 }
 
 /**
@@ -125,8 +151,11 @@ export function councilMarkdown(bolum: string, log: CouncilLog, plan?: ChiefPlan
   const parts = [`# Yapım kurulu raporu — ${bolum}`, ""];
   if (plan) {
     parts.push("## Şef (AYAS adına)", "", plan.ozet, "");
-    if (plan.onlemler.length) parts.push("**Önlemler (Atölye kendisi alır, kod değişmez):**", ...plan.onlemler.map((o) => `- ${o.baslik} — ${o.neden} _(${BRAIN_NAMES[o.beyin] ?? o.beyin})_`), "");
-    if (plan.gelistirmeler.length) parts.push("**Geliştirme önerileri (owner onayı gerekir):**", ...plan.gelistirmeler.map((o) => `- ${o.baslik} — ${o.neden} _(${BRAIN_NAMES[o.beyin] ?? o.beyin})_`), "");
+    const item = (o: ChiefItem) => `- ${o.baslik}${o.neden ? ` — ${o.neden}` : ""}${o.beyin ? ` _(${BRAIN_NAMES[o.beyin]})_` : ""}`;
+    const onlemler = chiefItems(plan.onlemler);
+    const gelistirmeler = chiefItems(plan.gelistirmeler);
+    if (onlemler.length) parts.push("**Önlemler (Atölye kendisi alır, kod değişmez):**", ...onlemler.map(item), "");
+    if (gelistirmeler.length) parts.push("**Geliştirme önerileri (owner onayı gerekir):**", ...gelistirmeler.map(item), "");
   }
   for (const [o, title] of [["eksik", "Eksikler"], ["uyari", "Uyarılar"], ["bilgi", "Bilgi"]] as const) {
     const list = by(o);
