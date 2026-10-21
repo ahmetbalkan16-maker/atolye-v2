@@ -59,9 +59,11 @@ import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { coolGpuProvider, freeGpuMemory, unloadOllama, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
+import { PRODUCTION_STEPS } from "../src/lib/v3/orders/ProductionOrders";
 import { loadV3Settings, resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 
-const STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "kapak", "miks", "birlestir"] as const;
+// One list with the order queue, which resumes an interrupted production after its last finished step.
+const STEPS = PRODUCTION_STEPS;
 
 /**
  * Paid-text providers for the script and part stages: OpenAI when chosen (the key is borrowed for this process

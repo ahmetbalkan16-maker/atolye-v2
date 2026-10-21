@@ -12,7 +12,7 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { listOrders, orderDir, ordersSummary, placeOrder, type ProductionOrder, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
+import { listOrders, orderDir, ordersSummary, placeOrder, type ProductionOrder, recoverInterrupted, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { resolveV3Paths, type V3Paths } from "../../src/lib/v3/V3Paths";
 
 const arg = (name: string) => {
@@ -27,7 +27,7 @@ async function makeOrder(paths: V3Paths, file: string, order: ProductionOrder): 
   await saveOrder(file, order);
   console.log(`üretim başladı: ${order.id}`);
   const logFile = createWriteStream(path.join(out, "uret.log"), { flags: "a" });
-  const args = ["tsx", path.join(paths.repoRoot, "scripts", "atolye-v3.ts"), "uret", "--konu", order.konu, "--donem", order.donem, "--sure", order.sure, "--dil", order.dil, "--ton", order.ton, "--saglayici", process.env.ATOLYE_V3_SCRIPT_PROVIDER ?? "openai", "--cikti", out];
+  const args = ["tsx", path.join(paths.repoRoot, "scripts", "atolye-v3.ts"), "uret", "--konu", order.konu, "--donem", order.donem, "--sure", order.sure, "--dil", order.dil, "--ton", order.ton, "--saglayici", process.env.ATOLYE_V3_SCRIPT_PROVIDER ?? "openai", "--cikti", out, ...(order.devamAdimi && order.devamAdimi !== "senaryo" ? ["--from-step", order.devamAdimi] : [])];
   const code = await new Promise<number>((resolve) => {
     const child = spawn(process.platform === "win32" ? "npx.cmd" : "npx", args, { cwd: paths.repoRoot, env: process.env, windowsHide: true, shell: process.platform === "win32" });
     child.stdout.pipe(logFile, { end: false });
@@ -105,6 +105,14 @@ async function main() {
       return;
     }
     console.log(`sipariş izleyici başladı (pid ${process.pid}): ${orderDir(paths.workRoot)}`);
+    // Holding the one-watcher lock, an order still "calisiyor" was left by a watcher that is gone.
+    for (const { file, order } of await listOrders(paths.workRoot)) {
+      if (order.durum !== "calisiyor") continue;
+      const log = order.cikti && existsSync(path.join(order.cikti, "uret.log")) ? await fs.readFile(path.join(order.cikti, "uret.log"), "utf8") : "";
+      recoverInterrupted(order, log);
+      await saveOrder(file, order);
+      console.log(`yarıda kalan sipariş: ${order.id} → ${order.durum}${order.devamAdimi ? ` (${order.devamAdimi} adımından)` : ""}`);
+    }
     for (;;) {
       await runQueue(paths).catch((e: Error) => console.error(`kuyruk hatası: ${e.message}`));
       await new Promise((r) => setTimeout(r, 30_000));

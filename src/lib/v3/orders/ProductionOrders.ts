@@ -9,6 +9,13 @@ import path from "node:path";
  */
 export type OrderState = "bekliyor" | "calisiyor" | "teslim" | "uyariyla_teslim" | "hata";
 
+/** The production steps in order (scripts/atolye-v3.ts runs them; a resumed order starts after the last one done). */
+export const PRODUCTION_STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "kapak", "miks", "birlestir"] as const;
+export type ProductionStep = (typeof PRODUCTION_STEPS)[number];
+
+/** How many times an interrupted order is resumed before it is reported as stopped. */
+export const MAX_RESUMES = 2;
+
 export interface ProductionOrder {
   readonly id: string;
   readonly konu: string;
@@ -25,6 +32,32 @@ export interface ProductionOrder {
   cikti?: string;
   video?: string;
   ozet?: string;
+  /** Times the order was resumed after its production stopped mid-way (PC off, crash). */
+  devam?: number;
+  /** The step the resumed production starts from. */
+  devamAdimi?: ProductionStep;
+}
+
+/** The step after the last one the production log shows done ("✓ ses (141 sn)"); the first step when none is. */
+export function resumeStep(log: string): ProductionStep {
+  let last = -1;
+  for (const m of log.matchAll(/^✓ ([a-z]+) \(/gm)) last = Math.max(last, PRODUCTION_STEPS.indexOf(m[1] as ProductionStep));
+  return PRODUCTION_STEPS[Math.min(last + 1, PRODUCTION_STEPS.length - 1)]!;
+}
+
+/**
+ * An order a gone watcher left "calisiyor" (the PC was switched off or the production crashed): it waits again and
+ * resumes from its last finished step, up to MAX_RESUMES times; then it is reported as stopped. Until 21 Oct 2026 such
+ * an order stayed "calisiyor" forever — never made, never reported.
+ */
+export function recoverInterrupted(order: ProductionOrder, log: string, now = new Date()): void {
+  const resumes = order.devam ?? 0;
+  if (resumes >= MAX_RESUMES) {
+    Object.assign(order, { durum: "hata", bitis: now.toISOString(), ozet: `üretim ${resumes + 1}. kez yarıda kesildi (bilgisayar kapandı ya da süreç çöktü); ayrıntı uret.log` });
+    return;
+  }
+  const step = resumeStep(log);
+  Object.assign(order, { durum: "bekliyor", devam: resumes + 1, devamAdimi: step, ozet: `yarıda kesildi; ${step} adımından devam edecek` });
 }
 
 export function orderDir(workRoot: string): string {
