@@ -14,7 +14,7 @@ export const MIN_FIT_SCORE = 7;
 /** Candidates judged per scene, in search order (each costs one local vision call). */
 export const MAX_JUDGED = 8;
 
-export type JudgeMode = "arsiv" | "set" | "portre" | "parca" | "referans" | "kapak";
+export type JudgeMode = "arsiv" | "konu" | "set" | "portre" | "parca" | "referans" | "kapak";
 
 export interface SceneForJudge {
   readonly konu: string;
@@ -90,6 +90,25 @@ export function fitScore(v: CandidateVerdict): number {
 
 export function judgePrompt(scene: SceneForJudge, c: JudgeCandidate, mode: JudgeMode = "arsiv"): string {
   const answer = `Answer only JSON: {"puan": <0-10>, "donem": <0-10>, "modern": <true|false>, "tur": "eser|harita|fotograf|cizim|diger", "gosterilen": "<what the image shows, Turkish, at most 12 words>", "sorun": "<why it fits or not, Turkish, at most 15 words>"${mode === "set" ? `, "kacin": "<if a score is under 7: what to avoid when this set is drawn again, English, at most 10 words; else empty>"` : ""}}`;
+  if (mode === "konu") {
+    // Owner (21 Oct 2026): when no good set can be drawn, a real photo of the period or the subject — never an unrelated one.
+    return `You are the picture researcher of a history documentary for an American YouTube channel. No picture made in ${scene.donem} exists for this scene and the drawn set failed, so a real photo of the place or the subject is shown instead: its ruins or site as they stand today, or an object of the period in a museum.
+
+EPISODE: ${scene.konu}
+PERIOD: ${scene.donem}
+SCENE PLACE: ${scene.mekan}
+WANTED: ${scene.tr} / ${scene.en}
+SAID IN THE SCENE: "${scene.anlatim.slice(0, 300)}"
+FILE (from ${SOURCE_NAME[c.source ?? "commons"] ?? "Wikimedia Commons"}, may be wrong): ${c.title.replace(/^File:/, "")}${c.description ? ` — ${c.description.slice(0, 300)}` : ""}
+
+Look at the image and score 0–10:
+- "puan" (subject): does it show exactly this place, its ruins or site, or an object of this story — the one named? 9–10 exactly it; 7–8 clearly it in a minor view; 0–3 another place or another town's ruins, a generic landscape, or anything unrelated (an unrelated photo is never shown).
+- "donem" (remains of the period): are remains or objects of ${scene.donem} what the photo shows? 9–10 ancient remains or a period object fill the picture; 7–8 remains with a little of today's surroundings; 0–3 mostly modern buildings, streets, cars or people, or nothing of the period at all.
+- "modern": true if modern things (cars, signs, modern buildings, people in modern clothes) take a notable part of the picture.
+- "tur": fotograf, eser, harita, diger.
+Judge the image, not the file name.
+${answer}`;
+  }
   if (mode === "referans") {
     return `You are the costume researcher of an animated history show. Before a costume part is drawn, a real historical example is looked up.
 

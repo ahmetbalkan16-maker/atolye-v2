@@ -22,7 +22,7 @@ import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
 import { BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
-import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { type CommonsCandidate, commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
@@ -153,8 +153,11 @@ const THEMES: readonly [RegExp, string][] = [
 /** The set a scene's characters act in. */
 interface SceneSet extends V3Background {
   readonly credit: CreditRecord;
-  /** bolum: the episode's own file; kutuphane: an earlier library render; tasarim: designed for this scene; arsiv: the period image itself (no one on stage). */
-  readonly kaynak: "bolum" | "kutuphane" | "tasarim" | "arsiv" | "harita";
+  /**
+   * bolum: the episode's own file; kutuphane: an earlier library render; tasarim: designed for this scene; arsiv: the
+   * period image itself (no one on stage); konu: a real photo of the place or subject today (no set could be drawn).
+   */
+  readonly kaynak: "bolum" | "kutuphane" | "tasarim" | "arsiv" | "harita" | "konu";
   readonly secim?: CandidateVerdict;
   /** A designed set the judge did not pass after every attempt (a QC miss, never silent). */
   readonly esikAlti?: boolean;
@@ -211,6 +214,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   const durum: SceneVisual["donemGorseli"][] = Array(n).fill("aranmadi");
   const notlar: string[] = Array(n).fill("");
   const sets: (SceneSet | undefined)[] = Array(n).fill(undefined);
+  // Photos of today the period search found for a scene (ancient periods): the subject-photo fallback's candidates.
+  const laterPhotos: (readonly CommonsCandidate[] | undefined)[] = Array(n).fill(undefined);
 
   // 1) Period images, and library sets the judge accepts for the scene.
   for (let si = 0; si < n; si++) {
@@ -236,6 +241,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     const narrated = scene.satirlar.some((l) => !visible.has(l.karakter));
     if (narrated) {
       const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd);
+      laterPhotos[si] = found.later;
       // CLIP orders the candidates first, so the judge's looks go to the likeliest pictures (search order without it).
       const fresh = await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: scene.mekan }), (c) => commonsPreview(cache, c));
       log(`${scene.id}: dönem görseli aranıyor — ${found.report.join(", ")}`);
@@ -369,8 +375,40 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       }
     }
   }
+  // Owner (21 Oct 2026): when no good set can be drawn, a real photo of the period or the subject is shown — the place's
+  // ruins or site today, an object of the period — judged for exactly this place; never an unrelated photo.
+  const subjectPhoto = async (si: number): Promise<SceneSet | undefined> => {
+    const scene = episode.sahneler[si]!;
+    const q = scene.arka_plan_sorgusu;
+    const later = laterPhotos[si] ?? (await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd).catch(() => undefined))?.later ?? [];
+    const fresh = later.filter((c) => !used.has(c.url));
+    if (!fresh.length) return undefined;
+    const sj = { ...sceneForJudge(episode, si), anlatim: scene.satirlar.map((l) => l.metin).join(" ") };
+    const pick = await pickBackground(fresh, sj, judge, (c) => commonsPreview(cache, c), log, { mode: "konu" });
+    for (const v of pick.verdicts) log(`  ${scene.id} konu fotoğrafı ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
+    const passing = fresh
+      .slice(0, pick.verdicts.length)
+      .map((c, i) => ({ c, v: pick.verdicts[i]! }))
+      .filter((x) => passes(x.v))
+      .sort((a, b) => fitScore(b.v) - fitScore(a.v));
+    for (const { c, v } of passing) {
+      const file = path.join(pub, `${scene.id}-konu${extOf(c.downloadUrl)}`);
+      const credit = await downloadCommons(c, file, cache).catch((e: Error) => (log(`  ${scene.id}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
+      if (!credit) continue;
+      used.add(c.url);
+      notlar[si] = `${notlar[si]} Çizilen set tutmadı; konunun gerçek fotoğrafı kullanıldı (${verdictLine(v)}).`.trim();
+      log(`  ${scene.id}: çizilen set tutmadı — konunun gerçek fotoğrafı kullanılıyor (${c.title.slice(0, 60)})`);
+      return { src: `bg/${path.basename(file)}`, kind: "archival", kenBurns: { fromZoom: 1.02, toZoom: 1.1, fromX: 0, toX: -0.015 }, kaynak: "konu", credit, secim: v };
+    }
+    return undefined;
+  };
   for (let si = 0; si < n; si++) {
     if (sets[si]) continue;
+    const photo = await subjectPhoto(si);
+    if (photo) {
+      sets[si] = photo;
+      continue;
+    }
     // Still nothing the judge passes: the best attempt is used and the QC says so — never an unrelated stock image.
     const unreadable = (tried.get(si) ?? []).filter((t) => t.v?.okunamadi).length;
     if (unreadable) log(`⚠ ${episode.sahneler[si]!.id}: görüntü hakemi ${unreadable} set için okunabilir yanıt vermedi (hakem modeli: ${process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b"})`);

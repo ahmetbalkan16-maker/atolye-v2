@@ -269,6 +269,18 @@ async function main() {
     assert.match(LANDSCAPE_NEGATIVE.join(","), /buildings, houses, town/);
   });
 
+  await scenario("P subject photo (no set could be drawn): exactly this place's remains or a period object, never an unrelated photo", async () => {
+    const roman: SceneForJudge = { ...SCENE, konu: "Rubicon", donem: "49 BC", mekan: "Corfinium, Italy", tr: "Corfinium", en: "Corfinium ruins" };
+    const p = judgePrompt(roman, candidate("corfinium-walls"), "konu");
+    assert.ok(p.includes("No picture made in 49 BC exists") && p.includes("another town's ruins") && p.includes("never shown") && p.includes("remains or objects of 49 BC"));
+    assert.ok(!judgePrompt(roman, candidate("x"), "arsiv").includes("No picture made in"), "the period-image rubric is unchanged");
+    const judge = new FakeJudge({ "corfinium-walls": JSON.stringify({ puan: 9, donem: 8, modern: false, tur: "fotograf", gosterilen: "Corfinium surları", sorun: "-" }), "rimini-beach": JSON.stringify({ puan: 2, donem: 1, modern: true, tur: "fotograf", gosterilen: "plaj", sorun: "ilgisiz" }) });
+    const pick = await pickBackground(["rimini-beach", "corfinium-walls"].map(candidate), roman, judge, preview, () => {}, { mode: "konu" });
+    assert.equal(pick.chosen?.title, "File:corfinium-walls.jpg");
+    const none = await pickBackground(["rimini-beach"].map(candidate), roman, judge, preview, () => {}, { mode: "konu" });
+    assert.equal(none.chosen, undefined, "an unrelated photo is never chosen");
+  });
+
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
 }
 

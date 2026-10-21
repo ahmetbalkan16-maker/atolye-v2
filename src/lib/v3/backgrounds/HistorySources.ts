@@ -139,6 +139,11 @@ export interface PeriodSearch {
 
 export interface PeriodCandidates {
   readonly candidates: readonly CommonsCandidate[];
+  /**
+   * Photos of today an ancient period's search also found (the place or its ruins as they stand now): never judged
+   * as period images, kept for the subject-photo fallback when no set can be drawn (owner, 21 Oct 2026).
+   */
+  readonly later: readonly CommonsCandidate[];
   /** Per source: how many usable candidates it gave, or why it failed. */
   readonly report: readonly string[];
 }
@@ -226,12 +231,12 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
   // Before photography a photo taken after 1900 cannot be a period image: such candidates are not even judged (the
   // Rubicon run spent minutes on 43 photos of modern Rimini, each preview hitting Wikimedia's rate limit).
   const ancient = periodEnd !== undefined && periodEnd < 1850;
-  const candidates = all
-    .map((c, i) => ({ c, i, r: periodRank(c.year, periodEnd) }))
+  const ranked = all.map((c, i) => ({ c, i, r: periodRank(c.year, periodEnd) }));
+  const candidates = ranked
     .filter((x) => !(ancient && x.r === 2))
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.c);
-  return { candidates, report };
+  return { candidates, later: ranked.filter((x) => ancient && x.r === 2).map((x) => x.c), report };
 }
 
 /** Last year of an episode period ("1452", "1451–1453", "MÖ 44", "44 BC", "1919-1922"); BCE years are negative. */
