@@ -1,4 +1,5 @@
 import type { AIProvider } from "../../ai/providers/AIProvider";
+import { periodEndYear } from "./HistorySources";
 
 /**
  * Picks a scene's image by looking at it: a local vision model (gemma4 through Ollama) scores each candidate's
@@ -206,6 +207,31 @@ export function parseVerdict(content: string): Omit<CandidateVerdict, "title"> |
   }
 }
 
+/** Words for buildings and symbols of a later era: before 400 AD (churches, crosses, the Middle Ages) and before Islam. */
+const LATER_THAN_ANTIQUITY = /orta\s*ça[gğ]|medieval|(?<!\p{L})kilise|church|(?<!\p{L})haç|\bcross(es)?\b|çan kulesi|bell[- ]?tower|steeple|katedral|cathedral|gotik|gothic/iu;
+const LATER_THAN_ISLAM = /minare|minaret|(?<!\p{L})cami(?!\p{L})|mosque/iu;
+const NEGATED_AFTER = /^.{0,24}?(yok|bulunmu|görünmü|içermi|none|absent)/iu;
+const NEGATED_BEFORE = /(\bno|\bwithout|\bnot)\s+(any\s+)?$/iu;
+
+/**
+ * The judge's own description against its period score. On 21 Oct 2026 it described the Rubicon's Corfinium set (49 BC)
+ * as "a Medieval/Antique settlement" — a cross on a bell tower — and still scored the period 10/10; a verdict whose
+ * words name a later era for the episode's period gets the period score 3. Drawn sets only: an archival picture may
+ * rightly be a later artwork (a medieval miniature of Caesar), which the quality brain watches in the video.
+ */
+export function periodWordsCheck(v: CandidateVerdict, donem: string): CandidateVerdict {
+  const year = periodEndYear(donem);
+  if (year === undefined || v.okunamadi || (v.donem ?? 10) <= 3) return v;
+  const text = `${v.gosterilen} ${v.sorun}`;
+  for (const rule of [year < 400 ? LATER_THAN_ANTIQUITY : undefined, year < 650 ? LATER_THAN_ISLAM : undefined]) {
+    if (!rule) continue;
+    const m = rule.exec(text);
+    if (!m || NEGATED_AFTER.test(text.slice(m.index + m[0].length)) || NEGATED_BEFORE.test(text.slice(0, m.index))) continue;
+    return { ...v, donem: 3, sorun: `${v.sorun ? `${v.sorun}; ` : ""}hakemin kendi tarifi ${donem} için sonraki bir çağ: "${m[0]}"`.slice(0, 220) };
+  }
+  return v;
+}
+
 /** Token budget of a verdict, and of the one retry after an unreadable answer (a model that thinks first needs room). */
 export const VERDICT_TOKENS = 220;
 export const VERDICT_RETRY_TOKENS = 1_200;
@@ -243,7 +269,7 @@ export async function pickBackground<T extends JudgeCandidate>(
         return parseVerdict(typeof out === "string" ? out : out.content);
       };
       const parsed = (await ask(VERDICT_TOKENS)) ?? (await ask(VERDICT_RETRY_TOKENS));
-      v = parsed ? { title: c.title, ...parsed } : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
+      v = parsed ? (opts.mode === "set" ? periodWordsCheck({ title: c.title, ...parsed }, scene.donem) : { title: c.title, ...parsed }) : { title: c.title, puan: 0, gosterilen: "", sorun: "okunamayan yanıt", okunamadi: true };
       if (!parsed) {
         unreadableAnswers++;
         log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);

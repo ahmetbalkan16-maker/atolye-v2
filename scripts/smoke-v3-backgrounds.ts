@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { designFor, periodNegatives } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, parseVerdict, passes, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -209,6 +209,20 @@ async function main() {
     assert.equal(orderByClip(c, [0.5, 0.1, 0.2, 0.3, 0.4, 0.6]).length, c.length, "nothing is dropped");
     assert.equal(clipQuery({ en: "Roman Senate painting", mekan: "Roman Senate, Rome" }), "Roman Senate painting. Roman Senate, Rome.");
     assert.ok(CLIP_POOL > MAX_JUDGED, "the judge sees the best of a larger pool");
+  });
+
+  await scenario("M a set the judge itself calls medieval or shows with a church cross fails the period for antiquity; a denial does not", () => {
+    const v = { title: "set", puan: 8, donem: 10, gosterilen: "Taş kuleli ve surlarla çevrili tepelik bir Orta Çağ/Antik yerleşimi", sorun: "" };
+    const checked = periodWordsCheck(v, "49 BC");
+    assert.equal(checked.donem, 3);
+    assert.ok(!passes(checked) && checked.sorun.includes("Orta Çağ"));
+    assert.equal(periodWordsCheck({ ...v, gosterilen: "Kulenin tepesinde haç var" }, "MÖ 44").donem, 3);
+    assert.equal(periodWordsCheck({ ...v, gosterilen: "Roma kasabası", sorun: "kilise yok, modern öğe yok" }, "49 BC").donem, 10, "a denial is no fault");
+    assert.equal(periodWordsCheck({ ...v, gosterilen: "A walled town without any church towers" }, "49 BC").donem, 10);
+    assert.equal(periodWordsCheck({ ...v, gosterilen: "Caesar's army crossing the river" }, "49 BC").donem, 10, "crossing is not a cross");
+    assert.equal(periodWordsCheck(v, "1453").donem, 10, "the Middle Ages are fine in 1453");
+    assert.equal(periodWordsCheck({ ...v, gosterilen: "minareli bir şehir" }, "MS 500").donem, 3);
+    assert.equal(periodWordsCheck({ ...v, gosterilen: "minareli bir şehir" }, "1453").donem, 10);
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
