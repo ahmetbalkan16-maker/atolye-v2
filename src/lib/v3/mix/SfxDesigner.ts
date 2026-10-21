@@ -5,7 +5,7 @@ import { periodEndYear } from "../backgrounds/HistorySources";
 import type { Episode, EpisodeScene, SfxId } from "../episode/EpisodeTypes";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { sideProcessEnv } from "../tts/Tts";
-import { freeGpuMemory, waitForCoolGpu } from "../util/Gpu";
+import { unloadOllama, waitForCoolGpu } from "../util/Gpu";
 import { runChecked } from "../util/Proc";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
@@ -161,7 +161,8 @@ export class SfxDesigner {
     await fs.mkdir(this.libraryDir, { recursive: true });
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     if (!this.server) {
-      await freeGpuMemory(9_000, this.log);
+      // Ollama's runner can hold ~19 GB of RAM (21 Oct 2026) and this model needs ~15 GB of RAM while it loads.
+      await unloadOllama(this.log, "efektçi için RAM ve ekran kartı");
       this.server = new PythonLineServer({
         python: path.join(this.root(), ".venv", "Scripts", "python.exe"),
         script: path.join(this.paths.repoRoot, "scripts", "v3", "moss_sfx_server.py"),
@@ -178,7 +179,9 @@ export class SfxDesigner {
     const tmp = path.join(this.paths.asciiTemp, `efekt-${path.basename(file)}`);
     let r: Awaited<ReturnType<PythonLineServer["request"]>>;
     try {
-      r = await this.server.request({ prompt: req.prompt, seconds: req.seconds, seed: req.seed, out: raw, max_temp: 73 });
+      // The model works on a fixed window (30 s by default); a 3 s effect gets a window just longer than itself (less
+      // heat and time).
+      r = await this.server.request({ prompt: req.prompt, seconds: req.seconds, seed: req.seed, out: raw, max_temp: 73, window: Math.min(30, Math.max(4, Math.ceil(req.seconds) + 1)) });
     } catch (e) {
       this.broken = `efektçi başlatılamadı: ${(e as Error).message.slice(0, 160)}`;
       await this.close();
@@ -194,7 +197,8 @@ export class SfxDesigner {
     }
     this.failures = 0;
     // An effect lands on its beat: leading silence off, a short fade at its end. Ambience fades in and out.
-    const shape = req.kind === "efekt" ? "silenceremove=start_periods=1:start_threshold=-40dB,areverse,silenceremove=start_periods=1:start_threshold=-50dB,afade=t=in:d=0.15,areverse" : "afade=t=in:d=0.5";
+    // The model renders at full scale (the first bell peaked at 0 dB): every sound is brought to one level, peaks under −2.
+    const shape = `${req.kind === "efekt" ? "silenceremove=start_periods=1:start_threshold=-40dB,areverse,silenceremove=start_periods=1:start_threshold=-50dB,afade=t=in:d=0.15,areverse" : "afade=t=in:d=0.5"},loudnorm=I=-20:TP=-2:LRA=11`;
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", `${shape},aresample=48000`, "-ac", "1", tmp]);
     await fs.rm(raw, { force: true });
     const stats = await measurePiece(this.paths, tmp);

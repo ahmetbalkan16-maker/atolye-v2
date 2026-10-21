@@ -5,7 +5,7 @@ import type { MusicMood, MusicTrack } from "../../audio/music/MusicLibrary";
 import { periodEndYear } from "../backgrounds/HistorySources";
 import type { Episode } from "../episode/EpisodeTypes";
 import { sideProcessEnv } from "../tts/Tts";
-import { freeGpuMemory, waitForCoolGpu } from "../util/Gpu";
+import { unloadOllama, waitForCoolGpu } from "../util/Gpu";
 import { runChecked } from "../util/Proc";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
@@ -126,7 +126,7 @@ export class MusicComposer {
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     if (!this.server) {
       // The 12 GB card holds one big model: Ollama (the judge, AYAS chat) is unloaded first.
-      await freeGpuMemory(9_000, this.log);
+      await unloadOllama(this.log, "besteci için RAM ve ekran kartı");
       this.server = new PythonLineServer({
         python: this.python(),
         script: path.join(this.paths.repoRoot, "scripts", "v3", "acestep_server.py"),

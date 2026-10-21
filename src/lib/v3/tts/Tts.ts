@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { V3Emotion } from "../render/RenderPlanTypes";
-import { waitForCoolGpu } from "../util/Gpu";
+import { unloadOllama, waitForCoolGpu } from "../util/Gpu";
 import { runChecked } from "../util/Proc";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
@@ -173,6 +173,7 @@ class VoxcpmEngine implements TtsEngine {
 
   private async request(body: Readonly<Record<string, unknown>>): Promise<Awaited<ReturnType<PythonLineServer["request"]>>> {
     if (!this.available()) throw new TtsError("V3_VOXCPM_UNAVAILABLE", "VoxCPM2 kurulu değil");
+    if (!this.server) await unloadOllama(this.log, "VoxCPM2 için RAM ve ekran kartı");
     this.server ??= new PythonLineServer({
       python: this.python(),
       script: path.join(this.paths.repoRoot, "scripts", "v3", "voxcpm_server.py"),

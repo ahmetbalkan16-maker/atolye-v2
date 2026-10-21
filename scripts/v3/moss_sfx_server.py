@@ -10,6 +10,7 @@ pass per prompt) and only the DiT and the VAE go to the card. Then reads one JSO
 Nothing is downloaded (HF offline); torch.compile is off (no Triton on Windows). Before every sound the card rests
 while it is at or above `max_temp` (73 °C, the owner's limit). License: Apache-2.0 (MOSS-SoundEffect v2).
 """
+import gc
 import json
 import os
 import subprocess
@@ -62,11 +63,21 @@ def main():
 
     if not torch.cuda.is_available():
         raise RuntimeError("MOSS_CUDA_UNAVAILABLE")
+    # RAM: the DiT's 5.4 GB float32 weight file is read straight onto the card (MOSS builds the model on the CPU and then
+    # copies these weights in; reading them into RAM as well made a ~16 GB peak that left 2 GB free). Precision unchanged.
+    from moss_soundeffect_v2.diffsynth.pipelines import wan_audio
+
+    read_weights = wan_audio.load_file
+    wan_audio.load_file = lambda path, device="cpu": read_weights(path, device="cuda")
     pipe = MossSoundEffectPipeline.from_pretrained(str(model_dir), torch_dtype=torch.bfloat16, device="cpu")
+    wan_audio.load_file = read_weights
+    torch.cuda.empty_cache()
     engine = pipe.engine
-    engine.text_encoder.to(dtype=torch.float32)
+    # RAM peak (the first real test left 1.9 GB free): the DiT and the VAE go to the card at once, freeing their CPU
+    # copies; the text encoder stays bf16 on the CPU (widening it to float32 cost another ~4 GB of RAM).
     engine.dit.to("cuda")
     engine.vae.to("cuda")
+    gc.collect()
     engine.device = "cuda"
     encode = engine.prompter.encode_prompt
 
@@ -88,12 +99,22 @@ def main():
             req = json.loads(raw)
             if req.get("cmd") == "quit":
                 break
-            cool_down(int(req.get("max_temp", 73)))
+            limit = int(req.get("max_temp", 73))
+            cool_down(limit)
+
+            def cooling_steps(iterable, **_):
+                # Owner rule DURING a sound too (the first test reached 76 °C over 60 steps): every third step the card
+                # rests while it is at or above the limit.
+                for i, item in enumerate(iterable):
+                    if i % 3 == 0:
+                        cool_down(limit)
+                    yield item
+
             t0 = time.monotonic()
             torch.cuda.reset_peak_memory_stats()
             sys.stdout = sys.stderr
             try:
-                audio = pipe(prompt=str(req["prompt"]), seconds=float(req["seconds"]), num_inference_steps=int(req.get("steps", 60)), cfg_scale=4.0, seed=int(req.get("seed", 0)), progress_bar_cmd=lambda x, **_: x)
+                audio = pipe(prompt=str(req["prompt"]), seconds=float(req["seconds"]), num_inference_steps=int(req.get("steps", 60)), cfg_scale=4.0, seed=int(req.get("seed", 0)), max_inference_seconds=int(req.get("window", 30)), progress_bar_cmd=cooling_steps)
                 pipe.save_audio(audio, req["out"])
             finally:
                 sys.stdout = real_stdout
