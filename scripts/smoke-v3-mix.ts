@@ -9,7 +9,7 @@ import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary"
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { AMBIENCE_LUFS, ambienceChain, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
-import { ambiencePrompt, designSounds, eraOf, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
+import { ambiencePrompt, designSounds, eraOf, MAX_AMBIENCE_PLACES, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
@@ -212,6 +212,15 @@ async function main() {
     assert.deepEqual(out.ambience.map((a) => [a.start, a.end]), [[3, 15]], "the map scene gets none, the failed Senate bed stays silent");
     assert.ok(out.report.some((l) => l.startsWith("efekt kagit: kütüphane kaydı kaldı — efektçi çalışmadı: CUDA out of memory")));
     assert.ok(out.report.some((l) => l.startsWith("ortam s3: ortam sesi yok")));
+    // A long episode: 14 places, beds only for the 10 on screen the longest (each takes the designer ~2 minutes).
+    const many = { ...ep, sahneler: Array.from({ length: 14 }, (_, i) => ({ ...ep.sahneler[0]!, id: `p${i}`, mekan: `Place ${i}`, harita: undefined })) } as typeof ep;
+    const manyTl = { scenes: Array.from({ length: 14 }, (_, i) => ({ sceneIndex: i, start: i * 100, end: i * 100 + 10 + i })) } as unknown as Pick<EpisodeTimeline, "scenes">;
+    const beds: string[] = [];
+    const bedMaker = { make: async (r: { prompt: string; kind: string }) => (r.kind === "ortam" ? (beds.push(r.prompt), { file: `D:/ortam/${beds.length}.wav`, cached: false }) : { problems: ["-"] }) };
+    const long = await designSounds(many, manyTl, [], bedMaker);
+    assert.equal(long.ambience.length, MAX_AMBIENCE_PLACES);
+    assert.equal(long.ambience[0]!.start, 400, "the shortest four places (0–3) carry music only");
+    assert.ok(long.report.some((l) => l.startsWith("ortam p0: yalnız müzik")));
     const chain = ambienceChain(5, "o0", 3, 15);
     assert.match(chain, /^\[5:a\]aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-38:TP=-9:LRA=11,afade=t=in:d=0\.6,afade=t=out:st=11\.400:d=0\.6,adelay=3000\|3000\[o0\]$/);
     assert.ok(AMBIENCE_LUFS < -26, "ambience sits under the music");

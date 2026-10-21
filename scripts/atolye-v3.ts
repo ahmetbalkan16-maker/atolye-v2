@@ -32,7 +32,7 @@ import { loadMapData, mapWorld, type Polygon } from "../src/lib/v3/maps/MapBuild
 import { RELIEF_CREDIT, reliefAvailable, reliefFor } from "../src/lib/v3/maps/Relief";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames } from "../src/lib/v3/maps/HistoricalBorders";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
-import { chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
+import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { designedWindows, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
@@ -933,7 +933,13 @@ async function main() {
       `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}${episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? `\n- ${RELIEF_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
     );
     // YouTube: the package's title, the hook sentences and the chapters first, hashtags last.
-    const chs = youtube ? chapters(timeline.scenes.map((sc) => sc.start), youtube.paket.bolumler, timeline.duration) : [];
+    // A long episode's chapters are its chapter cards; a short one has a chapter per scene.
+    const marked = chapterScenes(episode);
+    const chs = !youtube
+      ? []
+      : marked.length >= 3
+        ? chapters(marked.map((m) => timeline.scenes[m.index]?.start ?? 0), marked.map((m) => m.baslik), timeline.duration)
+        : chapters(timeline.scenes.map((sc) => sc.start), youtube.paket.bolumler, timeline.duration);
     if (youtube) await writeJson(f("youtube.json"), { ...youtube, bolumler: chs });
     const hook = youtube?.paket.aciklamaGiris ? `${youtube.paket.aciklamaGiris}\n\n` : "";
     const chapterBlock = chs.length ? `${en ? "Chapters" : "Bölümler"}:\n${chapterText(chs)}\n\n` : "";
@@ -1004,7 +1010,9 @@ async function main() {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
     const qualityRules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
-    const quality = await qualityReview({ paths, video: f(final), durationS, donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan) });
+    // A long video is sampled across its whole length (6 s apart filled only its first two minutes): up to 48 frames.
+    const qualityFrames = Math.max(18, Math.min(48, Math.round(durationS / 25)));
+    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan) });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10`);
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
     try {

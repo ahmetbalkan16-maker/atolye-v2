@@ -18,18 +18,33 @@ export interface YoutubePackage {
   readonly aciklamaGiris: string;
 }
 
+/**
+ * Long episodes open every chapter with a "bolum" card (LongForm): those scenes and titles are the video's chapters,
+ * for YouTube and for the package prompt (a list of 80 scenes would ask for 80 chapter titles).
+ */
+export function chapterScenes(episode: Pick<Episode, "sahneler">): { index: number; baslik: string }[] {
+  return episode.sahneler.flatMap((s, i) => {
+    const card = (s.yazi_karti ?? []).find((k) => k.stil === "bolum");
+    return card ? [{ index: i, baslik: card.metin.slice(0, 40) }] : [];
+  });
+}
+
 export function packagePrompt(episode: Episode): string {
-  const scenes = episode.sahneler.map((s, i) => `${i + 1}. ${s.mekan}: ${s.satirlar.map((l) => l.metin).join(" ").slice(0, 220)}`).join("\n");
+  const marked = chapterScenes(episode);
+  const long = marked.length >= 3;
+  const chapterWords = (from: number, to: number) => episode.sahneler.slice(from, to).flatMap((s) => s.satirlar.map((l) => l.metin)).join(" ").slice(0, 220);
+  const scenes = long
+    ? marked.map((m, i) => `${i + 1}. ${m.baslik}: ${chapterWords(m.index, marked[i + 1]?.index ?? episode.sahneler.length)}`).join("\n")
+    : episode.sahneler.map((s, i) => `${i + 1}. ${s.mekan}: ${s.satirlar.map((l) => l.metin).join(" ").slice(0, 220)}`).join("\n");
   return `You publish an animated history video on YouTube for an American audience (in the style of OverSimplified).
 VIDEO: "${episode.baslik}" — ${episode.konu} (${episode.donem})
-SCENES:
+${long ? "CHAPTERS" : "SCENES"}:
 ${scenes}
 
 Write, in American English:
 - "basliklar": 3 video titles, each under 60 characters, the main keyword (the person or event) in the first words, an emotional or curious hook, no clickbait lies.
 - "kapak_basliklari": 3 thumbnail headlines, 2–4 words each, true to the video, opening a question the video answers (e.g. "POINT OF NO RETURN", "HE DID WHAT?"), never repeating the title word for word.
-- "bolumler": ${episode.sahneler.length} chapter titles, one per scene in order, 2–5 words each.
-- "etiketler": 12 relevant search tags (people, places, events, era, "history animation").
+${long ? "" : `- "bolumler": ${episode.sahneler.length} chapter titles, one per scene in order, 2–5 words each.\n`}- "etiketler": 12 relevant search tags (people, places, events, era, "history animation").
 - "hashtagler": 3 hashtags without spaces, starting with "#".
 - "aciklama_giris": the description's first two sentences, under 160 characters together, with the main keyword and the hook.
 Return ONLY JSON with exactly these keys.`;

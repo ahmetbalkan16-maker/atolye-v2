@@ -228,6 +228,9 @@ export interface AmbienceBed {
 
 const seedOf = (text: string) => parseInt(createHash("sha256").update(text).digest("hex").slice(0, 8), 16) % 1_000_000;
 
+/** Places an episode gets an ambience bed for (the ones on screen the longest). */
+export const MAX_AMBIENCE_PLACES = 10;
+
 /**
  * Period versions of the episode's effects (id → file) and an ambience bed per scene (map scenes and the opening
  * cover have none). Whatever fails is reported and left to the library or to silence.
@@ -251,9 +254,21 @@ export async function designSounds(
       report.push(`efekt ${id}: ${era} dönemi sesi${got.cached ? " (kütüphaneden)" : ""}`);
     } else report.push(`efekt ${id}: kütüphane kaydı kaldı — ${got.problems.join("; ")}`);
   }
+  // A bed takes the designer about two minutes: a long episode (30–40 places) gets beds for the places on screen the
+  // longest; the others carry music only.
+  const onScreen = new Map<string, number>();
+  for (const st of timeline.scenes) {
+    const scene = episode.sahneler[st.sceneIndex];
+    if (scene && !scene.harita?.merkez) onScreen.set(scene.mekan, (onScreen.get(scene.mekan) ?? 0) + (st.end - st.start));
+  }
+  const places = new Set([...onScreen.entries()].sort((a, b) => b[1] - a[1]).slice(0, MAX_AMBIENCE_PLACES).map(([mekan]) => mekan));
   for (const st of timeline.scenes) {
     const scene = episode.sahneler[st.sceneIndex];
     if (!scene || scene.harita?.merkez) continue;
+    if (!places.has(scene.mekan)) {
+      report.push(`ortam ${scene.id}: yalnız müzik (en uzun ${MAX_AMBIENCE_PLACES} yerin dışında)`);
+      continue;
+    }
     const prompt = ambiencePrompt(scene, episode.donem);
     // One bed per place; long scenes loop it (the model makes at most 30 s at a time).
     const got = await designer.make({ prompt, seconds: 20, seed: seedOf(`${episode.id}#${scene.mekan}`), kind: "ortam" }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));

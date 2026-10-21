@@ -13,6 +13,9 @@ export type OrderState = "bekliyor" | "calisiyor" | "teslim" | "uyariyla_teslim"
 export const PRODUCTION_STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "kapak", "miks", "birlestir"] as const;
 export type ProductionStep = (typeof PRODUCTION_STEPS)[number];
 
+/** A video ordered without a length (owner, 21 Oct 2026: videos are at least 15–20 minutes). */
+export const DEFAULT_ORDER_LENGTH = "18dk";
+
 /** How many times an interrupted order is resumed before it is reported as stopped. */
 export const MAX_RESUMES = 2;
 
@@ -72,7 +75,7 @@ export async function placeOrder(workRoot: string, o: { konu: string; donem: str
   const dir = orderDir(workRoot);
   await fs.mkdir(dir, { recursive: true });
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\..*$/, "");
-  const order: ProductionOrder = { id: `${stamp}-${slug(o.konu)}`, konu: o.konu.trim().slice(0, 300), donem: o.donem.trim().slice(0, 120), sure: o.sure ?? "120sn", dil: o.dil ?? "en", ton: o.ton ?? "mizahi", kaynak: o.kaynak ?? "owner", olusturuldu: now.toISOString(), durum: "bekliyor" };
+  const order: ProductionOrder = { id: `${stamp}-${slug(o.konu)}`, konu: o.konu.trim().slice(0, 300), donem: o.donem.trim().slice(0, 120), sure: o.sure ?? DEFAULT_ORDER_LENGTH, dil: o.dil ?? "en", ton: o.ton ?? "mizahi", kaynak: o.kaynak ?? "owner", olusturuldu: now.toISOString(), durum: "bekliyor" };
   const file = path.join(dir, `${order.id}.json`);
   if (existsSync(file)) throw new Error(`V3_ORDER_EXISTS: ${order.id}`);
   await fs.writeFile(file, `${JSON.stringify(order, null, 2)}\n`);
