@@ -41,6 +41,7 @@ export function designedWindows(plan: Pick<V3RenderPlan, "fps" | "shots">): Desi
 export function qualityPrompt(donem: string, rules: readonly string[] = [], designed?: string): string {
   return `You are the quality checker of an animated history show for an American YouTube channel (flat cartoon puppets, drawn sets, maps, period pictures). The story is set in ${donem}.
 Look at this frame for production faults only (not taste): a character cut in half by the frame edge, text cut off or printed over other text, unreadable text, a missing, empty or broken face or head, black or empty areas, a stretched or glitched image, an obviously modern object in a historical scene, a building or symbol of a later era than ${donem} (in antiquity: a church, a cross on a roof or tower, a bell tower, a medieval castle; before Islam: a minaret).
+Part of the show, never a fault: the small source line under a real picture (title, artist, year, source), a sash, belt or scroll a cartoon character wears or holds, and in a real photo of ruins as they stand today a little of today far off (the Rome run of 21 Oct 2026 flagged all three).
 ${rules.length ? `The owner also found these faults in earlier videos that this check missed — look for them too:\n${rules.map((r) => `- ${r}`).join("\n")}\n` : ""}${designed ? `By design this frame shows ${designed}; that is not a fault — judge only the rest of the frame.
 ` : ""}Score 0–10 how clean the frame is (10 = no fault). Return ONLY JSON: {"puan": <0-10>, "sorunlar": ["<fault, Turkish, at most 12 words>"]}`;
 }
