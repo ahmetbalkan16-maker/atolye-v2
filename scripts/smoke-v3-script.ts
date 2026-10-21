@@ -13,7 +13,8 @@ import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { articleSource, sourceId, verifyFacts } from "../src/lib/v3/research/SourceResearch";
 import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
-import { V3Budget, V3BudgetError } from "../src/lib/v3/script/V3Budget";
+import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
+import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
 import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
 
@@ -289,6 +290,38 @@ async function main() {
     assert.ok(asks.length >= 1 && asks.length <= 5);
     assert.match(asks[0]!, /^scene "[a-z0-9-]+" has \d+ spoken words and needs about \d+: add \d+ words there/);
     assert.deepEqual(sceneShortfalls(ep, 1), [], "hedefe ulaşmış senaryoya istek yok");
+  });
+
+  await scenario("L a long episode is planned in chapters and written chapter by chapter; scene ids carry the chapter; $4 cap", async () => {
+    assert.equal(isLongForm({ hedefSureSn: 300 }), false);
+    assert.equal(isLongForm({ hedefSureSn: 1080 }), true);
+    assert.deepEqual([chapterCount(720), chapterCount(1080), chapterCount(3000)], [6, 9, 12]);
+    assert.deepEqual([videoCapUsd(120), videoCapUsd(1080)], [1, 4]);
+    const base = episode();
+    const { sahneler, ...header } = base;
+    const outline = { ...header, hedef_sure_sn: 720, bolumler: Array.from({ length: 6 }, (_, i) => ({ id: `b${i + 1}-bolum`, baslik: `Bölüm ${i + 1}`, ozet: `Bu bölümde olay ${i + 1} anlatılır, yerleri ve yılları ile birlikte.`, sure_sn: 100 })) };
+    // Per chapter: the scenes, one lengthening round (a short chapter) that does not help, the fact check.
+    const answers = [JSON.stringify(outline)];
+    for (let i = 0; i < 6; i++) answers.push(JSON.stringify({ sahneler }), JSON.stringify({ ...header, sahneler }), JSON.stringify({ iddialar: [] }));
+    const openai = new FakeProvider(answers);
+    const lines: string[] = [];
+    const out = await writeScript({ brief: { konu: "Uzun konu", donem: "1453", hedefSureSn: 720, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai }, capUsd: 4 }), log: (s) => lines.push(s) });
+    assert.equal(openai.calls.length, 19);
+    assert.ok(openai.calls[0]!.prompt.includes("STEP 1: THE PLAN") && openai.calls[0]!.prompt.includes("in 6 chapters"));
+    assert.ok(openai.calls[1]!.prompt.includes("CHAPTER 1 OF 6") && openai.calls[1]!.prompt.includes("FIXED CAST"));
+    assert.ok(openai.calls[4]!.prompt.includes("CHAPTER 2 OF 6") && openai.calls[4]!.prompt.includes("THE STORY SO FAR"));
+    assert.ok(openai.calls[16]!.prompt.includes("This is the last chapter"));
+    assert.equal(out.episode.sahneler.length, sahneler.length * 6);
+    assert.ok(out.episode.sahneler.every((s) => /^b[1-6]-bolum-/.test(s.id)), "every scene id starts with its chapter");
+    assert.equal(new Set(out.episode.sahneler.map((s) => s.id)).size, out.episode.sahneler.length, "no two scenes share an id");
+    assert.equal(out.episode.hedef_sure_sn, 720);
+    assert.ok(out.validation.ok);
+    assert.ok(lines[0]!.startsWith("senaryo planı: 6 bölüm"));
+    // The plan's chapter lengths are scaled to the target; a broken plan is sent back.
+    const read = readOutline({ ...outline, bolumler: outline.bolumler.map((b) => ({ ...b, sure_sn: 60 })) }, { hedefSureSn: 720 });
+    assert.equal(read.outline!.bolumler.reduce((n, b) => n + b.sure_sn, 0), 720);
+    assert.ok(readOutline({ ...outline, bolumler: [] }, { hedefSureSn: 720 }).problems.some((p) => p.includes("4–14 chapters")));
+    assert.ok(prefixScenes([{ id: "s1" }, { id: "b2-x-s2" }], "b2-x").every((s) => String(s.id).startsWith("b2-x-")));
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

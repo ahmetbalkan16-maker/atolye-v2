@@ -54,7 +54,7 @@ import { renderWithRemotion } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { researchTopic } from "../src/lib/v3/research/SourceResearch";
-import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
+import { V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
@@ -518,6 +518,8 @@ async function main() {
   const fromStep = (arg("--from-step") === "portre" ? "gardirop" : (arg("--from-step") ?? undefined)) as Step | undefined;
   if (fromStep && !STEPS.includes(fromStep)) throw new Error(`--from-step şunlardan biri olmalı: ${STEPS.join(", ")}`);
   const preview = process.argv.includes("--onizleme");
+  // The whole video's paid-call ceiling by its length (owner, 21 Oct 2026: $4 for a long one, $1 for a short one).
+  const capUsd = videoCapUsd(seconds(arg("--sure") ?? "90"));
   // Retouch round of this run (0 = the first production; the retouch brain starts round 1 by itself).
   const rotusTuru = Number(arg("--rotus-turu") ?? 0);
   const given = arg("--bolum");
@@ -594,7 +596,7 @@ async function main() {
   if (need("senaryo", "episode.json")) {
     scriptWritten = true;
     await step("senaryo", async () => {
-      const { budget, providerName } = scriptBudget(paths);
+      const { budget, providerName } = scriptBudget(paths, capUsd);
       const writer: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_WRITER_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
       const checker: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CHECKER_MODEL ?? "gpt-4.1" } : { provider: "ollama" };
       try {
@@ -625,7 +627,7 @@ async function main() {
         const year = periodEndYear(donem);
         const tarihiSinirlar = year === undefined ? [] : (await Promise.all(nearestSnapshots(year).map(async (yil) => ({ yil, adlar: await snapshotNames(bordersDir, yil).catch(() => [] as string[]) })))).filter((x) => x.adlar.length);
         const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}) };
-        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget }).catch(async (e: unknown) => {
+        const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           throw e;
         });
@@ -649,7 +651,7 @@ async function main() {
       let records: PartRecord[] = [];
       const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
       // The costume brain (OpenAI with image input for the designer; the small model for historian and chief).
-      const { budget, providerName } = scriptBudget(paths, Math.max(0, 1 - before.toplamUsd), true);
+      const { budget, providerName } = scriptBudget(paths, Math.max(0, capUsd - before.toplamUsd), true);
       const judge = visionJudge();
       const brain = providerName === "openai" ? { cacheDir: path.join(paths.workRoot, "_onbellek", "commons"), judge, budget, critic: { provider: "openai" as const, model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" }, council, log } : undefined;
       try {
@@ -834,7 +836,7 @@ async function main() {
   if (need("kapak", "youtube.json")) {
     youtube = await step("kapak", async () => {
       const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
-      const { budget, providerName } = scriptBudget(paths, Math.max(0, 1 - before.toplamUsd));
+      const { budget, providerName } = scriptBudget(paths, Math.max(0, capUsd - before.toplamUsd));
       let paket: YoutubePackage;
       try {
         const out = await budget.generate("youtube-paketi", providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" }, packagePrompt(episode), { maxTokens: 900 });

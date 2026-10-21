@@ -2,6 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { normalizeDraft } from "./DraftNormalizer";
+import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
 
@@ -219,9 +220,45 @@ export interface ScriptEngineInput {
   /** Episode JSON Schema; constrains decoding on providers that support it (Ollama). */
   readonly jsonSchema?: Record<string, unknown>;
   readonly maxRepairs?: number;
+  /** Progress lines (a long episode reports its plan and every chapter). */
+  readonly log?: (s: string) => void;
+}
+
+/**
+ * A long episode (over five minutes): written chapter by chapter (LongForm), then sources from the bank, and every
+ * chapter's fact check applied to the joined episode — a correction that would break it is reported instead.
+ */
+async function writeLongEpisode(input: ScriptEngineInput): Promise<ScriptOutcome> {
+  const draft = await writeLongScript({ brief: input.brief, catalog: input.catalog, writer: input.writer, checker: input.checker, budget: input.budget, ...(input.maxRepairs !== undefined ? { maxRepairs: input.maxRepairs } : {}), ...(input.log ? { log: input.log } : {}) });
+  const written = withBankSources(draft.episode, input.brief.kaynakBankasi);
+  const validation = validateEpisode(written);
+  if (!validation.ok) throw new ScriptError("V3_SCRIPT_INVALID", `birleşen bölümler: ${validation.errors.slice(0, 5).map((e) => `${e.path} ${e.code}`).join("; ")}`);
+  const reports = draft.factChecks.map((text) => readFactCheck(text));
+  const claims = reports.flatMap((r) => r?.iddialar ?? []);
+  const notes = reports.map((r) => r?.genel_not).filter((n): n is string => Boolean(n));
+  const fixed = applyFactCheck(written, claims);
+  const fixedValidation = validateEpisode(fixed.episode);
+  const keep = fixedValidation.ok;
+  const episode = keep ? fixed.episode : written;
+  return {
+    episode,
+    validation: keep ? fixedValidation : validation,
+    factCheck: {
+      durum: reports.some((r) => r) ? "tamam" : "okunamadi",
+      iddialar: keep ? fixed.claims : claims.map((c) => ({ ...c, sonuc: "rapor" as const })),
+      ...(notes.length ? { genel_not: notes.join(" ") } : {}),
+      uygulanan: keep ? fixed.applied : 0,
+    },
+    repairs: draft.repairs,
+    lengthRounds: draft.lengthRounds,
+    spokenWords: spokenWords(episode),
+    targetWords: wordBudget(input.brief),
+    writerUsed: draft.writerUsed,
+  };
 }
 
 export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutcome> {
+  if (isLongForm(input.brief)) return writeLongEpisode(input);
   const { brief, budget } = input;
   const opts = { maxTokens: writerMaxTokens(brief), ...(input.jsonSchema ? { jsonSchema: input.jsonSchema } : {}) };
   const first = await budget.generate("senaryo", input.writer, writingPrompt(brief, input.catalog), opts);

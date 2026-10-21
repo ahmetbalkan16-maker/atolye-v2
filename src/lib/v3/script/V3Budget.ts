@@ -39,6 +39,16 @@ export class V3BudgetError extends Error {
 /** Turkish tokenises denser than English; inflate the char count before the price table's chars/4 rule. */
 const TURKISH_CHAR_FACTOR = 1.4;
 
+/** Videos longer than this are long form: written chapter by chapter, with their own spending cap. */
+export const LONG_FORM_MIN_S = 300;
+/** Owner, 21 Oct 2026: a 15–20 minute video may spend up to $4 on OpenAI (a short one stays at the policy's $1). */
+export const LONG_FORM_CAP_USD = 4;
+
+/** The paid-call ceiling of a whole video of `seconds` (script, costumes, YouTube package together). */
+export function videoCapUsd(seconds: number): number {
+  return seconds > LONG_FORM_MIN_S ? LONG_FORM_CAP_USD : PRODUCTION_COST_POLICY.technicalCeilingUsd;
+}
+
 export interface V3BudgetOptions {
   readonly capUsd?: number;
   /** Providers by name; tests inject fakes. */

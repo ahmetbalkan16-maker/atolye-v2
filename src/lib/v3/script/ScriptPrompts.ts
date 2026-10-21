@@ -225,6 +225,15 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
     "oklar": [{"noktalar": [[lon, lat], [lon, lat], …], "renk": "#…", "etiket": "Caesar", "satir": 2}]}
   Real coordinates; outlines may be rough (they are clipped to the real coast). "satir" = the line of the scene that
   mentions it, so it appears then. A map scene is mostly narrator lines; characters may stand on it for a quip.
+  MAP NARRATION (drawn on a terrain relief map, like the history-with-maps channels): tell geography, politics and war on
+  ONE map that follows the story instead of cutting away —
+    "kamera": [{"satir": 2, "merkez": [lon, lat], "genislik_km": 900–6000}]   // the camera glides there with that line
+    "rozetler": [{"karakter": "<visible cast id>", "konum": [lon, lat], "satir": 1, "yol": [[lon, lat], …]}]   // a ruler's
+        portrait pin at his capital or army; "yol" = the route he then travels (a campaign)
+    "savaslar": [{"ad": "Battle of Bapheus", "konum": [lon, lat], "satir": 3}]   // crossed swords where a battle happens
+    "bitis_satir" on a territory: the line it disappears with — give the new, larger or smaller outline from that same line,
+        so a border visibly grows or shrinks.
+  Keep "genislik_km" at 800 or more on maps (closer, the terrain turns blurry); 1500–4000 suits a country or a war.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,
