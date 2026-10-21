@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import type { V3Emotion } from "../render/RenderPlanTypes";
-import { unloadOllama, waitForCoolGpu } from "../util/Gpu";
+import { GPU_PAUSE_C, GPU_START_C, unloadOllama, waitForCoolGpu } from "../util/Gpu";
 import { runChecked } from "../util/Proc";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
@@ -182,17 +182,17 @@ class VoxcpmEngine implements TtsEngine {
       label: "VoxCPM2",
       cwd: this.paths.voxcpmRoot,
       startTimeoutMs: 15 * 60_000,
-      // A line may pause inside for the card to cool (the server waits at 70 °C until below 68).
+      // A line may pause inside for the card to cool (the server rests at GPU_PAUSE_C until below GPU_START_C).
       requestTimeoutMs: 15 * 60_000,
       log: this.log,
     });
     // Lines come back to back in short bursts (the comparison reached 75 °C waiting at 73; Rome 73 °C starting at 70):
     // start only below GPU_START_C (the server rests inside a line with the same pause/start pair).
     await waitForCoolGpu(this.log);
-    const r = await this.server.request(body).catch((e: Error) => {
+    const r = await this.server.request({ ...body, max_temp: GPU_PAUSE_C, resume_below: GPU_START_C }).catch((e: Error) => {
       throw new TtsError("V3_VOXCPM_UNAVAILABLE", e.message.slice(0, 200));
     });
-    if (Number(r.cooled_seconds) > 0) this.log(`  VoxCPM2 satır içinde ${Number(r.cooled_seconds)} sn kartın soğumasını bekledi (70 °C)`);
+    if (Number(r.cooled_seconds) > 0) this.log(`  VoxCPM2 satır içinde ${Number(r.cooled_seconds)} sn kartın soğumasını bekledi (${GPU_PAUSE_C} °C)`);
     return r;
   }
 

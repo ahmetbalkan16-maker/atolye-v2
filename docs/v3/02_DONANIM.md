@@ -8,7 +8,7 @@
 | İşlemci | Intel Core i9-13900 — 24 çekirdek / 32 iş parçacığı |
 | RAM | 32 GB |
 | GPU | **NVIDIA RTX A2000 12 GB** (sürücü 596.71) + Intel UHD 770 |
-| GPU durumu | boşta 578 MiB kullanım, 62 °C; owner kuralı: **73 °C üstünde GPU işi başlatılmaz** |
+| GPU durumu | boşta 578 MiB kullanım, 62 °C; owner kuralı: **ortak durma 85 °C** (21 Ekim 2026; önce 73) — iş 78 altında başlar, adım adım işler 82'de dinlenir; kartın kendi sınırları hedef 88, en çok 95 °C |
 | Disk | C: 261 GB boş; **D: 718 GB boş** (tüm v3 araç/çıktı D'de) |
 
 ## Yazılım

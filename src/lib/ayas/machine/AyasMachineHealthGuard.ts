@@ -35,7 +35,7 @@ export class AyasMachineHealthBlockedError extends Error {
 export async function assertAyasHeavyWorkloadAllowed(workload: AyasMachineWorkload): Promise<AyasMachineHealthDecision> {
   const decision = await guardAyasHeavyWorkload(workload);
   if (!decision.mayStart) throw new AyasMachineHealthBlockedError(decision);
-  // The owner's 73 °C GPU hard stop: a new stage waits for a hot card to cool; the re-check right before the stage
+  // The owner's shared GPU hard stop (85 °C since 2026-10-21): a new stage waits for a hot card to cool; the re-check right before the stage
   // handler only reads.
   const thermal = await awaitAyasGpuThermalHeadroom({ wait: !workload.ownedActive });
   if (thermal.tripped) {

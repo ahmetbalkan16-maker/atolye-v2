@@ -8,8 +8,8 @@ Loads the installed SDXL weights once (diffusers layout, fp16), then reads one J
 
 The model folder is checked against its manifest (file names and sizes) before loading; nothing is downloaded
 (HF offline). `pace` sleeps between denoising steps, and after every step the card rests while it is at or above
-`max_temp` (default 70 °C) until it is below `resume_below` (68): a drawing takes longer, the card never reaches the
-owner's 73 °C limit. The Node caller also waits for a cool GPU (below 68) before each image. License: CreativeML Open RAIL++-M.
+`max_temp` (default 82 °C) until it is below `resume_below` (78): a drawing takes longer, the card never reaches the
+owner's shared stop (85 °C). The Node caller also waits for a cool GPU before each image. License: CreativeML Open RAIL++-M.
 """
 import json
 import os
@@ -29,8 +29,8 @@ def gpu_temperature():
 
 
 def cool_down(limit, resume=None, max_wait_s=600):
-    """Owner rule, also DURING a drawing (no GPU work at 73 °C): at or above `limit` (70) the card rests between
-    steps until it is below `resume` (68)."""
+    """Owner rule, also DURING a drawing (no GPU work at the 85 °C stop): at or above `limit` (82) the card
+    rests between steps until it is below `resume` (78)."""
     deadline = time.monotonic() + max_wait_s
     t = gpu_temperature()
     if t is None or t < limit:
@@ -83,8 +83,8 @@ def main():
             t0 = time.monotonic()
             torch.cuda.reset_peak_memory_stats()
             pace = float(req.get("pace", 0.2))
-            max_temp = int(req.get("max_temp", 70))
-            resume_below = int(req.get("resume_below", 68))
+            max_temp = int(req.get("max_temp", 82))
+            resume_below = int(req.get("resume_below", 78))
 
             def pace_step(_pipe, _step, _t, kwargs):
                 torch.cuda.synchronize()

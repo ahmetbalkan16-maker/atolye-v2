@@ -8,10 +8,10 @@ Loads `<ATOLYE_V3_VOXCPM_ROOT>/checkpoints/VoxCPM2` once, then reads one JSON re
 
 "design" makes a voice from its description (VoxCPM2 voice design); "clone" reads a line in the timbre of the
 reference clip with the style instruction in parentheses (controllable cloning). Nothing is downloaded (HF
-offline); the Node caller waits for a cool GPU (68 °C) before every request, and inside a line the generation pauses
-at 70 °C until the card is below 68, checked every second (owner rule: no GPU work at 73 °C; on 21 Oct 2026 a long
-line reached 74 °C with no check inside, and 73 °C with a check every 2 s at 72 — the card heats ~1 °C/s and keeps
-rising for a moment after the work stops). License: Apache-2.0 (VoxCPM2).
+offline); the Node caller waits for a cool GPU before every request, and inside a line the generation pauses at
+`max_temp` until the card is below `resume_below`, checked every second (owner rule: no GPU work at the shared stop;
+on 21 Oct 2026, stop 73, a long line reached 74 °C with no check inside and 73 with a check every 2 s at 72 — the card
+heats up to 2 °C/s and keeps rising for a moment after the work stops). License: Apache-2.0 (VoxCPM2).
 """
 import json
 import os
@@ -20,8 +20,9 @@ import sys
 import time
 from pathlib import Path
 
-PAUSE_AT_C = 70
-RESUME_BELOW_C = 68
+# Defaults when a request names none: the Node caller sends GPU_PAUSE_C / GPU_START_C (stop 85 → 82 / 78).
+PAUSE_AT_C = 82
+RESUME_BELOW_C = 78
 CHECK_EVERY_S = 1.0
 
 
@@ -35,20 +36,22 @@ def gpu_temperature():
 
 class Cooling:
     """A pre-hook on the model's per-step decoder: every few seconds of generation it reads the GPU temperature and,
-    at PAUSE_AT_C, waits (no new GPU work) until the card is below RESUME_BELOW_C, at most 10 minutes per pause."""
+    at `pause`, waits (no new GPU work) until the card is below `resume`, at most 10 minutes per pause."""
 
     def __init__(self):
         self.last = 0.0
         self.paused_s = 0.0
+        self.pause = PAUSE_AT_C
+        self.resume = RESUME_BELOW_C
 
     def __call__(self, _module, _args):
         now = time.monotonic()
         if now - self.last < CHECK_EVERY_S:
             return
         t = gpu_temperature()
-        if t is not None and t >= PAUSE_AT_C:
+        if t is not None and t >= self.pause:
             deadline = now + 600
-            while t is not None and t >= RESUME_BELOW_C and time.monotonic() < deadline:
+            while t is not None and t >= self.resume and time.monotonic() < deadline:
                 time.sleep(3)
                 t = gpu_temperature()
             self.paused_s += time.monotonic() - now
@@ -99,6 +102,8 @@ def main():
                 break
             t0 = time.monotonic()
             cooling.paused_s = 0.0
+            cooling.pause = int(req.get("max_temp", PAUSE_AT_C))
+            cooling.resume = int(req.get("resume_below", RESUME_BELOW_C))
             # voxcpm 2.0.3 takes no seed argument: the seed is set before the call (same request, same voice).
             torch.manual_seed(int(req.get("seed", 0)))
             args = {"text": str(req["text"]), "cfg_value": 2.0, "inference_timesteps": 10}

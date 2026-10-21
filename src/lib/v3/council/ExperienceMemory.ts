@@ -116,7 +116,7 @@ export const MIN_COSINE = 0.62;
 
 /**
  * The local embedding model through Ollama, on the CPU (`num_gpu: 0`): it never takes the vision judge's place on the
- * 12 GB card and is no GPU call under the owner's 73 °C rule. `ATOLYE_V3_EMBED_MODEL=0` turns it off.
+ * 12 GB card and is no GPU call under the owner's GPU temperature rule. `ATOLYE_V3_EMBED_MODEL=0` turns it off.
  */
 export function ollamaEmbedder(baseUrl: string, model = process.env.ATOLYE_V3_EMBED_MODEL?.trim() || EMBED_MODEL_DEFAULT): Embedder | undefined {
   if (/^(0|kapali|off)$/i.test(model)) return undefined;

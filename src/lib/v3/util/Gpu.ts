@@ -1,4 +1,5 @@
 import type { AIProvider } from "../../ai/providers/AIProvider";
+import { A2000_GPU_HARD_STOP_C } from "../../brain/probe/GpuThermalPolicy";
 import { runChecked, runProcess } from "./Proc";
 
 /**
@@ -41,14 +42,14 @@ export async function gpuTemperature(): Promise<number | undefined> {
 }
 
 /**
- * Owner rule: no GPU work at 73 °C. The card heats about 1 °C a second under load and keeps rising a moment after the
- * work stops (21 Oct 2026: a VoxCPM line started at 70 °C reached 74, a vision call started just under 73 reached 73),
- * so work starts below GPU_START_C, and work that can rest between its steps (SDXL, MOSS, VoxCPM) rests at GPU_PAUSE_C
- * until the card is below GPU_START_C again. Measured with both: 71 °C at most.
+ * Owner rule: no GPU work at the shared A2000 stop (GpuThermalPolicy; 85 °C since 21 Oct 2026, 73 before). The card
+ * heats up to 2 °C a second under load and keeps rising a moment after the work stops (21 Oct 2026, stop 73: a VoxCPM
+ * line started at 70 °C reached 74, a 4 s vision call started at 65 reached 72), so work starts below GPU_START_C, and
+ * work that can rest between its steps (SDXL, MOSS, VoxCPM) rests at GPU_PAUSE_C until the card is below GPU_START_C.
  */
-export const GPU_LIMIT_C = 73;
-export const GPU_PAUSE_C = 70;
-export const GPU_START_C = 68;
+export const GPU_LIMIT_C = A2000_GPU_HARD_STOP_C;
+export const GPU_PAUSE_C = GPU_LIMIT_C - 3;
+export const GPU_START_C = GPU_LIMIT_C - 7;
 
 /**
  * A model on the local card (Ollama: the vision judge, the free text fallback) that keeps the owner's temperature

@@ -383,11 +383,11 @@ async function run(projectsRoot: string, prefix: string, ffmpeg: string | null, 
     const unread = async () => { throw new Error("the GPU must not be read off the A2000 profile"); };
     assert.equal((await readAyasGpuThermal({ ATOLYE_BRAIN_HARDWARE_PROFILE: "gtx-1650-4gb" } as unknown as NodeJS.ProcessEnv, unread)).tripped, false);
     assert.equal((await readAyasGpuThermal({} as unknown as NodeJS.ProcessEnv, unread)).tripped, false);
-    // On the A2000 the limit is the Brain probe's own 73 °C, and an unreadable card does not hold.
+    // On the A2000 the limit is the Brain probe's own shared stop (85 °C since 2026-10-21), and an unreadable card does not hold.
     const a2000 = { ATOLYE_BRAIN_HARDWARE_PROFILE: "rtx-a2000-12gb" } as unknown as NodeJS.ProcessEnv;
-    assert.equal((await readAyasGpuThermal(a2000, async () => 73)).tripped, true);
-    assert.equal((await readAyasGpuThermal(a2000, async () => 74)).tripped, true);
-    assert.equal((await readAyasGpuThermal(a2000, async () => 72.9)).tripped, false);
+    assert.equal((await readAyasGpuThermal(a2000, async () => 85)).tripped, true);
+    assert.equal((await readAyasGpuThermal(a2000, async () => 86)).tripped, true);
+    assert.equal((await readAyasGpuThermal(a2000, async () => 84.9)).tripped, false);
     assert.equal((await readAyasGpuThermal(a2000, async () => 60)).tripped, false);
     assert.equal((await readAyasGpuThermal(a2000, async () => undefined)).tripped, false);
     assert.equal(AYAS_A2000_GPU_HARD_STOP_C, BRAIN_A2000_GPU_HARD_STOP_C, "mirrors the Brain probe limit");

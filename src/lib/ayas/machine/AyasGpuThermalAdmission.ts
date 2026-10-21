@@ -2,7 +2,7 @@ import { readAyasGpuTemperatureC } from "./AyasMachineTelemetry";
 import { A2000_GPU_HARD_STOP_C } from "../../brain/probe/GpuThermalPolicy";
 
 /**
- * The owner's GPU hard stop (73 °C on the RTX A2000) at the door of every Atölye production stage.
+ * The owner's GPU hard stop (GpuThermalPolicy, 85 °C on the RTX A2000 since 2026-10-21) at the door of every Atölye production stage.
  *
  * It is the same rule the Brain worker and speech-to-text already obey (`evaluateBrainResourceHardStop` in
  * `src/lib/brain/probe/BrainResourceProbe.ts`): on the configured A2000 profile a measured temperature at or over the
