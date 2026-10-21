@@ -335,11 +335,13 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
           const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } });
           const extra: V3Extra = { castId: b.castId, x: 0, depth: 0, facing: progress > 0 && progress < 1 && b.path.length > 1 && b.path[b.path.length - 1]!.x < b.path[0]!.x ? "left" : "right", scale: 1, mood: "notr", seed: i * 97 + 13 };
           if (relief) {
-            // The reference maps' badge: a portrait in a parchment ring with the name on a scroll across its foot, a
-            // short point down to the place (about 110 px, so it covers less of the map than the cartoon pin).
+            // The reference maps' badge: a portrait in a parchment ring, the name on a scroll under it touching only the
+            // ring's rim (owner, 21 Oct 2026: a scroll across the ring's lower half covered the face), a short point
+            // down to the place (about 130 px).
             const r = 44 * k;
             const s = (r * 0.62) / 100;
-            const cy = -(r + 16 * k);
+            const scrollY = -27 * k;
+            const cy = scrollY - r - 11 * k;
             const sw = (b.label.length * 11.5 + 34) * k;
             const trail = progress > 0 && b.path.length > 1 ? partialPath(b.path, progress) : undefined;
             return (
@@ -352,7 +354,7 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
                     </clipPath>
                   </defs>
                   <g style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
-                    <path d={`M${-10 * k} ${cy + r - 2 * k} L0 0 L${10 * k} ${cy + r - 2 * k} Z`} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2.5 * k} strokeLinejoin="round" />
+                    <path d={`M${-10 * k} ${scrollY} L0 0 L${10 * k} ${scrollY} Z`} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2.5 * k} strokeLinejoin="round" />
                     <circle cy={cy} r={r + 5 * k} fill={PARCHMENT} stroke={SEPIA} strokeWidth={3 * k} />
                   </g>
                   <circle cy={cy} r={r} fill="#d9c9a3" />
@@ -363,7 +365,7 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
                       </g>
                     </g>
                   ) : null}
-                  <g transform={`translate(0 ${cy + r * 0.74})`}>
+                  <g transform={`translate(0 ${scrollY})`}>
                     <path d={`M${-sw / 2 - 12 * k} ${-9 * k} L${-sw / 2 + 4 * k} ${-9 * k} L${-sw / 2 + 4 * k} ${15 * k} L${-sw / 2 - 12 * k} ${15 * k} L${-sw / 2 - 6 * k} ${3 * k} Z M${sw / 2 + 12 * k} ${-9 * k} L${sw / 2 - 4 * k} ${-9 * k} L${sw / 2 - 4 * k} ${15 * k} L${sw / 2 + 12 * k} ${15 * k} L${sw / 2 + 6 * k} ${3 * k} Z`} fill="#c9a46a" stroke={SEPIA} strokeWidth={2 * k} strokeLinejoin="round" />
                     <rect x={-sw / 2} y={-15 * k} width={sw} height={28 * k} rx={4 * k} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2 * k} />
                     <text x={0} y={6 * k} textAnchor="middle" style={{ font: `italic 700 ${20 * k}px Georgia, 'Times New Roman', serif` }} fill="#3a2410">

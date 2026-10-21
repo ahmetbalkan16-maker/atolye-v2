@@ -320,8 +320,8 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
   });
   const marks: Rect[] = [
     ...cityMarks,
-    // A badge: the portrait with its name scroll stands up to 120 px above its place (MapView, relief map).
-    ...(m.badges ?? []).flatMap((b) => (b.path[0] ? [{ x0: b.path[0].x - 75 * px, y0: b.path[0].y - 125 * px, x1: b.path[0].x + 75 * px, y1: b.path[0].y + 6 * px }] : [])),
+    // A badge: the portrait with its name scroll under it stands up to 131 px above its place (MapView, relief map).
+    ...(m.badges ?? []).flatMap((b) => (b.path[0] ? [{ x0: b.path[0].x - 75 * px, y0: b.path[0].y - 140 * px, x1: b.path[0].x + 75 * px, y1: b.path[0].y + 6 * px }] : [])),
     ...(m.battles ?? []).map((b) => ({ x0: b.x - (40 + b.label.length * 8) * px, y0: b.y - 92 * px, x1: b.x + (40 + b.label.length * 8) * px, y1: b.y + 50 * px })),
     ...arrows.flatMap((ar) => (ar.label && ar.labelX !== undefined && ar.labelY !== undefined ? [arrowRect(ar.labelX, ar.labelY, ar.label)] : [])),
   ];
