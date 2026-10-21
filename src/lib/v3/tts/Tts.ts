@@ -187,8 +187,8 @@ class VoxcpmEngine implements TtsEngine {
       log: this.log,
     });
     // Lines come back to back in short bursts (the comparison reached 75 °C waiting at 73; Rome 73 °C starting at 70):
-    // start only below 68.
-    await waitForCoolGpu(this.log, 68);
+    // start only below GPU_START_C (the server rests inside a line with the same pause/start pair).
+    await waitForCoolGpu(this.log);
     const r = await this.server.request(body).catch((e: Error) => {
       throw new TtsError("V3_VOXCPM_UNAVAILABLE", e.message.slice(0, 200));
     });

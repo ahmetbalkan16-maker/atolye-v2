@@ -41,8 +41,19 @@ export async function gpuTemperature(): Promise<number | undefined> {
 }
 
 /**
+ * Owner rule: no GPU work at 73 °C. The card heats about 1 °C a second under load and keeps rising a moment after the
+ * work stops (21 Oct 2026: a VoxCPM line started at 70 °C reached 74, a vision call started just under 73 reached 73),
+ * so work starts below GPU_START_C, and work that can rest between its steps (SDXL, MOSS, VoxCPM) rests at GPU_PAUSE_C
+ * until the card is below GPU_START_C again. Measured with both: 71 °C at most.
+ */
+export const GPU_LIMIT_C = 73;
+export const GPU_PAUSE_C = 70;
+export const GPU_START_C = 68;
+
+/**
  * A model on the local card (Ollama: the vision judge, the free text fallback) that keeps the owner's temperature
- * rule on every call: a production may take longer, the PC is never pushed past the limit.
+ * rule on every call: a production may take longer, the PC is never pushed past the limit. A call cannot rest inside,
+ * so it starts only below GPU_START_C.
  */
 export function coolGpuProvider(provider: AIProvider, log: (s: string) => void = () => {}): AIProvider {
   return {
@@ -53,8 +64,8 @@ export function coolGpuProvider(provider: AIProvider, log: (s: string) => void =
   };
 }
 
-/** Owner rule: no GPU work at or above 73 °C; wait in 15 s steps for up to 10 minutes, then refuse. */
-export async function waitForCoolGpu(log: (s: string) => void, limit = 73, maxWaitMs = 10 * 60_000): Promise<void> {
+/** Waits until the card is below `limit` (GPU_START_C) before GPU work, in 15 s steps for up to 10 minutes, then refuses. */
+export async function waitForCoolGpu(log: (s: string) => void, limit = GPU_START_C, maxWaitMs = 10 * 60_000): Promise<void> {
   const deadline = Date.now() + maxWaitMs;
   for (;;) {
     const t = await gpuTemperature();

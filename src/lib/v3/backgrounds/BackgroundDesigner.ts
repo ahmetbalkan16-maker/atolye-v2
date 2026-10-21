@@ -4,7 +4,7 @@ import path from "node:path";
 import type { Episode, EpisodeScene } from "../episode/EpisodeTypes";
 import { sideProcessEnv } from "../tts/Tts";
 import { periodEndYear } from "./HistorySources";
-import { freeGpuMemory, waitForCoolGpu } from "../util/Gpu";
+import { freeGpuMemory, GPU_PAUSE_C, GPU_START_C, waitForCoolGpu } from "../util/Gpu";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
 
@@ -105,7 +105,7 @@ export class BackgroundDesigner {
     }
     await waitForCoolGpu(this.log);
     const tmp = path.join(this.paths.asciiTemp, `set-${path.basename(file)}`);
-    const r = await this.server.request({ prompt: design.prompt, prompt_2: design.prompt2, negative: design.negative, seed, out: tmp, steps: 30, width: 1344, height: 768, final_width: 1920, final_height: 1080, pace: 0.2, max_temp: 73 });
+    const r = await this.server.request({ prompt: design.prompt, prompt_2: design.prompt2, negative: design.negative, seed, out: tmp, steps: 30, width: 1344, height: 768, final_width: 1920, final_height: 1080, pace: 0.2, max_temp: GPU_PAUSE_C, resume_below: GPU_START_C });
     if (!r.ok) throw new Error(`V3_SDXL_FAILED: ${r.error ?? "bilinmeyen hata"}`);
     // Append-only: copy, never overwrite (another run may have drawn the same design meanwhile).
     if (!existsSync(file)) await fs.copyFile(tmp, file);

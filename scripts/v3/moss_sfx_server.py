@@ -4,11 +4,11 @@ Loads `<ATOLYE_V3_MOSS_ROOT>/checkpoints/MOSS-SoundEffect-v2.0` once. The 12 GB 
 bf16 (DiT 5.7 GB + Qwen3 text encoder 4.1 GB + DAC VAE 1.5 GB), so the text encoder stays on the CPU in float32 (one
 pass per prompt) and only the DiT and the VAE go to the card. Then reads one JSON request per stdin line:
 
-  {"id": "...", "prompt": "...", "seconds": 3.0, "seed": 1234, "out": "<wav>", "max_temp": 73}
+  {"id": "...", "prompt": "...", "seconds": 3.0, "seed": 1234, "out": "<wav>", "max_temp": 70, "resume_below": 68}
   -> {"id": "...", "ok": true, "seconds": 18.2, "peak_vram_gb": 7.6}
 
-Nothing is downloaded (HF offline); torch.compile is off (no Triton on Windows). Before every sound the card rests
-while it is at or above `max_temp` (73 °C, the owner's limit). License: Apache-2.0 (MOSS-SoundEffect v2).
+Nothing is downloaded (HF offline); torch.compile is off (no Triton on Windows). Before every sound and every second of
+it the card rests at `max_temp` (70 °C) until below `resume_below` (68) — never at the owner's 73 °C limit. License: Apache-2.0 (MOSS-SoundEffect v2).
 """
 import gc
 import json
@@ -27,10 +27,14 @@ def gpu_temperature():
         return None
 
 
-def cool_down(limit, max_wait_s=600):
+def cool_down(limit, resume=None, max_wait_s=600):
+    """Owner rule (no GPU work at 73 °C): at or above `limit` (70) the card rests until it is below `resume` (68)."""
     deadline = time.monotonic() + max_wait_s
     t = gpu_temperature()
-    while t is not None and t >= limit and time.monotonic() < deadline:
+    if t is None or t < limit:
+        return
+    floor = limit if resume is None else resume
+    while t is not None and t >= floor and time.monotonic() < deadline:
         time.sleep(3)
         t = gpu_temperature()
 
@@ -99,15 +103,18 @@ def main():
             req = json.loads(raw)
             if req.get("cmd") == "quit":
                 break
-            limit = int(req.get("max_temp", 73))
-            cool_down(limit)
+            limit = int(req.get("max_temp", 70))
+            resume = int(req.get("resume_below", 68))
+            cool_down(limit, resume)
 
             def cooling_steps(iterable, **_):
-                # Owner rule DURING a sound too (the first test reached 76 °C over 60 steps): every third step the card
-                # rests while it is at or above the limit.
-                for i, item in enumerate(iterable):
-                    if i % 3 == 0:
-                        cool_down(limit)
+                # Owner rule DURING a sound too (the first test reached 76 °C over 60 steps): every second of work the
+                # card rests while it is at or above the limit (every third step let it reach 73 between checks).
+                last = 0.0
+                for item in iterable:
+                    if time.monotonic() - last >= 1.0:
+                        cool_down(limit, resume)
+                        last = time.monotonic()
                     yield item
 
             t0 = time.monotonic()

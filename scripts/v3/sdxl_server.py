@@ -8,8 +8,8 @@ Loads the installed SDXL weights once (diffusers layout, fp16), then reads one J
 
 The model folder is checked against its manifest (file names and sizes) before loading; nothing is downloaded
 (HF offline). `pace` sleeps between denoising steps, and after every step the card rests while it is at or above
-`max_temp` (default 73 °C, the owner's limit): a drawing takes longer, the card never runs hot. The Node caller also
-waits for a cool GPU before each image. License: CreativeML Open RAIL++-M.
+`max_temp` (default 70 °C) until it is below `resume_below` (68): a drawing takes longer, the card never reaches the
+owner's 73 °C limit. The Node caller also waits for a cool GPU (below 68) before each image. License: CreativeML Open RAIL++-M.
 """
 import json
 import os
@@ -28,11 +28,15 @@ def gpu_temperature():
         return None
 
 
-def cool_down(limit, max_wait_s=600):
-    """Owner rule, also DURING a drawing: at or above the limit the card rests between steps until it is cooler."""
+def cool_down(limit, resume=None, max_wait_s=600):
+    """Owner rule, also DURING a drawing (no GPU work at 73 °C): at or above `limit` (70) the card rests between
+    steps until it is below `resume` (68)."""
     deadline = time.monotonic() + max_wait_s
     t = gpu_temperature()
-    while t is not None and t >= limit and time.monotonic() < deadline:
+    if t is None or t < limit:
+        return
+    floor = limit if resume is None else resume
+    while t is not None and t >= floor and time.monotonic() < deadline:
         time.sleep(3)
         t = gpu_temperature()
 
@@ -79,12 +83,13 @@ def main():
             t0 = time.monotonic()
             torch.cuda.reset_peak_memory_stats()
             pace = float(req.get("pace", 0.2))
-            max_temp = int(req.get("max_temp", 73))
+            max_temp = int(req.get("max_temp", 70))
+            resume_below = int(req.get("resume_below", 68))
 
             def pace_step(_pipe, _step, _t, kwargs):
                 torch.cuda.synchronize()
                 time.sleep(pace)
-                cool_down(max_temp)
+                cool_down(max_temp, resume_below)
                 return kwargs
 
             image = pipe(

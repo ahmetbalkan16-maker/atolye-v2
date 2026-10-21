@@ -3,11 +3,11 @@
 Loads the ACE-Step 1.5 turbo DiT once from `<ATOLYE_V3_ACESTEP_ROOT>/checkpoints` (no language model: instrumental
 beds need no lyrics planning), then reads one JSON request per stdin line:
 
-  {"id": "...", "caption": "...", "duration": 32, "seed": 1234, "out": "<wav>", "max_temp": 73}
+  {"id": "...", "caption": "...", "duration": 32, "seed": 1234, "out": "<wav>", "max_temp": 70, "resume_below": 68}
   -> {"id": "...", "ok": true, "seconds": 41.2, "peak_vram_gb": 7.1}
 
-Nothing is downloaded (HF offline). Before every piece the card rests while it is at or above `max_temp` (default
-73 °C, the owner's limit); the Node caller waits for a cool GPU too. License: MIT (ACE-Step 1.5).
+Nothing is downloaded (HF offline). Before every piece the card rests at `max_temp` (default 70 °C) until below
+`resume_below` (68) — never at the owner's 73 °C limit; the Node caller waits for a cool GPU too. License: MIT (ACE-Step 1.5).
 """
 import json
 import os
@@ -28,10 +28,14 @@ def gpu_temperature():
         return None
 
 
-def cool_down(limit, max_wait_s=600):
+def cool_down(limit, resume=None, max_wait_s=600):
+    """Owner rule (no GPU work at 73 °C): at or above `limit` (70) the card rests until it is below `resume` (68)."""
     deadline = time.monotonic() + max_wait_s
     t = gpu_temperature()
-    while t is not None and t >= limit and time.monotonic() < deadline:
+    if t is None or t < limit:
+        return
+    floor = limit if resume is None else resume
+    while t is not None and t >= floor and time.monotonic() < deadline:
         time.sleep(3)
         t = gpu_temperature()
 
@@ -80,7 +84,7 @@ def main():
             req = json.loads(raw)
             if req.get("cmd") == "quit":
                 break
-            cool_down(int(req.get("max_temp", 73)))
+            cool_down(int(req.get("max_temp", 70)), int(req.get("resume_below", 68)))
             t0 = time.monotonic()
             torch.cuda.reset_peak_memory_stats()
             params = GenerationParams(caption=str(req["caption"]), lyrics="", instrumental=True, duration=float(req["duration"]), thinking=False, use_cot_metas=False, use_cot_caption=False, use_cot_language=False)

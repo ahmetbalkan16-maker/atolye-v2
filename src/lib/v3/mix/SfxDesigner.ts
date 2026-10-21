@@ -5,7 +5,7 @@ import { periodEndYear } from "../backgrounds/HistorySources";
 import type { Episode, EpisodeScene, SfxId } from "../episode/EpisodeTypes";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { sideProcessEnv } from "../tts/Tts";
-import { unloadOllama, waitForCoolGpu } from "../util/Gpu";
+import { GPU_PAUSE_C, GPU_START_C, unloadOllama, waitForCoolGpu } from "../util/Gpu";
 import { runChecked } from "../util/Proc";
 import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
@@ -181,7 +181,7 @@ export class SfxDesigner {
     try {
       // The model works on a fixed window (30 s by default); a 3 s effect gets a window just longer than itself (less
       // heat and time).
-      r = await this.server.request({ prompt: req.prompt, seconds: req.seconds, seed: req.seed, out: raw, max_temp: 73, window: Math.min(30, Math.max(4, Math.ceil(req.seconds) + 1)) });
+      r = await this.server.request({ prompt: req.prompt, seconds: req.seconds, seed: req.seed, out: raw, max_temp: GPU_PAUSE_C, resume_below: GPU_START_C, window: Math.min(30, Math.max(4, Math.ceil(req.seconds) + 1)) });
     } catch (e) {
       this.broken = `efektçi başlatılamadı: ${(e as Error).message.slice(0, 160)}`;
       await this.close();
