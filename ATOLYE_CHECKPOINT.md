@@ -1,3 +1,19 @@
+## 21 Ekim 2026 (gece) — V3 harita sistemi hazır: Pasifik, Wikipedia konum denetimi, harita + çöp adam birleşimi
+
+**Owner:** çizilemeyenleri hallet, sistem hazır olsun; canlıya alındı mı; beyinler kendi başına yapabiliyor mu; şehir içi
+anlatım çöp adam, ülkeler arası harita — konuya göre birleşsin.
+
+**Yapılan:** 180. boylamı geçen haritalar; `PlaceCheck.ts` (Wikipedia koordinatlarıyla şehir/savaş denetimi, bağlı
+noktalar birlikte taşınır, erişilemezse raporlanır); sahne türü kuralı (yazar istemi, bölüm planı, owner kuralı,
+`MapRules.ts` onarım isteği — ölümcül değil); `--yalniz-senaryo`; haritadaki karakter işaretlerden uzak durur; pusula/ölçek
+ekrana sabit. Beyinlerin Claude'suz denemesi (Moğol seferleri): kurallardan sonra 2 canlı harita + 5 karakter sahnesi,
+konumlar doğru, 0,32 $. Ayrıntı: `docs/v3/FAZ_RAPORLARI.md` → "Sistem hazır".
+
+**Doğrulama:** 11 smoke PASS (episode-director 23, script 19), tsc 0 (kök + remotion), eslint 0; 4 harita render incelendi.
+
+**Durum:** canlıya ALINMADI (canlı `34f3c941`); owner'dan "evet" bekleniyor: ff → ana repo pull → otomatik canlı yayın →
+Graphify. Harita verileri (`admin1-q.json`, deniz adları) ortak araç klasöründe, canlı da görür.
+
 ## 21 Ekim 2026 (akşam) — V3 harita: gerçekçi il sınırları, atlas görünümü, dünya geneli
 
 **Owner:** "sınırlar düz değil daha gerçekçi olsun"; örnek atlas haritası; rozette isim yüzü kapatmasın; ülke adları

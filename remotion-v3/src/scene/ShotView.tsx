@@ -7,7 +7,7 @@ import { extraState } from "../character/extras";
 import { headCenter, performerState, turnStretch } from "../character/motion";
 import { easeInOut, HEAD_R, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
-import { MapView } from "./MapView";
+import { AtlasCorner, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
@@ -200,6 +200,13 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
             const a = anchorOf(t.castId);
             return a ? <NameTag key={`n-${i}`} tag={t} anchor={a} language={language} /> : null;
           })}
+      {/* The relief map's compass and km scale stay fixed on the screen (inside the cameras they drifted to the edge); the
+          scale counts every zoom the map is seen through: its own camera, the shot camera and the slow push. */}
+      {shot.geoMap?.relief && shot.geoMap.kmPerPx ? (
+        <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
+          <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom)} height={H} />
+        </svg>
+      ) : null}
       {shot.titleCards.map((c, i) => (
         <TitleCard key={i} card={c} />
       ))}

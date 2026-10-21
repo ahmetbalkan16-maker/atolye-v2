@@ -216,6 +216,18 @@ SCREEN TEXT — there are NO subtitles. The only words on screen are title cards
 - A "kelime" title card (one big word on black, e.g. "CRISIS", "BETRAYAL", "WRONG") two to four times per episode for an
   emphasis beat or a punchline.
 
+SCENE KIND BY SCALE — choose each scene's kind by the scale of what it tells (the studio's two ways of telling, combined):
+  - In ONE place (a city, a palace, a camp, a council, a street, a battle seen up close, a conversation): a CHARACTER
+    scene — the cast on a set, speaking and acting.
+  - BETWEEN places (cities, countries, regions, continents: campaigns, marches, alliances, conquests, borders, trade
+    routes, migrations, who rules where): a MAP scene — the narrator over the living map; a character may pop onto it
+    for a quip.
+  Alternate them as the story moves: zoom out to the map when it travels or the balance of power changes, cut into a
+  character scene when it arrives somewhere. A topic about states and wars needs map scenes all through it; a topic in
+  one city needs a map only to show where that city is and what surrounds it. Every voyage, crossing, march or invasion
+  between places is shown on a map with its route drawn (oklar, or a rozet with "yol" + "yol_satir") before the scene
+  where it lands — never only on a beach or a ship. A scene whose "mekan" is a map has a "harita".
+
 MAPS — wherever the story moves (campaigns, borders, empires, routes) show a drawn map scene, at least one per episode:
   "harita": {"merkez": [lon, lat], "genislik_km": 150–30000,
     "bolgeler": [{"ad": "Ottoman Empire", "renk": "#3fae3a", "tarihi": {"ad": "Ottoman Empire", "yil": 1400}, "satir": 0},

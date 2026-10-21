@@ -25,7 +25,7 @@ import type {
   V3Transition,
   V3VisemeKey,
 } from "../render/RenderPlanTypes";
-import { buildGeoMap, type MapData, mapStageX } from "../maps/MapBuilder";
+import { buildGeoMap, type MapData, mapOnScreen, mapStageX } from "../maps/MapBuilder";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
 /** A scene's period image, cut in over the set while the narrator speaks. */
@@ -350,10 +350,11 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         })
       : undefined;
     // A lone character on a map stands where they hide the fewest names, unless the script placed them.
-    // (On a moving map the coordinates are the world's, not the frame's: the script's own placing is kept.)
-    const lone = geo && !geo.world && slots.size === 1 ? [...slots.entries()][0]! : undefined;
+    // On a moving map it is judged where the marks stand on the screen when that character first speaks.
+    const lone = geo && slots.size === 1 ? [...slots.entries()][0]! : undefined;
     if (lone && !(scene.sahne_duzeni ?? []).some((b) => b.karakter === lone[0])) {
-      const x = mapStageX(geo!, input.width, input.height);
+      const speaks = lines.find((l) => l.speaker === lone[0]);
+      const x = mapStageX(mapOnScreen(geo!, speaks ? local(speaks.start) : 0, input.width, input.height), input.width, input.height);
       slots.set(lone[0], { ...lone[1], x, facing: x < 0.5 ? "right" : "left" });
     }
 

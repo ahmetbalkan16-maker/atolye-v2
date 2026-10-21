@@ -401,3 +401,26 @@ araştırıp doğru şekilde otomatik videoya uyarlayacak".
   kare kare incelendi; Roma bölümünün haritası yeni yolla sorunsuz.
 - Açık: Pasifik'i ortalayan haritalar (180. boylamı geçen dünya) desteklenmiyor; yazarın verdiği şehir/savaş
   koordinatları henüz bağımsız bir kaynakla (Wikipedia koordinatları) denetlenmiyor — sıradaki öneri.
+
+### Sistem hazır: Pasifik haritaları, konum denetimi, harita + çöp adam birleşimi (21 Ekim, gece)
+
+Owner: "çizilemeyenleri de halledelim, sistem hazır olsun; canlıya alındı mı; beyinler kendi başına yapabiliyor mu;
+şehir içi anlatımda çöp adam, ülkeler arası konuda harita — 2 özellik konuya göre birleşsin".
+- Pasifik (180. boylam): kamera durakları ilk durağın yanında açılır (Japonya 139° → Hawaii 202°), dünya ±180'de kesilmez,
+  her şekil/nokta görünüm merkezine en yakın kopyasına taşınır (`shiftFor`, `projectNear`, `touchesRound`), kabartma
+  kesimi 180°'yi sararak okur (`relief_crop.py`). Avrupa haritalarında kayma 0. Örnek `harita-pasifik-1941.json`.
+- Konum denetimi (`src/lib/v3/maps/PlaceCheck.ts`): senaryodan sonra her şehir/savaş İngilizce Wikipedia'da koordinatlı
+  maddeyle aranır (ücretsiz); 40 km'den uzaksa taşınır, üstündeki rozet/yol/ok/ordu noktaları da; erişilemezse
+  "denetlenemedi" (asla "doğru" sayılmaz). `konumlar.json`, kurul notu; önizleme `--dogrula`. Canlı deneme: Persepolis
+  930 km, Thermopylae 227 km uzağa konmuştu → düzeltildi.
+- Sahne türü (owner kuralı): tek mekân → çöp adam sahnesi, mekânlar arası → canlı harita. Yazar istemi (SCENE KIND BY
+  SCALE), bölüm planı, owner kuralı; `src/lib/v3/script/MapRules.ts` onarım turlarında ister (harita adlı sahnede harita
+  yoksa, haritada hiçbir şey olmuyorsa, sefer/geçiş anlatılıp rota çizilmemişse) ama geçerli senaryoyu asla kaybettirmez.
+- Beyinlerin kendi başına denemesi (`--yalniz-senaryo`, Claude yok): "Mongol invasions of Japan" — ilk sürüm 1 cansız
+  harita + kumsalda anlatılan deniz geçişi; kurallarla ikinci sürüm 2 canlı harita (kamera, ok, yola çıkan rozet, 1279
+  atlas devletleri) + 5 karakter sahnesi, konumlar Wikipedia ile uyumlu, 0,32 $. Haritadaki çöp adam artık konuştuğu
+  anda ekranda rozet/ok/savaşın boş tarafında durur (`mapOnScreen`); aynı adlı şehir+savaş bir kez yazılır; pusula/ölçek
+  ekrana sabit (ShotView, ölçek bütün yakınlıkları sayar); önizleme ısmarlanmış parçaları atlar.
+- Doğrulama: episode-director 23 (yeni O5), script 19 (yeni harita kuralları), diğer V3 smoke + ayas-video-order PASS,
+  tsc 0 (kök + remotion), eslint 0; Niğbolu, Pers, Pasifik ve beyinlerin Moğol haritası render edilip incelendi.
+- Canlıya alınmadı: owner onayı bekleniyor (ff + otomatik yayın canlı uygulamayı yeniden başlatır).

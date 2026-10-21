@@ -9,10 +9,11 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
 import { reliefSize } from "../src/lib/v3/maps/Relief";
 import { isPolity, nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
 import { ADMIN_QUANT_DEG, assignUnits, dissolve } from "../src/lib/v3/maps/AdminUnits";
+import { checkMapPlaces, decidePlace, distanceKm } from "../src/lib/v3/maps/PlaceCheck";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
@@ -408,6 +409,45 @@ async function main() {
     assert.ok((t.d.match(/M/g) ?? []).length === 2, "filled with its two provinces");
     assert.deepEqual(geo.seas?.map((s) => s.label), ["EGE DENİZİ"]);
     assert.ok(geo.kmPerPx! > 0.5 && geo.kmPerPx! < 0.7, `1200 km across 1920 px: ${geo.kmPerPx}`);
+  });
+
+  await scenario("O5 places checked against Wikipedia, maps across the Pacific, a city named by its battle once", async () => {
+    // A far-off city moves to Wikipedia's place and takes the badge and route points on it along; a near one stays;
+    // a failed lookup is reported, never taken for confirmed.
+    const wiki: Record<string, { title: string; lon: number; lat: number }[]> = {
+      Persepolis: [{ title: "Persepolis", lon: 52.89, lat: 29.935 }],
+      Athens: [{ title: "Athens", lon: 23.727, lat: 37.984 }, { title: "Athens, Georgia", lon: -83.38, lat: 33.95 }],
+      "Battle of Thermopylae": [{ title: "Battle of Thermopylae", lon: 22.536, lat: 38.796 }],
+    };
+    const lookup = async (q: string) => {
+      if (q === "Sardis") throw new Error("offline");
+      return wiki[q] ?? [];
+    };
+    const map: SceneMap = {
+      merkez: [38, 35], genislik_km: 4000,
+      sehirler: [{ ad: "Persepolis", konum: [45, 35] }, { ad: "Athens", konum: [23.75, 38.0] }, { ad: "Sardis", konum: [28.04, 38.49] }],
+      savaslar: [{ ad: "Thermopylae 480 BC", konum: [24.5, 40.2] }],
+      rozetler: [{ karakter: "xerxes", konum: [45, 35], yol: [[40, 37], [45, 35]] }],
+    };
+    const r = await checkMapPlaces("s1", map, lookup);
+    assert.deepEqual(r.fixes.map((x) => [x.ad, x.to, x.kaynak]), [["Persepolis", [52.89, 29.935], "Wikipedia: Persepolis"], ["Thermopylae 480 BC", [22.536, 38.796], "Wikipedia: Battle of Thermopylae"]]);
+    assert.deepEqual(r.map.sehirler!.find((c) => c.ad === "Athens")!.konum, [23.75, 38.0], "Athens was right (and never Athens, Georgia)");
+    assert.deepEqual(r.map.rozetler![0]!.konum, [52.89, 29.935], "the badge on the old spot moved with the city");
+    assert.deepEqual(r.map.rozetler![0]!.yol, [[40, 37], [52.89, 29.935]]);
+    assert.deepEqual(r.unchecked, ["Sardis"]);
+    assert.ok(distanceKm([28.98, 41.01], [29.06, 40.19]) > 80 && distanceKm([28.98, 41.01], [29.06, 40.19]) < 100, "Istanbul–Bursa ~91 km");
+    assert.equal(decidePlace("Tokyo", [139.7, 35.7], [{ title: "Tokyo", lon: 139.69, lat: 35.69 }]), undefined, "within 40 km: kept");
+    // Japan to Hawaii: the camera crosses the Pacific (Hawaii at 202°), not the world; the world runs past 180°.
+    const pacific: SceneMap = { merkez: [172, 31], genislik_km: 8500, kamera: [{ satir: 0, merkez: [140, 37], genislik_km: 3200 }, { satir: 1, merkez: [-157.9, 21.6], genislik_km: 2000 }] };
+    const world = mapWorld(pacific, 1920, 1080);
+    assert.ok(world.bounds.west < 140 && world.bounds.east > 202 && world.bounds.east - world.bounds.west < 120, JSON.stringify(world.bounds));
+    assert.equal(shiftFor({ lon0: 172 }, -157.9), 360);
+    assert.equal(shiftFor({ lon0: 20 }, 28), 0, "a map away from 180° never shifts");
+    const sea = [[[[100, 0], [180, 0], [180, 60], [100, 60], [100, 0]]], [[[-180, 0], [-120, 0], [-120, 60], [-180, 60], [-180, 0]]]];
+    const geo = buildGeoMap({ ...pacific, sehirler: [{ ad: "Tokyo", konum: [139.69, 35.69] }, { ad: "Pearl Harbor", konum: [-157.95, 21.35] }], savaslar: [{ ad: "Pearl Harbor", konum: [-157.95, 21.35] }] }, { land: sea, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, () => 0);
+    assert.deepEqual(geo.cities.map((c) => c.label), ["Tokyo"], "Pearl Harbor is written once, by its battle");
+    assert.ok(geo.battles![0]!.x > geo.cities[0]!.x, "Hawaii is drawn east of Tokyo across the Pacific");
+    assert.ok((geo.land.match(/M/g) ?? []).length === 2 && !geo.land.includes("NaN"));
   });
 
   await scenario("P draft normaliser: narrator never visible, English garment names, made-up parts become orders", () => {

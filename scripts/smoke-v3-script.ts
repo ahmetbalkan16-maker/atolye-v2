@@ -14,6 +14,7 @@ import { articleSource, sourceId, verifyFacts } from "../src/lib/v3/research/Sou
 import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
+import { mapProblems } from "../src/lib/v3/script/MapRules";
 import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
 import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
@@ -322,6 +323,22 @@ async function main() {
     assert.equal(read.outline!.bolumler.reduce((n, b) => n + b.sure_sn, 0), 720);
     assert.ok(readOutline({ ...outline, bolumler: [] }, { hedefSureSn: 720 }).problems.some((p) => p.includes("4–14 chapters")));
     assert.ok(prefixScenes([{ id: "s1" }, { id: "b2-x-s2" }], "b2-x").every((s) => String(s.id).startsWith("b2-x-")));
+  });
+
+  await scenario("map rules (owner, 21 Oct 2026): between places on the living map — a map-named scene needs a map, a map needs something happening, a voyage needs its route", () => {
+    const line = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" });
+    const scene = (id: string, mekan: string, metin: string[], harita?: object) => ({ id, mekan, satirlar: metin.map(line), ...(harita ? { harita } : {}) });
+    // The Mongol test: the fleet crossed on a beach, the outro was "a map" without one.
+    const mongol = { sahneler: [scene("s3", "Tsushima Island beach", ["The Mongol fleet sailed from Korea.", "They invaded Tsushima first."]), scene("s8", "Map of East Asia zooming out", ["And so it ended."])] };
+    const found = mapProblems(mongol);
+    assert.ok(found.some((p) => p.includes('scene "s8" is set on a map')));
+    assert.ok(found.some((p) => p.includes("no map shows the route")));
+    const still = mapProblems({ sahneler: [scene("m1", "Map of Asia", ["Here is Japan."], { merkez: [135, 35], genislik_km: 3000 })] });
+    assert.ok(still.some((p) => p.includes('map scene "m1" shows nothing happening')));
+    const living = { sahneler: [scene("m1", "Map of the Korea Strait", ["The Mongol fleet sailed from Korea.", "It invaded Tsushima."], { merkez: [129, 34], genislik_km: 1200, oklar: [{ noktalar: [[129, 35], [129.3, 34.3]], satir: 0 }] })] };
+    assert.deepEqual(mapProblems(living), [], "a crossing drawn on the map is fine");
+    assert.deepEqual(mapProblems({ sahneler: [scene("c1", "Kublai's court", ["The Khan was angry.", "He shouted at everyone."])] }), [], "a story in one place needs no map");
+    assert.ok(mapProblems({ sahneler: [scene("t1", "Saray", ["Ordu kuzeye yürüdü.", "Donanma denizi geçti."])] }).some((p) => p.includes("no map shows the route")), "Turkish verbs count too");
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

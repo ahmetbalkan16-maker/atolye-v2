@@ -62,6 +62,12 @@
       "kaynak": "owner, harita denemesi, 21 Ekim 2026 (\"Yıldırım Bayezid sefere çıkıyor, rozet hareket ederek istikameti gösterecek\")"
     },
     {
+      "beyin": "kurgu",
+      "konu": "sahne türü",
+      "metin": "Pick each scene by scale: what happens in one place (a city, a palace, a council, a battle up close) is a character scene with the stick-figure cast; what moves between cities or countries (campaigns, alliances, conquests, borders, routes) is a map scene. Combine both through the episode.",
+      "kaynak": "owner, 21 Ekim 2026 (\"şehir içi anlatımlarda çöp adam karakterler, ülkeler arası konuda haritalar; 2 özellik birleştirilecek\")"
+    },
+    {
       "beyin": "kalite",
       "konu": "harita görünüşü",
       "metin": "On a map: states as pale washed-out tints or as flat paint hiding the terrain, white or straight hand-drawn borders, a state name cut off at the frame's edge, or a name covering a city, a badge or another name.",

@@ -5,7 +5,7 @@
  *   npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil en|tr] (varsayılan en: Amerikan İngilizcesi)
  *        [--kaynaklar <banka.json> | --wiki "Makale 1|Makale 2" | --arastirma-yok] [--saglayici ollama|openai]
  *        [--anlatici <ses id>] [--bolum <episode.json>] [--cikti <klasör>] [--altyazi-gom]
- *        [--from-step senaryo|gardirop|ses|senkron|gorsel|render|miks|birlestir] [--onizleme]
+ *        [--from-step senaryo|gardirop|ses|senkron|gorsel|render|miks|birlestir] [--onizleme] [--yalniz-senaryo]
  *
  * Her adımın sonucu bölüm klasöründe dosya olarak durur; var olan adım atlanır, --from-step o adımdan itibaren
  * yeniden üretir; render ~3 dk'lık parçalarla yapılır, yarıda kalan render yalnız eksik parçaları çizer. --onizleme
@@ -31,6 +31,7 @@ import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord,
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData, mapWorld, type Polygon } from "../src/lib/v3/maps/MapBuilder";
 import { RELIEF_CREDIT, reliefAvailable, reliefFor } from "../src/lib/v3/maps/Relief";
+import { checkEpisodePlaces, wikipediaPlaces } from "../src/lib/v3/maps/PlaceCheck";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames } from "../src/lib/v3/maps/HistoricalBorders";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
@@ -641,6 +642,32 @@ async function main() {
     });
   }
   let episode = assertEpisode(await readJson<unknown>(f("episode.json")));
+
+  // 1b) The maps' places checked against Wikipedia's coordinates (free, anywhere on Earth): a city or battle the writer
+  // put far from where it is moves there, with every badge, route or arrow point that stood on it. Without the
+  // internet the script's own places stay.
+  if (scriptWritten || !existsSync(f("konumlar.json"))) {
+    const checked = await checkEpisodePlaces(episode, wikipediaPlaces(path.join(paths.workRoot, "_onbellek", "wikipedia"))).catch((e: Error) => (log(`  konum denetimi yapılamadı: ${e.message.slice(0, 160)}`), undefined));
+    if (checked) {
+      for (const x of checked.fixes) {
+        log(`  konum: ${x.ad} ${x.km} km uzaktaydı → ${x.kaynak} [${x.to.join(", ")}]`);
+        council.find({ beyin: "arastirma", onem: "bilgi", baslik: "harita konumu düzeltildi", ayrinti: `${x.sahne}: ${x.ad} yazarın verdiği yerden ${x.km} km uzaktaydı; ${x.kaynak} koordinatına taşındı`, tur: "veri", yer: x.sahne });
+      }
+      if (checked.unchecked.length) council.find({ beyin: "arastirma", onem: "uyari", baslik: "harita konumları denetlenemedi", ayrinti: `Wikipedia'ya ulaşılamadı: ${checked.unchecked.join(", ")} yazarın verdiği yerde kaldı`, oneri: "internet bağlantısını kontrol et; scripts/v3/harita-onizleme.ts --dogrula ile yeniden denetle", tur: "ayar", yer: "senaryo" });
+      if (checked.fixes.length) {
+        episode = assertEpisode(checked.episode);
+        await writeJson(f("episode.json"), episode);
+      }
+      await writeJson(f("konumlar.json"), { duzeltmeler: checked.fixes, denetlenemeyen: checked.unchecked });
+    }
+  }
+  // --yalniz-senaryo: only the script and its checked places, by the production's own path (a brain or the owner reads
+  // it, or previews its maps with scripts/v3/harita-onizleme.ts, before the hours of production).
+  if (process.argv.includes("--yalniz-senaryo")) {
+    const maps = episode.sahneler.filter((s) => s.harita?.merkez).length;
+    log(`senaryo hazır: ${f("episode.json")} — ${episode.sahneler.length} sahne (${maps} harita, ${episode.sahneler.length - maps} karakter sahnesi)`);
+    return;
+  }
 
   // 2) Gardırop: parts the catalog lacks ("yeni:…") are drawn, tried on, judged and added to the wardrobe library.
   let parts: PartRecord[] = existsSync(f("gardirop.json")) ? await readJson<PartRecord[]>(f("gardirop.json")) : [];

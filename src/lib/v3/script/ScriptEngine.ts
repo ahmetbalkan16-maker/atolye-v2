@@ -2,6 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { normalizeDraft } from "./DraftNormalizer";
+import { mapProblems } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
@@ -264,25 +265,31 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   const first = await budget.generate("senaryo", input.writer, writingPrompt(brief, input.catalog), opts);
   if (first.result.refused) throw new ScriptError("V3_SCRIPT_REFUSED", "model senaryoyu yazmayı reddetti");
   const writerUsed = first.used;
-  const check = (text: string): { value?: unknown; validation?: EpisodeValidation; problems: string[] } => {
+  // `problems` make a script unusable; `quality` (the map rules) is asked for in the same repair rounds, but a script
+  // that is valid is never lost over it.
+  const check = (text: string): { value?: unknown; validation?: EpisodeValidation; problems: string[]; quality: string[] } => {
     const parsed = parse(text);
-    if (!parsed.ok) return { problems: [parsed.error] };
+    if (!parsed.ok) return { problems: [parsed.error], quality: [] };
     // Mechanical slips (visible narrator, English garment names, made-up items) are fixed here, not by a model round.
     const value = normalizeDraft(parsed.value, input.catalog).value;
     const validation = validateEpisode(value);
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
-    return { value, validation, problems };
+    return { value, validation, problems, quality: problems.length ? [] : mapProblems(value) };
   };
   let raw = first.result.content;
   let state = check(raw);
   let repairs = 0;
-  while (state.problems.length && repairs < (input.maxRepairs ?? 3)) {
+  while ((state.problems.length || state.quality.length) && repairs < (input.maxRepairs ?? 3)) {
     repairs++;
-    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(state.value !== undefined ? JSON.stringify(state.value) : raw, state.problems), opts);
+    const next = await budget.generate(`onarim-${repairs}`, writerUsed, repairPrompt(state.value !== undefined ? JSON.stringify(state.value) : raw, [...state.problems, ...state.quality]), opts);
+    const checked = check(next.result.content);
+    // A round for the map that broke a valid script: the valid one stays.
+    if (!state.problems.length && checked.problems.length) break;
     raw = next.result.content;
-    state = check(raw);
+    state = checked;
   }
   if (state.problems.length) throw new ScriptError("V3_SCRIPT_INVALID", `${repairs} onarımdan sonra: ${state.problems.slice(0, 5).join("; ")}`, raw);
+  if (state.quality.length) input.log?.(`  senaryo: harita isteği karşılanamadı (${state.quality.length}): ${state.quality.join(" | ").slice(0, 300)}`);
 
   let written = state.value as Episode;
   let validation = state.validation!;

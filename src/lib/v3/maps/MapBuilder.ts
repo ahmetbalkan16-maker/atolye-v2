@@ -103,6 +103,20 @@ export function project(v: MapView, lon: number, lat: number): [number, number] 
   return [((lon - v.lon0) / v.spanLon + 0.5) * v.width, (0.5 - (lat - v.lat0) / v.spanLat) * v.height];
 }
 
+/**
+ * The whole turns of the globe (±360°) that bring a longitude nearest the view's centre: on a Pacific map Hawaii
+ * (−158°) is drawn at 202° next to Japan. A shape moves as one, by its first point (Natural Earth cuts shapes at ±180).
+ * On a map away from the 180th meridian it is always 0.
+ */
+export function shiftFor(v: Pick<MapView, "lon0">, lon: number): number {
+  return 360 * Math.round((v.lon0 - lon) / 360) || 0;
+}
+
+/** A point projected on the copy of the globe nearest the view's centre. */
+export function projectNear(v: MapView, lon: number, lat: number): [number, number] {
+  return project(v, lon + shiftFor(v, lon), lat);
+}
+
 /** Sutherland–Hodgman clip of a closed ring to a rectangle (enough for land and territories in a frame). */
 export function clipRing(ring: readonly (readonly [number, number])[], x0: number, y0: number, x1: number, y1: number): [number, number][] {
   let out: [number, number][] = ring.map((p) => [p[0], p[1]]);
@@ -135,8 +149,9 @@ function polygonsPath(v: MapView, polys: readonly Polygon[]): string {
   const m = Math.max(v.width, v.height) * 0.1;
   const parts: string[] = [];
   for (const poly of polys) {
+    const s = shiftFor(v, poly[0]?.[0]?.[0] ?? v.lon0);
     for (const ring of poly) {
-      const clipped = clipRing(ring.map(([lon, lat]) => project(v, lon, lat)), -m, -m, v.width + m, v.height + m);
+      const clipped = clipRing(ring.map(([lon, lat]) => project(v, lon + s, lat)), -m, -m, v.width + m, v.height + m);
       if (clipped.length < 3) continue;
       // Drop points closer than half a pixel to the previous one.
       const pts: [number, number][] = [];
@@ -154,8 +169,9 @@ function linesPath(v: MapView, lines: readonly Line[]): string {
   const parts: string[] = [];
   for (const line of lines) {
     let run: string[] = [];
+    const s = shiftFor(v, line[0]?.[0] ?? v.lon0);
     for (const [lon, lat] of line) {
-      const [x, y] = project(v, lon, lat);
+      const [x, y] = project(v, lon + s, lat);
       if (x < -50 || y < -50 || x > v.width + 50 || y > v.height + 50) {
         if (run.length > 1) parts.push(`M${run.join("L")}`);
         run = [];
@@ -198,7 +214,8 @@ export function labelPoint(v: MapView, polys: readonly Polygon[], label: string,
   let best: [number, number][] | undefined;
   let bestArea = 0;
   for (const poly of polys) {
-    const ring = clipRing((poly[0] ?? []).map(([lon, lat]) => project(v, lon, lat)), 0, 0, v.width, v.height);
+    const s = shiftFor(v, poly[0]?.[0]?.[0] ?? v.lon0);
+    const ring = clipRing((poly[0] ?? []).map(([lon, lat]) => project(v, lon + s, lat)), 0, 0, v.width, v.height);
     if (ring.length < 3) continue;
     let a = 0;
     for (let i = 0; i < ring.length; i++) {
@@ -269,6 +286,8 @@ function boxOf(polys: readonly Polygon[]): Box {
 }
 
 const touches = (a: Box, b: Box, pad = 0) => a.west - pad <= b.east && b.west - pad <= a.east && a.south - pad <= b.north && b.south - pad <= a.north;
+/** Whether two boxes meet on the globe (a box at 170° W meets a Pacific world running to 200°). */
+export const touchesRound = (a: Box, b: Box) => [-360, 0, 360].some((d) => touches({ ...a, west: a.west + d, east: a.east + d }, b));
 
 /**
  * The period's states in the world that the scene does not name: the reference maps colour every state's land, so the
@@ -278,7 +297,7 @@ const touches = (a: Box, b: Box, pad = 0) => a.west - pad <= b.east && b.west - 
 export function backgroundStates(snapshot: ReadonlyMap<string, readonly Polygon[]>, world: Box, named: readonly { readonly name: string; readonly color: string; readonly polys: readonly Polygon[] }[], isPolity: (name: string) => boolean): { name: string; color: string; polys: readonly Polygon[] }[] {
   const skip = new Set(named.map((n) => n.name.toLowerCase()));
   const found = [...snapshot]
-    .filter(([name, polys]) => !skip.has(name) && isPolity(name) && polys.length && touches(boxOf(polys), world))
+    .filter(([name, polys]) => !skip.has(name) && isPolity(name) && polys.length && touchesRound(boxOf(polys), world))
     .map(([name, polys]) => ({ name, polys, box: boxOf(polys) }))
     .sort((a, b) => (b.box.east - b.box.west) * (b.box.north - b.box.south) - (a.box.east - a.box.west) * (a.box.north - a.box.south));
   const placed: { box: Box; color: string }[] = named.map((n) => ({ box: boxOf(n.polys), color: n.color.toLowerCase() }));
@@ -305,13 +324,16 @@ export function declutterMap(m: V3GeoMap, height: number): V3GeoMap {
   const k = height / 1080;
   const armyNames = new Set(m.armies.map((a) => a.label.trim().toLowerCase()));
   const arrows = m.arrows.map((ar) => (ar.label && armyNames.has(ar.label.trim().toLowerCase()) ? { points: ar.points, color: ar.color, start: ar.start } : ar));
+  // A city with a battle of its name on the same spot is written once, by the battle ("Pearl Harbor" twice on Oahu).
+  const bare = (s: string) => s.replace(/\s*\d{3,4}\s*(BC|AD)?\s*$/i, "").replace(/^(battle|siege|attack) (of|on) /i, "").trim().toLowerCase();
+  const cities = m.cities.filter((c) => !(m.battles ?? []).some((b) => bare(b.label) === bare(c.label) && Math.hypot(b.x - c.x, b.y - c.y) < 80 * k));
   const armies = m.armies.map((a) => {
-    const city = m.cities.find((c) => Math.abs(c.x - a.x) < (ARMY_HALF_W + 30) * k && Math.abs(c.y - a.y) < 50 * k);
+    const city = cities.find((c) => Math.abs(c.x - a.x) < (ARMY_HALF_W + 30) * k && Math.abs(c.y - a.y) < 50 * k);
     if (!city) return a;
     const left = city.x - (ARMY_HALF_W + 40) * k;
     return left - ARMY_HALF_W * k >= 20 * k ? { ...a, x: r1(left), y: city.y } : { ...a, x: city.x, y: r1(Math.max(ARMY_REACH_UP * k, city.y - 90 * k)) };
   });
-  return { ...m, armies, arrows };
+  return { ...m, cities, armies, arrows };
 }
 
 type Rect = { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number };
@@ -433,11 +455,36 @@ export function mapStageX(m: V3GeoMap, width: number, height: number): number {
     ...m.armies.map((a) => ({ x0: a.x - ARMY_HALF_W * k, x1: a.x + ARMY_HALF_W * k, y: a.y })),
     ...m.territories.flatMap((t) => (t.labelX !== undefined && t.labelY !== undefined ? [{ x0: t.labelX - t.label.length * 14 * k, x1: t.labelX + t.label.length * 14 * k, y: t.labelY }] : [])),
     ...m.arrows.flatMap((ar) => (ar.points.length ? [{ x0: ar.points[ar.points.length - 1]!.x - 20 * k, x1: ar.points[ar.points.length - 1]!.x + 20 * k, y: ar.points[ar.points.length - 1]!.y }] : [])),
+    // The living map's own marks (the Mongol test's Kublai stood on his badge and the fleet's name): badges where they
+    // start and arrive, battles, arrow names.
+    ...(m.badges ?? []).flatMap((b) => [b.path[0], b.path[b.path.length - 1]].flatMap((p) => (p ? [{ x0: p.x - 70 * k, x1: p.x + 70 * k, y: p.y }] : []))),
+    ...(m.battles ?? []).map((b) => ({ x0: b.x - 60 * k, x1: b.x + 60 * k, y: b.y })),
+    ...m.arrows.flatMap((ar) => (ar.label && ar.labelX !== undefined && ar.labelY !== undefined ? [{ x0: ar.labelX - ar.label.length * 10 * k, x1: ar.labelX + ar.label.length * 10 * k, y: ar.labelY }] : [])),
   ];
   const hidden = (x: number) => marks.filter((p) => p.y > height * 0.38 && p.x1 > (x - 0.11) * width && p.x0 < (x + 0.11) * width).length;
   let best = 0.5;
   for (const x of [0.5, 0.26, 0.74, 0.16, 0.84]) if (hidden(x) < hidden(best)) best = x;
   return best;
+}
+
+/**
+ * A moving map's marks where they stand on the screen at `frame` (the camera stop reached by then), so a character on
+ * the map can stand clear of them (mapStageX works on the screen).
+ */
+export function mapOnScreen(m: V3GeoMap, frame: number, width: number, height: number): V3GeoMap {
+  if (!m.world || !m.camera?.length) return m;
+  const key = [...m.camera].reverse().find((c) => c.frame <= frame) ?? m.camera[0]!;
+  const s = (p: { readonly x: number; readonly y: number }) => ({ x: (p.x - key.x) * key.zoom + width / 2, y: (p.y - key.y) * key.zoom + height / 2 });
+  const at = (x: number | undefined, y: number | undefined) => (x !== undefined && y !== undefined ? (({ x: sx, y: sy }) => ({ labelX: sx, labelY: sy }))(s({ x, y })) : {});
+  return {
+    ...m,
+    cities: m.cities.map((c) => ({ ...c, ...s(c) })),
+    armies: m.armies.map((a) => ({ ...a, ...s(a) })),
+    arrows: m.arrows.map((a) => ({ ...a, points: a.points.map(s), ...at(a.labelX, a.labelY) })),
+    territories: m.territories.map((t) => ({ ...t, ...at(t.labelX, t.labelY) })),
+    ...(m.badges ? { badges: m.badges.map((b) => ({ ...b, path: b.path.map(s) })) } : {}),
+    ...(m.battles ? { battles: m.battles.map((b) => ({ ...b, ...s(b) })) } : {}),
+  };
 }
 
 /**
@@ -472,7 +519,11 @@ export interface MapWorld {
  * scale of the closest one, so the camera can move from region to region over one map.
  */
 export function mapWorld(map: SceneMap, width: number, height: number): MapWorld {
-  const keys = [{ view: mapView(map.merkez!, map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(k.merkez, k.genislik_km, width, height) }))];
+  // Camera stops are taken on the side of the 180th meridian nearest the first one: Japan (139° E) to Hawaii (158° W)
+  // crosses the Pacific (Hawaii at 202°), not the whole world the other way.
+  const lon0 = map.merkez![0];
+  const near = (c: readonly [number, number]): [number, number] => [c[0] + 360 * Math.round((lon0 - c[0]) / 360), c[1]];
+  const keys = [{ view: mapView(map.merkez!, map.genislik_km!, width, height) }, ...(map.kamera ?? []).map((k) => ({ satir: k.satir, view: mapView(near(k.merkez), k.genislik_km, width, height) }))];
   if (keys.length === 1) {
     const v = keys[0]!.view;
     return { view: v, bounds: { west: v.lon0 - v.spanLon / 2, east: v.lon0 + v.spanLon / 2, south: v.lat0 - v.spanLat / 2, north: v.lat0 + v.spanLat / 2 }, keys };
@@ -483,7 +534,8 @@ export function mapWorld(map: SceneMap, width: number, height: number): MapWorld
   const north0 = Math.max(...keys.map((k) => k.view.lat0 + k.view.spanLat / 2));
   const mx = (east0 - west0) * 0.05;
   const my = (north0 - south0) * 0.05;
-  const bounds = { west: Math.max(-180, west0 - mx), east: Math.min(180, east0 + mx), south: Math.max(-85, south0 - my), north: Math.min(85, north0 + my) };
+  // Longitudes are not cut at ±180: a Pacific world runs past it (the relief and every shape wrap round, see shiftFor).
+  const bounds = { west: west0 - mx, east: Math.min(west0 - mx + 360, east0 + mx), south: Math.max(-85, south0 - my), north: Math.min(85, north0 + my) };
   const lat0 = (bounds.south + bounds.north) / 2;
   const kx = Math.max(0.2, Math.cos((lat0 * Math.PI) / 180));
   const spanLon = bounds.east - bounds.west;
@@ -546,13 +598,13 @@ function projectGeoMap(
       const sh = shape(i, polys);
       const at = labelPoint(v, sh.label, b.ad, zoom0, height);
       rings.push(at?.ring);
-      const pin = b.etiket_konum ? project(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
+      const pin = b.etiket_konum ? projectNear(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
       const anchor = pin ? { labelX: r1(pin[0]), labelY: r1(pin[1]) } : at ? { labelX: at.x, labelY: at.y } : {};
       return { d: polygonsPath(v, sh.fill), ...(sh.border ? { border: sh.border } : {}), color: b.renk, label: b.ad, ...anchor, ...(at ? { labelSize: at.size } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
     }),
   ];
   const toPx = (p: readonly [number, number]) => {
-    const [x, y] = project(v, p[0], p[1]);
+    const [x, y] = projectNear(v, p[0], p[1]);
     return { x: r1(x), y: r1(y) };
   };
   // A key's zoom: how much of the world's width its view shows against the frame (the closest view is 1).
@@ -589,7 +641,7 @@ function projectGeoMap(
 function atlasMarks(data: MapData, v: MapView, bounds: MapWorld["bounds"], zoom: number, frameHeight: number, language: "tr" | "en"): Pick<V3GeoMap, "seas" | "kmPerPx"> {
   const seas = (data.seas ?? []).flatMap((s) => {
     const box = boxOf(s.polys);
-    if (box.east < bounds.west || box.west > bounds.east || box.north < bounds.south || box.south > bounds.north) return [];
+    if (!touchesRound(box, bounds)) return [];
     const label = language === "tr" && s.nameTr ? s.nameTr : s.name;
     const at = labelPoint(v, s.polys, label, zoom, frameHeight);
     // Spaced capitals take about twice the room of a state's name: a sea too small for that stays unnamed.

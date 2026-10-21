@@ -45,12 +45,12 @@ const SCALE_STEPS_KM = [25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2
  * An atlas's corner (owner's example map, 21 Oct 2026): a compass rose and a scale bar in kilometres that follows the
  * camera's zoom, in the badges' parchment and sepia, at the bottom left of the screen.
  */
-function AtlasCorner({ kmPerScreenPx, height: H }: { kmPerScreenPx: number; height: number }) {
+export function AtlasCorner({ kmPerScreenPx, height: H }: { kmPerScreenPx: number; height: number }) {
   const u = H / 1080;
   const target = 230 * u * kmPerScreenPx;
   const km = [...SCALE_STEPS_KM].reverse().find((s) => s <= target) ?? SCALE_STEPS_KM[0]!;
   const bar = km / kmPerScreenPx;
-  // Inside the picture even under the shot camera's gentle push (a 64 px margin cut the "0").
+  // Drawn fixed on the screen by ShotView, a comfortable margin from the picture's edge.
   const x0 = 96 * u;
   const y0 = H - 84 * u;
   const cx = x0 + 52 * u;
@@ -476,7 +476,6 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
       </g>
       {/* A soft dark edge holds the eye in the middle of the relief map (cinematic, like the reference). */}
       {relief ? <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-vignette)`} pointerEvents="none" /> : null}
-      {relief && map.kmPerPx ? <AtlasCorner kmPerScreenPx={map.kmPerPx / cam.zoom} height={H} /> : null}
     </svg>
   );
 }

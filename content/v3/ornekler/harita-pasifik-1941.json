@@ -1,0 +1,57 @@
+{
+  "id": "ornek-harita-pasifik-1941",
+  "baslik": "Pearl Harbor: The Pacific Crossing",
+  "konu": "The Japanese attack on Pearl Harbor, 1941",
+  "donem": "1941",
+  "hedef_sure_sn": 24,
+  "ton": "mizahi",
+  "kaynaklar": [
+    { "id": "britannica-pearl-harbor", "kunye": "Encyclopaedia Britannica, Pearl Harbor attack", "url": "https://www.britannica.com/event/Pearl-Harbor-attack" }
+  ],
+  "oyuncu_kadrosu": [
+    { "id": "anlatici", "ad": "Narrator", "rol": "narrator", "kostum_paketi": "", "renk": "#333333", "ses_id": "anlatici", "konusma_tarzi": "calm, clear", "gorunur": false },
+    {
+      "id": "yamamoto", "ad": "Isoroku Yamamoto", "rol": "Japanese admiral", "kostum_paketi": "byzantine-1453", "renk": "#1f2a44", "ses_id": "yamamoto", "konusma_tarzi": "calm, grave", "gorunur": true,
+      "portre": { "wiki": "Isoroku Yamamoto" },
+      "kostum": { "giysi": "bizans", "renkler": { "ana": "#1f2a44", "ikincil": "#e8b23a", "ic": "#f3d27a", "sus": "#e8b23a" }, "sakal": "sakal-koyu", "ayakkabi": "kirmizi-cizme" }
+    }
+  ],
+  "sahneler": [
+    {
+      "id": "s1-harita",
+      "sure_hedef": 22,
+      "mekan": "Map of the North Pacific, 1941",
+      "arka_plan_sorgusu": { "tr": "harita", "en": "map" },
+      "duygu": "gerilim",
+      "muzik_ruh_hali": "gerilim",
+      "harita": {
+        "merkez": [172.0, 31.0],
+        "genislik_km": 8500,
+        "kamera": [
+          { "satir": 1, "merkez": [140.0, 37.0], "genislik_km": 3200 },
+          { "satir": 2, "merkez": [172.0, 31.0], "genislik_km": 8500 },
+          { "satir": 3, "merkez": [-157.9, 21.6], "genislik_km": 2000 }
+        ],
+        "bolgeler": [
+          { "ad": "Empire of Japan", "renk": "#c94a3f", "tarihi": { "ad": "Empire of Japan", "yil": 1938 }, "satir": 0 },
+          { "ad": "United States", "renk": "#3a7fbf", "tarihi": { "ad": "United States", "yil": 1938 }, "satir": 0 }
+        ],
+        "sehirler": [
+          { "ad": "Tokyo", "konum": [139.69, 35.69] },
+          { "ad": "Hitokappu Bay", "konum": [147.55, 45.2] },
+          { "ad": "Pearl Harbor", "konum": [-157.95, 21.35] }
+        ],
+        "oklar": [
+          { "noktalar": [[147.55, 45.2], [165.0, 43.5], [-178.0, 39.0], [-165.0, 33.0], [-158.2, 26.0]], "renk": "#d7263d", "etiket": "Kido Butai", "satir": 2 }
+        ],
+        "savaslar": [{ "ad": "Pearl Harbor", "konum": [-157.95, 21.35], "satir": 3 }]
+      },
+      "satirlar": [
+        { "karakter": "anlatici", "metin": "By 1941, the Empire of Japan controlled much of East Asia.", "duygu": "notr", "kaynak": ["britannica-pearl-harbor"] },
+        { "karakter": "anlatici", "metin": "In Tokyo, its leaders decided to strike the United States first.", "duygu": "notr", "kaynak": ["britannica-pearl-harbor"] },
+        { "karakter": "anlatici", "metin": "In secret, a fleet of six carriers crossed the stormy North Pacific.", "duygu": "notr", "kaynak": ["britannica-pearl-harbor"] },
+        { "karakter": "anlatici", "metin": "On December 7th, 1941, it attacked Pearl Harbor in Hawaii.", "duygu": "notr", "kaynak": ["britannica-pearl-harbor"] }
+      ]
+    }
+  ]
+}

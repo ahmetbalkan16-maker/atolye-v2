@@ -43,12 +43,13 @@ def crop(tiles, west, east, south, north, out_w, out_h, out):
 
     x0, x1 = (west + 180) * PX_PER_DEG, (east + 180) * PX_PER_DEG
     y0, y1 = (90 - north) * PX_PER_DEG, (90 - south) * PX_PER_DEG
-    c0, c1 = max(0, int(x0 // TILE_PX)), min(COLS - 1, int(math.ceil(x1 / TILE_PX)) - 1)
+    # A world across the 180th meridian (a Pacific map: west < -180 or east > 180) reads the columns round the globe.
+    c0, c1 = int(x0 // TILE_PX), int(math.ceil(x1 / TILE_PX)) - 1
     r0, r1 = max(0, int(y0 // TILE_PX)), min(ROWS - 1, int(math.ceil(y1 / TILE_PX)) - 1)
     canvas = Image.new("RGB", ((c1 - c0 + 1) * TILE_PX, (r1 - r0 + 1) * TILE_PX))
     for r in range(r0, r1 + 1):
         for c in range(c0, c1 + 1):
-            with Image.open(os.path.join(tiles, f"{r:02d}_{c:02d}.jpg")) as t:
+            with Image.open(os.path.join(tiles, f"{r:02d}_{c % COLS:02d}.jpg")) as t:
                 canvas.paste(t, ((c - c0) * TILE_PX, (r - r0) * TILE_PX))
     ox, oy = c0 * TILE_PX, r0 * TILE_PX
     part = canvas.crop((round(x0 - ox), round(y0 - oy), round(x1 - ox), round(y1 - oy)))

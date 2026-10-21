@@ -4,7 +4,7 @@
  * beyni ya da AYAS bir harita anlatımını videodan önce görmek için kullanır; Claude/Codex gerekmez.
  *
  *   npx tsx scripts/v3/harita-onizleme.ts --bolum <episode.json> [--sahne <sahne id>] [--kare <saniye>,…] [--video]
- *        [--dil en|tr] [--onizleme] [--cikti <klasör>]
+ *        [--dil en|tr] [--dogrula] [--onizleme] [--cikti <klasör>]
  *
  * Satır süreleri kelime sayısından (dakikada ~155 kelime) tahmin edilir. Varsayılan: her satırın sonuna yakın birer
  * kare (o satırla gelen her şey ekranda). Örnek: content/v3/ornekler/harita-nigbolu-1396.json.
@@ -13,13 +13,14 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../../src/lib/v3/costumes/CastMapper";
 import { loadAccessories } from "../../src/lib/v3/costumes/CostumePackLoader";
-import { costumeRootsFor } from "../../src/lib/v3/costumes/PartDesigner";
+import { applyParts, costumeRootsFor } from "../../src/lib/v3/costumes/PartDesigner";
 import { buildRenderPlan } from "../../src/lib/v3/director/Director";
 import type { Episode } from "../../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
 import { loadSnapshot } from "../../src/lib/v3/maps/HistoricalBorders";
 import { loadMapData, mapWorld, type Polygon } from "../../src/lib/v3/maps/MapBuilder";
 import { reliefFor } from "../../src/lib/v3/maps/Relief";
+import { checkEpisodePlaces, wikipediaPlaces } from "../../src/lib/v3/maps/PlaceCheck";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
 import { splitDirections } from "../../src/lib/v3/tts/StageDirections";
@@ -42,11 +43,21 @@ async function main() {
   if (!file) throw new Error("Kullanım: npx tsx scripts/v3/harita-onizleme.ts --bolum <episode.json> [--sahne <id>] [--kare 3,12.5] [--video]");
   loadV3Settings();
   const paths = resolveV3Paths();
-  const full = assertEpisode(JSON.parse(await fs.readFile(file, "utf8")));
+  let full = assertEpisode(JSON.parse(await fs.readFile(file, "utf8")));
+  // --dogrula: the places checked against Wikipedia first, as the production does after the script.
+  if (process.argv.includes("--dogrula")) {
+    const checked = await checkEpisodePlaces(full, wikipediaPlaces(path.join(paths.workRoot, "_onbellek", "wikipedia")));
+    for (const x of checked.fixes) console.log(`konum: ${x.ad} ${x.km} km uzaktaydı → ${x.kaynak} [${x.to.join(", ")}]`);
+    if (checked.unchecked.length) console.log(`konum: denetlenemedi (Wikipedia'ya ulaşılamadı): ${checked.unchecked.join(", ")}`);
+    else if (!checked.fixes.length) console.log("konum: bütün şehir ve savaşlar Wikipedia ile uyumlu");
+    full = assertEpisode(checked.episode);
+  }
   const want = arg("--sahne");
   const scene = full.sahneler.find((s) => (want ? s.id === want : s.harita?.merkez && s.harita.genislik_km));
   if (!scene?.harita?.merkez || !scene.harita.genislik_km) throw new Error(want ? `${want}: haritalı sahne değil` : "bölümde haritalı sahne yok");
-  const episode: Episode = { ...full, sahneler: [scene] };
+  // Parts the script ordered ("yeni:…") and the wardrobe has not drawn yet are left off, as the production does
+  // without its wardrobe step (a script fresh from --yalniz-senaryo still previews).
+  const episode: Episode = applyParts({ ...full, sahneler: [scene] }, new Map());
   const out = path.resolve(arg("--cikti") ?? path.join(paths.workRoot, "harita-onizleme", `${full.id}-${scene.id}`));
   const pub = path.join(out, "public");
   await fs.mkdir(pub, { recursive: true });

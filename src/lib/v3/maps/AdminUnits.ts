@@ -109,7 +109,8 @@ export function inOutline(lon: number, lat: number, polys: readonly (readonly Ri
 export function assignUnits(units: readonly AdminUnit[], groups: readonly (readonly { readonly key: number; readonly polys: readonly (readonly Ring[])[] }[])[], world: { readonly west: number; readonly east: number; readonly south: number; readonly north: number }): Map<number, AdminUnit[]> {
   const out = new Map<number, AdminUnit[]>();
   for (const u of units) {
-    if (u.box.east < world.west || u.box.west > world.east || u.box.north < world.south || u.box.south > world.north) continue;
+    // On the globe: a province at 170° W lies in a Pacific world that runs to 200°.
+    if (u.box.north < world.south || u.box.south > world.north || ![-360, 0, 360].some((d) => u.box.east + d >= world.west && u.box.west + d <= world.east)) continue;
     const [lon, lat] = u.centre;
     for (const group of groups) {
       const holders = group.filter((s) => inOutline(lon, lat, s.polys));

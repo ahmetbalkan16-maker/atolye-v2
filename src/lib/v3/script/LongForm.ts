@@ -2,6 +2,7 @@ import type { Episode, EpisodeSource } from "../episode/EpisodeTypes";
 import { validateEpisode } from "../episode/EpisodeValidator";
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { normalizeDraft } from "./DraftNormalizer";
+import { mapProblems } from "./MapRules";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, wordBudget, writingPrompt } from "./ScriptPrompts";
 import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "./V3Budget";
 
@@ -45,7 +46,8 @@ who will speak or appear in any chapter (the narrator plus 4–10 visible charac
 Return ONLY this JSON (no "sahneler"):
 {"id":"…","baslik":"…","konu":"…","donem":"…","hedef_sure_sn":${brief.hedefSureSn},"ton":"${brief.ton}","kaynaklar":[…],"oyuncu_kadrosu":[…],
  "bolumler":[{"id":"b1-<kebab-case>","baslik":"<chapter title, at most 6 words>","ozet":"<what happens, 2–4 sentences, with names, places and years>","sure_sn":<seconds>}, …]}
-The chapters' "sure_sn" add up to ${brief.hedefSureSn}.`;
+The chapters' "sure_sn" add up to ${brief.hedefSureSn}. In each "ozet" say which part is told on the MAP (between places)
+and which in CHARACTER scenes (in one place) — see SCENE KIND BY SCALE.`;
 }
 
 /** The plan from the writer's answer, or the problems that make it unusable (sent back for one repair). */
@@ -93,7 +95,8 @@ ${JSON.stringify(cast)}
 FIXED SOURCES — cite only these ids: ${outline.header.kaynaklar.map((k: EpisodeSource) => k.id).join(", ") || "(none)"}
 Write ONLY this chapter's scenes, about ${words} spoken words, "sure_hedef" adding up to ${ch.sure_sn}. Scene ids start with
 "${ch.id}-". The first scene opens with the chapter card: "yazi_karti": [{"metin": "${ch.baslik}", "alt_metin": "${brief.dil === "tr" ? "Bölüm" : "Chapter"} ${index + 1}", "stil": "bolum"}].
-Tell this chapter's geography, politics and wars on maps with "kamera", "rozetler" and "savaslar" (see MAP NARRATION).
+Tell what moves between places on the living map ("kamera", "rozetler" with "yol_satir", "savaslar" — MAP NARRATION) and
+what happens in one place as character scenes (SCENE KIND BY SCALE), as the chapter's plan says.
 Return ONLY this JSON: {"sahneler": [ … ]}`;
 }
 
@@ -108,6 +111,8 @@ export function prefixScenes(scenes: readonly Record<string, unknown>[], chapter
 }
 
 export interface LongFormCheck {
+  /** The map rules (MapRules), asked for in the repair rounds but never fatal. */
+  readonly quality: string[];
   readonly value?: unknown;
   readonly problems: string[];
 }
@@ -178,19 +183,25 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
     const check = (text: string): LongFormCheck => {
       const answer = parseJson(text) as { sahneler?: unknown } | undefined;
       const list = Array.isArray(answer?.sahneler) ? prefixScenes(answer!.sahneler as Record<string, unknown>[], ch.id) : undefined;
-      if (!list?.length) return { problems: ['the answer needs {"sahneler": [ … ]} with this chapter\'s scenes'] };
+      if (!list?.length) return { problems: ['the answer needs {"sahneler": [ … ]} with this chapter\'s scenes'], quality: [] };
       const value = normalizeDraft(chapterEpisode(outline, i, list), d.catalog).value;
       const v = validateEpisode(value);
-      return { value, problems: v.errors.slice(0, 30).map((e) => `${e.path} ${e.code}: ${e.message}`) };
+      const problems = v.errors.slice(0, 30).map((e) => `${e.path} ${e.code}: ${e.message}`);
+      // The map rules (ScriptEngine.mapProblems) are asked for in the same rounds, never worth losing a valid chapter.
+      return { value, problems, quality: problems.length ? [] : mapProblems(value) };
     };
     let text = (await d.budget.generate(`bolum-${i + 1}`, writerUsed, chapterPrompt(d.brief, d.catalog, outline, i), opts)).result.content;
     let state = check(text);
-    for (let r = 0; state.problems.length && r < maxRepairs; r++) {
+    for (let r = 0; (state.problems.length || state.quality.length) && r < maxRepairs; r++) {
       repairs++;
-      text = (await d.budget.generate(`bolum-${i + 1}-onarim-${r + 1}`, writerUsed, repairPrompt(state.value !== undefined ? JSON.stringify(state.value) : text, state.problems), opts)).result.content;
-      state = check(text);
+      const next = (await d.budget.generate(`bolum-${i + 1}-onarim-${r + 1}`, writerUsed, repairPrompt(state.value !== undefined ? JSON.stringify(state.value) : text, [...state.problems, ...state.quality]), opts)).result.content;
+      const checked = check(next);
+      if (!state.problems.length && checked.problems.length) break;
+      text = next;
+      state = checked;
     }
     if (state.problems.length) throw new Error(`V3_SCRIPT_INVALID: bölüm ${i + 1} (${ch.baslik}): ${state.problems.slice(0, 4).join("; ")}`);
+    if (state.quality.length) d.log?.(`  bölüm ${i + 1}: harita isteği karşılanamadı — ${state.quality.join(" | ").slice(0, 240)}`);
     let chapter = state.value as Record<string, unknown>;
     // One lengthening round for a chapter well short of its words (models stop short of a word count).
     const want = wordBudget(chBrief);
