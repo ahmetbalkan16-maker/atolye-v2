@@ -78,6 +78,80 @@ export async function metCandidates(cacheDir: string, query: string, limit = 6):
   return out;
 }
 
+interface AicArtwork {
+  readonly id: number;
+  readonly title?: string | null;
+  readonly image_id?: string | null;
+  readonly artist_display?: string | null;
+  readonly date_end?: number | null;
+  readonly is_public_domain?: boolean;
+}
+
+/**
+ * Public-domain artworks from the Art Institute of Chicago (CC0, no key; owner 21 Oct 2026: "search the internet more
+ * widely, never an unrelated picture"). Images come through its IIIF server; 843 px wide is the size it recommends.
+ */
+export async function aicCandidates(cacheDir: string, query: string, limit = 6): Promise<CommonsCandidate[]> {
+  const params = new URLSearchParams({ q: query, "query[term][is_public_domain]": "true", fields: "id,title,image_id,artist_display,date_end,is_public_domain", limit: String(limit) });
+  const json = (await cachedJson(cacheDir, `https://api.artic.edu/api/v1/artworks/search?${params}`)) as { data?: readonly AicArtwork[] };
+  return (json.data ?? [])
+    .filter((a) => a.is_public_domain && a.image_id)
+    .map((a) => {
+      const page = `https://www.artic.edu/artworks/${a.id}`;
+      const artist = (a.artist_display ?? "").split("\n")[0]?.trim() || "Art Institute of Chicago";
+      return {
+        title: `AIC ${a.id}: ${a.title ?? "untitled"}`,
+        source: "aic" as const,
+        ...(a.date_end ? { year: a.date_end } : {}),
+        url: `https://www.artic.edu/iiif/2/${a.image_id}/full/843,/0/default.jpg`,
+        downloadUrl: `https://www.artic.edu/iiif/2/${a.image_id}/full/1686,/0/default.jpg`,
+        previewUrl: `https://www.artic.edu/iiif/2/${a.image_id}/full/843,/0/default.jpg`,
+        description: [a.title, a.date_end, a.artist_display?.replace(/\n/g, ", ")].filter(Boolean).join(" · ").slice(0, 400),
+        width: 0,
+        height: 0,
+        mime: "image/jpeg",
+        descriptionUrl: page,
+        credit: { title: a.title ?? `AIC ${a.id}`, author: `${artist} — Art Institute of Chicago`, license: "CC0 (Art Institute of Chicago, public domain)", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/", sourceUrl: page, attributionRequired: false },
+      };
+    });
+}
+
+interface ClevelandArtwork {
+  readonly id: number;
+  readonly title?: string | null;
+  readonly creation_date_latest?: number | null;
+  readonly creators?: readonly { readonly description?: string | null }[] | null;
+  readonly url?: string | null;
+  readonly share_license_status?: string | null;
+  readonly images?: { readonly web?: { readonly url?: string } | null; readonly print?: { readonly url?: string } | null } | null;
+}
+
+/** CC0 artworks with an image from the Cleveland Museum of Art's Open Access API (no key). */
+export async function clevelandCandidates(cacheDir: string, query: string, limit = 6): Promise<CommonsCandidate[]> {
+  const params = new URLSearchParams({ q: query, cc0: "1", has_image: "1", limit: String(limit) });
+  const json = (await cachedJson(cacheDir, `https://openaccess-api.clevelandart.org/api/artworks/?${params}`)) as { data?: readonly ClevelandArtwork[] };
+  return (json.data ?? [])
+    .filter((a) => a.share_license_status === "CC0" && a.images?.web?.url)
+    .map((a) => {
+      const page = a.url ?? `https://clevelandart.org/art/${a.id}`;
+      const by = a.creators?.[0]?.description?.trim() || "Cleveland Museum of Art";
+      return {
+        title: `Cleveland ${a.id}: ${a.title ?? "untitled"}`,
+        source: "cleveland" as const,
+        ...(a.creation_date_latest ? { year: a.creation_date_latest } : {}),
+        url: a.images!.web!.url!,
+        downloadUrl: a.images?.print?.url ?? a.images!.web!.url!,
+        previewUrl: a.images!.web!.url!,
+        description: [a.title, a.creation_date_latest, by].filter(Boolean).join(" · ").slice(0, 400),
+        width: 0,
+        height: 0,
+        mime: "image/jpeg",
+        descriptionUrl: page,
+        credit: { title: a.title ?? `Cleveland ${a.id}`, author: `${by} — Cleveland Museum of Art`, license: "CC0 (Cleveland Museum of Art Open Access)", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/", sourceUrl: page, attributionRequired: false },
+      };
+    });
+}
+
 interface OpenverseImage {
   readonly id: string;
   readonly title?: string | null;
@@ -206,6 +280,8 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
   if (s.wiki) await take(`Wikipedia "${s.wiki}"`, () => wikipediaCandidates(cacheDir, s.wiki!));
   await take(`The Met "${s.query}"`, () => metCandidates(cacheDir, s.query));
   await take(`Openverse "${s.query}"`, () => openverseCandidates(cacheDir, s.query));
+  await take(`Chicago "${s.query}"`, () => aicCandidates(cacheDir, s.query));
+  await take(`Cleveland "${s.query}"`, () => clevelandCandidates(cacheDir, s.query));
   await take(`Commons "${s.query}"`, async () => {
     let found = await commons(s.commonsCategory ? `${s.query} incategory:"${s.commonsCategory}"` : s.query);
     if (!found.length && s.commonsCategory) found = await commons(s.query);

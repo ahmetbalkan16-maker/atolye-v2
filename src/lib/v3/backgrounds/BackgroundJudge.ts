@@ -76,7 +76,7 @@ const VERDICT_SCHEMA = {
   required: ["puan", "donem", "modern", "tur", "gosterilen", "sorun"],
 };
 
-const SOURCE_NAME: Readonly<Record<string, string>> = { wikipedia: "the Wikipedia article about the subject", met: "The Metropolitan Museum of Art", commons: "Wikimedia Commons", openverse: "Openverse (openly licensed collections)" };
+const SOURCE_NAME: Readonly<Record<string, string>> = { wikipedia: "the Wikipedia article about the subject", met: "The Metropolitan Museum of Art", commons: "Wikimedia Commons", openverse: "Openverse (openly licensed collections)", aic: "the Art Institute of Chicago", cleveland: "the Cleveland Museum of Art" };
 
 /** Both scores at or above the bar and nothing modern in the picture. */
 /**
@@ -331,7 +331,9 @@ export async function pickBackground<T extends JudgeCandidate>(
         log(`hakem okunabilir yanıt vermedi (${c.title.slice(0, 60)})`);
       }
       // Every readable set, not only those that pass: when none passes, the best attempt is used (Rome, 21 Oct 2026).
-      const question = opts.mode === "set" && !v.okunamadi ? laterEraQuestion(scene.donem) : undefined;
+      // A period image that passes is asked too (owner, 21 Oct 2026: Canaletto's 1742 Forum with its bell tower closed the
+      // 49 BC Rubicon video — related to the subject, but not of the period). Subject photos of today are not.
+      const question = (opts.mode === "set" && !v.okunamadi) || ((opts.mode ?? "arsiv") === "arsiv" && passes(v)) ? laterEraQuestion(scene.donem) : undefined;
       if (question) {
         const out = await judge.generate(question, { images: [image], jsonSchema: LATER_ERA_SCHEMA, maxTokens: 120 }).catch(() => undefined);
         const seen = out ? parseLaterEra(typeof out === "string" ? out : out.content) : undefined;

@@ -290,6 +290,25 @@ async function main() {
     assert.equal((await pickBackground(["morroni"].map(candidate), roman, judge2, preview, () => {}, { mode: "arsiv" })).chosen, undefined, "a period image must have nothing modern");
   });
 
+  await scenario("Q a period image of antiquity that passes is asked about later buildings; a yes drops it (Canaletto's 1742 Forum)", async () => {
+    const asked: string[] = [];
+    const judge: AIProvider = {
+      generate: async (prompt, o) => {
+        const img = Buffer.from(o?.images?.[0] ?? "", "base64").toString();
+        if (prompt.includes("Is there anywhere in it")) {
+          asked.push(img);
+          return { content: img.includes("canaletto") ? '{"var": true, "ne": "bell tower behind the columns"}' : '{"var": false, "ne": "none"}', finishReason: "stop", refused: false, complete: true, truncated: false };
+        }
+        return { content: JSON.stringify({ puan: img.includes("zayif") ? 3 : 9, donem: 8, modern: false, tur: "eser", gosterilen: "Forum", sorun: "" }), finishReason: "stop", refused: false, complete: true, truncated: false };
+      },
+    };
+    const roman: SceneForJudge = { ...SCENE, donem: "49 BC", konu: "Rubicon", mekan: "Rome", tr: "Forum", en: "Roman Forum" };
+    const pick = await pickBackground(["canaletto", "zayif", "lorrain"].map(candidate), roman, judge, preview);
+    assert.equal(pick.chosen?.title, "File:lorrain.jpg");
+    assert.equal(pick.verdicts[0]!.sonrakiCag, "bell tower behind the columns");
+    assert.deepEqual(asked.map((x) => x.replace("img:File:", "")), ["canaletto.jpg", "lorrain.jpg"], "only passing period images are asked");
+  });
+
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
 }
 
