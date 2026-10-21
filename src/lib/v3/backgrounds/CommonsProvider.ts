@@ -206,17 +206,37 @@ export async function commonsByTitles(cacheDir: string, titles: readonly string[
 }
 
 /** Downloads a candidate (standard rendition, at most 3840 px wide) as a local asset with its credit. */
-export async function downloadCommons(c: CommonsCandidate, outFile: string): Promise<CreditRecord> {
+export async function downloadCommons(c: CommonsCandidate, outFile: string, cacheDir?: string): Promise<CreditRecord> {
+  // A picture downloaded once is kept by its address: a later run never loses it to the network (the 21 Oct Rubicon run
+  // lost Boulanger's painting, chosen in every earlier run, to a "fetch failed" on the shared line).
+  const kept = cacheDir ? path.join(cacheDir, "indirilen", `${createHash("sha256").update(c.downloadUrl).digest("hex").slice(0, 24)}${path.extname(new URL(c.downloadUrl).pathname) || ".jpg"}`) : undefined;
+  let buf: Buffer | undefined = kept && existsSync(kept) ? await fs.readFile(kept) : undefined;
   // The big rendition is generated on demand and is the first to be rate-limited: then a smaller standard step,
-  // then the original file (the Rubicon run lost its chosen painting to a 429 on the 3840 px thumbnail).
+  // then the original file (the Rubicon run lost its chosen painting to a 429 on the 3840 px thumbnail). A network
+  // error moves on to the next address too, and the whole list is tried once more after a pause.
   const urls = [...new Set([c.downloadUrl, c.downloadUrl.replace(/\/3840px-/, "/1920px-"), c.url])];
-  let res: Response | undefined;
-  for (const url of urls) {
-    res = await politeFetch(url);
-    if (res.ok) break;
+  let last = "?";
+  for (let round = 0; round < 2 && !buf; round++) {
+    if (round > 0) await new Promise((r) => setTimeout(r, 5_000));
+    for (const url of urls) {
+      try {
+        const res = await politeFetch(url);
+        if (!res.ok) {
+          last = String(res.status);
+          continue;
+        }
+        buf = Buffer.from(await res.arrayBuffer());
+        break;
+      } catch (e) {
+        last = (e as Error).message.slice(0, 60);
+      }
+    }
   }
-  if (!res?.ok) throw new Error(`COMMONS_DOWNLOAD_${res?.status ?? "?"}`);
-  const buf = Buffer.from(await res.arrayBuffer());
+  if (!buf) throw new Error(`COMMONS_DOWNLOAD_${last}`);
+  if (kept && !existsSync(kept)) {
+    await fs.mkdir(path.dirname(kept), { recursive: true });
+    await fs.writeFile(kept, buf);
+  }
   await fs.mkdir(path.dirname(outFile), { recursive: true });
   await fs.writeFile(outFile, buf);
   return { ...c.credit, assetId: path.basename(outFile), kind: "image", sha256: createHash("sha256").update(buf).digest("hex") };

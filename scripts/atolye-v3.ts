@@ -251,7 +251,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       let got: { c: (typeof fresh)[number]; v: CandidateVerdict; credit: CreditRecord; file: string } | undefined;
       for (const { c, v } of passing) {
         const file = path.join(pub, `${scene.id}-donem${extOf(c.downloadUrl)}`);
-        const credit = await downloadCommons(c, file).catch((e: Error) => (log(`  ${scene.id}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
+        const credit = await downloadCommons(c, file, cache).catch((e: Error) => (log(`  ${scene.id}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
         if (credit) {
           got = { c, v, credit, file };
           break;
@@ -799,7 +799,17 @@ async function main() {
   let retouchPlan: RetouchPlan | undefined;
   await step("birlestir", async () => {
     const final = preview ? "final-onizleme.mp4" : "final.mp4";
-    await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", f(silent), "-i", f("miks.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", f(final)], { timeoutMs: 30 * 60_000 });
+    // AAC lifts peaks: with the ambience beds (broadband river and wind) a −1.5 dBTP mix came out at +1.7 dBTP. A limiter
+    // under the codec keeps the loudness (−14.3 measured) and the peaks well under −1; if a file still peaks over −1, the
+    // ceiling comes down by the excess and it is encoded again.
+    let ceilingDb = -3;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", f(silent), "-i", f("miks.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-af", `alimiter=limit=${(10 ** (ceilingDb / 20)).toFixed(4)}:attack=1:release=50:level=false`, "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", f(final)], { timeoutMs: 30 * 60_000 });
+      const peak = (await measureLoudness(paths, f(final))).truePeakDb;
+      if (peak <= -1) break;
+      ceilingDb -= peak + 1.3;
+      log(`  ses tepesi ${peak.toFixed(1)} dBTP (sınır −1): sınırlayıcı ${ceilingDb.toFixed(1)} dB ile yeniden kodlanıyor`);
+    }
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
     const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : []))].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
