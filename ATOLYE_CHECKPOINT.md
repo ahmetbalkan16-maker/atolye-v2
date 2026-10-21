@@ -1,3 +1,23 @@
+## 21 Ekim 2026 (öğleden sonra) — V3 uzun video altyapısı tamam: parçalı render, bölüm başına müzik
+
+**Owner (21 Ekim):** videolar en az 15–20 dk, Hayalhanem tarzı harita anlatımı, uzun videoda 4 $ tavan; "önce altyapıyı
+hallet, emin olunca videoyu yapalım". Dal `feature/cop-adam-v3` (worktree `atolye-v2-v3`); canlıya henüz alınmadı
+(canlı `34f3c941`).
+
+**Commit'ler:** `fd9bd11a` Chicago + Cleveland müze kaynakları, sonraki-çağ elemesi · `98598152` kabartmalı harita,
+kayan kamera, rozet/savaş/sınır · `bdedf72d` bölüm bölüm senaryo (`LongForm`), 4 $ · `1c890cb1` YouTube bölümleri,
+ortam sesi sınırı, kalite beyni tüm videoda, sipariş varsayılanı 18 dk · bu oturum: parçalı render
+(`src/lib/v3/render/ChunkedRender.ts`, ~3 dk parça, yarıda kalan render yalnız eksik parçayı çizer, `-c copy` birleştirme),
+bölüm kartı yeni müzik yatağı açar, jenerikteki ses motoru satırların gerçek motorundan, önizleme ölçeği 0,45
+(`--onizleme` Remotion 4'te hiç çalışmıyordu), `maliyet.json`/QC gerçek tavan.
+
+**Doğrulama:** tsc 0 (kök + remotion-v3), dosya bazlı eslint 0; smoke-v3 backgrounds 19, council 11, episode-director 20,
+likeness 14, lipsync 5, mix 13, motion 9, **render 5 (yeni)**, script 18, youtube 4, ayas-video-order 5 PASS. Gerçek
+Remotion + ffmpeg denemesi (Roma planı, 3 parça): 180 kare, 6,000 sn, zaman damgası adımı sabit, dikiş kareleri temiz.
+
+**Sıradaki:** kısa bir deneme bölümü (uzun-video kod yolunu uçtan uca: LongForm + harita + parçalı render), ardından
+owner onayıyla ilk 15–20 dk'lık video (gece, 4–6 sa); sonra canlıya alma (ff push + ana repo pull + Graphify).
+
 ## 21 Ekim 2026 — V3 CANLIDA: VoxCPM2 sesler, GPU durması 85 °C, dönem setleri, gerçek fotoğraf yedeği, sistem taraması
 
 **Canlı:** `feature/cop-adam-v3` → `wip/ayas-graphify-final-execution` ileri sarma (4b20b924..34f3c941, 70 commit; kök

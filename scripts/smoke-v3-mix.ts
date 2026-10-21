@@ -11,6 +11,7 @@ import { AMBIENCE_LUFS, ambienceChain, MAX_SCENES_PER_TRACK, placeSamples, planM
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, MAX_AMBIENCE_PLACES, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
+import { voiceCredit } from "../src/lib/v3/tts/Tts";
 import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
@@ -52,6 +53,19 @@ async function main() {
     const plan = planMusic(scenes, tracksFor, "x");
     assert.deepEqual(plan.map((p) => p.scenes.length), [MAX_SCENES_PER_TRACK, MAX_SCENES_PER_TRACK, 1]);
     for (let i = 1; i < plan.length; i++) assert.notEqual(plan[i]!.track.absolutePath, plan[i - 1]!.track.absolutePath);
+  });
+
+  await scenario("B2 a chapter card opens a new bed even when the mood stays the same", () => {
+    const scenes = [
+      { start: 0, end: 10, mood: "comedic" as const, chapter: 1 },
+      { start: 10, end: 20, mood: "comedic" as const, chapter: 1 },
+      { start: 20, end: 30, mood: "comedic" as const, chapter: 2 },
+      { start: 30, end: 40, mood: "comedic" as const, chapter: 2 },
+    ];
+    const plan = planMusic(scenes, tracksFor, "x");
+    assert.deepEqual(plan.map((p) => [p.start, p.end]), [[0, 20], [20, 40]]);
+    assert.notEqual(plan[1]!.track.absolutePath, plan[0]!.track.absolutePath, "the new chapter gets another track");
+    assert.deepEqual(planMusic(scenes.map((s) => ({ start: s.start, end: s.end, mood: s.mood })), tracksFor, "x").map((p) => p.scenes.length), [MAX_SCENES_PER_TRACK, 1], "no chapters: as before");
   });
 
   await scenario("C a mood with no track gets no bed (silence beats a wrong mood)", () => {
@@ -243,6 +257,11 @@ async function main() {
     assert.equal(chooseEngine(general, "en", on, true), "kokoro", "after a failure: the voice's own engine for the whole run");
     assert.equal(chooseEngine({ ...general, tarif: undefined }, "en", on, false), "kokoro", "nothing to clone or design from");
     assert.ok(REFERENCE_TEXT.en.length > 40 && REFERENCE_TEXT.tr.length > 40);
+    // The credits name the engines that voiced the lines, not the language's old default.
+    assert.equal(voiceCredit(["voxcpm", "voxcpm"], "en"), "VoxCPM2 (OpenBMB, Apache-2.0), synthesized locally");
+    assert.equal(voiceCredit(["voxcpm", "kokoro"], "en"), "Kokoro-82M (hexgrad, Apache-2.0), VoxCPM2 (OpenBMB, Apache-2.0), synthesized locally", "after a failure both engines are named");
+    assert.match(voiceCredit(["chatterbox"], "tr"), /^Chatterbox Multilingual 0\.1\.7 \(Resemble AI, MIT\); karakter sesleri owner'ın kendi sesinden yerelde klonlandı\. .*Perth filigranı/);
+    assert.doesNotMatch(voiceCredit(["voxcpm"], "tr"), /Perth/);
   });
 
   await scenario("stage directions are never spoken; VoxCPM gets them as its acting instruction", () => {

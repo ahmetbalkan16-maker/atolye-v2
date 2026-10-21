@@ -11,7 +11,7 @@ import { toRenderCast } from "../../src/lib/v3/costumes/CastMapper";
 import { costumesRoot, loadAccessories } from "../../src/lib/v3/costumes/CostumePackLoader";
 import type { CastEntry } from "../../src/lib/v3/episode/EpisodeTypes";
 import type { V3CaptionPage, V3CharacterStyle, V3Performer, V3RenderPlan, V3Shot, V3Viseme } from "../../src/lib/v3/render/RenderPlanTypes";
-import { renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
+import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
 const FPS = 30;
@@ -132,7 +132,7 @@ async function main() {
     const preview = process.argv.includes("--onizleme");
     const out = path.join(work, preview ? "vitrin-480p.mp4" : "vitrin.mp4");
     const t0 = Date.now();
-    await renderWithRemotion(paths, { planFile, publicDir: pub, out, kind: "video", scale: preview ? 0.4447 : 1, crf: preview ? 26 : 18, onLine: (l) => /Rendered|Encoded|error/i.test(l) && process.stdout.write(`  ${l.slice(0, 120)}\n`) });
+    await renderWithRemotion(paths, { planFile, publicDir: pub, out, kind: "video", scale: preview ? PREVIEW_SCALE : 1, crf: preview ? 26 : 18, onLine: (l) => /Rendered|Encoded|error/i.test(l) && process.stdout.write(`  ${l.slice(0, 120)}\n`) });
     console.log(`video: ${out} (${((Date.now() - t0) / 1000).toFixed(1)} sn)`);
   }
 }

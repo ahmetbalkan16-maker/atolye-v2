@@ -70,6 +70,26 @@ export interface TtsLineResult {
   readonly speechText: string;
 }
 
+const ENGINE_CREDIT: Readonly<Record<TtsProviderId, string>> = {
+  voxcpm: "VoxCPM2 (OpenBMB, Apache-2.0)",
+  kokoro: "Kokoro-82M (hexgrad, Apache-2.0)",
+  chatterbox: "Chatterbox Multilingual 0.1.7 (Resemble AI, MIT)",
+  piper: "Piper (Rhasspy, MIT)",
+};
+
+/**
+ * The credits' voice line from the engines that actually voiced the episode (each line records its own): the English
+ * credits said Kokoro after VoxCPM2 had taken over the English voices (21 Oct 2026).
+ */
+export function voiceCredit(engines: readonly TtsProviderId[], language: TtsLanguage): string {
+  const used = [...new Set(engines)].sort();
+  const names = used.map((e) => ENGINE_CREDIT[e]).join(", ");
+  const perth = used.includes("chatterbox");
+  return language === "en"
+    ? `${names}, synthesized locally${perth ? ". Chatterbox output carries Resemble's inaudible Perth watermark." : ""}`
+    : `${names}; karakter sesleri owner'ın kendi sesinden yerelde klonlandı.${perth ? " Çıktıda Resemble'ın duyulmayan Perth filigranı vardır." : ""}`;
+}
+
 /** Engine-level synthesis into a raw WAV; post-processing is shared. */
 interface TtsEngine {
   readonly id: TtsProviderId;

@@ -12,7 +12,7 @@ export interface RemotionRenderOptions {
   /** `still` renders one frame as PNG. */
   readonly kind: "video" | "still";
   readonly frame?: number;
-  /** Output scale; 0.4447 turns 1080p into 480p for previews. */
+  /** Output scale; PREVIEW_SCALE for previews. */
   readonly scale?: number;
   readonly concurrency?: number;
   readonly crf?: number;
@@ -21,6 +21,12 @@ export interface RemotionRenderOptions {
   readonly frameRange?: readonly [number, number];
   readonly onLine?: (line: string) => void;
 }
+
+/**
+ * Preview scale: 1920×1080 → 864×486. Remotion needs whole, even sides; the old 0.4447 ("480p") gave a height of
+ * 480.276, which Remotion 4 refuses ("height must be an integer"), so every preview failed.
+ */
+export const PREVIEW_SCALE = 0.45;
 
 /** Remotion's own headless Chrome (downloaded on the first render into `remotion-v3/node_modules/.remotion`). */
 export function remotionBrowser(paths: Pick<V3Paths, "remotionRoot">): string {

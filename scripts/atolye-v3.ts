@@ -8,7 +8,8 @@
  *        [--from-step senaryo|gardirop|ses|senkron|gorsel|render|miks|birlestir] [--onizleme]
  *
  * Her adımın sonucu bölüm klasöründe dosya olarak durur; var olan adım atlanır, --from-step o adımdan itibaren
- * yeniden üretir. --onizleme 480p/15 fps render eder. OpenAI çağrıları video başına 1 $ tavanla sınırlıdır.
+ * yeniden üretir; render ~3 dk'lık parçalarla yapılır, yarıda kalan render yalnız eksik parçaları çizer. --onizleme
+ * 486p/15 fps render eder. OpenAI çağrıları video başına tavanla sınırlıdır (kısa video 1 $, uzun video 4 $).
  * Ekranda altyazı yoktur (konuşma yazısı ve isimler; --altyazi-gom eski gömülü altyazıyı açar).
  * Çıktılar: final.mp4, altyazi.srt (YouTube CC), CREDITS.md, aciklama.txt, QC.md (+ ara dosyalar).
  */
@@ -50,13 +51,14 @@ import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibr
 import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
-import { renderWithRemotion } from "../src/lib/v3/render/RemotionRunner";
+import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
+import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
-import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
+import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { coolGpuProvider, freeGpuMemory, unloadOllama, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
@@ -680,7 +682,7 @@ async function main() {
         likenesses = checked;
         await writeJson(f("episode.json"), episode);
       } finally {
-        await writeJson(f("maliyet.json"), { tavanUsd: 1, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
+        await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
       }
       await writeJson(f("gardirop.json"), records);
       return records;
@@ -704,7 +706,8 @@ async function main() {
   }
 
   // 3) Ses
-  type Voiced = { file: string; duration: number; voice: string };
+  // The engine of each line goes into the credits (older ses.json files have none).
+  type Voiced = { file: string; duration: number; voice: string; provider?: TtsProviderId };
   let voiced: Voiced[][];
   if (need("ses", "ses.json")) {
     voiced = await step("ses", async () => {
@@ -722,7 +725,7 @@ async function main() {
             const voice = voices.get(line.karakter) ?? narrator;
             try {
               const r = await tts.synthesize({ text: line.metin, voiceId: voice, emotion: line.duygu, language: dil });
-              lines.push({ file: r.file, duration: r.duration, voice });
+              lines.push({ file: r.file, duration: r.duration, voice, provider: r.provider });
             } catch (e) {
               throw new Error(`sahne ${scene.id} satır ${li} (${line.karakter}, ses ${voice}): ${(e as Error).message}`);
             }
@@ -820,12 +823,9 @@ async function main() {
       await writeJson(f("plan.json"), { plan });
       // The render's Chrome workers need RAM; the vision judge is not needed until the cover (PC health first).
       await unloadOllama(log, "render için RAM");
-      let last = "";
-      await renderWithRemotion(paths, { planFile: f("plan.json"), publicDir: path.join(work, "public"), out: f(silent), kind: "video", muted: true, ...(preview ? { scale: 0.4447 } : {}), ...(Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) > 0 ? { concurrency: Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) } : {}), onLine: (l) => {
-        const m = /Rendered (\d+)\/(\d+)/.exec(l);
-        if (m && m[1] !== last && Number(m[1]) % 300 === 0) log(`  render ${m[1]}/${m[2]}`);
-        if (m) last = m[1]!;
-      } });
+      // In pieces of ~3 minutes cut at shot starts: a rerun of this step renders only the pieces still missing.
+      const r = await renderInChunks({ planFile: f("plan.json"), publicDir: path.join(work, "public"), out: f(silent), chunkDir: f("render-parcalar"), durationInFrames: plan.durationInFrames, fps, cuts: plan.shots.map((s) => s.start), muted: true, log, ...(preview ? { scale: PREVIEW_SCALE } : {}), ...(Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) > 0 ? { concurrency: Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) } : {}) }, remotionDeps(paths));
+      if (r.chunks > 1) log(`  render: ${r.chunks} parça birleştirildi${r.reused ? ` (${r.reused} parça önceki denemeden)` : ""}`);
     });
   }
 
@@ -842,7 +842,7 @@ async function main() {
         const out = await budget.generate("youtube-paketi", providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" }, packagePrompt(episode), { maxTokens: 900 });
         paket = readPackage(out.result.content, episode);
       } finally {
-        await writeJson(f("maliyet.json"), { tavanUsd: 1, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
+        await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
       }
       const kapak = await designThumbnail({ paths, episode, cast: plan.cast, accessories: plan.accessories, sets: backgrounds.map((b) => ({ src: b.src, kind: b.kind })), publicDir: path.join(work, "public"), headlines: paket.kapakBasliklari, judge: visionJudge(), workDir: work, log });
       const result: YoutubeFile = { paket, ...(kapak ? { kapak } : {}) };
@@ -857,8 +857,9 @@ async function main() {
   if (need("miks", "miks.json")) {
     mix = await step("miks", async () => {
       const env = { ...process.env, ATOLYE_MUSIC_LIBRARY_ROOT: paths.musicRoot };
-      // Music starts under the opening cover.
-      const scenes = timeline.scenes.map((s) => ({ start: s.sceneIndex === 0 ? 0 : s.start, end: s.end, mood: sceneMusicMood(episode.sahneler[s.sceneIndex]!.duygu, episode.sahneler[s.sceneIndex]!.muzik_ruh_hali) }));
+      // Music starts under the opening cover; every chapter of a long episode opens on a bed of its own.
+      const cards = chapterScenes(episode).map((m) => m.index);
+      const scenes = timeline.scenes.map((s) => ({ start: s.sceneIndex === 0 ? 0 : s.start, end: s.end, mood: sceneMusicMood(episode.sahneler[s.sceneIndex]!.duygu, episode.sahneler[s.sceneIndex]!.muzik_ruh_hali), chapter: cards.filter((c) => c <= s.sceneIndex).length }));
       let music = planMusic(scenes, (m) => listTracksForMood(m, env), episode.id);
       // The composer: an original piece for every bed (ACE-Step, local); a bed it cannot make keeps its library track.
       const composer = new MusicComposer(paths, log);
@@ -922,15 +923,15 @@ async function main() {
     const periodShown = visuals.filter((v) => v.arsiv);
     const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : []), ...(episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? [RELIEF_CREDIT] : [])];
     const en = dil === "en";
-    const voiceCredit = en
-      ? "Kokoro-82M (hexgrad, Apache-2.0), synthesized locally"
-      : "Chatterbox Multilingual 0.1.7 (Resemble AI, MIT); karakter sesleri owner'ın kendi sesinden klonlandı. Çıktıda Resemble'ın duyulmayan Perth filigranı vardır.";
+    // The engines that voiced the lines; an older ses.json without them keeps the language's usual engine.
+    const engines = voiced.flat().flatMap((l) => (l.provider ? [l.provider] : []));
+    const voiceLine = voiceCredit(engines.length ? engines : [en ? "kokoro" : "chatterbox"], dil);
     const H = en
       ? { credits: "Credits", music: "Music", images: "Images", sfx: "Sound effects", sfxLine: `Kenney (CC0) and Atölye V3 effects${mix.sesTasarimi ? "; period effects and ambience generated locally with MOSS-SoundEffect v2 (Apache-2.0)" : ""}`, voices: "Voices", sources: "Sources", none: "none", note: "This video contains dramatization; the dialogue is invented for storytelling. Period images are credited on screen and below." }
       : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: `Kenney (CC0) ve Atölye V3 efektleri${mix.sesTasarimi ? "; dönem efektleri ve ortam sesleri yerelde MOSS-SoundEffect v2 (Apache-2.0) ile üretildi" : ""}`, voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
     await fs.writeFile(
       f("CREDITS.md"),
-      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}${episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? `\n- ${RELIEF_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceCredit}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
+      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}${episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? `\n- ${RELIEF_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceLine}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
     );
     // YouTube: the package's title, the hook sentences and the chapters first, hashtags last.
     // A long episode's chapters are its chapter cards; a short one has a chapter per scene.
@@ -944,7 +945,7 @@ async function main() {
     const hook = youtube?.paket.aciklamaGiris ? `${youtube.paket.aciklamaGiris}\n\n` : "";
     const chapterBlock = chs.length ? `${en ? "Chapters" : "Bölümler"}:\n${chapterText(chs)}\n\n` : "";
     const hashtags = youtube?.paket.hashtagler.length ? `\n${youtube.paket.hashtagler.join(" ")}\n` : "";
-    await fs.writeFile(f("aciklama.txt"), `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${hook}${chapterBlock}${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${mix.credits.join("\n\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceCredit}\n\n${H.note}\n${hashtags}`);
+    await fs.writeFile(f("aciklama.txt"), `${youtube?.paket.basliklar[0] ?? episode.baslik}\n\n${hook}${chapterBlock}${H.sources}:\n${episode.kaynaklar.map((k) => `• ${k.kunye}`).join("\n")}\n\n${H.music}:\n${mix.credits.join("\n\n")}\n${imageLines.length ? `\n${H.images}:\n${imageLines.join("\n")}\n` : ""}\n${H.voices}: ${voiceLine}\n\n${H.note}\n${hashtags}`);
 
     const durationS = Number((await runChecked(paths.ffprobe, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f(final)])).stdout.trim());
     const loud = await measureLoudness(paths, f(final));
@@ -987,7 +988,7 @@ async function main() {
     ];
     await fs.writeFile(
       f("QC.md"),
-      `# QC — ${episode.baslik} (${new Date().toLocaleString("tr-TR")})\n\n${qc.join("\n")}\n\n- Maliyet: $${cost.toplamUsd.toFixed(4)} / $1.00\n- Toplam üretim süresi: ${Math.round((Date.now() - t0) / 1000)} sn${preview ? " (önizleme: 480p, 15 fps)" : ""}\n- Sesler: ${Object.entries(voices).map(([c, v]) => `${c}→${v}`).join(", ")}\n\n## Görsel raporu (sahne sahne)\n\n${visuals
+      `# QC — ${episode.baslik} (${new Date().toLocaleString("tr-TR")})\n\n${qc.join("\n")}\n\n- Maliyet: $${cost.toplamUsd.toFixed(4)} / $${capUsd.toFixed(2)}\n- Toplam üretim süresi: ${Math.round((Date.now() - t0) / 1000)} sn${preview ? " (önizleme: 486p, 15 fps)" : ""}\n- Sesler: ${Object.entries(voices).map(([c, v]) => `${c}→${v}`).join(", ")}\n\n## Görsel raporu (sahne sahne)\n\n${visuals
         .map((v, i) => `- ${v.donemGorseli === "bulunamadi" || v.set.esikAlti ? "⚠ " : ""}${episode.sahneler[i]!.id}: ${v.not}. Set: ${v.set.kaynak}${v.set.secim ? ` (${verdictLine(v.set.secim)})` : ""}${v.set.esikAlti ? " — HAKEM EŞİĞİNİN ALTINDA" : ""}`)
         .join("\n")}\n`,
     );

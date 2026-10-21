@@ -325,3 +325,23 @@ okur; kod değişmez, ders yalnız veri ya da beynin kendi talimatı olur.
 - GitHub araştırması → owner onayı: ACE-Step 1.5, MOSS-SoundEffect v2, VoxCPM2, OmniSVG, CLIP ön eleme; hepsi yerel,
   ağırlık lisansı ticari kullanıma açık (HF'den doğrulandı), güvenli yedekle. Elenenler: Woosh (CC-BY-NC), OpenMontage
   (AGPL, ikinci boru hattı), IndexTTS-2 (lisans belirsiz), Orpheus (Llama şartlı; VoxCPM2 daha uygun).
+
+## 21 Ekim 2026 — Uzun video (15–20 dk) ve harita anlatımı altyapısı
+
+Owner: videolar en az 15–20 dk; Hayalhanem Ankara tarzı harita anlatımı; uzun videoda OpenAI tavanı 4 $; önce altyapı,
+emin olunca video.
+
+- `fd9bd11a` görsel araması: Chicago + Cleveland müzeleri (CC0); antik dönem görselinde sonraki çağ yapısı elenir.
+- `98598152` harita: Natural Earth kabartmalı zemin, kayan/yakınlaşan kamera, hükümdar rozetleri, savaşlar, sınır değişimi.
+- `bdedf72d` bölüm bölüm senaryo (`LongForm`), uzun videoda 4 $ tavan, yazar harita anlatımını bilir.
+- `1c890cb1` YouTube bölümleri bölüm kartlarından, ortam sesi en uzun 10 yere, kalite beyni tüm videoya yayılır,
+  siparişin varsayılan süresi 18 dk.
+- Parçalı render (`src/lib/v3/render/ChunkedRender.ts`): ~3 dk'lık parçalar, kesim çekim başına; her parça geçici adla
+  yazılır, kare sayısı doğrulanınca kalır; adımın yeniden denenmesi (onarım beyni, yarıda kalan sipariş) yalnız eksik
+  parçaları çizer; parçalar yeniden kodlamasız birleşir. Anahtar = plan + Remotion kodu + ölçek/kalite. Gerçek deneme
+  (Roma planı, 3 parça): 180 kare, zaman damgası kesintisiz, dikiş kareleri temiz. Yarım kalan `video-sessiz.mp4`'ün
+  "bitti" sanılması da kapandı.
+- Müzik: bölüm kartı yeni müzik yatağı açar (aynı ruh hâlinde bile). Jenerikteki ses satırı satırları seslendiren gerçek
+  motorlardan (İngilizce jenerik VoxCPM2 yerine Kokoro diyordu). Önizleme ölçeği 0,45 (eski 0,4447 yüksekliği 480,276
+  yapıyordu, Remotion reddediyordu: `--onizleme` hiç çalışmıyordu). `maliyet.json`/QC gerçek tavanı yazar.
+- Kalan: tam regresyon + kısa deneme bölümü, ardından owner onayıyla ilk 15–20 dk'lık video.

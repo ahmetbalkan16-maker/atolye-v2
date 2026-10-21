@@ -42,9 +42,10 @@ export interface MusicSegment {
 
 /**
  * Beds over the scenes: consecutive scenes of one mood share a track (no restart), a run longer than
- * MAX_SCENES_PER_TRACK hands over to the next track of that mood, and a track never follows itself.
+ * MAX_SCENES_PER_TRACK hands over to the next track of that mood, and a track never follows itself. A long episode's
+ * chapter (`chapter`, from its chapter cards) opens on a bed of its own: a bed never carries over a chapter card.
  */
-export function planMusic(scenes: readonly { readonly start: number; readonly end: number; readonly mood: MusicMood }[], tracksFor: (mood: MusicMood) => readonly MusicTrack[], seed = ""): MusicSegment[] {
+export function planMusic(scenes: readonly { readonly start: number; readonly end: number; readonly mood: MusicMood; readonly chapter?: number }[], tracksFor: (mood: MusicMood) => readonly MusicTrack[], seed = ""): MusicSegment[] {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) & 0x7fffffff;
   const turn = new Map<MusicMood, number>();
@@ -53,7 +54,7 @@ export function planMusic(scenes: readonly { readonly start: number; readonly en
   while (i < scenes.length) {
     const mood = scenes[i]!.mood;
     let j = i;
-    while (j + 1 < scenes.length && scenes[j + 1]!.mood === mood && j + 1 - i < MAX_SCENES_PER_TRACK) j++;
+    while (j + 1 < scenes.length && scenes[j + 1]!.mood === mood && scenes[j + 1]!.chapter === scenes[i]!.chapter && j + 1 - i < MAX_SCENES_PER_TRACK) j++;
     const all = tracksFor(mood);
     if (all.length) {
       const top = Math.max(...all.map((t) => t.priority ?? 0));
