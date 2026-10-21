@@ -14,7 +14,8 @@ import { articleSource, sourceId, verifyFacts } from "../src/lib/v3/research/Sou
 import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { V3Budget, V3BudgetError } from "../src/lib/v3/script/V3Budget";
-import { v3Secret } from "../src/lib/v3/V3Paths";
+import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
+import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -190,6 +191,19 @@ async function main() {
     assert.equal(v3Secret("OPENAI_API_KEY", dir, { ATOLYE_V3_SECRETS_ENV: file, OPENAI_API_KEY: "sk-env" }), "sk-env");
     assert.throws(() => v3Secret("OTHER_SECRET", dir, { ATOLYE_V3_SECRETS_ENV: file }), /V3_SECRET_NOT_ALLOWED/);
     assert.equal(v3Secret("OPENAI_API_KEY", dir, {}), undefined);
+  });
+
+  await scenario("J2 the switches of .env.v3.local reach the run; a variable already set wins and nothing else is copied", () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "v3-settings-"));
+    writeFileSync(path.join(dir, ".env.v3.local"), "# yorum\nATOLYE_V3_TTS_EN=voxcpm\nATOLYE_V3_MUSIC_COMPOSER=0\nOPENAI_API_KEY=sk-nope\nPATH=x\n");
+    const env: Record<string, string | undefined> = { ATOLYE_V3_MUSIC_COMPOSER: "1" };
+    assert.deepEqual(loadV3Settings(dir, env), ["ATOLYE_V3_TTS_EN"]);
+    assert.equal(env.ATOLYE_V3_TTS_EN, "voxcpm");
+    assert.equal(env.ATOLYE_V3_MUSIC_COMPOSER, "1");
+    assert.equal(env.OPENAI_API_KEY, undefined);
+    assert.equal(env.PATH, undefined);
+    assert.deepEqual([...voxcpmLanguages(env)], ["en"]);
+    assert.deepEqual(loadV3Settings(path.join(dir, "yok"), {}), []);
   });
 
   await scenario("K with a source bank an invented book is sent back, and cited sources carry the bank's exact text", async () => {

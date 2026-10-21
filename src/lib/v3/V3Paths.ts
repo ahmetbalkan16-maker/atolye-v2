@@ -58,6 +58,21 @@ function loadEnvFile(file: string): Record<string, string> {
   return out;
 }
 
+/**
+ * The behaviour switches of `.env.v3.local` (ATOLYE_V3_TTS_EN, ATOLYE_V3_MUSIC_COMPOSER, ATOLYE_V3_VISION_MODEL, …)
+ * into this process's environment, where the code reads them; a variable already set wins. Until 21 Oct 2026 only
+ * the paths were read from the file and a switch written there was silently ignored. Returns the names it set.
+ */
+export function loadV3Settings(repoRoot = process.cwd(), env: Record<string, string | undefined> = process.env): string[] {
+  const set: string[] = [];
+  for (const [key, value] of Object.entries(loadEnvFile(path.join(repoRoot, ".env.v3.local")))) {
+    if (!/^ATOLYE_V3_[A-Z0-9_]+$/.test(key) || env[key] !== undefined) continue;
+    env[key] = value;
+    set.push(key);
+  }
+  return set;
+}
+
 /** Secrets V3 may borrow from another env file; nothing else is read from it. */
 const BORROWABLE_SECRETS = new Set(["OPENAI_API_KEY"]);
 

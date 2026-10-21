@@ -56,9 +56,10 @@ import { researchTopic } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { TtsService, type VoiceMap } from "../src/lib/v3/tts/Tts";
+import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { coolGpuProvider, freeGpuMemory, unloadOllama, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
-import { resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
+import { loadV3Settings, resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
 
 const STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorsel", "render", "kapak", "miks", "birlestir"] as const;
 
@@ -409,6 +410,8 @@ function buildSrt(timeline: EpisodeTimeline): string {
 
 async function main() {
   if (process.argv[2] !== "uret") throw new Error('Kullanım: npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] …');
+  // The switches of .env.v3.local (voice engine, composer, judge model…) apply to this run like the paths do.
+  loadV3Settings();
   const paths = resolveV3Paths();
   const log = (s: string) => console.log(s);
   // The production council: every brain's findings and debates, reported to AYAS at the end.
@@ -658,7 +661,7 @@ async function main() {
   let synced: LineSync[][];
   if (need("senkron", "senkron.json")) {
     synced = await step("senkron", async () => {
-      const flat = episode.sahneler.flatMap((s, si) => s.satirlar.map((l, li) => ({ wav: voiced[si]![li]!.file, text: l.metin, language: dil })));
+      const flat = episode.sahneler.flatMap((s, si) => s.satirlar.map((l, li) => ({ wav: voiced[si]![li]!.file, text: splitDirections(l.metin).speech, language: dil })));
       const res = await analyzeLines(paths, flat, log);
       let k = 0;
       const out = episode.sahneler.map((s) => s.satirlar.map(() => res[k++]!));

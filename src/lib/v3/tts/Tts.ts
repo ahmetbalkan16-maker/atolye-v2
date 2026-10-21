@@ -8,6 +8,7 @@ import { PythonLineServer } from "../util/PythonLineServer";
 import type { V3Paths } from "../V3Paths";
 import { normalizeEnglishForSpeech } from "./EnglishText";
 import { type Lexicon, normalizeForSpeech } from "./TurkishText";
+import { splitDirections } from "./StageDirections";
 import { chooseEngine, REFERENCE_TEXT, VOXCPM_MODEL_ID, voxcpmDescription, voxcpmLanguages, voxcpmText } from "./Voxcpm";
 
 export type TtsProviderId = "chatterbox" | "piper" | "kokoro" | "voxcpm";
@@ -73,7 +74,7 @@ export interface TtsLineResult {
 interface TtsEngine {
   readonly id: TtsProviderId;
   readonly model: string;
-  synthesizeRaw(text: string, voice: VoiceProfile, emotionBoost: number, out: string, seed: number, language: TtsLanguage, emotion?: V3Emotion): Promise<void>;
+  synthesizeRaw(text: string, voice: VoiceProfile, emotionBoost: number, out: string, seed: number, language: TtsLanguage, emotion?: V3Emotion, directions?: readonly string[]): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -216,12 +217,12 @@ class VoxcpmEngine implements TtsEngine {
     return file;
   }
 
-  async synthesizeRaw(text: string, voice: VoiceProfile, _boost: number, out: string, seed: number, language: TtsLanguage, emotion: V3Emotion = "notr"): Promise<void> {
+  async synthesizeRaw(text: string, voice: VoiceProfile, _boost: number, out: string, seed: number, language: TtsLanguage, emotion: V3Emotion = "notr", directions: readonly string[] = []): Promise<void> {
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     const reference = await this.reference(voice, language);
     let error = "";
     for (const s of [seed, seed + 1]) {
-      const r = await this.request({ mode: "clone", text: voxcpmText(text, emotion), reference, seed: s, out });
+      const r = await this.request({ mode: "clone", text: voxcpmText(text, emotion, directions), reference, seed: s, out });
       if (r.ok) return;
       error = r.error ?? "bilinmeyen hata";
     }
@@ -344,12 +345,14 @@ export class TtsService {
     const language = req.language ?? "tr";
     const provider = req.provider ?? chooseEngine(voice, language, this.prefer, this.voxcpmOff);
     const engine = this.engine(provider);
-    const speech = language === "tr" ? this.speechText(req.text) : normalizeEnglishForSpeech(req.text);
+    // Stage directions are never spoken; VoxCPM gets them as its acting instruction.
+    const { speech: spoken, directions } = splitDirections(req.text);
+    const speech = language === "tr" ? this.speechText(spoken) : normalizeEnglishForSpeech(spoken);
     const boost = this.voices.duygu_ayari[req.emotion] ?? 0;
     const speed = req.speed ?? 1;
     const refHash = voice.referans && (provider === "chatterbox" || provider === "voxcpm") ? await fileHash(path.join(this.paths.voiceRefRoot, `${voice.referans}.wav`)) : "";
     const key = createHash("sha256")
-      .update(JSON.stringify({ v: 1, model: engine.model, speech, voice, provider, boost, speed, refHash, filter: postProcessFilter(voice, speed), ...(language !== "tr" ? { language } : {}), ...(provider === "voxcpm" ? { emotion: req.emotion, description: voxcpmDescription(voice) ?? "" } : {}) }))
+      .update(JSON.stringify({ v: 1, model: engine.model, speech, voice, provider, boost, speed, refHash, filter: postProcessFilter(voice, speed), ...(language !== "tr" ? { language } : {}), ...(provider === "voxcpm" ? { emotion: req.emotion, description: voxcpmDescription(voice) ?? "", directions } : {}) }))
       .digest("hex")
       .slice(0, 32);
     const file = path.join(this.cacheDir, `${key}.wav`);
@@ -359,7 +362,7 @@ export class TtsService {
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
     const raw = path.join(this.paths.asciiTemp, `tts-${key}-raw.wav`);
     const seed = parseInt(key.slice(0, 8), 16) % 1_000_000;
-    await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, seed, language, req.emotion);
+    await this.engine(provider).synthesizeRaw(speech, voice, boost, raw, seed, language, req.emotion, directions);
     const tmp = `${file}.tmp.wav`;
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", postProcessFilter(voice, speed), "-ac", "1", "-c:a", "pcm_s16le", tmp]);
     await fs.rename(tmp, file);

@@ -26,8 +26,9 @@ export function voxcpmStyle(emotion: V3Emotion): string {
 }
 
 /** The line as VoxCPM reads it: the style instruction in parentheses first, then the words. */
-export function voxcpmText(text: string, emotion: V3Emotion): string {
-  const style = voxcpmStyle(emotion);
+/** The script's stage directions ("off map, panicked") join the emotion's style as the acting instruction. */
+export function voxcpmText(text: string, emotion: V3Emotion, directions: readonly string[] = []): string {
+  const style = [voxcpmStyle(emotion), ...directions].filter(Boolean).join(", ");
   return style ? `(${style})${text}` : text;
 }
 

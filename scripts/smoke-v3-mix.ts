@@ -10,6 +10,7 @@ import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { AMBIENCE_LUFS, ambienceChain, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
+import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
 import type { EpisodeTimeline } from "../src/lib/v3/timeline/Timeline";
 
@@ -233,6 +234,16 @@ async function main() {
     assert.equal(chooseEngine(general, "en", on, true), "kokoro", "after a failure: the voice's own engine for the whole run");
     assert.equal(chooseEngine({ ...general, tarif: undefined }, "en", on, false), "kokoro", "nothing to clone or design from");
     assert.ok(REFERENCE_TEXT.en.length > 40 && REFERENCE_TEXT.tr.length > 40);
+  });
+
+  await scenario("stage directions are never spoken; VoxCPM gets them as its acting instruction", () => {
+    assert.deepEqual(splitDirections("(steps up to the river, dramatic pause) If I cross, there's no turning back."), { speech: "If I cross, there's no turning back.", directions: ["steps up to the river, dramatic pause"] });
+    assert.deepEqual(splitDirections("He should listen to the Senate! (puffing up) Or at least, to me."), { speech: "He should listen to the Senate! Or at least, to me.", directions: ["puffing up"] });
+    assert.deepEqual(splitDirections("[aside] Very bold."), { speech: "Very bold.", directions: ["aside"] });
+    assert.deepEqual(splitDirections("No directions here."), { speech: "No directions here.", directions: [] });
+    assert.equal(splitDirections("(sighs) ").speech, "", "a line of only a direction says nothing");
+    assert.equal(voxcpmText("Retreat is a bold strategy!", "korkmus", ["off map, panicked"]), "(scared, trembling voice, off map, panicked)Retreat is a bold strategy!");
+    assert.equal(voxcpmText("The die is cast.", "notr", ["raising hand"]), "(raising hand)The die is cast.");
   });
 
   console.log(`V3 mix smoke: PASS (${scenarios} scenarios)`);
