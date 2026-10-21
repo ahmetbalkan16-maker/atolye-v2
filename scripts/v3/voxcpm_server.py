@@ -58,7 +58,9 @@ def main():
             if req.get("cmd") == "quit":
                 break
             t0 = time.monotonic()
-            args = {"text": str(req["text"]), "cfg_value": 2.0, "inference_timesteps": 10, "seed": int(req.get("seed", 0))}
+            # voxcpm 2.0.3 takes no seed argument: the seed is set before the call (same request, same voice).
+            torch.manual_seed(int(req.get("seed", 0)))
+            args = {"text": str(req["text"]), "cfg_value": 2.0, "inference_timesteps": 10}
             if req.get("mode") == "clone":
                 ref = Path(str(req["reference"]))
                 if not ref.is_file():
