@@ -88,6 +88,15 @@ export function readPeriodRewrite(content: string): string | undefined {
   }
 }
 
+/**
+ * The ancient wording that worked when the setting brain's rewrite is refused twice (it repeats a castle word): the
+ * Corfinium trial's "small ancient Italic hill town: whitewashed stone houses with terracotta tile roofs, a low wall of
+ * large fitted stones with a simple arched gate" gave ancient villages. Undefined from 400 AD on.
+ */
+export function ancientPlace(mekan: string, donem: string): string | undefined {
+  return periodLook(donem) ? `A small ancient town at ${mekan} in ${donem}: low stone houses with terracotta tile roofs, a low wall of large fitted stones with a simple arched gate.` : undefined;
+}
+
 /** The last resort when every drawing of a place showed a later era: its countryside, with no buildings to get wrong. */
 export function landscapeOnly(mekan: string, donem: string): string {
   return `The open countryside near ${mekan} in ${donem}: green hills, a dirt road, a few trees, distant mountains.`;

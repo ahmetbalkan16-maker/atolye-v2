@@ -20,7 +20,7 @@ import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
-import { BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { type CommonsCandidate, commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
@@ -336,11 +336,20 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       const sc = episode.sahneler[si]!;
       const place = sc.arka_plan_sorgusu.tasarim ?? `${sc.mekan}; ${sc.arka_plan_sorgusu.en}`;
       const reasons = failed.map((v) => v.sonrakiCag ?? v.kacin ?? v.sorun).filter(Boolean);
-      const out = await judge.generate(periodRewritePrompt(place, sc.mekan, episode.donem, reasons), { maxTokens: 220 }).catch(() => undefined);
-      const text = out ? readPeriodRewrite(typeof out === "string" ? out : out.content) : undefined;
+      // Asked twice (an answer that repeats a castle word is refused); then the ancient wording that worked.
+      let text: string | undefined;
+      for (let attempt = 0; attempt < 2 && !text; attempt++) {
+        const out = await judge.generate(periodRewritePrompt(place, sc.mekan, episode.donem, reasons), { maxTokens: 220 }).catch((e: Error) => (log(`  ${sc.id}: tarif yeniden yazılamadı (${e.message.slice(0, 80)})`), undefined));
+        const content = out ? (typeof out === "string" ? out : out.content) : "";
+        text = readPeriodRewrite(content);
+        if (!text && content) log(`  ${sc.id}: yeniden yazılan tarif kabul edilmedi (${content.replace(/\s+/g, " ").slice(0, 120)})`);
+      }
+      text ??= ancientPlace(sc.mekan, episode.donem);
       if (text) {
         rewritten.set(si, text);
         log(`  ${sc.id}: set tarifi döneme göre yeniden yazıldı — ${text}`);
+      } else {
+        log(`  ${sc.id}: set tarifi yeniden yazılamadı; ikinci tur aynı tarifle`);
       }
     }
     const drawn: { si: number; d: DesignedSet }[] = [];
@@ -385,11 +394,11 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     if (!fresh.length) return undefined;
     const sj = { ...sceneForJudge(episode, si), anlatim: scene.satirlar.map((l) => l.metin).join(" ") };
     const pick = await pickBackground(fresh, sj, judge, (c) => commonsPreview(cache, c), log, { mode: "konu" });
-    for (const v of pick.verdicts) log(`  ${scene.id} konu fotoğrafı ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
+    for (const v of pick.verdicts) log(`  ${scene.id} konu fotoğrafı ${passes(v, true) ? "✓" : "·"} ${verdictLine(v)}`);
     const passing = fresh
       .slice(0, pick.verdicts.length)
       .map((c, i) => ({ c, v: pick.verdicts[i]! }))
-      .filter((x) => passes(x.v))
+      .filter((x) => passes(x.v, true))
       .sort((a, b) => fitScore(b.v) - fitScore(a.v));
     for (const { c, v } of passing) {
       const file = path.join(pub, `${scene.id}-konu${extOf(c.downloadUrl)}`);

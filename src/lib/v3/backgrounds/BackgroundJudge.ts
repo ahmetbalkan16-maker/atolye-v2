@@ -79,8 +79,13 @@ const VERDICT_SCHEMA = {
 const SOURCE_NAME: Readonly<Record<string, string>> = { wikipedia: "the Wikipedia article about the subject", met: "The Metropolitan Museum of Art", commons: "Wikimedia Commons", openverse: "Openverse (openly licensed collections)" };
 
 /** Both scores at or above the bar and nothing modern in the picture. */
-export function passes(v: CandidateVerdict): boolean {
-  return v.puan >= MIN_FIT_SCORE && (v.donem ?? v.puan) >= MIN_FIT_SCORE && v.modern !== true;
+/**
+ * Both scores at the bar and nothing modern. `allowModern`: a subject photo of today (ruins, a site) always shows a
+ * little of today — a fence, a house far off, a plaque — and its period score already weighs that (Corfinium's Roman
+ * ruins scored 10/9 but "modern"), so the flag alone does not fail it.
+ */
+export function passes(v: CandidateVerdict, allowModern = false): boolean {
+  return v.puan >= MIN_FIT_SCORE && (v.donem ?? v.puan) >= MIN_FIT_SCORE && (allowModern || v.modern !== true);
 }
 
 /** Ranking score: the weaker of the two scores. */
@@ -337,7 +342,7 @@ export async function pickBackground<T extends JudgeCandidate>(
       v = { title: c.title, puan: 0, gosterilen: "", sorun: "değerlendirilemedi" };
     }
     verdicts.push(v);
-    if (passes(v) && (!best || fitScore(v) > fitScore(best.v))) best = { c, v };
+    if (passes(v, opts.mode === "konu") && (!best || fitScore(v) > fitScore(best.v))) best = { c, v };
   }
   return best ? { chosen: best.c, verdict: best.v, verdicts } : { verdicts };
 }

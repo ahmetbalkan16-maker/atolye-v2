@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
-import { designFor, LANDSCAPE_NEGATIVE, landscapeOnly, periodLook, periodNegatives, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, periodLook, periodNegatives, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
@@ -267,6 +267,9 @@ async function main() {
     const land = landscapeOnly("Corfinium, Italy", "49 BC");
     assert.ok(land.includes("countryside near Corfinium, Italy in 49 BC") && !/building/.test(land), "SDXL reads 'no buildings' as buildings");
     assert.match(LANDSCAPE_NEGATIVE.join(","), /buildings, houses, town/);
+    const ancient = ancientPlace("Corfinium, Italy", "49 BC")!;
+    assert.ok(ancient.includes("terracotta tile roofs") && readPeriodRewrite(JSON.stringify({ tasarim: ancient })) === ancient, "the fallback wording passes its own check");
+    assert.equal(ancientPlace("Istanbul", "1453"), undefined);
   });
 
   await scenario("P subject photo (no set could be drawn): exactly this place's remains or a period object, never an unrelated photo", async () => {
@@ -279,6 +282,12 @@ async function main() {
     assert.equal(pick.chosen?.title, "File:corfinium-walls.jpg");
     const none = await pickBackground(["rimini-beach"].map(candidate), roman, judge, preview, () => {}, { mode: "konu" });
     assert.equal(none.chosen, undefined, "an unrelated photo is never chosen");
+    // Corfinium's Roman ruins today: subject 10, period 9, "modern" for a house far off — a subject photo still passes.
+    const ruins = { title: "Morroni", puan: 10, donem: 9, modern: true, gosterilen: "kalıntılar", sorun: "" };
+    assert.ok(passes(ruins, true) && !passes(ruins));
+    const judge2 = new FakeJudge({ morroni: JSON.stringify({ puan: 10, donem: 9, modern: true, tur: "fotograf", gosterilen: "Corfinium kalıntıları", sorun: "-" }) });
+    assert.equal((await pickBackground(["morroni"].map(candidate), roman, judge2, preview, () => {}, { mode: "konu" })).chosen?.title, "File:morroni.jpg");
+    assert.equal((await pickBackground(["morroni"].map(candidate), roman, judge2, preview, () => {}, { mode: "arsiv" })).chosen, undefined, "a period image must have nothing modern");
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);
