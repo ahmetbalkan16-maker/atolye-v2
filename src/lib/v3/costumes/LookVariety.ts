@@ -71,6 +71,7 @@ export function distinctLooks(episode: Episode, notes: ReadonlyMap<string, reado
   const seen = new Set<string>();
   const seenClothes = new Set<string>();
   const usedSecond: string[] = [];
+  const crowdClothes = new Set(episode.sahneler.flatMap((s) => (s.kalabalik ?? []).map((g) => clothesSignature(g.kostum))));
   const out = new Map<string, CastCostume>();
   const nextHair = (): readonly [V3HairStyle, string] | undefined => HAIR_ROTATION.find(([s, r]) => !usedHair.has(`${s}${r}`));
   for (const c of order) {
@@ -105,6 +106,13 @@ export function distinctLooks(episode: Episode, notes: ReadonlyMap<string, reado
       const ikincil = fromNote ?? own ?? shadeHex(k.renkler.ikincil, -0.4);
       k = { ...k, renkler: { ...k.renkler, ikincil } };
       fixes.push(`${c.id}: kıyafeti başka bir adlı karakterle aynıydı; ikincil renk ${ikincil} oldu (${fromNote ? "tarihçinin notundan" : own ? "karakterin kendi rengi" : "koyu ton"})`);
+    }
+    // A named character in a crowd's very uniform stands out by a cloak (the benchmark clip, 22 Oct 2026: the 13th
+    // Legionary was lost among the legion, the quality brain flagged it): his own colour, else a contrasting one.
+    if (!k.pelerin && crowdClothes.has(clothesSignature(k))) {
+      const pelerin = [c.renk, k.renkler.ikincil, shadeHex(k.renkler.ana, -0.45)].find((hex) => !similarColour(hex, k.renkler.ana))!;
+      k = { ...k, pelerin };
+      fixes.push(`${c.id}: kalabalıkla aynı kıyafeti giyiyordu; pelerin ${pelerin} verildi`);
     }
     seenClothes.add(clothesSignature(k));
     usedSecond.push(k.renkler.ikincil);

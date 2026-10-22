@@ -145,6 +145,11 @@ function main() {
     assert.ok(k("caesar").sac, "Caesar had no headwear yet: hair too");
     assert.notEqual(`${k("senator").sac!.stil}${k("senator").sac!.renk}`, `${k("caesar").sac!.stil}${k("caesar").sac!.renk}`);
     assert.deepEqual(out.sahneler[0]!.kalabalik![0]!.kostum, legionary(), "a crowd keeps one shared look");
+    // The benchmark clip (22 Oct 2026): a named soldier in the legion's very uniform is lost in it — he gets a cloak, in
+    // his own colour unless it is too close to the tunic's.
+    assert.equal(k("legionary").pelerin, "#e8b23a", "Marcus's dark red is too close to the red tunic: the gold trim colour");
+    assert.equal(k("legionary2").pelerin, undefined, "Lucius already looks different (his tunic's colour changed)");
+    assert.ok(fixes.some((f) => f.startsWith("legionary: kalabalıkla aynı kıyafeti giyiyordu")));
     assert.ok(fixes.length >= 3);
     assert.ok(validateEpisode(out).ok);
     assert.equal(distinctLooks(out).fixes.length, 0, "a second pass changes nothing");
