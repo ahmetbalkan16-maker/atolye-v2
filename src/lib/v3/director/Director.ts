@@ -221,6 +221,11 @@ function rng(seed: string): () => number {
  * their side of the stage; council benches and army blocks stagger alternate rows. Extras face the middle of
  * the stage, an army faces the other side.
  */
+/** A line a crowd cheers: an exclamation said with resolve, anger or joy, or with a raised fist or a celebration. */
+export function rallyingCry(line: Pick<SceneLine, "metin" | "duygu" | "jest">): boolean {
+  return /!\s*$/.test(line.metin.trim()) && (line.duygu === "kararli" || line.duygu === "kizgin" || line.duygu === "mutlu" || line.jest === "yumruk_kaldir" || line.jest === "kutla");
+}
+
 export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string, lineFrame?: (line: number) => number, fps = 30): V3Extra[] {
   const out: V3Extra[] = [];
   groups.forEach((g, gi) => {
@@ -243,7 +248,7 @@ export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string, lineF
         const facing: "left" | "right" = g.duzen === "ordu" ? (g.taraf === "sag" ? "left" : "right") : x < 0.5 ? "right" : "left";
         // Nearly the actors' size: the depth already makes the rows smaller (at 0.72–0.82 the Rubicon's legion looked
         // like children next to Caesar, owner 22 Oct 2026).
-        out.push({ castId, x, depth, facing, scale: 0.94 + rand() * 0.08, mood: g.ruh_hali ?? "notr", seed: Math.floor(rand() * 1e6) });
+        out.push({ castId, x, depth, facing, scale: 0.94 + rand() * 0.08, mood: g.ruh_hali ?? "notr", seed: Math.floor(rand() * 1e6), ...(g.duzen === "ordu" ? { grip: true } : {}) });
       }
     }
     const m = g.hareket;
@@ -415,10 +420,12 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const actors = [...tracks.values()];
     let acted = 0;
     // The crowd's places and marches, known before the camera is planned: while any of it moves, the shot stays wide.
+    // It cheers at a leader's rallying cry (owner, 22 Oct 2026: a crowd that lives, not identical stiff copies).
+    const rallies = lines.filter((lt) => visibleIds.has(lt.speaker) && rallyingCry(scene.satirlar[lt.lineIndex]!)).map((lt) => ({ start: local(lt.start) + Math.round(fps * 0.35), end: local(lt.start) + Math.round(fps * 2.2) }));
     const extras = placeCrowd(scene.kalabalik ?? [], scene.id, (i) => {
       const lt = lines.find((l) => l.lineIndex === i);
       return lt ? local(lt.start) : 0;
-    }, fps);
+    }, fps).map((e) => (rallies.length && e.mood !== "korkmus" ? { ...e, cheers: rallies } : e));
     const crowdMoving = (from: number, to: number) => extras.some((e) => e.move && e.move.start < to && e.move.end > from);
     lines.forEach((lt, idx) => {
       const line: SceneLine = scene.satirlar[lt.lineIndex]!;

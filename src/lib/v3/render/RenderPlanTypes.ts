@@ -251,6 +251,10 @@ export interface V3Extra {
   readonly seed: number;
   /** A march or run (frames of the shot): from `start` to `end` the extra goes from `x` to `toX`, then stays there. */
   readonly move?: { readonly start: number; readonly end: number; readonly toX: number; readonly run: boolean };
+  /** Soldiers hold their hands closed (an army block); others keep them open. */
+  readonly grip?: boolean;
+  /** Moments the crowd cheers (frames of the shot): a leader's rallying cry (owner, 22 Oct 2026: a crowd that lives). */
+  readonly cheers?: readonly { readonly start: number; readonly end: number }[];
 }
 
 /** A short line (joke, punchline, key phrase) in a comic speech bubble above the speaking character. */

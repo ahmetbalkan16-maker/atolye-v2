@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, clipRing, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
@@ -253,6 +253,12 @@ async function main() {
     assert.equal(cut.length, 0, "the column is still wading through the last line: it stays on screen too");
     // Without the march, the later narrator lines cut away as before.
     const still: Episode = { ...living, sahneler: [{ ...living.sahneler[0]!, kalabalik: [{ ...living.sahneler[0]!.kalabalik![0]!, hareket: undefined }] }] };
+    // A crowd that lives (owner, 22 Oct 2026): soldiers grip, and the legion cheers at the leader's rallying cry.
+    assert.ok(rallyingCry({ metin: "The die is cast!", duygu: "kararli" }) && !rallyingCry({ metin: "Right behind you, sir!", duygu: "korkmus" }) && !rallyingCry({ metin: "We cross.", duygu: "kararli" }));
+    const legionExtras = drawnPlan.shots[0]!.extras!;
+    assert.ok(legionExtras.every((e) => e.grip), "an army block grips");
+    const shouts = living.sahneler[0]!.satirlar.map((l, i) => ({ l, i })).filter((x) => x.l.karakter !== "anlatici" && rallyingCry(x.l));
+    if (shouts.length) assert.ok(legionExtras.every((e) => (e.cheers?.length ?? 0) === shouts.length), "every soldier cheers at each rallying cry");
     const stillPlan = buildRenderPlan({ episode: still, timeline: tl3, cast: [...toRenderCast(still.oyuncu_kadrosu, "kukla"), ...crowdCast(still, "kukla")], accessories: [], backgrounds: [{ src: "", kind: "drawn", drawn: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", tohum: 1 } }], inserts: [{ src: "bg/donem.jpg" }], fps, width: 1920, height: 1080, showCaptions: false });
     assert.equal(stillPlan.shots[0]!.inserts!.length, 1, "a narrator stretch told while nothing moves still cuts away");
   });
