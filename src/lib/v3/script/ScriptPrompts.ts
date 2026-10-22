@@ -253,15 +253,42 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
     "savaslar": [{"ad": "Battle of Bapheus", "konum": [lon, lat], "satir": 3}]   // crossed swords where a battle happens
     "bitis_satir" on a territory: the line it disappears with — give the new, larger or smaller outline from that same line,
         so a border visibly grows or shrinks (a state that appears during the scene spreads out over the map).
-  Tell events ON the map as they happen, line by line: a campaign moves a badge, a conquest grows a state, a battle
-  flashes, the camera follows. Prefer this living map narration to a still map with everything shown at once.
+    "ordular": [{"ad": "Caesar", "konum": [lon, lat], "renk": "#…", "satir": 0, "yol": [[lon, lat], …], "yol_satir": 2}]
+        // an army that MARCHES its route (3–8 real waypoints) from line "yol_satir", leaving a dotted trail; the camera
+        // follows it by itself
+    "bolgeler": [… {"ad": "Caesar", "renk": "#…", "noktalar": […] or "tarihi": {…}, "yayilma": {"satir": 2, "kaynak": [lon, lat]}}]
+        // a CONQUEST: from that line the conqueror's colour sweeps over the land province by province from "kaynak" (where
+        // the army came from), at the pace of an army marching on the same line; the old owner's name fades as the
+        // front passes. Use the conqueror's own "ad" again (a second region under the same name shows no second label).
+    "cizgiler": [{"ad": "Rubicon", "noktalar": [[lon, lat], …], "renk": "#ffd166", "satir": 0}]
+        // a line the story is about (a border river, a wall, a frontier): it glows with its name
+  Tell events ON the map as they happen, line by line, the way the history-with-maps channels do: an army marches, a
+  conquest sweeps over the land behind it, the old border fades, a battle flashes, a ruler flees, the camera follows.
+  Never show a whole war's result at once — let the viewer watch it happen. Prefer this living map narration to a still
+  map with everything shown at once.
   Keep "genislik_km" at 800 or more on maps (closer, the terrain turns blurry); 1500–4000 suits a country or a war.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,
     "duzen": "sira" (a row or two) | "meclis" (council benches) | "ordu" (a block of soldiers),
-    "taraf": "sol" | "sag" | "tum", "ruh_hali": "notr" | "coskulu" (cheering) | "korkmus" (scared)}]
-  An army scene can have two groups, one per side. Their costumes follow the same catalog and rank rules.
+    "taraf": "sol" | "sag" | "tum", "ruh_hali": "notr" | "coskulu" (cheering) | "korkmus" (scared),
+    "hareket": {"tur": "yuru" | "kos" | "hucum" | "kac", "satir": 3, "hedef": 0..1 (optional stage x)}}]
+  An army scene can have two groups, one per side. Their costumes follow the same catalog and rank rules. A crowd ACTS
+  with the story: "hareket" makes the whole formation march, run, charge (cheering) or flee (scared) with that line,
+  rank after rank — a legion wading across a river, a mob storming a gate, a broken army running away. The camera stays
+  wide while they move.
+
+LIVING SETS / ORTAM — the viewer must live the moment (owner): every character scene gets an "ortam", the drawn living set
+  the renderer composes and animates (flowing water, flickering torches, stars, drifting mist, rain or snow):
+  "ortam": {"zaman": "gun" | "aksam" | "gece" | "safak", "manzara": "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" |
+    "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu", "uslup": "roma" | "yunan" |
+    "misir" | "pers" | "bizans" | "osmanli" | "ortacag" | "cin" | "japon" | "erken_modern" | "modern",
+    "hava": "acik" | "bulutlu" | "sis" | "yagmur" | "kar", "isik": "yok" | "mesale" | "kamp_atesi",
+    "nehir": [left bank, right bank] (0..1, for "nehir_gecidi": the river runs across the stage there)}
+  Choose them from the sources: the hour it happened (Caesar reached the Rubicon at night), the place, the period's
+  buildings, the weather. Someone who walks ("hareket": "yuru", "hedef" between the banks) into a "nehir_gecidi" wades
+  in it. Write each scene so that what the narrator or a character says is SEEN happening on screen in that line —
+  who moves where, who arrives, who runs, what changes — never two figures standing still while the story is only told.
 
 PERIOD IMAGES AND SETS / ARKA PLAN
 - Every scene has a drawn set the characters act in; while the narrator speaks, the film cuts away to a real image of the
@@ -309,7 +336,7 @@ JSON SHAPE (an example — fill every value for this topic):
   {"id":"karakter-1","ad":"…","rol":"…","kostum_paketi":"ottoman-1453","renk":"#b3263a","ses_id":"${brief.sesler?.[0]?.id ?? "karakter-1"}","konusma_tarzi":"…","gorunur":true,
    "kostum":{"giysi":"kaftan","renkler":{"ana":"#b3263a","ikincil":"#e8b23a","ic":"#f3d27a","sus":"#e8b23a"},"bas":"padisah-kavugu","sakal":"sakal-genc","ayakkabi":"sari-mest"}}],
  "sahneler":[
-  {"id":"s1-kanca","sure_hedef":12,"mekan":"…","arka_plan_sorgusu":{"tr":"…","en":"…","wiki":"…","ara":["…"],"tasarim":"…","tur":"set"},"duygu":"merak","muzik_ruh_hali":"gizemli","gecis":"kes",
+  {"id":"s1-kanca","sure_hedef":12,"mekan":"…","arka_plan_sorgusu":{"tr":"…","en":"…","wiki":"…","ara":["…"],"tasarim":"…","tur":"set"},"ortam":{"zaman":"gece","manzara":"nehir_kiyisi","uslup":"roma","hava":"sis","isik":"mesale"},"duygu":"merak","muzik_ruh_hali":"gizemli","gecis":"kes",
    "yazi_karti":[{"metin":"…","alt_metin":"…","stil":"yer_tarih"}],
    "sahne_duzeni":[{"karakter":"karakter-1","x":0.35,"yon":"sag"}],
    "satirlar":[

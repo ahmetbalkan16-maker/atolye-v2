@@ -64,6 +64,7 @@ function episode(): Episode {
         sure_hedef: 12,
         mekan: "Boğaz kıyısı",
         arka_plan_sorgusu: { tr: "Rumeli Hisarı", en: "Rumeli Fortress" },
+        ortam: { zaman: "gun", manzara: "sahil", uslup: "osmanli" },
         duygu: "merak",
         muzik_ruh_hali: "gizemli",
         satirlar: [
@@ -76,6 +77,7 @@ function episode(): Episode {
         sure_hedef: 18,
         mekan: "Edirne Sarayı",
         arka_plan_sorgusu: { tr: "Edirne Sarayı", en: "Edirne Palace" },
+        ortam: { zaman: "gun", manzara: "saray_ici", uslup: "osmanli" },
         duygu: "komik",
         muzik_ruh_hali: "hafif",
         satirlar: [
@@ -352,8 +354,13 @@ async function main() {
     assert.ok(still.some((p) => p.includes('map scene "m1" shows nothing happening')));
     const living = { sahneler: [scene("m1", "Map of the Korea Strait", ["The Mongol fleet sailed from Korea.", "It invaded Tsushima."], { merkez: [129, 34], genislik_km: 1200, oklar: [{ noktalar: [[129, 35], [129.3, 34.3]], satir: 0 }] })] };
     assert.deepEqual(mapProblems(living), [], "a crossing drawn on the map is fine");
-    assert.deepEqual(mapProblems({ sahneler: [scene("c1", "Kublai's court", ["The Khan was angry.", "He shouted at everyone."])] }), [], "a story in one place needs no map");
+    const court = { ...scene("c1", "Kublai's court", ["The Khan was angry.", "He shouted at everyone."]), ortam: { zaman: "gun", manzara: "saray_ici", uslup: "cin" } };
+    assert.deepEqual(mapProblems({ sahneler: [court] }), [], "a story in one place needs no map");
+    // Owner, 22 Oct 2026: every character scene lives in its drawn set.
+    assert.ok(mapProblems({ sahneler: [scene("c2", "Kublai's court", ["The Khan was angry."])] }).some((p) => p.includes('character scene "c2" has no "ortam"')));
     assert.ok(mapProblems({ sahneler: [scene("t1", "Saray", ["Ordu kuzeye yürüdü.", "Donanma denizi geçti."])] }).some((p) => p.includes("no map shows the route")), "Turkish verbs count too");
+    const marching = { sahneler: [scene("m2", "Map of Italy", ["Caesar crossed the Rubicon.", "He marched on Rome."], { merkez: [12.5, 43], genislik_km: 1300, ordular: [{ ad: "Caesar", konum: [12.2, 44.4], renk: "#c0392b", yol: [[12.5, 41.9]], yol_satir: 1 }] })] };
+    assert.deepEqual(mapProblems(marching), [], "a marching army is a route on the map");
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);
