@@ -55,6 +55,9 @@ async function main() {
     assert.equal(knownRemedy(ctx("Error: Target closed", { step: "render", env: { ATOLYE_V3_RENDER_CONCURRENCY: "1" } }))?.tur, "dur");
     assert.equal(knownRemedy(ctx("ENOSPC: no space left on device"))?.tur, "dur");
     assert.equal(knownRemedy(ctx("V3_BUDGET_EXCEEDED: parca-1", { step: "gardirop", optional: true }))?.tur, "atla");
+    assert.equal(knownRemedy(ctx('V3_RESEARCH_NOTHING: "Sezar’ın rubicon’u geçmesi" için okunabilir Wikipedia makalesi bulunamadı', { step: "senaryo" }))?.tur, "dur", "aynı arama yine boş döner");
+    assert.equal(knownRemedy(ctx("V3_RESEARCH_THIN: yalnız 3 doğrulanmış olgu", { step: "senaryo" }))?.tur, "bekle_tekrar");
+    assert.equal(knownRemedy(ctx("V3_RESEARCH_THIN: yalnız 3 doğrulanmış olgu", { step: "senaryo", attempt: 2 }))?.tur, "dur");
     assert.equal(knownRemedy(ctx("TypeError: cannot read properties of undefined")), undefined);
   });
 

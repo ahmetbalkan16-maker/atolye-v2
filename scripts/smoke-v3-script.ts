@@ -10,7 +10,7 @@ import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "..
 import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
-import { articleSource, sourceId, verifyFacts } from "../src/lib/v3/research/SourceResearch";
+import { articleSource, readTopic, resolveTopic, sourceId, topicPrompt, verifyFacts } from "../src/lib/v3/research/SourceResearch";
 import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
@@ -262,6 +262,21 @@ async function main() {
     assert.deepEqual(kept.map((f) => f.metin), ["Caesar crossed with one legion.", "The die is cast."], "akıllı tırnak ve satır sonu eşleşir");
     assert.equal(rejected, 3, "uydurma alıntı, yanlış kaynak, çok kısa alıntı atılır");
     assert.equal(articleSource(articles[0]!).url, "https://en.wikipedia.org/w/index.php?oldid=1");
+  });
+
+  await scenario("N2 a Turkish AYAS order is named as English Wikipedia knows it before the search; a yearless period is filled", async () => {
+    const prompt = topicPrompt("Sezar’ın rubicon’u geçmesi", "konunun geçtiği dönem");
+    assert.match(prompt, /TOPIC: Sezar’ın rubicon’u geçmesi/);
+    assert.match(prompt, /If PERIOD has no year/);
+    assert.deepEqual(readTopic('Sure! {"konu":"Julius Caesar crossing the Rubicon","donem":"49 BC","wiki":["Crossing the Rubicon","Julius Caesar","Caesar\'s civil war","Rubicon"]}'), { konu: "Julius Caesar crossing the Rubicon", donem: "49 BC", wiki: ["Crossing the Rubicon", "Julius Caesar", "Caesar's civil war"] }, "en çok üç makale");
+    assert.equal(readTopic('{"konu":"The Fall of Rome","donem":"unknown","wiki":[]}')?.donem, "", "yılsız dönem boş kalır, sahibinkinin yerine geçmez");
+    assert.equal(readTopic('{"konu":"","wiki":[]}'), undefined);
+    assert.equal(readTopic("not json"), undefined);
+    const openai = new FakeProvider(['{"konu":"Julius Caesar crossing the Rubicon","donem":"49 BC","wiki":["Crossing the Rubicon"]}'], { promptTokens: 200, completionTokens: 40 });
+    const budget = new V3Budget({ providers: { openai } });
+    const topic = await resolveTopic({ konu: "Sezar’ın rubicon’u geçmesi", donem: "konunun geçtiği dönem", budget, model: { provider: "openai", model: "gpt-4.1-mini" } });
+    assert.deepEqual([topic?.donem, topic?.wiki], ["49 BC", ["Crossing the Rubicon"]]);
+    assert.equal(budget.ledger[0]?.step, "konu");
   });
 
   await scenario("O wardrobe: 'yeni:' orders are collected once, replaced by library ids or dropped, and drawn parts pass the gates", () => {

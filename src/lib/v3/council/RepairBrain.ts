@@ -42,6 +42,9 @@ export function knownRemedy(c: RepairContext): RepairAction | undefined {
     const now = Number(c.env.ATOLYE_V3_WRITER_MAX_TOKENS) || 10_000;
     return now < 16_000 ? { tur: "ayar", anahtar: "ATOLYE_V3_WRITER_MAX_TOKENS", deger: String(Math.min(16_000, Math.round(now * 1.5))), neden: "senaryo çıktısı sınırda kesildi" } : { tur: "dur", neden: "senaryo en yüksek çıktı sınırında da kesiliyor" };
   }
+  // The same search finds the same nothing (22 Oct 2026: four waits on a Turkish topic); too few facts may differ once.
+  if (/V3_RESEARCH_NOTHING/.test(e)) return { tur: "dur", neden: "konunun Wikipedia makalesi bulunamadı; aynı arama yine boş döner" };
+  if (/V3_RESEARCH_THIN/.test(e)) return c.attempt <= 1 ? { tur: "bekle_tekrar", saniye: 0, neden: "az olgu doğrulandı; yeni çıkarım" } : { tur: "dur", neden: "makalelerden yeterli olgu doğrulanamadı" };
   if (/V3_SCRIPT_INVALID|V3_SCRIPT_NO_JSON|V3_SCRIPT_JSON_SYNTAX/.test(e)) return c.attempt <= 2 ? { tur: "bekle_tekrar", saniye: 0, neden: "senaryo taslağı geçersiz; yeni taslak" } : { tur: "dur", neden: "üç taslak da geçersiz" };
   if (/V3_PYTHON_EXIT|V3_PYTHON_START_TIMEOUT|V3_TTS_START_TIMEOUT|V3_SDXL_FAILED/.test(e)) return { tur: "bekle_tekrar", saniye: 15, neden: "model süreci çöktü; yeniden başlatılıyor" };
   if (c.step === "render" && /Target closed|Protocol error|crash|ERR_|timed out|Timeout/i.test(e)) {

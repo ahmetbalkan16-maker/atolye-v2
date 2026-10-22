@@ -56,7 +56,7 @@ import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
-import { researchTopic } from "../src/lib/v3/research/SourceResearch";
+import { researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
 import { V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
@@ -607,15 +607,28 @@ async function main() {
         // the topic now (Wikipedia revisions, every fact checked against a quote from the article).
         const bankFile = arg("--kaynaklar");
         let bank: SourceBank | undefined = bankFile ? await readJson<SourceBank>(bankFile) : existsSync(f("kaynak-bankasi.json")) ? await readJson<SourceBank>(f("kaynak-bankasi.json")) : undefined;
+        const researcher: V3ModelChoice = providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_RESEARCH_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" };
+        // The owner's words as English Wikipedia knows them (an AYAS order is often Turkish and its period a
+        // placeholder); kept beside the bank so a rerun of this step reads the same answer.
+        let topic: TopicResolution | undefined = existsSync(f("konu-cozumu.json")) ? await readJson<TopicResolution>(f("konu-cozumu.json")) : undefined;
+        if (!topic && ((!bank && !process.argv.includes("--arastirma-yok")) || periodEndYear(donem) === undefined)) {
+          topic = await resolveTopic({ konu, donem, budget, model: researcher }).catch((e: Error) => (log(`konu çözümü yapılamadı: ${e.message.slice(0, 160)}`), undefined));
+          if (topic) {
+            await writeJson(f("konu-cozumu.json"), topic);
+            log(`konu çözümü: "${topic.konu}"${topic.donem ? ` (${topic.donem})` : ""}; makaleler: ${topic.wiki.join(" | ") || "—"}`);
+          }
+        }
+        // The owner's own period wins; the resolved one stands in only for a period without a year.
+        const period = periodEndYear(donem) === undefined && topic?.donem ? topic.donem : donem;
         if (!bank && !process.argv.includes("--arastirma-yok")) {
           const research = await researchTopic({
             cacheDir: path.join(paths.workRoot, "_onbellek", "wikipedia"),
-            konu,
-            donem,
+            konu: topic?.konu || konu,
+            donem: period,
             dil,
             budget,
-            model: providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_RESEARCH_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" },
-            extraTitles: (arg("--wiki") ?? "").split("|").map((t) => t.trim()).filter(Boolean),
+            model: researcher,
+            extraTitles: [...(arg("--wiki") ?? "").split("|").map((t) => t.trim()).filter(Boolean), ...(topic?.wiki ?? [])],
             log,
           });
           await writeJson(f("kaynak-bankasi.json"), research.bank);
@@ -627,9 +640,9 @@ async function main() {
         // The script brain's experience: what the QC and the chief found in earlier episodes.
         const dersler = (await recall(paths.workRoot, "kurgu", { limit: 6 }).catch(() => [])).map((l) => l.metin);
         // The historical atlas's polities nearest the episode's year, for real borders on the maps.
-        const year = periodEndYear(donem);
+        const year = periodEndYear(period);
         const tarihiSinirlar = year === undefined ? [] : (await Promise.all(nearestSnapshots(year).map(async (yil) => ({ yil, adlar: await snapshotNames(bordersDir, yil).catch(() => [] as string[]) })))).filter((x) => x.adlar.length);
-        const brief: ScriptBrief = { konu, donem, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}) };
+        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}) };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           throw e;
