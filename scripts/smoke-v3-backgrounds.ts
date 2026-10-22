@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, periodLook, periodNegatives, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
-import { fitScore, judgePrompt, MAX_JUDGED, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
 import { cleanObjectName, type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
@@ -288,6 +288,18 @@ async function main() {
     const judge2 = new FakeJudge({ morroni: JSON.stringify({ puan: 10, donem: 9, modern: true, tur: "fotograf", gosterilen: "Corfinium kalıntıları", sorun: "-" }) });
     assert.equal((await pickBackground(["morroni"].map(candidate), roman, judge2, preview, () => {}, { mode: "konu" })).chosen?.title, "File:morroni.jpg");
     assert.equal((await pickBackground(["morroni"].map(candidate), roman, judge2, preview, () => {}, { mode: "arsiv" })).chosen, undefined, "a period image must have nothing modern");
+  });
+
+  await scenario("P2 no set passes: a drawing of the right period stands in, never a modern, later-era or unrelated one (owner, 22 Oct 2026)", () => {
+    const v = (x: Partial<CandidateVerdict>): CandidateVerdict => ({ title: "t", puan: 4, donem: 10, tur: "cizim", gosterilen: "", sorun: "", ...x });
+    assert.ok(periodFallback(v({})), "the Rubicon's marble hall for the Senate: subject 4, period 10");
+    assert.ok(!periodFallback(v({ donem: 3 })), "wooden houses at a river: not of the period");
+    assert.ok(!periodFallback(v({ puan: 2 })), "another kind of place");
+    assert.ok(!periodFallback(v({ modern: true })));
+    assert.ok(!periodFallback(v({ sonrakiCag: "cross on a tower" })));
+    assert.ok(!periodFallback(v({ okunamadi: true, puan: 0, donem: 0 })));
+    assert.ok(!periodFallback(undefined));
+    assert.equal(MIN_FALLBACK_SUBJECT, 4);
   });
 
   await scenario("Q a period image of antiquity that passes is asked about later buildings; a yes drops it (Canaletto's 1742 Forum)", async () => {

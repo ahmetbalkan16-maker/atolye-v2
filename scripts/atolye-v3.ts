@@ -22,8 +22,8 @@ import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
 import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
-import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
-import { type CommonsCandidate, commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
+import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
@@ -32,7 +32,8 @@ import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariet
 import { loadMapData, mapWorld, type Polygon } from "../src/lib/v3/maps/MapBuilder";
 import { RELIEF_CREDIT, reliefAvailable, reliefFor } from "../src/lib/v3/maps/Relief";
 import { checkEpisodePlaces, wikipediaPlaces } from "../src/lib/v3/maps/PlaceCheck";
-import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames } from "../src/lib/v3/maps/HistoricalBorders";
+import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames, withAtlasYears, yearLabel } from "../src/lib/v3/maps/HistoricalBorders";
+import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
@@ -220,8 +221,12 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   const durum: SceneVisual["donemGorseli"][] = Array(n).fill("aranmadi");
   const notlar: string[] = Array(n).fill("");
   const sets: (SceneSet | undefined)[] = Array(n).fill(undefined);
-  // Photos of today the period search found for a scene (ancient periods): the subject-photo fallback's candidates.
-  const laterPhotos: (readonly CommonsCandidate[] | undefined)[] = Array(n).fill(undefined);
+  // The library set the judge saw for a scene and did not pass: a stand-in if no drawing passes either.
+  const library: ({ theme: string; v: CandidateVerdict } | undefined)[] = Array(n).fill(undefined);
+  const librarySet = async (theme: string, v: CandidateVerdict, esikAlti: boolean): Promise<SceneSet> => {
+    await fs.copyFile(path.join(paths.backdropLibrary, `${theme}.png`), path.join(pub, `${theme}.png`));
+    return { src: `bg/${theme}.png`, kind: "set", kaynak: "kutuphane", secim: v, ...(esikAlti ? { esikAlti: true } : {}), credit: { assetId: `bg-${theme}`, kind: "image", title: `Atölye yerel SDXL sahnesi — ${theme}`, author: "Atölye (yerel SDXL üretimi)", license: "CreativeML Open RAIL++-M (üretilen görsel)", attributionRequired: false } };
+  };
 
   // 1) Period images, and library sets the judge accepts for the scene.
   for (let si = 0; si < n; si++) {
@@ -247,7 +252,6 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     const narrated = scene.satirlar.some((l) => !visible.has(l.karakter));
     if (narrated) {
       const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd);
-      laterPhotos[si] = found.later;
       // CLIP orders the candidates first, so the judge's looks go to the likeliest pictures (search order without it).
       const fresh = await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: scene.mekan }), (c) => commonsPreview(cache, c));
       log(`${scene.id}: dönem görseli aranıyor — ${found.report.join(", ")}`);
@@ -297,10 +301,8 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       const pick = await pickBackground([{ title: `kütüphane seti ${theme}`, file }], sj, judge, (c) => localPreview(paths, c.file), log, { mode: "set", max: 1 });
       const v = pick.verdicts[0];
       if (v) log(`  set adayı ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
-      if (pick.chosen && pick.verdict) {
-        await fs.copyFile(file, path.join(pub, `${theme}.png`));
-        sets[si] = { src: `bg/${theme}.png`, kind: "set", kaynak: "kutuphane", secim: pick.verdict, credit: { assetId: `bg-${theme}`, kind: "image", title: `Atölye yerel SDXL sahnesi — ${theme}`, author: "Atölye (yerel SDXL üretimi)", license: "CreativeML Open RAIL++-M (üretilen görsel)", attributionRequired: false } };
-      }
+      if (pick.chosen && pick.verdict) sets[si] = await librarySet(theme, pick.verdict, false);
+      else if (v) library[si] = { theme, v };
     }
   }
 
@@ -390,38 +392,25 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       }
     }
   }
-  // Owner (21 Oct 2026): when no good set can be drawn, a real photo of the period or the subject is shown — the place's
-  // ruins or site today, an object of the period — judged for exactly this place; never an unrelated photo.
-  const subjectPhoto = async (si: number): Promise<SceneSet | undefined> => {
-    const scene = episode.sahneler[si]!;
-    const q = scene.arka_plan_sorgusu;
-    const later = laterPhotos[si] ?? (await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd).catch(() => undefined))?.later ?? [];
-    const fresh = later.filter((c) => !used.has(c.url));
-    if (!fresh.length) return undefined;
-    const sj = { ...sceneForJudge(episode, si), anlatim: scene.satirlar.map((l) => l.metin).join(" ") };
-    const pick = await pickBackground(fresh, sj, judge, (c) => commonsPreview(cache, c), log, { mode: "konu" });
-    for (const v of pick.verdicts) log(`  ${scene.id} konu fotoğrafı ${passes(v, true) ? "✓" : "·"} ${verdictLine(v)}`);
-    const passing = fresh
-      .slice(0, pick.verdicts.length)
-      .map((c, i) => ({ c, v: pick.verdicts[i]! }))
-      .filter((x) => passes(x.v, true))
-      .sort((a, b) => fitScore(b.v) - fitScore(a.v));
-    for (const { c, v } of passing) {
-      const file = path.join(pub, `${scene.id}-konu${extOf(c.downloadUrl)}`);
-      const credit = await downloadCommons(c, file, cache).catch((e: Error) => (log(`  ${scene.id}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
-      if (!credit) continue;
-      used.add(c.url);
-      notlar[si] = `${notlar[si]} Çizilen set tutmadı; konunun gerçek fotoğrafı kullanıldı (${verdictLine(v)}).`.trim();
-      log(`  ${scene.id}: çizilen set tutmadı — konunun gerçek fotoğrafı kullanılıyor (${c.title.slice(0, 60)})`);
-      return { src: `bg/${path.basename(file)}`, kind: "archival", kenBurns: { fromZoom: 1.02, toZoom: 1.1, fromX: 0, toX: -0.015 }, kaynak: "konu", credit, secim: v };
-    }
-    return undefined;
-  };
+  // Owner (22 Oct 2026, the first AYAS order): a photo or a painting is never the set behind the puppets. The 21 Oct
+  // subject-photo fallback gave the Rubicon a 2012 snow photo with houses, a statue's toga folds and a storm painting,
+  // each "subject 10/10". When no drawing passes, the best drawing of the right period stands in (a marble hall for the
+  // Senate, subject 4, period 10), flagged for QC and the retouch brain; period pictures stay the narrator's cutaways.
   for (let si = 0; si < n; si++) {
     if (sets[si]) continue;
-    const photo = await subjectPhoto(si);
-    if (photo) {
-      sets[si] = photo;
+    const id = episode.sahneler[si]!.id;
+    const stand = (tried.get(si) ?? []).filter((t): t is { d: DesignedSet; v: CandidateVerdict } => periodFallback(t.v)).sort((a, b) => b.v.puan - a.v.puan)[0];
+    const lib = library[si];
+    if (lib && periodFallback(lib.v) && (!stand || lib.v.puan > stand.v.puan)) {
+      sets[si] = await librarySet(lib.theme, lib.v, true);
+      notlar[si] = `${notlar[si]} Hakemden geçen set yok; dönemi doğru kütüphane seti kullanıldı (${verdictLine(lib.v)}).`.trim();
+      log(`⚠ ${id}: hakemden geçen set yok — dönemi doğru kütüphane seti kullanıldı (QC'de işaretli)`);
+      continue;
+    }
+    if (stand) {
+      sets[si] = await designedSet(pub, episode, si, stand.d, stand.v, true);
+      notlar[si] = `${notlar[si]} Hakemden geçen set yok; dönemi doğru en iyi çizim kullanıldı (${verdictLine(stand.v)}).`.trim();
+      log(`⚠ ${id}: hakemden geçen set yok — dönemi doğru en iyi çizim kullanıldı (konu ${stand.v.puan}/10, dönem ${stand.v.donem}/10; QC'de işaretli)`);
       continue;
     }
     // Still nothing the judge passes: the best attempt is used and the QC says so — never an unrelated stock image.
@@ -673,6 +662,17 @@ async function main() {
       }
       await writeJson(f("konumlar.json"), { duzeltmeler: checked.fixes, denetlenemeyen: checked.unchecked });
     }
+  }
+  // 1c) Every atlas state on a year the atlas has: a writer's "Roman Republic" at -49 is drawn from the nearest snapshot
+  // that has it (until 22 Oct 2026 the map lost that outline and every other state's colour).
+  const atlas = await withAtlasYears(episode, async (y, name) => (await loadSnapshot(bordersDir, y)).has(name));
+  for (const x of atlas.moved) log(`  harita: "${x.ad}" için ${yearLabel(x.from)} atlası yok → ${yearLabel(x.to)} sınırları (${x.sahne})`);
+  // ...and an arrow too short to see gets the camera moved in on it when it is told (the Rubicon's 25 km on 1,800 km).
+  const zoom = withRouteZoom(atlas.episode);
+  for (const id of zoom.scenes) log(`  harita: ${id} sahnesinde ok ekranda görünmeyecek kadar kısaydı → kamera oka yaklaşır`);
+  if (atlas.moved.length || zoom.scenes.length) {
+    episode = assertEpisode(zoom.episode);
+    await writeJson(f("episode.json"), episode);
   }
   // --yalniz-senaryo: only the script and its checked places, by the production's own path (a brain or the owner reads
   // it, or previews its maps with scripts/v3/harita-onizleme.ts, before the hours of production).

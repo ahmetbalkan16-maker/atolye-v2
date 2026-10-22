@@ -11,10 +11,15 @@ import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, clipRing, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
 import { reliefSize } from "../src/lib/v3/maps/Relief";
-import { isPolity, nearestSnapshots, snapshotFile } from "../src/lib/v3/maps/HistoricalBorders";
+import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
+import { MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, dissolve } from "../src/lib/v3/maps/AdminUnits";
 import { checkMapPlaces, decidePlace, distanceKm } from "../src/lib/v3/maps/PlaceCheck";
+import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
+import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
+import { V3Budget } from "../src/lib/v3/script/V3Budget";
+import { colourName, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
 
@@ -473,6 +478,57 @@ async function main() {
     assert.equal(validateEpisode(value).ok, true, JSON.stringify(validateEpisode(value).errors.slice(0, 3)));
   });
 
+  await scenario("P2 draft normaliser: emotions and gestures outside the rig's lists (the Rubicon's dropped length rounds) map to the nearest, never fail the script", () => {
+    const ep = sampleEpisode();
+    const draft = JSON.parse(JSON.stringify(ep)) as { sahneler: { satirlar: Record<string, unknown>[] }[] };
+    const lines = draft.sahneler[0]!.satirlar;
+    Object.assign(lines[0]!, { duygu: "amused", jest: "shrug" });
+    Object.assign(lines[1]!, { duygu: "şaşkın", jest: "facepalm" });
+    if (lines[2]) Object.assign(lines[2], { duygu: "wistful", jest: "dramatic flourish" });
+    const { value, fixes } = normalizeDraft(draft, []);
+    const v = value as Episode;
+    assert.deepEqual([v.sahneler[0]!.satirlar[0]!.duygu, v.sahneler[0]!.satirlar[0]!.jest], ["mutlu", "omuz_silk"]);
+    assert.deepEqual([v.sahneler[0]!.satirlar[1]!.duygu, v.sahneler[0]!.satirlar[1]!.jest], ["saskin", "yuz_avucla"]);
+    if (lines[2]) assert.deepEqual([v.sahneler[0]!.satirlar[2]!.duygu, v.sahneler[0]!.satirlar[2]!.jest], ["notr", undefined], "unknown: neutral, gesture left out");
+    assert.ok(fixes.some((f) => f.includes('"amused" → mutlu')));
+    assert.equal(validateEpisode(value).ok, true, JSON.stringify(validateEpisode(value).errors.slice(0, 3)));
+    const clean = normalizeDraft(JSON.parse(JSON.stringify(ep)), []);
+    assert.ok(!clean.fixes.some((f) => /duygu|jest/.test(f)), "valid values are left alone");
+  });
+
+  await scenario("P3 costume review: the historian reads colours by name; a part set to null, or a hat left out when hair is given, is removed (the Rubicon's legionary and Cicero)", async () => {
+    assert.equal(colourName("#7a64b8"), "purple", "the 13th Legionary's tunic");
+    assert.equal(colourName("#b22222"), "red");
+    assert.equal(colourName("#e8b23a"), "yellow/gold");
+    assert.equal(colourName("#e8e8e8"), "white");
+    assert.equal(colourName("#22406a"), "dark blue");
+    assert.equal(colourName("purple"), "purple", "not a hex code: as it is");
+    const ep = sampleEpisode();
+    const prompts: string[] = [];
+    const answer = JSON.stringify({
+      sorunlar: [{ kim: "mehmed", sorun: "x" }, { kim: "halil", sorun: "y" }],
+      duzeltmeler: [
+        { kim: "mehmed", kostum: { ...castBase.kostum, renkler: { ...castBase.kostum.renkler, ana: "#b22222" }, bas: null } },
+        { kim: "halil", kostum: { sac: { stil: "kisa", renk: "#333333" } } },
+      ],
+    });
+    const model: AIProvider = {
+      generate: async (p: string) => {
+        prompts.push(p);
+        return { content: answer, finishReason: "stop", refused: false, complete: true, truncated: false };
+      },
+    };
+    const reviewed = await reviewCostumes(ep, [], { cacheDir: "", judge: model, budget: new V3Budget({ providers: { ollama: model } }), critic: { provider: "ollama" }, council: new CouncilLog(), log: () => {} });
+    assert.match(prompts[0]!, /mehmed: ana #b3263a = red, ikincil #e8b23a = yellow\/gold/);
+    assert.match(prompts[0]!, /purple was for emperors/);
+    const [mehmed, halil] = [reviewed.oyuncu_kadrosu[1]!, reviewed.oyuncu_kadrosu[2]!];
+    assert.equal(mehmed.kostum!.bas, undefined, '"bas": null removes the hat (it used to break the episode and the fix was dropped)');
+    assert.equal(mehmed.kostum!.renkler.ana, "#b22222");
+    assert.equal(halil.kostum!.bas, undefined, "hair given without a hat: the hat goes");
+    assert.equal(halil.kostum!.sakal, "sakal-beyaz", "a part the correction does not name stays");
+    assert.equal(validateEpisode(reviewed).ok, true);
+  });
+
   await scenario("Q opening cover and closing subscribe card: everything shifts by the cover, the title shows on it, the last seconds carry the card", () => {
     const ep = sampleEpisode();
     const audio = [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]];
@@ -544,6 +600,39 @@ async function main() {
     assert.equal(before.shots[0]!.performers.length > 0 && before.shots[1]!.performers.length, 0);
     // The scene where someone speaks keeps its own acting.
     assert.ok(!plan.shots[0]!.performers.some((p) => p.gestures.some((g) => g.gesture === "el_salla")));
+  });
+
+  await scenario("O6 the first AYAS order's map: an atlas year the atlas lacks moves to the nearest snapshot with the state; a route too short to see brings the camera in", async () => {
+    // Snapshots: -100 has the Roman Republic, -1 (closer to -49) has only the Roman Empire.
+    const atlas = new Map<number, Set<string>>([[-100, new Set(["roman republic", "parthia"])], [-1, new Set(["roman empire", "parthia"])]]);
+    const has = async (y: number, name: string) => atlas.get(y)?.has(name) ?? false;
+    assert.equal(await atlasYear(-49, "Roman Republic", has), -100, "the nearest snapshot that has the state");
+    assert.equal(await atlasYear(-49, "Parthia", has), -1, "both have it: the closer one");
+    assert.equal(await atlasYear(-49, "Atlantis", has), -1, "none has it: the nearest snapshot, so the other states keep their colours");
+    assert.equal(await atlasYear(-100, "Atlantis", async () => false), -100, "a snapshot year stays");
+    const rubicon: SceneMap = { merkez: [12.5, 44], genislik_km: 1800, bolgeler: [{ ad: "Roman Republic", renk: "#e8b23a", tarihi: { ad: "Roman Republic", yil: -49 }, satir: 1 }], oklar: [{ noktalar: [[12.3, 44], [12.6, 44.1]], renk: "#b3263a", etiket: "Caesar", satir: 2 }] };
+    const ep = sampleEpisode();
+    const withMap: Episode = { ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: rubicon }, ...ep.sahneler.slice(1)] };
+    const fixed = await withAtlasYears(withMap, has);
+    assert.deepEqual(fixed.moved, [{ sahne: ep.sahneler[0]!.id, ad: "Roman Republic", from: -49, to: -100 }]);
+    assert.equal(fixed.episode.sahneler[0]!.harita!.bolgeler![0]!.tarihi!.yil, -100);
+    assert.equal(withMap.sahneler[0]!.harita!.bolgeler![0]!.tarihi!.yil, -49, "the input is not changed");
+    assert.equal((await withAtlasYears(fixed.episode, has)).moved.length, 0, "a second run changes nothing");
+    // The 25 km crossing on 1,800 km: the camera moves in on the arrow's middle with the arrow's line.
+    const z = zoomOnShortRoutes(rubicon);
+    assert.equal(z.zoomed, 1);
+    const key = z.map.kamera![0]!;
+    assert.equal(key.satir, 2);
+    assert.ok(Math.abs(key.merkez[0] - 12.45) < 1e-9 && Math.abs(key.merkez[1] - 44.05) < 1e-9);
+    assert.equal(key.genislik_km, MIN_ZOOM_KM, "a 25 km arrow fills a third of a city-wide view");
+    assert.equal(zoomOnShortRoutes(z.map).zoomed, 0, "once the camera is in, the arrow is long enough");
+    const long = zoomOnShortRoutes({ ...rubicon, oklar: [{ noktalar: [[12.3, 44], [12.5, 41.9]], satir: 1 }] });
+    assert.equal(long.zoomed, 0, "Ariminum to Rome (~230 km) is seen on 1,800 km");
+    const own = zoomOnShortRoutes({ ...rubicon, kamera: [{ satir: 2, merkez: [12, 44], genislik_km: 900 }] });
+    assert.equal(own.zoomed, 0, "the writer's own camera move on that line is kept");
+    const longer = zoomOnShortRoutes({ ...rubicon, oklar: [{ noktalar: [[12.0, 44.3], [12.6, 44.1], [12.5, 43.6]], satir: 0 }] });
+    assert.ok(longer.map.kamera![0]!.genislik_km > MIN_ZOOM_KM && distanceKm([12.0, 44.3], [12.6, 44.1]) > 40);
+    assert.deepEqual(withRouteZoom(withMap).scenes, [ep.sahneler[0]!.id]);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

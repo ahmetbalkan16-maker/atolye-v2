@@ -7,7 +7,7 @@ import { type CouncilLog, type DebateEntry, readJsonAnswer } from "../council/Co
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { PartOrder } from "../costumes/PartDesigner";
 import type { Episode } from "../episode/EpisodeTypes";
-import { validateEpisode } from "../episode/EpisodeValidator";
+import { PART_FIELDS, validateEpisode } from "../episode/EpisodeValidator";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 
 /**
@@ -92,6 +92,35 @@ Return ONLY JSON: {"karar": "kabul|revize", "talimat": "…"}`;
 }
 
 /**
+ * A colour's plain name for the historian, who cannot read a hex code: the Rubicon's 13th Legionary went on screen in
+ * "#7a64b8" — a purple tunic, the colour of Rome's elite — and the review never saw it (22 Oct 2026).
+ */
+export function colourName(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const [r, g, b] = [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (s < 0.15 || d < 0.06) return l > 0.85 ? "white" : l > 0.6 ? "light grey" : l > 0.3 ? "grey" : "black";
+  const h = ((max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60 + 360) % 360;
+  const tone = l < 0.3 ? "dark " : l > 0.78 ? "pale " : "";
+  const hue = h < 15 || h >= 345 ? "red" : h < 40 ? (l < 0.45 ? "brown" : "orange") : h < 65 ? (l < 0.4 ? "olive" : "yellow/gold") : h < 165 ? "green" : h < 200 ? "teal" : h < 255 ? "blue" : h < 290 ? "purple" : "magenta/pink";
+  return `${tone}${hue}`;
+}
+
+/** Each costume's colours by name ("legionary: ana #7a64b8 = purple, …") beside the JSON the historian corrects. */
+function colourLines(people: readonly { kim: string; kostum?: { renkler?: Readonly<Record<string, string>> } }[]): string {
+  return people
+    .filter((p) => p.kostum?.renkler)
+    .map((p) => `${p.kim}: ${Object.entries(p.kostum!.renkler!).map(([k, v]) => `${k} ${v} = ${colourName(v)}`).join(", ")}`)
+    .join("\n");
+}
+
+/**
  * The costume review before parts are ordered: the historian checks every visible character's and crowd's costume
  * against the period and the role (garment, colours, parts), proposes corrected costumes, the chief keeps the
  * corrections that are right. A correction is applied only if the episode stays valid.
@@ -103,12 +132,15 @@ export async function reviewCostumes(episode: Episode, catalog: readonly PackCat
   const prompt = `You are the historian of an animated history show's costume team. Episode: "${episode.konu}" (${episode.donem}).
 Check each costume against the period, the place and the person's rank: body garment, colours, headwear, beard, held objects.
 Headwear only for those who wore it in that role and period (soldiers' helmets, rulers' crowns, a turban, a working cap); many went bareheaded — Roman senators and citizens in town, for example: then remove "bas" and give "sac" ({"stil", "renk"}) instead.
+Colours as that rank could wear them: costly dyes marked rank (in Rome and Byzantium purple was for emperors, magistrates and the senators' stripe, never a common soldier; legionaries wore red or undyed wool). Correct a colour with another hex code.
 Garments available: kaftan, cubbe, zirh, onluk, bizans, yeniceri, sade, tunik, toga, ceket, uniforma, takim, elbise.
 Parts: an item from the catalog ("pack/item") or an order "yeni:<English description>" for a part the team will draw.
 CATALOG:
 ${items}
 COSTUMES (JSON):
 ${JSON.stringify([...people, ...crowds])}
+THE COLOURS BY NAME:
+${colourLines([...people, ...crowds])}
 Return ONLY JSON: {"sorunlar": [{"kim": "…", "sorun": "…"}], "duzeltmeler": [{"kim": "…", "kostum": {full corrected costume, same shape}}]}. Correct only real errors; keep everything else as it is.`;
   const out = await deps.budget.generate("kostum-inceleme", deps.critic, prompt, { maxTokens: 2_500 });
   const v = readJsonAnswer<{ sorunlar?: { kim?: string; sorun?: string }[]; duzeltmeler?: { kim?: string; kostum?: unknown }[] }>(out.result.content);
@@ -128,6 +160,18 @@ Return ONLY JSON: {"sorunlar": [{"kim": "…", "sorun": "…"}], "duzeltmeler": 
   return current;
 }
 
+/** A correction's parts: one set to null, empty or "none" is removed, as is "bas" when "sac" is given without it. */
+function mergeCostume<T extends object>(old: T, correction: Record<string, unknown>): T {
+  const merged: Record<string, unknown> = { ...old, ...correction };
+  for (const f of PART_FIELDS) {
+    const v = merged[f];
+    if (v === null || v === undefined || (typeof v === "string" && /^(none|null|yok|-|)$/i.test(v.trim()))) delete merged[f];
+  }
+  // The prompt's own rule ("remove bas and give sac instead"): the historian may simply leave "bas" out.
+  if ("sac" in correction && !("bas" in correction)) delete merged.bas;
+  return merged as T;
+}
+
 function applyCostume(episode: Episode, kim: string, kostum: Record<string, unknown>): Episode | undefined {
   const crowd = /^(.+)\/kalabalik\/(\d+)$/.exec(kim);
   if (crowd) {
@@ -136,10 +180,10 @@ function applyCostume(episode: Episode, kim: string, kostum: Record<string, unkn
     const sahneler = episode.sahneler.map((s) => {
       if (s.id !== sceneId || !s.kalabalik?.[Number(index)]) return s;
       hit = true;
-      return { ...s, kalabalik: s.kalabalik.map((g, i) => (i === Number(index) ? { ...g, kostum: { ...g.kostum, ...kostum } as typeof g.kostum } : g)) };
+      return { ...s, kalabalik: s.kalabalik.map((g, i) => (i === Number(index) ? { ...g, kostum: mergeCostume(g.kostum, kostum) } : g)) };
     });
     return hit ? { ...episode, sahneler } : undefined;
   }
   if (!episode.oyuncu_kadrosu.some((c) => c.id === kim && c.kostum)) return undefined;
-  return { ...episode, oyuncu_kadrosu: episode.oyuncu_kadrosu.map((c) => (c.id === kim && c.kostum ? { ...c, kostum: { ...c.kostum, ...kostum } as typeof c.kostum } : c)) };
+  return { ...episode, oyuncu_kadrosu: episode.oyuncu_kadrosu.map((c) => (c.id === kim && c.kostum ? { ...c, kostum: mergeCostume(c.kostum, kostum) } : c)) };
 }

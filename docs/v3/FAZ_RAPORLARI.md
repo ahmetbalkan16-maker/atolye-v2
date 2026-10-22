@@ -424,3 +424,50 @@ Owner: "çizilemeyenleri de halledelim, sistem hazır olsun; canlıya alındı m
 - Doğrulama: episode-director 23 (yeni O5), script 19 (yeni harita kuralları), diğer V3 smoke + ayas-video-order PASS,
   tsc 0 (kök + remotion), eslint 0; Niğbolu, Pers, Pasifik ve beyinlerin Moğol haritası render edilip incelendi.
 - Canlıya alınmadı: owner onayı bekleniyor (ff + otomatik yayın canlı uygulamayı yeniden başlatır).
+
+## 22 Ekim 2026 — İlk uçtan uca AYAS siparişi (kısa deneme): beyinler nerede takıldı
+
+Owner: "kısa bir deneme yapalım, uzun videoya henüz geçmeyelim, AYAS'a başlatalım, sen izle tüm aşamaları, bakalım
+beyinler halledebilecek mi". Telefondan "Sezar'ın Rubicon'u geçmesi hakkında kısa bir video yap".
+- AYAS her siparişi 18 dk açıyordu ("kısa" tanınıp yok sayılıyordu) → süre konunun çevresindeki sözcüklerden okunur:
+  "kısa"/"short" 3 dk ($1 tavanı), "N dakikalık/saniyelik", "a 3-minute"; yoksa 18 dk; konudaki yıl süre sayılmaz (4d5d44ee).
+- İlk deneme 2 dk'da araştırmada durdu; dört kök neden (4c5330bd, 20c9ecee):
+  1. Sipariş izleyici üreticiyi `npx` + `shell: true` ile başlatıyordu; Windows kabuğu argümanları boşluktan böldü,
+     üreticiye konu "Sezar’ın", dönem "konunun" ulaştı (konudaki `&`/`|` komut olarak da çalışabilirdi). Artık
+     `productionCommand`: node + tsx CLI, kabuk yok. İzleyici uzun ömürlü süreç: `yapim.ts` değişikliği ancak izleyici
+     yeniden başlatılınca geçer (owner onayıyla 11:24'te yapıldı).
+  2. Araştırma İngilizce Wikipedia'da Türkçe sözcüklerle + yer tutucu dönemle arıyordu → konu çözümü
+     (`resolveTopic`, gpt-4.1-mini): İngilizce konu, yıl, ≤3 makale; `konu-cozumu.json`; sahibin yıllı dönemi korunur.
+     Gerçek: "Julius Caesar crossing the Rubicon" (49 BC), 3 makale, 25 olgu doğrulandı, $0.0066.
+  3. Onarım beyni (gemma4) V3_RESEARCH_NOTHING'i geçici sandı, 4×30 sn bekledi → bilinen çare: dur; THIN bir kez yeniden.
+  4. AYAS "videom ne durumda", "video ne oldu" vb. tanımıyordu (genel modele gidip bilgi veremiyordu), tanıdığında yalnız
+     "durdu" diyordu → durum cevabı son üç siparişi `uret.log`'dan anlatır (biten adımlar, n/9, süre, onarım, neden).
+- Durmuş sipariş aynı kimlikle kuyruğa geri kondu (eski günlük `uret-1-durdu.log`); ikinci deneme araştırmayı geçti.
+- Canlı: 4d5d44ee ve a90f0093 (canlı dalda bekleyen onaylı AYAS önerisi e8531466 birleştirildi) otomatik yayınlandı.
+
+### İkinci deneme: video çıktı (1 dk 50 sn), kare kare inceleme ve dört düzeltme (22 Ekim öğleden sonra)
+
+İkinci deneme onarım beyni hiç gerekmeden 1 sa 44 dk'da `final.mp4` verdi (0,29 $): araştırma 25/25 olgu, tarih denetimi
+1 düzeltme (Ariminum Rubicon'dan önce alındı), kütüphaneden Sezar/Pompeius/Cicero, 18/18 Rhubarb, -14,3 LUFS, açılışta
+Yvon'un 1875 Sezar'ı, Senato'da Maccari freski, SDXL Roma sokağı. Kalite beyni 18 karede 5 sorun buldu (7,0/10) ama en
+büyüklerini kaçırdı. Owner "başla" dedi; dört düzeltme:
+- (a) Set olarak fotoğraf/tablo yok: 21 Ekim'in "çizim tutmazsa yerin bugünkü fotoğrafı ya da dönem nesnesi" yedeği
+  Rubicon'a 2012 karlı köprü fotoğrafı (arkada evler), heykelin toga kıvrımları ve fırtınada tekne tablosu koydu (hakem
+  "konu 10/10"; Delaunay'ı Rubicon sandı). Artık hiçbir set geçmezse dönemi doğru en iyi çizim ya da kütüphane seti
+  (`periodFallback`: dönem ≥7, modern/sonraki çağ yok, konu ≥4; QC ve rötuş için işaretli). Dönem resimleri ara görüntü kalır.
+- (b) Harita: senaryo "Roman Republic" için -49 yazdı; atlasta yok → sınır da, aynı yıldan boyanan bütün devletler de
+  kayboldu. `withAtlasYears`: en yakın, o devleti içeren atlas yılı (gerçek atlas: -49 → -100). 25 km'lik geçiş oku 1.800
+  km'de görünmüyordu: `zoomOnShortRoutes` ok anlatılırken kamerayı oka yaklaştırır (ok ekranın ~üçte biri, en az 150 km).
+  Üretim (1c) ve `harita-onizleme.ts` ikisi de uygular.
+- (c) Süre: üç uzunluk turu (0,17 $) sessizce atılmıştı. Gerçek modelle tekrar: yeni satırlarda listede olmayan duygu/jest
+  (13 hata). `normalizeDraft` bunları en yakın değere çevirir (bilinmeyen duygu notr, jest silinir); atılan tur nedenini
+  günlüğe yazar. Tekrar: 249 → 502 kelime, 0 sorun (hedef 423; sonraki tur yaklaştırır).
+- (d) Kostüm: tarihçi renkleri onaltılık gördüğü için mor tuniği göremiyordu; Cicero'nun çelengini `"bas": null` ile
+  kaldırma düzeltmesi birleştirmede null kalıp bölümü bozduğu için atılıyordu. `colourName` + istemde rütbe-renk kuralı;
+  `mergeCostume` null/boş parçayı ve "sac" verilip "bas" bırakılmışsa başlığı siler. Tekrar: lejyoner mor → kırmızı,
+  Cicero'nun çelengi kalktı, "2 düzeltme uygulandı" (0,0014 $).
+- Açık (e): rötuş turu tek seti yeniden çizerken bütün görsel adımını baştan koşturuyor; bu sırada hakem Yvon tablosunu
+  ikinci kez geçirmedi — rötuş iyi bir dönem görselini kaybettirebiliyor. Açık (f): lejyoner miğferi kütüphane parçası
+  (20 Ekim, hakem 10/10) kenarlı, modern görünüyor (kalite beyni de işaretledi); yeniden çizilmesi owner'a sorulacak.
+- Doğrulama: V3 smoke'ları (backgrounds 20, council 11, episode-director 26, likeness 14, lipsync 5, mix 13, motion 9,
+  render 5, script 20, youtube 4) + ayas-video-order 8 PASS; tsc 0 (kök + remotion); lint 0 hata.

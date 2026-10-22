@@ -310,7 +310,15 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     if (words < targetWords * LENGTH_BAND[0]) extra.push(...sceneShortfalls(written, targetWords));
     const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(JSON.stringify(written), spokenWords(written), targetWords, extra), opts);
     const revised = check(next.result.content);
-    if (revised.problems.length || revisionGap(revised.value as Episode, targetWords) >= revisionGap(written, targetWords)) continue;
+    // A dropped round says why in the log (the Rubicon's three were dropped silently; the cause had to be replayed).
+    if (revised.problems.length) {
+      input.log?.(`  senaryo: uzunluk turu ${lengthRounds} kullanılmadı — ${revised.problems.length} sorun: ${revised.problems.slice(0, 3).join("; ").slice(0, 240)}`);
+      continue;
+    }
+    if (revisionGap(revised.value as Episode, targetWords) >= revisionGap(written, targetWords)) {
+      input.log?.(`  senaryo: uzunluk turu ${lengthRounds} hedefe yaklaşmadı (${spokenWords(revised.value as Episode)}/${targetWords} kelime)`);
+      continue;
+    }
     written = revised.value as Episode;
     validation = revised.validation!;
   }

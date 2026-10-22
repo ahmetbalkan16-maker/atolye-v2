@@ -17,7 +17,8 @@ import { applyParts, costumeRootsFor } from "../../src/lib/v3/costumes/PartDesig
 import { buildRenderPlan } from "../../src/lib/v3/director/Director";
 import type { Episode } from "../../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
-import { loadSnapshot } from "../../src/lib/v3/maps/HistoricalBorders";
+import { loadSnapshot, withAtlasYears, yearLabel } from "../../src/lib/v3/maps/HistoricalBorders";
+import { withRouteZoom } from "../../src/lib/v3/maps/RouteZoom";
 import { loadMapData, mapWorld, type Polygon } from "../../src/lib/v3/maps/MapBuilder";
 import { reliefFor } from "../../src/lib/v3/maps/Relief";
 import { checkEpisodePlaces, wikipediaPlaces } from "../../src/lib/v3/maps/PlaceCheck";
@@ -52,6 +53,13 @@ async function main() {
     else if (!checked.fixes.length) console.log("konum: bütün şehir ve savaşlar Wikipedia ile uyumlu");
     full = assertEpisode(checked.episode);
   }
+  const bordersDir = path.join(paths.mapsDir, "historical");
+  // Atlas years the atlas lacks move to the nearest snapshot with the state, as the production does.
+  const atlas = await withAtlasYears(full, async (y, name) => (await loadSnapshot(bordersDir, y)).has(name));
+  for (const x of atlas.moved) console.log(`harita: "${x.ad}" için ${yearLabel(x.from)} atlası yok → ${yearLabel(x.to)} sınırları (${x.sahne})`);
+  const zoom = withRouteZoom(atlas.episode);
+  for (const id of zoom.scenes) console.log(`harita: ${id} sahnesinde ok çok kısaydı → kamera oka yaklaşır`);
+  full = zoom.episode;
   const want = arg("--sahne");
   const scene = full.sahneler.find((s) => (want ? s.id === want : s.harita?.merkez && s.harita.genislik_km));
   if (!scene?.harita?.merkez || !scene.harita.genislik_km) throw new Error(want ? `${want}: haritalı sahne değil` : "bölümde haritalı sahne yok");
@@ -63,7 +71,6 @@ async function main() {
   await fs.mkdir(pub, { recursive: true });
 
   const years = [...new Set((scene.harita.bolgeler ?? []).flatMap((b) => (b.tarihi ? [b.tarihi.yil] : [])))];
-  const bordersDir = path.join(paths.mapsDir, "historical");
   const historical = new Map<number, Map<string, Polygon[]>>();
   for (const y of years) historical.set(y, await loadSnapshot(bordersDir, y));
   const base = await loadMapData(paths.mapsDir);

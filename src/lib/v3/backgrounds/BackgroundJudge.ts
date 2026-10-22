@@ -88,6 +88,18 @@ export function passes(v: CandidateVerdict, allowModern = false): boolean {
   return v.puan >= MIN_FIT_SCORE && (v.donem ?? v.puan) >= MIN_FIT_SCORE && (allowModern || v.modern !== true);
 }
 
+/** The lowest subject score of a drawn set that may stand in when none passes: still the kind of place. */
+export const MIN_FALLBACK_SUBJECT = 4;
+
+/**
+ * A drawn set that missed only the subject bar and may stand in for the scene: of the episode's period, nothing modern,
+ * no building of a later era, and still the kind of place (the Rubicon's Senate got "a tall marble hall with columns",
+ * subject 4, period 10). Owner, 22 Oct 2026: such a drawing, never a photo or a painting, is the set behind the puppets.
+ */
+export function periodFallback(v: CandidateVerdict | undefined): v is CandidateVerdict {
+  return !!v && !v.okunamadi && !v.sonrakiCag && v.modern !== true && (v.donem ?? 0) >= MIN_FIT_SCORE && v.puan >= MIN_FALLBACK_SUBJECT;
+}
+
 /** Ranking score: the weaker of the two scores. */
 export function fitScore(v: CandidateVerdict): number {
   return Math.min(v.puan, v.donem ?? v.puan);

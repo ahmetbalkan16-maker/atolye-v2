@@ -1,7 +1,7 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
-import { GARMENTS } from "../episode/EpisodeTypes";
+import { EMOTIONS, GARMENTS, GESTURES } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
-import type { V3Garment } from "../render/RenderPlanTypes";
+import type { V3Emotion, V3Garment, V3Gesture } from "../render/RenderPlanTypes";
 
 /**
  * Mechanical fixes to a script draft before validation, for slips a model repeats even when told (the Rubicon run
@@ -31,6 +31,36 @@ const GARMENT_ALIASES: Readonly<Record<string, V3Garment>> = {
   janissary: "yeniceri",
   "byzantine robe": "bizans",
 };
+
+/**
+ * Emotions and gestures outside the rig's lists, by the words models use (the first AYAS order's three length rounds,
+ * 22 Oct 2026, were all dropped over 13 such values on new lines: 249 of 423 words stayed). Turkish with its letters,
+ * English, and common near-words; an unknown emotion is neutral, an unknown gesture is left out.
+ */
+const EMOTION_ALIASES: readonly [RegExp, V3Emotion][] = [
+  [/^n[oö]tr|neutral|calm|plain/i, "notr"],
+  [/mutlu|happy|amused|cheer|joy|glad|smug|proud|excit|delight|laugh/i, "mutlu"],
+  [/k[ıi]zg[ıi]n|angry|anger|furious|mad|annoy|irritat|outrag/i, "kizgin"],
+  [/[şs]a[şs]k[ıi]n|surpris|shock|astonish|amaz|confus|puzzl/i, "saskin"],
+  [/korkmu[şs]|scared|afraid|fear|nervous|anxious|panic|worr/i, "korkmus"],
+  [/[üu]zg[üu]n|sad|sorrow|gloom|disappoint|tired|weary/i, "uzgun"],
+  [/karar|determin|confident|resolute|bold|serious|firm|stern/i, "kararli"],
+  [/sinsi|sly|cunning|sneaky|scheming|sarcas|mischiev|smirk/i, "sinsi"],
+];
+const GESTURE_ALIASES: readonly [RegExp, V3Gesture][] = [
+  [/isaret|point/i, "isaret_et"],
+  [/el_?salla|wave/i, "el_salla"],
+  [/omuz|shrug/i, "omuz_silk"],
+  [/d[üu][şs][üu]n|think|ponder|chin/i, "dusun"],
+  [/y[üu]z_?avu|facepalm|face_?palm/i, "yuz_avucla"],
+  [/kutla|celebrat|cheer|triumph/i, "kutla"],
+  [/yumruk|fist/i, "yumruk_kaldir"],
+  [/e[ğg]il|bow/i, "egil"],
+  [/kollar|cross|fold/i, "kollari_kavustur"],
+  [/belde|hips/i, "elleri_belde"],
+  [/sas[ıi]r|surpris|gasp|shock/i, "sasir"],
+  [/konu[şs]|talk|speak|explain|gesture/i, "konus"],
+];
 
 const EMPTY = /^(none|no|null|yok|-|n\/a)?$/i;
 
@@ -103,6 +133,21 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
   const scenes = Array.isArray(draft.sahneler) ? (draft.sahneler as unknown[]) : [];
   for (const [si, s] of scenes.entries()) {
     if (!isObj(s)) continue;
+    for (const [li, l] of (Array.isArray(s.satirlar) ? (s.satirlar as unknown[]) : []).entries()) {
+      if (!isObj(l)) continue;
+      const where = `sahneler[${si}].satirlar[${li}]`;
+      if (typeof l.duygu === "string" && !EMOTIONS.includes(l.duygu as V3Emotion)) {
+        const mapped = EMOTION_ALIASES.find(([re]) => re.test(l.duygu as string))?.[1] ?? "notr";
+        fixes.push(`${where}.duygu "${l.duygu}" → ${mapped}`);
+        l.duygu = mapped;
+      }
+      if (typeof l.jest === "string" && !GESTURES.includes(l.jest as V3Gesture)) {
+        const mapped = GESTURE_ALIASES.find(([re]) => re.test(l.jest as string))?.[1];
+        fixes.push(`${where}.jest "${l.jest}" → ${mapped ?? "silindi"}`);
+        if (mapped) l.jest = mapped;
+        else delete l.jest;
+      }
+    }
     if (Array.isArray(s.sahne_duzeni)) {
       const before = s.sahne_duzeni.length;
       s.sahne_duzeni = (s.sahne_duzeni as unknown[]).filter((b) => isObj(b) && visible.has(String(b.karakter)));

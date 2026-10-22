@@ -1,5 +1,6 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import type { Episode } from "../episode/EpisodeTypes";
 import type { Polygon } from "./MapBuilder";
 
 /**
@@ -72,6 +73,43 @@ export async function loadSnapshot(dir: string, year: number): Promise<Map<strin
   }
   loaded.set(year, map);
   return map;
+}
+
+/**
+ * The snapshot a writer's atlas year stands for: itself when the atlas has it, else the nearest snapshot that has the
+ * state (closest first), else the nearest one. The first AYAS order (22 Oct 2026) wrote "Roman Republic" at -49, which
+ * has no snapshot: the state lost its outline and, since a map's other states come from the same snapshot, every other
+ * state its colour. `has` answers whether a snapshot year has a state of that (lower-case) name.
+ */
+export async function atlasYear(year: number, name: string, has: (year: number, name: string) => Promise<boolean>): Promise<number> {
+  if (SNAPSHOT_YEARS.includes(year)) return year;
+  const near = [...SNAPSHOT_YEARS].sort((a, b) => Math.abs(a - year) - Math.abs(b - year) || a - b).slice(0, 4);
+  for (const y of near) if (await has(y, name.toLowerCase()).catch(() => false)) return y;
+  return near[0]!;
+}
+
+/** Every map's atlas states moved to a snapshot the atlas has (see atlasYear), with what moved for the log. */
+export async function withAtlasYears(episode: Episode, has: (year: number, name: string) => Promise<boolean>): Promise<{ episode: Episode; moved: { sahne: string; ad: string; from: number; to: number }[] }> {
+  const moved: { sahne: string; ad: string; from: number; to: number }[] = [];
+  const sahneler = [];
+  for (const s of episode.sahneler) {
+    if (!s.harita?.bolgeler?.some((b) => b.tarihi && !SNAPSHOT_YEARS.includes(b.tarihi.yil))) {
+      sahneler.push(s);
+      continue;
+    }
+    const bolgeler = [];
+    for (const b of s.harita.bolgeler) {
+      if (!b.tarihi || SNAPSHOT_YEARS.includes(b.tarihi.yil)) {
+        bolgeler.push(b);
+        continue;
+      }
+      const to = await atlasYear(b.tarihi.yil, b.tarihi.ad, has);
+      moved.push({ sahne: s.id, ad: b.tarihi.ad, from: b.tarihi.yil, to });
+      bolgeler.push({ ...b, tarihi: { ...b.tarihi, yil: to } });
+    }
+    sahneler.push({ ...s, harita: { ...s.harita, bolgeler } });
+  }
+  return { episode: moved.length ? { ...episode, sahneler } : episode, moved };
 }
 
 /** The polity names of a snapshot a writer may pick from (proper states and peoples, original spelling, sorted). */
