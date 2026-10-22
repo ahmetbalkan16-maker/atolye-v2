@@ -125,6 +125,26 @@ async function main() {
       ],
     } as unknown as EpisodeTimeline;
     assert.deepEqual(sfxCues(ep, tl).map((c) => [c.id, c.t]), [["adim", 0.2], ["dusus", 2], ["para", 2], ["boing", 4], ["whoosh", 6.2], ["basari", 8.5]]);
+    // Owner, 22 Oct 2026 (no meaningless sound): what happens is heard — the legion's march and the water as it wades
+    // in, Caesar's splash into the Rubicon, a drum as an army sets off on the map, swords where a battle flashes.
+    const rubicon = {
+      sahneler: [
+        { id: "m", satirlar: [{ karakter: "anlatici", metin: "x", duygu: "notr" }, { karakter: "anlatici", metin: "y", duygu: "notr" }], harita: { merkez: [12, 43], genislik_km: 900, ordular: [{ ad: "Caesar", konum: [12, 44], renk: "#c0392b", yol: [[12, 42]], yol_satir: 1 }], savaslar: [{ ad: "Corfinium", konum: [13.8, 42.1], satir: 1 }] } },
+        { id: "k", ortam: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", nehir: [0.46, 0.9] }, kalabalik: [{ ad: "Legio", duzen: "ordu", hareket: { tur: "yuru", satir: 1 } }], satirlar: [{ karakter: "a", metin: "Forward!", duygu: "kararli", hareket: "yuru", hedef: 0.72 }, { karakter: "b", metin: "Right behind you!", duygu: "korkmus" }, { karakter: "anlatici", metin: "z", duygu: "notr" }] },
+      ],
+    } as unknown as Episode;
+    const tl2 = {
+      duration: 12,
+      scenes: [{ sceneIndex: 0, start: 0, end: 4 }, { sceneIndex: 1, start: 4, end: 12 }],
+      lines: [
+        { sceneIndex: 0, lineIndex: 0, start: 0, end: 2 },
+        { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 },
+        { sceneIndex: 1, lineIndex: 0, start: 4, end: 6 },
+        { sceneIndex: 1, lineIndex: 1, start: 6, end: 8 },
+        { sceneIndex: 1, lineIndex: 2, start: 8, end: 11 },
+      ],
+    } as unknown as EpisodeTimeline;
+    assert.deepEqual(sfxCues(rubicon, tl2).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["dalga", 4.9], ["adim", 6.2], ["dalga", 7.6], ["basari", 8]]);
   });
 
   await scenario("F samples land on the exact sample and anything past the end is dropped", () => {
@@ -205,6 +225,9 @@ async function main() {
     const amb = ambiencePrompt(scene, "49 BC");
     assert.match(amb, /^Quiet ambient background sound of Corfinium, Italy in 49 BC: A walled hilltop town with stone towers, Roman banners, smoke rising from campfires\. /);
     assert.doesNotMatch(amb, /modern buildings|cars/, "negations never reach the model");
+    // A living set sounds like its own place and hour (owner, 22 Oct 2026: no meaningless sound).
+    const night = ambiencePrompt({ ...scene, ortam: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", hava: "sis", isik: "mesale" }, kalabalik: [{ duzen: "ordu" } as never] }, "49 BC");
+    assert.equal(night, "Quiet ambient background sound in 49 BC: a shallow river flowing over stones nearby, night, crickets chirping, a distant owl, still misty air, torches crackling, a large army waiting quietly, armour and weapons clinking. Soft and steady, natural outdoor or room tone, no music, no speech, no singing.");
     assert.notEqual(soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "efekt" }), soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "ortam" }));
     const ok = { durationS: 1.2, meanDb: -22, peakDb: -2, longestSilenceS: 0 };
     assert.deepEqual(soundProblems(ok, { prompt: "", seconds: 3, seed: 0, kind: "efekt" }), []);

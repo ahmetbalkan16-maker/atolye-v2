@@ -117,7 +117,31 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       else if (line.efekt === "soru") cues.push({ t: lt.start, id: "boing" });
       else if (line.hareket === "kos") cues.push({ t: lt.start, id: "whoosh" });
       else if (line.hareket === "gir" || line.hareket === "yuru") cues.push({ t: lt.start, id: "adim" });
+      // Wading into the crossing's river: the splash as the walk reaches the water.
+      if ((line.hareket === "yuru" || line.hareket === "kos") && typeof line.hedef === "number" && scene.ortam?.manzara === "nehir_gecidi") {
+        const [a, b] = scene.ortam.nehir ?? [0.52, 0.8];
+        if (line.hedef > a && line.hedef < b) cues.push({ t: lt.start + 0.9, id: "dalga" });
+      }
     });
+    // What the crowd does is heard too (owner, 22 Oct 2026: no meaningless sound): a march's footfalls, a charge's or a
+    // flight's roar, the water as the column wades in.
+    for (const g of scene.kalabalik ?? []) {
+      const m = g.hareket;
+      const lt = m ? lineAt(m.satir) : undefined;
+      if (!m || !lt) continue;
+      cues.push({ t: lt.start + 0.2, id: m.tur === "yuru" ? "adim" : "kalabalik" });
+      if (m.tur === "hucum") cues.push({ t: lt.start + 0.4, id: "davul" });
+      if (scene.ortam?.manzara === "nehir_gecidi") cues.push({ t: lt.start + 1.6, id: "dalga" });
+    }
+    // On the living map: a drum as an army sets off, swords where a battle flashes.
+    for (const o of scene.harita?.ordular ?? []) {
+      const lt = o.yol?.length ? lineAt(o.yol_satir ?? o.satir ?? 0) : undefined;
+      if (lt) cues.push({ t: lt.start + 0.1, id: "davul" });
+    }
+    for (const w of scene.harita?.savaslar ?? []) {
+      const lt = lineAt(w.satir ?? 0);
+      if (lt) cues.push({ t: lt.start + 0.2, id: "kilic" });
+    }
   });
   return cues.sort((a, b) => a.t - b.t);
 }

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { periodEndYear } from "../backgrounds/HistorySources";
-import type { Episode, EpisodeScene, SfxId } from "../episode/EpisodeTypes";
+import type { Episode, EpisodeScene, SceneSetting, SfxId } from "../episode/EpisodeTypes";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { sideProcessEnv } from "../tts/Tts";
 import { GPU_PAUSE_C, GPU_START_C, unloadOllama, waitForCoolGpu } from "../util/Gpu";
@@ -99,8 +99,33 @@ export function periodSfxPrompt(id: SfxId, era: Era): string | undefined {
   return text ? `${text}. Clean single sound effect, no music, no speech.` : undefined;
 }
 
-/** A scene's ambience: its place as the script described it, the "no …" clauses dropped (the model hears words). */
-export function ambiencePrompt(scene: Pick<EpisodeScene, "mekan" | "arka_plan_sorgusu">, donem: string): string {
+/** What a living set sounds like (owner, 22 Oct 2026: no meaningless sound — the place's own sound, the hour's). */
+const TIME_SOUND: Readonly<Record<SceneSetting["zaman"], string>> = { gun: "daytime, birdsong", aksam: "dusk, a few evening birds", gece: "night, crickets chirping, a distant owl", safak: "dawn, first birds" };
+const PLACE_SOUND: Readonly<Record<SceneSetting["manzara"], string>> = {
+  nehir_kiyisi: "a shallow river flowing over stones nearby",
+  nehir_gecidi: "a shallow river flowing over stones nearby",
+  ova: "open plain, wind over grass",
+  tepeler: "open hills, wind over grass",
+  orman: "wind in the trees, rustling leaves",
+  sahil: "waves breaking on a shore",
+  sokak: "a busy old town street, distant voices, footsteps",
+  meydan: "a town square, many distant voices",
+  saray_ici: "a large stone hall, quiet room tone with soft echo",
+  meclis: "a large hall, a crowd of men murmuring",
+  ordugah: "an army camp, distant voices, metal clinking, a horse snorting",
+  sur_onu: "outside high city walls, wind, distant voices",
+};
+const WEATHER_SOUND: Readonly<Record<NonNullable<SceneSetting["hava"]>, string>> = { acik: "", bulutlu: "a light wind", sis: "still misty air", yagmur: "steady rain falling", kar: "muffled snowy quiet, soft wind" };
+const LIGHT_SOUND: Readonly<Record<NonNullable<SceneSetting["isik"]>, string>> = { yok: "", mesale: "torches crackling", kamp_atesi: "a campfire crackling" };
+
+/** A scene's ambience: from its living set when it has one, else its place as the script described it. */
+export function ambiencePrompt(scene: Pick<EpisodeScene, "mekan" | "arka_plan_sorgusu"> & Partial<Pick<EpisodeScene, "ortam" | "kalabalik">>, donem: string): string {
+  if (scene.ortam) {
+    const o = scene.ortam;
+    const army = (scene.kalabalik ?? []).some((g) => g.duzen === "ordu") ? "a large army waiting quietly, armour and weapons clinking" : "";
+    const parts = [PLACE_SOUND[o.manzara], TIME_SOUND[o.zaman], o.hava ? WEATHER_SOUND[o.hava] : "", o.isik ? LIGHT_SOUND[o.isik] : "", army].filter(Boolean);
+    return `Quiet ambient background sound in ${donem}: ${parts.join(", ")}. Soft and steady, natural outdoor or room tone, no music, no speech, no singing.`;
+  }
   const place = (scene.arka_plan_sorgusu.tasarim ?? scene.arka_plan_sorgusu.en)
     .split(/[;.]/)
     .map((s) => s.trim())
@@ -270,8 +295,9 @@ export async function designSounds(
       continue;
     }
     const prompt = ambiencePrompt(scene, episode.donem);
-    // One bed per place; long scenes loop it (the model makes at most 30 s at a time).
-    const got = await designer.make({ prompt, seconds: 20, seed: seedOf(`${episode.id}#${scene.mekan}`), kind: "ortam" }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
+    // One bed per place (and per hour and weather when the set is drawn); long scenes loop it (at most 30 s at a time).
+    const key = scene.ortam ? `${scene.mekan}#${scene.ortam.zaman}#${scene.ortam.hava ?? ""}` : scene.mekan;
+    const got = await designer.make({ prompt, seconds: 20, seed: seedOf(`${episode.id}#${key}`), kind: "ortam" }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
     if ("file" in got) {
       ambience.push({ start: st.start, end: st.end, file: got.file });
       report.push(`ortam ${scene.id}: ${scene.mekan}${got.cached ? " (kütüphaneden)" : ""}`);
