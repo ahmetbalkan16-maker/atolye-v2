@@ -9,7 +9,7 @@ import { mkdtempSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
-import { answerAyasVideoIntent, detectAyasVideoIntent, periodOf } from "../src/lib/ayas/AyasVideoOrder";
+import { answerAyasVideoIntent, detectAyasVideoIntent, lengthOf, periodOf, SHORT_ORDER_LENGTH } from "../src/lib/ayas/AyasVideoOrder";
 import { DEFAULT_ORDER_LENGTH, listOrders, MAX_RESUMES, PRODUCTION_STEPS, type ProductionOrder, recoverInterrupted, resumeStep } from "../src/lib/v3/orders/ProductionOrders";
 
 let scenarios = 0;
@@ -82,6 +82,27 @@ async function main() {
     recoverInterrupted(order, "");
     assert.equal(order.durum, "hata");
     assert.match(order.ozet ?? "", /yarıda kesildi/);
+  });
+
+  await scenario("F the owner's length reaches the order; none keeps the long default; numbers in the topic are no length", async () => {
+    const len = (t: string) => {
+      const i = detectAyasVideoIntent(t);
+      return i?.kind === "order" ? [i.konu, i.sure] : null;
+    };
+    assert.deepEqual(len("Rubicon hakkında kısa bir video yap"), ["Rubicon", SHORT_ORDER_LENGTH]);
+    assert.deepEqual(len("Rubicon hakkında 3 dakikalık bir video hazırla"), ["Rubicon", "3dk"]);
+    assert.deepEqual(len("Rubicon hakkında 90 saniyelik video yap"), ["Rubicon", "90sn"]);
+    assert.deepEqual(len("Rubicon hakkında 2 dk'lık kısa bir video yap"), ["Rubicon", "2dk"]);
+    assert.deepEqual(len("make a short video about the Fall of Rome"), ["the Fall of Rome", SHORT_ORDER_LENGTH]);
+    assert.deepEqual(len("make a 3-minute video about the Fall of Rome"), ["the Fall of Rome", "3dk"]);
+    assert.deepEqual(len("Yüz Yıl Savaşı hakkında video yap"), ["Yüz Yıl Savaşı", undefined]);
+    assert.deepEqual(len("1453 İstanbul'un fethi hakkında 5 dakikalık video yap"), ["1453 İstanbul'un fethi", "5dk"]);
+    assert.equal(lengthOf("45 dakikalık"), "30dk", "the producer's ceiling");
+    assert.equal(lengthOf("5 saniyelik"), "20sn", "the producer's floor");
+    const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-"));
+    assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Rubicon hakkında kısa bir video yap")!, root), /\(İngilizce, 3 dk\)/);
+    assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Sezar hakkında video yap")!, root), /\(İngilizce, 18 dk\)/);
+    assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH]);
   });
 
   console.log(`AYAS video order smoke: PASS (${scenarios} scenarios)`);

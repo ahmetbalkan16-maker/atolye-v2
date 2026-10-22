@@ -8,15 +8,31 @@ import { resolveV3Paths } from "@/lib/v3/V3Paths";
  * Detection needs both a video word and a making verb, so ordinary talk about videos is not an order.
  */
 export type AyasVideoIntent =
-  | { readonly kind: "order"; readonly konu: string; readonly donem: string; readonly dil: "tr" | "en" }
+  | { readonly kind: "order"; readonly konu: string; readonly donem: string; readonly dil: "tr" | "en"; readonly sure?: string }
   | { readonly kind: "status" };
 
 const VIDEO = "(?:video|videosu|videoyu|bölüm|bölümü|belgesel|belgeseli)";
 const MAKE = "(?:yap|yapar mısın|yapsana|hazırla|hazırlar mısın|üret|çek|oluştur)";
-const ORDER_TR = new RegExp(`^(?:bana\\s+)?(.{3,160}?)\\s+(?:hakkında|ile ilgili|konulu|üzerine|anlatan)\\s+(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni)\\s+){0,3}${VIDEO}\\s+${MAKE}`, "u");
+const LENGTH_TR = "\\d{1,4}\\s*(?:dakikalık|saniyelik|dk['’]?lık|sn['’]?lik)";
+const ORDER_TR = new RegExp(`^(?:bana\\s+)?(.{3,160}?)\\s+(?:hakkında|ile ilgili|konulu|üzerine|anlatan)\\s+(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni|${LENGTH_TR})\\s+){0,3}${VIDEO}\\s+${MAKE}`, "u");
 const ORDER_TR_COLON = new RegExp(`^${VIDEO}\\s+${MAKE}\\s*[:\\-–]\\s*(.{3,160})$`, "u");
-const ORDER_EN = /^(?:please\s+)?make\s+(?:me\s+)?an?\s+(?:short\s+|new\s+)?(?:video|episode)\s+(?:about|on)\s+(.{3,160})$/u;
+const ORDER_EN = /^(?:please\s+)?make\s+(?:me\s+)?an?\s+(?:(?:short|new|\d{1,4}[- ]?(?:minute|min|second|sec)s?)\s+){0,2}(?:video|episode)\s+(?:about|on)\s+(.{3,160})$/u;
 const STATUS = new RegExp(`(?:${VIDEO}|sipariş)(?:lar|ler)?(?:ım|im|in|ın)?\\s+(?:durumu|ne durumda|nerede|hazır mı|bitti mi)|video siparişleri|videom hazır mı`, "u");
+
+/** A "kısa"/"short" video without a number: a short-form episode (under the long-form line, the $1 cap). */
+export const SHORT_ORDER_LENGTH = "3dk";
+
+/**
+ * The length the owner asked for in the words around the topic ("3 dakikalık", "90 saniyelik", "a 3-minute", "kısa"),
+ * kept inside the producer's 20 s – 30 min range; none means the order's default (a long video).
+ */
+export function lengthOf(words: string): string | undefined {
+  const min = /(\d{1,4})\s*(?:dakika|dk|-?\s*min)/u.exec(words);
+  if (min) return `${Math.min(30, Math.max(1, Number(min[1])))}dk`;
+  const sec = /(\d{1,4})\s*(?:saniye|sn|-?\s*sec)/u.exec(words);
+  if (sec) return `${Math.min(1800, Math.max(20, Number(sec[1])))}sn`;
+  return /(?:^|\s)(?:kısa|short)\s/u.test(` ${words} `) ? SHORT_ORDER_LENGTH : undefined;
+}
 
 /** Period words in the topic ("MÖ 49", "1452", "1919–1922", "16. yüzyıl"), else left to the script's research. */
 export function periodOf(konu: string): string {
@@ -34,13 +50,15 @@ export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
   const start = lower.indexOf(m[1]);
   const konu = (start >= 0 ? t.slice(start, start + m[1].length) : m[1]).trim();
   const dil: "tr" | "en" = /türkçe/u.test(lower) ? "tr" : "en";
-  return { kind: "order", konu: konu.replace(/\s+türkçe\b/iu, "").trim(), donem: periodOf(konu), dil };
+  // The length only from the words around the topic, so "Yüz Yıl Savaşı" or a year in the topic is never a length.
+  const sure = lengthOf(start >= 0 ? `${lower.slice(0, start)} ${lower.slice(start + m[1].length)}` : "");
+  return { kind: "order", konu: konu.replace(/\s+türkçe\b/iu, "").trim(), donem: periodOf(konu), dil, ...(sure ? { sure } : {}) };
 }
 
 /** AYAS's answer: the order is placed (or the orders are summarised); nothing is produced in the server. */
 export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = resolveV3Paths().workRoot): Promise<string> {
   if (intent.kind === "status") return ordersSummary((await listOrders(workRoot)).map((x) => x.order));
-  const order = await placeOrder(workRoot, { konu: intent.konu, donem: intent.donem, dil: intent.dil, kaynak: "ayas" });
+  const order = await placeOrder(workRoot, { konu: intent.konu, donem: intent.donem, dil: intent.dil, ...(intent.sure ? { sure: intent.sure } : {}), kaynak: "ayas" });
   const waiting = (await listOrders(workRoot)).filter((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor").length;
-  return `Siparişi aldım: "${order.konu}" (${order.dil === "en" ? "İngilizce" : "Türkçe"}). Atölye stüdyosunda araştırma, kurgu, kostüm, ortam, ses ve kalite beyinleri sırayla çalışacak; video bitince kalite beyni teslim edecek.${waiting > 1 ? ` Sırada ${waiting - 1} sipariş daha var.` : ""} Durumunu "video durumu" diye sorabilirsin.`;
+  return `Siparişi aldım: "${order.konu}" (${order.dil === "en" ? "İngilizce" : "Türkçe"}, ${order.sure.replace(/dk$/, " dk").replace(/sn$/, " sn")}). Atölye stüdyosunda araştırma, kurgu, kostüm, ortam, ses ve kalite beyinleri sırayla çalışacak; video bitince kalite beyni teslim edecek.${waiting > 1 ? ` Sırada ${waiting - 1} sipariş daha var.` : ""} Durumunu "video durumu" diye sorabilirsin.`;
 }
