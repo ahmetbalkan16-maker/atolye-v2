@@ -19,8 +19,8 @@ import type { Episode } from "../../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
 import { loadSnapshot, withAtlasYears, yearLabel } from "../../src/lib/v3/maps/HistoricalBorders";
 import { withRouteZoom } from "../../src/lib/v3/maps/RouteZoom";
-import { loadMapData, mapWorld, type Polygon } from "../../src/lib/v3/maps/MapBuilder";
-import { reliefFor } from "../../src/lib/v3/maps/Relief";
+import { loadMapData, type Polygon } from "../../src/lib/v3/maps/MapBuilder";
+import { mapGroundFor } from "../../src/lib/v3/maps/MapGround";
 import { checkEpisodePlaces, wikipediaPlaces } from "../../src/lib/v3/maps/PlaceCheck";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
@@ -74,12 +74,15 @@ async function main() {
   const historical = new Map<number, Map<string, Polygon[]>>();
   for (const y of years) historical.set(y, await loadSnapshot(bordersDir, y));
   const base = await loadMapData(paths.mapsDir);
-  const relief = await reliefFor(paths, mapWorld(scene.harita, 1920, 1080), pub, (s) => console.log(s));
+  // The close battle map's own coast and elevation, or the wide map's relief.
+  const ground = await mapGroundFor(paths, scene.harita, pub, base.land, (s) => console.log(s));
+  const relief = ground.relief;
   const audio = scene.satirlar.map((l): LineAudio => ({ file: "sessiz.wav", duration: estimatedSeconds(l.metin), visemes: [{ t: 0, v: "X" }], words: [], lipSync: "rms" }));
   const timeline = buildTimeline(episode, [audio], { ...DEFAULT_TIMELINE, introS: 0 });
   const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla"), ...crowdCast(episode, "kukla")];
   const plan = buildRenderPlan({
     ...(relief ? { reliefs: new Map([[scene.id, relief]]) } : {}),
+    ...(ground.coast ? { coasts: new Map([[scene.id, ground.coast]]) } : {}),
     mapData: { ...base, ...(historical.size ? { historical } : {}) },
     episode,
     timeline,

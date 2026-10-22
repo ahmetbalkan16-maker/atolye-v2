@@ -1,0 +1,88 @@
+{
+  "id": "harita-fetih-1453-yakin",
+  "baslik": "The Fall of Constantinople — at the walls",
+  "konu": "The siege of Constantinople, seen close",
+  "donem": "1453",
+  "hedef_sure_sn": 40,
+  "ton": "mizahi",
+  "kaynaklar": [
+    { "id": "wikipedia-fall-of-constantinople", "kunye": "Wikipedia, \"Fall of Constantinople\"", "url": "https://en.wikipedia.org/wiki/Fall_of_Constantinople" }
+  ],
+  "oyuncu_kadrosu": [
+    { "id": "anlatici", "ad": "Narrator", "rol": "Your guide", "kostum_paketi": "", "renk": "#333333", "ses_id": "en-anlatici", "konusma_tarzi": "Dry", "gorunur": false }
+  ],
+  "sahneler": [
+    {
+      "id": "y1-surlar",
+      "sure_hedef": 40,
+      "mekan": "Close map: the land walls of Constantinople, 1453",
+      "arka_plan_sorgusu": { "tr": "İstanbul surları 1453", "en": "walls of Constantinople 1453" },
+      "duygu": "gerilim",
+      "muzik_ruh_hali": "tense",
+      "harita": {
+        "merkez": [28.95, 41.02],
+        "genislik_km": 22,
+        "kamera": [
+          { "satir": 1, "merkez": [28.93, 41.018], "genislik_km": 12 },
+          { "satir": 2, "merkez": [28.965, 41.03], "genislik_km": 12 },
+          { "satir": 4, "merkez": [28.935, 41.018], "genislik_km": 10 }
+        ],
+        "sehirler": [{ "ad": "Constantinople", "konum": [28.965, 41.012] }],
+        "surlar": [
+          {
+            "ad": "Theodosian Walls",
+            "noktalar": [[28.942, 41.0418], [28.9395, 41.034], [28.9375, 41.0298], [28.9285, 41.0225], [28.9235, 41.0185], [28.9207, 41.0125], [28.919, 41.006], [28.92, 40.998], [28.923, 40.9935]],
+            "kapilar": [[28.9375, 41.0298], [28.9235, 41.0185], [28.919, 41.006]],
+            "gedik": { "konum": [28.9255, 41.0202], "satir": 4 }
+          }
+        ],
+        "yerlesimler": [
+          { "tur": "sehir", "noktalar": [[28.944, 41.04], [28.956, 41.031], [28.97, 41.023], [28.984, 41.017], [28.983, 41.005], [28.97, 41.002], [28.95, 40.999], [28.928, 40.996], [28.924, 41.006], [28.927, 41.018], [28.938, 41.031]], "yanma_satir": 4 },
+          { "tur": "sehir", "ad": "Galata", "konum": [28.974, 41.025], "km": 0.9 },
+          { "tur": "ordugah", "ad": "Ottoman camp", "konum": [28.895, 41.024], "km": 3.2, "satir": 0 }
+        ],
+        "yapilar": [
+          { "tur": "otag", "ad": "Mehmed II", "konum": [28.9, 41.03], "satir": 0 },
+          { "tur": "kilise", "ad": "Hagia Sophia", "konum": [28.9802, 41.0086] },
+          { "tur": "kule", "konum": [28.9741, 41.0256] }
+        ],
+        "yollar": [
+          { "noktalar": [[28.8, 41.065], [28.87, 41.045], [28.9375, 41.0298]] },
+          { "noktalar": [[28.8, 40.99], [28.88, 40.995], [28.923, 40.9935]] }
+        ],
+        "cizgiler": [{ "ad": "The chain", "noktalar": [[28.9765, 41.0168], [28.9768, 41.0235]], "satir": 0, "stil": "zincir" }],
+        "araclar": [
+          { "tur": "top", "renk": "#c0392b", "sayi": 3, "konum": [28.909, 41.016], "satir": 1, "hedef": [28.9235, 41.0185] },
+          { "tur": "gemi", "renk": "#c0392b", "sayi": 3, "konum": [28.992, 41.02], "satir": 0 },
+          { "tur": "gemi", "renk": "#c0392b", "sayi": 3, "konum": [29.006, 41.041], "satir": 2, "yol": [[28.99, 41.047], [28.972, 41.041], [28.957, 41.029]] },
+          { "tur": "gemi", "renk": "#7a3fa0", "sayi": 2, "konum": [28.968, 41.026], "satir": 0 }
+        ],
+        "birlikler": [
+          {
+            "taraf": "Ottomans", "renk": "#c0392b", "amblem": "hilal", "sayi": 8,
+            "yerler": [
+              { "satir": 0, "cephe": [[28.925, 41.045], [28.924, 41.032], [28.913, 41.02], [28.908, 41.0]] },
+              { "satir": 4, "kume": [28.94, 41.016], "km": 1.6 }
+            ]
+          },
+          {
+            "taraf": "Byzantium", "renk": "#7a3fa0", "amblem": "kartal", "sayi": 4,
+            "yerler": [
+              { "satir": 0, "cephe": [[28.947, 41.036], [28.94, 41.026], [28.93, 41.014], [28.928, 41.0]] },
+              { "satir": 3, "cephe": [[28.947, 41.036], [28.94, 41.026], [28.93, 41.014], [28.928, 41.0]], "kayip": 1 },
+              { "satir": 4, "kume": [28.95, 41.012], "km": 1, "kayip": 3 }
+            ]
+          }
+        ],
+        "savaslar": [{ "ad": "Gate of St. Romanus", "konum": [28.9255, 41.0202], "satir": 4 }]
+      },
+      "satirlar": [
+        { "karakter": "anlatici", "metin": "April 1453. The Ottoman army reaches the land walls, and Sultan Mehmed pitches his tent before them.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "His great guns are dragged up to the Gate of St. Romanus and open fire.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "A chain bars the Golden Horn, so he hauls seventy ships over the hills behind Galata.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "Night after night the defenders mend the walls, and every night there are fewer of them.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "On the twenty-ninth of May the wall gives way at the Gate of St. Romanus, and the city falls.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] }
+      ]
+    }
+  ]
+}

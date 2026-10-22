@@ -10,7 +10,8 @@ import { autoSlots, BODY_HALF, beats, buildRenderPlan, rallyingCry, captionPages
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
-import { reliefSize } from "../src/lib/v3/maps/Relief";
+import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
+import { assembleLand, chainWays, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
@@ -329,8 +330,9 @@ async function main() {
     assert.deepEqual(geo.territories.map((t) => [t.label, t.start, t.d.length > 0]), [["Rome", 100, true], ["Italy", 1001, true]], "ISO kodu büyük/küçük harf duyarsız");
     assert.equal(geo.arrows[0]!.start, 0);
     assert.equal(geo.cities[0]!.label, "Roma");
+    // A close battle map may be 3 km across; 2 is too close for anything to read.
     const ep = sampleEpisode();
-    const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [200, 43], genislik_km: 5, bolgeler: [{ ad: "x", renk: "#ffffff" }] } }] });
+    const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [200, 43], genislik_km: 2, bolgeler: [{ ad: "x", renk: "#ffffff" }] } }] });
     assert.ok(bad.errors.some((e) => e.code === "HARITA_KONUM") && bad.errors.some((e) => e.path.endsWith("genislik_km")) && bad.errors.some((e) => e.code === "HARITA_BOLGE"));
     // Real historical borders: the atlas polygon by name and snapshot year, case-insensitive; no outline needed.
     const withAtlas = { ...data, historical: new Map([[-100, new Map([["roman republic", [square]]])]]) };
@@ -379,7 +381,7 @@ async function main() {
     const cast = ep.oyuncu_kadrosu[0]!.id;
     const ok = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 600, kamera: [{ satir: 0, merkez: [20, 41], genislik_km: 2400 }], rozetler: [{ karakter: cast, konum: [29, 40] }], savaslar: [{ ad: "x", konum: [29, 40] }] } }] });
     assert.ok(!ok.errors.some((e) => e.code.startsWith("HARITA")), JSON.stringify(ok.errors));
-    const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 600, kamera: [{ satir: 99, merkez: [20, 41], genislik_km: 5 }], rozetler: [{ karakter: "yok", konum: [29, 40] }] } }] });
+    const bad = validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [12.5, 43], genislik_km: 600, kamera: [{ satir: 99, merkez: [20, 41], genislik_km: 2 }], rozetler: [{ karakter: "yok", konum: [29, 40] }] } }] });
     assert.ok(bad.errors.some((e) => e.code === "HARITA_SATIR") && bad.errors.some((e) => e.path.endsWith("kamera[0].genislik_km")) && bad.errors.some((e) => e.code === "HARITA_ROZET"));
   });
 
@@ -517,7 +519,60 @@ async function main() {
     assert.equal(bad({ yerler: [] }), false, "at least one formation");
     assert.equal(bad({ yerler: [{ satir: 0, kume: [20, 40], cephe: [[20, 40], [21, 40]] }] }), false, "one formation a step");
     assert.equal(bad({ yerler: [{ kume: [20, 40] }] }), false, "a step needs its line");
-    assert.equal(bad({ yerler: [{ satir: 0, kusatma: [20, 40], km: 1 }] }), false, "a siege ring of at least 2 km");
+    assert.equal(bad({ yerler: [{ satir: 0, kusatma: [20, 40], km: 0.2 }] }), false, "a siege ring of at least 300 m (a close map's)");
+  });
+
+  await scenario("O10 the close battle map (owner, 22 Oct 2026, after DFT Tarih): OSM coast closed into land, elevation tiles, walls, settlements, fights one by one, the chain", () => {
+    // Coastline ways with the land on their left: a shore across the box (land to the north), an island, a lagoon.
+    const box = { west: 0, east: 10, south: 0, north: 10 };
+    const shore: [number, number][] = [[-1, 5], [4, 5], [11, 5]];
+    const island: [number, number][] = [[2, 1], [4, 1], [4, 3], [2, 3], [2, 1]];
+    const lagoon: [number, number][] = [[6, 7], [6, 8], [8, 8], [8, 7], [6, 7]];
+    assert.deepEqual(chainWays([shore.slice(0, 2), shore.slice(1)]), [shore], "ways joined end to start");
+    assert.equal(simplifyLine(shore, 0.01).length, 2, "a straight shore keeps its ends");
+    const coast = assembleLand([shore, island, lagoon], box, false);
+    const area = (ring: readonly (readonly [number, number])[]) => Math.abs(ring.reduce((a, p, i) => a + p[0] * ring[(i + 1) % ring.length]![1] - ring[(i + 1) % ring.length]![0] * p[1], 0) / 2);
+    assert.deepEqual(coast.land.map((p) => Math.round(area(p[0]!))).sort((a, b) => a - b), [4, 50], "the north half closed along the box's edge, and the island");
+    assert.equal(coast.water.length, 1, "the lagoon is water");
+    assert.equal(assembleLand([island], box, true).land.length, 2, "no shore across the box: the box is land (its centre says so), with the island");
+    // Elevation tiles for a 24 km box round Constantinople: close tiles, never too many.
+    const t = closeTiles({ west: 28.81, east: 29.1, south: 40.96, north: 41.08 }, 1920);
+    assert.ok(t.z >= 12 && t.z <= 13 && (t.x1 - t.x0 + 1) * (t.y1 - t.y0 + 1) <= 160, JSON.stringify(t));
+    // The close map's ground from the script.
+    const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
+    const map: SceneMap = {
+      merkez: [28.95, 41.02],
+      genislik_km: 20,
+      surlar: [{ ad: "Walls", noktalar: [[28.92, 41.04], [28.92, 41.0]], kapilar: [[28.92, 41.02]], gedik: { konum: [28.92, 41.03], satir: 1 } }],
+      yerlesimler: [{ tur: "sehir", ad: "City", konum: [28.96, 41.02], km: 2 }, { tur: "ordugah", konum: [28.89, 41.02], km: 1.5, satir: 0 }],
+      yapilar: [{ tur: "otag", ad: "Sultan", konum: [28.89, 41.03] }],
+      yollar: [{ noktalar: [[28.85, 41.02], [28.92, 41.02]] }],
+      arazi: [{ tur: "tepe", konum: [29.0, 41.06] }],
+      cizgiler: [{ ad: "The chain", noktalar: [[28.97, 41.01], [28.97, 41.02]], stil: "zincir" }],
+      birlikler: [
+        { taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.91, 41.04], [28.91, 41.0]] }] },
+        { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 3, yerler: [{ satir: 0, cephe: [[28.93, 41.04], [28.93, 41.0]] }, { satir: 1, cephe: [[28.93, 41.04], [28.93, 41.0]], kayip: 2 }] },
+      ],
+    };
+    const geo = buildGeoMap(map, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/yakin.jpg" });
+    const close = geo.close!;
+    assert.ok(close.unit >= 9, "a house never smaller than 9 px");
+    assert.ok(close.walls[0]!.towers.length > 4 && close.walls[0]!.gates.length === 1);
+    assert.equal(close.walls[0]!.breach!.start, 100, "the breach opens with its line");
+    const [city, camp] = close.settlements;
+    assert.ok(city!.items.length > 50 && camp!.items.length > 10 && camp!.items.every((it) => it.angle === 0), `${city!.items.length} houses, ${camp!.items.length} tents in rows`);
+    assert.ok(close.ground.some((g) => g.kind === "tepe") && close.ground.every((g) => Math.hypot(g.x - city!.x, g.y - city!.y) > 20), "the named hill, and no wood or field in the city");
+    assert.equal(geo.lines![0]!.chain, true);
+    assert.deepEqual(geo.units![1]!.steps[1]!.losses, [2.4, 3.4], "two tokens fall one after the other");
+    assert.deepEqual(geo.fights, [{ start: 100, durationS: 4.6 }]);
+    assert.equal(buildGeoMap({ ...map, genislik_km: 500 }, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, () => 0).close, undefined, "a wide map has no close ground");
+    // Validation: the close map's ground only on a close map; the chain style is known.
+    const ep = { ...sampleEpisode(), donem: "1453" };
+    const withMap = (h: unknown) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: h }] } as never);
+    assert.equal(withMap(map).ok, true, JSON.stringify(withMap(map).errors.slice(0, 2)));
+    assert.deepEqual([...new Set(withMap({ ...map, genislik_km: 500 }).errors.map((e) => e.code))], ["HARITA_YAKIN"]);
+    assert.equal(withMap({ ...map, yapilar: [{ tur: "piramit", konum: [28.9, 41] }] }).ok, false);
+    assert.equal(withMap({ ...map, cizgiler: [{ ad: "x", noktalar: [[28.9, 41], [28.91, 41]], stil: "duvar" }] }).ok, false);
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

@@ -1,6 +1,8 @@
 import {
   AGES,
   ARCH_STYLES,
+  BUILDING_KINDS,
+  CLOSE_MAP_MAX_KM,
   CROWD_MOVES,
   EFFECTS,
   EMOTIONS,
@@ -12,10 +14,12 @@ import {
   LANDSCAPES,
   NOSES,
   GESTURES,
+  GROUND_KINDS,
   MOVES,
   PROP_KINDS,
   SCENE_MOODS,
   SET_LIGHTS,
+  SETTLEMENT_KINDS,
   SFX_IDS,
   TIMES_OF_DAY,
   UNIT_EMBLEMS,
@@ -234,7 +238,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (!Array.isArray(v) || v.length !== 2 || typeof v[0] !== "number" || typeof v[1] !== "number" || Math.abs(v[0]) > 180 || Math.abs(v[1]) > 85) err("HARITA_KONUM", where, "[boylam, enlem] bekleniyor (-180..180, -85..85)");
       };
       lonLat(h.merkez, `${hp}.merkez`);
-      num(h, "genislik_km", hp, 20, 40_000);
+      num(h, "genislik_km", hp, 3, 40_000);
       (arr(h, "bolgeler", hp, true) ?? []).forEach((b, bi) => {
         const bp = `${hp}.bolgeler[${bi}]`;
         if (!isObj(b)) return err("HARITA_BOLGE", bp, "nesne bekleniyor");
@@ -307,7 +311,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
             pts.forEach((pt, k) => lonLat(pt, `${yp}.cephe[${k}]`));
           } else {
             lonLat(y.kume ?? y.kusatma, `${yp}.${kinds[0]}`);
-            num(y, "km", yp, 2, 1000, true);
+            num(y, "km", yp, 0.3, 1000, true);
           }
         });
       });
@@ -326,10 +330,62 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         const year = typeof ep.donem === "string" ? periodEndYear(ep.donem) : undefined;
         if (kind && year !== undefined && (year < VEHICLES[kind][0] || year > VEHICLES[kind][1])) err("HARITA_ARAC_DONEM", `${ap}.tur`, `${kind} ${year} yılına uymuyor (${VEHICLES[kind][0]}–${VEHICLES[kind][1]})`);
       });
+      // The close battle map's ground: only on a close map, where a wall or a house can be seen.
+      const close = typeof h.genislik_km === "number" && h.genislik_km <= CLOSE_MAP_MAX_KM;
+      for (const key of ["surlar", "yapilar", "yerlesimler", "yollar", "arazi"])
+        if (h[key] !== undefined && !close) err("HARITA_YAKIN", `${hp}.${key}`, `yalnızca yakın haritada (genislik_km ≤ ${CLOSE_MAP_MAX_KM})`);
+      (arr(h, "surlar", hp, true) ?? []).forEach((w, wi) => {
+        const wp = `${hp}.surlar[${wi}]`;
+        if (!isObj(w)) return err("HARITA_SUR", wp, "nesne bekleniyor");
+        const pts = Array.isArray(w.noktalar) ? w.noktalar : [];
+        if (pts.length < 2) err("HARITA_SUR", `${wp}.noktalar`, "en az 2 nokta");
+        pts.forEach((pt, k) => lonLat(pt, `${wp}.noktalar[${k}]`));
+        (Array.isArray(w.kapilar) ? w.kapilar : []).forEach((pt, k) => lonLat(pt, `${wp}.kapilar[${k}]`));
+        if (w.gedik !== undefined) {
+          if (!isObj(w.gedik)) return err("HARITA_SUR", `${wp}.gedik`, "{konum, satir} bekleniyor");
+          lonLat(w.gedik.konum, `${wp}.gedik.konum`);
+          if (w.gedik.satir === undefined) err("HARITA_SUR", `${wp}.gedik`, "satir gerekli");
+          lineIndex(w.gedik, "satir", `${wp}.gedik`);
+        }
+      });
+      (arr(h, "yapilar", hp, true) ?? []).forEach((y, yi) => {
+        const yp = `${hp}.yapilar[${yi}]`;
+        if (!isObj(y)) return err("HARITA_YAPI", yp, "nesne bekleniyor");
+        oneOf(y, "tur", yp, BUILDING_KINDS);
+        lonLat(y.konum, `${yp}.konum`);
+        str(y, "ad", yp, { max: 40, optional: true });
+        lineIndex(y, "satir", yp);
+      });
+      (arr(h, "yerlesimler", hp, true) ?? []).forEach((y, yi) => {
+        const yp = `${hp}.yerlesimler[${yi}]`;
+        if (!isObj(y)) return err("HARITA_YERLESIM", yp, "nesne bekleniyor");
+        oneOf(y, "tur", yp, SETTLEMENT_KINDS);
+        str(y, "ad", yp, { max: 40, optional: true });
+        const pts = Array.isArray(y.noktalar) ? y.noktalar : [];
+        if (y.konum === undefined && pts.length < 3) err("HARITA_YERLESIM", yp, "konum ya da en az 3 noktalı noktalar gerekli");
+        if (y.konum !== undefined) lonLat(y.konum, `${yp}.konum`);
+        pts.forEach((pt, k) => lonLat(pt, `${yp}.noktalar[${k}]`));
+        num(y, "km", yp, 0.2, 30, true);
+        lineIndex(y, "satir", yp);
+        lineIndex(y, "yanma_satir", yp);
+      });
+      (arr(h, "yollar", hp, true) ?? []).forEach((y, yi) => {
+        const pts = isObj(y) && Array.isArray(y.noktalar) ? y.noktalar : [];
+        if (pts.length < 2) err("HARITA_YOL", `${hp}.yollar[${yi}]`, "en az 2 nokta");
+        pts.forEach((pt, k) => lonLat(pt, `${hp}.yollar[${yi}].noktalar[${k}]`));
+      });
+      (arr(h, "arazi", hp, true) ?? []).forEach((g, gi) => {
+        const gp = `${hp}.arazi[${gi}]`;
+        if (!isObj(g)) return err("HARITA_ARAZI", gp, "nesne bekleniyor");
+        oneOf(g, "tur", gp, GROUND_KINDS);
+        lonLat(g.konum, `${gp}.konum`);
+        num(g, "km", gp, 0.2, 40, true);
+      });
       (arr(h, "cizgiler", hp, true) ?? []).forEach((c, ci) => {
         const cp = `${hp}.cizgiler[${ci}]`;
         if (!isObj(c)) return err("HARITA_CIZGI", cp, "nesne bekleniyor");
         str(c, "ad", cp, { max: 40 });
+        oneOf(c, "stil", cp, ["zincir"] as const, true);
         str(c, "renk", cp, { optional: true, pattern: HEX });
         const pts = Array.isArray(c.noktalar) ? c.noktalar : [];
         if (pts.length < 2) err("HARITA_CIZGI", cp, "en az 2 nokta");
@@ -342,7 +398,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (c.satir === undefined) err("HARITA_KAMERA", cp, "satir gerekli");
         lineIndex(c, "satir", cp);
         lonLat(c.merkez, `${cp}.merkez`);
-        num(c, "genislik_km", cp, 20, 40_000);
+        num(c, "genislik_km", cp, 3, 40_000);
       });
       (arr(h, "rozetler", hp, true) ?? []).forEach((r, ri) => {
         const rp = `${hp}.rozetler[${ri}]`;

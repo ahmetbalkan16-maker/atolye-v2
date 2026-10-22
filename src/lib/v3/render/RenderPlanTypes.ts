@@ -309,7 +309,7 @@ export interface V3GeoMap {
   /** `path`: an army that marches (first point = where it stands) from `moveStart`, leaving a dotted trail. */
   readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number; readonly path?: readonly { readonly x: number; readonly y: number }[]; readonly moveStart?: number }[];
   /** Lines the story is about (a border river, a wall): drawn glowing, growing from one end, with their name. */
-  readonly lines?: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly label: string; readonly color: string; readonly start: number }[];
+  readonly lines?: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly label: string; readonly color: string; readonly start: number; readonly chain?: boolean }[];
   /** `labelX`/`labelY`: where the name stands (off the cities); absent, above the middle point. */
   readonly arrows: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly color: string; readonly label?: string; readonly labelX?: number; readonly labelY?: number; readonly start: number }[];
   /**
@@ -341,8 +341,11 @@ export interface V3GeoMap {
     readonly color: string;
     readonly emblem: string;
     readonly letters?: string;
-    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number }[];
+    /** `losses`: seconds after `start` at which each token lost in this formation falls, one by one. */
+    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number; readonly losses?: readonly number[] }[];
   }[];
+  /** Fights between the tokens: from `start` for `durationS` the sides close in and strike where they meet. */
+  readonly fights?: readonly { readonly start: number; readonly durationS: number }[];
   /**
    * Vehicles: `kind` is the look (a script's `gemi` already resolved to its period's ship), `count` of them travel
    * together along `path` (world pixels; first point = where they appear at `start`) from `moveStart`; with `target`
@@ -359,6 +362,34 @@ export interface V3GeoMap {
     readonly target?: { readonly x: number; readonly y: number };
     readonly fireStart?: number;
   }[];
+  /**
+   * The close battle map (genislik_km ≤ 120): the ground is the place's real elevation (`relief`) on its own coast, and
+   * on it the story's walls (towers every few hundred metres, gates, a breach from a frame), roads, settlements (houses
+   * or tents, burning from a frame), single buildings and the ground's woods, fields and hills. World pixels; `unit` is
+   * a house's size, from which the rest is drawn. States are only tinted here, the ground shows through.
+   */
+  readonly close?: {
+    readonly unit: number;
+    readonly ground: readonly { readonly kind: "tepe" | "orman" | "tarla"; readonly x: number; readonly y: number; readonly size: number; readonly seed: number }[];
+    readonly roads: readonly (readonly { readonly x: number; readonly y: number }[])[];
+    readonly walls: readonly {
+      readonly label?: string;
+      readonly points: readonly { readonly x: number; readonly y: number }[];
+      readonly towers: readonly { readonly x: number; readonly y: number }[];
+      readonly gates: readonly { readonly x: number; readonly y: number; readonly angle: number }[];
+      readonly breach?: { readonly x: number; readonly y: number; readonly start: number };
+    }[];
+    readonly settlements: readonly {
+      readonly kind: "sehir" | "koy" | "ordugah";
+      readonly label?: string;
+      readonly x: number;
+      readonly y: number;
+      readonly start: number;
+      readonly burn?: number;
+      readonly items: readonly { readonly x: number; readonly y: number; readonly angle: number; readonly seed: number }[];
+    }[];
+    readonly buildings: readonly { readonly kind: "kale" | "saray" | "kilise" | "cami" | "kule" | "otag"; readonly x: number; readonly y: number; readonly label?: string; readonly start: number }[];
+  };
   /** The episode's era, for era-dependent battle effects (antik/orta: dust and clash; erken-modern/modern: fire and smoke). */
   readonly era?: "antik" | "orta" | "erken-modern" | "modern";
 }

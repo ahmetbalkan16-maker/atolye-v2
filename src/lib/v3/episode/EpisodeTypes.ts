@@ -138,7 +138,8 @@ export interface SceneMap {
   /** An army; with `yol` it marches that route from line `yol_satir` (else at once), leaving a dotted trail. */
   readonly ordular?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly renk: string; readonly satir?: number; readonly yol?: readonly [number, number][]; readonly yol_satir?: number }[];
   /** A line the story is about (a border river like the Rubicon, a wall, a frontier): drawn glowing with its name. */
-  readonly cizgiler?: readonly { readonly ad: string; readonly noktalar: readonly [number, number][]; readonly renk?: string; readonly satir?: number }[];
+  /** `stil` zincir: an iron chain on floats across the water (the Golden Horn's), instead of a glowing line. */
+  readonly cizgiler?: readonly { readonly ad: string; readonly noktalar: readonly [number, number][]; readonly renk?: string; readonly satir?: number; readonly stil?: "zincir" }[];
   /**
    * Map narration (owner, 21 Oct 2026, like the reference channel Hayalhanem Ankara): the camera moves to a new
    * centre and width with a line, so one map follows the story across regions.
@@ -163,6 +164,46 @@ export interface SceneMap {
    * from `ates_satir` (cannons and ships pound walls, planes bomb). Only what the period had (VEHICLES).
    */
   readonly araclar?: readonly MapVehicle[];
+  /**
+   * The close battle map (genislik_km ≤ 120; owner, 22 Oct 2026, after DFT Tarih's Osman Bey documentary): the ground
+   * of the place painted — its real coast, hills, woods and fields — with the walls, buildings and settlements of the
+   * story on it, and the tokens, cannons and ships moving over it. `surlar`: a wall line with towers and gates, which
+   * with `gedik` breaks open at that place from that line. `yerlesimler`: a city's houses, a village, an army camp's
+   * tents, round a place (`km`) or in an outline; `yanma_satir` sets it on fire. `yapilar`: single buildings.
+   */
+  readonly surlar?: readonly MapWall[];
+  readonly yapilar?: readonly { readonly tur: BuildingKind; readonly konum: readonly [number, number]; readonly ad?: string; readonly satir?: number }[];
+  readonly yerlesimler?: readonly MapSettlement[];
+  readonly yollar?: readonly { readonly noktalar: readonly [number, number][] }[];
+  readonly arazi?: readonly { readonly tur: GroundKind; readonly konum: readonly [number, number]; readonly km?: number }[];
+}
+
+/** A map this narrow (km across) is the close battle map: its own coast, painted ground, walls and buildings. */
+export const CLOSE_MAP_MAX_KM = 120;
+
+export const BUILDING_KINDS = ["kale", "saray", "kilise", "cami", "kule", "otag"] as const;
+export type BuildingKind = (typeof BUILDING_KINDS)[number];
+export const SETTLEMENT_KINDS = ["sehir", "koy", "ordugah"] as const;
+export const GROUND_KINDS = ["tepe", "orman", "tarla"] as const;
+export type GroundKind = (typeof GROUND_KINDS)[number];
+
+export interface MapWall {
+  readonly ad?: string;
+  /** The wall's line, end to end. */
+  readonly noktalar: readonly [number, number][];
+  readonly kapilar?: readonly (readonly [number, number])[];
+  readonly gedik?: { readonly konum: readonly [number, number]; readonly satir: number };
+}
+
+export interface MapSettlement {
+  readonly tur: (typeof SETTLEMENT_KINDS)[number];
+  readonly ad?: string;
+  /** Round a place (`km` across, default by kind), or inside an outline. */
+  readonly konum?: readonly [number, number];
+  readonly km?: number;
+  readonly noktalar?: readonly [number, number][];
+  readonly satir?: number;
+  readonly yanma_satir?: number;
 }
 
 /**

@@ -1,3 +1,47 @@
+## 23 Ekim 2026 (gece) — V3 haritalı anlatım: birlik pulları, araçlar, yakın savaş haritası (güvenli duruş)
+
+**Owner:** haritalı anlatıma öncelik; referans Anima History (2. Dünya Savaşı haritalı anlatım) ve DFT Tarih (Osman Bey,
+11:00–15:00: dış harita → yakın savaş haritası → konsey sahnesi → yine harita). "Fatih Edirne'den yürür, surlara gelince
+yakın çekim: arazi, yuvarlak bayraklı askerler, kale, toplar, gemiler; Haliç zinciri, düşman ve Osmanlı gemileri;
+askerler birbirine yaklaşsın, kılıç sesleri, anlatıma göre teker teker silinsin, düşmanla savaştığı belli olsun." Sonra:
+"güvenli yerde dur, gereken her şeyi güncelle, yarın devam."
+
+**Yapılanlar (feature/cop-adam-v3):**
+- `a71c4b99` birlik pulları (`birlikler`: cephe/küme/kuşatma, amblemler, ekranda aralama, kara üstünde kuşatma),
+  döneme göre savaş patlamaları; kabartma yalnız vektör karada, il ızgarasının kıyısı sınır sayılmaz (coastPad).
+- `d5fce1a8` araçlar (`araclar`: kadırga/yelkenli/gemi/denizaltı/süvari/fil/top/tank/uçak; dönem denetimi
+  HARITA_ARAC_DONEM; `gemi` dönemine göre çizilir, 1600 öncesi kadırga), ateş + gülle + patlama, sesler; `episode/Period.ts`.
+- Bu commit: **yakın savaş haritası** (genislik_km ≤ 120): OSM kıyısı (`CloseCoast.ts`, Overpass + 2 yedek sunucu,
+  kütüphane `_kutuphane/osm-kiyi`), gerçek yükselti (`Relief.closeReliefFor` + `scripts/v3/terrain_close.py`, AWS
+  Terrain Tiles, karolar `v3-tools/maps/terrarium`), `MapGround.mapGroundFor` (üretim + önizleme aynı yol),
+  `surlar` (burç, kapı, satırla açılan gedik), `yerlesimler` (şehir evleri / köy / ordugâh çadırları, `yanma_satir`),
+  `yapilar` (kale/saray/kilise/cami/kule/otağ), `yollar`, `arazi`; `cizgiler.stil: "zincir"` (Haliç zinciri);
+  pullar savaş satırında birbirine atılır, vuruşur, kayıplar **teker teker** X'lenip düşer (`unitLossDelaysS`),
+  her düşüşte kılıç sesi. Kredi satırları OSM + yükselti. Örnek: `content/v3/ornekler/harita-fetih-1453-yakin.json`
+  (dış harita örneği `harita-fetih-1453.json`).
+- Hazır harita araştırması (owner sorusu): Commons'ta olaya özel haritalar (1453 kuşatma, CC BY-SA — videoyu da
+  BY-SA yapabilir, owner onayı olmadan kullanılmaz), telifsiz eski haritalar (Buondelmonti 1420, Matrakçı 1537: ara
+  sahne olarak), DARE (Roma, CC BY 4.0, en çok ~20 km'lik karo). Karar: yakın haritayı açık veriden (OSM + yükselti)
+  otomatik üretmek; eski haritalar ara sahne.
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 30 (yeni O8, O9,
+O10), mix 13, backgrounds 20, likeness 14, script 20, council 11, motion 9, ayas-video-order 8. Önizleme:
+`npx tsx scripts/v3/harita-onizleme.ts --bolum content/v3/ornekler/harita-fetih-1453-yakin.json --video`.
+
+**Kaldığımız yer / sıradaki (yarın):**
+1. Yakın haritada küçük kusurlar: sur adı ile savaş adı çakışıyor ("THEODOSIAN WALLS" / "GATE OF ST. ROMANUS"),
+   "THE CHAIN" Galata adının dibinde; yangın gedikten yayılmıyor (şimdilik seyrek, her yerde); savaş atılmasını
+   videoda hareket hâlinde kontrol et.
+2. Ölçüt bölüm 1453 (owner'ın tarif ettiği akış): dış harita (Edirne'den yürüyüş) → yakın harita (surlar, toplar,
+   gemiler, zincir) → otağda çöp adamlarla savaş toplantısı (çizili ortam: otağ içi var mı bak, yoksa ekle) → yakın
+   harita (gedik, şehre giriş) — sesli tam klip, owner'a göster.
+3. Yazar beyni (ScriptPrompts + MapRules): haritalı anlatım öncelikli; dış harita ≥ 800 km, yakın harita 8–60 km;
+   `birlikler`/`araclar`/`surlar`/`yerlesimler`/`yapilar`/zincir kullanımı; savaş satırında iki tarafı bitişik koy.
+4. Planın kalanı: anlatıdaki nesneler için simgeler (altın, mektup, taç…), haritada liderin konuşma balonu, alınan
+   yere dikilen sancak, "Dönüm Noktası" parşömen kartı.
+5. Sipariş izleyicisi (`scripts/v3/yapim.ts`) yeniden başlatılmadı (owner "evet" ister); yeni kod her yeni siparişin
+   kendi sürecinde zaten çalışır.
+
 ## 21 Ekim 2026 (gece, 2) — Tam tarama: AYAS + yardımcı beyinler + Atölye; 1 gerileme düzeltildi, yerel lint onarıldı
 
 **Owner:** "komple AYAS'ı, yardımcı beyinleri, Atölye'yi tara; atladığımız veya bozulan bir şey var mı; gerekenleri

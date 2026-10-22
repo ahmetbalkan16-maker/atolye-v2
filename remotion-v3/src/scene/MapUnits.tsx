@@ -17,6 +17,8 @@ const SLIDE_S = 2.8;
 const STAGGER_S = 0.06;
 /** Token radius on a 1080p screen. */
 const TOKEN_R = 23;
+/** How long a fallen token lies crossed out before it fades (seconds). */
+const FALLEN_S = 0.6;
 
 function rand(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -106,12 +108,14 @@ function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; 
   const a = from.points[Math.min(i, from.points.length - 1)]!;
   const b = to.points[Math.min(i, to.points.length - 1)]!;
   const pos = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-  // A token lost in this step fades after the slide; one lost before is gone.
+  // A token lost in this step falls at its own moment of the fight (one by one), lies crossed out a moment, then
+  // fades; one lost before is gone.
   const lostBefore = s > 0 && i >= from.alive;
   if (lostBefore) return undefined;
   if (i >= to.alive) {
-    const lostAt = to.start + Math.round(SLIDE_S * 0.6 * fps);
-    const alpha = interpolate(frame, [lostAt, lostAt + Math.round(fps * 0.5)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    const lostAt = to.start + Math.round((to.losses?.[i - to.alive] ?? SLIDE_S * 0.6) * fps);
+    if (frame < lostAt) return { ...pos, alpha: 1 };
+    const alpha = interpolate(frame, [lostAt + Math.round(fps * FALLEN_S), lostAt + Math.round(fps * (FALLEN_S + 0.5))], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return alpha > 0 ? { ...pos, alpha, lostAt } : undefined;
   }
   const appear = s === 0 ? interpolate(frame, [to.start + Math.round(i * STAGGER_S * fps), to.start + Math.round((i * STAGGER_S + 0.35) * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
@@ -176,6 +180,37 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
   // Spaced on screen for this frame's zoom, all sides together.
   const shown = placed.flatMap((side) => side.filter((t) => t !== undefined));
   separateTokens(shown, r * 2.25).forEach((q, j) => Object.assign(shown[j]!, q));
+  // A fight (owner, 22 Oct 2026: "they move, close in on each other … it must show they fight the enemy"): every
+  // standing token goes for the nearest enemy until they touch, then strikes at it again and again while the
+  // losses fall; when the fight is over they step back into their formation.
+  const fight = (map.fights ?? []).find((f) => frame >= f.start && frame < f.start + f.durationS * fps);
+  if (fight) {
+    const local = (frame - fight.start) / fps;
+    const engage = Easing.inOut(Easing.cubic)(Math.min(1, Math.max(0, (local - 0.4) / 1.3))) * (1 - Math.min(1, Math.max(0, (local - (fight.durationS - 0.7)) / 0.7)));
+    const sides = placed.map((side) => side.filter((t) => t !== undefined));
+    const moves = sides.map((side, ui) =>
+      side.map((t, ti) => {
+        if (t.lostAt !== undefined) return { x: 0, y: 0 };
+        let best: { x: number; y: number } | undefined;
+        let d = r * 12;
+        sides.forEach((other, oi) => {
+          if (oi === ui) return;
+          for (const e of other) {
+            const de = Math.hypot(e.x - t.x, e.y - t.y);
+            if (e.alpha > 0.5 && de < d) [best, d] = [e, de];
+          }
+        });
+        if (!best) return { x: 0, y: 0 };
+        const ux = (best.x - t.x) / (d || 1);
+        const uy = (best.y - t.y) / (d || 1);
+        // Half the gap each (the enemy comes too), then blow after blow.
+        const strike = Math.max(0, Math.sin(frame * 0.5 + ti * 1.7 + ui)) * r * 0.45;
+        const go = (Math.max(0, d - r * 2.1) / 2 + strike) * engage;
+        return { x: ux * go, y: uy * go };
+      }),
+    );
+    sides.forEach((side, ui) => side.forEach((t, ti) => Object.assign(t, { x: t.x + moves[ui]![ti]!.x, y: t.y + moves[ui]![ti]!.y })));
+  }
   // Where two sides' standing tokens nearly touch, the front flickers with clashes.
   const clashes: { x: number; y: number; seed: number }[] = [];
   for (let a = 0; a < units.length; a++)
@@ -204,15 +239,24 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
                 <g transform={`scale(${r * 0.78})`}>
                   <Emblem kind={u.emblem} bg={u.color} {...(u.letters ? { letters: u.letters } : {})} />
                 </g>
+                {/* Fallen: greyed and crossed out, like the reference maps' struck-out tokens. */}
+                {t.lostAt !== undefined ? (
+                  <g>
+                    <circle r={r} fill="#2a2a2a" opacity={0.45} />
+                    <path d={`M${-r * 0.55} ${-r * 0.55} L${r * 0.55} ${r * 0.55} M${r * 0.55} ${-r * 0.55} L${-r * 0.55} ${r * 0.55}`} stroke={INK} strokeWidth={r * 0.34} strokeLinecap="round" />
+                    <path d={`M${-r * 0.55} ${-r * 0.55} L${r * 0.55} ${r * 0.55} M${r * 0.55} ${-r * 0.55} L${-r * 0.55} ${r * 0.55}`} stroke="#ffffff" strokeWidth={r * 0.18} strokeLinecap="round" />
+                  </g>
+                ) : null}
               </g>
-              {t.lostAt !== undefined ? <Burst x={t.x} y={t.y} r={r * 1.4} p={lostPuff} era={map.era} seed={ui * 97 + i} /> : null}
+              {/* Melee: dust and sword sparks in every age (cannon fire belongs to the guns). */}
+              {t.lostAt !== undefined ? <Burst x={t.x} y={t.y} r={r * 1.4} p={lostPuff} era="orta" seed={ui * 97 + i} /> : null}
             </g>
           );
         }),
       )}
       {clashes.map((c) => {
         const phase = (frame + (c.seed % period)) % period;
-        return <Burst key={`c${c.seed}`} x={c.x} y={c.y} r={r * 1.1} p={phase / (fps * 0.7)} era={map.era} seed={c.seed + Math.floor((frame + (c.seed % period)) / period)} />;
+        return <Burst key={`c${c.seed}`} x={c.x} y={c.y} r={r * 1.1} p={phase / (fps * 0.7)} era="orta" seed={c.seed + Math.floor((frame + (c.seed % period)) / period)} />;
       })}
     </g>
   );

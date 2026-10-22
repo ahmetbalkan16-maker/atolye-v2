@@ -3,6 +3,7 @@ import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
 import type { Episode, SceneMood, SfxId } from "../episode/EpisodeTypes";
 import { eraOf } from "../episode/Period";
+import { unitLossDelaysS } from "../maps/MapBuilder";
 import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { runChecked } from "../util/Proc";
@@ -149,12 +150,16 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       if (lt) cues.push({ t: lt.start + 0.2, id: "kilic" });
       if (lt && gun) cues.push({ t: lt.start + 0.6, id: "top_atisi" });
     }
-    // Tokens lost on a line: the fight that took them is heard.
-    for (const u of scene.harita?.birlikler ?? [])
-      for (const y of u.yerler) {
-        const lt = (y.kayip ?? 0) > 0 ? lineAt(y.satir) : undefined;
-        if (lt) cues.push({ t: lt.start + 1.6, id: gun ? "top_atisi" : "kilic" });
+    // A fight between the tokens (owner, 22 Oct 2026): swords as the sides meet and with every token that falls.
+    for (const u of scene.harita?.birlikler ?? []) {
+      let alive = Math.max(1, Math.min(24, Math.round(u.sayi)));
+      for (const y of [...u.yerler].sort((a, b) => a.satir - b.satir)) {
+        const lost = Math.min(alive, Math.max(0, Math.round(y.kayip ?? 0)));
+        alive -= lost;
+        const lt = lost > 0 ? lineAt(y.satir) : undefined;
+        if (lt) cues.push({ t: lt.start + 1.4, id: "kilic" }, ...unitLossDelaysS(lost).map((d) => ({ t: lt.start + d, id: "kilic" as const })));
       }
+    }
     // Vehicles: the sea as a fleet sets out, the roar of a cavalry or elephant charge, a plane's rush; their fire.
     for (const a of scene.harita?.araclar ?? []) {
       const go = a.yol?.length ? lineAt(a.yol_satir ?? a.satir) : undefined;

@@ -147,7 +147,7 @@ async function main() {
     } as unknown as EpisodeTimeline;
     assert.deepEqual(sfxCues(rubicon, tl2).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["su", 4.9], ["adim", 6.2], ["su", 7.6], ["basari", 8]]);
     // 1453 on the map: the battle has cannon fire too, the fleet sets out with the sea, the guns are heard as they
-    // pound, tokens lost to a gunpowder fight are heard the same way.
+    // pound; the tokens' fight is swords as they meet and with every token that falls (owner: "swords in the back").
     const siege = {
       donem: "1453",
       sahneler: [
@@ -167,7 +167,7 @@ async function main() {
       ],
     } as unknown as Episode;
     const tlSiege = { duration: 4, scenes: [{ sceneIndex: 0, start: 0, end: 4 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 2 }, { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 }] } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["top_atisi", 3.6]]);
+    assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["kilic", 4.4], ["top_atisi", 4.6]]);
     assert.ok(!sfxCues({ ...siege, donem: "MÖ 49" } as Episode, tlSiege).some((c) => c.id === "top_atisi"), "no cannon before gunpowder");
     // In a living set a run is feet, not a cartoon whoosh; the same effect twice within a second is one.
     const run = { sahneler: [{ ...rubicon.sahneler[1]!, kalabalik: [], satirlar: [{ karakter: "a", metin: "Run!", duygu: "korkmus", hareket: "kos" }, { karakter: "b", metin: "Wait!", duygu: "korkmus", hareket: "yuru" }, { karakter: "anlatici", metin: "z", duygu: "notr" }] }] } as unknown as Episode;

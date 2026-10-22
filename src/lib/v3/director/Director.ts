@@ -26,7 +26,8 @@ import type {
   V3VisemeKey,
 } from "../render/RenderPlanTypes";
 import { eraOf, periodEndYear } from "../episode/Period";
-import { buildGeoMap, type MapData, mapOnScreen, mapStageX } from "../maps/MapBuilder";
+import type { CloseCoast } from "../maps/CloseCoast";
+import { buildGeoMap, type MapData, mapOnScreen, mapStageX, withCoast } from "../maps/MapBuilder";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
 /** A scene's period image, cut in over the set while the narrator speaks. */
@@ -49,6 +50,8 @@ export interface DirectorInput {
   readonly mapData?: MapData;
   /** Per scene id: the terrain relief image cut for its map's world (public dir); absent, the flat drawn map. */
   readonly reliefs?: ReadonlyMap<string, string>;
+  /** Per scene id: a close battle map's own coast (OpenStreetMap), drawn instead of Natural Earth's. */
+  readonly coasts?: ReadonlyMap<string, CloseCoast>;
   readonly fps: number;
   readonly width: number;
   readonly height: number;
@@ -383,7 +386,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const faceOf = (id: string) => (slots.get(id)?.mount ? FACE_Y - MOUNT_FACE_LIFT : FACE_Y);
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
     const geo = scene.harita?.merkez && scene.harita.genislik_km && input.mapData
-      ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
+      ? buildGeoMap(scene.harita, withCoast(input.mapData, input.coasts?.get(scene.id)), input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
           castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
           ...(input.language ? { language: input.language } : {}),

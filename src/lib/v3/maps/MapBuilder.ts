@@ -1,6 +1,6 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import type { SceneMap, UnitFormation } from "../episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
 import { isPolity } from "./HistoricalBorders";
@@ -47,6 +47,11 @@ function linesOf(g: { type: string; coordinates: unknown } | null): Line[] {
   if (g.type === "LineString") return [g.coordinates as Line];
   if (g.type === "MultiLineString") return g.coordinates as Line[];
   return [];
+}
+
+/** The map data with a close map's own coast (OpenStreetMap) in place of Natural Earth's; its enclosed water joins the lakes. */
+export function withCoast(data: MapData, coast: { readonly land: Polygon[]; readonly water: Polygon[] } | undefined): MapData {
+  return coast?.land.length ? { ...data, land: coast.land, lakes: [...coast.water, ...data.lakes] } : data;
 }
 
 let cached: MapData | undefined;
@@ -507,6 +512,142 @@ function offsetKm(c: readonly [number, number], east: number, north: number): [n
   return [c[0] + east / (111.32 * Math.max(0.2, Math.cos((c[1] * Math.PI) / 180))), c[1] + north / 110.57];
 }
 
+/** A settlement's size when the script gives none (km across). */
+const SETTLEMENT_KM = { sehir: 2.5, koy: 0.6, ordugah: 1.5 } as const;
+/** Ground the script names, when it gives no size (km across). */
+const GROUND_KM = { tepe: 1.5, orman: 1, tarla: 0.8 } as const;
+/** At most this many houses or tents in a settlement (a big city is drawn a little sparser). */
+const MAX_ITEMS = 520;
+
+type XY = { x: number; y: number };
+
+function hash01(n: number): number {
+  const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function inPolygonXY(p: XY, ring: readonly XY[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+/** The point of a polyline nearest to `p`, the direction of the line there (radians), and the distance. */
+export function nearestOnLine(line: readonly XY[], p: XY): { x: number; y: number; angle: number; d: number } {
+  let best = { x: line[0]!.x, y: line[0]!.y, angle: 0, d: Infinity };
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    const len2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 || 1;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / len2));
+    const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    const d = Math.hypot(p.x - q.x, p.y - q.y);
+    if (d < best.d) best = { ...q, angle: Math.atan2(b.y - a.y, b.x - a.x), d };
+  }
+  return best;
+}
+
+/** Points every `gap` along a polyline (its ends included). */
+function pointsAlong(line: readonly XY[], gap: number): XY[] {
+  const out: XY[] = [line[0]!];
+  let carry = 0;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    for (let s = gap - carry; s < len; s += gap) out.push({ x: r1(a.x + ((b.x - a.x) * s) / len), y: r1(a.y + ((b.y - a.y) * s) / len) });
+    carry = (carry + len) % gap;
+  }
+  out.push(line[line.length - 1]!);
+  return out;
+}
+
+/**
+ * The close battle map's ground features in world pixels (owner, 22 Oct 2026): the script's walls with towers and
+ * gates, its settlements filled with houses or tents (on land only), its buildings, roads and named ground, and woods
+ * and fields scattered over the rest of the land so the place reads like a painted battle map (hills come from the
+ * real elevation under it). Deterministic: the same map is laid out the same way.
+ */
+export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [number, number]) => XY, onLand: (p: [number, number]) => boolean, lineStart: (index: number | undefined, order: number) => number): NonNullable<V3GeoMap["close"]> {
+  const kmPerPx = (v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width;
+  const km = (n: number) => n / kmPerPx;
+  // A house is ~120 m across, but never smaller than 9 px on the closest view.
+  const unit = Math.round(Math.max(9, km(0.12)) * 10) / 10;
+  const lonLatOf = (p: XY): [number, number] => [v.lon0 - v.spanLon / 2 + (p.x / v.width) * v.spanLon, v.lat0 + v.spanLat / 2 - (p.y / v.height) * v.spanLat];
+  const walls = (map.surlar ?? []).map((w, i) => {
+    const points = w.noktalar.map((p) => toPx(p));
+    return {
+      ...(w.ad ? { label: w.ad } : {}),
+      points,
+      towers: pointsAlong(points, unit * 5.5),
+      gates: (w.kapilar ?? []).map((g) => {
+        const n = nearestOnLine(points, toPx(g));
+        return { x: r1(n.x), y: r1(n.y), angle: Math.round(n.angle * 1000) / 1000 };
+      }),
+      ...(w.gedik ? { breach: { ...((n) => ({ x: r1(n.x), y: r1(n.y) }))(nearestOnLine(points, toPx(w.gedik.konum))), start: lineStart(w.gedik.satir, i) } } : {}),
+    };
+  });
+  const settlements = (map.yerlesimler ?? []).map((s, i) => {
+    const outline = s.noktalar && s.noktalar.length >= 3 ? s.noktalar.map((p) => toPx(p)) : undefined;
+    const centre = outline ? { x: outline.reduce((a, p) => a + p.x, 0) / outline.length, y: outline.reduce((a, p) => a + p.y, 0) / outline.length } : toPx(s.konum!);
+    const radius = km((s.km ?? SETTLEMENT_KM[s.tur]) / 2);
+    const inside = (p: XY) => (outline ? inPolygonXY(p, outline) : Math.hypot(p.x - centre.x, p.y - centre.y) <= radius);
+    const box = outline ? { x0: Math.min(...outline.map((p) => p.x)), x1: Math.max(...outline.map((p) => p.x)), y0: Math.min(...outline.map((p) => p.y)), y1: Math.max(...outline.map((p) => p.y)) } : { x0: centre.x - radius, x1: centre.x + radius, y0: centre.y - radius, y1: centre.y + radius };
+    // Houses a little apart on a loose grid, tents further; a village is scattered, a camp in rows.
+    const area = (box.x1 - box.x0) * (box.y1 - box.y0);
+    const spacing = Math.max(unit * (s.tur === "ordugah" ? 2.3 : 1.55), Math.sqrt(area / MAX_ITEMS));
+    const items: { x: number; y: number; angle: number; seed: number }[] = [];
+    let n = 0;
+    for (let y = box.y0 + spacing / 2; y < box.y1; y += spacing)
+      for (let x = box.x0 + spacing / 2; x < box.x1; x += spacing) {
+        const seed = i * 100_003 + n++;
+        if (s.tur === "koy" && hash01(seed * 3) < 0.45) continue;
+        const jitter = s.tur === "ordugah" ? 0.12 : 0.35;
+        const p = { x: x + (hash01(seed) - 0.5) * spacing * jitter, y: y + (hash01(seed + 7) - 0.5) * spacing * jitter };
+        if (!inside(p) || !onLand(lonLatOf(p))) continue;
+        items.push({ x: r1(p.x), y: r1(p.y), angle: s.tur === "ordugah" ? 0 : Math.round((hash01(seed + 13) - 0.5) * 50), seed });
+      }
+    const drawn = { kind: s.tur, ...(s.ad ? { label: s.ad } : {}), x: r1(centre.x), y: r1(centre.y), start: s.satir !== undefined ? lineStart(s.satir, i) : 0, ...(s.yanma_satir !== undefined ? { burn: lineStart(s.yanma_satir, i) } : {}), items };
+    return { drawn, x: centre.x, y: centre.y, inside, radius, outline };
+  });
+  const buildings = (map.yapilar ?? []).map((b, i) => ({ kind: b.tur, ...toPx(b.konum), ...(b.ad ? { label: b.ad } : {}), start: b.satir !== undefined ? lineStart(b.satir, i) : 0 }));
+  const roads = (map.yollar ?? []).map((r) => r.noktalar.map((p) => toPx(p)));
+  // Woods and fields over the free land: none in a settlement, on a wall or a road, or under a building.
+  const named = (map.arazi ?? []).map((g, i) => ({ kind: g.tur, ...toPx(g.konum), size: r1(km(g.km ?? GROUND_KM[g.tur])), seed: 9000 + i }));
+  const free = (p: XY, margin: number) =>
+    !settlements.some((s) => s.inside(p) || (s.outline ? nearestOnLine([...s.outline, s.outline[0]!], p).d < margin : Math.hypot(p.x - s.x, p.y - s.y) < s.radius + margin)) &&
+    !walls.some((w) => nearestOnLine(w.points, p).d < margin * 1.5) &&
+    !roads.some((r) => nearestOnLine(r, p).d < margin) &&
+    !buildings.some((b) => Math.hypot(p.x - b.x, p.y - b.y) < margin * 2) &&
+    !named.some((g) => Math.hypot(p.x - g.x, p.y - g.y) < g.size / 2 + margin);
+  const cell = unit * 9;
+  const scattered: NonNullable<V3GeoMap["close"]>["ground"][number][] = [];
+  let k = 0;
+  for (let y = cell / 2; y < v.height; y += cell)
+    for (let x = cell / 2; x < v.width; x += cell) {
+      const seed = k++;
+      const roll = hash01(seed * 5 + 1);
+      const kind = roll < 0.3 ? "orman" : roll < 0.52 ? "tarla" : undefined;
+      if (!kind) continue;
+      const p = { x: x + (hash01(seed) - 0.5) * cell * 0.7, y: y + (hash01(seed + 3) - 0.5) * cell * 0.7 };
+      const size = unit * (kind === "orman" ? 3 + hash01(seed + 11) * 3 : 3.5 + hash01(seed + 11) * 2.5);
+      if (!free(p, size * 0.6 + unit) || !onLand(lonLatOf(p))) continue;
+      scattered.push({ kind, x: r1(p.x), y: r1(p.y), size: r1(size), seed });
+    }
+  return {
+    unit,
+    ground: [...scattered, ...named],
+    roads,
+    walls,
+    settlements: settlements.map((s) => s.drawn),
+    buildings,
+  };
+}
+
 /**
  * A ship as its period built them: an oared galley (the Mediterranean's fleets were galleys till about 1600 — the
  * Ottoman fleet of 1453, Lepanto in 1571), a sailing ship, a steel warship (no year: the last).
@@ -518,6 +659,15 @@ export function shipLook(year: number | undefined): "kadirga" | "yelkenli" | "ge
 
 /** How far a state's colour is carried past its provinces' coast (km). */
 const COAST_PAD_KM = 3.2;
+
+/** When a fight's first token falls after its line starts (s), and the time between the next ones (the tokens have met by then). */
+export const UNIT_LOSS_FIRST_S = 2.4;
+export const UNIT_LOSS_GAP_S = 1;
+
+/** The seconds after its line at which each of `lost` tokens falls (shared with the mix: a sword on every one). */
+export function unitLossDelaysS(lost: number): number[] {
+  return Array.from({ length: lost }, (_, j) => Math.round((UNIT_LOSS_FIRST_S + j * UNIT_LOSS_GAP_S) * 100) / 100);
+}
 
 /** Siege rings are tried at this many places round the city, to keep the tokens on the land. */
 const RING_SAMPLES = 72;
@@ -772,14 +922,20 @@ function projectGeoMap(
     ...(a.yol?.length ? { moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
     ...(a.hedef ? { target: toPx(a.hedef), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
   }));
+  const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart) : undefined;
+  // Lines where tokens are lost are fights: the two sides close in and strike while the losses fall.
+  const fightLines = [...new Set((map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => (y.kayip ?? 0) > 0).map((y) => y.satir)))];
+  const fights = fightLines.map((l, i) => ({ start: lineStart(l, i), durationS: Math.round((UNIT_LOSS_FIRST_S + (Math.max(...(map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => y.satir === l).map((y) => Math.min(u.sayi, y.kayip ?? 0)))) - 1) * UNIT_LOSS_GAP_S + 1.2) * 10) / 10 }));
   const units = (map.birlikler ?? []).map((u, i) => {
     const count = Math.max(1, Math.min(24, Math.round(u.sayi)));
     let alive = count;
     const steps = [...u.yerler]
       .sort((a, b) => a.satir - b.satir)
       .map((y) => {
+        const before = alive;
         alive = Math.max(0, alive - Math.max(0, Math.round(y.kayip ?? 0)));
-        return { start: lineStart(y.satir, i), points: formationPoints(y, count, onLand).map((p) => toPx(p)), alive };
+        // Losses one by one as the fight goes on (owner, 22 Oct 2026: "then wiped out one by one with the narration").
+        return { start: lineStart(y.satir, i), points: formationPoints(y, count, onLand).map((p) => toPx(p)), alive, ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}) };
       });
     return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), steps };
   });
@@ -796,14 +952,16 @@ function projectGeoMap(
       start: lineStart(a.satir, i),
       ...(a.yol?.length ? { path: [a.konum, ...a.yol].map((p) => toPx(p)), moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
     })),
-    ...(map.cizgiler?.length ? { lines: map.cizgiler.map((c, i) => ({ points: c.noktalar.map((p) => toPx(p)), label: c.ad, color: c.renk ?? "#ffd166", start: lineStart(c.satir, i) })) } : {}),
+    ...(map.cizgiler?.length ? { lines: map.cizgiler.map((c, i) => ({ points: c.noktalar.map((p) => toPx(p)), label: c.ad, color: c.renk ?? "#ffd166", start: lineStart(c.satir, i), ...(c.stil === "zincir" ? { chain: true } : {}) })) } : {}),
     arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? "#e0283c", ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i) })),
     ...(moving ? { world: { width: v.width, height: v.height }, camera } : {}),
     ...(opts.relief ? { relief: opts.relief } : {}),
     ...(badges.length ? { badges } : {}),
     ...(battles.length ? { battles } : {}),
     ...(units.length ? { units } : {}),
+    ...(fights.length ? { fights } : {}),
     ...(vehicles.length ? { vehicles } : {}),
+    ...(close ? { close } : {}),
     // A province grid step and a bit (0.02° ≈ 2.2 km, ~3 km across the diagonal): the colour then always reaches the coast.
     ...(coast.size ? { coastPad: Math.round((COAST_PAD_KM / ((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width)) * 10) / 10 } : {}),
     ...(opts.era ? { era: opts.era } : {}),

@@ -100,3 +100,22 @@ Kuklalar ve canlı harita kalır; ikisi belgesel seviyesine çıkarılır. Kukla
   arkasında büyüyen sefer oku, kamera 2,4 sn; kalabalıkta farklı yüzler, yumruk, liderin ünlemine tezahürat; at
   (binek: at) — Sezar Rubicon'a atla girer, atlı konuşana dönerken atı çevirmez. Ölçüt klip 3: olcut-rubicon-3. Sıradaki: owner'ın gözü; ardından arka plan detayı (SDXL çizgi film LoRA'sı) ve yazar
   beyninin Claude'suz denemesi (yeni konu, `--yalniz-senaryo`).
+
+## Haritalı anlatım (22–23 Ekim gece)
+
+Owner: haritalı anlatıma öncelik; örnekler Anima History (2. Dünya Savaşı, haritada birlik pulları, patlamalar, hareket
+eden araçlar) ve DFT Tarih (Osman Bey: dış harita → yakın savaş haritası → konsey sahnesi → yine harita).
+
+- **Birlik pulları** (`harita.birlikler`): tarafın amblemli yuvarlak pulları; her satırda cephe / küme / kuşatma
+  dizilişine kayar. Savaş satırında (kayıp olan satır) iki taraf birbirine atılır, değdiği yerde vuruşur, kayıplar
+  **teker teker** X'lenip düşer; her düşüşte kılıç sesi (`unitLossDelaysS`, görüntü ve ses aynı zamanlamadan).
+- **Araçlar** (`harita.araclar`): kadırga, yelkenli, savaş gemisi, denizaltı, süvari, fil, top, tank, uçak; yol boyunca
+  ilerler, `hedef`e ateş eder. Dönemde olmayan araç doğrulayıcıda hata (1453'te tank yok); `gemi` dönemine göre çizilir.
+- **Yakın savaş haritası** (genislik_km ≤ 120): kıyı OpenStreetMap'ten (Haliç dahil), zemin gerçek yükseltiden (AWS
+  Terrain Tiles, atlas renkleri + gölgeleme); üstünde `surlar` (burç, kapı, gedik), `yerlesimler` (şehir evleri, köy,
+  ordugâh çadırları, yangın), `yapilar` (kale, saray, kilise, cami, kule, otağ), `yollar`, `arazi`; `cizgiler` içinde
+  `stil: "zincir"` (Haliç zinciri). Örnek: `content/v3/ornekler/harita-fetih-1453-yakin.json`.
+- **Hazır haritalar:** Commons'taki olaya özel haritalar CC BY-SA (videoyu da BY-SA yapabilir) ve üzerlerinde basılı
+  yazı/işaret var; telifsiz eski haritalar (Buondelmonti, Matrakçı) ara sahne için. Yakın harita açık veriden üretilir.
+- **Sıradaki:** ölçüt bölüm 1453 (dış harita → yakın harita → otağda savaş toplantısı → yakın harita, sesli), yazar
+  beyninin bu alanları kullanması, küçük etiket çakışmaları, gedikten yayılan yangın.

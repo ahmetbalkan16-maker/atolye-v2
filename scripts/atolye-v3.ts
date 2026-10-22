@@ -30,8 +30,10 @@ import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/Li
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
-import { loadMapData, mapWorld, type Polygon } from "../src/lib/v3/maps/MapBuilder";
-import { RELIEF_CREDIT, reliefAvailable, reliefFor } from "../src/lib/v3/maps/Relief";
+import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
+import { type CloseCoast, OSM_CREDIT } from "../src/lib/v3/maps/CloseCoast";
+import { mapGroundFor } from "../src/lib/v3/maps/MapGround";
+import { CLOSE_RELIEF_CREDIT, RELIEF_CREDIT, reliefAvailable } from "../src/lib/v3/maps/Relief";
 import { checkEpisodePlaces, wikipediaPlaces } from "../src/lib/v3/maps/PlaceCheck";
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames, withAtlasYears, yearLabel } from "../src/lib/v3/maps/HistoricalBorders";
 import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
@@ -47,7 +49,7 @@ import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { beats, buildRenderPlan, longestEmptyStretch, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
-import { EPISODE_TONES, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, EPISODE_TONES, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
 import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
@@ -845,14 +847,18 @@ async function main() {
   const historical = new Map((await Promise.all(borderYears.map(async (y) => [y, await loadSnapshot(bordersDir, y).catch((e: Error) => (log(`⚠ tarihî sınır ${y} yüklenemedi: ${e.message.slice(0, 120)}`), undefined))] as const))).filter((x): x is [number, Map<string, Polygon[]>] => !!x[1]));
   const mapData = baseMap ? { ...baseMap, ...(historical.size ? { historical } : {}) } : undefined;
   // Terrain relief under every drawn map (Natural Earth, public domain), cut for the map's world; none: flat map.
+  // A close battle map gets its own coast (OpenStreetMap) and real elevation instead.
   const reliefs = new Map<string, string>();
+  const coasts = new Map<string, CloseCoast>();
   for (const sc of episode.sahneler) {
-    if (!sc.harita?.merkez || !sc.harita.genislik_km) continue;
-    const src = await reliefFor(paths, mapWorld(sc.harita, 1920, 1080), path.join(work, "public"), log);
-    if (src) reliefs.set(sc.id, src);
+    if (!sc.harita?.merkez || !sc.harita.genislik_km || !baseMap) continue;
+    const ground = await mapGroundFor(paths, sc.harita, path.join(work, "public"), baseMap.land, log);
+    if (ground.relief) reliefs.set(sc.id, ground.relief);
+    if (ground.coast) coasts.set(sc.id, ground.coast);
   }
   const plan = buildRenderPlan({
     ...(reliefs.size ? { reliefs } : {}),
+    ...(coasts.size ? { coasts } : {}),
     ...(mapData ? { mapData } : {}),
     episode,
     timeline,
@@ -971,7 +977,10 @@ async function main() {
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
     const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : []))].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
-    const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : []), ...(episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? [RELIEF_CREDIT] : [])];
+    // The maps' ground: Natural Earth's relief on wide maps; OpenStreetMap's coast and the AWS elevation on close ones.
+    const maps = episode.sahneler.flatMap((x) => (x.harita?.merkez && x.harita.genislik_km ? [x.harita.genislik_km] : []));
+    const mapCredits = [...(maps.some((km) => km > CLOSE_MAP_MAX_KM) && reliefAvailable(paths) ? [RELIEF_CREDIT] : []), ...(maps.some((km) => km <= CLOSE_MAP_MAX_KM) ? [OSM_CREDIT, CLOSE_RELIEF_CREDIT] : [])];
+    const imageLines = [...new Set(images.filter((c) => c.attributionRequired || c.sourceUrl).map(attributionLine)), ...(borderYears.length ? [HISTORICAL_BASEMAPS_CREDIT] : []), ...mapCredits];
     const en = dil === "en";
     // The engines that voiced the lines; an older ses.json without them keeps the language's usual engine.
     const engines = voiced.flat().flatMap((l) => (l.provider ? [l.provider] : []));
@@ -981,7 +990,7 @@ async function main() {
       : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: `Kenney (CC0) ve Atölye V3 efektleri${mix.sesTasarimi ? "; dönem efektleri ve ortam sesleri yerelde MOSS-SoundEffect v2 (Apache-2.0) ile üretildi" : ""}`, voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
     await fs.writeFile(
       f("CREDITS.md"),
-      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}${episode.sahneler.some((x) => x.harita?.merkez) && reliefAvailable(paths) ? `\n- ${RELIEF_CREDIT}` : ""}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceLine}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
+      `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}${mapCredits.map((c) => `\n- ${c}`).join("")}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceLine}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,
     );
     // YouTube: the package's title, the hook sentences and the chapters first, hashtags last.
     // A long episode's chapters are its chapter cards; a short one has a chapter per scene.

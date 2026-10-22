@@ -6,6 +6,7 @@ import { extraState } from "../character/extras";
 import { HEAD_CY, INK } from "../character/rig";
 import { along, pathLength, smoothPoints } from "./mapGeometry";
 import { BattleBursts, UnitTokens } from "./MapUnits";
+import { CloseGround } from "./MapCloseGround";
 import { MapVehicles } from "./MapVehicles";
 
 const OCEAN = "#22406a";
@@ -101,7 +102,7 @@ const MARCH_MAX_S = 12;
 const BAND_FADE_S = 0.6;
 
 /** Scale bar lengths a map would print. */
-const SCALE_STEPS_KM = [25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 2500, 5000];
+const SCALE_STEPS_KM = [1, 2, 5, 10, 25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 2500, 5000];
 
 /**
  * An atlas's corner (owner's example map, 21 Oct 2026): a compass rose and a scale bar in kilometres that follows the
@@ -195,6 +196,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
   // Screen sizes: 1 at 1080p, divided by the zoom so marks keep their size on screen.
   const k = H / 1080 / cam.zoom;
   const relief = Boolean(map.relief);
+  // On the close battle map the states are only tinted: the ground, the walls and the houses must show through.
+  const fillK = map.close ? 0.35 : 0.9;
   const label = (text: string, x: number, y: number, size: number, opacity = 1) => (
     <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" opacity={opacity} style={{ font: `900 ${size * k}px ${LABEL_FONT}`, letterSpacing: 1.5 * k }} fill="#ffffff" stroke={INK} strokeWidth={8 * k} paintOrder="stroke fill" strokeLinejoin="round">
       {text.toLocaleUpperCase("en-US")}
@@ -308,8 +311,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             </g>
             {/* Shallow water: a light band along every coast on the sea side, like the reference maps' bright shores. */}
             <g mask={`url(#${id}-sea)`}>
-              <path d={map.land} fill="none" stroke="#7fc4d8" strokeOpacity={0.16} strokeWidth={34 * k} strokeLinejoin="round" />
-              <path d={map.land} fill="none" stroke="#a6dcea" strokeOpacity={0.22} strokeWidth={14 * k} strokeLinejoin="round" />
+              <path d={map.land} fill="none" stroke="#7fc4d8" strokeOpacity={0.16} strokeWidth={(map.close ? 12 : 34) * k} strokeLinejoin="round" />
+              <path d={map.land} fill="none" stroke="#a6dcea" strokeOpacity={0.22} strokeWidth={(map.close ? 5 : 14) * k} strokeLinejoin="round" />
             </g>
           </>
         ) : (
@@ -341,7 +344,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             <g mask={`url(#${id}-land)`} style={{ mixBlendMode: "hard-light" }}>
               {/* Each state's colour carried from its provinces' stepped coast to the coastline, outside its own fill
                   (map trial, 22 Oct 2026: bare steps of land along every coast on a close view). */}
-              {map.coastPad ? map.territories.map((t, i) => coastPadOf(t, i, 0.9 * borderAlpha(t), !t.spread?.length && t.start > 0 && frame < t.start + Math.round(fps * 1.6))) : null}
+              {map.coastPad ? map.territories.map((t, i) => coastPadOf(t, i, fillK * borderAlpha(t), !t.spread?.length && t.start > 0 && frame < t.start + Math.round(fps * 1.6))) : null}
               {map.territories.map((t, i) => {
                 // A conquest sweeps over its land band by band from where the army came (owner, 22 Oct 2026).
                 if (t.spread?.length) {
@@ -352,7 +355,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                       {t.spread.map((b, j) => {
                         const at = t.start + Math.round(b.delay * sweep * fps);
                         const a = interpolate(frame, [at, at + Math.round(fps * BAND_FADE_S)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-                        return a > 0 ? <path key={j} d={b.d} fill={t.color} fillRule="evenodd" stroke={t.color} strokeWidth={5 * k} strokeLinejoin="round" opacity={0.9 * a} /> : null;
+                        return a > 0 ? <path key={j} d={b.d} fill={t.color} fillRule="evenodd" stroke={t.color} strokeWidth={5 * k} strokeLinejoin="round" opacity={fillK * a} /> : null;
                       })}
                     </g>
                   );
@@ -361,7 +364,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                 const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
                 // A state built from provinces is drawn opaque with a 5 px edge in its own colour and faded as a whole:
                 // the edge closes the slivers between provinces, and no inner edge shows darker.
-                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill={t.color} fillRule="evenodd" {...(t.border !== undefined ? { stroke: t.color, strokeWidth: 5 * k, strokeLinejoin: "round" as const, opacity: 0.9 * a } : { fillOpacity: 0.9 * a })} mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
+                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill={t.color} fillRule="evenodd" {...(t.border !== undefined ? { stroke: t.color, strokeWidth: 5 * k, strokeLinejoin: "round" as const, opacity: fillK * a } : { fillOpacity: fillK * a })} mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
               })}
             </g>
             <g mask={`url(#${id}-land)`}>
@@ -416,6 +419,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             <path d={map.land} fill="none" stroke={COAST} strokeWidth={3.5 * k} strokeLinejoin="round" />
           </>
         )}
+        {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} /> : null}
         {map.cities.map((c, i) =>
           relief ? null : (
             <g key={`c${i}`}>
@@ -452,6 +457,26 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
           ];
           const room = (s: { x: number; y: number }) => Math.min(Infinity, ...map.cities.map((t) => Math.hypot((t.x + 60 * k - s.x) / 2, t.y - s.y)));
           const mid = sides.reduce((best, s) => (room(s) > room(best) ? s : best), sides[0]!);
+          // A chain across the water (the Golden Horn's): dark iron links on wooden floats, rocking a little.
+          if (ln.chain) {
+            const links = Math.max(4, Math.round(pathLength(part) / (9 * k)));
+            return (
+              <g key={`ln${i}`}>
+                <path d={d} fill="none" stroke="#1d1b18" strokeOpacity={0.5} strokeWidth={5 * k} strokeLinecap="round" transform={`translate(${2 * k} ${3 * k})`} />
+                {Array.from({ length: links }, (_, j) => {
+                  const p = along(part, (j + 0.5) / links);
+                  const q = along(part, Math.min(1, (j + 1) / links));
+                  const ang = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
+                  return <ellipse key={j} cx={p.x} cy={p.y + Math.sin(frame * 0.12 + j * 0.6) * 0.8 * k} rx={5.5 * k} ry={(j % 2 ? 1.6 : 3) * k} transform={`rotate(${ang} ${p.x} ${p.y})`} fill="none" stroke={j % 2 ? "#3a3632" : "#55504a"} strokeWidth={2.2 * k} />;
+                })}
+                {Array.from({ length: Math.max(2, Math.round(links / 6)) }, (_, j, ) => {
+                  const p = along(part, (j + 0.5) / Math.max(2, Math.round(links / 6)));
+                  return <rect key={`f${j}`} x={p.x - 5 * k} y={p.y - 3.5 * k + Math.sin(frame * 0.12 + j) * 1.2 * k} width={10 * k} height={7 * k} rx={2 * k} fill="#8a5a2b" stroke="#2b1d10" strokeWidth={1.5 * k} />;
+                })}
+                {grow > 0.6 ? <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 30, Math.min(1, (grow - 0.6) / 0.3))}</g> : null}
+              </g>
+            );
+          }
           return (
             <g key={`ln${i}`}>
               <path d={d} fill="none" stroke={ln.color} strokeOpacity={0.35 * pulse} strokeWidth={26 * k} strokeLinecap="round" strokeLinejoin="round" style={{ filter: `blur(${6 * k}px)` }} />
