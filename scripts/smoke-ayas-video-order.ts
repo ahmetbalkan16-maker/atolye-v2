@@ -5,12 +5,13 @@
  * Run: npx tsx scripts/smoke-ayas-video-order.ts
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
-import { answerAyasVideoIntent, detectAyasVideoIntent, lengthOf, periodOf, SHORT_ORDER_LENGTH } from "../src/lib/ayas/AyasVideoOrder";
-import { DEFAULT_ORDER_LENGTH, listOrders, MAX_RESUMES, PRODUCTION_STEPS, type ProductionOrder, recoverInterrupted, resumeStep } from "../src/lib/v3/orders/ProductionOrders";
+import { answerAyasVideoIntent, detectAyasVideoIntent, lengthOf, ordersReport, periodOf, SHORT_ORDER_LENGTH } from "../src/lib/ayas/AyasVideoOrder";
+import { DEFAULT_ORDER_LENGTH, listOrders, MAX_RESUMES, orderProgress, PRODUCTION_STEPS, productionCommand, type ProductionOrder, recoverInterrupted, resumeStep } from "../src/lib/v3/orders/ProductionOrders";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -61,7 +62,7 @@ async function main() {
     assert.equal(orders.length, 1);
     assert.deepEqual([orders[0]!.order.durum, orders[0]!.order.kaynak, orders[0]!.order.dil], ["bekliyor", "ayas", "en"]);
     assert.equal(readdirSync(path.join(root, "_kutuphane", "siparisler")).filter((n) => n.endsWith(".json")).length, 1);
-    assert.match(await answerAyasVideoIntent({ kind: "status" }, root), /"Rubicon" sırada/);
+    assert.match(await answerAyasVideoIntent({ kind: "status" }, root), /"Rubicon" \(18 dk\) sırada/);
   });
 
   await scenario("E an order a gone watcher left running resumes after its last finished step, then is reported as stopped", () => {
@@ -103,6 +104,44 @@ async function main() {
     assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Rubicon hakkında kısa bir video yap")!, root), /\(İngilizce, 3 dk\)/);
     assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Sezar hakkında video yap")!, root), /\(İngilizce, 18 dk\)/);
     assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH]);
+  });
+
+  await scenario("G the owner's own progress questions reach the orders, and the answer says the step, the time and why it stopped", async () => {
+    for (const t of ["videom ne durumda", "videonun durumu ne", "Sezar videosu ne oldu", "video ne oldu", "videom nerede", "video yapılıyor mu", "verdiğim video siparişi ne oldu", "videoda son durum ne", "az önce istediğim video ne durumda", "is my video ready"]) {
+      assert.deepEqual(detectAyasVideoIntent(t), { kind: "status" }, t);
+    }
+    for (const t of ["Bu video çok güzel olmuş", "Video çalışmıyor", "Ayarlar bölümü nerede?", "Sistem durumu ne?"]) assert.equal(detectAyasVideoIntent(t), null, t);
+    const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-"));
+    const failed = { id: "20261022T075847-sezar", konu: "Sezar’ın rubicon’u geçmesi", donem: "konunun geçtiği dönem", sure: "3dk", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "2026-10-22T07:58:47.884Z", durum: "hata", baslangic: "2026-10-22T07:58:58.796Z", bitis: "2026-10-22T08:01:30.000Z", cikti: "C:/elsewhere" } as ProductionOrder;
+    const running = { ...failed, id: "20261022T090000-rubicon", konu: "Rubicon", olusturuldu: "2026-10-22T09:00:00.000Z", durum: "calisiyor", baslangic: "2026-10-22T09:00:10.000Z" } as ProductionOrder;
+    delete (running as { bitis?: string }).bitis;
+    const dir = path.join(root, "_kutuphane", "siparisler");
+    mkdirSync(dir, { recursive: true });
+    for (const o of [failed, running]) {
+      writeFileSync(path.join(dir, `${o.id}.json`), JSON.stringify(o));
+      mkdirSync(path.join(root, "bolumler", o.id), { recursive: true });
+    }
+    writeFileSync(path.join(root, "bolumler", failed.id, "uret.log"), ["⚕ onarım beyni [senaryo, deneme 1]: 30 sn bekleyip yeniden — x", "⚕ onarım beyni [senaryo, deneme 2]: 30 sn bekleyip yeniden — y", 'ADIM senaryo başarısız: V3_RESEARCH_NOTHING: "Sezar’ın" için okunabilir Wikipedia makalesi bulunamadı'].join("\n"));
+    writeFileSync(path.join(root, "bolumler", running.id, "uret.log"), ["✓ senaryo (40 sn)", "✓ gardirop (90 sn)", "⚕ onarım beyni [ses, deneme 1]: 180 sn bekleyip yeniden — ekran kartı sıcak"].join("\n"));
+    const report = await ordersReport(root, new Date("2026-10-22T09:12:10.000Z"));
+    const [first, second] = report.split("\n");
+    assert.equal(first, '"Rubicon" (3 dk) yapılıyor, 12 dk oldu. Biten adımlar: araştırma ve senaryo, kostüm. Şimdi seslendirme adımında (3/9); onarım beyni 1. denemede: 180 sn bekleyip yeniden — ekran kartı sıcak', "en yeni sipariş önce");
+    assert.match(second ?? "", /^"Sezar’ın rubicon’u geçmesi" \(3 dk\) durdu \(3 dk sonra\)\. Araştırma ve senaryo adımında: V3_RESEARCH_NOTHING.*bulunamadı\. Onarım beyni 2 kez denedi\.$/);
+    assert.equal(orderProgress({ ...failed, durum: "teslim", video: "D:/v/final.mp4", ozet: "Teslim: TAMAM" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM');
+    assert.equal(orderProgress({ ...failed, durum: "bekliyor", devamAdimi: "render" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) sırada; çizim (render) adımından devam edecek');
+  });
+
+  await scenario("H the queue runner starts the producer without a shell: a many-word topic (and & or |) stays one argument", () => {
+    const order = { id: "x", konu: "Sezar’ın rubicon’u geçmesi & calc", donem: "konunun geçtiği dönem", sure: "3dk", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "t", durum: "bekliyor" } as ProductionOrder;
+    const { command, args } = productionCommand("D:/repo", order, "D:/out", "openai");
+    assert.equal(command, process.execPath, "node itself, not npx through cmd.exe");
+    assert.equal(args[args.indexOf("--konu") + 1], "Sezar’ın rubicon’u geçmesi & calc");
+    assert.equal(args[args.indexOf("--donem") + 1], "konunun geçtiği dönem");
+    assert.match(args[0]!, /tsx[\\/]dist[\\/]cli\.mjs$/);
+    assert.ok(!args.includes("--from-step"));
+    assert.deepEqual(productionCommand("D:/repo", { ...order, devamAdimi: "ses" }, "D:/out", "openai").args.slice(-2), ["--from-step", "ses"]);
+    const echoed = spawnSync(process.execPath, ["-e", "process.stdout.write(JSON.stringify(process.argv.slice(1)))", ...args.slice(2, 6)], { encoding: "utf8", windowsHide: true });
+    assert.deepEqual(JSON.parse(echoed.stdout), ["uret", "--konu", "Sezar’ın rubicon’u geçmesi & calc", "--donem"], "the child receives the topic whole");
   });
 
   console.log(`AYAS video order smoke: PASS (${scenarios} scenarios)`);

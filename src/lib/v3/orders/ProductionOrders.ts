@@ -63,6 +63,68 @@ export function recoverInterrupted(order: ProductionOrder, log: string, now = ne
   Object.assign(order, { durum: "bekliyor", devam: resumes + 1, devamAdimi: step, ozet: `yarıda kesildi; ${step} adımından devam edecek` });
 }
 
+/**
+ * How the queue runner starts one production: node runs tsx's CLI directly, never through a shell. Until 22 Oct 2026
+ * it went through `npx` with `shell: true`, and Windows' shell split every argument at its spaces — the first AYAS
+ * order ("Sezar’ın rubicon’u geçmesi") reached the producer as "Sezar’ın" — and would have run `&`, `|` in a topic.
+ */
+export function productionCommand(repoRoot: string, order: ProductionOrder, out: string, provider: string): { readonly command: string; readonly args: readonly string[] } {
+  return {
+    command: process.execPath,
+    args: [
+      path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+      path.join(repoRoot, "scripts", "atolye-v3.ts"),
+      "uret", "--konu", order.konu, "--donem", order.donem, "--sure", order.sure, "--dil", order.dil, "--ton", order.ton, "--saglayici", provider, "--cikti", out,
+      ...(order.devamAdimi && order.devamAdimi !== "senaryo" ? ["--from-step", order.devamAdimi] : []),
+    ],
+  };
+}
+
+/** The steps in the owner's words, for AYAS's progress answer. */
+export const STEP_NAMES: Readonly<Record<ProductionStep, string>> = {
+  senaryo: "araştırma ve senaryo",
+  gardirop: "kostüm",
+  ses: "seslendirme",
+  senkron: "dudak senkronu",
+  gorsel: "arka planlar",
+  render: "çizim (render)",
+  kapak: "kapak",
+  miks: "müzik ve ses miksi",
+  birlestir: "birleştirme",
+};
+
+function minutesBetween(from: string | undefined, to: Date): string {
+  const ms = from ? to.getTime() - Date.parse(from) : NaN;
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const m = Math.round(ms / 60_000);
+  return m < 60 ? `${m} dk` : `${Math.floor(m / 60)} sa ${m % 60} dk`;
+}
+
+/**
+ * One order in the owner's words with what its production log shows: the steps done, the one running, the repair
+ * brain's last remedy, why it stopped. AYAS reads only the order file and its `uret.log`; nothing is produced here.
+ */
+export function orderProgress(order: ProductionOrder, log: string, now = new Date()): string {
+  const done = [...log.matchAll(/^✓ ([a-z]+) \(/gm)].map((m) => m[1] as ProductionStep).filter((s) => PRODUCTION_STEPS.includes(s));
+  const failed = /^ADIM ([a-z]+) başarısız: (.+)$/m.exec(log);
+  const repairs = [...log.matchAll(/^⚕ onarım beyni \[([a-z]+), deneme (\d+)\]: (.+)$/gm)];
+  const name = (s: string) => STEP_NAMES[s as ProductionStep] ?? s;
+  const head = `"${order.konu}" (${order.sure.replace(/dk$/, " dk").replace(/sn$/, " sn")})`;
+  if (order.durum === "bekliyor") return `${head} sırada${order.devamAdimi ? `; ${name(order.devamAdimi)} adımından devam edecek` : ""}`;
+  if (order.durum === "calisiyor") {
+    const current = PRODUCTION_STEPS[Math.min(done.length ? PRODUCTION_STEPS.indexOf(done[done.length - 1]!) + 1 : 0, PRODUCTION_STEPS.length - 1)]!;
+    const repair = repairs.at(-1);
+    const fixing = repair && repair[1] === current ? `; onarım beyni ${repair[2]}. denemede: ${repair[3]!.slice(0, 160)}` : "";
+    return `${head} yapılıyor, ${minutesBetween(order.baslangic, now) || "yeni"} oldu. ${done.length ? `Biten adımlar: ${done.map(name).join(", ")}. ` : ""}Şimdi ${name(current)} adımında (${PRODUCTION_STEPS.indexOf(current) + 1}/${PRODUCTION_STEPS.length})${fixing}`;
+  }
+  if (order.durum === "hata") {
+    const took = minutesBetween(order.baslangic, order.bitis ? new Date(order.bitis) : now);
+    const why = (failed ? `${name(failed[1]!)} adımında: ${failed[2]!.slice(0, 200).trim()}` : order.ozet ?? "").replace(/^\p{Ll}/u, (c) => c.toLocaleUpperCase("tr")).replace(/(?<=[^.!?])$/u, ".");
+    return `${head} durdu${took ? ` (${took} sonra)` : ""}. ${why}${repairs.length ? ` Onarım beyni ${repairs.length} kez denedi.` : ""}`.trim();
+  }
+  return `${head} ${order.durum === "uyariyla_teslim" ? "uyarıyla teslim edildi" : "teslim edildi"}${order.video ? `: ${order.video}` : ""}${order.ozet ? `. ${order.ozet.slice(0, 200)}` : ""}`;
+}
+
 export function orderDir(workRoot: string): string {
   return path.join(workRoot, "_kutuphane", "siparisler");
 }

@@ -1,4 +1,6 @@
-import { listOrders, ordersSummary, placeOrder } from "@/lib/v3/orders/ProductionOrders";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { listOrders, orderProgress, ordersSummary, placeOrder } from "@/lib/v3/orders/ProductionOrders";
 import { resolveV3Paths } from "@/lib/v3/V3Paths";
 
 /**
@@ -17,7 +19,11 @@ const LENGTH_TR = "\\d{1,4}\\s*(?:dakikalık|saniyelik|dk['’]?lık|sn['’]?li
 const ORDER_TR = new RegExp(`^(?:bana\\s+)?(.{3,160}?)\\s+(?:hakkında|ile ilgili|konulu|üzerine|anlatan)\\s+(?:(?:bir|türkçe|ingilizce|kısa|uzun|yeni|${LENGTH_TR})\\s+){0,3}${VIDEO}\\s+${MAKE}`, "u");
 const ORDER_TR_COLON = new RegExp(`^${VIDEO}\\s+${MAKE}\\s*[:\\-–]\\s*(.{3,160})$`, "u");
 const ORDER_EN = /^(?:please\s+)?make\s+(?:me\s+)?an?\s+(?:(?:short|new|\d{1,4}[- ]?(?:minute|min|second|sec)s?)\s+){0,2}(?:video|episode)\s+(?:about|on)\s+(.{3,160})$/u;
-const STATUS = new RegExp(`(?:${VIDEO}|sipariş)(?:lar|ler)?(?:ım|im|in|ın)?\\s+(?:durumu|ne durumda|nerede|hazır mı|bitti mi)|video siparişleri|videom hazır mı`, "u");
+// A video/order word in any inflection and a progress question anywhere after it ("videom ne durumda", "Sezar videosu
+// ne oldu", "video yapılıyor mu"); until 22 Oct 2026 only "video durumu"-like pairs were seen and the rest went to the
+// general model, which knows nothing of the orders.
+const STATUS_ASK = "(?:durum\\p{L}*|ne oldu|ne durumda|nerede|hazır mı|bitti mi|yapılıyor mu|yapıldı mı|tamamlandı mı|ne aşamada|hangi aşamada|hangi adımda|ilerleme\\p{L}*|ne yaptın|ne zaman biter|ne kadar kaldı)";
+const STATUS = new RegExp(`(?<!\\p{L})(?:video|sipariş|belgesel)\\p{L}*(?:\\s+\\S+){0,4}?\\s+${STATUS_ASK}(?!\\p{L})|video siparişleri|(?<!\\p{L})(?:video status|is my video ready|how(?:'s| is) my video)`, "u");
 
 /** A "kısa"/"short" video without a number: a short-form episode (under the long-form line, the $1 cap). */
 export const SHORT_ORDER_LENGTH = "3dk";
@@ -55,9 +61,22 @@ export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
   return { kind: "order", konu: konu.replace(/\s+türkçe\b/iu, "").trim(), donem: periodOf(konu), dil, ...(sure ? { sure } : {}) };
 }
 
-/** AYAS's answer: the order is placed (or the orders are summarised); nothing is produced in the server. */
+/**
+ * The latest orders with what their production logs show: steps done, the running one, why one stopped. The log is
+ * read from the queue runner's own output folder (`bolumler/<id>`), never from a path written in the order file.
+ */
+export async function ordersReport(workRoot: string, now = new Date()): Promise<string> {
+  const recent = (await listOrders(workRoot)).map((x) => x.order).sort((a, b) => b.olusturuldu.localeCompare(a.olusturuldu)).slice(0, 3);
+  if (!recent.length) return ordersSummary([]);
+  const lines = await Promise.all(
+    recent.map(async (o) => orderProgress(o, /^[\w-]+$/.test(o.id) ? await fs.readFile(path.join(workRoot, "bolumler", o.id, "uret.log"), "utf8").catch(() => "") : "", now)),
+  );
+  return lines.join("\n");
+}
+
+/** AYAS's answer: the order is placed (or the orders are reported); nothing is produced in the server. */
 export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = resolveV3Paths().workRoot): Promise<string> {
-  if (intent.kind === "status") return ordersSummary((await listOrders(workRoot)).map((x) => x.order));
+  if (intent.kind === "status") return ordersReport(workRoot);
   const order = await placeOrder(workRoot, { konu: intent.konu, donem: intent.donem, dil: intent.dil, ...(intent.sure ? { sure: intent.sure } : {}), kaynak: "ayas" });
   const waiting = (await listOrders(workRoot)).filter((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor").length;
   return `Siparişi aldım: "${order.konu}" (${order.dil === "en" ? "İngilizce" : "Türkçe"}, ${order.sure.replace(/dk$/, " dk").replace(/sn$/, " sn")}). Atölye stüdyosunda araştırma, kurgu, kostüm, ortam, ses ve kalite beyinleri sırayla çalışacak; video bitince kalite beyni teslim edecek.${waiting > 1 ? ` Sırada ${waiting - 1} sipariş daha var.` : ""} Durumunu "video durumu" diye sorabilirsin.`;
