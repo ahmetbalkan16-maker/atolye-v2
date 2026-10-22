@@ -214,6 +214,8 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       if (who && !visible.has(who)) err("DUZEN_KARAKTER", bp, `görünür kadroda yok: ${who}`);
       num(b, "x", bp, 0, 1);
       num(b, "derinlik", bp, 0, 1, true);
+      oneOf(b, "binek", bp, ["at"] as const, true);
+      if (b.binek && b.oturuyor) err("DUZEN_BINEK", bp, "atlı karakter aynı anda oturamaz");
     });
     (arr(s, "dekor", p, true) ?? []).forEach((d, di) => {
       const dp = `${p}.dekor[${di}]`;

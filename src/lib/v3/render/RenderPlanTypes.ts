@@ -141,6 +141,8 @@ export interface V3Performer {
   readonly depth: number;
   readonly facing: "left" | "right";
   readonly seated?: boolean;
+  /** Rides a horse: the horse walks when the rider moves, the rider sits in the saddle. */
+  readonly mount?: "at";
   readonly visible?: { readonly from: number; readonly to: number };
   readonly moves: readonly V3MoveEvent[];
   readonly gestures: readonly V3GestureEvent[];

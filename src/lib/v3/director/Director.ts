@@ -66,6 +66,8 @@ const OFFSTAGE_RIGHT = 1.14;
  * head sits in the upper part of the frame and the body leaves it at the knees, as on the reference channel.
  */
 const FACE_Y = 0.58;
+/** How much higher (share of the frame) a rider's face sits than a walker's. */
+const MOUNT_FACE_LIFT = 0.15;
 /** Two-shots and narrator shots sit lower still: the cast fills the frame and the legs leave it. */
 const TWO_SHOT_Y = 0.6;
 
@@ -80,6 +82,7 @@ interface Slot {
   depth: number;
   facing: "left" | "right";
   seated: boolean;
+  mount?: "at";
 }
 
 export function autoSlots(count: number): number[] {
@@ -94,7 +97,7 @@ export function placeScene(scene: EpisodeScene, visibleIds: ReadonlySet<string>)
   const slots = new Map<string, Slot>();
   for (const b of scene.sahne_duzeni ?? []) {
     if (!visibleIds.has(b.karakter)) continue;
-    slots.set(b.karakter, { x: b.x, depth: b.derinlik ?? 0.08, facing: b.yon ? (b.yon === "sol" ? "left" : "right") : b.x < 0.5 ? "right" : "left", seated: !!b.oturuyor });
+    slots.set(b.karakter, { x: b.x, depth: b.derinlik ?? 0.08, facing: b.yon ? (b.yon === "sol" ? "left" : "right") : b.x < 0.5 ? "right" : "left", seated: !!b.oturuyor, ...(b.binek ? { mount: b.binek } : {}) });
   }
   const needed: string[] = [];
   for (const line of scene.satirlar) {
@@ -375,6 +378,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const local = (sec: number) => f(sec) - start;
     const lines = timeline.lines.filter((l) => l.sceneIndex === si);
     const slots = placeScene(scene, visibleIds);
+    // A rider's face is higher than a walker's: close shots frame it there.
+    const faceOf = (id: string) => (slots.get(id)?.mount ? FACE_Y - MOUNT_FACE_LIFT : FACE_Y);
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
     const geo = scene.harita?.merkez && scene.harita.genislik_km && input.mapData
       ? buildGeoMap(scene.harita, input.mapData, input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
@@ -531,14 +536,14 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         } else if (changed) {
           const last = camera[camera.length - 1]!;
           key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
-          framed(ls, tracks.size > 1 ? 1.62 : 1.42, speaker.x, FACE_Y, "cut", [line.karakter]);
-          framed(le, tracks.size > 1 ? 1.7 : 1.5, speaker.x, FACE_Y, "smooth", [line.karakter]);
+          framed(ls, tracks.size > 1 ? 1.62 : 1.42, speaker.x, faceOf(line.karakter), "cut", [line.karakter]);
+          framed(le, tracks.size > 1 ? 1.7 : 1.5, speaker.x, faceOf(line.karakter), "smooth", [line.karakter]);
         } else {
-          framed(le, (camera[camera.length - 1]!.zoom ?? 1.4) + 0.08, speaker.x, FACE_Y, "smooth", [line.karakter]);
+          framed(le, (camera[camera.length - 1]!.zoom ?? 1.4) + 0.08, speaker.x, faceOf(line.karakter), "smooth", [line.karakter]);
         }
         if (punch) {
           const last = camera[camera.length - 1]!;
-          framed(ls + 3, last.zoom + 0.24, speaker.x, FACE_Y - 0.02, "snap", [line.karakter]);
+          framed(ls + 3, last.zoom + 0.24, speaker.x, faceOf(line.karakter) - 0.02, "snap", [line.karakter]);
           shakes.push({ start: ls + 3, end: ls + f(0.3), amplitude: 9 });
         }
         prevSpeaker = line.karakter;
@@ -579,7 +584,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       const at = f(cue.t);
       const tgt = cue.hedef ? tracks.get(cue.hedef) : undefined;
       if (cue.tip === "shake") shakes.push({ start: at, end: at + f(0.6), amplitude: 18 });
-      else if (cue.tip === "zoom" && tgt) key(at, 1.7, tgt.x, FACE_Y, "snap");
+      else if (cue.tip === "zoom" && tgt) key(at, 1.7, tgt.x, faceOf(cue.hedef!), "snap");
       else if (cue.tip === "pan" && tgt) key(at, 1.2, tgt.x, 0.5, "smooth");
       else if (cue.tip === "cut") key(at, 1.0, 0.5, 0.5, "cut");
     }
@@ -611,6 +616,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         depth: s.depth,
         facing: s.facing,
         ...(s.seated ? { seated: true } : {}),
+        ...(s.mount ? { mount: s.mount } : {}),
         moves: t.moves,
         gestures: t.gestures,
         faces,

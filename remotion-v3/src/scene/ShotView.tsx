@@ -1,17 +1,42 @@
 import React from "react";
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import type { V3CastMember, V3Shot } from "../../../src/lib/v3/render/RenderPlanTypes";
+import type { V3CastMember, V3Performer, V3Shot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { type AccessoryIndex, Character } from "../character/Character";
 import { Effect } from "../character/Effects";
 import { extraState } from "../character/extras";
-import { headCenter, performerState, turnStretch } from "../character/motion";
-import { easeInOut, HEAD_R, INK } from "../character/rig";
+import { Horse, RiderLeg, SADDLE_X, SADDLE_Y } from "../character/Horse";
+import { headCenter, type PerformerState, performerState, turnStretch } from "../character/motion";
+import { easeInOut, HEAD_R, HIP_Y, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
 import { AtlasCorner, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
+
+/** A mounted performer: the horse (walking while the rider's x changes), the rider from the hips up, the near leg. */
+function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: PerformerState; m: V3CastMember; frame: number; fps: number; accessories: AccessoryIndex }) {
+  const before = frame > 0 ? performerState(p, frame - 1, fps).x : s.x;
+  const speed = Math.abs(s.x - before) * fps;
+  const walk = { phase: (s.x / 0.05) * Math.PI, amount: Math.min(1, speed / 0.12) };
+  const id = `rider-cut-${p.castId}`;
+  return (
+    <g>
+      <Horse walk={walk} time={frame / fps} cloth={m.costume.colors.second} seed={p.castId.length} />
+      <defs>
+        <clipPath id={id}>
+          <rect x={-900} y={-4000} width={1800} height={4000 + HIP_Y + 24} />
+        </clipPath>
+      </defs>
+      <g transform={`translate(${SADDLE_X} ${SADDLE_Y - HIP_Y})`}>
+        <g clipPath={`url(#${id})`}>
+          <Character member={m} state={{ ...s, seated: false }} accessories={accessories} cheap />
+        </g>
+      </g>
+      <RiderLeg cloth={m.costume.colors.main} boot="#5a3a22" />
+    </g>
+  );
+}
 
 /** Stage → screen: x across the frame, depth 0 front .. 1 back. */
 export function stageTransform(x: number, depth: number, width: number, height: number) {
@@ -53,7 +78,8 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
     const st = stageTransform(s.x, p.depth, W, H);
     const k = st.scale * m.scale;
     const hc = headCenter(s.pose);
-    const centre = toScreen(st.px + hc.x * k * s.mirror, st.py + (hc.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror));
+    const ride = p.mount ? { x: SADDLE_X, y: SADDLE_Y - HIP_Y } : { x: 0, y: 0 };
+    const centre = toScreen(st.px + (hc.x + ride.x) * k * s.mirror, st.py + (hc.y + ride.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror));
     // Headwear (turbans, crowns) reaches about one head radius above the head.
     heads.set(p.castId, { x: centre.x, top: centre.y - 2.05 * HEAD_R * k * cam.zoom, r: HEAD_R * k * cam.zoom });
   }
@@ -174,14 +200,17 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
               if (!m || !s.visible) return null;
               const st = stageTransform(s.x, p.depth, W, H);
               const k = st.scale * m.scale;
+              // A rider: the horse walks with the rider's own moves; the rider sits in the saddle, seen from the hips up,
+              // with the near leg hanging down the horse's side (owner, 22 Oct 2026: horses).
+              const figure = p.mount ? <Rider p={p} s={s} m={m} frame={frame} fps={fps} accessories={accessories} /> : <Character member={m} state={s} accessories={accessories} />;
               return (
                 <g key={p.castId} transform={`translate(${st.px} ${st.py}) scale(${k * s.mirror} ${k * turnStretch(s.mirror)})`}>
                   {drawn && inRiver(drawn, s.x, p.depth) ? (
                     <InWater spec={drawn} depth={riverDepth(drawn, s.x, p.depth)} frame={frame} phase={100 + performers.indexOf(p)}>
-                      <Character member={m} state={s} accessories={accessories} />
+                      {figure}
                     </InWater>
                   ) : (
-                    <Character member={m} state={s} accessories={accessories} />
+                    figure
                   )}
                 </g>
               );
@@ -192,7 +221,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
               const k = st.scale * m.scale;
               const hc = headCenter(s.pose);
               const hx = st.px + hc.x * k * s.mirror;
-              const hy = st.py + (hc.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror);
+              const hy = st.py + (hc.y + (p.mount ? SADDLE_Y - HIP_Y : 0) + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror);
               return (
                 <g key={`fx-${p.castId}`}>
                   {s.effects.map((e, i) => (

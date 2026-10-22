@@ -168,6 +168,8 @@ export interface SceneBlocking {
   readonly derinlik?: number;
   readonly yon?: "sol" | "sag";
   readonly oturuyor?: boolean;
+  /** The character rides in this scene (owner, 22 Oct 2026: horses): a general, a messenger, a cavalryman. */
+  readonly binek?: "at";
 }
 
 export interface SceneProp {

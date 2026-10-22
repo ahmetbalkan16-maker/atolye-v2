@@ -253,6 +253,17 @@ async function main() {
     assert.equal(cut.length, 0, "the column is still wading through the last line: it stays on screen too");
     // Without the march, the later narrator lines cut away as before.
     const still: Episode = { ...living, sahneler: [{ ...living.sahneler[0]!, kalabalik: [{ ...living.sahneler[0]!.kalabalik![0]!, hareket: undefined }] }] };
+    // Horses (owner, 22 Oct 2026): a rider is marked for the renderer, framed higher, and cannot also sit on a throne.
+    const mounted: Episode = { ...living, sahneler: [{ ...living.sahneler[0]!, sahne_duzeni: [{ karakter: "mehmed", x: 0.42, yon: "sag", binek: "at" }] }] };
+    assert.equal(validateEpisode(mounted).ok, true, JSON.stringify(validateEpisode(mounted).errors.slice(0, 2)));
+    assert.equal(validateEpisode({ ...mounted, sahneler: [{ ...mounted.sahneler[0]!, sahne_duzeni: [{ karakter: "mehmed", x: 0.42, binek: "at", oturuyor: true }] }] }).ok, false, "a rider does not sit on a throne too");
+    assert.equal(validateEpisode({ ...mounted, sahneler: [{ ...mounted.sahneler[0]!, sahne_duzeni: [{ karakter: "mehmed", x: 0.42, binek: "deve" }] }] } as never).ok, false, "only horses for now");
+    const ridePlan = buildRenderPlan({ episode: mounted, timeline: tl3, cast: [...toRenderCast(mounted.oyuncu_kadrosu, "kukla"), ...crowdCast(mounted, "kukla")], accessories: [], backgrounds: [{ src: "", kind: "drawn", drawn: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", tohum: 1 } }], fps, width: 1920, height: 1080, showCaptions: false });
+    const rider = ridePlan.shots[0]!.performers.find((p) => p.castId === "mehmed")!;
+    assert.equal(rider.mount, "at");
+    const walkerPlan = buildRenderPlan({ episode: living, timeline: tl3, cast: [...toRenderCast(living.oyuncu_kadrosu, "kukla"), ...crowdCast(living, "kukla")], accessories: [], backgrounds: [{ src: "", kind: "drawn", drawn: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", tohum: 1 } }], fps, width: 1920, height: 1080, showCaptions: false });
+    const closeY = (plan: typeof ridePlan) => Math.min(...plan.shots[0]!.camera.filter((c) => c.zoom > 1.3).map((c) => c.cy));
+    assert.ok(closeY(ridePlan) < closeY(walkerPlan), "a rider's close shot is framed higher than a walker's");
     // A crowd that lives (owner, 22 Oct 2026): soldiers grip, and the legion cheers at the leader's rallying cry.
     assert.ok(rallyingCry({ metin: "The die is cast!", duygu: "kararli" }) && !rallyingCry({ metin: "Right behind you, sir!", duygu: "korkmus" }) && !rallyingCry({ metin: "We cross.", duygu: "kararli" }));
     const legionExtras = drawnPlan.shots[0]!.extras!;
