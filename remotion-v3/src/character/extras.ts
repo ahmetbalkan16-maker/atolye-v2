@@ -1,6 +1,21 @@
 import type { V3Emotion, V3Extra } from "../../../src/lib/v3/render/RenderPlanTypes";
-import type { PerformerState } from "./motion";
-import { type Pose, REST_POSE } from "./rig";
+import { type PerformerState, STEP } from "./motion";
+import { type Pose, REST_POSE, smootherstep, walkPose } from "./rig";
+
+/**
+ * Where a marching extra is at a frame, and its stride: a steady pace with short eases at both ends (the same feel as
+ * an actor's walk). Off the stage it is no longer drawn.
+ */
+function marching(e: V3Extra, frame: number, fps: number): { x: number; walk?: { phase: number; run: boolean; amount: number } } {
+  const m = e.move;
+  if (!m || frame < m.start) return { x: e.x };
+  if (frame >= m.end) return { x: m.toX };
+  const u = (frame - m.start) / Math.max(1, m.end - m.start);
+  const x = e.x + (m.toX - e.x) * u;
+  const ease = fps * 0.3;
+  const amount = smootherstep(Math.min(1, (frame - m.start) / ease)) * smootherstep(Math.min(1, (m.end - frame) / ease));
+  return { x, walk: { phase: (Math.abs(x - e.x) / STEP) * Math.PI + (e.seed % 7), run: m.run, amount } };
+}
 
 /**
  * A crowd member's state for one frame, computed directly (no motion history: a crowd of forty must stay cheap).
@@ -21,14 +36,21 @@ export function extraState(e: V3Extra, frame: number, fps: number): PerformerSta
     pose = { ...pose, lean: -6 + Math.sin(t * 22 + ph) * 1.2, armFront: [40, 70], armBack: [40, 70], squash: 0.97 };
     emotion = "korkmus";
   }
+  // On the march: legs and arms swing, the body leans into the step and faces where it goes.
+  const go = marching(e, frame, fps);
+  let facing = e.facing;
+  if (go.walk) {
+    pose = walkPose(pose, go.walk.phase, go.walk.run, go.walk.amount);
+    facing = e.move!.toX >= e.x ? "right" : "left";
+  }
   // A blink of four frames every 3–5 seconds.
   const period = Math.round(fps * (3 + (e.seed % 200) / 100));
   const k = (frame + (e.seed % period)) % period;
-  const mirror = e.facing === "right" ? 1 : -1;
+  const mirror = facing === "right" ? 1 : -1;
   return {
-    visible: true,
-    x: e.x,
-    facing: e.facing,
+    visible: go.x > -0.2 && go.x < 1.2,
+    x: go.x,
+    facing,
     mirror,
     pose,
     emotion,

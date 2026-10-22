@@ -221,11 +221,12 @@ function rng(seed: string): () => number {
  * their side of the stage; council benches and army blocks stagger alternate rows. Extras face the middle of
  * the stage, an army faces the other side.
  */
-export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string): V3Extra[] {
+export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string, lineFrame?: (line: number) => number, fps = 30): V3Extra[] {
   const out: V3Extra[] = [];
   groups.forEach((g, gi) => {
     const castId = crowdId(sceneId, gi);
     const rand = rng(castId);
+    const first = out.length;
     const n = Math.max(2, Math.min(40, Math.round(g.sayi)));
     const [x0, x1] = g.taraf === "sol" ? [0.03, 0.42] : g.taraf === "sag" ? [0.58, 0.97] : [0.04, 0.96];
     const rows = g.duzen === "ordu" ? Math.min(5, Math.max(2, Math.ceil(n / 8))) : g.duzen === "meclis" ? Math.min(3, Math.max(2, Math.ceil(n / 7))) : n > 9 ? 2 : 1;
@@ -240,9 +241,37 @@ export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string): V3Ex
         const base = count === 1 ? (x0 + x1) / 2 : x0 + stagger + step * c;
         const x = Math.min(x1, Math.max(x0, base + (rand() - 0.5) * step * (g.duzen === "ordu" ? 0.15 : 0.4)));
         const facing: "left" | "right" = g.duzen === "ordu" ? (g.taraf === "sag" ? "left" : "right") : x < 0.5 ? "right" : "left";
-        out.push({ castId, x, depth, facing, scale: 0.72 + rand() * 0.1, mood: g.ruh_hali ?? "notr", seed: Math.floor(rand() * 1e6) });
+        // Nearly the actors' size: the depth already makes the rows smaller (at 0.72–0.82 the Rubicon's legion looked
+        // like children next to Caesar, owner 22 Oct 2026).
+        out.push({ castId, x, depth, facing, scale: 0.94 + rand() * 0.08, mood: g.ruh_hali ?? "notr", seed: Math.floor(rand() * 1e6) });
       }
     }
+    const m = g.hareket;
+    if (!m || !lineFrame) return;
+    // The march: the formation keeps its shape and moves with its line; the front sets off first and each rank a beat
+    // later, so a column moves rather than a block. Fleeing runs back the way they came.
+    const mine = out.slice(first);
+    const xs = mine.map((e) => e.x);
+    const forward = g.taraf === "sag" ? -1 : 1;
+    const dir = m.tur === "kac" ? -forward : forward;
+    const front = dir > 0 ? Math.max(...xs) : Math.min(...xs);
+    const rear = dir > 0 ? Math.min(...xs) : Math.max(...xs);
+    // With no target the crowd goes on until it has left the stage; with one, the front stops there. A march keeps a
+    // soldier's slow pace and each rank sets off well after the one in front, so the column stretches out and is still
+    // seen wading across while the narrator tells it (the Rubicon's legion first marched off before the last line).
+    const shift = m.hedef !== undefined ? m.hedef - front : (dir > 0 ? 1.18 : -0.18) - rear;
+    const run = m.tur !== "yuru";
+    const speed = run ? RUN_SPEED * 0.8 : WALK_SPEED * 0.55;
+    const at = lineFrame(m.satir);
+    mine.forEach((e, i) => {
+      const delay = Math.abs(front - e.x) * (run ? 1.2 : 2.6) + rand() * 0.3;
+      const start = at + Math.round(delay * fps);
+      out[first + i] = {
+        ...e,
+        mood: m.tur === "hucum" ? "coskulu" : m.tur === "kac" ? "korkmus" : e.mood,
+        move: { start, end: start + Math.max(1, Math.round((Math.abs(shift) / speed) * fps)), toX: e.x + shift, run },
+      };
+    });
   });
   return out;
 }
@@ -385,6 +414,12 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const silentScene = tracks.size > 0 && !lines.some((l) => tracks.has(l.speaker));
     const actors = [...tracks.values()];
     let acted = 0;
+    // The crowd's places and marches, known before the camera is planned: while any of it moves, the shot stays wide.
+    const extras = placeCrowd(scene.kalabalik ?? [], scene.id, (i) => {
+      const lt = lines.find((l) => l.lineIndex === i);
+      return lt ? local(lt.start) : 0;
+    }, fps);
+    const crowdMoving = (from: number, to: number) => extras.some((e) => e.move && e.move.start < to && e.move.end > from);
     lines.forEach((lt, idx) => {
       const line: SceneLine = scene.satirlar[lt.lineIndex]!;
       const ls = local(lt.start), le = local(lt.end);
@@ -464,7 +499,17 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
 
       // Camera language.
       const punch = /!\s*$/.test(line.metin) && (line.duygu === "kizgin" || line.duygu === "saskin" || line.efekt === "unlem" || line.jest === "sasir");
-      if (speaker) {
+      // A line where the crowd or an actor moves across the stage is seen whole: a wide shot, so the march reads and
+      // the actors keep their size against the set and the crowd (owner, 22 Oct 2026, the Rubicon crossing: close-ups
+      // of the two in the river made them giants next to the legion).
+      const action = crowdMoving(ls, le) || (!!speaker && !!line.hareket && line.hareket !== "dur");
+      if (action) {
+        const last = camera[camera.length - 1]!;
+        key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
+        framed(ls, 1.02, 0.5, 0.5, "cut", []);
+        framed(le, 1.08, 0.52, 0.5, "smooth", []);
+        prevSpeaker = undefined;
+      } else if (speaker) {
         const changed = prevSpeaker !== line.karakter;
         if (changed) speakerChanges++;
         if (changed && speakerChanges % 3 === 0 && tracks.size > 1) {
@@ -598,7 +643,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       bubbles: settleBubbles(bubbles, duration),
       nameTags,
       inserts,
-      extras: placeCrowd(scene.kalabalik ?? [], scene.id),
+      extras,
       ...(geo ? { geoMap: geo } : {}),
     });
   });

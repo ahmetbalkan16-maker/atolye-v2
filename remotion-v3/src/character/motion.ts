@@ -3,7 +3,8 @@ import { followThrough, type SpringSpec } from "./dynamics";
 import { blendPose, gesturePose, HEAD_CY, HIP_Y, type Point, type Pose, REST_POSE, seededRandom, smootherstep, walkPose, wave } from "./rig";
 
 /** One step covers this much of the frame width. */
-const STEP = 0.042;
+/** Stage x covered by half a stride (one footfall). */
+export const STEP = 0.042;
 
 export interface PerformerState {
   readonly visible: boolean;

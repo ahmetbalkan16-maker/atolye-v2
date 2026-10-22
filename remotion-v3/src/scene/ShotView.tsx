@@ -7,6 +7,7 @@ import { extraState } from "../character/extras";
 import { headCenter, performerState, turnStretch } from "../character/motion";
 import { easeInOut, HEAD_R, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
+import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
 import { AtlasCorner, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
 import { PropArt } from "./Props";
@@ -32,6 +33,8 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
 
   // Background: sets are graded so outlined characters read in front; archival images drift (Ken Burns).
   const bg = shot.background;
+  // A drawn living set (no image): composed and animated here; while a period image is cut in it is not drawn at all.
+  const drawn = bg.kind === "drawn" ? bg.drawn : undefined;
   const kb = bg.kenBurns;
   const progress = frame / Math.max(1, shot.duration);
   const kbZoom = kb ? kb.fromZoom + (kb.toZoom - kb.fromZoom) * progress : 1;
@@ -84,6 +87,10 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
               <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>
                 <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} />
               </div>
+            ) : drawn ? (
+              <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "hidden" }}>
+                <DrawnSetBack spec={drawn} W={W} H={H} frame={frame} />
+              </svg>
             ) : (
             <Img
               src={staticFile(bg.src)}
@@ -146,11 +153,18 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
                   const m = cast.get(e.castId);
                   if (!m) return null;
                   const s = extraState(e, frame, fps);
-                  const st = stageTransform(e.x, e.depth, W, H);
+                  if (!s.visible) return null;
+                  const st = stageTransform(s.x, e.depth, W, H);
                   const k = st.scale * m.scale * e.scale;
                   return (
                     <g key={`x-${i}`} transform={`translate(${st.px} ${st.py}) scale(${k * s.mirror} ${k})`}>
-                      <Character member={m} state={s} accessories={accessories} cheap />
+                      {drawn && inRiver(drawn, s.x, e.depth) ? (
+                        <InWater spec={drawn} depth={riverDepth(drawn, s.x, e.depth)} frame={frame} phase={i}>
+                          <Character member={m} state={s} accessories={accessories} cheap />
+                        </InWater>
+                      ) : (
+                        <Character member={m} state={s} accessories={accessories} cheap />
+                      )}
                     </g>
                   );
                 })}
@@ -162,7 +176,13 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
               const k = st.scale * m.scale;
               return (
                 <g key={p.castId} transform={`translate(${st.px} ${st.py}) scale(${k * s.mirror} ${k * turnStretch(s.mirror)})`}>
-                  <Character member={m} state={s} accessories={accessories} />
+                  {drawn && inRiver(drawn, s.x, p.depth) ? (
+                    <InWater spec={drawn} depth={riverDepth(drawn, s.x, p.depth)} frame={frame} phase={100 + performers.indexOf(p)}>
+                      <Character member={m} state={s} accessories={accessories} />
+                    </InWater>
+                  ) : (
+                    <Character member={m} state={s} accessories={accessories} />
+                  )}
                 </g>
               );
             })}
@@ -183,6 +203,14 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
             })}
           </svg>
         </AbsoluteFill>
+        {drawn ? (
+          // Night grade, torch light, near fog, rain: over the actors, in the set's own (parallax) space.
+          <AbsoluteFill style={{ transform: view(bgCam), transformOrigin: "0 0", pointerEvents: "none" }}>
+            <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
+              <DrawnSetFront spec={drawn} W={W} H={H} frame={frame} />
+            </svg>
+          </AbsoluteFill>
+        ) : null}
       </AbsoluteFill>
 
       {(shot.inserts ?? []).map((ins, i) => (

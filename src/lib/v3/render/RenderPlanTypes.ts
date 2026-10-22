@@ -174,11 +174,38 @@ export interface V3Shake {
 }
 
 export interface V3Background {
-  /** Path relative to the render public dir. */
+  /** Path relative to the render public dir (unused for a drawn set). */
   readonly src: string;
-  /** Archival images (maps, paintings) drift slowly; sets stay still and are graded to sit behind characters. */
-  readonly kind: "set" | "archival";
+  /**
+   * Archival images (maps, paintings) drift slowly; sets stay still and are graded to sit behind characters; a drawn
+   * set is composed and animated in the renderer from `drawn`.
+   */
+  readonly kind: "set" | "archival" | "drawn";
   readonly kenBurns?: { readonly fromZoom: number; readonly toZoom: number; readonly fromX: number; readonly toX: number };
+  readonly drawn?: V3DrawnSet;
+}
+
+export type V3TimeOfDay = "gun" | "aksam" | "gece" | "safak";
+export type V3Landscape = "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" | "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu";
+export type V3ArchStyle = "roma" | "yunan" | "misir" | "pers" | "bizans" | "osmanli" | "ortacag" | "cin" | "japon" | "erken_modern" | "modern";
+export type V3Weather = "acik" | "bulutlu" | "sis" | "yagmur" | "kar";
+export type V3SetLight = "yok" | "mesale" | "kamp_atesi";
+
+/**
+ * A drawn living set (owner, 22 Oct 2026: "izleyen o anı yaşamalı"): flat, outlined layers composed from the scene's
+ * time of day, landscape, period style and weather, with what lives in it — flowing water, flickering torches, drifting
+ * fog, stars. Always about the scene, always in one style, drawn in the renderer (no GPU, no judge).
+ */
+export interface V3DrawnSet {
+  readonly zaman: V3TimeOfDay;
+  readonly manzara: V3Landscape;
+  readonly uslup: V3ArchStyle;
+  readonly hava?: V3Weather;
+  readonly isik?: V3SetLight;
+  /** nehir_gecidi: where the river runs across the stage (x 0..1, left and right bank). */
+  readonly nehir?: readonly [number, number];
+  /** Varies hills, trees and buildings between scenes of the same kind. */
+  readonly tohum: number;
 }
 
 export interface V3TitleCard {
@@ -222,6 +249,8 @@ export interface V3Extra {
   readonly mood: "notr" | "coskulu" | "korkmus";
   /** Idle phase seed so copies do not move in step. */
   readonly seed: number;
+  /** A march or run (frames of the shot): from `start` to `end` the extra goes from `x` to `toX`, then stays there. */
+  readonly move?: { readonly start: number; readonly end: number; readonly toX: number; readonly run: boolean };
 }
 
 /** A short line (joke, punchline, key phrase) in a comic speech bubble above the speaking character. */

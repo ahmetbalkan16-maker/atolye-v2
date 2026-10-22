@@ -1,5 +1,7 @@
 import {
   AGES,
+  ARCH_STYLES,
+  CROWD_MOVES,
   EFFECTS,
   EMOTIONS,
   EPISODE_TONES,
@@ -7,13 +9,17 @@ import {
   FACE_SHAPES,
   GARMENTS,
   HAIR_STYLES,
+  LANDSCAPES,
   NOSES,
   GESTURES,
   MOVES,
   PROP_KINDS,
   SCENE_MOODS,
+  SET_LIGHTS,
   SFX_IDS,
+  TIMES_OF_DAY,
   TRANSITIONS,
+  WEATHERS,
   type Episode,
 } from "./EpisodeTypes";
 
@@ -188,6 +194,19 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       str(s.arka_plan_sorgusu, "tasarim", `${p}.arka_plan_sorgusu`, { optional: true, max: 700 });
       oneOf(s.arka_plan_sorgusu, "tur", `${p}.arka_plan_sorgusu`, ["set", "archival"] as const, true);
     }
+    if (s.ortam !== undefined) {
+      const op = `${p}.ortam`;
+      if (!isObj(s.ortam)) err("ORTAM", op, "nesne bekleniyor");
+      else {
+        oneOf(s.ortam, "zaman", op, TIMES_OF_DAY);
+        oneOf(s.ortam, "manzara", op, LANDSCAPES);
+        oneOf(s.ortam, "uslup", op, ARCH_STYLES);
+        oneOf(s.ortam, "hava", op, WEATHERS, true);
+        oneOf(s.ortam, "isik", op, SET_LIGHTS, true);
+        const banks = s.ortam.nehir;
+        if (banks !== undefined && (!Array.isArray(banks) || banks.length !== 2 || banks.some((x) => typeof x !== "number" || x < 0 || x > 1) || (banks[0] as number) >= (banks[1] as number) - 0.1)) err("ORTAM_NEHIR", `${op}.nehir`, "[sol kıyı, sağ kıyı] 0..1, en az 0.1 aralıklı");
+      }
+    }
     (arr(s, "sahne_duzeni", p, true) ?? []).forEach((b, bi) => {
       const bp = `${p}.sahne_duzeni[${bi}]`;
       if (!isObj(b)) return err("DUZEN", bp, "nesne bekleniyor");
@@ -278,6 +297,17 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       oneOf(c, "duzen", cp, ["sira", "meclis", "ordu"] as const);
       oneOf(c, "taraf", cp, ["sol", "sag", "tum"] as const, true);
       oneOf(c, "ruh_hali", cp, ["notr", "coskulu", "korkmus"] as const, true);
+      if (c.hareket !== undefined) {
+        const mp = `${cp}.hareket`;
+        const lineCount = Array.isArray(s.satirlar) ? s.satirlar.length : 0;
+        if (!isObj(c.hareket)) err("KALABALIK_HAREKET", mp, "nesne bekleniyor");
+        else {
+          oneOf(c.hareket, "tur", mp, CROWD_MOVES);
+          const at = c.hareket.satir;
+          if (typeof at !== "number" || !Number.isInteger(at) || at < 0 || at >= Math.max(1, lineCount)) err("KALABALIK_HAREKET", `${mp}.satir`, `0..${Math.max(0, lineCount - 1)} arası satır numarası bekleniyor`);
+          num(c.hareket, "hedef", mp, -0.5, 1.5, true);
+        }
+      }
       const k = c.kostum;
       if (!isObj(k)) return err("KOSTUM", `${cp}.kostum`, "kalabalığın kostümü olmalı");
       oneOf(k, "giysi", `${cp}.kostum`, GARMENTS);

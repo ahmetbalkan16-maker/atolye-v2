@@ -3,7 +3,7 @@
  * works in Turkish and the file is meant to be read and edited by the owner. JSON Schema:
  * `docs/v3/episode.schema.json`; validator: `EpisodeValidator.ts`.
  */
-import type { V3Age, V3Effect, V3Emotion, V3EyeStyle, V3FaceShape, V3Garment, V3Gesture, V3HairStyle, V3Nose, V3Prop, V3Transition } from "../render/RenderPlanTypes";
+import type { V3Age, V3ArchStyle, V3Effect, V3Emotion, V3EyeStyle, V3FaceShape, V3Garment, V3Gesture, V3HairStyle, V3Landscape, V3Nose, V3Prop, V3SetLight, V3TimeOfDay, V3Transition, V3Weather } from "../render/RenderPlanTypes";
 
 export const EPISODE_TONES = ["mizahi", "ciddi", "epik"] as const;
 export const SCENE_MOODS = ["gerilim", "komik", "huzun", "zafer", "gizem", "merak"] as const;
@@ -14,6 +14,11 @@ export const EFFECTS: readonly V3Effect[] = ["ter", "unlem", "soru", "ofke", "pa
 export const GARMENTS: readonly V3Garment[] = ["kaftan", "cubbe", "zirh", "onluk", "bizans", "yeniceri", "sade", "tunik", "toga", "ceket", "uniforma", "takim", "elbise"];
 export const PROP_KINDS: readonly V3Prop["kind"][] = ["taht", "top", "kule_iskelesi", "gemi", "masa", "sancak"];
 export const TRANSITIONS: readonly V3Transition[] = ["kes", "kaydir", "murekkep", "beyaz"];
+export const TIMES_OF_DAY: readonly V3TimeOfDay[] = ["gun", "aksam", "gece", "safak"];
+export const LANDSCAPES: readonly V3Landscape[] = ["nehir_kiyisi", "nehir_gecidi", "ova", "tepeler", "orman", "sahil", "sokak", "meydan", "saray_ici", "meclis", "ordugah", "sur_onu"];
+export const ARCH_STYLES: readonly V3ArchStyle[] = ["roma", "yunan", "misir", "pers", "bizans", "osmanli", "ortacag", "cin", "japon", "erken_modern", "modern"];
+export const WEATHERS: readonly V3Weather[] = ["acik", "bulutlu", "sis", "yagmur", "kar"];
+export const SET_LIGHTS: readonly V3SetLight[] = ["yok", "mesale", "kamp_atesi"];
 export const HAIR_STYLES: readonly V3HairStyle[] = ["kisa", "dalgali", "yan_ayrik", "uzun", "topuz", "orgu", "kel", "kivircik", "kakul", "geriye", "seyrek"];
 export const FACE_SHAPES: readonly V3FaceShape[] = ["yuvarlak", "oval", "uzun", "genis", "kare"];
 export const NOSES: readonly V3Nose[] = ["yok", "kucuk", "duz", "iri", "kemerli", "kalkik"];
@@ -181,7 +186,15 @@ export interface SceneCrowd {
   readonly duzen: "sira" | "meclis" | "ordu";
   readonly taraf?: "sol" | "sag" | "tum";
   readonly ruh_hali?: "notr" | "coskulu" | "korkmus";
+  /**
+   * What the crowd does with a line (owner, 22 Oct 2026: the legion stood still while Caesar crossed the Rubicon):
+   * yuru/kos — march or run, the whole formation, toward `hedef` (stage x; by default off the far side); hucum — charge,
+   * running and cheering; kac — flee off the near side, scared. The front sets off first, so a column moves.
+   */
+  readonly hareket?: { readonly tur: (typeof CROWD_MOVES)[number]; readonly satir: number; readonly hedef?: number };
 }
+
+export const CROWD_MOVES = ["yuru", "kos", "hucum", "kac"] as const;
 
 export interface SceneLine {
   readonly karakter: string;
@@ -208,11 +221,26 @@ export interface SceneLine {
   readonly balon?: string;
 }
 
+/**
+ * The scene's drawn living set (owner, 22 Oct 2026, "the viewer must live the moment"): when it happens, what kind of
+ * place, the period's building style, the weather and the light — drawn and animated in the renderer.
+ * `nehir`: for a crossing, the river's left and right bank across the stage (0..1).
+ */
+export interface SceneSetting {
+  readonly zaman: V3TimeOfDay;
+  readonly manzara: V3Landscape;
+  readonly uslup: V3ArchStyle;
+  readonly hava?: V3Weather;
+  readonly isik?: V3SetLight;
+  readonly nehir?: readonly [number, number];
+}
+
 export interface EpisodeScene {
   readonly id: string;
   readonly sure_hedef: number;
   readonly mekan: string;
   readonly arka_plan_sorgusu: SceneBackgroundQuery;
+  readonly ortam?: SceneSetting;
   readonly duygu: SceneMood;
   readonly muzik_ruh_hali: string;
   readonly kamera?: readonly SceneCameraCue[];
