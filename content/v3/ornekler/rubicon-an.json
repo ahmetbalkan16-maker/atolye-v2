@@ -17,9 +17,49 @@
     {
       "id": "legionary", "ad": "13th Legionary", "rol": "Caesar's loyal soldier", "kostum_paketi": "gardirop", "renk": "#b22222", "ses_id": "en-gundelik", "konusma_tarzi": "Down-to-earth, sarcastic", "gorunur": true,
       "kostum": { "giysi": "tunik", "renkler": { "ana": "#b22222", "ikincil": "#e8b23a", "ic": "#f3e7c8", "sus": "#e8b23a" }, "bas": "roman-legionary-helmet-with-a-red-crest-b64362", "sac": { "stil": "kisa", "renk": "#5a3a2a" }, "ayakkabi": "kahve-cizme" }
+    },
+    {
+      "id": "pompey", "ad": "Pompey", "rol": "Rival general, age 57", "kostum_paketi": "gardirop", "renk": "#2f6fb0", "ses_id": "en-gur-asker", "konusma_tarzi": "Gruff, easily flustered", "gorunur": true, "portre": { "wiki": "Pompey" },
+      "kostum": { "giysi": "toga", "renkler": { "ana": "#f3f3f3", "ikincil": "#2f6fb0", "ic": "#f6e7d8", "sus": "#2f6fb0" }, "sac": { "stil": "seyrek", "renk": "#a0a0a0" }, "ayakkabi": "kahve-mest", "yuz": { "goz": "detayli", "sekil": "genis", "burun": "kemerli", "yas": "yasli", "ten": "#f6e7d8", "kas_renk": "#a0a0a0" }, "yaka": "yok" }
     }
   ],
   "sahneler": [
+    {
+      "id": "s0-harita",
+      "sure_hedef": 26,
+      "mekan": "Living map: Italy, 49 BC",
+      "arka_plan_sorgusu": { "tr": "İtalya haritası, MÖ 49", "en": "map of Italy 49 BC" },
+      "duygu": "gerilim",
+      "muzik_ruh_hali": "tense",
+      "harita": {
+        "merkez": [12.6, 42.6],
+        "genislik_km": 1300,
+        "bolgeler": [
+          { "ad": "Caesar", "renk": "#c0392b", "noktalar": [[9.98, 44.05], [10.5, 44.2], [11.0, 44.1], [11.6, 44.0], [12.1, 43.9], [12.3, 44.02], [12.42, 44.16], [12.6, 44.7], [13.2, 45.6], [13.8, 45.7], [13.6, 46.5], [12.5, 46.7], [10.5, 46.6], [8.4, 46.5], [6.8, 46.0], [6.6, 45.0], [7.0, 44.2], [7.6, 43.8], [9.0, 44.2]], "etiket_konum": [10.6, 45.3], "satir": 0 },
+          { "ad": "Caesar", "renk": "#c0392b", "noktalar": [[-1.8, 43.4], [3.2, 42.4], [7.6, 43.8], [7.0, 45.9], [6.1, 46.4], [7.6, 47.6], [8.3, 49.0], [6.4, 49.8], [4.2, 51.4], [2.5, 51.1], [1.6, 50.2], [-1.6, 49.6], [-4.8, 48.4], [-1.4, 46.0]], "satir": 0 },
+          { "ad": "Senate & Pompey", "renk": "#3f6fb5", "noktalar": [[9.98, 44.05], [10.5, 44.2], [11.0, 44.1], [11.6, 44.0], [12.1, 43.9], [12.3, 44.02], [12.42, 44.16], [13.7, 43.5], [14.5, 42.4], [16.2, 41.9], [18.7, 40.2], [18.4, 39.6], [17.0, 40.4], [16.5, 38.8], [15.6, 37.8], [15.6, 40.1], [14.2, 40.8], [12.2, 41.7], [11.0, 42.4], [10.2, 43.0]], "etiket_konum": [13.3, 42.1], "satir": 1, "bitis_satir": 3 },
+          { "ad": "Caesar", "renk": "#c0392b", "noktalar": [[9.98, 44.05], [10.5, 44.2], [11.0, 44.1], [11.6, 44.0], [12.1, 43.9], [12.3, 44.02], [12.42, 44.16], [13.7, 43.5], [14.5, 42.4], [16.2, 41.9], [18.7, 40.2], [18.4, 39.6], [17.0, 40.4], [16.5, 38.8], [15.6, 37.8], [15.6, 40.1], [14.2, 40.8], [12.2, 41.7], [11.0, 42.4], [10.2, 43.0]], "yayilma": { "satir": 2, "kaynak": [12.4, 44.1] } }
+        ],
+        "cizgiler": [{ "ad": "Rubicon", "noktalar": [[12.18, 43.88], [12.3, 44.0], [12.37, 44.08], [12.42, 44.16]], "renk": "#ffd166", "satir": 0 }],
+        "sehirler": [
+          { "ad": "Ravenna", "konum": [12.2, 44.42] },
+          { "ad": "Ariminum", "konum": [12.57, 44.06] },
+          { "ad": "Rome", "konum": [12.5, 41.9] },
+          { "ad": "Corfinium", "konum": [13.84, 42.12] },
+          { "ad": "Brundisium", "konum": [17.94, 40.63] }
+        ],
+        "ordular": [
+          { "ad": "Caesar", "konum": [12.2, 44.42], "renk": "#c0392b", "satir": 0, "yol": [[12.38, 44.12], [12.57, 44.06], [13.5, 43.62], [13.84, 42.12]], "yol_satir": 2 }
+        ],
+        "rozetler": [{ "karakter": "pompey", "konum": [12.5, 41.9], "satir": 1, "yol": [[14.8, 41.4], [16.6, 41.1], [17.94, 40.63]], "yol_satir": 3 }]
+      },
+      "satirlar": [
+        { "karakter": "anlatici", "metin": "January, 49 BC. Roman law drew a line across Italy: this little river, the Rubicon.", "duygu": "notr", "kaynak": ["wikipedia-crossing-the-rubicon"] },
+        { "karakter": "anlatici", "metin": "North of it, Caesar commanded his legions. South of it lay Rome, where Pompey and the Senate waited.", "duygu": "notr", "kaynak": ["wikipedia-crossing-the-rubicon"] },
+        { "karakter": "anlatici", "metin": "Caesar crossed. Ariminum fell, then town after town opened its gates as his army marched south.", "duygu": "notr", "kaynak": ["wikipedia-crossing-the-rubicon"] },
+        { "karakter": "anlatici", "metin": "Pompey and half the Senate fled Rome, all the way down to Brundisium.", "duygu": "notr", "kaynak": ["wikipedia-crossing-the-rubicon"] }
+      ]
+    },
     {
       "id": "s1-gece-kiyi",
       "sure_hedef": 20,

@@ -260,7 +260,33 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (o[key] === undefined) return;
         if (typeof o[key] !== "number" || !Number.isInteger(o[key]) || (o[key] as number) < 0 || (o[key] as number) >= Math.max(1, lines)) err("HARITA_SATIR", `${where}.${key}`, `0..${Math.max(0, lines - 1)} arası satır numarası bekleniyor`);
       };
-      (arr(h, "bolgeler", hp, true) ?? []).forEach((b, bi) => (isObj(b) ? lineIndex(b, "bitis_satir", `${hp}.bolgeler[${bi}]`) : undefined));
+      (arr(h, "bolgeler", hp, true) ?? []).forEach((b, bi) => {
+        if (!isObj(b)) return;
+        lineIndex(b, "bitis_satir", `${hp}.bolgeler[${bi}]`);
+        if (b.yayilma === undefined) return;
+        const yp = `${hp}.bolgeler[${bi}].yayilma`;
+        if (!isObj(b.yayilma)) return err("HARITA_YAYILMA", yp, "{satir, kaynak} bekleniyor");
+        if (b.yayilma.satir === undefined) err("HARITA_YAYILMA", yp, "satir gerekli");
+        lineIndex(b.yayilma, "satir", yp);
+        lonLat(b.yayilma.kaynak, `${yp}.kaynak`);
+      });
+      (arr(h, "ordular", hp, true) ?? []).forEach((o, oi) => {
+        if (!isObj(o)) return;
+        const op = `${hp}.ordular[${oi}]`;
+        lineIndex(o, "satir", op);
+        lineIndex(o, "yol_satir", op);
+        (Array.isArray(o.yol) ? o.yol : []).forEach((pt, k) => lonLat(pt, `${op}.yol[${k}]`));
+      });
+      (arr(h, "cizgiler", hp, true) ?? []).forEach((c, ci) => {
+        const cp = `${hp}.cizgiler[${ci}]`;
+        if (!isObj(c)) return err("HARITA_CIZGI", cp, "nesne bekleniyor");
+        str(c, "ad", cp, { max: 40 });
+        str(c, "renk", cp, { optional: true, pattern: HEX });
+        const pts = Array.isArray(c.noktalar) ? c.noktalar : [];
+        if (pts.length < 2) err("HARITA_CIZGI", cp, "en az 2 nokta");
+        pts.forEach((pt, k) => lonLat(pt, `${cp}.noktalar[${k}]`));
+        lineIndex(c, "satir", cp);
+      });
       (arr(h, "kamera", hp, true) ?? []).forEach((c, ci) => {
         const cp = `${hp}.kamera[${ci}]`;
         if (!isObj(c)) return err("HARITA_KAMERA", cp, "nesne bekleniyor");

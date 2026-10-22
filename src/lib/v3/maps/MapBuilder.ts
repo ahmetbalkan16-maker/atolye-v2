@@ -502,6 +502,32 @@ export function buildGeoMap(
   return declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height);
 }
 
+/** Bands a conquest sweeps in: enough for a front to read, few enough to stay a handful of paths. */
+const SPREAD_BANDS = 8;
+
+/**
+ * A conquest's front (owner, 22 Oct 2026: "the map shows nothing happening"): the state's provinces grouped by their
+ * distance from where the army came, nearest first, each band coming in a little after the one before, so the colour
+ * sweeps over the land province by province. Without provinces there are no bands (the state grows from its name).
+ */
+export function spreadBands(v: MapView, units: readonly AdminUnit[], from: readonly [number, number], bands = SPREAD_BANDS): { d: string; delay: number; rings: [number, number][][] }[] {
+  if (units.length < 2) return [];
+  const dist = (u: AdminUnit) => Math.hypot((u.centre[0] - from[0]) * Math.cos((from[1] * Math.PI) / 180), u.centre[1] - from[1]);
+  const sorted = [...units].sort((a, b) => dist(a) - dist(b));
+  const near = dist(sorted[0]!);
+  const far = dist(sorted[sorted.length - 1]!);
+  const span = Math.max(1e-9, far - near);
+  const groups = Array.from({ length: bands }, () => [] as AdminUnit[]);
+  for (const u of sorted) groups[Math.min(bands - 1, Math.floor(((dist(u) - near) / span) * bands))]!.push(u);
+  return groups.flatMap((g, i) => {
+    if (!g.length) return [];
+    const polys = unitPolygons(g);
+    // The band's land in world pixels too, to tell which state's name the sweep passes over.
+    const rings = polys.map((poly) => poly[0]!.map(([lon, lat]) => projectNear(v, lon, lat)));
+    return [{ d: polygonsPath(v, polys as Polygon[]), delay: Math.round((i / Math.max(1, bands - 1)) * 1000) / 1000, rings }];
+  });
+}
+
 /** The largest world (pixels a side) a moving map is drawn in; a closer view is then enlarged a little. */
 const MAX_WORLD_PX = 16_000;
 
@@ -589,20 +615,45 @@ function projectGeoMap(
   };
   // Each named state's largest piece in view: its name must fit inside it (placeStateLabels).
   const rings: (readonly (readonly [number, number])[] | undefined)[] = others.map(() => undefined);
-  const territories = [
+  const sweeps: { territory: number; start: number; bands: ReturnType<typeof spreadBands> }[] = [];
+  const territories: V3GeoMap["territories"][number][] = [
     ...others.map((s, j) => {
       const sh = shape(named.length + j, s.polys);
       return { d: polygonsPath(v, sh.fill), ...(sh.border ? { border: sh.border } : {}), color: s.color, label: "", start: 0 };
     }),
     ...named.map(({ b, polys }, i) => {
       const sh = shape(i, polys);
-      const at = labelPoint(v, sh.label, b.ad, zoom0, height);
+      // A state's later land under the same name (its conquest drawn as a second region) carries no second name.
+      const again = named.slice(0, i).some((n) => n.b.ad.trim().toLowerCase() === b.ad.trim().toLowerCase());
+      const at = again ? undefined : labelPoint(v, sh.label, b.ad, zoom0, height);
       rings.push(at?.ring);
-      const pin = b.etiket_konum ? projectNear(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
+      const pin = b.etiket_konum && !again ? projectNear(v, b.etiket_konum[0], b.etiket_konum[1]) : undefined;
       const anchor = pin ? { labelX: r1(pin[0]), labelY: r1(pin[1]) } : at ? { labelX: at.x, labelY: at.y } : {};
-      return { d: polygonsPath(v, sh.fill), ...(sh.border ? { border: sh.border } : {}), color: b.renk, label: b.ad, ...anchor, ...(at ? { labelSize: at.size } : {}), start: lineStart(b.satir, i), ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}) };
+      const spread = b.yayilma ? spreadBands(v, built.get(i) ?? [], b.yayilma.kaynak) : undefined;
+      if (spread?.length) sweeps.push({ territory: others.length + i, start: lineStart(b.yayilma!.satir, i), bands: spread });
+      return {
+        d: polygonsPath(v, sh.fill),
+        ...(sh.border ? { border: sh.border } : {}),
+        color: b.renk,
+        label: again ? "" : b.ad,
+        ...anchor,
+        ...(at ? { labelSize: at.size } : {}),
+        start: b.yayilma ? lineStart(b.yayilma.satir, i) : lineStart(b.satir, i),
+        ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}),
+        ...(spread?.length ? { spread: spread.map(({ d, delay }) => ({ d, delay })) } : {}),
+      };
     }),
   ];
+  // A state whose name a later conquest sweeps over loses the name as the front passes it (owner, 22 Oct 2026: the
+  // Senate's name stayed on Caesar's red).
+  for (const [ti, t] of territories.entries()) {
+    if (t.labelX === undefined || t.labelY === undefined || !t.label) continue;
+    for (const s of sweeps) {
+      if (s.territory === ti || s.start <= t.start) continue;
+      const band = s.bands.find((b) => b.rings.some((r) => insideRing(t.labelX!, t.labelY!, r)));
+      if (band) territories[ti] = { ...t, covered: { start: s.start, delay: band.delay } };
+    }
+  }
   const toPx = (p: readonly [number, number]) => {
     const [x, y] = projectNear(v, p[0], p[1]);
     return { x: r1(x), y: r1(y) };
@@ -621,7 +672,14 @@ function projectGeoMap(
     rivers: linesPath(v, data.rivers),
     territories,
     cities: (map.sehirler ?? []).map((c) => ({ ...toPx(c.konum), label: c.ad })),
-    armies: (map.ordular ?? []).map((a, i) => ({ ...toPx(a.konum), label: a.ad, color: a.renk, start: lineStart(a.satir, i) })),
+    armies: (map.ordular ?? []).map((a, i) => ({
+      ...toPx(a.konum),
+      label: a.ad,
+      color: a.renk,
+      start: lineStart(a.satir, i),
+      ...(a.yol?.length ? { path: [a.konum, ...a.yol].map((p) => toPx(p)), moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
+    })),
+    ...(map.cizgiler?.length ? { lines: map.cizgiler.map((c, i) => ({ points: c.noktalar.map((p) => toPx(p)), label: c.ad, color: c.renk ?? "#ffd166", start: lineStart(c.satir, i) })) } : {}),
     arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? "#e0283c", ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i) })),
     ...(moving ? { world: { width: v.width, height: v.height }, camera } : {}),
     ...(opts.relief ? { relief: opts.relief } : {}),

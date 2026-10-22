@@ -38,6 +38,78 @@ function partialPath(points: readonly { x: number; y: number }[], f: number): st
   return `${d} L${end.x} ${end.y}`;
 }
 
+/** The polyline from its start to a fraction of its length (a growing arrow's body). */
+function partialPoints(points: readonly { x: number; y: number }[], f: number): { x: number; y: number }[] {
+  if (points.length < 2) return [...points];
+  const out = [points[0]!];
+  let rest = Math.max(0, Math.min(1, f)) * pathLength(points);
+  for (let i = 1; i < points.length; i++) {
+    const seg = Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+    if (rest <= seg) {
+      const u = seg ? rest / seg : 0;
+      out.push({ x: points[i - 1]!.x + (points[i]!.x - points[i - 1]!.x) * u, y: points[i - 1]!.y + (points[i]!.y - points[i - 1]!.y) * u });
+      return out;
+    }
+    out.push(points[i]!);
+    rest -= seg;
+  }
+  return out;
+}
+
+/** A polyline with its corners rounded (each corner replaced by points on a quadratic curve), for arrow bodies. */
+function smoothPoints(points: readonly { x: number; y: number }[], steps = 8): { x: number; y: number }[] {
+  if (points.length < 3) return [...points];
+  const out = [points[0]!];
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = { x: (points[i - 1]!.x + points[i]!.x) / 2, y: (points[i - 1]!.y + points[i]!.y) / 2 };
+    const b = { x: (points[i]!.x + points[i + 1]!.x) / 2, y: (points[i]!.y + points[i + 1]!.y) / 2 };
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const u = 1 - t;
+      out.push({ x: u * u * a.x + 2 * u * t * points[i]!.x + t * t * b.x, y: u * u * a.y + 2 * u * t * points[i]!.y + t * t * b.y });
+    }
+  }
+  out.push(points[points.length - 1]!);
+  return out;
+}
+
+/**
+ * A campaign arrow like the history channels' (Kings and Generals, Hayalhanem): a body that tapers from its base to a
+ * broad head, growing along the route as the line is told. `pts` is the part drawn so far; widths are in screen units.
+ */
+function taperedArrow(pts: readonly { x: number; y: number }[], base: number, neck: number, head: number, headLen: number): string {
+  if (pts.length < 2) return "";
+  const total = pathLength(pts);
+  if (total < headLen * 0.6) return "";
+  const body = partialPoints(pts, Math.max(0, (total - headLen) / total));
+  const left: string[] = [];
+  const right: string[] = [];
+  let run = 0;
+  body.forEach((p, i) => {
+    const q = body[Math.min(body.length - 1, i + 1)]!;
+    const o = body[Math.max(0, i - 1)]!;
+    const dx = (i < body.length - 1 ? q.x - p.x : p.x - o.x) || 1e-6;
+    const dy = i < body.length - 1 ? q.y - p.y : p.y - o.y;
+    const len = Math.hypot(dx, dy) || 1;
+    if (i > 0) run += Math.hypot(p.x - o.x, p.y - o.y);
+    const w = (base + (neck - base) * (run / Math.max(1, total - headLen))) / 2;
+    left.push(`${p.x - (dy / len) * w} ${p.y + (dx / len) * w}`);
+    right.push(`${p.x + (dy / len) * w} ${p.y - (dx / len) * w}`);
+  });
+  const tip = pts[pts.length - 1]!;
+  const neckP = body[body.length - 1]!;
+  const dx = tip.x - neckP.x;
+  const dy = tip.y - neckP.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const hl = `${neckP.x - (dy / len) * (head / 2)} ${neckP.y + (dx / len) * (head / 2)}`;
+  const hr = `${neckP.x + (dy / len) * (head / 2)} ${neckP.y - (dx / len) * (head / 2)}`;
+  return `M${left.join(" L")} L${hl} L${tip.x} ${tip.y} L${hr} L${right.reverse().join(" L")} Z`;
+}
+
+/** How long a conquest takes to sweep over its land, and an army to march (screen seconds per 1000 px of route). */
+const SPREAD_S = 2.6;
+const MARCH_S_PER_1000PX = 2.4;
+
 /** Scale bar lengths a map would print. */
 const SCALE_STEPS_KM = [25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 2500, 5000];
 
@@ -194,6 +266,13 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
       </g>
     );
   });
+  // How long an army's march takes on screen (by its route's length as seen at the camera's zoom then).
+  const marchSeconds = (path: readonly { x: number; y: number }[], from: number) => Math.min(8, Math.max(2.2, ((pathLength(path) * 1080 * cameraAt(map.camera, from + Math.round(fps * CAMERA_MOVE_S), fps, W, H).zoom) / H / 1000) * MARCH_S_PER_1000PX));
+  // A conquest told with a march sweeps as fast as the army goes (town after town as it passes), else in SPREAD_S.
+  const sweepSeconds = (start: number) => {
+    const army = map.armies.find((a) => a.path && a.path.length > 1 && Math.abs((a.moveStart ?? a.start) - start) <= 1);
+    return army ? marchSeconds(army.path!, start) : SPREAD_S;
+  };
   const visible = (start: number, end: number | undefined) => {
     const a = interpolate(frame, [start, start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return end === undefined ? a : a * interpolate(frame, [end, end + Math.round(fps * 0.6)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -257,6 +336,20 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
             </defs>
             <g mask={`url(#${id}-land)`} style={{ mixBlendMode: "hard-light" }}>
               {map.territories.map((t, i) => {
+                // A conquest sweeps over its land band by band from where the army came (owner, 22 Oct 2026).
+                if (t.spread?.length) {
+                  const fade = t.end === undefined ? 1 : visible(t.end - 1, t.end);
+                  const sweep = sweepSeconds(t.start);
+                  return (
+                    <g key={i} opacity={fade}>
+                      {t.spread.map((b, j) => {
+                        const at = t.start + Math.round(b.delay * sweep * fps);
+                        const a = interpolate(frame, [at, at + Math.round(fps * 0.45)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+                        return a > 0 ? <path key={j} d={b.d} fill={t.color} fillRule="evenodd" stroke={t.color} strokeWidth={5 * k} strokeLinejoin="round" opacity={0.9 * a} /> : null;
+                      })}
+                    </g>
+                  );
+                }
                 const a = t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
                 const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
                 // A state built from provinces is drawn opaque with a 5 px edge in its own colour and faded as a whole:
@@ -266,8 +359,9 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
             </g>
             <g mask={`url(#${id}-land)`}>
               {map.territories.map((t, i) => {
-                const a = t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
-                const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
+                // A sweeping conquest gets its border once the sweep has covered the land.
+                const a = t.spread?.length ? visible(t.start + Math.round(sweepSeconds(t.start) * fps), t.end) : t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
+                const growing = !t.spread?.length && t.start > 0 && frame < t.start + Math.round(fps * 1.6);
                 return a > 0 && frame >= t.start ? <path key={i} d={t.border ?? t.d} fill="none" stroke={shade(t.color, i === map.mainTerritory ? 0.4 : 0.5)} strokeOpacity={0.95 * a} strokeWidth={(i === map.mainTerritory ? 4.4 : 2.6) * k} strokeLinejoin="round" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
               })}
             </g>
@@ -322,18 +416,64 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
         )}
         {map.territories.map((t, i) => {
           if (t.labelX === undefined || t.labelY === undefined) return null;
-          const a = visible(t.start + 6, t.end);
+          // A name a later conquest sweeps over goes as the front reaches it.
+          const gone = t.covered ? t.covered.start + Math.round(t.covered.delay * sweepSeconds(t.covered.start) * fps) : undefined;
+          const a = visible(t.start + 6, gone !== undefined && (t.end === undefined || gone < t.end) ? gone : t.end);
           if (a <= 0) return null;
           return <g key={`tl${i}`}>{relief ? stateLabel(t.label, t.labelX, t.labelY, t.labelSize ?? 46, a) : label(t.label, t.labelX, t.labelY, 46, a)}</g>;
+        })}
+        {/* Lines the story is about (the Rubicon, a wall): a soft glow and a bright core drawing along, then the name. */}
+        {(map.lines ?? []).map((ln, i) => {
+          if (frame < ln.start || ln.points.length < 2) return null;
+          const pts = smoothPoints(ln.points);
+          const grow = interpolate(frame, [ln.start, ln.start + Math.round(fps * 1.4)], [0, 1], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+          const part = partialPoints(pts, grow);
+          const d = `M${part.map((p) => `${p.x} ${p.y}`).join(" L")}`;
+          const pulse = 0.75 + 0.25 * Math.sin((frame - ln.start) * 0.18);
+          // The name beside the line on the side farthest from any town (the Rubicon's name first sat on Ariminum's).
+          const c = along(pts, 0.5);
+          const sides = [
+            { x: c.x - 95 * k, y: c.y },
+            { x: c.x + 95 * k, y: c.y },
+            { x: c.x, y: c.y - 60 * k },
+            { x: c.x, y: c.y + 60 * k },
+          ];
+          const room = (s: { x: number; y: number }) => Math.min(Infinity, ...map.cities.map((t) => Math.hypot((t.x + 60 * k - s.x) / 2, t.y - s.y)));
+          const mid = sides.reduce((best, s) => (room(s) > room(best) ? s : best), sides[0]!);
+          return (
+            <g key={`ln${i}`}>
+              <path d={d} fill="none" stroke={ln.color} strokeOpacity={0.35 * pulse} strokeWidth={26 * k} strokeLinecap="round" strokeLinejoin="round" style={{ filter: `blur(${6 * k}px)` }} />
+              <path d={d} fill="none" stroke={ln.color} strokeWidth={7 * k} strokeLinecap="round" strokeLinejoin="round" />
+              <path d={d} fill="none" stroke="#fffbe6" strokeWidth={2.5 * k} strokeLinecap="round" strokeLinejoin="round" />
+              {grow > 0.6 ? <g transform={`translate(${mid.x} ${mid.y})`}>{markLabel(ln.label, 34, Math.min(1, (grow - 0.6) / 0.3))}</g> : null}
+            </g>
+          );
         })}
         {map.armies.map((a, i) => {
           if (frame < a.start) return null;
           const pop = spring({ frame: frame - a.start, fps, config: { damping: 11, stiffness: 200 } });
+          // On the march (owner, 22 Oct 2026: "no animation on the map"): the unit goes along its route at a pace by
+          // its length, a dotted trail behind it, bobbing a little with the step; it points the way it goes.
+          const path = a.path && a.path.length > 1 ? a.path : undefined;
+          const from = a.moveStart ?? a.start;
+          const travel = path ? marchSeconds(path, from) : 0;
+          const progress = path ? interpolate(frame, [from, from + fps * travel], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) }) : 0;
+          const at = path ? along(path, progress) : { x: a.x, y: a.y };
+          const marching = path && progress > 0 && progress < 1;
+          const ahead = path ? along(path, Math.min(1, progress + 0.02)) : at;
+          const dir = marching && ahead.x < at.x ? -1 : 1;
+          const bob = marching ? Math.abs(Math.sin((frame - from) * 0.55)) * -6 * k : 0;
           return (
-            <g key={`a${i}`} transform={`translate(${a.x} ${a.y}) scale(${pop})`}>
-              <rect x={-34 * k} y={-22 * k} width={68 * k} height={44 * k} rx={6 * k} fill={a.color} stroke="#ffffff" strokeWidth={5 * k} />
-              <path d={`M${-34 * k} ${-22 * k} L${34 * k} ${22 * k} M${34 * k} ${-22 * k} L${-34 * k} ${22 * k}`} stroke="#ffffff" strokeWidth={4 * k} opacity={0.85} />
-              <g transform={`translate(0 ${-48 * k})`}>{markLabel(a.label, 30)}</g>
+            <g key={`a${i}`}>
+              {path && progress > 0 ? <path d={partialPath(path, progress)} fill="none" stroke={a.color} strokeWidth={7 * k} strokeLinecap="round" strokeDasharray={`0.1 ${16 * k}`} style={{ filter: `drop-shadow(0 ${1.5 * k}px ${1.5 * k}px rgba(0,0,0,0.55))` }} /> : null}
+              {/* The unit stands just above its place, so the town's dot and name under it stay readable. */}
+              <g transform={`translate(${at.x} ${at.y - 40 * k + bob}) scale(${pop})`}>
+                <path d={`M0 ${22 * k} L0 ${40 * k}`} stroke="#ffffff" strokeWidth={3 * k} />
+                <rect x={-34 * k} y={-22 * k} width={68 * k} height={44 * k} rx={6 * k} fill={a.color} stroke="#ffffff" strokeWidth={5 * k} />
+                <path d={`M${-34 * k} ${-22 * k} L${34 * k} ${22 * k} M${34 * k} ${-22 * k} L${-34 * k} ${22 * k}`} stroke="#ffffff" strokeWidth={4 * k} opacity={0.85} />
+                {marching ? <path d={`M${dir * 40 * k} ${-10 * k} L${dir * 54 * k} 0 L${dir * 40 * k} ${10 * k} Z`} fill="#ffffff" stroke={INK} strokeWidth={2 * k} /> : null}
+                <g transform={`translate(0 ${-48 * k})`}>{markLabel(a.label, 30)}</g>
+              </g>
             </g>
           );
         })}
@@ -349,18 +489,14 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
           d += ` L${last.x} ${last.y}`;
           const ang = (Math.atan2(last.y - prev.y, last.x - prev.x) * 180) / Math.PI;
           const mid = p[Math.floor((p.length - 1) / 2)]!;
-          // On the relief map a campaign is a line of red dots that draws itself, like the reference maps; the cartoon
-          // map's thick outlined arrow covered cities and names there.
+          // On the relief map a campaign is a broad red arrow that tapers to its head and grows along the route as it is
+          // told (the history channels' arrow; owner, 22 Oct 2026). Semi-opaque, so cities and terrain show through.
           if (relief) {
+            const grown = smoothPoints(p);
+            const shape = taperedArrow(partialPoints(grown, 1 - draw), 34 * k, 22 * k, 62 * k, 52 * k);
             return (
               <g key={`r${i}`}>
-                <defs>
-                  <mask id={`${id}-route${i}`} maskUnits="userSpaceOnUse" x={0} y={0} width={world.width} height={world.height}>
-                    <path d={d} fill="none" stroke="#ffffff" strokeWidth={30 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
-                  </mask>
-                </defs>
-                <path d={d} fill="none" stroke={ar.color} strokeWidth={10 * k} strokeLinecap="round" strokeDasharray={`0.1 ${18 * k}`} mask={`url(#${id}-route${i})`} style={{ filter: `drop-shadow(0 ${1.5 * k}px ${1.5 * k}px rgba(0,0,0,0.55))` }} />
-                {draw < 0.02 ? <path transform={`translate(${last.x} ${last.y}) rotate(${ang})`} d={`M${18 * k} 0 L${-14 * k} ${-16 * k} L${-6 * k} 0 L${-14 * k} ${16 * k} Z`} fill={ar.color} stroke="rgba(20,20,20,0.7)" strokeWidth={2.5 * k} strokeLinejoin="round" /> : null}
+                {shape ? <path d={shape} fill={ar.color} fillOpacity={0.82} stroke="rgba(40,8,12,0.85)" strokeWidth={3 * k} strokeLinejoin="round" style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }} /> : null}
                 {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g> : null}
               </g>
             );

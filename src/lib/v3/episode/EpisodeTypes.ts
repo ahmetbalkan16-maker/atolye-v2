@@ -129,9 +129,16 @@ export interface SceneMap {
   readonly genislik_km?: number;
   /** Territories: modern countries by ISO 3166 alpha-3 code and/or a rough [lon, lat] outline (clipped to the coast). */
   /** `bitis_satir`: the line it disappears with (a border change: the old outline goes as the new one comes). */
-  readonly bolgeler?: readonly { readonly ad: string; readonly renk: string; readonly ulkeler?: readonly string[]; readonly noktalar?: readonly [number, number][]; readonly etiket_konum?: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly tarihi?: { readonly ad: string; readonly yil: number } }[];
+  /**
+   * `yayilma`: a conquest — from line `satir` the state spreads over its land from `kaynak` ([lon, lat], where the
+   * army came from), province after province like a front, instead of appearing whole (owner, 22 Oct 2026).
+   */
+  readonly bolgeler?: readonly { readonly ad: string; readonly renk: string; readonly ulkeler?: readonly string[]; readonly noktalar?: readonly [number, number][]; readonly etiket_konum?: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly tarihi?: { readonly ad: string; readonly yil: number }; readonly yayilma?: { readonly satir: number; readonly kaynak: readonly [number, number] } }[];
   readonly sehirler?: readonly { readonly ad: string; readonly konum: readonly [number, number] }[];
-  readonly ordular?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly renk: string; readonly satir?: number }[];
+  /** An army; with `yol` it marches that route from line `yol_satir` (else at once), leaving a dotted trail. */
+  readonly ordular?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly renk: string; readonly satir?: number; readonly yol?: readonly [number, number][]; readonly yol_satir?: number }[];
+  /** A line the story is about (a border river like the Rubicon, a wall, a frontier): drawn glowing with its name. */
+  readonly cizgiler?: readonly { readonly ad: string; readonly noktalar: readonly [number, number][]; readonly renk?: string; readonly satir?: number }[];
   /**
    * Map narration (owner, 21 Oct 2026, like the reference channel Hayalhanem Ankara): the camera moves to a new
    * centre and width with a line, so one map follows the story across regions.

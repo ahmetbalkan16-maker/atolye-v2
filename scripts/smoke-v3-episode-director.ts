@@ -416,6 +416,55 @@ async function main() {
     assert.ok(geo.kmPerPx! > 0.5 && geo.kmPerPx! < 0.7, `1200 km across 1920 px: ${geo.kmPerPx}`);
   });
 
+  await scenario("O7 the living map (owner, 22 Oct 2026): a conquest sweeps from where the army came, the old owner's name goes as the front passes, armies march, lines glow, the camera follows a march", () => {
+    // Four provinces in a row from west to east (1° each, centres 20.5…23.5), all in the conquered land.
+    const sq = (x: number, y: number, w: number) => [x, y, x + w, y, x + w, y + w, x, y + w];
+    const unit = (name: string, x: number) => ({ name, rings: [sq(x, 2000, 50)], box: { west: x * ADMIN_QUANT_DEG, east: (x + 50) * ADMIN_QUANT_DEG, south: 40, north: 41 }, centre: [(x + 25) * ADMIN_QUANT_DEG, 40.5] as const });
+    const units = [unit("p1", 1000), unit("p2", 1050), unit("p3", 1100), unit("p4", 1150)];
+    const land = [[[[15, 35], [30, 35], [30, 45], [15, 45], [15, 35]]]];
+    const all: [number, number][] = [[19.9, 39.9], [24.1, 39.9], [24.1, 41.1], [19.9, 41.1]];
+    const map: SceneMap = {
+      merkez: [22, 40.5],
+      genislik_km: 1200,
+      bolgeler: [
+        { ad: "Senate", renk: "#3f6fb5", noktalar: all, etiket_konum: [23.5, 40.5], satir: 0 },
+        { ad: "Caesar", renk: "#c0392b", noktalar: all, yayilma: { satir: 1, kaynak: [20, 40.5] } },
+      ],
+      ordular: [{ ad: "Caesar", konum: [20, 40.5], renk: "#c0392b", yol: [[22, 40.5], [24, 40.5]], yol_satir: 1 }],
+      cizgiler: [{ ad: "Rubicon", noktalar: [[20.2, 40], [20.2, 41]], satir: 0 }],
+    };
+    const geo = buildGeoMap(map, { land, lakes: [], rivers: [], countries: new Map(), admin: units } as never, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/zemin.jpg" });
+    const caesar = geo.territories.find((t) => t.spread)!;
+    assert.equal(caesar.start, 100, "the sweep starts with its line");
+    const delays = caesar.spread!.map((b) => b.delay);
+    assert.equal(delays.length, 4, "one band per distance step here");
+    assert.ok(delays[0] === 0 && delays[3] === 1 && delays.every((d, i) => i === 0 || d > delays[i - 1]!), `nearest province first, the farthest last: ${delays}`);
+    const senate = geo.territories.find((t) => t.label === "Senate")!;
+    assert.deepEqual(senate.covered, { start: 100, delay: 1 }, "its name (in the easternmost province) goes when the front reaches it");
+    assert.equal(geo.armies[0]!.path!.length, 3);
+    assert.equal(geo.armies[0]!.moveStart, 100);
+    assert.equal(geo.lines![0]!.label, "Rubicon");
+    // A second region under a state's name (its conquest) carries no second name.
+    const twice = buildGeoMap({ ...map, bolgeler: [{ ad: "Caesar", renk: "#c0392b", noktalar: all }, { ad: "Caesar", renk: "#c0392b", noktalar: [[25, 40], [26, 40], [26, 41]] }] }, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, () => 0, { relief: "bg/zemin.jpg" });
+    assert.deepEqual(twice.territories.filter((t) => t.label).map((t) => t.label), ["Caesar"]);
+    // Validation of the new fields.
+    const ep = sampleEpisode();
+    const withMap = (h: unknown) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: h }] } as never);
+    assert.equal(withMap(map).ok, true, JSON.stringify(withMap(map).errors.slice(0, 2)));
+    assert.equal(withMap({ ...map, cizgiler: [{ ad: "x", noktalar: [[1, 1]] }] }).ok, false, "a line needs two points");
+    assert.equal(withMap({ ...map, ordular: [{ ...map.ordular![0]!, yol_satir: 9 }] }).ok, false, "a march's line must exist");
+    assert.equal(withMap({ ...map, bolgeler: [{ ...map.bolgeler![1]!, yayilma: { kaynak: [20, 40.5] } }] }).ok, false, "a sweep needs its line");
+    // The camera: Pompey's flight far from where it looks is followed; a march already in view is not.
+    const pompey: SceneMap = { merkez: [13.4, 43.6], genislik_km: 545, kamera: [{ satir: 0, merkez: [13.4, 43.6], genislik_km: 545 }], rozetler: [{ karakter: "pompey", konum: [12.5, 41.9], yol: [[17.94, 40.63]], yol_satir: 1 }] };
+    const followed = zoomOnShortRoutes(pompey);
+    assert.equal(followed.zoomed, 1);
+    assert.equal(followed.map.kamera![1]!.satir, 1);
+    const inView: SceneMap = { merkez: [12.5, 43], genislik_km: 1300, ordular: [{ ad: "a", konum: [9.2, 44.5], renk: "#c0392b", yol: [[15.8, 41.4]], yol_satir: 0 }] };
+    assert.equal(zoomOnShortRoutes(inView).zoomed, 0, "a ~620 km march across the middle of a 1300 km map is seen as it is");
+    const small: SceneMap = { ...inView, ordular: [{ ad: "a", konum: [12.2, 44.4], renk: "#c0392b", yol: [[13.84, 42.12]], yol_satir: 0 }] };
+    assert.equal(zoomOnShortRoutes(small).zoomed, 1, "a 300 km march on a 1300 km map: the camera moves in to follow it");
+  });
+
   await scenario("O5 places checked against Wikipedia, maps across the Pacific, a city named by its battle once", async () => {
     // A far-off city moves to Wikipedia's place and takes the badge and route points on it along; a near one stays;
     // a failed lookup is reported, never taken for confirmed.
