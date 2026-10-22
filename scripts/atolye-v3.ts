@@ -24,6 +24,7 @@ import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
 import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { drawnBackground } from "../src/lib/v3/backgrounds/DrawnSetChoice";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
@@ -162,9 +163,10 @@ interface SceneSet extends V3Background {
   readonly credit: CreditRecord;
   /**
    * bolum: the episode's own file; kutuphane: an earlier library render; tasarim: designed for this scene; arsiv: the
-   * period image itself (no one on stage); konu: a real photo of the place or subject today (no set could be drawn).
+   * period image itself (no one on stage); konu: a real photo of the place or subject today (no set could be drawn);
+   * ortam: the scene's drawn living set (its "ortam"), composed and animated by the renderer.
    */
-  readonly kaynak: "bolum" | "kutuphane" | "tasarim" | "arsiv" | "harita" | "konu";
+  readonly kaynak: "bolum" | "kutuphane" | "tasarim" | "arsiv" | "harita" | "konu" | "ortam";
   readonly secim?: CandidateVerdict;
   /** A designed set the judge did not pass after every attempt (a QC miss, never silent). */
   readonly esikAlti?: boolean;
@@ -292,6 +294,14 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     if (!onStage && arsiv[si]) {
       // No one on stage: the period image is the whole scene.
       sets[si] = { src: arsiv[si]!.src, kind: "archival", kenBurns: { fromZoom: 1.02, toZoom: 1.1, fromX: 0, toX: -0.015 }, kaynak: "arsiv", credit: arsiv[si]!.credit, secim: arsiv[si]!.secim };
+      continue;
+    }
+    // A scene with its "ortam" gets the drawn living set (owner, 22 Oct 2026: "the viewer must live the moment"):
+    // always about the scene, in one style, alive — no library image, no SDXL, no judge.
+    const living = drawnBackground(scene, episode.id);
+    if (living) {
+      sets[si] = { ...living, kaynak: "ortam", credit: { assetId: `ortam-${scene.id}`, kind: "image", title: `Atölye çizili yaşayan ortam — ${scene.mekan}`, author: "Atölye (kodla çizilen sahne)", license: "Atölye'nin kendi çizimi", attributionRequired: false } };
+      notlar[si] = `${notlar[si]} Çizili yaşayan ortam: ${scene.ortam!.zaman}, ${scene.ortam!.manzara}, ${scene.ortam!.uslup}${scene.ortam!.hava ? `, ${scene.ortam!.hava}` : ""}.`.trim();
       continue;
     }
     const theme = q.yerel_tema && existsSync(path.join(paths.backdropLibrary, `${q.yerel_tema}.png`)) ? q.yerel_tema : THEMES.find(([re]) => re.test(`${scene.mekan} ${q.tr} ${q.en}`))?.[1];
@@ -848,7 +858,7 @@ async function main() {
     timeline,
     cast,
     accessories: await loadAccessories(costumeRootsFor(paths), cast),
-    backgrounds: backgrounds.map((b): V3Background => ({ src: b.src, kind: b.kind, ...(b.kenBurns ? { kenBurns: b.kenBurns } : {}) })),
+    backgrounds: backgrounds.map((b): V3Background => ({ src: b.src, kind: b.kind, ...(b.kenBurns ? { kenBurns: b.kenBurns } : {}), ...(b.drawn ? { drawn: b.drawn } : {}) })),
     inserts: visuals.map((v) => (v.arsiv && v.set.kaynak !== "arsiv" ? { src: v.arsiv.src, ...(v.arsiv.caption ? { caption: v.arsiv.caption } : {}) } : undefined)),
     language: dil,
     fps,
@@ -884,7 +894,7 @@ async function main() {
       } finally {
         await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
       }
-      const kapak = await designThumbnail({ paths, episode, cast: plan.cast, accessories: plan.accessories, sets: backgrounds.map((b) => ({ src: b.src, kind: b.kind })), publicDir: path.join(work, "public"), headlines: paket.kapakBasliklari, judge: visionJudge(), workDir: work, log });
+      const kapak = await designThumbnail({ paths, episode, cast: plan.cast, accessories: plan.accessories, sets: backgrounds.map((b) => ({ src: b.src, kind: b.kind, ...(b.drawn ? { drawn: b.drawn } : {}) })), publicDir: path.join(work, "public"), headlines: paket.kapakBasliklari, judge: visionJudge(), workDir: work, log });
       const result: YoutubeFile = { paket, ...(kapak ? { kapak } : {}) };
       await writeJson(f("youtube.json"), result);
       return result;

@@ -439,6 +439,9 @@ async function main() {
     const delays = caesar.spread!.map((b) => b.delay);
     assert.equal(delays.length, 4, "one band per distance step here");
     assert.ok(delays[0] === 0 && delays[3] === 1 && delays.every((d, i) => i === 0 || d > delays[i - 1]!), `nearest province first, the farthest last: ${delays}`);
+    assert.equal(caesar.sweepScale, undefined, "the march reaches past the last province: the front keeps the army's own pace");
+    const shortMarch = buildGeoMap({ ...map, ordular: [{ ...map.ordular![0]!, yol: [[21, 40.5]] }] }, { land, lakes: [], rivers: [], countries: new Map(), admin: units } as never, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/zemin.jpg" });
+    assert.equal(shortMarch.territories.find((t) => t.spread)!.sweepScale, 2.2, "land far beyond a short march falls after the army arrives (capped)");
     const senate = geo.territories.find((t) => t.label === "Senate")!;
     assert.deepEqual(senate.covered, { start: 100, delay: 1 }, "its name (in the easternmost province) goes when the front reaches it");
     assert.equal(geo.armies[0]!.path!.length, 3);

@@ -631,6 +631,19 @@ function projectGeoMap(
       const anchor = pin ? { labelX: r1(pin[0]), labelY: r1(pin[1]) } : at ? { labelX: at.x, labelY: at.y } : {};
       const spread = b.yayilma ? spreadBands(v, built.get(i) ?? [], b.yayilma.kaynak) : undefined;
       if (spread?.length) sweeps.push({ territory: others.length + i, start: lineStart(b.yayilma!.satir, i), bands: spread });
+      // With an army marching on the same line, the front keeps the army's pace: the land beyond where the march ends
+      // falls after the army arrives, at the same speed (the Rubicon's red first ran ahead of Caesar to Calabria).
+      const army = b.yayilma ? (map.ordular ?? []).find((o) => o.yol?.length && (o.yol_satir ?? o.satir) === b.yayilma!.satir) : undefined;
+      const units = built.get(i) ?? [];
+      let sweepScale: number | undefined;
+      if (army && units.length > 1) {
+        const from = b.yayilma!.kaynak;
+        const dist = (p: readonly [number, number]) => Math.hypot((p[0] - from[0]) * Math.cos((from[1] * Math.PI) / 180), p[1] - from[1]);
+        const ds = units.map((u) => dist(u.centre));
+        const reach = dist(army.yol![army.yol!.length - 1]!) - Math.min(...ds);
+        // At most a little over twice the march, so the sweep still ends within the scene's next lines.
+        if (reach > 0) sweepScale = Math.round(Math.min(2.2, Math.max(1, (Math.max(...ds) - Math.min(...ds)) / reach)) * 100) / 100;
+      }
       return {
         d: polygonsPath(v, sh.fill),
         ...(sh.border ? { border: sh.border } : {}),
@@ -640,7 +653,7 @@ function projectGeoMap(
         ...(at ? { labelSize: at.size } : {}),
         start: b.yayilma ? lineStart(b.yayilma.satir, i) : lineStart(b.satir, i),
         ...(b.bitis_satir !== undefined ? { end: lineStart(b.bitis_satir, i) } : {}),
-        ...(spread?.length ? { spread: spread.map(({ d, delay }) => ({ d, delay })) } : {}),
+        ...(spread?.length ? { spread: spread.map(({ d, delay }) => ({ d, delay })), ...(sweepScale && sweepScale > 1 ? { sweepScale } : {}) } : {}),
       };
     }),
   ];

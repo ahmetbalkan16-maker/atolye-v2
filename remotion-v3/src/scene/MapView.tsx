@@ -271,7 +271,9 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
   // A conquest told with a march sweeps as fast as the army goes (town after town as it passes), else in SPREAD_S.
   const sweepSeconds = (start: number) => {
     const army = map.armies.find((a) => a.path && a.path.length > 1 && Math.abs((a.moveStart ?? a.start) - start) <= 1);
-    return army ? marchSeconds(army.path!, start) : SPREAD_S;
+    // Land beyond the march's end falls after the army arrives, at its pace.
+    const scale = map.territories.find((t) => t.spread?.length && t.start === start)?.sweepScale ?? 1;
+    return army ? marchSeconds(army.path!, start) * scale : SPREAD_S;
   };
   const visible = (start: number, end: number | undefined) => {
     const a = interpolate(frame, [start, start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });

@@ -297,7 +297,7 @@ export interface V3GeoMap {
    * `spread`: a conquest — the state's land in bands by distance from where the army came; each band comes in after
    * `delay` (0..1, a share of the sweep's time) from `start`, so the colour sweeps across like a front.
    */
-  readonly territories: readonly { readonly d: string; readonly border?: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly labelSize?: number; readonly start: number; readonly end?: number; readonly spread?: readonly { readonly d: string; readonly delay: number }[]; readonly covered?: { readonly start: number; readonly delay: number } }[];
+  readonly territories: readonly { readonly d: string; readonly border?: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly labelSize?: number; readonly start: number; readonly end?: number; readonly spread?: readonly { readonly d: string; readonly delay: number }[]; readonly sweepScale?: number; readonly covered?: { readonly start: number; readonly delay: number } }[];
   readonly cities: readonly { readonly x: number; readonly y: number; readonly label: string }[];
   /** `path`: an army that marches (first point = where it stands) from `moveStart`, leaving a dotted trail. */
   readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number; readonly path?: readonly { readonly x: number; readonly y: number }[]; readonly moveStart?: number }[];
