@@ -274,6 +274,8 @@ CROWDS — scenes feel big when the story has many people: give such scenes "kal
     "duzen": "sira" (a row or two) | "meclis" (council benches) | "ordu" (a block of soldiers),
     "taraf": "sol" | "sag" | "tum", "ruh_hali": "notr" | "coskulu" (cheering) | "korkmus" (scared),
     "hareket": {"tur": "yuru" | "kos" | "hucum" | "kac", "satir": 3, "hedef": 0..1 (optional stage x)}}]
+  A crowd is always PEOPLE: the studio cannot draw animals yet (no horses, elephants or camels) — never name a crowd
+  after animals; tell animals through the narrator and the period images.
   An army scene can have two groups, one per side. Their costumes follow the same catalog and rank rules. A crowd ACTS
   with the story: "hareket" makes the whole formation march, run, charge (cheering) or flee (scared) with that line,
   rank after rank — a legion wading across a river, a mob storming a gate, a broken army running away. The camera stays

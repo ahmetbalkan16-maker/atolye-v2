@@ -361,6 +361,13 @@ async function main() {
     assert.ok(mapProblems({ sahneler: [scene("t1", "Saray", ["Ordu kuzeye yürüdü.", "Donanma denizi geçti."])] }).some((p) => p.includes("no map shows the route")), "Turkish verbs count too");
     const marching = { sahneler: [scene("m2", "Map of Italy", ["Caesar crossed the Rubicon.", "He marched on Rome."], { merkez: [12.5, 43], genislik_km: 1300, ordular: [{ ad: "Caesar", konum: [12.2, 44.4], renk: "#c0392b", yol: [[12.5, 41.9]], yol_satir: 1 }] })] };
     assert.deepEqual(mapProblems(marching), [], "a marching army is a route on the map");
+    // The Hannibal test (22 Oct 2026): Saguntum fell with the army standing in rows; a one-word card scene needs no set.
+    const legion = { ad: "Carthaginian army", duzen: "ordu" };
+    const siege = { ...scene("s3", "Saguntum gates", ["After eight months, Saguntum fell."]), ortam: { zaman: "aksam", manzara: "sur_onu", uslup: "roma" }, kalabalik: [legion] };
+    assert.ok(mapProblems({ sahneler: [siege] }).some((p) => p.includes('scene "s3": line 0 tells the crowd moving or fighting') && p.includes('"satir": 0')));
+    assert.deepEqual(mapProblems({ sahneler: [{ ...siege, kalabalik: [{ ...legion, hareket: { tur: "hucum", satir: 0 } }] }] }), [], "a charging crowd is fine");
+    const card = { ...scene("s10", "kelime", ["Elephants."]), yazi_karti: [{ metin: "ELEPHANTS", stil: "kelime" }] };
+    assert.deepEqual(mapProblems({ sahneler: [card] }), [], "a one-word card over black needs no living set");
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);
