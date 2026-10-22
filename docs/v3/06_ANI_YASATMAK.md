@@ -79,7 +79,19 @@ Kuklalar ve canlı harita kalır; ikisi belgesel seviyesine çıkarılır. Kukla
    giriş, at, kılıç), CC0/Sonniss.
 4. **Ölçüt klip** (harita → gece Rubicon → geçiş → haritada yürüyüş), owner'ın gözüyle.
 
-## Durum
+## Durum (22 Ekim akşam)
 
-- 1. adım başladı (22 Ekim): çizili yaşayan ortam, yürüyen kalabalık, suya giren karakter (16e33f3d, wip).
-- Araştırma tamam; sıradaki: canlı harita.
+- Çizili yaşayan ortam, yürüyen kalabalık, suya giren karakter (16e33f3d); üretim hattına bağlandı (6fef977c):
+  ortamı olan sahne SDXL/kütüphane/hakem kullanmaz — görsel adımı 73 dk → ~4 dk.
+- Canlı harita (dd6f62af, 6fef977c): il il yayılan fetih (ordu aynı satırda yürüyorsa onun hızında, ötesi ordu
+  vardıktan sonra), eski sahibin adı cephe geçince söner, yürüyen ordu + iz, parlayan sınır çizgisi, sivri sefer oku,
+  orduyu/kaçanı izleyen kamera.
+- Yazar beyni bu yetenekleri kullanır (de7d3bd8): ORTAM bölümü, kalabalık hareketi, ordular.yol, yayilma, cizgiler,
+  "anlatılan o satırda ekranda görünsün"; ortamsız karakter sahnesi onarımda istenir.
+- Ses (2c86a16b, b87b9d00): ortam sesi ortamdan (nehir, gece, sis, meşale, ordu); yürüyüşte adım, hücumda kalabalık+
+  davul, suya girişte gerçek şıpırtı ("su"), haritada yürüyen orduda davul, savaşta kılıç.
+- Kalite beyni (b87b9d00): o an söyleneni görür, "anlatılan ekranda mı" (anlati 0–10) puanlar.
+- Kalabalıkla aynı üniformadaki adlı karakter pelerin alır (ef1dc29a).
+- Ölçüt klip 1 (olcut-rubicon-1, 53 sn): harita + gravür ara görüntüsü + gece geçişi; ölçüt klip 2 tüm
+  iyileştirmelerle üretiliyor. Sıradaki: owner'ın gözü; ardından arka plan detayı (SDXL çizgi film LoRA'sı) ve yazar
+  beyninin Claude'suz denemesi (yeni konu, `--yalniz-senaryo`).
