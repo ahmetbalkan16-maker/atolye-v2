@@ -93,5 +93,10 @@ Kuklalar ve canlı harita kalır; ikisi belgesel seviyesine çıkarılır. Kukla
 - Kalite beyni (b87b9d00): o an söyleneni görür, "anlatılan ekranda mı" (anlati 0–10) puanlar.
 - Kalabalıkla aynı üniformadaki adlı karakter pelerin alır (ef1dc29a).
 - Ölçüt klip 1 (olcut-rubicon-1, 53 sn): harita + gravür ara görüntüsü + gece geçişi; ölçüt klip 2 tüm
-  iyileştirmelerle üretiliyor. Sıradaki: owner'ın gözü; ardından arka plan detayı (SDXL çizgi film LoRA'sı) ve yazar
+  iyileştirmelerle üretildi.
+- Owner (22 Ekim akşam): "ilerleme var"; hareket sırasında garip ses, harita daha yavaş/belirgin/akıcı olmalı;
+  kalabalık canlılığı ve at istendi. Yapılan (67925ff8…3c974a6a): vuruşsuz davul (MOSS'un borulu uğultusu, 1,5 dB)
+  vuruş kontrolüyle reddedilir, ortamlı sahnede koşu ayak sesidir; harita ~2 kat yavaş, 16 bantlı cephe, ordunun
+  arkasında büyüyen sefer oku, kamera 2,4 sn; kalabalıkta farklı yüzler, yumruk, liderin ünlemine tezahürat; at
+  (binek: at) — Sezar Rubicon'a atla girer, atlı konuşana dönerken atı çevirmez. Ölçüt klip 3: olcut-rubicon-3. Sıradaki: owner'ın gözü; ardından arka plan detayı (SDXL çizgi film LoRA'sı) ve yazar
   beyninin Claude'suz denemesi (yeni konu, `--yalniz-senaryo`).
