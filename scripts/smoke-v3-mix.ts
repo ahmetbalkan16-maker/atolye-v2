@@ -144,7 +144,7 @@ async function main() {
         { sceneIndex: 1, lineIndex: 2, start: 8, end: 11 },
       ],
     } as unknown as EpisodeTimeline;
-    assert.deepEqual(sfxCues(rubicon, tl2).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["dalga", 4.9], ["adim", 6.2], ["dalga", 7.6], ["basari", 8]]);
+    assert.deepEqual(sfxCues(rubicon, tl2).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["su", 4.9], ["adim", 6.2], ["su", 7.6], ["basari", 8]]);
   });
 
   await scenario("F samples land on the exact sample and anything past the end is dropped", () => {

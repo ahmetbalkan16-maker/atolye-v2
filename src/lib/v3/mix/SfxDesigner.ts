@@ -36,7 +36,11 @@ export function eraOf(donem: string): Era {
  * What each period-telling effect sounds like in each era (English for the model). Effects not listed here are the
  * same in every period and keep their library recording.
  */
+/** Wading is the same in every age: people splashing on foot through a shallow river (the Rubicon crossing). */
+const WADING = "several people wading on foot through a shallow river, water splashing around their legs, a few steps";
+
 const PERIOD_SFX: Readonly<Partial<Record<SfxId, Readonly<Record<Era, string>>>>> = {
+  su: { antik: WADING, orta: WADING, "erken-modern": WADING, modern: WADING },
   kilic: {
     antik: "two short bronze and iron swords clashing twice, sharp metallic clang",
     orta: "two heavy steel longswords clashing, ringing metallic clang",

@@ -1063,8 +1063,10 @@ async function main() {
     const qualityRules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
     // A long video is sampled across its whole length (6 s apart filled only its first two minutes): up to 48 frames.
     const qualityFrames = Math.max(18, Math.min(48, Math.round(durationS / 25)));
-    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan) });
-    log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10`);
+    // What is said when: each frame is also judged on whether it shows what is being told.
+    const said = timeline.lines.map((l) => ({ from: l.start, to: l.end, text: splitDirections(episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex]?.metin ?? "").speech })).filter((s) => s.text);
+    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said });
+    log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10${quality.showing !== undefined ? `; anlatılanı gösterme ${quality.showing.toFixed(1)}/10` : ""}`);
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
     try {
       const chief = scriptBudget(paths, 0.05);

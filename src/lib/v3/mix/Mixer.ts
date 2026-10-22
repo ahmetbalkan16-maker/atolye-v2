@@ -76,10 +76,10 @@ export interface SfxCue {
 }
 
 /** Relative level of each effect under the dialogue. */
-const SFX_GAIN: Readonly<Record<SfxId, number>> = { whoosh: 0.45, pop: 0.55, boing: 0.55, kilic: 0.6, top_atisi: 0.85, davul: 0.6, kalabalik: 0.3, cekic: 0.55, dalga: 0.35, zil: 0.45, yumruk: 0.6, dusus: 0.6, adim: 0.4, kapi: 0.5, para: 0.5, kagit: 0.45, basari: 0.4, hata: 0.4 };
+const SFX_GAIN: Readonly<Record<SfxId, number>> = { whoosh: 0.45, pop: 0.55, boing: 0.55, kilic: 0.6, top_atisi: 0.85, davul: 0.6, kalabalik: 0.3, cekic: 0.55, dalga: 0.35, su: 0.55, zil: 0.45, yumruk: 0.6, dusus: 0.6, adim: 0.4, kapi: 0.5, para: 0.5, kagit: 0.45, basari: 0.4, hata: 0.4 };
 
 /** Folder of each effect in Atölye's SFX library (`public/sfx/<category>/`). */
-export const SFX_CATEGORY: Readonly<Record<SfxId, string>> = { whoosh: "transition", pop: "transition", boing: "transition", kilic: "battle", top_atisi: "battle", davul: "battle", kalabalik: "crowd", cekic: "interior", zil: "interior", dalga: "nature", yumruk: "battle", dusus: "transition", adim: "interior", kapi: "interior", para: "interior", kagit: "interior", basari: "transition", hata: "transition" };
+export const SFX_CATEGORY: Readonly<Record<SfxId, string>> = { whoosh: "transition", pop: "transition", boing: "transition", kilic: "battle", top_atisi: "battle", davul: "battle", kalabalik: "crowd", cekic: "interior", zil: "interior", dalga: "nature", su: "nature", yumruk: "battle", dusus: "transition", adim: "interior", kapi: "interior", para: "interior", kagit: "interior", basari: "transition", hata: "transition" };
 
 /**
  * The library file for an effect: a recording (Kenney CC0, scripts/v3/sfx-kenney.ts) before the synthesised sound
@@ -120,7 +120,7 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       // Wading into the crossing's river: the splash as the walk reaches the water.
       if ((line.hareket === "yuru" || line.hareket === "kos") && typeof line.hedef === "number" && scene.ortam?.manzara === "nehir_gecidi") {
         const [a, b] = scene.ortam.nehir ?? [0.52, 0.8];
-        if (line.hedef > a && line.hedef < b) cues.push({ t: lt.start + 0.9, id: "dalga" });
+        if (line.hedef > a && line.hedef < b) cues.push({ t: lt.start + 0.9, id: "su" });
       }
     });
     // What the crowd does is heard too (owner, 22 Oct 2026: no meaningless sound): a march's footfalls, a charge's or a
@@ -131,7 +131,7 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       if (!m || !lt) continue;
       cues.push({ t: lt.start + 0.2, id: m.tur === "yuru" ? "adim" : "kalabalik" });
       if (m.tur === "hucum") cues.push({ t: lt.start + 0.4, id: "davul" });
-      if (scene.ortam?.manzara === "nehir_gecidi") cues.push({ t: lt.start + 1.6, id: "dalga" });
+      if (scene.ortam?.manzara === "nehir_gecidi") cues.push({ t: lt.start + 1.6, id: "su" });
     }
     // On the living map: a drum as an army sets off, swords where a battle flashes.
     for (const o of scene.harita?.ordular ?? []) {

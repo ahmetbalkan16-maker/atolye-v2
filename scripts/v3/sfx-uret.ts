@@ -32,6 +32,8 @@ const EFFECTS: readonly Effect[] = [
   { id: "cekic", category: "interior", title: "örs üzerinde çekiç", source: `aevalsrc=exp(-16*t)*(0.5*sin(2*PI*820*t)+0.35*sin(2*PI*1637*t)+0.25*sin(2*PI*2471*t))+exp(-140*t)*(random(0)*2-1)*0.7:s=${SR}:d=0.4` },
   { id: "zil", category: "interior", title: "çan / zil", source: `aevalsrc=exp(-1.4*t)*0.4*sin(2*PI*523.25*t)+exp(-2*t)*0.3*sin(2*PI*1046.5*t)+exp(-3*t)*0.2*sin(2*PI*1396*t)+exp(-4.5*t)*0.15*sin(2*PI*2093*t):s=${SR}:d=2.6` },
   { id: "dalga", category: "nature", title: "kıyıya vuran dalga", source: `anoisesrc=d=5:c=brown:a=0.9:r=${SR}:s=3`, filter: "lowpass=f=1100,tremolo=f=0.25:d=0.8,afade=t=in:d=1.2,afade=t=out:st=3.6:d=1.4" },
+  // Wading through shallow water: a slosh every ~0.55 s (sin⁶ envelope, written as a product — pow() needs a comma).
+  { id: "su", category: "nature", title: "sığ suda yürüme, şıpırtı", source: `aevalsrc=(random(0)*2-1)*sin(PI*1.8*t)*sin(PI*1.8*t)*sin(PI*1.8*t)*sin(PI*1.8*t)*sin(PI*1.8*t)*sin(PI*1.8*t)*(0.7+0.3*sin(2*PI*31*t)):s=${SR}:d=2.2`, filter: "bandpass=f=1100:width_type=o:w=2.4,lowpass=f=4000,afade=t=in:d=0.05,afade=t=out:st=1.8:d=0.4" },
 ];
 
 /** File name the V3 mixer looks up by effect id. */

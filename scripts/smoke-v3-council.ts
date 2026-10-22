@@ -99,6 +99,12 @@ async function main() {
     const md = councilMarkdown("Test", log, plan);
     assert.ok(md.includes("Önlemler (Atölye kendisi alır, kod değişmez)") && md.includes("Geliştirme önerileri (owner onayı gerekir)") && md.includes("**Tarihçi:** kenar bronz olmalı"));
     assert.ok(qualityPrompt("49 BC").includes("49 BC"));
+    // Owner, 22 Oct 2026: the frame is also judged on whether it shows what is being said; badges, map names and the
+    // DRAMATIZATION label are part of the show.
+    const told = qualityPrompt("49 BC", [], undefined, "Caesar's army marched south, town after town.");
+    assert.ok(told.includes('says: "Caesar\'s army marched south') && told.includes('"anlati": <0-10>') && told.includes("SHOW what is being said"));
+    assert.ok(!qualityPrompt("49 BC").includes('"anlati"'), "without the narration, no story score is asked");
+    assert.ok(qualityPrompt("49 BC").includes("portrait badge") && qualityPrompt("49 BC").includes("DRAMATIZATION"));
   });
 
   await scenario("D2 the chief's bare-sentence measures are kept as titles, never 'undefined'; the end card is not a quality fault", () => {
