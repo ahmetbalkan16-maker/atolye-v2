@@ -1,8 +1,8 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import type { SceneMap } from "../episode/EpisodeTypes";
+import type { SceneMap, UnitFormation } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
-import { type AdminUnit, assignUnits, dissolve, loadAdminUnits, unitPolygons } from "./AdminUnits";
+import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
 import { isPolity } from "./HistoricalBorders";
 
 /**
@@ -497,9 +497,76 @@ export function buildGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en" } = {},
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"] } = {},
 ): V3GeoMap {
   return declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height);
+}
+
+/** A point `km` east and `north` km north of `c` (small distances; enough to lay tokens out round a place). */
+function offsetKm(c: readonly [number, number], east: number, north: number): [number, number] {
+  return [c[0] + east / (111.32 * Math.max(0.2, Math.cos((c[1] * Math.PI) / 180))), c[1] + north / 110.57];
+}
+
+/** How far a state's colour is carried past its provinces' coast (km). */
+const COAST_PAD_KM = 3.2;
+
+/** Siege rings are tried at this many places round the city, to keep the tokens on the land. */
+const RING_SAMPLES = 72;
+
+/**
+ * Where `n` tokens of a formation stand ([lon, lat]): spaced evenly along a front line; on a ring round a besieged
+ * place; or in a loose hexagonal cluster round a point. Deterministic, so the same formation is laid out the same way.
+ * With `onLand`, a siege ring keeps to the land round a coastal city (its sea side is left to ships), and a cluster
+ * takes its land places first.
+ */
+export function formationPoints(f: UnitFormation, n: number, onLand?: (p: [number, number]) => boolean): [number, number][] {
+  if ("cephe" in f) {
+    const line = f.cephe;
+    if (line.length === 1) return Array.from({ length: n }, () => [line[0]![0], line[0]![1]]);
+    const seg = line.slice(1).map((p, i) => Math.hypot(p[0] - line[i]![0], p[1] - line[i]![1]));
+    const total = seg.reduce((a, b) => a + b, 0) || 1;
+    return Array.from({ length: n }, (_, k) => {
+      let rest = (n === 1 ? 0.5 : k / (n - 1)) * total;
+      for (let i = 0; i < seg.length; i++) {
+        if (rest <= seg[i]! || i === seg.length - 1) {
+          const u = seg[i]! ? Math.min(1, rest / seg[i]!) : 0;
+          return [line[i]![0] + (line[i + 1]![0] - line[i]![0]) * u, line[i]![1] + (line[i + 1]![1] - line[i]![1]) * u];
+        }
+        rest -= seg[i]!;
+      }
+      return [line[line.length - 1]![0], line[line.length - 1]![1]];
+    });
+  }
+  if ("kusatma" in f) {
+    const r = f.km ?? 40;
+    const at = (u: number) => offsetKm(f.kusatma, Math.cos(u * Math.PI * 2 - Math.PI / 2) * r, Math.sin(u * Math.PI * 2 - Math.PI / 2) * r);
+    const ring = Array.from({ length: RING_SAMPLES }, (_, k) => ({ p: at(k / RING_SAMPLES), land: onLand?.(at(k / RING_SAMPLES)) ?? true }));
+    const land = ring.filter((s) => s.land).length;
+    if (land === RING_SAMPLES || land < 3) return Array.from({ length: n }, (_, k) => at(k / n));
+    // Round a coast (the reference channel's sieges): the ring's land part, read from just past its widest stretch of
+    // sea, so an arc on land is laid out end to end.
+    let best = -1;
+    let bestLen = 0;
+    for (let k = 0; k < RING_SAMPLES; k++) {
+      if (ring[k]!.land || !ring[(k + RING_SAMPLES - 1) % RING_SAMPLES]!.land) continue;
+      let len = 0;
+      while (len < RING_SAMPLES && !ring[(k + len) % RING_SAMPLES]!.land) len++;
+      if (len > bestLen) [best, bestLen] = [k, len];
+    }
+    const arc = Array.from({ length: RING_SAMPLES }, (_, j) => ring[(best + bestLen + j) % RING_SAMPLES]!).filter((s) => s.land);
+    return Array.from({ length: n }, (_, k) => arc[Math.min(arc.length - 1, Math.floor(((k + 0.5) / n) * arc.length))]!.p);
+  }
+  // A cluster: rings of 1, 6, 12 … round the point, about km/2 apart; on the coast the land places come first.
+  const step = (f.km ?? 30) / 2;
+  const out: [number, number][] = [];
+  for (let ring = 0; out.length < n * (onLand ? 3 : 1); ring++) {
+    const count = ring === 0 ? 1 : ring * 6;
+    for (let k = 0; k < count; k++) {
+      const a = (k / count) * Math.PI * 2 + ring * 0.4;
+      out.push(offsetKm(f.kume, Math.cos(a) * ring * step, Math.sin(a) * ring * step));
+    }
+  }
+  return (onLand ? [...out.filter((p) => onLand(p)), ...out.filter((p) => !onLand(p))] : out).slice(0, n);
 }
 
 /** Bands a conquest sweeps in: enough for a front to read, few enough to stay a handful of paths. */
@@ -578,7 +645,7 @@ function projectGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en" },
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"] },
 ): V3GeoMap {
   const world = mapWorld(map, width, height);
   const v = world.view;
@@ -607,11 +674,14 @@ function projectGeoMap(
     others.map((o, j) => ({ key: named.length + j, polys: o.polys })),
   ];
   const built = data.admin ? assignUnits(data.admin, groups, world.bounds) : new Map<number, AdminUnit[]>();
+  const coast = data.admin ? coastEdges(unitsIn(data.admin, world.bounds)) : new Set<string>();
   const shape = (key: number, polys: readonly Polygon[]) => {
     const units = built.get(key);
-    if (!units?.length) return { fill: polys, label: polys, border: undefined };
+    if (!units?.length) return { fill: polys, label: polys, border: undefined, coast: undefined };
     const outline = dissolve(units);
-    return { fill: unitPolygons(units) as Polygon[], label: outline.rings.length ? outline.rings.map((r) => [r] as Polygon) : polys, border: linesPath(v, outline.lines) };
+    // The border where it meets other land only; the coastline is drawn by the map, and the colour reaches it.
+    const shore = linesPath(v, dissolve(units, (e) => coast.has(e)).lines);
+    return { fill: unitPolygons(units) as Polygon[], label: outline.rings.length ? outline.rings.map((r) => [r] as Polygon) : polys, border: linesPath(v, dissolve(units, (e) => !coast.has(e)).lines), coast: shore || undefined };
   };
   // Each named state's largest piece in view: its name must fit inside it (placeStateLabels).
   const rings: (readonly (readonly [number, number])[] | undefined)[] = others.map(() => undefined);
@@ -619,7 +689,7 @@ function projectGeoMap(
   const territories: V3GeoMap["territories"][number][] = [
     ...others.map((s, j) => {
       const sh = shape(named.length + j, s.polys);
-      return { d: polygonsPath(v, sh.fill), ...(sh.border ? { border: sh.border } : {}), color: s.color, label: "", start: 0 };
+      return { d: polygonsPath(v, sh.fill), ...(sh.border !== undefined ? { border: sh.border } : {}), ...(sh.coast ? { coast: sh.coast } : {}), color: s.color, label: "", start: 0 };
     }),
     ...named.map(({ b, polys }, i) => {
       const sh = shape(i, polys);
@@ -646,7 +716,8 @@ function projectGeoMap(
       }
       return {
         d: polygonsPath(v, sh.fill),
-        ...(sh.border ? { border: sh.border } : {}),
+        ...(sh.border !== undefined ? { border: sh.border } : {}),
+        ...(sh.coast ? { coast: sh.coast } : {}),
         color: b.renk,
         label: again ? "" : b.ad,
         ...anchor,
@@ -679,6 +750,19 @@ function projectGeoMap(
     : undefined;
   const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
   const battles = (map.savaslar ?? []).map((w, i) => ({ ...toPx(w.konum), label: w.ad, start: lineStart(w.satir, i) }));
+  const onLand = (p: [number, number]) => inOutline(p[0], p[1], data.land) && !inOutline(p[0], p[1], data.lakes);
+  // Tokens are spaced on screen by the renderer (MapUnits), for whatever zoom the camera is at.
+  const units = (map.birlikler ?? []).map((u, i) => {
+    const count = Math.max(1, Math.min(24, Math.round(u.sayi)));
+    let alive = count;
+    const steps = [...u.yerler]
+      .sort((a, b) => a.satir - b.satir)
+      .map((y) => {
+        alive = Math.max(0, alive - Math.max(0, Math.round(y.kayip ?? 0)));
+        return { start: lineStart(y.satir, i), points: formationPoints(y, count, onLand).map((p) => toPx(p)), alive };
+      });
+    return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), steps };
+  });
   const drawn: V3GeoMap = {
     land: polygonsPath(v, data.land),
     lakes: polygonsPath(v, data.lakes),
@@ -698,6 +782,10 @@ function projectGeoMap(
     ...(opts.relief ? { relief: opts.relief } : {}),
     ...(badges.length ? { badges } : {}),
     ...(battles.length ? { battles } : {}),
+    ...(units.length ? { units } : {}),
+    // A province grid step and a bit (0.02° ≈ 2.2 km, ~3 km across the diagonal): the colour then always reaches the coast.
+    ...(coast.size ? { coastPad: Math.round((COAST_PAD_KM / ((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width)) * 10) / 10 } : {}),
+    ...(opts.era ? { era: opts.era } : {}),
     ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),
     // The story's main state (the script names it first) gets the stronger border, like the main state of an atlas map.
     ...(named.length ? { mainTerritory: others.length } : {}),

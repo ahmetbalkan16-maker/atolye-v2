@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { periodEndYear } from "../backgrounds/HistorySources";
+import { type Era, eraOf } from "../backgrounds/HistorySources";
 import type { Episode, EpisodeScene, SceneSetting, SfxId } from "../episode/EpisodeTypes";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { sideProcessEnv } from "../tts/Tts";
@@ -22,15 +22,7 @@ import { measurePiece, type PieceStats } from "./MusicComposer";
  */
 export const MOSS_SFX_MODEL_ID = "OpenMOSS-Team/MOSS-SoundEffect-v2.0";
 
-export type Era = "antik" | "orta" | "erken-modern" | "modern";
-
-export function eraOf(donem: string): Era {
-  const year = periodEndYear(donem);
-  if (year === undefined || year >= 1800) return "modern";
-  if (year < 500) return "antik";
-  if (year < 1450) return "orta";
-  return "erken-modern";
-}
+export { type Era, eraOf };
 
 /**
  * What each period-telling effect sounds like in each era (English for the model). Effects not listed here are the

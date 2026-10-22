@@ -15,7 +15,7 @@ import type { MapWorld } from "./MapBuilder";
  */
 export const RELIEF_CREDIT = "Terrain relief: Natural Earth I with Shaded Relief, Water and Drainages (public domain, naturalearthdata.com)";
 /** Bump when the colouring of scripts/v3/relief_crop.py changes, so the library cuts again. */
-const RELIEF_VERSION = 2;
+const RELIEF_VERSION = 3;
 const SOURCE_PX_PER_DEG = 60;
 const MAX_WIDTH = 8192;
 const MIN_WIDTH = 960;

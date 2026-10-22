@@ -4,6 +4,7 @@ import type { V3CastMember, V3Extra, V3GeoMap } from "../../../src/lib/v3/render
 import { type AccessoryIndex, Character } from "../character/Character";
 import { extraState } from "../character/extras";
 import { HEAD_CY, INK } from "../character/rig";
+import { BattleBursts, UnitTokens } from "./MapUnits";
 
 const OCEAN = "#22406a";
 const OCEAN_DEEP = "#172e4f";
@@ -265,6 +266,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
     );
     return (
       <g key={`b${i}`} transform={`translate(${b.x} ${b.y})`}>
+        {/* The fighting itself (owner, 22 Oct 2026): bursts round the place for a few seconds, in the era's way. */}
+        <BattleBursts x={0} y={0} start={b.start} frame={frame} fps={fps} k={k} era={map.era} seed={i + 1} />
         {flash > 0 ? <circle r={70 * k * (1.4 - flash * 0.4)} fill="#ffd34d" opacity={0.55 * flash} /> : null}
         <g transform={`scale(${pop})`}>
           {blade(-38)}
@@ -290,6 +293,23 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
     const a = interpolate(frame, [start, start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return end === undefined ? a : a * interpolate(frame, [end, end + Math.round(fps * 0.6)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   };
+  // A sweeping conquest gets its border (and its colour to the coast) once the sweep has covered the land.
+  const borderAlpha = (t: V3GeoMap["territories"][number]) =>
+    t.spread?.length ? visible(t.start + Math.round(sweepSeconds(t.start) * fps), t.end) : t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
+  // Everything but a state's own fill: its colour carried to the coast never doubles over the fill.
+  // `edge`: the fill's own edge stroke (world px), left out too so no thin seam shows where the two meet.
+  const outsideMask = (d: string, i: number, edge = 0) => (
+    <mask key={`o${i}`} id={`${id}-out${i}`} maskUnits="userSpaceOnUse" x={0} y={0} width={world.width} height={world.height}>
+      <rect x={0} y={0} width={world.width} height={world.height} fill="#ffffff" />
+      <path d={d} fill="#000000" {...(edge ? { stroke: "#000000", strokeWidth: edge, strokeLinejoin: "round" as const } : {})} />
+    </mask>
+  );
+  const coastPadOf = (t: V3GeoMap["territories"][number], i: number, opacity: number, growing: boolean) =>
+    t.coast && opacity > 0 && frame >= t.start ? (
+      <g key={`p${i}`} mask={`url(#${id}-out${i})`}>
+        <path d={t.coast} fill="none" stroke={t.color} strokeOpacity={opacity} strokeWidth={map.coastPad! * 2} strokeLinejoin="round" strokeLinecap="butt" mask={growing ? `url(#${id}-grow${i})` : undefined} />
+      </g>
+    ) : null;
   return (
     <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
       <defs>
@@ -315,7 +335,11 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
       <g transform={`translate(${W / 2} ${H / 2}) scale(${cam.zoom}) translate(${-cam.x} ${-cam.y})`}>
         {relief ? (
           <>
-            <image href={staticFile(map.relief!)} x={0} y={0} width={world.width} height={world.height} preserveAspectRatio="none" />
+            {/* The terrain on the vector land only (its water filled with land by relief_crop.py): on a close view the
+                image's own coarse coast showed as steps of sea in the land (map trial, 22 Oct 2026). */}
+            <g mask={`url(#${id}-land)`}>
+              <image href={staticFile(map.relief!)} x={0} y={0} width={world.width} height={world.height} preserveAspectRatio="none" />
+            </g>
             {/* Shallow water: a light band along every coast on the sea side, like the reference maps' bright shores. */}
             <g mask={`url(#${id}-sea)`}>
               <path d={map.land} fill="none" stroke="#7fc4d8" strokeOpacity={0.16} strokeWidth={34 * k} strokeLinejoin="round" />
@@ -346,8 +370,12 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                   </mask>
                 ) : null;
               })}
+              {map.coastPad ? map.territories.map((t, i) => (t.coast ? outsideMask(t.d, i, t.border !== undefined && !t.spread?.length ? 5 * k : 0) : null)) : null}
             </defs>
             <g mask={`url(#${id}-land)`} style={{ mixBlendMode: "hard-light" }}>
+              {/* Each state's colour carried from its provinces' stepped coast to the coastline, outside its own fill
+                  (map trial, 22 Oct 2026: bare steps of land along every coast on a close view). */}
+              {map.coastPad ? map.territories.map((t, i) => coastPadOf(t, i, 0.9 * borderAlpha(t), !t.spread?.length && t.start > 0 && frame < t.start + Math.round(fps * 1.6))) : null}
               {map.territories.map((t, i) => {
                 // A conquest sweeps over its land band by band from where the army came (owner, 22 Oct 2026).
                 if (t.spread?.length) {
@@ -367,13 +395,12 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                 const growing = t.start > 0 && frame < t.start + Math.round(fps * 1.6);
                 // A state built from provinces is drawn opaque with a 5 px edge in its own colour and faded as a whole:
                 // the edge closes the slivers between provinces, and no inner edge shows darker.
-                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill={t.color} fillRule="evenodd" {...(t.border ? { stroke: t.color, strokeWidth: 5 * k, strokeLinejoin: "round" as const, opacity: 0.9 * a } : { fillOpacity: 0.9 * a })} mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
+                return a > 0 && frame >= t.start ? <path key={i} d={t.d} fill={t.color} fillRule="evenodd" {...(t.border !== undefined ? { stroke: t.color, strokeWidth: 5 * k, strokeLinejoin: "round" as const, opacity: 0.9 * a } : { fillOpacity: 0.9 * a })} mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
               })}
             </g>
             <g mask={`url(#${id}-land)`}>
               {map.territories.map((t, i) => {
-                // A sweeping conquest gets its border once the sweep has covered the land.
-                const a = t.spread?.length ? visible(t.start + Math.round(sweepSeconds(t.start) * fps), t.end) : t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
+                const a = borderAlpha(t);
                 const growing = !t.spread?.length && t.start > 0 && frame < t.start + Math.round(fps * 1.6);
                 return a > 0 && frame >= t.start ? <path key={i} d={t.border ?? t.d} fill="none" stroke={shade(t.color, i === map.mainTerritory ? 0.4 : 0.5)} strokeOpacity={0.95 * a} strokeWidth={(i === map.mainTerritory ? 4.4 : 2.6) * k} strokeLinejoin="round" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
               })}
@@ -384,11 +411,15 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
         ) : (
           <g mask={`url(#${id}-land)`}>
             <path d={map.land} fill="none" stroke={LAND_SHADE} strokeWidth={26 * k} opacity={0.6} />
+            {map.coastPad ? (
+              <defs>{map.territories.map((t, i) => (t.coast ? outsideMask(t.d, i) : null))}</defs>
+            ) : null}
+            {map.coastPad ? map.territories.map((t, i) => coastPadOf(t, i, 0.78 * visible(t.start, t.end), false)) : null}
             {map.territories.map((t, i) => {
               const a = visible(t.start, t.end);
               if (a <= 0) return null;
               // A state built from provinces: its fill has their inner edges, so only its own outline is stroked.
-              return t.border ? (
+              return t.border !== undefined ? (
                 <g key={i}>
                   <path d={t.d} fill={t.color} fillOpacity={0.78 * a} fillRule="evenodd" />
                   <path d={t.border} fill="none" stroke="#ffffff" strokeOpacity={a} strokeWidth={4 * k} strokeLinejoin="round" strokeLinecap="round" />
@@ -401,6 +432,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
         )}
         {relief ? (
           <>
+            {/* Lakes drawn too, now that the terrain image carries no water of its own. */}
+            <path d={map.lakes} fill={OCEAN} stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} fillRule="evenodd" />
             {/* A thin dark coastline: the coloured states end cleanly at the sea. */}
             <path d={map.land} fill="none" stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} strokeLinejoin="round" />
             {/* Sea names like an atlas (owner's example map): pale spaced italic capitals. */}
@@ -528,6 +561,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             </g>
           );
         })}
+        {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
+        <UnitTokens map={map} frame={frame} fps={fps} k={k} />
         {/* On the relief map cities are written over the routes: a dotted march through Belgrade cut its name. */}
         {relief
           ? map.cities.map((c, i) => (

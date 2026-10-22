@@ -64,9 +64,14 @@ def crop(tiles, west, east, south, north, out_w, out_h, out):
 
 
 def grade(im):
-    """The reference channel's look: richer land colours and a deep blue sea (Natural Earth's own colours are pale)."""
+    """The reference channel's land colours (Natural Earth's own are pale), with its water filled in by the land round it.
+
+    The map draws this image on its vector land only, over its own sea (map trial, 22 Oct 2026: on a close view the
+    image's coarse coast showed as steps of sea inside the land and of land in the sea), so the image needs no sea —
+    only land that reaches past its own coast to wherever the vector coast lies.
+    """
     import numpy as np
-    from PIL import ImageEnhance
+    from PIL import Image, ImageEnhance, ImageFilter
 
     land = ImageEnhance.Contrast(ImageEnhance.Color(im).enhance(1.25)).enhance(1.18)
     a = np.asarray(land).astype(np.float32)
@@ -74,12 +79,23 @@ def grade(im):
     a *= np.array([0.78, 0.86, 0.66], dtype=np.float32)
     src = np.asarray(im).astype(np.float32)
     water = (src[..., 2] > src[..., 0] + 22) & (src[..., 2] >= src[..., 1])
-    deep = np.array([28, 62, 104], dtype=np.float32)
-    # Keep the sea's own relief shading: darken towards the deep blue by its brightness.
-    shade = (src[..., :3].mean(axis=2, keepdims=True) / 255.0) * 0.55 + 0.6
-    a[water] = (deep * shade[water]).clip(0, 255)
-    from PIL import Image
-
+    if water.any() and not water.all():
+        # Water takes the land colour blurred out of the land beside it, wider and wider till every pixel has some.
+        keep = (~water).astype(np.float32)
+        filled = a.copy()
+        todo = water.copy()
+        for radius in (4, 16, 64, 256):
+            w = np.asarray(Image.fromarray((keep * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(radius))).astype(np.float32) / 255.0
+            c = np.stack([np.asarray(Image.fromarray((a[..., i] * keep).clip(0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(radius))).astype(np.float32) / 255.0 for i in range(3)], axis=2)
+            # PIL blurs only 8-bit images: a pixel with little land round it is left for a wider blur, not divided by noise.
+            ok = todo & (w > 0.2)
+            filled[ok] = (c[ok] * 255.0) / w[ok][:, None]
+            todo &= ~ok
+            if not todo.any():
+                break
+        if todo.any():
+            filled[todo] = a[~water].mean(axis=0)
+        a = filled
     return Image.fromarray(a.clip(0, 255).astype(np.uint8))
 
 

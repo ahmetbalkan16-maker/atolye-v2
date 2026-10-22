@@ -299,11 +299,12 @@ export interface V3GeoMap {
    * state's size (absent: 46). The period's other states colour the map without a name (`label` empty, no anchor).
    */
   /** `border`: the state's own outline when it is built from provinces (the fill `d` then has their inner edges). */
+  /** `coast`: its provinces' edges on the sea, which `coastPad` widens to the coastline (the grid steps short of it). */
   /**
    * `spread`: a conquest — the state's land in bands by distance from where the army came; each band comes in after
    * `delay` (0..1, a share of the sweep's time) from `start`, so the colour sweeps across like a front.
    */
-  readonly territories: readonly { readonly d: string; readonly border?: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly labelSize?: number; readonly start: number; readonly end?: number; readonly spread?: readonly { readonly d: string; readonly delay: number }[]; readonly sweepScale?: number; readonly covered?: { readonly start: number; readonly delay: number } }[];
+  readonly territories: readonly { readonly d: string; readonly border?: string; readonly coast?: string; readonly color: string; readonly label: string; readonly labelX?: number; readonly labelY?: number; readonly labelSize?: number; readonly start: number; readonly end?: number; readonly spread?: readonly { readonly d: string; readonly delay: number }[]; readonly sweepScale?: number; readonly covered?: { readonly start: number; readonly delay: number } }[];
   readonly cities: readonly { readonly x: number; readonly y: number; readonly label: string }[];
   /** `path`: an army that marches (first point = where it stands) from `moveStart`, leaving a dotted trail. */
   readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number; readonly path?: readonly { readonly x: number; readonly y: number }[]; readonly moveStart?: number }[];
@@ -324,11 +325,26 @@ export interface V3GeoMap {
   readonly seas?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly size: number }[];
   /** Kilometres per world pixel (the relief map's scale bar). */
   readonly kmPerPx?: number;
+  /** How far (world pixels) a state's colour is carried past its provinces' coast, to reach the coastline. */
+  readonly coastPad?: number;
   /** Index in `territories` of the story's main state (the script's first): a stronger border. */
   readonly mainTerritory?: number;
   /** Rulers' portrait badges (a cast member's head); with more than one point they travel the path from `moveStart` (default `start`). */
   readonly badges?: readonly { readonly castId: string; readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }[];
   readonly battles?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly start: number }[];
+  /**
+   * A side's unit tokens: each formation's token positions (world pixels) from its frame on; between formations they
+   * slide. `alive`: how many tokens are left from that formation on (losses fade out).
+   */
+  readonly units?: readonly {
+    readonly side: string;
+    readonly color: string;
+    readonly emblem: string;
+    readonly letters?: string;
+    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number }[];
+  }[];
+  /** The episode's era, for era-dependent battle effects (antik/orta: dust and clash; erken-modern/modern: fire and smoke). */
+  readonly era?: "antik" | "orta" | "erken-modern" | "modern";
 }
 
 export interface V3Shot {

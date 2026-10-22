@@ -9,11 +9,12 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, formationPoints, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
 import { reliefSize } from "../src/lib/v3/maps/Relief";
 import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
-import { ADMIN_QUANT_DEG, assignUnits, dissolve } from "../src/lib/v3/maps/AdminUnits";
+import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
+import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { checkMapPlaces, decidePlace, distanceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -456,6 +457,67 @@ async function main() {
     assert.ok((t.d.match(/M/g) ?? []).length === 2, "filled with its two provinces");
     assert.deepEqual(geo.seas?.map((s) => s.label), ["EGE DENİZİ"]);
     assert.ok(geo.kmPerPx! > 0.5 && geo.kmPerPx! < 0.7, `1200 km across 1920 px: ${geo.kmPerPx}`);
+    // The grid's coast (edges of one province only) is no border: A's border is where it meets B, its coast is padded
+    // out to the coastline (map trial, 22 Oct 2026: stepped borders and bare land along every coast up close).
+    const coast = coastEdges(units);
+    assert.equal(coast.size, 8, "the strip's outer edges: 3 + 3 along, 1 + 1 at the ends");
+    assert.equal(dissolve(got.get(0)!, (e) => !coast.has(e)).lines.length, 1, "A's land border: its one edge with B");
+    assert.deepEqual(dissolve(got.get(0)!, (e) => !coast.has(e)).lines[0]!.map((p) => p[0]), [22, 22]);
+    assert.ok(t.coast && (t.coast.match(/M/g) ?? []).length >= 1, "A's coast is carried separately");
+    assert.ok(t.border!.length < t.coast!.length, "the border is only the short edge with B");
+    assert.ok(geo.coastPad! > 4 && geo.coastPad! < 6, `3.2 km at ~0.63 km a pixel: ${geo.coastPad}`);
+    assert.deepEqual(unitsIn(units, { west: 21.5, east: 30, south: 35, north: 45 }).map((u) => u.name), ["a2", "b1"]);
+  });
+
+  await scenario("O8 units on the map (owner, 22 Oct 2026, the reference channel's WW2 map narration): fronts, clusters and sieges of tokens, losses, spacing, the era", () => {
+    // Formations: a front evenly along its line, a siege ring that keeps to the land, a cluster on land first.
+    assert.deepEqual(formationPoints({ cephe: [[20, 40], [22, 40]] }, 3), [[20, 40], [21, 40], [22, 40]]);
+    const westIsLand = (p: [number, number]) => p[0] < 22;
+    const ring = formationPoints({ kusatma: [22, 40], km: 40 }, 6, westIsLand);
+    assert.equal(ring.length, 6);
+    assert.ok(ring.every((p) => p[0] < 22), `a coastal city's siege ring keeps to the land: ${JSON.stringify(ring)}`);
+    const lats = ring.map((p) => p[1]);
+    assert.ok(Math.max(...lats) > 40.25 && Math.min(...lats) < 39.75, "laid out end to end over the land arc");
+    assert.ok(formationPoints({ kusatma: [22, 40], km: 40 }, 6).some((p) => p[0] > 22), "with no land test, the full ring");
+    assert.ok(formationPoints({ kusatma: [22, 40], km: 40 }, 4, () => false).some((p) => p[0] > 22), "an island fort (no land round it): the full ring");
+    const cluster = formationPoints({ kume: [22, 40], km: 30 }, 5, westIsLand);
+    assert.ok(cluster.filter((p) => p[0] < 22).length === 5, "a cluster on the coast stands on its land places");
+    // Spacing on screen: tokens given one place part to a full gap; tokens already apart stay where they are.
+    const parted = separateTokens(Array.from({ length: 6 }, () => ({ x: 100, y: 100 })), 50);
+    for (let a = 0; a < parted.length; a++) for (let b = a + 1; b < parted.length; b++) assert.ok(Math.hypot(parted[a]!.x - parted[b]!.x, parted[a]!.y - parted[b]!.y) >= 49.9, "no two tokens on each other");
+    assert.deepEqual(parted, separateTokens(Array.from({ length: 6 }, () => ({ x: 100, y: 100 })), 50), "the same every frame");
+    assert.deepEqual(separateTokens([{ x: 0, y: 0 }, { x: 80, y: 0 }], 50), [{ x: 0, y: 0 }, { x: 80, y: 0 }]);
+    // The built map: steps in line order, starting with their line; losses carried forward; letters cut to three.
+    const land = [[[[15, 35], [30, 35], [30, 45], [15, 45], [15, 35]]]];
+    const map: SceneMap = {
+      merkez: [22, 40],
+      genislik_km: 1200,
+      birlikler: [
+        { taraf: "Ottomans", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 2, kusatma: [22, 40], km: 30, kayip: 1 }, { satir: 0, kume: [20, 40] }] },
+        { taraf: "Allies", renk: "#3f6fb5", amblem: "harf", harf: "ABCD", sayi: 3, yerler: [{ satir: 1, cephe: [[23, 39], [23, 41]] }, { satir: 2, cephe: [[23, 39], [23, 41]], kayip: 2 }, { satir: 3, cephe: [[23, 39], [23, 41]], kayip: 5 }] },
+      ],
+    };
+    const geo = buildGeoMap(map, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/zemin.jpg", era: "erken-modern" });
+    assert.equal(geo.era, "erken-modern");
+    const [ott, allies] = geo.units!;
+    assert.deepEqual(ott!.steps.map((s) => [s.start, s.points.length, s.alive]), [[0, 4, 4], [200, 4, 3]], "the gathering first, then the siege with one lost");
+    assert.deepEqual(allies!.steps.map((s) => s.alive), [3, 1, 0], "losses add up and never go below none");
+    assert.equal(allies!.letters, "ABC");
+    assert.equal(ott!.emblem, "hilal");
+    assert.ok(allies!.steps[0]!.points[0]!.y > allies!.steps[0]!.points[2]!.y, "a front laid from its first point (south) to its last (north)");
+    // Validation.
+    const ep = sampleEpisode();
+    const withMap = (h: unknown) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: h }] } as never);
+    const ok = { merkez: [22, 40], genislik_km: 1200, birlikler: [{ taraf: "A", renk: "#c0392b", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, kume: [20, 40] }] }] };
+    assert.equal(withMap(ok).ok, true, JSON.stringify(withMap(ok).errors.slice(0, 2)));
+    const bad = (u: Record<string, unknown>) => withMap({ ...ok, birlikler: [{ ...ok.birlikler[0], ...u }] }).ok;
+    assert.equal(bad({ amblem: "ejderha" }), false, "an emblem from the list");
+    assert.equal(bad({ amblem: "harf" }), false, "a letter emblem needs its letters");
+    assert.equal(bad({ sayi: 30 }), false, "at most 24 tokens");
+    assert.equal(bad({ yerler: [] }), false, "at least one formation");
+    assert.equal(bad({ yerler: [{ satir: 0, kume: [20, 40], cephe: [[20, 40], [21, 40]] }] }), false, "one formation a step");
+    assert.equal(bad({ yerler: [{ kume: [20, 40] }] }), false, "a step needs its line");
+    assert.equal(bad({ yerler: [{ satir: 0, kusatma: [20, 40], km: 1 }] }), false, "a siege ring of at least 2 km");
   });
 
   await scenario("O7 the living map (owner, 22 Oct 2026): a conquest sweeps from where the army came, the old owner's name goes as the front passes, armies march, lines glow, the camera follows a march", () => {

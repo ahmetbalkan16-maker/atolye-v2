@@ -25,6 +25,7 @@ import type {
   V3Transition,
   V3VisemeKey,
 } from "../render/RenderPlanTypes";
+import { eraOf } from "../backgrounds/HistorySources";
 import { buildGeoMap, type MapData, mapOnScreen, mapStageX } from "../maps/MapBuilder";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
@@ -386,6 +387,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
           castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
           ...(input.language ? { language: input.language } : {}),
+          era: eraOf(episode.donem),
         })
       : undefined;
     // A lone character on a map stands where they hide the fewest names, unless the script placed them.

@@ -108,9 +108,7 @@ export function inOutline(lon: number, lat: number, polys: readonly (readonly Ri
  */
 export function assignUnits(units: readonly AdminUnit[], groups: readonly (readonly { readonly key: number; readonly polys: readonly (readonly Ring[])[] }[])[], world: { readonly west: number; readonly east: number; readonly south: number; readonly north: number }): Map<number, AdminUnit[]> {
   const out = new Map<number, AdminUnit[]>();
-  for (const u of units) {
-    // On the globe: a province at 170° W lies in a Pacific world that runs to 200°.
-    if (u.box.north < world.south || u.box.south > world.north || ![-360, 0, 360].some((d) => u.box.east + d >= world.west && u.box.west + d <= world.east)) continue;
+  for (const u of unitsIn(units, world)) {
     const [lon, lat] = u.centre;
     for (const group of groups) {
       const holders = group.filter((s) => inOutline(lon, lat, s.polys));
@@ -123,10 +121,39 @@ export function assignUnits(units: readonly AdminUnit[], groups: readonly (reado
 }
 
 /**
+ * The province edges on the sea: those of one province only among `units` (all the provinces in a world), keyed as
+ * `dissolve` keys them. On the grid a coast is a staircase a little off the map's own coastline (map trial, 22 Oct 2026:
+ * steps of bare land and a stepped border along every coast on a close view), so a state's border leaves them out and
+ * its colour is carried over them to the coastline.
+ */
+export function coastEdges(units: readonly AdminUnit[]): Set<string> {
+  const count = new Map<string, number>();
+  for (const u of units)
+    for (const r of u.rings) {
+      const n = r.length / 2;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const ka = `${r[2 * i]},${r[2 * i + 1]}`;
+        const kb = `${r[2 * j]},${r[2 * j + 1]}`;
+        if (ka === kb) continue;
+        const k = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+        count.set(k, (count.get(k) ?? 0) + 1);
+      }
+    }
+  return new Set([...count].filter(([, n]) => n === 1).map(([k]) => k));
+}
+
+/** The provinces in a world (on the globe: a province at 170° W lies in a Pacific world that runs to 200°). */
+export function unitsIn(units: readonly AdminUnit[], world: { readonly west: number; readonly east: number; readonly south: number; readonly north: number }): AdminUnit[] {
+  return units.filter((u) => !(u.box.north < world.south || u.box.south > world.north || ![-360, 0, 360].some((d) => u.box.east + d >= world.west && u.box.west + d <= world.east)));
+}
+
+/**
  * A state's outline from its provinces: every province edge shared by two of its provinces cancels out, the rest is the
  * state's border, chained into lines. Rings that close are its pieces (for placing the name). Points are lon/lat.
+ * With `keep`, only the edges it keeps (by `coastEdges`' keys) are used.
  */
-export function dissolve(units: readonly AdminUnit[]): { lines: [number, number][][]; rings: [number, number][][] } {
+export function dissolve(units: readonly AdminUnit[], keep?: (edge: string) => boolean): { lines: [number, number][][]; rings: [number, number][][] } {
   const key = (x: number, y: number) => `${x},${y}`;
   const edges = new Map<string, { a: [number, number]; b: [number, number]; n: number }>();
   for (const u of units) {
@@ -140,6 +167,7 @@ export function dissolve(units: readonly AdminUnit[]): { lines: [number, number]
         const kb = key(b[0], b[1]);
         if (ka === kb) continue;
         const k = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+        if (keep && !keep(k)) continue;
         const e = edges.get(k);
         if (e) e.n++;
         else edges.set(k, { a, b, n: 1 });

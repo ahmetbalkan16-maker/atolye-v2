@@ -18,6 +18,7 @@ import {
   SET_LIGHTS,
   SFX_IDS,
   TIMES_OF_DAY,
+  UNIT_EMBLEMS,
   TRANSITIONS,
   WEATHERS,
   type Episode,
@@ -278,6 +279,34 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         lineIndex(o, "satir", op);
         lineIndex(o, "yol_satir", op);
         (Array.isArray(o.yol) ? o.yol : []).forEach((pt, k) => lonLat(pt, `${op}.yol[${k}]`));
+      });
+      (arr(h, "birlikler", hp, true) ?? []).forEach((u, ui) => {
+        const up = `${hp}.birlikler[${ui}]`;
+        if (!isObj(u)) return err("HARITA_BIRLIK", up, "nesne bekleniyor");
+        str(u, "taraf", up, { max: 40 });
+        str(u, "renk", up, { pattern: HEX });
+        oneOf(u, "amblem", up, UNIT_EMBLEMS);
+        if (u.amblem === "harf") str(u, "harf", up, { max: 3 });
+        num(u, "sayi", up, 1, 24);
+        const steps = arr(u, "yerler", up) ?? [];
+        if (!steps.length) err("HARITA_BIRLIK", `${up}.yerler`, "en az bir yerleşim gerekli");
+        steps.forEach((y, yi) => {
+          const yp = `${up}.yerler[${yi}]`;
+          if (!isObj(y)) return err("HARITA_BIRLIK", yp, "nesne bekleniyor");
+          if (y.satir === undefined) err("HARITA_BIRLIK", yp, "satir gerekli");
+          lineIndex(y, "satir", yp);
+          num(y, "kayip", yp, 0, 24, true);
+          const kinds = ["cephe", "kume", "kusatma"].filter((key) => y[key] !== undefined);
+          if (kinds.length !== 1) return err("HARITA_BIRLIK", yp, "tam olarak biri: cephe (çizgi), kume (nokta) ya da kusatma (nokta)");
+          if (y.cephe !== undefined) {
+            const pts = Array.isArray(y.cephe) ? y.cephe : [];
+            if (!pts.length) err("HARITA_BIRLIK", `${yp}.cephe`, "en az 1 nokta");
+            pts.forEach((pt, k) => lonLat(pt, `${yp}.cephe[${k}]`));
+          } else {
+            lonLat(y.kume ?? y.kusatma, `${yp}.${kinds[0]}`);
+            num(y, "km", yp, 2, 1000, true);
+          }
+        });
       });
       (arr(h, "cizgiler", hp, true) ?? []).forEach((c, ci) => {
         const cp = `${hp}.cizgiler[${ci}]`;

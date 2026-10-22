@@ -324,6 +324,17 @@ export function periodEndYear(donem: string): number | undefined {
   return bce ? -Math.min(...years) : Math.max(...years);
 }
 
+/** The age a period belongs to (sound effects, battle effects, vehicles on the map): before gunpowder warfare or after. */
+export type Era = "antik" | "orta" | "erken-modern" | "modern";
+
+export function eraOf(donem: string): Era {
+  const year = periodEndYear(donem);
+  if (year === undefined || year >= 1800) return "modern";
+  if (year < 500) return "antik";
+  if (year < 1450) return "orta";
+  return "erken-modern";
+}
+
 /** Short source plate for a cutaway: title, author/year, where it is from. */
 export function insertCaption(c: CommonsCandidate, language: "tr" | "en"): string {
   const where = c.source === "met" ? "The Met" : "Wikimedia Commons";

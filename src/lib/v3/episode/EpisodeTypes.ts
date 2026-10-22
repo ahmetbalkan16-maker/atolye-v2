@@ -151,6 +151,35 @@ export interface SceneMap {
   readonly rozetler?: readonly { readonly karakter: string; readonly konum: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly yol?: readonly [number, number][]; readonly yol_satir?: number }[];
   /** A battle at a place from a line (crossed swords). */
   readonly savaslar?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly satir?: number }[];
+  /**
+   * Unit tokens (owner, 22 Oct 2026, after the reference channel's WW2 map): a side's round tokens with its emblem,
+   * standing where its forces are and moving line by line — along a front, in a cluster, or ringing a besieged place.
+   * Each `yer` is the tokens' formation from its line on; the tokens slide from one formation to the next.
+   */
+  readonly birlikler?: readonly MapUnits[];
+}
+
+/** Emblems a side's tokens can carry (drawn in the studio's flat style; no real flags of ancient states exist). */
+export const UNIT_EMBLEMS = ["kartal", "hilal", "hac", "yildiz", "aslan", "tac", "kalkan", "kilic", "gunes", "orak_cekic", "harf"] as const;
+export type UnitEmblem = (typeof UNIT_EMBLEMS)[number];
+
+/** Where a side's tokens stand: along a front line, in a cluster round a point, or in a ring round a besieged place. */
+export type UnitFormation =
+  | { readonly cephe: readonly [number, number][] }
+  | { readonly kume: readonly [number, number]; readonly km?: number }
+  | { readonly kusatma: readonly [number, number]; readonly km?: number };
+
+export interface MapUnits {
+  /** The side (for the log and the legend): "Ottomans", "Byzantium". */
+  readonly taraf: string;
+  readonly renk: string;
+  readonly amblem: UnitEmblem;
+  /** With amblem "harf": 1–3 letters on the token ("SPQR" is too long; "R"). */
+  readonly harf?: string;
+  /** How many tokens (2–24). */
+  readonly sayi: number;
+  /** The formation from line `satir` on; the tokens slide to each next one with its line. */
+  readonly yerler: readonly ({ readonly satir: number; readonly kayip?: number } & UnitFormation)[];
 }
 
 export interface SceneTitleCard {

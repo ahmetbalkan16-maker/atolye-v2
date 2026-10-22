@@ -1,0 +1,64 @@
+{
+  "id": "harita-fetih-1453",
+  "baslik": "The Fall of Constantinople",
+  "konu": "The fall of Constantinople",
+  "donem": "1453",
+  "hedef_sure_sn": 40,
+  "ton": "mizahi",
+  "kaynaklar": [
+    { "id": "wikipedia-fall-of-constantinople", "kunye": "Wikipedia, \"Fall of Constantinople\"", "url": "https://en.wikipedia.org/wiki/Fall_of_Constantinople" }
+  ],
+  "oyuncu_kadrosu": [
+    { "id": "anlatici", "ad": "Narrator", "rol": "Your guide", "kostum_paketi": "", "renk": "#333333", "ses_id": "en-anlatici", "konusma_tarzi": "Dry", "gorunur": false }
+  ],
+  "sahneler": [
+    {
+      "id": "m1-kusatma",
+      "sure_hedef": 40,
+      "mekan": "Living map: Thrace and Constantinople, 1453",
+      "arka_plan_sorgusu": { "tr": "İstanbul haritası 1453", "en": "map of Constantinople 1453" },
+      "duygu": "gerilim",
+      "muzik_ruh_hali": "tense",
+      "harita": {
+        "merkez": [27.9, 41.3],
+        "genislik_km": 520,
+        "kamera": [{ "satir": 2, "merkez": [28.9, 41.05], "genislik_km": 180 }],
+        "bolgeler": [
+          { "ad": "Ottoman Empire", "renk": "#c0392b", "tarihi": { "ad": "Ottoman Empire", "yil": 1400 }, "satir": 0 },
+          { "ad": "Byzantium", "renk": "#7a3fa0", "noktalar": [[28.925, 41.036], [28.97, 41.045], [29.0, 41.02], [28.99, 41.0], [28.93, 40.995], [28.918, 41.01]], "etiket_konum": [28.965, 41.02], "satir": 0, "bitis_satir": 4 },
+          { "ad": "Ottoman Empire", "renk": "#c0392b", "noktalar": [[28.925, 41.036], [28.97, 41.045], [29.0, 41.02], [28.99, 41.0], [28.93, 40.995], [28.918, 41.01]], "yayilma": { "satir": 4, "kaynak": [28.92, 41.02] } }
+        ],
+        "sehirler": [
+          { "ad": "Edirne", "konum": [26.56, 41.68] },
+          { "ad": "Constantinople", "konum": [28.975, 41.012] }
+        ],
+        "birlikler": [
+          {
+            "taraf": "Ottomans", "renk": "#c0392b", "amblem": "hilal", "sayi": 7,
+            "yerler": [
+              { "satir": 1, "kume": [26.56, 41.68], "km": 26 },
+              { "satir": 2, "cephe": [[28.82, 41.22], [28.84, 41.12], [28.87, 41.04], [28.89, 40.995]] },
+              { "satir": 3, "cephe": [[28.9, 41.2], [28.895, 41.1], [28.9, 41.03], [28.915, 41.0]] },
+              { "satir": 4, "kume": [28.96, 41.022], "km": 2.6 }
+            ]
+          },
+          {
+            "taraf": "Byzantium", "renk": "#7a3fa0", "amblem": "kartal", "sayi": 3,
+            "yerler": [
+              { "satir": 3, "kume": [28.94, 41.02], "km": 2, "kayip": 1 },
+              { "satir": 4, "kume": [28.94, 41.02], "km": 2, "kayip": 2 }
+            ]
+          }
+        ],
+        "savaslar": [{ "ad": "The Land Walls", "konum": [28.913, 41.016], "satir": 3 }]
+      },
+      "satirlar": [
+        { "karakter": "anlatici", "metin": "Spring 1453. Constantinople, all that is left of the Byzantine Empire, stands alone in an Ottoman sea.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "In Edirne, Sultan Mehmed the Second gathers an army of some eighty thousand men.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "By April they have surrounded the city, by land and by sea.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "For fifty-three days the Ottoman cannons pound the great land walls, and the defenders grow fewer.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] },
+        { "karakter": "anlatici", "metin": "On the twenty-ninth of May, the walls are breached, and the city falls.", "duygu": "notr", "kaynak": ["wikipedia-fall-of-constantinople"] }
+      ]
+    }
+  ]
+}
