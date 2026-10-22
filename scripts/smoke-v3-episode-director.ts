@@ -231,6 +231,30 @@ async function main() {
     assert.equal(ins[0]!.start, 0);
     assert.equal(ins[0]!.caption, "Buondelmonti, 1430");
     assert.ok(ins[0]!.end <= Math.round(tl.lines[1]!.start * fps), "karakter konuşmadan önce sete dönülür");
+    // A living set (owner, 22 Oct 2026): its first line shows where we are, and a narrator line told while the crowd
+    // marches stays on the march — the benchmark hid the legion's wading behind an engraving.
+    const living: Episode = {
+      ...ep,
+      sahneler: [
+        {
+          ...ep.sahneler[0]!,
+          ortam: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma" },
+          kalabalik: [{ ad: "Legio", kostum_paketi: "ottoman-1453", kostum: castBase.kostum, sayi: 6, duzen: "ordu", taraf: "sol", hareket: { tur: "yuru", satir: 3 } }],
+          satirlar: [...ep.sahneler[0]!.satirlar.slice(0, 3), { karakter: "anlatici", metin: "And the legion waded across.", duygu: "notr" }, { karakter: "anlatici", metin: "Rome would never be the same.", duygu: "notr" }],
+        },
+      ],
+    };
+    const tl3 = buildTimeline(living, [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(2.2), fakeAudio(2.6)]]);
+    const drawnPlan = buildRenderPlan({ episode: living, timeline: tl3, cast: [...toRenderCast(living.oyuncu_kadrosu, "kukla"), ...crowdCast(living, "kukla")], accessories: [], backgrounds: [{ src: "", kind: "drawn", drawn: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", tohum: 1 } }], inserts: [{ src: "bg/donem.jpg" }], fps, width: 1920, height: 1080, showCaptions: false });
+    const cut = drawnPlan.shots[0]!.inserts ?? [];
+    const lineFrames = (i: number) => [Math.round(tl3.lines[i]!.start * fps), Math.round(tl3.lines[i]!.end * fps)] as const;
+    assert.ok(!cut.some((w) => w.start < lineFrames(0)[1]), "the first line shows the living set, not the engraving");
+    assert.ok(!cut.some((w) => w.start < lineFrames(3)[1] && w.end > lineFrames(3)[0]), "the march's line stays on the march");
+    assert.equal(cut.length, 0, "the column is still wading through the last line: it stays on screen too");
+    // Without the march, the later narrator lines cut away as before.
+    const still: Episode = { ...living, sahneler: [{ ...living.sahneler[0]!, kalabalik: [{ ...living.sahneler[0]!.kalabalik![0]!, hareket: undefined }] }] };
+    const stillPlan = buildRenderPlan({ episode: still, timeline: tl3, cast: [...toRenderCast(still.oyuncu_kadrosu, "kukla"), ...crowdCast(still, "kukla")], accessories: [], backgrounds: [{ src: "", kind: "drawn", drawn: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", tohum: 1 } }], inserts: [{ src: "bg/donem.jpg" }], fps, width: 1920, height: 1080, showCaptions: false });
+    assert.equal(stillPlan.shots[0]!.inserts!.length, 1, "a narrator stretch told while nothing moves still cuts away");
   });
 
   await scenario("M clean framing: no character is left half in shot at a frame edge", () => {

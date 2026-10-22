@@ -617,8 +617,14 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const prevMood = si > 0 ? episode.sahneler[si - 1]!.duygu : undefined;
     const transitionIn: V3Transition = scene.gecis ?? (si === 0 ? "kes" : prevMood !== scene.duygu ? "murekkep" : "kaydir");
     const period = input.inserts?.[si];
+    // On a living set the moment itself is on screen (owner, 22 Oct 2026; the quality brain's story score on the
+    // benchmark): no cutaway while anyone moves on stage — the legion wading the Rubicon was hidden behind an
+    // engraving — nor over the scene's first line, which shows where and when we are.
+    const living = input.backgrounds[si]?.kind === "drawn";
+    const moving = (from: number, to: number) => extras.some((e) => e.move && e.move.start < to && e.move.end > from) || performers.some((p) => p.moves.some((m) => m.start < to && m.end > from));
+    const firstLine = lines[0];
     const inserts: V3Insert[] = period
-      ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) })), duration, fps, tracks.size > 0).map((w, i) => ({
+      ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
           src: period.src,
           ...w,
           // Alternate push-in and pull-out so two cutaways to the same picture do not look like a repeat.
