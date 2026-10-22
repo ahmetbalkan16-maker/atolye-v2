@@ -261,6 +261,7 @@ async function main() {
     const ridePlan = buildRenderPlan({ episode: mounted, timeline: tl3, cast: [...toRenderCast(mounted.oyuncu_kadrosu, "kukla"), ...crowdCast(mounted, "kukla")], accessories: [], backgrounds: [{ src: "", kind: "drawn", drawn: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", tohum: 1 } }], fps, width: 1920, height: 1080, showCaptions: false });
     const rider = ridePlan.shots[0]!.performers.find((p) => p.castId === "mehmed")!;
     assert.equal(rider.mount, "at");
+    assert.equal(rider.turns?.length ?? 0, 0, "a rider does not turn his horse round to face whoever speaks (benchmark 3)");
     const walkerPlan = buildRenderPlan({ episode: living, timeline: tl3, cast: [...toRenderCast(living.oyuncu_kadrosu, "kukla"), ...crowdCast(living, "kukla")], accessories: [], backgrounds: [{ src: "", kind: "drawn", drawn: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", tohum: 1 } }], fps, width: 1920, height: 1080, showCaptions: false });
     const closeY = (plan: typeof ridePlan) => Math.min(...plan.shots[0]!.camera.filter((c) => c.zoom > 1.3).map((c) => c.cy));
     assert.ok(closeY(ridePlan) < closeY(walkerPlan), "a rider's close shot is framed higher than a walker's");

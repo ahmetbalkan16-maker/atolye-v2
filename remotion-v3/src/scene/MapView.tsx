@@ -115,8 +115,8 @@ const SPREAD_S = 4.5;
 const MARCH_S_PER_1000PX = 4.6;
 const MARCH_MIN_S = 4.5;
 const MARCH_MAX_S = 12;
-/** How long one band of a sweeping conquest takes to fade in (the front's softness). */
-const BAND_FADE_S = 1.1;
+/** How long one band of a sweeping conquest takes to fade in: short, so the half-blended red over blue never shows as a grey band (benchmark 3, 22 Oct 2026); 16 bands keep the front smooth. */
+const BAND_FADE_S = 0.6;
 
 /** Scale bar lengths a map would print. */
 const SCALE_STEPS_KM = [25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 2500, 5000];

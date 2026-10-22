@@ -479,7 +479,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         if (gesture) speaker.gestures.push({ gesture, start: ls + 2, end: Math.max(ls + 6, le - 3), ...(toward ? { toward } : {}) });
         const effect = line.efekt ?? (line.jest === "sasir" ? "unlem" : undefined);
         if (effect) speaker.effects.push({ effect, start: ls, end: ls + Math.min(f(1.6), le - ls + f(0.5)) });
-        if (toward && toward !== speaker.facing && !line.hareket) {
+        // A rider never turns his horse round to face someone: the horse keeps the way it goes.
+        if (toward && toward !== speaker.facing && !line.hareket && !slots.get(line.karakter)?.mount) {
           speaker.turns.push({ frame: ls, facing: toward });
           speaker.facing = toward;
         }
@@ -497,7 +498,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         if (id === line.karakter) continue;
         if (speaker) {
           const face = sideOf(tr.x, speaker.x);
-          if (face !== tr.facing) {
+          if (face !== tr.facing && !slots.get(id)?.mount) {
             tr.turns.push({ frame: ls + f(0.15), facing: face });
             tr.facing = face;
           }
