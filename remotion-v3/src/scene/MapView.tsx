@@ -106,9 +106,17 @@ function taperedArrow(pts: readonly { x: number; y: number }[], base: number, ne
   return `M${left.join(" L")} L${hl} L${tip.x} ${tip.y} L${hr} L${right.reverse().join(" L")} Z`;
 }
 
-/** How long a conquest takes to sweep over its land, and an army to march (screen seconds per 1000 px of route). */
-const SPREAD_S = 2.6;
-const MARCH_S_PER_1000PX = 2.4;
+/**
+ * How long a conquest takes to sweep over its land, and an army to march (screen seconds per 1000 px of route). Owner,
+ * 22 Oct 2026: "the map's progress should be a little slower, clearer and smoother" — the first pace (2.6 s, 2.4 s)
+ * rushed; both are now about twice as slow, and never longer than what is left of the shot.
+ */
+const SPREAD_S = 4.5;
+const MARCH_S_PER_1000PX = 4.6;
+const MARCH_MIN_S = 4.5;
+const MARCH_MAX_S = 12;
+/** How long one band of a sweeping conquest takes to fade in (the front's softness). */
+const BAND_FADE_S = 1.1;
 
 /** Scale bar lengths a map would print. */
 const SCALE_STEPS_KM = [25, 50, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 2500, 5000];
@@ -170,7 +178,7 @@ function labelLines(text: string): string[] {
   return [t.slice(0, cut), t.slice(cut + 1)];
 }
 /** How long the camera takes to reach a new view (seconds), and a badge to travel its route. */
-const CAMERA_MOVE_S = 1.4;
+const CAMERA_MOVE_S = 2.4;
 const BADGE_TRAVEL_S = 3;
 
 type Key = NonNullable<V3GeoMap["camera"]>[number];
@@ -211,7 +219,7 @@ function along(points: readonly { x: number; y: number }[], f: number): { x: num
  * routes, battles flash. With a world and camera keys the camera glides from region to region; names, marks and badges
  * keep their size on screen at every zoom. Coordinates arrive in world (or frame) pixels.
  */
-export function MapView({ map, width: W, height: H, cast, accessories }: { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex }) {
+export function MapView({ map, width: W, height: H, cast, accessories, duration }: { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -266,14 +274,17 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
       </g>
     );
   });
+  // What is left of the shot after a frame (an animation must end on screen, before the cut).
+  const leftS = (from: number) => (duration === undefined ? Infinity : Math.max(1.5, (duration - from) / fps - 0.6));
   // How long an army's march takes on screen (by its route's length as seen at the camera's zoom then).
-  const marchSeconds = (path: readonly { x: number; y: number }[], from: number) => Math.min(8, Math.max(2.2, ((pathLength(path) * 1080 * cameraAt(map.camera, from + Math.round(fps * CAMERA_MOVE_S), fps, W, H).zoom) / H / 1000) * MARCH_S_PER_1000PX));
+  const marchSeconds = (path: readonly { x: number; y: number }[], from: number) =>
+    Math.min(leftS(from), MARCH_MAX_S, Math.max(MARCH_MIN_S, ((pathLength(path) * 1080 * cameraAt(map.camera, from + Math.round(fps * CAMERA_MOVE_S), fps, W, H).zoom) / H / 1000) * MARCH_S_PER_1000PX));
   // A conquest told with a march sweeps as fast as the army goes (town after town as it passes), else in SPREAD_S.
   const sweepSeconds = (start: number) => {
     const army = map.armies.find((a) => a.path && a.path.length > 1 && Math.abs((a.moveStart ?? a.start) - start) <= 1);
     // Land beyond the march's end falls after the army arrives, at its pace.
     const scale = map.territories.find((t) => t.spread?.length && t.start === start)?.sweepScale ?? 1;
-    return army ? marchSeconds(army.path!, start) * scale : SPREAD_S;
+    return Math.min(leftS(start) - BAND_FADE_S, army ? marchSeconds(army.path!, start) * scale : SPREAD_S);
   };
   const visible = (start: number, end: number | undefined) => {
     const a = interpolate(frame, [start, start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -346,7 +357,7 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
                     <g key={i} opacity={fade}>
                       {t.spread.map((b, j) => {
                         const at = t.start + Math.round(b.delay * sweep * fps);
-                        const a = interpolate(frame, [at, at + Math.round(fps * 0.45)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+                        const a = interpolate(frame, [at, at + Math.round(fps * BAND_FADE_S)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
                         return a > 0 ? <path key={j} d={b.d} fill={t.color} fillRule="evenodd" stroke={t.color} strokeWidth={5 * k} strokeLinejoin="round" opacity={0.9 * a} /> : null;
                       })}
                     </g>
@@ -464,17 +475,22 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
           const marching = path && progress > 0 && progress < 1;
           const ahead = path ? along(path, Math.min(1, progress + 0.02)) : at;
           const dir = marching && ahead.x < at.x ? -1 : 1;
-          const bob = marching ? Math.abs(Math.sin((frame - from) * 0.55)) * -6 * k : 0;
+          const bob = marching ? Math.abs(Math.sin((frame - from) * 0.45)) * -5 * k : 0;
+          // Behind the army, the campaign arrow grows as it advances (the history channels' march): broad at its base,
+          // tapering to the unit, translucent so towns and terrain show through. On the flat map, a dotted trail.
+          const smooth = path ? smoothPoints(path) : undefined;
+          const body = smooth && progress > 0.01 ? taperedArrow(partialPoints(smooth, progress), 30 * k, 16 * k, 0, 1) : "";
           return (
             <g key={`a${i}`}>
-              {path && progress > 0 ? <path d={partialPath(path, progress)} fill="none" stroke={a.color} strokeWidth={7 * k} strokeLinecap="round" strokeDasharray={`0.1 ${16 * k}`} style={{ filter: `drop-shadow(0 ${1.5 * k}px ${1.5 * k}px rgba(0,0,0,0.55))` }} /> : null}
+              {relief && body ? <path d={body} fill={a.color} fillOpacity={0.72} stroke="rgba(40,8,12,0.75)" strokeWidth={2.5 * k} strokeLinejoin="round" style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.45))` }} /> : null}
+              {!relief && path && progress > 0 ? <path d={partialPath(path, progress)} fill="none" stroke={a.color} strokeWidth={7 * k} strokeLinecap="round" strokeDasharray={`0.1 ${16 * k}`} /> : null}
               {/* The unit stands just above its place, so the town's dot and name under it stay readable. */}
-              <g transform={`translate(${at.x} ${at.y - 40 * k + bob}) scale(${pop})`}>
-                <path d={`M0 ${22 * k} L0 ${40 * k}`} stroke="#ffffff" strokeWidth={3 * k} />
-                <rect x={-34 * k} y={-22 * k} width={68 * k} height={44 * k} rx={6 * k} fill={a.color} stroke="#ffffff" strokeWidth={5 * k} />
-                <path d={`M${-34 * k} ${-22 * k} L${34 * k} ${22 * k} M${34 * k} ${-22 * k} L${-34 * k} ${22 * k}`} stroke="#ffffff" strokeWidth={4 * k} opacity={0.85} />
-                {marching ? <path d={`M${dir * 40 * k} ${-10 * k} L${dir * 54 * k} 0 L${dir * 40 * k} ${10 * k} Z`} fill="#ffffff" stroke={INK} strokeWidth={2 * k} /> : null}
-                <g transform={`translate(0 ${-48 * k})`}>{markLabel(a.label, 30)}</g>
+              <g transform={`translate(${at.x} ${at.y - 46 * k + bob}) scale(${pop})`} style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
+                <path d={`M0 ${27 * k} L0 ${46 * k}`} stroke="#ffffff" strokeWidth={3.5 * k} />
+                <rect x={-42 * k} y={-27 * k} width={84 * k} height={54 * k} rx={7 * k} fill={a.color} stroke="#ffffff" strokeWidth={5.5 * k} />
+                <path d={`M${-42 * k} ${-27 * k} L${42 * k} ${27 * k} M${42 * k} ${-27 * k} L${-42 * k} ${27 * k}`} stroke="#ffffff" strokeWidth={4.5 * k} opacity={0.85} />
+                {marching ? <path d={`M${dir * 48 * k} ${-12 * k} L${dir * 64 * k} 0 L${dir * 48 * k} ${12 * k} Z`} fill="#ffffff" stroke={INK} strokeWidth={2 * k} /> : null}
+                <g transform={`translate(0 ${-56 * k})`}>{markLabel(a.label, 34)}</g>
               </g>
             </g>
           );
@@ -530,7 +546,8 @@ export function MapView({ map, width: W, height: H, cast, accessories }: { map: 
           // A campaign (owner, 21 Oct 2026: "Bayezid sets out, the badge moves showing where he goes"): the badge sets off
           // with its line, takes longer on a longer road, and leaves a dotted trail behind it.
           const moveFrom = b.moveStart ?? b.start;
-          const travelS = relief ? Math.min(7, Math.max(2.5, (pathLength(b.path) * 1080) / H / 260)) : BADGE_TRAVEL_S;
+          // A ruler's journey keeps the marches' unhurried pace (owner, 22 Oct 2026), ending before the cut.
+          const travelS = relief ? Math.min(leftS(moveFrom), MARCH_MAX_S, Math.max(MARCH_MIN_S, (pathLength(b.path) * 1080) / H / 150)) : BADGE_TRAVEL_S;
           const progress = interpolate(frame, [moveFrom, moveFrom + fps * travelS], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
           const at = along(b.path, progress);
           const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } });

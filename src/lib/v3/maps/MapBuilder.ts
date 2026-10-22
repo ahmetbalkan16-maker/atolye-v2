@@ -503,7 +503,7 @@ export function buildGeoMap(
 }
 
 /** Bands a conquest sweeps in: enough for a front to read, few enough to stay a handful of paths. */
-const SPREAD_BANDS = 8;
+const SPREAD_BANDS = 16;
 
 /**
  * A conquest's front (owner, 22 Oct 2026: "the map shows nothing happening"): the state's provinces grouped by their

@@ -85,7 +85,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>
             {shot.geoMap ? (
               <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>
-                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} />
+                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} duration={shot.duration} />
               </div>
             ) : drawn ? (
               <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "hidden" }}>
