@@ -65,7 +65,7 @@ for (const item of cases) {
     const edits = item.task.exactFiles.flatMap((file) => historicalEdits(item.baseHead, item.fixHead, file));
     const parsed = parseAyasLocalCodingPatch({ schemaVersion: "1", edits }, item.task, sources, "multi-edit");
     for (const source of parsed.sources) assert.equal(source.content, git("show", `${item.fixHead}:${source.path}`), `${source.path} must equal the fix`);
-    assert.ok(edits.length <= AYAS_LOCAL_CODING_MAX_MULTI_EDITS && parsed.changedLines <= item.task.maxChangedLines);
+    assert.ok(edits.length <= AYAS_LOCAL_CODING_MAX_MULTI_EDITS && parsed.changedLines <= item.task.maxChangedLines, "assert.ok(edits.length <= AYAS_LOCAL_CODING_MAX_MULTI_EDITS && parsed.changedLines <= item.task.maxChangedLines)");
     console.log(`${item.caseId}: edits=${edits.length} changedLines=${parsed.changedLines}/${item.task.maxChangedLines}`);
     // The defect this format repairs: the same fix cannot be submitted in the original one-edit-per-file format.
     assert.throws(() => parseAyasLocalCodingPatch({ schemaVersion: "1", edits }, item.task, sources), /PATCH_(?:SCHEMA_INVALID|SCOPE_OR_SCHEMA_INVALID)/);
@@ -85,13 +85,13 @@ const quoted = (text: string, lines: readonly string[]): string | undefined => l
 check("the leak check itself catches a quoted fix line and a quoted evaluator line", () => {
   const item = cases[0]!; const lines = protectedLines(item);
   const fixLine = lines[0]!; const evaluatorLine = lines.find((line) => line.startsWith("assert."))!;
-  assert.ok(quoted(`Please ${fixLine}`, lines)); assert.ok(quoted(`Note: ${evaluatorLine}`, lines));
-  assert.equal(quoted("A later explicit decision supersedes the earlier one.", lines), undefined);
+  assert.ok(quoted(`Please ${fixLine}`, lines), "assert.ok(quoted(`Please ${fixLine}`, lines))"); assert.ok(quoted(`Note: ${evaluatorLine}`, lines), "assert.ok(quoted(`Note: ${evaluatorLine}`, lines))");
+  assert.equal(quoted("A later explicit decision supersedes the earlier one.", lines), undefined, "assert.equal(quoted(\"A later explicit decision supersedes the earlier one.\", lines), undefined)");
 });
 for (const item of cases) {
   check(`${item.caseId}: acceptance criteria are bounded and carry no fix code, evaluator line or hidden case identity`, () => {
     const criteria = AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA[item.caseId];
-    assert.ok(Array.isArray(criteria) && criteria.length >= 1 && criteria.length <= AYAS_LOCAL_CODING_MAX_ACCEPTANCE_CRITERIA && Object.isFrozen(criteria));
+    assert.ok(Array.isArray(criteria) && criteria.length >= 1 && criteria.length <= AYAS_LOCAL_CODING_MAX_ACCEPTANCE_CRITERIA && Object.isFrozen(criteria), "assert.ok(Array.isArray(criteria) && criteria.length >= 1 && criteria.length <= AYAS_LOCAL_CODING_MAX_ACCEPTANCE_CRITERIA && Object.isFrozen(criteria))");
     const text = normalize(criteria.join(" "));
     const leak = quoted(text, protectedLines(item));
     assert.equal(leak, undefined, `criterion quotes a fix or evaluator line: ${leak?.slice(0, 60)}`);
@@ -100,18 +100,18 @@ for (const item of cases) {
       assert.ok(!text.includes(hidden), `criterion names hidden case identity: ${hidden}`);
     }
     const request = buildAyasLocalCodingModelRequest(item.task, sourcesAt(item.baseHead, item.task), "qwen3-coder:30b", { patchFormat: "multi-edit", acceptanceCriteria: criteria }) as { messages: { content: string }[] };
-    assert.deepEqual(JSON.parse(request.messages[1]!.content).acceptanceCriteria, criteria);
+    assert.deepEqual(JSON.parse(request.messages[1]!.content).acceptanceCriteria, criteria, "assert.deepEqual(JSON.parse(request.messages[1]!.content).acceptanceCriteria, criteria)");
     assert.match(request.messages[0]!.content, /acceptanceCriteria state the required behavior/);
   });
 }
 check("every evaluable case has criteria and no other key exists", () => {
-  assert.deepEqual(Object.keys(AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA).sort(), cases.map((item) => item.caseId).sort());
-  assert.ok(Object.isFrozen(AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA));
+  assert.deepEqual(Object.keys(AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA).sort(), cases.map((item) => item.caseId).sort(), "assert.deepEqual(Object.keys(AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA).sort(), cases.map((item) => item.caseId).sort())");
+  assert.ok(Object.isFrozen(AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA), "assert.ok(Object.isFrozen(AYAS_LOCAL_CODING_ACCEPTANCE_CRITERIA))");
 });
 check("without criteria the context has no acceptanceCriteria key", () => {
   const item = cases[0]!;
   const request = buildAyasLocalCodingModelRequest(item.task, sourcesAt(item.baseHead, item.task), "qwen3-coder:30b") as { messages: { content: string }[] };
-  assert.equal("acceptanceCriteria" in JSON.parse(request.messages[1]!.content), false);
+  assert.equal("acceptanceCriteria" in JSON.parse(request.messages[1]!.content), false, "assert.equal(\"acceptanceCriteria\" in JSON.parse(request.messages[1]!.content), false)");
   for (const bad of [[], Array.from({ length: AYAS_LOCAL_CODING_MAX_ACCEPTANCE_CRITERIA + 1 }, () => "x"), ["a\nb"], ["x".repeat(401)], [""]]) {
     assert.throws(() => buildAyasLocalCodingModelRequest(item.task, sourcesAt(item.baseHead, item.task), "qwen3-coder:30b", { acceptanceCriteria: bad }), /REQUEST_OPTIONS_INVALID/);
   }
@@ -120,8 +120,8 @@ check("the multi-edit schema and rule appear only when requested", () => {
   const item = cases[0]!; const sources = sourcesAt(item.baseHead, item.task);
   const plain = buildAyasLocalCodingModelRequest(item.task, sources, "qwen3-coder:30b") as { messages: { content: string }[]; response_format: { json_schema: { schema: { properties: { edits: { maxItems: number } } } } } };
   const multi = buildAyasLocalCodingModelRequest(item.task, sources, "qwen3-coder:30b", { patchFormat: "multi-edit" }) as typeof plain;
-  assert.equal(plain.response_format.json_schema.schema.properties.edits.maxItems, 2);
-  assert.equal(multi.response_format.json_schema.schema.properties.edits.maxItems, AYAS_LOCAL_CODING_MAX_MULTI_EDITS);
+  assert.equal(plain.response_format.json_schema.schema.properties.edits.maxItems, 2, "assert.equal(plain.response_format.json_schema.schema.properties.edits.maxItems, 2)");
+  assert.equal(multi.response_format.json_schema.schema.properties.edits.maxItems, AYAS_LOCAL_CODING_MAX_MULTI_EDITS, "assert.equal(multi.response_format.json_schema.schema.properties.edits.maxItems, AYAS_LOCAL_CODING_MAX_MULTI_EDITS)");
   assert.doesNotMatch(plain.messages[0]!.content, /must not overlap/); assert.match(multi.messages[0]!.content, /edits in one file must not overlap/);
 });
 check("multi-edit refuses overlap, non-unique or stale searches, scope escape, too many edits and a shared budget overrun", () => {
@@ -131,7 +131,7 @@ check("multi-edit refuses overlap, non-unique or stale searches, scope escape, t
   const sources = [{ path: "src/example.ts", content }];
   const edit = (search: string, replace: string, extra: Partial<AyasLocalCodingPatchEdit> = {}) => ({ path: "src/example.ts", beforeSha256: sha(content), search, replace, ...extra });
   const ok = parseAyasLocalCodingPatch({ schemaVersion: "1", edits: [edit("const c = 3;", "const c = 30;"), edit("const b = 2;", "const b = 20;")] }, task, sources, "multi-edit");
-  assert.equal(ok.sources[0]!.content, "const a = 1;\nconst b = 20;\nconst c = 30;\nconst a2 = 1;\n"); assert.equal(ok.changedLines, 4);
+  assert.equal(ok.sources[0]!.content, "const a = 1;\nconst b = 20;\nconst c = 30;\nconst a2 = 1;\n", "assert.equal(ok.sources[0]!.content, \"const a = 1;\\nconst b = 20;\\nconst c = 30;\\nconst a2 = 1;\\n\")"); assert.equal(ok.changedLines, 4, "assert.equal(ok.changedLines, 4)");
   const refuse = (edits: unknown[], pattern: RegExp) => assert.throws(() => parseAyasLocalCodingPatch({ schemaVersion: "1", edits }, task, sources, "multi-edit"), pattern);
   refuse([edit("const b = 2;\nconst c", "x"), edit("c = 3;", "y")], /PATCH_BASE_OR_UNIQUE_SEARCH_MISMATCH/);
   refuse([edit("const b = 2;", "x"), edit("const b = 2;", "y")], /PATCH_BASE_OR_UNIQUE_SEARCH_MISMATCH/);
