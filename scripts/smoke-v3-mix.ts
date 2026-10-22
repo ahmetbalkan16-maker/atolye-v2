@@ -9,7 +9,7 @@ import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary"
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { AMBIENCE_LUFS, ambienceChain, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
-import { ambiencePrompt, designSounds, eraOf, MAX_AMBIENCE_PLACES, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
+import { ambiencePrompt, designSounds, eraOf, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { voiceCredit } from "../src/lib/v3/tts/Tts";
 import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
@@ -145,6 +145,10 @@ async function main() {
       ],
     } as unknown as EpisodeTimeline;
     assert.deepEqual(sfxCues(rubicon, tl2).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["su", 4.9], ["adim", 6.2], ["su", 7.6], ["basari", 8]]);
+    // In a living set a run is feet, not a cartoon whoosh; the same effect twice within a second is one.
+    const run = { sahneler: [{ ...rubicon.sahneler[1]!, kalabalik: [], satirlar: [{ karakter: "a", metin: "Run!", duygu: "korkmus", hareket: "kos" }, { karakter: "b", metin: "Wait!", duygu: "korkmus", hareket: "yuru" }, { karakter: "anlatici", metin: "z", duygu: "notr" }] }] } as unknown as Episode;
+    const tl3 = { ...tl2, scenes: [{ sceneIndex: 0, start: 0, end: 8 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 0.6 }, { sceneIndex: 0, lineIndex: 1, start: 0.5, end: 3 }, { sceneIndex: 0, lineIndex: 2, start: 3, end: 6 }] } as unknown as EpisodeTimeline;
+    assert.deepEqual(sfxCues(run, tl3).map((c) => c.id), ["adim", "basari"], "running feet, and the walk 0.5 s later does not double them");
   });
 
   await scenario("F samples land on the exact sample and anything past the end is dropped", () => {
@@ -233,6 +237,20 @@ async function main() {
     assert.deepEqual(soundProblems(ok, { prompt: "", seconds: 3, seed: 0, kind: "efekt" }), []);
     assert.ok(soundProblems({ ...ok, durationS: 9 }, { prompt: "", seconds: 20, seed: 0, kind: "ortam" })[0]!.startsWith("süre"), "an ambience bed must be nearly as long as asked");
     assert.ok(soundProblems({ ...ok, meanDb: -60 }, { prompt: "", seconds: 3, seed: 0, kind: "efekt" })[0]!.startsWith("çok sessiz"));
+    // A drum must have hits (benchmark, 22 Oct 2026: "drums and a bronze horn call" came out a 3 s buzzing drone).
+    const rate = 8000;
+    const drone = Float32Array.from({ length: rate * 3 }, (_, i) => 0.3 * Math.sin((2 * Math.PI * 220 * i) / rate) + 0.1 * Math.sin((2 * Math.PI * 440 * i) / rate));
+    const hits = Float32Array.from({ length: rate * 3 }, (_, i) => {
+      const t = (i % (rate * 0.75)) / rate;
+      return Math.exp(-30 * t) * Math.sin((2 * Math.PI * 70 * i) / rate);
+    });
+    assert.ok(onsetContrastDb(drone, rate) < 3, `a drone: ${onsetContrastDb(drone, rate).toFixed(1)} dB`);
+    assert.ok(onsetContrastDb(hits, rate) > MIN_ONSET_CONTRAST_DB, `four hits: ${onsetContrastDb(hits, rate).toFixed(1)} dB`);
+    const drum = { prompt: "", seconds: 3, seed: 0, kind: "efekt" as const, percussive: true as const };
+    assert.ok(soundProblems(ok, drum, onsetContrastDb(drone, rate))[0]!.startsWith("vuruş yok"));
+    assert.deepEqual(soundProblems(ok, drum, onsetContrastDb(hits, rate)), []);
+    assert.ok(PERCUSSIVE.has("davul") && PERCUSSIVE.has("adim") && !PERCUSSIVE.has("su"));
+    assert.doesNotMatch(periodSfxPrompt("davul", "antik")!, /horn/, "hits only");
     const ep = { id: "rubicon", donem: "49 BC", sahneler: [{ ...scene, id: "s1" }, { ...scene, id: "s2-harita", mekan: "Map of Italy", harita: { merkez: [12, 43] as [number, number], genislik_km: 700 } }, { ...scene, id: "s3", mekan: "Roman Senate" }] } as unknown as Pick<Episode, "id" | "donem" | "sahneler">;
     const tl = { scenes: [{ sceneIndex: 0, start: 3, end: 15 }, { sceneIndex: 1, start: 15, end: 25 }, { sceneIndex: 2, start: 25, end: 40 }] } as unknown as Pick<EpisodeTimeline, "scenes">;
     const made: string[] = [];

@@ -53,11 +53,12 @@ const PERIOD_SFX: Readonly<Partial<Record<SfxId, Readonly<Record<Era, string>>>>
     "erken-modern": "a crowd in a town square murmuring and gasping",
     modern: "a crowd murmuring and gasping in surprise",
   },
+  // Hits only: "and a bronze horn call" made a 3 s buzzing drone with no drum in it (benchmark, 22 Oct 2026).
   davul: {
-    antik: "ancient war drums and a bronze horn call, marching rhythm",
-    orta: "medieval war drums beating a slow marching rhythm",
-    "erken-modern": "military drums and fifes beating a marching rhythm",
-    modern: "a snare drum roll of a military band",
+    antik: "four deep hits on a large ancient war drum, a slow marching beat, nothing else",
+    orta: "four deep hits on a medieval war drum, a slow marching beat, nothing else",
+    "erken-modern": "four hits on a military bass drum, a slow marching beat, nothing else",
+    modern: "a short military snare drum roll ending in one hit",
   },
   adim: {
     antik: "footsteps of leather sandals on stone pavement, a few steps",
@@ -144,6 +145,34 @@ export interface SoundRequest {
   readonly seed: number;
   /** Effects start at once (leading silence trimmed, tail faded); ambience is a bed. */
   readonly kind: "efekt" | "ortam";
+  /** Hits, steps, clashes: the sound must have beats, not a steady tone (see onsetContrastDb). */
+  readonly percussive?: true;
+}
+
+/** Effects made of separate hits; a steady drone in their place is refused. */
+export const PERCUSSIVE: ReadonlySet<SfxId> = new Set<SfxId>(["davul", "adim", "kilic", "yumruk", "cekic", "top_atisi"]);
+
+/** The least loud-to-quiet contrast a percussive effect needs (dB between its loud and its median 25 ms windows). */
+export const MIN_ONSET_CONTRAST_DB = 8;
+
+/**
+ * How percussive a sound is: the 95th-percentile 25 ms window's level over the median window's, in dB. Drum hits,
+ * steps and clashes with air between them measure 10–30 dB; a drone measures 1–4 dB. The benchmark's "ancient war
+ * drums and a bronze horn call" (22 Oct 2026) was a 3 s buzzing horn with no hit at all (owner: "a strange sound").
+ */
+export function onsetContrastDb(samples: Float32Array, rate: number): number {
+  const win = Math.max(1, Math.round(rate * 0.025));
+  const levels: number[] = [];
+  for (let i = 0; i + win <= samples.length; i += win) {
+    let sum = 0;
+    for (let j = i; j < i + win; j++) sum += samples[j]! * samples[j]!;
+    levels.push(Math.sqrt(sum / win));
+  }
+  if (levels.length < 4) return 0;
+  const sorted = [...levels].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)]! || 1e-9;
+  const loud = sorted[Math.floor(sorted.length * 0.95)]!;
+  return 20 * Math.log10(Math.max(loud, 1e-9) / Math.max(median, 1e-9));
 }
 
 export function soundKey(req: SoundRequest): string {
@@ -151,8 +180,9 @@ export function soundKey(req: SoundRequest): string {
 }
 
 /** Why a sound cannot be used (empty when it can). */
-export function soundProblems(s: PieceStats, req: SoundRequest): string[] {
+export function soundProblems(s: PieceStats, req: SoundRequest, contrastDb?: number): string[] {
   const out: string[] = [];
+  if (req.percussive && contrastDb !== undefined && contrastDb < MIN_ONSET_CONTRAST_DB) out.push(`vuruş yok, sürekli ses (kontrast ${contrastDb.toFixed(1)} dB)`);
   if (s.durationS < (req.kind === "efekt" ? 0.2 : req.seconds * 0.8)) out.push(`süre ${s.durationS.toFixed(1)} sn`);
   if (s.meanDb < (req.kind === "efekt" ? -45 : -55)) out.push(`çok sessiz (ortalama ${s.meanDb.toFixed(1)} dB)`);
   if (s.peakDb > -0.1) out.push(`tepe ${s.peakDb.toFixed(1)} dB`);
@@ -231,7 +261,16 @@ export class SfxDesigner {
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", `${shape},aresample=48000`, "-ac", "1", tmp]);
     await fs.rm(raw, { force: true });
     const stats = await measurePiece(this.paths, tmp);
-    const problems = soundProblems(stats, req);
+    let contrast: number | undefined;
+    if (req.percussive) {
+      // Decoded at 8 kHz mono as raw floats: enough to see the hits.
+      const pcm = `${tmp}.f32`;
+      await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", tmp, "-ac", "1", "-ar", "8000", "-f", "f32le", pcm]);
+      const buf = await fs.readFile(pcm);
+      await fs.rm(pcm, { force: true });
+      contrast = onsetContrastDb(new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4)), 8000);
+    }
+    const problems = soundProblems(stats, req, contrast);
     if (problems.length) {
       await fs.rm(tmp, { force: true });
       return { problems };
@@ -277,7 +316,7 @@ export async function designSounds(
   for (const id of [...new Set(ids)]) {
     const prompt = periodSfxPrompt(id, era);
     if (!prompt) continue;
-    const got = await designer.make({ prompt, seconds: 3, seed: seedOf(`${id}#${era}`), kind: "efekt" }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
+    const got = await designer.make({ prompt, seconds: 3, seed: seedOf(`${id}#${era}`), kind: "efekt", ...(PERCUSSIVE.has(id) ? { percussive: true as const } : {}) }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
     if ("file" in got) {
       effects.set(id, got.file);
       report.push(`efekt ${id}: ${era} dönemi sesi${got.cached ? " (kütüphaneden)" : ""}`);

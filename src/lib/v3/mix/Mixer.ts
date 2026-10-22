@@ -115,7 +115,9 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       else if (si === lastScene && li === scene.satirlar.length - 1) cues.push({ t: lt.start, id: "basari" });
       else if (line.jest === "sasir" || line.efekt === "unlem") cues.push({ t: lt.start, id: "pop" });
       else if (line.efekt === "soru") cues.push({ t: lt.start, id: "boing" });
-      else if (line.hareket === "kos") cues.push({ t: lt.start, id: "whoosh" });
+      // In a living set a run is heard as running feet, not a cartoon whoosh (owner, 22 Oct 2026: "a strange sound
+      // behind the characters while they move").
+      else if (line.hareket === "kos") cues.push({ t: lt.start, id: scene.ortam ? "adim" : "whoosh" });
       else if (line.hareket === "gir" || line.hareket === "yuru") cues.push({ t: lt.start, id: "adim" });
       // Wading into the crossing's river: the splash as the walk reaches the water.
       if ((line.hareket === "yuru" || line.hareket === "kos") && typeof line.hedef === "number" && scene.ortam?.manzara === "nehir_gecidi") {
@@ -143,7 +145,9 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       if (lt) cues.push({ t: lt.start + 0.2, id: "kilic" });
     }
   });
-  return cues.sort((a, b) => a.t - b.t);
+  // The same effect twice within a second is one sound (two footstep runs 0.2 s apart doubled into a clatter).
+  const sorted = cues.sort((a, b) => a.t - b.t);
+  return sorted.filter((c, i) => !sorted.slice(0, i).some((p) => p.id === c.id && c.t - p.t < 1));
 }
 
 /** Adds `src` (mono, SAMPLE_RATE) into `dst` at `at` seconds with `gain`; samples past the end are dropped. */
