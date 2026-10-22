@@ -40,6 +40,46 @@ Kök neden tek tek hatalar değil, sahneleme biçimi:
    görünüyor mu" diye bakar (bugün yalnız teknik kusur arıyor).
 5. **Ölçüt klibi** → owner onayı → tam video (önce kısa, sonra 15–20 dk).
 
+## Yön kararı (owner, 22 Ekim akşam)
+
+Resimli belgesele (yapay zekâ ile resimden video) geçiş önerildi; owner reddetti: "bu yaptığımız çöp adam şeklinde
+ilerleyelim ve bunu bir belgesel video haline getirelim", "hem çöp adam olacak hem de harita üzerinde canlı anlatım".
+Kuklalar ve canlı harita kalır; ikisi belgesel seviyesine çıkarılır. Kuklayı bırakmak yeniden önerilmez.
+
+## Araştırma (22 Ekim): bu tarz kanallar nasıl yapıyor, açık kaynakta ne var
+
+- Hazır "konu ver, belgesel çıksın" aracı yok; bu iddiadaki depolar (enlightenment-pipeline, SceneForge,
+  historical-documentary-video-workflow; 0–11 yıldız) resim + seslendirme + kaydırma yapıyor = slayt gösterisi.
+- OverSimplified: arka planlar, karakterler, haritalar Photoshop'ta; animasyon After Effects'te; taban harita NASA
+  "Whole World Land and Oceans" (kamu malı, düz görünüm, modern şehir yok). Başarısı: sinema gibi kurgu, komik zamanlama,
+  her beat'te ne gösterileceğini bilmek, arka plan şakaları.
+- Kings and Generals / Epic History / History Marche: her harita bölümü ayrı kompozisyon; ordu hareketleri, kuşatma
+  hatları, süvari kanatları, toprak değişimi anlatımla eşzamanlı; şekil katmanı yollarıyla çizilen oklar (trim path).
+- `Fansist/warmap` (Remotion, lisanssız → kod alınmaz, fikir alınır): her şey tarihli anahtar kare, motor ara kareleri
+  üretir; topraklar anahtarlar arasında **biçim değiştirir** (çokgenler aynı nokta sayısına örneklenip hizalanır —
+  sınır "belirmez", kayar); ordular rota boyunca kesik izle yürür, filolar eğri bacaklarla, gemi sayısı azalınca
+  küçülür; savaş patlaması (büyüklük), kuşatılan kale nabız atar, el değiştirince renk değiştirir; ikmal yolu kesilince
+  kırmızı; kamera zoom'u logaritmik; zaman bölümleri (bir günlük savaşa daha çok ekran süresi).
+- Mapimator (tarayıcı aracı): yollar boyunca ilerleyen sivrilen okular, bölge bölge yayılan fetih, taranmış (işgal)
+  topraklar.
+- Arka planlar: SDXL için çizgi film arka plan LoRA'ları — BACKTOON (openrail++, tetik "flatee v3rd", "background
+  plate"), "SDXL Cartoon Background" (982 gerçek çizgi film arka planıyla eğitilmiş, insansız; lisansı sayfadan
+  doğrulanmalı). Bizim canlı katmanlarımız (su, meşale, sis, ışık) bunların üstüne biner.
+- Ses: Freesound (CC0 süzgeci; nehir, gece cırcır, kamp ateşi, yürüyen ordu, kalabalık), Kenney CC0 (zaten var),
+  Sonniss GDC paketleri (telifsiz, ticari serbest, atıf gerekmez; yapay zekâ eğitimi yasak — biz yalnız kullanırız).
+
+## Uygulama sırası (araştırmadan sonra)
+
+1. **Canlı harita**: toprak biçim değiştirmesi (satırla büyüyen/küçülen sınır), rota boyunca yürüyen ordu birlikleri
+   ve kesik iz, ilerledikçe çizilen sivri oklar, savaş patlaması, ele geçen şehrin renk değiştirmesi, orduyu izleyen
+   kamera (logaritmik zoom).
+2. **Sahne ortamı**: SDXL + çizgi film arka plan LoRA'sı ile ayrıntılı düz arka planlar (alt bant karakterlere boş),
+   üstüne bizim canlı katmanlarımız; tek üslup; ortam alanından tarif.
+3. **Ses**: ortama bağlı ambiyans yatakları (nehir, gece, kamp, kalabalık) + harekete bağlı efektler (yürüyüş, suya
+   giriş, at, kılıç), CC0/Sonniss.
+4. **Ölçüt klip** (harita → gece Rubicon → geçiş → haritada yürüyüş), owner'ın gözüyle.
+
 ## Durum
 
-- 1. adım başladı (22 Ekim).
+- 1. adım başladı (22 Ekim): çizili yaşayan ortam, yürüyen kalabalık, suya giren karakter (16e33f3d, wip).
+- Araştırma tamam; sıradaki: canlı harita.
