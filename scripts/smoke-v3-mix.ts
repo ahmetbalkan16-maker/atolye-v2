@@ -128,6 +128,7 @@ async function main() {
     // Owner, 22 Oct 2026 (no meaningless sound): what happens is heard — the legion's march and the water as it wades
     // in, Caesar's splash into the Rubicon, a drum as an army sets off on the map, swords where a battle flashes.
     const rubicon = {
+      donem: "49 BC",
       sahneler: [
         { id: "m", satirlar: [{ karakter: "anlatici", metin: "x", duygu: "notr" }, { karakter: "anlatici", metin: "y", duygu: "notr" }], harita: { merkez: [12, 43], genislik_km: 900, ordular: [{ ad: "Caesar", konum: [12, 44], renk: "#c0392b", yol: [[12, 42]], yol_satir: 1 }], savaslar: [{ ad: "Corfinium", konum: [13.8, 42.1], satir: 1 }] } },
         { id: "k", ortam: { zaman: "gece", manzara: "nehir_gecidi", uslup: "roma", nehir: [0.46, 0.9] }, kalabalik: [{ ad: "Legio", duzen: "ordu", hareket: { tur: "yuru", satir: 1 } }], satirlar: [{ karakter: "a", metin: "Forward!", duygu: "kararli", hareket: "yuru", hedef: 0.72 }, { karakter: "b", metin: "Right behind you!", duygu: "korkmus" }, { karakter: "anlatici", metin: "z", duygu: "notr" }] },
@@ -145,6 +146,29 @@ async function main() {
       ],
     } as unknown as EpisodeTimeline;
     assert.deepEqual(sfxCues(rubicon, tl2).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["davul", 2.1], ["kilic", 2.2], ["adim", 4], ["su", 4.9], ["adim", 6.2], ["su", 7.6], ["basari", 8]]);
+    // 1453 on the map: the battle has cannon fire too, the fleet sets out with the sea, the guns are heard as they
+    // pound, tokens lost to a gunpowder fight are heard the same way.
+    const siege = {
+      donem: "1453",
+      sahneler: [
+        {
+          ...rubicon.sahneler[0]!,
+          harita: {
+            merkez: [28.9, 41],
+            genislik_km: 520,
+            savaslar: [{ ad: "Walls", konum: [28.92, 41.02], satir: 1 }],
+            birlikler: [{ taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 3, yerler: [{ satir: 0, kume: [28.94, 41.02] }, { satir: 1, kume: [28.94, 41.02], kayip: 1 }] }],
+            araclar: [
+              { tur: "gemi", renk: "#c0392b", konum: [28.5, 40.8], satir: 0, yol: [[28.8, 40.9]] },
+              { tur: "top", renk: "#c0392b", konum: [28.86, 41.05], satir: 1, hedef: [28.92, 41.02] },
+            ],
+          },
+        },
+      ],
+    } as unknown as Episode;
+    const tlSiege = { duration: 4, scenes: [{ sceneIndex: 0, start: 0, end: 4 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 2 }, { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 }] } as unknown as EpisodeTimeline;
+    assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["top_atisi", 3.6]]);
+    assert.ok(!sfxCues({ ...siege, donem: "MÖ 49" } as Episode, tlSiege).some((c) => c.id === "top_atisi"), "no cannon before gunpowder");
     // In a living set a run is feet, not a cartoon whoosh; the same effect twice within a second is one.
     const run = { sahneler: [{ ...rubicon.sahneler[1]!, kalabalik: [], satirlar: [{ karakter: "a", metin: "Run!", duygu: "korkmus", hareket: "kos" }, { karakter: "b", metin: "Wait!", duygu: "korkmus", hareket: "yuru" }, { karakter: "anlatici", metin: "z", duygu: "notr" }] }] } as unknown as Episode;
     const tl3 = { ...tl2, scenes: [{ sceneIndex: 0, start: 0, end: 8 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 0.6 }, { sceneIndex: 0, lineIndex: 1, start: 0.5, end: 3 }, { sceneIndex: 0, lineIndex: 2, start: 3, end: 6 }] } as unknown as EpisodeTimeline;

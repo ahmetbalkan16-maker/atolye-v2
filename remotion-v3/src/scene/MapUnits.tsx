@@ -119,7 +119,7 @@ function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; 
 }
 
 /** A burst where fighting happens: dust and sparks before gunpowder, a fireball and smoke after. `p` 0..1. */
-function Burst({ x, y, r, p, era, seed }: { x: number; y: number; r: number; p: number; era: V3GeoMap["era"]; seed: number }) {
+export function Burst({ x, y, r, p, era, seed }: { x: number; y: number; r: number; p: number; era: V3GeoMap["era"]; seed: number }) {
   if (p <= 0 || p >= 1) return null;
   const grow = Easing.out(Easing.cubic)(p);
   const fade = 1 - Easing.in(Easing.quad)(p);

@@ -20,9 +20,12 @@ import {
   TIMES_OF_DAY,
   UNIT_EMBLEMS,
   TRANSITIONS,
+  VEHICLE_KINDS,
+  VEHICLES,
   WEATHERS,
   type Episode,
 } from "./EpisodeTypes";
+import { periodEndYear } from "./Period";
 
 export interface EpisodeIssue {
   readonly level: "hata" | "uyari";
@@ -307,6 +310,21 @@ export function validateEpisode(input: unknown): EpisodeValidation {
             num(y, "km", yp, 2, 1000, true);
           }
         });
+      });
+      (arr(h, "araclar", hp, true) ?? []).forEach((a, ai) => {
+        const ap = `${hp}.araclar[${ai}]`;
+        if (!isObj(a)) return err("HARITA_ARAC", ap, "nesne bekleniyor");
+        const kind = oneOf(a, "tur", ap, VEHICLE_KINDS);
+        str(a, "renk", ap, { pattern: HEX });
+        num(a, "sayi", ap, 1, 6, true);
+        lonLat(a.konum, `${ap}.konum`);
+        if (a.satir === undefined) err("HARITA_ARAC", ap, "satir gerekli");
+        for (const key of ["satir", "bitis_satir", "yol_satir", "ates_satir"]) lineIndex(a, key, ap);
+        (Array.isArray(a.yol) ? a.yol : []).forEach((pt, k) => lonLat(pt, `${ap}.yol[${k}]`));
+        if (a.hedef !== undefined) lonLat(a.hedef, `${ap}.hedef`);
+        // A tank at Constantinople is no history (owner: nothing meaningless on screen).
+        const year = typeof ep.donem === "string" ? periodEndYear(ep.donem) : undefined;
+        if (kind && year !== undefined && (year < VEHICLES[kind][0] || year > VEHICLES[kind][1])) err("HARITA_ARAC_DONEM", `${ap}.tur`, `${kind} ${year} yılına uymuyor (${VEHICLES[kind][0]}–${VEHICLES[kind][1]})`);
       });
       (arr(h, "cizgiler", hp, true) ?? []).forEach((c, ci) => {
         const cp = `${hp}.cizgiler[${ci}]`;

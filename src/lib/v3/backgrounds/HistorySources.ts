@@ -1,4 +1,5 @@
 import { type CommonsCandidate, cachedJson, commonsByTitles, searchCommons } from "./CommonsProvider";
+import { type Era, eraOf, periodEndYear } from "../episode/Period";
 import { judgeLicense } from "./LicenseFilter";
 
 /**
@@ -315,25 +316,8 @@ export async function findPeriodCandidates(cacheDir: string, s: PeriodSearch, pe
   return { candidates, later: ranked.filter((x) => ancient && x.r === 2).map((x) => x.c), report };
 }
 
-/** Last year of an episode period ("1452", "1451–1453", "MÖ 44", "44 BC", "1919-1922"); BCE years are negative. */
-export function periodEndYear(donem: string): number | undefined {
-  // \b is ASCII-only in JavaScript, so it would never see the edge of "MÖ".
-  const bce = /(^|[^\p{L}])(MÖ|M\.Ö\.|BC|BCE)(?!\p{L})/iu.test(donem);
-  const years = [...donem.matchAll(/\b(\d{1,4})\b/g)].map((m) => Number(m[1])).filter((y) => y > 0);
-  if (!years.length) return undefined;
-  return bce ? -Math.min(...years) : Math.max(...years);
-}
-
-/** The age a period belongs to (sound effects, battle effects, vehicles on the map): before gunpowder warfare or after. */
-export type Era = "antik" | "orta" | "erken-modern" | "modern";
-
-export function eraOf(donem: string): Era {
-  const year = periodEndYear(donem);
-  if (year === undefined || year >= 1800) return "modern";
-  if (year < 500) return "antik";
-  if (year < 1450) return "orta";
-  return "erken-modern";
-}
+// The period readers live with the episode (the validator needs them too); re-exported for the existing importers.
+export { type Era, eraOf, periodEndYear };
 
 /** Short source plate for a cutaway: title, author/year, where it is from. */
 export function insertCaption(c: CommonsCandidate, language: "tr" | "en"): string {

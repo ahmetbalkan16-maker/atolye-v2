@@ -2,6 +2,7 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
 import type { Episode, SceneMood, SfxId } from "../episode/EpisodeTypes";
+import { eraOf } from "../episode/Period";
 import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { runChecked } from "../util/Proc";
@@ -140,9 +141,27 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       const lt = o.yol?.length ? lineAt(o.yol_satir ?? o.satir ?? 0) : undefined;
       if (lt) cues.push({ t: lt.start + 0.1, id: "davul" });
     }
+    // A battle sounds like its age: swords before gunpowder, cannon fire after (and the swords still in the melee).
+    const era = scene.harita ? eraOf(episode.donem) : undefined;
+    const gun = era === "erken-modern" || era === "modern";
     for (const w of scene.harita?.savaslar ?? []) {
       const lt = lineAt(w.satir ?? 0);
       if (lt) cues.push({ t: lt.start + 0.2, id: "kilic" });
+      if (lt && gun) cues.push({ t: lt.start + 0.6, id: "top_atisi" });
+    }
+    // Tokens lost on a line: the fight that took them is heard.
+    for (const u of scene.harita?.birlikler ?? [])
+      for (const y of u.yerler) {
+        const lt = (y.kayip ?? 0) > 0 ? lineAt(y.satir) : undefined;
+        if (lt) cues.push({ t: lt.start + 1.6, id: gun ? "top_atisi" : "kilic" });
+      }
+    // Vehicles: the sea as a fleet sets out, the roar of a cavalry or elephant charge, a plane's rush; their fire.
+    for (const a of scene.harita?.araclar ?? []) {
+      const go = a.yol?.length ? lineAt(a.yol_satir ?? a.satir) : undefined;
+      const sound = ({ gemi: "dalga", kadirga: "dalga", yelkenli: "dalga", denizalti: "dalga", suvari: "kalabalik", fil: "kalabalik", ucak: "whoosh" } as Partial<Record<string, SfxId>>)[a.tur];
+      if (go && sound) cues.push({ t: go.start + 0.2, id: sound });
+      const fire = a.hedef && gun ? lineAt(a.ates_satir ?? a.yol_satir ?? a.satir) : undefined;
+      if (fire) cues.push({ t: fire.start + 0.4, id: "top_atisi" }, { t: fire.start + 2.6, id: "top_atisi" });
     }
   });
   // The same effect twice within a second is one sound (two footstep runs 0.2 s apart doubled into a clatter).

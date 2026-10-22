@@ -497,7 +497,7 @@ export function buildGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"] } = {},
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number } = {},
 ): V3GeoMap {
   return declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height);
 }
@@ -505,6 +505,15 @@ export function buildGeoMap(
 /** A point `km` east and `north` km north of `c` (small distances; enough to lay tokens out round a place). */
 function offsetKm(c: readonly [number, number], east: number, north: number): [number, number] {
   return [c[0] + east / (111.32 * Math.max(0.2, Math.cos((c[1] * Math.PI) / 180))), c[1] + north / 110.57];
+}
+
+/**
+ * A ship as its period built them: an oared galley (the Mediterranean's fleets were galleys till about 1600 — the
+ * Ottoman fleet of 1453, Lepanto in 1571), a sailing ship, a steel warship (no year: the last).
+ */
+export function shipLook(year: number | undefined): "kadirga" | "yelkenli" | "gemi" {
+  if (year === undefined) return "gemi";
+  return year < 1600 ? "kadirga" : year < 1860 ? "yelkenli" : "gemi";
 }
 
 /** How far a state's colour is carried past its provinces' coast (km). */
@@ -645,7 +654,7 @@ function projectGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"] },
+  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number },
 ): V3GeoMap {
   const world = mapWorld(map, width, height);
   const v = world.view;
@@ -752,6 +761,17 @@ function projectGeoMap(
   const battles = (map.savaslar ?? []).map((w, i) => ({ ...toPx(w.konum), label: w.ad, start: lineStart(w.satir, i) }));
   const onLand = (p: [number, number]) => inOutline(p[0], p[1], data.land) && !inOutline(p[0], p[1], data.lakes);
   // Tokens are spaced on screen by the renderer (MapUnits), for whatever zoom the camera is at.
+  // Vehicles: a script's ship takes its period's look; the rest are drawn as named.
+  const vehicles = (map.araclar ?? []).map((a, i) => ({
+    kind: a.tur === "gemi" ? shipLook(opts.year) : a.tur,
+    color: a.renk,
+    count: Math.max(1, Math.min(6, Math.round(a.sayi ?? 1))),
+    start: lineStart(a.satir, i),
+    ...(a.bitis_satir !== undefined ? { end: lineStart(a.bitis_satir, i) } : {}),
+    path: [a.konum, ...(a.yol ?? [])].map((p) => toPx(p)),
+    ...(a.yol?.length ? { moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
+    ...(a.hedef ? { target: toPx(a.hedef), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
+  }));
   const units = (map.birlikler ?? []).map((u, i) => {
     const count = Math.max(1, Math.min(24, Math.round(u.sayi)));
     let alive = count;
@@ -783,6 +803,7 @@ function projectGeoMap(
     ...(badges.length ? { badges } : {}),
     ...(battles.length ? { battles } : {}),
     ...(units.length ? { units } : {}),
+    ...(vehicles.length ? { vehicles } : {}),
     // A province grid step and a bit (0.02° ≈ 2.2 km, ~3 km across the diagonal): the colour then always reaches the coast.
     ...(coast.size ? { coastPad: Math.round((COAST_PAD_KM / ((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width)) * 10) / 10 } : {}),
     ...(opts.era ? { era: opts.era } : {}),

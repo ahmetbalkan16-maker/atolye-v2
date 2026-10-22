@@ -50,6 +50,10 @@
             ]
           }
         ],
+        "araclar": [
+          { "tur": "gemi", "renk": "#c0392b", "sayi": 3, "konum": [28.55, 40.8], "satir": 2, "yol": [[28.72, 40.86], [28.86, 40.92]] },
+          { "tur": "top", "renk": "#c0392b", "sayi": 2, "konum": [28.86, 41.07], "satir": 3, "hedef": [28.925, 41.025] }
+        ],
         "savaslar": [{ "ad": "The Land Walls", "konum": [28.913, 41.016], "satir": 3 }]
       },
       "satirlar": [

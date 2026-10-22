@@ -157,6 +157,49 @@ export interface SceneMap {
    * Each `yer` is the tokens' formation from its line on; the tokens slide from one formation to the next.
    */
   readonly birlikler?: readonly MapUnits[];
+  /**
+   * Vehicles (owner, 22 Oct 2026, after the reference channel): a side's ships, galleys, cavalry, elephants, cannons,
+   * tanks or planes, appearing with a line, travelling their route from `yol_satir`, and with `hedef` firing at a place
+   * from `ates_satir` (cannons and ships pound walls, planes bomb). Only what the period had (VEHICLES).
+   */
+  readonly araclar?: readonly MapVehicle[];
+}
+
+/**
+ * Vehicles and the years they belong to: the episode's last year must fall in the range. `gemi` is any ship, drawn as
+ * its period's (a galley before 1600, a sailing ship before 1860, a steel warship after); `kadirga` and `yelkenli`
+ * name the oared galley and the sailing ship outright.
+ */
+export const VEHICLES = {
+  gemi: [-3000, 2100],
+  kadirga: [-3000, 1720],
+  yelkenli: [1400, 1890],
+  denizalti: [1900, 2100],
+  suvari: [-900, 1945],
+  fil: [-1100, 1600],
+  top: [1340, 2100],
+  tank: [1916, 2100],
+  ucak: [1914, 2100],
+} as const satisfies Record<string, readonly [number, number]>;
+export type VehicleKind = keyof typeof VEHICLES;
+export const VEHICLE_KINDS = Object.keys(VEHICLES) as VehicleKind[];
+
+export interface MapVehicle {
+  readonly tur: VehicleKind;
+  /** The side's colour (sail, flag, hull band). */
+  readonly renk: string;
+  /** How many travel together (1–6). */
+  readonly sayi?: number;
+  readonly konum: readonly [number, number];
+  /** It appears with this line; with `bitis_satir` it goes. */
+  readonly satir: number;
+  readonly bitis_satir?: number;
+  /** Its route after `konum`, travelled from `yol_satir` (default `satir`). */
+  readonly yol?: readonly [number, number][];
+  readonly yol_satir?: number;
+  /** Where it fires at, from `ates_satir` (default: once it is there). */
+  readonly hedef?: readonly [number, number];
+  readonly ates_satir?: number;
 }
 
 /** Emblems a side's tokens can carry (drawn in the studio's flat style; no real flags of ancient states exist). */

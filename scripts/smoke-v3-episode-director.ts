@@ -9,7 +9,7 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, formationPoints, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
 import { reliefSize } from "../src/lib/v3/maps/Relief";
 import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
@@ -518,6 +518,37 @@ async function main() {
     assert.equal(bad({ yerler: [{ satir: 0, kume: [20, 40], cephe: [[20, 40], [21, 40]] }] }), false, "one formation a step");
     assert.equal(bad({ yerler: [{ kume: [20, 40] }] }), false, "a step needs its line");
     assert.equal(bad({ yerler: [{ satir: 0, kusatma: [20, 40], km: 1 }] }), false, "a siege ring of at least 2 km");
+  });
+
+  await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {
+    assert.deepEqual([shipLook(-480), shipLook(1453), shipLook(1571), shipLook(1805), shipLook(1916), shipLook(undefined)], ["kadirga", "kadirga", "kadirga", "yelkenli", "gemi", "gemi"]);
+    const land = [[[[15, 35], [30, 35], [30, 45], [15, 45], [15, 35]]]];
+    const map: SceneMap = {
+      merkez: [22, 40],
+      genislik_km: 1200,
+      araclar: [
+        { tur: "gemi", renk: "#c0392b", sayi: 9, konum: [20, 39], satir: 0, yol: [[22, 39.5]], yol_satir: 1, bitis_satir: 3 },
+        { tur: "top", renk: "#c0392b", sayi: 2, konum: [21, 40], satir: 1, hedef: [22, 40], ates_satir: 2 },
+      ],
+    };
+    const geo = buildGeoMap(map, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100, { year: 1453 });
+    const [fleet, guns] = geo.vehicles!;
+    assert.deepEqual([fleet!.kind, fleet!.count, fleet!.start, fleet!.moveStart, fleet!.end, fleet!.path.length], ["kadirga", 6, 0, 100, 300, 2], "1453's fleet is galleys, at most six drawn");
+    assert.deepEqual([guns!.kind, guns!.start, guns!.fireStart, guns!.moveStart], ["top", 100, 200, undefined]);
+    assert.ok(guns!.target!.x > guns!.path[0]!.x, "the target east of the guns");
+    // Validation: a tank in 1453 is no history; the period's own vehicles pass.
+    const ep = { ...sampleEpisode(), donem: "1453" };
+    const withMap = (h: unknown, donem = "1453") => validateEpisode({ ...ep, donem, sahneler: [{ ...ep.sahneler[0]!, harita: h }] } as never);
+    assert.equal(withMap(map).ok, false, "at most six travel together");
+    const six: SceneMap = { ...map, araclar: map.araclar!.map((a) => ({ ...a, sayi: Math.min(6, a.sayi ?? 1) })) };
+    assert.equal(withMap(six).ok, true, JSON.stringify(withMap(six).errors.slice(0, 2)));
+    const tank = withMap({ ...map, araclar: [{ tur: "tank", renk: "#c0392b", konum: [21, 40], satir: 0 }] });
+    assert.deepEqual(tank.errors.map((e) => e.code), ["HARITA_ARAC_DONEM"]);
+    assert.equal(withMap({ ...map, araclar: [{ tur: "tank", renk: "#c0392b", konum: [21, 40], satir: 0 }] }, "1916–1918").ok, true, "tanks from the Somme on");
+    assert.equal(withMap({ ...map, araclar: [{ tur: "top", renk: "#c0392b", konum: [21, 40], satir: 0 }] }, "MÖ 49").ok, false, "no cannon at the Rubicon");
+    assert.equal(withMap({ ...map, araclar: [{ tur: "fil", renk: "#c0392b", konum: [21, 40], satir: 0 }] }, "MÖ 218").ok, true, "Hannibal's elephants");
+    assert.equal(withMap({ ...map, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [21, 40] }] }).ok, false, "a vehicle needs its line");
+    assert.equal(withMap({ ...map, araclar: [{ tur: "araba", renk: "#c0392b", konum: [21, 40], satir: 0 }] }).ok, false, "a kind from the list");
   });
 
   await scenario("O7 the living map (owner, 22 Oct 2026): a conquest sweeps from where the army came, the old owner's name goes as the front passes, armies march, lines glow, the camera follows a march", () => {

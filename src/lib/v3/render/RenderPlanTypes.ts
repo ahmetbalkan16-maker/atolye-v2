@@ -343,6 +343,22 @@ export interface V3GeoMap {
     readonly letters?: string;
     readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number }[];
   }[];
+  /**
+   * Vehicles: `kind` is the look (a script's `gemi` already resolved to its period's ship), `count` of them travel
+   * together along `path` (world pixels; first point = where they appear at `start`) from `moveStart`; with `target`
+   * they fire at it from `fireStart`; with `end` they go.
+   */
+  readonly vehicles?: readonly {
+    readonly kind: "kadirga" | "yelkenli" | "gemi" | "denizalti" | "suvari" | "fil" | "top" | "tank" | "ucak";
+    readonly color: string;
+    readonly count: number;
+    readonly start: number;
+    readonly end?: number;
+    readonly path: readonly { readonly x: number; readonly y: number }[];
+    readonly moveStart?: number;
+    readonly target?: { readonly x: number; readonly y: number };
+    readonly fireStart?: number;
+  }[];
   /** The episode's era, for era-dependent battle effects (antik/orta: dust and clash; erken-modern/modern: fire and smoke). */
   readonly era?: "antik" | "orta" | "erken-modern" | "modern";
 }
