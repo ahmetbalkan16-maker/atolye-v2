@@ -21,6 +21,8 @@ const SIZE = 30;
 const FIRE_S = 6;
 const SHOT_EVERY_S = 1.1;
 const SHOT_FLIGHT_S = 0.7;
+/** How long a lost vehicle takes to go down (seconds). */
+const SINK_S = 1.6;
 const WATER = new Set(["kadirga", "yelkenli", "gemi", "denizalti"]);
 
 function rand(seed: number): number {
@@ -270,6 +272,11 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
           return { x: q.x - (d.x * row * S * 1.5 + d.y * side * row * S * 1.1) * w, y: q.y - (d.y * row * S * 1.5 - d.x * side * row * S * 1.1) * w, heading: h, hauled, going: gap ? f > 0 && f < 1 : moving };
         });
         const firing = v.target && v.fireStart !== undefined && frame >= v.fireStart && frame < v.fireStart + Math.round(fps * FIRE_S) && !moving;
+        // The frame a member is lost at: the group's last ones first.
+        const downAt = (mi: number) => {
+          const j = v.count - 1 - mi;
+          return v.losses && v.lossStart !== undefined && j < v.losses.length ? v.lossStart + Math.round(v.losses[j]! * fps) : undefined;
+        };
         const track = interpolate(frame, [v.start, v.start + Math.round(fps * 0.8)], [0, 1], { extrapolateRight: "clamp" });
         return (
           <g key={vi} opacity={gone}>
@@ -286,26 +293,48 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
             })}
             {members.map((m, mi) => {
               const left = Math.cos(m.heading) < 0;
+              // Lost (MapBuilder.unitLossDelaysS, the tokens' timing): a ship heels over and sinks in its splashes, a
+              // gun, rider or tank bursts and tips over, a plane falls trailing smoke.
+              const down = downAt(mi);
+              const q = down === undefined ? 0 : interpolate(frame, [down, down + Math.round(fps * SINK_S)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.quad) });
+              if (q >= 1) return null;
+              const water = WATER.has(v.kind);
+              const lost = down !== undefined && frame >= down;
               // Afloat a ship bobs; hauled it bumps over the rollers.
-              const bob = m.hauled ? Math.sin(frame * 0.5 + mi * 2) * 0.6 : WATER.has(v.kind) ? Math.sin(frame * 0.12 + mi) : 0;
+              const bob = m.hauled ? Math.sin(frame * 0.5 + mi * 2) * 0.6 : water ? Math.sin(frame * 0.12 + mi) : 0;
+              const fall = { y: (water ? 0.5 : 0) * q * S, turn: (water ? 28 : 80) * q, fade: 1 - Math.max(0, (q - 0.35) / 0.65) };
               const body = plane ? (
-                <g transform={`translate(${m.x} ${m.y}) rotate(${(m.heading * 180) / Math.PI}) scale(${S * appear})`}>
+                <g transform={`translate(${m.x} ${m.y + q * S * 3}) rotate(${(m.heading * 180) / Math.PI + q * 70}) scale(${S * appear})`} opacity={fall.fade}>
                   <VehicleIcon kind={v.kind} color={v.color} frame={frame} moving={m.going} />
                 </g>
               ) : (
-                <g transform={`translate(${m.x} ${m.y + bob * S * 0.04}) rotate(${bob * 2.5}) scale(${(left ? -1 : 1) * S * appear} ${S * appear})`}>
+                <g transform={`translate(${m.x} ${m.y + bob * S * 0.04 + fall.y}) rotate(${bob * 2.5 + fall.turn}) scale(${(left ? -1 : 1) * S * appear} ${S * appear})`} opacity={fall.fade}>
                   {m.hauled ? <Haul frame={frame + mi * 5} color={v.color} /> : null}
-                  <VehicleIcon kind={v.kind} color={v.color} frame={frame + mi * 7} moving={m.going && !m.hauled} />
+                  <VehicleIcon kind={v.kind} color={v.color} frame={frame + mi * 7} moving={m.going && !m.hauled && !lost} />
                 </g>
               );
               const md = { x: Math.cos(m.heading), y: Math.sin(m.heading) };
+              const since = lost ? (frame - down!) / fps : 0;
               return (
                 <g key={mi}>
+                  {lost ? (
+                    <g>
+                      {/* The hit, then rings of splashes round a sinking ship, or smoke behind a falling plane. */}
+                      <Burst x={m.x} y={m.y} r={S * 1.2} p={since / 0.9} era={map.era} seed={vi * 53 + mi * 7} />
+                      {water
+                        ? [0, 0.35].map((d) => {
+                            const g = Math.max(0, Math.min(1, (since - d) / SINK_S));
+                            return g > 0 && g < 1 ? <ellipse key={d} cx={m.x} cy={m.y + S * 0.3} rx={S * (0.6 + g * 1.5)} ry={S * (0.2 + g * 0.45)} fill="none" stroke="#ffffff" strokeWidth={S * 0.08} opacity={0.8 * (1 - g)} /> : null;
+                          })
+                        : null}
+                      {plane ? [0, 1, 2].map((j) => <circle key={j} cx={m.x - md.x * S * j * 0.6} cy={m.y + q * S * 3 - S * (0.4 + j * 0.5)} r={S * (0.22 + j * 0.1)} fill="#55595e" opacity={0.5 * fall.fade} />) : null}
+                    </g>
+                  ) : null}
                   {/* Wake behind a ship under way; dust behind cavalry, elephants, tanks and a hauled ship. */}
-                  {m.going && WATER.has(v.kind) && !m.hauled ? (
+                  {m.going && !lost && WATER.has(v.kind) && !m.hauled ? (
                     <path d={`M${m.x - md.x * S * 0.9} ${m.y + S * 0.28} l${-md.x * S * 1.4 - md.y * S * 0.5} ${-md.y * S * 1.4 + md.x * S * 0.5} M${m.x - md.x * S * 0.9} ${m.y + S * 0.28} l${-md.x * S * 1.4 + md.y * S * 0.5} ${-md.y * S * 1.4 - md.x * S * 0.5}`} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={S * 0.08} strokeLinecap="round" fill="none" />
                   ) : null}
-                  {m.going && (!WATER.has(v.kind) || m.hauled) && !plane
+                  {m.going && !lost && (!WATER.has(v.kind) || m.hauled) && !plane
                     ? [0, 1, 2].map((j) => {
                         const tt = ((frame * 0.05 + j / 3 + mi * 0.17) % 1 + 1) % 1;
                         return <circle key={j} cx={m.x - md.x * S * (0.8 + tt * 1.2)} cy={m.y + S * (0.2 - tt * 0.3)} r={S * (0.18 + tt * 0.3)} fill="#c9b48a" opacity={0.5 * (1 - tt)} />;
@@ -324,7 +353,7 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
             {firing
               ? members.map((m, mi) => {
                   const local = (frame - v.fireStart!) / fps - mi * 0.37 - rand(vi * 13 + mi) * 0.3;
-                  if (local < 0) return null;
+                  if (local < 0 || (downAt(mi) ?? Infinity) <= frame) return null;
                   const shot = Math.floor(local / SHOT_EVERY_S);
                   const since = local - shot * SHOT_EVERY_S;
                   const muzzle = { x: m.x + dir.x * S * 1.05, y: m.y + dir.y * S * 1.05 - (plane ? 0 : S * 0.35) };

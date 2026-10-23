@@ -167,6 +167,11 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       if (go && sound) cues.push({ t: go.start + 0.2, id: sound });
       const fire = a.hedef && gun ? lineAt(a.ates_satir ?? a.yol_satir ?? a.satir) : undefined;
       if (fire) cues.push({ t: fire.start + 0.4, id: "top_atisi" }, { t: fire.start + 2.6, id: "top_atisi" });
+      // Each one lost goes down with its sound, at the tokens' pace: a ship's splash, a blast (a fall before gunpowder).
+      const lost = a.kayip_satir !== undefined ? Math.min(Math.max(1, Math.min(6, Math.round(a.sayi ?? 1))), Math.max(0, Math.round(a.kayip ?? 0))) : 0;
+      const sunk = lost ? lineAt(a.kayip_satir!) : undefined;
+      const down: SfxId = ["gemi", "kadirga", "yelkenli", "denizalti"].includes(a.tur) ? "su" : gun ? "top_atisi" : "dusus";
+      if (sunk) cues.push(...unitLossDelaysS(lost).map((d) => ({ t: sunk.start + d, id: down })));
     }
   });
   // The same effect twice within a second is one sound (two footstep runs 0.2 s apart doubled into a clatter).

@@ -877,6 +877,14 @@ async function main() {
     const fought: Episode["sahneler"][number] = { ...siege, harita: { ...siege.harita!, birlikler: [sides[0]!, { ...sides[1]!, yerler: [...sides[1]!.yerler, { satir: 2, kume: [20.451, 44.821], km: 0.6, kayip: 1 }] }] } };
     assert.ok(!mapProblems({ ...episode, sahneler: [fought, breach] }).some((p) => p.includes("climax")), "losses on the close map: the reaction scene may follow");
     assert.ok(!mapProblems({ ...episode, sahneler: [siege] }).some((p) => p.includes("climax")), "no fight told: no climax asked for");
+    // Belgrade's second trial: the Danube battle fought on a close map with no walls, the storming of the walls in a
+    // character scene — the assault is asked for on a close map of the walls.
+    const danube: Episode["sahneler"][number] = { ...siege, id: "y-tuna", harita: { merkez: [20.45, 44.82], genislik_km: 25, birlikler: sides, araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 4, konum: [20.45, 44.82], satir: 0, kayip: 3, kayip_satir: 1 }] } };
+    const walls: Episode["sahneler"][number] = { ...breach, satirlar: [{ karakter: "anlatici", metin: "The Ottomans storm the walls.", duygu: "korkmus" }] };
+    const assault = mapProblems({ ...episode, sahneler: [danube, walls] });
+    assert.ok(assault.some((p) => p.includes("assault on the walls is never seen") && p.includes('scene "s6" line 0')), JSON.stringify(assault));
+    assert.ok(!assault.some((p) => p.includes("climax is never seen")), "the ships lost are the close map's fight");
+    assert.ok(!mapProblems({ ...episode, sahneler: [danube, fought, walls] }).some((p) => p.includes("assault")), "the walls fought over on a close map: the scene is the reaction");
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {
@@ -908,6 +916,12 @@ async function main() {
     assert.equal(withMap({ ...map, araclar: [{ tur: "fil", renk: "#c0392b", konum: [21, 40], satir: 0 }] }, "MÖ 218").ok, true, "Hannibal's elephants");
     assert.equal(withMap({ ...map, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [21, 40] }] }).ok, false, "a vehicle needs its line");
     assert.equal(withMap({ ...map, araclar: [{ tur: "araba", renk: "#c0392b", konum: [21, 40], satir: 0 }] }).ok, false, "a kind from the list");
+    // Losses (the Belgrade trial: the broken flotilla): lost one by one at the tokens' pace, the group's last first.
+    const sinking = buildGeoMap({ ...map, araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 4, konum: [20, 39], satir: 0, kayip: 2, kayip_satir: 2 }, { tur: "top", renk: "#c0392b", sayi: 2, konum: [21, 40], satir: 0, kayip: 5, kayip_satir: 1 }] }, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100, { year: 1456 });
+    assert.deepEqual([sinking.vehicles![0]!.lossStart, sinking.vehicles![0]!.losses], [200, [2.4, 3.4]]);
+    assert.deepEqual(sinking.vehicles![1]!.losses, [2.4, 3.4], "no more lost than there are");
+    assert.equal(withMap({ ...six, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [21, 40], satir: 0, kayip: 1, kayip_satir: 0 }] }).ok, true);
+    assert.equal(withMap({ ...six, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [21, 40], satir: 0, kayip: 1 }] }).ok, false, "a loss needs its line");
   });
 
   await scenario("O7 the living map (owner, 22 Oct 2026): a conquest sweeps from where the army came, the old owner's name goes as the front passes, armies march, lines glow, the camera follows a march", () => {

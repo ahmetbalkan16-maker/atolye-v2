@@ -53,12 +53,21 @@ const CLIMAX = /\b(?:storm(?:s|ed)?|breach(?:es|ed)?|assault(?:s|ed)?|charg(?:e|
  */
 function climaxProblems(scenes: Episode["sahneler"]): string[] {
   const close = scenes.filter((s) => s.harita?.merkez && s.harita.genislik_km !== undefined && s.harita.genislik_km <= CLOSE_MAP_MAX_KM && (s.harita.birlikler?.length ?? 0) > 0);
-  if (!close.length || close.some((s) => s.harita!.birlikler!.some((u) => u.yerler.some((y) => (y.kayip ?? 0) > 0)))) return [];
+  if (!close.length) return [];
+  const fought = (s: Episode["sahneler"][number]) => s.harita!.birlikler!.some((u) => u.yerler.some((y) => (y.kayip ?? 0) > 0)) || (s.harita!.araclar ?? []).some((a) => (a.kayip ?? 0) > 0);
   const told = scenes.flatMap((s) => s.satirlar.map((l, i) => ({ s, i, l }))).filter(({ l }) => CLIMAX.test(l.metin));
   if (!told.length) return [];
-  const away = told.find(({ s }) => !close.includes(s));
-  const where = away ? ` — scene "${away.s.id}" line ${away.i} tells it off the map ("${away.l.metin.slice(0, 60)}")` : "";
-  return [`the battle's climax is never seen on the close map "${close[0]!.id}"${where}: tell the assault, the breach and the rout ON the close map, line by line — on each fight line give both sides a formation side by side with "kayip" (tokens lost), the breach on its line ("surlar[].gedik"), the beaten side's tokens falling back; a character scene may come before (the council) or after (the reaction), never instead — CLOSE BATTLE MAP`];
+  const off = (x: (typeof told)[number]) => ` — scene "${x.s.id}" line ${x.i} tells it off the map ("${x.l.metin.slice(0, 60)}")`;
+  const fight = `on each fight line give both sides a formation side by side with "kayip" (tokens lost), the breach on its line ("surlar[].gedik"), the beaten side's tokens falling back, lost ships or guns with their "kayip" + "kayip_satir"; a character scene may come before (the council) or after (the reaction), never instead — CLOSE BATTLE MAP`;
+  if (!close.some(fought)) {
+    const away = told.find(({ s }) => !close.includes(s));
+    return [`the battle's climax is never seen on the close map "${close[0]!.id}"${away ? off(away) : ""}: tell the assault, the breach and the rout ON the close map, line by line — ${fight}`];
+  }
+  // The assault on the walls told in a character scene while no close map shows the walls fought over (Belgrade's
+  // second trial: the close map showed the Danube battle, the storming of the walls was told in "Belgrade walls").
+  const assault = told.find(({ s, l }) => !s.harita?.merkez && SIEGE.test(l.metin));
+  const walls = close.some((s) => (s.harita!.surlar?.length ?? 0) > 0 && (fought(s) || s.harita!.surlar!.some((w) => w.gedik)));
+  return assault && !walls ? [`the assault on the walls is never seen on a close map${off(assault)}: give a close map of the walls ("surlar" or the castle) and tell the assault there, line by line — ${fight}`] : [];
 }
 
 /** Close-map speakers the studio cannot seat on the map (no badge, no side of theirs among the tokens). */
@@ -98,7 +107,7 @@ export function mapProblems(episode: unknown): string[] {
         (h.ordular ?? []).some((o) => (o.yol?.length ?? 0) > 0) ||
         (h.cizgiler ?? []).some((c) => (c.satir ?? 0) > 0) ||
         (h.birlikler ?? []).some((u) => u.yerler.length > 1 || u.yerler.some((y) => (y.kayip ?? 0) > 0)) ||
-        (h.araclar ?? []).some((a) => (a.yol?.length ?? 0) > 0 || a.hedef !== undefined) ||
+        (h.araclar ?? []).some((a) => (a.yol?.length ?? 0) > 0 || a.hedef !== undefined || (a.kayip ?? 0) > 0) ||
         (h.surlar ?? []).some((w) => w.gedik !== undefined) ||
         (h.bolgeler ?? []).some((b) => (b.satir ?? 0) > 0 || b.bitis_satir !== undefined || b.yayilma !== undefined);
       if (!living) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), move the tokens ("birlikler" with formations on later lines), a battle, a camera move or a border change, each on the line that tells it`);

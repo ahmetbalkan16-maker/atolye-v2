@@ -283,10 +283,12 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // hundred metres apart; across a wall: attackers just outside, defenders just inside), never far apart.
     "araclar": [{"tur": "gemi" | "kadirga" | "yelkenli" | "suvari" | "fil" | "top" | "tank" | "ucak" | "denizalti",
         "renk": "#…", "sayi": 1–6, "konum": [lon, lat], "satir": 1, "yol": [[lon, lat], …], "yol_satir": 2,
-        "hedef": [lon, lat], "ates_satir": 3}]
+        "hedef": [lon, lat], "ates_satir": 3, "kayip": 2, "kayip_satir": 4}]
         // ships, cavalry, guns, tanks, planes travel their route and fire at "hedef" — only what the period had ("gemi"
         // is drawn as the period's ship). A ship whose route crosses land is HAULED over it on rollers by its crew (the
-        // 1453 fleet over the hill behind Galata): give the real land route and the camera follows.
+        // 1453 fleet over the hill behind Galata): give the real land route and the camera follows. "kayip" of them are
+        // lost on line "kayip_satir", one by one: ships sink, guns and riders are blown up — a fleet battle is told with
+        // both fleets sailing at each other, firing, and the beaten side's ships lost (not with land tokens).
 CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's fall, cut from the wide map to a close map of
   that place: "genislik_km" 4–60, "kamera" keys 3–30 km (the painted battle maps of the history channels). The usual flow:
   wide map (the march there) → close map (the field or the walls, the armies, the guns, the ships) → a character scene

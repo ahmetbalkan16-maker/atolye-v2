@@ -324,7 +324,9 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         num(a, "sayi", ap, 1, 6, true);
         lonLat(a.konum, `${ap}.konum`);
         if (a.satir === undefined) err("HARITA_ARAC", ap, "satir gerekli");
-        for (const key of ["satir", "bitis_satir", "yol_satir", "ates_satir"]) lineIndex(a, key, ap);
+        for (const key of ["satir", "bitis_satir", "yol_satir", "ates_satir", "kayip_satir"]) lineIndex(a, key, ap);
+        num(a, "kayip", ap, 1, 6, true);
+        if ((a.kayip === undefined) !== (a.kayip_satir === undefined)) err("HARITA_ARAC", ap, "kayip ile kayip_satir birlikte verilir");
         (Array.isArray(a.yol) ? a.yol : []).forEach((pt, k) => lonLat(pt, `${ap}.yol[${k}]`));
         if (a.hedef !== undefined) lonLat(a.hedef, `${ap}.hedef`);
         // A tank at Constantinople is no history (owner: nothing meaningless on screen).

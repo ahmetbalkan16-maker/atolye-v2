@@ -254,6 +254,13 @@ export interface MapVehicle {
   /** Where it fires at, from `ates_satir` (default: once it is there). */
   readonly hedef?: readonly [number, number];
   readonly ates_satir?: number;
+  /**
+   * `kayip` of them are lost on line `kayip_satir` (owner, 23 Oct 2026, the Belgrade trial: the Ottoman flotilla broken
+   * on the Danube could only be told with land tokens falling): one by one, like the tokens' losses — a ship heels over
+   * and sinks in its splashes, a gun, rider, elephant or tank bursts and falls, a plane falls trailing smoke.
+   */
+  readonly kayip?: number;
+  readonly kayip_satir?: number;
 }
 
 /** Emblems a side's tokens can carry (drawn in the studio's flat style; no real flags of ancient states exist). */

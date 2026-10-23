@@ -1093,10 +1093,13 @@ function projectGeoMap(
     const ends = { from: stretches[0]?.from === 0 && !fromShore ? stretches[0].to : 0, to: stretches[stretches.length - 1]?.to === 1 ? stretches[stretches.length - 1]!.from : 1 };
     const kept = ends.from > 0 || ends.to < 1 ? cutRoute(route.map((p) => toPx(p)), ends.from, ends.to) : route.map((p) => toPx(p));
     const hauls = stretches.filter((o) => (o.from > 0 || fromShore) && o.to < 1).map((o) => ({ from: Math.round(((o.from - ends.from) / (ends.to - ends.from || 1)) * 1000) / 1000, to: Math.round(((o.to - ends.from) / (ends.to - ends.from || 1)) * 1000) / 1000 }));
+    const count = Math.max(1, Math.min(6, Math.round(a.sayi ?? 1)));
+    const lost = a.kayip_satir !== undefined ? Math.min(count, Math.max(0, Math.round(a.kayip ?? 0))) : 0;
     return {
       kind: a.tur === "gemi" ? shipLook(opts.year) : a.tur,
       color: a.renk,
-      count: Math.max(1, Math.min(6, Math.round(a.sayi ?? 1))),
+      count,
+      ...(lost ? { lossStart: lineStart(a.kayip_satir, i), losses: unitLossDelaysS(lost) } : {}),
       start: lineStart(a.satir, i),
       ...(a.bitis_satir !== undefined ? { end: lineStart(a.bitis_satir, i) } : {}),
       path: kept,
@@ -1129,6 +1132,9 @@ function projectGeoMap(
   // its name) — the formation's middle first (a siege ring's on its land arc).
   const px = height / 1080 / zoom0;
   const hides = (p: XY, q: XY) => q.x > p.x - 75 * px && q.x < p.x + 75 * px && q.y > p.y - 140 * px && q.y < p.y + 6 * px;
+  // The words rise over the badge while it speaks (ShotView's map bubble): what lies there counts half (the Danube
+  // trial: the sultan's shout covered his sinking ships).
+  const under = (p: XY, q: XY) => q.x > p.x - 250 * px && q.x < p.x + 250 * px && q.y > p.y - 230 * px && q.y <= p.y - 140 * px;
   const fixed = [
     ...(close?.walls ?? []).flatMap((w) => [...w.points, ...w.towers, ...w.gates].map((q) => ({ q, w: 1 }))),
     ...(close?.buildings ?? []).map((q) => ({ q, w: 2 })),
@@ -1160,7 +1166,7 @@ function projectGeoMap(
       return { x: key.x, y: key.y, half: { x: width / 2 / key.zoom, y: height / 2 / key.zoom }, k: height / 1080 / key.zoom };
     });
     const seen = (p: XY) => views.filter((vw) => p.x - 95 * vw.k > vw.x - vw.half.x && p.x + 95 * vw.k < vw.x + vw.half.x && p.y - 240 * vw.k > vw.y - vw.half.y && p.y + 20 * vw.k < vw.y + vw.half.y).length;
-    const score = (p: XY) => (views.length - seen(p)) * 100 + marks.reduce((a, m) => a + (m.q !== p && hides(p, m.q) ? m.w : 0), 0);
+    const score = (p: XY) => (views.length - seen(p)) * 100 + marks.reduce((a, m) => a + (m.q === p ? 0 : hides(p, m.q) ? m.w : under(p, m.q) ? m.w / 2 : 0), 0);
     const at = order.reduce((best, p) => (score(p) < score(best) ? p : best), order[0]!);
     sideBadges.push({ castId: s.karakter, label: opts.castName?.(s.karakter) ?? s.karakter, start: lineStart(s.satir, (map.rozetler?.length ?? 0) + i), path: [at] });
   }

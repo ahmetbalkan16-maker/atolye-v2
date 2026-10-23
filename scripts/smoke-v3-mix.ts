@@ -169,6 +169,9 @@ async function main() {
     const tlSiege = { duration: 4, scenes: [{ sceneIndex: 0, start: 0, end: 4 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 2 }, { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 }] } as unknown as EpisodeTimeline;
     assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["kilic", 4.4], ["top_atisi", 4.6]]);
     assert.ok(!sfxCues({ ...siege, donem: "MÖ 49" } as Episode, tlSiege).some((c) => c.id === "top_atisi"), "no cannon before gunpowder");
+    // A fleet broken (the Belgrade trial): each ship lost splashes down at the tokens' pace; a lost gun is a blast.
+    const sunk = { ...siege, sahneler: [{ ...siege.sahneler[0]!, harita: { merkez: [20.45, 44.82], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 4, konum: [20.44, 44.83], satir: 0, kayip: 2, kayip_satir: 1 }, { tur: "top", renk: "#c0392b", konum: [20.43, 44.81], satir: 0, kayip: 1, kayip_satir: 1 }] } }] } as unknown as Episode;
+    assert.deepEqual(sfxCues(sunk, tlSiege).filter((c) => c.id === "su" || c.id === "top_atisi").map((c) => [c.id, Math.round(c.t * 10) / 10]), [["su", 4.4], ["top_atisi", 4.4], ["su", 5.4]]);
     // In a living set a run is feet, not a cartoon whoosh; the same effect twice within a second is one.
     const run = { sahneler: [{ ...rubicon.sahneler[1]!, kalabalik: [], satirlar: [{ karakter: "a", metin: "Run!", duygu: "korkmus", hareket: "kos" }, { karakter: "b", metin: "Wait!", duygu: "korkmus", hareket: "yuru" }, { karakter: "anlatici", metin: "z", duygu: "notr" }] }] } as unknown as Episode;
     const tl3 = { ...tl2, scenes: [{ sceneIndex: 0, start: 0, end: 8 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 0.6 }, { sceneIndex: 0, lineIndex: 1, start: 0.5, end: 3 }, { sceneIndex: 0, lineIndex: 2, start: 3, end: 6 }] } as unknown as EpisodeTimeline;

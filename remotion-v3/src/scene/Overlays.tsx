@@ -29,11 +29,12 @@ export function isShout(text: string): boolean {
  * toward the speaker, no balloon (the reference channel's look). Pops in, leans away from the nearest other
  * character, stays inside the frame and fades at its end.
  */
-export function SpeechBubble({ bubble, anchor, language }: { bubble: V3Bubble; anchor: HeadAnchor; language: "tr" | "en" }) {
+export function SpeechBubble({ bubble, anchor, language, size = 1 }: { bubble: V3Bubble; anchor: HeadAnchor; language: "tr" | "en"; size?: number }) {
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
   if (frame < bubble.start || frame >= bubble.end) return null;
-  const k = H / 1080;
+  // `size`: a badge's words on the map are lettered smaller, so they do not cover the battle.
+  const k = (H / 1080) * size;
   const pop = spring({ frame: frame - bubble.start, fps, config: { damping: 12, stiffness: 220, mass: 0.5 } });
   const out = interpolate(frame, [bubble.end - 5, bubble.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const shout = isShout(bubble.text);

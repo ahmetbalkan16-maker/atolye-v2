@@ -395,6 +395,9 @@ export interface V3GeoMap {
      * laid track, a team pulling it (Mehmed's fleet dragged over the hill behind Galata, 1453).
      */
     readonly overland?: readonly { readonly from: number; readonly to: number }[];
+    /** Seconds after `lossStart` at which each lost one goes down, the group's last first (the leader holds out longest). */
+    readonly lossStart?: number;
+    readonly losses?: readonly number[];
   }[];
   /**
    * The close battle map (genislik_km ≤ 120): the ground is the place's real elevation (`relief`) on its own coast, and
