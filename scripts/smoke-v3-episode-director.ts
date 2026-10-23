@@ -9,6 +9,7 @@ import os from "node:os";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, seriesText } from "../src/lib/v3/script/Series";
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
+import { rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -1150,6 +1151,16 @@ async function main() {
     const lines: string[] = [];
     const h = await waitForPcHealth([os.tmpdir()], (s) => lines.push(s), { free: async () => void freed++, sleepMs: 1 });
     assert.ok(h.freeRamGb >= 0 && h.disks.length === 1 && freed <= 1);
+  });
+
+  await scenario("O23 costume fittings (the first AYAS trial: 16 puppets in one row, every head crop cut at the collar): at most three a still, 640 px cells", () => {
+    assert.equal(STILL_ROW_MAX, 3);
+    assert.deepEqual(rowCells(3), { cell: 640, centres: [320, 960, 1600] });
+    assert.deepEqual(rowCells(1), { cell: 1920, centres: [960] });
+    // Sixteen parts are fitted in six stills, never a 120 px cell again.
+    const rows = Array.from({ length: Math.ceil(16 / STILL_ROW_MAX) }, (_, r) => Math.min(STILL_ROW_MAX, 16 - r * STILL_ROW_MAX));
+    assert.deepEqual(rows, [3, 3, 3, 3, 3, 1]);
+    assert.ok(rows.every((n) => rowCells(n).cell >= 640));
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

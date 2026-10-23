@@ -202,10 +202,29 @@ export interface StillPuppet {
 }
 
 /**
- * Puppets in a row on a plain backdrop, rendered in one still; each one's region is cropped to a JPEG for a judge.
- * Used by the part fittings and the likeness check.
+ * At most this many puppets stand in one still: each gets a 640 px cell and a 500 px head square reaching up over the
+ * tallest headwear. The first AYAS trial of 23 Oct 2026 fitted 16 parts in one row — 120 px cells, the puppets
+ * overlapping and every "head" square cut at the collar — so the judge rejected all 15 parts (well drawn) for 46 minutes.
+ */
+export const STILL_ROW_MAX = 3;
+
+/**
+ * Puppets on a plain backdrop, in stills of at most STILL_ROW_MAX; each one's region is cropped to a JPEG for a judge
+ * (`aday-<i>.jpg`, in the puppets' order). Used by the part fittings and the likeness check.
  */
 export async function puppetStills(paths: V3Paths, puppets: readonly StillPuppet[], accessories: readonly V3Accessory[], workDir: string): Promise<string[]> {
+  const out: string[] = [];
+  for (let from = 0; from < puppets.length; from += STILL_ROW_MAX) out.push(...(await puppetRow(paths, puppets.slice(from, from + STILL_ROW_MAX), accessories, workDir, from)));
+  return out;
+}
+
+/** The stills' cells: puppet i of a row of n stands at the middle of its cell (also where its crop is taken). */
+export function rowCells(n: number): { cell: number; centres: number[] } {
+  const cell = Math.floor(1920 / Math.max(1, n));
+  return { cell, centres: Array.from({ length: n }, (_, i) => Math.round((i + 0.5) * cell)) };
+}
+
+async function puppetRow(paths: V3Paths, puppets: readonly StillPuppet[], accessories: readonly V3Accessory[], workDir: string, offset: number): Promise<string[]> {
   const pub = path.join(workDir, "public");
   await fs.mkdir(path.join(pub, "bg"), { recursive: true });
   const bg = path.join(pub, "bg", "duz.png");
@@ -244,15 +263,16 @@ export async function puppetStills(paths: V3Paths, puppets: readonly StillPuppet
     ],
   };
   await fs.mkdir(workDir, { recursive: true });
-  const planFile = path.join(workDir, "prova-plan.json");
+  const tag = offset ? `-${offset / STILL_ROW_MAX + 1}` : "";
+  const planFile = path.join(workDir, `prova-plan${tag}.json`);
   await fs.writeFile(planFile, JSON.stringify({ plan }));
-  const still = path.join(workDir, "prova.png");
+  const still = path.join(workDir, `prova${tag}.png`);
   await renderWithRemotion(paths, { planFile, publicDir: pub, out: still, kind: "still", frame: 20 });
-  const cell = Math.floor(1920 / n);
+  const { cell, centres } = rowCells(n);
   const out: string[] = [];
   for (let i = 0; i < n; i++) {
-    const crop = path.join(workDir, `aday-${i}.jpg`);
-    const cx = Math.round((i + 0.5) * cell);
+    const crop = path.join(workDir, `aday-${offset + i}.jpg`);
+    const cx = centres[i]!;
     // Head parts: a close square on the head (the judge must see the part, not a small figure); others: the figure.
     const head = puppets[i]!.crop === "head";
     const w = head ? Math.min(cell, 500) : Math.min(cell, 640);
