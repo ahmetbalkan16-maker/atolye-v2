@@ -1,5 +1,5 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
-import { EMOTIONS, GARMENTS, GESTURES } from "../episode/EpisodeTypes";
+import { ARCH_STYLES, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
 import type { V3Emotion, V3Garment, V3Gesture } from "../render/RenderPlanTypes";
 
@@ -61,6 +61,27 @@ const GESTURE_ALIASES: readonly [RegExp, V3Gesture][] = [
   [/sas[ıi]r|surpris|gasp|shock/i, "sasir"],
   [/konu[şs]|talk|speak|explain|gesture/i, "konus"],
 ];
+
+/**
+ * A set's and a scene's values outside their lists, by the words models use (the 1456 Belgrade run, 23 Oct 2026: three
+ * length rounds were lost over "ortam" and "duygu" values, so the map repairs were never asked). Checked in order; an
+ * unknown value takes the field's first fallback.
+ */
+const SET_ALIASES: Readonly<Record<string, { readonly list: readonly string[]; readonly words: readonly [RegExp, string][]; readonly fallback: string }>> = {
+  zaman: { list: TIMES_OF_DAY, words: [[/dawn|sunrise|morning twilight|şafak|safak/i, "safak"], [/even|dusk|sunset|twilight|akşam|aksam/i, "aksam"], [/night|midnight|gece/i, "gece"], [/day|noon|morning|afternoon|gün|gun/i, "gun"]], fallback: "gun" },
+  manzara: {
+    list: LANDSCAPES,
+    words: [[/ford|crossing|geçit|gecit/i, "nehir_gecidi"], [/river|bank|kıyı|kiyi/i, "nehir_kiyisi"], [/wall|rampart|fortress|castle|citadel|gate|siege|bastion|sur|kale/i, "sur_onu"], [/camp|tent|bivouac|ordu/i, "ordugah"], [/palace|throne|court|saray/i, "saray_ici"], [/council|hall|senate|chamber|assembly|meclis/i, "meclis"], [/square|forum|market|meydan/i, "meydan"], [/street|city|town|alley|sokak/i, "sokak"], [/beach|coast|shore|harbou?r|port|sea|sahil/i, "sahil"], [/forest|wood|orman/i, "orman"], [/hill|mountain|pass|valley|tepe/i, "tepeler"], [/plain|field|steppe|battle|ova/i, "ova"]],
+    fallback: "ova",
+  },
+  uslup: { list: ARCH_STYLES, words: [[/roman|roma/i, "roma"], [/greek|yunan/i, "yunan"], [/egypt|mısır|misir/i, "misir"], [/persia|pers/i, "pers"], [/byzant|bizans/i, "bizans"], [/ottoman|osman|turk/i, "osmanli"], [/china|chinese|çin|cin/i, "cin"], [/japan|japon/i, "japon"], [/renaiss|early.?modern|baroque|17|18/i, "erken_modern"], [/modern|19|20|21/i, "modern"], [/medieval|gothic|crusad|hungar|europe|ortaçağ|ortacag/i, "ortacag"]], fallback: "ortacag" },
+  hava: { list: WEATHERS, words: [[/snow|kar/i, "kar"], [/rain|storm|yağmur|yagmur/i, "yagmur"], [/fog|mist|smok|haz|sis/i, "sis"], [/cloud|overcast|grey|gray|bulut/i, "bulutlu"], [/clear|sun|fair|açık|acik/i, "acik"]], fallback: "acik" },
+  isik: { list: SET_LIGHTS, words: [[/camp.?fire|bonfire|fire|kamp/i, "kamp_atesi"], [/torch|lamp|candle|lantern|meşale|mesale/i, "mesale"]], fallback: "yok" },
+};
+const MOOD_ALIASES: readonly [RegExp, string][] = [[/tens|suspens|danger|war|battle|siege|fear|dark|dramatic|gerilim/i, "gerilim"], [/funny|humou?r|comic|comedy|playful|silly|komik/i, "komik"], [/sad|grief|tragic|loss|melanchol|hüzün|huzun/i, "huzun"], [/victor|triumph|celebrat|glory|hope|joy|zafer/i, "zafer"], [/myster|secret|unknown|gizem/i, "gizem"], [/curio|wonder|intrigu|merak/i, "merak"]];
+
+/** The formation keys of a side's tokens, which belong inside each of its "yerler". */
+const FORMATION_KEYS = ["cephe", "kume", "kusatma"] as const;
 
 const EMPTY = /^(none|no|null|yok|-|n\/a)?$/i;
 
@@ -147,6 +168,49 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
         if (mapped) l.jest = mapped;
         else delete l.jest;
       }
+    }
+    if (typeof s.duygu === "string" && !(SCENE_MOODS as readonly string[]).includes(s.duygu)) {
+      const mapped = MOOD_ALIASES.find(([re]) => re.test(s.duygu as string))?.[1] ?? "merak";
+      fixes.push(`sahneler[${si}].duygu "${s.duygu}" → ${mapped}`);
+      s.duygu = mapped;
+    }
+    if (isObj(s.ortam))
+      for (const [field, rule] of Object.entries(SET_ALIASES)) {
+        const v = s.ortam[field];
+        if (typeof v !== "string" || rule.list.includes(v)) continue;
+        const mapped = rule.words.find(([re]) => re.test(v))?.[1] ?? rule.fallback;
+        fixes.push(`sahneler[${si}].ortam.${field} "${v}" → ${mapped}`);
+        s.ortam[field] = mapped;
+      }
+    // Tokens whose formation was written on the side instead of in its "yerler" (the Belgrade run: "kusatma", "km"
+    // and "kayip" beside "yerler", so the siege had no ring and no losses): moved into the formations that lack one,
+    // the losses to the last formation.
+    const sides = isObj(s.harita) && Array.isArray(s.harita.birlikler) ? (s.harita.birlikler as unknown[]) : [];
+    for (const [ui, u] of sides.entries()) {
+      if (!isObj(u)) continue;
+      const where = `sahneler[${si}].harita.birlikler[${ui}]`;
+      const yerler = Array.isArray(u.yerler) ? (u.yerler as unknown[]).filter(isObj) : [];
+      const onSide = FORMATION_KEYS.find((key) => u[key] !== undefined);
+      if (onSide && !yerler.length) yerler.push({ satir: 0 });
+      for (const y of yerler) {
+        if (FORMATION_KEYS.some((key) => y[key] !== undefined)) continue;
+        if (onSide) {
+          y[onSide] = u[onSide];
+          if (u.km !== undefined && y.km === undefined && onSide !== "cephe") y.km = u.km;
+          fixes.push(`${where}: "${onSide}" yerler içine taşındı`);
+        } else if (Array.isArray(y.konum)) {
+          // A place without a formation is a cluster there.
+          y.kume = y.konum;
+          fixes.push(`${where}: "konum" → "kume"`);
+        }
+        delete y.konum;
+      }
+      if (typeof u.kayip === "number" && !yerler.some((y) => typeof y.kayip === "number") && yerler.length) {
+        yerler[yerler.length - 1]!.kayip = u.kayip;
+        fixes.push(`${where}: "kayip" son yere taşındı`);
+      }
+      for (const key of [...FORMATION_KEYS, "km", "kayip", "konum"]) delete u[key];
+      if (yerler.length) u.yerler = yerler;
     }
     if (Array.isArray(s.sahne_duzeni)) {
       const before = s.sahne_duzeni.length;

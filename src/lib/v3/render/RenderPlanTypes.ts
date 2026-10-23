@@ -389,8 +389,12 @@ export interface V3GeoMap {
    */
   readonly close?: {
     readonly unit: number;
+    /** The walls' own size (towers, gates, the stone's width), when smaller than a house (`unit`) on a narrow map. */
+    readonly wallUnit?: number;
     readonly ground: readonly { readonly kind: "tepe" | "orman" | "tarla"; readonly x: number; readonly y: number; readonly size: number; readonly seed: number }[];
     readonly roads: readonly (readonly { readonly x: number; readonly y: number }[])[];
+    /** Rivers and canals as wide as they are (`width` in world px), drawn as water. */
+    readonly rivers?: readonly { readonly d: string; readonly width: number }[];
     /** Road names written along their road (`angle` in degrees, always readable), placed by placeCloseLabels. */
     readonly roadNames?: readonly { readonly road: number; readonly label: string; readonly angle: number; readonly labelSpot?: V3LabelSpot }[];
     readonly walls: readonly {

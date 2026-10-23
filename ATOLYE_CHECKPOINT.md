@@ -1,3 +1,43 @@
+## 23 Ekim 2026 (gündüz) — V3 yakın harita her olay için: okunur adlar, karadan yürütme, OSM'den sur/kale/nehir, yazar beyni
+
+**Owner:** önce kusurlar (sur adı ile savaş adı çakışması, "The Chain" Galata'nın dibinde, yangın gedikten yayılmalı,
+"o düz 2 çizgi nedir" — yollar, "gemilerin karadan yürütülmesinde hiç hareket yok"); sonra "güzel; şimdi bu özellikleri
+bizim yardımcı beyinler yapabilmeli, alt yapıyı tam kur, bütün dünya üzerinde herhangi bir olayda — yakın haritayı,
+kaleyi".
+
+**Yapılanlar (feature/cop-adam-v3):**
+- `5cf21b53` `CloseLabels.placeCloseLabels` (adlar her kamera duruşunda çakışmasız, süreye göre tartılır), kıvrımlı ve
+  adlı yollar (`windingRoad`, `yollar[].ad`), gedikten yayılan yangın (`burnFrom`), karadan yürütme
+  (`overlandStretches`: kütük yol, kızak, çeken ekip, tek sıra kafile), pullar gedikten geçer (`throughBreach`), kamera
+  kayıp satırındaki savaşa döner, yakın haritada en yakın kamera 4 km.
+- Bu commit: **açık veriden yer** — `CastleShapes.ts` (çağına göre kale: halka/kare/yıldız; şerit surun orta hattı;
+  parça birleştirme; `fitWall`), `CloseSite.ts` (kütüphane → Overpass → Nominatim → yazar/kale üreteci;
+  `prepareCloseMaps` üretimde 1d adımı ve önizlemede; kuşatma halkası olup suru olmayan haritaya `impliedCastle`;
+  kalenin alanındaki gerçek sur hatları + kapılar), `surlar[].kale/osm_ad`, `yerlesimler[].sur_ici`, sur birimi
+  (`wallUnit`, dar haritada ev boyu değil ~45 m), OSM nehir/göl (`closeRiversFor`: gerçek genişlikte su; küçük
+  gölet elenir), çekme yalnız su biliniyorsa ve sudan suya (karada biten rota kıyıda durur; kıyıya 400 m yakın
+  başlangıç kıyıdan kalkar). Yazar beyni: ScriptPrompts BİRLİKLER VE ARAÇLAR + YAKIN SAVAŞ HARİTASI; MapRules yakın
+  harita denetimleri; DraftNormalizer diziliş/ortam/duygu onarımı; PlaceCheck yakın haritada genişliğe göre tolerans,
+  adlı yapılar, yalnız aynı adlı makale. Örnek 1453: gece sur saldırısı iki yanda, 5 gemi, haul kamerası.
+- Sınav (Claude'suz yazar, gpt-4.1): 1456 Belgrad — 1. deneme yanlış yapı (diziliş tarafta) → normalizer; 2. deneme
+  0,15 $: yakın harita, pullar, kaleyi döven toplar, Tuna donanması; sur yine yoktu → kale kendiliğinden kuruldu (OSM).
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 33 (O11, O12,
+O13), script 21, likeness 14, motion 9, mix 13, backgrounds 20. Önizleme: 1453 (adlar, haul, gece saldırısı, gedik),
+Belgrad (OSM surları, nehirler).
+
+**Bilinen durum:** Overpass bu ağdan aralıklı: 23 Ekim'de overpass-api.de ve kumi TCP bağlantısı kurulamadı, mail.ru
+504; arada yanıt verdi (Belgrad nehirleri/surları kütüphanede). Nominatim çalışıyor. Bir kutu bir kez alınınca
+kütüphanede kalır.
+
+**Sıradaki:**
+1. Yakın haritada savaşın kendisi: yazar savaşı karakter sahnesine kaçırıyor (Belgrad) — kural: kuşatmanın doruğu
+   yakın haritada kayıplarla; haritada konuşan büyük figürler savaşı örtüyor → yakın haritada küçük figür ya da
+   konuşma balonlu rozet (DFT örneği).
+2. Ölçüt bölüm 1453 sesli: dış harita (Edirne'den yürüyüş) → yakın harita → otağda savaş toplantısı → yakın harita.
+3. Belgrad'ı tam üretimde dene (Overpass yanıt verirken), owner'a göster.
+4. Sipariş izleyicisi (`yapim.ts`) yeniden başlatılmadı (owner "evet" ister); üretici her siparişte diskten çalışır.
+
 ## 23 Ekim 2026 (gece) — V3 haritalı anlatım: birlik pulları, araçlar, yakın savaş haritası (güvenli duruş)
 
 **Owner:** haritalı anlatıma öncelik; referans Anima History (2. Dünya Savaşı haritalı anlatım) ve DFT Tarih (Osman Bey,

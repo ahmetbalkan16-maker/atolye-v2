@@ -9,15 +9,18 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, overlandStretches, throughBreach, windingRoad } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
+import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
+import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
+import { mapProblems } from "../src/lib/v3/script/MapRules";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
-import { checkMapPlaces, decidePlace, distanceKm } from "../src/lib/v3/maps/PlaceCheck";
+import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
@@ -655,14 +658,36 @@ async function main() {
         surlar: [{ noktalar: [[28.95, 41.05], [28.95, 41.0]], gedik: { konum: [28.95, 41.025], satir: 2 } }],
         birlikler: [{ taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 3, yerler: [{ satir: 0, cephe: [[28.94, 41.04], [28.94, 41.01]] }, { satir: 1, cephe: [[28.942, 41.04], [28.942, 41.01]] }, { satir: 2, kume: [28.96, 41.025], km: 0.5 }] }],
       },
-      { land, lakes: [], rivers: [], countries: new Map() } as never,
+      withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: land as never, water: [] }),
       1920,
       1080,
       (i) => (i ?? 0) * 100,
       { relief: "bg/yakin.jpg", year: 1453 },
     );
     assert.equal(geo.vehicles![0]!.kind, "kadirga");
-    assert.ok(geo.vehicles![0]!.overland?.length === 1 && geo.vehicles![0]!.overland[0]!.to === 1, JSON.stringify(geo.vehicles![0]!.overland));
+    // A route that ends on land is the writer pointing at the shore's far side: the ships stop at the shore, no haul.
+    const shoreX = geo.vehicles![0]!.path[geo.vehicles![0]!.path.length - 1]!.x;
+    assert.equal(geo.vehicles![0]!.overland, undefined, JSON.stringify(geo.vehicles![0]!.overland));
+    assert.ok(geo.vehicles![0]!.path.length >= 2 && shoreX < geo.vehicles![0]!.path[0]!.x && shoreX > geo.vehicles![0]!.path[0]!.x - 400, `the route kept to the water (ends at ${shoreX})`);
+    // A haul goes from water to water: over a strip of land with the sea on both sides.
+    const strip = [[[[28.98, 40], [29.0, 40], [29.0, 42], [28.98, 42], [28.98, 40]]]];
+    const hauled = buildGeoMap({ merkez: [28.99, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 3, konum: [29.03, 41.04], satir: 1, yol: [[28.99, 41.045], [28.95, 41.04]] }] }, withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: strip as never, water: [] }), 1920, 1080, () => 0, { year: 1453 });
+    const dragged = hauled.vehicles![0]!.overland!;
+    assert.ok(dragged.length === 1 && dragged[0]!.from > 0.2 && dragged[0]!.to < 0.8, JSON.stringify(dragged));
+    // A fleet whose first point stands just up the shore puts off from it (the 1453 haul); far inland, it starts afloat.
+    const coastData = withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: strip as never, water: [] });
+    const fromShore = buildGeoMap({ merkez: [28.99, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.9985, 41.04], satir: 1, yol: [[28.99, 41.045], [28.95, 41.04]] }] }, coastData, 1920, 1080, () => 0, { year: 1453 });
+    assert.ok(fromShore.vehicles![0]!.overland?.[0]?.from === 0, JSON.stringify(fromShore.vehicles![0]!.overland));
+    const wide = [[[[28.9, 40], [29.0, 40], [29.0, 42], [28.9, 42], [28.9, 40]]]];
+    const inland = buildGeoMap({ merkez: [28.95, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.95, 41.04], satir: 1, yol: [[29.03, 41.04]] }] }, withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: wide as never, water: [] }), 1920, 1080, () => 0, { year: 1453 });
+    assert.equal(inland.vehicles![0]!.overland, undefined, "pointed from 4 km inland: no haul");
+    assert.deepEqual(cutRoute([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }], 0, 0.75), [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 15, y: 0 }]);
+    // Only where the water is known: on Natural Earth's coast (no OpenStreetMap coast or rivers) a route over land is no haul.
+    const unknown = buildGeoMap({ merkez: [28.98, 41.03], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [29.03, 41.04], satir: 1, yol: [[28.99, 41.045], [28.97, 41.04]] }] }, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, () => 0, { year: 1453 });
+    assert.equal(unknown.vehicles![0]!.overland, undefined);
+    // OpenStreetMap rivers are water on the close map, drawn as wide as they are.
+    const river = buildGeoMap({ merkez: [28.98, 41.03], genislik_km: 20, yerlesimler: [{ tur: "koy", konum: [28.98, 41.03], km: 3 }] }, withCoast({ land, lakes: [], rivers: [], countries: new Map() } as never, { land: [], water: [], rivers: [{ line: [[28.9, 41.03], [29.06, 41.03]], km: 0.4 }] }), 1920, 1080, () => 0, {});
+    assert.ok(river.close!.rivers![0]!.width > 30 && river.close!.settlements[0]!.items.every((it) => Math.abs(it.y - 540) > river.close!.rivers![0]!.width / 2), "no house in the river");
     // Line 1: the breach is not open yet — no way through; line 2: every token crosses the wall through it.
     const steps = geo.units![0]!.steps;
     assert.equal(steps[1]!.via, undefined);
@@ -681,6 +706,110 @@ async function main() {
     });
     assert.deepEqual(fight.map.kamera!.find((k) => k.satir === 3), { satir: 3, merkez: [28.935, 41.02], genislik_km: 6.5 }, "the camera pans to the fight at the same width");
     assert.equal(zoomOnShortRoutes({ ...fight.map }).zoomed, 0, "once on it, it stays");
+  });
+
+  await scenario("O13 close maps anywhere (owner, 23 Oct 2026: 'our brains must make these maps for any event on Earth — the close map, the castle'): castles by period, OSM walls fitted to the writer's line, layered sources, walled towns, close-map checks", async () => {
+    // Castles drawn in the period's manner: closed rings of about the size asked.
+    assert.deepEqual([castleStyleFor(1100), castleStyleFor(1529), castleStyleFor(1683), castleStyleFor(1916), castleStyleFor(undefined)], ["halka", "yildiz", "yildiz", "halka", "halka"]);
+    for (const style of ["halka", "kare", "yildiz"] as const) {
+      const ring = castleRing([20.45, 44.82], 0.8, style);
+      assert.deepEqual(ring[0], ring[ring.length - 1], `${style} is closed`);
+      const span = Math.max(...ring.map((p) => kmBetween([20.45, 44.82], p)));
+      assert.ok(span > 0.3 && span < 0.65, `${style}: ${span.toFixed(2)} km from the centre`);
+      assert.deepEqual(castleRing([20.45, 44.82], 0.8, style), ring, "the same place gives the same castle");
+    }
+    assert.ok(roundness(castleRing([20.45, 44.82], 0.8, "halka")) > 0.7, "a ring is round");
+    // A wall mapped as a thin strip: its centre line; pieces joined across a gate; the real walls along the writer's line.
+    const strip: [number, number][] = [[28.92, 41.0], [28.92, 41.02], [28.9203, 41.02], [28.9203, 41.0], [28.92, 41.0]];
+    assert.ok(roundness(strip) < 0.08);
+    const mid = stripCentreline(strip);
+    assert.ok(mid.length >= 3 && mid.every((p) => Math.abs(p[0] - 28.92015) < 0.0001), JSON.stringify(mid.slice(0, 2)));
+    const joined = joinPieces([[[28.92, 41.0], [28.92, 41.01]], [[28.92, 41.021], [28.92, 41.012]]], 0.25);
+    assert.equal(joined.length, 1, "two pieces 220 m apart join");
+    assert.equal(joinPieces([[[28.92, 41.0], [28.92, 41.01]], [[28.92, 41.02], [28.92, 41.03]]], 0.25).length, 2, "1 km apart they stay two");
+    const real: [number, number][] = [[28.9205, 41.04], [28.921, 41.02], [28.9205, 41.0], [28.93, 40.98]];
+    const fit = fitWall([[28.918, 41.035], [28.918, 41.005]], [real, [[28.99, 41.0], [28.99, 41.03]]])!;
+    assert.ok(fit && fit.every((p) => p[0] > 28.919 && p[0] < 28.922) && fit[0]![1] > fit[fit.length - 1]![1], "the real wall along the line, in the writer's order, the far one left out");
+    assert.equal(fitWall([[28.918, 41.035], [28.918, 41.005]], [[[28.99, 41.0], [28.99, 41.03]]]), undefined, "no real wall near: the writer's line stays");
+    // OSM answers: wall ways chained, a castle outline, a gate; Nominatim: only fortifications, never the district.
+    const ring = castleRing([20.45, 44.82], 0.8, "halka");
+    const way = (tags: Record<string, string>, pts: [number, number][]) => ({ type: "way", tags, geometry: pts.map(([lon, lat]) => ({ lon, lat })) });
+    const fromOsm = siteFromOverpass([
+      way({ barrier: "city_wall" }, [[28.92, 41.04], [28.921, 41.02]]),
+      way({ historic: "citywalls" }, [[28.921, 41.02], [28.92, 41.0]]),
+      way({ historic: "castle", name: "Belgrade Fortress" }, ring),
+      { type: "node", lon: 28.921, lat: 41.02, tags: { barrier: "city_gate", name: "Topkapı" } },
+    ]);
+    assert.equal(fromOsm.walls.length, 1, "the two wall ways chain into one");
+    assert.equal(fromOsm.castles[0]!.name, "Belgrade Fortress");
+    assert.equal(fromOsm.gates[0]!.name, "Topkapı");
+    const fromName = siteFromNominatim([
+      { category: "boundary", type: "administrative", name: "Rumelihisarı Mahallesi", geojson: { type: "Polygon", coordinates: [ring] } },
+      { category: "historic", type: "castle", name: "Belgrade Fortress", geojson: { type: "Polygon", coordinates: [ring] } },
+      { category: "building", type: "yes", name: "Walls of Constantinople", geojson: { type: "MultiPolygon", coordinates: [[strip]] } },
+    ]);
+    assert.equal(fromName.castles.length, 1, "the district is not a castle");
+    assert.equal(fromName.walls.length, 1, "the wall strip became a wall line");
+    // The preparer: a castle takes its real outline, one OSM lacks is drawn, a wall takes the real trace and its gates.
+    const site = { walls: [real], castles: [{ ring, name: "Belgrade Fortress" }], gates: [{ at: [28.921, 41.02] as [number, number], name: "Topkapı" }] };
+    const castle = placeWall({ ad: "Belgrade Fortress", kale: { merkez: [20.4505, 44.8203], km: 0.8 } }, site, 1456);
+    assert.equal(castle.note.kaynak, "osm");
+    assert.ok(castle.wall.noktalar!.length >= 6);
+    assert.equal(placeWall({ ad: "Lost Castle", kale: { merkez: [12, 47], km: 0.4 } }, site, 1456).note.kaynak, "kale");
+    const wall = placeWall({ ad: "Theodosian Walls", noktalar: [[28.918, 41.035], [28.918, 41.005]] }, site, 1453);
+    assert.equal(wall.note.kaynak, "osm");
+    assert.deepEqual(wall.wall.kapilar, [[28.921, 41.02]], "the real gate on it");
+    assert.equal(placeWall({ ad: "X", noktalar: [[28.918, 41.035], [28.918, 41.005]] }, undefined, 1453).note.kaynak, "yazar");
+    const ep: Episode = { ...sampleEpisode(), donem: "1456" };
+    const asked: string[][] = [];
+    const prepared = await prepareCloseMaps(
+      { ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [20.45, 44.82], genislik_km: 6, sehirler: [{ ad: "Belgrade", konum: [20.46, 44.82] }], surlar: [{ ad: "Belgrade Fortress", kale: { merkez: [20.4505, 44.8203], km: 0.8 } }] } }] },
+      async (_box, names) => (asked.push([...names]), { site, sources: ["test"] }),
+      1456,
+    );
+    assert.deepEqual(asked[0], ["Belgrade Fortress", "Walls of Belgrade", "Belgrade city walls"]);
+    assert.ok(prepared.episode.sahneler[0]!.harita!.surlar![0]!.noktalar!.length >= 6 && prepared.sources[0] === "test");
+    assert.equal((await prepareCloseMaps(ep, async () => { throw new Error("no map scene asks"); }, 1456)).notes.length, 0);
+    // A walled town fills its walls only; a castle with no points is drawn round its centre.
+    const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
+    const walled = buildGeoMap(
+      { merkez: [28.95, 41.02], genislik_km: 12, surlar: [{ noktalar: [[28.94, 41.06], [28.94, 40.98]] }, { ad: "Castle", kale: { merkez: [28.9, 41.0], km: 0.6 } }], yerlesimler: [{ tur: "sehir", konum: [28.95, 41.02], km: 5, sur_ici: true }] },
+      { land, lakes: [], rivers: [], countries: new Map() } as never,
+      1920,
+      1080,
+      () => 0,
+      { relief: "bg/yakin.jpg", year: 1300 },
+    );
+    const wallX = walled.close!.walls[0]!.points[0]!.x;
+    assert.ok(walled.close!.settlements[0]!.items.length > 30 && walled.close!.settlements[0]!.items.every((it) => it.x > wallX), "every house on the town's side of the wall");
+    assert.ok(walled.close!.walls[1]!.points.length > 20 && walled.close!.walls[1]!.towers.length > 3, "the drawn castle with its towers");
+    // A close map's places: a building checked by its name (a share of the map's width), never moved to the nearest article.
+    const placed = await checkMapPlaces("y", { merkez: [28.95, 41.02], genislik_km: 20, yapilar: [{ tur: "kilise", ad: "Hagia Sophia", konum: [28.99, 41.0] }], savaslar: [{ ad: "Gate of St. Romanus", konum: [28.9255, 41.0202] }] }, async (q) =>
+      q === "Hagia Sophia" ? [{ title: "Hagia Sophia", lon: 28.98, lat: 41.0086 }] : [{ title: "Fall of Constantinople", lon: 28.98, lat: 41.01 }],
+    );
+    assert.deepEqual(placed.map.yapilar![0]!.konum, [28.98, 41.0086], "Hagia Sophia 1.3 km off moves to Wikipedia's spot");
+    assert.deepEqual(placed.map.savaslar![0]!.konum, [28.9255, 41.0202], "the gate's fight stays where the writer put it");
+    assert.equal(placeToleranceKm({ merkez: [0, 0], genislik_km: 20 }), 0.8);
+    // The writer's close-map checks: no armies; a fight with the enemy 1.5 km off; a siege told without walls.
+    const closeScene = (h: SceneMap, line = "The army reaches the walls and lays siege.") => ({ sahneler: [{ ...ep.sahneler[0]!, id: "y", satirlar: [{ karakter: "anlatici", metin: line, duygu: "notr" }], harita: h }] });
+    const lone = mapProblems(closeScene({ merkez: [28.95, 41.02], genislik_km: 20, kamera: [{ satir: 0, merkez: [28.95, 41.02], genislik_km: 10 }] }));
+    assert.ok(lone.some((p) => p.includes("has no armies")) && lone.some((p) => p.includes("draws none")), JSON.stringify(lone));
+    const apart = mapProblems(closeScene({ merkez: [28.95, 41.02], genislik_km: 20, surlar: [{ noktalar: [[28.92, 41.04], [28.92, 41.0]] }], birlikler: [
+      { taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.9, 41.04], [28.9, 41.0]] }] },
+      { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.93, 41.04], [28.93, 41.0]], kayip: 1 }] },
+    ] }));
+    assert.ok(apart.some((p) => p.includes('"B" loses tokens on line 0')), JSON.stringify(apart));
+    const fine = mapProblems(closeScene({ merkez: [28.95, 41.02], genislik_km: 20, surlar: [{ noktalar: [[28.92, 41.04], [28.92, 41.0]] }], birlikler: [
+      { taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.917, 41.04], [28.917, 41.0]] }] },
+      { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.923, 41.04], [28.923, 41.0]], kayip: 1 }] },
+    ] }));
+    assert.deepEqual(fine, []);
+    // Validation: a castle ring instead of points; a walled town's flag.
+    const v = (h: unknown) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { merkez: [20.45, 44.82], genislik_km: 6, ...(h as object) } }] } as never);
+    assert.equal(v({ surlar: [{ ad: "Belgrade Fortress", kale: { merkez: [20.45, 44.82], km: 0.8, bicim: "yildiz" } }] }).ok, true);
+    assert.equal(v({ surlar: [{ ad: "X" }] }).ok, false, "a wall needs a line or a castle");
+    assert.equal(v({ surlar: [{ kale: { merkez: [20.45, 44.82], km: 0.8, bicim: "piramit" } }] }).ok, false);
+    assert.equal(v({ yerlesimler: [{ tur: "sehir", konum: [20.45, 44.82], sur_ici: "evet" }] }).ok, false);
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

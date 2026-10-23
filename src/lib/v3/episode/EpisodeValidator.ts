@@ -2,6 +2,7 @@ import {
   AGES,
   ARCH_STYLES,
   BUILDING_KINDS,
+  CASTLE_STYLES,
   CLOSE_MAP_MAX_KM,
   CROWD_MOVES,
   EFFECTS,
@@ -338,8 +339,15 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         const wp = `${hp}.surlar[${wi}]`;
         if (!isObj(w)) return err("HARITA_SUR", wp, "nesne bekleniyor");
         const pts = Array.isArray(w.noktalar) ? w.noktalar : [];
-        if (pts.length < 2) err("HARITA_SUR", `${wp}.noktalar`, "en az 2 nokta");
+        // A wall line, or a castle ring round a centre.
+        if (w.kale !== undefined) {
+          if (!isObj(w.kale)) return err("HARITA_SUR", `${wp}.kale`, "{merkez, km, bicim?} bekleniyor");
+          lonLat(w.kale.merkez, `${wp}.kale.merkez`);
+          num(w.kale, "km", `${wp}.kale`, 0.05, 8);
+          if (w.kale.bicim !== undefined) oneOf(w.kale, "bicim", `${wp}.kale`, CASTLE_STYLES);
+        } else if (pts.length < 2) err("HARITA_SUR", `${wp}.noktalar`, "en az 2 nokta (ya da kale: {merkez, km})");
         pts.forEach((pt, k) => lonLat(pt, `${wp}.noktalar[${k}]`));
+        str(w, "osm_ad", wp, { max: 60, optional: true });
         (Array.isArray(w.kapilar) ? w.kapilar : []).forEach((pt, k) => lonLat(pt, `${wp}.kapilar[${k}]`));
         if (w.gedik !== undefined) {
           if (!isObj(w.gedik)) return err("HARITA_SUR", `${wp}.gedik`, "{konum, satir} bekleniyor");
@@ -368,6 +376,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         num(y, "km", yp, 0.2, 30, true);
         lineIndex(y, "satir", yp);
         lineIndex(y, "yanma_satir", yp);
+        if (y.sur_ici !== undefined && typeof y.sur_ici !== "boolean") err("HARITA_YERLESIM", `${yp}.sur_ici`, "true/false bekleniyor");
       });
       (arr(h, "yollar", hp, true) ?? []).forEach((y, yi) => {
         const pts = isObj(y) && Array.isArray(y.noktalar) ? y.noktalar : [];

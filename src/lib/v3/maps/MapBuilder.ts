@@ -3,6 +3,7 @@ import path from "node:path";
 import { CLOSE_MAP_MAX_KM, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
+import { castleRing, castleStyleFor } from "./CastleShapes";
 import { placeCloseLabels } from "./CloseLabels";
 import { isPolity } from "./HistoricalBorders";
 import { LABEL_CHAR_W, labelLines } from "./LabelText";
@@ -24,6 +25,10 @@ export interface MapData {
   readonly admin?: readonly AdminUnit[];
   /** Named seas and gulfs (Natural Earth marine polygons, public domain) for the atlas-like sea names. */
   readonly seas?: readonly { readonly name: string; readonly nameTr?: string; readonly polys: Polygon[] }[];
+  /** A close map's rivers with their widths (OpenStreetMap), drawn as water in place of the thin Natural Earth lines. */
+  readonly wideRivers?: readonly { readonly line: readonly (readonly [number, number])[]; readonly km: number; readonly name?: string }[];
+  /** The close map's water is OpenStreetMap's (its coast or rivers): a ship's route over land there is a haul. */
+  readonly closeWater?: boolean;
 }
 
 /** The sea names file (Natural Earth 1:50m marine polygons; scripts/v3/il-sinirlari-hazirla.ts fetches it). */
@@ -51,10 +56,16 @@ function linesOf(g: { type: string; coordinates: unknown } | null): Line[] {
   return [];
 }
 
-/** The map data with a close map's own coast (OpenStreetMap) in place of Natural Earth's; its enclosed water joins the lakes. */
-export function withCoast(data: MapData, coast: { readonly land: Polygon[]; readonly water: Polygon[] } | undefined): MapData {
-  return coast?.land.length ? { ...data, land: coast.land, lakes: [...coast.water, ...data.lakes] } : data;
+/**
+ * The map data with a close map's own coast (OpenStreetMap) in place of Natural Earth's; its enclosed water and lakes
+ * join the lakes, its rivers come with their widths.
+ */
+export function withCoast(data: MapData, coast: { readonly land: Polygon[]; readonly water: Polygon[]; readonly rivers?: MapData["wideRivers"] } | undefined): MapData {
+  if (!coast) return data;
+  const base = coast.land.length ? { ...data, land: coast.land, lakes: [...coast.water, ...data.lakes], closeWater: true } : coast.water.length ? { ...data, lakes: [...coast.water, ...data.lakes] } : data;
+  return coast.rivers?.length ? { ...base, wideRivers: coast.rivers, closeWater: true } : base;
 }
+
 
 let cached: MapData | undefined;
 
@@ -566,18 +577,24 @@ function pointsAlong(line: readonly XY[], gap: number): XY[] {
  * and fields scattered over the rest of the land so the place reads like a painted battle map (hills come from the
  * real elevation under it). Deterministic: the same map is laid out the same way.
  */
-export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [number, number]) => XY, onLand: (p: [number, number]) => boolean, lineStart: (index: number | undefined, order: number) => number): NonNullable<V3GeoMap["close"]> {
+export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [number, number]) => XY, onLand: (p: [number, number]) => boolean, lineStart: (index: number | undefined, order: number) => number, year?: number): NonNullable<V3GeoMap["close"]> {
   const kmPerPx = (v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width;
   const km = (n: number) => n / kmPerPx;
   // A house is ~120 m across, but never smaller than 9 px on the closest view.
   const unit = Math.round(Math.max(9, km(0.12)) * 10) / 10;
+  // A wall's own size: about 45 m of stone and towers, never less than 9 px nor more than a house (on a 7 km map the
+  // house-sized walls of the Belgrade trial were 120 m thick and buried the fortress under their towers).
+  const wallUnit = Math.round(Math.min(unit, Math.max(9, km(0.045))) * 10) / 10;
   const lonLatOf = (p: XY): [number, number] => [v.lon0 - v.spanLon / 2 + (p.x / v.width) * v.spanLon, v.lat0 + v.spanLat / 2 - (p.y / v.height) * v.spanLat];
   const walls = (map.surlar ?? []).map((w, i) => {
-    const points = w.noktalar.map((p) => toPx(p));
+    // A castle the preparer found no trace of is drawn in its period's manner round its centre.
+    const points = (w.noktalar ?? (w.kale ? castleRing(w.kale.merkez, w.kale.km, w.kale.bicim ?? castleStyleFor(year)) : [])).map((p) => toPx(p));
     return {
       ...(w.ad ? { label: w.ad } : {}),
       points,
-      towers: pointsAlong(points, unit * 5.5),
+      // A tower every few hundred metres, at least half a dozen on a small castle; none on a short inner stretch (a
+      // castle mapped in OSM is dozens of short pieces).
+      towers: ((length) => (length < km(0.15) ? [] : pointsAlong(points, Math.min(unit * 5.5, Math.max(wallUnit * 4, length / 6)))))(points.slice(1).reduce((a, p, j) => a + Math.hypot(p.x - points[j]!.x, p.y - points[j]!.y), 0)),
       gates: (w.kapilar ?? []).map((g) => {
         const n = nearestOnLine(points, toPx(g));
         return { x: r1(n.x), y: r1(n.y), angle: Math.round(n.angle * 1000) / 1000 };
@@ -589,7 +606,18 @@ export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [numbe
     const outline = s.noktalar && s.noktalar.length >= 3 ? s.noktalar.map((p) => toPx(p)) : undefined;
     const centre = outline ? { x: outline.reduce((a, p) => a + p.x, 0) / outline.length, y: outline.reduce((a, p) => a + p.y, 0) / outline.length } : toPx(s.konum!);
     const radius = km((s.km ?? SETTLEMENT_KM[s.tur]) / 2);
-    const inside = (p: XY) => (outline ? inPolygonXY(p, outline) : Math.hypot(p.x - centre.x, p.y - centre.y) <= radius);
+    // A walled town fills its walls: inside a closed ring, or on the town's side of an open wall (a land wall from sea
+    // to sea), never spilling out past them.
+    const walled = (p: XY) =>
+      walls.every((w) => {
+        if (w.points.length < 2) return true;
+        const closed = w.points.length >= 4 && Math.hypot(w.points[0]!.x - w.points[w.points.length - 1]!.x, w.points[0]!.y - w.points[w.points.length - 1]!.y) < 1;
+        if (closed) return !inPolygonXY(centre, w.points) || inPolygonXY(p, w.points);
+        let crossings = 0;
+        for (let j = 1; j < w.points.length; j++) if (segmentsCross(p, centre, w.points[j - 1]!, w.points[j]!)) crossings++;
+        return crossings % 2 === 0;
+      });
+    const inside = (p: XY) => (outline ? inPolygonXY(p, outline) : Math.hypot(p.x - centre.x, p.y - centre.y) <= radius) && (!s.sur_ici || walled(p));
     const box = outline ? { x0: Math.min(...outline.map((p) => p.x)), x1: Math.max(...outline.map((p) => p.x)), y0: Math.min(...outline.map((p) => p.y)), y1: Math.max(...outline.map((p) => p.y)) } : { x0: centre.x - radius, x1: centre.x + radius, y0: centre.y - radius, y1: centre.y + radius };
     // Houses a little apart on a loose grid, tents further; a village is scattered, a camp in rows.
     const area = (box.x1 - box.x0) * (box.y1 - box.y0);
@@ -639,6 +667,7 @@ export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [numbe
     }
   return {
     unit,
+    ...(wallUnit !== unit ? { wallUnit } : {}),
     ground: [...scattered, ...named],
     roads,
     ...(roadNames.length ? { roadNames } : {}),
@@ -705,6 +734,25 @@ export function throughBreach(from: readonly XY[], to: readonly XY[], start: num
   }
   return {};
 }
+
+/** The part of a polyline between two fractions of its length (a ship's route kept to the water). */
+export function cutRoute(points: readonly XY[], from: number, to: number): XY[] {
+  if (points.length < 2 || to <= from) return points.slice(0, 1).map((p) => ({ ...p }));
+  const total = points.slice(1).reduce((a, p, i) => a + Math.hypot(p.x - points[i]!.x, p.y - points[i]!.y), 0);
+  const at = (f: number) => alongPoints(points, f);
+  const out: XY[] = [at(from)];
+  let run = 0;
+  for (let i = 1; i < points.length; i++) {
+    run += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+    const f = total ? run / total : 1;
+    if (f > from && f < to) out.push({ ...points[i]! });
+  }
+  out.push(at(to));
+  return out.map((p) => ({ x: r1(p.x), y: r1(p.y) }));
+}
+
+/** How near the water (km) a fleet's first point may stand and still put off from that shore. */
+const SHORE_KM = 0.4;
 
 /** The script's vehicles that float. */
 const SHIPS = new Set(["gemi", "kadirga", "yelkenli", "denizalti"]);
@@ -1000,21 +1048,60 @@ function projectGeoMap(
     : undefined;
   const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
   const battles = (map.savaslar ?? []).map((w, i) => ({ ...toPx(w.konum), label: w.ad, start: lineStart(w.satir, i) }));
-  const onLand = (p: [number, number]) => inOutline(p[0], p[1], data.land) && !inOutline(p[0], p[1], data.lakes);
+  // On the close map rivers are as wide as they are (OpenStreetMap's, else Natural Earth's at a default width): water
+  // for ships, never land for houses, woods or tokens.
+  const closeMap = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM;
+  const pxPerKm = v.width / (v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180)));
+  const inWorld = (p: XY) => p.x > -v.width * 0.1 && p.x < v.width * 1.1 && p.y > -v.height * 0.1 && p.y < v.height * 1.1;
+  // Only OpenStreetMap's: Natural Earth's 1:50m rivers are a straight line a kilometre or two off at this scale (the
+  // Belgrade trial, 23 Oct 2026, drew the Danube through the fields) and stay a thin line.
+  const riverBands = closeMap
+    ? (data.wideRivers ?? [])
+        .map((r) => ({ pts: r.line.map((p) => toPx(p)), half: (r.km * pxPerKm) / 2 }))
+        .filter((r) => r.pts.length >= 2 && r.pts.some(inWorld))
+    : [];
+  const onLand = (p: [number, number]) => inOutline(p[0], p[1], data.land) && !inOutline(p[0], p[1], data.lakes) && (!riverBands.length || !riverBands.some((r) => nearestOnLine(r.pts, toPx(p)).d < r.half));
+  // A ship is hauled over land only where the water is known (OpenStreetMap's coast or rivers on a close map): on
+  // Natural Earth's coarse coast a sea route cutting a cape, or a river fleet, would look dragged over the fields.
+  const knownWater = closeMap && Boolean(data.closeWater);
+  // Water within `km` of a place: points on rings round it (eight ways, four distances).
+  const nearWater = (p: readonly [number, number], km: number) => {
+    const kx = 111.32 * Math.max(0.2, Math.cos((p[1] * Math.PI) / 180));
+    for (let r = 1; r <= 4; r++)
+      for (let a = 0; a < 8; a++) {
+        const d = (km * r) / 4;
+        if (!onLand([p[0] + (Math.cos((a * Math.PI) / 4) * d) / kx, p[1] + (Math.sin((a * Math.PI) / 4) * d) / 110.57])) return true;
+      }
+    return false;
+  };
   // Tokens are spaced on screen by the renderer (MapUnits), for whatever zoom the camera is at.
   // Vehicles: a script's ship takes its period's look; the rest are drawn as named.
-  const vehicles = (map.araclar ?? []).map((a, i) => ({
-    kind: a.tur === "gemi" ? shipLook(opts.year) : a.tur,
-    color: a.renk,
-    count: Math.max(1, Math.min(6, Math.round(a.sayi ?? 1))),
-    start: lineStart(a.satir, i),
-    ...(a.bitis_satir !== undefined ? { end: lineStart(a.bitis_satir, i) } : {}),
-    path: [a.konum, ...(a.yol ?? [])].map((p) => toPx(p)),
-    ...(a.yol?.length ? { moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
-    ...(a.hedef ? { target: toPx(a.hedef), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
-    ...((o) => (o.length ? { overland: o } : {}))(SHIPS.has(a.tur) && a.yol?.length ? overlandStretches([a.konum, ...a.yol], toPx, onLand) : []),
-  }));
-  const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart) : undefined;
+  const vehicles = (map.araclar ?? []).map((a, i) => {
+    const route = [a.konum, ...(a.yol ?? [])];
+    // A haul goes from water to water (1453: the Bosphorus to the Golden Horn). A ship's route that starts or ends on
+    // land is the writer pointing at the place it sails for (the Belgrade run sent its fleet to the fortress itself):
+    // the ship keeps to the water and stops at the shore, with no haul.
+    // Land at the end: the fleet lands there, it stops at the shore. Land at the start: a fleet a few hundred metres
+    // from the water puts off from that shore — a haul when the land goes on to more water (the 1453 haul's first
+    // point stood up the Bosphorus shore); further inland the writer pointed at a place, and the route starts afloat.
+    const stretches = knownWater && SHIPS.has(a.tur) && a.yol?.length ? overlandStretches(route, toPx, onLand) : [];
+    const fromShore = stretches[0]?.from === 0 && nearWater(a.konum, SHORE_KM);
+    const ends = { from: stretches[0]?.from === 0 && !fromShore ? stretches[0].to : 0, to: stretches[stretches.length - 1]?.to === 1 ? stretches[stretches.length - 1]!.from : 1 };
+    const kept = ends.from > 0 || ends.to < 1 ? cutRoute(route.map((p) => toPx(p)), ends.from, ends.to) : route.map((p) => toPx(p));
+    const hauls = stretches.filter((o) => (o.from > 0 || fromShore) && o.to < 1).map((o) => ({ from: Math.round(((o.from - ends.from) / (ends.to - ends.from || 1)) * 1000) / 1000, to: Math.round(((o.to - ends.from) / (ends.to - ends.from || 1)) * 1000) / 1000 }));
+    return {
+      kind: a.tur === "gemi" ? shipLook(opts.year) : a.tur,
+      color: a.renk,
+      count: Math.max(1, Math.min(6, Math.round(a.sayi ?? 1))),
+      start: lineStart(a.satir, i),
+      ...(a.bitis_satir !== undefined ? { end: lineStart(a.bitis_satir, i) } : {}),
+      path: kept,
+      ...(a.yol?.length && kept.length > 1 ? { moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
+      ...(a.hedef ? { target: toPx(a.hedef), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
+      ...(hauls.length ? { overland: hauls } : {}),
+    };
+  });
+  const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart, opts.year) : undefined;
   // Lines where tokens are lost are fights: the two sides close in and strike while the losses fall.
   const fightLines = [...new Set((map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => (y.kayip ?? 0) > 0).map((y) => y.satir)))];
   const fights = fightLines.map((l, i) => ({ start: lineStart(l, i), durationS: Math.round((UNIT_LOSS_FIRST_S + (Math.max(...(map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => y.satir === l).map((y) => Math.min(u.sayi, y.kayip ?? 0)))) - 1) * UNIT_LOSS_GAP_S + 1.2) * 10) / 10 }));
@@ -1054,7 +1141,7 @@ function projectGeoMap(
     ...(units.length ? { units } : {}),
     ...(fights.length ? { fights } : {}),
     ...(vehicles.length ? { vehicles } : {}),
-    ...(close ? { close } : {}),
+    ...(close ? { close: riverBands.length ? { ...close, rivers: riverBands.map((r) => ({ d: `M${r.pts.map((p) => `${r1(p.x)} ${r1(p.y)}`).join(" L")}`, width: r1(r.half * 2) })) } : close } : {}),
     // A province grid step and a bit (0.02° ≈ 2.2 km, ~3 km across the diagonal): the colour then always reaches the coast.
     ...(coast.size ? { coastPad: Math.round((COAST_PAD_KM / ((v.spanLon * 111.32 * Math.max(0.2, Math.cos((v.lat0 * Math.PI) / 180))) / v.width)) * 10) / 10 } : {}),
     ...(opts.era ? { era: opts.era } : {}),

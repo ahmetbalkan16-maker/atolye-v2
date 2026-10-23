@@ -21,6 +21,8 @@ import { loadSnapshot, withAtlasYears, yearLabel } from "../../src/lib/v3/maps/H
 import { withRouteZoom } from "../../src/lib/v3/maps/RouteZoom";
 import { loadMapData, type Polygon } from "../../src/lib/v3/maps/MapBuilder";
 import { mapGroundFor } from "../../src/lib/v3/maps/MapGround";
+import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../../src/lib/v3/maps/CloseSite";
+import { periodEndYear } from "../../src/lib/v3/backgrounds/HistorySources";
 import { checkEpisodePlaces, wikipediaPlaces } from "../../src/lib/v3/maps/PlaceCheck";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
@@ -60,6 +62,12 @@ async function main() {
   const zoom = withRouteZoom(atlas.episode);
   for (const id of zoom.scenes) console.log(`harita: ${id} sahnesinde ok çok kısaydı → kamera oka yaklaşır`);
   full = zoom.episode;
+  // The close maps' walls and castles on their real traces, as the production does (OpenStreetMap, kept in the library).
+  if (hasCloseMap(full)) {
+    const site = await prepareCloseMaps(full, closeSiteLookup(paths, (s) => console.log(s)), periodEndYear(full.donem));
+    for (const n of site.notes) console.log(`yakın harita: ${n.sahne} "${n.ad}": ${n.ayrinti}`);
+    full = assertEpisode(site.episode);
+  }
   const want = arg("--sahne");
   const scene = full.sahneler.find((s) => (want ? s.id === want : s.harita?.merkez && s.harita.genislik_km));
   if (!scene?.harita?.merkez || !scene.harita.genislik_km) throw new Error(want ? `${want}: haritalı sahne değil` : "bölümde haritalı sahne yok");

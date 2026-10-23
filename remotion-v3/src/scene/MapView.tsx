@@ -375,8 +375,19 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                 return a > 0 && frame >= t.start ? <path key={i} d={t.border ?? t.d} fill="none" stroke={shade(t.color, i === map.mainTerritory ? 0.4 : 0.5)} strokeOpacity={0.95 * a} strokeWidth={(i === map.mainTerritory ? 4.4 : 2.6) * k} strokeLinejoin="round" mask={growing ? `url(#${id}-grow${i})` : undefined} /> : null;
               })}
             </g>
-            {/* Rivers over the colours (the reference maps name and draw them), thin and light. */}
-            <path d={map.rivers} fill="none" stroke="#7cc3ea" strokeOpacity={0.85} strokeWidth={2.2 * k} strokeLinecap="round" strokeLinejoin="round" />
+            {/* Rivers over the colours (the reference maps name and draw them), thin and light — on the close map as
+                wide as they are, water with a dark bank (a front, a crossing, a fleet's road). */}
+            {map.close?.rivers?.length ? (
+              map.close.rivers.map((r, i) => (
+                <g key={`rv${i}`}>
+                  <path d={r.d} fill="none" stroke="rgba(8,20,38,0.7)" strokeWidth={r.width + 3.6 * k} strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={r.d} fill="none" stroke={OCEAN} strokeWidth={r.width} strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={r.d} fill="none" stroke="#a6dcea" strokeOpacity={0.18} strokeWidth={Math.max(1, r.width * 0.35)} strokeLinecap="round" strokeLinejoin="round" />
+                </g>
+              ))
+            ) : (
+              <path d={map.rivers} fill="none" stroke="#7cc3ea" strokeOpacity={0.85} strokeWidth={2.2 * k} strokeLinecap="round" strokeLinejoin="round" />
+            )}
           </>
         ) : (
           <g mask={`url(#${id}-land)`}>

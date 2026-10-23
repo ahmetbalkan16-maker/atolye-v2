@@ -1,5 +1,5 @@
 import { cachedJson } from "../backgrounds/CommonsProvider";
-import type { Episode, SceneMap } from "../episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, type Episode, type SceneMap } from "../episode/EpisodeTypes";
 
 /**
  * Places checked against an independent source (owner, 21 Oct 2026: "our brains research it and place it exactly and
@@ -54,33 +54,47 @@ const norm = (s: string) =>
  * Where a place really is: an article named like it (nearest such to the written point), else the nearest article
  * within NEAREST_MAX_KM; moved only when more than PLACE_TOLERANCE_KM away.
  */
-export function decidePlace(name: string, at: readonly [number, number], candidates: readonly PlaceCandidate[]): { to: [number, number]; title: string; km: number } | undefined {
+export function decidePlace(name: string, at: readonly [number, number], candidates: readonly PlaceCandidate[], opts: { readonly toleranceKm?: number; readonly namedOnly?: boolean } = {}): { to: [number, number]; title: string; km: number } | undefined {
   const n = norm(name);
+  const tolerance = opts.toleranceKm ?? PLACE_TOLERANCE_KM;
   const scored = candidates.map((c) => ({ c, km: distanceKm(at, [c.lon, c.lat]), named: norm(c.title) === n || norm(c.title).split(",")[0] === n }));
   const named = scored.filter((s) => s.named).sort((a, b) => a.km - b.km)[0];
-  const pick = named ?? scored.filter((s) => s.km <= NEAREST_MAX_KM).sort((a, b) => a.km - b.km)[0];
-  if (!pick || pick.km <= PLACE_TOLERANCE_KM) return undefined;
-  return { to: [Math.round(pick.c.lon * 1000) / 1000, Math.round(pick.c.lat * 1000) / 1000], title: pick.c.title, km: Math.round(pick.km) };
+  const pick = named ?? (opts.namedOnly ? undefined : scored.filter((s) => s.km <= NEAREST_MAX_KM).sort((a, b) => a.km - b.km)[0]);
+  // On a close map a named article that far off is another place of the same name.
+  if (!pick || pick.km <= tolerance || (opts.namedOnly && pick.km > tolerance * 25)) return undefined;
+  const digits = tolerance < 5 ? 10_000 : 1000;
+  return { to: [Math.round(pick.c.lon * digits) / digits, Math.round(pick.c.lat * digits) / digits], title: pick.c.title, km: Math.round(pick.km * 10) / 10 };
+}
+
+/**
+ * How far a place on a map may lie from Wikipedia's before it moves: 40 km on a wide map; on the close battle map a
+ * share of its width (a 20 km map: 800 m — a church 2 km off is on the wrong hill).
+ */
+export function placeToleranceKm(map: SceneMap): number {
+  return map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? Math.min(PLACE_TOLERANCE_KM, Math.max(0.3, map.genislik_km * 0.04)) : PLACE_TOLERANCE_KM;
 }
 
 export interface PlaceFix {
   readonly sahne: string;
   readonly ad: string;
-  readonly tur: "sehir" | "savas";
+  readonly tur: "sehir" | "savas" | "yapi";
   readonly from: readonly [number, number];
   readonly to: readonly [number, number];
   readonly kaynak: string;
   readonly km: number;
 }
 
-const same = (a: readonly [number, number], b: readonly [number, number]) => distanceKm(a, b) < 2;
-
-/** One scene's map with its cities and battles checked; points on a moved place move with it. */
+/** One scene's map with its cities, battles and (on a close map) named buildings checked; points on a moved place move with it. */
 export async function checkMapPlaces(sceneId: string, map: SceneMap, lookup: PlaceLookup): Promise<{ map: SceneMap; fixes: PlaceFix[]; unchecked: string[] }> {
   const fixes: PlaceFix[] = [];
   // Places whose lookup failed (no internet, Wikipedia down): reported, never taken for confirmed.
   const unchecked: string[] = [];
   const moves: { from: readonly [number, number]; to: [number, number] }[] = [];
+  // On the close battle map: a tolerance by the map's width, and only an article of that very name moves a place (the
+  // nearest article to "Gate of St. Romanus" is the whole siege's).
+  const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM;
+  const tolerance = placeToleranceKm(map);
+  const same = (a: readonly [number, number], b: readonly [number, number]) => distanceKm(a, b) < (close ? 0.03 : 2);
   const ask = async (tur: PlaceFix["tur"], ad: string, konum: readonly [number, number]) => {
     // "Nicopolis 1396" is looked up as "Nicopolis"; a battle first as one ("Battle of …"), then as the bare place.
     const bare = ad.replace(/\s*\d{3,4}\s*(BC|AD)?\s*$/i, "").trim();
@@ -93,14 +107,14 @@ export async function checkMapPlaces(sceneId: string, map: SceneMap, lookup: Pla
         unchecked.push(ad);
         return konum;
       }
-      const got = decidePlace(bare, konum, candidates);
+      const got = decidePlace(bare, konum, candidates, { toleranceKm: tolerance, namedOnly: close });
       if (got) {
         fixes.push({ sahne: sceneId, ad, tur, from: konum, to: got.to, kaynak: `Wikipedia: ${got.title}`, km: got.km });
         moves.push({ from: konum, to: got.to });
         return got.to;
       }
       // Confirmed: an article of that name, or one right where the writer put it.
-      if (candidates.some((c) => norm(c.title) === norm(bare) || distanceKm(konum, [c.lon, c.lat]) <= PLACE_TOLERANCE_KM)) return konum;
+      if (candidates.some((c) => norm(c.title) === norm(bare) || distanceKm(konum, [c.lon, c.lat]) <= tolerance)) return konum;
     }
     return konum;
   };
@@ -108,12 +122,15 @@ export async function checkMapPlaces(sceneId: string, map: SceneMap, lookup: Pla
   for (const c of map.sehirler ?? []) sehirler.push({ ...c, konum: await ask("sehir", c.ad, c.konum) });
   const savaslar = [];
   for (const w of map.savaslar ?? []) savaslar.push({ ...w, konum: await ask("savas", w.ad, w.konum) });
+  const yapilar = [];
+  for (const b of map.yapilar ?? []) yapilar.push(close && b.ad ? { ...b, konum: await ask("yapi", b.ad, b.konum) } : b);
   const moved = (p: readonly [number, number]): [number, number] => moves.find((m) => same(m.from, p))?.to ?? [p[0], p[1]];
   return {
     map: {
       ...map,
       ...(map.sehirler ? { sehirler } : {}),
       ...(map.savaslar ? { savaslar } : {}),
+      ...(map.yapilar ? { yapilar } : {}),
       ...(map.rozetler ? { rozetler: map.rozetler.map((r) => ({ ...r, konum: moved(r.konum), ...(r.yol ? { yol: r.yol.map(moved) } : {}) })) } : {}),
       ...(map.oklar ? { oklar: map.oklar.map((o) => ({ ...o, noktalar: o.noktalar.map(moved) })) } : {}),
       ...(map.ordular ? { ordular: map.ordular.map((a) => ({ ...a, konum: moved(a.konum) })) } : {}),

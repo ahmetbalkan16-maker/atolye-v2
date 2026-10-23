@@ -1,4 +1,46 @@
-import type { Episode } from "../episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, type Episode, type UnitFormation } from "../episode/EpisodeTypes";
+import { distanceKm } from "../maps/PlaceCheck";
+
+/** Lines telling a siege or walls (English and Turkish stems). */
+const SIEGE = /\b(?:siege|besieg\w*|walls?|ramparts?|breach\w*|fortress|castle|citadel|gates?)\b|kuşat|sur(?:lar|u|ları)?\b|kale|hisar|gedik/iu;
+
+/** A formation's middle. */
+function formationAt(y: UnitFormation): [number, number] | undefined {
+  if ("kume" in y) return [y.kume[0], y.kume[1]];
+  if ("kusatma" in y) return [y.kusatma[0], y.kusatma[1]];
+  if ("cephe" in y && y.cephe.length) return [y.cephe.reduce((a, p) => a + p[0], 0) / y.cephe.length, y.cephe.reduce((a, p) => a + p[1], 0) / y.cephe.length];
+  return undefined;
+}
+
+/**
+ * The close battle map's own rules (owner, 23 Oct 2026, after the 1453 benchmark): the armies are on it; on a line with
+ * losses both sides stand close enough to meet (the defenders fell at the walls while the attackers waited 1.5 km off);
+ * a story of a siege has its walls or castle.
+ */
+function closeMapProblems(s: Episode["sahneler"][number]): string[] {
+  const h = s.harita!;
+  const out: string[] = [];
+  const sides = h.birlikler ?? [];
+  if (!sides.length) out.push(`close map "${s.id}" has no armies: give each side its "birlikler" tokens (fronts, clusters, a siege ring) and move them with the lines — CLOSE BATTLE MAP`);
+  // Where each side stands on a line: its latest formation at or before it.
+  const at = (u: (typeof sides)[number], line: number) => {
+    const y = [...u.yerler].filter((f) => f.satir <= line).sort((a, b) => b.satir - a.satir)[0];
+    return y ? formationAt(y) : undefined;
+  };
+  const meet = Math.max(0.8, h.genislik_km! * 0.08);
+  for (const u of sides)
+    for (const y of u.yerler) {
+      if (!(y.kayip ?? 0)) continue;
+      const here = formationAt(y);
+      const near = sides.filter((o) => o !== u).map((o) => at(o, y.satir)).filter((p): p is [number, number] => Boolean(p));
+      if (here && near.length && near.every((p) => distanceKm(here, p) > meet)) out.push(`close map "${s.id}": "${u.taraf}" loses tokens on line ${y.satir} but no enemy stands within ${Math.round(meet * 10) / 10} km then: give the other side a formation on line ${y.satir} right against it (across a wall: attackers just outside, defenders just inside) — UNITS AND VEHICLES`);
+    }
+  // A siege told in the lines, set at a fortress (the Belgrade run's "Close map: Belgrade Fortress and battlefield"), or
+  // with a castle standing on the map as a single building.
+  const siege = SIEGE.test(s.mekan ?? "") || s.satirlar.some((l) => SIEGE.test(l.metin)) || (h.yapilar ?? []).some((b) => b.tur === "kale");
+  if (!(h.surlar?.length) && siege) out.push(`close map "${s.id}" tells a siege or walls but draws none: give the walls ("surlar" with "noktalar" and "osm_ad") or the castle ("kale": {"merkez", "km"}), its gates and the breach on its line — CLOSE BATTLE MAP`);
+  return out;
+}
 
 // English words by word boundary; Turkish stems without one (\b does not see "ü" as a letter: "yürüdü").
 const MOVES = /\b(?:sail(?:s|ed)?|march(?:es|ed)?|invad(?:e|es|ed)|invasion|cross(?:es|ed)|fleet|armada|campaign|conquer(?:s|ed)?|voyage|expedition)\b|sefer|donanma|işgal|fethet|yürüd|denizi geç/iu;
@@ -26,8 +68,12 @@ export function mapProblems(episode: unknown): string[] {
         (h.rozetler ?? []).some((r) => (r.yol?.length ?? 0) > 0) ||
         (h.ordular ?? []).some((o) => (o.yol?.length ?? 0) > 0) ||
         (h.cizgiler ?? []).some((c) => (c.satir ?? 0) > 0) ||
+        (h.birlikler ?? []).some((u) => u.yerler.length > 1 || u.yerler.some((y) => (y.kayip ?? 0) > 0)) ||
+        (h.araclar ?? []).some((a) => (a.yol?.length ?? 0) > 0 || a.hedef !== undefined) ||
+        (h.surlar ?? []).some((w) => w.gedik !== undefined) ||
         (h.bolgeler ?? []).some((b) => (b.satir ?? 0) > 0 || b.bitis_satir !== undefined || b.yayilma !== undefined);
-      if (!living) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), a battle, a camera move or a border change, each on the line that tells it`);
+      if (!living) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), move the tokens ("birlikler" with formations on later lines), a battle, a camera move or a border change, each on the line that tells it`);
+      if (h.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM) out.push(...closeMapProblems(s));
     }
   }
   // Every character scene lives in its drawn set (owner, 22 Oct 2026: "the viewer must live the moment"); a scene that

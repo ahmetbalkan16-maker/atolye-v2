@@ -15,9 +15,9 @@ import type { MapWorld, Polygon } from "./MapBuilder";
  * a coastline). Fetched once per box and kept in the library; no answer: the map keeps Natural Earth's coast.
  */
 export { CLOSE_MAP_MAX_KM };
-export const OSM_CREDIT = "Coastline: © OpenStreetMap contributors (ODbL)";
-/** The main Overpass server and public mirrors, tried in turn (the main one answers 502/504 when busy). */
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+export const OSM_CREDIT = "Map data (coast, walls, castles): © OpenStreetMap contributors (ODbL)";
+/** The main Overpass server and public mirrors, tried in turn (the main one answers 502/504 when busy; on 23 Oct 2026 only VK's mirror answered at all). */
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 /** Bump when the assembly changes, so the library builds the coast again. */
 const COAST_VERSION = 1;
 /** Coast points closer than this to the simplified line are dropped (~13 m). */
@@ -34,6 +34,90 @@ export interface CloseCoast {
   readonly land: Polygon[];
   /** Water the coastline encloses inside the land (a lagoon): drawn over the land like a lake. */
   readonly water: Polygon[];
+  /** Rivers and canals as wide as they are (`km`), from OpenStreetMap (CloseCoast.closeRiversFor). */
+  readonly rivers?: readonly CloseRiver[];
+}
+
+/** A river or canal on the close map: its centre line and width. */
+export interface CloseRiver {
+  readonly line: Pt[];
+  readonly km: number;
+  readonly name?: string;
+}
+
+/** Bump when the river parsing changes. */
+const RIVER_VERSION = 1;
+/** The smallest lake drawn on the close map (km²). */
+const MIN_LAKE_KM2 = 0.02;
+
+/** A ring's area in km² (local, for a lake). */
+function ringKm2(ring: readonly (readonly [number, number])[]): number {
+  const kx = 111.32 * Math.max(0.05, Math.cos(((ring[0]?.[1] ?? 0) * Math.PI) / 180));
+  return Math.abs(ringArea(ring)) * kx * 110.57;
+}
+
+/**
+ * A waterway's width: its `width` tag (metres), a navigable river's (a ship or barge class tagged: a great river like
+ * the Danube) or an ordinary river's, a canal's.
+ */
+function riverKm(tags: Readonly<Record<string, string>>): number {
+  const w = Number.parseFloat(tags.width ?? "");
+  if (Number.isFinite(w) && w > 2) return Math.min(2, w / 1000);
+  if (tags.waterway === "canal") return 0.03;
+  return tags.CEMT || tags.ship === "yes" || tags.boat === "yes" ? 0.35 : 0.12;
+}
+
+/** The rivers, canals and lakes in an Overpass answer, cut to the box (lakes: closed water ways). */
+export function riversFromOverpass(elements: readonly OsmElement[], box: Box): { rivers: CloseRiver[]; lakes: Polygon[] } {
+  const rivers: CloseRiver[] = [];
+  const lakes: Polygon[] = [];
+  const byName = new Map<string, { lines: Pt[][]; km: number }>();
+  for (const e of elements) {
+    const t = e.tags ?? {};
+    const line = (e.geometry ?? []).map((g): Pt => [g.lon, g.lat]);
+    if (line.length < 2) continue;
+    if (t.natural === "water" || t.waterway === "riverbank") {
+      if (line.length > 3 && same(line[0]!, line[line.length - 1]!)) lakes.push([line]);
+      continue;
+    }
+    if (t.waterway !== "river" && t.waterway !== "canal") continue;
+    // A river's ways joined under its name (OSM splits a river every few kilometres).
+    const key = `${t.name ?? ""}|${t.waterway}`;
+    const entry = byName.get(key) ?? { lines: [], km: 0 };
+    entry.lines.push(line);
+    entry.km = Math.max(entry.km, riverKm(t));
+    byName.set(key, entry);
+  }
+  for (const [key, entry] of byName)
+    for (const chain of chainWays(entry.lines))
+      for (const run of clipChain(simplifyLine(chain, SIMPLIFY_DEG), box)) rivers.push({ line: run, km: entry.km, ...(key.split("|")[0] ? { name: key.split("|")[0]! } : {}) });
+  return { rivers, lakes };
+}
+
+/**
+ * The close map's rivers and lakes from OpenStreetMap for a world's box (most battles are inland: a river is a front,
+ * a crossing, a fleet's road); kept in the library; undefined when Overpass does not answer (Natural Earth's rivers are
+ * drawn then).
+ */
+export async function closeRiversFor(paths: Pick<V3Paths, "workRoot">, world: Pick<MapWorld, "bounds">, log: (s: string) => void = () => {}): Promise<{ rivers: CloseRiver[]; lakes: Polygon[] } | undefined> {
+  const b = world.bounds;
+  const box: Box = { west: round(b.west), east: round(b.east), south: round(b.south), north: round(b.north) };
+  const key = createHash("sha256").update(JSON.stringify({ v: RIVER_VERSION, box })).digest("hex").slice(0, 20);
+  const lib = path.join(paths.workRoot, "_kutuphane", "osm-nehir", `${key}.json`);
+  // Ponds and pools are specks at this scale (the 1453 map trial): lakes from about 150 m across.
+  const big = (got: { rivers: CloseRiver[]; lakes: Polygon[] }) => ({ ...got, lakes: got.lakes.filter((p) => p[0] && ringKm2(p[0]) >= MIN_LAKE_KM2) });
+  if (existsSync(lib)) return big(JSON.parse(await fs.readFile(lib, "utf8")) as { rivers: CloseRiver[]; lakes: Polygon[] });
+  const bbox = `${box.south},${box.west},${box.north},${box.east}`;
+  try {
+    const json = await overpass(`[out:json][timeout:40];(way["waterway"~"^(river|canal)$"](${bbox});way["natural"="water"](${bbox});way["waterway"="riverbank"](${bbox}););out tags geom;`, 45_000);
+    const got = riversFromOverpass(json.elements ?? [], box);
+    await fs.mkdir(path.dirname(lib), { recursive: true });
+    if (!existsSync(lib)) await fs.writeFile(lib, JSON.stringify(got));
+    return big(got);
+  } catch (e) {
+    log(`⚠ yakın harita nehirleri alınamadı (${(e as Error).message.slice(0, 120)}); Natural Earth nehirleri çizilir`);
+    return undefined;
+  }
 }
 
 const same = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
@@ -155,7 +239,7 @@ const CORNERS = (b: Box): Pt[] => [
   [b.west, b.south],
 ];
 
-function ringArea(r: readonly Pt[]): number {
+function ringArea(r: readonly (readonly [number, number])[]): number {
   let a = 0;
   for (let i = 0; i < r.length; i++) {
     const p = r[i]!;
@@ -234,14 +318,24 @@ export async function closeCoastFor(paths: Pick<V3Paths, "workRoot">, world: Pic
   }
 }
 
+/** An element of an Overpass answer (`out tags geom`): a way's or relation member's points, a node's place, its tags. */
+export interface OsmElement {
+  readonly type: string;
+  readonly lat?: number;
+  readonly lon?: number;
+  readonly tags?: Readonly<Record<string, string>>;
+  readonly geometry?: readonly { readonly lat: number; readonly lon: number }[];
+  readonly members?: readonly { readonly type: string; readonly role?: string; readonly geometry?: readonly { readonly lat: number; readonly lon: number }[] }[];
+}
+
 /** The query's answer from the first server that gives one (a busy server answers HTML, not JSON). */
-async function overpass(query: string): Promise<{ elements?: { type: string; geometry?: { lat: number; lon: number }[] }[] }> {
+export async function overpass(query: string, timeoutMs = 120_000): Promise<{ elements?: OsmElement[] }> {
   const failures: string[] = [];
   for (const url of OVERPASS) {
     try {
-      const res = await fetch(url, { method: "POST", headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(query)}`, signal: AbortSignal.timeout(120_000) });
+      const res = await fetch(url, { method: "POST", headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(query)}`, signal: AbortSignal.timeout(timeoutMs) });
       if (!res.ok) throw new Error(`HTTP_${res.status}`);
-      return (await res.json()) as { elements?: { type: string; geometry?: { lat: number; lon: number }[] }[] };
+      return (await res.json()) as { elements?: OsmElement[] };
     } catch (e) {
       failures.push(`${new URL(url).hostname}: ${(e as Error).message.slice(0, 60)}`);
     }

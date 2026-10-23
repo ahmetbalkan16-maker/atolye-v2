@@ -32,6 +32,7 @@ import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord,
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
 import { type CloseCoast, OSM_CREDIT } from "../src/lib/v3/maps/CloseCoast";
+import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../src/lib/v3/maps/CloseSite";
 import { mapGroundFor } from "../src/lib/v3/maps/MapGround";
 import { CLOSE_RELIEF_CREDIT, RELIEF_CREDIT, reliefAvailable } from "../src/lib/v3/maps/Relief";
 import { checkEpisodePlaces, wikipediaPlaces } from "../src/lib/v3/maps/PlaceCheck";
@@ -685,6 +686,17 @@ async function main() {
   if (atlas.moved.length || zoom.scenes.length) {
     episode = assertEpisode(zoom.episode);
     await writeJson(f("episode.json"), episode);
+  }
+  // 1d) The close maps' walls and castles on their real traces (OpenStreetMap: Overpass, else Nominatim by name; owner,
+  // 23 Oct 2026: "for any event anywhere on Earth — the close map, the castle"); a castle OSM lacks is drawn in its
+  // period's manner, a wall OSM lacks keeps the writer's line.
+  if (hasCloseMap(episode) && (scriptWritten || !existsSync(f("yakin-harita.json")))) {
+    const site = await prepareCloseMaps(episode, closeSiteLookup(paths, log), periodEndYear(episode.donem));
+    for (const n of site.notes) log(`  yakın harita: ${n.sahne} "${n.ad}": ${n.ayrinti}`);
+    if (!site.sources.length) council.find({ beyin: "arastirma", onem: "uyari", baslik: "yakın harita açık verisi alınamadı", ayrinti: "Overpass ve Nominatim yanıt vermedi: surlar yazarın çizgisiyle, kaleler çağın biçimiyle çizilecek", oneri: "bağlantı dönünce scripts/v3/harita-onizleme.ts ile yeniden dene", tur: "ayar", yer: "senaryo" });
+    episode = assertEpisode(site.episode);
+    await writeJson(f("episode.json"), episode);
+    await writeJson(f("yakin-harita.json"), { kaynaklar: site.sources, notlar: site.notes });
   }
   // --yalniz-senaryo: only the script and its checked places, by the production's own path (a brain or the owner reads
   // it, or previews its maps with scripts/v3/harita-onizleme.ts, before the hours of production).

@@ -14,6 +14,7 @@ import { articleSource, readTopic, resolveTopic, sourceId, topicPrompt, verifyFa
 import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
+import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapProblems } from "../src/lib/v3/script/MapRules";
 import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
@@ -368,6 +369,38 @@ async function main() {
     assert.deepEqual(mapProblems({ sahneler: [{ ...siege, kalabalik: [{ ...legion, hareket: { tur: "hucum", satir: 0 } }] }] }), [], "a charging crowd is fine");
     const card = { ...scene("s10", "kelime", ["Elephants."]), yazi_karti: [{ metin: "ELEPHANTS", stil: "kelime" }] };
     assert.deepEqual(mapProblems({ sahneler: [card] }), [], "a one-word card over black needs no living set");
+  });
+
+  await scenario("close maps by the writer (the 1456 Belgrade run, 23 Oct 2026): a side's formation moved into its yerler, set and mood values mapped, a fortress without walls asked for", () => {
+    const draft = {
+      sahneler: [
+        { id: "s4", duygu: "tense and dramatic", ortam: { zaman: "early morning", manzara: "Castle walls at dawn", uslup: "Medieval Hungarian", hava: "smoky", isik: "torches" }, satirlar: [] },
+        {
+          id: "s6",
+          mekan: "Close map: Belgrade Fortress and battlefield",
+          satirlar: [{ karakter: "anlatici", metin: "Suddenly everyone is fighting everywhere.", duygu: "notr" }],
+          harita: {
+            merkez: [20.45, 44.83],
+            genislik_km: 18,
+            birlikler: [
+              { taraf: "Ottomans", renk: "#b3263a", amblem: "hilal", sayi: 8, kusatma: [20.46, 44.83], km: 2, kayip: 4, yerler: [{ konum: [20.46, 44.83], satir: 0 }, { satir: 2 }] },
+              { taraf: "Hungarians", renk: "#2f6fb0", amblem: "hac", sayi: 3, kayip: 1, yerler: [{ konum: [20.45, 44.83], satir: 0 }] },
+            ],
+            yapilar: [{ tur: "kale", ad: "Belgrade Fortress", konum: [20.4503, 44.8233] }],
+          },
+        },
+      ],
+    };
+    const n = normalizeDraft(draft, []);
+    const [s4, s6] = (n.value as { sahneler: Record<string, unknown>[] }).sahneler;
+    assert.equal(s4!.duygu, "gerilim");
+    assert.deepEqual(s4!.ortam, { zaman: "gun", manzara: "sur_onu", uslup: "ortacag", hava: "sis", isik: "mesale" });
+    const [ottomans, hungarians] = (s6!.harita as { birlikler: Record<string, unknown>[] }).birlikler;
+    assert.deepEqual(ottomans!.yerler, [{ satir: 0, kusatma: [20.46, 44.83], km: 2 }, { satir: 2, kusatma: [20.46, 44.83], km: 2, kayip: 4 }], "the ring in each formation, the losses on the last");
+    assert.ok(!("kusatma" in ottomans!) && !("kayip" in ottomans!));
+    assert.deepEqual(hungarians!.yerler, [{ satir: 0, kume: [20.45, 44.83], kayip: 1 }], "a place without a formation is a cluster");
+    const found = mapProblems(n.value);
+    assert.ok(found.some((p) => p.includes('close map "s6" tells a siege or walls but draws none')), JSON.stringify(found));
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

@@ -119,3 +119,28 @@ eden araçlar) ve DFT Tarih (Osman Bey: dış harita → yakın savaş haritası
   yazı/işaret var; telifsiz eski haritalar (Buondelmonti, Matrakçı) ara sahne için. Yakın harita açık veriden üretilir.
 - **Sıradaki:** ölçüt bölüm 1453 (dış harita → yakın harita → otağda savaş toplantısı → yakın harita, sesli), yazar
   beyninin bu alanları kullanması, küçük etiket çakışmaları, gedikten yayılan yangın.
+
+## Yakın harita her olay için (23 Ekim)
+
+Owner: "bu özellikleri bizim yardımcı beyinler yapabilmeli, alt yapıyı tam kur; bu haritaları bütün dünya üzerinde
+herhangi bir olayda yapabilmeliyiz — yakın haritayı, kaleyi."
+
+- **Okunur harita** (`CloseLabels.ts`): savaş, zincir, sur, yerleşim, yapı ve yol adları her kamera duruşunda öteki
+  adlara, şehirlere, pullara, gemilere, yapılara, surlara ve pusula köşesine en az değen yere konur. Yollar kıvrılır ve
+  adını taşır; yangın gedikten yayılır; pullar gedikten geçer; kamera kadraj dışındaki savaşa döner.
+- **Karadan yürütme**: gemi rotası sudan suya bir kara parçasını aşarsa kütük kızak yolu, dönen kütükler, halatla çeken
+  ekip, tek sıra kafile. Karada biten ya da iç karadan başlayan rota çekme değildir (yazar bir yeri işaret etmiştir).
+- **Açık veriden yer** (`CloseSite.ts`, `CastleShapes.ts`): sur ve kale izi katmanlarla — kütüphane → Overpass (sur,
+  kale, kapı) → Nominatim (adıyla kale/sur) → yazarın çizgisi ya da çağına göre çizilen kale (1500 öncesi burçlu
+  halka, 1500–1870 yıldız tabya). İnce şerit surların orta hattı, parçaların birleşmesi, yazar çizgisine oturtma;
+  kalenin alanındaki gerçek sur hatları ve kapıları (Belgrad: 24 hat, 8,2 km, 7 kapı). Kuşatma halkası olup suru
+  olmayan yakın haritaya kale kendiliğinden kurulur (ad mekândan: "Belgrade Fortress"). `sur_ici`: şehir evleri surun
+  içinde. Nehirler ve göller OSM'den gerçek genişliğiyle (iç karadaki savaşlar); Natural Earth nehri bu ölçekte bant
+  olmaz.
+- **Yazar beyni**: ScriptPrompts'ta BİRLİKLER VE ARAÇLAR ile YAKIN SAVAŞ HARİTASI bölümleri (akış, alanlar, savaş
+  kuralları); MapRules yakın harita denetimleri (ordusuz harita, kayıp satırında düşman uzakta, kuşatma var sur yok);
+  DraftNormalizer tarafa yazılmış dizilişi `yerler`e taşır, ortam/duygu değerlerini eşler; PlaceCheck yakın haritada
+  harita genişliğine göre tolerans ve adlı yapılar (yalnız aynı adlı makale).
+- **Sınav**: 1456 Belgrad Kuşatması, Claude'suz (gpt-4.1, 0,15 $): yakın harita 18 km, pullar, kaleyi döven toplar,
+  Tuna'yı kapatan donanma, kendiliğinden kurulan kale (OSM çevresi). Kalan zayıflık: savaşın kendisi karakter
+  sahnesinde anlatılıyor, yakın haritada kayıp yok; haritada konuşan iki büyük figür savaşı örtüyor.

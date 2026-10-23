@@ -304,6 +304,8 @@ export function CloseGround({ close, frame, fps, era, label, k }: { close: Close
         );
       })}
       {close.walls.map((w, wi) => {
+        // The walls at their own size (narrower than a house on a narrow map).
+        const u = close.wallUnit ?? close.unit;
         const d = `M${w.points.map((p) => `${p.x} ${p.y}`).join(" L")}`;
         const broken = w.breach !== undefined && frame >= w.breach.start;
         const id = `wall-breach-${wi}`;

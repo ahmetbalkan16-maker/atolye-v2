@@ -267,7 +267,47 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
   conquest sweeps over the land behind it, the old border fades, a battle flashes, a ruler flees, the camera follows.
   Never show a whole war's result at once — let the viewer watch it happen. Prefer this living map narration to a still
   map with everything shown at once.
-  Keep "genislik_km" at 800 or more on maps (closer, the terrain turns blurry); 1500–4000 suits a country or a war.
+  Keep "genislik_km" at 800 or more on a wide map (1500–4000 suits a country or a war) — the CLOSE BATTLE MAP below is
+  the one exception.
+  UNITS AND VEHICLES on any map (like the WW2-on-maps channels):
+    "birlikler": [{"taraf": "Ottomans", "renk": "#c0392b", "amblem": "hilal" | "kartal" | "hac" | "yildiz" | "aslan" | "tac" |
+        "kalkan" | "kilic" | "gunes" | "orak_cekic" | "harf" (then "harf": 1–3 letters), "sayi": 4–12,
+        "yerler": [{"satir": 0, "cephe": [[lon, lat], …]}, {"satir": 2, "kume": [lon, lat], "km": 1.5},
+                   {"satir": 4, "kusatma": [lon, lat], "km": 2, "kayip": 2}]}]
+        // each side's round emblem tokens along a front, in a cluster or ringing a besieged place, sliding to the next
+        // formation with its line. "kayip": tokens lost on that line — the sides rush at each other and the losses fall
+        // one by one, swords heard. On a fight line give BOTH sides a formation, side by side (on a close map a few
+        // hundred metres apart; across a wall: attackers just outside, defenders just inside), never far apart.
+    "araclar": [{"tur": "gemi" | "kadirga" | "yelkenli" | "suvari" | "fil" | "top" | "tank" | "ucak" | "denizalti",
+        "renk": "#…", "sayi": 1–6, "konum": [lon, lat], "satir": 1, "yol": [[lon, lat], …], "yol_satir": 2,
+        "hedef": [lon, lat], "ates_satir": 3}]
+        // ships, cavalry, guns, tanks, planes travel their route and fire at "hedef" — only what the period had ("gemi"
+        // is drawn as the period's ship). A ship whose route crosses land is HAULED over it on rollers by its crew (the
+        // 1453 fleet over the hill behind Galata): give the real land route and the camera follows.
+CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's fall, cut from the wide map to a close map of
+  that place: "genislik_km" 4–60, "kamera" keys 3–30 km (the painted battle maps of the history channels). The usual flow:
+  wide map (the march there) → close map (the field or the walls, the armies, the guns, the ships) → a character scene
+  (the war council in the commander's tent, "ortam" "ordugah") → the close map again (the assault, the breach, the fall).
+  The close map draws the place's real coast and hills by itself; on it give what the story needs, anywhere on Earth:
+    "surlar": [{"ad": "Theodosian Walls", "noktalar": [[lon, lat], … 3–10 points along the wall], "osm_ad": "Walls of
+               Constantinople", "kapilar": [[lon, lat]], "gedik": {"konum": [lon, lat], "satir": 4}}]
+        // a city wall: the studio takes its real trace from OpenStreetMap ("osm_ad": the name OSM or Wikipedia gives it);
+        // your line must follow it all the same. A CASTLE or a walled town as a ring instead: {"ad": "Belgrade Fortress",
+        // "kale": {"merkez": [lon, lat], "km": 0.3–3, "bicim": "halka" | "kare" | "yildiz"}} — its real outline where it
+        // is mapped, else drawn as a medieval ring (before 1500) or a bastioned star fort (1500–1870). "gedik": where the
+        // wall breaks open on that line; the attackers' tokens then pour in through it.
+    "yerlesimler": [{"tur": "sehir" | "koy" | "ordugah", "ad": "…", "konum": [lon, lat], "km": 0.5–6, "sur_ici": true,
+                     "satir": 0, "yanma_satir": 5}]
+        // a town's roofs ("sur_ici": only inside its walls), a village, an army camp's tents; with "yanma_satir" it
+        // burns from that line, the fire spreading from the breach
+    "yapilar": [{"tur": "kale" | "saray" | "kilise" | "cami" | "kule" | "otag", "ad": "Hagia Sophia", "konum": [lon, lat]}]
+        // the story's single buildings (the commander's tent "otag", a great church, a tower), by their real names —
+        // the studio checks each on Wikipedia
+    "yollar": [{"ad": "Road to Edirne", "noktalar": [[lon, lat], …]}]   // the roads to the gates, named along their way
+    "arazi": [{"tur": "tepe" | "orman" | "tarla", "konum": [lon, lat], "km": 1}]   // a hill, a wood or fields of the story
+    "cizgiler": [… {"ad": "The chain", "noktalar": [[lon, lat], [lon, lat]], "stil": "zincir", "satir": 2}]   // a boom chain
+  with "birlikler" (both sides), "araclar" (guns before the gate firing at it, ships, a haul over land) and "savaslar"
+  (the fight's name at its place). A field battle has no walls: the armies' fronts, the river, the hills, the camps.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,

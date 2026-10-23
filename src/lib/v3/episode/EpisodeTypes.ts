@@ -188,10 +188,20 @@ export const SETTLEMENT_KINDS = ["sehir", "koy", "ordugah"] as const;
 export const GROUND_KINDS = ["tepe", "orman", "tarla"] as const;
 export type GroundKind = (typeof GROUND_KINDS)[number];
 
+export const CASTLE_STYLES = ["halka", "kare", "yildiz"] as const;
+
+/**
+ * A wall or a castle on the close map. `noktalar`: the writer's line of it, end to end (3–10 real points) — the close
+ * map preparer (CloseSite) replaces it with the real trace from OpenStreetMap where the walls are mapped, looking them
+ * up by `osm_ad` (the name OSM or Wikipedia knows, default `ad`). `kale`: a castle or walled town as a closed ring round
+ * `merkez`, `km` across — its real outline when OSM has the castle, else drawn in the period's manner (`bicim`:
+ * medieval ring "halka", square "kare", bastioned star fort "yildiz"; default by the episode's year).
+ */
 export interface MapWall {
   readonly ad?: string;
-  /** The wall's line, end to end. */
-  readonly noktalar: readonly [number, number][];
+  readonly noktalar?: readonly [number, number][];
+  readonly kale?: { readonly merkez: readonly [number, number]; readonly km: number; readonly bicim?: (typeof CASTLE_STYLES)[number] };
+  readonly osm_ad?: string;
   readonly kapilar?: readonly (readonly [number, number])[];
   readonly gedik?: { readonly konum: readonly [number, number]; readonly satir: number };
 }
@@ -205,6 +215,8 @@ export interface MapSettlement {
   readonly noktalar?: readonly [number, number][];
   readonly satir?: number;
   readonly yanma_satir?: number;
+  /** A walled town: its houses only inside the walls (on its side of the map's `surlar`), out to `km` from `konum`. */
+  readonly sur_ici?: boolean;
 }
 
 /**
