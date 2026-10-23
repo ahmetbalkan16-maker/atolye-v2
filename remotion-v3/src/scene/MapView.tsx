@@ -536,6 +536,34 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             </g>
           );
         })}
+        {/* Siege lines growing stage by stage (DFT Tarih's Dyrrhachium): a ditch, an earth bank and a palisade of stakes
+            along the route, the length written beside it once drawn. */}
+        {(map.siegeLines ?? []).map((sl, i) => {
+          if (frame < sl.start || sl.points.length < 2) return null;
+          const grow = interpolate(frame, [sl.start, sl.start + Math.round(fps * sl.durationS)], [0, 1], { extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
+          const part = partialPoints(sl.points, grow);
+          if (part.length < 2) return null;
+          const d = `M${part.map((p) => `${p.x} ${p.y}`).join(" L")}`;
+          const stakes = Math.max(2, Math.floor(pathLength(part) / (13 * k)));
+          const head = part[part.length - 1]!;
+          const mid = along(sl.points, 0.5);
+          return (
+            <g key={`sl${i}`}>
+              <path d={d} fill="none" stroke="#2b1d10" strokeOpacity={0.55} strokeWidth={11 * k} strokeLinecap="round" strokeLinejoin="round" />
+              <path d={d} fill="none" stroke="#b08a57" strokeWidth={5.5 * k} strokeLinecap="round" strokeLinejoin="round" />
+              {Array.from({ length: stakes }, (_, j) => {
+                const p = along(part, (j + 0.5) / stakes);
+                const q = along(part, Math.min(1, (j + 0.6) / stakes));
+                const ang = Math.atan2(q.y - p.y, q.x - p.x);
+                const nx = -Math.sin(ang);
+                const ny = Math.cos(ang);
+                return <path key={j} d={`M${p.x - nx * 6 * k} ${p.y - ny * 6 * k} L${p.x + nx * 6 * k} ${p.y + ny * 6 * k}`} stroke={sl.color} strokeWidth={3 * k} strokeLinecap="round" />;
+              })}
+              {grow < 1 ? <circle cx={head.x} cy={head.y} r={7 * k} fill="#fff3a0" opacity={0.6 + 0.4 * Math.sin(frame * 0.5)} /> : null}
+              {grow >= 1 ? <g transform={`translate(${mid.x} ${mid.y - 34 * k})`} opacity={interpolate(frame, [sl.start + Math.round(fps * sl.durationS), sl.start + Math.round(fps * (sl.durationS + 0.5))], [0, 1], { extrapolateRight: "clamp" })}>{markLabel(sl.label, 26)}</g> : null}
+            </g>
+          );
+        })}
         {map.armies.map((a, i) => {
           if (frame < a.start) return null;
           const pop = spring({ frame: frame - a.start, fps, config: { damping: 11, stiffness: 200 } });
@@ -572,6 +600,19 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
         {map.arrows.map((ar, i) => {
           if (frame < ar.start || ar.points.length < 2) return null;
           const draw = interpolate(frame, [ar.start, ar.start + Math.round(fps * 1.2)], [1, 0], { extrapolateRight: "clamp" });
+          const gone = ar.end !== undefined ? interpolate(frame, [ar.end - Math.round(fps * 0.4), ar.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
+          if (gone <= 0) return null;
+          // A battle plan's arrow (DFT Tarih): dashed and see-through, curving where the move will go, before it happens.
+          if (ar.plan) {
+            const shape = taperedArrow(partialPoints(smoothPoints(ar.points), 1 - draw), 26 * k, 18 * k, 50 * k, 44 * k);
+            const mid = ar.points[Math.floor((ar.points.length - 1) / 2)]!;
+            return (
+              <g key={`r${i}`} opacity={gone}>
+                {shape ? <path d={shape} fill={ar.color} fillOpacity={0.3} stroke={ar.color} strokeWidth={4.5 * k} strokeDasharray={`${16 * k} ${10 * k}`} strokeDashoffset={-frame * 1.2 * k} strokeLinejoin="round" style={{ filter: `drop-shadow(0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.55))` }} /> : null}
+                {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 28)}</g> : null}
+              </g>
+            );
+          }
           // A smooth path through the points (quadratic midpoints), so marches curve like the reference maps.
           const p = ar.points;
           let d = `M${p[0]!.x} ${p[0]!.y}`;
@@ -587,14 +628,14 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             const grown = smoothPoints(p);
             const shape = taperedArrow(partialPoints(grown, 1 - draw), 34 * k, 22 * k, 62 * k, 52 * k);
             return (
-              <g key={`r${i}`}>
+              <g key={`r${i}`} opacity={gone}>
                 {shape ? <path d={shape} fill={ar.color} fillOpacity={0.82} stroke="rgba(40,8,12,0.85)" strokeWidth={3 * k} strokeLinejoin="round" style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }} /> : null}
                 {ar.label && draw < 0.5 ? <g transform={`translate(${ar.labelX ?? mid.x} ${ar.labelY ?? mid.y - 40 * k})`}>{markLabel(ar.label, 32)}</g> : null}
               </g>
             );
           }
           return (
-            <g key={`r${i}`}>
+            <g key={`r${i}`} opacity={gone}>
               <path d={d} fill="none" stroke={INK} strokeWidth={24 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
               <path d={d} fill="none" stroke={ar.color} strokeWidth={14 * k} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
               {draw < 0.02 ? <path transform={`translate(${last.x} ${last.y}) rotate(${ang})`} d={`M${22 * k} 0 L${-24 * k} ${-28 * k} L${-12 * k} 0 L${-24 * k} ${28 * k} Z`} fill={ar.color} stroke={INK} strokeWidth={5 * k} strokeLinejoin="round" /> : null}

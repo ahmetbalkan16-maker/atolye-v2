@@ -25,6 +25,7 @@ import {
   SFX_IDS,
   TIMES_OF_DAY,
   UNIT_EMBLEMS,
+  UNIT_KINDS,
   TRANSITIONS,
   VEHICLE_KINDS,
   VEHICLES,
@@ -308,16 +309,31 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       });
       (arr(h, "sehirler", hp, true) ?? []).forEach((c, ci) => (isObj(c) ? (str(c, "ad", `${hp}.sehirler[${ci}]`, { max: 40 }), lonLat(c.konum, `${hp}.sehirler[${ci}].konum`)) : err("HARITA", `${hp}.sehirler[${ci}]`, "nesne bekleniyor")));
       (arr(h, "ordular", hp, true) ?? []).forEach((o, oi) => (isObj(o) ? (str(o, "ad", `${hp}.ordular[${oi}]`, { max: 40 }), str(o, "renk", `${hp}.ordular[${oi}]`, { pattern: HEX }), lonLat(o.konum, `${hp}.ordular[${oi}].konum`)) : err("HARITA", `${hp}.ordular[${oi}]`, "nesne bekleniyor")));
-      (arr(h, "oklar", hp, true) ?? []).forEach((o, oi) => {
-        const pts = isObj(o) && Array.isArray(o.noktalar) ? o.noktalar : [];
-        if (pts.length < 2) err("HARITA_OK", `${hp}.oklar[${oi}]`, "en az 2 nokta");
-        pts.forEach((pt, k) => lonLat(pt, `${hp}.oklar[${oi}].noktalar[${k}]`));
-      });
       const lines = Array.isArray(s.satirlar) ? s.satirlar.length : 0;
       const lineIndex = (o: Record<string, unknown>, key: string, where: string) => {
         if (o[key] === undefined) return;
         if (typeof o[key] !== "number" || !Number.isInteger(o[key]) || (o[key] as number) < 0 || (o[key] as number) >= Math.max(1, lines)) err("HARITA_SATIR", `${where}.${key}`, `0..${Math.max(0, lines - 1)} arası satır numarası bekleniyor`);
       };
+      (arr(h, "oklar", hp, true) ?? []).forEach((o, oi) => {
+        const pts = isObj(o) && Array.isArray(o.noktalar) ? o.noktalar : [];
+        if (pts.length < 2) err("HARITA_OK", `${hp}.oklar[${oi}]`, "en az 2 nokta");
+        pts.forEach((pt, k) => lonLat(pt, `${hp}.oklar[${oi}].noktalar[${k}]`));
+        if (!isObj(o)) return;
+        oneOf(o, "stil", `${hp}.oklar[${oi}]`, ["plan"] as const, true);
+        lineIndex(o, "bitis_satir", `${hp}.oklar[${oi}]`);
+      });
+      (arr(h, "kusatma_hatlari", hp, true) ?? []).forEach((k, ki) => {
+        const kp = `${hp}.kusatma_hatlari[${ki}]`;
+        if (!isObj(k)) return err("HARITA_KUSATMA_HATTI", kp, "nesne bekleniyor");
+        const pts = Array.isArray(k.noktalar) ? k.noktalar : [];
+        if (pts.length < 2) err("HARITA_KUSATMA_HATTI", `${kp}.noktalar`, "en az 2 nokta");
+        pts.forEach((pt, j) => lonLat(pt, `${kp}.noktalar[${j}]`));
+        if (k.satir === undefined) err("HARITA_KUSATMA_HATTI", kp, "satir gerekli");
+        lineIndex(k, "satir", kp);
+        num(k, "sure_sn", kp, 1, 30, true);
+        str(k, "renk", kp, { optional: true, pattern: HEX });
+        str(k, "ad", kp, { optional: true, max: 40 });
+      });
       lineIndex(s, "ara_goruntu_satir", p);
       (arr(h, "bolgeler", hp, true) ?? []).forEach((b, bi) => {
         if (!isObj(b)) return;
@@ -344,6 +360,11 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         oneOf(u, "amblem", up, UNIT_EMBLEMS);
         if (u.amblem === "harf") str(u, "harf", up, { max: 3 });
         num(u, "sayi", up, 1, 24);
+        oneOf(u, "tur", up, UNIT_KINDS, true);
+        str(u, "etiket", up, { optional: true, max: 40 });
+        const marked = u.vurgu === undefined ? [] : Array.isArray(u.vurgu) ? u.vurgu : null;
+        if (marked === null) err("HARITA_BIRLIK", `${up}.vurgu`, "satır numaraları listesi bekleniyor");
+        (marked ?? []).forEach((l, li) => lineIndex({ v: l }, "v", `${up}.vurgu[${li}]`));
         const steps = arr(u, "yerler", up) ?? [];
         if (!steps.length) err("HARITA_BIRLIK", `${up}.yerler`, "en az bir yerleşim gerekli");
         steps.forEach((y, yi) => {
@@ -352,6 +373,11 @@ export function validateEpisode(input: unknown): EpisodeValidation {
           if (y.satir === undefined) err("HARITA_BIRLIK", yp, "satir gerekli");
           lineIndex(y, "satir", yp);
           num(y, "kayip", yp, 0, 24, true);
+          num(y, "hatlar", yp, 1, 4, true);
+          if (y.hatlar !== undefined && y.cephe === undefined) err("HARITA_BIRLIK", `${yp}.hatlar`, "hatlar yalnız cephe ile");
+          if (y.bozgun !== undefined && typeof y.bozgun !== "boolean") err("HARITA_BIRLIK", `${yp}.bozgun`, "true/false bekleniyor");
+          if (y.bozgun === true && yi === 0) err("HARITA_BIRLIK", `${yp}.bozgun`, "bozgun ilk yerleşimde olamaz: önce durdukları yer, sonra kaçtıkları yer");
+          str(y, "etiket", yp, { optional: true, max: 40 });
           const kinds = ["cephe", "kume", "kusatma"].filter((key) => y[key] !== undefined);
           if (kinds.length !== 1) return err("HARITA_BIRLIK", yp, "tam olarak biri: cephe (çizgi), kume (nokta) ya da kusatma (nokta)");
           if (y.cephe !== undefined) {

@@ -358,8 +358,10 @@ export interface V3GeoMap {
   readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number; readonly path?: readonly { readonly x: number; readonly y: number }[]; readonly moveStart?: number }[];
   /** Lines the story is about (a border river, a wall): drawn glowing, growing from one end, with their name. */
   readonly lines?: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly label: string; readonly color: string; readonly start: number; readonly chain?: boolean; readonly labelSpot?: V3LabelSpot }[];
-  /** `labelX`/`labelY`: where the name stands (off the cities); absent, above the middle point. */
-  readonly arrows: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly color: string; readonly label?: string; readonly labelX?: number; readonly labelY?: number; readonly start: number }[];
+  /** `labelX`/`labelY`: where the name stands (off the cities); absent, above the middle point. `plan`: a battle plan's dashed arrow, gone at `end`. */
+  readonly arrows: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly color: string; readonly label?: string; readonly labelX?: number; readonly labelY?: number; readonly start: number; readonly end?: number; readonly plan?: boolean }[];
+  /** Siege lines growing along their route over `durationS` from `start` (palisade and ditch), with their length. */
+  readonly siegeLines?: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly start: number; readonly durationS: number; readonly color: string; readonly label: string }[];
   /**
    * Map narration (owner, 21 Oct 2026): the map is a `world` larger than the frame, the camera moves over it. Every
    * coordinate above is then in world pixels; absent, the world is the frame.
@@ -394,11 +396,18 @@ export interface V3GeoMap {
     readonly color: string;
     readonly emblem: string;
     readonly letters?: string;
+    /** Blocks of this kind (infantry, cavalry, archers, guns) instead of round emblem tokens. */
+    readonly kind?: "piyade" | "suvari" | "okcu" | "topcu";
+    /** The side's strength written beside its formation; a step's own `label` replaces it from that step. */
+    readonly label?: string;
+    /** While these are on, the side's tokens are framed in light (the narrator speaks of them). */
+    readonly highlights?: readonly { readonly start: number; readonly end: number }[];
     /**
      * `losses`: seconds after `start` at which each token lost in this formation falls, one by one. `via`: a breach the
      * tokens listed in `through` (they cross the walls to reach this formation) pass through, one after another.
+     * `rout`: the side breaks — its tokens turn their backs and scatter to these points.
      */
-    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number; readonly losses?: readonly number[]; readonly via?: { readonly x: number; readonly y: number }; readonly through?: readonly number[] }[];
+    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number; readonly losses?: readonly number[]; readonly via?: { readonly x: number; readonly y: number }; readonly through?: readonly number[]; readonly rout?: boolean; readonly label?: string }[];
   }[];
   /** Fights between the tokens: from `start` for `durationS` the sides close in and strike where they meet. */
   readonly fights?: readonly { readonly start: number; readonly durationS: number }[];

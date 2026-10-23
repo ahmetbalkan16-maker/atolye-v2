@@ -304,6 +304,15 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // formation with its line. "kayip": tokens lost on that line — the sides rush at each other and the losses fall
         // one by one, swords heard. On a fight line give BOTH sides a formation, side by side (on a close map a few
         // hundred metres apart; across a wall: attackers just outside, defenders just inside), never far apart.
+        // On a battlefield give each body of troops its kind and strength (the battle maps' blocks): "tur": "piyade" |
+        // "suvari" | "okcu" | "topcu" (one kind per entry — a side's cavalry is a second entry in the same colour), "etiket":
+        // "11 legions – 47,000 men"; a front "hatlar": 2–3 lines deep (Caesar's triplex acies); "vurgu": [line indexes] —
+        // while the narrator speaks of this unit it is framed in light; "bozgun": true on the formation where a side breaks
+        // and runs (its tokens turn and scatter to the place given there).
+    "oklar": [… {"noktalar": [[lon, lat], …], "stil": "plan", "renk": "#3fae3a", "etiket": "Cavalry", "satir": 2, "bitis_satir": 3}]
+        // a battle plan's dashed arrow BEFORE the move it announces (the cavalry's sweep round the flank), gone when it starts
+    "kusatma_hatlari": [{"ad": "Caesar's siege line", "noktalar": [[lon, lat], …], "satir": 1, "sure_sn": 6}]
+        // a palisade and ditch drawn step by step, its length in km written by itself; later entries build it stage by stage
     "araclar": [{"tur": "gemi" | "kadirga" | "yelkenli" | "suvari" | "fil" | "top" | "tank" | "ucak" | "denizalti",
         "renk": "#…", "sayi": 1–6, "konum": [lon, lat], "satir": 1, "yol": [[lon, lat], …], "yol_satir": 2,
         "hedef": [lon, lat], "ates_satir": 3, "kayip": 2, "kayip_satir": 4}]
@@ -358,7 +367,10 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
     "arazi": [{"tur": "tepe" | "orman" | "tarla", "konum": [lon, lat], "km": 1}]   // a hill, a wood or fields of the story
     "cizgiler": [… {"ad": "The chain", "noktalar": [[lon, lat], [lon, lat]], "stil": "zincir", "satir": 2}]   // a boom chain
   with "birlikler" (both sides), "araclar" (guns before the gate firing at it, ships, a haul over land) and "savaslar"
-  (the fight's name at its place). A field battle has no walls: the armies' fronts, the river, the hills, the camps.
+  (the fight's name at its place). A field battle has no walls: the armies' fronts, the river, the hills, the camps — told
+  step by step like the battle documentaries: the two orders of battle in blocks by kind with their strength (infantry
+  in lines, cavalry on the wings), the commander's plan as dashed arrows, the unit the narrator names framed, the clash
+  with losses, the flank turned, the beaten side's blocks breaking ("bozgun") and the camp taken.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,

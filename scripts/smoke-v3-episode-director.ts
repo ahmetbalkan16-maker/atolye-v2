@@ -9,7 +9,7 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, pictureShares, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, deepFront, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
@@ -1027,6 +1027,53 @@ async function main() {
     assert.equal(v({ tur: "sema", satir: 0, dugumler: [{ ad: "A" }, { ad: "B", ust: 0, karakterler: ["anlatici"] }] }).ok, false, "portraits of visible cast only");
     assert.equal(v({ tur: "sayac", satir: 0, deger: 100 }).ok, false, "a counter needs its label");
     assert.equal(v({ tur: "harita", satir: 0 }).ok, false);
+  });
+
+  await scenario("O18 close-map tactics after DFT Tarih's Pharsalus: blocks by kind with strength labels, a front three lines deep away from the enemy, plan arrows that go, the named unit framed, a rout that scatters, siege lines with their length", () => {
+    // Three lines deep: the front line first and fullest, each rear line further from the enemy (east here), staggered.
+    const front: [number, number][] = [[22, 40], [22, 40.2]];
+    const deep = deepFront(front, 8, 3, 1, [22.5, 40.1]);
+    assert.equal(deep.length, 8);
+    assert.ok(deep.slice(0, 3).every((p) => Math.abs(p[0] - 22) < 1e-9), "the front line stays on the writer's line");
+    assert.ok(deep.slice(3, 6).every((p) => p[0] < 22 - 0.005) && deep.slice(6).every((p) => p[0] < deep[3]![0] - 0.005), "rear lines step back, away from the enemy");
+    assert.ok(Math.abs(deep[3]![1] - deep[0]![1]) > 1e-4, "the second line is staggered");
+    assert.deepEqual(formationPoints({ cephe: front, hatlar: 3 }, 8, undefined, undefined, { gapKm: 1 }), deepFront(front, 8, 3, 1), "formationPoints builds the deep front");
+    assert.equal(lineKm([[0, 0], [0, 1]]).toFixed(1), "110.6");
+    const scattered = routScatter([[22, 40], [22, 40]], 2, 1);
+    assert.ok(scattered[0]![0] !== scattered[1]![0] && Math.abs(scattered[0]![0] - 22) < 0.05, "a rout scatters each token its own way, near the place given");
+    const land = [[[[15, 35], [30, 35], [30, 45], [15, 45], [15, 35]]]];
+    const map: SceneMap = {
+      merkez: [22.2, 40.1],
+      genislik_km: 40,
+      birlikler: [
+        { taraf: "Caesar", renk: "#c0392b", amblem: "kartal", sayi: 9, tur: "piyade", etiket: "22,000 men", vurgu: [1], yerler: [{ satir: 0, cephe: front, hatlar: 3 }, { satir: 2, cephe: [[22.2, 40], [22.2, 40.2]], hatlar: 3 }] },
+        { taraf: "Pompey", renk: "#3f6fb5", amblem: "kartal", sayi: 6, tur: "suvari", yerler: [{ satir: 0, kume: [22.5, 40.1] }, { satir: 2, cephe: [[22.25, 40], [22.25, 40.2]], kayip: 2 }, { satir: 3, kume: [22.9, 40.3], bozgun: true, etiket: "Routed" }] },
+      ],
+      oklar: [{ noktalar: [[22.5, 40.25], [22.3, 40.35], [22.1, 40.3]], stil: "plan", satir: 1, bitis_satir: 2 }, { noktalar: [[21, 40], [22, 40]], satir: 0 }],
+      kusatma_hatlari: [{ ad: "Siege line", noktalar: [[22, 40.3], [22.2, 40.3]], satir: 1 }, { noktalar: [[22.2, 40.3], [22.2, 40.31]], satir: 2, sure_sn: 3 }],
+    };
+    const geo = buildGeoMap(map, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100, { fps: 30, lineEnd: (i) => i * 100 + 80 });
+    const [caesar, pompey] = geo.units!;
+    assert.deepEqual([caesar!.kind, caesar!.label, caesar!.highlights], ["piyade", "22,000 men", [{ start: 100, end: 195 }]]);
+    assert.ok(caesar!.steps[0]!.points[3]!.x < caesar!.steps[0]!.points[0]!.x, "Caesar's rear lines stand west of his front, away from Pompey");
+    assert.deepEqual([pompey!.kind, pompey!.steps[2]!.rout, pompey!.steps[2]!.label, pompey!.steps[1]!.rout], ["suvari", true, "Routed", undefined]);
+    assert.deepEqual(geo.arrows.map((a) => [a.plan, a.end, a.color]), [[true, 200, "#3fae3a"], [undefined, undefined, "#e0283c"]], "a plan arrow is green by default and goes with its line");
+    assert.deepEqual(geo.siegeLines!.map((s) => [s.start, s.durationS, s.label]), [[100, 6, "Siege line · 17 km"], [200, 3, "1.1 km"]]);
+    // Validation: kinds from the list, lines deep only on a front, a rout not where the side first stands.
+    const ep = { ...sampleEpisode(), donem: "MÖ 48" };
+    const four = Array.from({ length: 4 }, (_, i) => ({ karakter: "anlatici", metin: `Line ${i}.`, duygu: "notr" as const }));
+    const withMap = (h: SceneMap) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: h, satirlar: four }] } as never);
+    assert.equal(withMap(map).ok, true, JSON.stringify(withMap(map).errors.slice(0, 3)));
+    const side = (patch: object) => ({ ...map, birlikler: [{ ...map.birlikler![0]!, ...patch }, map.birlikler![1]!] });
+    assert.equal(withMap(side({ tur: "tank" })).ok, false);
+    assert.equal(withMap(side({ yerler: [{ satir: 0, kume: [22, 40], hatlar: 2 }] })).ok, false, "hatlar only on a front");
+    assert.equal(withMap(side({ yerler: [{ satir: 0, kume: [22, 40], bozgun: true }] })).ok, false, "no rout on the first formation");
+    assert.equal(withMap(side({ vurgu: [7] })).ok, false, "a highlight on a line of the scene");
+    assert.equal(withMap({ ...map, oklar: [{ noktalar: front, stil: "cizgi" as never }] }).ok, false);
+    assert.equal(withMap({ ...map, kusatma_hatlari: [{ noktalar: [[22, 40]], satir: 0 }] }).ok, false, "a siege line needs two points");
+    // The normalizer drops the writer's usual slips instead of spending a repair round.
+    const draft = normalizeDraft({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: side({ yerler: [{ satir: 0, kume: [22, 40], hatlar: 2, bozgun: true }] }), satirlar: four }] }, []);
+    assert.equal(validateEpisode(draft.value).ok, true, JSON.stringify(validateEpisode(draft.value).errors.slice(0, 2)));
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

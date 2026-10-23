@@ -53,7 +53,8 @@ export function zoomOnShortRoutes(map: SceneMap): { map: SceneMap; zoomed: numbe
   const close = map.genislik_km <= CLOSE_MAP_MAX_KM;
   // Arrows too short to see, and marches the camera should follow (owner, 22 Oct 2026: "the camera follows the army").
   const routes = [
-    ...(map.oklar ?? []).map((o) => ({ points: o.noktalar, line: o.satir ?? 0, share: MIN_ROUTE_SHARE, fill: ROUTE_SHARE_ZOOMED })),
+    // A battle plan's arrow is no march: it is seen on the field it belongs to, never zoomed into.
+    ...(map.oklar ?? []).filter((o) => o.stil !== "plan").map((o) => ({ points: o.noktalar, line: o.satir ?? 0, share: MIN_ROUTE_SHARE, fill: ROUTE_SHARE_ZOOMED })),
     ...(map.ordular ?? []).filter((o) => o.yol?.length).map((o) => ({ points: [o.konum, ...o.yol!], line: o.yol_satir ?? o.satir ?? 0, share: MARCH_FOLLOW_SHARE, fill: MARCH_SHARE_ZOOMED })),
     ...(map.rozetler ?? []).filter((r) => r.yol?.length).map((r) => ({ points: [r.konum, ...r.yol!], line: r.yol_satir ?? r.satir ?? 0, share: MARCH_FOLLOW_SHARE, fill: MARCH_SHARE_ZOOMED })),
     // A fleet or a column on its way (the 1453 haul over the hill behind Galata was a speck on a 12 km view).

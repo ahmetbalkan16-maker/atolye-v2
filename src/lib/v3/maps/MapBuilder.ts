@@ -855,9 +855,11 @@ const RING_SAMPLES = 72;
  * takes its land places first. `sizeKm`: a ring's radius and a cluster's width when the formation gives no `km` (a
  * close map's own scale; else 40 and 30 km, which flung a 10 km map's tokens off it).
  */
-export function formationPoints(f: UnitFormation, n: number, onLand?: (p: [number, number]) => boolean, sizeKm?: number): [number, number][] {
+export function formationPoints(f: UnitFormation & { readonly hatlar?: number }, n: number, onLand?: (p: [number, number]) => boolean, sizeKm?: number, deep?: { readonly gapKm: number; readonly enemy?: readonly [number, number] }): [number, number][] {
   if ("cephe" in f) {
     const line = f.cephe;
+    const depth = Math.max(1, Math.min(4, Math.round(f.hatlar ?? 1)));
+    if (depth > 1 && line.length >= 2 && n > depth && deep) return deepFront(line, n, depth, deep.gapKm, deep.enemy);
     if (line.length === 1) return Array.from({ length: n }, () => [line[0]![0], line[0]![1]]);
     const seg = line.slice(1).map((p, i) => Math.hypot(p[0] - line[i]![0], p[1] - line[i]![1]));
     const total = seg.reduce((a, b) => a + b, 0) || 1;
@@ -904,6 +906,73 @@ export function formationPoints(f: UnitFormation, n: number, onLand?: (p: [numbe
   }
   return (onLand ? [...out.filter((p) => onLand(p)), ...out.filter((p) => !onLand(p))] : out).slice(0, n);
 }
+
+/** A formation's middle ([lon, lat]). */
+export function formationCentre(f: UnitFormation): [number, number] {
+  if ("kume" in f) return [f.kume[0], f.kume[1]];
+  if ("kusatma" in f) return [f.kusatma[0], f.kusatma[1]];
+  return [f.cephe.reduce((a, p) => a + p[0], 0) / Math.max(1, f.cephe.length), f.cephe.reduce((a, p) => a + p[1], 0) / Math.max(1, f.cephe.length)];
+}
+
+/** The point a fraction of the way along a [lon, lat] polyline (by degrees: enough for a front a few km long). */
+function alongLonLat(line: readonly (readonly [number, number])[], f: number): [number, number] {
+  const p = alongPoints(line.map(([x, y]) => ({ x, y })), f);
+  return [p.x, p.y];
+}
+
+/**
+ * A front `depth` lines deep (owner, 23 Oct 2026, after DFT Tarih's Pharsalus: Caesar's three lines): the front line
+ * gets the most tokens, each line behind it `gapKm` further from the enemy (the side of the front away from `enemy`; no
+ * enemy: south of a west–east front), every second line staggered by half a place like a legion's checkerboard.
+ */
+export function deepFront(line: readonly (readonly [number, number])[], n: number, depth: number, gapKm: number, enemy?: readonly [number, number]): [number, number][] {
+  const a = line[0]!;
+  const b = line[line.length - 1]!;
+  const mid = alongLonLat(line, 0.5);
+  const kx = 111.32 * Math.max(0.2, Math.cos((mid[1] * Math.PI) / 180));
+  // The front's normal in km, turned away from the enemy.
+  let nx = -(b[1] - a[1]) * 110.57;
+  let ny = (b[0] - a[0]) * kx;
+  const len = Math.hypot(nx, ny) || 1;
+  [nx, ny] = [nx / len, ny / len];
+  const toward = enemy ? (enemy[0] - mid[0]) * kx * nx + (enemy[1] - mid[1]) * 110.57 * ny : ny;
+  if (toward > 0) [nx, ny] = [-nx, -ny];
+  const per = Array.from({ length: depth }, (_, j) => Math.floor(n / depth) + (j < n % depth ? 1 : 0));
+  return per.flatMap((m, j) =>
+    Array.from({ length: m }, (_, k) => {
+      const stagger = j % 2 ? 0.5 : 0;
+      const f = m === 1 ? 0.5 : Math.min(1, (k + stagger) / (m - 1 + stagger));
+      const p = alongLonLat(line, f);
+      return [p[0] + (nx * gapKm * j) / kx, p[1] + (ny * gapKm * j) / 110.57] as [number, number];
+    }),
+  );
+}
+
+/**
+ * A routed side's places (owner, 23 Oct 2026: "the broken units turn, scatter and run"): the formation the writer gave
+ * them to flee to, each token thrown a little off it — further back and to the sides, never in step — so the side
+ * breaks up instead of sliding away in order. Deterministic.
+ */
+export function routScatter(points: readonly (readonly [number, number])[], spreadKm: number, seed: number): [number, number][] {
+  return points.map((p, i) => {
+    const a = hash01(seed * 31 + i * 7) * Math.PI * 2;
+    const d = spreadKm * (0.4 + hash01(seed * 17 + i * 3) * 0.9);
+    const kx = 111.32 * Math.max(0.2, Math.cos((p[1] * Math.PI) / 180));
+    return [p[0] + (Math.cos(a) * d) / kx, p[1] + (Math.sin(a) * d) / 110.57];
+  });
+}
+
+/** Kilometres along a [lon, lat] polyline. */
+export function lineKm(points: readonly (readonly [number, number])[]): number {
+  return points.slice(1).reduce((s, p, i) => {
+    const q = points[i]!;
+    const kx = 111.32 * Math.max(0.2, Math.cos((((p[1] + q[1]) / 2) * Math.PI) / 180));
+    return s + Math.hypot((p[0] - q[0]) * kx, (p[1] - q[1]) * 110.57);
+  }, 0);
+}
+
+/** How long a siege line takes to draw when the script gives no time (seconds). */
+const SIEGE_LINE_S = 6;
 
 /** Bands a conquest sweeps in: enough for a front to read, few enough to stay a handful of paths. */
 const SPREAD_BANDS = 16;
@@ -1169,19 +1238,50 @@ function projectGeoMap(
   // Lines where tokens are lost are fights: the two sides close in and strike while the losses fall.
   const fightLines = [...new Set((map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => (y.kayip ?? 0) > 0).map((y) => y.satir)))];
   const fights = fightLines.map((l, i) => ({ start: lineStart(l, i), durationS: Math.round((UNIT_LOSS_FIRST_S + (Math.max(...(map.birlikler ?? []).flatMap((u) => u.yerler.filter((y) => y.satir === l).map((y) => Math.min(u.sayi, y.kayip ?? 0)))) - 1) * UNIT_LOSS_GAP_S + 1.2) * 10) / 10 }));
-  const units = (map.birlikler ?? []).map((u, i) => {
+  const fps = opts.fps ?? 30;
+  // A glow or a highlight lasts while its line is told, at least GLOW_MIN_S.
+  const glowEnd = (satir: number, bitis: number | undefined, order: number) => {
+    const start = lineStart(satir, order);
+    return Math.max(start + Math.round(GLOW_MIN_S * fps), bitis !== undefined ? lineStart(bitis, order) : (opts.lineEnd?.(satir) ?? start) + Math.round(0.5 * fps));
+  };
+  // Where the other sides stand on a line (the middle of their latest formations): a deep front's rear lines and a
+  // rout go away from it.
+  const sides = map.birlikler ?? [];
+  const latest = (u: (typeof sides)[number], line: number) => [...u.yerler].filter((y) => y.satir <= line).sort((a, b) => b.satir - a.satir)[0] ?? [...u.yerler].sort((a, b) => a.satir - b.satir)[0];
+  const enemyAt = (ui: number, line: number): [number, number] | undefined => {
+    const cs = sides.flatMap((o, oi) => (oi === ui || !latest(o, line) ? [] : [formationCentre(latest(o, line)!)]));
+    return cs.length ? [cs.reduce((a, c) => a + c[0], 0) / cs.length, cs.reduce((a, c) => a + c[1], 0) / cs.length] : undefined;
+  };
+  // A front's lines lie this far apart, and a routed side scatters about as far: a share of the map.
+  const gapKm = (map.genislik_km ?? 1000) * 0.035;
+  const units = sides.map((u, i) => {
     const count = Math.max(1, Math.min(24, Math.round(u.sayi)));
     let alive = count;
     const steps = [...u.yerler]
       .sort((a, b) => a.satir - b.satir)
-      .map((y) => {
+      .map((y, si) => {
         const before = alive;
         alive = Math.max(0, alive - Math.max(0, Math.round(y.kayip ?? 0)));
+        const placed = formationPoints(y, count, onLand, closeMap ? map.genislik_km! * CLOSE_FORMATION_SHARE : undefined, { gapKm, ...(enemyAt(i, y.satir) ? { enemy: enemyAt(i, y.satir)! } : {}) });
         // Losses one by one as the fight goes on (owner, 22 Oct 2026: "then wiped out one by one with the narration").
-        return { start: lineStart(y.satir, i), points: formationPoints(y, count, onLand, closeMap ? map.genislik_km! * CLOSE_FORMATION_SHARE : undefined).map((p) => toPx(p)), alive, ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}) };
+        return {
+          start: lineStart(y.satir, i),
+          points: (y.bozgun ? routScatter(placed, gapKm * 1.3, i * 100 + si) : placed).map((p) => toPx(p)),
+          alive,
+          ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}),
+          ...(y.bozgun ? { rout: true } : {}),
+          ...(y.etiket ? { label: y.etiket } : {}),
+        };
       })
       .map((st, si, all) => (si > 0 && close ? { ...st, ...throughBreach(all[si - 1]!.points, st.points, st.start, close.walls) } : st));
-    return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), steps };
+    const highlights = (u.vurgu ?? []).map((l) => ({ start: lineStart(l, i), end: glowEnd(l, undefined, i) }));
+    return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), ...(u.tur ? { kind: u.tur } : {}), ...(u.etiket ? { label: u.etiket } : {}), ...(highlights.length ? { highlights } : {}), steps };
+  });
+  // Siege lines drawn stage by stage, each with its length (Dyrrhachium's "20 km").
+  const siegeLines = (map.kusatma_hatlari ?? []).map((s, i) => {
+    const km = lineKm(s.noktalar);
+    const length = km >= 10 ? `${Math.round(km)} km` : km >= 1 ? `${Math.round(km * 10) / 10} km` : `${Math.round(km * 1000)} m`;
+    return { points: s.noktalar.map((p) => toPx(p)), start: lineStart(s.satir, i), durationS: s.sure_sn ?? SIEGE_LINE_S, color: s.renk ?? "#7a5230", label: s.ad ? `${s.ad} · ${length}` : length };
   });
   // A close-map speaker with no badge of the writer's stands with their side from the line they first speak, at one of
   // its tokens. The badge rises ~140 px over its place, so it takes the token where it hides the least — walls,
@@ -1250,11 +1350,6 @@ function projectGeoMap(
   }
   const allBadges = [...placed, ...sideBadges];
   // Marks over the map (DFT Tarih): the strength bar, white flags, flames, glows and the date stamp.
-  const fps = opts.fps ?? 30;
-  const glowEnd = (satir: number, bitis: number | undefined, order: number) => {
-    const start = lineStart(satir, order);
-    return Math.max(start + Math.round(GLOW_MIN_S * fps), bitis !== undefined ? lineStart(bitis, order) : (opts.lineEnd?.(satir) ?? start) + Math.round(0.5 * fps));
-  };
   // A state named by a glow: the territory under that name on screen when it starts (a conquest's later land shares it).
   const territoryNamed = (name: string, at: number) => {
     const key = name.trim().toLowerCase();
@@ -1291,7 +1386,8 @@ function projectGeoMap(
       ...(a.yol?.length ? { path: [a.konum, ...a.yol].map((p) => toPx(p)), moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
     })),
     ...(map.cizgiler?.length ? { lines: map.cizgiler.map((c, i) => ({ points: c.noktalar.map((p) => toPx(p)), label: c.ad, color: c.renk ?? "#ffd166", start: lineStart(c.satir, i), ...(c.stil === "zincir" ? { chain: true } : {}) })) } : {}),
-    arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? "#e0283c", ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i) })),
+    arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? (o.stil === "plan" ? "#3fae3a" : "#e0283c"), ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i), ...(o.bitis_satir !== undefined ? { end: lineStart(o.bitis_satir, i) } : {}), ...(o.stil === "plan" ? { plan: true } : {}) })),
+    ...(siegeLines.length ? { siegeLines } : {}),
     ...(moving ? { world: { width: v.width, height: v.height }, camera } : {}),
     ...(opts.relief ? { relief: opts.relief } : {}),
     ...(allBadges.length ? { badges: allBadges } : {}),

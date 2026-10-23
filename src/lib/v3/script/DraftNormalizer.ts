@@ -209,6 +209,16 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
         yerler[yerler.length - 1]!.kayip = u.kayip;
         fixes.push(`${where}: "kayip" son yere taşındı`);
       }
+      // Lines deep belong to a front only; a side cannot break where it first stands.
+      for (const y of yerler)
+        if (y.hatlar !== undefined && y.cephe === undefined) {
+          delete y.hatlar;
+          fixes.push(`${where}: cephesiz "hatlar" silindi`);
+        }
+      if (yerler[0]?.bozgun !== undefined) {
+        delete yerler[0].bozgun;
+        fixes.push(`${where}: ilk yerdeki "bozgun" silindi`);
+      }
       for (const key of [...FORMATION_KEYS, "km", "kayip", "konum"]) delete u[key];
       if (yerler.length) u.yerler = yerler;
     }

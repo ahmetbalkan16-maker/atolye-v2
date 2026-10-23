@@ -122,7 +122,12 @@ export interface SceneCameraCue {
  * with line `satir` of the scene.
  */
 export interface SceneMap {
-  readonly oklar?: readonly { readonly noktalar: readonly [number, number][]; readonly renk?: string; readonly etiket?: string; readonly satir?: number }[];
+  /**
+   * `stil` plan: a battle plan's arrow (DFT Tarih) — dashed and see-through, shown before the move it announces, gone
+   * with `bitis_satir`.
+   */
+  readonly oklar?: readonly { readonly noktalar: readonly [number, number][]; readonly renk?: string; readonly etiket?: string; readonly satir?: number; readonly bitis_satir?: number; readonly stil?: "plan" }[];
+  readonly kusatma_hatlari?: readonly MapSiegeLine[];
   /** Centre of the view, [lon, lat]. */
   readonly merkez?: readonly [number, number];
   /** Width of the view in km (city ~150, region ~800, Mediterranean ~3500, world ~30000). */
@@ -299,6 +304,13 @@ export type UnitFormation =
   | { readonly kume: readonly [number, number]; readonly km?: number }
   | { readonly kusatma: readonly [number, number]; readonly km?: number };
 
+/**
+ * What a side's tokens are (owner, 23 Oct 2026, after DFT Tarih's Pharsalus): with a kind they are drawn as the battle
+ * maps' rectangular blocks with its sign — infantry ✕, cavalry ╱, archers a bow, guns a dot — facing the enemy.
+ */
+export const UNIT_KINDS = ["piyade", "suvari", "okcu", "topcu"] as const;
+export type UnitKind = (typeof UNIT_KINDS)[number];
+
 export interface MapUnits {
   /** The side (for the log and the legend): "Ottomans", "Byzantium". */
   readonly taraf: string;
@@ -308,8 +320,31 @@ export interface MapUnits {
   readonly harf?: string;
   /** How many tokens (2–24). */
   readonly sayi: number;
-  /** The formation from line `satir` on; the tokens slide to each next one with its line. */
-  readonly yerler: readonly ({ readonly satir: number; readonly kayip?: number } & UnitFormation)[];
+  /** Blocks of this kind instead of round emblem tokens (one side = one kind; a second kind is a second side entry). */
+  readonly tur?: UnitKind;
+  /** Its strength written beside the formation ("11 legions – 47,000 men"); a formation's own `etiket` replaces it. */
+  readonly etiket?: string;
+  /** Lines on which the narrator speaks of this side: its tokens are framed in light while the line is told. */
+  readonly vurgu?: readonly number[];
+  /**
+   * The formation from line `satir` on; the tokens slide to each next one with its line. `hatlar`: a front's depth in
+   * lines, the rear ones staggered behind it away from the enemy (Caesar's triplex acies: 3). `bozgun`: the side breaks
+   * on this line — its tokens turn and scatter towards the formation given, fleeing.
+   */
+  readonly yerler: readonly ({ readonly satir: number; readonly kayip?: number; readonly hatlar?: number; readonly bozgun?: boolean; readonly etiket?: string } & UnitFormation)[];
+}
+
+/**
+ * Siege lines drawn step by step (owner, 23 Oct 2026, after DFT Tarih's Dyrrhachium): a palisade and ditch growing
+ * along `noktalar` from line `satir` over `sure_sn` seconds, with its length in km beside it; several entries on later
+ * lines build a line of circumvallation stage by stage.
+ */
+export interface MapSiegeLine {
+  readonly ad?: string;
+  readonly noktalar: readonly [number, number][];
+  readonly satir: number;
+  readonly sure_sn?: number;
+  readonly renk?: string;
 }
 
 export interface SceneTitleCard {

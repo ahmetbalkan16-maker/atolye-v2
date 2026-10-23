@@ -20,6 +20,52 @@ const STAGGER_S = 0.06;
 const TOKEN_R = 23;
 /** How long a fallen token lies crossed out before it fades (seconds). */
 const FALLEN_S = 0.6;
+/** How long a routed side's tokens take to scatter (seconds, each a little more or less). */
+const ROUT_S = 2.2;
+/** A block (infantry, cavalry, archers, guns) on a 1080p screen: its width and depth against the token radius. */
+const BLOCK_W = 2.5;
+const BLOCK_H = 1.45;
+
+/**
+ * A unit block like the battle maps' (DFT Tarih's Pharsalus): a rectangle in the side's colour with its kind's sign in
+ * white — infantry ✕, cavalry ╱, archers a bow and arrow, guns a dot — and a bright front edge towards the enemy.
+ * Drawn about its centre, the front up (the caller turns it); `r` is the token radius.
+ */
+export function UnitBlock({ kind, color, r }: { kind: string; color: string; r: number }) {
+  const w = r * BLOCK_W;
+  const h = r * BLOCK_H;
+  const iw = w * 0.36;
+  const ih = h * 0.3;
+  const sign = (() => {
+    switch (kind) {
+      case "piyade":
+        return <path d={`M${-iw} ${-ih} L${iw} ${ih} M${iw} ${-ih} L${-iw} ${ih}`} />;
+      case "suvari":
+        return <path d={`M${-iw} ${ih} L${iw} ${-ih}`} />;
+      case "okcu":
+        return (
+          <g>
+            <path d={`M${-iw * 0.55} ${-ih} Q${iw * 0.55} 0 ${-iw * 0.55} ${ih}`} fill="none" />
+            <path d={`M${-iw * 0.55} 0 L${iw} 0 M${iw * 0.7} ${-ih * 0.35} L${iw} 0 L${iw * 0.7} ${ih * 0.35}`} />
+          </g>
+        );
+      default:
+        return <circle r={Math.min(iw, ih) * 0.55} fill="#ffffff" stroke="none" />;
+    }
+  })();
+  return (
+    <g>
+      <rect x={-w / 2 + r * 0.12} y={-h / 2 + r * 0.16} width={w} height={h} rx={r * 0.12} fill="rgba(0,0,0,0.35)" />
+      <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={r * 0.12} fill={color} stroke={INK} strokeWidth={r * 0.1} />
+      <rect x={-w / 2 + r * 0.14} y={-h / 2 + r * 0.14} width={w - r * 0.28} height={h - r * 0.28} rx={r * 0.06} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={r * 0.07} />
+      {/* The front edge, towards the enemy. */}
+      <path d={`M${-w / 2 + r * 0.1} ${-h / 2 + r * 0.05} L${w / 2 - r * 0.1} ${-h / 2 + r * 0.05}`} stroke="#ffffff" strokeWidth={r * 0.2} strokeLinecap="round" />
+      <g stroke="#ffffff" strokeWidth={r * 0.13} strokeLinecap="round" fill="none">
+        {sign}
+      </g>
+    </g>
+  );
+}
 
 function rand(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -103,7 +149,7 @@ const BREACH_STAGGER_S = 0.3;
  * Where a side's token `i` is at `frame`, whether it is still standing (with its fade), and whether it is on its way
  * through a breach (it does not turn aside to fight until it is through).
  */
-function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; y: number; alpha: number; lostAt?: number; transit?: boolean } | undefined {
+function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; y: number; alpha: number; lostAt?: number; transit?: boolean; rout?: number } | undefined {
   const steps = u.steps;
   if (!steps.length || frame < steps[0]!.start) return undefined;
   let s = 0;
@@ -111,13 +157,16 @@ function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; 
   const to = steps[s]!;
   const from = steps[Math.max(0, s - 1)]!;
   const queue = to.via && to.through ? to.through.indexOf(i) : -1;
-  const begin = to.start + Math.round((queue >= 0 ? queue * BREACH_STAGGER_S : i * STAGGER_S) * fps);
-  const t = s === 0 ? 1 : interpolate(frame, [begin, begin + Math.round(SLIDE_S * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
+  // A routed side breaks up: each token runs off at its own moment, at its own pace (no column, no order).
+  const begin = to.start + Math.round((queue >= 0 ? queue * BREACH_STAGGER_S : to.rout ? rand(i * 7 + 3) * 0.9 : i * STAGGER_S) * fps);
+  const slide = to.rout ? ROUT_S * (0.75 + rand(i * 11 + 1) * 0.5) : SLIDE_S;
+  const t = s === 0 ? 1 : interpolate(frame, [begin, begin + Math.round(slide * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: to.rout ? Easing.out(Easing.quad) : Easing.inOut(Easing.cubic) });
   const a = from.points[Math.min(i, from.points.length - 1)]!;
   const b = to.points[Math.min(i, to.points.length - 1)]!;
   // Through the breach: to the gap, then on to its place in the new formation.
   const pos = queue >= 0 ? along([a, to.via!, b], t) : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   const transit = queue >= 0 && t < 1;
+  if (to.rout && s > 0 && i < to.alive) return { ...pos, alpha: 1 - 0.35 * t, transit, rout: t };
   // A token lost in this step falls at its own moment of the fight (one by one), lies crossed out a moment, then
   // fades; one lost before is gone.
   const lostBefore = s > 0 && i >= from.alive;
@@ -187,9 +236,9 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
   if (!units.length) return null;
   const r = TOKEN_R * k;
   const placed = units.map((u) => Array.from({ length: Math.max(...u.steps.map((s) => s.points.length)) }, (_, i) => tokenAt(u, i, frame, fps)));
-  // Spaced on screen for this frame's zoom, all sides together.
+  // Spaced on screen for this frame's zoom, all sides together (blocks need a little more room than round tokens).
   const shown = placed.flatMap((side) => side.filter((t) => t !== undefined));
-  separateTokens(shown, r * 2.25).forEach((q, j) => Object.assign(shown[j]!, q));
+  separateTokens(shown, r * (units.some((u) => u.kind) ? 2.75 : 2.25)).forEach((q, j) => Object.assign(shown[j]!, q));
   // A fight (owner, 22 Oct 2026: "they move, close in on each other … it must show they fight the enemy"): every
   // standing token goes for the nearest enemy until they touch, then strikes at it again and again while the
   // losses fall; when the fight is over they step back into their formation.
@@ -200,7 +249,7 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
     const sides = placed.map((side) => side.filter((t) => t !== undefined));
     const moves = sides.map((side, ui) =>
       side.map((t, ti) => {
-        if (t.lostAt !== undefined || t.transit) return { x: 0, y: 0 };
+        if (t.lostAt !== undefined || t.transit || t.rout !== undefined) return { x: 0, y: 0 };
         let best: { x: number; y: number } | undefined;
         let d = r * 12;
         sides.forEach((other, oi) => {
@@ -231,8 +280,32 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
         }),
       );
   const period = Math.round(fps * 1.1);
+  // Each side's middle and its enemies' middle (standing tokens): blocks face the enemy, a label stands behind the side.
+  const middle = (pts: readonly { x: number; y: number }[]) => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
+  const standing = placed.map((side) => side.filter((t): t is NonNullable<typeof t> => t !== undefined && t.lostAt === undefined));
+  const centres = standing.map(middle);
+  const enemyOf = (ui: number) => middle(standing.flatMap((s, oi) => (oi === ui ? [] : s)));
   return (
     <g>
+      {/* The side the narrator speaks of is framed in light while the line is told (DFT Tarih's highlight). */}
+      {units.map((u, ui) => {
+        const h = (u.highlights ?? []).find((x) => frame >= x.start && frame < x.end);
+        const pts = standing[ui]!;
+        if (!h || !pts.length) return null;
+        const a = Math.min(interpolate(frame, [h.start, h.start + Math.round(fps * 0.4)], [0, 1], { extrapolateRight: "clamp" }), interpolate(frame, [h.end - Math.round(fps * 0.4), h.end], [1, 0], { extrapolateLeft: "clamp" }));
+        const m = r * (u.kind ? 1.9 : 1.6);
+        const x0 = Math.min(...pts.map((p) => p.x)) - m;
+        const y0 = Math.min(...pts.map((p) => p.y)) - m;
+        const w = Math.max(...pts.map((p) => p.x)) + m - x0;
+        const hh = Math.max(...pts.map((p) => p.y)) + m - y0;
+        const pulse = 0.7 + 0.3 * Math.sin((frame - h.start) * 0.25);
+        return (
+          <g key={`hl${ui}`} opacity={a}>
+            <rect x={x0} y={y0} width={w} height={hh} rx={r * 0.8} fill="#fff3a0" fillOpacity={0.08} stroke="#fff3a0" strokeOpacity={0.5 * pulse} strokeWidth={r * 0.7} style={{ filter: `blur(${r * 0.3}px)` }} />
+            <rect x={x0} y={y0} width={w} height={hh} rx={r * 0.8} fill="none" stroke="#fffbe0" strokeWidth={r * 0.14} strokeDasharray={`${r * 0.9} ${r * 0.45}`} strokeDashoffset={-frame * r * 0.08} />
+          </g>
+        );
+      })}
       {units.map((u, ui) =>
         placed[ui]!.map((t, i) => {
           if (!t) return null;
@@ -240,24 +313,39 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
           const fighting = clashes.some((c) => Math.hypot(c.x - t.x, c.y - t.y) < r * 2);
           const jx = fighting ? Math.sin(frame * 0.9 + i) * r * 0.08 : 0;
           const lostPuff = t.lostAt !== undefined ? (frame - t.lostAt) / (fps * 0.8) : 0;
+          // A block faces the enemy; a routed one turns its back and staggers as it runs.
+          const own = centres[ui];
+          const foe = enemyOf(ui);
+          const facing = own && foe ? (Math.atan2(foe.y - own.y, foe.x - own.x) * 180) / Math.PI + 90 : 0;
+          const turn = t.rout !== undefined ? 180 * Math.min(1, t.rout * 2.5) + Math.sin(frame * 0.7 + i * 2) * 14 : 0;
           return (
             <g key={`${ui}-${i}`}>
               <g transform={`translate(${t.x + jx} ${t.y})`} opacity={t.alpha}>
-                <circle r={r * 1.12} fill="rgba(0,0,0,0.35)" transform={`translate(${r * 0.12} ${r * 0.16})`} />
-                <circle r={r} fill={u.color} stroke="#ffffff" strokeWidth={r * 0.16} />
-                <circle r={r * 1.08} fill="none" stroke={INK} strokeWidth={r * 0.08} />
-                <g transform={`scale(${r * 0.78})`}>
-                  <Emblem kind={u.emblem} bg={u.color} {...(u.letters ? { letters: u.letters } : {})} />
-                </g>
+                {u.kind ? (
+                  <g transform={`rotate(${facing + turn})`}>
+                    <UnitBlock kind={u.kind} color={u.color} r={r} />
+                  </g>
+                ) : (
+                  <>
+                    <circle r={r * 1.12} fill="rgba(0,0,0,0.35)" transform={`translate(${r * 0.12} ${r * 0.16})`} />
+                    <circle r={r} fill={u.color} stroke="#ffffff" strokeWidth={r * 0.16} />
+                    <circle r={r * 1.08} fill="none" stroke={INK} strokeWidth={r * 0.08} />
+                    <g transform={`scale(${r * 0.78}) rotate(${t.rout !== undefined ? Math.sin(frame * 0.7 + i * 2) * 18 : 0})`}>
+                      <Emblem kind={u.emblem} bg={u.color} {...(u.letters ? { letters: u.letters } : {})} />
+                    </g>
+                  </>
+                )}
                 {/* Fallen: greyed and crossed out, like the reference maps' struck-out tokens. */}
                 {t.lostAt !== undefined ? (
                   <g>
-                    <circle r={r} fill="#2a2a2a" opacity={0.45} />
+                    {u.kind ? <rect x={(-r * BLOCK_W) / 2} y={(-r * BLOCK_H) / 2} width={r * BLOCK_W} height={r * BLOCK_H} rx={r * 0.12} fill="#2a2a2a" opacity={0.45} transform={`rotate(${facing})`} /> : <circle r={r} fill="#2a2a2a" opacity={0.45} />}
                     <path d={`M${-r * 0.55} ${-r * 0.55} L${r * 0.55} ${r * 0.55} M${r * 0.55} ${-r * 0.55} L${-r * 0.55} ${r * 0.55}`} stroke={INK} strokeWidth={r * 0.34} strokeLinecap="round" />
                     <path d={`M${-r * 0.55} ${-r * 0.55} L${r * 0.55} ${r * 0.55} M${r * 0.55} ${-r * 0.55} L${-r * 0.55} ${r * 0.55}`} stroke="#ffffff" strokeWidth={r * 0.18} strokeLinecap="round" />
                   </g>
                 ) : null}
               </g>
+              {/* Dust kicked up by a routed token as it runs. */}
+              {t.rout !== undefined && t.rout > 0.05 && t.rout < 0.95 ? <Burst x={t.x} y={t.y + r * 0.5} r={r * 0.9} p={((frame + i * 9) % 24) / 24} era="orta" seed={ui * 53 + i} /> : null}
               {/* Melee: dust and sword sparks in every age (cannon fire belongs to the guns). */}
               {t.lostAt !== undefined ? <Burst x={t.x} y={t.y} r={r * 1.4} p={lostPuff} era="orta" seed={ui * 97 + i} /> : null}
             </g>
@@ -267,6 +355,32 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
       {clashes.map((c) => {
         const phase = (frame + (c.seed % period)) % period;
         return <Burst key={`c${c.seed}`} x={c.x} y={c.y} r={r * 1.1} p={phase / (fps * 0.7)} era="orta" seed={c.seed + Math.floor((frame + (c.seed % period)) / period)} />;
+      })}
+      {/* Each side's strength beside its formation, on the side away from the enemy ("11 Legions – 47,000 men"). */}
+      {units.map((u, ui) => {
+        let label = u.label;
+        for (const st of u.steps) if (st.start <= frame && st.label) label = st.label;
+        const pts = standing[ui]!;
+        const own = centres[ui];
+        if (!label || !pts.length || !own) return null;
+        const foe = enemyOf(ui);
+        const away = foe ? { x: own.x - foe.x, y: own.y - foe.y } : { x: 0, y: 1 };
+        const len = Math.hypot(away.x, away.y) || 1;
+        // Just behind the formation's rear: its depth along the way away from the enemy (a long front is not that deep).
+        const reach = Math.max(0, ...pts.map((p) => ((p.x - own.x) * away.x + (p.y - own.y) * away.y) / len)) + r * 2.4;
+        const at = { x: own.x + (away.x / len) * reach, y: own.y + (away.y / len) * reach };
+        const first = u.steps[0]!.start;
+        const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+        const s = r / TOKEN_R;
+        const w = (label.length * 11.5 + 30) * s;
+        return (
+          <g key={`lb${ui}`} transform={`translate(${at.x} ${at.y})`} opacity={a}>
+            <rect x={-w / 2} y={-17 * s} width={w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={u.color} strokeWidth={3.5 * s} />
+            <text x={0} y={7 * s} textAnchor="middle" style={{ font: `700 ${21 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
+              {label}
+            </text>
+          </g>
+        );
       })}
     </g>
   );
