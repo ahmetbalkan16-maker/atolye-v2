@@ -440,6 +440,82 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
   return { ...m, territories, arrows };
 }
 
+/**
+ * Badges never rest on each other (the Kosovo 1389 trial: Murad's badge marched to Pristina and stopped on Lazar's,
+ * their names one over the other). Where two badges are on the map at the same time and their resting places (a route's
+ * end, or where they stand) are closer than the badges and their name scrolls are wide — at the camera's zoom when the
+ * later one arrives — the later one moves aside, away from the other. World pixels; `camera` as in V3GeoMap.
+ */
+export function spaceBadges<B extends { readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }>(badges: readonly B[], camera: V3GeoMap["camera"], height: number): B[] {
+  const zoomAt = (frame: number) => (camera?.length ? ([...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]!).zoom : 1);
+  const out = badges.map((b) => ({ ...b, path: b.path.map((p) => ({ x: p.x, y: p.y })) }));
+  const rest = (b: (typeof out)[number]) => b.path[b.path.length - 1];
+  const arrives = (b: (typeof out)[number]) => (b.path.length > 1 ? (b.moveStart ?? b.start) : b.start);
+  for (let i = 0; i < out.length; i++)
+    for (let j = 0; j < i; j++) {
+      const [a, b] = [out[j]!, out[i]!];
+      const [pa, pb] = [rest(a), rest(b)];
+      if (!pa || !pb) continue;
+      if ((a.end ?? Infinity) <= b.start || (b.end ?? Infinity) <= a.start) continue;
+      // The later arrival moves; its zoom then decides how big the badges are on the world.
+      const [mover, still] = arrives(b) >= arrives(a) ? [b, a] : [a, b];
+      const pm = rest(mover)!;
+      const ps = rest(still)!;
+      const k = height / 1080 / zoomAt(Math.max(arrives(a), arrives(b)));
+      const need = ((mover.label.length * 11.5 + 34) / 2 + (still.label.length * 11.5 + 34) / 2 + 16) * k;
+      const dx = pm.x - ps.x;
+      if (Math.abs(dx) >= need || Math.abs(pm.y - ps.y) >= 150 * k) continue;
+      pm.x = r1(ps.x + (dx >= 0 ? 1 : -1) * need);
+    }
+  return out as unknown as B[];
+}
+
+/**
+ * Two sides never stand on one line (the Kosovo 1389 trial: the writer put the Serbian and Ottoman fronts at the same
+ * latitude, and the blocks of both armies made one jumbled row). On every line where two sides' formations are closer
+ * than `minPx` (world px, their middles), they are pushed apart, half each — or the whole way for the side whose
+ * formation begins on that line, when the other's is older — along the line between where they stood before (else north
+ * for the first side). The fight still brings them together while the losses fall. Mutates `units`' points.
+ */
+export function separateFronts(units: { readonly steps: readonly { readonly start: number; readonly points: { x: number; y: number }[] }[] }[], minPx: number): void {
+  const centre = (pts: readonly XY[]) => ({ x: pts.reduce((a, p) => a + p.x, 0) / Math.max(1, pts.length), y: pts.reduce((a, p) => a + p.y, 0) / Math.max(1, pts.length) });
+  const at = (u: (typeof units)[number], frame: number) => {
+    let k = -1;
+    u.steps.forEach((s, i) => (s.start <= frame ? (k = i) : undefined));
+    return k;
+  };
+  for (let a = 0; a < units.length; a++)
+    for (let b = a + 1; b < units.length; b++) {
+      const frames = [...new Set([...units[a]!.steps, ...units[b]!.steps].map((s) => s.start))].sort((x, y) => x - y);
+      for (const f of frames) {
+        const [ia, ib] = [at(units[a]!, f), at(units[b]!, f)];
+        if (ia < 0 || ib < 0) continue;
+        const [sa, sb] = [units[a]!.steps[ia]!, units[b]!.steps[ib]!];
+        const [ca, cb] = [centre(sa.points), centre(sb.points)];
+        const d = Math.hypot(ca.x - cb.x, ca.y - cb.y);
+        if (d >= minPx) continue;
+        // Which way apart: from where they stood before this line, else the way they stand now, else a north of b.
+        const pa = ia > 0 ? centre(units[a]!.steps[ia - 1]!.points) : ca;
+        const pb = ib > 0 ? centre(units[b]!.steps[ib - 1]!.points) : cb;
+        let ux = pa.x - pb.x;
+        let uy = pa.y - pb.y;
+        if (Math.hypot(ux, uy) < 1e-6) [ux, uy] = [ca.x - cb.x, ca.y - cb.y];
+        if (Math.hypot(ux, uy) < 1e-6) [ux, uy] = [0, -1];
+        const len = Math.hypot(ux, uy);
+        [ux, uy] = [ux / len, uy / len];
+        const along = (ca.x - cb.x) * ux + (ca.y - cb.y) * uy;
+        const push = minPx - along;
+        if (push <= 0) continue;
+        // A formation set on this very line moves; one standing from an earlier line stays put.
+        const moveA = sa.start === f;
+        const moveB = sb.start === f;
+        const share = moveA && moveB ? 0.5 : 1;
+        if (moveA) for (const p of sa.points) [p.x, p.y] = [r1(p.x + ux * push * share), r1(p.y + uy * push * share)];
+        if (moveB) for (const p of sb.points) [p.x, p.y] = [r1(p.x - ux * push * share), r1(p.y - uy * push * share)];
+      }
+    }
+}
+
 /** The point a fraction of the way along a polyline (MapView's `along`, for placing names). */
 function alongPoints(points: readonly { x: number; y: number }[], f: number): { x: number; y: number } {
   const seg = points.slice(1).map((p, i) => Math.hypot(p.x - points[i]!.x, p.y - points[i]!.y));
@@ -1277,6 +1353,7 @@ function projectGeoMap(
     const highlights = (u.vurgu ?? []).map((l) => ({ start: lineStart(l, i), end: glowEnd(l, undefined, i) }));
     return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), ...(u.tur ? { kind: u.tur } : {}), ...(u.etiket ? { label: u.etiket } : {}), ...(highlights.length ? { highlights } : {}), steps };
   });
+  separateFronts(units, gapKm * 1.15 * pxPerKm);
   // Siege lines drawn stage by stage, each with its length (Dyrrhachium's "20 km").
   const siegeLines = (map.kusatma_hatlari ?? []).map((s, i) => {
     const km = lineKm(s.noktalar);
@@ -1315,7 +1392,7 @@ function projectGeoMap(
   // stood on his own retreating tokens): up to three steps of ~55 px round its place, each step costing a little, so it
   // stays beside the place it points at. A travelling badge keeps its route.
   const tokensFrom = (from: number): Mark[] => units.flatMap((u) => u.steps.filter((st, si) => (u.steps[si + 1]?.start ?? Infinity) > from).flatMap((st) => st.points.map((q) => ({ q, w: 1 }))));
-  const placed = close
+  const placed = spaceBadges(close
     ? badges.map((b) => {
         const p0 = b.path[0];
         if (!p0 || b.path.length !== 1) return b;
@@ -1326,7 +1403,7 @@ function projectGeoMap(
         const best = spots.reduce((a, p, i) => (cost(p, i) < cost(a.p, a.i) ? { p, i } : a), { p: p0, i: 0 });
         return best.i ? { ...b, path: [best.p] } : b;
       })
-    : badges;
+    : badges, camera, height);
   const sideBadges: NonNullable<V3GeoMap["badges"]>[number][] = [];
   for (const [i, s] of (opts.sideBadges ?? []).entries()) {
     const yerler = [...(map.birlikler?.[s.taraf]?.yerler ?? [])].sort((a, b) => a.satir - b.satir);

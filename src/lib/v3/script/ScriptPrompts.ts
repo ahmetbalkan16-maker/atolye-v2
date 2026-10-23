@@ -246,7 +246,9 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
   Real coordinates. States come from the atlas ("tarihi") whenever it has them: the map then colours every other state
   of that year by itself, so name only the states the story needs, with the name the viewer knows ("ad" is the label;
   "tarihi.ad" the atlas's exact name, which may differ). A rough "noktalar" outline (clipped to the coast) only for a
-  small region the atlas lacks — hand-drawn outlines look crude next to real borders. Strong, distinct colours
+  small region the atlas lacks — hand-drawn outlines look crude next to real borders. An atlas year AFTER your story's
+  moment may already show its outcome (the 1400 atlas paints Serbia Ottoman; before Kosovo 1389 it was not): then give
+  the other side's state as it was then as its own region with "noktalar" — it takes its provinces over the atlas. Strong, distinct colours
   (e.g. #3fae3a green, #3a9e9a teal, #e07b24 orange, #9a6a34 brown, #7a64b8 purple). "satir" = the line of the scene
   that mentions it, so it appears then. A map scene is mostly narrator lines; a character may speak on it for a quip —
   from his portrait badge ("rozetler", below), never standing over the map.

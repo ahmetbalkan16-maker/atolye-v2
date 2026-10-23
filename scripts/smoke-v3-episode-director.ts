@@ -21,14 +21,14 @@ import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, deepFront, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, deepFront, separateFronts, spaceBadges, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
 import { mapProblems, shareProblems } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
-import { assembleLand, chainWays, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
+import { assembleLand, chainWays, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
@@ -1174,6 +1174,36 @@ async function main() {
     assert.equal(traditionalPortrait([v(9, 3, { tur: "fotograf" })], -44), undefined, "a photograph of a statue's copy is not a portrait");
     assert.deepEqual(previewUrls("https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/500px-F.jpg"), ["https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/500px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/330px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/250px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/960px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/640px-F.jpg"]);
     assert.deepEqual(previewUrls("https://images.metmuseum.org/a.jpg"), ["https://images.metmuseum.org/a.jpg"]);
+  });
+
+  await scenario("O25 Kosovo 1389 maps: two fronts on one line are pushed apart, badges resting on one spot move aside, an inland close map asks no coast, a later atlas year is flagged", () => {
+    // Fronts: Serbs north at frame 0, both written on the same line at frame 100.
+    const units = [
+      { steps: [{ start: 0, points: [{ x: 100, y: 80 }, { x: 200, y: 80 }] }, { start: 100, points: [{ x: 100, y: 100 }, { x: 200, y: 100 }] }] },
+      { steps: [{ start: 0, points: [{ x: 100, y: 120 }, { x: 200, y: 120 }] }, { start: 100, points: [{ x: 100, y: 100 }, { x: 200, y: 100 }] }] },
+    ];
+    separateFronts(units, 40);
+    assert.deepEqual([units[0]!.steps[1]!.points[0]!.y, units[1]!.steps[1]!.points[0]!.y], [80, 120], "each side back to its own side, 40 px apart");
+    assert.deepEqual(units[0]!.steps[0]!.points[0]!.y, 80, "formations already apart stay");
+    const one = [{ steps: [{ start: 0, points: [{ x: 0, y: 0 }] }] }, { steps: [{ start: 0, points: [{ x: 0, y: 0 }] }] }];
+    separateFronts(one, 40);
+    assert.deepEqual([one[0]!.steps[0]!.points[0]!.y, one[1]!.steps[0]!.points[0]!.y], [-20, 20], "on one spot: the first side north");
+    // Badges: Murad marches to Lazar's place and stops beside him, not on him.
+    const badges = spaceBadges([{ label: "Prince Lazar", start: 0, path: [{ x: 500, y: 300 }] }, { label: "Murad I", start: 0, moveStart: 50, path: [{ x: 900, y: 400 }, { x: 505, y: 305 }] }], undefined, 1080);
+    assert.equal(badges[0]!.path[0]!.x, 500, "the one already there stays");
+    assert.ok(badges[1]!.path[1]!.x - 500 >= 140 && badges[1]!.path[0]!.x === 900, JSON.stringify(badges[1]));
+    assert.deepEqual(spaceBadges([{ label: "A", start: 0, end: 40, path: [{ x: 0, y: 0 }] }, { label: "B", start: 50, path: [{ x: 0, y: 0 }] }], undefined, 1080)[1]!.path[0], { x: 0, y: 0 }, "not on the map at the same time");
+    // Inland: a box in a big square of land asks no coast; one at the land's edge does.
+    const land = [[[[10, 30], [40, 30], [40, 55], [10, 55], [10, 30]]]] as never;
+    assert.equal(inland({ west: 20.9, east: 21.2, south: 42.6, north: 42.8 }, land), true);
+    assert.equal(inland({ west: 39.9, east: 40.2, south: 42.6, north: 42.8 }, land), false);
+    // A later atlas year on a story with a battle.
+    const ep = { ...sampleEpisode(), donem: "1389" };
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const later: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "m1", mekan: "Map: the Balkans", harita: { merkez: [22, 42], genislik_km: 1500, bolgeler: [{ ad: "Ottoman Empire", renk: "#3fae3a", tarihi: { ad: "Ottoman Empire", yil: 1400 }, satir: 0 }], kamera: [{ satir: 1, merkez: [21, 42.6], genislik_km: 900 }] }, satirlar: [narrate("Murad marches to Kosovo."), narrate("The armies are routed.")] };
+    assert.ok(mapProblems({ ...ep, sahneler: [later] }).some((p) => p.includes("uses the atlas of 1400") && p.includes("use the atlas of 1300")));
+    const drawn = { ...later, harita: { ...later.harita!, bolgeler: [...later.harita!.bolgeler!, { ad: "Serbia", renk: "#3a5eb3", noktalar: [[20, 42], [22, 42], [22, 44], [20, 44]] as [number, number][], satir: 0 }] } };
+    assert.ok(!mapProblems({ ...ep, sahneler: [drawn] }).some((p) => p.includes("uses the atlas")), "the other side drawn as it was");
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

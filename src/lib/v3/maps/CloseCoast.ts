@@ -302,6 +302,8 @@ export async function closeCoastFor(paths: Pick<V3Paths, "workRoot">, world: Pic
   const key = createHash("sha256").update(JSON.stringify({ v: COAST_VERSION, box })).digest("hex").slice(0, 20);
   const lib = path.join(paths.workRoot, "_kutuphane", "osm-kiyi", `${key}.json`);
   if (existsSync(lib)) return JSON.parse(await fs.readFile(lib, "utf8")) as CloseCoast;
+  // Far from any sea (the Kosovo field, 1389): no coast to fetch — Natural Earth's land covers the box and ~20 km round it.
+  if (inland(box, fallbackLand)) return undefined;
   const query = `[out:json][timeout:90];way["natural"="coastline"](${box.south},${box.west},${box.north},${box.east});out geom;`;
   try {
     const json = await overpass(query);
@@ -328,8 +330,34 @@ export interface OsmElement {
   readonly members?: readonly { readonly type: string; readonly role?: string; readonly geometry?: readonly { readonly lat: number; readonly lon: number }[] }[];
 }
 
+/** How far past a close map's box land must reach on every side (km) for it to have no coast worth fetching. */
+const INLAND_MARGIN_KM = 20;
+
+/** Whether Natural Earth's land covers the box and INLAND_MARGIN_KM round it (a 9×9 grid of points, all on land). */
+export function inland(box: Box, land: readonly Polygon[]): boolean {
+  if (!land.length) return false;
+  const lat = (box.south + box.north) / 2;
+  const mx = INLAND_MARGIN_KM / (111.32 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const my = INLAND_MARGIN_KM / 110.57;
+  for (let i = 0; i <= 8; i++)
+    for (let j = 0; j <= 8; j++) {
+      const lon = box.west - mx + ((box.east - box.west + 2 * mx) * i) / 8;
+      const la = box.south - my + ((box.north - box.south + 2 * my) * j) / 8;
+      if (!inOutline(lon, la, land)) return false;
+    }
+  return true;
+}
+
+/**
+ * When every server failed, how long the rest of the run goes without asking again (the Kosovo 1389 trial: each close
+ * map's coast, rivers and site waited out three servers' timeouts in turn while Overpass was down).
+ */
+export const OVERPASS_REST_MS = 15 * 60_000;
+let overpassDownUntil = 0;
+
 /** The query's answer from the first server that gives one (a busy server answers HTML, not JSON). */
 export async function overpass(query: string, timeoutMs = 120_000): Promise<{ elements?: OsmElement[] }> {
+  if (Date.now() < overpassDownUntil) throw new Error(`OVERPASS hiçbir sunucu yanıt vermedi; ${Math.ceil((overpassDownUntil - Date.now()) / 60_000)} dk sorulmayacak`);
   const failures: string[] = [];
   for (const url of OVERPASS) {
     try {
@@ -340,6 +368,7 @@ export async function overpass(query: string, timeoutMs = 120_000): Promise<{ el
       failures.push(`${new URL(url).hostname}: ${(e as Error).message.slice(0, 60)}`);
     }
   }
+  overpassDownUntil = Date.now() + OVERPASS_REST_MS;
   throw new Error(`OVERPASS ${failures.join("; ")}`);
 }
 

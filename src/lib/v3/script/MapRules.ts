@@ -1,4 +1,6 @@
 import { CLOSE_MAP_MAX_KM, type Episode, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
+import { periodEndYear } from "../episode/Period";
+import { SNAPSHOT_YEARS } from "../maps/HistoricalBorders";
 import { mapSpeakers } from "../maps/MapSpeakers";
 import { distanceKm } from "../maps/PlaceCheck";
 
@@ -78,6 +80,28 @@ function climaxProblems(scenes: Episode["sahneler"]): string[] {
   const assault = told.find(({ s, l }) => !s.harita?.merkez && SIEGE.test(l.metin));
   const walls = close.some((s) => (s.harita!.surlar?.length ?? 0) > 0 && (fought(s) || s.harita!.surlar!.some((w) => w.gedik)));
   return assault && !walls ? [`the assault on the walls is never seen on a close map${off(assault)}: give a close map of the walls ("surlar" or the castle) and tell the assault there, line by line — ${fight}`] : [];
+}
+
+/**
+ * A map drawn with the atlas of a year after the story (the Kosovo 1389 trial: the 1400 atlas painted Serbia and the
+ * Kosovo field Ottoman, so Lazar waited for the battle inside the Ottoman Empire — the map showed the result before
+ * the battle). When the story tells a battle or a conquest, the writer is asked to draw the other side's state as it
+ * was then (its own region wins its provinces over the atlas), or to use the atlas year before the story.
+ */
+function laterAtlasProblems(episode: Episode): string[] {
+  const year = typeof episode.donem === "string" ? periodEndYear(episode.donem) : undefined;
+  if (year === undefined) return [];
+  const before = [...SNAPSHOT_YEARS].reverse().find((y) => y <= year);
+  const fights = episode.sahneler.some((s) => s.satirlar.some((l) => CLIMAX.test(l.metin) || MOVES.test(l.metin)) || BATTLE.test(s.mekan ?? ""));
+  if (!fights) return [];
+  return episode.sahneler.flatMap((s) => {
+    const later = (s.harita?.bolgeler ?? []).find((b) => b.tarihi && b.tarihi.yil > year);
+    if (!later) return [];
+    const others = (s.harita?.bolgeler ?? []).filter((b) => b !== later && !b.tarihi?.yil);
+    return others.length
+      ? []
+      : [`map scene "${s.id}" uses the atlas of ${later.tarihi!.yil} for "${later.ad}", after the story (${year}): it may already show what the story changes (a conquest, a battle's outcome). Give the other side's state as it was in ${year} as its own region with "noktalar" (a rough outline; it takes its provinces over the atlas)${before !== undefined ? `, or use the atlas of ${before} and draw the gains since` : ""} — MAPS`];
+  });
 }
 
 /** Close-map speakers the studio cannot seat on the map (no badge, no side of theirs among the tokens). */
@@ -180,6 +204,7 @@ export function mapProblems(episode: unknown): string[] {
   const moving = scenes.flatMap((s) => s.satirlar).filter((l) => MOVES.test(l.metin)).length;
   if (!routes && moving >= 2) out.push(`the story moves between places (${moving} lines tell a voyage, march, crossing or invasion) but no map shows the route: tell each crossing or campaign on a map scene with its route drawn (oklar, or a rozet with "yol" + "yol_satir") — SCENE KIND BY SCALE`);
   out.push(...climaxProblems(scenes));
+  out.push(...laterAtlasProblems(episode as Episode));
   if (Array.isArray((episode as Episode).oyuncu_kadrosu)) out.push(...unplacedSpeakers(episode as Episode));
   return out;
 }
