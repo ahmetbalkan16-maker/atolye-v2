@@ -1,7 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { CLOSE_MAP_MAX_KM, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
-import type { V3GeoMap } from "../render/RenderPlanTypes";
+import type { V3GeoMap, V3StrengthSide } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
 import { castleRing, castleStyleFor } from "./CastleShapes";
 import { placeCloseLabels } from "./CloseLabels";
@@ -502,7 +502,31 @@ export function mapOnScreen(m: V3GeoMap, frame: number, width: number, height: n
  * `sideBadges`: close-map speakers the writer gave no badge, placed at their side's tokens (MapSpeakers); `badgeLines`:
  * the lines each badged character speaks, so their badge stays in view for them.
  */
-type GeoMapOptions = { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number; readonly sideBadges?: readonly SideBadge[]; readonly badgeLines?: ReadonlyMap<string, readonly number[]> };
+/** `lineEnd`: the frame a line ends (a glow lasts while its line is told). */
+type GeoMapOptions = { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number; readonly sideBadges?: readonly SideBadge[]; readonly badgeLines?: ReadonlyMap<string, readonly number[]>; readonly lineEnd?: (index: number) => number | undefined; readonly fps?: number };
+
+/**
+ * What a side's number on the strength bar counts for (the bar's share): the middle of a range ("15,000–25,000" →
+ * 20,000), a thousands group in either style ("1.000", "1,000", "80 000"), "2.5 million". Numbers far apart are a count
+ * and a unit ("11 legions, 47,000 men"): the largest counts.
+ */
+export function strengthValue(count: string): number {
+  const t = count.toLowerCase();
+  const nums = [...t.matchAll(/\d[\d.,\s  ]*\d|\d/g)]
+    .map((m) => {
+      const raw = m[0].replace(/[\s  ]/g, "");
+      // A separator followed by exactly three digits groups thousands; otherwise it is a decimal point ("2.5").
+      return Number(/^\d{1,3}([.,]\d{3})+$/.test(raw) ? raw.replace(/[.,]/g, "") : raw.replace(",", "."));
+    })
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (!nums.length) return 0;
+  const mult = /\b(million|milyon)\b/.test(t) ? 1e6 : /\b(thousand|bin)\b/.test(t) ? 1e3 : 1;
+  const base = Math.max(...nums) / Math.min(...nums) > 10 ? Math.max(...nums) : nums.reduce((a, b) => a + b, 0) / nums.length;
+  return Math.round(base * mult);
+}
+
+/** How long a glow stays when its line's end is not known (seconds) — and at least, so it is seen. */
+const GLOW_MIN_S = 3;
 
 /**
  * The render map of a scene's geographic `harita` (needs `merkez` and `genislik_km`). Line indexes (`satir`) become
@@ -1060,7 +1084,7 @@ function projectGeoMap(
         .map((k, i) => ({ frame: i === 0 ? 0 : lineStart(k.satir, i), ...toPx([k.view.lon0, k.view.lat0]), zoom: Math.round(((width / k.view.spanLon) * v.spanLon * 1000) / v.width) / 1000 }))
         .sort((a, b) => a.frame - b.frame)
     : undefined;
-  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
+  const badges = (map.rozetler ?? []).map((r, i) => ({ castId: r.karakter, label: opts.castName?.(r.karakter) ?? r.karakter, start: lineStart(r.satir, i), ...(r.bitis_satir !== undefined ? { end: lineStart(r.bitis_satir, i) } : {}), ...(r.yol_satir !== undefined && r.yol?.length ? { moveStart: lineStart(r.yol_satir, i) } : {}), ...(r.x_satir !== undefined ? { crossed: lineStart(r.x_satir, i) } : {}), path: [r.konum, ...(r.yol ?? [])].map((p) => toPx(p)) }));
   const battles = (map.savaslar ?? []).map((w, i) => ({ ...toPx(w.konum), label: w.ad, start: lineStart(w.satir, i) }));
   // On the close map rivers are as wide as they are (OpenStreetMap's, else Natural Earth's at a default width): water
   // for ships, never land for houses, woods or tokens.
@@ -1225,6 +1249,34 @@ function projectGeoMap(
     sideBadges.push({ castId: s.karakter, label: opts.castName?.(s.karakter) ?? s.karakter, start: lineStart(s.satir, (map.rozetler?.length ?? 0) + i), path: [at] });
   }
   const allBadges = [...placed, ...sideBadges];
+  // Marks over the map (DFT Tarih): the strength bar, white flags, flames, glows and the date stamp.
+  const fps = opts.fps ?? 30;
+  const glowEnd = (satir: number, bitis: number | undefined, order: number) => {
+    const start = lineStart(satir, order);
+    return Math.max(start + Math.round(GLOW_MIN_S * fps), bitis !== undefined ? lineStart(bitis, order) : (opts.lineEnd?.(satir) ?? start) + Math.round(0.5 * fps));
+  };
+  // A state named by a glow: the territory under that name on screen when it starts (a conquest's later land shares it).
+  const territoryNamed = (name: string, at: number) => {
+    const key = name.trim().toLowerCase();
+    const hits = named.flatMap((n, i) => (n.b.ad.trim().toLowerCase() === key ? [others.length + i] : []));
+    return hits.filter((ti) => territories[ti]!.start <= at && (territories[ti]!.end === undefined || territories[ti]!.end! > at)).pop() ?? hits[0];
+  };
+  const strength = (map.guc ?? []).map((g, i) => ({
+    start: lineStart(g.satir, i),
+    ...(g.bitis_satir !== undefined ? { end: lineStart(g.bitis_satir, i) } : {}),
+    sides: g.taraflar.map((t) => ({ label: t.ad, color: t.renk, count: t.sayi, value: strengthValue(t.sayi) })) as unknown as readonly [V3StrengthSide, V3StrengthSide],
+  }));
+  const flags = (map.teslim ?? []).map((t, i) => ({ ...toPx(t.konum), start: lineStart(t.satir, i), ...(t.ad ? { label: t.ad } : {}) }));
+  const fireKm = Math.max(0.4, (map.genislik_km ?? 0) * 0.03);
+  const fires = (map.yanginlar ?? []).map((y, i) => ({ ...toPx(y.konum), start: lineStart(y.satir, i), ...(y.bitis_satir !== undefined ? { end: lineStart(y.bitis_satir, i) } : {}), size: r1((y.km ?? fireKm) * pxPerKm) }));
+  const glows = (map.vurgular ?? []).flatMap((g, i): NonNullable<V3GeoMap["glows"]>[number][] => {
+    const start = lineStart(g.satir, i);
+    const end = glowEnd(g.satir, g.bitis_satir, i);
+    const territory = g.bolge ? territoryNamed(g.bolge, start) : undefined;
+    if (territory !== undefined) return [{ start, end, territory }];
+    return g.konum ? [{ start, end, ...toPx(g.konum), r: r1(((g.km ?? Math.max(1, (map.genislik_km ?? 0) * 0.05)) * pxPerKm) / 2) }] : [];
+  });
+  const dates = (map.tarih ?? []).map((d, i) => ({ start: lineStart(d.satir, i), text: d.metin })).sort((a, b) => a.start - b.start);
   const drawn: V3GeoMap = {
     land: polygonsPath(v, data.land),
     lakes: polygonsPath(v, data.lakes),
@@ -1254,6 +1306,11 @@ function projectGeoMap(
     ...(opts.relief ? atlasMarks(data, v, world.bounds, zoom0, height, opts.language ?? "en") : {}),
     // The story's main state (the script names it first) gets the stronger border, like the main state of an atlas map.
     ...(named.length ? { mainTerritory: others.length } : {}),
+    ...(strength.length ? { strength } : {}),
+    ...(flags.length ? { flags } : {}),
+    ...(fires.length ? { fires } : {}),
+    ...(glows.length ? { glows } : {}),
+    ...(dates.length ? { dates } : {}),
   };
   return placeStateLabels(drawn, v.width, v.height, height / 1080 / zoom0, rings);
 }

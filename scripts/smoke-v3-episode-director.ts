@@ -9,7 +9,7 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, pictureShares, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
@@ -952,6 +952,45 @@ async function main() {
     // Validation: the marked line must be one of the scene's.
     assert.equal(validateEpisode(episode).ok, true, JSON.stringify(validateEpisode(episode).errors.slice(0, 2)));
     assert.equal(validateEpisode({ ...episode, sahneler: [{ ...map, ara_goruntu_satir: 3 }, stage] }).ok, false);
+  });
+
+  await scenario("O16 marks over the map after DFT Tarih (owner, 23 Oct 2026): strength bar with its numbers, white flag, flames, a glowing state and a ring, the date stamp, a red X over a beaten ruler's badge", () => {
+    assert.deepEqual(["15,000–25,000", "1.000", "80 000", "c. 7,000 men", "2.5 million", "11 legions, 47,000 men", "none"].map(strengthValue), [20000, 1000, 80000, 7000, 2500000, 47000, 0]);
+    const land = [[[[15, 35], [30, 35], [30, 45], [15, 45], [15, 35]]]];
+    const map: SceneMap = {
+      merkez: [22, 40],
+      genislik_km: 1200,
+      bolgeler: [{ ad: "Hungary", renk: "#c0392b", noktalar: [[18, 41], [24, 41], [24, 44], [18, 44]], satir: 0 }],
+      rozetler: [{ karakter: "mehmed", konum: [21, 40], satir: 0, x_satir: 3 }],
+      guc: [{ satir: 1, taraflar: [{ ad: "Ottomans", renk: "#3fae3a", sayi: "80,000" }, { ad: "Hungarians", renk: "#c0392b", sayi: "15,000–25,000" }] }, { satir: 3, taraflar: [{ ad: "Ottomans", renk: "#3fae3a", sayi: "60,000" }, { ad: "Hungarians", renk: "#c0392b", sayi: "20,000" }] }],
+      teslim: [{ konum: [20.45, 42.8], satir: 3, ad: "Belgrade surrenders" }],
+      yanginlar: [{ konum: [21, 42], satir: 2 }, { konum: [22, 42], satir: 2, km: 60, bitis_satir: 3 }],
+      vurgular: [{ bolge: "hungary", satir: 1 }, { konum: [20.45, 42.8], km: 80, satir: 2, bitis_satir: 3 }],
+      tarih: [{ satir: 2, metin: "29 August 1521" }, { satir: 0, metin: "1521" }],
+    };
+    const lineEnd = (i: number) => (i < 4 ? i * 100 + 80 : undefined);
+    const geo = buildGeoMap(map, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, (i) => (i ?? 0) * 100, { lineEnd, fps: 30, castName: () => "Suleiman" });
+    assert.deepEqual(geo.strength!.map((s) => [s.start, s.sides[0].value, s.sides[1].value, s.sides[1].count]), [[100, 80000, 20000, "15,000–25,000"], [300, 60000, 20000, "20,000"]]);
+    assert.deepEqual([geo.flags!.length, geo.flags![0]!.start, geo.flags![0]!.label], [1, 300, "Belgrade surrenders"]);
+    assert.deepEqual(geo.fires!.map((f) => [f.start, f.end]), [[200, undefined], [200, 300]]);
+    assert.ok(geo.fires![1]!.size > geo.fires![0]!.size, "a 60 km fire is drawn wider than the default");
+    // The glow names the state by its bolgeler name (any case), and lasts at least its line or GLOW_MIN_S.
+    const hungary = geo.territories.findIndex((t) => t.label === "Hungary");
+    assert.deepEqual([geo.glows![0]!.territory, geo.glows![0]!.start, geo.glows![0]!.end], [hungary, 100, 195]);
+    assert.ok(geo.glows![1]!.x !== undefined && geo.glows![1]!.r! > 0 && geo.glows![1]!.end === 300 && geo.glows![1]!.territory === undefined);
+    assert.deepEqual(geo.dates, [{ start: 0, text: "1521" }, { start: 200, text: "29 August 1521" }], "dates in line order");
+    assert.equal(geo.badges![0]!.crossed, 300);
+    // Validation: two sides with numbers, a glow names a state of this map or a place, every mark has its line.
+    const ep = { ...sampleEpisode(), donem: "1521" };
+    const four = Array.from({ length: 4 }, (_, i) => ({ karakter: "anlatici", metin: `Line ${i}.`, duygu: "notr" as const }));
+    const withMap = (h: SceneMap) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: h, satirlar: four }] } as never);
+    assert.equal(withMap(map).ok, true, JSON.stringify(withMap(map).errors.slice(0, 3)));
+    assert.equal(withMap({ ...map, guc: [{ satir: 1, taraflar: [map.guc![0]!.taraflar[0]] as never }] }).ok, false, "a bar needs both sides");
+    assert.equal(withMap({ ...map, guc: [{ satir: 1, taraflar: [map.guc![0]!.taraflar[0], { ad: "X", renk: "#000000", sayi: "many" }] }] }).ok, false, "a number in digits");
+    assert.equal(withMap({ ...map, vurgular: [{ bolge: "Serbia", satir: 1 }] }).ok, false, "a glow names a state on this map");
+    assert.equal(withMap({ ...map, vurgular: [{ bolge: "Hungary", konum: [20, 42], satir: 1 }] }).ok, false, "a state or a place, not both");
+    assert.equal(withMap({ ...map, teslim: [{ konum: [20, 42], satir: 9 }] }).ok, false, "the flag's line exists");
+    assert.equal(withMap({ ...map, rozetler: [{ ...map.rozetler![0]!, x_satir: 7 }] }).ok, false);
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

@@ -8,6 +8,7 @@ import { HEAD_CY, INK } from "../character/rig";
 import { along, pathLength, smoothPoints } from "./mapGeometry";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
+import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
 import { MapVehicles } from "./MapVehicles";
 
 const OCEAN = "#22406a";
@@ -604,6 +605,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
         {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
         <UnitTokens map={map} frame={frame} fps={fps} k={k} />
         <MapVehicles map={map} frame={frame} fps={fps} k={k} travelS={marchSeconds} />
+        {/* Glowing states, rings round places, flames, white flags (DFT Tarih's marks). */}
+        <MapMarks map={map} frame={frame} fps={fps} k={k} label={(t, s) => markLabel(t, s)} />
         {/* On the relief map cities are written over the routes: a dotted march through Belgrade cut its name. */}
         {relief
           ? map.cities.map((c, i) => (
@@ -656,12 +659,13 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                   </g>
                   <circle cy={cy} r={r} fill="#d9c9a3" />
                   {m && accessories ? (
-                    <g clipPath={`url(#${id}-badge${i})`}>
+                    <g clipPath={`url(#${id}-badge${i})`} style={{ filter: crossedFilter(b.crossed, frame, fps) }}>
                       <g transform={`translate(0 ${cy - HEAD_CY * s + r * 0.18}) scale(${s})`}>
                         <Character member={m} state={head} accessories={accessories} cheap />
                       </g>
                     </g>
                   ) : null}
+                  {b.crossed !== undefined ? <BadgeCross crossed={b.crossed} frame={frame} fps={fps} cy={cy} r={r} k={k} /> : null}
                   <g transform={`translate(0 ${scrollY})`}>
                     <path d={`M${-sw / 2 - 12 * k} ${-9 * k} L${-sw / 2 + 4 * k} ${-9 * k} L${-sw / 2 + 4 * k} ${15 * k} L${-sw / 2 - 12 * k} ${15 * k} L${-sw / 2 - 6 * k} ${3 * k} Z M${sw / 2 + 12 * k} ${-9 * k} L${sw / 2 - 4 * k} ${-9 * k} L${sw / 2 - 4 * k} ${15 * k} L${sw / 2 + 12 * k} ${15 * k} L${sw / 2 + 6 * k} ${3 * k} Z`} fill="#c9a46a" stroke={SEPIA} strokeWidth={2 * k} strokeLinejoin="round" />
                     <rect x={-sw / 2} y={-15 * k} width={sw} height={28 * k} rx={4 * k} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2 * k} />
@@ -690,12 +694,13 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
               <circle cy={cy} r={r + 6 * k} fill={ringStroke ?? "#ffffff"} stroke={INK} strokeWidth={5 * k} />
               <circle cy={cy} r={r} fill="#d9c9a3" />
               {m && accessories ? (
-                <g clipPath={`url(#${id}-badge${i})`}>
+                <g clipPath={`url(#${id}-badge${i})`} style={{ filter: crossedFilter(b.crossed, frame, fps) }}>
                   <g transform={`translate(0 ${cy - HEAD_CY * s + r * 0.18}) scale(${s})`}>
                     <Character member={m} state={head} accessories={accessories} cheap />
                   </g>
                 </g>
               ) : null}
+              {b.crossed !== undefined ? <BadgeCross crossed={b.crossed} frame={frame} fps={fps} cy={cy} r={r} k={k} /> : null}
               <g transform={`translate(0 ${cy - r - 28 * k})`}>
                 <rect x={(-b.label.length * 9 - 18) * k} y={-17 * k} width={(b.label.length * 18 + 36) * k} height={34 * k} rx={6 * k} fill="#2a1f14" stroke="#c99a2e" strokeWidth={3 * k} />
                 <text x={0} y={1 * k} textAnchor="middle" dominantBaseline="middle" style={{ font: `800 ${22 * k}px 'Segoe UI', Arial, sans-serif` }} fill="#f6e7c1">

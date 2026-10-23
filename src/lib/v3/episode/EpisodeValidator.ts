@@ -422,7 +422,62 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         lineIndex(r, "satir", rp);
         lineIndex(r, "bitis_satir", rp);
         lineIndex(r, "yol_satir", rp);
+        lineIndex(r, "x_satir", rp);
         (Array.isArray(r.yol) ? r.yol : []).forEach((pt, k) => lonLat(pt, `${rp}.yol[${k}]`));
+      });
+      // Marks over the map (DFT Tarih): strength bar, white flags, flames, glows, the date stamp.
+      (arr(h, "guc", hp, true) ?? []).forEach((g, gi) => {
+        const gp = `${hp}.guc[${gi}]`;
+        if (!isObj(g)) return err("HARITA_GUC", gp, "nesne bekleniyor");
+        if (g.satir === undefined) err("HARITA_GUC", gp, "satir gerekli");
+        lineIndex(g, "satir", gp);
+        lineIndex(g, "bitis_satir", gp);
+        const sides = Array.isArray(g.taraflar) ? g.taraflar : [];
+        if (sides.length !== 2) return err("HARITA_GUC", `${gp}.taraflar`, "tam iki taraf: [{ad, renk, sayi}, {ad, renk, sayi}]");
+        sides.forEach((t, ti) => {
+          const tp = `${gp}.taraflar[${ti}]`;
+          if (!isObj(t)) return err("HARITA_GUC", tp, "nesne bekleniyor");
+          str(t, "ad", tp, { max: 30 });
+          str(t, "renk", tp, { pattern: HEX });
+          const n = str(t, "sayi", tp, { max: 24 });
+          if (n !== undefined && !/\d/.test(n)) err("HARITA_GUC", `${tp}.sayi`, "rakamla bir sayı bekleniyor (\"80,000\", \"15,000–25,000\")");
+        });
+      });
+      (arr(h, "teslim", hp, true) ?? []).forEach((t, ti) => {
+        const tp = `${hp}.teslim[${ti}]`;
+        if (!isObj(t)) return err("HARITA_TESLIM", tp, "nesne bekleniyor");
+        lonLat(t.konum, `${tp}.konum`);
+        if (t.satir === undefined) err("HARITA_TESLIM", tp, "satir gerekli");
+        lineIndex(t, "satir", tp);
+        str(t, "ad", tp, { optional: true, max: 40 });
+      });
+      (arr(h, "yanginlar", hp, true) ?? []).forEach((y, yi) => {
+        const yp = `${hp}.yanginlar[${yi}]`;
+        if (!isObj(y)) return err("HARITA_YANGIN", yp, "nesne bekleniyor");
+        lonLat(y.konum, `${yp}.konum`);
+        if (y.satir === undefined) err("HARITA_YANGIN", yp, "satir gerekli");
+        lineIndex(y, "satir", yp);
+        lineIndex(y, "bitis_satir", yp);
+        num(y, "km", yp, 0.05, 500, true);
+      });
+      const regionNames = new Set((Array.isArray(h.bolgeler) ? h.bolgeler : []).flatMap((b) => (isObj(b) && typeof b.ad === "string" ? [b.ad.trim().toLowerCase()] : [])));
+      (arr(h, "vurgular", hp, true) ?? []).forEach((v, vi) => {
+        const vp = `${hp}.vurgular[${vi}]`;
+        if (!isObj(v)) return err("HARITA_VURGU", vp, "nesne bekleniyor");
+        if (v.satir === undefined) err("HARITA_VURGU", vp, "satir gerekli");
+        lineIndex(v, "satir", vp);
+        lineIndex(v, "bitis_satir", vp);
+        if ((v.bolge === undefined) === (v.konum === undefined)) return err("HARITA_VURGU", vp, "tam olarak biri: bolge (bolgeler'deki bir ad) ya da konum");
+        if (v.bolge !== undefined && (typeof v.bolge !== "string" || !regionNames.has(v.bolge.trim().toLowerCase()))) err("HARITA_VURGU", `${vp}.bolge`, `bu haritanın bolgeler listesinde yok: ${String(v.bolge)}`);
+        if (v.konum !== undefined) lonLat(v.konum, `${vp}.konum`);
+        num(v, "km", vp, 0.1, 5000, true);
+      });
+      (arr(h, "tarih", hp, true) ?? []).forEach((d, di) => {
+        const dp = `${hp}.tarih[${di}]`;
+        if (!isObj(d)) return err("HARITA_TARIH", dp, "nesne bekleniyor");
+        if (d.satir === undefined) err("HARITA_TARIH", dp, "satir gerekli");
+        lineIndex(d, "satir", dp);
+        str(d, "metin", dp, { max: 30 });
       });
       (arr(h, "savaslar", hp, true) ?? []).forEach((w, wi) => {
         const wp = `${hp}.savaslar[${wi}]`;

@@ -149,9 +149,22 @@ export interface SceneMap {
    * A ruler's portrait badge (a cast member's head) at a place from a line; `yol`: the route it travels, leaving a
    * dotted trail; `yol_satir`: the line it sets off with ("Bayezid marched north", owner 21 Oct 2026), else at once.
    */
-  readonly rozetler?: readonly { readonly karakter: string; readonly konum: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly yol?: readonly [number, number][]; readonly yol_satir?: number }[];
+  /** `x_satir`: a red X is struck over the badge from that line — the ruler is beaten, captured or dies (DFT Tarih). */
+  readonly rozetler?: readonly { readonly karakter: string; readonly konum: readonly [number, number]; readonly satir?: number; readonly bitis_satir?: number; readonly yol?: readonly [number, number][]; readonly yol_satir?: number; readonly x_satir?: number }[];
   /** A battle at a place from a line (crossed swords). */
   readonly savaslar?: readonly { readonly ad: string; readonly konum: readonly [number, number]; readonly satir?: number }[];
+  /**
+   * Marks over the map (owner, 23 Oct 2026, after DFT Tarih's Belgrade 1521): `guc` — the two sides' strength bar at the
+   * top of the screen from a line ("15,000–25,000" against "1,000"), a later entry updating it after the losses; `teslim`
+   * — a white flag raised where a side gives up; `yanginlar` — flames over a raided or burning place (`km` across);
+   * `vurgular` — the state the narrator names glows along its border (`bolge`: a `bolgeler` name), or a white ring round
+   * the place he names (`konum`, `km`); `tarih` — the date stamp in the corner, each from its line.
+   */
+  readonly guc?: readonly MapStrength[];
+  readonly teslim?: readonly { readonly konum: readonly [number, number]; readonly satir: number; readonly ad?: string }[];
+  readonly yanginlar?: readonly { readonly konum: readonly [number, number]; readonly satir: number; readonly bitis_satir?: number; readonly km?: number }[];
+  readonly vurgular?: readonly { readonly satir: number; readonly bitis_satir?: number; readonly bolge?: string; readonly konum?: readonly [number, number]; readonly km?: number }[];
+  readonly tarih?: readonly { readonly satir: number; readonly metin: string }[];
   /**
    * Unit tokens (owner, 22 Oct 2026, after the reference channel's WW2 map): a side's round tokens with its emblem,
    * standing where its forces are and moving line by line — along a front, in a cluster, or ringing a besieged place.
@@ -177,6 +190,19 @@ export interface SceneMap {
   /** `ad`: the road's name, written along it ("Road to Edirne"). */
   readonly yollar?: readonly { readonly noktalar: readonly [number, number][]; readonly ad?: string }[];
   readonly arazi?: readonly { readonly tur: GroundKind; readonly konum: readonly [number, number]; readonly km?: number }[];
+}
+
+/** One side on the strength bar: its name, colour and numbers as the narrator says them ("80,000", "15,000–25,000"). */
+export interface MapStrengthSide {
+  readonly ad: string;
+  readonly renk: string;
+  readonly sayi: string;
+}
+
+export interface MapStrength {
+  readonly satir: number;
+  readonly bitis_satir?: number;
+  readonly taraflar: readonly [MapStrengthSide, MapStrengthSide];
 }
 
 /** A map this narrow (km across) is the close battle map: its own coast, painted ground, walls and buildings. */

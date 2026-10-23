@@ -9,6 +9,7 @@ import { headCenter, type PerformerState, performerState, turnStretch } from "..
 import { easeInOut, HEAD_R, HIP_Y, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
+import { MapHud } from "./MapMarks";
 import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
 import { PropArt } from "./Props";
@@ -280,6 +281,8 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
           <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom)} height={H} />
         </svg>
       ) : null}
+      {/* The strength bar and the date stamp stay fixed on the screen over the moving map. */}
+      {shot.geoMap && !insertOn ? <MapHud map={shot.geoMap} frame={frame} fps={fps} W={W} H={H} /> : null}
       {shot.titleCards.map((c, i) => (
         <TitleCard key={i} card={c} />
       ))}

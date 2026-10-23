@@ -270,6 +270,17 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // front passes. Use the conqueror's own "ad" again (a second region under the same name shows no second label).
     "cizgiler": [{"ad": "Rubicon", "noktalar": [[lon, lat], …], "renk": "#ffd166", "satir": 0}]
         // a line the story is about (a border river, a wall, a frontier): it glows with its name
+  MARKS OVER THE MAP (the documentary map channels' marks):
+    "tarih": [{"satir": 0, "metin": "Spring 1453"}, {"satir": 4, "metin": "29 May 1453"}]
+        // the date stamp in the corner — on EVERY map scene, a new entry when the story's date moves on
+    "guc": [{"satir": 1, "taraflar": [{"ad": "Ottomans", "renk": "#…", "sayi": "80,000"}, {"ad": "Byzantines", "renk": "#…", "sayi": "7,000"}]}]
+        // the two sides' strength bar at the top of the screen when the narrator gives the numbers ("sayi": the number or
+        // range only, "15,000–25,000"); a later entry with the same two sides updates it after the losses
+    "vurgular": [{"bolge": "<a name in this map's bolgeler>", "satir": 2}, {"konum": [lon, lat], "km": 60, "satir": 3}]
+        // while that line is told, the state the narrator names glows along its border, or a white ring circles the place
+    "yanginlar": [{"konum": [lon, lat], "satir": 3, "km": 20}]   // flames over a raided, sacked or burning place
+    "teslim": [{"konum": [lon, lat], "satir": 5, "ad": "Belgrade surrenders"}]   // a white flag raised where a side gives up
+    "rozetler": [… "x_satir": 6]   // a red X struck over a ruler's badge from that line: beaten, captured or dead
   Tell events ON the map as they happen, line by line, the way the history-with-maps channels do: an army marches, a
   conquest sweeps over the land behind it, the old border fades, a battle flashes, a ruler flees, the camera follows.
   Never show a whole war's result at once — let the viewer watch it happen. Prefer this living map narration to a still

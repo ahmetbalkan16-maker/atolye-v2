@@ -425,6 +425,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           ...(periodEndYear(episode.donem) !== undefined ? { year: periodEndYear(episode.donem)! } : {}),
           ...(onMap?.sideBadges.length ? { sideBadges: onMap.sideBadges } : {}),
           ...(onMap?.lines.size ? { badgeLines: onMap.lines } : {}),
+          lineEnd: (index) => (lines[index] ? local(lines[index]!.end) : undefined),
+          fps,
         })
       : undefined;
     // What each badge says: its mouth with the voice, its face with the line's mood.
@@ -744,7 +746,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       mapArrows: [],
       transitionIn: "kes",
       dramatized: false,
-      ...(first.geoMap && !period ? { geoMap: { ...first.geoMap, territories: [], armies: [], arrows: [], ...(first.geoMap.badges ? { badges: first.geoMap.badges.map((b) => ({ ...b, talk: undefined })) } : {}) } } : {}),
+      ...(first.geoMap && !period ? { geoMap: { ...first.geoMap, territories: [], armies: [], arrows: [], strength: undefined, flags: undefined, fires: undefined, glows: undefined, dates: undefined, ...(first.geoMap.badges ? { badges: first.geoMap.badges.map((b) => ({ ...b, talk: undefined, crossed: undefined })) } : {}) } } : {}),
     });
   }
   const last = shots[shots.length - 1];

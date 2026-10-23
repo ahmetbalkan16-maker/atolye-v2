@@ -308,6 +308,16 @@ export interface V3MapBadge {
   readonly moveStart?: number;
   readonly path: readonly { readonly x: number; readonly y: number }[];
   readonly talk?: { readonly speaking: readonly { readonly start: number; readonly end: number }[]; readonly visemes: readonly V3VisemeKey[]; readonly faces: readonly V3FaceEvent[] };
+  /** From this frame a red X is struck over the portrait and it greys (the ruler beaten, captured or dead). */
+  readonly crossed?: number;
+}
+
+/** One side of the strength bar: `value` is what the bar's share is measured by (the middle of a range). */
+export interface V3StrengthSide {
+  readonly label: string;
+  readonly color: string;
+  readonly count: string;
+  readonly value: number;
 }
 
 /** A drawn map (Natural Earth), already projected into frame pixels; things appear at `start` (shot frame). */
@@ -439,6 +449,17 @@ export interface V3GeoMap {
   };
   /** The episode's era, for era-dependent battle effects (antik/orta: dust and clash; erken-modern/modern: fire and smoke). */
   readonly era?: "antik" | "orta" | "erken-modern" | "modern";
+  /**
+   * Marks over the map (owner, 23 Oct 2026, after DFT Tarih): the strength bar at the top of the screen (each entry from
+   * its frame, the next one updating it), white flags of surrender, flames over burning places (`size`: world px across),
+   * glows — a territory's border (`territory`, an index in `territories`) or a ring round a place (`x`, `y`, `r` world px)
+   * — and the date stamp in the corner (each text from its frame).
+   */
+  readonly strength?: readonly { readonly start: number; readonly end?: number; readonly sides: readonly [V3StrengthSide, V3StrengthSide] }[];
+  readonly flags?: readonly { readonly x: number; readonly y: number; readonly start: number; readonly label?: string }[];
+  readonly fires?: readonly { readonly x: number; readonly y: number; readonly start: number; readonly end?: number; readonly size: number }[];
+  readonly glows?: readonly { readonly start: number; readonly end: number; readonly territory?: number; readonly x?: number; readonly y?: number; readonly r?: number }[];
+  readonly dates?: readonly { readonly start: number; readonly text: string }[];
 }
 
 export interface V3Shot {
