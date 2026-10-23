@@ -66,7 +66,7 @@ import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/scri
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief } from "../src/lib/v3/script/Series";
-import { V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
+import { EXTRA_CAP_MAX_USD, V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
@@ -633,7 +633,7 @@ async function main() {
   if (fromStep && !STEPS.includes(fromStep)) throw new Error(`--from-step şunlardan biri olmalı: ${STEPS.join(", ")}`);
   const preview = process.argv.includes("--onizleme");
   // The whole video's paid-call ceiling by its length (owner, 21 Oct 2026: $4 for a long one, $1 for a short one).
-  const capUsd = videoCapUsd(seconds(arg("--sure") ?? "90"));
+  const baseCapUsd = videoCapUsd(seconds(arg("--sure") ?? "90"));
   // Retouch round of this run (0 = the first production; the retouch brain starts round 1 by itself).
   const rotusTuru = Number(arg("--rotus-turu") ?? 0);
   const given = arg("--bolum");
@@ -647,6 +647,12 @@ async function main() {
   const work = path.resolve(arg("--cikti") ?? path.join(paths.workRoot, "bolumler", `${slug(konu)}-${dil}`));
   await fs.mkdir(work, { recursive: true });
   const f = (name: string) => path.join(work, name);
+  // An owner-granted extra for this one video (ek-tavan.json in its folder; owner, 23 Oct 2026: "only this one may spend
+  // again, but not more than $1"): added to the ceiling, never more than EXTRA_CAP_MAX_USD, logged.
+  const extra = existsSync(f("ek-tavan.json")) ? await readJson<{ ekUsd?: unknown; neden?: unknown }>(f("ek-tavan.json")).catch((): { ekUsd?: unknown; neden?: unknown } => ({ ekUsd: 0 })) : undefined;
+  const extraUsd = Math.min(EXTRA_CAP_MAX_USD, Math.max(0, Number(extra?.ekUsd) || 0));
+  const capUsd = baseCapUsd + extraUsd;
+  if (extraUsd) log(`bütçe: owner izniyle bu videoya ek ${extraUsd.toFixed(2)} (tavan ${capUsd.toFixed(2)})${typeof extra?.neden === "string" ? ` — ${extra.neden}` : ""}`);
   const redo = (s: Step) => fromStep !== undefined && STEPS.indexOf(s) >= STEPS.indexOf(fromStep);
   const need = (s: Step, file: string) => redo(s) || !existsSync(f(file));
   const t0 = Date.now();

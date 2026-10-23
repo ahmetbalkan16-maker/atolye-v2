@@ -59,6 +59,11 @@ const TURKISH_CHAR_FACTOR = 1.4;
 export const LONG_FORM_MIN_S = 300;
 /** Owner, 21 Oct 2026: a 15–20 minute video may spend up to $4 on OpenAI (a short one stays at the policy's $1). */
 export const LONG_FORM_CAP_USD = 4;
+/**
+ * The most the owner's one-video extra (ek-tavan.json in the video's folder) adds to its ceiling (owner, 23 Oct 2026, the
+ * Kosovo 1389 short: "only this one may spend again, but not more than $1").
+ */
+export const EXTRA_CAP_MAX_USD = 1;
 
 /** The paid-call ceiling of a whole video of `seconds` (script, costumes, YouTube package together). */
 export function videoCapUsd(seconds: number): number {
