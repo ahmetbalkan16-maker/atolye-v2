@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { waitForCoolGpu } from "../util/Gpu";
+import { healthDirs, waitForPcHealth } from "../util/PcHealth";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import { type RemotionRenderOptions, renderWithRemotion } from "./RemotionRunner";
@@ -91,8 +92,12 @@ export function remotionDeps(paths: V3Paths): ChunkedRenderDeps {
     frameCount: async (file) => parseInt((await runChecked(paths.ffprobe, ["-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "default=nw=1:nk=1", file])).stdout.trim(), 10),
     // The list names the pieces relative to itself (ASCII names; the work dir may be D:\ÜRETİM).
     join: async (listFile, out) => void (await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-f", "concat", "-i", listFile, "-c", "copy", "-movflags", "+faststart", out], { timeoutMs: 30 * 60_000 })),
-    // Remotion's Chrome may draw on the card: every piece starts under the owner's temperature rule like other GPU work.
-    cool: (log) => waitForCoolGpu(log),
+    // Remotion's Chrome may draw on the card: every piece starts under the owner's temperature rule like other GPU work,
+    // and with the PC fit for it (disk, RAM, a processor not slowed by heat; owner, 23 Oct 2026).
+    cool: async (log) => {
+      await waitForCoolGpu(log);
+      await waitForPcHealth(healthDirs(paths), log);
+    },
     sourceHash: () => remotionSourceHash(paths.remotionRoot),
   };
 }

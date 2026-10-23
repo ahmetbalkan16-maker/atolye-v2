@@ -9,6 +9,7 @@ import os from "node:os";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, seriesText } from "../src/lib/v3/script/Series";
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
+import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
@@ -1132,6 +1133,23 @@ async function main() {
     const close: Episode["sahneler"][number] = { ...still, id: "m2", harita: { merkez: [21.1, 42.7], genislik_km: 20, birlikler: [{ taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal", sayi: 6, tur: "piyade", yerler: [{ satir: 0, cephe: [[21.05, 42.65], [21.05, 42.75]] }, { satir: 2, cephe: [[21.1, 42.65], [21.1, 42.75]] }] }, { taraf: "Serbs", renk: "#c0392b", amblem: "kartal", sayi: 6, tur: "piyade", yerler: [{ satir: 0, cephe: [[21.15, 42.65], [21.15, 42.75]] }, { satir: 2, cephe: [[21.12, 42.65], [21.12, 42.75]], kayip: 3 }] }] } };
     assert.ok(!mapProblems({ ...ep, sahneler: [still, close] }).some((p) => p.includes("no close battle map")), "a close map with the armies is enough");
     assert.ok(!mapProblems({ ...ep, sahneler: [{ ...still, satirlar: [narrate("The Serbs and the Ottomans trade."), narrate("Caravans come and go.")] }] }).some((p) => p.includes("close battle map")), "no battle, no close map asked");
+  });
+
+  await scenario("O22 PC health beyond the card (owner, 23 Oct 2026): a nearly full disk stops, short RAM or a throttling processor rests, low disks warn", async () => {
+    const ok = { gpuC: 60, cpu: { performance: 145, load: 80 }, freeRamGb: 12, disks: [{ path: "D:", freeGb: 600 }, { path: "C:", freeGb: 240 }] };
+    assert.deepEqual(healthVerdict(ok), { warnings: [] });
+    assert.ok(healthVerdict({ ...ok, disks: [{ path: "D:", freeGb: 8 }] }).stop?.includes("D: sürücüsünde 8 GB boş"));
+    assert.deepEqual(healthVerdict({ ...ok, disks: [{ path: "C:", freeGb: 20 }] }).warnings, ["C: sürücüsünde yalnız 20 GB boş"]);
+    assert.ok(healthVerdict({ ...ok, freeRamGb: 2 }).wait?.startsWith("RAM 2 GB"));
+    assert.ok(healthVerdict({ ...ok, cpu: { performance: 60, load: 95 } }).wait?.includes("işlemci yavaşlıyor"));
+    assert.equal(cpuThrottled({ performance: 60, load: 20 }), false, "an idle processor at a low clock is resting, not throttling");
+    assert.equal(cpuThrottled(undefined), false, "an unreadable processor never blocks");
+    assert.equal(healthLine(ok), "GPU 60 °C · işlemci hız %145 yük %80 · RAM 12 GB boş · D: 600 GB boş · C: 240 GB boş");
+    // The waiting: RAM first freed (Ollama unloaded), then fit; a full disk throws V3_DISK_LOW.
+    let freed = 0;
+    const lines: string[] = [];
+    const h = await waitForPcHealth([os.tmpdir()], (s) => lines.push(s), { free: async () => void freed++, sleepMs: 1 });
+    assert.ok(h.freeRamGb >= 0 && h.disks.length === 1 && freed <= 1);
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

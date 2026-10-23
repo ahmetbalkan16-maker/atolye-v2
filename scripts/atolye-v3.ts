@@ -71,6 +71,7 @@ import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio }
 import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { coolGpuProvider, freeGpuMemory, unloadOllama, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
+import { healthDirs, healthLine, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
 import { PRODUCTION_STEPS } from "../src/lib/v3/orders/ProductionOrders";
 import { loadV3Settings, resolveV3Paths, type V3Paths, v3Secret } from "../src/lib/v3/V3Paths";
@@ -672,6 +673,8 @@ async function main() {
     for (let attempt = 1; ; attempt++) {
       const started = Date.now();
       try {
+        // The PC first (owner, 23 Oct 2026): a nearly full disk stops, short RAM or a throttling processor rests.
+        log(`  sağlık: ${healthLine(await waitForPcHealth(healthDirs(paths), log, { free: () => unloadOllama(log, "RAM az") }))}`);
         const r = await run();
         log(`✓ ${s} (${Math.round((Date.now() - started) / 1000)} sn)${attempt > 1 ? ` — ${attempt}. denemede` : ""}`);
         await outcome("ise_yaradi");
