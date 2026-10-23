@@ -2,7 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { normalizeDraft } from "./DraftNormalizer";
-import { livenStillMaps, mapProblems } from "./MapRules";
+import { livenStillMaps, mapProblems, shareProblems } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
@@ -274,7 +274,9 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const value = normalizeDraft(parsed.value, input.catalog).value;
     const validation = validateEpisode(value);
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
-    return { value, validation, problems, quality: problems.length ? [] : mapProblems(value) };
+    // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
+    // 2026 told 3 minutes in six character scenes and three still maps); under 90 s they are not.
+    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode)] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -323,7 +325,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written).length;
+    const before = mapProblems(written).length + shareProblems(written).length;
     if (revised.quality.length > before) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
       continue;

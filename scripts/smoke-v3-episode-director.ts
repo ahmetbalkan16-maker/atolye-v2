@@ -8,6 +8,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, seriesText } from "../src/lib/v3/script/Series";
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
+import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
@@ -1119,6 +1120,18 @@ async function main() {
     assert.ok(/oil painting/.test(d.prompt) && /photorealistic/.test(d.negative) && /text/.test(d.negative) && /church/.test(d.negative) && d.prompt.includes("Siege of Troy"));
     assert.equal(momentText("Achilles drags Hector's body", "x", "y"), "Achilles drags Hector's body");
     assert.deepEqual([maxDesignedPictures(90), maxDesignedPictures(1200)], [4, 20]);
+  });
+
+  await scenario("O21 the first AYAS trial (23 Oct 2026): a Turkish battle name means the battle Turkish books mean; a battle told with no close map is asked for one", () => {
+    const prompt = topicPrompt("Kosava savaşı", "konunun geçtiği dönem");
+    assert.ok(prompt.includes('"Kosova Savaşı" (or "Kosava") is the Battle of Kosovo of 1389') && prompt.includes("Choose a modern conflict only when"));
+    const ep = sampleEpisode();
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const still: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "m1", mekan: "Map: the Balkans", harita: { merkez: [21, 42.6], genislik_km: 900, bolgeler: [{ ad: "Serbia", renk: "#c0392b", noktalar: [[20, 42], [22, 42], [22, 44], [20, 44]], satir: 1 }] }, satirlar: [narrate("June 1389."), narrate("The Battle of Kosovo begins."), narrate("The Serbian line is routed.")] };
+    assert.ok(mapProblems({ ...ep, sahneler: [still] }).some((p) => p.includes("no close battle map shows it")), "a battle told on a regional map only");
+    const close: Episode["sahneler"][number] = { ...still, id: "m2", harita: { merkez: [21.1, 42.7], genislik_km: 20, birlikler: [{ taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal", sayi: 6, tur: "piyade", yerler: [{ satir: 0, cephe: [[21.05, 42.65], [21.05, 42.75]] }, { satir: 2, cephe: [[21.1, 42.65], [21.1, 42.75]] }] }, { taraf: "Serbs", renk: "#c0392b", amblem: "kartal", sayi: 6, tur: "piyade", yerler: [{ satir: 0, cephe: [[21.15, 42.65], [21.15, 42.75]] }, { satir: 2, cephe: [[21.12, 42.65], [21.12, 42.75]], kayip: 3 }] }] } };
+    assert.ok(!mapProblems({ ...ep, sahneler: [still, close] }).some((p) => p.includes("no close battle map")), "a close map with the armies is enough");
+    assert.ok(!mapProblems({ ...ep, sahneler: [{ ...still, satirlar: [narrate("The Serbs and the Ottomans trade."), narrate("Caravans come and go.")] }] }).some((p) => p.includes("close battle map")), "no battle, no close map asked");
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

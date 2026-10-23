@@ -101,7 +101,12 @@ PERIOD: ${donem}
 
 Name the topic as English Wikipedia knows it. Return ONLY JSON:
 {"konu":"the topic in English","donem":"the period with its year, e.g. 49 BC, 1453, 1914–1918","wiki":["exact English Wikipedia article titles most about this topic, best first, at most 3"]}
-If PERIOD has no year, give the year of the event itself. Never invent an article title you are not sure exists.`;
+If PERIOD has no year, give the year of the event itself. Never invent an article title you are not sure exists.
+Turkish words mean what Turkish history books mean by them, and a misspelling is read as the name it is closest to: a
+battle named without a year is the battle Turkish readers know by that name, not a modern war of the same place —
+"Kosova Savaşı" (or "Kosava") is the Battle of Kosovo of 1389 ("II. Kosova" is 1448), "Malazgirt" the Battle of
+Manzikert (1071), "Niğbolu" the Battle of Nicopolis (1396), "Mohaç" the Battle of Mohács (1526), "Çanakkale" the
+Gallipoli campaign (1915). Choose a modern conflict only when the words say so (a year, "NATO", "1999", "war of 1998").`;
 }
 
 /** The model's answer, or undefined when it is not usable (no English topic and no title). */

@@ -50,6 +50,9 @@ function closeMapProblems(s: Episode["sahneler"][number]): string[] {
 /** Lines telling a battle's decisive fight: the assault, the breach, the rout, a fleet broken (English and Turkish stems). */
 const CLIMAX = /\b(?:storm(?:s|ed)?|breach(?:es|ed)?|assault(?:s|ed)?|charg(?:e|es|ed)|fl(?:ee|ees|ed)|rout(?:s|ed)?|retreat(?:s|ed)?|push(?:es|ed)? (?:them )?back|repuls(?:e|es|ed)|s[au]nk|smash(?:es|ed)?|overr[au]n|captur(?:e|es|ed)|surrender(?:s|ed)?)\b|hücum|saldır|kaçt|bozgun|püskürt|teslim|gedik/iu;
 
+/** A battle or a siege named in a scene (English and Turkish stems). */
+const BATTLE = /\b(?:battle|battlefield|siege|besieg\w*)\b|savaş(?:ı|ında)?\b|muharebe|kuşatma/iu;
+
 /**
  * The battle itself on the close map (owner, 23 Oct 2026, after the Belgrade trial: the writer drew the armies on the
  * close map, then told the assault, the breach and the Ottoman flight in a character scene — no token ever fell). When
@@ -57,9 +60,12 @@ const CLIMAX = /\b(?:storm(?:s|ed)?|breach(?:es|ed)?|assault(?:s|ed)?|charg(?:e|
  */
 function climaxProblems(scenes: Episode["sahneler"]): string[] {
   const close = scenes.filter((s) => s.harita?.merkez && s.harita.genislik_km !== undefined && s.harita.genislik_km <= CLOSE_MAP_MAX_KM && (s.harita.birlikler?.length ?? 0) > 0);
-  if (!close.length) return [];
-  const fought = (s: Episode["sahneler"][number]) => s.harita!.birlikler!.some((u) => u.yerler.some((y) => (y.kayip ?? 0) > 0)) || (s.harita!.araclar ?? []).some((a) => (a.kayip ?? 0) > 0);
   const told = scenes.flatMap((s) => s.satirlar.map((l, i) => ({ s, i, l }))).filter(({ l }) => CLIMAX.test(l.metin));
+  // A battle the story tells (its decisive fight, or a battle marked on a map) with no close map at all (the first AYAS
+  // trial of 23 Oct 2026: three still regional maps and six character scenes, not one token on a battlefield).
+  const battle = scenes.find((s) => (s.harita?.savaslar?.length ?? 0) > 0 || BATTLE.test(`${s.mekan ?? ""} ${s.satirlar.map((l) => l.metin).join(" ")}`));
+  if (!close.length) return battle && told.length ? [`the story tells a battle ("${told[0]!.l.metin.slice(0, 60)}") but no close battle map shows it: give the battlefield its own close map ("genislik_km" 6–40) with both armies' "birlikler" (kinds "tur", fronts "hatlar"), the commander's plan as "oklar" with "stil": "plan", and the fight line by line with "kayip" and the beaten side's "bozgun" — CLOSE BATTLE MAP`] : [];
+  const fought = (s: Episode["sahneler"][number]) => s.harita!.birlikler!.some((u) => u.yerler.some((y) => (y.kayip ?? 0) > 0)) || (s.harita!.araclar ?? []).some((a) => (a.kayip ?? 0) > 0);
   if (!told.length) return [];
   const off = (x: (typeof told)[number]) => ` — scene "${x.s.id}" line ${x.i} tells it off the map ("${x.l.metin.slice(0, 60)}")`;
   const fight = `on each fight line give both sides a formation side by side with "kayip" (tokens lost), the breach on its line ("surlar[].gedik"), the beaten side's tokens falling back, lost ships or guns with their "kayip" + "kayip_satir"; a character scene may come before (the council) or after (the reaction), never instead — CLOSE BATTLE MAP`;
