@@ -510,7 +510,7 @@ export interface V3Shot {
   readonly titleCards: readonly V3TitleCard[];
   readonly mapArrows: readonly V3MapArrow[];
   readonly transitionIn: V3Transition;
-  /** Small "CANLANDIRMA" / "DRAMATIZATION" label: dramatised dialogue is labelled, like the existing documentary rule. */
+  /** The shot has dramatised dialogue (a character speaks). No label is drawn on screen (owner, 23 Oct 2026). */
   readonly dramatized: boolean;
   readonly bubbles?: readonly V3Bubble[];
   readonly nameTags?: readonly V3NameTag[];

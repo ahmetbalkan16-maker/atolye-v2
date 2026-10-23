@@ -295,11 +295,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
       {shot.titleCards.map((c, i) => (
         <TitleCard key={i} card={c} />
       ))}
-      {shot.dramatized && !insertOn ? (
-        <div style={{ position: "absolute", left: 36, top: 30, padding: "6px 14px", borderRadius: 8, background: "rgba(20,16,28,0.55)", color: "#f3ead7", font: "700 20px 'Segoe UI', Arial, sans-serif", letterSpacing: 2 }}>
-          {language === "en" ? "DRAMATIZATION" : "CANLANDIRMA"}
-        </div>
-      ) : null}
+      {/* No "DRAMATIZATION" corner label (owner, 23 Oct 2026: "kaldır o yazılar gözükmesin"); the plan still marks it. */}
       {flash > 0 ? <AbsoluteFill style={{ backgroundColor: "#ffffff", opacity: flash }} /> : null}
     </AbsoluteFill>
   );
