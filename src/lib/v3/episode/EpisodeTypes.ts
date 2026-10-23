@@ -102,6 +102,12 @@ export interface SceneBackgroundQuery {
    */
   readonly tasarim?: string;
   readonly commons_kategori?: string;
+  /**
+   * The moment as a painting, in English (owner, 23 Oct 2026: "when no period picture is found, make the picture of that
+   * moment"): who, doing what, where, with the period's clothes, arms, buildings and ships — painted locally when no
+   * period image passes the judge, and labelled as a designed picture.
+   */
+  readonly an?: string;
   /** Existing local SDXL theme (cache) or a new prompt theme id. */
   readonly yerel_tema?: string;
   /** Explicit asset already resolved (relative to the episode work dir), e.g. a Commons map. */
@@ -356,6 +362,16 @@ export interface SceneTitleCard {
   readonly satir?: number;
 }
 
+/** A picture of the moment cut in at line `satir` (search like `arka_plan_sorgusu`; `an`: what to paint if none is found). */
+export interface ScenePicture {
+  readonly satir: number;
+  readonly en: string;
+  readonly wiki?: string;
+  readonly ara?: readonly string[];
+  readonly an?: string;
+  readonly film?: boolean;
+}
+
 export const INFO_CARD_KINDS = ["sema", "liste", "sayac"] as const;
 
 /**
@@ -443,6 +459,11 @@ export interface SceneLine {
    * phrase, at most 8 words. Burned-in captions are gone, so only these lines show text on screen.
    */
   readonly balon?: string;
+  /**
+   * A headline strip at the bottom of the screen while the line is told (DFT Tarih's photo documentaries: "Kuwait's
+   * waters are heating up…"): a short narrator's headline over a picture, at most 70 characters.
+   */
+  readonly serit?: string;
 }
 
 /**
@@ -474,6 +495,17 @@ export interface EpisodeScene {
    * DFT Tarih: real photos, paintings or designed pictures of the moment between the map narration, 6–10% of the video).
    */
   readonly ara_goruntu_satir?: number;
+  /**
+   * More pictures of the moment, each cut in over its line (DFT Tarih: paintings, engravings, period photos between the
+   * map narration). Each is searched like the scene's period image; `film`: free archive film is looked for first (the
+   * 20th century's newsreels); none found: `an` is painted.
+   */
+  readonly gorseller?: readonly ScenePicture[];
+  /**
+   * fotograf: a photo-documentary scene (DFT Tarih's Saddam): no stage — its pictures (the scene's own from line 0, then
+   * its `gorseller`) fill it one after another, drifting slowly, the lines' `serit` headline strip under them.
+   */
+  readonly kip?: "fotograf";
   readonly yazi_karti?: readonly SceneTitleCard[];
   readonly bilgi_kartlari?: readonly SceneInfoCard[];
   readonly sahne_duzeni?: readonly SceneBlocking[];

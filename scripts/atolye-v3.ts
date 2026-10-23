@@ -13,6 +13,7 @@
  * Ekranda altyazı yoktur (konuşma yazısı ve isimler; --altyazi-gom eski gömülü altyazıyı açar).
  * Çıktılar: final.mp4, altyazi.srt (YouTube CC), CREDITS.md, aciklama.txt, QC.md (+ ara dosyalar).
  */
+import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { listTracksForMood } from "../src/lib/audio/music/MusicLibrary";
@@ -21,9 +22,10 @@ import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
 import { OpenAIProvider } from "../src/lib/ai/providers/OpenAIProvider";
 import { ClipRanker, clipQuery } from "../src/lib/v3/backgrounds/ClipRanker";
-import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { ancientPlace, BackgroundDesigner, designFor, type DesignedSet, LANDSCAPE_NEGATIVE, landscapeOnly, momentDesign, momentText, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { type CandidateVerdict, fitScore, MIN_FIT_SCORE, passes, periodFallback, pickBackground, type SceneForJudge, unreadableVerdicts, verdictLine } from "../src/lib/v3/backgrounds/BackgroundJudge";
-import { commonsPreview, downloadCommons } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { commonsPreview, downloadCommons, searchCommonsVideos } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { cutFilmClip, designedCaption, filmCaption, maxDesignedPictures, pictureRequests } from "../src/lib/v3/backgrounds/MomentPictures";
 import { drawnBackground } from "../src/lib/v3/backgrounds/DrawnSetChoice";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
@@ -176,11 +178,16 @@ interface SceneSet extends V3Background {
   readonly tohum?: number;
 }
 
+/** A picture shown in a scene: found online (a still or archive film) or designed (painted locally) when none was. */
+type FoundPicture = SceneInsert & { readonly credit: CreditRecord; readonly secim: CandidateVerdict; readonly video?: boolean; readonly tasarim?: boolean };
+
 /** A scene's visuals: its set, and the period image the narrator's lines cut away to (if one exists). */
 interface SceneVisual {
   readonly set: SceneSet;
-  readonly arsiv?: SceneInsert & { readonly credit: CreditRecord; readonly secim: CandidateVerdict };
-  readonly donemGorseli: "bulundu" | "bulunamadi" | "aranmadi" | "bolum";
+  readonly arsiv?: FoundPicture;
+  /** The scene's further pictures (`gorseller`) that were found or designed, by the line they cut in at. */
+  readonly gorseller?: readonly (FoundPicture & { readonly satir: number })[];
+  readonly donemGorseli: "bulundu" | "bulunamadi" | "aranmadi" | "bolum" | "tasarlandi";
   /** What happened, in plain words, for the log and QC. */
   readonly not: string;
 }
@@ -228,6 +235,55 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
   const sets: (SceneSet | undefined)[] = Array(n).fill(undefined);
   // The library set the judge saw for a scene and did not pass: a stand-in if no drawing passes either.
   const library: ({ theme: string; v: CandidateVerdict } | undefined)[] = Array(n).fill(undefined);
+  // Further pictures (`gorseller`) per scene, and every picture still missing after the search — painted in 1b.
+  const extras: (FoundPicture & { satir: number })[][] = Array.from({ length: n }, () => []);
+  const missing: { si: number; slot: "ana" | number; satir: number; text: string; narration: string; stem: string }[] = [];
+  /**
+   * One picture of a moment: archive film first when asked (free Commons films, the period's own), else period stills
+   * from the history sources; judged for subject and period, the best passing one downloaded. None: nothing is shown
+   * and the caller may have it painted.
+   */
+  const findPicture = async (si: number, q: { en: string; wiki?: string; ara?: readonly string[]; commonsCategory?: string; film?: boolean }, narration: string, stem: string): Promise<{ got?: FoundPicture; note: string }> => {
+    const sj = { ...sceneForJudge(episode, si), en: q.en, anlatim: narration };
+    if (q.film) {
+      const films = (await searchCommonsVideos(cache, q.en).catch((e: Error) => (log(`  film araması başarısız (${e.message.slice(0, 60)})`), [])))
+        // A film made long after the period is no archive film of it (a 1960s documentary about 1915).
+        .filter((c) => !used.has(c.url) && (c.year === undefined || periodEnd === undefined || c.year <= periodEnd + 10));
+      log(`  ${stem}: arşiv filmi aranıyor — ${films.length} aday`);
+      const pick = await pickBackground(films, sj, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv", max: 6 });
+      for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} film ${verdictLine(v)}`);
+      const passing = films.slice(0, pick.verdicts.length).map((c, i) => ({ c, v: pick.verdicts[i]! })).filter((x) => passes(x.v)).sort((a, b) => fitScore(b.v) - fitScore(a.v));
+      for (const { c, v } of passing) {
+        const raw = path.join(work, "arsiv-film", `${stem}${path.extname(new URL(c.url).pathname) || ".webm"}`);
+        const clip = path.join(pub, `${stem}-film.mp4`);
+        const credit = await downloadCommons(c, raw, cache).catch((e: Error) => (log(`  ${stem}: film indirilemedi (${e.message})`), undefined));
+        if (!credit || !(await cutFilmClip(paths.ffmpeg, paths.ffprobe, raw, clip))) continue;
+        used.add(c.url);
+        return { got: { src: `bg/${stem}-film.mp4`, caption: filmCaption(insertCaption(c, dil), dil), credit: { ...credit, assetId: path.basename(clip), note: "arşiv filmi (Wikimedia Commons)" }, secim: v, video: true }, note: `arşiv filmi bulundu (${verdictLine(v)})` };
+      }
+    }
+    const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara?.length ? { alternatives: q.ara } : {}), ...(q.commonsCategory ? { commonsCategory: q.commonsCategory } : {}) }, periodEnd);
+    // CLIP orders the candidates first, so the judge's looks go to the likeliest pictures (search order without it).
+    const fresh = await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: episode.sahneler[si]!.mekan }), (c) => commonsPreview(cache, c));
+    log(`${stem}: dönem görseli aranıyor — ${found.report.join(", ")}`);
+    const pick = await pickBackground(fresh, sj, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
+    for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
+    // Passing candidates best first; one that cannot be downloaded gives way to the next.
+    const passing = fresh
+      .slice(0, pick.verdicts.length)
+      .map((c, i) => ({ c, v: pick.verdicts[i]! }))
+      .filter((x) => passes(x.v))
+      .sort((a, b) => fitScore(b.v) - fitScore(a.v));
+    for (const { c, v } of passing) {
+      const file = path.join(pub, `${stem}-donem${extOf(c.downloadUrl)}`);
+      const credit = await downloadCommons(c, file, cache).catch((e: Error) => (log(`  ${stem}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
+      if (!credit) continue;
+      used.add(c.url);
+      return { got: { src: `bg/${path.basename(file)}`, caption: insertCaption(c, dil), credit, secim: v }, note: `döneme ait görsel bulundu (${verdictLine(v)})` };
+    }
+    const best = [...pick.verdicts].sort((a, b) => fitScore(b) - fitScore(a))[0];
+    return { note: `DÖNEME AİT GÖRSEL BULUNAMADI — ${pick.verdicts.length} aday incelendi${best ? ` (en iyisi: ${verdictLine(best)})` : ""}. İlgisiz görsel KULLANILMADI` };
+  };
   const librarySet = async (theme: string, v: CandidateVerdict, esikAlti: boolean): Promise<SceneSet> => {
     await fs.copyFile(path.join(paths.backdropLibrary, `${theme}.png`), path.join(pub, `${theme}.png`));
     return { src: `bg/${theme}.png`, kind: "set", kaynak: "kutuphane", secim: v, ...(esikAlti ? { esikAlti: true } : {}), credit: { assetId: `bg-${theme}`, kind: "image", title: `Atölye yerel SDXL sahnesi — ${theme}`, author: "Atölye (yerel SDXL üretimi)", license: "CreativeML Open RAIL++-M (üretilen görsel)", attributionRequired: false } };
@@ -257,45 +313,43 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     }
     const sj = sceneForJudge(episode, si);
     const narrated = mapLine !== undefined || scene.satirlar.some((l) => !visible.has(l.karakter));
+    // The scene's further pictures (`gorseller`), each searched for the line it cuts in at.
+    for (const req of pictureRequests(scene)) {
+      const line = scene.satirlar[req.satir];
+      const stem = `${scene.id}-g${Number(req.slot) + 1}`;
+      const r = await findPicture(si, req, line?.metin ?? "", stem);
+      if (r.got) extras[si]!.push({ ...r.got, satir: req.satir });
+      else {
+        log(`⚠ ${stem}: ${r.note}`);
+        missing.push({ si, slot: req.slot, satir: req.satir, text: momentText(req.an, req.en, line?.metin ?? ""), narration: line?.metin ?? "", stem: `${stem}-an` });
+      }
+    }
     if (narrated) {
-      const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd);
-      // CLIP orders the candidates first, so the judge's looks go to the likeliest pictures (search order without it).
-      const fresh = await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: scene.mekan }), (c) => commonsPreview(cache, c));
-      log(`${scene.id}: dönem görseli aranıyor — ${found.report.join(", ")}`);
       // The cutaway is on screen while the narrator speaks: it must show what those lines name.
       const narration = mapLine ? mapLine.metin : scene.satirlar.filter((l) => !visible.has(l.karakter)).map((l) => l.metin).join(" ");
-      const pick = await pickBackground(fresh, { ...sj, anlatim: narration }, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
-      for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
-      // Passing candidates best first; one that cannot be downloaded gives way to the next.
-      const passing = fresh
-        .slice(0, pick.verdicts.length)
-        .map((c, i) => ({ c, v: pick.verdicts[i]! }))
-        .filter((x) => passes(x.v))
-        .sort((a, b) => fitScore(b.v) - fitScore(a.v));
-      let got: { c: (typeof fresh)[number]; v: CandidateVerdict; credit: CreditRecord; file: string } | undefined;
-      for (const { c, v } of passing) {
-        const file = path.join(pub, `${scene.id}-donem${extOf(c.downloadUrl)}`);
-        const credit = await downloadCommons(c, file, cache).catch((e: Error) => (log(`  ${scene.id}: ${c.title.slice(0, 50)} indirilemedi (${e.message})`), undefined));
-        if (credit) {
-          got = { c, v, credit, file };
-          break;
-        }
-      }
-      if (got) {
-        used.add(got.c.url);
-        arsiv[si] = { src: `bg/${path.basename(got.file)}`, caption: insertCaption(got.c, dil), credit: got.credit, secim: got.v };
+      const r = await findPicture(si, { en: q.en, ...(q.wiki ? { wiki: q.wiki } : {}), ...(q.ara ? { ara: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, narration, scene.id);
+      if (r.got) {
+        arsiv[si] = r.got;
         durum[si] = "bulundu";
-        notlar[si] = `döneme ait görsel bulundu (${verdictLine(got.v)})`;
+        notlar[si] = r.note;
       } else {
-        const best = [...pick.verdicts].sort((a, b) => fitScore(b) - fitScore(a))[0];
         durum[si] = "bulunamadi";
-        notlar[si] = `DÖNEME AİT GÖRSEL BULUNAMADI — ${pick.verdicts.length} aday incelendi${best ? ` (en iyisi: ${verdictLine(best)})` : ""}. İlgisiz görsel KULLANILMADI; anlatıcı satırları çizilen sette kalır.`;
+        notlar[si] = `${r.note}; anlatıcı satırları çizilen sette kalır.`;
         log(`⚠ ${scene.id}: ${notlar[si]}`);
+        // Painted in 1b when nothing real exists (owner, 23 Oct 2026: "make the picture of that moment").
+        missing.push({ si, slot: "ana", satir: mapLine ? scene.ara_goruntu_satir! : 0, text: momentText(q.an, q.en, narration), narration, stem: `${scene.id}-an` });
       }
     } else {
       notlar[si] = "sahnede anlatıcı satırı yok; dönem görseli gösterilecek an olmadığı için aranmadı";
     }
     if (scene.harita?.merkez) continue;
+    // A photo-documentary scene has no stage: a plain dark ground under its pictures (no set is drawn for it).
+    if (scene.kip === "fotograf") {
+      const dark = path.join(pub, "fotograf-zemin.png");
+      if (!existsSync(dark)) await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x0b0a0d:s=1920x1080", "-frames:v", "1", dark]);
+      sets[si] = { src: "bg/fotograf-zemin.png", kind: "archival", kaynak: "konu", credit: { assetId: "fotograf-zemin", kind: "image", title: "Atölye düz zemin", author: "Atölye", license: "Atölye'nin kendi çizimi", attributionRequired: false } };
+      continue;
+    }
     const onStage = scene.satirlar.some((l) => visible.has(l.karakter)) || (scene.sahne_duzeni ?? []).some((b) => visible.has(b.karakter));
     if (!onStage && arsiv[si]) {
       // No one on stage: the period image is the whole scene.
@@ -322,9 +376,58 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     }
   }
 
-  // 2) Design the remaining sets: draw two seeds per scene, free the card, judge; one more round for the failures.
   // CLIP is only needed for the period-image search above.
   await clip.close();
+
+  // 1b) Moments nothing real shows (owner, 23 Oct 2026: "when no period picture is found, make that moment's picture" —
+  // myths and little-documented events cannot reach 6–10% otherwise): painted locally, two seeds each, judged for the
+  // moment and the period (two rounds), and shown with a "designed" plate. Asked-for pictures first: a map's marked line, the further
+  // pictures, a photo-documentary scene; a character scene's own cutaway only when the writer described the moment.
+  const wanted = missing.filter((m) => {
+    const sc = episode.sahneler[m.si]!;
+    return m.slot !== "ana" || Boolean(sc.harita?.merkez) || sc.kip === "fotograf" || Boolean(sc.arka_plan_sorgusu.an);
+  });
+  const todoMoments = wanted.slice(0, maxDesignedPictures(episode.hedef_sure_sn));
+  if (wanted.length > todoMoments.length) log(`⚠ tasarlanacak ${wanted.length} görselden ${todoMoments.length} tanesi çizilecek (üst sınır); kalanlar gösterilmez`);
+  // Two rounds of two drawings: a moment no drawing of the first round showed gets two fresh seeds.
+  const paintedOk = new Map<(typeof todoMoments)[number], { d: DesignedSet; v: CandidateVerdict }>();
+  for (let round = 0; round < 2; round++) {
+    const todo = todoMoments.filter((m) => !paintedOk.has(m));
+    if (!todo.length) break;
+    const painter = new BackgroundDesigner(paths, log, "anlar");
+    const painted: { m: (typeof todoMoments)[number]; d: DesignedSet }[] = [];
+    try {
+      for (const m of todo)
+        for (const k of [0, 1]) painted.push({ m, d: await painter.draw(momentDesign(m.text, episode), 5000 + m.si * 97 + (m.slot === "ana" ? 0 : m.slot + 1) * 13 + (round * 2 + k) * 7919, { bolum: episode.id, sahne: episode.sahneler[m.si]!.id, an: "1" }) });
+    } finally {
+      await painter.close();
+    }
+    for (const m of todo) {
+      const mine = painted.filter((x) => x.m === m).map((x) => ({ title: `tasarlanan an ${path.basename(x.d.file)}`, d: x.d }));
+      const pick = await pickBackground(mine, { ...sceneForJudge(episode, m.si), tasarim: m.text, anlatim: m.narration }, judge, (c) => localPreview(paths, c.d.file), log, { mode: "an" });
+      for (const v of pick.verdicts) log(`  ${m.stem} ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
+      if (pick.chosen && pick.verdict) paintedOk.set(m, { d: pick.chosen.d, v: pick.verdict });
+      else if (round === 1) log(`⚠ ${m.stem}: tasarlanan görsel iki turda da hakemden geçmedi; gösterilmez`);
+    }
+  }
+  for (const [m, { d, v }] of paintedOk) {
+    const file = path.join(pub, `${m.stem}.png`);
+    await fs.copyFile(d.file, file);
+    const pic: FoundPicture = {
+      src: `bg/${m.stem}.png`,
+      caption: designedCaption(dil),
+      secim: v,
+      tasarim: true,
+      credit: { assetId: path.basename(file), kind: "image", title: `Atölye tasarlanmış görsel — ${episode.sahneler[m.si]!.mekan}`, author: "Atölye (yerel SDXL tasarımı)", license: "CreativeML Open RAIL++-M (üretilen görsel)", attributionRequired: false, sha256: createHash("sha256").update(await fs.readFile(file)).digest("hex"), note: m.text },
+    };
+    if (m.slot === "ana") {
+      arsiv[m.si] = pic;
+      durum[m.si] = "tasarlandi";
+      notlar[m.si] = `${notlar[m.si]} Dönem görseli yerine anın resmi tasarlandı (${verdictLine(v)}).`;
+    } else extras[m.si]!.push({ ...pic, satir: m.satir });
+  }
+
+  // 2) Design the remaining sets: draw two seeds per scene, free the card, judge; one more round for the failures.
   const designer = new BackgroundDesigner(paths, log);
   const tried = new Map<number, { d: DesignedSet; v?: CandidateVerdict }[]>();
   // A set the judge accepted for a scene in an earlier run of this episode is shown to the judge again first, unless
@@ -460,7 +563,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     sets[si] = await designedSet(pub, episode, si, best.d, best.v, true);
     log(`⚠ ${episode.sahneler[si]!.id}: tasarlanan set hakem eşiğini geçemedi; en iyi deneme kullanıldı (QC'de işaretli)`);
   }
-  return sets.map((set, si) => ({ set: set!, ...(arsiv[si] ? { arsiv: arsiv[si] } : {}), donemGorseli: durum[si]!, not: notlar[si]! }));
+  return sets.map((set, si) => ({ set: set!, ...(arsiv[si] ? { arsiv: arsiv[si] } : {}), ...(extras[si]!.length ? { gorseller: extras[si]! } : {}), donemGorseli: durum[si]!, not: notlar[si]! }));
 }
 
 async function designedSet(pub: string, episode: Episode, si: number, d: DesignedSet, v: CandidateVerdict | undefined, esikAlti: boolean): Promise<SceneSet> {
@@ -880,7 +983,8 @@ async function main() {
     cast,
     accessories: await loadAccessories(costumeRootsFor(paths), cast),
     backgrounds: backgrounds.map((b): V3Background => ({ src: b.src, kind: b.kind, ...(b.kenBurns ? { kenBurns: b.kenBurns } : {}), ...(b.drawn ? { drawn: b.drawn } : {}) })),
-    inserts: visuals.map((v) => (v.arsiv && v.set.kaynak !== "arsiv" ? { src: v.arsiv.src, ...(v.arsiv.caption ? { caption: v.arsiv.caption } : {}) } : undefined)),
+    inserts: visuals.map((v) => (v.arsiv && v.set.kaynak !== "arsiv" ? { src: v.arsiv.src, ...(v.arsiv.caption ? { caption: v.arsiv.caption } : {}), ...(v.arsiv.video ? { video: true } : {}) } : undefined)),
+    pictures: visuals.map((v) => v.gorseller?.map((g) => ({ satir: g.satir, src: g.src, ...(g.caption ? { caption: g.caption } : {}), ...(g.video ? { video: true } : {}) }))),
     language: dil,
     fps,
     width: 1920,
@@ -990,8 +1094,9 @@ async function main() {
       log(`  ses tepesi ${peak.toFixed(1)} dBTP (sınır −1): sınırlayıcı ${ceilingDb.toFixed(1)} dB ile yeniden kodlanıyor`);
     }
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
-    const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => (v.arsiv ? [v.arsiv.credit] : []))].map((c) => [c.sha256 ?? c.assetId, c])).values()];
+    const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => [...(v.arsiv ? [v.arsiv.credit] : []), ...(v.gorseller ?? []).map((g) => g.credit)])].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
+    const shownPictures = visuals.flatMap((v) => [...(v.arsiv ? [v.arsiv] : []), ...(v.gorseller ?? [])]);
     // The maps' ground: Natural Earth's relief on wide maps; OpenStreetMap's coast and the AWS elevation on close ones.
     const maps = episode.sahneler.flatMap((x) => (x.harita?.merkez && x.harita.genislik_km ? [x.harita.genislik_km] : []));
     const mapCredits = [...(maps.some((km) => km > CLOSE_MAP_MAX_KM) && reliefAvailable(paths) ? [RELIEF_CREDIT] : []), ...(maps.some((km) => km <= CLOSE_MAP_MAX_KM) ? [OSM_CREDIT, CLOSE_RELIEF_CREDIT] : [])];
@@ -1049,7 +1154,7 @@ async function main() {
       row(images.every((c) => !/NC|ND/.test(c.license)), `Görsel lisansları: ${[...new Set(images.map((c) => c.license))].join(", ")} (NC/ND yok)`),
       row(
         periodShown.every((v) => passes(v.arsiv!.secim)) && new Set(periodShown.map((v) => v.arsiv!.credit.sha256)).size === periodShown.length,
-        `Dönem görselleri: ${periodShown.length}/${visuals.filter((v) => v.donemGorseli !== "aranmadi" && v.donemGorseli !== "bolum").length} aranan sahnede bulundu${periodShown.length ? ` (konu/dönem ${periodShown.map((v) => `${v.arsiv!.secim.puan}/${v.arsiv!.secim.donem ?? "?"}`).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}; ${visuals.filter((v) => v.donemGorseli === "bulunamadi").length} sahnede bulunamadı — ilgisiz görsel kullanılmadı`,
+        `Dönem görselleri: ${periodShown.length}/${visuals.filter((v) => v.donemGorseli !== "aranmadi" && v.donemGorseli !== "bolum").length} aranan sahnede bulundu${periodShown.length ? ` (konu/dönem ${periodShown.map((v) => `${v.arsiv!.secim.puan}/${v.arsiv!.secim.donem ?? "?"}`).join(", ")}; eşik ${MIN_FIT_SCORE})` : ""}; ${visuals.filter((v) => v.donemGorseli === "bulunamadi").length} sahnede bulunamadı — ilgisiz görsel kullanılmadı; tasarlanan an resmi ${shownPictures.filter((g) => g.tasarim).length}, arşiv filmi ${shownPictures.filter((g) => g.video).length}, sahne ara görseli ${visuals.reduce((a, v) => a + (v.gorseller?.length ?? 0), 0)}`,
       ),
       row(!parts.some((p) => p.kaynak === "basarisiz"), `Gardırop: ${parts.filter((p) => p.kaynak === "tasarim").length} yeni parça tasarlandı, ${parts.filter((p) => p.kaynak === "kutuphane").length} kütüphaneden${parts.some((p) => p.kaynak === "basarisiz") ? `, ${parts.filter((p) => p.kaynak === "basarisiz").length} parça kabul edilmedi (kostümden çıkarıldı: ${parts.filter((p) => p.kaynak === "basarisiz").map((p) => p.tarif).join("; ")})` : ""}`),
       row(likenesses.every((l) => l.kaynak !== "degismedi" && (l.benzerlik ?? 10) >= LIKENESS_OK), `Gerçek kişiler: ${likenesses.filter((l) => l.kaynak !== "degismedi").length}/${episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.portre?.wiki).length} portreden ve ${episode.donem} yılına göre çizildi${likenesses.length ? ` (${likenesses.map((l) => `${l.castId}: ${l.kaynak === "kutuphane" ? "kişi kütüphanesinden" : l.kaynak === "degismedi" ? "çizilemedi" : `portre ${l.portre ? "var" : "yok"}${l.benzerlik !== undefined ? `, benzerlik ${l.benzerlik}/10` : ""}`}`).join("; ")})` : ""}`),

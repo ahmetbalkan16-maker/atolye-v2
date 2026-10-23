@@ -420,6 +420,22 @@ PERIOD IMAGES AND SETS / ARKA PLAN
   picture of THAT moment (the painting of the battle, the engraving of the besieged city, the miniature of the council)
   is cut in over that line, then the map comes back; the scene's "arka_plan_sorgusu" searches for it. Mark about one
   map scene in three, so pictures fill 6–10% of a long video.
+- "arka_plan_sorgusu.an": the moment itself in English, 20–45 words, for a painter — who, doing what, where, with the
+  period's clothes, arms, buildings, ships and weather ("Ottoman soldiers drag galleys on greased logs over a wooded hill
+  at night, torches, the Golden Horn below, 1453"). When no real period picture exists (myths, little-documented events)
+  the studio paints this moment and labels it as designed. Give it on every scene with a picture moment. The painter
+  is a local image model: name ONE clear main subject first, then one action and the setting — never a chain of actions
+  ("a giant wooden horse on wheels inside the city walls at night, soldiers around it with torches", not "the Greeks climb
+  out, open the gates and the army pours in").
+- "gorseller": more pictures of the moment on a scene, each cut in over its line:
+  [{"satir": 2, "en": "<a search for a period image of that moment>", "wiki": "…", "ara": ["…"], "an": "<the moment for a
+  painter>", "film": true}]   // "film": true for the 20th century — free archive film (newsreels) is looked for first
+  Use them to show what the narrator tells at its key moments (2–4 per chapter of a long video, mostly on map scenes).
+- PHOTO DOCUMENTARY (modern topics, the age of photographs and newsreels): a scene with "kip": "fotograf" has no stage —
+  its own picture, then its "gorseller", fill the screen one after another, drifting slowly, while the narrator speaks;
+  give its lines a "serit": the headline strip at the bottom of the screen ("Kuwait's waters are heating up", at most 70
+  characters). Only narrator lines there (characters speak in character scenes or from map badges). Use it for the
+  modern era's events; never for a period before photography unless its pictures are paintings of the moment ("an").
 
 COSTUME CATALOG
 giysi (body garment, coloured by "renkler"): ${GARMENTS.map((g) => `${g} (${GARMENT_NOTES[g]})`).join(", ")}

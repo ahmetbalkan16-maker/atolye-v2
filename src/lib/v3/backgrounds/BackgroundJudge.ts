@@ -14,7 +14,7 @@ export const MIN_FIT_SCORE = 7;
 /** Candidates judged per scene, in search order (each costs one local vision call). */
 export const MAX_JUDGED = 8;
 
-export type JudgeMode = "arsiv" | "konu" | "set" | "portre" | "parca" | "referans" | "kapak";
+export type JudgeMode = "arsiv" | "konu" | "set" | "portre" | "parca" | "referans" | "kapak" | "an";
 
 export interface SceneForJudge {
   readonly konu: string;
@@ -182,6 +182,23 @@ Score 0–10:
 - "donem": is it a historical likeness — painted, drawn, sculpted or photographed in or near their lifetime, or a well-known later portrait of them — showing them at about the age they had in ${scene.donem}? Score lower when it shows them much younger or older than then. 0–3 for a modern illustration, a film still, an actor or a reenactor.
 - "modern": true for a modern actor, reenactor, wax figure or a recent reconstruction.
 - "tur": "eser" for a painting, miniature, engraving or drawing; "fotograf" for a photograph; else "diger".
+${answer}`;
+  }
+  if (mode === "an") {
+    // A designed painting of the moment (owner, 23 Oct 2026): shown only when no period image exists, labelled as designed.
+    return `You are the picture editor of a history documentary for an American YouTube channel. No real image of this moment exists, so a painting of it was made; it is shown full screen while the narrator speaks, labelled as a designed picture.
+
+EPISODE: ${scene.konu}
+PERIOD: ${scene.donem}
+SCENE PLACE: ${scene.mekan}
+MOMENT TO SHOW: ${scene.tasarim ?? scene.en}
+SAID WHILE IT IS ON SCREEN: "${scene.anlatim.slice(0, 400)}"
+
+Look at the painting and score 0–10:
+- "puan" (moment): does it show this moment — the place, the people and what they are doing? 9–10 clearly this moment; 7–8 the right scene in a general view; 4–6 the right era but not this moment; 0–3 something else, or unusable: text or letters, a watermark, a frame, garbled or melted faces and hands, a mess of shapes.
+- "donem" (period): would every visible thing pass for ${scene.donem}? clothes, armour, weapons, flags, buildings, ships. 0–3 if anything belongs to another era or region (modern things, later uniforms or guns, the wrong architecture).
+- "modern": true if anything modern is visible.
+- "tur": "eser" for a painting.
 ${answer}`;
   }
   if (mode === "set") {

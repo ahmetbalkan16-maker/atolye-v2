@@ -6,8 +6,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, pictureShares, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
+import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
+import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
+import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, clipRing, deepFront, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
@@ -1074,6 +1077,44 @@ async function main() {
     // The normalizer drops the writer's usual slips instead of spending a repair round.
     const draft = normalizeDraft({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: side({ yerler: [{ satir: 0, kume: [22, 40], hatlar: 2, bozgun: true }] }), satirlar: four }] }, []);
     assert.equal(validateEpisode(draft.value).ok, true, JSON.stringify(validateEpisode(draft.value).errors.slice(0, 2)));
+  });
+
+  await scenario("O19 pictures of the moment and the photo documentary after DFT Tarih: further pictures over their lines (film too), a photo scene that is pictures end to end with headline strips, designed pictures labelled, validated", () => {
+    // Further pictures over their lines, never overlapping, film kept as film.
+    const lines = [0, 1, 2].map((i) => ({ start: i * 4, end: i * 4 + 3.5 }));
+    const lineAt = (i: number) => lines[i];
+    const local = (s: number) => Math.round(s * 30);
+    const own: V3Insert[] = [{ src: "bg/a.jpg", start: 60, end: 160, kenBurns: { fromZoom: 1, toZoom: 1.1, fromX: 0, toX: 0 } }];
+    const merged = withPictures(own, [{ satir: 1, src: "bg/b.png", caption: "designed" }, { satir: 2, src: "bg/c-film.mp4", video: true }, { satir: 9, src: "bg/x.png" }], lineAt, local, 400, 30, 6);
+    assert.deepEqual(merged.map((w) => [w.src, w.start, w.end, w.video]), [["bg/a.jpg", 60, 126, undefined], ["bg/b.png", 126, 233, undefined], ["bg/c-film.mp4", 246, 353, true]], "the earlier cutaway gives way, a missing line is dropped");
+    // A photo scene: its own picture from the start, each further one until the next, the last to the end.
+    const seq = photoSequence({ src: "bg/own.jpg", caption: "Baghdad, 1990" }, [{ satir: 2, src: "bg/p2.jpg" }, { satir: 1, src: "bg/p1.jpg" }], lineAt, local, 400, 30);
+    assert.deepEqual(seq.map((w) => [w.src, w.start, w.end]), [["bg/own.jpg", 0, 117], ["bg/p1.jpg", 117, 237], ["bg/p2.jpg", 237, 400]]);
+    assert.ok(seq[0]!.kenBurns.toZoom > seq[0]!.kenBurns.fromZoom && seq[1]!.kenBurns.toZoom < seq[1]!.kenBurns.fromZoom, "pictures in a row drift in turn");
+    // The director: a photo scene puts no one on stage, its strips come with their lines.
+    const ep = sampleEpisode();
+    const narrate = (metin: string, serit?: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const, kaynak: ["tdv-rumeli"], ...(serit ? { serit } : {}) });
+    const photoScene: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "f1", kip: "fotograf", sahne_duzeni: undefined, satirlar: [narrate("August 1990.", "Kuwait's waters are heating up"), narrate("The tanks roll south."), narrate("The world watches.", "The West takes sides")], gorseller: [{ satir: 1, en: "Iraqi tanks Kuwait 1990", film: true }] };
+    const episode: Episode = { ...ep, donem: "1990", sahneler: [photoScene] };
+    assert.equal(validateEpisode(episode).ok, true, JSON.stringify(validateEpisode(episode).errors.slice(0, 3)));
+    const tl = buildTimeline(episode, [[fakeAudio(3), fakeAudio(3), fakeAudio(3)]]);
+    const plan = buildRenderPlan({ episode, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/fotograf-zemin.png", kind: "archival" }], inserts: [{ src: "bg/f1-donem.jpg" }], pictures: [[{ satir: 1, src: "bg/f1-g1-film.mp4", video: true }]], fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const shot = plan.shots.find((s) => s.id === "f1")!;
+    assert.deepEqual([shot.performers.length, shot.inserts!.length, shot.inserts![1]!.video, shot.inserts![1]!.end, shot.strips!.map((s) => s.text)], [0, 2, true, shot.duration, ["Kuwait's waters are heating up", "The West takes sides"]]);
+    assert.ok(pictureShares(plan).gorsel > 0.9, "a photo scene counts as pictures");
+    assert.equal(stageEmptyScenes(episode).fixes.length, 0, "no stand-in actor on a photo scene");
+    // Validation: no character speaks in a photo scene, no photo mode on a map, a picture needs its line and search.
+    const v = (s: object) => validateEpisode({ ...episode, sahneler: [{ ...photoScene, ...s }] } as never);
+    assert.equal(v({ satirlar: [...photoScene.satirlar, { karakter: "mehmed", metin: "Hi.", duygu: "notr" }] }).ok, false);
+    assert.equal(v({ harita: { merkez: [44, 30], genislik_km: 900 } }).ok, false);
+    assert.equal(v({ gorseller: [{ satir: 5, en: "x" }] }).ok, false);
+    assert.equal(v({ gorseller: [{ satir: 0 }] }).ok, false);
+    assert.equal(v({ satirlar: [narrate("Long.", "x".repeat(71))] }).ok, false, "a strip is a headline");
+    // The designed picture's prompt: a period painting, never photo-real, never text.
+    const d = momentDesign(momentText(undefined, "Siege of Troy", "The Greeks hide in the horse."), { donem: "MÖ 1180" });
+    assert.ok(/oil painting/.test(d.prompt) && /photorealistic/.test(d.negative) && /text/.test(d.negative) && /church/.test(d.negative) && d.prompt.includes("Siege of Troy"));
+    assert.equal(momentText("Achilles drags Hector's body", "x", "y"), "Achilles drags Hector's body");
+    assert.deepEqual([maxDesignedPictures(90), maxDesignedPictures(1200)], [4, 20]);
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

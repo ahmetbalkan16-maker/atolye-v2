@@ -1,6 +1,6 @@
 import React from "react";
-import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import type { V3Bubble, V3Insert, V3NameTag } from "../../../src/lib/v3/render/RenderPlanTypes";
+import { AbsoluteFill, Img, interpolate, OffthreadVideo, Sequence, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import type { V3Bubble, V3Insert, V3NameTag, V3Strip } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { BUBBLE_FONT } from "./fonts";
 
@@ -145,6 +145,26 @@ export function InsertView({ insert }: { insert: V3Insert }) {
   const fadeIn = insert.start === 0 ? 1 : interpolate(frame, [insert.start, insert.start + 6], [0, 1], { extrapolateRight: "clamp" });
   const fade = Math.min(fadeIn, interpolate(frame, [insert.end - 6, insert.end], [1, 0], { extrapolateLeft: "clamp" }));
   const src = staticFile(insert.src);
+  if (insert.video) {
+    // Archive film (DFT Tarih's newsreels): the clip plays muted from the window's start under the narration, with a
+    // faint old-film flicker; it is already cut and letterboxed to the frame.
+    const flicker = 1 + Math.sin(frame * 1.7) * 0.015 + Math.sin(frame * 0.53) * 0.01;
+    return (
+      <AbsoluteFill style={{ opacity: fade, backgroundColor: "#0b0a0d", overflow: "hidden" }}>
+        <Sequence from={insert.start} durationInFrames={len} layout="none">
+          <div style={{ position: "absolute", inset: 0, transform: `scale(${1 + (zoom - 1) * 0.4})`, filter: `brightness(${flicker}) contrast(1.06)` }}>
+            <OffthreadVideo src={src} muted style={{ width: W, height: H, objectFit: "contain" }} />
+          </div>
+        </Sequence>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 58%, rgba(6,4,8,0.55) 100%)" }} />
+        {insert.caption ? (
+          <div style={{ position: "absolute", left: 48 * k, bottom: 40 * k, maxWidth: W * 0.6, padding: `${8 * k}px ${16 * k}px`, borderRadius: 8 * k, background: "rgba(16,12,22,0.62)", color: "#f3ead7", font: `600 ${22 * k}px 'Segoe UI', Arial, sans-serif`, letterSpacing: 0.3 * k }}>
+            {insert.caption}
+          </div>
+        ) : null}
+      </AbsoluteFill>
+    );
+  }
   return (
     <AbsoluteFill style={{ opacity: fade, backgroundColor: "#100d16", overflow: "hidden" }}>
       <Img src={src} style={{ position: "absolute", left: -40, top: -40, width: W + 80, height: H + 80, objectFit: "cover", filter: "blur(28px) brightness(0.42) saturate(0.8)" }} />
@@ -158,5 +178,29 @@ export function InsertView({ insert }: { insert: V3Insert }) {
         </div>
       ) : null}
     </AbsoluteFill>
+  );
+}
+
+/**
+ * The photo documentaries' headline strip (DFT Tarih's Saddam: "Kuwait's waters are heating up…"): a red band slides in
+ * from the left at the bottom of the screen with the narrator's headline in white capitals, and slides away at its end.
+ */
+export function TitleStrip({ strip, language }: { strip: V3Strip; language: "tr" | "en" }) {
+  const frame = useCurrentFrame();
+  const { fps, width: W, height: H } = useVideoConfig();
+  if (frame < strip.start || frame >= strip.end) return null;
+  const k = H / 1080;
+  const enter = interpolate(frame, [strip.start, strip.start + Math.round(fps * 0.35)], [0, 1], { extrapolateRight: "clamp" });
+  const leave = interpolate(frame, [strip.end - Math.round(fps * 0.3), strip.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const ease = 1 - (1 - enter) ** 3;
+  return (
+    <div style={{ position: "absolute", left: 0, bottom: 92 * k, width: W, height: 82 * k, opacity: leave, overflow: "hidden" }}>
+      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: W * 0.86, transform: `translateX(${(ease - 1) * W * 0.9}px)`, background: "linear-gradient(90deg, #a51c2a 0%, #c42a37 70%, rgba(196,42,55,0) 100%)", boxShadow: `0 ${4 * k}px ${10 * k}px rgba(0,0,0,0.45)` }}>
+        <div style={{ position: "absolute", left: 0, top: 0, width: 14 * k, height: "100%", background: "#f3ead7" }} />
+        <div style={{ position: "absolute", left: 48 * k, top: 0, height: "100%", display: "flex", alignItems: "center", maxWidth: W * 0.74, font: `700 ${40 * k}px 'Bahnschrift', 'Segoe UI', sans-serif`, letterSpacing: 1 * k, color: "#ffffff", textShadow: `0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.5)`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: Math.min(1, enter * 1.6) }}>
+          {strip.text.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")}
+        </div>
+      </div>
+    </div>
   );
 }

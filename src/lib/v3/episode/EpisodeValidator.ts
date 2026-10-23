@@ -203,6 +203,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       const extra = s.arka_plan_sorgusu.ara;
       if (extra !== undefined && (!Array.isArray(extra) || extra.length > 3 || extra.some((x) => typeof x !== "string" || !x.trim() || x.length > 80))) err("ARKA_PLAN_ARA", `${p}.arka_plan_sorgusu.ara`, "en fazla 3 arama metni (her biri ≤ 80 karakter)");
       str(s.arka_plan_sorgusu, "tasarim", `${p}.arka_plan_sorgusu`, { optional: true, max: 700 });
+      str(s.arka_plan_sorgusu, "an", `${p}.arka_plan_sorgusu`, { optional: true, max: 600 });
       oneOf(s.arka_plan_sorgusu, "tur", `${p}.arka_plan_sorgusu`, ["set", "archival"] as const, true);
     }
     if (s.ortam !== undefined) {
@@ -240,6 +241,24 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       if (typeof o[key] !== "number" || !Number.isInteger(o[key]) || (o[key] as number) < 0 || (o[key] as number) >= Math.max(1, sceneLines)) return void err("BILGI_KARTI_SATIR", `${where}.${key}`, `0..${Math.max(0, sceneLines - 1)} arası satır numarası bekleniyor`);
       return o[key] as number;
     };
+    (arr(s, "gorseller", p, true) ?? []).forEach((g, gi) => {
+      const gp = `${p}.gorseller[${gi}]`;
+      if (!isObj(g)) return err("GORSEL", gp, "nesne bekleniyor");
+      cardLine(g, "satir", gp, true);
+      str(g, "en", gp, { max: 120 });
+      str(g, "wiki", gp, { optional: true, max: 120 });
+      str(g, "an", gp, { optional: true, max: 600 });
+      const extra = g.ara;
+      if (extra !== undefined && (!Array.isArray(extra) || extra.length > 3 || extra.some((x) => typeof x !== "string" || !x.trim() || x.length > 80))) err("GORSEL_ARA", `${gp}.ara`, "en fazla 3 arama metni (her biri ≤ 80 karakter)");
+      if (g.film !== undefined && typeof g.film !== "boolean") err("GORSEL", `${gp}.film`, "true/false bekleniyor");
+    });
+    if ((arr(s, "gorseller", p, true) ?? []).length > 8) err("GORSEL", `${p}.gorseller`, "bir sahnede en fazla 8 görsel");
+    if (s.kip !== undefined) {
+      oneOf(s, "kip", p, ["fotograf"] as const);
+      if (isObj(s.harita) && s.harita.merkez !== undefined) err("KIP", `${p}.kip`, "fotoğraf kipi harita sahnesinde olmaz");
+      const acted = (Array.isArray(s.satirlar) ? s.satirlar : []).some((l) => isObj(l) && typeof l.karakter === "string" && visible.has(l.karakter));
+      if (acted) err("KIP", `${p}.kip`, "fotoğraf kipinde sahne yok: satırlar anlatıcının (görünür karakter konuşmaz)");
+    }
     (arr(s, "bilgi_kartlari", p, true) ?? []).forEach((c, ci) => {
       const cp = `${p}.bilgi_kartlari[${ci}]`;
       if (!isObj(c)) return err("BILGI_KARTI", cp, "nesne bekleniyor");
@@ -601,6 +620,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       oneOf(l, "hareket", lp, MOVES, true);
       oneOf(l, "sfx", lp, SFX_IDS, true);
       oneOf(l, "efekt", lp, EFFECTS, true);
+      str(l, "serit", lp, { optional: true, max: 70 });
       const bubble = str(l, "balon", lp, { optional: true, max: 70 });
       if (bubble !== undefined && who && !visible.has(who)) err("BALON_ANLATICI", `${lp}.balon`, "konuşma balonu yalnız görünür karakterin satırında olur");
       if (bubble !== undefined && countWords(bubble) > 8) warn("BALON_UZUN", `${lp}.balon`, `${countWords(bubble)} kelime; balon en fazla 8 kelime`);

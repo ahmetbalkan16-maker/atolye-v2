@@ -23,6 +23,7 @@ import type {
   V3RenderPlan,
   V3Shake,
   V3Shot,
+  V3Strip,
   V3TitleCard,
   V3Transition,
   V3VisemeKey,
@@ -37,10 +38,22 @@ import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 export interface SceneInsert {
   readonly src: string;
   readonly caption?: string;
+  /** An archive film clip (mp4) instead of a still. */
+  readonly video?: boolean;
+}
+
+/** One of a scene's further pictures (`gorseller`), resolved into the render public dir: cut in over line `satir`. */
+export interface SceneShotPicture {
+  readonly satir: number;
+  readonly src: string;
+  readonly caption?: string;
+  readonly video?: boolean;
 }
 
 export interface DirectorInput {
   readonly episode: Episode;
+  /** Per scene: its further pictures of the moment (`gorseller`) that were found or designed. */
+  readonly pictures?: readonly (readonly SceneShotPicture[] | undefined)[];
   readonly timeline: EpisodeTimeline;
   readonly cast: readonly V3CastMember[];
   readonly accessories: readonly V3Accessory[];
@@ -339,7 +352,7 @@ export function stageEmptyScenes(episode: Episode): { episode: Episode; fixes: s
   const fixes: string[] = [];
   const sahneler = episode.sahneler.map((s) => {
     const onStage = s.satirlar.some((l) => visible.has(l.karakter)) || (s.sahne_duzeni ?? []).some((b) => visible.has(b.karakter));
-    if (onStage || s.harita?.merkez || s.arka_plan_sorgusu.dosya || s.kalabalik?.length) return s;
+    if (onStage || s.harita?.merkez || s.arka_plan_sorgusu.dosya || s.kalabalik?.length || s.kip === "fotograf") return s;
     fixes.push(`${s.id}: sahnede kimse yoktu; ${lead} sessiz oyuncu olarak sahneye kondu`);
     return { ...s, sahne_duzeni: [{ karakter: lead, x: 0.5 }] };
   });
@@ -393,6 +406,57 @@ export function pictureShares(plan: V3RenderPlan): { harita: number; sahne: numb
   return { harita: r(map), sahne: r(stage), gorsel: r(pictures) };
 }
 
+/** A further picture the writer placed on a character scene's line stays at most this long (seconds). */
+export const PICTURE_INSERT_S = 6;
+
+type LineAt = (index: number) => { readonly start: number; readonly end: number } | undefined;
+
+/** Alternating slow push-in and pull-out, so pictures in a row never move alike. */
+const drift = (i: number): V3Insert["kenBurns"] => (i % 2 === 0 ? { fromZoom: 1.03, toZoom: 1.16, fromX: 0.02, toX: -0.02 } : { fromZoom: 1.17, toZoom: 1.04, fromX: -0.02, toX: 0.02 });
+
+/**
+ * A scene's cutaways with its further pictures (`gorseller`) added, each over its line (owner, 23 Oct 2026, after DFT
+ * Tarih): from just after the line starts until just after it ends, at most `maxS`. Cutaways never overlap — an earlier
+ * one gives way when the next begins — and one under 1.2 s is dropped.
+ */
+export function withPictures(own: readonly V3Insert[], pictures: readonly SceneShotPicture[], lineAt: LineAt, local: (sec: number) => number, duration: number, fps: number, maxS: number): V3Insert[] {
+  const extra = pictures.flatMap((p, i): V3Insert[] => {
+    const l = lineAt(p.satir);
+    if (!l) return [];
+    const ls = local(l.start);
+    const start = ls <= Math.round(0.5 * fps) ? 0 : ls + Math.round(0.2 * fps);
+    const end = Math.min(duration - Math.round(0.3 * fps), local(l.end) + Math.round(0.25 * fps), start + Math.round(maxS * fps));
+    return [{ src: p.src, start, end, kenBurns: drift(i + own.length), ...(p.caption ? { caption: p.caption } : {}), ...(p.video ? { video: true } : {}) }];
+  });
+  const all = [...own, ...extra].sort((a, b) => a.start - b.start).map((w) => ({ ...w }));
+  for (let i = 0; i + 1 < all.length; i++) if (all[i + 1]!.start < all[i]!.end) all[i]!.end = all[i + 1]!.start;
+  return all.filter((w) => w.end - w.start >= Math.round(1.2 * fps));
+}
+
+/**
+ * A photo-documentary scene (DFT Tarih's Saddam): its own picture from the start, then each further picture from its
+ * line, every one holding until the next — the scene is pictures from end to end, each drifting slowly.
+ */
+export function photoSequence(own: SceneInsert | undefined, pictures: readonly SceneShotPicture[], lineAt: LineAt, local: (sec: number) => number, duration: number, fps: number): V3Insert[] {
+  const list = [...(own ? [{ satir: 0, src: own.src, ...(own.caption ? { caption: own.caption } : {}), ...(own.video ? { video: true } : {}) }] : []), ...pictures].flatMap((p) => {
+    const l = lineAt(p.satir);
+    return l ? [{ p, at: p.satir === 0 ? 0 : Math.max(0, local(l.start) - Math.round(0.1 * fps)) }] : [];
+  });
+  const sorted = list.sort((a, b) => a.at - b.at).filter((x, i, arr) => i === 0 || x.at > arr[i - 1]!.at);
+  if (sorted[0]) sorted[0].at = 0;
+  return sorted.map(({ p, at }, i) => ({ src: p.src, start: at, end: sorted[i + 1]?.at ?? duration, kenBurns: drift(i), ...(p.caption ? { caption: p.caption } : {}), ...(p.video ? { video: true } : {}) }));
+}
+
+/** The lines' headline strips (`serit`), each while its line is told, never two at once. */
+export function stripsOf(scene: Pick<EpisodeScene, "satirlar">, lines: readonly LineTiming[], local: (sec: number) => number, duration: number, fps: number): V3Strip[] {
+  const out = lines.flatMap((lt) => {
+    const text = scene.satirlar[lt.lineIndex]?.serit?.trim();
+    return text ? [{ text, start: local(lt.start), end: Math.min(duration, local(lt.end) + Math.round(0.3 * fps)) }] : [];
+  });
+  for (let i = 0; i + 1 < out.length; i++) out[i]!.end = Math.min(out[i]!.end, out[i + 1]!.start);
+  return out.filter((s) => s.end - s.start >= fps);
+}
+
 /** An info card stays at least this long (seconds), and this long after the last line it names. */
 export const INFO_CARD_MIN_S = 4;
 const INFO_CARD_HOLD_S = 0.8;
@@ -443,7 +507,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const duration = Math.max(1, end - start);
     const local = (sec: number) => f(sec) - start;
     const lines = timeline.lines.filter((l) => l.sceneIndex === si);
-    const slots = placeScene(scene, visibleIds);
+    // A photo-documentary scene has no stage: its pictures are the scene.
+    const photo = scene.kip === "fotograf";
+    const slots = photo ? new Map<string, Slot>() : placeScene(scene, visibleIds);
     // A rider's face is higher than a walker's: close shots frame it there.
     const faceOf = (id: string) => (slots.get(id)?.mount ? FACE_Y - MOUNT_FACE_LIFT : FACE_Y);
     const mapped = Boolean(scene.harita?.merkez && scene.harita.genislik_km && input.mapData);
@@ -730,8 +796,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     // narration); the map stays the scene.
     const marked = geo && scene.ara_goruntu_satir !== undefined ? lines.find((l) => l.lineIndex === scene.ara_goruntu_satir) : undefined;
     const mapWindow = marked ? [{ start: local(marked.start) + f(0.2), end: Math.min(duration - f(0.3), local(marked.end) + f(0.25), local(marked.start) + f(MAP_INSERT_S)) }].filter((w) => w.end - w.start >= f(1.5)) : [];
-    const inserts: V3Insert[] = period && geo
-      ? mapWindow.map((w) => ({ src: period.src, ...w, kenBurns: { fromZoom: 1.03, toZoom: 1.15, fromX: 0.02, toX: -0.02 }, ...(period.caption ? { caption: period.caption } : {}) }))
+    const own: V3Insert[] = period && geo
+      ? mapWindow.map((w) => ({ src: period.src, ...w, kenBurns: { fromZoom: 1.03, toZoom: 1.15, fromX: 0.02, toX: -0.02 }, ...(period.caption ? { caption: period.caption } : {}), ...(period.video ? { video: true } : {}) }))
       : period
       ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
           src: period.src,
@@ -739,8 +805,13 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           // Alternate push-in and pull-out so two cutaways to the same picture do not look like a repeat.
           kenBurns: i % 2 === 0 ? { fromZoom: 1.03, toZoom: 1.17, fromX: 0.02, toX: -0.02 } : { fromZoom: 1.18, toZoom: 1.04, fromX: -0.02, toX: 0.02 },
           ...(period.caption ? { caption: period.caption } : {}),
+          ...(period.video ? { video: true } : {}),
         }))
       : [];
+    const inserts = photo
+      ? photoSequence(period, input.pictures?.[si] ?? [], (i) => lines.find((l) => l.lineIndex === i), local, duration, fps)
+      : withPictures(own, input.pictures?.[si] ?? [], (i) => lines.find((l) => l.lineIndex === i), local, duration, fps, geo ? MAP_INSERT_S : PICTURE_INSERT_S);
+    const strips = stripsOf(scene, lines, local, duration, fps);
     shots.push({
       id: scene.id,
       sceneId: scene.id,
@@ -760,6 +831,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       inserts,
       extras,
       ...(infoCards.length ? { infoCards } : {}),
+      ...(strips.length ? { strips } : {}),
       ...(geo ? { geoMap: talks.size ? { ...geo, badges: (geo.badges ?? []).map((b) => withTalk(b, talks.get(b.castId))) } : geo } : {}),
     });
   });

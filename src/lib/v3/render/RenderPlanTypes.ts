@@ -304,6 +304,15 @@ export interface V3Insert {
   readonly kenBurns: { readonly fromZoom: number; readonly toZoom: number; readonly fromX: number; readonly toX: number };
   /** Source plate, e.g. "Rumelihisarı, engraving by W. H. Bartlett (1838)". */
   readonly caption?: string;
+  /** An archive film clip (mp4 in the public dir, played muted from the window's start) instead of a still. */
+  readonly video?: boolean;
+}
+
+/** A headline strip at the bottom of the screen (the photo documentaries' red band) while its line is told. */
+export interface V3Strip {
+  readonly text: string;
+  readonly start: number;
+  readonly end: number;
 }
 
 /**
@@ -508,6 +517,7 @@ export interface V3Shot {
   readonly inserts?: readonly V3Insert[];
   readonly extras?: readonly V3Extra[];
   readonly infoCards?: readonly V3InfoCard[];
+  readonly strips?: readonly V3Strip[];
   /** A drawn geographic map instead of the background image. */
   readonly geoMap?: V3GeoMap;
 }

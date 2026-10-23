@@ -12,7 +12,7 @@ import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./Dra
 import { InfoCardView } from "./InfoCard";
 import { MapHud } from "./MapMarks";
 import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./MapView";
-import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
+import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
 
@@ -277,11 +277,15 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
           })}
       {/* The relief map's compass and km scale stay fixed on the screen (inside the cameras they drifted to the edge); the
           scale counts every zoom the map is seen through: its own camera, the shot camera and the slow push. */}
-      {shot.geoMap?.relief && shot.geoMap.kmPerPx ? (
+      {shot.geoMap?.relief && shot.geoMap.kmPerPx && !insertOn ? (
         <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
           <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom)} height={H} />
         </svg>
       ) : null}
+      {/* The narrator's headline strips (photo documentaries), over the pictures. */}
+      {(shot.strips ?? []).map((s, i) => (
+        <TitleStrip key={`st-${i}`} strip={s} language={language} />
+      ))}
       {/* The strength bar and the date stamp stay fixed on the screen over the moving map. */}
       {shot.geoMap && !insertOn ? <MapHud map={shot.geoMap} frame={frame} fps={fps} W={W} H={H} /> : null}
       {/* Info cards dim everything under them (DFT Tarih's charts, lists and counters over the map). */}

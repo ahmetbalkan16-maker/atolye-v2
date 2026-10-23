@@ -163,6 +163,43 @@ export async function searchCommons(cacheDir: string, query: string, opts: { min
   return out.sort((a, b) => a.rank - b.rank).map((x) => x.c);
 }
 
+/** The largest archive film downloaded (bytes): a newsreel reel is tens of MB; a whole feature film is not needed. */
+export const MAX_FILM_BYTES = 400 * 1024 * 1024;
+
+/**
+ * Free archive film on Commons (owner, 23 Oct 2026, after DFT Tarih's Çanakkale: real 1915 footage; no copyrighted
+ * archive such as Pathé): videos in the public domain, CC0 or CC BY — mostly newsreels and the US National
+ * Archives' uploads. `previewUrl` is a still from the film for the judge; `downloadUrl` the film itself.
+ */
+export async function searchCommonsVideos(cacheDir: string, query: string, limit = 20): Promise<CommonsCandidate[]> {
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    generator: "search",
+    gsrsearch: `filetype:video ${query}`,
+    gsrnamespace: "6",
+    gsrlimit: String(limit),
+    prop: "imageinfo",
+    iiprop: "url|size|mime|extmetadata",
+    iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+    iiurlwidth: "960",
+  });
+  const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { pages?: Record<string, { title: string; index?: number; imageinfo?: (ImageInfo & { size?: number })[] }> } };
+  const out: { c: CommonsCandidate; rank: number }[] = [];
+  for (const page of Object.values(json.query?.pages ?? {})) {
+    const info = page.imageinfo?.[0];
+    if (!info || !/^(video\/|application\/ogg)/.test(info.mime) || !info.thumburl) continue;
+    if ((info.size ?? 0) > MAX_FILM_BYTES || info.width < 320) continue;
+    const c = toCandidate(page.title, info);
+    // Share-alike film is left out: a whole clip in the video could put the video under BY-SA (the owner's caution with
+    // ready-made BY-SA maps, 23 Oct 2026); public domain, CC0 and CC BY only.
+    const m = info.extmetadata ?? {};
+    const licence = judgeLicense(stripHtml(m.LicenseShortName?.value), stripHtml(m.UsageTerms?.value));
+    if (c && licence.ok && licence.family !== "CC-BY-SA") out.push({ c: { ...c, downloadUrl: info.url, previewUrl: info.thumburl }, rank: page.index ?? out.length });
+  }
+  return out.sort((a, b) => a.rank - b.rank).map((x) => x.c);
+}
+
 /** One file by its exact title ("File:…"), or undefined when missing or not freely licensed. */
 export async function commonsByTitle(cacheDir: string, title: string): Promise<CommonsCandidate | undefined> {
   const params = new URLSearchParams({

@@ -119,6 +119,33 @@ export function designFor(scene: EpisodeScene, episode: Pick<Episode, "donem">, 
   };
 }
 
+/**
+ * A designed picture of the moment (owner, 23 Oct 2026: "when no period picture is found, make that moment's picture";
+ * DFT Tarih's Odysseus is told in such paintings): a history painting, never a photo-real image (owner, 21 Oct 2026: no
+ * photo-real AI pictures), shown with a "designed" source plate.
+ */
+const MOMENT_STYLE = "historical oil painting, dramatic light, rich colours, cinematic composition";
+
+export const MOMENT_NEGATIVE =
+  "text, letters, words, caption, signature, watermark, logo, frame, border, photograph, photorealistic, photo, 3d render, cgi, anime, cartoon, comic, flat vector, modern buildings, skyscraper, car, truck, asphalt, power lines, plastic, neon, deformed hands, extra fingers, extra limbs, distorted faces, duplicated people, blurry, low quality, cropped";
+
+/** What to paint when the script gave no `an`: the searched subject and what is said over it. */
+export function momentText(an: string | undefined, en: string, narration: string): string {
+  return (an?.trim() || `${en}. ${narration}`).replace(/\s+/g, " ").slice(0, 600);
+}
+
+/**
+ * The moment comes first and the style after (unlike a set): the first encoder reads only 77 tokens, and with the style
+ * first the Trojan Horse trial (23 Oct 2026) painted warriors round a bronze drum — the subject fell off the end.
+ */
+export function momentDesign(text: string, episode: Pick<Episode, "donem">): SetDesign {
+  return {
+    prompt: `${text}, ${MOMENT_STYLE}`,
+    prompt2: `${text}. A history painting of this very moment as it happened in ${episode.donem}: the people, clothes, arms, buildings, ships and landscape of the period, nothing from a later age.${periodLook(episode.donem) ? ` ${periodLook(episode.donem)}` : ""}`,
+    negative: [MOMENT_NEGATIVE, ...periodNegatives(episode.donem)].join(", "),
+  };
+}
+
 export interface DesignedSet {
   readonly file: string;
   readonly seed: number;
@@ -130,8 +157,9 @@ export class BackgroundDesigner {
   private server?: PythonLineServer;
   readonly libraryDir: string;
 
-  constructor(private readonly paths: V3Paths, private readonly log: (s: string) => void = () => {}) {
-    this.libraryDir = path.join(paths.workRoot, "_kutuphane", "setler");
+  /** `library`: the library folder — "setler" for sets, "anlar" for designed pictures of a moment. */
+  constructor(private readonly paths: V3Paths, private readonly log: (s: string) => void = () => {}, library: "setler" | "anlar" = "setler") {
+    this.libraryDir = path.join(paths.workRoot, "_kutuphane", library);
   }
 
   /** Library file of a design + seed (exists only once drawn). */
