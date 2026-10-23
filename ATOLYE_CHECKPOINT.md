@@ -1,3 +1,40 @@
+## 23 Ekim 2026 (akşam) — V3 savaşın kendisi yakın haritada: konuşan rozet, batan gemiler, yazar beyni kuşatmayı haritada anlatır
+
+**Owner (devam raporu 1. madde):** yazar Belgrad'da doruğu karakter sahnesine kaçırdı; haritada konuşan büyük çöp
+adamlar savaşı örtüyor → yakın haritada konuşma balonlu rozet (DFT örneği).
+
+**Yapılanlar (feature/cop-adam-v3):**
+- `c2bc7096` **konuşan rozet** (`maps/MapSpeakers.ts`): haritada rozeti olan konuşmacı sahneye çizilmez, rozetinden
+  konuşur (ağız sesle, yüz satırın duygusuyla; konuşurken büyür, halkası altın; söz balonu rozetten çıkar; harita geniş
+  kalır). Yakın haritada rozetsiz konuşmacının tarafı bulunur (rolündeki taraf kökü → renk → kalan tek taraf) ve rozeti
+  o tarafın pulunda kurulur: en az şeyi örten, konuştuğu her satırda kameranın durduğu kadrajda balonuyla kalan pul.
+  Bulunamayan için yazardan rozet istenir. Rozet engeli ad yerleştiricide şehir adı ağırlığında.
+- `2e584f3e` **araç kayıpları** (`araclar[].kayip` + `kayip_satir`): pulların zamanlamasıyla teker teker — gemi yana
+  yatıp sıçramalar içinde batar, top/süvari/fil/tank patlayıp devrilir, uçak düşer; ses su / patlama / düşüş. Haritadaki
+  söz balonu 0,72 boyda, rozet seçimi balonun alanını da sayar.
+- `0aacc410` **yazar beyni**: istemde KUŞATMA/SAVAŞ sahne sırası (yürüyüş → yakın harita → konsey → aynı yerin ikinci
+  yakın haritasında hücum → tepki → sonuç haritası) ve hücum sahnesi örneği; MapRules: doruk yakın haritada kayıplarla,
+  surlara hücum karakter sahnesinde kalırsa surlu yakın harita istenir, yalnız gemili deniz savaşı haritası geçerli;
+  harita sorunlarını artıran uzunluk turu kabul edilmez (ScriptEngine + LongForm).
+- Sınavlar (1456 Belgrad, Claude'suz gpt-4.1, aynı kaynak bankası): 2. deneme 0,34 $ (Tuna yakın haritası ama hücum
+  karakter sahnesinde, gemi kaybı kara pulu olarak), 3. deneme 0,43 $ (kurallar ateşledi, yazar onarmadı), 4. deneme
+  0,45 $ (istenen akış: Tuna'da 4 Osmanlı gemisi batar; surlu yakın haritada gedik, iki yanda kayıp, toplar, Mehmed
+  rozetinden; tepki; sonuç haritası; 272/282 kelime). Senaryolar geçici klasörde (kalıcı değil).
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 34 (yeni O14),
+script 21, mix 13, council 11, motion 9, backgrounds 20, likeness 14. Önizleme kareleri: Belgrad yakın haritası
+(konuşan Mehmed ve Szilágyi rozetleri, batan gemiler, Macar donanmasının ateşi).
+
+**Bilinen durum:** yazarın gemi konumları karada kalabiliyor (gemiler en yakın suya oturtulmuyor); 4. denemede kalan
+uyarılar: s6'da 2. satırdaki kayıpta düşman uzakta, s8 sonuç haritası durağan. Overpass yine aralıklı.
+
+**Sıradaki:**
+1. Gemi konumlarını yakın haritada en yakın suya oturt (Belgrad'da Osmanlı donanması Sava kıyısının karasında).
+2. Ölçüt bölüm 1453 sesli (dış harita → yakın harita → otağda konsey → hücum yakın haritası).
+3. Belgrad 4. senaryoyu tam üretimde dene (Overpass yanıt verirken), owner'a göster.
+4. Planın kalanı: anlatıdaki nesneler için simgeler, alınan yere dikilen sancak, "Dönüm Noktası" parşömen kartı.
+5. Sipariş izleyicisi (`yapim.ts`) yeniden başlatılmadı (owner "evet" ister); üretici her siparişte diskten çalışır.
+
 ## 23 Ekim 2026 (gündüz) — V3 yakın harita her olay için: okunur adlar, karadan yürütme, OSM'den sur/kale/nehir, yazar beyni
 
 **Owner:** önce kusurlar (sur adı ile savaş adı çakışması, "The Chain" Galata'nın dibinde, yangın gedikten yayılmalı,

@@ -144,3 +144,17 @@ herhangi bir olayda yapabilmeliyiz — yakın haritayı, kaleyi."
 - **Sınav**: 1456 Belgrad Kuşatması, Claude'suz (gpt-4.1, 0,15 $): yakın harita 18 km, pullar, kaleyi döven toplar,
   Tuna'yı kapatan donanma, kendiliğinden kurulan kale (OSM çevresi). Kalan zayıflık: savaşın kendisi karakter
   sahnesinde anlatılıyor, yakın haritada kayıp yok; haritada konuşan iki büyük figür savaşı örtüyor.
+
+## Savaşın kendisi yakın haritada (23 Ekim akşam)
+
+- **Konuşan rozet** (`MapSpeakers.ts`): haritada konuşan karakter tam boy çizilmez; portre rozeti konuşur (ağız, yüz,
+  büyüme, altın halka), söz balonu rozetten çıkar, harita geniş kalır. Yakın haritada rozetsiz konuşmacının rozeti kendi
+  tarafının pulunda: en az şeyi örten ve konuştuğu her satırda kadrajda kalan pul.
+- **Araç kayıpları** (`araclar[].kayip`, `kayip_satir`): gemiler batar, toplar/atlılar/tanklar patlar, uçaklar düşer —
+  teker teker, sesleriyle. Deniz savaşı iki donanma ve batan gemilerle anlatılır.
+- **Yazar beyni**: kuşatma/savaş öyküsü sırası — yürüyüş (dış harita) → yakın harita (ordular, toplar, donanma) →
+  konsey (karakter sahnesi) → aynı yerin ikinci yakın haritasında hücum (gedik, iki yanda kayıp, geri püskürtme) →
+  tepki → sonuç haritası. Hücum yalnız karakter sahnesinde anlatılırsa onarım istenir; uzunluk turu harita
+  kazanımlarını bozamaz.
+- **Sınav 4** (Belgrad, 0,45 $): yazar bu akışı kendisi kurdu (Tuna'da batan Osmanlı gemileri, surlu hücum haritası,
+  Mehmed rozetinden konuşur). Kalan: gemi konumları karaya düşebiliyor (en yakın suya oturtma sırada).
