@@ -387,6 +387,11 @@ export interface EpisodeScene {
   readonly muzik_ruh_hali: string;
   readonly kamera?: readonly SceneCameraCue[];
   readonly harita?: SceneMap;
+  /**
+   * On a map scene, the line over which the period picture of `arka_plan_sorgusu` is cut in (owner, 23 Oct 2026, after
+   * DFT Tarih: real photos, paintings or designed pictures of the moment between the map narration, 6–10% of the video).
+   */
+  readonly ara_goruntu_satir?: number;
   readonly yazi_karti?: readonly SceneTitleCard[];
   readonly sahne_duzeni?: readonly SceneBlocking[];
   readonly dekor?: readonly SceneProp[];

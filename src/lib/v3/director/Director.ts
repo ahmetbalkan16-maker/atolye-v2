@@ -298,6 +298,8 @@ export function placeCrowd(groups: readonly SceneCrowd[], sceneId: string, lineF
  * painting was the slowest part of the Rubicon pilot).
  */
 export const MAX_INSERT_S = 4.5;
+/** A period picture cut in over a map's narration stays a little longer: the map is not waiting behind actors. */
+export const MAP_INSERT_S = 6;
 
 export function insertWindows(lines: readonly { start: number; end: number; onScreen: boolean }[], duration: number, fps: number, hasPerformers = true): { start: number; end: number }[] {
   if (!lines.some((l) => l.onScreen)) {
@@ -365,6 +367,29 @@ export function longestEmptyStretch(plan: V3RenderPlan): number {
     for (const w of s.inserts ?? []) best = Math.max(best, w.end - w.start);
   }
   return best / plan.fps;
+}
+
+/** The owner's shares for a long video (23 Oct 2026): map about 75–80%, stick figures about 15%, period pictures 6–10%. */
+export const PICTURE_SHARE_TARGET = { harita: [0.72, 0.84], sahne: [0.1, 0.2], gorsel: [0.06, 0.1] } as const;
+
+/**
+ * How the finished video divides between the map, the stage (the stick figures' scenes) and period pictures (cutaways,
+ * and a scene that is one picture), as shares of its running time; the opening cover is left out.
+ */
+export function pictureShares(plan: V3RenderPlan): { harita: number; sahne: number; gorsel: number } {
+  let map = 0;
+  let stage = 0;
+  let pictures = 0;
+  for (const s of plan.shots) {
+    if (s.id === "kapak") continue;
+    const cut = (s.inserts ?? []).reduce((a, w) => a + Math.max(0, w.end - w.start), 0);
+    if (s.geoMap) [map, pictures] = [map + s.duration - cut, pictures + cut];
+    else if (!s.performers.length && !(s.extras ?? []).length && s.background.kind === "archival") pictures += s.duration;
+    else [stage, pictures] = [stage + s.duration - cut, pictures + cut];
+  }
+  const total = map + stage + pictures || 1;
+  const r = (x: number) => Math.round((x / total) * 1000) / 1000;
+  return { harita: r(map), sahne: r(stage), gorsel: r(pictures) };
 }
 
 export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
@@ -662,7 +687,13 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const living = input.backgrounds[si]?.kind === "drawn";
     const moving = (from: number, to: number) => extras.some((e) => e.move && e.move.start < to && e.move.end > from) || performers.some((p) => p.moves.some((m) => m.start < to && m.end > from));
     const firstLine = lines[0];
-    const inserts: V3Insert[] = period
+    // On a map the picture comes once, over its marked line (owner, 23 Oct 2026: pictures of the moment between the map
+    // narration); the map stays the scene.
+    const marked = geo && scene.ara_goruntu_satir !== undefined ? lines.find((l) => l.lineIndex === scene.ara_goruntu_satir) : undefined;
+    const mapWindow = marked ? [{ start: local(marked.start) + f(0.2), end: Math.min(duration - f(0.3), local(marked.end) + f(0.25), local(marked.start) + f(MAP_INSERT_S)) }].filter((w) => w.end - w.start >= f(1.5)) : [];
+    const inserts: V3Insert[] = period && geo
+      ? mapWindow.map((w) => ({ src: period.src, ...w, kenBurns: { fromZoom: 1.03, toZoom: 1.15, fromX: 0.02, toX: -0.02 }, ...(period.caption ? { caption: period.caption } : {}) }))
+      : period
       ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
           src: period.src,
           ...w,

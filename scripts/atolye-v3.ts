@@ -49,7 +49,7 @@ import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
-import { beats, buildRenderPlan, longestEmptyStretch, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { beats, buildRenderPlan, longestEmptyStretch, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
@@ -244,24 +244,26 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
       notlar[si] = "arka plan bölüm dosyasında verilmiş";
       continue;
     }
+    // A map scene's marked line (ara_goruntu_satir): its period picture is cut in there, the map stays the scene.
+    const mapLine = scene.harita?.merkez && scene.ara_goruntu_satir !== undefined ? scene.satirlar[scene.ara_goruntu_satir] : undefined;
     if (scene.harita?.merkez) {
-      // A drawn map is the whole picture (characters, if any, stand on it): no set to design, no image to find.
+      // A drawn map is the whole picture (characters, if any, speak from badges on it): no set to design.
       const plain = path.join(pub, "harita-zemin.png");
       if (!existsSync(plain)) await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x22406a:s=1920x1080", "-frames:v", "1", plain]);
       sets[si] = { src: "bg/harita-zemin.png", kind: "archival", kaynak: "harita", credit: { assetId: "natural-earth-50m", kind: "image", title: "Natural Earth 1:50m (harita verisi)", author: "Natural Earth", license: "Public domain", sourceUrl: "https://www.naturalearthdata.com/", attributionRequired: false } };
       durum[si] = "aranmadi";
       notlar[si] = "çizili harita sahnesi (Natural Earth)";
-      continue;
+      if (!mapLine) continue;
     }
     const sj = sceneForJudge(episode, si);
-    const narrated = scene.satirlar.some((l) => !visible.has(l.karakter));
+    const narrated = mapLine !== undefined || scene.satirlar.some((l) => !visible.has(l.karakter));
     if (narrated) {
       const found = await findPeriodCandidates(cache, { ...(q.wiki ? { wiki: q.wiki } : {}), query: q.en, ...(q.ara ? { alternatives: q.ara } : {}), ...(q.commons_kategori ? { commonsCategory: q.commons_kategori } : {}) }, periodEnd);
       // CLIP orders the candidates first, so the judge's looks go to the likeliest pictures (search order without it).
       const fresh = await clip.order(found.candidates.filter((c) => !used.has(c.url)), clipQuery({ en: q.en, mekan: scene.mekan }), (c) => commonsPreview(cache, c));
       log(`${scene.id}: dönem görseli aranıyor — ${found.report.join(", ")}`);
       // The cutaway is on screen while the narrator speaks: it must show what those lines name.
-      const narration = scene.satirlar.filter((l) => !visible.has(l.karakter)).map((l) => l.metin).join(" ");
+      const narration = mapLine ? mapLine.metin : scene.satirlar.filter((l) => !visible.has(l.karakter)).map((l) => l.metin).join(" ");
       const pick = await pickBackground(fresh, { ...sj, anlatim: narration }, judge, (c) => commonsPreview(cache, c), log, { mode: "arsiv" });
       for (const v of pick.verdicts) log(`  ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
       // Passing candidates best first; one that cannot be downloaded gives way to the next.
@@ -293,6 +295,7 @@ async function resolveVisuals(paths: V3Paths, work: string, episode: Episode, di
     } else {
       notlar[si] = "sahnede anlatıcı satırı yok; dönem görseli gösterilecek an olmadığı için aranmadı";
     }
+    if (scene.harita?.merkez) continue;
     const onStage = scene.satirlar.some((l) => visible.has(l.karakter)) || (scene.sahne_duzeni ?? []).some((b) => visible.has(b.karakter));
     if (!onStage && arsiv[si]) {
       // No one on stage: the period image is the whole scene.
@@ -1056,6 +1059,8 @@ async function main() {
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
       row(Math.abs(durationS - target) <= target * 0.1, `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
+      // The owner's shares for a long video (23 Oct 2026); a short one is told mostly on the stage, so only reported.
+      ((s) => row(target < 600 || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= PICTURE_SHARE_TARGET[k][0] && s[k] <= PICTURE_SHARE_TARGET[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (uzun videoda hedef ~%75–80 / ~%15 / %6–10)`))(pictureShares(plan)),
     ];
     await fs.writeFile(
       f("QC.md"),

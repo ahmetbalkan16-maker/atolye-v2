@@ -2,7 +2,7 @@ import type { Episode, EpisodeSource } from "../episode/EpisodeTypes";
 import { validateEpisode } from "../episode/EpisodeValidator";
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { normalizeDraft } from "./DraftNormalizer";
-import { livenStillMaps, mapProblems } from "./MapRules";
+import { livenStillMaps, mapProblems, shareProblems } from "./MapRules";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, wordBudget, writingPrompt } from "./ScriptPrompts";
 import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "./V3Budget";
 
@@ -97,6 +97,9 @@ Write ONLY this chapter's scenes, about ${words} spoken words, "sure_hedef" addi
 "${ch.id}-". The first scene opens with the chapter card: "yazi_karti": [{"metin": "${ch.baslik}", "alt_metin": "${brief.dil === "tr" ? "Bölüm" : "Chapter"} ${index + 1}", "stil": "bolum"}].
 Tell what moves between places on the living map ("kamera", "rozetler" with "yol_satir", "savaslar" — MAP NARRATION) and
 what happens in one place as character scenes (SCENE KIND BY SCALE), as the chapter's plan says.
+SHARES: of this chapter's ${ch.sure_sn} seconds about ${Math.round(ch.sure_sn * 0.8)} on the map (wide or close) and about ${Math.max(10, Math.round(ch.sure_sn * 0.15))} in character
+scenes (one short scene: a council, a quarrel or a reaction, the figures loud and emotional); mark "ara_goruntu_satir" on
+one map scene for its period picture.
 Return ONLY this JSON: {"sahneler": [ … ]}`;
 }
 
@@ -187,8 +190,9 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
       const value = normalizeDraft(chapterEpisode(outline, i, list), d.catalog).value;
       const v = validateEpisode(value);
       const problems = v.errors.slice(0, 30).map((e) => `${e.path} ${e.code}: ${e.message}`);
-      // The map rules (ScriptEngine.mapProblems) are asked for in the same rounds, never worth losing a valid chapter.
-      return { value, problems, quality: problems.length ? [] : mapProblems(value) };
+      // The map rules (ScriptEngine.mapProblems) and the owner's shares are asked for in the same rounds, never worth
+      // losing a valid chapter.
+      return { value, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode)] };
     };
     let text = (await d.budget.generate(`bolum-${i + 1}`, writerUsed, chapterPrompt(d.brief, d.catalog, outline, i), opts)).result.content;
     let state = check(text);

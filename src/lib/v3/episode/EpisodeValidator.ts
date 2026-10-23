@@ -271,6 +271,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (o[key] === undefined) return;
         if (typeof o[key] !== "number" || !Number.isInteger(o[key]) || (o[key] as number) < 0 || (o[key] as number) >= Math.max(1, lines)) err("HARITA_SATIR", `${where}.${key}`, `0..${Math.max(0, lines - 1)} arası satır numarası bekleniyor`);
       };
+      lineIndex(s, "ara_goruntu_satir", p);
       (arr(h, "bolgeler", hp, true) ?? []).forEach((b, bi) => {
         if (!isObj(b)) return;
         lineIndex(b, "bitis_satir", `${hp}.bolgeler[${bi}]`);

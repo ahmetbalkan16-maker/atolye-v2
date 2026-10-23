@@ -228,6 +228,10 @@ SCENE KIND BY SCALE — choose each scene's kind by the scale of what it tells (
   one city needs a map only to show where that city is and what surrounds it. Every voyage, crossing, march or invasion
   between places is shown on a map with its route drawn (oklar, or a rozet with "yol" + "yol_satir") before the scene
   where it lands — never only on a beach or a ship. A scene whose "mekan" is a map has a "harita".
+  SHARES OF A LONG VIDEO (the owner's, for 10–20 minutes, like the history-with-maps documentaries): about 75–80% of the
+  running time on the map — wide and close, campaigns and battles told at length, step by step; about 15% character
+  scenes — councils, quarrels, reactions, the stick figures exaggerated, angry, emotional; 6–10% period pictures cut in
+  over the map ("ara_goruntu_satir", PERIOD IMAGES below).
 
 MAPS — wherever the story moves (campaigns, borders, empires, routes) show a drawn map scene, at least one per episode:
   "harita": {"merkez": [lon, lat], "genislik_km": 150–30000,
@@ -381,6 +385,10 @@ PERIOD IMAGES AND SETS / ARKA PLAN
   water, morning light; no modern houses, no roads, no ferries".
 - "arka_plan_sorgusu.tr": the same place in Turkish (for the owner's notes); "tur": "set" (default), or "archival" when the
   scene is mainly about a surviving artwork, map or document.
+- On a MAP scene, mark the one line whose moment deserves a picture: "ara_goruntu_satir": <line index>. The period
+  picture of THAT moment (the painting of the battle, the engraving of the besieged city, the miniature of the council)
+  is cut in over that line, then the map comes back; the scene's "arka_plan_sorgusu" searches for it. Mark about one
+  map scene in three, so pictures fill 6–10% of a long video.
 
 COSTUME CATALOG
 giysi (body garment, coloured by "renkler"): ${GARMENTS.map((g) => `${g} (${GARMENT_NOTES[g]})`).join(", ")}

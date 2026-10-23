@@ -6,14 +6,14 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, pictureShares, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
-import { mapProblems } from "../src/lib/v3/script/MapRules";
+import { mapProblems, shareProblems } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
@@ -922,6 +922,36 @@ async function main() {
     assert.ok(!assault.some((p) => p.includes("climax is never seen")), "the ships lost are the close map's fight");
     assert.ok(!mapProblems({ ...episode, sahneler: [{ ...danube, harita: { ...danube.harita!, birlikler: undefined } }] }).some((p) => p.includes("has no armies")), "a fleet battle's map may have only its ships");
     assert.ok(!mapProblems({ ...episode, sahneler: [danube, fought, walls] }).some((p) => p.includes("assault")), "the walls fought over on a close map: the scene is the reaction");
+  });
+
+  await scenario("O15 the owner's shares after DFT Tarih (23 Oct 2026): a map scene's period picture over its marked line, the video's map / stage / picture shares, the chapter's share asks", () => {
+    const ep = sampleEpisode();
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const map: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "m1", mekan: "Map: the Balkans", harita: { merkez: [22, 43], genislik_km: 1600, kamera: [{ satir: 1, merkez: [20.45, 44.82], genislik_km: 900 }] }, ara_goruntu_satir: 1, satirlar: [narrate("The army marches north."), narrate("At Belgrade the walls wait."), narrate("The siege begins.")] };
+    const stage: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "c1", ortam: { zaman: "gun", manzara: "ordugah", uslup: "osmanli" } };
+    const episode: Episode = { ...ep, sahneler: [map, stage] };
+    const square = [[[[15, 38], [30, 38], [30, 48], [15, 48], [15, 38]]]];
+    const tl = buildTimeline(episode, [[fakeAudio(3), fakeAudio(4), fakeAudio(3)], [fakeAudio(2), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const plan = buildRenderPlan({ episode, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }, { src: "", kind: "drawn", drawn: { zaman: "gun", manzara: "ordugah", uslup: "osmanli", tohum: 1 } }], inserts: [{ src: "bg/m1-donem.jpg", caption: "Belgrade, 1456" }, undefined], mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const shot = plan.shots.find((s) => s.id === "m1")!;
+    const line = tl.lines.find((l) => l.sceneIndex === 0 && l.lineIndex === 1)!;
+    const local = (sec: number) => Math.round(sec * 30) - shot.start;
+    assert.equal(shot.inserts!.length, 1, "one picture, over its marked line only");
+    assert.ok(shot.inserts![0]!.start >= local(line.start) && shot.inserts![0]!.end <= local(line.start) + 6 * 30 && shot.inserts![0]!.caption === "Belgrade, 1456", JSON.stringify(shot.inserts));
+    const shares = pictureShares(plan);
+    assert.ok(Math.abs(shares.harita + shares.sahne + shares.gorsel - 1) < 0.01 && shares.gorsel > 0 && shares.harita > shares.gorsel, JSON.stringify(shares));
+    // Without a marked line the map has no cutaway (the picture was not searched for).
+    const unmarked = buildRenderPlan({ episode: { ...episode, sahneler: [{ ...map, ara_goruntu_satir: undefined }, stage] }, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }, { src: "", kind: "drawn", drawn: { zaman: "gun", manzara: "ordugah", uslup: "osmanli", tohum: 1 } }], inserts: [{ src: "bg/m1-donem.jpg" }, undefined], mapData: { land: square, lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+    assert.equal(unmarked.shots.find((s) => s.id === "m1")!.inserts!.length, 0);
+    // A chapter mostly on the stage, a map chapter with no picture moment: asked for; the owner's mix passes.
+    const sized = (s: Episode["sahneler"][number], sure: number) => ({ ...s, sure_hedef: sure });
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 40), sized(stage, 80)] }).some((p) => p.includes("character scenes take 67%")));
+    assert.ok(shareProblems({ ...episode, sahneler: [sized({ ...map, ara_goruntu_satir: undefined }, 100), sized(stage, 20)] }).some((p) => p.includes('no map scene marks "ara_goruntu_satir"')));
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 100), sized(stage, 20)] }), []);
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }), [], "a short video is told on the stage freely");
+    // Validation: the marked line must be one of the scene's.
+    assert.equal(validateEpisode(episode).ok, true, JSON.stringify(validateEpisode(episode).errors.slice(0, 2)));
+    assert.equal(validateEpisode({ ...episode, sahneler: [{ ...map, ara_goruntu_satir: 3 }, stage] }).ok, false);
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {
