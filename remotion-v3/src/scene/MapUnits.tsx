@@ -368,11 +368,18 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
         const len = Math.hypot(away.x, away.y) || 1;
         // Just behind the formation's rear: its depth along the way away from the enemy (a long front is not that deep).
         const reach = Math.max(0, ...pts.map((p) => ((p.x - own.x) * away.x + (p.y - own.y) * away.y) / len)) + r * 2.4;
-        const at = { x: own.x + (away.x / len) * reach, y: own.y + (away.y / len) * reach };
-        const first = u.steps[0]!.start;
-        const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         const s = r / TOKEN_R;
         const w = (label.length * 11.5 + 30) * s;
+        // Never under a badge (the Kosovo 1389 trial: Murad's badge stood on his army's label): further back, then to the
+        // sides, the first place clear of every badge on the map now (a badge is ~150 px wide and rises ~140 px).
+        const badgeBoxes = (map.badges ?? []).filter((b) => frame >= b.start && (b.end === undefined || frame < b.end)).map((b) => b.path[b.path.length - 1]!).filter(Boolean).map((p) => ({ x0: p.x - 80 * s, x1: p.x + 80 * s, y0: p.y - 145 * s, y1: p.y + 10 * s }));
+        const clear = (c: { x: number; y: number }) => badgeBoxes.every((bx) => c.x + w / 2 < bx.x0 || c.x - w / 2 > bx.x1 || c.y + 17 * s < bx.y0 || c.y - 17 * s > bx.y1);
+        const ax = away.x / len;
+        const ay = away.y / len;
+        const spots = [0, 1.6, 3.2].flatMap((more) => [0, 1, -1].map((side) => ({ x: own.x + ax * (reach + more * r) - ay * side * (w / 2 + 90 * s), y: own.y + ay * (reach + more * r) + ax * side * (w / 2 + 90 * s) })));
+        const at = spots.find(clear) ?? spots[0]!;
+        const first = u.steps[0]!.start;
+        const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         return (
           <g key={`lb${ui}`} transform={`translate(${at.x} ${at.y})`} opacity={a}>
             <rect x={-w / 2} y={-17 * s} width={w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={u.color} strokeWidth={3.5 * s} />
