@@ -321,6 +321,27 @@ export interface SceneTitleCard {
   readonly satir?: number;
 }
 
+export const INFO_CARD_KINDS = ["sema", "liste", "sayac"] as const;
+
+/**
+ * An info card over the darkened picture (owner, 23 Oct 2026, after DFT Tarih): `sema` — a political chart, boxes hanging
+ * from their `ust` box by arrows, with the portraits of `karakterler` under a box ("Roman Senate → Optimates / Populares");
+ * `liste` — a titled list whose items come in line by line ("Caesar's advantages: 1. …"); `sayac` — a number counting up
+ * from `baslangic` to `deger` with its `etiket` ("1,000,000 killed"). From line `satir` until `bitis_satir`, else a beat
+ * after the last line it names.
+ */
+export interface SceneInfoCard {
+  readonly tur: (typeof INFO_CARD_KINDS)[number];
+  readonly satir: number;
+  readonly bitis_satir?: number;
+  readonly baslik?: string;
+  readonly dugumler?: readonly { readonly ad: string; readonly ust?: number; readonly renk?: string; readonly karakterler?: readonly string[]; readonly satir?: number }[];
+  readonly maddeler?: readonly { readonly metin: string; readonly satir?: number }[];
+  readonly deger?: number;
+  readonly baslangic?: number;
+  readonly etiket?: string;
+}
+
 export interface SceneBlocking {
   readonly karakter: string;
   readonly x: number;
@@ -419,6 +440,7 @@ export interface EpisodeScene {
    */
   readonly ara_goruntu_satir?: number;
   readonly yazi_karti?: readonly SceneTitleCard[];
+  readonly bilgi_kartlari?: readonly SceneInfoCard[];
   readonly sahne_duzeni?: readonly SceneBlocking[];
   readonly dekor?: readonly SceneProp[];
   readonly kalabalik?: readonly SceneCrowd[];

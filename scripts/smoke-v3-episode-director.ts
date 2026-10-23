@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, pictureShares, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, pictureShares, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
@@ -21,6 +21,7 @@ import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } f
 import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
+import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -991,6 +992,41 @@ async function main() {
     assert.equal(withMap({ ...map, vurgular: [{ bolge: "Hungary", konum: [20, 42], satir: 1 }] }).ok, false, "a state or a place, not both");
     assert.equal(withMap({ ...map, teslim: [{ konum: [20, 42], satir: 9 }] }).ok, false, "the flag's line exists");
     assert.equal(withMap({ ...map, rozetler: [{ ...map.rozetler![0]!, x_satir: 7 }] }).ok, false);
+  });
+
+  await scenario("O17 info cards over the darkened picture after DFT Tarih: a chart box by box with portraits, a list line by line, a counter — timed by their lines, laid out as a tree, validated", () => {
+    const lines = [0, 1, 2, 3, 4].map((i) => ({ lineIndex: i, start: i * 90, end: i * 90 + 80 }));
+    const cards = infoCardsOf({
+      bilgi_kartlari: [
+        { tur: "sema", baslik: "Rome's two camps", satir: 1, dugumler: [{ ad: "Roman Senate" }, { ad: "Optimates", ust: 0, renk: "#3f6fb5", karakterler: ["halil"] }, { ad: "Populares", ust: 0, karakterler: ["mehmed"], satir: 2 }] },
+        { tur: "liste", baslik: "Advantages", satir: 3, maddeler: [{ metin: "Veteran legions", satir: 3 }, { metin: "Speed", satir: 4 }] },
+        { tur: "sayac", satir: 0, deger: 1_000_000, etiket: "killed", bitis_satir: 1 },
+        { tur: "sayac", satir: 9, deger: 5, etiket: "a line that does not exist" },
+      ],
+    }, lines, 30, 1000);
+    assert.equal(cards.length, 3, "a card on a missing line is dropped");
+    const [chart, list, counter] = cards;
+    assert.deepEqual(chart!.nodes!.map((n) => [n.label, n.parent, n.start, n.castIds?.[0]]), [["Roman Senate", undefined, 108, undefined], ["Optimates", 0, 144, "halil"], ["Populares", 0, 180, "mehmed"]], "unlined boxes 1.2 s apart, a lined one at its line");
+    assert.deepEqual([chart!.start, chart!.end], [90, 284], "until a beat after the last line it names");
+    assert.deepEqual(list!.items!.map((x) => x.start), [270, 360]);
+    assert.deepEqual([counter!.start, counter!.end, counter!.value], [0, 120, 1_000_000], "at least INFO_CARD_MIN_S even when bitis_satir comes sooner");
+    // The chart is a tree: children under their parent, the parent centred over them.
+    const at = chartLayout(chart!.nodes!, 1920, 300, 720);
+    assert.ok(at[1]!.y > at[0]!.y && at[1]!.y === at[2]!.y && Math.abs(at[0]!.x - (at[1]!.x + at[2]!.x) / 2) < 1 && at[1]!.x < at[2]!.x, JSON.stringify(at));
+    // The director puts them on the shot.
+    const ep = sampleEpisode();
+    const withCards: Episode = { ...ep, sahneler: [{ ...ep.sahneler[0]!, bilgi_kartlari: [{ tur: "liste", baslik: "Why", satir: 0, maddeler: [{ metin: "One" }, { metin: "Two" }] }] }] };
+    const tl = buildTimeline(withCards, [ep.sahneler[0]!.satirlar.map(() => fakeAudio(2))]);
+    const plan = buildRenderPlan({ episode: withCards, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false });
+    assert.equal(plan.shots.find((s) => s.id === ep.sahneler[0]!.id)!.infoCards!.length, 1);
+    // Validation.
+    const v = (c: unknown) => validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, bilgi_kartlari: [c] }] } as never);
+    assert.equal(v(withCards.sahneler[0]!.bilgi_kartlari![0]).ok, true, JSON.stringify(v(withCards.sahneler[0]!.bilgi_kartlari![0]).errors.slice(0, 2)));
+    assert.equal(v({ tur: "liste", satir: 0, maddeler: [{ metin: "One" }, { metin: "Two" }] }).ok, false, "a list needs its title");
+    assert.equal(v({ tur: "sema", satir: 0, dugumler: [{ ad: "A", ust: 1 }, { ad: "B" }] }).ok, false, "a box hangs from an earlier one");
+    assert.equal(v({ tur: "sema", satir: 0, dugumler: [{ ad: "A" }, { ad: "B", ust: 0, karakterler: ["anlatici"] }] }).ok, false, "portraits of visible cast only");
+    assert.equal(v({ tur: "sayac", satir: 0, deger: 100 }).ok, false, "a counter needs its label");
+    assert.equal(v({ tur: "harita", satir: 0 }).ok, false);
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

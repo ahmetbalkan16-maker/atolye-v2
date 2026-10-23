@@ -281,6 +281,14 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
     "yanginlar": [{"konum": [lon, lat], "satir": 3, "km": 20}]   // flames over a raided, sacked or burning place
     "teslim": [{"konum": [lon, lat], "satir": 5, "ad": "Belgrade surrenders"}]   // a white flag raised where a side gives up
     "rozetler": [… "x_satir": 6]   // a red X struck over a ruler's badge from that line: beaten, captured or dead
+  INFO CARDS — while the narrator explains politics, reasons or a striking number, the picture dims and a card comes up
+  ("bilgi_kartlari" on the scene, map or character scene; one or two per chapter of a long video, one at a time):
+    {"tur": "sema", "baslik": "Rome's two camps", "satir": 1, "dugumler": [{"ad": "Roman Senate"},
+      {"ad": "Optimates", "ust": 0, "renk": "#3f6fb5", "karakterler": ["pompey"]}, {"ad": "Populares", "ust": 0, "renk": "#c0392b", "karakterler": ["caesar"], "satir": 2}]}
+        // a political chart: who belongs to whom (2–8 boxes; "ust" = the earlier box it hangs from; portraits of visible cast)
+    {"tur": "liste", "baslik": "Caesar's advantages", "satir": 3, "maddeler": [{"metin": "Veteran legions", "satir": 3}, {"metin": "Speed", "satir": 4}]}
+        // a titled list, each item coming in with the line that says it (2–6 items, at most 6 words each)
+    {"tur": "sayac", "satir": 2, "deger": 1000000, "etiket": "Gauls killed in eight years"}   // a number counting up
   Tell events ON the map as they happen, line by line, the way the history-with-maps channels do: an army marches, a
   conquest sweeps over the land behind it, the old border fades, a battle flashes, a ruler flees, the camera follows.
   Never show a whole war's result at once — let the viewer watch it happen. Prefer this living map narration to a still

@@ -16,6 +16,7 @@ import {
   NOSES,
   GESTURES,
   GROUND_KINDS,
+  INFO_CARD_KINDS,
   MOVES,
   PROP_KINDS,
   SCENE_MOODS,
@@ -231,6 +232,52 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       if (!isObj(d)) return err("DEKOR", dp, "nesne bekleniyor");
       oneOf(d, "tur", dp, PROP_KINDS);
       num(d, "x", dp, -0.2, 1.2);
+    });
+    const sceneLines = Array.isArray(s.satirlar) ? s.satirlar.length : 0;
+    const cardLine = (o: Obj, key: string, where: string, required = false) => {
+      if (o[key] === undefined) return required ? void err("BILGI_KARTI", where, `${key} gerekli`) : undefined;
+      if (typeof o[key] !== "number" || !Number.isInteger(o[key]) || (o[key] as number) < 0 || (o[key] as number) >= Math.max(1, sceneLines)) return void err("BILGI_KARTI_SATIR", `${where}.${key}`, `0..${Math.max(0, sceneLines - 1)} arası satır numarası bekleniyor`);
+      return o[key] as number;
+    };
+    (arr(s, "bilgi_kartlari", p, true) ?? []).forEach((c, ci) => {
+      const cp = `${p}.bilgi_kartlari[${ci}]`;
+      if (!isObj(c)) return err("BILGI_KARTI", cp, "nesne bekleniyor");
+      const kind = oneOf(c, "tur", cp, INFO_CARD_KINDS);
+      const from = cardLine(c, "satir", cp, true);
+      cardLine(c, "bitis_satir", cp);
+      str(c, "baslik", cp, { optional: kind !== "liste", max: 50 });
+      const later = (o: Obj, where: string) => {
+        const at = cardLine(o, "satir", where);
+        if (at !== undefined && from !== undefined && at < from) err("BILGI_KARTI_SATIR", `${where}.satir`, "kartın kendi satırından önce olamaz");
+      };
+      if (kind === "sema") {
+        const nodes = arr(c, "dugumler", cp) ?? [];
+        if (nodes.length < 2 || nodes.length > 8) err("BILGI_KARTI", `${cp}.dugumler`, "2–8 kutu");
+        nodes.forEach((d, di) => {
+          const dp = `${cp}.dugumler[${di}]`;
+          if (!isObj(d)) return err("BILGI_KARTI", dp, "nesne bekleniyor");
+          str(d, "ad", dp, { max: 30 });
+          str(d, "renk", dp, { optional: true, pattern: HEX });
+          if (d.ust !== undefined && (typeof d.ust !== "number" || !Number.isInteger(d.ust) || d.ust < 0 || d.ust >= di)) err("BILGI_KARTI", `${dp}.ust`, "kendinden önceki bir kutunun sırası (0'dan)");
+          const who = Array.isArray(d.karakterler) ? d.karakterler : d.karakterler === undefined ? [] : null;
+          if (who === null || who.length > 4) err("BILGI_KARTI", `${dp}.karakterler`, "en fazla 4 görünür karakter id'si");
+          for (const id of who ?? []) if (typeof id !== "string" || !visible.has(id)) err("BILGI_KARTI", `${dp}.karakterler`, `görünür kadroda yok: ${String(id)}`);
+          later(d, dp);
+        });
+      } else if (kind === "liste") {
+        const items = arr(c, "maddeler", cp) ?? [];
+        if (items.length < 2 || items.length > 6) err("BILGI_KARTI", `${cp}.maddeler`, "2–6 madde");
+        items.forEach((m, mi) => {
+          const mp = `${cp}.maddeler[${mi}]`;
+          if (!isObj(m)) return err("BILGI_KARTI", mp, "nesne bekleniyor");
+          str(m, "metin", mp, { max: 60 });
+          later(m, mp);
+        });
+      } else if (kind === "sayac") {
+        num(c, "deger", cp, 1, 1e13);
+        num(c, "baslangic", cp, 0, 1e13, true);
+        str(c, "etiket", cp, { max: 60 });
+      }
     });
     if (isObj(s.harita) && s.harita.merkez !== undefined) {
       const h = s.harita;

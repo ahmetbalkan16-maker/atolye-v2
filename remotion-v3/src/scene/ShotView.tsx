@@ -9,6 +9,7 @@ import { headCenter, type PerformerState, performerState, turnStretch } from "..
 import { easeInOut, HEAD_R, HIP_Y, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
+import { InfoCardView } from "./InfoCard";
 import { MapHud } from "./MapMarks";
 import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
@@ -283,6 +284,10 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
       ) : null}
       {/* The strength bar and the date stamp stay fixed on the screen over the moving map. */}
       {shot.geoMap && !insertOn ? <MapHud map={shot.geoMap} frame={frame} fps={fps} W={W} H={H} /> : null}
+      {/* Info cards dim everything under them (DFT Tarih's charts, lists and counters over the map). */}
+      {(shot.infoCards ?? []).map((c, i) => (
+        <InfoCardView key={`ic-${i}`} card={c} cast={cast} accessories={accessories} language={language} />
+      ))}
       {shot.titleCards.map((c, i) => (
         <TitleCard key={i} card={c} />
       ))}

@@ -222,6 +222,23 @@ export interface V3TitleCard {
   readonly style: "yer_tarih" | "bolum" | "bilgi" | "kelime" | "kapak" | "abone" | "kucukresim";
 }
 
+/**
+ * An info card over the darkened picture (DFT Tarih): a chart of boxes hanging from their parent (`parent`: index of an
+ * earlier node) with portraits under them, a list whose items come in one by one, or a number counting from `from` to
+ * `value`. Each node and item comes in at its own frame.
+ */
+export interface V3InfoCard {
+  readonly kind: "sema" | "liste" | "sayac";
+  readonly start: number;
+  readonly end: number;
+  readonly title?: string;
+  readonly nodes?: readonly { readonly label: string; readonly parent?: number; readonly color?: string; readonly castIds?: readonly string[]; readonly start: number }[];
+  readonly items?: readonly { readonly text: string; readonly start: number }[];
+  readonly value?: number;
+  readonly from?: number;
+  readonly label?: string;
+}
+
 export interface V3MapArrow {
   /** Points in background-image space, 0..1. */
   readonly points: readonly { readonly x: number; readonly y: number }[];
@@ -481,6 +498,7 @@ export interface V3Shot {
   readonly nameTags?: readonly V3NameTag[];
   readonly inserts?: readonly V3Insert[];
   readonly extras?: readonly V3Extra[];
+  readonly infoCards?: readonly V3InfoCard[];
   /** A drawn geographic map instead of the background image. */
   readonly geoMap?: V3GeoMap;
 }

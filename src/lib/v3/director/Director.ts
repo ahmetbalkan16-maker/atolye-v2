@@ -13,6 +13,7 @@ import type {
   V3FaceEvent,
   V3Gesture,
   V3GestureEvent,
+  V3InfoCard,
   V3Insert,
   V3MapBadge,
   V3MoveEvent,
@@ -392,6 +393,40 @@ export function pictureShares(plan: V3RenderPlan): { harita: number; sahne: numb
   return { harita: r(map), sahne: r(stage), gorsel: r(pictures) };
 }
 
+/** An info card stays at least this long (seconds), and this long after the last line it names. */
+export const INFO_CARD_MIN_S = 4;
+const INFO_CARD_HOLD_S = 0.8;
+
+/**
+ * A scene's info cards in shot frames (DFT Tarih): each from its line; its nodes and items at their own lines (else one
+ * after another, 1.2 s apart); it holds until `bitis_satir`, or a beat after the last line it names.
+ */
+export function infoCardsOf(scene: Pick<EpisodeScene, "bilgi_kartlari">, lines: readonly { readonly lineIndex: number; readonly start: number; readonly end: number }[], fps: number, duration: number): V3InfoCard[] {
+  const at = (i: number) => lines.find((l) => l.lineIndex === i);
+  return (scene.bilgi_kartlari ?? []).flatMap((c) => {
+    const line = at(c.satir);
+    if (!line) return [];
+    const start = line.start;
+    const timed = <T extends { readonly satir?: number }>(list: readonly T[] | undefined) => (list ?? []).map((x, i) => ({ x, start: x.satir !== undefined && at(x.satir) ? Math.max(start, at(x.satir)!.start) : start + Math.round((0.6 + i * 1.2) * fps) }));
+    const nodes = timed(c.dugumler);
+    const items = timed(c.maddeler);
+    const named = [c.satir, ...(c.dugumler ?? []).map((d) => d.satir), ...(c.maddeler ?? []).map((m) => m.satir)].flatMap((i) => (i !== undefined && at(i) ? [at(i)!.end] : []));
+    const last = Math.max(...named, ...nodes.map((n) => n.start), ...items.map((n) => n.start));
+    const ends = c.bitis_satir !== undefined && at(c.bitis_satir) ? at(c.bitis_satir)!.start : last + Math.round(INFO_CARD_HOLD_S * fps);
+    const end = Math.min(duration - 1, Math.max(start + Math.round(INFO_CARD_MIN_S * fps), ends));
+    if (end - start < fps) return [];
+    return [{
+      kind: c.tur,
+      start,
+      end,
+      ...(c.baslik ? { title: c.baslik } : {}),
+      ...(c.tur === "sema" ? { nodes: nodes.map(({ x, start: s }) => ({ label: x.ad, ...(x.ust !== undefined ? { parent: x.ust } : {}), ...(x.renk ? { color: x.renk } : {}), ...(x.karakterler?.length ? { castIds: x.karakterler } : {}), start: s })) } : {}),
+      ...(c.tur === "liste" ? { items: items.map(({ x, start: s }) => ({ text: x.metin, start: s })) } : {}),
+      ...(c.tur === "sayac" ? { value: c.deger ?? 0, ...(c.baslangic !== undefined ? { from: c.baslangic } : {}), ...(c.etiket ? { label: c.etiket } : {}) } : {}),
+    }];
+  });
+}
+
 export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
   const { episode, timeline, fps } = input;
   const f = (sec: number) => Math.round(sec * fps);
@@ -657,6 +692,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       ...(o.etiket ? { label: o.etiket } : {}),
     }));
 
+    const infoCards = infoCardsOf(scene, lines.map((lt) => ({ lineIndex: lt.lineIndex, start: local(lt.start), end: local(lt.end) })), fps, duration);
+
     const props: V3Prop[] = (scene.dekor ?? []).map((d) => ({ kind: d.tur, x: d.x, depth: d.derinlik ?? 0.3, ...(d.olcek ? { scale: d.olcek } : {}), ...(d.ters ? { flip: true } : {}) }));
     for (const s of slots.values()) if (s.seated && !props.some((p) => p.kind === "taht" && Math.abs(p.x - s.x) < 0.08)) props.push({ kind: "taht", x: s.x, depth: s.depth + 0.02, scale: 1.3 });
 
@@ -722,6 +759,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       nameTags,
       inserts,
       extras,
+      ...(infoCards.length ? { infoCards } : {}),
       ...(geo ? { geoMap: talks.size ? { ...geo, badges: (geo.badges ?? []).map((b) => withTalk(b, talks.get(b.castId))) } : geo } : {}),
     });
   });
