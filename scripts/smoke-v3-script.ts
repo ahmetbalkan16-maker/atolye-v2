@@ -244,6 +244,14 @@ async function main() {
     assert.ok(openai.calls[1]!.prompt.startsWith("The JSON episode below has 21 spoken words; the target is about 76. Expand"));
     assert.equal(out.spokenWords, 21 + 6 * 9);
     assert.equal(out.targetWords, 76);
+    // A longer version that loses what the map rules won is not taken (they are not asked again after these rounds).
+    const lostMap = JSON.parse(JSON.stringify(longer));
+    lostMap.sahneler[1].mekan = "Map of the Bosphorus";
+    const again = new FakeProvider([validJson(), JSON.stringify(lostMap), JSON.stringify({ iddialar: [] })]);
+    const logs: string[] = [];
+    const kept = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 42, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai: again } }), log: (m) => logs.push(m) });
+    assert.equal(kept.spokenWords, 21, "the shorter script with its map kept");
+    assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (0 → 1)")), logs.join("\n"));
   });
 
   await scenario("N research: a fact is kept only when its quote is really in the cited article", () => {

@@ -319,6 +319,12 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} hedefe yaklaşmadı (${spokenWords(revised.value as Episode)}/${targetWords} kelime)`);
       continue;
     }
+    // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
+    const before = mapProblems(written).length;
+    if (revised.quality.length > before) {
+      input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
+      continue;
+    }
     written = revised.value as Episode;
     validation = revised.validation!;
   }

@@ -298,6 +298,24 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
   rout (the beaten side's tokens fall back, more "kayip"), the fleet battle (ships at each other, firing). A character
   scene may come before it (the council) or after it (the leaders' reaction), never instead of it. On the close map the
   leaders speak from their badges (a "rozet" at their army, their tent or the walls), so the fight stays in view.
+  A SIEGE OR BATTLE STORY has these scenes in this order: (1) wide map: the march there; (2) close map: the armies
+  arrive, the guns pound the walls, the fleets close the river or the sea; (3) character scene: the council in the tent
+  or inside the walls; (4) THE ASSAULT, a second close map of the same place (same "merkez" and "genislik_km", with the
+  walls), every line of the fight moving the tokens; (5) character scene: the leaders' reaction; then the wide map for
+  what it changed. Each fight of the story (a fleet battle, the assault on the walls, a sortie) is its own close-map
+  scene or lines. The storming of the walls, the breach and the rout are never told only in a character scene.
+  The assault scene, in short:
+    {"id": "s6-assault", "mekan": "Close map: the walls of <city>", "harita": {"merkez": [lon, lat], "genislik_km": 10,
+      "surlar": [{"ad": "<the walls' name>", "noktalar": [[lon, lat], …], "gedik": {"konum": [lon, lat], "satir": 1}}],
+      "araclar": [{"tur": "top", "renk": "#…", "sayi": 3, "konum": [lon, lat], "satir": 0, "hedef": [a point on the wall], "ates_satir": 0}],
+      "birlikler": [
+        {"taraf": "<attackers>", …, "yerler": [{"satir": 0, "cephe": [[their lines], …]}, {"satir": 1, "cephe": [[just outside the wall], …], "kayip": 3},
+                                               {"satir": 3, "kume": [back at their camp], "kayip": 2}]},
+        {"taraf": "<defenders>", …, "yerler": [{"satir": 0, "kume": [inside the walls]}, {"satir": 1, "cephe": [[just inside the wall], …], "kayip": 2},
+                                               {"satir": 3, "cephe": [[out through the breach], …]}]}],
+      "rozetler": [{"karakter": "<the attacking leader>", "konum": [his camp], "satir": 2}]},
+     "satirlar": [narrator: the attackers storm the walls; narrator: the wall breaks, they pour in; the attacking leader
+      from his badge (a quip, with "balon"); narrator: the counter-attack throws them back]}
   The close map draws the place's real coast and hills by itself; on it give what the story needs, anywhere on Earth:
     "surlar": [{"ad": "Theodosian Walls", "noktalar": [[lon, lat], … 3–10 points along the wall], "osm_ad": "Walls of
                Constantinople", "kapilar": [[lon, lat]], "gedik": {"konum": [lon, lat], "satir": 4}}]

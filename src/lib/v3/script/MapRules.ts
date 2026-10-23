@@ -22,7 +22,8 @@ function closeMapProblems(s: Episode["sahneler"][number]): string[] {
   const h = s.harita!;
   const out: string[] = [];
   const sides = h.birlikler ?? [];
-  if (!sides.length) out.push(`close map "${s.id}" has no armies: give each side its "birlikler" tokens (fronts, clusters, a siege ring) and move them with the lines — CLOSE BATTLE MAP`);
+  // A fleet battle's close map may have only its ships (Belgrade's fourth trial: the Danube blockade broken).
+  if (!sides.length && !(h.araclar?.length)) out.push(`close map "${s.id}" has no armies: give each side its "birlikler" tokens (fronts, clusters, a siege ring) and move them with the lines — CLOSE BATTLE MAP`);
   // Where each side stands on a line: its latest formation at or before it.
   const at = (u: (typeof sides)[number], line: number) => {
     const y = [...u.yerler].filter((f) => f.satir <= line).sort((a, b) => b.satir - a.satir)[0];

@@ -209,7 +209,8 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
     if (has < want * 0.85) {
       lengthRounds++;
       const longer = check((await d.budget.generate(`bolum-${i + 1}-uzunluk`, writerUsed, lengthPrompt(JSON.stringify(chapter), has, want), opts)).result.content);
-      if (!longer.problems.length && wordsOf((longer.value as Record<string, unknown>).sahneler as Record<string, unknown>[]) > has) chapter = longer.value as Record<string, unknown>;
+      // Kept only if it keeps what the map rules won (they are not asked again after this round).
+      if (!longer.problems.length && longer.quality.length <= state.quality.length && wordsOf((longer.value as Record<string, unknown>).sahneler as Record<string, unknown>[]) > has) chapter = longer.value as Record<string, unknown>;
     }
     const chapterScenes = prefixScenes(chapter.sahneler as Record<string, unknown>[], ch.id);
     scenes.push(...chapterScenes);

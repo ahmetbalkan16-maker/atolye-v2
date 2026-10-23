@@ -884,6 +884,7 @@ async function main() {
     const assault = mapProblems({ ...episode, sahneler: [danube, walls] });
     assert.ok(assault.some((p) => p.includes("assault on the walls is never seen") && p.includes('scene "s6" line 0')), JSON.stringify(assault));
     assert.ok(!assault.some((p) => p.includes("climax is never seen")), "the ships lost are the close map's fight");
+    assert.ok(!mapProblems({ ...episode, sahneler: [{ ...danube, harita: { ...danube.harita!, birlikler: undefined } }] }).some((p) => p.includes("has no armies")), "a fleet battle's map may have only its ships");
     assert.ok(!mapProblems({ ...episode, sahneler: [danube, fought, walls] }).some((p) => p.includes("assault")), "the walls fought over on a close map: the scene is the reaction");
   });
 
