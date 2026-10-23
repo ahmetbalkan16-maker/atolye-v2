@@ -174,7 +174,8 @@ export interface SceneMap {
   readonly surlar?: readonly MapWall[];
   readonly yapilar?: readonly { readonly tur: BuildingKind; readonly konum: readonly [number, number]; readonly ad?: string; readonly satir?: number }[];
   readonly yerlesimler?: readonly MapSettlement[];
-  readonly yollar?: readonly { readonly noktalar: readonly [number, number][] }[];
+  /** `ad`: the road's name, written along it ("Road to Edirne"). */
+  readonly yollar?: readonly { readonly noktalar: readonly [number, number][]; readonly ad?: string }[];
   readonly arazi?: readonly { readonly tur: GroundKind; readonly konum: readonly [number, number]; readonly km?: number }[];
 }
 

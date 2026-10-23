@@ -3,7 +3,7 @@ import { Easing, interpolate } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { Burst } from "./MapUnits";
-import { along, smoothPoints } from "./mapGeometry";
+import { along, pathLength, smoothPoints } from "./mapGeometry";
 
 /**
  * Vehicles on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map narration): galleys rowing,
@@ -171,23 +171,63 @@ export function VehicleIcon({ kind, color, frame, moving }: { kind: Vehicle["kin
   }
 }
 
-/** Where a vehicle is at `frame`, which way it heads (radians), and whether it is under way. */
-function placeAt(v: Vehicle, route: readonly P[], frame: number, fps: number, travelS: number): { p: P; heading: number; moving: boolean } {
-  const headingAt = (f: number) => {
-    const a = along(route, Math.max(0, f - 0.01));
-    const b = along(route, Math.min(1, f + 0.01));
-    return Math.atan2(b.y - a.y, b.x - a.x);
-  };
+/** The route's direction at a fraction of its length (radians). */
+function headingAt(route: readonly P[], f: number): number {
+  const a = along(route, Math.max(0, f - 0.01));
+  const b = along(route, Math.min(1, f + 0.01));
+  return Math.atan2(b.y - a.y, b.x - a.x);
+}
+
+/** Where a vehicle is at `frame`, which way it heads (radians), whether it is under way, and how far along (0..1). */
+function placeAt(v: Vehicle, route: readonly P[], frame: number, fps: number, travelS: number): { p: P; heading: number; moving: boolean; t: number } {
   if (route.length < 2 || v.moveStart === undefined) {
     const face = v.target ? Math.atan2(v.target.y - route[0]!.y, v.target.x - route[0]!.x) : 0;
-    return { p: route[0]!, heading: face, moving: false };
+    return { p: route[0]!, heading: face, moving: false, t: 0 };
   }
   const t = interpolate(frame, [v.moveStart, v.moveStart + Math.round(travelS * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   const moving = t > 0 && t < 1;
   const p = along(route, t);
   // Arrived with a target: it turns to face it.
-  const heading = t >= 1 && v.target ? Math.atan2(v.target.y - p.y, v.target.x - p.x) : headingAt(t);
-  return { p, heading, moving };
+  const heading = t >= 1 && v.target ? Math.atan2(v.target.y - p.y, v.target.x - p.x) : headingAt(route, t);
+  return { p, heading, moving, t };
+}
+
+/** The part of a route between two fractions of its length. */
+function stretch(route: readonly P[], from: number, to: number): P[] {
+  const n = Math.max(2, Math.ceil((to - from) * 60));
+  return Array.from({ length: n + 1 }, (_, j) => along(route, from + ((to - from) * j) / n));
+}
+
+/**
+ * A ship hauled over land, under its hull and ahead of it, in the icon's box (facing right): a wooden cradle on three
+ * greased logs that turn as it goes, and two ropes to a team of men leaning into them, stepping.
+ */
+function Haul({ frame, color }: { frame: number; color: string }) {
+  const turn = (frame * 9) % 360;
+  return (
+    <g>
+      <rect x={-0.85} y={0.22} width={1.7} height={0.1} rx={0.03} fill="#5b3b1c" stroke={INK} strokeWidth={0.04} />
+      {[-0.6, 0, 0.6].map((x) => (
+        <g key={x} transform={`translate(${x} 0.42) rotate(${turn})`}>
+          <circle r={0.1} fill="#a4773f" stroke={INK} strokeWidth={0.04} />
+          <path d="M-0.09 0 L0.09 0" stroke={INK} strokeWidth={0.03} />
+        </g>
+      ))}
+      <path d="M1.02 -0.02 L1.55 0.12 M1.0 0.1 L1.55 0.3" stroke="#c9a46a" strokeWidth={0.035} fill="none" />
+      {[0, 1, 2, 3].map((j) => {
+        const x = 1.6 + (j % 2) * 0.32 + Math.floor(j / 2) * 0.62;
+        const y = j % 2 ? 0.3 : 0.12;
+        const step = Math.sin(frame * 0.45 + j * 1.7) * 0.07;
+        return (
+          <g key={j} transform={`translate(${x} ${y - 0.3})`}>
+            <path d={`M0 -0.08 L-0.1 0.18 M-0.1 0.18 L${-0.16 + step} 0.36 M-0.1 0.18 L${-0.02 - step} 0.36 M-0.04 0.0 L-0.22 0.08`} stroke={INK} strokeWidth={0.045} strokeLinecap="round" fill="none" />
+            <circle cx={0.02} cy={-0.14} r={0.07} fill="#f1d3b3" stroke={INK} strokeWidth={0.03} />
+            <path d="M-0.05 -0.2 L0.09 -0.2 L0.02 -0.28 Z" fill={color} />
+          </g>
+        );
+      })}
+    </g>
+  );
 }
 
 /**
@@ -209,44 +249,71 @@ export function MapVehicles({ map, frame, fps, k, travelS }: { map: V3GeoMap; fr
         const route = smoothPoints(v.path, 10);
         const plane = v.kind === "ucak";
         const travel = v.moveStart === undefined ? 0 : travelS(route, v.moveStart) * (plane ? 0.6 : 1);
-        const { p, heading, moving } = placeAt(v, route, frame, fps, travel);
+        const { p, heading, moving, t } = placeAt(v, route, frame, fps, travel);
         const dir = { x: Math.cos(heading), y: Math.sin(heading) };
-        const left = Math.cos(heading) < 0;
-        // A small group: the others follow in a wedge behind the first.
+        // Waiting or arrived, a small group stands in a wedge behind the first. Under way the others follow in single
+        // file along the route (owner, 23 Oct 2026: the fleet hauled over the hill must read as a column on its way),
+        // further apart when they are hauled, for the team pulling each.
+        const length = pathLength(route);
+        const gap = v.moveStart !== undefined && length > 0 ? (S * (v.overland?.length ? 3.6 : 2.4)) / length : 0;
+        const span = 1 + (v.count - 1) * gap;
         const members = Array.from({ length: v.count }, (_, i) => {
+          const ti = gap ? t * span - i * gap : t;
+          const f = Math.max(0, Math.min(1, ti));
+          const q = gap ? along(route, f) : p;
+          const h = gap && f > 0 && f < 1 ? headingAt(route, f) : heading;
+          const d = { x: Math.cos(h), y: Math.sin(h) };
           const row = Math.ceil(i / 2);
           const side = i === 0 ? 0 : i % 2 ? 1 : -1;
-          return { x: p.x - dir.x * row * S * 1.5 - dir.y * side * row * S * 1.1, y: p.y - dir.y * row * S * 1.5 + dir.x * side * row * S * 1.1 };
+          const w = !gap || ti <= 0 || ti >= 1 ? 1 : Math.max(0, 1 - Math.min(ti, 1 - ti) / 0.08);
+          const hauled = (v.overland ?? []).some((o) => f > o.from && f < o.to) && f > 0 && f < 1;
+          return { x: q.x - (d.x * row * S * 1.5 + d.y * side * row * S * 1.1) * w, y: q.y - (d.y * row * S * 1.5 - d.x * side * row * S * 1.1) * w, heading: h, hauled, going: gap ? f > 0 && f < 1 : moving };
         });
         const firing = v.target && v.fireStart !== undefined && frame >= v.fireStart && frame < v.fireStart + Math.round(fps * FIRE_S) && !moving;
+        const track = interpolate(frame, [v.start, v.start + Math.round(fps * 0.8)], [0, 1], { extrapolateRight: "clamp" });
         return (
           <g key={vi} opacity={gone}>
+            {/* The track laid over the land for a haul: greased logs side by side, ready before the ships come. */}
+            {(v.overland ?? []).map((o, oi) => {
+              const d = `M${stretch(route, o.from, o.to).map((q) => `${q.x} ${q.y}`).join(" L")}`;
+              return (
+                <g key={`t${oi}`} opacity={track}>
+                  <path d={d} fill="none" stroke="#3b2a17" strokeOpacity={0.45} strokeWidth={S * 0.95} strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={d} fill="none" stroke="#8a6234" strokeWidth={S * 0.7} strokeDasharray={`${S * 0.14} ${S * 0.2}`} strokeLinejoin="round" />
+                  <path d={d} fill="none" stroke="#5b3b1c" strokeWidth={S * 0.06} strokeLinejoin="round" transform={`translate(0 ${S * 0.3})`} />
+                </g>
+              );
+            })}
             {members.map((m, mi) => {
-              const bob = WATER.has(v.kind) ? Math.sin(frame * 0.12 + mi) : 0;
+              const left = Math.cos(m.heading) < 0;
+              // Afloat a ship bobs; hauled it bumps over the rollers.
+              const bob = m.hauled ? Math.sin(frame * 0.5 + mi * 2) * 0.6 : WATER.has(v.kind) ? Math.sin(frame * 0.12 + mi) : 0;
               const body = plane ? (
-                <g transform={`translate(${m.x} ${m.y}) rotate(${(heading * 180) / Math.PI}) scale(${S * appear})`}>
-                  <VehicleIcon kind={v.kind} color={v.color} frame={frame} moving={moving} />
+                <g transform={`translate(${m.x} ${m.y}) rotate(${(m.heading * 180) / Math.PI}) scale(${S * appear})`}>
+                  <VehicleIcon kind={v.kind} color={v.color} frame={frame} moving={m.going} />
                 </g>
               ) : (
                 <g transform={`translate(${m.x} ${m.y + bob * S * 0.04}) rotate(${bob * 2.5}) scale(${(left ? -1 : 1) * S * appear} ${S * appear})`}>
-                  <VehicleIcon kind={v.kind} color={v.color} frame={frame + mi * 7} moving={moving} />
+                  {m.hauled ? <Haul frame={frame + mi * 5} color={v.color} /> : null}
+                  <VehicleIcon kind={v.kind} color={v.color} frame={frame + mi * 7} moving={m.going && !m.hauled} />
                 </g>
               );
+              const md = { x: Math.cos(m.heading), y: Math.sin(m.heading) };
               return (
                 <g key={mi}>
-                  {/* Wake behind a ship under way; dust behind cavalry, elephants and tanks. */}
-                  {moving && WATER.has(v.kind) ? (
-                    <path d={`M${m.x - dir.x * S * 0.9} ${m.y + S * 0.28} l${-dir.x * S * 1.4 - dir.y * S * 0.5} ${-dir.y * S * 1.4 + dir.x * S * 0.5} M${m.x - dir.x * S * 0.9} ${m.y + S * 0.28} l${-dir.x * S * 1.4 + dir.y * S * 0.5} ${-dir.y * S * 1.4 - dir.x * S * 0.5}`} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={S * 0.08} strokeLinecap="round" fill="none" />
+                  {/* Wake behind a ship under way; dust behind cavalry, elephants, tanks and a hauled ship. */}
+                  {m.going && WATER.has(v.kind) && !m.hauled ? (
+                    <path d={`M${m.x - md.x * S * 0.9} ${m.y + S * 0.28} l${-md.x * S * 1.4 - md.y * S * 0.5} ${-md.y * S * 1.4 + md.x * S * 0.5} M${m.x - md.x * S * 0.9} ${m.y + S * 0.28} l${-md.x * S * 1.4 + md.y * S * 0.5} ${-md.y * S * 1.4 - md.x * S * 0.5}`} stroke="#ffffff" strokeOpacity={0.55} strokeWidth={S * 0.08} strokeLinecap="round" fill="none" />
                   ) : null}
-                  {moving && !WATER.has(v.kind) && !plane
+                  {m.going && (!WATER.has(v.kind) || m.hauled) && !plane
                     ? [0, 1, 2].map((j) => {
-                        const t = ((frame * 0.05 + j / 3 + mi * 0.17) % 1 + 1) % 1;
-                        return <circle key={j} cx={m.x - dir.x * S * (0.8 + t * 1.2)} cy={m.y + S * (0.2 - t * 0.3)} r={S * (0.18 + t * 0.3)} fill="#c9b48a" opacity={0.5 * (1 - t)} />;
+                        const tt = ((frame * 0.05 + j / 3 + mi * 0.17) % 1 + 1) % 1;
+                        return <circle key={j} cx={m.x - md.x * S * (0.8 + tt * 1.2)} cy={m.y + S * (0.2 - tt * 0.3)} r={S * (0.18 + tt * 0.3)} fill="#c9b48a" opacity={0.5 * (1 - tt)} />;
                       })
                     : null}
                   {/* A plane's shadow on the ground below it. */}
                   {plane ? (
-                    <g transform={`translate(${m.x + S * 0.5} ${m.y + S * 0.9}) rotate(${(heading * 180) / Math.PI}) scale(${S * appear * 0.9})`} opacity={0.25}>
+                    <g transform={`translate(${m.x + S * 0.5} ${m.y + S * 0.9}) rotate(${(m.heading * 180) / Math.PI}) scale(${S * appear * 0.9})`} opacity={0.25}>
                       <path d="M-0.95 0 L0.9 0 M0 -0.95 L-0.3 0 L0 0.95" stroke="#000000" strokeWidth={0.35} strokeLinecap="round" />
                     </g>
                   ) : null}

@@ -9,11 +9,12 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS } from "../src/lib/v3/maps/MapBuilder";
+import { backgroundStates, buildGeoMap, clipRing, formationPoints, shipLook, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, overlandStretches, throughBreach, windingRoad } from "../src/lib/v3/maps/MapBuilder";
+import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
-import { MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
+import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from "../src/lib/v3/maps/RouteZoom";
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { checkMapPlaces, decidePlace, distanceKm } from "../src/lib/v3/maps/PlaceCheck";
@@ -573,6 +574,113 @@ async function main() {
     assert.deepEqual([...new Set(withMap({ ...map, genislik_km: 500 }).errors.map((e) => e.code))], ["HARITA_YAKIN"]);
     assert.equal(withMap({ ...map, yapilar: [{ tur: "piramit", konum: [28.9, 41] }] }).ok, false);
     assert.equal(withMap({ ...map, cizgiler: [{ ad: "x", noktalar: [[28.9, 41], [28.91, 41]], stil: "duvar" }] }).ok, false);
+  });
+
+  await scenario("O11 the close map's names clear of each other and of the tokens (owner, 23 Oct 2026: wall name on the battle's, the chain's at Galata's foot), winding named roads, fire from the breach", () => {
+    const land = [[[[28, 40], [30, 40], [30, 42], [28, 42], [28, 40]]]];
+    const data = { land, lakes: [], rivers: [], countries: new Map() } as never;
+    const map: SceneMap = {
+      merkez: [28.95, 41.02],
+      genislik_km: 20,
+      kamera: [{ satir: 1, merkez: [28.93, 41.02], genislik_km: 10 }],
+      surlar: [{ ad: "Theodosian Walls", noktalar: [[28.92, 41.04], [28.92, 41.0]], kapilar: [[28.92, 41.02]], gedik: { konum: [28.92, 41.02], satir: 1 } }],
+      yerlesimler: [{ tur: "sehir", noktalar: [[28.925, 41.035], [28.96, 41.035], [28.96, 41.005], [28.925, 41.005]], yanma_satir: 1 }, { tur: "sehir", ad: "Galata", konum: [28.97, 41.03], km: 0.8 }],
+      yollar: [{ ad: "Road to Edirne", noktalar: [[28.85, 41.03], [28.92, 41.02]] }],
+      cizgiler: [{ ad: "The chain", noktalar: [[28.97, 41.024], [28.97, 41.034]], stil: "zincir" }],
+      // The battle at the breach, right where the wall's name would go; the Ottoman front just outside the wall.
+      savaslar: [{ ad: "Gate of St. Romanus", konum: [28.92, 41.02], satir: 1 }],
+      birlikler: [{ taraf: "Ottomans", renk: "#c0392b", amblem: "hilal", sayi: 6, yerler: [{ satir: 0, cephe: [[28.912, 41.04], [28.912, 41.0]] }] }],
+    };
+    const geo = buildGeoMap(map, data, 1920, 1080, (i) => (i ?? 0) * 100, { relief: "bg/yakin.jpg" });
+    const close = geo.close!;
+    // Every named thing has its place, and no two names cover each other at any camera stop they share.
+    const named = [
+      ...geo.battles!.map((b) => ({ spot: b.labelSpot!, box: nameBox(b.label, 30, true), start: b.start })),
+      ...geo.lines!.map((l) => ({ spot: l.labelSpot!, box: nameBox(l.label, 30, true), start: l.start })),
+      ...close.walls.map((w) => ({ spot: w.labelSpot!, box: nameBox(w.label!, 26, true), start: 0 })),
+      ...close.settlements.filter((s) => s.label).map((s) => ({ spot: s.labelSpot!, box: nameBox(s.label!, 30, true), start: s.start })),
+    ];
+    assert.ok(named.every((n) => n.spot), "every name placed");
+    const stops = cameraStops(geo, 1920, 1080);
+    assert.equal(stops.length, 2);
+    const rect = (n: (typeof named)[number], k: number) => ({ x0: n.spot.x + (n.spot.dx - n.box.w / 2) * k, x1: n.spot.x + (n.spot.dx + n.box.w / 2) * k, y0: n.spot.y + (n.spot.dy - n.box.h / 2) * k, y1: n.spot.y + (n.spot.dy + n.box.h / 2) * k });
+    const hit = (a: ReturnType<typeof rect>, b: ReturnType<typeof rect>) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    for (const st of stops)
+      named.forEach((a, i) =>
+        named.forEach((b, j) => {
+          if (j > i && Math.max(a.start, b.start) < st.to) assert.ok(!hit(rect(a, st.k), rect(b, st.k)), `names ${i} and ${j} overlap at the stop from ${st.from}`);
+        }),
+      );
+    // The wall's name is clear of the front's tokens while they stand there.
+    const wall = named[2]!;
+    for (const p of geo.units![0]!.steps[0]!.points) {
+      const r = rect(wall, stops[0]!.k);
+      assert.ok(!(p.x > r.x0 - 23 * stops[0]!.k && p.x < r.x1 + 23 * stops[0]!.k && p.y > r.y0 - 23 * stops[0]!.k && p.y < r.y1 + 23 * stops[0]!.k), "the wall's name is not under a token");
+    }
+    // The road bends between its points but still starts and ends on them; it is named along its way.
+    const road = close.roads[0]!;
+    const [a, b] = [road[0]!, road[road.length - 1]!];
+    assert.ok(road.length > 4, `${road.length} points`);
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const off = Math.max(...road.map((p) => Math.abs(((b.y - a.y) * p.x - (b.x - a.x) * p.y + b.x * a.y - b.y * a.x) / len)));
+    assert.ok(off > len * 0.01 && off < len * 0.08, `bends ${Math.round((off / len) * 1000) / 10}% of the stretch`);
+    assert.deepEqual(windingRoad([a, b], 1, 10, () => false), [a, ...Array.from({ length: Math.ceil(len / 10) - 1 }, (_, j) => ({ x: Math.round((a.x + ((b.x - a.x) * (j + 1)) / Math.ceil(len / 10)) * 10) / 10, y: Math.round((a.y + ((b.y - a.y) * (j + 1)) / Math.ceil(len / 10)) * 10) / 10 })), b], "a bend into the sea stays straight");
+    assert.equal(close.roadNames![0]!.label, "Road to Edirne");
+    assert.ok(Math.abs(close.roadNames![0]!.angle) <= 90 && close.roadNames![0]!.labelSpot);
+    // The burning city catches fire at the breach; Galata (no fire) has none.
+    assert.deepEqual(close.settlements[0]!.burnFrom, { x: close.walls[0]!.breach!.x, y: close.walls[0]!.breach!.y });
+    assert.equal(close.settlements[1]!.burnFrom, undefined);
+    // A wide map is left as it was; a road's name is checked like any name.
+    const wide = buildGeoMap({ merkez: [28.95, 41.02], genislik_km: 500, savaslar: [{ ad: "X", konum: [28.95, 41.02] }] }, data, 1920, 1080, () => 0);
+    assert.equal(wide.battles![0]!.labelSpot, undefined);
+    const ep = { ...sampleEpisode(), donem: "1453" };
+    assert.equal(validateEpisode({ ...ep, sahneler: [{ ...ep.sahneler[0]!, harita: { ...map, yollar: [{ ad: "x".repeat(41), noktalar: [[28.85, 41.03], [28.92, 41.02]] }] } }] } as never).ok, false);
+  });
+
+  await scenario("O12 the 1453 moments (owner, 23 Oct 2026: 'no movement at all for the ships hauled over land'): a ship's land stretch, tokens through the breach, the camera on a fleet and on a fight", () => {
+    // Land is everything west of 29.0 — a route from the sea at 29.05 over land to 28.95 and back to sea at 29.02.
+    const onLand = (p: [number, number]) => p[0] < 29.0;
+    const toPx = (p: readonly [number, number]) => ({ x: (p[0] - 28.9) * 10000, y: (41.1 - p[1]) * 10000 });
+    const haul = overlandStretches([[29.05, 41.04], [29.0, 41.04], [28.98, 41.04]], toPx, onLand);
+    assert.equal(haul.length, 1);
+    assert.ok(Math.abs(haul[0]!.from - 0.714) < 0.02 && haul[0]!.to === 1, JSON.stringify(haul));
+    assert.deepEqual(overlandStretches([[29.05, 41.04], [29.1, 41.04]], toPx, onLand), [], "all at sea");
+    assert.deepEqual(overlandStretches([[29.0005, 41.04], [29.1, 41.04]], toPx, onLand), [], "leaving from the shore is no haul");
+    const land = [[[[28, 40], [29, 40], [29, 42], [28, 42], [28, 40]]]];
+    const geo = buildGeoMap(
+      {
+        merkez: [28.98, 41.03],
+        genislik_km: 20,
+        araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 5, konum: [29.03, 41.04], satir: 1, yol: [[28.99, 41.045], [28.97, 41.04]] }],
+        surlar: [{ noktalar: [[28.95, 41.05], [28.95, 41.0]], gedik: { konum: [28.95, 41.025], satir: 2 } }],
+        birlikler: [{ taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 3, yerler: [{ satir: 0, cephe: [[28.94, 41.04], [28.94, 41.01]] }, { satir: 1, cephe: [[28.942, 41.04], [28.942, 41.01]] }, { satir: 2, kume: [28.96, 41.025], km: 0.5 }] }],
+      },
+      { land, lakes: [], rivers: [], countries: new Map() } as never,
+      1920,
+      1080,
+      (i) => (i ?? 0) * 100,
+      { relief: "bg/yakin.jpg", year: 1453 },
+    );
+    assert.equal(geo.vehicles![0]!.kind, "kadirga");
+    assert.ok(geo.vehicles![0]!.overland?.length === 1 && geo.vehicles![0]!.overland[0]!.to === 1, JSON.stringify(geo.vehicles![0]!.overland));
+    // Line 1: the breach is not open yet — no way through; line 2: every token crosses the wall through it.
+    const steps = geo.units![0]!.steps;
+    assert.equal(steps[1]!.via, undefined);
+    assert.deepEqual(steps[2]!.through, [0, 1, 2]);
+    assert.deepEqual(steps[2]!.via, { x: geo.close!.walls[0]!.breach!.x, y: geo.close!.walls[0]!.breach!.y });
+    assert.deepEqual(throughBreach([{ x: 0, y: 0 }], [{ x: 5, y: 0 }], 10, [{ points: [{ x: 9, y: -5 }, { x: 9, y: 5 }], towers: [], gates: [], breach: { x: 9, y: 0, start: 0 } }]), {}, "a move that does not cross the wall goes straight");
+    // The camera: a fleet's short haul on a wide close view is followed; a fight away from the view gets the camera.
+    const fleet = zoomOnShortRoutes({ merkez: [28.95, 41.02], genislik_km: 22, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [29.006, 41.041], satir: 2, yol: [[28.99, 41.047], [28.972, 41.041], [28.957, 41.029]] }] });
+    const key = fleet.map.kamera!.find((k) => k.satir === 2)!;
+    assert.ok(key.genislik_km >= CLOSE_MIN_ZOOM_KM && key.genislik_km < 22, `fleet followed at ${key.genislik_km} km, never the wide map's 150 km floor`);
+    const fight = zoomOnShortRoutes({
+      merkez: [28.95, 41.02],
+      genislik_km: 22,
+      kamera: [{ satir: 2, merkez: [28.98, 41.036], genislik_km: 6.5 }],
+      birlikler: [{ taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.94, 41.03], [28.93, 41.01]] }, { satir: 3, cephe: [[28.94, 41.03], [28.93, 41.01]], kayip: 1 }] }],
+    });
+    assert.deepEqual(fight.map.kamera!.find((k) => k.satir === 3), { satir: 3, merkez: [28.935, 41.02], genislik_km: 6.5 }, "the camera pans to the fight at the same width");
+    assert.equal(zoomOnShortRoutes({ ...fight.map }).zoomed, 0, "once on it, it stays");
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

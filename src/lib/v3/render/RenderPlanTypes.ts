@@ -289,6 +289,17 @@ export interface V3Insert {
   readonly caption?: string;
 }
 
+/**
+ * Where a map name is written: an anchor on the map (world pixels) and the name's centre offset from it in 1080p screen
+ * pixels, so the name stays beside its mark at every zoom (MapView keeps names at one screen size).
+ */
+export interface V3LabelSpot {
+  readonly x: number;
+  readonly y: number;
+  readonly dx: number;
+  readonly dy: number;
+}
+
 /** A drawn map (Natural Earth), already projected into frame pixels; things appear at `start` (shot frame). */
 export interface V3GeoMap {
   readonly land: string;
@@ -309,7 +320,7 @@ export interface V3GeoMap {
   /** `path`: an army that marches (first point = where it stands) from `moveStart`, leaving a dotted trail. */
   readonly armies: readonly { readonly x: number; readonly y: number; readonly label: string; readonly color: string; readonly start: number; readonly path?: readonly { readonly x: number; readonly y: number }[]; readonly moveStart?: number }[];
   /** Lines the story is about (a border river, a wall): drawn glowing, growing from one end, with their name. */
-  readonly lines?: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly label: string; readonly color: string; readonly start: number; readonly chain?: boolean }[];
+  readonly lines?: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly label: string; readonly color: string; readonly start: number; readonly chain?: boolean; readonly labelSpot?: V3LabelSpot }[];
   /** `labelX`/`labelY`: where the name stands (off the cities); absent, above the middle point. */
   readonly arrows: readonly { readonly points: readonly { readonly x: number; readonly y: number }[]; readonly color: string; readonly label?: string; readonly labelX?: number; readonly labelY?: number; readonly start: number }[];
   /**
@@ -331,7 +342,7 @@ export interface V3GeoMap {
   readonly mainTerritory?: number;
   /** Rulers' portrait badges (a cast member's head); with more than one point they travel the path from `moveStart` (default `start`). */
   readonly badges?: readonly { readonly castId: string; readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }[];
-  readonly battles?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly start: number }[];
+  readonly battles?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly start: number; readonly labelSpot?: V3LabelSpot }[];
   /**
    * A side's unit tokens: each formation's token positions (world pixels) from its frame on; between formations they
    * slide. `alive`: how many tokens are left from that formation on (losses fade out).
@@ -341,8 +352,11 @@ export interface V3GeoMap {
     readonly color: string;
     readonly emblem: string;
     readonly letters?: string;
-    /** `losses`: seconds after `start` at which each token lost in this formation falls, one by one. */
-    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number; readonly losses?: readonly number[] }[];
+    /**
+     * `losses`: seconds after `start` at which each token lost in this formation falls, one by one. `via`: a breach the
+     * tokens listed in `through` (they cross the walls to reach this formation) pass through, one after another.
+     */
+    readonly steps: readonly { readonly start: number; readonly points: readonly { readonly x: number; readonly y: number }[]; readonly alive: number; readonly losses?: readonly number[]; readonly via?: { readonly x: number; readonly y: number }; readonly through?: readonly number[] }[];
   }[];
   /** Fights between the tokens: from `start` for `durationS` the sides close in and strike where they meet. */
   readonly fights?: readonly { readonly start: number; readonly durationS: number }[];
@@ -361,6 +375,11 @@ export interface V3GeoMap {
     readonly moveStart?: number;
     readonly target?: { readonly x: number; readonly y: number };
     readonly fireStart?: number;
+    /**
+     * Where a ship's route runs over land (fractions of the path's length): it is hauled there — on log rollers over a
+     * laid track, a team pulling it (Mehmed's fleet dragged over the hill behind Galata, 1453).
+     */
+    readonly overland?: readonly { readonly from: number; readonly to: number }[];
   }[];
   /**
    * The close battle map (genislik_km ≤ 120): the ground is the place's real elevation (`relief`) on its own coast, and
@@ -372,23 +391,29 @@ export interface V3GeoMap {
     readonly unit: number;
     readonly ground: readonly { readonly kind: "tepe" | "orman" | "tarla"; readonly x: number; readonly y: number; readonly size: number; readonly seed: number }[];
     readonly roads: readonly (readonly { readonly x: number; readonly y: number }[])[];
+    /** Road names written along their road (`angle` in degrees, always readable), placed by placeCloseLabels. */
+    readonly roadNames?: readonly { readonly road: number; readonly label: string; readonly angle: number; readonly labelSpot?: V3LabelSpot }[];
     readonly walls: readonly {
       readonly label?: string;
+      readonly labelSpot?: V3LabelSpot;
       readonly points: readonly { readonly x: number; readonly y: number }[];
       readonly towers: readonly { readonly x: number; readonly y: number }[];
       readonly gates: readonly { readonly x: number; readonly y: number; readonly angle: number }[];
       readonly breach?: { readonly x: number; readonly y: number; readonly start: number };
     }[];
+    /** `burnFrom`: where the fire starts (a breach in the walls), spreading through the houses from `burn`. */
     readonly settlements: readonly {
       readonly kind: "sehir" | "koy" | "ordugah";
       readonly label?: string;
+      readonly labelSpot?: V3LabelSpot;
       readonly x: number;
       readonly y: number;
       readonly start: number;
       readonly burn?: number;
+      readonly burnFrom?: { readonly x: number; readonly y: number };
       readonly items: readonly { readonly x: number; readonly y: number; readonly angle: number; readonly seed: number }[];
     }[];
-    readonly buildings: readonly { readonly kind: "kale" | "saray" | "kilise" | "cami" | "kule" | "otag"; readonly x: number; readonly y: number; readonly label?: string; readonly start: number }[];
+    readonly buildings: readonly { readonly kind: "kale" | "saray" | "kilise" | "cami" | "kule" | "otag"; readonly x: number; readonly y: number; readonly label?: string; readonly labelSpot?: V3LabelSpot; readonly start: number }[];
   };
   /** The episode's era, for era-dependent battle effects (antik/orta: dust and clash; erken-modern/modern: fire and smoke). */
   readonly era?: "antik" | "orta" | "erken-modern" | "modern";

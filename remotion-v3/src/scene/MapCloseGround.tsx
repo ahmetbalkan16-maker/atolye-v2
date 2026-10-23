@@ -1,6 +1,6 @@
 import React from "react";
 import { interpolate } from "remotion";
-import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
+import type { V3GeoMap, V3LabelSpot } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { Burst } from "./MapUnits";
 
 /**
@@ -13,6 +13,10 @@ import { Burst } from "./MapUnits";
 
 type Close = NonNullable<V3GeoMap["close"]>;
 type Label = (text: string, size: number) => React.ReactNode;
+type Spot = V3LabelSpot | undefined;
+
+/** How long a town's fire takes to spread from where it caught to its far side (seconds). */
+const FIRE_SPREAD_S = 6;
 
 const STONE = "#c2b79f";
 const STONE_DARK = "#4a4237";
@@ -229,9 +233,42 @@ function wallLabelAt(w: Close["walls"][number], towns: Close["settlements"], u: 
   return { x: mid.x + normal.x * side * u * 5, y: mid.y + normal.y * side * u * 5 };
 }
 
-/** The close map's ground features, between the coloured states and the cities, tokens and ships. */
-export function CloseGround({ close, frame, fps, era, label }: { close: Close; frame: number; fps: number; era: V3GeoMap["era"]; label: Label }) {
+/**
+ * Houses on fire at a frame: the fire catches where it started (the breach, else the town's middle) and spreads to the
+ * far side in FIRE_SPREAD_S — dense where it caught, sparser further on — each house taking a second to blaze up.
+ */
+function burning(s: Close["settlements"][number], frame: number, fps: number): { it: Close["settlements"][number]["items"][number]; grow: number }[] {
+  if (s.burn === undefined || frame < s.burn || !s.items.length) return [];
+  const from = s.burnFrom ?? { x: s.x, y: s.y };
+  const dist = s.items.map((it) => Math.hypot(it.x - from.x, it.y - from.y));
+  const far = Math.max(...dist) || 1;
+  const out: { it: Close["settlements"][number]["items"][number]; grow: number }[] = [];
+  s.items.forEach((it, i) => {
+    const f = dist[i]! / far;
+    if (rand(it.seed + 31) >= 0.5 - 0.33 * f) return;
+    const at = s.burn! + Math.round(f * FIRE_SPREAD_S * fps);
+    const grow = interpolate(frame, [at, at + fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    if (grow > 0) out.push({ it, grow });
+  });
+  return out;
+}
+
+/** A road's name along it, like an atlas's: small parchment italics. */
+function RoadName({ text, k }: { text: string; k: number }) {
+  return (
+    <text x={0} y={7 * k} textAnchor="middle" style={{ font: `italic 700 ${22 * k}px Georgia, 'Palatino Linotype', serif`, letterSpacing: 1 * k }} fill="#f1e0b5" stroke="rgba(20,12,4,0.75)" strokeWidth={3.5 * k} paintOrder="stroke fill" strokeLinejoin="round">
+      {text}
+    </text>
+  );
+}
+
+/**
+ * The close map's ground features, between the coloured states and the cities, tokens and ships. `k`: world px per
+ * 1080p screen px at this frame, for the names' places (placeCloseLabels' spots: an anchor plus a screen offset).
+ */
+export function CloseGround({ close, frame, fps, era, label, k }: { close: Close; frame: number; fps: number; era: V3GeoMap["era"]; label: Label; k: number }) {
   const u = close.unit;
+  const at = (spot: Spot, x: number, y: number) => (spot ? `translate(${spot.x + spot.dx * k} ${spot.y + spot.dy * k})` : `translate(${x} ${y})`);
   return (
     <g>
       {close.ground.map((g, i) => (g.kind === "orman" ? <Woods key={`g${i}`} {...g} u={u} /> : g.kind === "tarla" ? <Fields key={`g${i}`} {...g} u={u} /> : <Hill key={`g${i}`} {...g} u={u} />))}
@@ -244,15 +281,25 @@ export function CloseGround({ close, frame, fps, era, label }: { close: Close; f
           </g>
         );
       })}
+      {(close.roadNames ?? []).map((rn, i) => {
+        const p = rn.labelSpot ?? close.roads[rn.road]?.[Math.floor((close.roads[rn.road]?.length ?? 1) / 2)];
+        if (!p) return null;
+        return (
+          <g key={`rn${i}`} transform={`${at(rn.labelSpot, p.x, p.y)} rotate(${rn.angle})`}>
+            <RoadName text={rn.label} k={k} />
+          </g>
+        );
+      })}
       {close.settlements.map((s, si) => {
         const a = interpolate(frame, [s.start, s.start + Math.round(fps * 0.8)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         if (a <= 0) return null;
-        const burn = s.burn === undefined ? 0 : interpolate(frame, [s.burn, s.burn + Math.round(fps * 1.5)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         return (
           <g key={`s${si}`} opacity={a}>
             {s.items.map((it) => (s.kind === "ordugah" ? <Tent key={it.seed} {...it} u={u} /> : <House key={it.seed} {...it} u={u} />))}
-            {burn > 0 ? s.items.filter((it) => rand(it.seed + 31) < 0.15).map((it) => <Flames key={`f${it.seed}`} x={it.x} y={it.y} u={u} frame={frame} seed={it.seed} grow={burn} />) : null}
-            {s.label ? <g transform={`translate(${s.x} ${s.y})`}>{label(s.label, 30)}</g> : null}
+            {burning(s, frame, fps).map(({ it, grow }) => (
+              <Flames key={`f${it.seed}`} x={it.x} y={it.y} u={u} frame={frame} seed={it.seed} grow={grow} />
+            ))}
+            {s.label ? <g transform={at(s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g> : null}
           </g>
         );
       })}
@@ -298,7 +345,7 @@ export function CloseGround({ close, frame, fps, era, label }: { close: Close; f
                 <Burst x={w.breach!.x} y={w.breach!.y} r={u * 2.2} p={(frame - w.breach!.start) / (fps * 1.6)} era={era} seed={wi + 77} />
               </g>
             ) : null}
-            {w.label ? <g transform={`translate(${wallLabelAt(w, close.settlements, u).x} ${wallLabelAt(w, close.settlements, u).y})`}>{label(w.label, 26)}</g> : null}
+            {w.label ? <g transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${wallLabelAt(w, close.settlements, u).x} ${wallLabelAt(w, close.settlements, u).y})`}>{label(w.label, 26)}</g> : null}
           </g>
         );
       })}
@@ -310,7 +357,7 @@ export function CloseGround({ close, frame, fps, era, label }: { close: Close; f
             <g transform={`translate(${b.x} ${b.y})`}>
               <Building kind={b.kind} u={u} />
             </g>
-            {b.label ? <g transform={`translate(${b.x} ${b.y + u * 1.1})`}>{label(b.label, 24)}</g> : null}
+            {b.label ? <g transform={at(b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g> : null}
           </g>
         ) : null;
       })}

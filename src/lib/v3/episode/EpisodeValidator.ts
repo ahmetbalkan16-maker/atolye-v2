@@ -373,6 +373,7 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         const pts = isObj(y) && Array.isArray(y.noktalar) ? y.noktalar : [];
         if (pts.length < 2) err("HARITA_YOL", `${hp}.yollar[${yi}]`, "en az 2 nokta");
         pts.forEach((pt, k) => lonLat(pt, `${hp}.yollar[${yi}].noktalar[${k}]`));
+        if (isObj(y)) str(y, "ad", `${hp}.yollar[${yi}]`, { max: 40, optional: true });
       });
       (arr(h, "arazi", hp, true) ?? []).forEach((g, gi) => {
         const gp = `${hp}.arazi[${gi}]`;

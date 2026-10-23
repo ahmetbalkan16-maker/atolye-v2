@@ -3,7 +3,9 @@ import path from "node:path";
 import { CLOSE_MAP_MAX_KM, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
 import type { V3GeoMap } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
+import { placeCloseLabels } from "./CloseLabels";
 import { isPolity } from "./HistoricalBorders";
+import { LABEL_CHAR_W, labelLines } from "./LabelText";
 
 /**
  * OverSimplified-style maps from Natural Earth (public domain) vector data: land, lakes and rivers of the view,
@@ -199,14 +201,7 @@ function insideRing(x: number, y: number, ring: readonly (readonly [number, numb
   return inside;
 }
 
-/** The two lines a long state name is written on (the reference's "SIRP / İMPARATORLUĞU"); MapView splits alike. */
-export function labelLines(text: string): string[] {
-  const t = text.trim();
-  if (t.length <= 12 || !t.includes(" ")) return [t];
-  const spaces = [...t.matchAll(/ /g)].map((m) => m.index!);
-  const cut = spaces.reduce((a, b) => (Math.abs(b - t.length / 2) < Math.abs(a - t.length / 2) ? b : a));
-  return [t.slice(0, cut), t.slice(cut + 1)];
-}
+export { labelLines };
 
 /**
  * Where a state's name goes and how big: the area centre of its largest piece in view (a point inside it: for a
@@ -266,9 +261,8 @@ export function labelPoint(v: MapView, polys: readonly Polygon[], label: string,
   return { x: r1(x), y: r1(y), size, ring: best };
 }
 
-/** The smallest state name, and a condensed capital's width against its height (Bahnschrift bold). */
+/** The smallest state name (a condensed capital's width against its height: LABEL_CHAR_W). */
 const LABEL_MIN = 20;
-const LABEL_CHAR_W = 0.58;
 
 /**
  * Colours of the period's other states: strong and distinct like the reference maps (teal Byzantium, green Ottomans,
@@ -504,7 +498,7 @@ export function buildGeoMap(
   lineStart: (index: number | undefined, order: number) => number,
   opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number } = {},
 ): V3GeoMap {
-  return declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height);
+  return placeCloseLabels(declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height), width, height);
 }
 
 /** A point `km` east and `north` km north of `c` (small distances; enough to lay tokens out round a place). */
@@ -615,7 +609,12 @@ export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [numbe
     return { drawn, x: centre.x, y: centre.y, inside, radius, outline };
   });
   const buildings = (map.yapilar ?? []).map((b, i) => ({ kind: b.tur, ...toPx(b.konum), ...(b.ad ? { label: b.ad } : {}), start: b.satir !== undefined ? lineStart(b.satir, i) : 0 }));
-  const roads = (map.yollar ?? []).map((r) => r.noktalar.map((p) => toPx(p)));
+  const roads = (map.yollar ?? []).map((r, i) => windingRoad(r.noktalar.map((p) => toPx(p)), i + 1, unit * 2, (p) => onLand(lonLatOf(p))));
+  const roadNames = (map.yollar ?? []).flatMap((r, i) => (r.ad ? [{ road: i, label: r.ad, angle: 0 }] : []));
+  // A burning town catches fire where the walls broke (owner, 23 Oct 2026: "the fire should start at the breach and
+  // spread"): the breach next to its houses, if there is one.
+  const breaches = walls.flatMap((w) => (w.breach ? [w.breach] : []));
+  const burnFrom = (items: readonly XY[]) => breaches.find((b) => items.some((it) => Math.hypot(it.x - b.x, it.y - b.y) < km(0.8)));
   // Woods and fields over the free land: none in a settlement, on a wall or a road, or under a building.
   const named = (map.arazi ?? []).map((g, i) => ({ kind: g.tur, ...toPx(g.konum), size: r1(km(g.km ?? GROUND_KM[g.tur])), seed: 9000 + i }));
   const free = (p: XY, margin: number) =>
@@ -642,10 +641,102 @@ export function closeGround(map: SceneMap, v: MapView, toPx: (p: readonly [numbe
     unit,
     ground: [...scattered, ...named],
     roads,
+    ...(roadNames.length ? { roadNames } : {}),
     walls,
-    settlements: settlements.map((s) => s.drawn),
+    settlements: settlements.map((s) => {
+      const from = s.drawn.burn !== undefined ? burnFrom(s.drawn.items) : undefined;
+      return from ? { ...s.drawn, burnFrom: { x: from.x, y: from.y } } : s.drawn;
+    }),
     buildings,
   };
+}
+
+/**
+ * A road as it runs over the land (owner, 23 Oct 2026, on the 1453 map: "what are those two straight lines?"): between
+ * the script's points it bends gently — one or two long bends with a small wobble, about 7% of the stretch at most —
+ * fading out at each point, so it still meets the gate it leads to. A bend that would leave the land stays straight.
+ */
+export function windingRoad(points: readonly XY[], seed: number, step: number, onLand: (p: XY) => boolean = () => true): XY[] {
+  const out: XY[] = [points[0]!];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const count = Math.ceil(len / step);
+    if (count < 4) {
+      out.push(b);
+      continue;
+    }
+    const n = { x: -(b.y - a.y) / len, y: (b.x - a.x) / len };
+    const [p1, p2] = [hash01(seed * 7 + i) * Math.PI * 2, hash01(seed * 7 + i + 3) * Math.PI * 2];
+    const bends = 1 + Math.floor(hash01(seed * 7 + i + 5) * 2);
+    for (let j = 1; j < count; j++) {
+      const t = j / count;
+      const off = Math.sin(Math.PI * t) * len * (0.05 * Math.sin(Math.PI * bends * t + p1) + 0.018 * Math.sin(Math.PI * (bends * 2 + 3) * t + p2));
+      const straight = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      const bent = { x: straight.x + n.x * off, y: straight.y + n.y * off };
+      const p = onLand(bent) ? bent : straight;
+      out.push({ x: r1(p.x), y: r1(p.y) });
+    }
+    out.push(b);
+  }
+  return out;
+}
+
+/** Whether segment a–b crosses segment c–d. */
+function segmentsCross(a: XY, b: XY, c: XY, d: XY): boolean {
+  const side = (p: XY, q: XY, r: XY) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0;
+}
+
+/**
+ * Tokens that cross a wall to their next formation go through its breach, once it is open (owner's 1453 flow: "the
+ * wall gives way at the gate and the city falls" — the tokens slid straight through the stone): the breach, and which
+ * tokens pass it. A wall without an open breach is crossed as before.
+ */
+export function throughBreach(from: readonly XY[], to: readonly XY[], start: number, walls: NonNullable<V3GeoMap["close"]>["walls"]): { via?: XY; through?: number[] } {
+  for (const w of walls) {
+    if (!w.breach || w.breach.start > start) continue;
+    const through = to.flatMap((b, i) => {
+      const a = from[Math.min(i, from.length - 1)];
+      return a && w.points.slice(1).some((p, j) => segmentsCross(a, b, w.points[j]!, p)) ? [i] : [];
+    });
+    if (through.length) return { via: { x: w.breach.x, y: w.breach.y }, through };
+  }
+  return {};
+}
+
+/** The script's vehicles that float. */
+const SHIPS = new Set(["gemi", "kadirga", "yelkenli", "denizalti"]);
+/** A stretch of land shorter than this share of the route is the shore it leaves from, not a haul. */
+const MIN_OVERLAND_SHARE = 0.04;
+
+/**
+ * Where a ship's route crosses land, as fractions of its drawn length (1453: Mehmed's ships hauled from the Bosphorus
+ * over the hill behind Galata into the Golden Horn). The route is checked every few dozen metres; a short touch of the
+ * shore at its ends or a cape it cuts is left out, and two stretches a little sea apart join.
+ */
+export function overlandStretches(route: readonly (readonly [number, number])[], toPx: (p: readonly [number, number]) => XY, onLand: (p: [number, number]) => boolean): { from: number; to: number }[] {
+  const samples: { d: number; land: boolean }[] = [];
+  let run = 0;
+  for (let i = 1; i < route.length; i++) {
+    const [a, b] = [route[i - 1]!, route[i]!];
+    const [pa, pb] = [toPx(a), toPx(b)];
+    const len = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+    const n = Math.max(2, Math.ceil(len / 4));
+    for (let j = i === 1 ? 0 : 1; j <= n; j++) samples.push({ d: run + (len * j) / n, land: onLand([a[0] + ((b[0] - a[0]) * j) / n, a[1] + ((b[1] - a[1]) * j) / n]) });
+    run += len;
+  }
+  if (!run) return [];
+  const out: { from: number; to: number }[] = [];
+  for (const s of samples) {
+    const f = s.d / run;
+    const last = out[out.length - 1];
+    if (!s.land) continue;
+    if (last && f - last.to <= MIN_OVERLAND_SHARE) last.to = f;
+    else out.push({ from: f, to: f });
+  }
+  return out.filter((o) => o.to - o.from >= MIN_OVERLAND_SHARE).map((o) => ({ from: Math.round(o.from * 1000) / 1000, to: Math.round(o.to * 1000) / 1000 }));
 }
 
 /**
@@ -921,6 +1012,7 @@ function projectGeoMap(
     path: [a.konum, ...(a.yol ?? [])].map((p) => toPx(p)),
     ...(a.yol?.length ? { moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
     ...(a.hedef ? { target: toPx(a.hedef), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
+    ...((o) => (o.length ? { overland: o } : {}))(SHIPS.has(a.tur) && a.yol?.length ? overlandStretches([a.konum, ...a.yol], toPx, onLand) : []),
   }));
   const close = map.genislik_km !== undefined && map.genislik_km <= CLOSE_MAP_MAX_KM ? closeGround(map, v, toPx, onLand, lineStart) : undefined;
   // Lines where tokens are lost are fights: the two sides close in and strike while the losses fall.
@@ -936,7 +1028,8 @@ function projectGeoMap(
         alive = Math.max(0, alive - Math.max(0, Math.round(y.kayip ?? 0)));
         // Losses one by one as the fight goes on (owner, 22 Oct 2026: "then wiped out one by one with the narration").
         return { start: lineStart(y.satir, i), points: formationPoints(y, count, onLand).map((p) => toPx(p)), alive, ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}) };
-      });
+      })
+      .map((st, si, all) => (si > 0 && close ? { ...st, ...throughBreach(all[si - 1]!.points, st.points, st.start, close.walls) } : st));
     return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), steps };
   });
   const drawn: V3GeoMap = {

@@ -2,6 +2,7 @@ import React from "react";
 import { Easing, interpolate } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
+import { along } from "./mapGeometry";
 import { separateTokens } from "./unitLayout";
 
 /**
@@ -95,31 +96,40 @@ export function Emblem({ kind, letters, bg }: { kind: string; letters?: string; 
 
 type Units = NonNullable<V3GeoMap["units"]>[number];
 
-/** Where a side's token `i` is at `frame`, and whether it is still standing (with its fade). */
-function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; y: number; alpha: number; lostAt?: number } | undefined {
+/** How far apart tokens pouring through a breach start (seconds): one after another, a column through the gap. */
+const BREACH_STAGGER_S = 0.3;
+
+/**
+ * Where a side's token `i` is at `frame`, whether it is still standing (with its fade), and whether it is on its way
+ * through a breach (it does not turn aside to fight until it is through).
+ */
+function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; y: number; alpha: number; lostAt?: number; transit?: boolean } | undefined {
   const steps = u.steps;
   if (!steps.length || frame < steps[0]!.start) return undefined;
   let s = 0;
   while (s + 1 < steps.length && steps[s + 1]!.start <= frame) s++;
   const to = steps[s]!;
   const from = steps[Math.max(0, s - 1)]!;
-  const begin = to.start + Math.round(i * STAGGER_S * fps);
+  const queue = to.via && to.through ? to.through.indexOf(i) : -1;
+  const begin = to.start + Math.round((queue >= 0 ? queue * BREACH_STAGGER_S : i * STAGGER_S) * fps);
   const t = s === 0 ? 1 : interpolate(frame, [begin, begin + Math.round(SLIDE_S * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
   const a = from.points[Math.min(i, from.points.length - 1)]!;
   const b = to.points[Math.min(i, to.points.length - 1)]!;
-  const pos = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  // Through the breach: to the gap, then on to its place in the new formation.
+  const pos = queue >= 0 ? along([a, to.via!, b], t) : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  const transit = queue >= 0 && t < 1;
   // A token lost in this step falls at its own moment of the fight (one by one), lies crossed out a moment, then
   // fades; one lost before is gone.
   const lostBefore = s > 0 && i >= from.alive;
   if (lostBefore) return undefined;
   if (i >= to.alive) {
     const lostAt = to.start + Math.round((to.losses?.[i - to.alive] ?? SLIDE_S * 0.6) * fps);
-    if (frame < lostAt) return { ...pos, alpha: 1 };
+    if (frame < lostAt) return { ...pos, alpha: 1, transit };
     const alpha = interpolate(frame, [lostAt + Math.round(fps * FALLEN_S), lostAt + Math.round(fps * (FALLEN_S + 0.5))], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return alpha > 0 ? { ...pos, alpha, lostAt } : undefined;
   }
   const appear = s === 0 ? interpolate(frame, [to.start + Math.round(i * STAGGER_S * fps), to.start + Math.round((i * STAGGER_S + 0.35) * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
-  return { ...pos, alpha: appear };
+  return { ...pos, alpha: appear, transit };
 }
 
 /** A burst where fighting happens: dust and sparks before gunpowder, a fireball and smoke after. `p` 0..1. */
@@ -190,7 +200,7 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
     const sides = placed.map((side) => side.filter((t) => t !== undefined));
     const moves = sides.map((side, ui) =>
       side.map((t, ti) => {
-        if (t.lostAt !== undefined) return { x: 0, y: 0 };
+        if (t.lostAt !== undefined || t.transit) return { x: 0, y: 0 };
         let best: { x: number; y: number } | undefined;
         let d = r * 12;
         sides.forEach((other, oi) => {

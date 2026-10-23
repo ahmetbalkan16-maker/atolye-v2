@@ -242,7 +242,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
           {blade(-38)}
           {blade(38)}
         </g>
-        <g transform={`translate(0 ${-70 * k})`}>{markLabel(b.label, 30, Math.min(1, pop))}</g>
+        {/* Above the swords, or where placeCloseLabels found room on the close map. */}
+        <g transform={b.labelSpot ? `translate(${b.labelSpot.x - b.x + b.labelSpot.dx * k} ${b.labelSpot.y - b.y + b.labelSpot.dy * k})` : `translate(0 ${-70 * k})`}>{markLabel(b.label, 30, Math.min(1, pop))}</g>
       </g>
     );
   });
@@ -420,7 +421,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
           </>
         )}
         {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} /> : null}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} /> : null}
         {map.cities.map((c, i) =>
           relief ? null : (
             <g key={`c${i}`}>
@@ -456,7 +457,8 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             { x: c.x, y: c.y + 60 * k },
           ];
           const room = (s: { x: number; y: number }) => Math.min(Infinity, ...map.cities.map((t) => Math.hypot((t.x + 60 * k - s.x) / 2, t.y - s.y)));
-          const mid = sides.reduce((best, s) => (room(s) > room(best) ? s : best), sides[0]!);
+          // On the close map placeCloseLabels has found the name a place clear of every other mark.
+          const mid = ln.labelSpot ? { x: ln.labelSpot.x + ln.labelSpot.dx * k, y: ln.labelSpot.y + ln.labelSpot.dy * k } : sides.reduce((best, s) => (room(s) > room(best) ? s : best), sides[0]!);
           // A chain across the water (the Golden Horn's): dark iron links on wooden floats, rocking a little.
           if (ln.chain) {
             const links = Math.max(4, Math.round(pathLength(part) / (9 * k)));
