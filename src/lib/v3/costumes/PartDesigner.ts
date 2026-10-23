@@ -61,23 +61,32 @@ export function partOrders(episode: Episode): PartOrder[] {
   return [...out.values()];
 }
 
-/** The episode with every "yeni:" ref replaced by its library item ("gardirop/<id>"), or removed when it failed. */
-export function applyParts(episode: Episode, made: ReadonlyMap<string, string | undefined>): Episode {
-  const fix = (k: CastCostume): CastCostume => {
+/**
+ * The episode with every "yeni:" ref replaced by its library item ("gardirop/<id>"). A part that failed goes back to
+ * what the same costume had in that slot before the wardrobe step (`before`: the script's costumes), when that was a
+ * catalog item — the Kosovo 1389 trial: the likeness designer replaced Murad I's catalog turban and white beard with new
+ * orders, the new beard failed, and he was left with none — else it is removed.
+ */
+export function applyParts(episode: Episode, made: ReadonlyMap<string, string | undefined>, before?: Episode): Episode {
+  const fix = (k: CastCostume, old: CastCostume | undefined): CastCostume => {
     const copy: Record<string, unknown> = { ...k };
     for (const [field, slot] of Object.entries(FIELD_SLOT)) {
       const m = NEW_PART.exec(String(copy[field] ?? ""));
       if (!m) continue;
       const id = made.get(key({ slot, tarif: m[1]! }));
+      const prior = old ? (old as unknown as Record<string, unknown>)[field] : undefined;
       if (id) copy[field] = `${WARDROBE_PACK}/${id}`;
+      else if (typeof prior === "string" && prior && !NEW_PART.test(prior)) copy[field] = prior;
       else delete copy[field];
     }
     return copy as unknown as CastCostume;
   };
+  const oldCast = new Map((before?.oyuncu_kadrosu ?? []).map((c) => [c.id, c.kostum] as const));
+  const oldCrowd = (sceneId: string, i: number) => before?.sahneler.find((s) => s.id === sceneId)?.kalabalik?.[i]?.kostum;
   return {
     ...episode,
-    oyuncu_kadrosu: episode.oyuncu_kadrosu.map((c) => (c.kostum ? { ...c, kostum: fix(c.kostum) } : c)),
-    sahneler: episode.sahneler.map((s) => (s.kalabalik ? { ...s, kalabalik: s.kalabalik.map((g) => ({ ...g, kostum: fix(g.kostum) })) } : s)),
+    oyuncu_kadrosu: episode.oyuncu_kadrosu.map((c) => (c.kostum ? { ...c, kostum: fix(c.kostum, oldCast.get(c.id)) } : c)),
+    sahneler: episode.sahneler.map((s) => (s.kalabalik ? { ...s, kalabalik: s.kalabalik.map((g, i) => ({ ...g, kostum: fix(g.kostum, oldCrowd(s.id, i)) })) } : s)),
   };
 }
 

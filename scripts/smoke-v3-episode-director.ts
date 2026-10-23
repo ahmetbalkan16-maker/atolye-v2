@@ -9,7 +9,7 @@ import os from "node:os";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, seriesText } from "../src/lib/v3/script/Series";
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
-import { rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
+import { applyParts, rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
 import { traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
 import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
@@ -1204,6 +1204,19 @@ async function main() {
     assert.ok(mapProblems({ ...ep, sahneler: [later] }).some((p) => p.includes("uses the atlas of 1400") && p.includes("use the atlas of 1300")));
     const drawn = { ...later, harita: { ...later.harita!, bolgeler: [...later.harita!.bolgeler!, { ad: "Serbia", renk: "#3a5eb3", noktalar: [[20, 42], [22, 42], [22, 44], [20, 44]] as [number, number][], satir: 0 }] } };
     assert.ok(!mapProblems({ ...ep, sahneler: [drawn] }).some((p) => p.includes("uses the atlas")), "the other side drawn as it was");
+  });
+
+  await scenario("O26 a failed likeness part goes back to the catalog item it replaced (Kosovo 1389: Murad I lost his white beard)", () => {
+    const ep = sampleEpisode();
+    const mehmed = ep.oyuncu_kadrosu.find((c) => c.id === "mehmed")!;
+    const before: Episode = { ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "mehmed" ? { ...c, kostum: { ...c.kostum!, sakal: "sakal-beyaz", bas: "padisah-kavugu" } } : c)) };
+    const ordered: Episode = { ...ep, oyuncu_kadrosu: ep.oyuncu_kadrosu.map((c) => (c.id === "mehmed" ? { ...c, kostum: { ...mehmed.kostum!, sakal: "yeni:Murad I's full white beard", bas: "yeni:Murad I's tall white turban", el_on: "yeni:Murad I's curved sword" } } : c)) };
+    const made = new Map([["head:murad i's tall white turban", "murad-turban-abc123"]]);
+    const k = applyParts(ordered, made, before).oyuncu_kadrosu.find((c) => c.id === "mehmed")!.kostum!;
+    assert.equal(k.bas, "gardirop/murad-turban-abc123", "made: the new part");
+    assert.equal(k.sakal, "sakal-beyaz", "failed: back to the catalog beard");
+    assert.equal(k.el_on, undefined, "failed with nothing before: removed");
+    assert.equal(applyParts(ordered, made).oyuncu_kadrosu.find((c) => c.id === "mehmed")!.kostum!.sakal, undefined, "without the script's costumes: removed as before");
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

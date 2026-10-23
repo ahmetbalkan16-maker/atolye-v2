@@ -834,6 +834,8 @@ async function main() {
       // The script's own orders are kept, so a rerun of this step can try again the parts that were left off.
       if (scriptWritten || !existsSync(f("episode-siparisli.json"))) await writeJson(f("episode-siparisli.json"), episode);
       else episode = assertEpisode(await readJson<unknown>(f("episode-siparisli.json")));
+      // The costumes as the script ordered them: a part that fails goes back to the catalog item it replaced.
+      const ordered = episode;
       let records: PartRecord[] = [];
       const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
       // The costume brain (OpenAI with image input for the designer; the small model for historian and chief).
@@ -857,7 +859,7 @@ async function main() {
         if (orders.length) {
           const r = await designParts({ paths, orders, donem: episode.donem, budget, model: designer, judge, workDir: path.join(work, "gardirop-prova"), log, likeness: likeness.references, ...(brain ? { brain } : {}) });
           records = r.records;
-          episode = assertEpisode(applyParts(episode, r.made));
+          episode = assertEpisode(applyParts(episode, r.made, ordered));
         }
         const kept = await keepLikenesses(paths, episode, likeness.records, records);
         if (kept.size) log(`  benzerlik: ${kept.size} kişi kişi kütüphanesine eklendi`);
