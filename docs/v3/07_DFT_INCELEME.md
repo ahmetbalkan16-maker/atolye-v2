@@ -80,6 +80,49 @@ uygun (Senato tartışması, istihkâm kazan lejyonerler, savaş konseyi).
 - Dönem fotoğrafı / tablo / tasarlanmış görsel: %6–10 — anlatılan anı gösteren ara görüntüler, çoğu harita
   anlatımının arasında.
 
+## Kanal analizi (@DFTTarih, 296 video)
+
+Ortalama 23 dk; en çok izlenenler 17–47 dk (Osman Bey 6,7 M / 33 dk, Talas 751 4,7 M / 36 dk, 2. Dünya Savaşı 30
+dakikada 4,4 M, Kurtuluş Savaşı 3 M, Hunlar 2,8 M / 40 dk, Çanakkale 3D 2,2 M / 17 dk). Diziler ("Fatih 06"), "tek parça"
+derlemeler (40–67 dk), son dönemde İngilizce başlıklar ("DFT History"). Konular: Türk/Osmanlı, dünya savaşları, modern
+siyaset (Saddam, istihbarat örgütleri), biyografi (Puyi), mitoloji (Odysseus). İncelenen dört örnek (kare sayfaları + altyazı):
+
+- **Kanuni'nin Belgrad fethi 1521** (21 dk, yeni üslup): parlak renkli siyasi harita, büyük italik devlet adları;
+  rozet yerine **yarım boy boyalı portreler** (kılıçlı I. Süleyman) haritada; bölgeye **yangın simgeleri** ve
+  **parlayan sınır**; yeniden canlandırma **sinematik resimler** (mektup okuyan sultan, Macar elçisi) ve altında
+  konuşanın adıyla **diyalog yazısı**; ünlü dönem eserleri **çerçeveli** (Bellini'nin Fatih portresi, Belgrad
+  gravürü); haritanın üstünde beliren **hayalet portre** (Fatih'in hatırası); **parşömen bölüm kartı** ("Fatih'in
+  Rüyası: Beyaz Şehir"). Yakın harita: sokaklı, evli **çizili şehir planı**; yeşil/kırmızı yuvarlak pullar; komutan
+  portreleri birliklerinin yanında; beyaz saldırı okları; üstte **güç çubuğu** ("15.000–25.000" / "1.000");
+  binalarda yangın, nehirde gemiler; sonunda savunanların son kümesi ve **beyaz bayrak** (teslim).
+- **Çanakkale 1915 (3D)**: uydu benzeri 3B arazide **ayakta duran komutan figürleri** ve adları; **savaş odası
+  masası** üzerinde perspektif harita, arkada yürüyen askerler; yeşil gemi blokları, kırmızı bayraklı bataryalar,
+  mayın hatları; **gerçek arşiv filmleri** (1915 askerleri, Pathé haber filmi, renklendirilmiş bombardıman);
+  yıpranmış fotoğraf kolajı üstünde "18 Mart" tarih kartı.
+- **Saddam** (43 dk, modern): neredeyse tamamı **gerçek haber fotoğrafı**, yavaş kayan, altında **kırmızı başlık
+  şeridi** ("Kuveyt'in suyu ısınıyor…", "Batı bana destek verir, değil mi?").
+- **Odysseus** (25 dk, mitoloji): her an için **tasarlanmış yağlıboya üslubunda resimler**, altında anlatı yazısı
+  (adlar sarı); eski harita üslubunda deniz canavarlı harita ve portre rozetleri.
+
+### Eksiklerimiz (önem sırasıyla)
+
+1. **Tasarlanmış görsel**: dönem görseli bulunamayan an için resim üretimi (SDXL, yerel). %6–10 hedefini tek başına
+   Commons karşılayamaz; mitoloji ve az belgelenmiş olaylarda hiç karşılayamaz.
+2. **Harita üstü işaretler**: güç çubuğu, beyaz bayrak (teslim), rozete X, bölge parlaması ve yangın simgeleri,
+   bölge adına elips, köşede tarih damgası, sözlük notu, hayalet portre (hatırlama).
+3. **Harita üstü bilgi kartları** (harita kararır): siyasi şema / gruplar, satır satır maddeli liste, sayarak büyüyen
+   sayılar.
+4. **Yakın harita taktiği**: birlik türleri (piyade, süvari, okçu) ve dikdörtgen bloklar; çok hatlı savaş düzeni;
+   güç etiketi; anlatılan birliğe vurgu çerçevesi; plan okları; bozgunda dönen ve dağılan birlikler; kuşatma ve
+   çevirme hatlarının adım adım çizilmesi.
+5. **Modern konular**: telifsiz arşiv filmi (Commons, ABD Ulusal Arşivi) ve fotoğraf belgeseli kipi (başlık
+   şeridi). Pathé gibi telifli arşivler kullanılmaz.
+6. **Biçim**: 25–45 dakikalık bölümler, diziler; parşömen ya da masa üstü bölüm kartı; çerçeveli ünlü eser.
+7. Üslup (owner kararına bağlı): masa üstü perspektif harita ("savaş odası").
+
+Bizde DFT'den güçlü olanlar: canlandırılmış, konuşan, ağzı oynayan çöp adam sahneleri (DFT'de durağan resim + yazı);
+gerçek arazili, OSM surlu yakın haritalar; batan gemiler, karadan yürütme; yazar beyni Claude'suz her konuyu kuruyor.
+
 ## Uygulama sırası
 
 1. Oranlar yazar beyninde (istem + bölüm planı + pay denetimi) — bu oturum.

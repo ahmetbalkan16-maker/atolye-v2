@@ -1,3 +1,29 @@
+## 23 Ekim 2026 (gece) — V3 DFT Tarih incelemesi: oranlar, haritada dönem görseli, kanal eksik listesi
+
+**Owner:** kalanları yap; DFT Tarih'in Pharsalus videosunu incele (yakın çekimler, asker hareketleri, yakın harita,
+fotoğraflar); 20 dakikalık videoda %15 çöp adam, %6–10 gerçek/tasarlanmış fotoğraf, kalanı haritada uzak/yakın anlatım;
+sonra @DFTTarih kanalını analiz edip eksiklerimizi bul; uygun skill kullan.
+
+**Yapılanlar (feature/cop-adam-v3):**
+- `8281f4d4` kalanlar: araç grubu ad engeli kama genişliğinde, sur adına uzak adaylar (Belgrad kale adı artık
+  donanmadan ayrı); bozgun kaybı geçerli; onarımdan sonra durağan kalan haritaya son çare kamera (`livenStillMaps`).
+- `41f90ff9` oranlar: `ara_goruntu_satir` (harita sahnesinde dönem görseli o satırda, tek pencere ≤ 6 sn; üretim
+  hattı aramayı o satırın anlatımıyla yapar), `pictureShares` + QC satırı, yazar isteminde UZUN VİDEO PAYLARI, bölüm
+  isteminde saniye bütçesi, `shareProblems` (bölümde karakter sahnesi > %35 ya da görsel anı yok → onarım isteği).
+- İnceleme (agent-reach → yt-dlp; kare sayfaları + altyazı): Pharsalus ~%60 dış harita, ~%27 yakın savaş haritası,
+  ~%5 dönem resmi, ~%5 kart. Kanal: 296 video, ort. 23 dk; Belgrad 1521, Çanakkale 3D, Saddam, Odysseus örnekleri.
+  Bulgular ve önem sıralı eksik listesi: `docs/v3/07_DFT_INCELEME.md`.
+
+**Doğrulama:** tsc temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 35 (yeni O15), script 21, mix 13,
+council 11, motion 9, backgrounds 20.
+
+**Sıradaki (eksik listesinden):**
+1. Tasarlanmış görsel (dönem görseli bulunamayınca SDXL) — %6–10 hedefi için şart.
+2. Harita üstü işaretler: güç çubuğu, beyaz bayrak, rozete X, bölge parlaması/yangın, tarih damgası.
+3. Harita üstü bilgi kartları (şema, liste, sayaç); yakın harita taktiği (birlik türleri, çok hatlı düzen, plan
+   okları, vurgu, bozgun dağılması, çevirme hattı).
+4. Ölçüt bölüm 1453 sesli; Belgrad 4. senaryoyu tam üretimde dene.
+
 ## 23 Ekim 2026 (akşam) — V3 savaşın kendisi yakın haritada: konuşan rozet, batan gemiler, yazar beyni kuşatmayı haritada anlatır
 
 **Owner (devam raporu 1. madde):** yazar Belgrad'da doruğu karakter sahnesine kaçırdı; haritada konuşan büyük çöp
