@@ -1,3 +1,44 @@
+## 23 Ekim 2026 (gece, 2) — V3 DFT Tarih eksik listesi tamamlandı: işaretler, bilgi kartları, taktik, tasarlanmış görsel, biçim
+
+**Owner:** "en son bu eksikleri söylemiştim bu eksikleri tamamla ama video oluşturma; ilk önce tamamlayalım sonra kısa
+bir video yaparız AYAS'a komut verip". Video üretilmedi; yalnız önizleme kareleri ve tek tek araç denemeleri.
+
+**Yapılanlar (feature/cop-adam-v3):**
+- `b08ee036` harita üstü işaretler: `guc` (güç çubuğu, sayarak büyür, sonraki kayıt günceller), `teslim` (beyaz
+  bayrak), `rozetler[].x_satir` (kırmızı X, portre grileşir), `vurgular` (devlet sınırı parlar / yere halka),
+  `yanginlar`, `tarih` (köşede parşömen damga).
+- `5233aafd` bilgi kartları `bilgi_kartlari`: `sema` (ağaç yerleşimi, portreli kutular), `liste`, `sayac`; arka plan
+  bulanıklaşıp kararır.
+- `fbd092f3` yakın harita taktiği: `birlikler[].tur` (piyade/süvari/okçu/topçu blokları düşmana dönük),
+  `yerler[].hatlar` (2–4 hat, arka hatlar düşmandan uzağa, dama düzeni), `etiket`, `vurgu` (ışıklı çerçeve),
+  `yerler[].bozgun` (bloklar sırt döner, dağılıp kaçar), `oklar[].stil "plan"` (kesik çizgili, kamera yakınlaşmaz),
+  `kusatma_hatlari` (hendek+kazık adım adım, km yazısı).
+- `d4af9e39` tasarlanmış an resmi: `arka_plan_sorgusu.an`; dönem görseli bulunamazsa 1b turunda yerel SDXL ile tarih
+  resmi (an önce, üslup sonra), 2 tur × 2 tohum, hakemin "an" kipi, "Tasarlanmış görsel · dönem görseli değil"
+  plakası, kütüphane `_kutuphane/anlar`, üst sınır dakikada bir. `gorseller[]` (satırına bağlı ek an görselleri;
+  `film: true` → Commons telifsiz arşiv filmi, yalnız PD/CC0/CC BY, 12 sn klip). `kip "fotograf"` (sahnesiz
+  fotoğraf belgeseli) + `satirlar[].serit` (kırmızı başlık şeridi). Pusula/ölçek ara görüntüde gizli.
+  `scripts/v3/an-onizleme.ts` (Claude'suz an denemesi).
+- `da0f6e04` biçim: 45 dk üst sınır (MAX_EPISODE_S, AYAS siparişi de), bölüm sayısı ≤ 22; diziler (`--dizi`,
+  `--dizi-no`, sipariş dosyası, `_kutuphane/diziler/<ad>.json`, yazara önceki bölümler, kapakta "Fatih 06");
+  parşömen bölüm kartı (3 sn).
+- Ayrıntı ve tablo: `docs/v3/07_DFT_INCELEME.md` "Tamamlanan eksikler".
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 40 (yeni
+O16–O20), script 21, mix 13, council 11, motion 9, backgrounds 20, likeness 14, youtube 4, ayas-video-order 8.
+Önizleme kareleri: 1453 (işaretler, kartlar, parşömen), Farsala yakın haritası (bloklar, 3 hat, plan oku, bozgun,
+kuşatma hattı), şerit ve arşiv filmi Remotion karesinde. Gerçek denemeler: Truva anı iki turda da hakemden geçmedi
+(SDXL tahta at yerine canlı at çizdi — hakem doğru reddetti); 1937 Hindenburg haber filmi bulundu, indirildi, kesildi.
+
+**Bilinen durum:** temel SDXL karmaşık mitoloji anlarında zayıf (yanlış resim gösterilmez, an atlanır). Çanakkale
+1915 için Commons'ta uygun film çıkmadı. 45 dk bir videoda 4 $ OpenAI tavanı yetmeyebilir (bütçe fail-closed durur;
+tavanı owner belirler).
+
+**Sıradaki:**
+1. Canlıya alma (wip/ayas-graphify-final-execution'a merge + canonical pull + Graphify) ve sipariş izleyicisinin
+   yeniden başlatılması (`ProductionOrders.ts`/`yapim.ts` değişti) — owner onayıyla; sonra AYAS'a kısa video komutu.
+2. Belgrad 4. senaryo / 1453 ölçüt bölümü tam üretimde (yeni alanlarla).
+
 ## 23 Ekim 2026 (gece) — V3 DFT Tarih incelemesi: oranlar, haritada dönem görseli, kanal eksik listesi
 
 **Owner:** kalanları yap; DFT Tarih'in Pharsalus videosunu incele (yakın çekimler, asker hareketleri, yakın harita,

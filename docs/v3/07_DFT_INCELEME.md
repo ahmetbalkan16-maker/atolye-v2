@@ -125,8 +125,28 @@ gerçek arazili, OSM surlu yakın haritalar; batan gemiler, karadan yürütme; y
 
 ## Uygulama sırası
 
-1. Oranlar yazar beyninde (istem + bölüm planı + pay denetimi) — bu oturum.
-2. Harita sahnelerinde dönem görseli ara görüntüsü (`ara_goruntu_satir`), görsel payı ölçümü — bu oturum.
-3. Sonra: rozete X / elips vurgu; harita üstü bilgi kartları (şema, liste, sayaç); birlik türleri ve çok hatlı
-   düzen; plan okları ve vurgu çerçevesi yakın haritada; bozgun dağılması; çevirme hattı. Tasarlanmış görsel
-   (dönem görseli bulunamayınca) için SDXL yolu.
+1. Oranlar yazar beyninde (istem + bölüm planı + pay denetimi) — yapıldı (`41f90ff9`).
+2. Harita sahnelerinde dönem görseli ara görüntüsü (`ara_goruntu_satir`), görsel payı ölçümü — yapıldı (`41f90ff9`).
+3. Eksik listesinin tamamı — yapıldı (23 Ekim 2026 gece, aşağıda).
+
+## Tamamlanan eksikler (23 Ekim 2026 gece)
+
+| Eksik | Bölüm alanı (yazar) | Commit |
+|---|---|---|
+| Güç çubuğu, beyaz bayrak, rozete X, bölge parlaması / yer halkası, yangın, tarih damgası | `harita.guc`, `teslim`, `rozetler[].x_satir`, `vurgular`, `yanginlar`, `tarih` | `b08ee036` |
+| Bilgi kartları: siyasi şema (portreli), satır satır liste, sayaç; arka plan bulanıp kararır | `bilgi_kartlari` (`sema` / `liste` / `sayac`) | `5233aafd` |
+| Birlik türleri (blok + işaret), çok hatlı düzen, güç etiketi, vurgu çerçevesi, plan okları, bozgunda dağılma, kuşatma hatları | `birlikler[].tur/etiket/vurgu`, `yerler[].hatlar/bozgun/etiket`, `oklar[].stil "plan"`, `kusatma_hatlari` | `fbd092f3` |
+| Tasarlanmış an resmi (SDXL, hakem "an" kipi, "tasarlanmış" plakası), ek an görselleri, telifsiz arşiv filmi, fotoğraf belgeseli kipi + başlık şeridi | `arka_plan_sorgusu.an`, `gorseller[]` (`film`), `kip "fotograf"`, `satirlar[].serit` | `d4af9e39` |
+| 25–45 dk bölümler, diziler, parşömen bölüm kartı | `--sure 45dk`, `--dizi`/`--dizi-no`, `dizi`, `yazi_karti stil "bolum"` | `da0f6e04` |
+
+Denemelerde görülenler:
+- Tasarlanmış an: Truva atı iki kez çizildi; üslup istemin başındayken at hiç çıkmadı, an başa alınınca at çizildi ama
+  tahta değil canlı at — hakem ikisini de doğru reddetti (konu 3–4/10). Yanlış resim ekrana çıkmaz; yazara "tek ana
+  konu, tek eylem" önerisi istemde. Temel SDXL karmaşık mitoloji sahnelerinde sınırlı.
+- Arşiv filmi: Commons'ta 20. yüzyıl olayları için kamu malı haber filmleri var (1937 Hindenburg indirildi ve
+  kesildi); Çanakkale 1915 için uygun film bulunmadı. BY-SA filmler alınmaz.
+- Önizleme araçları: `scripts/v3/harita-onizleme.ts` (işaretler, kartlar, taktik), `scripts/v3/an-onizleme.ts`
+  (tasarlanmış an).
+
+Kalan (üslup, owner kararına bağlı): masa üstü perspektif "savaş odası" haritası; çerçeveli ünlü eser; hayalet portre;
+sözlük notu.
