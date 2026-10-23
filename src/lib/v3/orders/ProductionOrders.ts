@@ -41,6 +41,8 @@ export interface ProductionOrder {
   devam?: number;
   /** The step the resumed production starts from. */
   devamAdimi?: ProductionStep;
+  /** The retouch round to resume (its plan is rotus-plani.json in the work dir); a resumed order without it forgot it. */
+  rotusTuru?: number;
 }
 
 /** The step after the last one the production log shows done ("✓ ses (141 sn)"); the first step when none is. */
@@ -79,6 +81,7 @@ export function productionCommand(repoRoot: string, order: ProductionOrder, out:
       "uret", "--konu", order.konu, "--donem", order.donem, "--sure", order.sure, "--dil", order.dil, "--ton", order.ton, "--saglayici", provider, "--cikti", out,
       ...(order.dizi ? ["--dizi", order.dizi.ad, "--dizi-no", String(order.dizi.no)] : []),
       ...(order.devamAdimi && order.devamAdimi !== "senaryo" ? ["--from-step", order.devamAdimi] : []),
+      ...(order.rotusTuru && order.rotusTuru > 0 ? ["--rotus-turu", String(order.rotusTuru)] : []),
     ],
   };
 }

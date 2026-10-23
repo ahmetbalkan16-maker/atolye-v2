@@ -50,16 +50,21 @@ export async function gpuTemperature(): Promise<number | undefined> {
 export const GPU_LIMIT_C = A2000_GPU_HARD_STOP_C;
 export const GPU_PAUSE_C = GPU_LIMIT_C - 3;
 export const GPU_START_C = GPU_LIMIT_C - 7;
+/**
+ * A local model call cannot rest once it runs, and a long vision call heats the card by 7–8 °C (the Kosovo 1389 retouch
+ * round, 23 Oct 2026: calls started at 77 °C reached 85 °C, the hard stop): such a call starts only below this.
+ */
+export const GPU_CALL_START_C = GPU_LIMIT_C - 11;
 
 /**
  * A model on the local card (Ollama: the vision judge, the free text fallback) that keeps the owner's temperature
  * rule on every call: a production may take longer, the PC is never pushed past the limit. A call cannot rest inside,
- * so it starts only below GPU_START_C.
+ * so it starts only below GPU_CALL_START_C.
  */
 export function coolGpuProvider(provider: AIProvider, log: (s: string) => void = () => {}): AIProvider {
   return {
     generate: async (prompt, options) => {
-      await waitForCoolGpu(log);
+      await waitForCoolGpu(log, GPU_CALL_START_C);
       return provider.generate(prompt, options);
     },
   };

@@ -1272,6 +1272,10 @@ async function main() {
     // An order can be a series episode: the producer gets the flags.
     const cmd = productionCommand("R", { id: "x", konu: "Fall of Constantinople", donem: "1453", sure: "40dk", dil: "en", ton: "epik", kaynak: "owner", olusturuldu: "", durum: "bekliyor", dizi: { ad: "Fatih", no: 6 } }, "out", "openai");
     assert.deepEqual(cmd.args.slice(cmd.args.indexOf("--dizi"), cmd.args.indexOf("--dizi") + 4), ["--dizi", "Fatih", "--dizi-no", "6"]);
+    // A retouch round resumes as a retouch round (Kosovo 1389: restarted under the cooler GPU rule).
+    const retouch = productionCommand("R", { id: "x", konu: "k", donem: "1389", sure: "3dk", dil: "en", ton: "mizahi", kaynak: "owner", olusturuldu: "", durum: "bekliyor", devamAdimi: "gardirop", rotusTuru: 1 }, "out", "openai");
+    assert.deepEqual(retouch.args.slice(-4), ["--from-step", "gardirop", "--rotus-turu", "1"]);
+    assert.ok(!cmd.args.includes("--rotus-turu"), "no round, no flag");
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {
