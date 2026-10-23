@@ -334,7 +334,10 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
   front, "kayip" on that line so the losses fall one by one), the breach ("gedik" on its line), the counter-attack or the
   rout (the beaten side's tokens fall back, more "kayip"), the fleet battle (ships at each other, firing). A character
   scene may come before it (the council) or after it (the leaders' reaction), never instead of it. On the close map the
-  leaders speak from their badges (a "rozet" at their army, their tent or the walls), so the fight stays in view.
+  leaders speak from their badges (a "rozet" at their army, their tent or the walls), so the fight stays in view. Each
+  commander's badge stands with his own troops — a wing commander at the end of his wing (facing the enemy, a side's
+  right wing is on its right hand), the leader behind his center — and appears with the line that first names him; a
+  leader killed or captured in the fight keeps his badge there with "x_satir" on that line.
   A SIEGE OR BATTLE STORY has these scenes in this order: (1) wide map: the march there; (2) close map: the armies
   arrive, the guns pound the walls, the fleets close the river or the sea; (3) character scene: the council in the tent
   or inside the walls; (4) THE ASSAULT, a second close map of the same place (same "merkez" and "genislik_km", with the

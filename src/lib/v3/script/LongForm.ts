@@ -2,7 +2,7 @@ import type { Episode, EpisodeSource } from "../episode/EpisodeTypes";
 import { validateEpisode } from "../episode/EpisodeValidator";
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { normalizeDraft } from "./DraftNormalizer";
-import { livenStillMaps, mapProblems, shareProblems } from "./MapRules";
+import { directBattleMaps, livenStillMaps, mapProblems, shareProblems } from "./MapRules";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, wordBudget, writingPrompt } from "./ScriptPrompts";
 import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "./V3Budget";
 
@@ -224,5 +224,7 @@ export async function writeLongScript(d: LongFormDeps): Promise<LongFormDraft> {
   // A map left still after its chapter's repair rounds gets the camera's move as a last resort.
   const livened = livenStillMaps(normalizeDraft({ ...outline.header, sahneler: scenes }, d.catalog).value as Episode);
   for (const fix of livened.fixes) log(`  ${fix}`);
-  return { episode: livened.episode, repairs, lengthRounds, writerUsed, factChecks };
+  const directed = directBattleMaps(livened.episode);
+  for (const fix of directed.fixes) log(`  ${fix}`);
+  return { episode: directed.episode, repairs, lengthRounds, writerUsed, factChecks };
 }

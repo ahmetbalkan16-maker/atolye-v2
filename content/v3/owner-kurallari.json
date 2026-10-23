@@ -72,6 +72,24 @@
       "konu": "harita görünüşü",
       "metin": "On a map: states as pale washed-out tints or as flat paint hiding the terrain, white or straight hand-drawn borders, a state name cut off at the frame's edge, or a name covering a city, a badge or another name.",
       "kaynak": "owner, harita denemesi, 21 Ekim 2026"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "savaş yönetimi",
+      "metin": "Battle close map: each commander's badge stands with his own troops (a wing commander at his wing's end) and appears on the line naming him; a ruler killed has \"x_satir\" there; a charge gets an arrow, a broken side \"bozgun\". A war council in a tent: manzara \"cadir_ici\".",
+      "kaynak": "owner, Kosova 1389 denemesi, 23 Ekim 2026 (\"düzelttiğin şeyleri bizim yapay zekalara entegre et\")"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "atlas yılı",
+      "metin": "An atlas year after the story may already show its outcome (the 1400 atlas paints Serbia Ottoman before Kosovo 1389): draw the losing side's state as it was then as its own region with \"noktalar\" (it takes its provinces over the atlas).",
+      "kaynak": "owner, Kosova 1389 denemesi, 23 Ekim 2026"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "savaş haritası",
+      "metin": "On a close battle map: two sides' tokens mixed in one row instead of two fronts facing each other, a badge or a label covering another name, a badge cut by the frame's edge, a scene in a commander's tent drawn as the camp outside.",
+      "kaynak": "owner, Kosova 1389 denemesi, 23 Ekim 2026"
     }
   ]
 }

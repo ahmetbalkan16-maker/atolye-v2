@@ -2,7 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { normalizeDraft } from "./DraftNormalizer";
-import { livenStillMaps, mapProblems, shareProblems } from "./MapRules";
+import { directBattleMaps, livenStillMaps, mapProblems, shareProblems } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
@@ -333,7 +333,10 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     written = revised.value as Episode;
     validation = revised.validation!;
   }
-  written = withBankSources(written, brief.kaynakBankasi);
+  // The director's pass on the battle maps (badges with the line naming them, a fallen ruler's X, routs, charge arrows).
+  const directed = directBattleMaps(written);
+  for (const fix of directed.fixes) input.log?.(`  senaryo: ${fix}`);
+  written = withBankSources(directed.episode, brief.kaynakBankasi);
   const lengthFields = { lengthRounds, spokenWords: spokenWords(written), targetWords };
   const editor = await budget.generate("dogrulama", input.checker, factCheckPrompt(JSON.stringify(written), brief.dil, brief.kaynakBankasi), { maxTokens: FACT_CHECK_MAX_TOKENS });
   const report = readFactCheck(editor.result.content);

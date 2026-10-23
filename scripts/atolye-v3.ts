@@ -652,7 +652,7 @@ async function main() {
   const extra = existsSync(f("ek-tavan.json")) ? await readJson<{ ekUsd?: unknown; neden?: unknown }>(f("ek-tavan.json")).catch((): { ekUsd?: unknown; neden?: unknown } => ({ ekUsd: 0 })) : undefined;
   const extraUsd = Math.min(EXTRA_CAP_MAX_USD, Math.max(0, Number(extra?.ekUsd) || 0));
   const capUsd = baseCapUsd + extraUsd;
-  if (extraUsd) log(`bütçe: owner izniyle bu videoya ek ${extraUsd.toFixed(2)} (tavan ${capUsd.toFixed(2)})${typeof extra?.neden === "string" ? ` — ${extra.neden}` : ""}`);
+  if (extraUsd) log(`bütçe: owner izniyle bu videoya ek $${extraUsd.toFixed(2)} (tavan $${capUsd.toFixed(2)})${typeof extra?.neden === "string" ? ` — ${extra.neden}` : ""}`);
   const redo = (s: Step) => fromStep !== undefined && STEPS.indexOf(s) >= STEPS.indexOf(fromStep);
   const need = (s: Step, file: string) => redo(s) || !existsSync(f(file));
   const t0 = Date.now();

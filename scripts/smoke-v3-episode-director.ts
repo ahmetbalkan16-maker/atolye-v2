@@ -25,7 +25,7 @@ import { backgroundStates, buildGeoMap, clipRing, deepFront, separateFronts, spa
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
-import { mapProblems, shareProblems } from "../src/lib/v3/script/MapRules";
+import { directBattleMaps, mapProblems, shareProblems } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
@@ -1236,6 +1236,40 @@ async function main() {
     assert.equal(withNamedHighlights(own), own, "the writer's highlights win");
     const wide = { ...close, harita: { ...close.harita!, genislik_km: 900 } };
     assert.equal(withNamedHighlights(wide), wide, "only on the close map");
+  });
+
+  await scenario("O28 the director's pass the owner asked the brains to do themselves (Kosovo 1389, directed by hand): badges with their naming line, a fallen ruler's X, a rout, a charge arrow for the subject only", () => {
+    const ep = sampleEpisode();
+    const cast = [...ep.oyuncu_kadrosu, { ...ep.oyuncu_kadrosu[1]!, id: "lazar", ad: "Prince Lazar", ses_id: "lazar" }];
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    const unit = (taraf: string, renk: string, yerler: SceneMap["birlikler"] extends readonly (infer U)[] | undefined ? U extends { yerler: infer Y } ? Y : never : never) => ({ taraf, renk, amblem: "kalkan" as const, sayi: 4, yerler });
+    const battle: Episode["sahneler"][number] = {
+      ...ep.sahneler[0]!,
+      id: "y1",
+      harita: {
+        merkez: [21.05, 42.68],
+        genislik_km: 16,
+        rozetler: [{ karakter: "mehmed", konum: [21.05, 42.66] }, { karakter: "lazar", konum: [21.05, 42.70] }],
+        birlikler: [
+          unit("Serbian Coalition", "#3a5eb3", [{ satir: 0, cephe: [[21.03, 42.695], [21.07, 42.695]] }, { satir: 1, cephe: [[21.03, 42.677], [21.07, 42.677]], kayip: 1 }, { satir: 3, kume: [21.05, 42.72], kayip: 1 }]),
+          unit("Ottomans", "#3fae3a", [{ satir: 0, cephe: [[21.03, 42.67], [21.07, 42.67]] }, { satir: 1, cephe: [[21.03, 42.67], [21.07, 42.67]], kayip: 1 }]),
+        ],
+      },
+      satirlar: [narrate("The Serbian heavy cavalry charges into the Ottoman lines."), narrate("Mehmed holds the center."), narrate("Lazar fights on."), narrate("The Serbian coalition collapses and Lazar is killed.")],
+    };
+    const d = directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [battle] });
+    const h = d.episode.sahneler[0]!.harita!;
+    assert.deepEqual(h.rozetler!.map((r) => [r.karakter, r.satir, r.x_satir]), [["mehmed", 1, undefined], ["lazar", 2, 3]], "each appears with his naming line; Lazar falls on line 3");
+    assert.deepEqual(h.birlikler![0]!.yerler.map((y) => y.bozgun), [undefined, undefined, true], "the Serbs rout as they run away on line 3");
+    assert.deepEqual(h.oklar!.map((o) => [o.satir, o.renk]), [[0, "#3a5eb3"]], "one arrow, the subject's (not the Ottomans named after it)");
+    assert.equal(validateEpisode(d.episode).ok, true, JSON.stringify(validateEpisode(d.episode).errors.slice(0, 2)));
+    // What the writer gave stays.
+    const given = { ...battle, harita: { ...battle.harita!, oklar: [{ noktalar: [[21.05, 42.7], [21.05, 42.68]] as [number, number][], satir: 0 }], rozetler: [{ karakter: "lazar", konum: [21.05, 42.7] as [number, number], satir: 0, x_satir: 2 }] } };
+    const kept = directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [given] }).episode.sahneler[0]!.harita!;
+    assert.deepEqual([kept.oklar!.length, kept.rozetler![0]!.x_satir], [1, 2]);
+    // A wide map: the X only (badges keep their lines there).
+    const wide = { ...battle, harita: { ...battle.harita!, genislik_km: 900, birlikler: undefined } };
+    assert.deepEqual(directBattleMaps({ ...ep, oyuncu_kadrosu: cast, sahneler: [wide] }).episode.sahneler[0]!.harita!.rozetler!.map((r) => [r.satir, r.x_satir]), [[undefined, undefined], [undefined, 3]]);
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

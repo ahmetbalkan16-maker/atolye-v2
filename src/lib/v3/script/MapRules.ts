@@ -165,6 +165,110 @@ export function livenStillMaps(episode: Episode): { episode: Episode; fixes: str
   return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
 }
 
+/** A ruler's fall told in a line: killed, slain, captured, executed (English and Turkish stems). */
+const FALL = /\b(?:killed|slain|dies|died|dead|captured|assassinated|executed|beheaded|murdered|falls in battle|fell in battle)\b|öldü|öldürül|şehit|esir düş|idam/iu;
+/** A side breaking: collapses, flees, routed (English and Turkish stems). */
+const ROUT = /\b(?:collaps(?:e|es|ed)|fl(?:ee|ees|ed)|rout(?:s|ed)?|breaks?|broke|scatter(?:s|ed)?|retreat(?:s|ed)?|withdr[ae]w(?:s|n)?|runs? away)\b|bozgun|kaçt|kaçış|dağıl|geri çekil/iu;
+/** A side going forward: charges, attacks, counterattacks, storms (English and Turkish stems). */
+const ADVANCE = /\b(?:charg(?:e|es|ed)|attack(?:s|ed)?|counterattack(?:s|ed)?|counter-attack(?:s|ed)?|assault(?:s|ed)?|advanc(?:e|es|ed)|push(?:es|ed)?|storm(?:s|ed)?|smash(?:es|ed)?)\b|hücum|saldır|ilerle/iu;
+
+/** The name a line uses for a cast member: their first name word (≥ 3 letters, titles skipped). */
+function nameWord(ad: string): string | undefined {
+  return ad.split(/[^\p{L}]+/u).find((w) => w.length >= 3 && !/^(sultan|prince|king|emperor|tsar|czar|khan|lord|sir|general|admiral|duke|count|pope|saint|the)$/i.test(w));
+}
+
+const mentions = (text: string, word: string | undefined) => !!word && new RegExp(`(^|[^\\p{L}])${word}`, "iu").test(text);
+
+/**
+ * The director's pass over the battle maps (owner, 23 Oct 2026: "what you fixed by hand, our own brains must do"; the
+ * Kosovo 1389 trial was directed by hand): on a close map a commander's badge appears with the line that first names
+ * him; on any map a ruler a line tells killed or captured gets the red X on his badge from that line; on a close map a
+ * side a line tells breaking ("collapses", "flees") routs on that line when its formation moves away from the enemy;
+ * and a side a line tells charging gets an arrow from where it stood to where it goes, before the tokens move. Only what
+ * the writer left out is filled in; every fix is logged.
+ */
+export function directBattleMaps(episode: Episode): { episode: Episode; fixes: string[] } {
+  const fixes: string[] = [];
+  const cast = new Map(episode.oyuncu_kadrosu.map((c) => [c.id, nameWord(c.ad)] as const));
+  const sahneler = episode.sahneler.map((s) => {
+    const h = s.harita;
+    if (!h?.merkez || !h.genislik_km) return s;
+    const close = h.genislik_km <= CLOSE_MAP_MAX_KM;
+    const said = (id: string, i: number) => s.satirlar[i]!.karakter === id || mentions(s.satirlar[i]!.metin, cast.get(id));
+    const rozetler = (h.rozetler ?? []).map((r) => {
+      let out = r;
+      // On the close map the commander shows up when the narrator first names him (not all at once at the start).
+      if (close && !r.yol?.length && (r.satir ?? 0) === 0 && !said(r.karakter, 0)) {
+        const first = s.satirlar.findIndex((_, i) => said(r.karakter, i));
+        if (first > 0) {
+          out = { ...out, satir: first };
+          fixes.push(`${s.id}: ${r.karakter} rozeti ${first}. satırda (anıldığı yerde) belirir`);
+        }
+      }
+      if (out.x_satir === undefined) {
+        const fall = s.satirlar.findIndex((l, i) => i >= (out.satir ?? 0) && l.karakter !== r.karakter && mentions(l.metin, cast.get(r.karakter)) && FALL.test(l.metin));
+        if (fall >= 0) {
+          out = { ...out, x_satir: fall };
+          fixes.push(`${s.id}: ${r.karakter} ${fall}. satırda düşer — rozetine X`);
+        }
+      }
+      return out;
+    });
+    let birlikler = h.birlikler;
+    const oklar = [...(h.oklar ?? [])];
+    if (close && (h.birlikler?.length ?? 0) >= 2) {
+      const sides = h.birlikler!;
+      const stems = sides.map((u) => (u.taraf.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).find((w) => w.length >= 4 && !/^(army|forces?|troops|coalition|league|the)$/.test(w)) ?? "").slice(0, 5));
+      // The sides a line names, the subject (named first: "the Serbian cavalry charges into the Ottoman lines") first.
+      const named = (i: number) => {
+        const text = s.satirlar[i]!.metin.toLocaleLowerCase("en-US");
+        return stems.filter((st) => st && mentions(text, st)).sort((a, b) => text.search(new RegExp(`(^|[^\\p{L}])${a}`, "u")) - text.search(new RegExp(`(^|[^\\p{L}])${b}`, "u")));
+      };
+      const at = (u: (typeof sides)[number], line: number, strict = false) => [...u.yerler].filter((y) => (strict ? y.satir < line : y.satir <= line)).sort((a, b) => b.satir - a.satir)[0];
+      const enemy = (ui: number, line: number) => {
+        const pts = sides.flatMap((o, oi) => (oi === ui ? [] : [at(o, line)].flatMap((y) => (y ? [formationAt(y)].filter((p): p is [number, number] => !!p) : []))));
+        return pts.length ? ([pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length] as [number, number]) : undefined;
+      };
+      const step = Math.max(0.25, h.genislik_km * 0.02);
+      birlikler = sides.map((u, ui) => {
+        const yerler = u.yerler.map((y) => {
+          if (y.bozgun !== undefined || !ROUT.test(s.satirlar[y.satir]?.metin ?? "")) return y;
+          const n = named(y.satir);
+          if (n.length && !n.includes(stems[ui]!)) return y;
+          const before = at(u, y.satir, true);
+          const e = enemy(ui, y.satir);
+          const [p0, p1] = [before ? formationAt(before) : undefined, formationAt(y)];
+          if (!p0 || !p1 || !e || distanceKm(p1, e) <= distanceKm(p0, e) + step) return y;
+          fixes.push(`${s.id}: ${u.taraf} ${y.satir}. satırda bozguna uğrar (dağılarak kaçar)`);
+          return { ...y, bozgun: true };
+        });
+        return { ...u, yerler };
+      });
+      s.satirlar.forEach((l, li) => {
+        if (!ADVANCE.test(l.metin) || oklar.some((o) => o.satir === li)) return;
+        const n = named(li);
+        sides.forEach((u, ui) => {
+          // Only the subject charges; with no side named, a two-side battle's mover is found by its movement.
+          if (n.length ? n[0] !== stems[ui] : sides.length !== 2) return;
+          const prev = at(u, li, true) ?? at(u, li);
+          const next = [...u.yerler].filter((y) => y.satir >= li && y !== prev).sort((a, b) => a.satir - b.satir)[0];
+          const e = enemy(ui, li);
+          const [p0, p1] = [prev ? formationAt(prev) : undefined, next ? formationAt(next) : undefined];
+          if (!p0 || !p1 || !e || distanceKm(p0, e) - distanceKm(p1, e) < step) return;
+          // From where they stand toward where they go, a little short at both ends (the tokens stay readable).
+          const from: [number, number] = [p0[0] + (p1[0] - p0[0]) * 0.1, p0[1] + (p1[1] - p0[1]) * 0.1];
+          const to: [number, number] = [p0[0] + (p1[0] - p0[0]) * 0.9, p0[1] + (p1[1] - p0[1]) * 0.9];
+          oklar.push({ noktalar: [from, to], renk: u.renk, satir: li, ...(li + 1 < s.satirlar.length ? { bitis_satir: Math.min(s.satirlar.length - 1, Math.max(li + 1, next!.satir + 1)) } : {}) });
+          fixes.push(`${s.id}: ${u.taraf} ${li}. satırda hücum eder — hareket oku`);
+        });
+      });
+    }
+    const changed = rozetler.some((r, i) => r !== h.rozetler?.[i]) || birlikler !== h.birlikler || oklar.length !== (h.oklar?.length ?? 0);
+    return changed ? { ...s, harita: { ...h, ...(h.rozetler ? { rozetler } : {}), ...(birlikler ? { birlikler } : {}), ...(oklar.length ? { oklar } : {}) } } : s;
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
+}
+
 // English words by word boundary; Turkish stems without one (\b does not see "ü" as a letter: "yürüdü").
 const MOVES = /\b(?:sail(?:s|ed)?|march(?:es|ed)?|invad(?:e|es|ed)|invasion|cross(?:es|ed)|fleet|armada|campaign|conquer(?:s|ed)?|voyage|expedition)\b|sefer|donanma|işgal|fethet|yürüd|denizi geç/iu;
 /** Lines telling a crowd fighting, charging, fleeing or storming (English and Turkish stems). */
