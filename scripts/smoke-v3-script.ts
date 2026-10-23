@@ -15,7 +15,7 @@ import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript 
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
-import { mapProblems } from "../src/lib/v3/script/MapRules";
+import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
 import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
 import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
@@ -361,6 +361,12 @@ async function main() {
     assert.ok(found.some((p) => p.includes("no map shows the route")));
     const still = mapProblems({ sahneler: [scene("m1", "Map of Asia", ["Here is Japan."], { merkez: [135, 35], genislik_km: 3000 })] });
     assert.ok(still.some((p) => p.includes('map scene "m1" shows nothing happening')));
+    // Left still after the repair rounds (Belgrade's outro): the camera closes in on the place as a last resort.
+    const stillMap = { ...episode(), sahneler: [scene("m1", "Map of Asia", ["Here is Japan.", "And here it stays."], { merkez: [135, 35], genislik_km: 3000, sehirler: [{ ad: "Kyoto", konum: [135.77, 35.01] }] })] } as unknown as Episode;
+    const livened = livenStillMaps(stillMap);
+    assert.deepEqual(livened.episode.sahneler[0]!.harita!.kamera, [{ satir: 1, merkez: [135.77, 35.01], genislik_km: 1650 }]);
+    assert.ok(livened.fixes.length === 1 && !mapProblems(livened.episode).some((p) => p.includes("shows nothing happening")));
+    assert.equal(livenStillMaps(livened.episode).fixes.length, 0, "a second pass changes nothing");
     const living = { sahneler: [scene("m1", "Map of the Korea Strait", ["The Mongol fleet sailed from Korea.", "It invaded Tsushima."], { merkez: [129, 34], genislik_km: 1200, oklar: [{ noktalar: [[129, 35], [129.3, 34.3]], satir: 0 }] })] };
     assert.deepEqual(mapProblems(living), [], "a crossing drawn on the map is fine");
     const court = { ...scene("c1", "Kublai's court", ["The Khan was angry.", "He shouted at everyone."]), ortam: { zaman: "gun", manzara: "saray_ici", uslup: "cin" } };

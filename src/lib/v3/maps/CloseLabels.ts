@@ -178,9 +178,13 @@ function marksOf(m: V3GeoMap, close: Close, relief: boolean): Obstacle[] {
     side.steps.forEach((st, i) => {
       for (const p of st.points) out.push({ x: p.x, y: p.y, s: { x0: -28, y0: -28, x1: 28, y1: 28 }, from: st.start, to: side.steps[i + 1]?.start ?? Infinity, weight: TOKEN_WEIGHT });
     });
-  // Ships, cannons, riders: where they stand and along their way.
-  for (const v of m.vehicles ?? [])
-    for (const p of samples(v.path, u * 4)) out.push({ x: p.x, y: p.y, s: { x0: -55, y0: -40, x1: 55, y1: 40 }, from: v.start, to: v.end ?? Infinity, weight: 3 });
+  // Ships, cannons, riders: where they stand and along their way — a group as wide as its wedge (MapVehicles: a row back
+  // every 45 px, 33 px aside; Belgrade's six galleys at the fortress lay over its name), heavier the more there are.
+  for (const v of m.vehicles ?? []) {
+    const rows = Math.ceil((v.count - 1) / 2);
+    const s = { x0: -55 - rows * 45, y0: -40 - rows * 35, x1: 55 + rows * 45, y1: 40 + rows * 35 };
+    for (const p of samples(v.path, u * 4)) out.push({ x: p.x, y: p.y, s, from: v.start, to: v.end ?? Infinity, weight: 3 + v.count });
+  }
   // A badge's portrait and name scroll count as much as a city's name: the speakers talk from them (Belgrade: the
   // defender's scroll lay over "Belgrade Fortress").
   for (const b of m.badges ?? []) for (const p of [b.path[0], b.path[b.path.length - 1]]) if (p) out.push({ x: p.x, y: p.y, s: { x0: -75, y0: -140, x1: 75, y1: 6 }, from: b.start, to: b.end ?? Infinity, weight: CITY_WEIGHT });
@@ -251,7 +255,10 @@ export function placeCloseLabels(m: V3GeoMap, width: number, height: number): V3
     const mid = alongWithDir(w.points, 0.5);
     const town = [...close.settlements].sort((p, q) => Math.hypot(p.x - mid.p.x, p.y - mid.p.y) - Math.hypot(q.x - mid.p.x, q.y - mid.p.y))[0];
     const first = town && (town.x - mid.p.x) * -mid.t.y + (town.y - mid.p.y) * mid.t.x > 0 ? -1 : 1;
-    const cands = besideLine(w.points, box, [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9], 10, first, (n) => ({ x: n.x * u * 0.9, y: n.y * u * 0.9 }));
+    const along = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9];
+    // Further out when everything close by is taken (Belgrade: a fleet moored at the small fortress lay over every
+    // spot beside it).
+    const cands = [10, 80, 150].flatMap((gap) => besideLine(w.points, box, along, gap, first, (n) => ({ x: n.x * u * 0.9, y: n.y * u * 0.9 })));
     return { ...w, labelSpot: place(cands, 0) };
   });
   const settlements = close.settlements.map((s) => {

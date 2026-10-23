@@ -813,6 +813,12 @@ async function main() {
       { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.93, 41.04], [28.93, 41.0]], kayip: 1 }] },
     ] }));
     assert.ok(apart.some((p) => p.includes('"B" loses tokens on line 0')), JSON.stringify(apart));
+    // A rout: losses on the way back to camp, the enemy at the walls the fleeing side left (Belgrade's fourth trial).
+    const rout = (campLat: number) => mapProblems(closeScene({ merkez: [28.95, 41.02], genislik_km: 20, surlar: [{ noktalar: [[28.92, 41.04], [28.92, 41.0]] }], birlikler: [
+      { taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 6, yerler: [{ satir: 0, cephe: [[28.917, 41.03], [28.917, 41.01]] }, { satir: 1, kume: [28.85, campLat], km: 1, kayip: 2 }] },
+      { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.923, 41.03], [28.923, 41.01]] }] },
+    ] }, "The besiegers storm the walls and are thrown back."));
+    assert.ok(!rout(41.02).some((p) => p.includes("loses tokens")), "losses as they flee from the walls");
     const fine = mapProblems(closeScene({ merkez: [28.95, 41.02], genislik_km: 20, surlar: [{ noktalar: [[28.92, 41.04], [28.92, 41.0]] }], birlikler: [
       { taraf: "A", renk: "#c0392b", amblem: "hilal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.917, 41.04], [28.917, 41.0]] }] },
       { taraf: "B", renk: "#7a3fa0", amblem: "kartal", sayi: 4, yerler: [{ satir: 0, cephe: [[28.923, 41.04], [28.923, 41.0]], kayip: 1 }] },

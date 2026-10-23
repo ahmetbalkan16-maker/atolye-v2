@@ -2,7 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { normalizeDraft } from "./DraftNormalizer";
-import { mapProblems } from "./MapRules";
+import { livenStillMaps, mapProblems } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
@@ -290,9 +290,12 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   }
   if (state.problems.length) throw new ScriptError("V3_SCRIPT_INVALID", `${repairs} onarımdan sonra: ${state.problems.slice(0, 5).join("; ")}`, raw);
   if (state.quality.length) input.log?.(`  senaryo: harita isteği karşılanamadı (${state.quality.length}): ${state.quality.join(" | ").slice(0, 300)}`);
+  // A map left still after the repair rounds gets the camera's move as a last resort.
+  const livened = livenStillMaps(state.value as Episode);
+  for (const fix of livened.fixes) input.log?.(`  senaryo: ${fix}`);
 
-  let written = state.value as Episode;
-  let validation = state.validation!;
+  let written = livened.episode;
+  let validation = livened.fixes.length ? validateEpisode(written) : state.validation!;
   const targetWords = wordBudget(brief);
   let lengthRounds = 0;
   // Revision attempts for length, dialogue and cast; one is kept only if it is valid and closer to the targets,

@@ -1,4 +1,4 @@
-import { CLOSE_MAP_MAX_KM, type Episode, type UnitFormation } from "../episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, type Episode, type SceneMap, type UnitFormation } from "../episode/EpisodeTypes";
 import { mapSpeakers } from "../maps/MapSpeakers";
 import { distanceKm } from "../maps/PlaceCheck";
 
@@ -34,8 +34,11 @@ function closeMapProblems(s: Episode["sahneler"][number]): string[] {
     for (const y of u.yerler) {
       if (!(y.kayip ?? 0)) continue;
       const here = formationAt(y);
+      // A rout's losses fall as the side flees (Belgrade's fourth trial: the Ottomans lost two more on their way back to
+      // camp): where it came from on that line counts as where the fight is.
+      const from = at(u, y.satir - 1);
       const near = sides.filter((o) => o !== u).map((o) => at(o, y.satir)).filter((p): p is [number, number] => Boolean(p));
-      if (here && near.length && near.every((p) => distanceKm(here, p) > meet)) out.push(`close map "${s.id}": "${u.taraf}" loses tokens on line ${y.satir} but no enemy stands within ${Math.round(meet * 10) / 10} km then: give the other side a formation on line ${y.satir} right against it (across a wall: attackers just outside, defenders just inside) — UNITS AND VEHICLES`);
+      if (here && near.length && near.every((p) => distanceKm(here, p) > meet && (!from || distanceKm(from, p) > meet))) out.push(`close map "${s.id}": "${u.taraf}" loses tokens on line ${y.satir} but no enemy stands within ${Math.round(meet * 10) / 10} km then: give the other side a formation on line ${y.satir} right against it (across a wall: attackers just outside, defenders just inside) — UNITS AND VEHICLES`);
     }
   // A siege told in the lines, set at a fortress (the Belgrade run's "Close map: Belgrade Fortress and battlefield"), or
   // with a castle standing on the map as a single building.
@@ -81,6 +84,40 @@ function unplacedSpeakers(episode: Episode): string[] {
   return out;
 }
 
+/** Something happens on the map: a camera move, a route, a march, a battle, tokens moving or falling, a border change. */
+function mapLives(h: SceneMap): boolean {
+  return (
+    (h.kamera?.length ?? 0) > 0 ||
+    (h.oklar?.length ?? 0) > 0 ||
+    (h.savaslar?.length ?? 0) > 0 ||
+    (h.rozetler ?? []).some((r) => (r.yol?.length ?? 0) > 0) ||
+    (h.ordular ?? []).some((o) => (o.yol?.length ?? 0) > 0) ||
+    (h.cizgiler ?? []).some((c) => (c.satir ?? 0) > 0) ||
+    (h.birlikler ?? []).some((u) => u.yerler.length > 1 || u.yerler.some((y) => (y.kayip ?? 0) > 0)) ||
+    (h.araclar ?? []).some((a) => (a.yol?.length ?? 0) > 0 || a.hedef !== undefined || (a.kayip ?? 0) > 0) ||
+    (h.surlar ?? []).some((w) => w.gedik !== undefined) ||
+    (h.bolgeler ?? []).some((b) => (b.satir ?? 0) > 0 || b.bitis_satir !== undefined || b.yayilma !== undefined)
+  );
+}
+
+/**
+ * The last resort for a map on which the writer left nothing happening after its repair rounds (Belgrade's fourth trial:
+ * the outro's two states, still): the camera closes in on the scene's place — its first city or battle, else the map's
+ * centre — over its second line (or its only one), so the picture moves with the words. Logged as a fix.
+ */
+export function livenStillMaps(episode: Episode): { episode: Episode; fixes: string[] } {
+  const fixes: string[] = [];
+  const sahneler = episode.sahneler.map((s) => {
+    const h = s.harita;
+    if (!h?.merkez || !h.genislik_km || mapLives(h)) return s;
+    const target = h.savaslar?.[0]?.konum ?? h.sehirler?.[0]?.konum ?? h.merkez;
+    const satir = Math.min(1, Math.max(0, s.satirlar.length - 1));
+    fixes.push(`${s.id}: haritada hiçbir şey olmuyordu; kamera ${satir}. satırda yerine yaklaşır`);
+    return { ...s, harita: { ...h, kamera: [{ satir, merkez: [target[0], target[1]] as [number, number], genislik_km: Math.round(h.genislik_km * 0.55) }] } };
+  });
+  return fixes.length ? { episode: { ...episode, sahneler }, fixes } : { episode, fixes };
+}
+
 // English words by word boundary; Turkish stems without one (\b does not see "ü" as a letter: "yürüdü").
 const MOVES = /\b(?:sail(?:s|ed)?|march(?:es|ed)?|invad(?:e|es|ed)|invasion|cross(?:es|ed)|fleet|armada|campaign|conquer(?:s|ed)?|voyage|expedition)\b|sefer|donanma|işgal|fethet|yürüd|denizi geç/iu;
 /** Lines telling a crowd fighting, charging, fleeing or storming (English and Turkish stems). */
@@ -100,18 +137,7 @@ export function mapProblems(episode: unknown): string[] {
     const h = s.harita;
     if (!h?.merkez && /\b(map|harita)\b/i.test(s.mekan ?? "")) out.push(`scene "${s.id}" is set on a map ("mekan": "${s.mekan}") but has no "harita": give it one (merkez, genislik_km, and what moves on it — MAP NARRATION)`);
     if (h?.merkez) {
-      const living =
-        (h.kamera?.length ?? 0) > 0 ||
-        (h.oklar?.length ?? 0) > 0 ||
-        (h.savaslar?.length ?? 0) > 0 ||
-        (h.rozetler ?? []).some((r) => (r.yol?.length ?? 0) > 0) ||
-        (h.ordular ?? []).some((o) => (o.yol?.length ?? 0) > 0) ||
-        (h.cizgiler ?? []).some((c) => (c.satir ?? 0) > 0) ||
-        (h.birlikler ?? []).some((u) => u.yerler.length > 1 || u.yerler.some((y) => (y.kayip ?? 0) > 0)) ||
-        (h.araclar ?? []).some((a) => (a.yol?.length ?? 0) > 0 || a.hedef !== undefined || (a.kayip ?? 0) > 0) ||
-        (h.surlar ?? []).some((w) => w.gedik !== undefined) ||
-        (h.bolgeler ?? []).some((b) => (b.satir ?? 0) > 0 || b.bitis_satir !== undefined || b.yayilma !== undefined);
-      if (!living) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), move the tokens ("birlikler" with formations on later lines), a battle, a camera move or a border change, each on the line that tells it`);
+      if (!mapLives(h)) out.push(`map scene "${s.id}" shows nothing happening: march an army ("ordular" with "yol" and "yol_satir"), sweep a conquest ("yayilma"), draw a route (oklar, or a rozet with "yol"), move the tokens ("birlikler" with formations on later lines), a battle, a camera move or a border change, each on the line that tells it`);
       if (h.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM) out.push(...closeMapProblems(s));
     }
   }
