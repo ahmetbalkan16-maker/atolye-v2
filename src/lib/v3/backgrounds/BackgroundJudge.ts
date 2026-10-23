@@ -162,7 +162,7 @@ PART: ${scene.konu} (${scene.mekan})
 PERIOD: ${scene.donem}
 
 Look at the puppet's ${scene.mekan === "held object" ? "hand" : scene.mekan === "worn on the back" ? "back" : scene.mekan === "worn on the chest" ? "chest" : "head and face"} and score 0–10:
-- "puan": at first glance, is what it wears or holds clearly this part, sitting where it belongs (headwear on the head, hair on the skull around the face, a beard on the chin, a held object in the hand, a cape or shield on the back, a chain or sash on the chest) at a sensible size, in the same clean flat style with dark outlines as the puppet? 0–3 if it is unrecognisable, floating off the body, covering the eyes, far too big or too small, or made of broken, stray or messy shapes.
+- "puan": at first glance, is what it wears or holds clearly this part, sitting where it belongs (headwear on the head, hair on the skull around the face, a beard on the chin, a held object in the hand, a cape or shield on the back, a chain or sash on the chest) at a sensible size, in the same clean flat style with dark outlines as the puppet? 0–3 if it is unrecognisable, floating off the body, covering the eyes, far too big or too small, or made of broken, stray or messy shapes.${scene.mekan === "beard" || /beard/i.test(scene.konu) ? " A beard grows ON the face: it covers the jaw and chin from the cheeks down and the face reads bearded at a glance; at most 3 if it hangs below the chin like a bib, a scarf or a collar while the jaw stays bare." : ""}
 - "donem": does its shape fit ${scene.donem}?
 - "modern": true if it looks like a modern object when it should not.
 - "tur": "cizim".

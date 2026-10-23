@@ -27,14 +27,26 @@ kaldırılsın; yalnız bu video için ek en çok $1 ücretli model.
 
 **Kosova videosu:** ilk tur bitti (`final-tur0.mp4`, kare kare incelendi). Elle yönetildi: Lazar'ın 1389 Sırbistan'ı,
 kanat komutanları, Sırp hücumu, Bayezid'in karşı saldırısı, Sırp bozgunu, Lazar'a X, çadır içi (hem `episode.json` hem
-`episode-siparisli.json`). Ek $1 bütçeyle 23:26'da kostüm adımından yeniden üretiliyor; kostümlerin hemen hepsi kabul
-(9–10/10), render aşamasında. Önceki denemeler `onceki-deneme-1..4/` altında.
+`episode-siparisli.json`). Ek $1 bütçeyle kostüm adımından yeniden üretildi; iki teslim daha çıktı. Son teslim
+`onceki-deneme-6/final-teslim-2.mp4` (bölüm klasöründeki `final.mp4` ile aynı bayt): Lazar'ın teni düzeltildi
+(`19165d48`: kararmış fresk/ikona boyasından ten okunmaz; bölümde `yuz.ten = "#f0cfae"`), s8'de tasarlanmış Kosova
+Kızı anı var; ama Lazar'ın yeni sakalı çenenin altında önlük gibi sarkıyor. Düzeltme: iki senaryo dosyasında da Lazar'a
+katalog sakalı `byzantine-1453/sakal-koyu` verildi; parça hakemine sakal ölçütü (çeneyi kaplamayan, önlük/atkı gibi
+sarkan sakal en çok 3) eklendi. Render adımından yeniden üretim başlamıştı, owner isteğiyle (24 Ekim gece, "çalıştırma,
+kaydet, pazartesi kaldığın yerden") durduruldu. Önceki denemeler `onceki-deneme-1..6/` altında.
+
+**Siparişin durumu (bilerek):** `_kutuphane/siparisler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar.json`
+`durum: "hata"`, `devamAdimi: "render"` (izleyici "hata"yı kendiliğinden yeniden başlatmaz). Pazartesi devam:
+`durum`u `"bekliyor"` yap, `devamAdimi: "render"` kalsın (`baslangic`/`bitis`/`ozet` silinebilir); izleyici 30 sn
+içinde alır. Önce `episode.json`'da Lazar'ın `sakal` alanının `byzantine-1453/sakal-koyu` olduğunu doğrula. Ek bütçe
+dosyası (`ek-tavan.json`) bölüm klasöründe duruyor; render adımı ücretli model kullanmaz.
 
 **Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 48 (O21–O28 yeni),
 script 21, council 11, mix 13, motion 9, backgrounds 20, likeness 14, youtube 4, render 5, ayas-video-order 8.
 
 **Sıradaki:**
-1. Kosova videosu bitince kare kare son kontrol; owner YouTube'da paylaşacak.
+1. Pazartesi: siparişi render adımından yeniden sıraya al (yukarıdaki adımlar), bitince kare kare son kontrol
+   (özellikle Lazar'ın sakalı ~46. sn, ten, s8 Kosova Kızı, yakın harita rozetleri); owner YouTube'da paylaşacak.
 2. Sipariş izleyicisi yeniden başlatılmadı (son `ProductionOrders.ts` değişikliği `rotusTuru`, bir sonraki
    başlatmada devreye girer; ek-tavan dosyası ve diğer her şey izleyici gerektirmez).
 3. Kalan kusurlar: Murad'ın suikastı sahnede eylemsiz (kukla hareket dağarcığı); yakın haritada konuşmayan rozet kamera
