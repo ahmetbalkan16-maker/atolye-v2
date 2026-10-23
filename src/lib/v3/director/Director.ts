@@ -746,7 +746,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const titleCards: V3TitleCard[] = (scene.yazi_karti ?? []).map((c) => {
       const anchor = lines[Math.min(c.satir ?? 0, lines.length - 1)];
       const s = anchor ? Math.max(0, local(anchor.start) - (c.stil === "bolum" ? f(0.2) : 0)) : 0;
-      const len = c.stil === "kelime" ? f(1.3) : c.stil === "bolum" ? f(2.2) : f(2.8);
+      // The parchment chapter card unrolls and rolls up again: it needs a little longer than a plain card.
+      const len = c.stil === "kelime" ? f(1.3) : c.stil === "bolum" ? f(3) : f(2.8);
       return { text: c.metin, ...(c.alt_metin ? { subtext: c.alt_metin } : {}), start: s, end: Math.min(duration - 1, s + len), style: c.stil };
     });
 
@@ -852,7 +853,8 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       props: [],
       camera: [{ frame: 0, zoom: 1, cx: 0.5, cy: 0.5 }],
       shakes: [],
-      titleCards: [{ text: episode.baslik, subtext: episode.donem, start: 0, end: first.start, style: "kapak" }],
+      // A series episode carries its series and number on the cover ("Fatih 06 · 1453").
+      titleCards: [{ text: episode.baslik, subtext: episode.dizi ? `${episode.dizi.ad} ${String(episode.dizi.no).padStart(2, "0")} · ${episode.donem}` : episode.donem, start: 0, end: first.start, style: "kapak" }],
       mapArrows: [],
       transitionIn: "kes",
       dramatized: false,

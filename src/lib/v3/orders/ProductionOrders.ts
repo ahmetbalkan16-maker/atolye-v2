@@ -28,6 +28,8 @@ export interface ProductionOrder {
   readonly ton: string;
   /** Who placed it: "owner" from the command line, "ayas" from a conversation. */
   readonly kaynak: string;
+  /** An episode of a series ("Fatih 06"): its writer is told what the series' earlier episodes told. */
+  readonly dizi?: { readonly ad: string; readonly no: number };
   readonly olusturuldu: string;
   durum: OrderState;
   baslangic?: string;
@@ -75,6 +77,7 @@ export function productionCommand(repoRoot: string, order: ProductionOrder, out:
       path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
       path.join(repoRoot, "scripts", "atolye-v3.ts"),
       "uret", "--konu", order.konu, "--donem", order.donem, "--sure", order.sure, "--dil", order.dil, "--ton", order.ton, "--saglayici", provider, "--cikti", out,
+      ...(order.dizi ? ["--dizi", order.dizi.ad, "--dizi-no", String(order.dizi.no)] : []),
       ...(order.devamAdimi && order.devamAdimi !== "senaryo" ? ["--from-step", order.devamAdimi] : []),
     ],
   };
@@ -133,11 +136,11 @@ function slug(text: string): string {
   return text.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "siparis";
 }
 
-export async function placeOrder(workRoot: string, o: { konu: string; donem: string; sure?: string; dil?: "tr" | "en"; ton?: string; kaynak?: string }, now = new Date()): Promise<ProductionOrder> {
+export async function placeOrder(workRoot: string, o: { konu: string; donem: string; sure?: string; dil?: "tr" | "en"; ton?: string; kaynak?: string; dizi?: { ad: string; no: number } }, now = new Date()): Promise<ProductionOrder> {
   const dir = orderDir(workRoot);
   await fs.mkdir(dir, { recursive: true });
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\..*$/, "");
-  const order: ProductionOrder = { id: `${stamp}-${slug(o.konu)}`, konu: o.konu.trim().slice(0, 300), donem: o.donem.trim().slice(0, 120), sure: o.sure ?? DEFAULT_ORDER_LENGTH, dil: o.dil ?? "en", ton: o.ton ?? "mizahi", kaynak: o.kaynak ?? "owner", olusturuldu: now.toISOString(), durum: "bekliyor" };
+  const order: ProductionOrder = { id: `${stamp}-${slug(o.konu)}`, konu: o.konu.trim().slice(0, 300), donem: o.donem.trim().slice(0, 120), sure: o.sure ?? DEFAULT_ORDER_LENGTH, dil: o.dil ?? "en", ton: o.ton ?? "mizahi", kaynak: o.kaynak ?? "owner", ...(o.dizi?.ad.trim() ? { dizi: { ad: o.dizi.ad.trim().slice(0, 40), no: Math.max(1, Math.min(99, Math.round(o.dizi.no))) } } : {}), olusturuldu: now.toISOString(), durum: "bekliyor" };
   const file = path.join(dir, `${order.id}.json`);
   if (existsSync(file)) throw new Error(`V3_ORDER_EXISTS: ${order.id}`);
   await fs.writeFile(file, `${JSON.stringify(order, null, 2)}\n`);

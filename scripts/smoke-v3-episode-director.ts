@@ -4,6 +4,10 @@
  */
 import assert from "node:assert/strict";
 import path from "node:path";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, seriesText } from "../src/lib/v3/script/Series";
+import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
@@ -31,7 +35,7 @@ import { CouncilLog } from "../src/lib/v3/council/Council";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { colourName, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
-import { buildTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
+import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { normalizeForSpeech, numberToTurkish, ordinalTurkish } from "../src/lib/v3/tts/TurkishText";
 
 let scenarios = 0;
@@ -1115,6 +1119,41 @@ async function main() {
     assert.ok(/oil painting/.test(d.prompt) && /photorealistic/.test(d.negative) && /text/.test(d.negative) && /church/.test(d.negative) && d.prompt.includes("Siege of Troy"));
     assert.equal(momentText("Achilles drags Hector's body", "x", "y"), "Achilles drags Hector's body");
     assert.deepEqual([maxDesignedPictures(90), maxDesignedPictures(1200)], [4, 20]);
+  });
+
+  await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {
+    const ep = sampleEpisode();
+    assert.equal(validateEpisode({ ...ep, hedef_sure_sn: 2700 }).ok, true, "45 minutes");
+    assert.equal(validateEpisode({ ...ep, hedef_sure_sn: 2701 }).ok, false);
+    assert.equal(validateEpisode({ ...ep, dizi: { ad: "Fatih", no: 6 } }).ok, true);
+    assert.equal(validateEpisode({ ...ep, dizi: { ad: "Fatih", no: 0 } }).ok, false);
+    // The series file: episodes in order, a remake replaces its own number, the brief has only the earlier ones.
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "v3-dizi-"));
+    try {
+      const chapter = (metin: string): Episode["sahneler"][number] => ({ ...ep.sahneler[0]!, yazi_karti: [{ metin, alt_metin: "Chapter 1", stil: "bolum" }] });
+      await recordEpisode(root, "Fatih", { no: 2, konu: "Rumelihisarı", baslik: "The Throat Cutter", ozet: episodeSummary({ konu: "Rumelihisarı", sahneler: [chapter("A fortress in 139 days"), chapter("The toll")] }) });
+      await recordEpisode(root, "Fatih", { no: 1, konu: "The young sultan", baslik: "A Boy on the Throne", ozet: "first" });
+      await recordEpisode(root, "Fatih", { no: 1, konu: "The young sultan", baslik: "A Boy on the Throne (remake)", ozet: "again" });
+      const record = await loadSeries(root, "Fatih");
+      assert.deepEqual(record.bolumler.map((b) => [b.no, b.baslik]), [[1, "A Boy on the Throne (remake)"], [2, "The Throat Cutter"]]);
+      assert.equal(record.bolumler[1]!.ozet, "Rumelihisarı: A fortress in 139 days → The toll");
+      const brief = seriesBrief(record, 3);
+      assert.deepEqual([brief.no, brief.onceki.map((b) => b.no)], [3, [1, 2]]);
+      assert.ok(seriesText(brief).includes('episode 3 of the series "Fatih"') && seriesText(brief).includes("The Throat Cutter") && seriesText(seriesBrief(record, 1)).includes("first episode"));
+      assert.equal(seriesLabel({ ad: "Fatih", no: 6 }), "Fatih 06");
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+    // The cover carries the series; a chapter card holds 3 s.
+    const withCard: Episode = { ...ep, dizi: { ad: "Fatih", no: 6 }, sahneler: [{ ...ep.sahneler[0]!, yazi_karti: [{ metin: "The Red Apple", alt_metin: "Chapter 3", stil: "bolum" }] }] };
+    const tl = buildTimeline(withCard, [ep.sahneler[0]!.satirlar.map(() => fakeAudio(2.5))], { ...DEFAULT_TIMELINE, introS: 3.5 });
+    const plan = buildRenderPlan({ episode: withCard, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false });
+    assert.equal(plan.shots[0]!.titleCards[0]!.subtext, "Fatih 06 · 1452");
+    const card = plan.shots[1]!.titleCards.find((c) => c.style === "bolum")!;
+    assert.equal(card.end - card.start, 90);
+    // An order can be a series episode: the producer gets the flags.
+    const cmd = productionCommand("R", { id: "x", konu: "Fall of Constantinople", donem: "1453", sure: "40dk", dil: "en", ton: "epik", kaynak: "owner", olusturuldu: "", durum: "bekliyor", dizi: { ad: "Fatih", no: 6 } }, "out", "openai");
+    assert.deepEqual(cmd.args.slice(cmd.args.indexOf("--dizi"), cmd.args.indexOf("--dizi") + 4), ["--dizi", "Fatih", "--dizi-no", "6"]);
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

@@ -30,13 +30,14 @@ export const SHORT_ORDER_LENGTH = "3dk";
 
 /**
  * The length the owner asked for in the words around the topic ("3 dakikalık", "90 saniyelik", "a 3-minute", "kısa"),
- * kept inside the producer's 20 s – 30 min range; none means the order's default (a long video).
+ * kept inside the producer's 20 s – 45 min range (25–45 minute episodes since 23 Oct 2026); none means the order's
+ * default (a long video).
  */
 export function lengthOf(words: string): string | undefined {
   const min = /(\d{1,4})\s*(?:dakika|dk|-?\s*min)/u.exec(words);
-  if (min) return `${Math.min(30, Math.max(1, Number(min[1])))}dk`;
+  if (min) return `${Math.min(45, Math.max(1, Number(min[1])))}dk`;
   const sec = /(\d{1,4})\s*(?:saniye|sn|-?\s*sec)/u.exec(words);
-  if (sec) return `${Math.min(1800, Math.max(20, Number(sec[1])))}sn`;
+  if (sec) return `${Math.min(2700, Math.max(20, Number(sec[1])))}sn`;
   return /(?:^|\s)(?:kısa|short)\s/u.test(` ${words} `) ? SHORT_ORDER_LENGTH : undefined;
 }
 

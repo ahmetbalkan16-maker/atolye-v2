@@ -98,7 +98,8 @@ async function main() {
     assert.deepEqual(len("make a 3-minute video about the Fall of Rome"), ["the Fall of Rome", "3dk"]);
     assert.deepEqual(len("Yüz Yıl Savaşı hakkında video yap"), ["Yüz Yıl Savaşı", undefined]);
     assert.deepEqual(len("1453 İstanbul'un fethi hakkında 5 dakikalık video yap"), ["1453 İstanbul'un fethi", "5dk"]);
-    assert.equal(lengthOf("45 dakikalık"), "30dk", "the producer's ceiling");
+    assert.equal(lengthOf("45 dakikalık"), "45dk");
+    assert.equal(lengthOf("60 dakikalık"), "45dk", "the producer's ceiling");
     assert.equal(lengthOf("5 saniyelik"), "20sn", "the producer's floor");
     const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-"));
     assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Rubicon hakkında kısa bir video yap")!, root), /\(İngilizce, 3 dk\)/);

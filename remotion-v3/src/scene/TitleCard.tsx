@@ -1,5 +1,5 @@
 import React from "react";
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import type { V3TitleCard } from "../../../src/lib/v3/render/RenderPlanTypes";
 
 const FONT = "'Segoe UI Black', 'Arial Black', 'Segoe UI', sans-serif";
@@ -15,11 +15,61 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
   const k = H / 1080;
 
   if (card.style === "bolum") {
+    // The chapter card as a parchment scroll (owner, 23 Oct 2026, after DFT Tarih's "Fatih'in Rüyası: Beyaz Şehir"): the
+    // picture dims, the scroll unrolls from its middle, the chapter number in small capitals between ornaments and the
+    // title in a large serif; it rolls up again at the end.
+    const unroll = interpolate(local, [0, Math.round(fps * 0.55)], [0, 1], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+    const rollUp = interpolate(frame, [card.end - Math.round(fps * 0.4), card.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.cubic) });
+    const open = Math.min(unroll, rollUp);
+    const text = interpolate(local, [Math.round(fps * 0.35), Math.round(fps * 0.7)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) * rollUp;
+    const sw = Math.min(W * 0.78, Math.max(760, card.text.length * 52 + 260) * k);
+    const sh = 300 * k;
+    const w = Math.max(40 * k, sw * open);
+    const roll = 34 * k;
+    const cx = W / 2;
+    const cy = H / 2;
+    const rollEnd = (x: number) => (
+      <g>
+        <rect x={x - roll / 2} y={cy - sh / 2 - 22 * k} width={roll} height={sh + 44 * k} rx={roll / 2} fill="url(#bolum-roll)" stroke="#4a3018" strokeWidth={3 * k} />
+        <rect x={x - roll * 0.32} y={cy - sh / 2 - 34 * k} width={roll * 0.64} height={16 * k} rx={5 * k} fill="#6b4523" stroke="#2b1d10" strokeWidth={2 * k} />
+        <rect x={x - roll * 0.32} y={cy + sh / 2 + 18 * k} width={roll * 0.64} height={16 * k} rx={5 * k} fill="#6b4523" stroke="#2b1d10" strokeWidth={2 * k} />
+      </g>
+    );
     return (
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `rgba(16,10,24,${0.45 * exit})` }}>
-        <div style={{ transform: `scale(${0.6 + 0.4 * enter})`, opacity: exit, textAlign: "center" }}>
-          {card.subtext ? <div style={{ font: `900 ${40 * k}px ${FONT}`, color: "#ffd66b", letterSpacing: 6, WebkitTextStroke: `${8 * k}px #1d1b26`, paintOrder: "stroke fill" }}>{card.subtext}</div> : null}
-          <div style={{ font: `900 ${110 * k}px ${FONT}`, color: "#fffaf0", WebkitTextStroke: `${16 * k}px #1d1b26`, paintOrder: "stroke fill", letterSpacing: 2 }}>{card.text}</div>
+      <div style={{ position: "absolute", inset: 0, background: `rgba(12,8,18,${0.55 * Math.min(1, unroll * 2) * rollUp})` }}>
+        <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
+          <defs>
+            <linearGradient id="bolum-paper" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e9d3a2" />
+              <stop offset="50%" stopColor="#f4e4bd" />
+              <stop offset="100%" stopColor="#dcc08a" />
+            </linearGradient>
+            <linearGradient id="bolum-roll" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#a8834f" />
+              <stop offset="50%" stopColor="#ecd6a6" />
+              <stop offset="100%" stopColor="#9a7444" />
+            </linearGradient>
+            <radialGradient id="bolum-age" cx="50%" cy="50%" r="70%">
+              <stop offset="60%" stopColor="#8a5a2b" stopOpacity={0} />
+              <stop offset="100%" stopColor="#8a5a2b" stopOpacity={0.38} />
+            </radialGradient>
+          </defs>
+          <g style={{ filter: `drop-shadow(0 ${10 * k}px ${18 * k}px rgba(0,0,0,0.6))` }}>
+            <rect x={cx - w / 2} y={cy - sh / 2} width={w} height={sh} fill="url(#bolum-paper)" stroke="#6b4a24" strokeWidth={2.5 * k} />
+            <rect x={cx - w / 2} y={cy - sh / 2} width={w} height={sh} fill="url(#bolum-age)" />
+            {rollEnd(cx - w / 2)}
+            {rollEnd(cx + w / 2)}
+          </g>
+        </svg>
+        <div style={{ position: "absolute", left: cx - w / 2 + roll, top: cy - sh / 2, width: Math.max(0, w - 2 * roll), height: sh, overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: text }}>
+          {card.subtext ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 18 * k, whiteSpace: "nowrap" }}>
+              <div style={{ width: 90 * k, height: 2 * k, background: "#7a1f2b" }} />
+              <div style={{ font: `700 ${34 * k}px Georgia, 'Palatino Linotype', serif`, color: "#7a1f2b", letterSpacing: 8 * k, fontVariant: "small-caps" }}>{card.subtext}</div>
+              <div style={{ width: 90 * k, height: 2 * k, background: "#7a1f2b" }} />
+            </div>
+          ) : null}
+          <div style={{ marginTop: 14 * k, padding: `0 ${30 * k}px`, textAlign: "center", font: `italic 700 ${84 * k}px Georgia, 'Palatino Linotype', serif`, lineHeight: 1.05, color: "#2f1d0c", textWrap: "balance", textShadow: `0 ${1 * k}px 0 rgba(255,240,200,0.6)` }}>{card.text}</div>
         </div>
       </div>
     );

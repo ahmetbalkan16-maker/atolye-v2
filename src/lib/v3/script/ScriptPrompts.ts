@@ -14,6 +14,7 @@ import {
   type EpisodeSource,
   type EpisodeTone,
 } from "../episode/EpisodeTypes";
+import { type SeriesBrief, seriesText } from "./Series";
 
 /**
  * Prompt templates for the V3 script writer and its fact-check pass. Allowed values are read from the episode
@@ -44,6 +45,8 @@ export interface ScriptBrief {
   readonly dersler?: readonly string[];
   /** Real historical borders available near the episode's year (HistoricalBorders): snapshot year → polity names. */
   readonly tarihiSinirlar?: readonly { readonly yil: number; readonly adlar: readonly string[] }[];
+  /** The series this episode belongs to, with what its earlier episodes told (Series). */
+  readonly dizi?: SeriesBrief;
 }
 
 /**
@@ -189,7 +192,7 @@ function lessonsText(lessons: readonly string[] | undefined): string {
 /** The writer's prompt: rules in the narration language, then one shared contract section. */
 export function writingPrompt(brief: ScriptBrief, catalog: readonly PackCatalogEntry[]): string {
   const words = wordBudget(brief);
-  return `${RULES[brief.dil](brief, words)}${bankText(brief.kaynakBankasi)}${lessonsText(brief.dersler)}
+  return `${RULES[brief.dil](brief, words)}${seriesText(brief.dizi)}${bankText(brief.kaynakBankasi)}${lessonsText(brief.dersler)}
 
 CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".

@@ -17,6 +17,7 @@ import {
   GESTURES,
   GROUND_KINDS,
   INFO_CARD_KINDS,
+  MAX_EPISODE_S,
   MOVES,
   PROP_KINDS,
   SCENE_MOODS,
@@ -113,8 +114,15 @@ export function validateEpisode(input: unknown): EpisodeValidation {
   str(ep, "baslik", "$", { max: 120 });
   str(ep, "konu", "$", { max: 300 });
   str(ep, "donem", "$", { max: 120 });
-  num(ep, "hedef_sure_sn", "$", 20, 1800);
+  num(ep, "hedef_sure_sn", "$", 20, MAX_EPISODE_S);
   oneOf(ep, "ton", "$", EPISODE_TONES);
+  if (ep.dizi !== undefined) {
+    if (!isObj(ep.dizi)) err("DIZI", "$.dizi", "{ad, no} bekleniyor");
+    else {
+      str(ep.dizi, "ad", "$.dizi", { max: 40 });
+      if (typeof ep.dizi.no !== "number" || !Number.isInteger(ep.dizi.no) || ep.dizi.no < 1 || ep.dizi.no > 99) err("DIZI", "$.dizi.no", "1..99 arası bölüm numarası bekleniyor");
+    }
+  }
 
   const sourceIds = new Set<string>();
   (arr(ep, "kaynaklar", "$") ?? []).forEach((s, i) => {

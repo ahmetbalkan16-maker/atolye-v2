@@ -2,7 +2,8 @@
  * Atölye V3 — tek komutla bölüm, her dönem ve konu için: konu → araştırma + senaryo → gardırop (gerçek kişilerin
  * portreden, o yıla göre çizilen benzerliği dahil) → ses → ağız senkronu → dönem görselleri + setler → render → miks → final.
  *
- *   npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn] [--ton mizahi] [--dil en|tr] (varsayılan en: Amerikan İngilizcesi)
+ *   npx tsx scripts/atolye-v3.ts uret --konu "…" --donem "…" [--sure 90sn|45dk] [--ton mizahi] [--dil en|tr] (varsayılan en: Amerikan İngilizcesi)
+ *        [--dizi "<dizi adı>" --dizi-no <n>] (bir dizinin bölümü: yazar önceki bölümleri bilir, kapakta "Fatih 06")
  *        [--kaynaklar <banka.json> | --wiki "Makale 1|Makale 2" | --arastirma-yok] [--saglayici ollama|openai]
  *        [--anlatici <ses id>] [--bolum <episode.json>] [--cikti <klasör>] [--altyazi-gom]
  *        [--from-step senaryo|gardirop|ses|senkron|gorsel|render|miks|birlestir] [--onizleme] [--yalniz-senaryo]
@@ -52,7 +53,7 @@ import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
 import { beats, buildRenderPlan, longestEmptyStretch, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
-import { CLOSE_MAP_MAX_KM, EPISODE_TONES, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
 import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
@@ -64,6 +65,7 @@ import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
+import { episodeSummary, loadSeries, recordEpisode, seriesBrief } from "../src/lib/v3/script/Series";
 import { V3Budget, type V3ModelChoice, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
@@ -106,7 +108,7 @@ function arg(name: string): string | undefined {
 function seconds(text: string): number {
   const m = /^(?:(\d+)\s*dk)?\s*(?:(\d+)\s*(?:sn)?)?$/i.exec(text.trim());
   const total = m ? Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) : NaN;
-  if (!Number.isFinite(total) || total < 20 || total > 1800) throw new Error(`--sure 20 sn ile 30 dk arasında olmalı: ${text}`);
+  if (!Number.isFinite(total) || total < 20 || total > MAX_EPISODE_S) throw new Error(`--sure 20 sn ile ${MAX_EPISODE_S / 60} dk arasında olmalı: ${text}`);
   return total;
 }
 
@@ -637,6 +639,10 @@ async function main() {
   const konu = arg("--konu") ?? (given ? (await readJson<Episode>(given)).konu : undefined);
   const donem = arg("--donem") ?? (given ? (await readJson<Episode>(given)).donem : undefined);
   if (!konu || !donem) throw new Error("--konu ve --donem gerekli (ya da --bolum <episode.json>)");
+  // A series episode (owner, 23 Oct 2026, after DFT Tarih's "Fatih 06"): --dizi "<name>" --dizi-no <n>.
+  const seriesNo = Number(arg("--dizi-no") ?? 1);
+  if (arg("--dizi") !== undefined && (!Number.isInteger(seriesNo) || seriesNo < 1 || seriesNo > 99)) throw new Error("--dizi-no 1..99 arası olmalı");
+  const series = arg("--dizi")?.trim() ? { ad: arg("--dizi")!.trim().slice(0, 40), no: seriesNo } : undefined;
   const work = path.resolve(arg("--cikti") ?? path.join(paths.workRoot, "bolumler", `${slug(konu)}-${dil}`));
   await fs.mkdir(work, { recursive: true });
   const f = (name: string) => path.join(work, name);
@@ -750,12 +756,17 @@ async function main() {
         // The historical atlas's polities nearest the episode's year, for real borders on the maps.
         const year = periodEndYear(period);
         const tarihiSinirlar = year === undefined ? [] : (await Promise.all(nearestSnapshots(year).map(async (yil) => ({ yil, adlar: await snapshotNames(bordersDir, yil).catch(() => [] as string[]) })))).filter((x) => x.adlar.length);
-        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}) };
+        // An episode of a series: the writer is told what the earlier episodes told.
+        const dizi = series ? seriesBrief(await loadSeries(paths.workRoot, series.ad), series.no) : undefined;
+        if (dizi) log(`dizi: "${dizi.ad}" ${dizi.no}. bölüm — önceki ${dizi.onceki.length} bölüm yazara verildi`);
+        const brief: ScriptBrief = { konu, donem: period, hedefSureSn: seconds(arg("--sure") ?? "90"), ton, dil, ...(bank ? { kaynakBankasi: bank } : {}), ...(sesler ? { sesler } : {}), ...(dersler.length ? { dersler } : {}), ...(tarihiSinirlar.length ? { tarihiSinirlar } : {}), ...(dizi ? { dizi } : {}) };
         const out = await writeScript({ brief, catalog: await packCatalog(costumeRootsFor(paths)), writer, checker, budget, log }).catch(async (e: unknown) => {
           if (e instanceof ScriptError && e.draft) await fs.writeFile(f("senaryo-hatali.json"), e.draft);
           throw e;
         });
-        await writeJson(f("episode.json"), out.episode);
+        const written = series ? { ...out.episode, dizi: series } : out.episode;
+        await writeJson(f("episode.json"), written);
+        if (series) await recordEpisode(paths.workRoot, series.ad, { no: series.no, konu, baslik: written.baslik, ozet: episodeSummary(written), cikti: work });
         await writeJson(f("dogrulama.json"), out.factCheck);
       } finally {
         await writeJson(f("maliyet.json"), { tavanUsd: budget.capUsd, toplamUsd: budget.spentUsd, adimlar: budget.ledger });

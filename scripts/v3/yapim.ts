@@ -5,6 +5,7 @@
  * (`<workRoot>/_kutuphane/siparisler/`); the live server only writes them, this separate process makes them.
  *
  *   npx tsx scripts/v3/yapim.ts siparis --konu "…" --donem "…" [--sure 120sn] [--dil en] [--ton mizahi] [--kaynak ayas]
+ *        [--dizi "<dizi adı>" --dizi-no <n>]
  *   npx tsx scripts/v3/yapim.ts kuyruk          # makes every waiting order once, one after another
  *   npx tsx scripts/v3/yapim.ts izle            # keeps watching for orders (started at logon, one instance)
  *   npx tsx scripts/v3/yapim.ts durum           # lists orders and their state
@@ -84,7 +85,7 @@ async function main() {
     const konu = arg("--konu");
     const donem = arg("--donem");
     if (!konu || !donem) throw new Error('Kullanım: yapim.ts siparis --konu "…" --donem "…"');
-    const order = await placeOrder(paths.workRoot, { konu, donem, ...(arg("--sure") ? { sure: arg("--sure")! } : {}), ...(arg("--dil") ? { dil: arg("--dil") as "tr" | "en" } : {}), ...(arg("--ton") ? { ton: arg("--ton")! } : {}), kaynak: arg("--kaynak") ?? "owner" });
+    const order = await placeOrder(paths.workRoot, { konu, donem, ...(arg("--sure") ? { sure: arg("--sure")! } : {}), ...(arg("--dil") ? { dil: arg("--dil") as "tr" | "en" } : {}), ...(arg("--ton") ? { ton: arg("--ton")! } : {}), ...(arg("--dizi") ? { dizi: { ad: arg("--dizi")!, no: Number(arg("--dizi-no") ?? 1) } } : {}), kaynak: arg("--kaynak") ?? "owner" });
     console.log(`sipariş alındı: ${order.id}`);
     return;
   }
