@@ -1,3 +1,45 @@
+## 23–24 Ekim 2026 (gece, 3) — V3 ilk AYAS denemesi: Kosova 1389 kısa videosu adım adım takip edildi, 14 hata düzeltildi
+
+**Owner:** AYAS'a kısa video konusu verdi ("Kosava savaşı", 3 dk); "takip et, hataları not al", "istediğim gibi
+olmayacaksa durdur, müdahale et, senin yönlendirmenle AYAS'a yaptır", "tüm adımları kontrol et, hataları düzelt",
+"bu düzelttiğin şeyleri bizim yapay zekalara entegre et", "bu videoyu YouTube'da paylaşacağım, güzel olsun". Kararlar:
+bölümler en az 20, en çok 30 dk (45 dk ilk aşamada yok; 90 sn / 3 dk denemeler kalır); DRAMATIZATION köşe yazısı
+kaldırılsın; yalnız bu video için ek en çok $1 ücretli model.
+
+**Yapılanlar (feature/cop-adam-v3 → canlı dal wip/ayas-graphify-final-execution, canonical pull + Graphify her seferinde):**
+- `6f82ee41` süre 20–30 dk (MAX_EPISODE_S 1800, varsayılan sipariş 20 dk; AYAS'ta 10 dk altı deneme sayılır).
+- `d81f969b` konu çözücü Türkçe savaş adlarını Türk tarih kitaplarının anlamıyla okur ("Kosova Savaşı" 1389 — ilk
+  sipariş 1998–99 Kosova Savaşı'na çözülmüştü, durduruldu); savaş anlatılıp yakın harita yoksa istenir; kısa videoda da
+  pay denetimi.
+- `1014abe0` PC sağlık bekçisi: işlemci yavaşlaması (sıcaklık bu bilgisayarda sürücüsüz okunamıyor), RAM, disk; her
+  adımda ve render parçasında, günlüğe sağlık satırı.
+- `dec0ae87` kostüm provası en çok 3 kukla bir karede (16 kukla tek sırada başları yakadan kesiyordu → 15 parçanın hepsi
+  reddedilmişti); yanlış kesitlerden yazılan 13 ders `_kutuphane/deneyim/kostum.hatali-prova-2026-10-23.jsonl`'a taşındı.
+- `1bf98951` 1500 öncesi kişilerde bilinen geleneksel portre; Wikimedia 429'da önizleme başka standart boyuttan.
+- `8c95271d` aynı satırda iki cephe ayrılır, üst üste rozetler kayar, kara içi kutuda kıyı sorulmaz, Overpass bir kez
+  tamamen düşünce 15 dk sorulmaz, hikâyeden sonraki atlas yılı uyarısı. `93014855` güç etiketi rozetten kaçar.
+- `78caf8c4` başarısız yeni parça yerini aldığı katalog parçasına döner (sakalsız Murad).
+- `637e592a` çadır içi (otağ) seti `cadir_ici`; yakın haritada anlatıcının andığı taraf kendiliğinden vurgulanır.
+- `cc0887c2` DRAMATIZATION yazısı kaldırıldı. `3a8ecb3b` Ollama çağrısı GPU 74 °C altında başlar (rötuş turunda 85'e
+  değdi); sipariş rötuş turunu taşır. `0008b322` tek video ek bütçesi `ek-tavan.json` (en çok $1).
+- `4c36c6ee` elle yaptığım yönetmenlik yerel beyinlere: `MapRules.directBattleMaps` (rozet anıldığı satırda, düşen
+  hükümdara X, bozgun, hücum oku); owner-kurallari.json'a üç kural; yazar isteminde komutan yerleşimi.
+
+**Kosova videosu:** ilk tur bitti (`final-tur0.mp4`, kare kare incelendi). Elle yönetildi: Lazar'ın 1389 Sırbistan'ı,
+kanat komutanları, Sırp hücumu, Bayezid'in karşı saldırısı, Sırp bozgunu, Lazar'a X, çadır içi (hem `episode.json` hem
+`episode-siparisli.json`). Ek $1 bütçeyle 23:26'da kostüm adımından yeniden üretiliyor; kostümlerin hemen hepsi kabul
+(9–10/10), render aşamasında. Önceki denemeler `onceki-deneme-1..4/` altında.
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 48 (O21–O28 yeni),
+script 21, council 11, mix 13, motion 9, backgrounds 20, likeness 14, youtube 4, render 5, ayas-video-order 8.
+
+**Sıradaki:**
+1. Kosova videosu bitince kare kare son kontrol; owner YouTube'da paylaşacak.
+2. Sipariş izleyicisi yeniden başlatılmadı (son `ProductionOrders.ts` değişikliği `rotusTuru`, bir sonraki
+   başlatmada devreye girer; ek-tavan dosyası ve diğer her şey izleyici gerektirmez).
+3. Kalan kusurlar: Murad'ın suikastı sahnede eylemsiz (kukla hareket dağarcığı); yakın haritada konuşmayan rozet kamera
+   kayınca kenarda kalabiliyor; bir sonraki senaryoda pay kuralı (harita ~%75–80) denenmeli.
+
 ## 23 Ekim 2026 (gece, 2) — V3 DFT Tarih eksik listesi tamamlandı: işaretler, bilgi kartları, taktik, tasarlanmış görsel, biçim
 
 **Owner:** "en son bu eksikleri söylemiştim bu eksikleri tamamla ama video oluşturma; ilk önce tamamlayalım sonra kısa

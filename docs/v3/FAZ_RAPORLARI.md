@@ -471,3 +471,19 @@ büyüklerini kaçırdı. Owner "başla" dedi; dört düzeltme:
   (20 Ekim, hakem 10/10) kenarlı, modern görünüyor (kalite beyni de işaretledi); yeniden çizilmesi owner'a sorulacak.
 - Doğrulama: V3 smoke'ları (backgrounds 20, council 11, episode-director 26, likeness 14, lipsync 5, mix 13, motion 9,
   render 5, script 20, youtube 4) + ayas-video-order 8 PASS; tsc 0 (kök + remotion); lint 0 hata.
+
+## İlk AYAS kısa video denemesi — Kosova 1389 (23–24 Ekim 2026)
+
+AYAS'a verilen 3 dakikalık sipariş adım adım takip edildi; her adımın çıktısı (günlük, prova kareleri, harita
+önizlemeleri, bitmiş videonun kontak sayfaları) incelendi, bulunan hatalar kodda düzeltildi ve canlıya alındı.
+Ayrıntı ve commit listesi: ATOLYE_CHECKPOINT.md "23–24 Ekim 2026 (gece, 3)".
+
+- Bulunan ve düzeltilen: konu yanlış çözümü (Kosova 1998), kostüm provası kesit hatası (15/15 parça haksız ret),
+  ortaçağ portrelerinin "dönem" puanından elenmesi, Wikimedia 429 aday kaybı, iç içe cepheler, üst üste rozetler,
+  rozet altında kalan güç etiketi, savaştan sonraki atlas yılı, Overpass çökünce dakikalarca bekleme, sakalsız Murad
+  (başarısız parça → katalog parçası), çadır sahnesinin dışarıda çizilmesi, durağan yakın harita (otomatik vurgu),
+  GPU'nun 85 °C'ye değmesi (çağrı 74 °C altında başlar), DRAMATIZATION yazısı (owner isteğiyle kaldırıldı).
+- Yönetmenlik yerel beyinlere: MapRules.directBattleMaps (rozet anıldığı satırda, düşen hükümdara X, bozgun, hücum oku)
+  yazarın ilk Kosova senaryosunda elle yapılanların aynısını buldu.
+- Doğrulama: smoke-v3-episode-director 48, script 21, council 11, mix 13, motion 9, backgrounds 20, likeness 14,
+  youtube 4, render 5, ayas-video-order 8 PASS; tsc 0 (kök + remotion); lint 0 hata / 13 eski uyarı.
