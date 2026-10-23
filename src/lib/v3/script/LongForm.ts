@@ -16,9 +16,9 @@ export function isLongForm(brief: Pick<ScriptBrief, "hedefSureSn">): boolean {
   return brief.hedefSureSn > LONG_FORM_MIN_S;
 }
 
-/** Chapters of a long video: about two minutes each, six to twenty-two (a 45-minute episode). */
+/** Chapters of a long video: about two minutes each, six to fifteen (a 30-minute episode). */
 export function chapterCount(seconds: number): number {
-  return Math.max(6, Math.min(22, Math.round(seconds / 120)));
+  return Math.max(6, Math.min(15, Math.round(seconds / 120)));
 }
 
 export interface ChapterPlan {
@@ -56,7 +56,7 @@ export function readOutline(value: unknown, brief: Pick<ScriptBrief, "hedefSureS
   if (!value || typeof value !== "object") return { problems: ["the answer is not a JSON object"] };
   const o = value as Record<string, unknown>;
   const raw = Array.isArray(o.bolumler) ? (o.bolumler as Record<string, unknown>[]) : [];
-  if (raw.length < 4 || raw.length > 24) problems.push(`"bolumler" needs 4–24 chapters, got ${raw.length}`);
+  if (raw.length < 4 || raw.length > 16) problems.push(`"bolumler" needs 4–16 chapters, got ${raw.length}`);
   const cast = Array.isArray(o.oyuncu_kadrosu) ? o.oyuncu_kadrosu : [];
   if (cast.length < 3) problems.push(`"oyuncu_kadrosu" needs the narrator and at least 2 visible characters, got ${cast.length}`);
   const ids = new Set<string>();

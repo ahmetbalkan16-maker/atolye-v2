@@ -322,7 +322,7 @@ async function main() {
   await scenario("L a long episode is planned in chapters and written chapter by chapter; scene ids carry the chapter; $4 cap", async () => {
     assert.equal(isLongForm({ hedefSureSn: 300 }), false);
     assert.equal(isLongForm({ hedefSureSn: 1080 }), true);
-    assert.deepEqual([chapterCount(720), chapterCount(1080), chapterCount(2700), chapterCount(4000)], [6, 9, 22, 22]);
+    assert.deepEqual([chapterCount(720), chapterCount(1200), chapterCount(1800), chapterCount(4000)], [6, 10, 15, 15]);
     assert.deepEqual([videoCapUsd(120), videoCapUsd(1080)], [1, 4]);
     const base = episode();
     const { sahneler, ...header } = base;
@@ -347,7 +347,7 @@ async function main() {
     // The plan's chapter lengths are scaled to the target; a broken plan is sent back.
     const read = readOutline({ ...outline, bolumler: outline.bolumler.map((b) => ({ ...b, sure_sn: 60 })) }, { hedefSureSn: 720 });
     assert.equal(read.outline!.bolumler.reduce((n, b) => n + b.sure_sn, 0), 720);
-    assert.ok(readOutline({ ...outline, bolumler: [] }, { hedefSureSn: 720 }).problems.some((p) => p.includes("4–24 chapters")));
+    assert.ok(readOutline({ ...outline, bolumler: [] }, { hedefSureSn: 720 }).problems.some((p) => p.includes("4–16 chapters")));
     assert.ok(prefixScenes([{ id: "s1" }, { id: "b2-x-s2" }], "b2-x").every((s) => String(s.id).startsWith("b2-x-")));
   });
 

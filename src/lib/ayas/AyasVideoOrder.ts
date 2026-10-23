@@ -28,16 +28,28 @@ const STATUS = new RegExp(`(?<!\\p{L})(?:video|sipariş|belgesel)\\p{L}*(?:\\s+\
 /** A "kısa"/"short" video without a number: a short-form episode (under the long-form line, the $1 cap). */
 export const SHORT_ORDER_LENGTH = "3dk";
 
+/** Long episodes run 20–30 minutes (owner, 23 Oct 2026: "maksimum 30 dakika, minimum 20 dakika", no 45 for now). */
+export const LONG_ORDER_MIN_MIN = 20;
+export const LONG_ORDER_MAX_MIN = 30;
+/** Below this many minutes an order is a short trial clip and keeps its length; from it on it is a long episode. */
+const SHORT_TRIAL_MAX_MIN = 10;
+
 /**
- * The length the owner asked for in the words around the topic ("3 dakikalık", "90 saniyelik", "a 3-minute", "kısa"),
- * kept inside the producer's 20 s – 45 min range (25–45 minute episodes since 23 Oct 2026); none means the order's
- * default (a long video).
+ * The length the owner asked for in the words around the topic ("3 dakikalık", "90 saniyelik", "a 3-minute", "kısa"):
+ * a short trial (under 10 minutes, at least 20 s) keeps it; a long episode is kept within 20–30 minutes. None means the
+ * order's default (a long video).
  */
 export function lengthOf(words: string): string | undefined {
   const min = /(\d{1,4})\s*(?:dakika|dk|-?\s*min)/u.exec(words);
-  if (min) return `${Math.min(45, Math.max(1, Number(min[1])))}dk`;
+  if (min) {
+    const n = Math.max(1, Number(min[1]));
+    return `${n < SHORT_TRIAL_MAX_MIN ? n : Math.min(LONG_ORDER_MAX_MIN, Math.max(LONG_ORDER_MIN_MIN, n))}dk`;
+  }
   const sec = /(\d{1,4})\s*(?:saniye|sn|-?\s*sec)/u.exec(words);
-  if (sec) return `${Math.min(2700, Math.max(20, Number(sec[1])))}sn`;
+  if (sec) {
+    const n = Math.max(20, Number(sec[1]));
+    return `${n < SHORT_TRIAL_MAX_MIN * 60 ? n : Math.min(LONG_ORDER_MAX_MIN * 60, Math.max(LONG_ORDER_MIN_MIN * 60, n))}sn`;
+  }
   return /(?:^|\s)(?:kısa|short)\s/u.test(` ${words} `) ? SHORT_ORDER_LENGTH : undefined;
 }
 

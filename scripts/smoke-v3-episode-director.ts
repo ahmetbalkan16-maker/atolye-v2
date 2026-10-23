@@ -1123,8 +1123,9 @@ async function main() {
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {
     const ep = sampleEpisode();
-    assert.equal(validateEpisode({ ...ep, hedef_sure_sn: 2700 }).ok, true, "45 minutes");
-    assert.equal(validateEpisode({ ...ep, hedef_sure_sn: 2701 }).ok, false);
+    assert.equal(validateEpisode({ ...ep, hedef_sure_sn: 1800 }).ok, true, "30 minutes");
+    assert.equal(validateEpisode({ ...ep, hedef_sure_sn: 1801 }).ok, false, "no 45-minute episodes for now");
+    assert.equal(validateEpisode({ ...ep, hedef_sure_sn: 90 }).ok, true, "a 90-second trial");
     assert.equal(validateEpisode({ ...ep, dizi: { ad: "Fatih", no: 6 } }).ok, true);
     assert.equal(validateEpisode({ ...ep, dizi: { ad: "Fatih", no: 0 } }).ok, false);
     // The series file: episodes in order, a remake replaces its own number, the brief has only the earlier ones.

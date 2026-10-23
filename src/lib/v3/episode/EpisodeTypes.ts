@@ -515,8 +515,11 @@ export interface EpisodeScene {
   readonly satirlar: readonly SceneLine[];
 }
 
-/** The longest episode (owner, 23 Oct 2026, after DFT Tarih's best-watched videos: 25–45 minute episodes). */
-export const MAX_EPISODE_S = 2700;
+/**
+ * The longest episode: 30 minutes (owner, 23 Oct 2026: long episodes 20–30 minutes for now, not the 45 of DFT Tarih's
+ * longest; trial clips of 90 s or 3 minutes stay possible).
+ */
+export const MAX_EPISODE_S = 1800;
 
 /**
  * An episode of a series (DFT Tarih's "Fatih 06"): the series' name and the episode's number — on the cover, and the

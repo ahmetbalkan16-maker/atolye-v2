@@ -137,7 +137,7 @@ gerçek arazili, OSM surlu yakın haritalar; batan gemiler, karadan yürütme; y
 | Bilgi kartları: siyasi şema (portreli), satır satır liste, sayaç; arka plan bulanıp kararır | `bilgi_kartlari` (`sema` / `liste` / `sayac`) | `5233aafd` |
 | Birlik türleri (blok + işaret), çok hatlı düzen, güç etiketi, vurgu çerçevesi, plan okları, bozgunda dağılma, kuşatma hatları | `birlikler[].tur/etiket/vurgu`, `yerler[].hatlar/bozgun/etiket`, `oklar[].stil "plan"`, `kusatma_hatlari` | `fbd092f3` |
 | Tasarlanmış an resmi (SDXL, hakem "an" kipi, "tasarlanmış" plakası), ek an görselleri, telifsiz arşiv filmi, fotoğraf belgeseli kipi + başlık şeridi | `arka_plan_sorgusu.an`, `gorseller[]` (`film`), `kip "fotograf"`, `satirlar[].serit` | `d4af9e39` |
-| 25–45 dk bölümler, diziler, parşömen bölüm kartı | `--sure 45dk`, `--dizi`/`--dizi-no`, `dizi`, `yazi_karti stil "bolum"` | `da0f6e04` |
+| Bölümler 20–30 dk (owner: 45 dk ilk aşamada yok; 90 sn / 3 dk denemeler kalır), diziler, parşömen bölüm kartı | `--sure 20dk…30dk`, `--dizi`/`--dizi-no`, `dizi`, `yazi_karti stil "bolum"` | `da0f6e04` |
 
 Denemelerde görülenler:
 - Tasarlanmış an: Truva atı iki kez çizildi; üslup istemin başındayken at hiç çıkmadı, an başa alınınca at çizildi ama

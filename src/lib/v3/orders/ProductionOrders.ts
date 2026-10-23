@@ -14,7 +14,7 @@ export const PRODUCTION_STEPS = ["senaryo", "gardirop", "ses", "senkron", "gorse
 export type ProductionStep = (typeof PRODUCTION_STEPS)[number];
 
 /** A video ordered without a length (owner, 21 Oct 2026: videos are at least 15–20 minutes). */
-export const DEFAULT_ORDER_LENGTH = "18dk";
+export const DEFAULT_ORDER_LENGTH = "20dk";
 
 /** How many times an interrupted order is resumed before it is reported as stopped. */
 export const MAX_RESUMES = 2;

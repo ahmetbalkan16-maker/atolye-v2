@@ -62,7 +62,7 @@ async function main() {
     assert.equal(orders.length, 1);
     assert.deepEqual([orders[0]!.order.durum, orders[0]!.order.kaynak, orders[0]!.order.dil], ["bekliyor", "ayas", "en"]);
     assert.equal(readdirSync(path.join(root, "_kutuphane", "siparisler")).filter((n) => n.endsWith(".json")).length, 1);
-    assert.match(await answerAyasVideoIntent({ kind: "status" }, root), /"Rubicon" \(18 dk\) sırada/);
+    assert.match(await answerAyasVideoIntent({ kind: "status" }, root), /"Rubicon" \(20 dk\) sırada/);
   });
 
   await scenario("E an order a gone watcher left running resumes after its last finished step, then is reported as stopped", () => {
@@ -70,7 +70,7 @@ async function main() {
     assert.equal(resumeStep(["beyinlerin hafızası", "✓ senaryo (40 sn)", "✓ gardirop (90 sn)", "✓ ses (141 sn)", "  render 300/3155"].join("\n")), "senkron");
     assert.equal(resumeStep(["✓ ses (1 sn)", "✓ birlestir (51 sn)"].join("\n")), "birlestir", "a finished production reruns only its last step");
     assert.equal(PRODUCTION_STEPS.length, 9);
-    assert.equal(DEFAULT_ORDER_LENGTH, "18dk", "an order without a length is a long video (owner, 21 Oct 2026)");
+    assert.equal(DEFAULT_ORDER_LENGTH, "20dk", "an order without a length is a long video (owner, 23 Oct 2026: 20–30 minutes)");
     const order = { id: "x", konu: "k", donem: "49 BC", sure: "120sn", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "t", durum: "calisiyor" } as ProductionOrder;
     recoverInterrupted(order, ["✓ senaryo (1 sn)", "✓ gardirop (1 sn)"].join("\n"));
     assert.deepEqual([order.durum, order.devam, order.devamAdimi], ["bekliyor", 1, "ses"]);
@@ -98,12 +98,17 @@ async function main() {
     assert.deepEqual(len("make a 3-minute video about the Fall of Rome"), ["the Fall of Rome", "3dk"]);
     assert.deepEqual(len("Yüz Yıl Savaşı hakkında video yap"), ["Yüz Yıl Savaşı", undefined]);
     assert.deepEqual(len("1453 İstanbul'un fethi hakkında 5 dakikalık video yap"), ["1453 İstanbul'un fethi", "5dk"]);
-    assert.equal(lengthOf("45 dakikalık"), "45dk");
-    assert.equal(lengthOf("60 dakikalık"), "45dk", "the producer's ceiling");
+    // Owner, 23 Oct 2026: long episodes 20–30 minutes; trials (90 s, 3 min) keep their length.
+    assert.equal(lengthOf("45 dakikalık"), "30dk", "long episodes at most 30 minutes");
+    assert.equal(lengthOf("15 dakikalık"), "20dk", "long episodes at least 20 minutes");
+    assert.equal(lengthOf("25 dakikalık"), "25dk");
+    assert.equal(lengthOf("3 dakikalık"), "3dk", "a 3-minute trial stays");
+    assert.equal(lengthOf("90 saniyelik"), "90sn", "a 90-second trial stays");
+    assert.equal(lengthOf("2400 saniyelik"), "1800sn");
     assert.equal(lengthOf("5 saniyelik"), "20sn", "the producer's floor");
     const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-"));
     assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Rubicon hakkında kısa bir video yap")!, root), /\(İngilizce, 3 dk\)/);
-    assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Sezar hakkında video yap")!, root), /\(İngilizce, 18 dk\)/);
+    assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Sezar hakkında video yap")!, root), /\(İngilizce, 20 dk\)/);
     assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH]);
   });
 

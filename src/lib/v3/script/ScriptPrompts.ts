@@ -231,7 +231,7 @@ SCENE KIND BY SCALE — choose each scene's kind by the scale of what it tells (
   one city needs a map only to show where that city is and what surrounds it. Every voyage, crossing, march or invasion
   between places is shown on a map with its route drawn (oklar, or a rozet with "yol" + "yol_satir") before the scene
   where it lands — never only on a beach or a ship. A scene whose "mekan" is a map has a "harita".
-  SHARES OF A LONG VIDEO (the owner's, for 10–20 minutes, like the history-with-maps documentaries): about 75–80% of the
+  SHARES OF A LONG VIDEO (the owner's, for 20–30 minutes, like the history-with-maps documentaries): about 75–80% of the
   running time on the map — wide and close, campaigns and battles told at length, step by step; about 15% character
   scenes — councils, quarrels, reactions, the stick figures exaggerated, angry, emotional; 6–10% period pictures cut in
   over the map ("ara_goruntu_satir", PERIOD IMAGES below).

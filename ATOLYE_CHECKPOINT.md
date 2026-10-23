@@ -19,7 +19,7 @@ bir video yaparız AYAS'a komut verip". Video üretilmedi; yalnız önizleme kar
   `film: true` → Commons telifsiz arşiv filmi, yalnız PD/CC0/CC BY, 12 sn klip). `kip "fotograf"` (sahnesiz
   fotoğraf belgeseli) + `satirlar[].serit` (kırmızı başlık şeridi). Pusula/ölçek ara görüntüde gizli.
   `scripts/v3/an-onizleme.ts` (Claude'suz an denemesi).
-- `da0f6e04` biçim: 45 dk üst sınır (MAX_EPISODE_S, AYAS siparişi de), bölüm sayısı ≤ 22; diziler (`--dizi`,
+- `da0f6e04` biçim (süre sonradan düzeltildi, aşağıda): diziler (`--dizi`,
   `--dizi-no`, sipariş dosyası, `_kutuphane/diziler/<ad>.json`, yazara önceki bölümler, kapakta "Fatih 06");
   parşömen bölüm kartı (3 sn).
 - Ayrıntı ve tablo: `docs/v3/07_DFT_INCELEME.md` "Tamamlanan eksikler".
@@ -31,8 +31,11 @@ kuşatma hattı), şerit ve arşiv filmi Remotion karesinde. Gerçek denemeler: 
 (SDXL tahta at yerine canlı at çizdi — hakem doğru reddetti); 1937 Hindenburg haber filmi bulundu, indirildi, kesildi.
 
 **Bilinen durum:** temel SDXL karmaşık mitoloji anlarında zayıf (yanlış resim gösterilmez, an atlanır). Çanakkale
-1915 için Commons'ta uygun film çıkmadı. 45 dk bir videoda 4 $ OpenAI tavanı yetmeyebilir (bütçe fail-closed durur;
-tavanı owner belirler).
+1915 için Commons'ta uygun film çıkmadı.
+
+**Owner düzeltmesi (aynı gece):** "45 dakika ilk aşamalarda istemiyorum; en çok 30, en az 20 dakika" ve "denemeler
+için 90 saniye ve 3 dakika kalsın". MAX_EPISODE_S = 1800, uzun bölümde ≤ 15 bölüm, varsayılan sipariş 20 dk; AYAS
+siparişinde 10 dakikanın altı deneme sayılıp süresi korunur, 10 dk ve üstü 20–30 dk aralığına çekilir.
 
 **Sıradaki:**
 1. Canlıya alma (wip/ayas-graphify-final-execution'a merge + canonical pull + Graphify) ve sipariş izleyicisinin
