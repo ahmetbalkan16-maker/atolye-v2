@@ -14,6 +14,7 @@ import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
 import { mapProblems } from "../src/lib/v3/script/MapRules";
+import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
 import { atlasYear, isPolity, nearestSnapshots, snapshotFile, withAtlasYears } from "../src/lib/v3/maps/HistoricalBorders";
@@ -810,6 +811,72 @@ async function main() {
     assert.equal(v({ surlar: [{ ad: "X" }] }).ok, false, "a wall needs a line or a castle");
     assert.equal(v({ surlar: [{ kale: { merkez: [20.45, 44.82], km: 0.8, bicim: "piramit" } }] }).ok, false);
     assert.equal(v({ yerlesimler: [{ tur: "sehir", konum: [20.45, 44.82], sur_ici: "evet" }] }).ok, false);
+  });
+
+  await scenario("O14 the battle itself on the close map (owner, 23 Oct 2026, after the Belgrade trial): speakers talk from their badges at their side's tokens, the map stays wide, the climax is asked for on the close map", () => {
+    const ep = sampleEpisode();
+    const cast: Episode["oyuncu_kadrosu"] = [
+      ep.oyuncu_kadrosu[0]!,
+      { ...castBase, id: "mehmed", ad: "Mehmed II", rol: "Ottoman Sultan, age 24", renk: "#b3263a", ses_id: "mehmed" },
+      { ...castBase, id: "szilagyi", ad: "Michael Szilágyi", rol: "Defender of Belgrade", renk: "#4e4eb7", ses_id: "szilagyi" },
+      { ...castBase, id: "envoy", ad: "Papal Envoy", rol: "Messenger from Rome", renk: "#b7b74e", ses_id: "envoy" },
+    ];
+    const sides: SceneMap["birlikler"] = [
+      { taraf: "Ottomans", renk: "#c0392b", amblem: "hilal", sayi: 8, yerler: [{ satir: 0, kusatma: [20.45, 44.82], km: 2 }] },
+      { taraf: "Hungarians", renk: "#2e6b3a", amblem: "kartal", sayi: 3, yerler: [{ satir: 0, kume: [20.451, 44.821], km: 0.6 }] },
+    ];
+    const siege: Episode["sahneler"][number] = {
+      ...ep.sahneler[0]!,
+      id: "y-belgrad",
+      mekan: "Close battle map: Belgrade Fortress",
+      harita: { merkez: [20.45, 44.82], genislik_km: 18, birlikler: sides, surlar: [{ ad: "Belgrade Fortress", kale: { merkez: [20.4505, 44.8203], km: 0.8 } }] },
+      satirlar: [
+        { karakter: "anlatici", metin: "Mehmed's cannons thunder.", duygu: "notr" },
+        { karakter: "mehmed", metin: "If at first you don't succeed, fire 21 more cannons.", duygu: "kararli", balon: "21 more cannons!" },
+        { karakter: "szilagyi", metin: "We call this Hungarian hospitality.", duygu: "sinsi", balon: "Hungarian hospitality" },
+      ],
+    };
+    assert.deepEqual([sideStems("Ottomans"), sideStems("Kingdom of Hungary"), sideStems("Bizans")], [["ottoma"], ["hungar"], ["bizan"]]);
+    const plan0 = mapSpeakers(siege, cast);
+    assert.deepEqual([...plan0.badged].sort(), ["mehmed", "szilagyi"]);
+    assert.deepEqual(plan0.sideBadges.map((b) => [b.karakter, b.taraf, b.satir]), [["mehmed", 0, 1], ["szilagyi", 1, 2]], "the sultan by his role, the defender as the side left");
+    // On a wide map only a writer's badge speaks; a speaker without one still stands on the map as before.
+    const wide = { ...siege, harita: { merkez: [22, 43] as [number, number], genislik_km: 1600, rozetler: [{ karakter: "mehmed", konum: [26.56, 41.68] as [number, number], satir: 0 }] } };
+    assert.deepEqual([[...mapSpeakers(wide, cast).badged], mapSpeakers(wide, cast).sideBadges.length], [["mehmed"], 0]);
+    // A third speaker of no side on the close map: two speakers for the one side left is no answer, the writer is asked
+    // for their badges.
+    const crowded = { ...siege, satirlar: [...siege.satirlar, { karakter: "envoy", metin: "The Pope sends his regards.", duygu: "notr" as const }] };
+    assert.deepEqual(mapSpeakers(crowded, cast).unplaced, ["szilagyi", "envoy"]);
+    assert.ok(mapProblems({ ...ep, oyuncu_kadrosu: cast, sahneler: [crowded] }).some((p) => p.includes('"envoy" speaks on the map but has no badge')));
+
+    // The render plan: no one on the stage, two talking badges at the tokens, the bubbles from the badges, the map wide.
+    const square = [[[19, 44], [22, 44], [22, 46], [19, 46], [19, 44]] as const] as const;
+    const data = { land: [square], lakes: [], rivers: [], countries: new Map() };
+    const episode: Episode = { ...ep, donem: "1456", oyuncu_kadrosu: cast, sahneler: [siege] };
+    const tl = buildTimeline(episode, [[fakeAudio(2), fakeAudio(2.5), fakeAudio(2)]]);
+    const plan = buildRenderPlan({ episode, timeline: tl, cast: toRenderCast(cast, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }], mapData: data as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const shot = plan.shots.find((s) => s.id === "y-belgrad")!;
+    assert.equal(shot.performers.length, 0, "the speakers are not drawn over the battle");
+    const badges = shot.geoMap!.badges!;
+    assert.deepEqual(badges.map((b) => b.castId), ["mehmed", "szilagyi"]);
+    const tokens = shot.geoMap!.units!;
+    for (const [bi, side] of [[0, 0], [1, 1]] as const) assert.ok(tokens[side]!.steps[0]!.points.some((p) => p.x === badges[bi]!.path[0]!.x && p.y === badges[bi]!.path[0]!.y), `${badges[bi]!.castId} stands at a token of his side`);
+    const lines = tl.lines.filter((l) => l.sceneIndex === 0);
+    const local = (sec: number) => Math.round(sec * 30) - shot.start;
+    assert.deepEqual(badges[0]!.talk!.speaking, [{ start: local(lines[1]!.start), end: local(lines[1]!.end) }], "the sultan's badge speaks on his line only");
+    assert.ok(badges[0]!.talk!.visemes.length >= 3 && badges[0]!.talk!.faces.some((f) => f.emotion === "kararli"));
+    assert.equal(badges[0]!.start, local(lines[1]!.start), "his badge comes with his first line");
+    assert.deepEqual(shot.bubbles!.map((b) => [b.castId, b.text]), [["mehmed", "21 more cannons!"], ["szilagyi", "Hungarian hospitality"]]);
+    assert.ok(shot.camera.every((c) => c.zoom <= 1.06), `the map stays wide while they speak: ${shot.camera.map((c) => c.zoom)}`);
+    assert.equal((shot.nameTags ?? []).length, 0, "the badge carries the name");
+
+    // The climax told off the map (Belgrade: the storming of the breach in a character scene) is asked for on it.
+    const breach: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "s6", ortam: { zaman: "gun", manzara: "sur_onu", uslup: "ortacag" }, satirlar: [{ karakter: "anlatici", metin: "The Ottomans storm the breach. The defenders push them back.", duygu: "korkmus" }] };
+    const told = mapProblems({ ...episode, sahneler: [siege, breach] });
+    assert.ok(told.some((p) => p.includes('climax is never seen on the close map "y-belgrad"') && p.includes('scene "s6" line 0')), JSON.stringify(told));
+    const fought: Episode["sahneler"][number] = { ...siege, harita: { ...siege.harita!, birlikler: [sides[0]!, { ...sides[1]!, yerler: [...sides[1]!.yerler, { satir: 2, kume: [20.451, 44.821], km: 0.6, kayip: 1 }] }] } };
+    assert.ok(!mapProblems({ ...episode, sahneler: [fought, breach] }).some((p) => p.includes("climax")), "losses on the close map: the reaction scene may follow");
+    assert.ok(!mapProblems({ ...episode, sahneler: [siege] }).some((p) => p.includes("climax")), "no fight told: no climax asked for");
   });
 
   await scenario("O9 vehicles on the map: a ship looks like its period's, only what the period had, routes and fire timed by their lines", () => {

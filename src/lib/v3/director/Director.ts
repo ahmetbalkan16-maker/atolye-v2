@@ -14,6 +14,7 @@ import type {
   V3Gesture,
   V3GestureEvent,
   V3Insert,
+  V3MapBadge,
   V3MoveEvent,
   V3NameTag,
   V3Performer,
@@ -28,6 +29,7 @@ import type {
 import { eraOf, periodEndYear } from "../episode/Period";
 import type { CloseCoast } from "../maps/CloseCoast";
 import { buildGeoMap, type MapData, mapOnScreen, mapStageX, withCoast } from "../maps/MapBuilder";
+import { mapSpeakers } from "../maps/MapSpeakers";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
 /** A scene's period image, cut in over the set while the narrator speaks. */
@@ -384,16 +386,24 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const slots = placeScene(scene, visibleIds);
     // A rider's face is higher than a walker's: close shots frame it there.
     const faceOf = (id: string) => (slots.get(id)?.mount ? FACE_Y - MOUNT_FACE_LIFT : FACE_Y);
+    const mapped = Boolean(scene.harita?.merkez && scene.harita.genislik_km && input.mapData);
+    // On a map, who has a badge there speaks through it and is not drawn on the stage (MapSpeakers).
+    const onMap = mapped ? mapSpeakers(scene, episode.oyuncu_kadrosu.filter((c) => visibleIds.has(c.id))) : undefined;
+    for (const id of onMap?.badged ?? []) slots.delete(id);
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
-    const geo = scene.harita?.merkez && scene.harita.genislik_km && input.mapData
-      ? buildGeoMap(scene.harita, withCoast(input.mapData, input.coasts?.get(scene.id)), input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
+    const geo = mapped
+      ? buildGeoMap(scene.harita!, withCoast(input.mapData!, input.coasts?.get(scene.id)), input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
           castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
           ...(input.language ? { language: input.language } : {}),
           era: eraOf(episode.donem),
           ...(periodEndYear(episode.donem) !== undefined ? { year: periodEndYear(episode.donem)! } : {}),
+          ...(onMap?.sideBadges.length ? { sideBadges: onMap.sideBadges } : {}),
         })
       : undefined;
+    // What each badge says: its mouth with the voice, its face with the line's mood.
+    const talks = new Map<string, { speaking: { start: number; end: number }[]; visemes: V3VisemeKey[]; faces: V3FaceEvent[] }>();
+    const talkOf = (id: string) => talks.get(id) ?? talks.set(id, { speaking: [], visemes: [], faces: [{ start: 0, emotion: "notr" }] }).get(id)!;
     // A lone character on a map stands where they hide the fewest names, unless the script placed them.
     // On a moving map it is judged where the marks stand on the screen when that character first speaks.
     const lone = geo && slots.size === 1 ? [...slots.entries()][0]! : undefined;
@@ -497,6 +507,14 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           const member = input.cast.find((c) => c.id === line.karakter);
           nameTags.push({ castId: line.karakter, name: entry?.ad ?? member?.name ?? line.karakter, ...(entry?.rol ? { role: entry.rol } : {}), start: ls, end: Math.min(duration, ls + f(2.8)) });
         }
+      } else if (onMap?.badged.has(line.karakter)) {
+        // Speaking from the badge: the map stays wide (the narrator's camera below) and the badge carries the name.
+        const talk = talkOf(line.karakter);
+        talk.speaking.push({ start: ls, end: le });
+        for (const v of lt.visemes) talk.visemes.push({ frame: ls + f(v.t), viseme: v.v });
+        talk.visemes.push({ frame: le, viseme: "X" });
+        talk.faces.push({ start: ls, emotion: line.duygu });
+        if (line.balon?.trim()) bubbles.push({ castId: line.karakter, text: line.balon.trim(), start: ls + f(0.08), end: Math.max(le + f(0.35), ls + f(1.6)) });
       }
 
       // Listeners turn to the speaker and react a beat later.
@@ -670,7 +688,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       nameTags,
       inserts,
       extras,
-      ...(geo ? { geoMap: geo } : {}),
+      ...(geo ? { geoMap: talks.size ? { ...geo, badges: (geo.badges ?? []).map((b) => withTalk(b, talks.get(b.castId))) } : geo } : {}),
     });
   });
 
@@ -694,7 +712,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       mapArrows: [],
       transitionIn: "kes",
       dramatized: false,
-      ...(first.geoMap && !period ? { geoMap: { ...first.geoMap, territories: [], armies: [], arrows: [] } } : {}),
+      ...(first.geoMap && !period ? { geoMap: { ...first.geoMap, territories: [], armies: [], arrows: [], ...(first.geoMap.badges ? { badges: first.geoMap.badges.map((b) => ({ ...b, talk: undefined })) } : {}) } } : {}),
     });
   }
   const last = shots[shots.length - 1];
@@ -741,6 +759,11 @@ function nearestOtherId<T extends { x: number }>(tracks: ReadonlyMap<string, T>,
     if (other !== id && (best === undefined || Math.abs(t.x - me.x) < Math.abs(tracks.get(best)!.x - me.x))) best = other;
   }
   return best;
+}
+
+/** A badge with what its character says on the map, in frame order. */
+function withTalk(b: V3MapBadge, talk: NonNullable<V3MapBadge["talk"]> | undefined): V3MapBadge {
+  return talk ? { ...b, talk: { speaking: talk.speaking, visemes: [...talk.visemes].sort((x, y) => x.frame - y.frame), faces: dedupeByStart(talk.faces) } } : b;
 }
 
 /** One bubble on screen at a time: each one ends before the next begins. */

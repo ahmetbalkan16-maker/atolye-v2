@@ -9,7 +9,7 @@ import { headCenter, type PerformerState, performerState, turnStretch } from "..
 import { easeInOut, HEAD_R, HIP_Y, INK } from "../character/rig";
 import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
-import { AtlasCorner, cameraAt as mapCameraAt, MapView } from "./MapView";
+import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
@@ -82,6 +82,17 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
     const centre = toScreen(st.px + (hc.x + ride.x) * k * s.mirror, st.py + (hc.y + ride.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror));
     // Headwear (turbans, crowns) reaches about one head radius above the head.
     heads.set(p.castId, { x: centre.x, top: centre.y - 2.05 * HEAD_R * k * cam.zoom, r: HEAD_R * k * cam.zoom });
+  }
+  // A badge speaking on the map (MapSpeakers): its place on the map's screen, through the map layer's own transforms —
+  // the slow push about the frame's middle, then the set's camera.
+  const geo = shot.geoMap;
+  for (const b of geo?.badges ?? []) {
+    if (!b.talk || heads.has(b.castId) || frame < b.start || (b.end !== undefined && frame >= b.end)) continue;
+    const a = badgeAnchor(geo!, b, frame, fps, W, H, shot.duration);
+    const push = (x: number, y: number) => ({ x: W / 2 + kbZoom * (x + kbX * W - W / 2), y: H / 2 + kbZoom * (y - H / 2) });
+    const onSet = (p: { x: number; y: number }) => ({ x: W / 2 + shake.dx + bgCam.zoom * (p.x - bgCam.cx * W), y: H / 2 + shake.dy + bgCam.zoom * (p.y - bgCam.cy * H) });
+    const at = onSet(push(a.x, a.top));
+    heads.set(b.castId, { x: at.x, top: at.y, r: a.r * kbZoom * bgCam.zoom });
   }
   const anchorOf = (castId: string): HeadAnchor | undefined => {
     const h = heads.get(castId);

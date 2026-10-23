@@ -1,4 +1,5 @@
 import { CLOSE_MAP_MAX_KM, type Episode, type UnitFormation } from "../episode/EpisodeTypes";
+import { mapSpeakers } from "../maps/MapSpeakers";
 import { distanceKm } from "../maps/PlaceCheck";
 
 /** Lines telling a siege or walls (English and Turkish stems). */
@@ -39,6 +40,34 @@ function closeMapProblems(s: Episode["sahneler"][number]): string[] {
   // with a castle standing on the map as a single building.
   const siege = SIEGE.test(s.mekan ?? "") || s.satirlar.some((l) => SIEGE.test(l.metin)) || (h.yapilar ?? []).some((b) => b.tur === "kale");
   if (!(h.surlar?.length) && siege) out.push(`close map "${s.id}" tells a siege or walls but draws none: give the walls ("surlar" with "noktalar" and "osm_ad") or the castle ("kale": {"merkez", "km"}), its gates and the breach on its line — CLOSE BATTLE MAP`);
+  return out;
+}
+
+/** Lines telling a battle's decisive fight: the assault, the breach, the rout, a fleet broken (English and Turkish stems). */
+const CLIMAX = /\b(?:storm(?:s|ed)?|breach(?:es|ed)?|assault(?:s|ed)?|charg(?:e|es|ed)|fl(?:ee|ees|ed)|rout(?:s|ed)?|retreat(?:s|ed)?|push(?:es|ed)? (?:them )?back|repuls(?:e|es|ed)|s[au]nk|smash(?:es|ed)?|overr[au]n|captur(?:e|es|ed)|surrender(?:s|ed)?)\b|hücum|saldır|kaçt|bozgun|püskürt|teslim|gedik/iu;
+
+/**
+ * The battle itself on the close map (owner, 23 Oct 2026, after the Belgrade trial: the writer drew the armies on the
+ * close map, then told the assault, the breach and the Ottoman flight in a character scene — no token ever fell). When
+ * the story tells a fight and has a close map with armies, some line of a close map has losses.
+ */
+function climaxProblems(scenes: Episode["sahneler"]): string[] {
+  const close = scenes.filter((s) => s.harita?.merkez && s.harita.genislik_km !== undefined && s.harita.genislik_km <= CLOSE_MAP_MAX_KM && (s.harita.birlikler?.length ?? 0) > 0);
+  if (!close.length || close.some((s) => s.harita!.birlikler!.some((u) => u.yerler.some((y) => (y.kayip ?? 0) > 0)))) return [];
+  const told = scenes.flatMap((s) => s.satirlar.map((l, i) => ({ s, i, l }))).filter(({ l }) => CLIMAX.test(l.metin));
+  if (!told.length) return [];
+  const away = told.find(({ s }) => !close.includes(s));
+  const where = away ? ` — scene "${away.s.id}" line ${away.i} tells it off the map ("${away.l.metin.slice(0, 60)}")` : "";
+  return [`the battle's climax is never seen on the close map "${close[0]!.id}"${where}: tell the assault, the breach and the rout ON the close map, line by line — on each fight line give both sides a formation side by side with "kayip" (tokens lost), the breach on its line ("surlar[].gedik"), the beaten side's tokens falling back; a character scene may come before (the council) or after (the reaction), never instead — CLOSE BATTLE MAP`];
+}
+
+/** Close-map speakers the studio cannot seat on the map (no badge, no side of theirs among the tokens). */
+function unplacedSpeakers(episode: Episode): string[] {
+  const out: string[] = [];
+  for (const s of episode.sahneler) {
+    if (!s.harita?.merkez || s.harita.genislik_km === undefined || s.harita.genislik_km > CLOSE_MAP_MAX_KM) continue;
+    for (const id of mapSpeakers(s, episode.oyuncu_kadrosu).unplaced) out.push(`close map "${s.id}": "${id}" speaks on the map but has no badge there and no side among the tokens: give them a "rozetler" entry where they stand (their army, their tent, the walls) from their first line — they speak from the badge, the battle stays in view`);
+  }
   return out;
 }
 
@@ -91,5 +120,7 @@ export function mapProblems(episode: unknown): string[] {
   const routes = scenes.some((s) => (s.harita?.oklar?.length ?? 0) > 0 || (s.harita?.rozetler ?? []).some((r) => (r.yol?.length ?? 0) > 0) || (s.harita?.ordular ?? []).some((o) => (o.yol?.length ?? 0) > 0));
   const moving = scenes.flatMap((s) => s.satirlar).filter((l) => MOVES.test(l.metin)).length;
   if (!routes && moving >= 2) out.push(`the story moves between places (${moving} lines tell a voyage, march, crossing or invasion) but no map shows the route: tell each crossing or campaign on a map scene with its route drawn (oklar, or a rozet with "yol" + "yol_satir") — SCENE KIND BY SCALE`);
+  out.push(...climaxProblems(scenes));
+  if (Array.isArray((episode as Episode).oyuncu_kadrosu)) out.push(...unplacedSpeakers(episode as Episode));
   return out;
 }

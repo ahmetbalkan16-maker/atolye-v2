@@ -300,6 +300,16 @@ export interface V3LabelSpot {
   readonly dy: number;
 }
 
+export interface V3MapBadge {
+  readonly castId: string;
+  readonly label: string;
+  readonly start: number;
+  readonly end?: number;
+  readonly moveStart?: number;
+  readonly path: readonly { readonly x: number; readonly y: number }[];
+  readonly talk?: { readonly speaking: readonly { readonly start: number; readonly end: number }[]; readonly visemes: readonly V3VisemeKey[]; readonly faces: readonly V3FaceEvent[] };
+}
+
 /** A drawn map (Natural Earth), already projected into frame pixels; things appear at `start` (shot frame). */
 export interface V3GeoMap {
   readonly land: string;
@@ -340,8 +350,13 @@ export interface V3GeoMap {
   readonly coastPad?: number;
   /** Index in `territories` of the story's main state (the script's first): a stronger border. */
   readonly mainTerritory?: number;
-  /** Rulers' portrait badges (a cast member's head); with more than one point they travel the path from `moveStart` (default `start`). */
-  readonly badges?: readonly { readonly castId: string; readonly label: string; readonly start: number; readonly end?: number; readonly moveStart?: number; readonly path: readonly { readonly x: number; readonly y: number }[] }[];
+  /**
+   * Rulers' portrait badges (a cast member's head); with more than one point they travel the path from `moveStart`
+   * (default `start`). `talk`: a character speaking on the map speaks through the badge (owner, 23 Oct 2026: the
+   * full-size figures hid the battle) — the portrait's mouth and face follow the voice, the badge swells while it speaks
+   * and the line's speech bubble rises from it.
+   */
+  readonly badges?: readonly V3MapBadge[];
   readonly battles?: readonly { readonly x: number; readonly y: number; readonly label: string; readonly start: number; readonly labelSpot?: V3LabelSpot }[];
   /**
    * A side's unit tokens: each formation's token positions (world pixels) from its frame on; between formations they

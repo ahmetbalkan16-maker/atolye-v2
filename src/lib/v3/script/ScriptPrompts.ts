@@ -221,8 +221,8 @@ SCENE KIND BY SCALE — choose each scene's kind by the scale of what it tells (
   - In ONE place (a city, a palace, a camp, a council, a street, a battle seen up close, a conversation): a CHARACTER
     scene — the cast on a set, speaking and acting.
   - BETWEEN places (cities, countries, regions, continents: campaigns, marches, alliances, conquests, borders, trade
-    routes, migrations, who rules where): a MAP scene — the narrator over the living map; a character may pop onto it
-    for a quip.
+    routes, migrations, who rules where): a MAP scene — the narrator over the living map; a character may speak from
+    his badge on it for a quip.
   Alternate them as the story moves: zoom out to the map when it travels or the balance of power changes, cut into a
   character scene when it arrives somewhere. A topic about states and wars needs map scenes all through it; a topic in
   one city needs a map only to show where that city is and what surrounds it. Every voyage, crossing, march or invasion
@@ -241,7 +241,8 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
   "tarihi.ad" the atlas's exact name, which may differ). A rough "noktalar" outline (clipped to the coast) only for a
   small region the atlas lacks — hand-drawn outlines look crude next to real borders. Strong, distinct colours
   (e.g. #3fae3a green, #3a9e9a teal, #e07b24 orange, #9a6a34 brown, #7a64b8 purple). "satir" = the line of the scene
-  that mentions it, so it appears then. A map scene is mostly narrator lines; characters may stand on it for a quip.
+  that mentions it, so it appears then. A map scene is mostly narrator lines; a character may speak on it for a quip —
+  from his portrait badge ("rozetler", below), never standing over the map.
   MAP NARRATION (drawn on a terrain relief map, like the history-with-maps channels): tell geography, politics and war on
   ONE map that follows the story instead of cutting away —
     "kamera": [{"satir": 2, "merkez": [lon, lat], "genislik_km": 900–6000}]   // the camera glides there with that line
@@ -250,7 +251,9 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // and the badge travels "yol" (a campaign: real waypoints — passes, river crossings, towns — 3–8 points),
         // leaving a dotted trail. A ruler shown only on the map is still a visible cast member with "portre", so the
         // costume team draws his likeness and the badge shows it. End a route just beside a battle (~70 km), not on
-        // it, so the battle's name stays readable.
+        // it, so the battle's name stays readable. A character who SPEAKS on a map speaks from his badge: the
+        // portrait talks and his line's "balon" rises from it, the map stays in view — give every character who
+        // speaks in a map scene a rozet there (where he stands from his first line) and a "balon" on each line.
     "savaslar": [{"ad": "Battle of Bapheus", "konum": [lon, lat], "satir": 3}]   // crossed swords where a battle happens
     "bitis_satir" on a territory: the line it disappears with — give the new, larger or smaller outline from that same line,
         so a border visibly grows or shrinks (a state that appears during the scene spreads out over the map).
@@ -288,6 +291,11 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
   that place: "genislik_km" 4–60, "kamera" keys 3–30 km (the painted battle maps of the history channels). The usual flow:
   wide map (the march there) → close map (the field or the walls, the armies, the guns, the ships) → a character scene
   (the war council in the commander's tent, "ortam" "ordugah") → the close map again (the assault, the breach, the fall).
+  The battle's CLIMAX is seen ON the close map, line by line: the assault (attackers' tokens at the walls or the enemy
+  front, "kayip" on that line so the losses fall one by one), the breach ("gedik" on its line), the counter-attack or the
+  rout (the beaten side's tokens fall back, more "kayip"), the fleet battle (ships at each other, firing). A character
+  scene may come before it (the council) or after it (the leaders' reaction), never instead of it. On the close map the
+  leaders speak from their badges (a "rozet" at their army, their tent or the walls), so the fight stays in view.
   The close map draws the place's real coast and hills by itself; on it give what the story needs, anywhere on Earth:
     "surlar": [{"ad": "Theodosian Walls", "noktalar": [[lon, lat], … 3–10 points along the wall], "osm_ad": "Walls of
                Constantinople", "kapilar": [[lon, lat]], "gedik": {"konum": [lon, lat], "satir": 4}}]

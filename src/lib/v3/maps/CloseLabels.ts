@@ -181,7 +181,9 @@ function marksOf(m: V3GeoMap, close: Close, relief: boolean): Obstacle[] {
   // Ships, cannons, riders: where they stand and along their way.
   for (const v of m.vehicles ?? [])
     for (const p of samples(v.path, u * 4)) out.push({ x: p.x, y: p.y, s: { x0: -55, y0: -40, x1: 55, y1: 40 }, from: v.start, to: v.end ?? Infinity, weight: 3 });
-  for (const b of m.badges ?? []) for (const p of [b.path[0], b.path[b.path.length - 1]]) if (p) out.push({ x: p.x, y: p.y, s: { x0: -75, y0: -140, x1: 75, y1: 6 }, from: b.start, to: b.end ?? Infinity, weight: 10 });
+  // A badge's portrait and name scroll count as much as a city's name: the speakers talk from them (Belgrade: the
+  // defender's scroll lay over "Belgrade Fortress").
+  for (const b of m.badges ?? []) for (const p of [b.path[0], b.path[b.path.length - 1]]) if (p) out.push({ x: p.x, y: p.y, s: { x0: -75, y0: -140, x1: 75, y1: 6 }, from: b.start, to: b.end ?? Infinity, weight: CITY_WEIGHT });
   for (const b of m.battles ?? []) out.push({ x: b.x, y: b.y, s: { x0: -52, y0: -50, x1: 52, y1: 50 }, from: b.start, to: Infinity, weight: 12 });
   // The walls' stone, towers and gates; the story's buildings; chains and lines; roads (cheap: a name may cross one).
   for (const w of close.walls) {

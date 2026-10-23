@@ -7,6 +7,7 @@ import { castleRing, castleStyleFor } from "./CastleShapes";
 import { placeCloseLabels } from "./CloseLabels";
 import { isPolity } from "./HistoricalBorders";
 import { LABEL_CHAR_W, labelLines } from "./LabelText";
+import type { SideBadge } from "./MapSpeakers";
 
 /**
  * OverSimplified-style maps from Natural Earth (public domain) vector data: land, lakes and rivers of the view,
@@ -497,6 +498,9 @@ export function mapOnScreen(m: V3GeoMap, frame: number, width: number, height: n
   };
 }
 
+/** `sideBadges`: close-map speakers the writer gave no badge, placed at their side's tokens (MapSpeakers). */
+type GeoMapOptions = { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number; readonly sideBadges?: readonly SideBadge[] };
+
 /**
  * The render map of a scene's geographic `harita` (needs `merkez` and `genislik_km`). Line indexes (`satir`) become
  * frames through `lineStart`, so a territory or an arrow appears when the narrator mentions it.
@@ -507,7 +511,7 @@ export function buildGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number } = {},
+  opts: GeoMapOptions = {},
 ): V3GeoMap {
   return placeCloseLabels(declutterMap(projectGeoMap(map, data, width, height, lineStart, opts), height), width, height);
 }
@@ -943,7 +947,7 @@ function projectGeoMap(
   width: number,
   height: number,
   lineStart: (index: number | undefined, order: number) => number,
-  opts: { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number },
+  opts: GeoMapOptions,
 ): V3GeoMap {
   const world = mapWorld(map, width, height);
   const v = world.view;
@@ -1119,6 +1123,48 @@ function projectGeoMap(
       .map((st, si, all) => (si > 0 && close ? { ...st, ...throughBreach(all[si - 1]!.points, st.points, st.start, close.walls) } : st));
     return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), steps };
   });
+  // A close-map speaker with no badge of the writer's stands with their side from the line they first speak, at one of
+  // its tokens. The badge rises ~140 px over its place, so it takes the token where it hides the least — walls,
+  // buildings, cities, guns and ships, enemy tokens, other badges (Belgrade: the defender's badge sat on the fortress and
+  // its name) — the formation's middle first (a siege ring's on its land arc).
+  const px = height / 1080 / zoom0;
+  const hides = (p: XY, q: XY) => q.x > p.x - 75 * px && q.x < p.x + 75 * px && q.y > p.y - 140 * px && q.y < p.y + 6 * px;
+  const fixed = [
+    ...(close?.walls ?? []).flatMap((w) => [...w.points, ...w.towers, ...w.gates].map((q) => ({ q, w: 1 }))),
+    ...(close?.buildings ?? []).map((q) => ({ q, w: 2 })),
+    ...(map.sehirler ?? []).map((c) => ({ q: toPx(c.konum), w: 2 })),
+    ...vehicles.flatMap((a) => [a.path[0], a.path[a.path.length - 1], a.target].flatMap((q) => (q ? [{ q, w: 1 }] : []))),
+  ];
+  const sideBadges: NonNullable<V3GeoMap["badges"]>[number][] = [];
+  for (const [i, s] of (opts.sideBadges ?? []).entries()) {
+    const yerler = [...(map.birlikler?.[s.taraf]?.yerler ?? [])].sort((a, b) => a.satir - b.satir);
+    let k = 0;
+    while (k + 1 < yerler.length && yerler[k + 1]!.satir <= s.satir) k++;
+    const pts = units[s.taraf]?.steps[k]?.points ?? [];
+    if (!pts.length) continue;
+    // The other sides where they stand on that line.
+    const enemies = units.flatMap((u, ui) => {
+      if (ui === s.taraf) return [];
+      let j = 0;
+      while (j + 1 < u.steps.length && u.steps[j + 1]!.start <= lineStart(s.satir, 0)) j++;
+      return u.steps[j]?.points ?? [];
+    });
+    const marks = [...fixed, ...enemies.map((q) => ({ q, w: 1 })), ...pts.map((q) => ({ q, w: 0.5 })), ...[...badges, ...sideBadges].flatMap((b) => (b.path[0] ? [{ q: b.path[0], w: 5 }] : []))];
+    const middle = yerler[k] && "kume" in yerler[k]! ? 0 : Math.floor(pts.length / 2);
+    const order = Array.from({ length: pts.length }, (_, j) => pts[(middle + (j % 2 ? (j + 1) / 2 : -j / 2) + pts.length * 2) % pts.length]!);
+    // While they speak, the badge and room for its bubble over it (~240 px) stay inside the view the camera rests on for
+    // each of their lines (Belgrade: the camera closed in on the castle and left the defender's badge at the top edge).
+    const views = s.satirlar.map((l) => {
+      const frame = lineStart(l, 0);
+      const key = camera ? [...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]! : { x: width / 2, y: height / 2, zoom: 1 };
+      return { x: key.x, y: key.y, half: { x: width / 2 / key.zoom, y: height / 2 / key.zoom }, k: height / 1080 / key.zoom };
+    });
+    const seen = (p: XY) => views.filter((vw) => p.x - 95 * vw.k > vw.x - vw.half.x && p.x + 95 * vw.k < vw.x + vw.half.x && p.y - 240 * vw.k > vw.y - vw.half.y && p.y + 20 * vw.k < vw.y + vw.half.y).length;
+    const score = (p: XY) => (views.length - seen(p)) * 100 + marks.reduce((a, m) => a + (m.q !== p && hides(p, m.q) ? m.w : 0), 0);
+    const at = order.reduce((best, p) => (score(p) < score(best) ? p : best), order[0]!);
+    sideBadges.push({ castId: s.karakter, label: opts.castName?.(s.karakter) ?? s.karakter, start: lineStart(s.satir, (map.rozetler?.length ?? 0) + i), path: [at] });
+  }
+  const allBadges = [...badges, ...sideBadges];
   const drawn: V3GeoMap = {
     land: polygonsPath(v, data.land),
     lakes: polygonsPath(v, data.lakes),
@@ -1136,7 +1182,7 @@ function projectGeoMap(
     arrows: (map.oklar ?? []).map((o, i) => ({ points: o.noktalar.map((p) => toPx(p)), color: o.renk ?? "#e0283c", ...(o.etiket ? { label: o.etiket } : {}), start: lineStart(o.satir, i) })),
     ...(moving ? { world: { width: v.width, height: v.height }, camera } : {}),
     ...(opts.relief ? { relief: opts.relief } : {}),
-    ...(badges.length ? { badges } : {}),
+    ...(allBadges.length ? { badges: allBadges } : {}),
     ...(battles.length ? { battles } : {}),
     ...(units.length ? { units } : {}),
     ...(fights.length ? { fights } : {}),

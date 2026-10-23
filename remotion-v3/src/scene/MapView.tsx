@@ -1,8 +1,9 @@
 import React, { useId } from "react";
 import { Easing, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import type { V3CastMember, V3Extra, V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
+import type { V3CastMember, V3Extra, V3GeoMap, V3MapBadge } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { type AccessoryIndex, Character } from "../character/Character";
 import { extraState } from "../character/extras";
+import { performerState } from "../character/motion";
 import { HEAD_CY, INK } from "../character/rig";
 import { along, pathLength, smoothPoints } from "./mapGeometry";
 import { BattleBursts, UnitTokens } from "./MapUnits";
@@ -163,6 +164,41 @@ function labelLines(text: string): string[] {
 /** How long the camera takes to reach a new view (seconds), and a badge to travel its route. */
 const CAMERA_MOVE_S = 2.4;
 const BADGE_TRAVEL_S = 3;
+
+/**
+ * Where a badge stands at a frame (world pixels) and how far along its route it is. A ruler's journey on the relief
+ * map keeps the marches' unhurried pace (owner, 22 Oct 2026), ending before the cut.
+ */
+export function badgeAt(map: V3GeoMap, b: V3MapBadge, frame: number, fps: number, H: number, duration?: number): { at: { x: number; y: number }; progress: number } {
+  const moveFrom = b.moveStart ?? b.start;
+  const left = duration === undefined ? Infinity : Math.max(1.5, (duration - moveFrom) / fps - 0.6);
+  const travelS = map.relief ? Math.min(left, MARCH_MAX_S, Math.max(MARCH_MIN_S, (pathLength(b.path) * 1080) / H / 150)) : BADGE_TRAVEL_S;
+  const progress = interpolate(frame, [moveFrom, moveFrom + fps * travelS], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
+  return { at: along(b.path, progress), progress };
+}
+
+/** Screen height (1080p px) from a badge's place up to the top of its ring, and its ring's radius: relief and flat maps. */
+const BADGE_TOP = { relief: 131, flat: 175 } as const;
+const BADGE_R = { relief: 44, flat: 48 } as const;
+
+/**
+ * A speaking badge on the screen of the map (before the shot's own camera): its x, the top of the badge (where a speech
+ * bubble starts) and the ring's radius — for the bubble over the portrait.
+ */
+export function badgeAnchor(map: V3GeoMap, b: V3MapBadge, frame: number, fps: number, W: number, H: number, duration?: number): { x: number; top: number; r: number } {
+  const cam = cameraAt(map.camera, frame, fps, W, H);
+  const { at } = badgeAt(map, b, frame, fps, H, duration);
+  const u = H / 1080;
+  const kind = map.relief ? "relief" : "flat";
+  return { x: W / 2 + cam.zoom * (at.x - cam.x), top: H / 2 + cam.zoom * (at.y - cam.y) - BADGE_TOP[kind] * u * talkSwell(b, frame), r: BADGE_R[kind] * u };
+}
+
+/** How much a speaking badge has swelled (1 at rest, up to 1.14 while its character speaks), easing in and out. */
+export function talkSwell(b: V3MapBadge, frame: number): number {
+  let a = 0;
+  for (const s of b.talk?.speaking ?? []) a = Math.max(a, Math.min(1, Math.max(0, (frame - s.start) / 6), Math.max(0, (s.end - frame) / 6)));
+  return 1 + 0.14 * a;
+}
 
 type Key = NonNullable<V3GeoMap["camera"]>[number];
 
@@ -585,13 +621,16 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
           if (a <= 0) return null;
           // A campaign (owner, 21 Oct 2026: "Bayezid sets out, the badge moves showing where he goes"): the badge sets off
           // with its line, takes longer on a longer road, and leaves a dotted trail behind it.
-          const moveFrom = b.moveStart ?? b.start;
-          // A ruler's journey keeps the marches' unhurried pace (owner, 22 Oct 2026), ending before the cut.
-          const travelS = relief ? Math.min(leftS(moveFrom), MARCH_MAX_S, Math.max(MARCH_MIN_S, (pathLength(b.path) * 1080) / H / 150)) : BADGE_TRAVEL_S;
-          const progress = interpolate(frame, [moveFrom, moveFrom + fps * travelS], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-          const at = along(b.path, progress);
-          const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } });
-          const extra: V3Extra = { castId: b.castId, x: 0, depth: 0, facing: progress > 0 && progress < 1 && b.path.length > 1 && b.path[b.path.length - 1]!.x < b.path[0]!.x ? "left" : "right", scale: 1, mood: "notr", seed: i * 97 + 13 };
+          const { at, progress } = badgeAt(map, b, frame, fps, H, duration);
+          // A speaking badge swells a little and its ring turns gold, so the viewer sees who talks.
+          const swell = talkSwell(b, frame);
+          const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } }) * swell;
+          const ringStroke = swell > 1.02 ? "#e8b23a" : undefined;
+          const facing = progress > 0 && progress < 1 && b.path.length > 1 && b.path[b.path.length - 1]!.x < b.path[0]!.x ? "left" : "right";
+          const extra: V3Extra = { castId: b.castId, x: 0, depth: 0, facing, scale: 1, mood: "notr", seed: i * 97 + 13 };
+          // The portrait talks: its mouth with the voice, its face with the line (owner, 23 Oct 2026, the leaders' speech on
+          // the reference documentary's map).
+          const head = b.talk ? performerState({ castId: b.castId, x: 0, depth: 0, facing, moves: [], gestures: [], faces: b.talk.faces, visemes: b.talk.visemes, effects: [], speaking: b.talk.speaking }, frame, fps) : extraState(extra, frame, fps);
           if (relief) {
             // The reference maps' badge: a portrait in a parchment ring, the name on a scroll under it touching only the
             // ring's rim (owner, 21 Oct 2026: a scroll across the ring's lower half covered the face), a short point
@@ -613,13 +652,13 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                   </defs>
                   <g style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
                     <path d={`M${-10 * k} ${scrollY} L0 0 L${10 * k} ${scrollY} Z`} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2.5 * k} strokeLinejoin="round" />
-                    <circle cy={cy} r={r + 5 * k} fill={PARCHMENT} stroke={SEPIA} strokeWidth={3 * k} />
+                    <circle cy={cy} r={r + 5 * k} fill={PARCHMENT} stroke={ringStroke ?? SEPIA} strokeWidth={(ringStroke ? 6 : 3) * k} />
                   </g>
                   <circle cy={cy} r={r} fill="#d9c9a3" />
                   {m && accessories ? (
                     <g clipPath={`url(#${id}-badge${i})`}>
                       <g transform={`translate(0 ${cy - HEAD_CY * s + r * 0.18}) scale(${s})`}>
-                        <Character member={m} state={extraState(extra, frame, fps)} accessories={accessories} cheap />
+                        <Character member={m} state={head} accessories={accessories} cheap />
                       </g>
                     </g>
                   ) : null}
@@ -648,12 +687,12 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
                 </clipPath>
               </defs>
               <path d={`M${-14 * k} ${cy + r} L0 0 L${14 * k} ${cy + r} Z`} fill="#ffffff" stroke={INK} strokeWidth={4 * k} strokeLinejoin="round" />
-              <circle cy={cy} r={r + 6 * k} fill="#ffffff" stroke={INK} strokeWidth={5 * k} />
+              <circle cy={cy} r={r + 6 * k} fill={ringStroke ?? "#ffffff"} stroke={INK} strokeWidth={5 * k} />
               <circle cy={cy} r={r} fill="#d9c9a3" />
               {m && accessories ? (
                 <g clipPath={`url(#${id}-badge${i})`}>
                   <g transform={`translate(0 ${cy - HEAD_CY * s + r * 0.18}) scale(${s})`}>
-                    <Character member={m} state={extraState(extra, frame, fps)} accessories={accessories} cheap />
+                    <Character member={m} state={head} accessories={accessories} cheap />
                   </g>
                 </g>
               ) : null}
