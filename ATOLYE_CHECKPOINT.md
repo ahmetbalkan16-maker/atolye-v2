@@ -25,15 +25,21 @@ adamlar savaşı örtüyor → yakın haritada konuşma balonlu rozet (DFT örne
 script 21, mix 13, council 11, motion 9, backgrounds 20, likeness 14. Önizleme kareleri: Belgrad yakın haritası
 (konuşan Mehmed ve Szilágyi rozetleri, batan gemiler, Macar donanmasının ateşi).
 
-**Bilinen durum:** yazarın gemi konumları karada kalabiliyor (gemiler en yakın suya oturtulmuyor); 4. denemede kalan
-uyarılar: s6'da 2. satırdaki kayıpta düşman uzakta, s8 sonuç haritası durağan. Overpass yine aralıklı.
+**Kusur düzeltmeleri (`70983853`, owner "kusurları düzelt"):** suyu bilinen yakın haritada karaya konmuş gemi en
+yakın suya oturur (haritanın %8'i, en az 1,5 km) ve ona yöneltilen ateş onu izler; yerinde duran yazar rozeti örttüğü
+pullardan ~55 px'lik en çok üç adım kayar; asıl neden de bulundu: yazarın km vermediği küme/kuşatma 30/40 km
+sayılıyordu (10 km'lik haritada savunanların üçü, geri çekilen ordunun çoğu harita dışında) — yakın haritada artık
+haritanın onda biri. Önizleme: Belgrad hücumu (bütün pullar haritada, Mehmed rozeti ordusunun yanında), Tuna (gemiler
+suda, Macar ateşi gemilerde). smoke-v3-episode-director 34.
+
+**Bilinen durum:** 4. denemede kalan uyarılar: s6'da 2. satırdaki kayıpta düşman uzakta, s8 sonuç haritası durağan
+(yazarın eksikleri; kural uyarıyor). Kalenin dibinde toplanan donanma kale adını kısmen örtüyor. Overpass aralıklı.
 
 **Sıradaki:**
-1. Gemi konumlarını yakın haritada en yakın suya oturt (Belgrad'da Osmanlı donanması Sava kıyısının karasında).
-2. Ölçüt bölüm 1453 sesli (dış harita → yakın harita → otağda konsey → hücum yakın haritası).
-3. Belgrad 4. senaryoyu tam üretimde dene (Overpass yanıt verirken), owner'a göster.
-4. Planın kalanı: anlatıdaki nesneler için simgeler, alınan yere dikilen sancak, "Dönüm Noktası" parşömen kartı.
-5. Sipariş izleyicisi (`yapim.ts`) yeniden başlatılmadı (owner "evet" ister); üretici her siparişte diskten çalışır.
+1. Ölçüt bölüm 1453 sesli (dış harita → yakın harita → otağda konsey → hücum yakın haritası).
+2. Belgrad 4. senaryoyu tam üretimde dene (Overpass yanıt verirken), owner'a göster.
+3. Planın kalanı: anlatıdaki nesneler için simgeler, alınan yere dikilen sancak, "Dönüm Noktası" parşömen kartı.
+4. Sipariş izleyicisi (`yapim.ts`) yeniden başlatılmadı (owner "evet" ister); üretici her siparişte diskten çalışır.
 
 ## 23 Ekim 2026 (gündüz) — V3 yakın harita her olay için: okunur adlar, karadan yürütme, OSM'den sur/kale/nehir, yazar beyni
 

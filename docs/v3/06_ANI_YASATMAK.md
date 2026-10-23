@@ -157,4 +157,7 @@ herhangi bir olayda yapabilmeliyiz — yakın haritayı, kaleyi."
   tepki → sonuç haritası. Hücum yalnız karakter sahnesinde anlatılırsa onarım istenir; uzunluk turu harita
   kazanımlarını bozamaz.
 - **Sınav 4** (Belgrad, 0,45 $): yazar bu akışı kendisi kurdu (Tuna'da batan Osmanlı gemileri, surlu hücum haritası,
-  Mehmed rozetinden konuşur). Kalan: gemi konumları karaya düşebiliyor (en yakın suya oturtma sırada).
+  Mehmed rozetinden konuşur).
+- **Kusur düzeltmeleri**: karaya konmuş gemi en yakın suya oturur, ona yöneltilen ateş onu izler; yazarın rozeti
+  örttüğü pullardan biraz kayar; km'siz küme/kuşatma yakın haritada haritanın onda biri (önceden 30/40 km — pullar
+  harita dışına düşüyordu).
