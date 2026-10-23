@@ -1,5 +1,5 @@
 import { crowdId } from "../costumes/CastMapper";
-import type { Episode, EpisodeScene, SceneCrowd, SceneLine } from "../episode/EpisodeTypes";
+import { CLOSE_MAP_MAX_KM, type Episode, type EpisodeScene, type SceneCrowd, type SceneLine } from "../episode/EpisodeTypes";
 import type {
   V3Accessory,
   V3Background,
@@ -406,6 +406,33 @@ export function pictureShares(plan: V3RenderPlan): { harita: number; sahne: numb
   return { harita: r(map), sahne: r(stage), gorsel: r(pictures) };
 }
 
+/** How the narration names a side: the first five letters of its first real word ("Ottomans" → "ottom", "Serbian Coalition" → "serbi"). */
+export function sideStem(taraf: string): string | undefined {
+  const w = taraf.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).find((x) => x.length >= 4 && !/^(army|forces?|troops|coalition|league|the)$/.test(x));
+  return w ? w.slice(0, 5) : undefined;
+}
+
+/**
+ * On a close map the side the narrator names is framed while the line is told (the Kosovo 1389 trial: "Murad leads the
+ * Ottoman center… Lazar commands the Serbian center" over 18 s of a still battlefield). For sides the writer gave no
+ * "vurgu": every line naming exactly one side (by its stem) highlights that side's units. A scene without a close map, or
+ * whose units already have highlights, is returned as it is.
+ */
+export function withNamedHighlights(scene: EpisodeScene): EpisodeScene {
+  const h = scene.harita;
+  if (!h?.birlikler?.length || h.genislik_km === undefined || h.genislik_km > CLOSE_MAP_MAX_KM || h.birlikler.some((u) => u.vurgu?.length)) return scene;
+  const stems = [...new Set(h.birlikler.map((u) => sideStem(u.taraf)).filter((s): s is string => !!s))];
+  if (stems.length < 2) return scene;
+  const names = (text: string) => stems.filter((s) => new RegExp(`(^|[^\\p{L}])${s}`, "iu").test(text));
+  const lines = scene.satirlar.map((l) => names(l.metin));
+  const birlikler = h.birlikler.map((u) => {
+    const stem = sideStem(u.taraf);
+    const vurgu = lines.flatMap((n, i) => (n.length === 1 && n[0] === stem ? [i] : []));
+    return vurgu.length ? { ...u, vurgu } : u;
+  });
+  return { ...scene, harita: { ...h, birlikler } };
+}
+
 /** A further picture the writer placed on a character scene's line stays at most this long (seconds). */
 export const PICTURE_INSERT_S = 6;
 
@@ -518,7 +545,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     for (const id of onMap?.badged ?? []) slots.delete(id);
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
     const geo = mapped
-      ? buildGeoMap(scene.harita!, withCoast(input.mapData!, input.coasts?.get(scene.id)), input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
+      ? buildGeoMap(withNamedHighlights(scene).harita!, withCoast(input.mapData!, input.coasts?.get(scene.id)), input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
           ...(input.reliefs?.get(scene.id) ? { relief: input.reliefs.get(scene.id)! } : {}),
           castName: (id) => episode.oyuncu_kadrosu.find((c) => c.id === id)?.ad,
           ...(input.language ? { language: input.language } : {}),

@@ -188,7 +188,7 @@ export interface V3Background {
 }
 
 export type V3TimeOfDay = "gun" | "aksam" | "gece" | "safak";
-export type V3Landscape = "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" | "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu";
+export type V3Landscape = "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" | "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu" | "cadir_ici";
 export type V3ArchStyle = "roma" | "yunan" | "misir" | "pers" | "bizans" | "osmanli" | "ortacag" | "cin" | "japon" | "erken_modern" | "modern";
 export type V3Weather = "acik" | "bulutlu" | "sis" | "yagmur" | "kar";
 export type V3SetLight = "yok" | "mesale" | "kamp_atesi";

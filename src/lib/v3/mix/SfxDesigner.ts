@@ -111,6 +111,7 @@ const PLACE_SOUND: Readonly<Record<SceneSetting["manzara"], string>> = {
   meclis: "a large hall, a crowd of men murmuring",
   ordugah: "an army camp, distant voices, metal clinking, a horse snorting",
   sur_onu: "outside high city walls, wind, distant voices",
+  cadir_ici: "inside a large tent, canvas flapping softly in the wind, a camp murmuring outside",
 };
 const WEATHER_SOUND: Readonly<Record<NonNullable<SceneSetting["hava"]>, string>> = { acik: "", bulutlu: "a light wind", sis: "still misty air", yagmur: "steady rain falling", kar: "muffled snowy quiet, soft wind" };
 const LIGHT_SOUND: Readonly<Record<NonNullable<SceneSetting["isik"]>, string>> = { yok: "", mesale: "torches crackling", kamp_atesi: "a campfire crackling" };

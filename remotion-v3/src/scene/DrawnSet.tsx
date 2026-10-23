@@ -387,6 +387,80 @@ const WAIST = -250;
 /** The water line of an actor `depth` (0..1) into the river, in character space. */
 export const waterLine = (depth: number) => WAIST * depth;
 
+/** A tent's canvas colours by the period: an Ottoman otağ red and cream, a Persian or Mongol blue, else a field tent's. */
+const TENT_CLOTH: Partial<Record<V3ArchStyle, readonly [string, string]>> = {
+  osmanli: ["#b3263a", "#f1e3c4"],
+  pers: ["#2f5d9e", "#efe0bd"],
+  cin: ["#b8392e", "#f0e2c0"],
+  japon: ["#2f3f55", "#ece2c8"],
+  roma: ["#a8743f", "#e9d6ab"],
+  yunan: ["#9b7a52", "#ece0c4"],
+  bizans: ["#6d2f6e", "#efdcb8"],
+};
+
+/**
+ * Inside a commander's tent (owner, 23 Oct 2026: the war council in the otağ; the Kosovo 1389 trial drew "Murad's tent"
+ * as a sunny camp): striped canvas walls rising to the roof, the centre pole, the door flap open on the camp at the
+ * back, a carpet on the ground, a hanging lamp that sways, braziers when the scene is lit.
+ */
+function TentInterior({ spec, p, c, W, H, frame }: { spec: V3DrawnSet; p: Palette; c: StyleColours; W: number; H: number; frame: number }) {
+  const cloth = TENT_CLOTH[spec.uslup] ?? (["#8a6a45", "#e6d5b0"] as const);
+  const deep = mix(cloth[0], p.dimTo, p.dim);
+  const light = mix(cloth[1], p.dimTo, p.dim);
+  const floorTop = H * 0.72;
+  const stripes = 12;
+  const sway = Math.sin(frame * 0.04) * 6;
+  const flap = { x0: W * 0.43, x1: W * 0.57, top: H * 0.3 };
+  return (
+    <g>
+      {/* What is seen through the open flap: the sky of the hour and the camp's far tents. */}
+      <rect x={flap.x0} y={flap.top} width={flap.x1 - flap.x0} height={floorTop - flap.top} fill={p.sky[2]} />
+      <rect x={flap.x0} y={floorTop - 70} width={flap.x1 - flap.x0} height={70} fill={p.groundFar} />
+      {[0.46, 0.53].map((tx) => (
+        <path key={tx} d={`M${tx * W - 30} ${floorTop - 40} L${tx * W} ${floorTop - 92} L${tx * W + 30} ${floorTop - 40} Z`} fill={mix("#e8dcc0", p.dimTo, p.dim)} {...outline(3)} />
+      ))}
+      {/* The back wall: vertical stripes of the two cloths, a scalloped valance under the roof. */}
+      {Array.from({ length: stripes }, (_, i) => {
+        const x = (i / stripes) * W * 1.2 - W * 0.1;
+        const w = (W * 1.2) / stripes;
+        // Over the door the canvas comes down to the top of the opening.
+        const bottom = x + w > flap.x0 && x < flap.x1 ? flap.top : floorTop;
+        return <rect key={i} x={x} y={H * 0.12} width={w + 1} height={bottom - H * 0.12} fill={i % 2 ? light : deep} />;
+      })}
+      {/* The flap itself, drawn back to both sides. */}
+      <path d={`M${flap.x0} ${H * 0.12} Q${flap.x0 + 40} ${H * 0.4} ${flap.x0 - 30} ${floorTop}`} fill="none" {...outline(5)} />
+      <path d={`M${flap.x0 - 40} ${H * 0.12} L${flap.x0} ${H * 0.12} Q${flap.x0 + 40} ${H * 0.4} ${flap.x0 - 30} ${floorTop} L${flap.x0 - 90} ${floorTop} Z`} fill={deep} {...outline(5)} />
+      <path d={`M${flap.x1 + 40} ${H * 0.12} L${flap.x1} ${H * 0.12} Q${flap.x1 - 40} ${H * 0.4} ${flap.x1 + 30} ${floorTop} L${flap.x1 + 90} ${floorTop} Z`} fill={deep} {...outline(5)} />
+      {/* The roof: the canvas sloping up to the pole's top, with a scalloped valance and a gold trim. */}
+      <rect x={-W * 0.1} y={-H * 0.1} width={W * 1.2} height={H * 0.24} fill={mix(deep, "#000000", 0.25)} />
+      {/* The roof's seams, running out from the pole's top. */}
+      {[-0.6, -0.3, 0.3, 0.6].map((k) => (
+        <path key={k} d={`M${W * 0.5} ${H * 0.02} L${W * 0.5 + k * W} ${H * 0.12}`} stroke={mix(light, "#000000", 0.2)} strokeWidth={4} opacity={0.6} />
+      ))}
+      {Array.from({ length: 16 }, (_, i) => {
+        const x = (i / 16) * W * 1.2 - W * 0.1;
+        const w = (W * 1.2) / 16;
+        return <path key={`v${i}`} d={`M${x} ${H * 0.12} L${x + w} ${H * 0.12} Q${x + w / 2} ${H * 0.21} ${x} ${H * 0.12} Z`} fill={i % 2 ? deep : light} {...outline(3)} />;
+      })}
+      <rect x={-W * 0.1} y={H * 0.1} width={W * 1.2} height={14} fill={mix("#d9a63a", p.dimTo, p.dim)} {...outline(3)} />
+      {/* The centre pole, behind the actors. */}
+      <rect x={W * 0.5 - 14} y={-H * 0.1} width={28} height={flap.top + H * 0.1} fill={mix("#7a5232", p.dimTo, p.dim)} {...outline(4)} />
+      <circle cx={W * 0.5} cy={H * 0.02} r={22} fill={mix("#d9a63a", p.dimTo, p.dim)} {...outline(4)} />
+      {/* The carpet on the ground. */}
+      <rect x={-W * 0.1} y={floorTop} width={W * 1.2} height={H} fill={mix("#8a5a35", p.dimTo, p.dim)} {...outline(5)} />
+      <path d={`M${W * 0.08} ${floorTop + 40} L${W * 0.92} ${floorTop + 40} L${W * 1.04} ${H * 1.02} L${-W * 0.04} ${H * 1.02} Z`} fill={mix("#9e2a2a", p.dimTo, p.dim)} {...outline(4)} />
+      <path d={`M${W * 0.14} ${floorTop + 62} L${W * 0.86} ${floorTop + 62} L${W * 0.96} ${H} L${W * 0.04} ${H} Z`} fill="none" stroke={mix("#e3b23c", p.dimTo, p.dim)} strokeWidth={6} />
+      {/* A lamp on a chain from the roof, swaying a little, glowing. */}
+      <g transform={`translate(${W * 0.3 + sway} 0)`}>
+        <path d={`M0 0 L0 ${H * 0.24}`} stroke={INK} strokeWidth={3} />
+        <circle cx={0} cy={H * 0.27} r={60} fill="#ffd27a" opacity={0.18 + 0.05 * Math.sin(frame * 0.3)} />
+        <path d={`M-18 ${H * 0.24} L18 ${H * 0.24} L12 ${H * 0.29} L-12 ${H * 0.29} Z`} fill={mix("#d9a63a", p.dimTo, p.dim)} {...outline(3)} />
+      </g>
+      {spec.isik && spec.isik !== "yok" ? [0.07, 0.93].map((tx, i) => <Torch key={i} x={tx * W} y={stageY(0.7, H)} s={0.6} frame={frame} i={i} />) : null}
+    </g>
+  );
+}
+
 export function DrawnSetBack({ spec, W, H, frame }: { spec: V3DrawnSet; W: number; H: number; frame: number }) {
   const p = PALETTES[spec.zaman];
   const c0 = STYLES[spec.uslup];
@@ -427,6 +501,8 @@ export function DrawnSetBack({ spec, W, H, frame }: { spec: V3DrawnSet; W: numbe
       </g>
     );
   }
+
+  if (m === "cadir_ici") return <TentInterior spec={spec} p={p} c={c} W={W} H={H} frame={frame} />;
 
   // Outdoors: far hills, mid layer of the place, ground.
   const farHills = hillPath(W, H, 0.42, 0.58, 4, seed + 1);
@@ -594,6 +670,8 @@ function Fog({ W, H, frame, y, opacity }: { W: number; H: number; frame: number;
 export function DrawnSetFront({ spec, W, H, frame }: { spec: V3DrawnSet; W: number; H: number; frame: number }) {
   const r = rng(spec.tohum + 5);
   const lights = lightSpots(spec, W, H);
+  // Indoors no rain, snow or ground fog falls on the actors (a tent, a palace, a council hall).
+  if (spec.manzara === "cadir_ici" || spec.manzara === "saray_ici" || spec.manzara === "meclis") spec = { ...spec, hava: "acik" };
   // Light enough that the actors keep their colours (the first try at 0.42 turned everyone grey).
   const grade = spec.zaman === "gece" ? { c: "#2a3a78", o: 0.26 } : spec.zaman === "aksam" ? { c: "#b0603a", o: 0.12 } : spec.zaman === "safak" ? { c: "#6a5a9a", o: 0.1 } : undefined;
   return (

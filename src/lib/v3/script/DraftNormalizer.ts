@@ -71,7 +71,7 @@ const SET_ALIASES: Readonly<Record<string, { readonly list: readonly string[]; r
   zaman: { list: TIMES_OF_DAY, words: [[/dawn|sunrise|morning twilight|şafak|safak/i, "safak"], [/even|dusk|sunset|twilight|akşam|aksam/i, "aksam"], [/night|midnight|gece/i, "gece"], [/day|noon|morning|afternoon|gün|gun/i, "gun"]], fallback: "gun" },
   manzara: {
     list: LANDSCAPES,
-    words: [[/ford|crossing|geçit|gecit/i, "nehir_gecidi"], [/river|bank|kıyı|kiyi/i, "nehir_kiyisi"], [/wall|rampart|fortress|castle|citadel|gate|siege|bastion|sur|kale/i, "sur_onu"], [/camp|tent|bivouac|ordu/i, "ordugah"], [/palace|throne|court|saray/i, "saray_ici"], [/council|hall|senate|chamber|assembly|meclis/i, "meclis"], [/square|forum|market|meydan/i, "meydan"], [/street|city|town|alley|sokak/i, "sokak"], [/beach|coast|shore|harbou?r|port|sea|sahil/i, "sahil"], [/forest|wood|orman/i, "orman"], [/hill|mountain|pass|valley|tepe/i, "tepeler"], [/plain|field|steppe|battle|ova/i, "ova"]],
+    words: [[/ford|crossing|geçit|gecit/i, "nehir_gecidi"], [/river|bank|kıyı|kiyi/i, "nehir_kiyisi"], [/wall|rampart|fortress|castle|citadel|gate|siege|bastion|sur|kale/i, "sur_onu"], [/inside.{0,20}tent|tent.{0,10}(interior|inside)|pavilion|otağ|otag|çadır içi|cadir ici|sultan.{0,3}s tent|commander.{0,3}s tent|war tent/i, "cadir_ici"], [/camp|tent|bivouac|ordu/i, "ordugah"], [/palace|throne|court|saray/i, "saray_ici"], [/council|hall|senate|chamber|assembly|meclis/i, "meclis"], [/square|forum|market|meydan/i, "meydan"], [/street|city|town|alley|sokak/i, "sokak"], [/beach|coast|shore|harbou?r|port|sea|sahil/i, "sahil"], [/forest|wood|orman/i, "orman"], [/hill|mountain|pass|valley|tepe/i, "tepeler"], [/plain|field|steppe|battle|ova/i, "ova"]],
     fallback: "ova",
   },
   uslup: { list: ARCH_STYLES, words: [[/roman|roma/i, "roma"], [/greek|yunan/i, "yunan"], [/egypt|mısır|misir/i, "misir"], [/persia|pers/i, "pers"], [/byzant|bizans/i, "bizans"], [/ottoman|osman|turk/i, "osmanli"], [/china|chinese|çin|cin/i, "cin"], [/japan|japon/i, "japon"], [/renaiss|early.?modern|baroque|17|18/i, "erken_modern"], [/modern|19|20|21/i, "modern"], [/medieval|gothic|crusad|hungar|europe|ortaçağ|ortacag/i, "ortacag"]], fallback: "ortacag" },
@@ -173,6 +173,11 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       const mapped = MOOD_ALIASES.find(([re]) => re.test(s.duygu as string))?.[1] ?? "merak";
       fixes.push(`sahneler[${si}].duygu "${s.duygu}" → ${mapped}`);
       s.duygu = mapped;
+    }
+    // A scene inside a tent the writer set in the camp outside (Kosovo 1389: "Murad's tent, midday" drawn as a sunny camp).
+    if (isObj(s.ortam) && s.ortam.manzara === "ordugah" && typeof s.mekan === "string" && /\btent\b|\bpavilion\b|otağ|otag|çadır|cadir/i.test(s.mekan) && !/\bcamp\b|ordugâh|ordugah/i.test(s.mekan)) {
+      fixes.push(`sahneler[${si}].ortam.manzara ordugah → cadir_ici ("${s.mekan}")`);
+      s.ortam.manzara = "cadir_ici";
     }
     if (isObj(s.ortam))
       for (const [field, rule] of Object.entries(SET_ALIASES)) {

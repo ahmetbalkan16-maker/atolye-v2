@@ -15,7 +15,7 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, sideStem, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
@@ -1217,6 +1217,25 @@ async function main() {
     assert.equal(k.sakal, "sakal-beyaz", "failed: back to the catalog beard");
     assert.equal(k.el_on, undefined, "failed with nothing before: removed");
     assert.equal(applyParts(ordered, made).oyuncu_kadrosu.find((c) => c.id === "mehmed")!.kostum!.sakal, undefined, "without the script's costumes: removed as before");
+  });
+
+  await scenario("O27 Kosovo 1389 review: the tent scene is drawn inside the tent, the side the narrator names is framed on a still close map", () => {
+    const ep = sampleEpisode();
+    const narrate = (metin: string) => ({ karakter: "anlatici", metin, duygu: "notr" as const });
+    // "Murad's tent" written as the camp outside becomes the tent's inside; "the camp" stays the camp.
+    const tent = normalizeDraft({ ...ep, sahneler: [{ ...ep.sahneler[0]!, mekan: "Murad's tent, midday", ortam: { zaman: "gun", manzara: "ordugah", uslup: "osmanli" } }, { ...ep.sahneler[0]!, id: "s2", mekan: "Ottoman camp after battle", ortam: { zaman: "aksam", manzara: "ordugah", uslup: "osmanli" } }] }, []);
+    const scenes = (tent.value as Episode).sahneler;
+    assert.deepEqual([scenes[0]!.ortam!.manzara, scenes[1]!.ortam!.manzara], ["cadir_ici", "ordugah"]);
+    assert.equal(validateEpisode(tent.value).ok, true);
+    // Named highlights: a line naming one side frames it; "both armies" frames neither; a writer's own highlights stay.
+    assert.deepEqual([sideStem("Ottomans"), sideStem("Serbian Coalition"), sideStem("The Army of Hungary")], ["ottom", "serbi", "hunga"]);
+    const units = (taraf: string) => ({ taraf, renk: "#3fae3a", amblem: "hilal" as const, sayi: 4, yerler: [{ satir: 0, cephe: [[21.03, 42.67], [21.07, 42.67]] as [number, number][] }] });
+    const close: Episode["sahneler"][number] = { ...ep.sahneler[0]!, harita: { merkez: [21.05, 42.68], genislik_km: 20, birlikler: [units("Ottomans"), units("Serbian Coalition")] }, satirlar: [narrate("Both armies line up on the field."), narrate("Murad leads the Ottoman center."), narrate("Lazar commands the Serbian center."), narrate("Ottoman and Serbian horsemen clash.")] };
+    assert.deepEqual(withNamedHighlights(close).harita!.birlikler!.map((u) => u.vurgu), [[1], [2]]);
+    const own = { ...close, harita: { ...close.harita!, birlikler: [{ ...units("Ottomans"), vurgu: [3] }, units("Serbian Coalition")] } };
+    assert.equal(withNamedHighlights(own), own, "the writer's highlights win");
+    const wide = { ...close, harita: { ...close.harita!, genislik_km: 900 } };
+    assert.equal(withNamedHighlights(wide), wide, "only on the close map");
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {

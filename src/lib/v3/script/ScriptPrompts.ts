@@ -394,7 +394,7 @@ CROWDS — scenes feel big when the story has many people: give such scenes "kal
 LIVING SETS / ORTAM — the viewer must live the moment (owner): every character scene gets an "ortam", the drawn living set
   the renderer composes and animates (flowing water, flickering torches, stars, drifting mist, rain or snow):
   "ortam": {"zaman": "gun" | "aksam" | "gece" | "safak", "manzara": "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" |
-    "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu", "uslup": "roma" | "yunan" |
+    "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu" | "cadir_ici" (inside a commander's tent or pavilion: the war council, the sultan's otağ), "uslup": "roma" | "yunan" |
     "misir" | "pers" | "bizans" | "osmanli" | "ortacag" | "cin" | "japon" | "erken_modern" | "modern",
     "hava": "acik" | "bulutlu" | "sis" | "yagmur" | "kar", "isik": "yok" | "mesale" | "kamp_atesi",
     "nehir": [left bank, right bank] (0..1, for "nehir_gecidi": the river runs across the stage there)}
