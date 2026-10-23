@@ -179,7 +179,7 @@ MADE IN (metadata, may be missing or wrong): ${c.year ?? "unknown"}
 
 Score 0–10:
 - "puan": is this a portrait of this very person with ONE face clearly visible, large and uncovered (frontal, three-quarter or profile), and enough of the head and clothes to draw from? 0–3 for another person, a group where the face is tiny, a coin or seal too small to read, a signature, a building, a map.
-- "donem": is it a historical likeness — painted, drawn, sculpted or photographed in or near their lifetime, or a well-known later portrait of them — showing them at about the age they had in ${scene.donem}? Score lower when it shows them much younger or older than then. 0–3 for a modern illustration, a film still, an actor or a reenactor.
+- "donem": is it a historical likeness — painted, drawn, sculpted or photographed in or near their lifetime, or a well-known later portrait of them — showing them at about the age they had in ${scene.donem}? Score lower when it shows them much younger or older than then. For someone who lived before about 1500 no likeness from their lifetime usually exists: then a well-known traditional portrait made later (a 16th-century Ottoman sultans' miniature series, a Renaissance or 19th-century portrait series, an icon or fresco) is THE likeness people know and scores 7–8. 0–3 for a modern illustration, a film still, an actor or a reenactor.
 - "modern": true for a modern actor, reenactor, wax figure or a recent reconstruction.
 - "tur": "eser" for a painting, miniature, engraving or drawing; "fotograf" for a photograph; else "diger".
 ${answer}`;

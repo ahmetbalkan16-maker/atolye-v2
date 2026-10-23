@@ -2,6 +2,7 @@ import type { AIProvider } from "../../ai/providers/AIProvider";
 import { type CandidateVerdict, passes, pickBackground, verdictLine } from "../backgrounds/BackgroundJudge";
 import { type CommonsCandidate, cachedJson, commonsByTitles, commonsPreview, searchCommons } from "../backgrounds/CommonsProvider";
 import { wikipediaCandidates } from "../backgrounds/HistorySources";
+import { periodEndYear } from "../episode/Period";
 
 /**
  * Portraits of the real people in an episode, to draw them after (the reference channel draws its main characters
@@ -67,10 +68,32 @@ export async function findPortrait(input: {
   const scene = { konu: person.ad, donem: input.donem, mekan: person.rol, tr: person.ad, en: person.wiki, anlatim: "" };
   const pick = await pickBackground(candidates, scene, input.judge, (c) => commonsPreview(input.cacheDir, c), log, { mode: "portre", max: 6 });
   for (const v of pick.verdicts) log(`  ${person.ad} portre ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
-  if (!pick.chosen || !pick.verdict) {
+  const traditional = pick.chosen ? undefined : traditionalPortrait(pick.verdicts, periodEndYear(input.donem));
+  const chosen = pick.chosen ?? (traditional ? candidates[pick.verdicts.indexOf(traditional)] : undefined);
+  const verdict = pick.verdict ?? traditional;
+  if (!chosen || !verdict) {
     log(`⚠ ${person.ad}: uygun portre bulunamadı; görünüş tarihçinin notundan çizilecek (başka birinin resmi kullanılmaz)`);
     return undefined;
   }
-  const preview = await commonsPreview(input.cacheDir, pick.chosen);
-  return { castId: person.id, candidate: pick.chosen, preview, secim: pick.verdict };
+  if (traditional) log(`  ${person.ad}: yaşadığı çağdan portresi yok; bilinen geleneksel portresi alındı (${verdictLine(traditional)})`);
+  const preview = await commonsPreview(input.cacheDir, chosen);
+  return { castId: person.id, candidate: chosen, preview, secim: verdict };
+}
+
+/** Before this year a person's likeness from their own lifetime rarely survives (medieval rulers, ancient generals). */
+export const TRADITIONAL_PORTRAIT_BEFORE = 1500;
+/** How sure the judge must be that a later portrait shows this very person. */
+export const TRADITIONAL_MIN_SUBJECT = 8;
+
+/**
+ * A medieval or ancient person's known portrait when the judge passed none (the Kosovo 1389 trial, 23 Oct 2026: Murad
+ * I's portrait after Veronese scored "subject 9, period 2" — every portrait of him is later, so every one was refused
+ * and his likeness was guessed). The best one the judge is sure shows them (subject ≥ 8), a painting or drawing, not
+ * modern (an actor, a reenactor, a recent illustration) and readable. None for anyone after 1500 or of unknown period.
+ */
+export function traditionalPortrait(verdicts: readonly CandidateVerdict[], year: number | undefined): CandidateVerdict | undefined {
+  if (year === undefined || year >= TRADITIONAL_PORTRAIT_BEFORE) return undefined;
+  return verdicts
+    .filter((v) => !v.okunamadi && v.modern !== true && v.puan >= TRADITIONAL_MIN_SUBJECT && (v.tur === undefined || v.tur === "eser" || v.tur === "cizim"))
+    .sort((a, b) => b.puan - a.puan || (b.donem ?? 0) - (a.donem ?? 0))[0];
 }

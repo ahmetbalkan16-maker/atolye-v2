@@ -284,10 +284,28 @@ export async function downloadCommons(c: CommonsCandidate, outFile: string, cach
 export async function commonsPreview(cacheDir: string, c: CommonsCandidate): Promise<Buffer> {
   const file = path.join(cacheDir, "onizleme", `${createHash("sha256").update(c.previewUrl).digest("hex").slice(0, 24)}${path.extname(new URL(c.previewUrl).pathname) || ".jpg"}`);
   if (existsSync(file)) return fs.readFile(file);
-  const res = await politeFetch(c.previewUrl);
-  if (!res.ok) throw new Error(`COMMONS_PREVIEW_${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, buf);
-  return buf;
+  let last = "?";
+  for (const url of previewUrls(c.previewUrl)) {
+    const res = await politeFetch(url, 3).catch((e: Error) => ((last = e.message.slice(0, 40)), undefined));
+    if (!res) continue;
+    if (!res.ok) {
+      last = String(res.status);
+      continue;
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, buf);
+    return buf;
+  }
+  throw new Error(`COMMONS_PREVIEW_${last}`);
+}
+
+/**
+ * A preview's address, then the same picture at Commons' other standard widths: a thumbnail not yet rendered is the one
+ * Wikimedia rate-limits (429), and a neighbouring width is often already cached (the Kosovo 1389 trial lost Bayezid's and
+ * Lazar's portraits to 429s on the 500 px step). Other addresses (museums) are tried alone.
+ */
+export function previewUrls(url: string): string[] {
+  if (!/\/\d+px-/.test(url)) return [url];
+  return [...new Set([url, ...[330, 250, 960, 640].map((w) => url.replace(/\/\d+px-/, `/${w}px-`))])];
 }

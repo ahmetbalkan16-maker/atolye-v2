@@ -10,6 +10,8 @@ import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, se
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
 import { rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
+import { traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
+import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -1161,6 +1163,17 @@ async function main() {
     const rows = Array.from({ length: Math.ceil(16 / STILL_ROW_MAX) }, (_, r) => Math.min(STILL_ROW_MAX, 16 - r * STILL_ROW_MAX));
     assert.deepEqual(rows, [3, 3, 3, 3, 3, 1]);
     assert.ok(rows.every((n) => rowCells(n).cell >= 640));
+  });
+
+  await scenario("O24 portraits of medieval people (Kosovo 1389 trial): a known later portrait is taken when none from their lifetime passes; a rate-limited preview tries other widths", () => {
+    const v = (puan: number, donem: number | undefined, extra: object = {}) => ({ title: `p${puan}-${donem}`, puan, donem, gosterilen: "", sorun: "", tur: "eser" as const, ...extra });
+    const murad = [v(7, 4), v(0, 0, { tur: "harita" }), v(9, 2), v(10, 1, { modern: true })];
+    assert.equal(traditionalPortrait(murad, 1389)?.title, "p9-2", "Veronese's Murad I: subject 9, the only later portrait the judge is sure of");
+    assert.equal(traditionalPortrait(murad, 1914), undefined, "after 1500 a lifetime likeness is expected");
+    assert.equal(traditionalPortrait([v(7, 2), v(9, 1, { okunamadi: true })], 1389), undefined, "not sure enough, or unreadable");
+    assert.equal(traditionalPortrait([v(9, 3, { tur: "fotograf" })], -44), undefined, "a photograph of a statue's copy is not a portrait");
+    assert.deepEqual(previewUrls("https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/500px-F.jpg"), ["https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/500px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/330px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/250px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/960px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/640px-F.jpg"]);
+    assert.deepEqual(previewUrls("https://images.metmuseum.org/a.jpg"), ["https://images.metmuseum.org/a.jpg"]);
   });
 
   await scenario("O20 format after DFT Tarih: 25–45 minute episodes, a series whose next episode knows what was told, the series on the cover, the chapter card as a parchment that stays a little longer", async () => {
