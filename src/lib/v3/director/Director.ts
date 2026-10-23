@@ -399,6 +399,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           era: eraOf(episode.donem),
           ...(periodEndYear(episode.donem) !== undefined ? { year: periodEndYear(episode.donem)! } : {}),
           ...(onMap?.sideBadges.length ? { sideBadges: onMap.sideBadges } : {}),
+          ...(onMap?.lines.size ? { badgeLines: onMap.lines } : {}),
         })
       : undefined;
     // What each badge says: its mouth with the voice, its face with the line's mood.

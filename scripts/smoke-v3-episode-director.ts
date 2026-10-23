@@ -675,13 +675,26 @@ async function main() {
     const hauled = buildGeoMap({ merkez: [28.99, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 3, konum: [29.03, 41.04], satir: 1, yol: [[28.99, 41.045], [28.95, 41.04]] }] }, withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: strip as never, water: [] }), 1920, 1080, () => 0, { year: 1453 });
     const dragged = hauled.vehicles![0]!.overland!;
     assert.ok(dragged.length === 1 && dragged[0]!.from > 0.2 && dragged[0]!.to < 0.8, JSON.stringify(dragged));
-    // A fleet whose first point stands just up the shore puts off from it (the 1453 haul); far inland, it starts afloat.
+    // A fleet whose first point stands just up the shore starts in the water beside it and is hauled from the shore (the
+    // 1453 haul); far inland, it starts afloat.
     const coastData = withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: strip as never, water: [] });
     const fromShore = buildGeoMap({ merkez: [28.99, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.9985, 41.04], satir: 1, yol: [[28.99, 41.045], [28.95, 41.04]] }] }, coastData, 1920, 1080, () => 0, { year: 1453 });
-    assert.ok(fromShore.vehicles![0]!.overland?.[0]?.from === 0, JSON.stringify(fromShore.vehicles![0]!.overland));
+    const putOff = fromShore.vehicles![0]!.overland?.[0];
+    assert.ok(putOff && putOff.from < 0.06 && putOff.to > 0.3, JSON.stringify(fromShore.vehicles![0]!.overland));
+    // A ship the writer set on land (Belgrade: the fleet "at Belgrade" in the fields) stands in the nearest water; one
+    // pointed at from 4 km inland stays where it was put.
+    const moored = buildGeoMap({ merkez: [28.99, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.993, 41.04], satir: 0 }] }, coastData, 1920, 1080, () => 0, { year: 1453 });
+    const ashore = buildGeoMap({ merkez: [28.99, 41.04], genislik_km: 20, araclar: [{ tur: "top", renk: "#c0392b", konum: [28.993, 41.04], satir: 0 }] }, coastData, 1920, 1080, () => 0, { year: 1453 });
+    const [shipX, gunX] = [moored.vehicles![0]!.path[0]!.x, ashore.vehicles![0]!.path[0]!.x];
+    assert.ok(shipX > gunX + 20, `the ship moves east off the strip into the water (${gunX} → ${shipX}); a gun stays`);
+    // Fire aimed at the ship's written place follows it into the water.
+    const duel = buildGeoMap({ merkez: [28.99, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.993, 41.04], satir: 0 }, { tur: "gemi", renk: "#2e6b3a", konum: [29.02, 41.05], satir: 0, hedef: [28.993, 41.04], ates_satir: 0 }] }, coastData, 1920, 1080, () => 0, { year: 1453 });
+    assert.deepEqual(duel.vehicles![1]!.target, duel.vehicles![0]!.path[0], "the shots fall on the moored ship");
     const wide = [[[[28.9, 40], [29.0, 40], [29.0, 42], [28.9, 42], [28.9, 40]]]];
     const inland = buildGeoMap({ merkez: [28.95, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.95, 41.04], satir: 1, yol: [[29.03, 41.04]] }] }, withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: wide as never, water: [] }), 1920, 1080, () => 0, { year: 1453 });
     assert.equal(inland.vehicles![0]!.overland, undefined, "pointed from 4 km inland: no haul");
+    const deep = buildGeoMap({ merkez: [28.95, 41.04], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [28.95, 41.04], satir: 0 }] }, withCoast({ land: [], lakes: [], rivers: [], countries: new Map() } as never, { land: wide as never, water: [] }), 1920, 1080, () => 0, { year: 1453 });
+    assert.equal(deep.vehicles![0]!.path[0]!.x, 960, "4 km inland: left where the writer put it");
     assert.deepEqual(cutRoute([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }], 0, 0.75), [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 15, y: 0 }]);
     // Only where the water is known: on Natural Earth's coast (no OpenStreetMap coast or rivers) a route over land is no haul.
     const unknown = buildGeoMap({ merkez: [28.98, 41.03], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", konum: [29.03, 41.04], satir: 1, yol: [[28.99, 41.045], [28.97, 41.04]] }] }, { land, lakes: [], rivers: [], countries: new Map() } as never, 1920, 1080, () => 0, { year: 1453 });
@@ -869,6 +882,23 @@ async function main() {
     assert.deepEqual(shot.bubbles!.map((b) => [b.castId, b.text]), [["mehmed", "21 more cannons!"], ["szilagyi", "Hungarian hospitality"]]);
     assert.ok(shot.camera.every((c) => c.zoom <= 1.06), `the map stays wide while they speak: ${shot.camera.map((c) => c.zoom)}`);
     assert.equal((shot.nameTags ?? []).length, 0, "the badge carries the name");
+    // A writer's badge set on its own side's tokens (Belgrade's fourth trial: Mehmed over his retreating army) moves a
+    // little off them; on a wide map it stays where the writer put it.
+    const onTokens: SceneMap = { merkez: [20.45, 44.82], genislik_km: 10, birlikler: [{ taraf: "Ottomans", renk: "#c0392b", amblem: "hilal", sayi: 6, yerler: [{ satir: 0, kume: [20.44, 44.8], km: 0.4 }] }], rozetler: [{ karakter: "mehmed", konum: [20.44, 44.8], satir: 0 }] };
+    const nudged = buildGeoMap(onTokens, data as never, 1920, 1080, () => 0, { year: 1456 });
+    const camp = nudged.units![0]!.steps[0]!.points;
+    const centre = { x: camp.reduce((a, p) => a + p.x, 0) / camp.length, y: camp.reduce((a, p) => a + p.y, 0) / camp.length };
+    const hidden = (p: { x: number; y: number }) => camp.filter((q) => Math.abs(q.x - p.x) < 75 && q.y > p.y - 140 && q.y < p.y + 6).length;
+    const pin = nudged.badges![0]!.path[0]!;
+    assert.ok(hidden(pin) < hidden(centre) && Math.hypot(pin.x - centre.x, pin.y - centre.y) <= 3 * 55 * Math.SQRT2 + 2, `off its tokens, beside the camp: ${hidden(centre)} → ${hidden(pin)} at ${JSON.stringify(pin)}`);
+    // A cluster or a ring without its "km" takes the close map's own scale (at the wide map's 30–40 km, a 10 km map's
+    // defenders stood off it).
+    const loose = buildGeoMap({ merkez: [20.45, 44.82], genislik_km: 10, birlikler: [{ taraf: "H", renk: "#2e6b3a", amblem: "kartal", sayi: 6, yerler: [{ satir: 0, kume: [20.45, 44.82] }, { satir: 1, kusatma: [20.45, 44.82] }] }] }, data as never, 1920, 1080, (i) => (i ?? 0) * 100, { year: 1456 });
+    assert.ok(loose.units![0]!.steps.every((st) => st.points.every((p) => p.x > 0 && p.x < 1920 && p.y > 0 && p.y < 1080)), JSON.stringify(loose.units![0]!.steps.map((st) => st.points)));
+    const kept = buildGeoMap({ ...onTokens, genislik_km: 300 }, data as never, 1920, 1080, () => 0, { year: 1456 });
+    const army = kept.units![0]!.steps[0]!.points;
+    const there = { x: army.reduce((a, p) => a + p.x, 0) / army.length, y: army.reduce((a, p) => a + p.y, 0) / army.length };
+    assert.ok(Math.hypot(kept.badges![0]!.path[0]!.x - there.x, kept.badges![0]!.path[0]!.y - there.y) < 3, "a wide map's badge stays on its place");
 
     // The climax told off the map (Belgrade: the storming of the breach in a character scene) is asked for on it.
     const breach: Episode["sahneler"][number] = { ...ep.sahneler[0]!, id: "s6", ortam: { zaman: "gun", manzara: "sur_onu", uslup: "ortacag" }, satirlar: [{ karakter: "anlatici", metin: "The Ottomans storm the breach. The defenders push them back.", duygu: "korkmus" }] };

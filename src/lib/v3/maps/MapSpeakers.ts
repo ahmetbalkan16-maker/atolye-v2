@@ -14,6 +14,8 @@ export interface MapSpeakerPlan {
   readonly sideBadges: readonly SideBadge[];
   /** Close-map speakers with no badge and no side of theirs on the map: drawn on the stage as before. */
   readonly unplaced: readonly string[];
+  /** The lines each badged speaker speaks (their badge stays in view for them). */
+  readonly lines: ReadonlyMap<string, readonly number[]>;
 }
 
 /** `taraf`: index in the map's `birlikler`; `satir`: the character's first line in the scene; `satirlar`: all of them. */
@@ -24,7 +26,7 @@ export interface SideBadge {
   readonly satirlar: readonly number[];
 }
 
-const NONE: MapSpeakerPlan = { badged: new Set(), sideBadges: [], unplaced: [] };
+const NONE: MapSpeakerPlan = { badged: new Set(), sideBadges: [], unplaced: [], lines: new Map() };
 
 /** Words in a side's name that say nothing about who it is. */
 const GENERIC = new Set(["the", "and", "army", "armies", "forces", "troops", "side", "empire", "kingdom", "republic", "state", "sultanate", "ordu", "ordusu", "devleti", "kuvvetleri", "imparatorlugu", "imparatorluğu"]);
@@ -72,7 +74,9 @@ export function mapSpeakers(scene: EpisodeScene, cast: readonly CastEntry[]): Ma
   const badged = new Set(speakers.filter((id) => given.has(id)));
   const close = h.genislik_km !== undefined && h.genislik_km <= CLOSE_MAP_MAX_KM;
   const rest = speakers.filter((id) => !badged.has(id));
-  if (!close || !rest.length) return { badged, sideBadges: [], unplaced: [] };
+  const linesOf = (id: string) => scene.satirlar.flatMap((l, i) => (l.karakter === id ? [i] : []));
+  const lines = () => new Map([...badged].map((id) => [id, linesOf(id)] as const));
+  if (!close || !rest.length) return { badged, sideBadges: [], unplaced: [], lines: lines() };
   const sides = h.birlikler ?? [];
   const sideOf = new Map<string, number>();
   for (const id of speakers) {
@@ -93,8 +97,8 @@ export function mapSpeakers(scene: EpisodeScene, cast: readonly CastEntry[]): Ma
       continue;
     }
     badged.add(id);
-    const satirlar = scene.satirlar.flatMap((l, i) => (l.karakter === id ? [i] : []));
+    const satirlar = linesOf(id);
     sideBadges.push({ karakter: id, taraf, satir: satirlar[0]!, satirlar });
   }
-  return { badged, sideBadges, unplaced };
+  return { badged, sideBadges, unplaced, lines: lines() };
 }

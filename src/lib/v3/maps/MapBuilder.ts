@@ -498,8 +498,11 @@ export function mapOnScreen(m: V3GeoMap, frame: number, width: number, height: n
   };
 }
 
-/** `sideBadges`: close-map speakers the writer gave no badge, placed at their side's tokens (MapSpeakers). */
-type GeoMapOptions = { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number; readonly sideBadges?: readonly SideBadge[] };
+/**
+ * `sideBadges`: close-map speakers the writer gave no badge, placed at their side's tokens (MapSpeakers); `badgeLines`:
+ * the lines each badged character speaks, so their badge stays in view for them.
+ */
+type GeoMapOptions = { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number; readonly sideBadges?: readonly SideBadge[]; readonly badgeLines?: ReadonlyMap<string, readonly number[]> };
 
 /**
  * The render map of a scene's geographic `harita` (needs `merkez` and `genislik_km`). Line indexes (`satir`) become
@@ -812,6 +815,12 @@ export function unitLossDelaysS(lost: number): number[] {
   return Array.from({ length: lost }, (_, j) => Math.round((UNIT_LOSS_FIRST_S + j * UNIT_LOSS_GAP_S) * 100) / 100);
 }
 
+/**
+ * A close map's formation without its own `km`: a tenth of the map across (Belgrade's fourth trial: a 10 km map's
+ * clusters, at the wide map's 30 km, put three of four defenders and the retreating army off the map).
+ */
+const CLOSE_FORMATION_SHARE = 0.1;
+
 /** Siege rings are tried at this many places round the city, to keep the tokens on the land. */
 const RING_SAMPLES = 72;
 
@@ -819,9 +828,10 @@ const RING_SAMPLES = 72;
  * Where `n` tokens of a formation stand ([lon, lat]): spaced evenly along a front line; on a ring round a besieged
  * place; or in a loose hexagonal cluster round a point. Deterministic, so the same formation is laid out the same way.
  * With `onLand`, a siege ring keeps to the land round a coastal city (its sea side is left to ships), and a cluster
- * takes its land places first.
+ * takes its land places first. `sizeKm`: a ring's radius and a cluster's width when the formation gives no `km` (a
+ * close map's own scale; else 40 and 30 km, which flung a 10 km map's tokens off it).
  */
-export function formationPoints(f: UnitFormation, n: number, onLand?: (p: [number, number]) => boolean): [number, number][] {
+export function formationPoints(f: UnitFormation, n: number, onLand?: (p: [number, number]) => boolean, sizeKm?: number): [number, number][] {
   if ("cephe" in f) {
     const line = f.cephe;
     if (line.length === 1) return Array.from({ length: n }, () => [line[0]![0], line[0]![1]]);
@@ -840,7 +850,7 @@ export function formationPoints(f: UnitFormation, n: number, onLand?: (p: [numbe
     });
   }
   if ("kusatma" in f) {
-    const r = f.km ?? 40;
+    const r = f.km ?? sizeKm ?? 40;
     const at = (u: number) => offsetKm(f.kusatma, Math.cos(u * Math.PI * 2 - Math.PI / 2) * r, Math.sin(u * Math.PI * 2 - Math.PI / 2) * r);
     const ring = Array.from({ length: RING_SAMPLES }, (_, k) => ({ p: at(k / RING_SAMPLES), land: onLand?.(at(k / RING_SAMPLES)) ?? true }));
     const land = ring.filter((s) => s.land).length;
@@ -859,7 +869,7 @@ export function formationPoints(f: UnitFormation, n: number, onLand?: (p: [numbe
     return Array.from({ length: n }, (_, k) => arc[Math.min(arc.length - 1, Math.floor(((k + 0.5) / n) * arc.length))]!.p);
   }
   // A cluster: rings of 1, 6, 12 … round the point, about km/2 apart; on the coast the land places come first.
-  const step = (f.km ?? 30) / 2;
+  const step = (f.km ?? sizeKm ?? 30) / 2;
   const out: [number, number][] = [];
   for (let ring = 0; out.length < n * (onLand ? 3 : 1); ring++) {
     const count = ring === 0 ? 1 : ring * 6;
@@ -1080,8 +1090,31 @@ function projectGeoMap(
   };
   // Tokens are spaced on screen by the renderer (MapUnits), for whatever zoom the camera is at.
   // Vehicles: a script's ship takes its period's look; the rest are drawn as named.
+  // A ship the writer set on land where the water is known stands in the nearest water (Belgrade's trials: the Ottoman
+  // fleet "at Belgrade" drawn in the fields beside the Sava) — within a few hundred metres to a few km, by the map's
+  // width; further inland the writer pointed at a place, and the route rules below keep the ship afloat.
+  const floatKm = Math.max(1.5, (map.genislik_km ?? 0) * 0.08);
+  const afloat = (p: readonly [number, number]): readonly [number, number] => {
+    if (!onLand([p[0], p[1]])) return p;
+    const kx = 111.32 * Math.max(0.2, Math.cos((p[1] * Math.PI) / 180));
+    const at = (km: number, a: number): [number, number] => [p[0] + (Math.cos(a) * km) / kx, p[1] + (Math.sin(a) * km) / 110.57];
+    const step = floatKm / 15;
+    for (let r = step; r <= floatKm + 1e-9; r += step)
+      for (let j = 0; j < 24; j++) {
+        const a = (j * Math.PI) / 12;
+        // A little past the shore, so the hull is on the water and not on the bank.
+        if (!onLand(at(r, a))) return !onLand(at(r + step * 0.6, a)) ? at(r + step * 0.6, a) : at(r, a);
+      }
+    return p;
+  };
+  const starts = (map.araclar ?? []).map((a) => (knownWater && SHIPS.has(a.tur) ? afloat(a.konum) : a.konum));
+  // Fire aimed at a ship's written place follows it into the water (the Hungarian fleet's shots fell in the fields).
+  const aimAt = (h: readonly [number, number]) => {
+    const j = (map.araclar ?? []).findIndex((o, oi) => starts[oi] !== o.konum && Math.hypot((o.konum[0] - h[0]) * 111.32 * Math.cos((h[1] * Math.PI) / 180), (o.konum[1] - h[1]) * 110.57) < 0.3);
+    return j >= 0 ? starts[j]! : h;
+  };
   const vehicles = (map.araclar ?? []).map((a, i) => {
-    const route = [a.konum, ...(a.yol ?? [])];
+    const route = [starts[i]!, ...(a.yol ?? [])];
     // A haul goes from water to water (1453: the Bosphorus to the Golden Horn). A ship's route that starts or ends on
     // land is the writer pointing at the place it sails for (the Belgrade run sent its fleet to the fortress itself):
     // the ship keeps to the water and stops at the shore, with no haul.
@@ -1104,7 +1137,7 @@ function projectGeoMap(
       ...(a.bitis_satir !== undefined ? { end: lineStart(a.bitis_satir, i) } : {}),
       path: kept,
       ...(a.yol?.length && kept.length > 1 ? { moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
-      ...(a.hedef ? { target: toPx(a.hedef), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
+      ...(a.hedef ? { target: toPx(aimAt(a.hedef)), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
       ...(hauls.length ? { overland: hauls } : {}),
     };
   });
@@ -1121,7 +1154,7 @@ function projectGeoMap(
         const before = alive;
         alive = Math.max(0, alive - Math.max(0, Math.round(y.kayip ?? 0)));
         // Losses one by one as the fight goes on (owner, 22 Oct 2026: "then wiped out one by one with the narration").
-        return { start: lineStart(y.satir, i), points: formationPoints(y, count, onLand).map((p) => toPx(p)), alive, ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}) };
+        return { start: lineStart(y.satir, i), points: formationPoints(y, count, onLand, closeMap ? map.genislik_km! * CLOSE_FORMATION_SHARE : undefined).map((p) => toPx(p)), alive, ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}) };
       })
       .map((st, si, all) => (si > 0 && close ? { ...st, ...throughBreach(all[si - 1]!.points, st.points, st.start, close.walls) } : st));
     return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), steps };
@@ -1141,6 +1174,35 @@ function projectGeoMap(
     ...(map.sehirler ?? []).map((c) => ({ q: toPx(c.konum), w: 2 })),
     ...vehicles.flatMap((a) => [a.path[0], a.path[a.path.length - 1], a.target].flatMap((q) => (q ? [{ q, w: 1 }] : []))),
   ];
+  // While they speak, the badge and room for its bubble over it (~240 px) stay inside the view the camera rests on for
+  // each of their lines (Belgrade: the camera closed in on the castle and left the defender's badge at the top edge).
+  const viewsFor = (lines: readonly number[]) =>
+    lines.map((l) => {
+      const frame = lineStart(l, 0);
+      const key = camera ? [...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]! : { x: width / 2, y: height / 2, zoom: 1 };
+      return { x: key.x, y: key.y, half: { x: width / 2 / key.zoom, y: height / 2 / key.zoom }, k: height / 1080 / key.zoom };
+    });
+  type Mark = { q: XY; w: number };
+  const badgeCost = (p: XY, marks: readonly Mark[], views: ReturnType<typeof viewsFor>) => {
+    const seen = views.filter((vw) => p.x - 95 * vw.k > vw.x - vw.half.x && p.x + 95 * vw.k < vw.x + vw.half.x && p.y - 240 * vw.k > vw.y - vw.half.y && p.y + 20 * vw.k < vw.y + vw.half.y).length;
+    return (views.length - seen) * 100 + marks.reduce((a, m) => a + (m.q === p ? 0 : hides(p, m.q) ? m.w : under(p, m.q) ? m.w / 2 : 0), 0);
+  };
+  // A writer's badge standing on the close map moves a little off what it hides (Belgrade's fourth trial: Mehmed's badge
+  // stood on his own retreating tokens): up to three steps of ~55 px round its place, each step costing a little, so it
+  // stays beside the place it points at. A travelling badge keeps its route.
+  const tokensFrom = (from: number): Mark[] => units.flatMap((u) => u.steps.filter((st, si) => (u.steps[si + 1]?.start ?? Infinity) > from).flatMap((st) => st.points.map((q) => ({ q, w: 1 }))));
+  const placed = close
+    ? badges.map((b) => {
+        const p0 = b.path[0];
+        if (!p0 || b.path.length !== 1) return b;
+        const marks = [...fixed, ...tokensFrom(b.start), ...badges.flatMap((o) => (o !== b && o.path[0] ? [{ q: o.path[0], w: 5 }] : []))];
+        const views = viewsFor(opts.badgeLines?.get(b.castId) ?? []);
+        const spots = [p0, ...[1, 2, 3].flatMap((d) => Array.from({ length: 8 }, (_, j) => ({ x: r1(p0.x + Math.cos((j * Math.PI) / 4) * d * 55 * px), y: r1(p0.y + Math.sin((j * Math.PI) / 4) * d * 55 * px) })))];
+        const cost = (p: XY, i: number) => badgeCost(p, marks, views) + Math.ceil(i / 8) * 1.5;
+        const best = spots.reduce((a, p, i) => (cost(p, i) < cost(a.p, a.i) ? { p, i } : a), { p: p0, i: 0 });
+        return best.i ? { ...b, path: [best.p] } : b;
+      })
+    : badges;
   const sideBadges: NonNullable<V3GeoMap["badges"]>[number][] = [];
   for (const [i, s] of (opts.sideBadges ?? []).entries()) {
     const yerler = [...(map.birlikler?.[s.taraf]?.yerler ?? [])].sort((a, b) => a.satir - b.satir);
@@ -1155,22 +1217,14 @@ function projectGeoMap(
       while (j + 1 < u.steps.length && u.steps[j + 1]!.start <= lineStart(s.satir, 0)) j++;
       return u.steps[j]?.points ?? [];
     });
-    const marks = [...fixed, ...enemies.map((q) => ({ q, w: 1 })), ...pts.map((q) => ({ q, w: 0.5 })), ...[...badges, ...sideBadges].flatMap((b) => (b.path[0] ? [{ q: b.path[0], w: 5 }] : []))];
+    const marks = [...fixed, ...enemies.map((q) => ({ q, w: 1 })), ...pts.map((q) => ({ q, w: 0.5 })), ...[...placed, ...sideBadges].flatMap((b) => (b.path[0] ? [{ q: b.path[0], w: 5 }] : []))];
     const middle = yerler[k] && "kume" in yerler[k]! ? 0 : Math.floor(pts.length / 2);
     const order = Array.from({ length: pts.length }, (_, j) => pts[(middle + (j % 2 ? (j + 1) / 2 : -j / 2) + pts.length * 2) % pts.length]!);
-    // While they speak, the badge and room for its bubble over it (~240 px) stay inside the view the camera rests on for
-    // each of their lines (Belgrade: the camera closed in on the castle and left the defender's badge at the top edge).
-    const views = s.satirlar.map((l) => {
-      const frame = lineStart(l, 0);
-      const key = camera ? [...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]! : { x: width / 2, y: height / 2, zoom: 1 };
-      return { x: key.x, y: key.y, half: { x: width / 2 / key.zoom, y: height / 2 / key.zoom }, k: height / 1080 / key.zoom };
-    });
-    const seen = (p: XY) => views.filter((vw) => p.x - 95 * vw.k > vw.x - vw.half.x && p.x + 95 * vw.k < vw.x + vw.half.x && p.y - 240 * vw.k > vw.y - vw.half.y && p.y + 20 * vw.k < vw.y + vw.half.y).length;
-    const score = (p: XY) => (views.length - seen(p)) * 100 + marks.reduce((a, m) => a + (m.q === p ? 0 : hides(p, m.q) ? m.w : under(p, m.q) ? m.w / 2 : 0), 0);
-    const at = order.reduce((best, p) => (score(p) < score(best) ? p : best), order[0]!);
+    const views = viewsFor(s.satirlar);
+    const at = order.reduce((best, p) => (badgeCost(p, marks, views) < badgeCost(best, marks, views) ? p : best), order[0]!);
     sideBadges.push({ castId: s.karakter, label: opts.castName?.(s.karakter) ?? s.karakter, start: lineStart(s.satir, (map.rozetler?.length ?? 0) + i), path: [at] });
   }
-  const allBadges = [...badges, ...sideBadges];
+  const allBadges = [...placed, ...sideBadges];
   const drawn: V3GeoMap = {
     land: polygonsPath(v, data.land),
     lakes: polygonsPath(v, data.lakes),
