@@ -487,3 +487,18 @@ Ayrıntı ve commit listesi: ATOLYE_CHECKPOINT.md "23–24 Ekim 2026 (gece, 3)".
   yazarın ilk Kosova senaryosunda elle yapılanların aynısını buldu.
 - Doğrulama: smoke-v3-episode-director 48, script 21, council 11, mix 13, motion 9, backgrounds 20, likeness 14,
   youtube 4, render 5, ayas-video-order 8 PASS; tsc 0 (kök + remotion); lint 0 hata / 13 eski uyarı.
+
+## Kosova 1389 videosu bitirildi; kalite beynine kare kusuru tespiti (26 Ekim 2026)
+
+Owner: "videoyu istediğim kalitede bitir", "kare kusuru tespitini beyine kur, o da yapabilsin". Ayrıntı ve commit
+listesi: ATOLYE_CHECKPOINT.md "26 Ekim 2026".
+
+- Kare kare inceleme her render'dan sonra (2 sn arayla kontak sayfaları, geçişlerde 5 kare/sn şeritler); bulunan dokuz
+  kusur genel olarak kodda düzeltildi: kesik rozet/etiket/devlet ve deniz adları, balon altında ok adı, kaydır geçişinde
+  koyu şerit, yüklenmemiş kabartmada lacivert zemin, öldürüldükten sonra ayakta kalan kukla (artık yere yığılır), yerde
+  konuşana yanlış kamera.
+- Kalite beyni: kare türüne göre evet/hayır soruları, tam boy kenar şeritleri, örnek resimli tecrübe; sınav
+  `scripts/v3/kalite-sinavi.ts` (12 soru). gemma4:12b 6–7/12'de kalıyor: küçük kusurları güvenilir göremiyor, örneği
+  temiz karelere tekrarlıyor. Beynin "0 sorun"u kanıt değildir; kontrol Claude'da.
+- Doğrulama: smoke-v3-episode-director 50, council 12, motion 9, render 5, script 21, backgrounds 20, mix 13,
+  likeness 14, youtube 4 PASS; tsc 0 (kök + remotion); lint 0 hata / 13 eski uyarı.

@@ -44,7 +44,7 @@ import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { designedWindows, qualityReview } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, frameKindAt, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
@@ -1214,11 +1214,13 @@ async function main() {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
     const qualityRules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
+    // Each frame is asked its kind's pointed questions with its top and bottom edges shown at full size, beside the frames
+    // of the same kind it judged wrongly before (scripts/v3/kalite-sinavi.ts measures and teaches; owner, 26 Oct 2026).
     // A long video is sampled across its whole length (6 s apart filled only its first two minutes): up to 48 frames.
     const qualityFrames = Math.max(18, Math.min(48, Math.round(durationS / 25)));
     // What is said when: each frame is also judged on whether it shows what is being told.
     const said = timeline.lines.map((l) => ({ from: l.start, to: l.end, text: splitDirections(episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex]?.metin ?? "").speech })).filter((s) => s.text);
-    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said });
+    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0" });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10${quality.showing !== undefined ? `; anlatılanı gösterme ${quality.showing.toFixed(1)}/10` : ""}`);
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
     try {

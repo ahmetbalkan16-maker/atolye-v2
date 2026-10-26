@@ -1,3 +1,50 @@
+## 26 Ekim 2026 — V3 Kosova 1389 videosu bitirildi; kare kusurları genel olarak düzeltildi; kalite beynine kare kusuru tespiti ve tecrübe döngüsü
+
+**Owner:** "burda kalmıştın, devam et ve videoyu istediğim kalitede bitir"; sonra "bu düzeltmeleri bizim yardımcı beyin
+yapsa sen kontrol etsen, yanlış yaparsa sen yapıp bunu yardımcı beyin tecrübe olarak alsa" ve "kare kusuru tespitini
+beyine kur, o da yapabilsin".
+
+**Video (feature/cop-adam-v3 → canlı dal, canonical pull; sipariş her seferinde render adımından yeniden sıraya):**
+- Sakal düzeltmesiyle render (`onceki-deneme-7/final-teslim-3.mp4`): Lazar'ın sakalı çenede. Kare kare incelemede
+  dokuz kusur daha bulundu, hepsi kodda genel olarak düzeltildi (bu videoya özel elle düzeltme yok):
+  - `ebf6d4d2` konuşmayan rozet de görüldüğü kamera durağında bütün kalır (Lazar s7'de üstte kesikti); ok adı gerçek
+    iki satırlık kutusuyla pullardan, rozet/balondan, kenardan kaçar; kaçan ordunun etiketi kadrajda kalır; "kaydir"
+    geçişi kenarda koyu şerit bırakmaz.
+  - `31a8f7c7` satırı öldürüldüğünü söyleyen karakter o kelimede (whisper kelime zamanı) yere yığılır, sahne sonuna
+    kadar yerde kalır (`MapRules.toldKilled`, `V3Performer.falls`; esir düşmek ve "would be killed" sayılmaz).
+  - `4231b253` kare, harita kabartma resmi yüklenmeden çekilmez (iki karede kara zemin lacivert çiziliyordu).
+  - `188b4ddc` ShotView haritaya son karede görünen alanı verir; devlet/deniz adları içeri kayar ya da yazılmaz
+    ("ERBIA", "C SEA", tarih kartı yanında tek "A"), şehrin noktası dışarıdaysa adı yazılmaz ("istina"); rozet payı
+    itme kadar (PUSH 1,12); yerde konuşana kamera zemini alır (≤1,3).
+- İkinci render (`onceki-deneme-8/` günlükleri) bu düzeltmelerin ilk üçüyle "uyarıyla teslim" oldu: kalite beyninin tek
+  bulgusu (135. sn "NEW MANAGEMENT yazısı başka metnin üstünde") boş alarm — yazı okun ve pulların üstünden geçiyor, hiçbir
+  yazıyı örtmüyor (Claude kareyi kırpıp baktı).
+
+**Kalite beyni (bu kayıttaki son commit):** kare türü plandan (`frameKindAt`: harita, yakin-harita, sahne, resim, gecis);
+türe göre evet/hayır soruları (kenar, ustuste, bos, bozuk; evet = kusur); karenin üst ve alt kenarı tam boyda ayrı resim
+(`EDGE_STRIPS_FILTER`, yarılar %10 örtüşür); tecrübe dersine örnek resim (`Lesson.ornek`, `deneyim/ornek/`) — aynı türdeki
+karede eski yanlışları resmiyle görür. `scripts/v3/kalite-sinavi.ts hazirla | calistir | ogret` +
+`content/v3/kalite-sinavi.json` (Kosova'dan 7 kusurlu + 5 temiz kare; bir soru kendi karesini örnek olarak görmez).
+Owner'ın döngüsü: videodan sonra Claude kareleri kendi kontrol eder, beynin kaçırdığını/boş alarmını `ogret` ile öğretir.
+
+**Sınav (gemma4:12b, 12 soru):** eski istem 6/12 (kusur 3/7, temiz 3/5); sorular 6/12 (1/7, 5/5); +örnek 6/12 (4/7, 2/5);
++kenar 7/12 (3/7, 4/5); +kenar+örnek 7/12 (4/7 — yakın haritanın üç kenar kusurunun üçü —, 3/5); örtüşen kenar 6/12 (2/7,
+4/5), +örnek 6/12 (3/7, 3/5); üç boş alarm "kusur değil" olarak öğretilip örnekler karma seçilince (bir kaçırılan kusur + bir
+boş alarm) 7/12 (4/7, 3/5): temiz yakın harita artık geçiyor, sahne karelerine "Lazar'ın sakalı" örneğini hâlâ tekrarlıyor. Dürüst sonuç: biçim değişiklikleri isabeti ölçüm oynaklığı kadar oynatıyor; 12 B yerel model 960 px karede 40 px'lik
+kesik rozeti güvenilir göremiyor, örnekteki kusur metnini temiz karelere tekrarlıyor. Beynin "0 sorun"u videonun temiz
+olduğu anlamına gelmez; Claude kareleri her seferinde kendi kontrol etmeli.
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke-v3-episode-director 50 (O29, O30 yeni;
+eski kodda düşer), council 12 (Q yeni), motion 9, render 5, script 21, backgrounds 20, mix 13, likeness 14, youtube 4.
+Önizlemeler (s2, s5, s6, s7) ve render kareleri kare kare görüldü.
+
+**Sıradaki:**
+1. Bu son commit'lerle (188b4ddc + kalite beyni) Kosova'yı render adımından bir kez daha üret, kare kare son kontrol
+   (özellikle 116–118 sn yerde konuşan Murad, 140 sn bozgun etiketi, 0:20 harita adları), temizse owner'a YouTube dosyası.
+2. Kalite beyni için daha güçlü bir yerel görüntü modeli (indirme owner onayı ister) ya da plan geometrisinden kusur
+   denetimi düşünülmeli; sınav ~7/12'de kalıyor.
+3. Kalan: Murad'ın suikastında kılıç saplanması kukla dağarcığında yok (düşüş var); bir sonraki senaryoda harita payı.
+
 ## 23–24 Ekim 2026 (gece, 3) — V3 ilk AYAS denemesi: Kosova 1389 kısa videosu adım adım takip edildi, 14 hata düzeltildi
 
 **Owner:** AYAS'a kısa video konusu verdi ("Kosava savaşı", 3 dk); "takip et, hataları not al", "istediğim gibi

@@ -1,0 +1,114 @@
+{
+  "surum": 1,
+  "aciklama": "Kalite beyninin kare kusuru sınavı (owner, 26 Eki 2026: 'kare kusuru tespitini beyine kur, o da yapabilsin'). Kareler bitmiş videolardan alınır (kaynak: çalışma köküne göre video, saniye); kusurlu bir kareyi beyin QUALITY_BAR altında puanlayıp bildirmeli, temiz bir kareyi geçirmeli. Kosova 1389 son incelemesinde Claude'un kare kare bulduğu kusurlar; kalite beyni aynı videoda 18 kareye 10/10 vermişti.",
+  "sorular": [
+    {
+      "id": "kosova-rozet-kesik",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 130,
+      "donem": "1389",
+      "tur": "yakin-harita",
+      "kusurlu": true,
+      "kusur": "Yakın savaş haritasında Prince Lazar'ın portre rozeti resmin üst kenarında yarım kesik; ok adı pulların altında kalmış."
+    },
+    {
+      "id": "kosova-balon-yazi-ustune",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 134.6,
+      "donem": "1389",
+      "tur": "yakin-harita",
+      "kusurlu": true,
+      "kusur": "\"NEW MANAGEMENT!\" konuşma yazısı \"BAYEZID'S COUNTERATTACK\" ok adının üstüne binmiş; Lazar'ın rozeti üst kenarda kesik."
+    },
+    {
+      "id": "kosova-etiket-kesik",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 140,
+      "donem": "1389",
+      "tur": "yakin-harita",
+      "kusurlu": true,
+      "kusur": "Bozguna uğrayan ordunun \"Serbian coalition\" etiketi resmin üst kenarında kesik, yalnız alt yarısı görünüyor."
+    },
+    {
+      "id": "kosova-gecis-siyah-serit",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 72.83,
+      "donem": "1389",
+      "tur": "gecis",
+      "kusurlu": true,
+      "kusur": "Sahne geçişinde resmin sol kenarı boyunca geniş koyu/siyah bir şerit var; görüntü kareyi doldurmuyor."
+    },
+    {
+      "id": "kosova-zemin-deniz",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 72.97,
+      "donem": "1389",
+      "tur": "gecis",
+      "kusurlu": true,
+      "kusur": "Kara savaş haritasının zemini tamamen lacivert (deniz rengi) çizilmiş, tarlalar ve ağaçlar denizin üstünde yüzüyor; solda koyu şerit."
+    },
+    {
+      "id": "kosova-sakal-onluk",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-6/final-teslim-2.mp4",
+      "saniye": 40.5,
+      "donem": "1389",
+      "tur": "sahne",
+      "kusurlu": true,
+      "kusur": "Prince Lazar'ın sakalı çeneyi kaplamıyor, çenesinin altından göğsüne önlük gibi sarkan kahverengi bir parça."
+    },
+    {
+      "id": "kosova-devlet-adi-kesik",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 20,
+      "donem": "1389",
+      "tur": "harita",
+      "kusurlu": true,
+      "kusur": "Haritada devlet adı sol üst kenarda kesik (\"SERBIA\" yerine \"ERBIA\" okunuyor); sağda \"BLACK SEA\" de kenarda kesik."
+    },
+    {
+      "id": "kosova-temiz-konsey",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 40,
+      "donem": "1389",
+      "tur": "sahne",
+      "kusurlu": false,
+      "ne": "Lazar ve Vuk Sırp ordugâhında; konuşma yazısı ve ad etiketi okunur, sakal çenede."
+    },
+    {
+      "id": "kosova-temiz-yakin-harita",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 100,
+      "donem": "1389",
+      "tur": "yakin-harita",
+      "kusurlu": false,
+      "ne": "Yakın savaş haritası: rozetler, pullar, etiketler ve konuşma yazısı kadrajın içinde, üst üste binmiyor."
+    },
+    {
+      "id": "kosova-temiz-kamp",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 154,
+      "donem": "1389",
+      "tur": "sahne",
+      "kusurlu": false,
+      "ne": "Bayezid Osmanlı ordugâhında, ateşin yanında; çizili set dönemine uygun."
+    },
+    {
+      "id": "kosova-temiz-tasarim",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 167,
+      "donem": "1389",
+      "tur": "resim",
+      "kusurlu": false,
+      "ne": "Anın tasarlanmış resmi: atlı şövalye ve ordu; altta 'Designed illustration of the moment' satırı."
+    },
+    {
+      "id": "kosova-temiz-tablo",
+      "kaynak": "bolumler/20261023T154930-battle-of-kosovo-1389-sultan-murad-i-mar/onceki-deneme-7/final-teslim-3.mp4",
+      "saniye": 61,
+      "donem": "1389",
+      "tur": "resim",
+      "kusurlu": false,
+      "ne": "Stefanović'in 1875 tarihli Kosova savaşı tablosu, altta kaynak satırı."
+    }
+  ]
+}

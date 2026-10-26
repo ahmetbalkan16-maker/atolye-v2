@@ -4,15 +4,15 @@
  * Run: npx tsx scripts/smoke-v3-council.ts
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { designedWindows, qualityPrompt } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
 import { type ExamManifest, type ExamQuestion, gradeAnswer } from "../src/lib/v3/council/BrainExam";
-import { cosine, errorSignature, learnedRemedy, MAX_RULES, ollamaEmbedder, type OwnerRule, overlap, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
+import { cosine, errorSignature, exampleDir, learnedRemedy, MAX_RULES, ollamaEmbedder, type OwnerRule, overlap, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { designFor } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { judgePrompt, parseVerdict } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { partPrompt } from "../src/lib/v3/costumes/PartDesigner";
@@ -229,6 +229,44 @@ async function main() {
     assert.deepEqual(await recall(root, "ortam", { konu: "a walled hilltop settlement", tur: "ders" }), [], "back to words");
     assert.match(await enableMeaningSearch(undefined), /^kelime araması — kapalı/);
     assert.equal(ollamaEmbedder("http://127.0.0.1:1", "0"), undefined, "ATOLYE_V3_EMBED_MODEL=0 turns it off");
+  });
+
+  await scenario("Q the quality brain's frame-fault check (owner, 26 Oct 2026): questions by kind of frame, a yes is a fault, taught frames shown as examples (never a question's own)", async () => {
+    const plan = { fps: 30, shots: [
+      { start: 0, duration: 90, transitionIn: "kes", geoMap: { close: {} } },
+      { start: 90, duration: 90, transitionIn: "kaydir", inserts: [{ start: 30, end: 60 }] },
+      { start: 180, duration: 60, transitionIn: "kes", geoMap: {} },
+    ] } as unknown as Parameters<typeof frameKindAt>[0];
+    assert.deepEqual([0.5, 3.1, 4.5, 5.5, 6.5, 9].map((t) => frameKindAt(plan, t)), ["yakin-harita", "gecis", "resim", "sahne", "harita", undefined]);
+    assert.deepEqual(frameChecks("resim").map((c) => c.key), ["bos"], "a period picture is not judged on badges or beards");
+    assert.deepEqual(frameChecks("sahne").map((c) => c.key), ["kenar", "ustuste", "bos", "bozuk"]);
+    const pointed = qualityPrompt("1389", [], undefined, undefined, { kind: "yakin-harita", examples: [{ kusurlu: true, metin: "rozet kesik" }, { kusurlu: false, metin: "kaynak satırı" }] });
+    assert.ok(pointed.includes('"kenar": true|false') && !pointed.includes('"bozuk"') && pointed.includes("Picture 1: a FAULT the check missed: rozet kesik") && pointed.includes("Picture 2: NOT a fault") && pointed.includes("The frame you judge is picture 3."), pointed);
+    assert.ok(qualityPrompt("1389", [], undefined, undefined, { kind: "harita", edges: true }).includes("The frame you judge is picture 1. Picture 2 shows that same frame's top edge"), "the edge strips follow the frame");
+    assert.ok(EDGE_STRIPS_FILTER.endsWith("vstack=inputs=4") && edgeStripArgs("v.mp4", 12.345, "o.jpg").join(" ").includes("-ss 12.35 -i v.mp4"));
+    assert.ok(!qualityPrompt("1389").includes("true|false"), "without the pointed questions the prompt is as before");
+    // A yes caps the score and names the fault; the examples go before the judged frame.
+    let seen: readonly string[] = [];
+    const judge: AIProvider = { generate: async (_p, o) => ((seen = o?.images ?? []), { content: '{"puan": 9, "kenar": true, "ustuste": false, "bos": false, "sorunlar": []}', finishReason: "stop", refused: false, complete: true, truncated: false }) };
+    const v = await judgeFrame({ judge, image: "KARE", donem: "1389", kind: "yakin-harita", examples: [{ image: "ORNEK", kusurlu: true, metin: "rozet kesik" }] });
+    assert.deepEqual([v.puan, v.sorunlar[0], seen], [4, "kenarda kesik rozet, yüz ya da yazı", ["ORNEK", "KARE"]]);
+    assert.equal((await judgeFrame({ judge: new FakeModel("bozuk"), image: "K", donem: "1389" })).okunamadi, true);
+    // Teaching: the frame kept as a picture, recalled for frames of its kind only, and once.
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kalite-"));
+    const shot = path.join(root, "kare.jpg");
+    writeFileSync(shot, "jpeg");
+    const lesson = { workRoot: root, ffmpeg: "ffmpeg", kind: "yakin-harita" as const, kusurlu: true, metin: "Lazar'ın rozeti üst kenarda kesik", bolum: "kosova", frame: shot };
+    assert.equal(await teachFrame({ ...lesson, ad: "kosova-rozet" }), true);
+    assert.equal(await teachFrame({ ...lesson, ad: "kosova-rozet" }), false, "taught once");
+    await teachFrame({ ...lesson, ad: "kosova-yalanci", kusurlu: false, metin: "kaynak satırı kusur değil" });
+    const lessons = await recall(root, "kalite", { tur: "ders", limit: 100 });
+    const close = await frameExamples(lessons, exampleDir(root), "yakin-harita");
+    assert.deepEqual(close.map((e) => [e.kusurlu, e.metin]), [[true, "Lazar'ın rozeti üst kenarda kesik"], [false, "kaynak satırı kusur değil"]], "a missed fault and a false alarm in turn");
+    await teachFrame({ ...lesson, ad: "kosova-yalanci-2", kusurlu: false, metin: "yeni bir yanlış alarm" });
+    const mixed = await frameExamples(await recall(root, "kalite", { tur: "ders", limit: 100 }), exampleDir(root), "yakin-harita");
+    assert.deepEqual(mixed.map((e) => e.kusurlu), [true, false], "two false alarms taught later do not crowd out the fault");
+    assert.deepEqual(await frameExamples(lessons, exampleDir(root), "harita"), [], "a close map's lesson is not a wide map's");
+    assert.equal((await frameExamples(lessons, exampleDir(root), "yakin-harita", (f) => f === "kosova-rozet.jpg")).length, 1, "a question never sees its own frame");
   });
 
   console.log(`V3 council smoke: PASS (${scenarios} scenarios)`);

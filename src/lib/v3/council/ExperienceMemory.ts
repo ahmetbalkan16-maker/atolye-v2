@@ -27,12 +27,23 @@ export interface Lesson {
   readonly sonuc?: "ise_yaradi" | "ise_yaramadi";
   /** The repair action an "ilac" lesson records. */
   readonly eylem?: RepairAction;
+  /**
+   * A picture of what the lesson is about (file name in `exampleDir`): a frame where the quality brain missed a fault,
+   * shown to it beside the frame it judges next time (owner, 26 Oct 2026: "if it gets it wrong, you do it and the
+   * helper brain takes it as experience").
+   */
+  readonly ornek?: string;
 }
 
 const MAX_TEXT = 300;
 
 export function memoryDir(workRoot: string): string {
   return path.join(workRoot, "_kutuphane", "deneyim");
+}
+
+/** Where the lessons' example pictures are kept. */
+export function exampleDir(workRoot: string): string {
+  return path.join(memoryDir(workRoot), "ornek");
 }
 
 /** Appends one lesson to its brain's file (append-only, one JSON line per lesson). */
