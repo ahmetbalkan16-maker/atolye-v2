@@ -16,9 +16,19 @@ beyine kur, o da yapabilsin".
   - `188b4ddc` ShotView haritaya son karede görünen alanı verir; devlet/deniz adları içeri kayar ya da yazılmaz
     ("ERBIA", "C SEA", tarih kartı yanında tek "A"), şehrin noktası dışarıdaysa adı yazılmaz ("istina"); rozet payı
     itme kadar (PUSH 1,12); yerde konuşana kamera zemini alır (≤1,3).
-- İkinci render (`onceki-deneme-8/` günlükleri) bu düzeltmelerin ilk üçüyle "uyarıyla teslim" oldu: kalite beyninin tek
-  bulgusu (135. sn "NEW MANAGEMENT yazısı başka metnin üstünde") boş alarm — yazı okun ve pulların üstünden geçiyor, hiçbir
-  yazıyı örtmüyor (Claude kareyi kırpıp baktı).
+- İkinci render (`onceki-deneme-8/` günlükleri, video `onceki-deneme-9/final-teslim-4.mp4`) bu düzeltmelerin ilk üçüyle
+  "uyarıyla teslim" oldu: kalite beyninin tek bulgusu (135. sn "NEW MANAGEMENT yazısı başka metnin üstünde") boş alarm —
+  yazı okun ve pulların üstünden geçiyor, hiçbir yazıyı örtmüyor (Claude kareyi kırpıp baktı); "kusur değil" olarak öğretildi.
+- Üçüncü render (`onceki-deneme-10/final-teslim-5.mp4`, 188b4ddc + kalite beyni) kare kare temizdi; tek kusur 0:28'de
+  kamera kayarken "SERBIA"nın bir saniye güç çubuğunun altına girmesi → `391254b9` güç çubuğu da tarih kartı gibi ekrana
+  sabit üst yazı. Kalite beyni (örnekler açık) 5 "eksik" verdi, beşi de boş alarm (dört karede öğretilen "Lazar'ın sakalı
+  önlük gibi" metni — birinde Lazar yok —, bir karede olmayan "ERBIA") → aynı commit'te örnekler üretimde varsayılan
+  kapalı (`ATOLYE_V3_QUALITY_EXAMPLES=1` açar). Şefin bu sahte bulgulardan yazdığı iki kalite "önlem" dersi hiçbir kalite
+  çağrısına dönmüyor (yalnız kural/ders okunur); yalnız-ekle hafızaya dokunulmadı.
+- **Dördüncü render 391254b9 ile "teslim edildi" (uyarısız): YouTube dosyası bölüm klasöründeki `final.mp4`** (188,1 sn,
+  1080p, 235 MB; `aciklama.txt` başlık + açıklama + bölümler, `kapak.jpg`, `altyazi.srt`). Claude 3 sn arayla tüm videoyu
+  ve 0:27–0:30'u 4 kare/sn taradı: SERBIA güç çubuğuna girmiyor, kesik ad/rozet/etiket yok, geçişler dolu, Murad yere
+  yığılıp yerde konuşuyor, Lazar'ın sakalı çenede. Kalite beyni (sorular + kenar şeridi, örneksiz) 18 kare 0 sorun.
 
 **Kalite beyni (bu kayıttaki son commit):** kare türü plandan (`frameKindAt`: harita, yakin-harita, sahne, resim, gecis);
 türe göre evet/hayır soruları (kenar, ustuste, bos, bozuk; evet = kusur); karenin üst ve alt kenarı tam boyda ayrı resim
@@ -39,8 +49,8 @@ eski kodda düşer), council 12 (Q yeni), motion 9, render 5, script 21, backgro
 Önizlemeler (s2, s5, s6, s7) ve render kareleri kare kare görüldü.
 
 **Sıradaki:**
-1. Bu son commit'lerle (188b4ddc + kalite beyni) Kosova'yı render adımından bir kez daha üret, kare kare son kontrol
-   (özellikle 116–118 sn yerde konuşan Murad, 140 sn bozgun etiketi, 0:20 harita adları), temizse owner'a YouTube dosyası.
+1. Owner videoyu izleyip YouTube'a yükler (`final.mp4`); geri bildirimi bir sonraki oturumun ilk işi. Sipariş izleyicisi
+   yeniden başlatılmadı (yapim.ts değişmedi).
 2. Kalite beyni için daha güçlü bir yerel görüntü modeli (indirme owner onayı ister) ya da plan geometrisinden kusur
    denetimi düşünülmeli; sınav ~7/12'de kalıyor.
 3. Kalan: Murad'ın suikastında kılıç saplanması kukla dağarcığında yok (düşüş var); bir sonraki senaryoda harita payı.
