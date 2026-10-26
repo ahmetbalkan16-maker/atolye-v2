@@ -87,7 +87,9 @@ def main():
             cool_down(int(req.get("max_temp", 82)), int(req.get("resume_below", 78)))
             t0 = time.monotonic()
             torch.cuda.reset_peak_memory_stats()
-            params = GenerationParams(caption=str(req["caption"]), lyrics="", instrumental=True, duration=float(req["duration"]), thinking=False, use_cot_metas=False, use_cot_caption=False, use_cot_language=False)
+            # Turbo needs shift 3.0 (ACE-Step docs/en/INFERENCE.md: "the only parameter you need to set manually for
+            # turbo"); the default 1.0 left fixed high whine lines and grit on brass (Kosovo 1389, 26 Oct 2026).
+            params = GenerationParams(caption=str(req["caption"]), lyrics="", instrumental=True, duration=float(req["duration"]), thinking=False, use_cot_metas=False, use_cot_caption=False, use_cot_language=False, shift=float(req.get("shift", 3.0)), sampler_mode=str(req.get("sampler", "euler")))
             config = GenerationConfig(batch_size=1, use_random_seed=False, seeds=[int(req.get("seed", 0))], audio_format="wav")
             with tempfile.TemporaryDirectory(dir=os.environ.get("TEMP")) as work:
                 sys.stdout = sys.stderr

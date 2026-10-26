@@ -56,6 +56,7 @@ import { beats, buildRenderPlan, longestEmptyStretch, PICTURE_SHARE_TARGET, pict
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
+import { measureWhine, whineLine } from "../src/lib/v3/mix/AudioQuality";
 import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
@@ -1094,7 +1095,8 @@ async function main() {
         return file ? [{ ...c, file }] : [];
       });
       const r = await renderMix(paths, { duration: timeline.duration, dialogue: timeline.lines.map((l) => ({ file: l.file, start: l.start })), music, sfx, ambience }, f("miks.wav"));
-      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0 };
+      for (const c of r.cleanup) log(`  ses temizliği: ${c.kaynak} — ${c.once} sabit tiz çizgi → ${c.sonra}`);
+      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0, temizlik: r.cleanup };
       await writeJson(f("miks.json"), meta);
       return meta;
     });
@@ -1150,6 +1152,10 @@ async function main() {
 
     const durationS = Number((await runChecked(paths.ffprobe, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f(final)])).stdout.trim());
     const loud = await measureLoudness(paths, f(final));
+    // The sound brain's own measurement (owner, 26 Oct 2026: a crackling war horn behind the Kosovo narration): a whine
+    // the cleaning missed is a finding, never a pass.
+    const whine = await measureWhine(paths, f("miks.wav"));
+    if (whine.length) council.find({ beyin: "ses", onem: "uyari", baslik: "miksde sabit tiz vızıltı", ayrinti: `${whineLine(whine)} — müzik/efekt üreticisinin izi; temizlik bunları almadı`, tur: "kod", yer: "miks" });
     const events = visualEvents(plan);
     const gaps = events.slice(1).map((t, i) => t - events[i]!);
     const avgGap = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : Infinity;
@@ -1183,6 +1189,7 @@ async function main() {
       row(!!youtube?.kapak && !youtube.kapak.esikAlti, `Kapak: ${youtube?.kapak ? `${youtube.kapak.varyantlar.length} çeşit, en iyisi ${youtube.kapak.secim ? verdictLine(youtube.kapak.secim) : "puansız"}${youtube.kapak.esikAlti ? " — HAKEM EŞİĞİNİN ALTINDA" : ""}` : "yok"}; YouTube paketi: ${youtube ? `${youtube.paket.basliklar.length} başlık, ${chs.length} bölüm, ${youtube.paket.etiketler.length} etiket` : "yok"}`),
       row(!backgrounds.some((b) => b.esikAlti), `Setler: ${backgrounds.filter((b) => b.kaynak === "tasarim").length} tasarlandı, ${backgrounds.filter((b) => b.kaynak === "kutuphane").length} kütüphaneden (hakem onaylı)${backgrounds.some((b) => b.esikAlti) ? `, ${backgrounds.filter((b) => b.esikAlti).length} hakem eşiğinin ALTINDA` : ""}`),
       row(Math.abs(loud.integratedLufs + 14) <= 1 && loud.truePeakDb <= -1, `Ses seviyesi ${loud.integratedLufs.toFixed(1)} LUFS, gerçek tepe ${loud.truePeakDb.toFixed(1)} dBTP (hedef −14 ±1, ≤ −1)`),
+      row(!whine.length, `Ses temizliği: miksde ${whineLine(whine)} (4–18 kHz; referans belgeselde yok)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
       row(Math.abs(durationS - target) <= target * 0.1, `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),

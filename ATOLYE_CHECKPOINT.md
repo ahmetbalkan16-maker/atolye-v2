@@ -1,3 +1,30 @@
+## 26 Ekim 2026 (öğlen) — V3 ses beyni: üretilen müzik/efektteki sabit tiz vızıltı ölçülür ve temizlenir
+
+**Owner:** "son yapılan videoyu incele, arka planda savaş borazanı falan kötü bir cızırtı yapıyor; sana attığım linkteki
+video kalitesiyle karşılaştır (DFT Tarih, R20LHhaJhO8); yardımcı beyinleri geliştir."
+
+**Ölçüm (uzun süreli tayf, 4–18 kHz'de komşularından ≥8 dB yüksek, dört çeyreğin üçünde duran dar çizgi):**
+referans 10 dk = 0 çizgi; Kosova miksi 6 (16,0 kHz +20 dB, 17,6 kHz +15 dB); besteci yatakları 3–49 çizgi, birçoğunda
+aynı frekanslar (5,93 / 7,93 / 11,8 / 17,75 kHz) → çalgı değil model izi; MOSS kılıç sesi 16,0 kHz +23 dB. Kök neden:
+`acestep_server.py` turbo modele `shift` vermiyordu (varsayılan 1,0; ACE-Step belgesi turbo için 3,0 ister). Aynı
+başlık + tohumla 40 → 13 çizgi; Heun örnekleyici kötüleştirdi (25). Miksteki 5 ms kısma atağı alçak boru sesinde 20 ms'ye
+göre 7 dB fazla bozulma üretiyordu (sentetik ölçüm).
+
+**Yapılan:** `src/lib/v3/mix/AudioQuality.ts` (whineLines, cleanupFilter, cleanAudioFile: en çok 3 tur dar çentik +
+16 kHz alçak geçiren); `renderMix` her müzik yatağını, efekti ve ortam sesini temizleyip kullanır (efekt/ortamda 12 kHz
+üstü aranır — çan ve cırcır böceği kendi sesini korur), kısma 20/400 ms; besteci `TURBO_SHIFT = 3`, kütüphane anahtarı
+v2 (shift 1,0 parçaları bir daha kullanılmaz); miks günlüğünde "ses temizliği" satırları, `miks.json` `temizlik`;
+QC'de "Ses temizliği" satırı ve kalan çizgi varsa "ses" beyninin kurul bulgusu.
+
+**Kanıt:** Kosova kopyası (`v3-runtime/karsilastirma/kosova-ses-2026-10-26/`, miks adımından): yataklar 48→3, 7→0,
+12→0, 6→0; ortamlar 24→3/1, 18→0, 7→0; kılıç 4→0. Yeni miks ve final.mp4: 0 çizgi; −14,3 LUFS, −1,0 dBTP; QC tamam.
+Kulak karşılaştırması: aynı klasörde `ses-once-sonra-borazan.mp4` (124–150 sn, önce/sonra). Efektçi bu sefer açıldı,
+davulu "vuruş yok" diye reddetti (sentez davul kaldı). tsc temiz; lint 0 hata / 13 eski uyarı; smoke mix 14 (yeni "sound
+brain"), render 5, council 12, episode-director 50.
+
+**Sıradaki:** owner klibi dinler; beğenirse yeni `final.mp4` YouTube dosyası olur (müzik yeni ayarla yeniden
+bestelendi, parçalar farklı). Not: miksimiz 4–12 kHz'de referanstan ~10 dB daha koyu (ses netliği/parlaklık) — ayrı iş.
+
 ## 26 Ekim 2026 — V3 Kosova 1389 videosu bitirildi; kare kusurları genel olarak düzeltildi; kalite beynine kare kusuru tespiti ve tecrübe döngüsü
 
 **Owner:** "burda kalmıştın, devam et ve videoyu istediğim kalitede bitir"; sonra "bu düzeltmeleri bizim yardımcı beyin

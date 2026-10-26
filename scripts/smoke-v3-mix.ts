@@ -3,12 +3,14 @@
  * Run: npx tsx scripts/smoke-v3-mix.ts
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
-import { AMBIENCE_LUFS, ambienceChain, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
-import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems } from "../src/lib/v3/mix/MusicComposer";
+import { CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
+import { AMBIENCE_LUFS, ambienceChain, DUCK_ATTACK_MS, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
+import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { voiceCredit } from "../src/lib/v3/tts/Tts";
@@ -306,6 +308,52 @@ async function main() {
     const chain = ambienceChain(5, "o0", 3, 15);
     assert.match(chain, /^\[5:a\]aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-38:TP=-9:LRA=11,afade=t=in:d=0\.6,afade=t=out:st=11\.400:d=0\.6,adelay=3000\|3000\[o0\]$/);
     assert.ok(AMBIENCE_LUFS < -26, "ambience sits under the music");
+  });
+
+  await scenario("sound brain: a fixed whine is found and cut; changing notes, a held note and inaudible peaks are not", () => {
+    const rate = 48_000;
+    let seed = 1;
+    const noise = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff) * 2 - 1;
+    // Sixteen different notes over sixteen half seconds (a tune seldom repeats one note in every quarter).
+    const notes = [0, 7, 3, 10, 5, 12, 1, 8, 15, 4, 11, 6, 13, 2, 9, 14].map((k) => 196 * 2 ** (k / 12));
+    // Eight seconds of "music": a new note every half second, played a little off and with vibrato like a real player,
+    // harmonics up to 12 kHz, over a quiet noise floor.
+    const detune = Array.from({ length: 16 }, () => 1 + 0.01 * noise());
+    const music = (whineHz?: number, held?: { hz: number; untilS: number }) =>
+      Float32Array.from({ length: rate * 8 }, (_, i) => {
+        const t = i / rate;
+        const seg = Math.floor(t * 2);
+        const f0 = notes[seg]! * detune[seg]!;
+        const along = t - (0.004 / (2 * Math.PI * 5.5)) * Math.cos(2 * Math.PI * 5.5 * t);
+        let v = 0.001 * noise();
+        for (let h = 1; h * f0 < 12_000; h++) v += (0.3 / h ** 1.5) * Math.sin(2 * Math.PI * h * f0 * along);
+        if (whineHz) v += 0.004 * Math.sin(2 * Math.PI * whineHz * t);
+        if (held && t < held.untilS) v += 0.02 * Math.sin(2 * Math.PI * held.hz * t);
+        return v;
+      });
+    assert.deepEqual(whineLines(music(), rate), [], "changing notes leave a smooth long-term spectrum");
+    const found = whineLines(music(7930), rate);
+    assert.equal(found.length, 1, `one whine: ${JSON.stringify(found)}`);
+    assert.ok(Math.abs(found[0]!.hz - 7930) < 15 && found[0]!.db > LINE_PROMINENCE_DB);
+    // A tone held through the first quarter only stands out in the whole file but is music, not an artifact.
+    assert.deepEqual(whineLines(music(undefined, { hz: 6100, untilS: 1.9 }), rate), [], "a held note moves on");
+    // Far under the loudest band nobody hears it (a synthesised drum showed "lines" at −90 dB).
+    const faint = Float32Array.from({ length: rate * 8 }, (_, i) => 0.3 * Math.sin((2 * Math.PI * 220 * i) / rate) + 1e-5 * Math.sin((2 * Math.PI * 7930 * i) / rate));
+    assert.deepEqual(whineLines(faint, rate), [], "90 dB under the tone");
+    assert.deepEqual(whineLines(music(15_996), rate, { minHz: 12_000 }).map((l) => Math.round(l.hz / 100)), [160], "an effect is searched from 12 kHz");
+    assert.deepEqual(whineLines(music(7930), rate, { minHz: 12_000 }), [], "a bell's partial under 12 kHz stays");
+    const chain = cleanupFilter([{ hz: 7930, db: 13 }, { hz: 16_000, db: 23 }]);
+    assert.equal(chain, `equalizer=f=7930:t=h:w=60:g=-15,equalizer=f=16000:t=h:w=60:g=-25,lowpass=f=${CLEAN_LOWPASS_HZ}:p=2,lowpass=f=${CLEAN_LOWPASS_HZ}:p=2`);
+    assert.equal(cleanupFilter(Array.from({ length: 80 }, (_, i) => ({ hz: 5000 + i * 100, db: 9 }))).split("equalizer").length - 1, MAX_NOTCHES);
+    assert.equal(cleanupFilter([], { lowpass: false }), "");
+    assert.match(whineLine([{ hz: 15_996, db: 22.9 }]), /^1 sabit tiz çizgi \(16,0 kHz \+23 dB\)$/);
+    assert.equal(whineLine([]), "sabit tiz çizgi yok");
+    assert.ok(EFFECT_LINE_MIN_HZ >= 12_000 && DUCK_ATTACK_MS >= 20, "effects keep their ring; ducking no longer clicks on low horns");
+    // The composer asks turbo for shift 3.0, and a piece made at 1.0 is never taken from the library again.
+    assert.equal(TURBO_SHIFT, 3);
+    const req = { mood: "epic" as const, seconds: 25, caption: "c", seed: 470877 };
+    const oldKey = createHash("sha256").update(JSON.stringify({ v: 1, model: "ACE-Step/Ace-Step1.5@acestep-v15-turbo", caption: "c", seconds: 25, seed: 470877 })).digest("hex").slice(0, 24);
+    assert.notEqual(compositionKey(req), oldKey);
   });
 
   await scenario("VoxCPM voices: style per emotion, description with accent, engine choice and the off switch", async () => {

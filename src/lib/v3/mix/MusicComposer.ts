@@ -21,6 +21,13 @@ import type { MusicSegment } from "./Mixer";
  */
 export const ACESTEP_MODEL_ID = "ACE-Step/Ace-Step1.5@acestep-v15-turbo";
 
+/**
+ * Timestep shift for the turbo model: ACE-Step's docs ask for 3.0 ("the only parameter you need to set manually for
+ * turbo"); the default 1.0 composed every bed until 26 Oct 2026. Same Kosovo caption and seed: 40 fixed whine lines
+ * at 1.0, 13 at 3.0 (the Heun sampler made it 25).
+ */
+export const TURBO_SHIFT = 3;
+
 /** What the bed should sound like, by music bucket (the reference channel's playful, cinematic underscore). */
 const MOOD_WORDS: Readonly<Record<MusicMood, string>> = {
   epic: "heroic and triumphant, bold brass fanfare, big war drums, full orchestra",
@@ -57,9 +64,9 @@ export function compositionCaption(episode: Pick<Episode, "donem" | "konu">, moo
   return `Instrumental underscore for an animated history cartoon set in ${episode.donem}. ${MOOD_WORDS[mood]}; ${periodInstruments(episode)}. No vocals, no singing, no lyrics, clean mix, loopable.`;
 }
 
-/** Library key of a request (model, caption, length to the second, seed). */
+/** Library key of a request (model, shift, caption, length to the second, seed): a shift-1.0 piece is never reused. */
 export function compositionKey(req: CompositionRequest): string {
-  return createHash("sha256").update(JSON.stringify({ v: 1, model: ACESTEP_MODEL_ID, caption: req.caption, seconds: Math.round(req.seconds), seed: req.seed })).digest("hex").slice(0, 24);
+  return createHash("sha256").update(JSON.stringify({ v: 2, model: ACESTEP_MODEL_ID, shift: TURBO_SHIFT, caption: req.caption, seconds: Math.round(req.seconds), seed: req.seed })).digest("hex").slice(0, 24);
 }
 
 export interface PieceStats {
@@ -142,7 +149,7 @@ export class MusicComposer {
     const tmp = path.join(this.paths.asciiTemp, `muzik-${path.basename(file)}`);
     let r: Awaited<ReturnType<PythonLineServer["request"]>>;
     try {
-      r = await this.server.request({ caption: req.caption, duration: Math.round(req.seconds), seed: req.seed, out: tmp, max_temp: GPU_PAUSE_C, resume_below: GPU_START_C });
+      r = await this.server.request({ caption: req.caption, duration: Math.round(req.seconds), seed: req.seed, shift: TURBO_SHIFT, out: tmp, max_temp: GPU_PAUSE_C, resume_below: GPU_START_C });
     } catch (e) {
       this.broken = `besteci başlatılamadı: ${(e as Error).message.slice(0, 160)}`;
       await this.close();
@@ -180,7 +187,7 @@ export class MusicComposer {
     // Append-only: copy, never overwrite.
     if (!existsSync(file)) await fs.copyFile(tmp, file);
     await fs.rm(tmp, { force: true });
-    const meta = { model: ACESTEP_MODEL_ID, ...req, stats, seconds_taken: r.seconds, created: new Date().toISOString(), license: "MIT (ACE-Step 1.5); the piece is Atölye's own local composition", paidCalls: 0 };
+    const meta = { model: ACESTEP_MODEL_ID, shift: TURBO_SHIFT, ...req, stats, seconds_taken: r.seconds, created: new Date().toISOString(), license: "MIT (ACE-Step 1.5); the piece is Atölye's own local composition", paidCalls: 0 };
     await fs.writeFile(file.replace(/\.wav$/, ".json"), `${JSON.stringify(meta, null, 2)}\n`);
     this.log(`  müzik bestelendi (${r.seconds} sn, ${req.mood}, ${Math.round(req.seconds)} sn): ${path.basename(file)}`);
     return { file, cached: false };

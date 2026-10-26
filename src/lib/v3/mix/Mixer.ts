@@ -8,11 +8,13 @@ import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
+import { cleanAudioFile } from "./AudioQuality";
 
 /**
  * V3 audio mix: dialogue and effects are placed sample-exactly in Node, music beds are cut, looped and
  * cross-faded with FFmpeg and ducked under the dialogue (sidechain compression), and the whole mix is brought to
- * −14 LUFS / −1 dBTP in two loudnorm passes (measure, then apply), 48 kHz stereo.
+ * −14 LUFS / −1 dBTP in two loudnorm passes (measure, then apply), 48 kHz stereo. Music, effects and ambience go in
+ * without the generators' whine lines (AudioQuality.cleanAudioFile).
  */
 export const SAMPLE_RATE = 48_000;
 /** Overlap between two music beds. */
@@ -212,6 +214,18 @@ async function monoAt48k(paths: V3Paths, file: string, tmp: string): Promise<Flo
   return readWavPcm16(await fs.readFile(out)).samples;
 }
 
+/**
+ * Whine lines are measured from here up in effects and ambience: under it a bell's partials, a sword's ring and
+ * crickets are the sound itself; above it MOSS left its 14 and 16 kHz whine.
+ */
+export const EFFECT_LINE_MIN_HZ = 12_000;
+
+export interface MixCleanup {
+  readonly kaynak: string;
+  readonly once: number;
+  readonly sonra: number;
+}
+
 export interface MixInput {
   readonly duration: number;
   readonly dialogue: readonly { readonly file: string; readonly start: number }[];
@@ -220,6 +234,10 @@ export interface MixInput {
   /** Quiet ambience of each scene's place (SfxDesigner), looped over the scene, under everything. */
   readonly ambience?: readonly { readonly start: number; readonly end: number; readonly file: string }[];
 }
+
+/** How fast the music ducks under speech and comes back. */
+export const DUCK_ATTACK_MS = 20;
+export const DUCK_RELEASE_MS = 400;
 
 /** Level of the ambience beds (well under the music's −26 before the final loudness pass). */
 export const AMBIENCE_LUFS = -38;
@@ -237,6 +255,8 @@ export interface MixResult {
   readonly truePeakDb: number;
   /** Credits for every bed used, de-duplicated (CREDITS.md, video description). */
   readonly credits: readonly string[];
+  /** Sources that had whine lines, with how many before and after the cleaning. */
+  readonly cleanup: readonly MixCleanup[];
 }
 
 function loudnormStats(stderr: string): Record<string, string> {
@@ -258,11 +278,24 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const tmp = path.join(paths.asciiTemp, "mix");
   await fs.mkdir(tmp, { recursive: true });
   const total = Math.ceil(input.duration * SAMPLE_RATE);
+  // Every music bed, effect and ambience bed goes in without its whine (AudioQuality); each file is cleaned once.
+  const cleanup: MixCleanup[] = [];
+  const cleaned = new Map<string, string>();
+  const clean = async (file: string, kind: "muzik" | "efekt" | "ortam"): Promise<string> => {
+    const known = cleaned.get(`${kind}#${file}`);
+    if (known) return known;
+    const out = path.join(tmp, `temiz-${cleaned.size}.wav`);
+    const outArgs = kind === "efekt" ? ["-ac", "1", "-ar", String(SAMPLE_RATE), "-c:a", "pcm_s16le"] : ["-ar", String(SAMPLE_RATE), "-c:a", "pcm_f32le"];
+    const r = await cleanAudioFile(paths, file, out, { outArgs, ...(kind === "muzik" ? {} : { minHz: EFFECT_LINE_MIN_HZ }) });
+    cleaned.set(`${kind}#${file}`, out);
+    if (r.before.length) cleanup.push({ kaynak: `${kind} ${path.basename(file)}`, once: r.before.length, sonra: r.after.length });
+    return out;
+  };
 
   const dialogue = new Float32Array(total);
   for (const d of input.dialogue) placeSamples(dialogue, await monoAt48k(paths, d.file, tmp), d.start);
   const effects = new Float32Array(total);
-  for (const s of input.sfx) placeSamples(effects, await monoAt48k(paths, s.file, tmp), s.t, SFX_GAIN[s.id]);
+  for (const s of input.sfx) placeSamples(effects, await monoAt48k(paths, await clean(s.file, "efekt"), tmp), s.t, SFX_GAIN[s.id]);
   const dlgFile = path.join(tmp, "dialogue.wav");
   const sfxFile = path.join(tmp, "sfx.wav");
   await fs.writeFile(dlgFile, wavFloat32(dialogue));
@@ -271,30 +304,31 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const args: string[] = ["-v", "error", "-y", "-i", dlgFile, "-i", sfxFile];
   const chains: string[] = ["[0:a]aformat=channel_layouts=stereo,asplit=2[dlg][key]", "[1:a]aformat=channel_layouts=stereo[fx]"];
   const beds: string[] = [];
-  input.music.forEach((m, i) => {
+  for (const [i, m] of input.music.entries()) {
     // Each bed overhangs its scenes by half a crossfade on both sides, so neighbours overlap by a full one.
     const from = Math.max(0, m.start - CROSSFADE_S / 2);
     const to = Math.min(input.duration, m.end + CROSSFADE_S / 2);
     const len = Math.max(0.5, to - from);
     const fadeIn = i === 0 ? 0.8 : CROSSFADE_S;
-    args.push("-stream_loop", "-1", "-t", len.toFixed(3), "-i", m.track.absolutePath);
+    args.push("-stream_loop", "-1", "-t", len.toFixed(3), "-i", await clean(m.track.absolutePath, "muzik"));
     const ms = Math.round(from * 1000);
     chains.push(
       `[${i + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,loudnorm=I=-26:TP=-8:LRA=11,afade=t=in:d=${fadeIn},afade=t=out:st=${Math.max(0, len - CROSSFADE_S).toFixed(3)}:d=${CROSSFADE_S},adelay=${ms}|${ms}[m${i}]`,
     );
     beds.push(`[m${i}]`);
-  });
+  }
   const ambience = input.ambience ?? [];
-  ambience.forEach((a, i) => {
-    args.push("-stream_loop", "-1", "-t", Math.max(0.5, a.end - a.start).toFixed(3), "-i", a.file);
+  for (const [i, a] of ambience.entries()) {
+    args.push("-stream_loop", "-1", "-t", Math.max(0.5, a.end - a.start).toFixed(3), "-i", await clean(a.file, "ortam"));
     chains.push(ambienceChain(input.music.length + 2 + i, `o${i}`, a.start, a.end));
-  });
+  }
   const amb = ambience.length ? ["[amb]"] : [];
   if (ambience.length) chains.push(`${ambience.map((_, i) => `[o${i}]`).join("")}amix=inputs=${ambience.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[amb]`);
   if (beds.length) {
     chains.push(`${beds.join("")}amix=inputs=${beds.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[bed]`);
-    // Duck the bed under speech: fast attack, gentle release.
-    chains.push("[bed][key]sidechaincompress=threshold=0.05:ratio=8:attack=5:release=200[ducked]");
+    // Duck the bed under speech. A 5 ms attack moved the gain within one cycle of a low horn and added 7 dB more
+    // distortion above 1.5 kHz than 20 ms (measured 26 Oct 2026); 20 ms still lands before the first syllable is heard.
+    chains.push(`[bed][key]sidechaincompress=threshold=0.05:ratio=8:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}[ducked]`);
     chains.push(`[dlg][ducked][fx]${amb.join("")}amix=inputs=${3 + amb.length}:normalize=0:duration=first[mix]`);
   } else {
     chains.push("[key]anullsink", `[dlg][fx]${amb.join("")}amix=inputs=${2 + amb.length}:normalize=0:duration=first[mix]`);
@@ -313,5 +347,5 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   const loud = await measureLoudness(paths, out);
   await fs.rm(tmp, { recursive: true, force: true });
   const credits = [...new Set(input.music.map((m) => m.track.attribution ?? `${m.track.title} — ${m.track.license ?? "lisans bilinmiyor"}`))];
-  return { file: out, ...loud, credits };
+  return { file: out, ...loud, credits, cleanup };
 }
