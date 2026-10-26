@@ -27,17 +27,17 @@ async function scenario(name: string, fn: () => void | Promise<void>) {
 async function main() {
   await scenario("A orders: a video word and a making verb, the topic in the owner's casing, the period when given", () => {
     const a = detectAyasVideoIntent("Sezar'ın Rubicon'u geçmesi hakkında video yap");
-    assert.deepEqual(a, { kind: "order", konu: "Sezar'ın Rubicon'u geçmesi", donem: "konunun geçtiği dönem", dil: "en" });
+    assert.deepEqual(a, { kind: "order", konu: "Sezar'ın Rubicon'u geçmesi", donem: "konunun geçtiği dönem", dil: "en" }, "assert.deepEqual(a, { kind: \"order\", konu: \"Sezar'ın Rubicon'u geçmesi\", donem: \"konunun geçtiği dönem\", dil: \"en\" })");
     const b = detectAyasVideoIntent("Bana 1453 İstanbul'un fethi hakkında bir video hazırlar mısın?");
-    assert.equal(b?.kind === "order" ? b.donem : "", "1453");
+    assert.equal(b?.kind === "order" ? b.donem : "", "1453", "assert.equal(b?.kind === \"order\" ? b.donem : \"\", \"1453\")");
     const c = detectAyasVideoIntent("Video yap: Kurtuluş Savaşı 1919-1922");
-    assert.equal(c?.kind === "order" ? c.donem : "", "1919-1922");
+    assert.equal(c?.kind === "order" ? c.donem : "", "1919-1922", "assert.equal(c?.kind === \"order\" ? c.donem : \"\", \"1919-1922\")");
     const d = detectAyasVideoIntent("make a video about the Fall of Rome");
-    assert.equal(d?.kind === "order" ? d.konu : "", "the Fall of Rome");
+    assert.equal(d?.kind === "order" ? d.konu : "", "the Fall of Rome", "assert.equal(d?.kind === \"order\" ? d.konu : \"\", \"the Fall of Rome\")");
     const e = detectAyasVideoIntent("Napolyon hakkında Türkçe video hazırla");
-    assert.equal(e?.kind === "order" ? e.dil : "", "tr");
-    assert.equal(periodOf("MÖ 49 Rubicon"), "MÖ 49");
-    assert.equal(periodOf("16. yüzyıl Osmanlı donanması"), "16. yüzyıl");
+    assert.equal(e?.kind === "order" ? e.dil : "", "tr", "assert.equal(e?.kind === \"order\" ? e.dil : \"\", \"tr\")");
+    assert.equal(periodOf("MÖ 49 Rubicon"), "MÖ 49", "assert.equal(periodOf(\"MÖ 49 Rubicon\"), \"MÖ 49\")");
+    assert.equal(periodOf("16. yüzyıl Osmanlı donanması"), "16. yüzyıl", "assert.equal(periodOf(\"16. yüzyıl Osmanlı donanması\"), \"16. yüzyıl\")");
   });
 
   await scenario("B not orders: talking about videos, watching them, a broken video, weather", () => {
@@ -45,12 +45,12 @@ async function main() {
       assert.equal(detectAyasVideoIntent(t), null, t);
     }
     assert.equal(resolveAyasPreReasoningIntent("Video çalışmıyor").kind, "guided-repair", "arıza cümlesi onarım akışında kalır");
-    assert.equal(resolveAyasPreReasoningIntent("Bu özellik çalışmıyor").kind, "guided-repair");
+    assert.equal(resolveAyasPreReasoningIntent("Bu özellik çalışmıyor").kind, "guided-repair", "assert.equal(resolveAyasPreReasoningIntent(\"Bu özellik çalışmıyor\").kind, \"guided-repair\")");
   });
 
   await scenario("C status questions", () => {
     for (const t of ["video durumu", "Videom hazır mı?", "video siparişleri ne durumda"]) assert.deepEqual(detectAyasVideoIntent(t), { kind: "status" }, t);
-    assert.equal(resolveAyasPreReasoningIntent("Rubicon hakkında video yap").kind, "video");
+    assert.equal(resolveAyasPreReasoningIntent("Rubicon hakkında video yap").kind, "video", "assert.equal(resolveAyasPreReasoningIntent(\"Rubicon hakkında video yap\").kind, \"video\")");
   });
 
   await scenario("D the answer places exactly one order file (AYAS writes, never produces) and the status reads it back", async () => {
@@ -59,21 +59,21 @@ async function main() {
     const said = await answerAyasVideoIntent(intent, root);
     assert.match(said, /Siparişi aldım: "Rubicon"/);
     const orders = await listOrders(root);
-    assert.equal(orders.length, 1);
-    assert.deepEqual([orders[0]!.order.durum, orders[0]!.order.kaynak, orders[0]!.order.dil], ["bekliyor", "ayas", "en"]);
-    assert.equal(readdirSync(path.join(root, "_kutuphane", "siparisler")).filter((n) => n.endsWith(".json")).length, 1);
+    assert.equal(orders.length, 1, "assert.equal(orders.length, 1)");
+    assert.deepEqual([orders[0]!.order.durum, orders[0]!.order.kaynak, orders[0]!.order.dil], ["bekliyor", "ayas", "en"], "assert.deepEqual([orders[0]!.order.durum, orders[0]!.order.kaynak, orders[0]!.order.dil], [\"bekliyor\", \"ayas\", \"en\"])");
+    assert.equal(readdirSync(path.join(root, "_kutuphane", "siparisler")).filter((n) => n.endsWith(".json")).length, 1, "assert.equal(readdirSync(path.join(root, \"_kutuphane\", \"siparisler\")).filter((n) => n.endsWith(\".json\")).length, 1)");
     assert.match(await answerAyasVideoIntent({ kind: "status" }, root), /"Rubicon" \(20 dk\) sırada/);
   });
 
   await scenario("E an order a gone watcher left running resumes after its last finished step, then is reported as stopped", () => {
-    assert.equal(resumeStep(""), "senaryo");
-    assert.equal(resumeStep(["beyinlerin hafızası", "✓ senaryo (40 sn)", "✓ gardirop (90 sn)", "✓ ses (141 sn)", "  render 300/3155"].join("\n")), "senkron");
+    assert.equal(resumeStep(""), "senaryo", "assert.equal(resumeStep(\"\"), \"senaryo\")");
+    assert.equal(resumeStep(["beyinlerin hafızası", "✓ senaryo (40 sn)", "✓ gardirop (90 sn)", "✓ ses (141 sn)", "  render 300/3155"].join("\n")), "senkron", "assert.equal(resumeStep([\"beyinlerin hafızası\", \"✓ senaryo (40 sn)\", \"✓ gardirop (90 sn)\", \"✓ ses (141 sn)\", \"  render 300/3155\"].join(\"\\n\")), \"senkron\")");
     assert.equal(resumeStep(["✓ ses (1 sn)", "✓ birlestir (51 sn)"].join("\n")), "birlestir", "a finished production reruns only its last step");
-    assert.equal(PRODUCTION_STEPS.length, 9);
+    assert.equal(PRODUCTION_STEPS.length, 9, "assert.equal(PRODUCTION_STEPS.length, 9)");
     assert.equal(DEFAULT_ORDER_LENGTH, "20dk", "an order without a length is a long video (owner, 23 Oct 2026: 20–30 minutes)");
     const order = { id: "x", konu: "k", donem: "49 BC", sure: "120sn", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "t", durum: "calisiyor" } as ProductionOrder;
     recoverInterrupted(order, ["✓ senaryo (1 sn)", "✓ gardirop (1 sn)"].join("\n"));
-    assert.deepEqual([order.durum, order.devam, order.devamAdimi], ["bekliyor", 1, "ses"]);
+    assert.deepEqual([order.durum, order.devam, order.devamAdimi], ["bekliyor", 1, "ses"], "assert.deepEqual([order.durum, order.devam, order.devamAdimi], [\"bekliyor\", 1, \"ses\"])");
     assert.match(order.ozet ?? "", /ses adımından devam/);
     for (let i = 1; i < MAX_RESUMES; i++) {
       order.durum = "calisiyor";
@@ -81,7 +81,7 @@ async function main() {
     }
     order.durum = "calisiyor";
     recoverInterrupted(order, "");
-    assert.equal(order.durum, "hata");
+    assert.equal(order.durum, "hata", "assert.equal(order.durum, \"hata\")");
     assert.match(order.ozet ?? "", /yarıda kesildi/);
   });
 
@@ -90,26 +90,26 @@ async function main() {
       const i = detectAyasVideoIntent(t);
       return i?.kind === "order" ? [i.konu, i.sure] : null;
     };
-    assert.deepEqual(len("Rubicon hakkında kısa bir video yap"), ["Rubicon", SHORT_ORDER_LENGTH]);
-    assert.deepEqual(len("Rubicon hakkında 3 dakikalık bir video hazırla"), ["Rubicon", "3dk"]);
-    assert.deepEqual(len("Rubicon hakkında 90 saniyelik video yap"), ["Rubicon", "90sn"]);
-    assert.deepEqual(len("Rubicon hakkında 2 dk'lık kısa bir video yap"), ["Rubicon", "2dk"]);
-    assert.deepEqual(len("make a short video about the Fall of Rome"), ["the Fall of Rome", SHORT_ORDER_LENGTH]);
-    assert.deepEqual(len("make a 3-minute video about the Fall of Rome"), ["the Fall of Rome", "3dk"]);
-    assert.deepEqual(len("Yüz Yıl Savaşı hakkında video yap"), ["Yüz Yıl Savaşı", undefined]);
-    assert.deepEqual(len("1453 İstanbul'un fethi hakkında 5 dakikalık video yap"), ["1453 İstanbul'un fethi", "5dk"]);
+    assert.deepEqual(len("Rubicon hakkında kısa bir video yap"), ["Rubicon", SHORT_ORDER_LENGTH], "assert.deepEqual(len(\"Rubicon hakkında kısa bir video yap\"), [\"Rubicon\", SHORT_ORDER_LENGTH])");
+    assert.deepEqual(len("Rubicon hakkında 3 dakikalık bir video hazırla"), ["Rubicon", "3dk"], "assert.deepEqual(len(\"Rubicon hakkında 3 dakikalık bir video hazırla\"), [\"Rubicon\", \"3dk\"])");
+    assert.deepEqual(len("Rubicon hakkında 90 saniyelik video yap"), ["Rubicon", "90sn"], "assert.deepEqual(len(\"Rubicon hakkında 90 saniyelik video yap\"), [\"Rubicon\", \"90sn\"])");
+    assert.deepEqual(len("Rubicon hakkında 2 dk'lık kısa bir video yap"), ["Rubicon", "2dk"], "assert.deepEqual(len(\"Rubicon hakkında 2 dk'lık kısa bir video yap\"), [\"Rubicon\", \"2dk\"])");
+    assert.deepEqual(len("make a short video about the Fall of Rome"), ["the Fall of Rome", SHORT_ORDER_LENGTH], "assert.deepEqual(len(\"make a short video about the Fall of Rome\"), [\"the Fall of Rome\", SHORT_ORDER_LENGTH])");
+    assert.deepEqual(len("make a 3-minute video about the Fall of Rome"), ["the Fall of Rome", "3dk"], "assert.deepEqual(len(\"make a 3-minute video about the Fall of Rome\"), [\"the Fall of Rome\", \"3dk\"])");
+    assert.deepEqual(len("Yüz Yıl Savaşı hakkında video yap"), ["Yüz Yıl Savaşı", undefined], "assert.deepEqual(len(\"Yüz Yıl Savaşı hakkında video yap\"), [\"Yüz Yıl Savaşı\", undefined])");
+    assert.deepEqual(len("1453 İstanbul'un fethi hakkında 5 dakikalık video yap"), ["1453 İstanbul'un fethi", "5dk"], "assert.deepEqual(len(\"1453 İstanbul'un fethi hakkında 5 dakikalık video yap\"), [\"1453 İstanbul'un fethi\", \"5dk\"])");
     // Owner, 23 Oct 2026: long episodes 20–30 minutes; trials (90 s, 3 min) keep their length.
     assert.equal(lengthOf("45 dakikalık"), "30dk", "long episodes at most 30 minutes");
     assert.equal(lengthOf("15 dakikalık"), "20dk", "long episodes at least 20 minutes");
-    assert.equal(lengthOf("25 dakikalık"), "25dk");
+    assert.equal(lengthOf("25 dakikalık"), "25dk", "assert.equal(lengthOf(\"25 dakikalık\"), \"25dk\")");
     assert.equal(lengthOf("3 dakikalık"), "3dk", "a 3-minute trial stays");
     assert.equal(lengthOf("90 saniyelik"), "90sn", "a 90-second trial stays");
-    assert.equal(lengthOf("2400 saniyelik"), "1800sn");
+    assert.equal(lengthOf("2400 saniyelik"), "1800sn", "assert.equal(lengthOf(\"2400 saniyelik\"), \"1800sn\")");
     assert.equal(lengthOf("5 saniyelik"), "20sn", "the producer's floor");
     const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-"));
     assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Rubicon hakkında kısa bir video yap")!, root), /\(İngilizce, 3 dk\)/);
     assert.match(await answerAyasVideoIntent(detectAyasVideoIntent("Sezar hakkında video yap")!, root), /\(İngilizce, 20 dk\)/);
-    assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH]);
+    assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH], "assert.deepEqual((await listOrders(root)).map((x) => x.order.sure).sort(), [DEFAULT_ORDER_LENGTH, SHORT_ORDER_LENGTH])");
   });
 
   await scenario("G the owner's own progress questions reach the orders, and the answer says the step, the time and why it stopped", async () => {
@@ -133,19 +133,19 @@ async function main() {
     const [first, second] = report.split("\n");
     assert.equal(first, '"Rubicon" (3 dk) yapılıyor, 12 dk oldu. Biten adımlar: araştırma ve senaryo, kostüm. Şimdi seslendirme adımında (3/9); onarım beyni 1. denemede: 180 sn bekleyip yeniden — ekran kartı sıcak', "en yeni sipariş önce");
     assert.match(second ?? "", /^"Sezar’ın rubicon’u geçmesi" \(3 dk\) durdu \(3 dk sonra\)\. Araştırma ve senaryo adımında: V3_RESEARCH_NOTHING.*bulunamadı\. Onarım beyni 2 kez denedi\.$/);
-    assert.equal(orderProgress({ ...failed, durum: "teslim", video: "D:/v/final.mp4", ozet: "Teslim: TAMAM" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM');
-    assert.equal(orderProgress({ ...failed, durum: "bekliyor", devamAdimi: "render" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) sırada; çizim (render) adımından devam edecek');
+    assert.equal(orderProgress({ ...failed, durum: "teslim", video: "D:/v/final.mp4", ozet: "Teslim: TAMAM" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM', "assert.equal(orderProgress({ ...failed, durum: \"teslim\", video: \"D:/v/final.mp4\", ozet: \"Teslim: TAMAM\" }, \"\"), '\"Sezar’ın rubicon’u geçmesi\" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM')");
+    assert.equal(orderProgress({ ...failed, durum: "bekliyor", devamAdimi: "render" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) sırada; çizim (render) adımından devam edecek', "assert.equal(orderProgress({ ...failed, durum: \"bekliyor\", devamAdimi: \"render\" }, \"\"), '\"Sezar’ın rubicon’u geçmesi\" (3 dk) sırada; çizim (render) adımından devam edecek')");
   });
 
   await scenario("H the queue runner starts the producer without a shell: a many-word topic (and & or |) stays one argument", () => {
     const order = { id: "x", konu: "Sezar’ın rubicon’u geçmesi & calc", donem: "konunun geçtiği dönem", sure: "3dk", dil: "en", ton: "mizahi", kaynak: "ayas", olusturuldu: "t", durum: "bekliyor" } as ProductionOrder;
     const { command, args } = productionCommand("D:/repo", order, "D:/out", "openai");
     assert.equal(command, process.execPath, "node itself, not npx through cmd.exe");
-    assert.equal(args[args.indexOf("--konu") + 1], "Sezar’ın rubicon’u geçmesi & calc");
-    assert.equal(args[args.indexOf("--donem") + 1], "konunun geçtiği dönem");
+    assert.equal(args[args.indexOf("--konu") + 1], "Sezar’ın rubicon’u geçmesi & calc", "assert.equal(args[args.indexOf(\"--konu\") + 1], \"Sezar’ın rubicon’u geçmesi & calc\")");
+    assert.equal(args[args.indexOf("--donem") + 1], "konunun geçtiği dönem", "assert.equal(args[args.indexOf(\"--donem\") + 1], \"konunun geçtiği dönem\")");
     assert.match(args[0]!, /tsx[\\/]dist[\\/]cli\.mjs$/);
-    assert.ok(!args.includes("--from-step"));
-    assert.deepEqual(productionCommand("D:/repo", { ...order, devamAdimi: "ses" }, "D:/out", "openai").args.slice(-2), ["--from-step", "ses"]);
+    assert.ok(!args.includes("--from-step"), "assert.ok(!args.includes(\"--from-step\"))");
+    assert.deepEqual(productionCommand("D:/repo", { ...order, devamAdimi: "ses" }, "D:/out", "openai").args.slice(-2), ["--from-step", "ses"], "assert.deepEqual(productionCommand(\"D:/repo\", { ...order, devamAdimi: \"ses\" }, \"D:/out\", \"openai\").args.slice(-2), [\"--from-step\", \"ses\"])");
     const echoed = spawnSync(process.execPath, ["-e", "process.stdout.write(JSON.stringify(process.argv.slice(1)))", ...args.slice(2, 6)], { encoding: "utf8", windowsHide: true });
     assert.deepEqual(JSON.parse(echoed.stdout), ["uret", "--konu", "Sezar’ın rubicon’u geçmesi & calc", "--donem"], "the child receives the topic whole");
   });
