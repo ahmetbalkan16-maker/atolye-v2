@@ -20,8 +20,8 @@ const STAGGER_S = 0.06;
 const TOKEN_R = 23;
 /** How long a fallen token lies crossed out before it fades (seconds). */
 const FALLEN_S = 0.6;
-/** How long a routed side's tokens take to scatter (seconds, each a little more or less). */
-const ROUT_S = 2.2;
+/** How long a routed side's tokens take to scatter (seconds, each a little more or less; at 2.2 s they flew 34 px a frame). */
+const ROUT_S = 3;
 /** A block (infantry, cavalry, archers, guns) on a 1080p screen: its width and depth against the token radius. */
 const BLOCK_W = 2.5;
 const BLOCK_H = 1.45;
@@ -145,40 +145,172 @@ type Units = NonNullable<V3GeoMap["units"]>[number];
 /** How far apart tokens pouring through a breach start (seconds): one after another, a column through the gap. */
 const BREACH_STAGGER_S = 0.3;
 
+/** A token on screen at a frame: where, how visible, and what it is doing. `prog`: how far it is on its way (0..1). */
+export interface PlacedToken {
+  x: number;
+  y: number;
+  alpha: number;
+  lostAt?: number;
+  transit?: boolean;
+  rout?: number;
+  prog?: number;
+}
+
+/**
+ * When token `i` sets off for a step and how many frames it takes: one after another; through a breach in a column; a
+ * routed side each at its own moment, at its own pace (no column, no order).
+ */
+function departure(to: Units["steps"][number], i: number, fps: number): { begin: number; frames: number; queue: number } {
+  const queue = to.via && to.through ? to.through.indexOf(i) : -1;
+  const begin = to.start + Math.round((queue >= 0 ? queue * BREACH_STAGGER_S : to.rout ? rand(i * 7 + 3) * 0.9 : i * STAGGER_S) * fps);
+  const slide = to.rout ? ROUT_S * (0.75 + rand(i * 11 + 1) * 0.5) : SLIDE_S;
+  return { begin, frames: Math.round(slide * fps), queue };
+}
+
+/**
+ * Where token `i` is in step `s` at `frame`: from wherever it was when it set off to its place in this formation. A line
+ * that comes before the last slide is over takes the token on from mid-way (the Kosovo trial's tokens jumped back to
+ * the last formation first); until it sets off it goes on with the last slide.
+ */
+function slideAt(steps: Units["steps"], s: number, i: number, frame: number, fps: number): { x: number; y: number; t: number; queue: number } {
+  const to = steps[s]!;
+  const b = to.points[Math.min(i, to.points.length - 1)]!;
+  if (s === 0) return { x: b.x, y: b.y, t: 1, queue: -1 };
+  const { begin, frames, queue } = departure(to, i, fps);
+  const a = slideAt(steps, s - 1, i, Math.min(frame, begin), fps);
+  // A routed token breaks into a run within a few frames (an ease-out started at full speed: a 22 px leap) and slows as
+  // it gets away.
+  const t = interpolate(frame, [begin, begin + frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: to.rout ? Easing.bezier(0.3, 0, 0.25, 1) : Easing.inOut(Easing.cubic) });
+  // Through the breach: to the gap, then on to its place in the new formation.
+  const pos = queue >= 0 ? along([a, to.via!, b], t) : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  return { ...pos, t, queue };
+}
+
 /**
  * Where a side's token `i` is at `frame`, whether it is still standing (with its fade), and whether it is on its way
  * through a breach (it does not turn aside to fight until it is through).
  */
-function tokenAt(u: Units, i: number, frame: number, fps: number): { x: number; y: number; alpha: number; lostAt?: number; transit?: boolean; rout?: number } | undefined {
+function tokenAt(u: Units, i: number, frame: number, fps: number): PlacedToken | undefined {
   const steps = u.steps;
   if (!steps.length || frame < steps[0]!.start) return undefined;
   let s = 0;
   while (s + 1 < steps.length && steps[s + 1]!.start <= frame) s++;
   const to = steps[s]!;
   const from = steps[Math.max(0, s - 1)]!;
-  const queue = to.via && to.through ? to.through.indexOf(i) : -1;
-  // A routed side breaks up: each token runs off at its own moment, at its own pace (no column, no order).
-  const begin = to.start + Math.round((queue >= 0 ? queue * BREACH_STAGGER_S : to.rout ? rand(i * 7 + 3) * 0.9 : i * STAGGER_S) * fps);
-  const slide = to.rout ? ROUT_S * (0.75 + rand(i * 11 + 1) * 0.5) : SLIDE_S;
-  const t = s === 0 ? 1 : interpolate(frame, [begin, begin + Math.round(slide * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: to.rout ? Easing.out(Easing.quad) : Easing.inOut(Easing.cubic) });
-  const a = from.points[Math.min(i, from.points.length - 1)]!;
-  const b = to.points[Math.min(i, to.points.length - 1)]!;
-  // Through the breach: to the gap, then on to its place in the new formation.
-  const pos = queue >= 0 ? along([a, to.via!, b], t) : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  const { x, y, t, queue } = slideAt(steps, s, i, frame, fps);
+  const pos = { x, y };
   const transit = queue >= 0 && t < 1;
-  if (to.rout && s > 0 && i < to.alive) return { ...pos, alpha: 1 - 0.35 * t, transit, rout: t };
+  if (to.rout && s > 0 && i < to.alive) return { ...pos, alpha: 1 - 0.35 * t, transit, rout: t, prog: t };
   // A token lost in this step falls at its own moment of the fight (one by one), lies crossed out a moment, then
   // fades; one lost before is gone.
   const lostBefore = s > 0 && i >= from.alive;
   if (lostBefore) return undefined;
   if (i >= to.alive) {
     const lostAt = to.start + Math.round((to.losses?.[i - to.alive] ?? SLIDE_S * 0.6) * fps);
-    if (frame < lostAt) return { ...pos, alpha: 1, transit };
+    if (frame < lostAt) return { ...pos, alpha: 1, transit, prog: t };
     const alpha = interpolate(frame, [lostAt + Math.round(fps * FALLEN_S), lostAt + Math.round(fps * (FALLEN_S + 0.5))], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return alpha > 0 ? { ...pos, alpha, lostAt } : undefined;
   }
   const appear = s === 0 ? interpolate(frame, [to.start + Math.round(i * STAGGER_S * fps), to.start + Math.round((i * STAGGER_S + 0.35) * fps)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
-  return { ...pos, alpha: appear, transit };
+  return { ...pos, alpha: appear, transit, prog: t };
+}
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+/** Smooth 0→1 between 0 and 1 (no corner at either end). */
+const smooth = (v: number) => {
+  const c = clamp01(v);
+  return c * c * (3 - 2 * c);
+};
+
+/** A fight's pull reaches this far (token radii): full within FIGHT_FULL_R, none beyond FIGHT_REACH_R. */
+const FIGHT_FULL_R = 8;
+const FIGHT_REACH_R = 12;
+/** A blow's pace: one lunge in and back every ~0.7 s at 30 fps. */
+const STRIKE_RAD_PER_FRAME = 0.3;
+/** A fallen token's motion dies away over about this many frames. */
+const FALL_STOP_FRAMES = 4;
+
+/**
+ * Every side's tokens at `frame` on screen (`k` = screen px per world px): spaced, and in a fight closing in on the
+ * enemy and striking at it. Every motion is continuous from frame to frame (owner, 26 Oct 2026, of the Kosovo close
+ * battle: "sanki takılarak hareket var, daha akıcı olması lazım" — a token used to leap up to 117 px in one frame when an
+ * enemy came within its reach, and its blows stopped dead half the time): the pull fades in with distance, aims at the
+ * near enemies together rather than snapping between two, blows are smooth lunges, a fallen token stays where it fell,
+ * and a token that dies, appears, routs or goes through a breach lets go of its neighbours and its fight gradually.
+ */
+export function placeTokens(map: V3GeoMap, frame: number, fps: number, k: number): (PlacedToken | undefined)[][] {
+  const units = map.units ?? [];
+  const r = TOKEN_R * k;
+  const gap = r * (units.some((u) => u.kind) ? 2.75 : 2.25);
+  const spaced = (f: number) => {
+    const placed = units.map((u) => Array.from({ length: Math.max(...u.steps.map((s) => s.points.length)) }, (_, i) => tokenAt(u, i, f, fps)));
+    const shown = placed.flatMap((side) => side.filter((t): t is PlacedToken => t !== undefined));
+    separateTokens(shown, gap, shown.map((t) => t.alpha)).forEach((q, j) => Object.assign(shown[j]!, q));
+    return placed;
+  };
+  const placed = spaced(frame);
+  // A fight (owner, 22 Oct 2026: "they move, close in on each other … it must show they fight the enemy"): every
+  // standing token goes for the enemy near it until they touch, then strikes at it again and again while the losses
+  // fall; when the fight is over they step back into their formation.
+  const fight = (map.fights ?? []).find((f) => frame >= f.start && frame < f.start + f.durationS * fps);
+  if (!fight) return placed;
+  const engageAt = (f: number) => {
+    const local = (f - fight.start) / fps;
+    return Easing.inOut(Easing.cubic)(clamp01((local - 0.4) / 1.3)) * (1 - clamp01((local - (fight.durationS - 0.7)) / 0.7));
+  };
+  const movesAt = (f: number, pl: (PlacedToken | undefined)[][], strikes: boolean) =>
+    pl.map((side, ui) =>
+      side.map((t, ti) => {
+        if (!t) return { x: 0, y: 0 };
+        const enemies = pl.flatMap((other, oi) => (oi === ui ? [] : other.filter((q): q is PlacedToken => q !== undefined)));
+        // A fallen enemy counts as further and further off from the moment it falls until it is gone (out of reach by
+        // then, so its going is no jump); one still appearing, as nearer as it shows.
+        const dist = enemies.map((q) => {
+          const going = q.lostAt !== undefined ? clamp01((f - q.lostAt) / ((FALLEN_S + 0.5) * fps)) : 1 - q.alpha;
+          return Math.hypot(q.x - t.x, q.y - t.y) + going * r * (FIGHT_REACH_R + 2);
+        });
+        const dmin = Math.min(Infinity, ...dist);
+        if (!Number.isFinite(dmin)) return { x: 0, y: 0 };
+        // Towards the near enemies together, so two at the same distance never make it swing from one to the other.
+        let wx = 0;
+        let wy = 0;
+        let ws = 0;
+        enemies.forEach((q, j) => {
+          const w = Math.exp(-(dist[j]! - dmin) / (r * 3));
+          wx += (q.x - t.x) * w;
+          wy += (q.y - t.y) * w;
+          ws += w;
+        });
+        const len = Math.hypot(wx, wy);
+        if (ws <= 0 || len < 1e-6) return { x: 0, y: 0 };
+        const reach = 1 - smooth((dmin - r * FIGHT_FULL_R) / (r * (FIGHT_REACH_R - FIGHT_FULL_R)));
+        // Half the gap each (the enemy comes too), then blow after blow: a smooth lunge in and back.
+        const strike = strikes ? ((1 - Math.cos(f * STRIKE_RAD_PER_FRAME + ti * 1.7 + ui)) / 2) * r * 0.35 : 0;
+        // Routing, or on its way through a breach: it lets go of the fight as it goes, and takes it up again through.
+        const free = t.rout !== undefined ? 1 - clamp01(t.rout * 4) : t.transit ? clamp01(1 - (t.prog ?? 0) * 4) + clamp01(((t.prog ?? 0) - 0.75) * 4) : 1;
+        const go = ((Math.max(0, dmin - r * 2.1) / 2) * reach + strike * reach) * engageAt(f) * free;
+        return { x: (wx / len) * go, y: (wy / len) * go };
+      }),
+    );
+  const moves = movesAt(frame, placed, true);
+  // A fallen token comes to rest where it fell: its own time slows to a stop within a few frames of the blow (a dead
+  // stop from full speed read as a jolt), and so does its pull and blow.
+  const fell = new Map<number, ReturnType<typeof movesAt>>();
+  placed.forEach((side, ui) =>
+    side.forEach((t, ti) => {
+      if (!t || t.lostAt === undefined) return;
+      const at = t.lostAt - 1;
+      if (at < fight.start) {
+        moves[ui]![ti] = { x: 0, y: 0 };
+        return;
+      }
+      const slowed = at + FALL_STOP_FRAMES * (1 - Math.exp(-(frame - at) / FALL_STOP_FRAMES));
+      if (!fell.has(slowed)) fell.set(slowed, movesAt(slowed, spaced(slowed), true));
+      moves[ui]![ti] = fell.get(slowed)![ui]![ti] ?? { x: 0, y: 0 };
+    }),
+  );
+  placed.forEach((side, ui) => side.forEach((t, ti) => t && Object.assign(t, { x: t.x + moves[ui]![ti]!.x, y: t.y + moves[ui]![ti]!.y })));
+  return placed;
 }
 
 /** A burst where fighting happens: dust and sparks before gunpowder, a fireball and smoke after. `p` 0..1. */
@@ -236,41 +368,8 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
   const units = map.units ?? [];
   if (!units.length) return null;
   const r = TOKEN_R * k;
-  const placed = units.map((u) => Array.from({ length: Math.max(...u.steps.map((s) => s.points.length)) }, (_, i) => tokenAt(u, i, frame, fps)));
-  // Spaced on screen for this frame's zoom, all sides together (blocks need a little more room than round tokens).
-  const shown = placed.flatMap((side) => side.filter((t) => t !== undefined));
-  separateTokens(shown, r * (units.some((u) => u.kind) ? 2.75 : 2.25)).forEach((q, j) => Object.assign(shown[j]!, q));
-  // A fight (owner, 22 Oct 2026: "they move, close in on each other … it must show they fight the enemy"): every
-  // standing token goes for the nearest enemy until they touch, then strikes at it again and again while the
-  // losses fall; when the fight is over they step back into their formation.
-  const fight = (map.fights ?? []).find((f) => frame >= f.start && frame < f.start + f.durationS * fps);
-  if (fight) {
-    const local = (frame - fight.start) / fps;
-    const engage = Easing.inOut(Easing.cubic)(Math.min(1, Math.max(0, (local - 0.4) / 1.3))) * (1 - Math.min(1, Math.max(0, (local - (fight.durationS - 0.7)) / 0.7)));
-    const sides = placed.map((side) => side.filter((t) => t !== undefined));
-    const moves = sides.map((side, ui) =>
-      side.map((t, ti) => {
-        if (t.lostAt !== undefined || t.transit || t.rout !== undefined) return { x: 0, y: 0 };
-        let best: { x: number; y: number } | undefined;
-        let d = r * 12;
-        sides.forEach((other, oi) => {
-          if (oi === ui) return;
-          for (const e of other) {
-            const de = Math.hypot(e.x - t.x, e.y - t.y);
-            if (e.alpha > 0.5 && de < d) [best, d] = [e, de];
-          }
-        });
-        if (!best) return { x: 0, y: 0 };
-        const ux = (best.x - t.x) / (d || 1);
-        const uy = (best.y - t.y) / (d || 1);
-        // Half the gap each (the enemy comes too), then blow after blow.
-        const strike = Math.max(0, Math.sin(frame * 0.5 + ti * 1.7 + ui)) * r * 0.45;
-        const go = (Math.max(0, d - r * 2.1) / 2 + strike) * engage;
-        return { x: ux * go, y: uy * go };
-      }),
-    );
-    sides.forEach((side, ui) => side.forEach((t, ti) => Object.assign(t, { x: t.x + moves[ui]![ti]!.x, y: t.y + moves[ui]![ti]!.y })));
-  }
+  // Spaced on screen for this frame's zoom, all sides together, and closing in where they fight.
+  const placed = placeTokens(map, frame, fps, k);
   // Where two sides' standing tokens nearly touch, the front flickers with clashes.
   const clashes: { x: number; y: number; seed: number }[] = [];
   for (let a = 0; a < units.length; a++)
@@ -310,9 +409,9 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
       {units.map((u, ui) =>
         placed[ui]!.map((t, i) => {
           if (!t) return null;
-          // A slight shake while it fights, so a front reads as alive.
-          const fighting = clashes.some((c) => Math.hypot(c.x - t.x, c.y - t.y) < r * 2);
-          const jx = fighting ? Math.sin(frame * 0.9 + i) * r * 0.08 : 0;
+          // A slight shake while it fights, so a front reads as alive (fading in and out as the clash comes near).
+          const near = Math.min(Infinity, ...clashes.map((c) => Math.hypot(c.x - t.x, c.y - t.y)));
+          const jx = Math.sin(frame * 0.9 + i) * r * 0.08 * clamp01((r * 2.4 - near) / (r * 0.8));
           const lostPuff = t.lostAt !== undefined ? (frame - t.lostAt) / (fps * 0.8) : 0;
           // A block faces the enemy; a routed one turns its back and staggers as it runs.
           const own = centres[ui];

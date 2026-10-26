@@ -426,8 +426,12 @@ async function main() {
     const kinds = (arms: "barut" | "modern") => new Set(battleEvents(w, "x", arms).map((e) => e.what));
     assert.deepEqual([...kinds("barut")].sort(), ["kilic", "misket", "nara", "top_atisi"], "a gunpowder battle still clashes");
     assert.deepEqual([...kinds("modern")].sort(), ["makineli", "nara", "patlama", "top_atisi", "tufek"], "no swords in a modern war");
+    // Owner, after the first gunpowder bed: "top ve tüfek sesleri az, çok kılıç sesi var" — gunfire leads.
+    const barut = battleEvents(w, "x", "barut");
+    const guns = barut.filter((e) => e.what === "misket" || e.what === "top_atisi").length;
+    assert.ok(guns >= 3 * barut.filter((e) => e.what === "kilic").length, `gunfire ${guns} vs swords`);
     // A volley: a line of muskets within VOLLEY_SPREAD_S, side by side.
-    const muskets = battleEvents(w, "x", "barut").filter((e) => e.what === "misket");
+    const muskets = barut.filter((e) => e.what === "misket");
     const volley = muskets.find((e, i) => muskets.slice(i, i + VOLLEY_SHOTS).every((m) => m.t - e.t <= VOLLEY_SPREAD_S));
     assert.ok(volley, "at least one volley in a minute of gunpowder battle");
     const shots = battleEvents(w, "x", "modern").filter((e) => e.t < 60 && e.what === "tufek").length / 59.5;

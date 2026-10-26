@@ -7,7 +7,8 @@
 import assert from "node:assert/strict";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, filmCamera } from "../remotion-v3/src/scene/camera";
-import type { V3CameraKey, V3Performer, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
+import { placeTokens } from "../remotion-v3/src/scene/MapUnits";
+import type { V3CameraKey, V3GeoMap, V3Performer, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 const FPS = 30;
 const FRAMES = 420;
@@ -175,6 +176,48 @@ async function main() {
       assert.ok(v.zoom >= 1.006 - 1e-9 && v.zoom <= 1.026 + 1e-9, `zoom ${v.zoom}`);
       assert.ok(Math.abs(v.cx - 0.5) <= 0.0023 && Math.abs(v.cy - 0.5) <= 0.0017, `kayma ${v.cx}, ${v.cy}`);
     }
+  });
+
+  await scenario("J map tokens move without a leap: closing in, blows, losses, a line cut short, a rout", () => {
+    // Owner, 26 Oct 2026, of the Kosovo close battle: "sanki takılarak hareket var, daha akıcı olması lazım". The old
+    // pull switched on when an enemy came within 12 radii: up to 117 px in one frame; blows stopped dead half the time.
+    const row = (y: number, n: number, x0 = 700) => Array.from({ length: n }, (_, i) => ({ x: x0 + i * 75, y }));
+    const map = {
+      units: [
+        { side: "A", color: "#3a5eb3", emblem: "kalkan", kind: "suvari" as const, steps: [{ start: 9, points: row(420, 6), alive: 6 }, { start: 90, points: row(560, 6), alive: 6 }, { start: 140, points: row(600, 6), alive: 4, losses: [1.2, 2.4] }, { start: 260, points: row(200, 6, 500), alive: 3, rout: true, losses: [0.8] }] },
+        { side: "B", color: "#3fae3a", emblem: "hilal", kind: "piyade" as const, steps: [{ start: 9, points: row(760, 7), alive: 7 }, { start: 140, points: row(740, 7), alive: 5, losses: [1.5, 2.7] }, { start: 260, points: row(700, 7), alive: 5 }] },
+      ],
+      fights: [{ start: 140, durationS: 4 }, { start: 260, durationS: 3.6 }],
+    } as unknown as V3GeoMap;
+    let prev: ({ x: number; y: number } | undefined)[][] | undefined;
+    let prevV: number[][] = [];
+    let worstJump = 0;
+    let worstAcc = 0;
+    for (let f = 0; f < 420; f++) {
+      const now = placeTokens(map, f, 30, 1);
+      const v: number[][] = [];
+      now.forEach((side, ui) =>
+        side.forEach((t, i) => {
+          const p = prev?.[ui]?.[i];
+          if (!t || !p) return;
+          const step = Math.hypot(t.x - p.x, t.y - p.y);
+          (v[ui] ??= [])[i] = step;
+          const before = prevV[ui]?.[i];
+          if (before === undefined) return;
+          worstAcc = Math.max(worstAcc, Math.abs(step - before));
+          if (step > 6) worstJump = Math.max(worstJump, step / Math.max(0.5, before));
+        }),
+      );
+      prev = now.map((side) => side.map((t) => (t ? { x: t.x, y: t.y } : undefined)));
+      prevV = v;
+    }
+    assert.ok(worstJump < 4, `a token leapt ${worstJump.toFixed(1)}× its last step`);
+    assert.ok(worstAcc < 12, `speed changed by ${worstAcc.toFixed(1)} px in one frame`);
+    // The fight still happens: in the middle of the first one the fronts have closed in on each other.
+    const mid = placeTokens(map, 140 + 2 * 30, 30, 1);
+    const calm = placeTokens({ ...map, fights: [] } as V3GeoMap, 140 + 2 * 30, 30, 1);
+    const gapOf = (pl: typeof mid) => Math.min(...pl[0]!.flatMap((a) => pl[1]!.map((b) => (a && b && a.lostAt === undefined && b.lostAt === undefined ? Math.hypot(a.x - b.x, a.y - b.y) : Infinity))));
+    assert.ok(gapOf(mid) < gapOf(calm) - 20, `fronts close in: ${gapOf(mid).toFixed(0)} vs ${gapOf(calm).toFixed(0)} px`);
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

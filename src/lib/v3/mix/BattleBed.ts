@@ -34,12 +34,13 @@ export const VOLLEY_SPREAD_S = 0.4;
 
 /**
  * How many of each sound per second, by the weapons of the age, in a close fight and on a distant battle marker. The
- * sword age is the Kosovo bed the owner approved ("evet bu daha iyi olmuş"), unchanged; a gunpowder melee still clashes,
- * with fewer swords; a modern battle has no swords at all.
+ * sword age is the Kosovo bed the owner approved ("evet bu daha iyi olmuş"), unchanged; a gunpowder battle is mostly
+ * gunfire with a few swords in the melee (owner, after the first gunpowder bed: "top ve tüfek sesleri az, çok kılıç sesi
+ * var"); a modern battle has no swords at all.
  */
 export const BED_RATES: Readonly<Record<Arms, Readonly<Record<BattleWindow["kind"], Readonly<Partial<Record<BedSound | "yaylim", number>>>>>>> = {
   kilic: { yakin: { kilic: 4, nara: 0.7 }, uzak: { kilic: 1.5, nara: 0.2 } },
-  barut: { yakin: { kilic: 2, nara: 0.6, misket: 1, yaylim: 0.08, top_atisi: 0.15 }, uzak: { kilic: 0.5, nara: 0.15, misket: 0.5, yaylim: 0.06, top_atisi: 0.3 } },
+  barut: { yakin: { kilic: 0.9, nara: 0.5, misket: 1.8, yaylim: 0.15, top_atisi: 0.3 }, uzak: { kilic: 0.2, nara: 0.12, misket: 0.9, yaylim: 0.1, top_atisi: 0.45 } },
   modern: { yakin: { tufek: 2, nara: 0.3, makineli: 0.3, top_atisi: 0.1, patlama: 0.12 }, uzak: { tufek: 0.8, nara: 0.1, makineli: 0.15, top_atisi: 0.2, patlama: 0.2 } },
 };
 /** Each sound's level in the bed before distance (the bed as a whole is brought to BATTLE_LUFS). */
