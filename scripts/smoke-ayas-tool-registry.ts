@@ -30,9 +30,9 @@ async function run() {
     for (const id of Object.keys(AYAS_EXECUTION_ALLOWLIST)) {
       const tool = findAyasTool(id);
       assert.ok(tool, `${id} missing from the tool registry`);
-      assert.equal(tool!.readOnly, true);
-      assert.equal(tool!.requiredPermission, "read-only");
-      assert.equal(tool!.description, AYAS_EXECUTION_ALLOWLIST[id as keyof typeof AYAS_EXECUTION_ALLOWLIST].summary);
+      assert.equal(tool!.readOnly, true, "assert.equal(tool!.readOnly, true)");
+      assert.equal(tool!.requiredPermission, "read-only", "assert.equal(tool!.requiredPermission, \"read-only\")");
+      assert.equal(tool!.description, AYAS_EXECUTION_ALLOWLIST[id as keyof typeof AYAS_EXECUTION_ALLOWLIST].summary, "assert.equal(tool!.description, AYAS_EXECUTION_ALLOWLIST[id as keyof typeof AYAS_EXECUTION_ALLOWLIST].summary)");
     }
   });
 
@@ -40,21 +40,21 @@ async function run() {
     for (const id of AYAS_EXECUTION_RESERVED_ACTIONS) {
       const tool = findAyasTool(id);
       assert.ok(tool, `${id} missing from the tool registry`);
-      assert.equal(tool!.readOnly, false);
-      assert.equal(tool!.requiredPermission, "execution-gate");
+      assert.equal(tool!.readOnly, false, "assert.equal(tool!.readOnly, false)");
+      assert.equal(tool!.requiredPermission, "execution-gate", "assert.equal(tool!.requiredPermission, \"execution-gate\")");
     }
   });
 
   await scenario("permission — a real read-only action is allowed", () => {
     const r = checkAyasToolPermission("inspect-project");
-    assert.equal(r.known, true);
-    assert.equal(r.allowed, true);
+    assert.equal(r.known, true, "assert.equal(r.known, true)");
+    assert.equal(r.allowed, true, "assert.equal(r.allowed, true)");
   });
 
   await scenario("permission — a reserved write action is denied, citing the closed gate", () => {
     const r = checkAyasToolPermission("resume-stage");
-    assert.equal(r.known, true);
-    assert.equal(r.allowed, false);
+    assert.equal(r.known, true, "assert.equal(r.known, true)");
+    assert.equal(r.allowed, false, "assert.equal(r.allowed, false)");
     assert.match(r.reason, /yürütme kapısı|kapalı/);
   });
 
@@ -69,15 +69,15 @@ async function run() {
   await scenario("permission — an unknown / hallucinated / terminal-shaped id is denied, not silently accepted", () => {
     for (const fake of ["run-terminal-command", "git-push", "deploy-production", "rm -rf /", "sudo su"]) {
       const r = checkAyasToolPermission(fake);
-      assert.equal(r.known, false);
-      assert.equal(r.allowed, false);
+      assert.equal(r.known, false, "assert.equal(r.known, false)");
+      assert.equal(r.allowed, false, "assert.equal(r.allowed, false)");
     }
-    assert.equal(findAyasTool("does-not-exist"), null);
+    assert.equal(findAyasTool("does-not-exist"), null, "assert.equal(findAyasTool(\"does-not-exist\"), null)");
   });
 
   await scenario("registry — frozen at every level (no runtime mutation)", () => {
-    assert.ok(Object.isFrozen(AYAS_TOOL_REGISTRY));
-    for (const t of AYAS_TOOL_REGISTRY) assert.ok(Object.isFrozen(t));
+    assert.ok(Object.isFrozen(AYAS_TOOL_REGISTRY), "assert.ok(Object.isFrozen(AYAS_TOOL_REGISTRY))");
+    for (const t of AYAS_TOOL_REGISTRY) assert.ok(Object.isFrozen(t), "assert.ok(Object.isFrozen(t))");
   });
 
   /* ---------------- phone / pc node capabilities (§7) — metadata only ---------------- */
@@ -87,7 +87,7 @@ async function run() {
     for (const forbidden of ["filesystem", "terminal", "git", "gpu", "selfheal"]) {
       assert.ok(!phone.includes(forbidden), `phone must not list "${forbidden}"`);
     }
-    assert.ok(phone.includes("chat") && phone.includes("voice") && phone.includes("reasoning") && phone.includes("cloud"));
+    assert.ok(phone.includes("chat") && phone.includes("voice") && phone.includes("reasoning") && phone.includes("cloud"), "assert.ok(phone.includes(\"chat\") && phone.includes(\"voice\") && phone.includes(\"reasoning\") && phone.includes(\"cloud\"))");
     assert.ok(phone.includes("memory.read") && !phone.includes("memory"), "phone gets read-only memory, not full memory");
   });
 
@@ -100,15 +100,15 @@ async function run() {
 
   await scenario("node capabilities — unknown node → empty, never throws", () => {
     // @ts-expect-error deliberate invalid input
-    assert.deepEqual(resolveAyasNodeCapabilities("tablet"), []);
+    assert.deepEqual(resolveAyasNodeCapabilities("tablet"), [], "assert.deepEqual(resolveAyasNodeCapabilities(\"tablet\"), [])");
   });
 
   await scenario("node capabilities — this is metadata only, not a grant (no field here implies execution authority)", () => {
     for (const n of AYAS_NODE_CAPABILITIES) {
-      assert.ok(Array.isArray(n.capabilities));
+      assert.ok(Array.isArray(n.capabilities), "assert.ok(Array.isArray(n.capabilities))");
       // capability strings are plain labels — none of them is a permission object,
       // an id from AYAS_EXECUTION_ALLOWLIST, or anything the gate reads.
-      for (const c of n.capabilities) assert.equal(typeof c, "string");
+      for (const c of n.capabilities) assert.equal(typeof c, "string", "assert.equal(typeof c, \"string\")");
     }
   });
 
