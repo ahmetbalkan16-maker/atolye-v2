@@ -26,6 +26,28 @@ arayüz). `remotion-v3/node_modules` olmayan geçici worktree'de eski dosya ayn�
 **Kural:** kök tsconfig'in gördüğü bir dosya (`scripts/**`, `src/**`) `remotion`'u içe aktaran bir remotion-v3 modülünü
 statik içe aktarmamalı; saf mantık remotion'suz modülde (`camera.ts`, `unitLayout.ts`) olmalı.
 
+**Neden onaylanan tasarım incelemeleri yürütülemiyor (owner'a anlatıldı):** dış araştırma bulgusu Stage 8'de yerel bir
+ölçüm testine (benchmark) eşlenirse deneyle ölçülür, iyileşirse uygulanabilir öneri olur; eşlenemezse
+(`NO_LOCAL_BENCHMARK`) yalnız okuma kartı olur. Kayıtlı tek benchmark `cognitive-quality` (AYAS sohbet kalitesi:
+MEMORY_CONTEXT, AI_ASSISTANTS, TOOL_USE, AGENT_ORCHESTRATION, CODING_AGENTS). `research-improvement/index.json`:
+205 IGNORED, 37 NO_LOCAL_BENCHMARK, 10 NO_LOCAL_GAP; 3 deney. Bugünkü 17 kartın (11 llama.cpp ara derlemesi, 2 Ollama rc,
+OBS, LosslessCut, ComfyUI MOSS, Remotion 4.0.538) hiçbiri Atölye'ye şu an iş çıkarmıyor; 7401ac00 HEAD değişince STALE
+oldular, APPROVE kararları kayıtlı ve köprü onları yeniden önermez.
+
+**Sıradaki iş — owner 2026-10-26: "haftalık token yenilendiğinde ikisini de yapalım"** (o zamana kadar owner Gelişim
+Merkezi'ne gelenleri kendisi onaylıyor):
+1. **Araştırma elemesi:** bulgu karta dönüşmeden önce Atölye'nin gerçekten kullandığı araç/sürümle karşılaştırılır
+   (`remotion-v3/package.json` Remotion sürümü, kurulu Ollama, `ayasLocalCodingCandidatePins` llama.cpp sabiti; ComfyUI,
+   OBS, LosslessCut kullanılmıyor). rc/beta/nightly sürümler, kullanılmayan araçlar ve bizim donanıma ait olmayan notlar
+   (Hexagon/Snapdragon, CANN…) yalnız araştırma kaydında kalır. Yer: `AyasResearchProposalBridge.
+   discoverAyasResearchProposalCandidates` / `ayasFindingMayEnterDiscovery`, çağrı `scripts/ayas-discovery-daemon.ts`.
+   Ölçüt: bugünkü 17 kart hiç çıkmazdı. Smoke: `smoke-ayas-design-review-proposals.ts` + araştırma köprüsü smoke'ları.
+2. **"İncele" yerine "dene":** kullanılan bir aracın kararlı yeni sürümü ilgili bir düzeltme/özellik getirirse AYAS onu
+   güncelleme radarının mevcut yolundan (ayrı worktree'de deneme → testler → "Uygula") dener; V3 için remotion-v3 tsc,
+   `smoke-v3-*` ve render. Dikkat: dependency-update lane yalnız kök `package.json` + `package-lock.json` kabul eder;
+   remotion-v3 paket dosyalarına genişletmek owner kararı ve CLAUDE.md'deki tek tık commit/push istisnasının
+   güncellenmesini gerektirir — kodlamadan önce tasarımı owner'a onaylat.
+
 ## 26 Ekim 2026 (gece) — V3 Mohaç denemelerinin üç zayıflığı düzeltildi; savaş haritası ordulara oturur
 
 **Owner:** "önerdiğin sorunları düzelt" (Mohaç 1526 müdahalesiz yazar denemesinin zayıflıkları); sonra "haftalık token
