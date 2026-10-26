@@ -1,3 +1,24 @@
+## 26 Ekim 2026 (gece, 2) — Gelişim Merkezi: onaylanan tasarım incelemeleri "yürütme bekliyor" görünmez
+
+**Owner:** "gelişim merkezinde birkaç şey onayladım, yürütme için ayrıldı diyor ama yürüt yok".
+
+**Bulgu:** onaylanan 17 öneri (`approval-inbox.json`, hepsi `research-adaptation-plan:v1`) tasarım incelemesi; bu türün
+kayıtlı uygulaması yok, onay yalnız kararı kaydeder (`AyasDesignReviewKinds`). Gelişim Merkezi doğru olarak
+"Yürütülecek bir değişiklik yok" diyordu, fakat Kontrol Merkezi `ayasCcApprovalRequirement` her APPROVED öneriye
+"Onaylandı — YÜRÜT bekliyor" (ACTION_REQUIRED) verdiği için "17 öneri onaylandı, yürütme bekliyor" uyarısı çıkıyordu;
+ayrıca `buildAyasApprovalInboxView` APPROVED kayıtları ana görünümde süresiz tutuyordu. Hiçbir kayıt RESERVED değildi.
+
+**Yapılan:** onaylı tasarım incelemesi Kontrol Merkezi'nde INFORMATIONAL "Onaylandı — tasarım incelemesi, yürütülecek
+değişiklik yok"; ana görünüm onu yalnız kendi gününde gösterir. Dayanıklı kayıt değişmedi (yalnız görünüm).
+Smoke: design-review-proposals 7 (yeni senaryo), brain-control-center H9'a tasarım incelemesi.
+
+**Doğrulama:** tsc temiz; lint 0 hata / 13 eski uyarı; smoke design-review-proposals 7, brain-control-center PASS,
+lost-response-recheck 13, development-center 63, approval-durable-state-compatibility 24, deferred-reeligibility 34,
+executive-briefing 30, homepage-v2 11, micro-batch-development-center 27, owner-exact-preview 20, publication-activity 13,
+autonomy-observer 25. Canlı kayıtla salt-okunur deneme: 17 öneri artık INFORMATIONAL.
+
+**Kalan:** canlıya çıkması için canonical'a ff + yayın (otomatik canlı yayın ya da owner onayı).
+
 ## 26 Ekim 2026 (gece) — V3 Mohaç denemelerinin üç zayıflığı düzeltildi; savaş haritası ordulara oturur
 
 **Owner:** "önerdiğin sorunları düzelt" (Mohaç 1526 müdahalesiz yazar denemesinin zayıflıkları); sonra "haftalık token

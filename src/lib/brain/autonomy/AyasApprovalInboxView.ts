@@ -4,6 +4,7 @@ import { createAyasPatchArtifactStore, AyasPatchArtifactError } from "./AyasPatc
 import { classifyAyasFindingValue, type AyasFindingValueClass } from "./AyasFindingValueClass";
 import { readAyasPublicationActivity, AYAS_PUBLICATION_ACTIVITY_UNKNOWN, type AyasPublicationActivitySnapshot } from "./AyasPublicationActivity";
 import { isAyasOwnerApprovedDecisionReason } from "./AyasOwnerApprovalProvenance";
+import { isAyasDesignReviewMutationKind } from "./AyasDesignReviewKinds";
 import type { AyasOwnerExactPreview } from "./AyasOwnerExactPreviewContract";
 
 /**
@@ -110,6 +111,10 @@ export const istanbulDay = (iso: string): string => {
  * so a calendar rollover must never make them disappear from the main view. */
 const DAILY_VIEW_ACTION_REQUIRED_STATUSES = new Set<AyasInboxProposalRead["status"]>(["APPROVED", "RESERVED", "RECOVERY_REQUIRED"]);
 
+/** An approved design review only records the owner's decision; nothing is left to run. */
+const stillNeedsAction = (proposal: AyasInboxProposalRead): boolean =>
+  DAILY_VIEW_ACTION_REQUIRED_STATUSES.has(proposal.status) && !(proposal.status === "APPROVED" && isAyasDesignReviewMutationKind(proposal.mutationKind));
+
 export function missingAyasHumanExplanation(proposal: AyasInboxProposalRead): readonly AyasHumanExplanationField[] {
   return ayasHumanExplanationFields.filter((field) => typeof proposal[field] !== "string" || !proposal[field]?.trim());
 }
@@ -181,7 +186,7 @@ export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, no
   // Durable history stays untouched. This is only the main-screen projection:
   // today's decisions/results remain visible, while an older terminal record
   // drops out unless it still needs owner/action recovery.
-  const history = all.filter((proposal) => istanbulDay(proposal.createdAt) === currentDay || DAILY_VIEW_ACTION_REQUIRED_STATUSES.has(proposal.status)).slice(-100).reverse();
+  const history = all.filter((proposal) => istanbulDay(proposal.createdAt) === currentDay || stillNeedsAction(proposal)).slice(-100).reverse();
   return { connected: true, pending, today, history };
 }
 

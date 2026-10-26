@@ -14,6 +14,7 @@ import { evaluateAyasInternalDecision } from "../src/lib/brain/autonomy/AyasInte
 import { isAyasMutationKindRegistered } from "../src/lib/brain/autonomy/AyasMutationRegistry";
 import { loadAyasOwnerRecommendationsView } from "../src/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import { AYAS_RESEARCH_ADAPTATION_PLAN_MUTATION_KIND, discoverAyasResearchProposalCandidates } from "../src/lib/brain/autonomy/AyasResearchProposalBridge";
+import { ayasCcApprovalRequirement } from "../src/lib/brain/ui/AyasControlCenterModel";
 
 /**
  * Owner request 2026-10-16: research/evolution design reviews were deferred by
@@ -99,6 +100,15 @@ function main() {
     const state = inbox.load();
     assert.equal(state.proposals[0]?.status, "APPROVED");
     assert.equal(state.results.length, 0, "no execution result exists");
+  });
+
+  scenario("an approved design review is not shown as awaiting execution and leaves the main view next day", () => {
+    const { inbox, proposals } = discovered([researchCandidate(), evolutionCandidate()]);
+    for (const proposal of proposals) inbox.decide(proposal.proposalId, "APPROVE", NOW, "owner fixture approval");
+    const sameDay = buildAyasApprovalInboxView(inbox.load(), NOW);
+    assert.equal(sameDay.history.length, 2, "today's decisions stay visible");
+    for (const proposal of sameDay.history) assert.equal(ayasCcApprovalRequirement(proposal).level, "INFORMATIONAL", proposal.mutationKind);
+    assert.equal(buildAyasApprovalInboxView(inbox.load(), "2026-10-18T08:00:00.000Z").history.length, 0, "nothing keeps it in the main view");
   });
 
   scenario("guards still hold: no evidence, a non-SAFE domain and other unregistered kinds stay hidden", () => {

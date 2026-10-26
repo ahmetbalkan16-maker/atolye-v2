@@ -636,6 +636,9 @@ async function main(): Promise<void> {
   await scenario("held-out", "H9", "owner-approved-pending-execution waits (IN_PROGRESS); a legacy APPROVED proposal needs YÜRÜT", async () => {
     assert.equal(M().ayasCcApprovalRequirement(proposal({ status: "APPROVED", ownerApprovedPendingExecution: true })).level, "IN_PROGRESS");
     assert.equal(M().ayasCcApprovalRequirement(proposal({ status: "APPROVED" })).label, "Onaylandı — YÜRÜT bekliyor");
+    const designReview = M().ayasCcApprovalRequirement(proposal({ status: "APPROVED", mutationKind: "research-adaptation-plan:v1" }));
+    assert.equal(designReview.level, "INFORMATIONAL", "an approved design review has nothing left to execute");
+    assert.doesNotMatch(designReview.label, /YÜRÜT bekliyor/);
   });
 
   await scenario("held-out", "H10", "no polling and no client fetch in the Control Center UI", async () => {

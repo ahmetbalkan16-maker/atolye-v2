@@ -26,6 +26,7 @@
 
 import type { AyasApprovalInboxView, AyasDevelopmentProposal } from "../autonomy/AyasApprovalInboxView";
 import { selectAyasPendingOwnerApprovals } from "../autonomy/AyasPendingApprovalSelector";
+import { isAyasDesignReviewMutationKind } from "../autonomy/AyasDesignReviewKinds";
 import type { AyasMicroBatchDevelopmentView } from "../autonomy/AyasMicroBatchDevelopmentView";
 import type { AyasOwnerRecommendationsView } from "../autonomy/AyasOwnerRecommendationsView";
 import type { AyasResearchEngineStatusView } from "../autonomy/AyasResearchEngineStatusView";
@@ -459,6 +460,8 @@ export function ayasCcApprovalRequirement(proposal: AyasDevelopmentProposal): { 
   if (proposal.displayState === "WAITING_OTHER_PUBLICATION" || proposal.displayState === "REVALIDATING_FOR_NEW_HEAD") return { level: "IN_PROGRESS", label: "Şu an karar verilemez — yeniden doğrulama bekleniyor" };
   if (proposal.status === "RECOVERY_REQUIRED") return { level: "ACTION_REQUIRED", label: "Kurtarma gerekli" };
   if (proposal.status === "APPROVED") {
+    // A design review has nothing to execute (Gelişim Merkezi offers no YÜRÜT), so its APPROVE is the end of it.
+    if (isAyasDesignReviewMutationKind(proposal.mutationKind)) return { level: "INFORMATIONAL", label: "Onaylandı — tasarım incelemesi, yürütülecek değişiklik yok" };
     return proposal.ownerApprovedPendingExecution
       ? { level: "IN_PROGRESS", label: "Onaylandı — otonom yürütme bayrağı bekleniyor" }
       : { level: "ACTION_REQUIRED", label: "Onaylandı — YÜRÜT bekliyor" };
