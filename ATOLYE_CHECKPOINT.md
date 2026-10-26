@@ -1,3 +1,39 @@
+## 26 Ekim 2026 (akşam) — V3 yakın savaşta taktik ve akıcı hareket; barut çağı ses oranı
+
+**Owner:** "2. aşamada top ve tüfek sesleri az, çok kılıç var"; "son videoda takılarak hareket var, daha akıcı olmalı";
+"kanaldaki gibi okçunun, tüfekçinin, atlının, kılıçlının simgesi farklı olmalı; anlatıma göre askerler konuşlanıp
+hareket etmeli, taktik görünmeli"; "bunlar beyine entegre edilecek, yapılan videolarda kendisi kullanacak; uygun skill
+kullan" (remotion-best-practices: kareye bağlı interpolate + yumuşak eğri kuralı uygulandı).
+
+**Yapılan:**
+- `ead9d21e` (push edildi, canlı DEĞİL): BattleBed barut oranı (misket 1,8/sn, yaylım 0,15, top 0,3, kılıç 0,9);
+  `placeTokens` saf fonksiyon — dövüş çekimi uzaklıkla yumuşak açılır (eskisi 12 yarıçapta tek karede 74–117 px
+  sıçratıyordu), vuruş yumuşak ileri-geri, yeni satır pulu bulunduğu yerden alır, düşen/beliren/kaçan pul komşusunu
+  kademeli bırakır (`separateTokens` ağırlıklı). Kosova ölçümü: sıçrama 38 → 0. smoke-v3-motion J.
+- Bu commit (taktik): `EpisodeTypes` birlik türleri kilicli/mizrakci/tufekci eklendi; birlik `ad`, `kanat`
+  (merkez/sol/sag/on/arka), `yerler[].hareket` (tut/ilerle/hucum/kusat/geri) + `hedef`, `uzerinden`.
+  `src/lib/v3/maps/Tactics.ts` `resolveTactics` (DraftNormalizer'da): yazar yalnız merkez birliğe koordinat verir,
+  kanatlar/öncü/yedek ve hücum/kuşatma/geri çekilme koordinatları hesaplanır. Yönetmen hücum/kuşatmaya birlik renginde,
+  adıyla ok çizer (kuşatma dolaşma yolu boyunca). MapRules: karışık türlü blok ve tek bloklu taraf (meydan savaşı) için
+  onarım isteği. MapSpeakers/MapBuilder/MapRules/MapUnits "bir kayıt = bir taraf" varsayımından taraf adına geçti
+  (yoksa pullar kendi kanatlarına saldırırdı). Çizim: her türe dik duran simge (kılıç, mızrak, yay, tüfek, at başı, top),
+  birlik adı anıldığı/hareket ettiği satırda görünür, taraf etiketi adım başına seçilip kayar (karede atlamıyor).
+  Yazar istemine Hastings 1066 örneği; owner-kurallari.json'a kurgu + kalite "savaş taktiği" kuralları.
+- Kanıt: Kosova s5 taktik diliyle yeniden yazıldı (fikstür), normalleştirici + doğrulama + yönetmen + önizleme:
+  `v3-runtime/karsilastirma/taktik-2026-10-26/s5-battle-lines.mp4` ve `kare-sayfasi.png`; akıcılık önizlemesi
+  `karsilastirma/akici-hareket-2026-10-26/`.
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke script 22 (yeni taktik), motion 10,
+mix 16, episode-director 50, council 12, render 5, backgrounds 20, likeness 14, youtube 5, ayas-video-order 8.
+
+**Kalan (sonraki oturum, owner "token azaldı, güvenli dur" dedi):**
+1. Canlıya alma: `feature/cop-adam-v3` → `wip/ayas-graphify-final-execution` push, canonical pull, Graphify (iki repo).
+   Bu oturumda yapılmadıysa ilk iş.
+2. Gerçek yazar beyni denemesi: AYAS'a bir meydan savaşı siparişi (ör. barut çağı, 3 dk), müdahalesiz; taktiği yazar
+   kendisi kuruyor mu ve onarım turları ne kadar tutuyor ölçülmeli.
+3. Owner'a gösterilecek: taktik önizleme videosu + akıcılık önizlemesi; geri bildirime göre ince ayar (ok etiketi
+   konumu, kuşatma eğrisi, birlik adı çakışmaları).
+
 ## 26 Ekim 2026 (öğleden sonra) — V3 savaş sesi dönemine göre: barut çağında misket, yaylım ve top; 20. yüzyılda tüfek, makineli, top, patlama
 
 **Owner:** kılıç katmanı için "evet bu daha iyi olmuş"; "top ve tüfek seslerini de bul, kaydet; başka bir video

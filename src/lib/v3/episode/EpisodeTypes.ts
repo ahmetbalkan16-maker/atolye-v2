@@ -312,13 +312,31 @@ export type UnitFormation =
 
 /**
  * What a side's tokens are (owner, 23 Oct 2026, after DFT Tarih's Pharsalus): with a kind they are drawn as the battle
- * maps' rectangular blocks with its sign — infantry ✕, cavalry ╱, archers a bow, guns a dot — facing the enemy.
+ * maps' rectangular blocks with its sign, facing the enemy. Owner, 26 Oct 2026: "okçunun simgesi farklı, tüfekçinin
+ * farklı, atlıların farklı, kılıçlıların farklı … askerlerin ne asker olduğu belli olması lazım" — infantry ✕ (any foot),
+ * swordsmen a sword, spearmen a spear, archers a bow, musketeers and riflemen a gun, cavalry a horse's head, guns a
+ * cannon.
  */
-export const UNIT_KINDS = ["piyade", "suvari", "okcu", "topcu"] as const;
+export const UNIT_KINDS = ["piyade", "kilicli", "mizrakci", "okcu", "tufekci", "suvari", "topcu"] as const;
 export type UnitKind = (typeof UNIT_KINDS)[number];
 
+/**
+ * A unit's place in its side's order of battle, as the side faces the enemy (its left hand is its left wing): the
+ * studio sets it beside the side's center unit (Tactics.resolveTactics), so the writer gives coordinates only for that.
+ */
+export const UNIT_WINGS = ["merkez", "sol", "sag", "on", "arka"] as const;
+export type UnitWing = (typeof UNIT_WINGS)[number];
+
+/**
+ * What a unit does on a line, as the narration tells it (owner, 26 Oct 2026: "anlatıma göre ordaki askerler hareket
+ * etmesi lazım … nereye konuşlandığı nasıl hareket ettiği"): hold, advance, charge into `hedef`, sweep round `hedef`'s
+ * flank, fall back. The studio works out where that takes it.
+ */
+export const UNIT_MOVES = ["tut", "ilerle", "hucum", "kusat", "geri"] as const;
+export type UnitMove = (typeof UNIT_MOVES)[number];
+
 export interface MapUnits {
-  /** The side (for the log and the legend): "Ottomans", "Byzantium". */
+  /** The side (for the log and the legend): "Ottomans", "Byzantium". Its units share it, its colour and emblem. */
   readonly taraf: string;
   readonly renk: string;
   readonly amblem: UnitEmblem;
@@ -326,8 +344,12 @@ export interface MapUnits {
   readonly harf?: string;
   /** How many tokens (2–24). */
   readonly sayi: number;
-  /** Blocks of this kind instead of round emblem tokens (one side = one kind; a second kind is a second side entry). */
+  /** Blocks of this kind instead of round emblem tokens (one entry = one kind; a side's cavalry is a second entry). */
   readonly tur?: UnitKind;
+  /** The unit's own name, shown while it is spoken of or moves ("Janissaries", "Bayezid's right wing"). */
+  readonly ad?: string;
+  /** Its place in the side's order of battle; without a formation on its first line the studio sets it there. */
+  readonly kanat?: UnitWing;
   /** Its strength written beside the formation ("11 legions – 47,000 men"); a formation's own `etiket` replaces it. */
   readonly etiket?: string;
   /** Lines on which the narrator speaks of this side: its tokens are framed in light while the line is told. */
@@ -335,9 +357,10 @@ export interface MapUnits {
   /**
    * The formation from line `satir` on; the tokens slide to each next one with its line. `hatlar`: a front's depth in
    * lines, the rear ones staggered behind it away from the enemy (Caesar's triplex acies: 3). `bozgun`: the side breaks
-   * on this line — its tokens turn and scatter towards the formation given, fleeing.
+   * on this line — its tokens turn and scatter towards the formation given, fleeing. `hareket` (+ `hedef`, an enemy
+   * unit's `ad` or side) instead of a formation: the studio moves it; `uzerinden`: the way round a flank it took then.
    */
-  readonly yerler: readonly ({ readonly satir: number; readonly kayip?: number; readonly hatlar?: number; readonly bozgun?: boolean; readonly etiket?: string } & UnitFormation)[];
+  readonly yerler: readonly ({ readonly satir: number; readonly kayip?: number; readonly hatlar?: number; readonly bozgun?: boolean; readonly etiket?: string; readonly hareket?: UnitMove; readonly hedef?: string; readonly uzerinden?: readonly [number, number] } & UnitFormation)[];
 }
 
 /**

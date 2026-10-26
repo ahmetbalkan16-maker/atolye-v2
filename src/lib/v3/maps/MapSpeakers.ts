@@ -56,13 +56,27 @@ function colourDistance(a: string, b: string): number {
   return x && y ? Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) : Infinity;
 }
 
-/** The side a cast member belongs to: by the side's name in their name or role, else by their colour. */
+/**
+ * A side's own unit to speak from: its center, else its first entry (a side may be several units — its wings, its
+ * reserve — under one `taraf`).
+ */
+function sideUnit(sides: readonly MapUnits[], taraf: string): number {
+  const own = sides.map((s, i) => ({ s, i })).filter((x) => x.s.taraf === taraf);
+  return (own.find((x) => x.s.kanat === "merkez") ?? own[0])!.i;
+}
+
+/**
+ * The unit a cast member stands with: the unit named after them ("Bayezid's wing", "Vuk Brankovic"), else their side's
+ * by its name in their name or role, else by their colour.
+ */
 function sideByName(c: CastEntry, sides: readonly MapUnits[]): number | undefined {
   const text = `${c.ad} ${c.rol}`.toLocaleLowerCase("en-US");
-  const named = sides.map((s, i) => ({ i, hit: sideStems(s.taraf).some((st) => text.includes(st)) })).filter((s) => s.hit);
-  if (named.length === 1) return named[0]!.i;
+  const own = sides.findIndex((s) => s.ad && sideStems(c.ad).some((st) => st.length >= 3 && s.ad!.toLocaleLowerCase("en-US").includes(st)));
+  if (own >= 0) return own;
+  const named = [...new Set(sides.filter((s) => sideStems(s.taraf).some((st) => text.includes(st))).map((s) => s.taraf))];
+  if (named.length === 1) return sideUnit(sides, named[0]!);
   const near = sides.map((s, i) => ({ i, d: colourDistance(c.renk, s.renk) })).filter((s) => s.d <= SAME_COLOUR).sort((a, b) => a.d - b.d);
-  return near[0]?.i;
+  return near[0] ? sideUnit(sides, sides[near[0].i]!.taraf) : undefined;
 }
 
 export function mapSpeakers(scene: EpisodeScene, cast: readonly CastEntry[]): MapSpeakerPlan {
@@ -86,8 +100,9 @@ export function mapSpeakers(scene: EpisodeScene, cast: readonly CastEntry[]): Ma
   // Two sides and one of them already spoken for: the other speaker is the other side's (Belgrade: the Ottoman
   // sultan and "the defender of Belgrade").
   const unmatched = rest.filter((id) => !sideOf.has(id));
-  const free = sides.map((_, i) => i).filter((i) => ![...sideOf.values()].includes(i));
-  if (unmatched.length === 1 && free.length === 1) sideOf.set(unmatched[0]!, free[0]!);
+  const used = new Set([...sideOf.values()].map((i) => sides[i]!.taraf));
+  const free = [...new Set(sides.map((s) => s.taraf))].filter((t) => !used.has(t));
+  if (unmatched.length === 1 && free.length === 1) sideOf.set(unmatched[0]!, sideUnit(sides, free[0]!));
   const sideBadges: SideBadge[] = [];
   const unplaced: string[] = [];
   for (const id of rest) {

@@ -90,6 +90,18 @@
       "konu": "savaş haritası",
       "metin": "On a close battle map: two sides' tokens mixed in one row instead of two fronts facing each other, a badge or a label covering another name, a badge cut by the frame's edge, a scene in a commander's tent drawn as the camp outside.",
       "kaynak": "owner, Kosova 1389 denemesi, 23 Ekim 2026"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "savaş taktiği",
+      "metin": "A close battle shows its tactics: each side is 3-5 units of one kind each (tur), with ad and kanat (coordinates only for the merkez); every tactical step the narrator tells is a unit's hareket on that line (hucum/kusat with hedef, ilerle, geri); a wing meets the enemy's opposite wing.",
+      "kaynak": "owner, Kosova 1389 videosu, 26 Ekim 2026 (\"yakın çekim savaşta hiç bir taktik gözükmüyor\")"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "savaş taktiği",
+      "metin": "On a close battle map: a side drawn as one block of mixed troops, units whose kind cannot be told apart by their sign, or a charge or flanking move the narrator tells that no unit makes on the map.",
+      "kaynak": "owner, Kosova 1389 videosu, 26 Ekim 2026"
     }
   ]
 }

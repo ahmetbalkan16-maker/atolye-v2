@@ -1,6 +1,7 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { ARCH_STYLES, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
+import { resolveTactics } from "../maps/Tactics";
 import type { V3Emotion, V3Garment, V3Gesture } from "../render/RenderPlanTypes";
 
 /**
@@ -214,9 +215,10 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
         yerler[yerler.length - 1]!.kayip = u.kayip;
         fixes.push(`${where}: "kayip" son yere taşındı`);
       }
-      // Lines deep belong to a front only; a side cannot break where it first stands.
+      // Lines deep belong to a front only (a unit placed by its wing or its move gets one); a side cannot break where
+      // it first stands.
       for (const y of yerler)
-        if (y.hatlar !== undefined && y.cephe === undefined) {
+        if (y.hatlar !== undefined && (y.kume !== undefined || y.kusatma !== undefined)) {
           delete y.hatlar;
           fixes.push(`${where}: cephesiz "hatlar" silindi`);
         }
@@ -227,6 +229,9 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
       for (const key of [...FORMATION_KEYS, "km", "kayip", "konum"]) delete u[key];
       if (yerler.length) u.yerler = yerler;
     }
+    // The close battle's order and moves: wings and screens round each side's center, charges and sweeps where the
+    // narration takes them (Tactics.resolveTactics); a formation the writer gave is kept.
+    if (isObj(s.harita)) fixes.push(...resolveTactics(s.harita, `sahneler[${si}].harita`));
     if (Array.isArray(s.sahne_duzeni)) {
       const before = s.sahne_duzeni.length;
       s.sahne_duzeni = (s.sahne_duzeni as unknown[]).filter((b) => isObj(b) && visible.has(String(b.karakter)));

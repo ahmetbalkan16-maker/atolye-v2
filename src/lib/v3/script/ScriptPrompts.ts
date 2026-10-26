@@ -309,11 +309,19 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
         // formation with its line. "kayip": tokens lost on that line — the sides rush at each other and the losses fall
         // one by one, swords heard. On a fight line give BOTH sides a formation, side by side (on a close map a few
         // hundred metres apart; across a wall: attackers just outside, defenders just inside), never far apart.
-        // On a battlefield give each body of troops its kind and strength (the battle maps' blocks): "tur": "piyade" |
-        // "suvari" | "okcu" | "topcu" (one kind per entry — a side's cavalry is a second entry in the same colour), "etiket":
-        // "11 legions – 47,000 men"; a front "hatlar": 2–3 lines deep (Caesar's triplex acies); "vurgu": [line indexes] —
-        // while the narrator speaks of this unit it is framed in light; "bozgun": true on the formation where a side breaks
-        // and runs (its tokens turn and scatter to the place given there).
+        // On a battlefield SPLIT EACH SIDE INTO ITS BODIES OF TROOPS, ONE KIND EACH, as its real order of battle was —
+        // the viewer must see who is who and how the battle was fought: "tur": "piyade" (any foot) | "kilicli"
+        // (swordsmen) | "mizrakci" (spearmen, pikemen) | "okcu" (archers) | "tufekci" (musketeers, riflemen) | "suvari"
+        // (cavalry) | "topcu" (guns); never two kinds in one entry. A side's units share its "taraf", colour and emblem.
+        // Each unit has "ad" (its own name: "Janissaries", "Bayezid's right wing") and "kanat": "merkez" | "sol" | "sag" |
+        // "on" | "arka" (as the side faces the enemy: its left/right wing, "on" the screen in front, "arka" the reserve).
+        // Give ONLY each side's "merkez" unit a formation on its first line; the studio sets the others round it. On a
+        // later line a unit does what the narration tells, with NO coordinates: "hareket": "ilerle" (advance) | "hucum"
+        // (charge into "hedef": the enemy unit's "ad"; a wing faces the enemy's opposite wing — your left wing meets
+        // their right wing) | "kusat" (sweep round "hedef"'s flank) | "geri" (fall back) |
+        // "tut" (hold); "kayip" on the fight lines, "bozgun": true where a unit breaks and runs. "etiket" (the side's
+        // strength, "11 legions – 47,000 men") on its merkez unit only; a front "hatlar": 2–3 lines deep (Caesar's
+        // triplex acies); "vurgu": [line indexes] — while the narrator speaks of the unit it is framed in light.
     "oklar": [… {"noktalar": [[lon, lat], …], "stil": "plan", "renk": "#3fae3a", "etiket": "Cavalry", "satir": 2, "bitis_satir": 3}]
         // a battle plan's dashed arrow BEFORE the move it announces (the cavalry's sweep round the flank), gone when it starts
     "kusatma_hatlari": [{"ad": "Caesar's siege line", "noktalar": [[lon, lat], …], "satir": 1, "sure_sn": 6}]
@@ -378,7 +386,23 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
   (the fight's name at its place). A field battle has no walls: the armies' fronts, the river, the hills, the camps — told
   step by step like the battle documentaries: the two orders of battle in blocks by kind with their strength (infantry
   in lines, cavalry on the wings), the commander's plan as dashed arrows, the unit the narrator names framed, the clash
-  with losses, the flank turned, the beaten side's blocks breaking ("bozgun") and the camp taken.
+  with losses, the flank turned, the beaten side's blocks breaking ("bozgun") and the camp taken. Every tactical step
+  the narration tells is a unit's "hareket" on that line. A field battle, in short (3–5 units a side, coordinates only
+  for each side's merkez):
+    "birlikler": [
+      {"taraf": "Normans", "ad": "Norman archers", "tur": "okcu", "kanat": "on", "renk": "#2e6fd1", "amblem": "aslan", "sayi": 3,
+       "yerler": [{"satir": 0}, {"satir": 1, "hareket": "ilerle"}, {"satir": 2, "hareket": "geri"}]},
+      {"taraf": "Normans", "ad": "Norman foot", "tur": "mizrakci", "kanat": "merkez", "renk": "#2e6fd1", "amblem": "aslan", "sayi": 4,
+       "etiket": "7,000 men", "yerler": [{"satir": 0, "cephe": [[lon, lat], [lon, lat]]}, {"satir": 2, "hareket": "hucum", "hedef": "Shield wall", "kayip": 1}]},
+      {"taraf": "Normans", "ad": "Breton horse", "tur": "suvari", "kanat": "sol", …, "yerler": [{"satir": 0}, {"satir": 3, "hareket": "geri"}, {"satir": 4, "hareket": "hucum", "hedef": "Fyrd", "kayip": 1}]},
+      {"taraf": "Normans", "ad": "Norman knights", "tur": "suvari", "kanat": "sag", …, "yerler": [{"satir": 0}, {"satir": 4, "hareket": "kusat", "hedef": "Shield wall"}]},
+      {"taraf": "English", "ad": "Shield wall", "tur": "kilicli", "kanat": "merkez", "renk": "#c0392b", "amblem": "kartal", "sayi": 5,
+       "etiket": "7,000 men", "yerler": [{"satir": 0, "cephe": [[lon, lat], [lon, lat]], "hatlar": 2}, {"satir": 2, "kayip": 1}, {"satir": 5, "bozgun": true, "kayip": 2}]},
+      {"taraf": "English", "ad": "Fyrd", "tur": "piyade", "kanat": "sag", …, "yerler": [{"satir": 0}, {"satir": 3, "hareket": "hucum", "hedef": "Breton horse"}, {"satir": 4, "kayip": 2}]}]
+    with the lines: the archers loose their arrows, the shield wall holds; the Norman foot charges the wall; the Bretons
+    fall back and the fyrd chases them down the hill; the knights cut the fyrd down and sweep round the wall's flank; the
+    wall breaks. Each move is seen as the narrator tells it, with its arrow; a gunpowder battle the same way with
+    "tufekci" lines and "topcu" batteries.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,

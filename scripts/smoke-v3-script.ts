@@ -15,6 +15,8 @@ import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript 
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
+import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
+import { resolveTactics } from "../src/lib/v3/maps/Tactics";
 import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
 import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
@@ -415,6 +417,68 @@ async function main() {
     assert.deepEqual(hungarians!.yerler, [{ satir: 0, kume: [20.45, 44.83], kayip: 1 }], "a place without a formation is a cluster");
     const found = mapProblems(n.value);
     assert.ok(found.some((p) => p.includes('close map "s6" tells a siege or walls but draws none')), JSON.stringify(found));
+  });
+
+  await scenario("tactics (owner, 26 Oct 2026): units by kind round each side's center, charges and sweeps from the narration, one block a side asked to split", () => {
+    // Kosovo 1389 as the writer gives it: coordinates only for each side's center; the Serbs to the north.
+    const SRB = { taraf: "Serbs", renk: "#3a5eb3", amblem: "kalkan" };
+    const OTT = { taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal" };
+    const harita = {
+      merkez: [21.05, 42.68],
+      genislik_km: 16,
+      birlikler: [
+        { ...SRB, ad: "Serbian knights", tur: "suvari", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[21.035, 42.697], [21.065, 42.697]] }, { satir: 1, hareket: "hucum", hedef: "Janissaries", kayip: 1 }] },
+        { ...SRB, ad: "Vuk", tur: "suvari", kanat: "sol", sayi: 3, yerler: [{ satir: 0 }, { satir: 2, hareket: "hucum", hedef: "Bayezid" }] },
+        { ...SRB, ad: "Serbian foot", tur: "piyade", kanat: "arka", sayi: 3, yerler: [{ satir: 0 }, { satir: 2, hareket: "ilerle" }] },
+        { ...OTT, ad: "Janissaries", tur: "kilicli", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[21.035, 42.668], [21.065, 42.668]], hatlar: 2 }, { satir: 1, kayip: 1 }] },
+        { ...OTT, ad: "Ottoman archers", tur: "okcu", kanat: "on", sayi: 3, yerler: [{ satir: 0 }, { satir: 1, hareket: "geri" }] },
+        { ...OTT, ad: "Bayezid", tur: "suvari", kanat: "sag", sayi: 3, yerler: [{ satir: 0 }, { satir: 3, hareket: "kusat", hedef: "Serbian knights" }] },
+      ],
+    };
+    const fixes = resolveTactics(harita as never);
+    const u = harita.birlikler as unknown as { ad: string; yerler: { cephe?: [number, number][]; uzerinden?: [number, number]; hatlar?: number }[] }[];
+    const mid = (c: [number, number][] | undefined) => [(c![0]![0] + c![c!.length - 1]![0]) / 2, (c![0]![1] + c![c!.length - 1]![1]) / 2] as const;
+    // The order: facing south the Serbs' left wing is to the east; facing north the Ottomans' right wing is to the east,
+    // their archers in front (north) of the Janissaries, the Serbian foot behind (north of) the knights.
+    assert.ok(mid(u[1]!.yerler[0]!.cephe)[0] > 21.065, `Serbian left wing east: ${mid(u[1]!.yerler[0]!.cephe)}`);
+    assert.ok(mid(u[5]!.yerler[0]!.cephe)[0] > 21.065, `Ottoman right wing east: ${mid(u[5]!.yerler[0]!.cephe)}`);
+    assert.ok(mid(u[4]!.yerler[0]!.cephe)[1] > 42.668 && mid(u[4]!.yerler[0]!.cephe)[1] < 42.697, "archers in front of the Janissaries");
+    assert.ok(mid(u[2]!.yerler[0]!.cephe)[1] > 42.697, "the reserve behind the knights");
+    // The charge reaches the Janissaries' front; the archers fall back; the hold keeps its place; the sweep goes round
+    // the knights' flank by a waypoint further out.
+    const knights = mid(u[0]!.yerler[1]!.cephe);
+    assert.ok(knights[1] > 42.668 && knights[1] - 42.668 < 0.01, `knights at the Janissaries' front: ${knights}`);
+    assert.ok(mid(u[4]!.yerler[1]!.cephe)[1] < mid(u[4]!.yerler[0]!.cephe)[1], "archers fall back south");
+    assert.deepEqual(u[3]!.yerler[1]!.cephe, u[3]!.yerler[0]!.cephe, "a line without a move holds");
+    const sweep = u[5]!.yerler[1]!;
+    assert.ok(sweep.uzerinden && sweep.cephe && Math.abs(sweep.uzerinden[0] - 21.05) > Math.abs(mid(sweep.cephe)[0] - 21.05) - 1e-6, JSON.stringify(sweep));
+    assert.equal(u[3]!.yerler[0]!.hatlar, 2, "the center's depth is kept");
+    assert.ok(fixes.some((f) => f.includes("kanadını dolaşıp kuşatır")) && fixes.some((f) => f.includes("sol kanatta")));
+    // A commander speaks from the unit named after him, else from his side's center (not from no side at all, as the
+    // speaker matching did when a side became several units).
+    const talk = mapSpeakers({ id: "s", satirlar: [{ karakter: "bayezid", metin: "Now!", duygu: "kararli" }, { karakter: "lazar", metin: "Hold!", duygu: "notr" }], harita } as never, [
+      { id: "bayezid", ad: "Bayezid", rol: "Ottoman prince", renk: "#3fae3a", gorunur: true },
+      { id: "lazar", ad: "Prince Lazar", rol: "ruler of the Serbs", renk: "#2a4a99", gorunur: true },
+    ] as never);
+    assert.deepEqual(talk.sideBadges.map((b) => [b.karakter, b.taraf]), [["bayezid", 5], ["lazar", 0]]);
+    // Written formations always win; a second run changes nothing.
+    const again = JSON.stringify(harita);
+    assert.deepEqual(resolveTactics(harita as never), []);
+    assert.equal(JSON.stringify(harita), again);
+    // Kosovo as it was written (one block a side, "Janissaries, infantry, cavalry"): split, by kind, with moves.
+    const lone = {
+      id: "s5",
+      mekan: "Close map: the field of Kosovo",
+      satirlar: [{ karakter: "anlatici", metin: "The Serbian cavalry charges.", duygu: "notr" }, { karakter: "anlatici", metin: "Both sides take heavy losses.", duygu: "notr" }],
+      harita: { merkez: [21.05, 42.68], genislik_km: 16, birlikler: [
+        { ...SRB, sayi: 6, tur: "suvari", etiket: "Heavy cavalry, infantry", yerler: [{ satir: 0, cephe: [[21.03, 42.69], [21.07, 42.69]] }, { satir: 1, cephe: [[21.03, 42.672], [21.07, 42.672]], kayip: 2 }] },
+        { ...OTT, sayi: 7, tur: "piyade", etiket: "Janissaries, infantry, cavalry", yerler: [{ satir: 0, cephe: [[21.03, 42.67], [21.07, 42.67]] }, { satir: 1, cephe: [[21.03, 42.67], [21.07, 42.67]], kayip: 2 }] },
+      ] },
+    };
+    const asked = mapProblems({ donem: "1389", oyuncu_kadrosu: [], sahneler: [lone] } as unknown as Episode).join("\n");
+    assert.match(asked, /"Heavy cavalry, infantry"\) is several kinds of troops/);
+    assert.match(asked, /is a field battle but "Serbs" and "Ottomans" are one block/);
+    assert.match(writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 180, ton: "epik", dil: "en" }, CATALOG), /SPLIT EACH SIDE INTO ITS BODIES OF TROOPS[\s\S]*"hareket": "ilerle"/);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

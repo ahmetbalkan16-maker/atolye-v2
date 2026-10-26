@@ -22,46 +22,88 @@ const TOKEN_R = 23;
 const FALLEN_S = 0.6;
 /** How long a routed side's tokens take to scatter (seconds, each a little more or less; at 2.2 s they flew 34 px a frame). */
 const ROUT_S = 3;
-/** A block (infantry, cavalry, archers, guns) on a 1080p screen: its width and depth against the token radius. */
-const BLOCK_W = 2.5;
-const BLOCK_H = 1.45;
+/** A block on a 1080p screen: its width and depth against the token radius (room for a sign that reads at a glance). */
+const BLOCK_W = 2.8;
+const BLOCK_H = 1.7;
+
+/**
+ * A unit kind's sign in white, in a box of ±1 (the caller scales it), always upright: infantry ✕ (any foot), swordsmen a
+ * sword, spearmen a spear, archers a bow and arrow, musketeers and riflemen a gun, cavalry a horse's head (a chess
+ * knight), guns a cannon on its wheel (owner, 26 Oct 2026: "okçunun simgesi farklı, tüfekçinin farklı, atlıların
+ * farklı, kılıçlıların farklı … askerlerin ne asker olduğu belli olması lazım").
+ */
+export function KindSign({ kind }: { kind: string }) {
+  const W = "#ffffff";
+  switch (kind) {
+    case "piyade":
+      return <path d="M-0.7 -0.7 L0.7 0.7 M0.7 -0.7 L-0.7 0.7" stroke={W} strokeWidth={0.26} strokeLinecap="round" fill="none" />;
+    case "kilicli":
+      return (
+        <g fill={W}>
+          <path d="M0 -1.05 L0.26 -0.72 L0.26 0.32 L-0.26 0.32 L-0.26 -0.72 Z" />
+          <path d="M-0.72 0.3 L0.72 0.3 L0.72 0.56 L-0.72 0.56 Z" />
+          <path d="M-0.14 0.56 L0.14 0.56 L0.14 0.86 L-0.14 0.86 Z" />
+          <circle cy={0.96} r={0.17} />
+        </g>
+      );
+    case "mizrakci":
+      return (
+        <g fill={W}>
+          <path d="M-0.08 1 L-0.08 -0.42 L0.08 -0.42 L0.08 1 Z" />
+          <path d="M0 -1 Q0.32 -0.62 0 -0.3 Q-0.32 -0.62 0 -1 Z" />
+          <path d="M-0.3 -0.36 L0.3 -0.36 L0.3 -0.26 L-0.3 -0.26 Z" />
+        </g>
+      );
+    case "okcu":
+      return (
+        <g stroke={W} strokeWidth={0.17} strokeLinecap="round" fill="none">
+          <path d="M-0.35 -0.95 Q0.55 0 -0.35 0.95" />
+          <path d="M-0.35 -0.95 L-0.35 0.95" strokeWidth={0.07} />
+          <path d="M-0.75 0 L0.9 0 M0.6 -0.28 L0.92 0 L0.6 0.28" />
+        </g>
+      );
+    case "tufekci":
+      return (
+        <g fill={W}>
+          <path d="M-0.25 -0.34 L1 -0.34 L1 -0.14 L-0.25 -0.14 Z" />
+          <path d="M-0.28 -0.34 L-0.28 0.06 L-1 0.6 L-1 0.18 Z" />
+          <path d="M-0.1 -0.14 L0.06 -0.14 L0.06 0.16 Q-0.06 0.22 -0.1 0.1 Z" />
+        </g>
+      );
+    case "suvari":
+      return <path d="M-0.5 0.95 L-0.42 0.25 Q-0.62 -0.15 -0.22 -0.62 L-0.05 -0.98 L0.1 -0.66 Q0.55 -0.5 0.78 0.02 L0.62 0.26 L0.22 0.08 Q0.16 0.5 0.45 0.95 Z" fill={W} />;
+    case "topcu":
+      return (
+        <g fill={W}>
+          <path d="M-0.8 0.1 L0.85 -0.42 L0.95 -0.12 L-0.7 0.4 Z" />
+          <circle cx={-0.12} cy={0.42} r={0.42} fill="none" stroke={W} strokeWidth={0.16} />
+          <circle cx={-0.12} cy={0.42} r={0.09} />
+        </g>
+      );
+    default:
+      return <circle r={0.35} fill={W} />;
+  }
+}
 
 /**
  * A unit block like the battle maps' (DFT Tarih's Pharsalus): a rectangle in the side's colour with its kind's sign in
- * white — infantry ✕, cavalry ╱, archers a bow and arrow, guns a dot — and a bright front edge towards the enemy.
- * Drawn about its centre, the front up (the caller turns it); `r` is the token radius.
+ * white and a bright front edge towards the enemy. Drawn about its centre, the front up (the caller turns it by
+ * `turn` degrees; the sign stays upright); `r` is the token radius.
  */
-export function UnitBlock({ kind, color, r }: { kind: string; color: string; r: number }) {
+export function UnitBlock({ kind, color, r, turn = 0 }: { kind: string; color: string; r: number; turn?: number }) {
   const w = r * BLOCK_W;
   const h = r * BLOCK_H;
-  const iw = w * 0.36;
-  const ih = h * 0.3;
-  const sign = (() => {
-    switch (kind) {
-      case "piyade":
-        return <path d={`M${-iw} ${-ih} L${iw} ${ih} M${iw} ${-ih} L${-iw} ${ih}`} />;
-      case "suvari":
-        return <path d={`M${-iw} ${ih} L${iw} ${-ih}`} />;
-      case "okcu":
-        return (
-          <g>
-            <path d={`M${-iw * 0.55} ${-ih} Q${iw * 0.55} 0 ${-iw * 0.55} ${ih}`} fill="none" />
-            <path d={`M${-iw * 0.55} 0 L${iw} 0 M${iw * 0.7} ${-ih * 0.35} L${iw} 0 L${iw * 0.7} ${ih * 0.35}`} />
-          </g>
-        );
-      default:
-        return <circle r={Math.min(iw, ih) * 0.55} fill="#ffffff" stroke="none" />;
-    }
-  })();
   return (
     <g>
-      <rect x={-w / 2 + r * 0.12} y={-h / 2 + r * 0.16} width={w} height={h} rx={r * 0.12} fill="rgba(0,0,0,0.35)" />
-      <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={r * 0.12} fill={color} stroke={INK} strokeWidth={r * 0.1} />
-      <rect x={-w / 2 + r * 0.14} y={-h / 2 + r * 0.14} width={w - r * 0.28} height={h - r * 0.28} rx={r * 0.06} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={r * 0.07} />
-      {/* The front edge, towards the enemy. */}
-      <path d={`M${-w / 2 + r * 0.1} ${-h / 2 + r * 0.05} L${w / 2 - r * 0.1} ${-h / 2 + r * 0.05}`} stroke="#ffffff" strokeWidth={r * 0.2} strokeLinecap="round" />
-      <g stroke="#ffffff" strokeWidth={r * 0.13} strokeLinecap="round" fill="none">
-        {sign}
+      <g transform={`rotate(${turn})`}>
+        <rect x={-w / 2 + r * 0.12} y={-h / 2 + r * 0.16} width={w} height={h} rx={r * 0.12} fill="rgba(0,0,0,0.35)" />
+        <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={r * 0.12} fill={color} stroke={INK} strokeWidth={r * 0.1} />
+        <rect x={-w / 2 + r * 0.14} y={-h / 2 + r * 0.14} width={w - r * 0.28} height={h - r * 0.28} rx={r * 0.06} fill="none" stroke="#ffffff" strokeOpacity={0.85} strokeWidth={r * 0.07} />
+        {/* The front edge, towards the enemy. */}
+        <path d={`M${-w / 2 + r * 0.1} ${-h / 2 + r * 0.05} L${w / 2 - r * 0.1} ${-h / 2 + r * 0.05}`} stroke="#ffffff" strokeWidth={r * 0.2} strokeLinecap="round" />
+      </g>
+      <g transform={`scale(${Math.min(w, h) * 0.36})`}>
+        <KindSign kind={kind} />
       </g>
     </g>
   );
@@ -241,7 +283,7 @@ const FALL_STOP_FRAMES = 4;
 export function placeTokens(map: V3GeoMap, frame: number, fps: number, k: number): (PlacedToken | undefined)[][] {
   const units = map.units ?? [];
   const r = TOKEN_R * k;
-  const gap = r * (units.some((u) => u.kind) ? 2.75 : 2.25);
+  const gap = r * (units.some((u) => u.kind) ? 3 : 2.25);
   const spaced = (f: number) => {
     const placed = units.map((u) => Array.from({ length: Math.max(...u.steps.map((s) => s.points.length)) }, (_, i) => tokenAt(u, i, f, fps)));
     const shown = placed.flatMap((side) => side.filter((t): t is PlacedToken => t !== undefined));
@@ -262,7 +304,8 @@ export function placeTokens(map: V3GeoMap, frame: number, fps: number, k: number
     pl.map((side, ui) =>
       side.map((t, ti) => {
         if (!t) return { x: 0, y: 0 };
-        const enemies = pl.flatMap((other, oi) => (oi === ui ? [] : other.filter((q): q is PlacedToken => q !== undefined)));
+        // A side's other units (its wings, its reserve) are no enemies.
+        const enemies = pl.flatMap((other, oi) => (units[oi]!.side === units[ui]!.side ? [] : other.filter((q): q is PlacedToken => q !== undefined)));
         // A fallen enemy counts as further and further off from the moment it falls until it is gone (out of reach by
         // then, so its going is no jump); one still appearing, as nearer as it shows.
         const dist = enemies.map((q) => {
@@ -362,8 +405,42 @@ export function BattleBursts({ x, y, start, frame, fps, k, era, seed }: { x: num
   );
 }
 
+/** How long a strength label takes to glide to its place at a new formation (seconds). */
+const LABEL_GLIDE_S = 0.8;
+
+/**
+ * Where a unit's strength label stands against its formation's middle once the formation of frame `f` has settled (no
+ * fight): just behind the formation, away from the enemy; then further back or to the sides, the first place clear of
+ * every badge on the map then (Kosovo 1389: Murad's badge stood on his army's label; a badge is ~150 px wide and rises
+ * ~140 px over its place); else in front of it. `w`: the label's width, `s`: the screen scale.
+ */
+function labelOffset(map: V3GeoMap, ui: number, f: number, fps: number, k: number, w: number, s: number): { x: number; y: number } {
+  const r = TOKEN_R * k;
+  const units = map.units ?? [];
+  const pl = placeTokens({ ...map, fights: [] }, f, fps, k);
+  const standing = pl.map((side) => side.filter((t): t is PlacedToken => t !== undefined && t.lostAt === undefined));
+  const middle = (pts: readonly { x: number; y: number }[]) => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
+  const pts = standing[ui] ?? [];
+  const own = middle(pts);
+  if (!own) return { x: 0, y: r * 3 };
+  const foe = middle(standing.flatMap((st, oi) => (units[oi]!.side === units[ui]!.side ? [] : st)));
+  const away = foe ? { x: own.x - foe.x, y: own.y - foe.y } : { x: 0, y: 1 };
+  const len = Math.hypot(away.x, away.y) || 1;
+  const ax = away.x / len;
+  const ay = away.y / len;
+  // Just behind the formation's rear: its depth along the way away from the enemy (a long front is not that deep).
+  const reach = Math.max(0, ...pts.map((p) => (p.x - own.x) * ax + (p.y - own.y) * ay)) + r * 2.4;
+  const front = Math.max(0, ...pts.map((p) => -((p.x - own.x) * ax + (p.y - own.y) * ay))) + r * 2.4;
+  const badgeBoxes = (map.badges ?? []).filter((b) => f >= b.start && (b.end === undefined || f < b.end)).map((b) => b.path[b.path.length - 1]!).filter(Boolean).map((p) => ({ x0: p.x - 80 * s, x1: p.x + 80 * s, y0: p.y - 145 * s, y1: p.y + 10 * s }));
+  const clear = (c: { x: number; y: number }) => badgeBoxes.every((bx) => c.x + w / 2 < bx.x0 || c.x - w / 2 > bx.x1 || c.y + 17 * s < bx.y0 || c.y - 17 * s > bx.y1);
+  const spots = [0, 1.6, 3.2].flatMap((more) => [0, 1, -1].map((side) => ({ x: own.x + ax * (reach + more * r) - ay * side * (w / 2 + 90 * s), y: own.y + ay * (reach + more * r) + ax * side * (w / 2 + 90 * s) })));
+  const ahead = [0, 1, -1].map((side) => ({ x: own.x - ax * front - ay * side * (w / 2 + 90 * s), y: own.y - ay * front + ax * side * (w / 2 + 90 * s) }));
+  const at = [...spots, ...ahead].find(clear) ?? spots[0]!;
+  return { x: at.x - own.x, y: at.y - own.y };
+}
+
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */
-/** `view`: the world rectangle the camera shows at this frame (MapView), so a side's label stays inside it. */
+/** `view`: the world rectangle the camera shows at this frame (MapView); a label at its edge fades. */
 export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: { x0: number; y0: number; x1: number; y1: number } }) {
   const units = map.units ?? [];
   if (!units.length) return null;
@@ -374,7 +451,8 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
   const clashes: { x: number; y: number; seed: number }[] = [];
   for (let a = 0; a < units.length; a++)
     for (let b = a + 1; b < units.length; b++)
-      placed[a]!.forEach((p, i) =>
+      if (units[a]!.side !== units[b]!.side)
+        placed[a]!.forEach((p, i) =>
         placed[b]!.forEach((q, j) => {
           if (p && q && p.alpha > 0.8 && q.alpha > 0.8 && Math.hypot(p.x - q.x, p.y - q.y) < r * 3.2) clashes.push({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2, seed: a * 1000 + b * 100 + i * 10 + j });
         }),
@@ -384,7 +462,7 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
   const middle = (pts: readonly { x: number; y: number }[]) => (pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : undefined);
   const standing = placed.map((side) => side.filter((t): t is NonNullable<typeof t> => t !== undefined && t.lostAt === undefined));
   const centres = standing.map(middle);
-  const enemyOf = (ui: number) => middle(standing.flatMap((s, oi) => (oi === ui ? [] : s)));
+  const enemyOf = (ui: number) => middle(standing.flatMap((s, oi) => (units[oi]!.side === units[ui]!.side ? [] : s)));
   return (
     <g>
       {/* The side the narrator speaks of is framed in light while the line is told (DFT Tarih's highlight). */}
@@ -422,9 +500,7 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
             <g key={`${ui}-${i}`}>
               <g transform={`translate(${t.x + jx} ${t.y})`} opacity={t.alpha}>
                 {u.kind ? (
-                  <g transform={`rotate(${facing + turn})`}>
-                    <UnitBlock kind={u.kind} color={u.color} r={r} />
-                  </g>
+                  <UnitBlock kind={u.kind} color={u.color} r={r} turn={facing + turn} />
                 ) : (
                   <>
                     <circle r={r * 1.12} fill="rgba(0,0,0,0.35)" transform={`translate(${r * 0.12} ${r * 0.16})`} />
@@ -460,40 +536,60 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
       {units.map((u, ui) => {
         let label = u.label;
         for (const st of u.steps) if (st.start <= frame && st.label) label = st.label;
-        const pts = standing[ui]!;
         const own = centres[ui];
-        if (!label || !pts.length || !own) return null;
-        const foe = enemyOf(ui);
-        const away = foe ? { x: own.x - foe.x, y: own.y - foe.y } : { x: 0, y: 1 };
-        const len = Math.hypot(away.x, away.y) || 1;
-        // Just behind the formation's rear: its depth along the way away from the enemy (a long front is not that deep).
-        const reach = Math.max(0, ...pts.map((p) => ((p.x - own.x) * away.x + (p.y - own.y) * away.y) / len)) + r * 2.4;
+        if (!label || !standing[ui]!.length || !own) return null;
         const s = r / TOKEN_R;
         const w = (label.length * 11.5 + 30) * s;
-        // Never under a badge (the Kosovo 1389 trial: Murad's badge stood on his army's label): further back, then to the
-        // sides, the first place clear of every badge on the map now (a badge is ~150 px wide and rises ~140 px).
-        const badgeBoxes = (map.badges ?? []).filter((b) => frame >= b.start && (b.end === undefined || frame < b.end)).map((b) => b.path[b.path.length - 1]!).filter(Boolean).map((p) => ({ x0: p.x - 80 * s, x1: p.x + 80 * s, y0: p.y - 145 * s, y1: p.y + 10 * s }));
-        const clear = (c: { x: number; y: number }) => badgeBoxes.every((bx) => c.x + w / 2 < bx.x0 || c.x - w / 2 > bx.x1 || c.y + 17 * s < bx.y0 || c.y - 17 * s > bx.y1);
-        const ax = away.x / len;
-        const ay = away.y / len;
-        const spots = [0, 1.6, 3.2].flatMap((more) => [0, 1, -1].map((side) => ({ x: own.x + ax * (reach + more * r) - ay * side * (w / 2 + 90 * s), y: own.y + ay * (reach + more * r) + ax * side * (w / 2 + 90 * s) })));
-        // A side on screen keeps its label on screen (Kosovo 1389: the routed Serbians ran to the top edge and their
-        // label behind them was cut): when every place behind it is off the picture, the label goes in front of it.
+        // Where it stands against its formation is chosen once a step, from where the step's formation settles, and
+        // glides to the next step's place (owner, 26 Oct 2026: "takılarak hareket var" — chosen afresh every frame it
+        // leapt from behind the side to beside it and back as the tokens moved).
+        const at = (() => {
+          let si = 0;
+          u.steps.forEach((st, i) => (st.start <= frame ? (si = i) : undefined));
+          const settled = (i: number) => Math.min(u.steps[i + 1] ? u.steps[i + 1]!.start - 1 : Infinity, u.steps[i]!.start + Math.round((SLIDE_S + 0.6) * fps));
+          const offset = (i: number) => labelOffset(map, ui, settled(i), fps, k, w, s);
+          const now = offset(si);
+          const blend = si > 0 ? Easing.inOut(Easing.cubic)(clamp01((frame - u.steps[si]!.start) / (fps * LABEL_GLIDE_S))) : 1;
+          const before = blend < 1 ? offset(si - 1) : now;
+          return { x: own.x + before.x + (now.x - before.x) * blend, y: own.y + before.y + (now.y - before.y) * blend };
+        })();
+        // Near the picture's edge it fades rather than standing cut (the routed Serbians of Kosovo ran to the top edge).
         const m = 12 * s;
-        const onScreen = (c: { x: number; y: number }) => !view || (c.x - w / 2 > view.x0 + m && c.x + w / 2 < view.x1 - m && c.y - 17 * s > view.y0 + m && c.y + 17 * s < view.y1 - m);
-        const watched = !view || (own.x > view.x0 && own.x < view.x1 && own.y > view.y0 && own.y < view.y1);
-        const front = Math.max(0, ...pts.map((p) => -((p.x - own.x) * away.x + (p.y - own.y) * away.y) / len)) + r * 2.4;
-        const ahead = [0, 1, -1].map((side) => ({ x: own.x - ax * front - ay * side * (w / 2 + 90 * s), y: own.y - ay * front + ax * side * (w / 2 + 90 * s) }));
-        const at = (watched ? [...spots, ...ahead].find((c) => clear(c) && onScreen(c)) ?? [...spots, ...ahead].find(onScreen) : undefined) ?? spots.find(clear) ?? spots[0]!;
-        // A side running off the picture takes its label with it rather than leave it cut at the edge.
-        if (!onScreen(at)) return null;
+        const inside = view ? Math.min(at.x - w / 2 - view.x0 - m, view.x1 - m - at.x - w / 2, at.y - 17 * s - view.y0 - m, view.y1 - m - at.y - 17 * s) : Infinity;
+        const edge = clamp01(inside / (24 * s) + 1);
         const first = u.steps[0]!.start;
-        const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+        const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) * edge;
+        if (a <= 0) return null;
         return (
           <g key={`lb${ui}`} transform={`translate(${at.x} ${at.y})`} opacity={a}>
             <rect x={-w / 2} y={-17 * s} width={w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={u.color} strokeWidth={3.5 * s} />
             <text x={0} y={7 * s} textAnchor="middle" style={{ font: `700 ${21 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
               {label}
+            </text>
+          </g>
+        );
+      })}
+      {/* A unit's own name at it while the narrator speaks of it or it moves ("Bayezid's right wing" as it sweeps). */}
+      {units.map((u, ui) => {
+        const c = (u.callouts ?? []).find((x) => frame >= x.start - fps * 0.2 && frame < x.end + fps * 0.4);
+        const pts = standing[ui]!;
+        const own = centres[ui];
+        if (!u.name || !c || !pts.length || !own) return null;
+        const a = Math.min(clamp01((frame - (c.start - fps * 0.2)) / (fps * 0.4)), clamp01((c.end + fps * 0.4 - frame) / (fps * 0.4)));
+        const s = r / TOKEN_R;
+        const w = (u.name.length * 10 + 24) * s;
+        // Just in front of the unit, towards the enemy, so it never sits on the side's own strength label behind.
+        const foe = enemyOf(ui);
+        const dir = foe ? { x: foe.x - own.x, y: foe.y - own.y } : { x: 0, y: -1 };
+        const d = Math.hypot(dir.x, dir.y) || 1;
+        const reach = Math.max(0, ...pts.map((p) => ((p.x - own.x) * dir.x + (p.y - own.y) * dir.y) / d)) + r * 1.9;
+        const x = own.x + (dir.x / d) * reach;
+        const y = own.y + (dir.y / d) * reach;
+        return (
+          <g key={`ad${ui}`} transform={`translate(${x} ${y})`} opacity={a}>
+            <rect x={-w / 2} y={-14 * s} width={w} height={28 * s} rx={14 * s} fill={u.color} stroke="#ffffff" strokeWidth={2.5 * s} />
+            <text x={0} y={6 * s} textAnchor="middle" style={{ font: `700 ${17 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
+              {u.name}
             </text>
           </g>
         );

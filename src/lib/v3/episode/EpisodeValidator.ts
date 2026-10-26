@@ -27,6 +27,8 @@ import {
   TIMES_OF_DAY,
   UNIT_EMBLEMS,
   UNIT_KINDS,
+  UNIT_MOVES,
+  UNIT_WINGS,
   TRANSITIONS,
   VEHICLE_KINDS,
   VEHICLES,
@@ -388,6 +390,8 @@ export function validateEpisode(input: unknown): EpisodeValidation {
         if (u.amblem === "harf") str(u, "harf", up, { max: 3 });
         num(u, "sayi", up, 1, 24);
         oneOf(u, "tur", up, UNIT_KINDS, true);
+        str(u, "ad", up, { optional: true, max: 40 });
+        oneOf(u, "kanat", up, UNIT_WINGS, true);
         str(u, "etiket", up, { optional: true, max: 40 });
         const marked = u.vurgu === undefined ? [] : Array.isArray(u.vurgu) ? u.vurgu : null;
         if (marked === null) err("HARITA_BIRLIK", `${up}.vurgu`, "satır numaraları listesi bekleniyor");
@@ -405,8 +409,13 @@ export function validateEpisode(input: unknown): EpisodeValidation {
           if (y.bozgun !== undefined && typeof y.bozgun !== "boolean") err("HARITA_BIRLIK", `${yp}.bozgun`, "true/false bekleniyor");
           if (y.bozgun === true && yi === 0) err("HARITA_BIRLIK", `${yp}.bozgun`, "bozgun ilk yerleşimde olamaz: önce durdukları yer, sonra kaçtıkları yer");
           str(y, "etiket", yp, { optional: true, max: 40 });
+          oneOf(y, "hareket", yp, UNIT_MOVES, true);
+          str(y, "hedef", yp, { optional: true, max: 60 });
+          if (y.uzerinden !== undefined) lonLat(y.uzerinden, `${yp}.uzerinden`);
           const kinds = ["cephe", "kume", "kusatma"].filter((key) => y[key] !== undefined);
-          if (kinds.length !== 1) return err("HARITA_BIRLIK", yp, "tam olarak biri: cephe (çizgi), kume (nokta) ya da kusatma (nokta)");
+          // A unit placed by its wing or its move got its front in the draft normalizer; without one here its side had no
+          // center to stand by.
+          if (kinds.length !== 1) return err("HARITA_BIRLIK", yp, "tam olarak biri: cephe (çizgi), kume (nokta) ya da kusatma (nokta) — ya da kanat/hareket ile tarafın merkez birliğine (konumu yazılmış) göre yerleşir");
           if (y.cephe !== undefined) {
             const pts = Array.isArray(y.cephe) ? y.cephe : [];
             if (!pts.length) err("HARITA_BIRLIK", `${yp}.cephe`, "en az 1 nokta");

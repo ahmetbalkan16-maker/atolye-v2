@@ -39,13 +39,44 @@ function closeMapProblems(s: Episode["sahneler"][number]): string[] {
       // A rout's losses fall as the side flees (Belgrade's fourth trial: the Ottomans lost two more on their way back to
       // camp): where it came from on that line counts as where the fight is.
       const from = at(u, y.satir - 1);
-      const near = sides.filter((o) => o !== u).map((o) => at(o, y.satir)).filter((p): p is [number, number] => Boolean(p));
+      const near = sides.filter((o) => o.taraf !== u.taraf).map((o) => at(o, y.satir)).filter((p): p is [number, number] => Boolean(p));
       if (here && near.length && near.every((p) => distanceKm(here, p) > meet && (!from || distanceKm(from, p) > meet))) out.push(`close map "${s.id}": "${u.taraf}" loses tokens on line ${y.satir} but no enemy stands within ${Math.round(meet * 10) / 10} km then: give the other side a formation on line ${y.satir} right against it (across a wall: attackers just outside, defenders just inside) — UNITS AND VEHICLES`);
     }
   // A siege told in the lines, set at a fortress (the Belgrade run's "Close map: Belgrade Fortress and battlefield"), or
   // with a castle standing on the map as a single building.
   const siege = SIEGE.test(s.mekan ?? "") || s.satirlar.some((l) => SIEGE.test(l.metin)) || (h.yapilar ?? []).some((b) => b.tur === "kale");
   if (!(h.surlar?.length) && siege) out.push(`close map "${s.id}" tells a siege or walls but draws none: give the walls ("surlar" with "noktalar" and "osm_ad") or the castle ("kale": {"merkez", "km"}), its gates and the breach on its line — CLOSE BATTLE MAP`);
+  out.push(...tacticsProblems(s, siege));
+  return out;
+}
+
+/** The kinds of troops a unit's name or strength label speaks of (English and Turkish stems). */
+const KIND_WORDS: readonly RegExp[] = [
+  /\b(?:infantry|foot(?:men|soldiers)?|janissar\w*|legion\w*|hoplites?|swords?men|men-at-arms)\b|piyade|yeniçeri/iu,
+  /\b(?:cavalry|horse(?:men)?|knights?|riders?|sipahis?|hussars?|cuirassiers?|dragoons?|lancers?)\b|süvari|atlı/iu,
+  /\b(?:archers?|bowmen|crossbow\w*)\b|okçu/iu,
+  /\b(?:musket\w*|rifle\w*|arquebus\w*|fusiliers?)\b|tüfek/iu,
+  /\b(?:artillery|cannons?|guns|batter(?:y|ies))\b|topçu/iu,
+];
+
+/**
+ * The close battle's tactics (owner, 26 Oct 2026, after Kosovo: one block a side, "Janissaries, infantry, cavalry" on
+ * it — "askerlerin ne asker olduğu belli olması lazım … taktik olması lazım"): on a field battle where the sides fight,
+ * each side is its bodies of troops by kind, and one entry is never two kinds.
+ */
+function tacticsProblems(s: Episode["sahneler"][number], siege: boolean): string[] {
+  const units = s.harita!.birlikler ?? [];
+  const out: string[] = [];
+  for (const [ui, u] of units.entries()) {
+    const words = `${u.ad ?? ""} ${u.etiket ?? ""}`;
+    const kinds = KIND_WORDS.filter((re) => re.test(words)).length;
+    if (kinds >= 2) out.push(`close map "${s.id}": birlikler[${ui}] ("${words.trim()}") is several kinds of troops in one block: give each kind its own unit ("tur", "ad", "kanat") in the same "taraf", colour and emblem — UNITS AND VEHICLES`);
+  }
+  const fought = units.some((u) => u.yerler.some((y) => (y.kayip ?? 0) > 0));
+  if (!fought || siege) return out;
+  const sides = [...new Set(units.map((u) => u.taraf))];
+  const lone = sides.filter((t) => units.filter((u) => u.taraf === t).length < 2);
+  if (sides.length >= 2 && lone.length) out.push(`close map "${s.id}" is a field battle but ${lone.map((t) => `"${t}"`).join(" and ")} ${lone.length > 1 ? "are" : "is"} one block: split each side into its real order of battle — 3–5 units of one kind each ("tur"), each with "ad" and "kanat" (merkez, sol, sag, on, arka; coordinates only for the merkez), and tell every tactical step as a unit's "hareket" on its line (hucum/kusat with "hedef", ilerle, geri) — UNITS AND VEHICLES`);
   return out;
 }
 
@@ -246,7 +277,7 @@ export function directBattleMaps(episode: Episode): { episode: Episode; fixes: s
       };
       const at = (u: (typeof sides)[number], line: number, strict = false) => [...u.yerler].filter((y) => (strict ? y.satir < line : y.satir <= line)).sort((a, b) => b.satir - a.satir)[0];
       const enemy = (ui: number, line: number) => {
-        const pts = sides.flatMap((o, oi) => (oi === ui ? [] : [at(o, line)].flatMap((y) => (y ? [formationAt(y)].filter((p): p is [number, number] => !!p) : []))));
+        const pts = sides.flatMap((o) => (o.taraf === sides[ui]!.taraf ? [] : [at(o, line)].flatMap((y) => (y ? [formationAt(y)].filter((p): p is [number, number] => !!p) : []))));
         return pts.length ? ([pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length] as [number, number]) : undefined;
       };
       const step = Math.max(0.25, h.genislik_km * 0.02);
@@ -264,11 +295,30 @@ export function directBattleMaps(episode: Episode): { episode: Episode; fixes: s
         });
         return { ...u, yerler };
       });
+      // A unit's charge or sweep (Tactics) is drawn as it goes, in its colour with its name: the tactics read on the map
+      // as the narrator tells them (owner, 26 Oct 2026: "taktiği daha net gösteriyorlar").
+      for (const u of birlikler)
+        for (const y of u.yerler) {
+          if ((y.hareket !== "hucum" && y.hareket !== "kusat") || !y.satir || oklar.some((o) => o.satir === y.satir && o.renk === u.renk && (!u.ad || o.etiket === u.ad))) continue;
+          const before = at(u, y.satir, true);
+          const [p0, p1] = [before ? formationAt(before) : undefined, formationAt(y)];
+          if (!p0 || !p1 || distanceKm(p0, p1) < step) continue;
+          const way: [number, number][] = y.uzerinden ? [p0, [y.uzerinden[0], y.uzerinden[1]], p1] : [p0, p1];
+          // A little short at both ends (the tokens stay readable).
+          const first = way[1]!;
+          const last = way[way.length - 2]!;
+          way[0] = [p0[0] + (first[0] - p0[0]) * 0.12, p0[1] + (first[1] - p0[1]) * 0.12];
+          way[way.length - 1] = [p1[0] + (last[0] - p1[0]) * 0.12, p1[1] + (last[1] - p1[1]) * 0.12];
+          oklar.push({ noktalar: way, renk: u.renk, satir: y.satir, ...(u.ad ? { etiket: u.ad } : {}), ...(y.satir + 1 < s.satirlar.length ? { bitis_satir: y.satir + 1 } : {}) });
+          fixes.push(`${s.id}: ${u.ad ?? u.taraf} ${y.satir}. satırda ${y.hareket === "kusat" ? "kanadı dolaşır" : "hücum eder"} — hareket oku`);
+        }
       s.satirlar.forEach((l, li) => {
         if (!ADVANCE.test(l.metin) || oklar.some((o) => o.satir === li)) return;
         const n = named(li);
         sides.forEach((u, ui) => {
-          // Only the subject charges; with no side named, a two-side battle's mover is found by its movement.
+          // Only the subject charges; with no side named, a two-side battle's mover is found by its movement. A unit
+          // moved by its tactics ("hareket") has its own arrow on its move's line.
+          if (u.kanat || u.yerler.some((y) => y.hareket)) return;
           if (n.length ? n[0] !== stems[ui] : sides.length !== 2) return;
           const prev = at(u, li, true) ?? at(u, li);
           const next = [...u.yerler].filter((y) => y.satir >= li && y !== prev).sort((a, b) => a.satir - b.satir)[0];

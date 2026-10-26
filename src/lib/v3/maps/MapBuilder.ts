@@ -1358,7 +1358,8 @@ function projectGeoMap(
   const sides = map.birlikler ?? [];
   const latest = (u: (typeof sides)[number], line: number) => [...u.yerler].filter((y) => y.satir <= line).sort((a, b) => b.satir - a.satir)[0] ?? [...u.yerler].sort((a, b) => a.satir - b.satir)[0];
   const enemyAt = (ui: number, line: number): [number, number] | undefined => {
-    const cs = sides.flatMap((o, oi) => (oi === ui || !latest(o, line) ? [] : [formationCentre(latest(o, line)!)]));
+    // The other sides only: a side's wings and reserve are no enemies of its center.
+    const cs = sides.flatMap((o) => (o.taraf === sides[ui]!.taraf || !latest(o, line) ? [] : [formationCentre(latest(o, line)!)]));
     return cs.length ? [cs.reduce((a, c) => a + c[0], 0) / cs.length, cs.reduce((a, c) => a + c[1], 0) / cs.length] : undefined;
   };
   // A front's lines lie this far apart, and a routed side scatters about as far: a share of the map.
@@ -1380,11 +1381,16 @@ function projectGeoMap(
           ...(before > alive ? { losses: unitLossDelaysS(before - alive) } : {}),
           ...(y.bozgun ? { rout: true } : {}),
           ...(y.etiket ? { label: y.etiket } : {}),
+          // A sweep round a flank (Tactics "kusat"): the tokens go the long way, one after another, a column.
+          ...(si > 0 && y.uzerinden ? { via: toPx(y.uzerinden), through: Array.from({ length: count }, (_, k) => k) } : {}),
         };
       })
       .map((st, si, all) => (si > 0 && close ? { ...st, ...throughBreach(all[si - 1]!.points, st.points, st.start, close.walls) } : st));
     const highlights = (u.vurgu ?? []).map((l) => ({ start: lineStart(l, i), end: glowEnd(l, undefined, i) }));
-    return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), ...(u.tur ? { kind: u.tur } : {}), ...(u.etiket ? { label: u.etiket } : {}), ...(highlights.length ? { highlights } : {}), steps };
+    // The unit's name while the narrator speaks of it or it moves (the tactics are read as they happen).
+    const named = [...new Set([...(u.vurgu ?? []), ...u.yerler.filter((y, yi) => yi > 0 && ((y.hareket && y.hareket !== "tut") || y.bozgun)).map((y) => y.satir)])].sort((a, b) => a - b);
+    const callouts = u.ad ? named.map((l) => ({ start: lineStart(l, i), end: glowEnd(l, undefined, i) })) : [];
+    return { side: u.taraf, color: u.renk, emblem: u.amblem, ...(u.harf ? { letters: u.harf.slice(0, 3) } : {}), ...(u.tur ? { kind: u.tur } : {}), ...(u.etiket ? { label: u.etiket } : {}), ...(u.ad ? { name: u.ad } : {}), ...(callouts.length ? { callouts } : {}), ...(highlights.length ? { highlights } : {}), steps };
   });
   separateFronts(units, gapKm * 1.15 * pxPerKm);
   // Siege lines drawn stage by stage, each with its length (Dyrrhachium's "20 km").

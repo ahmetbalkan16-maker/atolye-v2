@@ -408,7 +408,10 @@ export interface V3GeoMap {
     readonly emblem: string;
     readonly letters?: string;
     /** Blocks of this kind (infantry, cavalry, archers, guns) instead of round emblem tokens. */
-    readonly kind?: "piyade" | "suvari" | "okcu" | "topcu";
+    readonly kind?: "piyade" | "kilicli" | "mizrakci" | "okcu" | "tufekci" | "suvari" | "topcu";
+    /** The unit's own name, shown at it while `callouts` are on (it is spoken of, or it moves). */
+    readonly name?: string;
+    readonly callouts?: readonly { readonly start: number; readonly end: number }[];
     /** The side's strength written beside its formation; a step's own `label` replaces it from that step. */
     readonly label?: string;
     /** While these are on, the side's tokens are framed in light (the narrator speaks of them). */
