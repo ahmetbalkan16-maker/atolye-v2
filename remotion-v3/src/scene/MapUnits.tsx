@@ -408,6 +408,59 @@ export function BattleBursts({ x, y, start, frame, fps, k, era, seed }: { x: num
 /** How long a strength label takes to glide to its place at a new formation (seconds). */
 const LABEL_GLIDE_S = 0.8;
 
+/** A gun fires every GUN_PERIOD_S (each a little after the last); a musket line fires its volley every VOLLEY_PERIOD_S. */
+const GUN_PERIOD_S = 1.7;
+const VOLLEY_PERIOD_S = 2.1;
+/** How long a shot's flash and smoke last (seconds). */
+const GUN_SMOKE_S = 1.2;
+const VOLLEY_SMOKE_S = 0.9;
+
+/**
+ * The shots of guns and musket lines at `frame` (owner, 26 Oct 2026, after the Mohács trial: "topçu ve tüfekçi birlikleri
+ * ateş etmiyor"): while a fight is on, each gun token fires in turn and each musket or rifle unit fires its volley, all
+ * its tokens at once. `p`: how far the shot's flash and smoke are (0..1).
+ */
+export function gunfireAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; gun: boolean; shot: number }[] {
+  const fight = (map.fights ?? []).find((f) => frame >= f.start && frame < f.start + f.durationS * fps);
+  if (!fight) return [];
+  const local = frame - fight.start - Math.round(fps * 0.3);
+  if (local < 0) return [];
+  const out: { ui: number; ti: number; p: number; gun: boolean; shot: number }[] = [];
+  (map.units ?? []).forEach((u, ui) => {
+    if (u.kind !== "topcu" && u.kind !== "tufekci") return;
+    const gun = u.kind === "topcu";
+    const count = Math.max(...u.steps.map((s) => s.points.length));
+    const period = Math.round(fps * (gun ? GUN_PERIOD_S : VOLLEY_PERIOD_S));
+    const life = fps * (gun ? GUN_SMOKE_S : VOLLEY_SMOKE_S);
+    for (let ti = 0; ti < count; ti++) {
+      // Guns one after another along the battery; a volley together, each unit at its own moment.
+      const offset = gun ? Math.round((ti * period) / Math.max(1, count)) : Math.round(fps * 0.45 * ui) % period;
+      const since = (((local - offset) % period) + period) % period;
+      if (local - offset >= 0 && since < life) out.push({ ui, ti, p: since / life, gun, shot: Math.floor((local - offset) / period) });
+    }
+  });
+  return out;
+}
+
+/**
+ * A shot seen from above: a muzzle flash, then smoke rolling out in front of the gun and drifting off. `dx, dy`: the way
+ * the unit faces; `big`: a gun's (a musket line's is a small puff at each token). `p` 0..1.
+ */
+function ShotSmoke({ x, y, dx, dy, r, p, big, seed }: { x: number; y: number; dx: number; dy: number; r: number; p: number; big: boolean; seed: number }) {
+  const s = big ? 1.5 : 0.8;
+  const out = Easing.out(Easing.cubic)(p);
+  const fade = 1 - Easing.in(Easing.quad)(p);
+  const puffs = [0, 1, 2].map((j) => ({ along: (0.6 + j * 0.45) * out, side: (rand(seed + j) - 0.5) * 0.7, size: (0.45 + rand(seed + j + 7) * 0.3) * (0.6 + out * 0.8) }));
+  return (
+    <g opacity={fade}>
+      {puffs.map((q, j) => (
+        <circle key={j} cx={x + (dx * q.along - dy * q.side) * r * s * 1.6 + p * r * 0.6} cy={y + (dy * q.along + dx * q.side) * r * s * 1.6 - p * r * 0.4} r={q.size * r * s} fill="#efece4" stroke="rgba(60,55,50,0.45)" strokeWidth={r * 0.05} />
+      ))}
+      {p < 0.18 ? <circle cx={x + dx * r * s * 0.5} cy={y + dy * r * s * 0.5} r={r * s * 0.45 * (1 - p / 0.18)} fill="#ffd166" stroke="#ff8c1a" strokeWidth={r * 0.12} /> : null}
+    </g>
+  );
+}
+
 /**
  * Where a unit's strength label stands against its formation's middle once the formation of frame `f` has settled (no
  * fight): just behind the formation, away from the enemy; then further back or to the sides, the first place clear of
@@ -528,6 +581,18 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
           );
         }),
       )}
+      {/* Guns and musket lines firing at the enemy while the fight is on. */}
+      {gunfireAt(map, frame, fps).map((g) => {
+        const t = placed[g.ui]?.[g.ti];
+        const own = centres[g.ui];
+        const foe = enemyOf(g.ui);
+        if (!t || t.lostAt !== undefined || t.rout !== undefined || !own || !foe) return null;
+        const len = Math.hypot(foe.x - own.x, foe.y - own.y) || 1;
+        const dx = (foe.x - own.x) / len;
+        const dy = (foe.y - own.y) / len;
+        const front = r * BLOCK_H * 0.55;
+        return <ShotSmoke key={`g${g.ui}-${g.ti}`} x={t.x + dx * front} y={t.y + dy * front} dx={dx} dy={dy} r={r} p={g.p} big={g.gun} seed={g.ui * 131 + g.ti * 17 + g.shot * 7} />;
+      })}
       {clashes.map((c) => {
         const phase = (frame + (c.seed % period)) % period;
         return <Burst key={`c${c.seed}`} x={c.x} y={c.y} r={r * 1.1} p={phase / (fps * 0.7)} era="orta" seed={c.seed + Math.floor((frame + (c.seed % period)) / period)} />;

@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, filmCamera } from "../remotion-v3/src/scene/camera";
-import { placeTokens } from "../remotion-v3/src/scene/MapUnits";
+import { gunfireAt, placeTokens } from "../remotion-v3/src/scene/MapUnits";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
 
 const FPS = 30;
@@ -218,6 +218,28 @@ async function main() {
     const calm = placeTokens({ ...map, fights: [] } as V3GeoMap, 140 + 2 * 30, 30, 1);
     const gapOf = (pl: typeof mid) => Math.min(...pl[0]!.flatMap((a) => pl[1]!.map((b) => (a && b && a.lostAt === undefined && b.lostAt === undefined ? Math.hypot(a.x - b.x, a.y - b.y) : Infinity))));
     assert.ok(gapOf(mid) < gapOf(calm) - 20, `fronts close in: ${gapOf(mid).toFixed(0)} vs ${gapOf(calm).toFixed(0)} px`);
+  });
+
+  await scenario("K guns fire in turn and musket lines in volleys while the fight is on, never outside it", () => {
+    // Owner, after the Mohács trial: "topçu ve tüfekçi birlikleri ateş etmiyor".
+    const row = (y: number, n: number) => Array.from({ length: n }, (_, i) => ({ x: 700 + i * 80, y }));
+    const map = {
+      units: [
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "topcu" as const, steps: [{ start: 0, points: row(700, 3), alive: 3 }] },
+        { side: "O", color: "#3fae3a", emblem: "hilal", kind: "tufekci" as const, steps: [{ start: 0, points: row(760, 4), alive: 4 }] },
+        { side: "H", color: "#3a5eb3", emblem: "kalkan", kind: "suvari" as const, steps: [{ start: 0, points: row(500, 4), alive: 4 }] },
+      ],
+      fights: [{ start: 60, durationS: 6 }],
+    } as unknown as V3GeoMap;
+    assert.deepEqual(gunfireAt(map, 30, 30), [], "no fight, no fire");
+    const shots = Array.from({ length: 180 }, (_, k) => gunfireAt(map, 60 + k, 30)).flat();
+    assert.ok(shots.every((s) => s.ui !== 2), "cavalry does not fire");
+    const guns = new Set(shots.filter((s) => s.gun).map((s) => s.ti));
+    assert.equal(guns.size, 3, "every gun of the battery fires");
+    // A volley: when the musket line fires, all four tokens fire together; the guns one after another.
+    const frames = Array.from({ length: 180 }, (_, k) => gunfireAt(map, 60 + k, 30));
+    assert.ok(frames.some((f) => f.filter((s) => s.ui === 1 && s.p < 0.05).length === 4), "a volley of the whole line");
+    assert.ok(frames.every((f) => f.filter((s) => s.gun && s.p < 0.03).length <= 1), "guns fire in turn");
   });
 
   console.log(`V3 motion smoke: PASS (${scenarios} scenarios)`);

@@ -58,14 +58,22 @@ interface UnitInfo {
   readonly side: string;
   readonly name: string;
   readonly wing?: UnitWing;
+  readonly kind?: string;
   readonly entries: Entry[];
 }
 
 /**
- * Fills the close map's missing unit formations from `kanat` and `hareket`; returns what was done (for the log). The
- * map object is changed in place.
+ * Guns stood in front of their infantry until indirect fire (owner, 26 Oct 2026, after the Mohács trial: the writer put
+ * the Ottoman guns behind the Janissaries — at Mohács, as at Chaldiran, they were chained in front of them). Before
+ * this year a battery set behind its side is moved to the front.
  */
-export function resolveTactics(map: Obj, where = "harita"): string[] {
+export const DIRECT_FIRE_UNTIL = 1900;
+
+/**
+ * Fills the close map's missing unit formations from `kanat` and `hareket`; returns what was done (for the log). The
+ * map object is changed in place. `year`: the story's year (guns before DIRECT_FIRE_UNTIL stand in front).
+ */
+export function resolveTactics(map: Obj, where = "harita", year?: number): string[] {
   const fixes: string[] = [];
   const centre = map.merkez;
   const width = map.genislik_km;
@@ -78,7 +86,7 @@ export function resolveTactics(map: Obj, where = "harita"): string[] {
     const entries = (u.yerler as unknown[]).filter(isObj).map((y) => ({ y, satir: typeof y.satir === "number" ? y.satir : 0 }));
     entries.sort((a, b) => a.satir - b.satir);
     const wing = UNIT_WINGS.includes(u.kanat as UnitWing) ? (u.kanat as UnitWing) : undefined;
-    return [{ u, index, side: u.taraf.trim().toLocaleLowerCase("en-US"), name: typeof u.ad === "string" ? u.ad : u.taraf, ...(wing ? { wing } : {}), entries }];
+    return [{ u, index, side: u.taraf.trim().toLocaleLowerCase("en-US"), name: typeof u.ad === "string" ? u.ad : u.taraf, ...(wing ? { wing } : {}), ...(typeof u.tur === "string" ? { kind: u.tur } : {}), entries }];
   });
   if (!units.length) return fixes;
   const label = (x: UnitInfo) => `${where}.birlikler[${x.index}] "${x.name}"`;
@@ -152,8 +160,13 @@ export function resolveTactics(map: Obj, where = "harita"): string[] {
     for (const x of units.filter((o) => o.side === side)) {
       const e = x.entries[0];
       if (!e || shapes.has(e.y)) continue;
-      // A second center stands behind the first, as a second line.
-      const wing: UnitWing = !x.wing || x.wing === "merkez" ? "arka" : x.wing;
+      // A second center stands behind the first, as a second line; guns of the direct-fire age in front.
+      const guns = x.kind === "topcu" && year !== undefined && year < DIRECT_FIRE_UNTIL && (!x.wing || x.wing === "merkez" || x.wing === "arka");
+      if (guns) {
+        x.u.kanat = "on";
+        fixes.push(`${label(x)}: ${year} yılında toplar piyadesinin önünde ateş eder — öne alındı`);
+      }
+      const wing: UnitWing = guns ? "on" : !x.wing || x.wing === "merkez" ? "arka" : x.wing;
       const k = placed[wing]++;
       const ww = a.w * (wing === "on" ? 0.75 : wing === "arka" ? 0.6 : 0.5);
       const out = a.w / 2 + wingGap + ww / 2 + k * (ww + wingGap);

@@ -478,7 +478,32 @@ async function main() {
     const asked = mapProblems({ donem: "1389", oyuncu_kadrosu: [], sahneler: [lone] } as unknown as Episode).join("\n");
     assert.match(asked, /"Heavy cavalry, infantry"\) is several kinds of troops/);
     assert.match(asked, /is a field battle but "Serbs" and "Ottomans" are one block/);
-    assert.match(writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 180, ton: "epik", dil: "en" }, CATALOG), /SPLIT EACH SIDE INTO ITS BODIES OF TROOPS[\s\S]*"hareket": "ilerle"/);
+    assert.match(writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 180, ton: "epik", dil: "en" }, CATALOG), /SPLIT EACH SIDE INTO ITS BODIES OF TROOPS[\s\S]*"hareket": "ilerle"[\s\S]*TELL THE BATTLE STEP\s+BY STEP/);
+    // Owner, after the Mohács trial: the guns behind the Janissaries (they stood in front until indirect fire), the whole
+    // battle in one narrator line and the units moving on the commanders' jokes.
+    const battery = (year: number) => {
+      const m = { merkez: [18.65, 45.94], genislik_km: 30, birlikler: [
+        { ...OTT, ad: "Janissaries", tur: "tufekci", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[18.6, 45.92], [18.7, 45.92]] }] },
+        { ...OTT, ad: "Artillery", tur: "topcu", kanat: "arka", sayi: 3, yerler: [{ satir: 0 }] },
+        { ...SRB, ad: "Hungarian horse", tur: "suvari", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[18.6, 45.98], [18.7, 45.98]] }] },
+      ] };
+      resolveTactics(m as never, "harita", year);
+      const c = (m.birlikler[1]!.yerler[0] as unknown as { cephe: [number, number][] }).cephe;
+      return (c[0]![1] + c[1]![1]) / 2;
+    };
+    assert.ok(battery(1526) > 45.92, "1526: the guns in front of the Janissaries");
+    assert.ok(battery(1916) < 45.92, "1916: the guns behind (indirect fire)");
+    const packed = mapProblems({ donem: "1526", oyuncu_kadrosu: [], sahneler: [{
+      id: "s5", mekan: "Close map: Mohács",
+      satirlar: [{ karakter: "anlatici", metin: "The Hungarians charge, the Ottomans hold, then surround them.", duygu: "notr" }, { karakter: "ibrahim", metin: "A plan!", duygu: "mutlu" }, { karakter: "suleiman", metin: "Classic.", duygu: "notr" }],
+      harita: { merkez: [18.65, 45.94], genislik_km: 30, birlikler: [
+        { ...SRB, ad: "Hungarian foot", tur: "piyade", kanat: "merkez", sayi: 3, yerler: [{ satir: 0, cephe: [[18.6, 45.98], [18.7, 45.98]] }, { satir: 1, hareket: "hucum", hedef: "Janissaries", cephe: [[18.6, 45.93], [18.7, 45.93]], kayip: 1 }] },
+        { ...SRB, ad: "Hungarian horse", tur: "suvari", kanat: "sol", sayi: 2, yerler: [{ satir: 0, cephe: [[18.72, 45.98], [18.76, 45.98]] }] },
+        { ...OTT, ad: "Janissaries", tur: "tufekci", kanat: "merkez", sayi: 4, yerler: [{ satir: 0, cephe: [[18.6, 45.92], [18.7, 45.92]] }, { satir: 1, kayip: 1 }] },
+        { ...OTT, ad: "Sipahis", tur: "suvari", kanat: "sag", sayi: 3, yerler: [{ satir: 0, cephe: [[18.72, 45.92], [18.76, 45.92]] }, { satir: 2, hareket: "kusat", hedef: "Hungarian foot", cephe: [[18.6, 45.95], [18.6, 45.97]] }] },
+      ] },
+    }] } as unknown as Episode).join("\n");
+    assert.match(packed, /the battle is not told step by step — units move on lines 1, 2, spoken by a character/);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);

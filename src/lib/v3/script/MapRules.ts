@@ -72,6 +72,14 @@ function tacticsProblems(s: Episode["sahneler"][number], siege: boolean): string
     const kinds = KIND_WORDS.filter((re) => re.test(words)).length;
     if (kinds >= 2) out.push(`close map "${s.id}": birlikler[${ui}] ("${words.trim()}") is several kinds of troops in one block: give each kind its own unit ("tur", "ad", "kanat") in the same "taraf", colour and emblem — UNITS AND VEHICLES`);
   }
+  // The battle told step by step (owner, 26 Oct 2026, after the Mohács trial: the whole battle in one narrator line, the
+  // units moving on the commanders' jokes after it): each tactical move falls on a narrator line that tells it, and
+  // several moves are not packed into one line.
+  const moves = units.flatMap((u) => u.yerler.filter((y, yi) => yi > 0 && ((y.hareket !== undefined && y.hareket !== "tut") || y.bozgun)).map((y) => ({ u, satir: y.satir })));
+  const spoken = [...new Set(moves.filter((m) => s.satirlar[m.satir] && s.satirlar[m.satir]!.karakter !== "anlatici").map((m) => m.satir))].sort((a, b) => a - b);
+  const told = new Set(moves.map((m) => m.satir));
+  if (moves.length >= 2 && (spoken.length || (moves.length >= 3 && told.size === 1)))
+    out.push(`close map "${s.id}": the battle is not told step by step — ${spoken.length ? `units move on line${spoken.length > 1 ? "s" : ""} ${spoken.join(", ")}, spoken by a character, not the narrator` : `${moves.length} moves are packed into line ${[...told][0]}`}: give each tactical step its own narrator line (the charge; the hold; the sweep round the flank; the rout) with that unit's "hareket" on that very line; a commander's quip may follow a step, never carry it — CLOSE BATTLE MAP`);
   const fought = units.some((u) => u.yerler.some((y) => (y.kayip ?? 0) > 0));
   if (!fought || siege) return out;
   const sides = [...new Set(units.map((u) => u.taraf))];

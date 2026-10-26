@@ -386,9 +386,12 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
   (the fight's name at its place). A field battle has no walls: the armies' fronts, the river, the hills, the camps — told
   step by step like the battle documentaries: the two orders of battle in blocks by kind with their strength (infantry
   in lines, cavalry on the wings), the commander's plan as dashed arrows, the unit the narrator names framed, the clash
-  with losses, the flank turned, the beaten side's blocks breaking ("bozgun") and the camp taken. Every tactical step
-  the narration tells is a unit's "hareket" on that line. A field battle, in short (3–5 units a side, coordinates only
-  for each side's merkez):
+  with losses, the flank turned, the beaten side's blocks breaking ("bozgun") and the camp taken. TELL THE BATTLE STEP
+  BY STEP: each tactical step is its own NARRATOR line (the charge; the hold; the sweep round the flank; the rout), and
+  that unit's "hareket" is on that very line — never the whole battle in one sentence, never a move carried by a
+  character's quip (a quip may follow a step). Guns ("topcu") before 1900 stand in FRONT of the infantry they cover
+  ("kanat": "on"; the Ottoman guns chained before the Janissaries at Chaldiran and Mohács). A field battle, in short
+  (3–5 units a side, coordinates only for each side's merkez):
     "birlikler": [
       {"taraf": "Normans", "ad": "Norman archers", "tur": "okcu", "kanat": "on", "renk": "#2e6fd1", "amblem": "aslan", "sayi": 3,
        "yerler": [{"satir": 0}, {"satir": 1, "hareket": "ilerle"}, {"satir": 2, "hareket": "geri"}]},
