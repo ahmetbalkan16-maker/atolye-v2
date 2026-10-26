@@ -277,16 +277,20 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
   // The date stamp's corner (MapMarks' DateStamp, fixed on the screen): a name slid under it is not written either (a
   // lone "A" of "BLACK SEA" showed beside the stamp).
   const u = H / 1080;
-  const card = map.dates?.length ? { x0: W - 56 * u - Math.max(150, Math.max(...map.dates.map((d) => d.text.length)) * 25 + 56) * u, y1: 110 * u } : undefined;
+  // So is one slid under the strength bar at the top middle (MapMarks' StrengthBar: names, bar, numbers; "SERB" ran
+  // under "OTTOMANS 30,000–40,000" while the camera glided to Kosovo).
+  const overlays = [
+    ...(map.dates?.length ? [{ x0: W - 56 * u - Math.max(150, Math.max(...map.dates.map((d) => d.text.length)) * 25 + 56) * u, y0: 0, x1: W, y1: 110 * u }] : []),
+    ...((map.strength ?? []).some((s) => s.start <= frame && (s.end === undefined || frame < s.end)) ? [{ x0: (W - 860 * u) / 2 - 12 * u, y0: 0, x1: (W + 860 * u) / 2 + 12 * u, y1: 150 * u }] : []),
+  ];
   const slideInside = (x: number, y: number, half: { x: number; y: number }) => {
     const push = (c: number, h: number, lo: number, hi: number) => (c - h < lo + m ? lo + m - (c - h) : c + h > hi - m ? hi - m - (c + h) : 0);
     const dx = push(x, half.x, shownWorld.x0, shownWorld.x1);
     const dy = push(y, half.y, shownWorld.y0, shownWorld.y1);
     if (Math.abs(dx) > half.x || Math.abs(dy) > half.y) return undefined;
     const at = { x: x + dx, y: y + dy };
-    const right = W / 2 + cam.zoom * (at.x + half.x - cam.x);
-    const top = H / 2 + cam.zoom * (at.y - half.y - cam.y);
-    return card && right > card.x0 && top < card.y1 ? undefined : at;
+    const box = { x0: W / 2 + cam.zoom * (at.x - half.x - cam.x), x1: W / 2 + cam.zoom * (at.x + half.x - cam.x), y0: H / 2 + cam.zoom * (at.y - half.y - cam.y), y1: H / 2 + cam.zoom * (at.y + half.y - cam.y) };
+    return overlays.some((o) => box.x0 < o.x1 && o.x0 < box.x1 && box.y0 < o.y1 && o.y0 < box.y1) ? undefined : at;
   };
   const keepNameInside = (text: string, x: number, y: number, size: number) => {
     const lines = labelLines(text.toLocaleUpperCase("en-US"));

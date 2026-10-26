@@ -215,6 +215,11 @@ export async function qualityReview(input: {
   readonly kindAt?: (t: number) => FrameKind | undefined;
   /** Also shows the frame's top and bottom edges at full size (EDGE_STRIPS_FILTER), where cut badges and names show. */
   readonly edges?: boolean;
+  /**
+   * Also shows the frames of the same kind it judged wrongly before (teachFrame). Off unless asked: with gemma4:12b the
+   * Kosovo run of 26 Oct 2026 wrote the taught "Lazar's beard hangs like a bib" on four frames, one with no Lazar in it.
+   */
+  readonly examples?: boolean;
 }): Promise<{ checked: number; faulty: number; averageScore: number; showing?: number }> {
   const { paths, council } = input;
   const every = input.everyS ?? 6;
@@ -222,7 +227,7 @@ export async function qualityReview(input: {
   for (let t = 2; t < input.durationS - 0.5 && times.length < (input.maxFrames ?? 18); t += every) times.push(t);
   await fs.mkdir(paths.asciiTemp, { recursive: true });
   // The brain's experience: frames it judged wrongly before, with what it got wrong (taught by teachFrame).
-  const lessons = await recall(paths.workRoot, "kalite", { tur: "ders", limit: 10_000 }).catch(() => [] as Lesson[]);
+  const lessons = input.examples ? await recall(paths.workRoot, "kalite", { tur: "ders", limit: 10_000 }).catch(() => [] as Lesson[]) : [];
   let faulty = 0;
   let sum = 0;
   const showing: number[] = [];
