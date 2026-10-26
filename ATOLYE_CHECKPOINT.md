@@ -22,8 +22,18 @@ Kulak karşılaştırması: aynı klasörde `ses-once-sonra-borazan.mp4` (124–
 davulu "vuruş yok" diye reddetti (sentez davul kaldı). tsc temiz; lint 0 hata / 13 eski uyarı; smoke mix 14 (yeni "sound
 brain"), render 5, council 12, episode-director 50.
 
-**Sıradaki:** owner klibi dinler; beğenirse yeni `final.mp4` YouTube dosyası olur (müzik yeni ayarla yeniden
-bestelendi, parçalar farklı). Not: miksimiz 4–12 kHz'de referanstan ~10 dB daha koyu (ses netliği/parlaklık) — ayrı iş.
+**Yüklenecek dosyanın adı (owner onayı, aynı gün):** owner Kosova videosunu elle "battle-of-kosovo-1389-animated-history"
+diye adlandırdı ve bunun otomatik olmasını onayladı. `uploadFileName` (YoutubePackage): başlığın iki noktadan önceki
+kısmı, baştaki "The/A" atılır, başlıkta yoksa yıl eklenir, ardından "animated-history" (Türkçede "animasyonlu-tarih").
+Birleştir adımı bunu `final.mp4`'ün sabit bağlantısı olarak yazar (ikinci kopya yok; AYAS ve rötuş `final.mp4`'ü
+kullanmaya devam eder), `youtube.json` `dosya`. Kosova kopyasında doğrulandı: tam owner'ın verdiği ad. smoke youtube 5
+(C2 yeni), ayas-video-order 8.
+
+**Canlıya alma:** owner iki işi de canlıya almayı onayladı ("evet 1 ve 2'yi onaylıyorum").
+
+**Sıradaki:** owner klibi dinler; beğenirse karşılaştırma klasöründeki yeni video YouTube dosyası olur (müzik yeni
+ayarla yeniden bestelendi, parçalar farklı). Not: miksimiz 4–12 kHz'de referanstan ~10 dB daha koyu (ses
+netliği/parlaklık) — ayrı iş.
 
 ## 26 Ekim 2026 — V3 Kosova 1389 videosu bitirildi; kare kusurları genel olarak düzeltildi; kalite beynine kare kusuru tespiti ve tecrübe döngüsü
 

@@ -12,7 +12,8 @@
  * yeniden üretir; render ~3 dk'lık parçalarla yapılır, yarıda kalan render yalnız eksik parçaları çizer. --onizleme
  * 486p/15 fps render eder. OpenAI çağrıları video başına tavanla sınırlıdır (kısa video 1 $, uzun video 4 $).
  * Ekranda altyazı yoktur (konuşma yazısı ve isimler; --altyazi-gom eski gömülü altyazıyı açar).
- * Çıktılar: final.mp4, altyazi.srt (YouTube CC), CREDITS.md, aciklama.txt, QC.md (+ ara dosyalar).
+ * Çıktılar: final.mp4 (+ yüklenecek adıyla aynı dosya, ör. battle-of-kosovo-1389-animated-history.mp4), altyazi.srt
+ * (YouTube CC), CREDITS.md, aciklama.txt, QC.md (+ ara dosyalar).
  */
 import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
@@ -42,7 +43,7 @@ import { checkEpisodePlaces, wikipediaPlaces } from "../src/lib/v3/maps/PlaceChe
 import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNames, withAtlasYears, yearLabel } from "../src/lib/v3/maps/HistoricalBorders";
 import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
-import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
+import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { designedWindows, frameKindAt, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
@@ -1117,6 +1118,14 @@ async function main() {
       ceilingDb -= peak + 1.3;
       log(`  ses tepesi ${peak.toFixed(1)} dBTP (sınır −1): sınırlayıcı ${ceilingDb.toFixed(1)} dB ile yeniden kodlanıyor`);
     }
+    // The file to upload carries the topic's name (owner, 26 Oct 2026): the same bytes as final.mp4 (a hard link, no
+    // second 200 MB copy), which AYAS and the retouch round keep using. Made again on every run.
+    const upload = preview ? undefined : uploadFileName(episode, dil);
+    if (upload) {
+      await fs.rm(f(upload), { force: true });
+      await fs.link(f(final), f(upload)).catch(() => fs.copyFile(f(final), f(upload)));
+      log(`  YouTube dosyası: ${upload}`);
+    }
     await fs.writeFile(f("altyazi.srt"), buildSrt(timeline));
     const images = [...new Map([...backgrounds.map((b) => b.credit), ...visuals.flatMap((v) => [...(v.arsiv ? [v.arsiv.credit] : []), ...(v.gorseller ?? []).map((g) => g.credit)])].map((c) => [c.sha256 ?? c.assetId, c])).values()];
     const periodShown = visuals.filter((v) => v.arsiv);
@@ -1144,7 +1153,7 @@ async function main() {
       : marked.length >= 3
         ? chapters(marked.map((m) => timeline.scenes[m.index]?.start ?? 0), marked.map((m) => m.baslik), timeline.duration)
         : chapters(timeline.scenes.map((sc) => sc.start), youtube.paket.bolumler, timeline.duration);
-    if (youtube) await writeJson(f("youtube.json"), { ...youtube, bolumler: chs });
+    if (youtube) await writeJson(f("youtube.json"), { ...youtube, bolumler: chs, ...(upload ? { dosya: upload } : {}) });
     const hook = youtube?.paket.aciklamaGiris ? `${youtube.paket.aciklamaGiris}\n\n` : "";
     const chapterBlock = chs.length ? `${en ? "Chapters" : "Bölümler"}:\n${chapterText(chs)}\n\n` : "";
     const hashtags = youtube?.paket.hashtagler.length ? `\n${youtube.paket.hashtagler.join(" ")}\n` : "";

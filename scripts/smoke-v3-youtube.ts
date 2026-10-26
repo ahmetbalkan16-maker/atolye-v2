@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { judgePrompt } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
 import { mainCharacters, thumbnailPlans } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
-import { chapters, chapterText, packagePrompt, readPackage } from "../src/lib/v3/thumbnail/YoutubePackage";
+import { chapters, chapterText, packagePrompt, readPackage, uploadFileName } from "../src/lib/v3/thumbnail/YoutubePackage";
 
 let scenarios = 0;
 function scenario(name: string, fn: () => void) {
@@ -63,6 +63,19 @@ function main() {
     assert.equal(chapterText(chs).split("\n")[0], "0:00 Hook");
     assert.equal(chapterText([{ t: 75, baslik: "x" }]), "1:15 x");
     assert.deepEqual(chapters([3.5, 12], ["a", "b"], 30), [], "YouTube needs at least three chapters");
+  });
+
+  scenario("C2 upload file name: the title's main part, the year, what the video is (owner's Kosovo name)", () => {
+    const en = (baslik: string, donem: string) => uploadFileName({ baslik, donem }, "en");
+    assert.equal(en("The Battle of Kosovo (1389): Sultan Murad I vs. Prince Lazar", "1389"), "battle-of-kosovo-1389-animated-history.mp4");
+    assert.equal(en("Caesar Crosses the Rubicon: Rome’s Point of No Return", "49 BC"), "caesar-crosses-the-rubicon-49-bc-animated-history.mp4");
+    assert.equal(en("Hannibal Crosses the Alps: Elephants vs. Mountains", "218 BC"), "hannibal-crosses-the-alps-218-bc-animated-history.mp4");
+    assert.equal(uploadFileName({ baslik: "İstanbul'un Fethi — Bir Çağın Sonu", donem: "1453" }, "tr"), "istanbulun-fethi-1453-animasyonlu-tarih.mp4");
+    assert.equal(en("Miloš Obilić", "1389"), "milos-obilic-1389-animated-history.mp4");
+    const long = en("Very Long Words ".repeat(8), "1066");
+    assert.match(long, /^((very|long|words)-)+1066-animated-history\.mp4$/, long);
+    assert.ok(long.length <= 70 + "-animated-history.mp4".length, "cut at a whole word, the year kept");
+    assert.equal(en("???", "?"), "video-animated-history.mp4");
   });
 
   scenario("D thumbnail: the lead by lines, a portrait, the rivals face to face, the second lead; judged at feed size", () => {

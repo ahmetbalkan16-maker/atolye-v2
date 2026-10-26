@@ -92,6 +92,25 @@ export function chapters(sceneStarts: readonly number[], titles: readonly string
   return out.length >= 3 ? out : [];
 }
 
+/**
+ * The name of the file to upload (owner, 26 Oct 2026, renaming the Kosovo video by hand to
+ * "battle-of-kosovo-1389-animated-history.mp4"): the title's main part (before its colon) without a leading article,
+ * the year when the title lacks it, and what the video is, in the video's language; ASCII, lower case, hyphens.
+ */
+export function uploadFileName(episode: Pick<Episode, "baslik" | "donem">, dil: "tr" | "en"): string {
+  const ascii = (s: string) => s.replace(/ı/g, "i").replace(/İ/g, "I").normalize("NFD").replace(/\p{M}/gu, "").replace(/[’'`]/g, "").toLowerCase();
+  const main = ascii(episode.baslik.split(/[:|—–]/)[0]!).replace(/^\s*(the|a|an)\s+/, "");
+  const year = ascii(episode.donem).match(/\d{2,4}(\s*(bc|ad|mo|ms))?/)?.[0];
+  const words = (s: string) => s.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const tail = year && !main.includes(year.replace(/\s.*/, "")) ? words(year) : "";
+  // A long title is cut at a whole word, before the year is added.
+  let head = words(main);
+  const room = 70 - (tail ? tail.length + 1 : 0);
+  if (head.length > room) head = head.slice(0, room + 1).replace(/-[^-]*$/, "");
+  const name = [head, tail].filter(Boolean).join("-");
+  return `${name || "video"}-${dil === "en" ? "animated-history" : "animasyonlu-tarih"}.mp4`;
+}
+
 export function chapterText(chs: readonly Chapter[]): string {
   const stamp = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
   return chs.map((c) => `${stamp(c.t)} ${c.baslik}`).join("\n");
