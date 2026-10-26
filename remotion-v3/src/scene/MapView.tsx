@@ -1,5 +1,5 @@
-import React, { useId } from "react";
-import { Easing, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import React, { useId, useRef, useState } from "react";
+import { continueRender, delayRender, Easing, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { V3CastMember, V3Extra, V3GeoMap, V3MapBadge } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { type AccessoryIndex, Character } from "../character/Character";
 import { extraState } from "../character/extras";
@@ -233,6 +233,15 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
   // Screen sizes: 1 at 1080p, divided by the zoom so marks keep their size on screen.
   const k = H / 1080 / cam.zoom;
   const relief = Boolean(map.relief);
+  // The terrain picture is an SVG image, which Remotion does not wait for (Kosovo 1389: a render part opened on the
+  // close map and its first two frames showed the land as all sea): the frame waits until the picture has loaded.
+  const [reliefWait] = useState(() => (map.relief ? delayRender(`kabartma ${map.relief}`) : undefined));
+  const reliefDone = useRef(false);
+  const reliefLoaded = () => {
+    if (reliefWait === undefined || reliefDone.current) return;
+    reliefDone.current = true;
+    continueRender(reliefWait);
+  };
   // On the close battle map the states are only tinted: the ground, the walls and the houses must show through.
   const fillK = map.close ? 0.35 : 0.9;
   const label = (text: string, x: number, y: number, size: number, opacity = 1) => (
@@ -345,7 +354,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             {/* The terrain on the vector land only (its water filled with land by relief_crop.py): on a close view the
                 image's own coarse coast showed as steps of sea in the land (map trial, 22 Oct 2026). */}
             <g mask={`url(#${id}-land)`}>
-              <image href={staticFile(map.relief!)} x={0} y={0} width={world.width} height={world.height} preserveAspectRatio="none" />
+              <image href={staticFile(map.relief!)} x={0} y={0} width={world.width} height={world.height} preserveAspectRatio="none" onLoad={reliefLoaded} onError={reliefLoaded} />
             </g>
             {/* Shallow water: a light band along every coast on the sea side, like the reference maps' bright shores. */}
             <g mask={`url(#${id}-sea)`}>
