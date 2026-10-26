@@ -1696,6 +1696,10 @@ async function main() {
     const told = tl.lines.find((l) => l.lineIndex === 1)!;
     assert.equal(murad.falls, Math.round(told.start * 30) - shot.start + Math.round((3 / 7) * 3 * 30), "at the word 'assassinated'");
     assert.equal(shot.performers.find((p) => p.castId === "milos")!.falls, undefined, "the killer stays up");
+    // His last words from the floor: the camera does not close in on the air where his face was.
+    const last = Math.round(tl.lines.find((l) => l.lineIndex === 2)!.start * 30) - shot.start;
+    const onHim = shot.camera.filter((k) => k.frame >= last);
+    assert.ok(onHim.length && onHim.every((k) => k.zoom <= 1.3 + 1e-9), JSON.stringify(onHim));
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

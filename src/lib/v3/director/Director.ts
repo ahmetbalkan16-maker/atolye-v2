@@ -87,6 +87,9 @@ const OFFSTAGE_RIGHT = 1.14;
  * head sits in the upper part of the frame and the body leaves it at the knees, as on the reference channel.
  */
 const FACE_Y = 0.58;
+/** A fallen speaker's close-up: the view's middle low on the stage (the clamp keeps the floor in) and not too near. */
+const LYING_CAM_Y = 0.62;
+const LYING_CAM_ZOOM = 1.3;
 /** How much higher (share of the frame) a rider's face sits than a walker's. */
 const MOUNT_FACE_LIFT = 0.15;
 /** Two-shots and narrator shots sit lower still: the cast fills the frame and the legs leave it. */
@@ -605,6 +608,22 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       return lt ? local(lt.start) : 0;
     }, fps).map((e) => (rallies.length && e.mood !== "korkmus" ? { ...e, cheers: rallies } : e));
     const crowdMoving = (from: number, to: number) => extras.some((e) => e.move && e.move.start < to && e.move.end > from);
+    // Someone a line tells killed, in another's words, is struck down on the stage at that word and stays down (Kosovo
+    // 1389: Murad stood on after "Murad I is assassinated", Miloš's blade already through).
+    const falls = new Map<string, number>();
+    if (!geo)
+      for (const lt of lines) {
+        const line = scene.satirlar[lt.lineIndex]!;
+        for (const id of tracks.keys()) {
+          const c = episode.oyuncu_kadrosu.find((x) => x.id === id);
+          const told = c && !falls.has(id) && line.karakter !== id ? toldKilled(line.metin, c.ad) : undefined;
+          if (!told) continue;
+          const stem = told.word.toLocaleLowerCase("en-US").slice(0, 6);
+          const word = lt.words.find((w) => w.text.toLocaleLowerCase("en-US").includes(stem));
+          falls.set(id, local(lt.start) + (word ? f(word.start) : Math.round((local(lt.end) - local(lt.start)) * told.at)));
+        }
+      }
+
     lines.forEach((lt, idx) => {
       const line: SceneLine = scene.satirlar[lt.lineIndex]!;
       const ls = local(lt.start), le = local(lt.end);
@@ -704,6 +723,11 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         framed(le, 1.08, 0.52, 0.5, "smooth", []);
         prevSpeaker = undefined;
       } else if (speaker) {
+        // A speaker struck down lies on the floor where they stood: the camera takes the floor in, a little wider,
+        // instead of the air where their face was (Kosovo 1389: Murad's last words framed his empty place).
+        const down = falls.has(line.karakter) && ls >= falls.get(line.karakter)!;
+        const faceY = down ? LYING_CAM_Y : faceOf(line.karakter);
+        const near = (zoom: number) => (down ? Math.min(zoom, LYING_CAM_ZOOM) : zoom);
         const changed = prevSpeaker !== line.karakter;
         if (changed) speakerChanges++;
         if (changed && speakerChanges % 3 === 0 && tracks.size > 1) {
@@ -718,14 +742,14 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         } else if (changed) {
           const last = camera[camera.length - 1]!;
           key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
-          framed(ls, tracks.size > 1 ? 1.62 : 1.42, speaker.x, faceOf(line.karakter), "cut", [line.karakter]);
-          framed(le, tracks.size > 1 ? 1.7 : 1.5, speaker.x, faceOf(line.karakter), "smooth", [line.karakter]);
+          framed(ls, near(tracks.size > 1 ? 1.62 : 1.42), speaker.x, faceY, "cut", [line.karakter]);
+          framed(le, near(tracks.size > 1 ? 1.7 : 1.5), speaker.x, faceY, "smooth", [line.karakter]);
         } else {
-          framed(le, (camera[camera.length - 1]!.zoom ?? 1.4) + 0.08, speaker.x, faceOf(line.karakter), "smooth", [line.karakter]);
+          framed(le, near((camera[camera.length - 1]!.zoom ?? 1.4) + 0.08), speaker.x, faceY, "smooth", [line.karakter]);
         }
         if (punch) {
           const last = camera[camera.length - 1]!;
-          framed(ls + 3, last.zoom + 0.24, speaker.x, faceOf(line.karakter) - 0.02, "snap", [line.karakter]);
+          framed(ls + 3, near(last.zoom + 0.24), speaker.x, faceY - 0.02, "snap", [line.karakter]);
           shakes.push({ start: ls + 3, end: ls + f(0.3), amplitude: 9 });
         }
         prevSpeaker = line.karakter;
@@ -791,22 +815,6 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
 
     const props: V3Prop[] = (scene.dekor ?? []).map((d) => ({ kind: d.tur, x: d.x, depth: d.derinlik ?? 0.3, ...(d.olcek ? { scale: d.olcek } : {}), ...(d.ters ? { flip: true } : {}) }));
     for (const s of slots.values()) if (s.seated && !props.some((p) => p.kind === "taht" && Math.abs(p.x - s.x) < 0.08)) props.push({ kind: "taht", x: s.x, depth: s.depth + 0.02, scale: 1.3 });
-
-    // Someone a line tells killed, in another's words, is struck down on the stage at that word and stays down (Kosovo
-    // 1389: Murad stood on after "Murad I is assassinated", Miloš's blade already through).
-    const falls = new Map<string, number>();
-    if (!geo)
-      for (const lt of lines) {
-        const line = scene.satirlar[lt.lineIndex]!;
-        for (const id of tracks.keys()) {
-          const c = episode.oyuncu_kadrosu.find((x) => x.id === id);
-          const told = c && !falls.has(id) && line.karakter !== id ? toldKilled(line.metin, c.ad) : undefined;
-          if (!told) continue;
-          const stem = told.word.toLocaleLowerCase("en-US").slice(0, 6);
-          const word = lt.words.find((w) => w.text.toLocaleLowerCase("en-US").includes(stem));
-          falls.set(id, local(lt.start) + (word ? f(word.start) : Math.round((local(lt.end) - local(lt.start)) * told.at)));
-        }
-      }
 
     const performers: V3Performer[] = [...tracks.entries()].map(([id, t]) => {
       const s = slots.get(id)!;

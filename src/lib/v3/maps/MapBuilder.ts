@@ -1421,12 +1421,15 @@ function projectGeoMap(
   // A badge on screen and silent is still seen whole (Kosovo 1389: Lazar's badge sat cut at the top edge while Bayezid
   // spoke, the camera resting on the armies below): every camera stop it is up for that has its place in view keeps
   // the portrait, its name scroll and a little room for the shot's slow push in (~160 px) inside.
+  // The frame shows a little less than the map's own view: the set's 3% overscan and the shot's slow push to 1.08
+  // (ShotView, Director) — whole means inside what is left of it.
+  const PUSH = 1.12;
   const shownViews = (b: { readonly start: number; readonly end?: number }, p0: XY): View[] => {
     const keys = camera?.length ? camera : [{ frame: 0, x: width / 2, y: height / 2, zoom: 1 }];
     return keys.flatMap((c, i) => {
       const half = { x: width / 2 / c.zoom, y: height / 2 / c.zoom };
       const up = (keys[i + 1]?.frame ?? Infinity) > b.start && (b.end === undefined || c.frame < b.end);
-      return up && Math.abs(p0.x - c.x) < half.x && Math.abs(p0.y - c.y) < half.y ? [{ x: c.x, y: c.y, half, k: height / 1080 / c.zoom }] : [];
+      return up && Math.abs(p0.x - c.x) < half.x && Math.abs(p0.y - c.y) < half.y ? [{ x: c.x, y: c.y, half: { x: half.x / PUSH, y: half.y / PUSH }, k: height / 1080 / c.zoom }] : [];
     });
   };
   type Mark = { q: XY; w: number };

@@ -224,7 +224,8 @@ export function cameraAt(keys: readonly Key[] | undefined, frame: number, fps: n
  * routes, battles flash. With a world and camera keys the camera glides from region to region; names, marks and badges
  * keep their size on screen at every zoom. Coordinates arrive in world (or frame) pixels.
  */
-export function MapView({ map, width: W, height: H, cast, accessories, duration }: { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number }) {
+/** `seen`: the part of this picture (screen px) that ends up in the frame (ShotView's push and set camera). */
+export function MapView({ map, width: W, height: H, cast, accessories, duration, seen }: { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number; seen?: { x0: number; y0: number; x1: number; y1: number } }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -268,6 +269,36 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
   };
   // Names of armies, arrows and battles: the relief map's style there too, the cartoon map's on the flat one.
   const markLabel = (text: string, size: number, opacity = 1) => (relief ? stateLabel(text, 0, 0, size, opacity) : label(text, 0, 0, size, opacity));
+  // What of the world the frame shows now: the camera's view, cut to what ShotView's push leaves in the frame.
+  const shownWorld = { x0: cam.x + ((seen?.x0 ?? 0) - W / 2) / cam.zoom, y0: cam.y + ((seen?.y0 ?? 0) - H / 2) / cam.zoom, x1: cam.x + ((seen?.x1 ?? W) - W / 2) / cam.zoom, y1: cam.y + ((seen?.y1 ?? H) - H / 2) / cam.zoom };
+  // A state's or sea's name the camera has half out of the picture slides back in (the Kosovo map read "ERBIA" at the
+  // left edge while the camera followed Murad's march); one mostly outside is not written ("C SEA" at the edge).
+  const m = 14 * k;
+  // The date stamp's corner (MapMarks' DateStamp, fixed on the screen): a name slid under it is not written either (a
+  // lone "A" of "BLACK SEA" showed beside the stamp).
+  const u = H / 1080;
+  const card = map.dates?.length ? { x0: W - 56 * u - Math.max(150, Math.max(...map.dates.map((d) => d.text.length)) * 25 + 56) * u, y1: 110 * u } : undefined;
+  const slideInside = (x: number, y: number, half: { x: number; y: number }) => {
+    const push = (c: number, h: number, lo: number, hi: number) => (c - h < lo + m ? lo + m - (c - h) : c + h > hi - m ? hi - m - (c + h) : 0);
+    const dx = push(x, half.x, shownWorld.x0, shownWorld.x1);
+    const dy = push(y, half.y, shownWorld.y0, shownWorld.y1);
+    if (Math.abs(dx) > half.x || Math.abs(dy) > half.y) return undefined;
+    const at = { x: x + dx, y: y + dy };
+    const right = W / 2 + cam.zoom * (at.x + half.x - cam.x);
+    const top = H / 2 + cam.zoom * (at.y - half.y - cam.y);
+    return card && right > card.x0 && top < card.y1 ? undefined : at;
+  };
+  const keepNameInside = (text: string, x: number, y: number, size: number) => {
+    const lines = labelLines(text.toLocaleUpperCase("en-US"));
+    return slideInside(x, y, { x: (Math.max(...lines.map((l) => l.length)) * (relief ? 0.58 : 0.78) * size * k) / 2, y: (lines.length * size * (relief ? 0.98 : 1.1) * k) / 2 });
+  };
+  // A city's name is written to the right of its dot: with the dot out of the picture it is not written ("istina" at the
+  // left edge), and against the right edge it goes to the dot's left.
+  const cityName = (c: { x: number; y: number; label: string }, size: number, gap: number) => {
+    if (c.x < shownWorld.x0 || c.x > shownWorld.x1 || c.y < shownWorld.y0 || c.y > shownWorld.y1) return undefined;
+    const left = c.x + gap + c.label.length * 0.55 * size * k > shownWorld.x1 - m;
+    return { x: left ? c.x - gap : c.x + gap, anchor: left ? ("end" as const) : ("start" as const) };
+  };
   const battleMarks = (map.battles ?? []).map((b, i) => {
     if (frame < b.start) return null;
     const pop = spring({ frame: frame - b.start, fps, config: { damping: 9, stiffness: 220 } });
@@ -464,11 +495,16 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
             {/* A thin dark coastline: the coloured states end cleanly at the sea. */}
             <path d={map.land} fill="none" stroke="rgba(8,20,38,0.75)" strokeWidth={1.8 * k} strokeLinejoin="round" />
             {/* Sea names like an atlas (owner's example map): pale spaced italic capitals. */}
-            {(map.seas ?? []).map((s, i) => (
-              <text key={`s${i}`} x={s.x} y={s.y + s.size * 0.36 * k} textAnchor="middle" style={{ font: `italic 400 ${s.size * k}px Georgia, 'Palatino Linotype', serif`, letterSpacing: s.size * 0.45 * k }} fill="#cfe4f0" fillOpacity={0.78}>
+            {(map.seas ?? []).map((s, i) => {
+              // Spaced capitals: about a full size per letter; slid in like a state's name.
+              const at = slideInside(s.x, s.y, { x: (s.label.length * s.size * k) / 2, y: (s.size * k) / 2 });
+              if (!at) return null;
+              return (
+              <text key={`s${i}`} x={at.x} y={at.y + s.size * 0.36 * k} textAnchor="middle" style={{ font: `italic 400 ${s.size * k}px Georgia, 'Palatino Linotype', serif`, letterSpacing: s.size * 0.45 * k }} fill="#cfe4f0" fillOpacity={0.78}>
                 {s.label}
               </text>
-            ))}
+              );
+            })}
           </>
         ) : (
           <>
@@ -495,7 +531,10 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
           const gone = t.covered ? t.covered.start + Math.round(t.covered.delay * sweepSeconds(t.covered.start) * fps) : undefined;
           const a = visible(t.start + 6, gone !== undefined && (t.end === undefined || gone < t.end) ? gone : t.end);
           if (a <= 0) return null;
-          return <g key={`tl${i}`}>{relief ? stateLabel(t.label, t.labelX, t.labelY, t.labelSize ?? 46, a) : label(t.label, t.labelX, t.labelY, 46, a)}</g>;
+          const size = relief ? (t.labelSize ?? 46) : 46;
+          const at = keepNameInside(t.label, t.labelX, t.labelY, size);
+          if (!at) return null;
+          return <g key={`tl${i}`}>{relief ? stateLabel(t.label, at.x, at.y, size, a) : label(t.label, at.x, at.y, 46, a)}</g>;
         })}
         {/* Lines the story is about (the Rubicon, a wall): a soft glow and a bright core drawing along, then the name. */}
         {(map.lines ?? []).map((ln, i) => {
@@ -653,20 +692,23 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
           );
         })}
         {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
-        <UnitTokens map={map} frame={frame} fps={fps} k={k} view={{ x0: cam.x - W / 2 / cam.zoom, y0: cam.y - H / 2 / cam.zoom, x1: cam.x + W / 2 / cam.zoom, y1: cam.y + H / 2 / cam.zoom }} />
+        <UnitTokens map={map} frame={frame} fps={fps} k={k} view={shownWorld} />
         <MapVehicles map={map} frame={frame} fps={fps} k={k} travelS={marchSeconds} />
         {/* Glowing states, rings round places, flames, white flags (DFT Tarih's marks). */}
         <MapMarks map={map} frame={frame} fps={fps} k={k} label={(t, s) => markLabel(t, s)} />
         {/* On the relief map cities are written over the routes: a dotted march through Belgrade cut its name. */}
         {relief
-          ? map.cities.map((c, i) => (
+          ? map.cities.map((c, i) => {
+              const name = cityName(c, 25, 12 * k);
+              return (
               <g key={`c${i}`}>
                 <circle cx={c.x} cy={c.y} r={6 * k} fill="#ffffff" stroke="rgba(20,20,20,0.7)" strokeWidth={2.5 * k} />
-                <text x={c.x + 12 * k} y={c.y + 1 * k} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
+                {name ? <text x={name.x} y={c.y + 1 * k} textAnchor={name.anchor} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
                   {c.label}
-                </text>
+                </text> : null}
               </g>
-            ))
+              );
+            })
           : battleMarks}
         {(map.badges ?? []).map((b, i) => {
           const a = visible(b.start, b.end);

@@ -69,6 +69,15 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
   const progress = frame / Math.max(1, shot.duration);
   const kbZoom = kb ? kb.fromZoom + (kb.toZoom - kb.fromZoom) * progress : 1;
   const kbX = kb ? kb.fromX + (kb.toX - kb.fromX) * progress : 0;
+  // The part of the map's own picture that ends up in the frame, back through the set's camera and the slow push about
+  // the middle (shake left out): a map keeps its labels inside this, not inside its own picture (Kosovo 1389: a routed
+  // side's label stood inside the map's view but was cut at the top edge of the frame).
+  const unview = (q: { x: number; y: number }) => {
+    const pushed = { x: bgCam.cx * W + (q.x - W / 2) / bgCam.zoom, y: bgCam.cy * H + (q.y - H / 2) / bgCam.zoom };
+    return { x: W / 2 + (pushed.x - W / 2) / kbZoom - kbX * W, y: H / 2 + (pushed.y - H / 2) / kbZoom };
+  };
+  const [seenA, seenB] = [unview({ x: 0, y: 0 }), unview({ x: W, y: H })];
+  const mapVisible = { x0: Math.max(0, seenA.x), y0: Math.max(0, seenA.y), x1: Math.min(W, seenB.x), y1: Math.min(H, seenB.y) };
 
   const performers = [...shot.performers].sort((a, b) => b.depth - a.depth);
   const states = performers.map((p) => ({ p, s: performerState(p, frame, fps), m: cast.get(p.castId) }));
@@ -131,7 +140,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>
             {shot.geoMap ? (
               <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>
-                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} duration={shot.duration} />
+                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} duration={shot.duration} seen={mapVisible} />
               </div>
             ) : drawn ? (
               <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "hidden" }}>
