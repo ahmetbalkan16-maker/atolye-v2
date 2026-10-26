@@ -30,7 +30,9 @@ interface Recording {
  * PIZZI02 rises (×1.87), PIZZI01 falls (×0.47).
  */
 const RECORDINGS: readonly Recording[] = [
-  { id: "kilic", pack: "kenney_rpg-audio", file: "drawKnife1.ogg", title: "kılıç çekme" },
+  // A clash, not a draw: drawKnife1 (until 26 Oct 2026) was a blade sliding out. impactMetal_light_000 is one sharp hit
+  // with clear ringing partials, 39 dB down after 0.2 s (the plates wobble, the medium and heavy hits are duller).
+  { id: "kilic", pack: "kenney_impact-sounds", file: "impactMetal_light_000.ogg", title: "kılıç çarpışması (metal vuruşu)" },
   { id: "cekic", pack: "kenney_impact-sounds", file: "impactMetal_heavy_000.ogg", title: "metale çekiç" },
   { id: "yumruk", pack: "kenney_impact-sounds", file: "impactPunch_heavy_000.ogg", title: "yumruk" },
   { id: "dusus", pack: "kenney_impact-sounds", file: "impactSoft_heavy_000.ogg", title: "yere düşüş" },

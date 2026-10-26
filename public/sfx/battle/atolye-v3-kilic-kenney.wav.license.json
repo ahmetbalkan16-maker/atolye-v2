@@ -1,9 +1,9 @@
 {
-  "title": "Kenney — kılıç çekme (drawKnife1.ogg)",
-  "source": "Kenney (kenney.nl), kenney_rpg-audio; soundcn 7cbfbb3f56e8; mono 48 kHz, tepe −1 dBFS",
-  "sourceUrl": "https://raw.githubusercontent.com/kapishdima/soundcn/7cbfbb3f56e8548b81fb26410bdcea657447d087/assets/kenney_rpg-audio/drawKnife1.ogg",
+  "title": "Kenney — kılıç çarpışması (metal vuruşu) (impactMetal_light_000.ogg)",
+  "source": "Kenney (kenney.nl), kenney_impact-sounds; soundcn 7cbfbb3f56e8; mono 48 kHz, tepe −1 dBFS",
+  "sourceUrl": "https://raw.githubusercontent.com/kapishdima/soundcn/7cbfbb3f56e8548b81fb26410bdcea657447d087/assets/kenney_impact-sounds/impactMetal_light_000.ogg",
   "license": "CC0",
   "attribution": "",
-  "sha256": "cc4d08fba17371342145b1fc5f757f42edd9128bfeee5be2e467e4aa3fc92d8a",
+  "sha256": "bb70f2fd93d09d5ce21d17650a3ddaf492b31b8eab8518cf4c1720fa393672cf",
   "externalSamples": true
 }

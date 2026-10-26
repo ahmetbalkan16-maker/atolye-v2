@@ -29,7 +29,18 @@ Birleştir adımı bunu `final.mp4`'ün sabit bağlantısı olarak yazar (ikinci
 kullanmaya devam eder), `youtube.json` `dosya`. Kosova kopyasında doğrulandı: tam owner'ın verdiği ad. smoke youtube 5
 (C2 yeni), ayas-video-order 8.
 
-**Canlıya alma:** owner iki işi de canlıya almayı onayladı ("evet 1 ve 2'yi onaylıyorum").
+**Canlıya alma:** owner iki işi de canlıya almayı onayladı ("evet 1 ve 2'yi onaylıyorum"); `3e0dbe35` canlı, otomatik
+yayın PUBLISHED.
+
+**İkinci tur — asıl ses (owner: "yine aynı ses çok kötü, savaş sesi değil anlamsız bir ses"):** tiz vızıltı owner'ın
+duyduğu ses değildi. İki çalışmada da aynı kalan kaynaklara bakıldı (müzik yeniden bestelenmişti, efektler kütüphaneden
+aynıydı): MOSS'un "two heavy steel longswords clashing" sesi (`_kutuphane/efekt/fdf195f3….wav`) 3 sn kabaran hırıltı —
+en yüksek yeri 1,8 sn'de, ikinci yarısı tepeden yalnız 6 dB aşağıda; savaşta 13 kez, 79–88 sn'de üst üste çalıyordu
+("borazan"). Vuruş kontrastı denetimini geçmişti. Kenney yedeği de kılıç çarpması değil "drawKnife1" (bıçak çekme) idi.
+Düzeltme: `IMPACT` (kilic, yumruk, top_atisi) + `impactProblems` (en yüksek 100 ms ilk 0,4 sn içinde, ikinci yarı
+≥12 dB aşağıda), kütüphanedeki eski sesler de yeniden denetlenir (silinmez); Kenney `kilic` = `impactMetal_light_000`
+(tek sert vuruş, 0,2 sn'de −39 dB). Gerçek dosyalarda: MOSS kılıcı reddedildi; Kenney kılıç/yumruk, sentez kılıç/top
+kabul edildi.
 
 **Sıradaki:** owner klibi dinler; beğenirse karşılaştırma klasöründeki yeni video YouTube dosyası olur (müzik yeni
 ayarla yeniden bestelendi, parçalar farklı). Not: miksimiz 4–12 kHz'de referanstan ~10 dB daha koyu (ses

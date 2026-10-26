@@ -11,7 +11,7 @@ import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
 import { AMBIENCE_LUFS, ambienceChain, DUCK_ATTACK_MS, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
-import { ambiencePrompt, designSounds, eraOf, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
+import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
 import { voiceCredit } from "../src/lib/v3/tts/Tts";
 import { chooseEngine, REFERENCE_TEXT, voxcpmDescription, voxcpmLanguages, voxcpmText } from "../src/lib/v3/tts/Voxcpm";
@@ -279,6 +279,14 @@ async function main() {
     assert.ok(soundProblems(ok, drum, onsetContrastDb(drone, rate))[0]!.startsWith("vuruş yok"));
     assert.deepEqual(soundProblems(ok, drum, onsetContrastDb(hits, rate)), []);
     assert.ok(PERCUSSIVE.has("davul") && PERCUSSIVE.has("adim") && !PERCUSSIVE.has("su"));
+    // A sword clash is one blow (owner, 26 Oct 2026: MOSS's "sword" was a 3 s buzzing swell, "not a battle sound").
+    const clang = Float32Array.from({ length: rate * 3 }, (_, i) => Math.exp((-12 * i) / rate) * Math.sin((2 * Math.PI * 1500 * i) / rate));
+    const swell = Float32Array.from({ length: rate * 3 }, (_, i) => (0.3 + 0.7 * Math.sin((Math.PI * i) / (rate * 3.4))) * Math.sin((2 * Math.PI * 180 * i) / rate) * (0.6 + 0.4 * Math.sin((2 * Math.PI * 9 * i) / rate)));
+    assert.deepEqual(impactProblems(clang, rate), [], "loudest at once, gone in the second half");
+    const bad = impactProblems(swell, rate);
+    assert.ok(bad.some((p) => p.startsWith("çarpma değil: en yüksek yeri 1.")) && bad.some((p) => p.startsWith("sönmüyor")), bad.join("; "));
+    assert.ok(IMPACT.has("kilic") && IMPACT.has("top_atisi") && !IMPACT.has("davul"), "four drum hits may peak on any one");
+    assert.equal(soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "efekt", impact: true }), soundKey({ prompt: "x", seconds: 3, seed: 1, kind: "efekt" }), "a sound made before the check keeps its key and is checked again");
     assert.doesNotMatch(periodSfxPrompt("davul", "antik")!, /horn/, "hits only");
     const ep = { id: "rubicon", donem: "49 BC", sahneler: [{ ...scene, id: "s1" }, { ...scene, id: "s2-harita", mekan: "Map of Italy", harita: { merkez: [12, 43] as [number, number], genislik_km: 700 } }, { ...scene, id: "s3", mekan: "Roman Senate" }] } as unknown as Pick<Episode, "id" | "donem" | "sahneler">;
     const tl = { scenes: [{ sceneIndex: 0, start: 3, end: 15 }, { sceneIndex: 1, start: 15, end: 25 }, { sceneIndex: 2, start: 25, end: 40 }] } as unknown as Pick<EpisodeTimeline, "scenes">;

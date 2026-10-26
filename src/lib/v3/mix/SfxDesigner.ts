@@ -140,6 +140,8 @@ export interface SoundRequest {
   readonly kind: "efekt" | "ortam";
   /** Hits, steps, clashes: the sound must have beats, not a steady tone (see onsetContrastDb). */
   readonly percussive?: true;
+  /** One blow: loudest at once, then dying away (see impactProblems). Not part of the library key. */
+  readonly impact?: true;
 }
 
 /** Effects made of separate hits; a steady drone in their place is refused. */
@@ -147,6 +149,38 @@ export const PERCUSSIVE: ReadonlySet<SfxId> = new Set<SfxId>(["davul", "adim", "
 
 /** The least loud-to-quiet contrast a percussive effect needs (dB between its loud and its median 25 ms windows). */
 export const MIN_ONSET_CONTRAST_DB = 8;
+
+/**
+ * Effects that are one blow: they are loudest at once and die away. MOSS's "two heavy steel longswords clashing" was a
+ * 3 s buzzing swell, loudest at 1.8 s and never under −15 dB (owner, 26 Oct 2026, twice: "arka planda savaş borazanı
+ * gibi kötü bir cızırtı", "savaş sesi değil, anlamsız bir ses"); it passed the onset check and sounded 13 times in the
+ * Kosovo battle. A recorded clang peaks in its first 100 ms and is 27–39 dB down a second later.
+ */
+export const IMPACT: ReadonlySet<SfxId> = new Set<SfxId>(["kilic", "yumruk", "top_atisi"]);
+/** The loudest 100 ms of a blow lies within this many seconds of its start. */
+export const IMPACT_PEAK_WITHIN_S = 0.4;
+/** Its second half is at least this far under its loudest 100 ms. */
+export const IMPACT_DECAY_DB = 12;
+
+/** Why a sound is not one blow (empty when it is): where its loudest 100 ms lies and how far its second half falls. */
+export function impactProblems(samples: Float32Array, rate: number): string[] {
+  const win = Math.max(1, Math.round(rate * 0.1));
+  const env: number[] = [];
+  for (let i = 0; i + win <= samples.length; i += win) {
+    let sum = 0;
+    for (let j = i; j < i + win; j++) sum += samples[j]! * samples[j]!;
+    env.push(10 * Math.log10(sum / win + 1e-12));
+  }
+  if (!env.length) return ["ses yok"];
+  const peak = Math.max(...env);
+  const at = env.indexOf(peak) * 0.1;
+  const half = env.slice(Math.ceil(env.length / 2));
+  const tail = half.length ? 10 * Math.log10(half.reduce((a, v) => a + 10 ** (v / 10), 0) / half.length) : -120;
+  const out: string[] = [];
+  if (at > IMPACT_PEAK_WITHIN_S) out.push(`çarpma değil: en yüksek yeri ${at.toFixed(1)} sn'de`);
+  if (env.length >= 4 && peak - tail < IMPACT_DECAY_DB) out.push(`sönmüyor: ikinci yarısı tepeden yalnız ${(peak - tail).toFixed(0)} dB aşağıda`);
+  return out;
+}
 
 /**
  * How percussive a sound is: the 95th-percentile 25 ms window's level over the median window's, in dB. Drum hits,
@@ -169,7 +203,8 @@ export function onsetContrastDb(samples: Float32Array, rate: number): number {
 }
 
 export function soundKey(req: SoundRequest): string {
-  return createHash("sha256").update(JSON.stringify({ v: 1, model: MOSS_SFX_MODEL_ID, ...req, seconds: Math.round(req.seconds * 10) / 10 })).digest("hex").slice(0, 24);
+  // The impact flag is a check, not part of the sound: a sound made before it existed keeps its key and is checked again.
+  return createHash("sha256").update(JSON.stringify({ v: 1, model: MOSS_SFX_MODEL_ID, ...req, impact: undefined, seconds: Math.round(req.seconds * 10) / 10 })).digest("hex").slice(0, 24);
 }
 
 /** Why a sound cannot be used (empty when it can). */
@@ -206,9 +241,26 @@ export class SfxDesigner {
     return path.join(this.libraryDir, `${soundKey(req)}.wav`);
   }
 
+  /** A file as mono floats at 8 kHz: enough to see hits and an envelope. */
+  private async samples8k(file: string): Promise<Float32Array> {
+    const pcm = path.join(this.paths.asciiTemp, `efekt-olcum-${path.basename(file)}.f32`);
+    await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", file, "-ac", "1", "-ar", "8000", "-f", "f32le", pcm]);
+    const buf = await fs.readFile(pcm);
+    await fs.rm(pcm, { force: true });
+    return new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
+  }
+
   async make(req: SoundRequest): Promise<{ file: string; cached: boolean } | { problems: string[] }> {
     const file = this.fileFor(req);
-    if (existsSync(file)) return { file, cached: true };
+    if (existsSync(file)) {
+      // Kept in the library before the impact check existed: checked again, never deleted (append-only).
+      if (req.impact) {
+        await fs.mkdir(this.paths.asciiTemp, { recursive: true });
+        const problems = impactProblems(await this.samples8k(file), 8000);
+        if (problems.length) return { problems: problems.map((p) => `kütüphanedeki ses ${p}`) };
+      }
+      return { file, cached: true };
+    }
     if (this.broken) return { problems: [this.broken] };
     await fs.mkdir(this.libraryDir, { recursive: true });
     await fs.mkdir(this.paths.asciiTemp, { recursive: true });
@@ -254,16 +306,9 @@ export class SfxDesigner {
     await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", raw, "-af", `${shape},aresample=48000`, "-ac", "1", tmp]);
     await fs.rm(raw, { force: true });
     const stats = await measurePiece(this.paths, tmp);
-    let contrast: number | undefined;
-    if (req.percussive) {
-      // Decoded at 8 kHz mono as raw floats: enough to see the hits.
-      const pcm = `${tmp}.f32`;
-      await runChecked(this.paths.ffmpeg, ["-v", "error", "-y", "-i", tmp, "-ac", "1", "-ar", "8000", "-f", "f32le", pcm]);
-      const buf = await fs.readFile(pcm);
-      await fs.rm(pcm, { force: true });
-      contrast = onsetContrastDb(new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4)), 8000);
-    }
-    const problems = soundProblems(stats, req, contrast);
+    const pcm = req.percussive || req.impact ? await this.samples8k(tmp) : undefined;
+    const contrast = req.percussive && pcm ? onsetContrastDb(pcm, 8000) : undefined;
+    const problems = [...soundProblems(stats, req, contrast), ...(req.impact && pcm ? impactProblems(pcm, 8000) : [])];
     if (problems.length) {
       await fs.rm(tmp, { force: true });
       return { problems };
@@ -309,7 +354,7 @@ export async function designSounds(
   for (const id of [...new Set(ids)]) {
     const prompt = periodSfxPrompt(id, era);
     if (!prompt) continue;
-    const got = await designer.make({ prompt, seconds: 3, seed: seedOf(`${id}#${era}`), kind: "efekt", ...(PERCUSSIVE.has(id) ? { percussive: true as const } : {}) }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
+    const got = await designer.make({ prompt, seconds: 3, seed: seedOf(`${id}#${era}`), kind: "efekt", ...(PERCUSSIVE.has(id) ? { percussive: true as const } : {}), ...(IMPACT.has(id) ? { impact: true as const } : {}) }).catch((e: Error) => ({ problems: [`efektçi çalışmadı: ${e.message.slice(0, 160)}`] }));
     if ("file" in got) {
       effects.set(id, got.file);
       report.push(`efekt ${id}: ${era} dönemi sesi${got.cached ? " (kütüphaneden)" : ""}`);
