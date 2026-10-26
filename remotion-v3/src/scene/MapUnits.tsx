@@ -231,7 +231,8 @@ export function BattleBursts({ x, y, start, frame, fps, k, era, seed }: { x: num
 }
 
 /** Every side's tokens, the clashes where two sides meet, and the puffs where tokens are lost. */
-export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: number; fps: number; k: number }) {
+/** `view`: the world rectangle the camera shows at this frame (MapView), so a side's label stays inside it. */
+export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame: number; fps: number; k: number; view?: { x0: number; y0: number; x1: number; y1: number } }) {
   const units = map.units ?? [];
   if (!units.length) return null;
   const r = TOKEN_R * k;
@@ -377,7 +378,16 @@ export function UnitTokens({ map, frame, fps, k }: { map: V3GeoMap; frame: numbe
         const ax = away.x / len;
         const ay = away.y / len;
         const spots = [0, 1.6, 3.2].flatMap((more) => [0, 1, -1].map((side) => ({ x: own.x + ax * (reach + more * r) - ay * side * (w / 2 + 90 * s), y: own.y + ay * (reach + more * r) + ax * side * (w / 2 + 90 * s) })));
-        const at = spots.find(clear) ?? spots[0]!;
+        // A side on screen keeps its label on screen (Kosovo 1389: the routed Serbians ran to the top edge and their
+        // label behind them was cut): when every place behind it is off the picture, the label goes in front of it.
+        const m = 12 * s;
+        const onScreen = (c: { x: number; y: number }) => !view || (c.x - w / 2 > view.x0 + m && c.x + w / 2 < view.x1 - m && c.y - 17 * s > view.y0 + m && c.y + 17 * s < view.y1 - m);
+        const watched = !view || (own.x > view.x0 && own.x < view.x1 && own.y > view.y0 && own.y < view.y1);
+        const front = Math.max(0, ...pts.map((p) => -((p.x - own.x) * away.x + (p.y - own.y) * away.y) / len)) + r * 2.4;
+        const ahead = [0, 1, -1].map((side) => ({ x: own.x - ax * front - ay * side * (w / 2 + 90 * s), y: own.y - ay * front + ax * side * (w / 2 + 90 * s) }));
+        const at = (watched ? [...spots, ...ahead].find((c) => clear(c) && onScreen(c)) ?? [...spots, ...ahead].find(onScreen) : undefined) ?? spots.find(clear) ?? spots[0]!;
+        // A side running off the picture takes its label with it rather than leave it cut at the edge.
+        if (!onScreen(at)) return null;
         const first = u.steps[0]!.start;
         const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
         return (

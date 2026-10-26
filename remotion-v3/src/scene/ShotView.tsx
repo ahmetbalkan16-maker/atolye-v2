@@ -117,7 +117,9 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
   const tf = Math.round(fps * 0.32);
   if (frame < tf) {
     const t = easeInOut(frame / tf);
-    if (shot.transitionIn === "kaydir") wrapStyle = { transform: `translateX(${(1 - t) * W * 0.35}px)`, filter: `blur(${(1 - t) * 18}px)` };
+    // Slides in from the right, grown about its right edge just enough to keep the frame filled (Kosovo 1389: the plain
+    // slide left a dark band down the left edge between two close maps).
+    if (shot.transitionIn === "kaydir") wrapStyle = { transform: `translateX(${(1 - t) * W * 0.35}px) scale(${1 + (1 - t) * 0.4})`, transformOrigin: "100% 50%", filter: `blur(${(1 - t) * 18}px)` };
     if (shot.transitionIn === "murekkep") wrapStyle = { clipPath: `circle(${t * 120}% at 50% 55%)` };
     if (shot.transitionIn === "beyaz") flash = 1 - t;
   }

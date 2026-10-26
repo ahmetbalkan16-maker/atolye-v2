@@ -4,7 +4,7 @@ import { CLOSE_MAP_MAX_KM, type SceneMap, type UnitFormation } from "../episode/
 import type { V3GeoMap, V3StrengthSide } from "../render/RenderPlanTypes";
 import { type AdminUnit, assignUnits, coastEdges, dissolve, inOutline, loadAdminUnits, unitPolygons, unitsIn } from "./AdminUnits";
 import { castleRing, castleStyleFor } from "./CastleShapes";
-import { placeCloseLabels } from "./CloseLabels";
+import { nameBox, placeCloseLabels } from "./CloseLabels";
 import { isPolity } from "./HistoricalBorders";
 import { LABEL_CHAR_W, labelLines } from "./LabelText";
 import type { SideBadge } from "./MapSpeakers";
@@ -361,16 +361,49 @@ export function placeStateLabels(m: V3GeoMap, width: number, height: number, px:
   // An arrow's name goes above the first point along it (middle first) where it covers no city ("CRUSADERS" sat on
   // "Belgrade" in the Nicopolis map trial).
   const arrowRect = (x: number, y: number, label: string) => ({ x0: x - label.length * 10 * px, y0: y - 22 * px, x1: x + label.length * 10 * px, y1: y + 22 * px });
+  // Nor on a badge or under the words its speaker says over it, nor on the tokens standing while it shows (Kosovo 1389:
+  // "Bayezid's counterattack" sat between the two fronts under the Serbian tokens, and "New management!" rose over it
+  // from Bayezid's badge at the arrow's tail). The name's box is the one MapView writes (two lines on the relief map).
+  const relief = Boolean(m.relief);
+  const badgeTalk: Rect[] = (m.badges ?? []).flatMap((b) => b.path.slice(0, 1).concat(b.path.length > 1 ? [b.path[b.path.length - 1]!] : []).map((p) => ({ x0: p.x - 200 * px, y0: p.y - 240 * px, x1: p.x + 200 * px, y1: p.y + 6 * px })));
   const arrows = m.arrows.map((ar) => {
     if (!ar.label || ar.points.length < 2) return ar;
-    // Above the line first, then below it.
-    const spots = [-40, 40].flatMap((dy) =>
-      [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].map((f) => {
-        const p = alongPoints(ar.points, f);
-        return { x: p.x, y: p.y + dy * px };
-      }),
+    const box = nameBox(ar.label, ar.plan ? 28 : 32, relief);
+    const boxAt = (s: XY): Rect => ({ x0: s.x - (box.w / 2) * px, y0: s.y - (box.h / 2) * px, x1: s.x + (box.w / 2) * px, y1: s.y + (box.h / 2) * px });
+    const tokens: Rect[] = (m.units ?? []).flatMap((u) =>
+      u.steps
+        .filter((st, i) => (u.steps[i + 1]?.start ?? Infinity) > ar.start && (ar.end === undefined || st.start < ar.end))
+        .flatMap((st) => st.points.map((p) => ({ x0: p.x - 34 * px, y0: p.y - 34 * px, x1: p.x + 34 * px, y1: p.y + 34 * px }))),
     );
-    const spot = spots.find((s) => !cityMarks.some((r) => overlaps(r, arrowRect(s.x, s.y, ar.label!)))) ?? spots[0]!;
+    const fractions = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
+    // Above the line first, then below it; then to either side of it, further out each time (a north–south arrow's
+    // "above" lies on the line itself), then past its two ends.
+    const spots: XY[] = [-40, 40].flatMap((dy) => fractions.map((f) => ({ x: alongPoints(ar.points, f).x, y: alongPoints(ar.points, f).y + dy * px })));
+    for (const gap of [24, 120, 220, 320])
+      for (const f of [0.5, 0.3, 0.7])
+        for (const side of [1, -1]) {
+          const [a, b] = [alongPoints(ar.points, Math.max(0, f - 0.05)), alongPoints(ar.points, Math.min(1, f + 0.05))];
+          const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+          const n = { x: (-(b.y - a.y) / len) * side, y: ((b.x - a.x) / len) * side };
+          const ext = (Math.abs(n.x) * box.w) / 2 + (Math.abs(n.y) * box.h) / 2 + gap;
+          const p = alongPoints(ar.points, f);
+          spots.push({ x: p.x + n.x * ext * px, y: p.y + n.y * ext * px });
+        }
+    for (const [f, dir] of [[1, 1], [0, -1]] as const) {
+      const [a, b] = [alongPoints(ar.points, f === 1 ? 0.95 : 0), alongPoints(ar.points, f === 1 ? 1 : 0.05)];
+      const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const t = { x: ((b.x - a.x) / len) * dir, y: ((b.y - a.y) / len) * dir };
+      const ext = (Math.abs(t.x) * box.w) / 2 + (Math.abs(t.y) * box.h) / 2 + 40;
+      const p = alongPoints(ar.points, f);
+      spots.push({ x: p.x + t.x * ext * px, y: p.y + t.y * ext * px });
+    }
+    const hits = (r: Rect, marks: readonly Rect[]) => marks.reduce((a, q) => a + (overlaps(q, r) ? 1 : 0), 0);
+    const outside = (r: Rect) => r.x0 < 0 || r.y0 < 0 || r.x1 > width || r.y1 > height;
+    const cost = (s: XY, i: number) => {
+      const r = boxAt(s);
+      return i * 0.05 + hits(r, cityMarks) * 30 + hits(r, badgeTalk) * 25 + hits(r, tokens) * 8 + (outside(r) ? 20 : 0);
+    };
+    const spot = spots.reduce((best, s, i) => (cost(s, i) < cost(best.s, best.i) ? { s, i } : best), { s: spots[0]!, i: 0 }).s;
     return { ...ar, labelX: r1(spot.x), labelY: r1(spot.y) };
   });
   const marks: Rect[] = [
@@ -1383,10 +1416,24 @@ function projectGeoMap(
       const key = camera ? [...camera].reverse().find((c) => c.frame <= frame) ?? camera[0]! : { x: width / 2, y: height / 2, zoom: 1 };
       return { x: key.x, y: key.y, half: { x: width / 2 / key.zoom, y: height / 2 / key.zoom }, k: height / 1080 / key.zoom };
     });
+  type View = ReturnType<typeof viewsFor>[number];
+  const whole = (p: XY, vw: View, up: number) => p.x - 95 * vw.k > vw.x - vw.half.x && p.x + 95 * vw.k < vw.x + vw.half.x && p.y - up * vw.k > vw.y - vw.half.y && p.y + 20 * vw.k < vw.y + vw.half.y;
+  // A badge on screen and silent is still seen whole (Kosovo 1389: Lazar's badge sat cut at the top edge while Bayezid
+  // spoke, the camera resting on the armies below): every camera stop it is up for that has its place in view keeps
+  // the portrait, its name scroll and a little room for the shot's slow push in (~160 px) inside.
+  const shownViews = (b: { readonly start: number; readonly end?: number }, p0: XY): View[] => {
+    const keys = camera?.length ? camera : [{ frame: 0, x: width / 2, y: height / 2, zoom: 1 }];
+    return keys.flatMap((c, i) => {
+      const half = { x: width / 2 / c.zoom, y: height / 2 / c.zoom };
+      const up = (keys[i + 1]?.frame ?? Infinity) > b.start && (b.end === undefined || c.frame < b.end);
+      return up && Math.abs(p0.x - c.x) < half.x && Math.abs(p0.y - c.y) < half.y ? [{ x: c.x, y: c.y, half, k: height / 1080 / c.zoom }] : [];
+    });
+  };
   type Mark = { q: XY; w: number };
-  const badgeCost = (p: XY, marks: readonly Mark[], views: ReturnType<typeof viewsFor>) => {
-    const seen = views.filter((vw) => p.x - 95 * vw.k > vw.x - vw.half.x && p.x + 95 * vw.k < vw.x + vw.half.x && p.y - 240 * vw.k > vw.y - vw.half.y && p.y + 20 * vw.k < vw.y + vw.half.y).length;
-    return (views.length - seen) * 100 + marks.reduce((a, m) => a + (m.q === p ? 0 : hides(p, m.q) ? m.w : under(p, m.q) ? m.w / 2 : 0), 0);
+  const badgeCost = (p: XY, marks: readonly Mark[], views: readonly View[], shown: readonly View[] = []) => {
+    const seen = views.filter((vw) => whole(p, vw, 240)).length;
+    const cut = shown.filter((vw) => !whole(p, vw, 160)).length;
+    return (views.length - seen) * 100 + cut * 30 + marks.reduce((a, m) => a + (m.q === p ? 0 : hides(p, m.q) ? m.w : under(p, m.q) ? m.w / 2 : 0), 0);
   };
   // A writer's badge standing on the close map moves a little off what it hides (Belgrade's fourth trial: Mehmed's badge
   // stood on his own retreating tokens): up to three steps of ~55 px round its place, each step costing a little, so it
@@ -1398,8 +1445,9 @@ function projectGeoMap(
         if (!p0 || b.path.length !== 1) return b;
         const marks = [...fixed, ...tokensFrom(b.start), ...badges.flatMap((o) => (o !== b && o.path[0] ? [{ q: o.path[0], w: 5 }] : []))];
         const views = viewsFor(opts.badgeLines?.get(b.castId) ?? []);
+        const shown = shownViews(b, p0);
         const spots = [p0, ...[1, 2, 3].flatMap((d) => Array.from({ length: 8 }, (_, j) => ({ x: r1(p0.x + Math.cos((j * Math.PI) / 4) * d * 55 * px), y: r1(p0.y + Math.sin((j * Math.PI) / 4) * d * 55 * px) })))];
-        const cost = (p: XY, i: number) => badgeCost(p, marks, views) + Math.ceil(i / 8) * 1.5;
+        const cost = (p: XY, i: number) => badgeCost(p, marks, views, shown) + Math.ceil(i / 8) * 1.5;
         const best = spots.reduce((a, p, i) => (cost(p, i) < cost(a.p, a.i) ? { p, i } : a), { p: p0, i: 0 });
         return best.i ? { ...b, path: [best.p] } : b;
       })

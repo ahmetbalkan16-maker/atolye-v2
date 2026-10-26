@@ -1620,6 +1620,51 @@ async function main() {
     assert.deepEqual(withRouteZoom(withMap).scenes, [ep.sahneler[0]!.id]);
   });
 
+  await scenario("O29 Kosovo 1389 final review (26 Oct 2026): a silent badge stays whole in the picture; an arrow's name keeps off the tokens and off the speaker's words", () => {
+    const ep = sampleEpisode();
+    const cast: Episode["oyuncu_kadrosu"] = [
+      ep.oyuncu_kadrosu[0]!,
+      { ...castBase, id: "bayezid", ad: "Bayezid", rol: "Murad's son", renk: "#3fae3a", ses_id: "bayezid" },
+      { ...castBase, id: "lazar", ad: "Prince Lazar", rol: "Serbian ruler", renk: "#3a5eb3", ses_id: "lazar" },
+    ];
+    // The video's s7: Bayezid's counterattack from his badge up through both fronts, Lazar's badge near the top edge.
+    const turn: Episode["sahneler"][number] = {
+      ...ep.sahneler[0]!,
+      id: "s7-battle-turns",
+      mekan: "Close map: Kosovo field",
+      harita: {
+        merkez: [21.05, 42.68],
+        genislik_km: 12,
+        birlikler: [
+          { taraf: "Ottomans", renk: "#3fae3a", amblem: "hilal", sayi: 5, yerler: [{ satir: 0, cephe: [[21.03, 42.683], [21.07, 42.683]] }] },
+          { taraf: "Serbian Coalition", renk: "#3a5eb3", amblem: "kalkan", sayi: 4, yerler: [{ satir: 0, cephe: [[21.03, 42.69], [21.07, 42.69]] }] },
+        ],
+        rozetler: [{ karakter: "bayezid", konum: [21.05, 42.674], satir: 0 }, { karakter: "lazar", konum: [21.035, 42.703], satir: 0 }],
+        oklar: [{ noktalar: [[21.05, 42.678], [21.05, 42.694]], renk: "#3fae3a", etiket: "Bayezid's counterattack", satir: 0, bitis_satir: 2 }],
+      },
+      satirlar: [
+        { karakter: "anlatici", metin: "Bayezid takes command and counterattacks.", duygu: "notr" },
+        { karakter: "bayezid", metin: "Dad's out, I'm in.", duygu: "kararli", balon: "New management!" },
+        { karakter: "anlatici", metin: "The Serbian coalition collapses.", duygu: "notr" },
+      ],
+    };
+    const square = [[[19, 41], [23, 41], [23, 44], [19, 44], [19, 41]] as const] as const;
+    const episode: Episode = { ...ep, donem: "1389", oyuncu_kadrosu: cast, sahneler: [turn] };
+    const tl = buildTimeline(episode, [[fakeAudio(3), fakeAudio(2.5), fakeAudio(3)]]);
+    const plan = buildRenderPlan({ episode, timeline: tl, cast: toRenderCast(cast, "kukla"), accessories: [], backgrounds: [{ src: "bg/harita-zemin.png", kind: "archival" }], mapData: { land: [square], lakes: [], rivers: [], countries: new Map() } as never, fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const m = plan.shots.find((s) => s.id === "s7-battle-turns")!.geoMap!;
+    const lazar = m.badges!.find((b) => b.castId === "lazar")!.path[0]!;
+    assert.ok(lazar.y - 140 >= 0 && lazar.y < 1080, `Lazar's portrait is not cut at the top edge: ${JSON.stringify(lazar)}`);
+    const ar = m.arrows[0]!;
+    const box = nameBox(ar.label!, 32, Boolean(m.relief));
+    const name = { x0: ar.labelX! - box.w / 2, y0: ar.labelY! - box.h / 2, x1: ar.labelX! + box.w / 2, y1: ar.labelY! + box.h / 2 };
+    const hit = (r: { x0: number; y0: number; x1: number; y1: number }) => r.x0 < name.x1 && name.x0 < r.x1 && r.y0 < name.y1 && name.y0 < r.y1;
+    for (const side of m.units!) for (const p of side.steps[0]!.points) assert.ok(!hit({ x0: p.x - 34, y0: p.y - 34, x1: p.x + 34, y1: p.y + 34 }), `the arrow's name is off the token at ${p.x},${p.y}: ${JSON.stringify(name)}`);
+    const bay = m.badges!.find((b) => b.castId === "bayezid")!.path[0]!;
+    assert.ok(!hit({ x0: bay.x - 200, y0: bay.y - 240, x1: bay.x + 200, y1: bay.y + 6 }), "nor under Bayezid's badge and his words");
+    assert.ok(name.x0 >= 0 && name.x1 <= 1920 && name.y0 >= 0 && name.y1 <= 1080, "inside the picture");
+  });
+
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
 }
 

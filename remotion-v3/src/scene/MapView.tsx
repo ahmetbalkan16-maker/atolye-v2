@@ -644,7 +644,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration 
           );
         })}
         {/* Each side's unit tokens: fronts, clusters, sieges, sliding with the lines; clashes where they meet. */}
-        <UnitTokens map={map} frame={frame} fps={fps} k={k} />
+        <UnitTokens map={map} frame={frame} fps={fps} k={k} view={{ x0: cam.x - W / 2 / cam.zoom, y0: cam.y - H / 2 / cam.zoom, x1: cam.x + W / 2 / cam.zoom, y1: cam.y + H / 2 / cam.zoom }} />
         <MapVehicles map={map} frame={frame} fps={fps} k={k} travelS={marchSeconds} />
         {/* Glowing states, rings round places, flames, white flags (DFT Tarih's marks). */}
         <MapMarks map={map} frame={frame} fps={fps} k={k} label={(t, s) => markLabel(t, s)} />
