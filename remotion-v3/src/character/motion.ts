@@ -21,7 +21,30 @@ export interface PerformerState {
   readonly eyesClosed: number;
   readonly effects: readonly { readonly effect: V3Effect; readonly progress: number }[];
   readonly seated: boolean;
+  /** 0 standing .. 1 lying on the back (struck down, V3Performer.falls). */
+  readonly fallen?: number;
 }
+
+/**
+ * How long the topple takes; how high the body rests off its heels when down (its back's half depth); how far it slides
+ * the way it faced as it goes, so it lies across where it stood instead of off the frame edge behind it (Kosovo 1389
+ * preview: Murad's head went out of the picture).
+ */
+const FALL_S = 0.45;
+const FALL_BOUNCE_S = 0.25;
+export const FALL_LIFT = 60;
+export const FALL_SHIFT = 240;
+
+/** How far over the body is `t` seconds after the blow: slow, then fast as it drops, one small bounce on the ground. */
+export function fallProgress(t: number): number {
+  if (t <= 0) return 0;
+  if (t < FALL_S) return (t / FALL_S) ** 2;
+  const b = (t - FALL_S) / FALL_BOUNCE_S;
+  return b >= 1 ? 1 : 1 - 0.07 * Math.sin(b * Math.PI);
+}
+
+/** The fallen body's transform about the heels (character space), as Character draws it. */
+export const fallTransform = (fallen: number) => `translate(${FALL_SHIFT * Math.min(1, fallen)} ${-FALL_LIFT * Math.min(1, fallen)}) rotate(${-90 * fallen})`;
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const smoothstep = (t: number) => t * t * (3 - 2 * t);
@@ -258,6 +281,10 @@ export function performerState(p: V3Performer, frame: number, fps: number): Perf
     .filter((e) => frame >= e.start && frame < e.end)
     .map((e) => ({ effect: e.effect, progress: (frame - e.start) / Math.max(1, e.end - e.start) }));
 
+  // Struck down: the eyes shut once the body is on the ground (half open while they still have a word to say).
+  const fallen = p.falls !== undefined ? fallProgress((frame - p.falls) / fps) : 0;
+  if (fallen > 0.9) eyesClosed = Math.max(eyesClosed, speaking ? 0.5 : 1);
+
   return {
     visible,
     x,
@@ -270,17 +297,21 @@ export function performerState(p: V3Performer, frame: number, fps: number): Perf
     eyesClosed,
     effects,
     seated: !!p.seated,
+    ...(fallen > 0 ? { fallen } : {}),
   };
 }
 
 /** Vertical stretch while a turn squeezes through its in-between, like a drawn turnaround. */
 export const turnStretch = (mirror: number) => 1 + 0.05 * (1 - Math.abs(mirror));
 
-/** Head centre in character space after lean/bob/squash, for overlays drawn outside the mirrored group. */
-export function headCenter(pose: Pose): Point {
+/** Head centre in character space after lean/bob/squash (and a fall), for overlays drawn outside the mirrored group. */
+export function headCenter(pose: Pose, fallen = 0): Point {
   const a = (pose.lean * Math.PI) / 180;
   const dy = HEAD_CY - HIP_Y;
   const x = -Math.sin(-a) * dy * -1;
   const y = HIP_Y + Math.cos(a) * dy;
-  return { x: x * (1 / Math.sqrt(pose.squash)), y: (y + pose.bob) * pose.squash };
+  const up = { x: x * (1 / Math.sqrt(pose.squash)), y: (y + pose.bob) * pose.squash };
+  if (fallen <= 0) return up;
+  const r = (-90 * fallen * Math.PI) / 180;
+  return { x: up.x * Math.cos(r) - up.y * Math.sin(r) + FALL_SHIFT * Math.min(1, fallen), y: up.x * Math.sin(r) + up.y * Math.cos(r) - FALL_LIFT * Math.min(1, fallen) };
 }

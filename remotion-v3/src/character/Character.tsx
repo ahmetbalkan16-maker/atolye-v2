@@ -3,7 +3,7 @@ import type { V3Accessory, V3CastMember } from "../../../src/lib/v3/render/Rende
 import { Arm } from "./Arms";
 import { HairBack, HairTop, Head } from "./Face";
 import { CapeBack, CapeFront, GarmentBody, Legs, sleeveFor } from "./Garments";
-import type { PerformerState } from "./motion";
+import { fallTransform, type PerformerState } from "./motion";
 import { HEAD_CY, HIP_Y, INK, NECK_Y, SHOULDER_Y } from "./rig";
 
 /** How far a seated torso drops onto the seat. */
@@ -43,14 +43,16 @@ export function Character({ member, state, accessories, cheap = false }: { membe
   // The Byzantine robe draws its own imperial cape.
   const cape = style === "kukla" && costume.cape && costume.garment !== "bizans" ? costume.cape : undefined;
   const bodyTransform = `translate(0 ${pose.bob + drop}) rotate(${pose.lean} 0 ${HIP_Y})`;
+  // Struck down: the whole figure topples over backwards about its heels; the shadow stretches under the lying body.
+  const fallen = state.fallen ?? 0;
 
   return (
     <g>
-      <g transform={`scale(${shadowK} ${shadowK})`} opacity={shadowK}>
+      <g transform={`translate(${-fallen * 25} 0) scale(${shadowK * (1 + fallen * 1.9)} ${shadowK})`} opacity={shadowK}>
         {cheap ? null : <ellipse cx={4} cy={0} rx={128} ry={26} fill="#120c18" opacity={0.32} filter="url(#v3-golge)" />}
         <ellipse cx={2} cy={-1} rx={84} ry={13} fill="#120c18" opacity={0.42} />
       </g>
-      <g transform={`scale(${inv} ${pose.squash})`}>
+      <g transform={`${fallen > 0 ? `${fallTransform(fallen)} ` : ""}scale(${inv} ${pose.squash})`}>
         {cape ? (
           <g transform={bodyTransform}>
             <CapeBack color={cape} seated={state.seated} />

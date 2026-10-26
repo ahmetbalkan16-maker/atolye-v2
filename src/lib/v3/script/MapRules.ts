@@ -179,6 +179,26 @@ function nameWord(ad: string): string | undefined {
 
 const mentions = (text: string, word: string | undefined) => !!word && new RegExp(`(^|[^\\p{L}])${word}`, "iu").test(text);
 
+/** A death told (not a capture: a captured ruler is led away, not struck down). */
+const KILLED = /\b(?:killed|slain|dies|died|dead|assassinated|executed|beheaded|murdered|stabbed to death|falls in battle|fell in battle)\b|öldü|öldürül|şehit|idam/iu;
+/** Words before it that keep the death from having happened ("would be killed", "tries to kill", "nearly died"). */
+const NOT_YET = /\b(?:will|would|could|might|may|nearly|almost|tries|tried|try|plans?|planned|plots?|plotted|if|unless)\b/iu;
+/** Turkish says it on the word itself: the future and "must" ("öldürülecek", "ölmeli"). */
+const NOT_YET_SUFFIX = /ecek|acak|eceğ|acağ|meli|malı/iu;
+
+/**
+ * The words that tell a cast member killed in a line naming them (Kosovo 1389: "Murad I is assassinated"), with where
+ * they stand in the text (0..1); undefined when the line does not name them or tells no death that has happened.
+ */
+export function toldKilled(text: string, ad: string): { word: string; at: number } | undefined {
+  if (!mentions(text, nameWord(ad))) return undefined;
+  const m = KILLED.exec(text);
+  if (!m) return undefined;
+  const whole = /^\p{L}+/u.exec(text.slice(m.index))?.[0] ?? m[0];
+  if (NOT_YET.test(text.slice(0, m.index)) || NOT_YET_SUFFIX.test(whole)) return undefined;
+  return { word: m[0], at: m.index / Math.max(1, text.length) };
+}
+
 /**
  * The director's pass over the battle maps (owner, 23 Oct 2026: "what you fixed by hand, our own brains must do"; the
  * Kosovo 1389 trial was directed by hand): on a close map a commander's badge appears with the line that first names

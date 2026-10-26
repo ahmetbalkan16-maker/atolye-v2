@@ -82,7 +82,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
     if (!m || !s.visible) continue;
     const st = stageTransform(s.x, p.depth, W, H);
     const k = st.scale * m.scale;
-    const hc = headCenter(s.pose);
+    const hc = headCenter(s.pose, s.fallen);
     const ride = p.mount ? { x: SADDLE_X, y: SADDLE_Y - HIP_Y } : { x: 0, y: 0 };
     const centre = toScreen(st.px + (hc.x + ride.x) * k * s.mirror, st.py + (hc.y + ride.y + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror));
     // Headwear (turbans, crowns) reaches about one head radius above the head.
@@ -239,7 +239,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
               if (!m || !s.visible || s.effects.length === 0) return null;
               const st = stageTransform(s.x, p.depth, W, H);
               const k = st.scale * m.scale;
-              const hc = headCenter(s.pose);
+              const hc = headCenter(s.pose, s.fallen);
               const hx = st.px + hc.x * k * s.mirror;
               const hy = st.py + (hc.y + (p.mount ? SADDLE_Y - HIP_Y : 0) + (s.seated ? 58 : 0)) * k * turnStretch(s.mirror);
               return (

@@ -153,6 +153,8 @@ export interface V3Performer {
   readonly speaking: readonly { readonly start: number; readonly end: number }[];
   /** Head turns towards whoever is talking. */
   readonly turns?: readonly { readonly frame: number; readonly facing: "left" | "right" }[];
+  /** The frame a line tells them killed: they topple over backwards there and stay down to the shot's end. */
+  readonly falls?: number;
 }
 
 export interface V3CameraKey {

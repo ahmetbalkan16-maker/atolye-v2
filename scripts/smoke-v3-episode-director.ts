@@ -25,7 +25,7 @@ import { backgroundStates, buildGeoMap, clipRing, deepFront, separateFronts, spa
 import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
-import { directBattleMaps, mapProblems, shareProblems } from "../src/lib/v3/script/MapRules";
+import { directBattleMaps, mapProblems, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
 import { mapSpeakers, sideStems } from "../src/lib/v3/maps/MapSpeakers";
 import { closeTiles, reliefSize } from "../src/lib/v3/maps/Relief";
 import { assembleLand, chainWays, inland, simplifyLine } from "../src/lib/v3/maps/CloseCoast";
@@ -1663,6 +1663,39 @@ async function main() {
     const bay = m.badges!.find((b) => b.castId === "bayezid")!.path[0]!;
     assert.ok(!hit({ x0: bay.x - 200, y0: bay.y - 240, x1: bay.x + 200, y1: bay.y + 6 }), "nor under Bayezid's badge and his words");
     assert.ok(name.x0 >= 0 && name.x1 <= 1920 && name.y0 >= 0 && name.y1 <= 1080, "inside the picture");
+  });
+
+  await scenario("O30 Kosovo 1389 final review: a character a line tells killed falls on the stage at that word and stays down; a death to come or a capture does not", () => {
+    assert.deepEqual(toldKilled("Murad I is assassinated—the only Ottoman sultan ever killed in battle.", "Murad I"), { word: "assassinated", at: 11 / 70 });
+    assert.equal(toldKilled("Today: the only Ottoman sultan ever killed in battle.", "Murad I"), undefined, "the line does not name him");
+    assert.equal(toldKilled("Murad would be killed before sunset.", "Murad I"), undefined, "not yet");
+    assert.equal(toldKilled("Lazar is captured.", "Prince Lazar"), undefined, "a capture is no fall");
+    assert.equal(toldKilled("Murad çadırında öldürülecek.", "Murad I"), undefined, "Turkish future");
+    assert.ok(toldKilled("Murad çadırında öldürüldü.", "Murad I"));
+    const ep = sampleEpisode();
+    const cast: Episode["oyuncu_kadrosu"] = [
+      ep.oyuncu_kadrosu[0]!,
+      { ...castBase, id: "murad", ad: "Murad I", rol: "Ottoman Sultan", renk: "#b3263a", ses_id: "murad" },
+      { ...castBase, id: "milos", ad: "Miloš Obilić", rol: "Serbian knight", renk: "#4e4eb7", ses_id: "milos" },
+    ];
+    const tent: Episode["sahneler"][number] = {
+      ...ep.sahneler[0]!,
+      id: "s6-tent",
+      satirlar: [
+        { karakter: "milos", metin: "Message for the Sultan!", duygu: "sinsi" },
+        { karakter: "anlatici", metin: "Murad I is assassinated in his tent.", duygu: "notr" },
+        { karakter: "murad", metin: "Well, that escalated quickly.", duygu: "saskin" },
+      ],
+    };
+    const episode: Episode = { ...ep, donem: "1389", oyuncu_kadrosu: cast, sahneler: [tent] };
+    const audio = (d: number, words: string[]): LineAudio => ({ ...fakeAudio(d), words: words.map((text, i) => ({ text, start: (i * d) / words.length, end: ((i + 1) * d) / words.length })) });
+    const tl = buildTimeline(episode, [[fakeAudio(2), audio(3, ["Murad", "I", "is", "assassinated", "in", "his", "tent."]), fakeAudio(2)]]);
+    const plan = buildRenderPlan({ episode, timeline: tl, cast: toRenderCast(cast, "kukla"), accessories: [], backgrounds: [{ src: "bg/cadir.png", kind: "archival" }], fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const shot = plan.shots.find((s) => s.id === "s6-tent")!;
+    const murad = shot.performers.find((p) => p.castId === "murad")!;
+    const told = tl.lines.find((l) => l.lineIndex === 1)!;
+    assert.equal(murad.falls, Math.round(told.start * 30) - shot.start + Math.round((3 / 7) * 3 * 30), "at the word 'assassinated'");
+    assert.equal(shot.performers.find((p) => p.castId === "milos")!.falls, undefined, "the killer stays up");
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

@@ -32,6 +32,7 @@ import { eraOf, periodEndYear } from "../episode/Period";
 import type { CloseCoast } from "../maps/CloseCoast";
 import { buildGeoMap, type MapData, mapOnScreen, mapStageX, withCoast } from "../maps/MapBuilder";
 import { mapSpeakers } from "../maps/MapSpeakers";
+import { toldKilled } from "../script/MapRules";
 import type { EpisodeTimeline, LineTiming } from "../timeline/Timeline";
 
 /** A scene's period image, cut in over the set while the narrator speaks. */
@@ -791,6 +792,22 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const props: V3Prop[] = (scene.dekor ?? []).map((d) => ({ kind: d.tur, x: d.x, depth: d.derinlik ?? 0.3, ...(d.olcek ? { scale: d.olcek } : {}), ...(d.ters ? { flip: true } : {}) }));
     for (const s of slots.values()) if (s.seated && !props.some((p) => p.kind === "taht" && Math.abs(p.x - s.x) < 0.08)) props.push({ kind: "taht", x: s.x, depth: s.depth + 0.02, scale: 1.3 });
 
+    // Someone a line tells killed, in another's words, is struck down on the stage at that word and stays down (Kosovo
+    // 1389: Murad stood on after "Murad I is assassinated", Miloš's blade already through).
+    const falls = new Map<string, number>();
+    if (!geo)
+      for (const lt of lines) {
+        const line = scene.satirlar[lt.lineIndex]!;
+        for (const id of tracks.keys()) {
+          const c = episode.oyuncu_kadrosu.find((x) => x.id === id);
+          const told = c && !falls.has(id) && line.karakter !== id ? toldKilled(line.metin, c.ad) : undefined;
+          if (!told) continue;
+          const stem = told.word.toLocaleLowerCase("en-US").slice(0, 6);
+          const word = lt.words.find((w) => w.text.toLocaleLowerCase("en-US").includes(stem));
+          falls.set(id, local(lt.start) + (word ? f(word.start) : Math.round((local(lt.end) - local(lt.start)) * told.at)));
+        }
+      }
+
     const performers: V3Performer[] = [...tracks.entries()].map(([id, t]) => {
       const s = slots.get(id)!;
       const faces = dedupeByStart(t.faces);
@@ -808,6 +825,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         effects: t.effects,
         speaking: t.speaking,
         turns: t.turns,
+        ...(falls.has(id) ? { falls: falls.get(id)! } : {}),
       };
     });
 
