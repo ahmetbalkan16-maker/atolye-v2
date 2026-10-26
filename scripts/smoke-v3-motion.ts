@@ -7,8 +7,15 @@
 import assert from "node:assert/strict";
 import { performerState, type PerformerState } from "../remotion-v3/src/character/motion";
 import { cameraAt, filmCamera } from "../remotion-v3/src/scene/camera";
-import { gunfireAt, placeTokens } from "../remotion-v3/src/scene/MapUnits";
 import type { V3CameraKey, V3GeoMap, V3Performer, V3Viseme } from "../src/lib/v3/render/RenderPlanTypes";
+
+// MapUnits.tsx imports "remotion", which only remotion-v3/node_modules provides. A static import pulls it into the root
+// type check, and the live snapshot (root `npm ci` only) then fails `next build` with TS2307 — so it loads at run time.
+interface MapUnitsModule {
+  placeTokens(map: V3GeoMap, frame: number, fps: number, k: number): ({ x: number; y: number; lostAt?: number } | undefined)[][];
+  gunfireAt(map: V3GeoMap, frame: number, fps: number): { ui: number; ti: number; p: number; gun: boolean; shot: number }[];
+}
+const MAP_UNITS: string = "../remotion-v3/src/scene/MapUnits";
 
 const FPS = 30;
 const FRAMES = 420;
@@ -84,6 +91,7 @@ function metrics(values: readonly number[]): Metrics {
 }
 
 async function main() {
+  const { gunfireAt, placeTokens } = (await import(MAP_UNITS)) as MapUnitsModule;
   const states = Array.from({ length: FRAMES }, (_, f) => performerState(performer, f, FPS));
   const table = CHANNELS.map((c) => ({ c, m: metrics(states.map(c.get)) }));
   for (const { c, m } of table) {

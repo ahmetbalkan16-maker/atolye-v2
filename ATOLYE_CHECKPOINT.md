@@ -17,7 +17,14 @@ lost-response-recheck 13, development-center 63, approval-durable-state-compatib
 executive-briefing 30, homepage-v2 11, micro-batch-development-center 27, owner-exact-preview 20, publication-activity 13,
 autonomy-observer 25. Canlı kayıtla salt-okunur deneme: 17 öneri artık INFORMATIONAL.
 
-**Kalan:** canlıya çıkması için canonical'a ff + yayın (otomatik canlı yayın ya da owner onayı).
+**Canlıya alma (owner: "tamam canlıya al"):** canonical `55d70f40`'a ilerletildi. Bugünkü otomatik canlı yayınların
+hepsi (`6af561a3`, `100df769`, `ee67240c`, ikişer deneme) aynı yerde düşmüştü; canlı `49a4ee5b`'de kaldı. Neden:
+`ead9d21e` ile `scripts/smoke-v3-motion.ts` `remotion-v3/src/scene/MapUnits.tsx`'i statik içe aktarıyor, o da
+`remotion`'a bağlı; snapshot yalnız kök `npm ci` yaptığından `next build` tip kontrolü TS2307 veriyor
+(`D:\ÜRETİM\private\temp\live-publish-<sha>\prepare.log`). Düzeltme: smoke MapUnits'i çalışma anında yükler (tipli
+arayüz). `remotion-v3/node_modules` olmayan geçici worktree'de eski dosya aynı TS2307'yi verdi, yenisi `tsc` temiz.
+**Kural:** kök tsconfig'in gördüğü bir dosya (`scripts/**`, `src/**`) `remotion`'u içe aktaran bir remotion-v3 modülünü
+statik içe aktarmamalı; saf mantık remotion'suz modülde (`camera.ts`, `unitLayout.ts`) olmalı.
 
 ## 26 Ekim 2026 (gece) — V3 Mohaç denemelerinin üç zayıflığı düzeltildi; savaş haritası ordulara oturur
 
