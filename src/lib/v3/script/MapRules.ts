@@ -295,21 +295,24 @@ export function directBattleMaps(episode: Episode): { episode: Episode; fixes: s
         });
         return { ...u, yerler };
       });
-      // A unit's charge or sweep (Tactics) is drawn as it goes, in its colour with its name: the tactics read on the map
-      // as the narrator tells them (owner, 26 Oct 2026: "taktiği daha net gösteriyorlar").
+      // A unit's charge or sweep (Tactics) is drawn as it goes, in its colour: the tactics read on the map as the narrator
+      // tells them (owner, 26 Oct 2026: "taktiği daha net gösteriyorlar"). Its name shows at the unit itself while it
+      // moves (the arrow's own label was pushed far off by a crowded field: "VUK BRANKOVIC" stood away from his arrow).
       for (const u of birlikler)
         for (const y of u.yerler) {
-          if ((y.hareket !== "hucum" && y.hareket !== "kusat") || !y.satir || oklar.some((o) => o.satir === y.satir && o.renk === u.renk && (!u.ad || o.etiket === u.ad))) continue;
+          if ((y.hareket !== "hucum" && y.hareket !== "kusat") || !y.satir) continue;
           const before = at(u, y.satir, true);
           const [p0, p1] = [before ? formationAt(before) : undefined, formationAt(y)];
           if (!p0 || !p1 || distanceKm(p0, p1) < step) continue;
+          const drawn = oklar.some((o) => o.satir === y.satir && o.renk === u.renk && distanceKm(o.noktalar[o.noktalar.length - 1]! as [number, number], p1) < Math.max(step, distanceKm(p0, p1) * 0.3));
+          if (drawn) continue;
           const way: [number, number][] = y.uzerinden ? [p0, [y.uzerinden[0], y.uzerinden[1]], p1] : [p0, p1];
           // A little short at both ends (the tokens stay readable).
           const first = way[1]!;
           const last = way[way.length - 2]!;
           way[0] = [p0[0] + (first[0] - p0[0]) * 0.12, p0[1] + (first[1] - p0[1]) * 0.12];
           way[way.length - 1] = [p1[0] + (last[0] - p1[0]) * 0.12, p1[1] + (last[1] - p1[1]) * 0.12];
-          oklar.push({ noktalar: way, renk: u.renk, satir: y.satir, ...(u.ad ? { etiket: u.ad } : {}), ...(y.satir + 1 < s.satirlar.length ? { bitis_satir: y.satir + 1 } : {}) });
+          oklar.push({ noktalar: way, renk: u.renk, satir: y.satir, ...(y.satir + 1 < s.satirlar.length ? { bitis_satir: y.satir + 1 } : {}) });
           fixes.push(`${s.id}: ${u.ad ?? u.taraf} ${y.satir}. satırda ${y.hareket === "kusat" ? "kanadı dolaşır" : "hücum eder"} — hareket oku`);
         }
       s.satirlar.forEach((l, li) => {

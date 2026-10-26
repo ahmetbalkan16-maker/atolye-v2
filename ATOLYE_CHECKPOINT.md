@@ -26,6 +26,15 @@ kullan" (remotion-best-practices: kareye bağlı interpolate + yumuşak eğri ku
 **Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke script 22 (yeni taktik), motion 10,
 mix 16, episode-director 50, council 12, render 5, backgrounds 20, likeness 14, youtube 5, ayas-video-order 8.
 
+**Ek (aynı akşam, owner'ın yanlışlıkla gönderdiği "kaldığın yerden devam et" ile):** canlıya alma yapıldı
+(`6af561a3`, Graphify iki repoda GRAPH_CURRENT). Müdahalesiz yazar denemesi `--yalniz-senaryo` Mohaç 1526 (3 dk, $0,40):
+yazar taktik dilini kendisi kullandı (Osmanlı: tüfekçi merkez, sipahi sağ kanat kuşatır, topçu arka; Macar: piyade
+merkez hücum + bozgun, iki süvari kanadı geri). Zayıflıklar: savaş tek anlatıcı satırına sıkışmış, hareketler espri
+satırlarında; toplar Yeniçerilerin arkasında (Mohaç'ta öndeydi); topçu/tüfekçi ateş etmiyor. Önizleme
+`karsilastirma/mohac-taktik-2026-10-26/onizleme/`. Barut ses klibi yeni oranla: `karsilastirma/savas-sesi-barut-v2-2026-10-26/`
+(134 misket, 18 top, 31 kılıç; Whisper 50/50). Taktik okundan birlik adı kaldırıldı (ad birliğin yanında çıkıyor).
+Owner'a sorulacak: bu zayıflıklar düzeltilsin mi (adım adım anlatım kuralı, topların yeri, topçu/tüfekçi ateş dumanı).
+
 **Kalan (sonraki oturum, owner "token azaldı, güvenli dur" dedi):**
 1. Canlıya alma: `feature/cop-adam-v3` → `wip/ayas-graphify-final-execution` push, canonical pull, Graphify (iki repo).
    Bu oturumda yapılmadıysa ilk iş.
