@@ -9,7 +9,9 @@ import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
-import { BATTLE_LUFS, battleEvents, battleWindows, CLASHES_PER_S, splitHits, windowGain } from "../src/lib/v3/mix/BattleBed";
+import { armsOf } from "../src/lib/v3/episode/Period";
+import { readWavPcm16 } from "../src/lib/v3/lipsync/LipSync";
+import { BATTLE_LUFS, BED_RATES, battleCredit, battleEvents, battleLibrary, battleWindows, splitHits, VOLLEY_SHOTS, VOLLEY_SPREAD_S, windowGain } from "../src/lib/v3/mix/BattleBed";
 import { AMBIENCE_LUFS, ambienceChain, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
@@ -172,6 +174,9 @@ async function main() {
     const tlSiege = { duration: 4, scenes: [{ sceneIndex: 0, start: 0, end: 4 }], lines: [{ sceneIndex: 0, lineIndex: 0, start: 0, end: 2 }, { sceneIndex: 0, lineIndex: 1, start: 2, end: 4 }] } as unknown as EpisodeTimeline;
     assert.deepEqual(sfxCues(siege, tlSiege).map((c) => [c.id, Math.round(c.t * 10) / 10]), [["dalga", 0.2], ["basari", 2], ["kilic", 2.2], ["top_atisi", 2.4], ["kilic", 3.4], ["kilic", 4.4], ["top_atisi", 4.6]]);
     assert.ok(!sfxCues({ ...siege, donem: "MÖ 49" } as Episode, tlSiege).some((c) => c.id === "top_atisi"), "no cannon before gunpowder");
+    // A 20th-century battle has no swords: the marker and a falling token are shells.
+    const somme = sfxCues({ ...siege, donem: "1916" } as Episode, tlSiege);
+    assert.ok(!somme.some((c) => c.id === "kilic") && somme.some((c) => c.id === "top_atisi"), JSON.stringify(somme));
     // A fleet broken (the Belgrade trial): each ship lost splashes down at the tokens' pace; a lost gun is a blast.
     const sunk = { ...siege, sahneler: [{ ...siege.sahneler[0]!, harita: { merkez: [20.45, 44.82], genislik_km: 20, araclar: [{ tur: "gemi", renk: "#c0392b", sayi: 4, konum: [20.44, 44.83], satir: 0, kayip: 2, kayip_satir: 1 }, { tur: "top", renk: "#c0392b", konum: [20.43, 44.81], satir: 0, kayip: 1, kayip_satir: 1 }] } }] } as unknown as Episode;
     assert.deepEqual(sfxCues(sunk, tlSiege).filter((c) => c.id === "su" || c.id === "top_atisi").map((c) => [c.id, Math.round(c.t * 10) / 10]), [["su", 4.4], ["top_atisi", 4.4], ["su", 5.4]]);
@@ -392,11 +397,14 @@ async function main() {
     } as unknown as EpisodeTimeline;
     const w = battleWindows(ep, tl);
     assert.deepEqual(w.map((x) => [x.start, x.end, x.kind]), [[1, 9, "uzak"], [26, 38, "yakin"], [46, 58, "yakin"]], "marker 8 s; a fight from its first loss (1 s before) and a charge to the scene's end; no losses, no battle");
-    assert.deepEqual(battleWindows({ ...ep, donem: "1942" }, tl), [], "no swords in a modern war");
+    assert.deepEqual(battleWindows({ ...ep, donem: "1942" }, tl), w, "a modern war is heard too");
+    assert.deepEqual(battleWindows({ ...ep, donem: "the old days" }, tl), [], "no year, no weapons to guess");
     const ev = battleEvents(w, "kosovo");
     assert.deepEqual(ev, battleEvents(w, "kosovo"), "the same episode, the same battle");
+    assert.deepEqual(ev, battleEvents(w, "kosovo", "kilic"), "swords are the default age");
+    assert.deepEqual([...new Set(ev.map((e) => e.what))].sort(), ["kilic", "nara"]);
     const inClose = ev.filter((e) => e.t >= 26 && e.t <= 38 && e.what === "kilic").length / 12;
-    assert.ok(inClose > CLASHES_PER_S.yakin * 0.5 && inClose < CLASHES_PER_S.yakin * 1.6, `close fight: ${inClose.toFixed(1)} clashes/s`);
+    assert.ok(inClose > BED_RATES.kilic.yakin.kilic! * 0.5 && inClose < BED_RATES.kilic.yakin.kilic! * 1.6, `close fight: ${inClose.toFixed(1)} clashes/s`);
     assert.ok(ev.every((e) => w.some((x) => e.t >= x.start + 0.5 && e.t < x.end)), "nothing outside a battle");
     assert.ok(new Set(ev.filter((e) => e.what === "kilic").map((e) => e.variant % 16)).size >= 10, "many different swords");
     assert.equal(windowGain(w, 0.5), 0);
@@ -409,6 +417,43 @@ async function main() {
     assert.equal(sfxLibraryFiles(sfxDir, "whoosh").length, 1);
     assert.ok(BATTLE_LUFS > AMBIENCE_LUFS && BATTLE_DUCK_RATIO < 8, "heard under the narrator, more than the ambience");
     assert.equal(periodSfxPrompt("kilic", "orta"), undefined, "swords are recordings, never MOSS");
+  });
+
+  await scenario("battle bed by age: swords, then muskets, volleys and cannon, then rifles, machine guns and shells", () => {
+    // Owner, 26 Oct 2026: "top ve tüfek seslerini de bul, kaydet; başka bir video yapıldığında otomatik onu kullansın".
+    assert.deepEqual(["44 BC", "1389", "1453", "1815", "1899", "1916", "1942", ""].map(armsOf), ["kilic", "kilic", "barut", "barut", "barut", "modern", "modern", undefined]);
+    const w = [{ start: 0, end: 60, kind: "yakin" as const }, { start: 70, end: 90, kind: "uzak" as const }];
+    const kinds = (arms: "barut" | "modern") => new Set(battleEvents(w, "x", arms).map((e) => e.what));
+    assert.deepEqual([...kinds("barut")].sort(), ["kilic", "misket", "nara", "top_atisi"], "a gunpowder battle still clashes");
+    assert.deepEqual([...kinds("modern")].sort(), ["makineli", "nara", "patlama", "top_atisi", "tufek"], "no swords in a modern war");
+    // A volley: a line of muskets within VOLLEY_SPREAD_S, side by side.
+    const muskets = battleEvents(w, "x", "barut").filter((e) => e.what === "misket");
+    const volley = muskets.find((e, i) => muskets.slice(i, i + VOLLEY_SHOTS).every((m) => m.t - e.t <= VOLLEY_SPREAD_S));
+    assert.ok(volley, "at least one volley in a minute of gunpowder battle");
+    const shots = battleEvents(w, "x", "modern").filter((e) => e.t < 60 && e.what === "tufek").length / 59.5;
+    assert.ok(shots > BED_RATES.modern.yakin.tufek! * 0.5 && shots < BED_RATES.modern.yakin.tufek! * 1.6, `rifles: ${shots.toFixed(1)}/s`);
+    assert.ok(battleEvents(w, "x", "modern").every((e) => w.some((x) => e.t >= x.start + 0.5 && e.t < x.end)), "nothing outside a battle");
+    // An open-bolt gun: its bolt slams 30 ms before the first shot; the burst is still found.
+    const rate = 8000;
+    const burst = Float32Array.from({ length: rate * 2 }, (_, i) => {
+      const t = i / rate;
+      if (t >= 0.47 && t < 0.5) return 0.003 * Math.sin(i);
+      return 0.0002 * Math.sin(i) + (t >= 0.5 && t < 0.9 ? 0.7 * Math.exp(-40 * ((t - 0.5) % 0.07)) * Math.sin(i * 1.3) : 0);
+    });
+    assert.equal(splitHits(burst, rate, 3).length, 1, "the bolt does not hide the burst");
+    assert.ok(Math.abs(splitHits(burst, rate, 3)[0]!.from / rate - 0.49) < 0.03);
+    // The library (scripts/v3/sfx-barut.ts): every age's weapons, single shots and cannon each one blow.
+    const sfxDir = path.join(__dirname, "..", "public", "sfx");
+    const lib = battleLibrary(sfxDir);
+    if (lib.tufek.length) {
+      assert.ok(lib.tufek.length >= 8 && lib.misket.length >= 6 && lib.makineli.length >= 6 && lib.top_atisi.length >= 6 && lib.patlama.length >= 3, JSON.stringify(Object.fromEntries(Object.entries(lib).map(([k, v]) => [k, Array.isArray(v) ? v.length : v]))));
+      for (const f of [...lib.tufek, ...lib.misket, ...lib.top_atisi]) {
+        const { samples, sampleRate } = readWavPcm16(readFileSync(f));
+        assert.deepEqual(impactProblems(samples, sampleRate), [], path.basename(f));
+      }
+      assert.deepEqual(sfxLibraryFiles(sfxDir, "top_atisi"), lib.top_atisi, "a single cannon shot is a recording too");
+    }
+    assert.ok(!battleCredit("modern", true).includes("StillNorthMedia") && battleCredit("barut", true).includes("StillNorthMedia") && battleCredit("barut", true).includes("Free Firearm"));
   });
 
   await scenario("VoxCPM voices: style per emotion, description with accent, engine choice and the off switch", async () => {

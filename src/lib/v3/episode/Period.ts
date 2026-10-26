@@ -23,3 +23,17 @@ export function eraOf(donem: string): Era {
   if (year < 1450) return "orta";
   return "erken-modern";
 }
+
+/**
+ * What a battle of the period is fought with, for its sound: swords alone before gunpowder; swords, muskets and cannon
+ * from the siege guns of 1453 to the sabres of the 19th century; rifles, machine guns and artillery from 1900, no
+ * swords. Undefined when the period has no year (no battle sound rather than the wrong one).
+ */
+export type Arms = "kilic" | "barut" | "modern";
+
+export function armsOf(donem: string): Arms | undefined {
+  const year = periodEndYear(donem);
+  if (year === undefined) return undefined;
+  if (year < 1450) return "kilic";
+  return year < 1900 ? "barut" : "modern";
+}

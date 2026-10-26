@@ -29,11 +29,17 @@ const arg = (name: string) => {
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
 
-interface Source {
+export interface Source {
   readonly file: string;
   readonly sha256: string;
   readonly page: string;
   readonly author: string;
+  /** Where the file is downloaded from when not OpenGameArt's files folder. */
+  readonly url?: string;
+  /** The site named in the sidecar (OpenGameArt by default). */
+  readonly site?: string;
+  /** CC0 by default; a U.S. government work is "Public domain". */
+  readonly license?: string;
 }
 
 const SWORDS: readonly Source[] = [
@@ -50,7 +56,7 @@ const PER_TAKE = 3;
 const MAX_HITS = 16;
 const RATE = 48_000;
 
-async function fetchPinned(src: Source, dir: string): Promise<string> {
+export async function fetchPinned(src: Source, dir: string): Promise<string> {
   // `--kaynak <dir>`: archives downloaded before (a browser, curl) are taken from there; the pin checks them alike.
   const local = arg("--kaynak") ? path.join(arg("--kaynak")!, src.file) : undefined;
   let buf: Buffer;
@@ -58,7 +64,7 @@ async function fetchPinned(src: Source, dir: string): Promise<string> {
   else {
     // Streamed to disk by curl (Node's fetch held an 80 MB archive in memory and stalled for 15 minutes).
     const part = path.join(dir, `${src.file}.part`);
-    await runChecked("curl", ["-s", "-f", "-L", "--max-time", "1800", "-A", "Mozilla/5.0", "-o", part, `${OGA}/${src.file}`], { timeoutMs: 31 * 60_000 });
+    await runChecked("curl", ["-s", "-f", "-L", "--max-time", "1800", "-A", "Mozilla/5.0 (Atolye V3 sound library)", "-o", part, src.url ?? `${OGA}/${src.file}`], { timeoutMs: 31 * 60_000 });
     buf = await fs.readFile(part);
     await fs.rm(part, { force: true });
   }
@@ -69,13 +75,13 @@ async function fetchPinned(src: Source, dir: string): Promise<string> {
   return out;
 }
 
-async function unpack(archive: string, dir: string): Promise<void> {
+export async function unpack(archive: string, dir: string): Promise<void> {
   await fs.mkdir(dir, { recursive: true });
   const tar = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
   await runChecked(tar, ["-xf", archive, "-C", dir], { timeoutMs: 10 * 60_000 });
 }
 
-async function decode(ffmpeg: string, file: string, tmp: string): Promise<{ wav: string; samples: Float32Array }> {
+export async function decode(ffmpeg: string, file: string, tmp: string): Promise<{ wav: string; samples: Float32Array }> {
   const wav = path.join(tmp, `${createHash("sha256").update(file).digest("hex").slice(0, 12)}.wav`);
   const raw = `${wav}.f32`;
   await runChecked(ffmpeg, ["-v", "error", "-y", "-i", file, "-ac", "1", "-ar", String(RATE), "-c:a", "pcm_f32le", wav]);
@@ -91,9 +97,9 @@ function peakOf(samples: Float32Array, from = 0, to = samples.length): number {
   return p;
 }
 
-async function writeWithSidecar(out: string, title: string, src: Source, origin: string): Promise<void> {
+export async function writeWithSidecar(out: string, title: string, src: Source, origin: string): Promise<void> {
   const sha256 = createHash("sha256").update(await fs.readFile(out)).digest("hex");
-  await fs.writeFile(`${out}.license.json`, `${JSON.stringify({ title, source: `${src.author} (OpenGameArt), ${origin}; mono 48 kHz`, sourceUrl: src.page, license: "CC0", attribution: "", sha256, externalSamples: true }, null, 2)}\n`);
+  await fs.writeFile(`${out}.license.json`, `${JSON.stringify({ title, source: `${src.author} (${src.site ?? "OpenGameArt"}), ${origin}; mono 48 kHz`, sourceUrl: src.page, license: src.license ?? "CC0", attribution: "", sha256, externalSamples: true }, null, 2)}\n`);
   console.log(path.relative(process.cwd(), out));
 }
 

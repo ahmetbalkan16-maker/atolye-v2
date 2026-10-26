@@ -1,3 +1,43 @@
+## 26 Ekim 2026 (öğleden sonra) — V3 savaş sesi dönemine göre: barut çağında misket, yaylım ve top; 20. yüzyılda tüfek, makineli, top, patlama
+
+**Owner:** kılıç katmanı için "evet bu daha iyi olmuş"; "top ve tüfek seslerini de bul, kaydet; başka bir video
+yapıldığında otomatik onu kullansın".
+
+**Kaynaklar** (agent-reach/Jina Reader ile OpenGameArt, Wikimedia Commons API; her sayfanın lisansı okundu):
+- The Free Firearm Sound Library (Ben Jaszczak, Brian Nelson, Kevin Heras, Matthew Nanney; CC0; 96 kHz saha kaydı):
+  Springfield 1917, Arisaka, Mosin-Nagant tek atış; PPSh ve Carl Gustav m/45 seri atış; Model 1894, Marlin 336.
+- ABD Askerî Akademisi selam topu (Commons "01 Salute Cannon Reveille.ogg", PD-USGov): gerçek kara barut topu.
+- Thimras "Cannon fire" ve NenadSimic "Muffled Distant Explosion" (CC0).
+- Elenenler: qubodup deniz topu (sıkıştırılmış oyun sesi, ikinci yarısı tepeden 6 dB aşağıda, tek atış değil); Thimras
+  "cannon hit" (4,7 sn güverte gümbürtüsü); kurt "Gunshots/Black Powder" (yükleyen "bilgisayarımda buldum" diyor, kaynağı
+  belirsiz); Tabasco "Gunshot Sounds" (sayfa CC0, arşivin içi CC BY 3.0, çelişkili); Commons'taki top kayıtları CC BY-SA.
+  Kara barutlu misket için serbest kayıt yok: misket = Model 1894/Marlin/1917 atışı ×0,78 yavaş + 4,5 kHz altı.
+
+**Yapılan:**
+- `scripts/v3/sfx-barut.ts` (SHA-256 sabitli, `--kaynak`): 11 tüfek, 8 makineli, 8 misket, 8 top (`top_atisi-usma|thimras`,
+  dört hızda), 3 patlama → `public/sfx/battle/` (7 MB). Tek atışlar ve toplar `impactProblems`'tan geçer.
+  `sfx-savas.ts` yardımcıları paylaşıldı (Source: url/site/license; eski kılıç dosyalarının yan bilgisi aynı kalır).
+- `Period.armsOf`: 1450 öncesi `kilic`, 1450–1899 `barut`, 1900 ve sonrası `modern`; yılı olmayan dönemde savaş sesi yok.
+- `BattleBed`: `BED_RATES` çağa göre. Kılıç çağı Kosova'nın onaylı katmanıyla aynı (eski/yeni kod üç tohumda aynı olayları
+  üretir). Barut: kılıç 2/sn, misket 1/sn, yaylım (8 misket 0,4 sn içinde) 0,08/sn, top 0,15/sn. Modern: tüfek 2/sn,
+  makineli 0,3/sn, top 0,1/sn, patlama 0,12/sn, kılıç yok, uğultu daha kısık. `splitHits`: açık sürgülü silahta sürgünün
+  20–40 ms önceki sesi seri atışı gizliyordu; artık sessizlikten sonra 50 ms içinde gelen vuruş da sayılır (16 kılıç
+  kaydının bölünmesi değişmedi).
+- Mikser: 20. yüzyıl haritasında savaş işareti ve düşen pul kılıç değil top sesi; tek top atışı efekti artık gerçek
+  kayıtlar (sırayla). Jenerik kaynakları çağa göre yazar (`battleCredit`); `miks.json` `savas.silah` ve sayımlar.
+
+**Kanıt** (Kosova anlatımı 77–101 sn, müziksiz, aynı koşul): kılıç çağı 177 kılıç / 40 nara (öncekiyle aynı); barut 89
+kılıç, 73 misket, 14 top, 23 nara; modern 86 tüfek, 14 makineli, 5 top, 8 patlama, 13 nara. Whisper üçünde de 50/50
+sözcük. Yatak −26 LUFS, miks −14,3 LUFS / −1,5 dB tepe. Dinleme klibi:
+`v3-runtime/karsilastirma/savas-sesi-barut-2026-10-26/savas-sesi-cagina-gore.mp4` (yatakların yalnız hâlleri yanında).
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke mix 16 (yeni: çağa göre savaş
+katmanı, 1916 haritasında kılıç yok, açık sürgü), backgrounds 20, episode-director 50, council 12, render 5, script 21,
+youtube 5, ayas-video-order 8.
+
+**Sıradaki:** owner klibi dinler (top ve misket "bu ses mi?"). Sipariş izleyicisi yeniden başlatılmaz (yapim.ts
+değişmedi; her sipariş yeni süreçte kodu diskten okur).
+
 ## 26 Ekim 2026 (öğlen) — V3 ses beyni: üretilen müzik/efektteki sabit tiz vızıltı ölçülür ve temizlenir
 
 **Owner:** "son yapılan videoyu incele, arka planda savaş borazanı falan kötü bir cızırtı yapıyor; sana attığım linkteki

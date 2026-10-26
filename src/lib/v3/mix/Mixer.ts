@@ -2,7 +2,7 @@ import { existsSync, readdirSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
 import type { Episode, SceneMood, SfxId } from "../episode/EpisodeTypes";
-import { eraOf } from "../episode/Period";
+import { armsOf } from "../episode/Period";
 import { unitLossDelaysS } from "../maps/MapBuilder";
 import { readWavPcm16 } from "../lipsync/LipSync";
 import type { EpisodeTimeline } from "../timeline/Timeline";
@@ -155,12 +155,14 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
       const lt = o.yol?.length ? lineAt(o.yol_satir ?? o.satir ?? 0) : undefined;
       if (lt) cues.push({ t: lt.start + 0.1, id: "davul" });
     }
-    // A battle sounds like its age: swords before gunpowder, cannon fire after (and the swords still in the melee).
-    const era = scene.harita ? eraOf(episode.donem) : undefined;
-    const gun = era === "erken-modern" || era === "modern";
+    // A battle sounds like its age: swords before gunpowder, cannon fire after (and the swords still in the melee until
+    // 1900; a 20th-century battle has no swords, a token falls to a shell).
+    const arms = scene.harita ? armsOf(episode.donem) : undefined;
+    const gun = arms === "barut" || arms === "modern";
+    const blow: SfxId = arms === "modern" ? "top_atisi" : "kilic";
     for (const w of scene.harita?.savaslar ?? []) {
       const lt = lineAt(w.satir ?? 0);
-      if (lt) cues.push({ t: lt.start + 0.2, id: "kilic" });
+      if (lt && arms !== "modern") cues.push({ t: lt.start + 0.2, id: "kilic" });
       if (lt && gun) cues.push({ t: lt.start + 0.6, id: "top_atisi" });
     }
     // A fight between the tokens (owner, 22 Oct 2026): swords as the sides meet and with every token that falls.
@@ -170,7 +172,7 @@ export function sfxCues(episode: Episode, timeline: EpisodeTimeline): SfxCue[] {
         const lost = Math.min(alive, Math.max(0, Math.round(y.kayip ?? 0)));
         alive -= lost;
         const lt = lost > 0 ? lineAt(y.satir) : undefined;
-        if (lt) cues.push({ t: lt.start + 1.4, id: "kilic" }, ...unitLossDelaysS(lost).map((d) => ({ t: lt.start + d, id: "kilic" as const })));
+        if (lt) cues.push({ t: lt.start + 1.4, id: blow }, ...unitLossDelaysS(lost).map((d) => ({ t: lt.start + d, id: blow })));
       }
     }
     // Vehicles: the sea as a fleet sets out, the roar of a cavalry or elephant charge, a plane's rush; their fire.
