@@ -33,12 +33,8 @@ const WADING = "several people wading on foot through a shallow river, water spl
 
 const PERIOD_SFX: Readonly<Partial<Record<SfxId, Readonly<Record<Era, string>>>>> = {
   su: { antik: WADING, orta: WADING, "erken-modern": WADING, modern: WADING },
-  kilic: {
-    antik: "two short bronze and iron swords clashing twice, sharp metallic clang",
-    orta: "two heavy steel longswords clashing, ringing metallic clang",
-    "erken-modern": "two steel sabres clashing quickly, bright metallic ring",
-    modern: "a bayonet striking a steel helmet, short metallic clank",
-  },
+  // No "kilic": MOSS made a sword clash a 3 s buzzing swell (owner, 26 Oct 2026: "not a battle sound"); swords are the
+  // library's 16 recorded hits (scripts/v3/sfx-savas.ts).
   kalabalik: {
     antik: "a crowd of ancient Romans in a stone forum murmuring and gasping together",
     orta: "a medieval market crowd murmuring and calling out",

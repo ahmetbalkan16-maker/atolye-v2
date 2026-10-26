@@ -58,7 +58,8 @@ import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type Epis
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { analyzeLines, type LineSync } from "../src/lib/v3/lipsync/LipSync";
 import { measureWhine, whineLine } from "../src/lib/v3/mix/AudioQuality";
-import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
+import { battleWindows, renderBattleBed } from "../src/lib/v3/mix/BattleBed";
+import { measureLoudness, planMusic, renderMix, sceneMusicMood, sfxCues, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
@@ -1051,7 +1052,7 @@ async function main() {
   }
 
   // 7) Miks
-  type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[]; sesTasarimi?: boolean };
+  type MixMeta = { integratedLufs: number; truePeakDb: number; credits: readonly string[]; sesTasarimi?: boolean; savas?: unknown; efekt?: readonly { dosya?: string }[] };
   let mix: MixMeta;
   if (need("miks", "miks.json")) {
     mix = await step("miks", async () => {
@@ -1091,13 +1092,24 @@ async function main() {
           await sounds.close();
         }
       } else log(`  ses: efektçi ${sounds.available() ? "kapalı (ATOLYE_V3_SFX_DESIGNER=0)" : "kurulu değil"}; Kenney kayıtları, ortam sesi yok`);
+      // An effect with several recorded takes plays them in turn (twelve clashes are twelve different swords).
+      const turn = new Map<SfxId, number>();
       const sfx = cues.flatMap((c) => {
-        const file = periodSfx.get(c.id) ?? sfxLibraryFile(sfxDir, c.id);
+        const takes = sfxLibraryFiles(sfxDir, c.id);
+        const n = turn.get(c.id) ?? 0;
+        turn.set(c.id, n + 1);
+        const file = periodSfx.get(c.id) ?? takes[n % Math.max(1, takes.length)];
         return file ? [{ ...c, file }] : [];
       });
-      const r = await renderMix(paths, { duration: timeline.duration, dialogue: timeline.lines.map((l) => ({ file: l.file, start: l.start })), music, sfx, ambience }, f("miks.wav"));
+      // The battle behind the narration: many swords, cries, a distant roar while the tokens fight (owner, 26 Oct 2026).
+      const windows = battleWindows(episode, timeline);
+      const battle = await renderBattleBed(paths, sfxDir, windows, timeline.duration, episode.id, path.join(paths.asciiTemp, "savas-yatagi.wav"));
+      if (battle) log(`  savaş sesi: ${battle.windows.length} pencere, ${battle.windows.reduce((a, w) => a + w.end - w.start, 0).toFixed(0)} sn, ${battle.clashes} kılıç, ${battle.cries} nara`);
+      else if (windows.length) council.find({ beyin: "ses", onem: "uyari", baslik: "savaş sesi yok", ayrinti: "kütüphanede kılıç kaydı yok — scripts/v3/sfx-savas.ts çalıştırılmalı", tur: "veri", yer: "miks" });
+      const r = await renderMix(paths, { duration: timeline.duration, dialogue: timeline.lines.map((l) => ({ file: l.file, start: l.start })), music, sfx, ambience, ...(battle ? { battle: battle.file } : {}) }, f("miks.wav"));
+      if (battle) await fs.rm(battle.file, { force: true });
       for (const c of r.cleanup) log(`  ses temizliği: ${c.kaynak} — ${c.once} sabit tiz çizgi → ${c.sonra}`);
-      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0, temizlik: r.cleanup };
+      const meta = { integratedLufs: r.integratedLufs, truePeakDb: r.truePeakDb, credits: r.credits, muzik: music.map((m) => ({ ruh_hali: m.mood, parca: m.track.title, bas: m.start, son: m.end })), efekt: sfx.map((s) => ({ id: s.id, t: s.t, dosya: path.basename(s.file), ...(periodSfx.has(s.id) ? { donem: true } : {}) })), ortam: ambience.length, sesTasarimi: periodSfx.size > 0 || ambience.length > 0, temizlik: r.cleanup, ...(battle ? { savas: { pencereler: battle.windows, kilic: battle.clashes, nara: battle.cries } } : {}) };
       await writeJson(f("miks.json"), meta);
       return meta;
     });
@@ -1138,9 +1150,11 @@ async function main() {
     // The engines that voiced the lines; an older ses.json without them keeps the language's usual engine.
     const engines = voiced.flat().flatMap((l) => (l.provider ? [l.provider] : []));
     const voiceLine = voiceCredit(engines.length ? engines : [en ? "kokoro" : "chatterbox"], dil);
+    // The battle recordings (CC0, no credit owed; named anyway): swords, cries, the distant roar.
+    const battleRecordings = mix.savas || mix.efekt?.some((e) => e.dosya?.includes("-snm-")) ? "StillNorthMedia, qubodup, StarNinjas (OpenGameArt, CC0)" : "";
     const H = en
-      ? { credits: "Credits", music: "Music", images: "Images", sfx: "Sound effects", sfxLine: `Kenney (CC0) and Atölye V3 effects${mix.sesTasarimi ? "; period effects and ambience generated locally with MOSS-SoundEffect v2 (Apache-2.0)" : ""}`, voices: "Voices", sources: "Sources", none: "none", note: "This video contains dramatization; the dialogue is invented for storytelling. Period images are credited on screen and below." }
-      : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: `Kenney (CC0) ve Atölye V3 efektleri${mix.sesTasarimi ? "; dönem efektleri ve ortam sesleri yerelde MOSS-SoundEffect v2 (Apache-2.0) ile üretildi" : ""}`, voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
+      ? { credits: "Credits", music: "Music", images: "Images", sfx: "Sound effects", sfxLine: `Kenney (CC0)${battleRecordings ? `, ${battleRecordings}` : ""} and Atölye V3 effects${mix.sesTasarimi ? "; period effects and ambience generated locally with MOSS-SoundEffect v2 (Apache-2.0)" : ""}`, voices: "Voices", sources: "Sources", none: "none", note: "This video contains dramatization; the dialogue is invented for storytelling. Period images are credited on screen and below." }
+      : { credits: "Jenerik", music: "Müzik", images: "Görseller", sfx: "Ses efektleri", sfxLine: `Kenney (CC0)${battleRecordings ? `, ${battleRecordings}` : ""} ve Atölye V3 efektleri${mix.sesTasarimi ? "; dönem efektleri ve ortam sesleri yerelde MOSS-SoundEffect v2 (Apache-2.0) ile üretildi" : ""}`, voices: "Seslendirme", sources: "Kaynaklar", none: "yok", note: "Bu video canlandırma içerir; diyaloglar temsilîdir." };
     await fs.writeFile(
       f("CREDITS.md"),
       `# ${H.credits} — ${episode.baslik}\n\n## ${H.music}\n\n${mix.credits.map((c) => `- ${c.replace(/\n/g, " · ")}`).join("\n") || `- ${H.none}`}\n\n## ${H.images}\n\n${images.map((c) => `- ${attributionLine(c)}`).join("\n")}${borderYears.length ? `\n- ${HISTORICAL_BASEMAPS_CREDIT}` : ""}${mapCredits.map((c) => `\n- ${c}`).join("")}\n\n## ${H.sfx}\n\n- ${H.sfxLine}\n\n## ${H.voices}\n\n- ${voiceLine}\n\n## ${H.sources}\n\n${episode.kaynaklar.map((k) => `- ${k.kunye}${k.url ? ` — ${k.url}` : ""}`).join("\n")}\n`,

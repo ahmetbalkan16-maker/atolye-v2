@@ -40,7 +40,25 @@ en yüksek yeri 1,8 sn'de, ikinci yarısı tepeden yalnız 6 dB aşağıda; sava
 Düzeltme: `IMPACT` (kilic, yumruk, top_atisi) + `impactProblems` (en yüksek 100 ms ilk 0,4 sn içinde, ikinci yarı
 ≥12 dB aşağıda), kütüphanedeki eski sesler de yeniden denetlenir (silinmez); Kenney `kilic` = `impactMetal_light_000`
 (tek sert vuruş, 0,2 sn'de −39 dB). Gerçek dosyalarda: MOSS kılıcı reddedildi; Kenney kılıç/yumruk, sentez kılıç/top
-kabul edildi.
+kabul edildi. Owner klibin 1. bölümünü dinledi: "evet o ses" (`e30c9fe8` canlı).
+
+**Üçüncü tur — savaşın sesi (owner: "şu anki kılıç sesi çekiç gibi; toplu savaşta toplu kılıç sesleri, bağrışmalar
+olmalı arka planda; uygun skill varsa kullan"):** find-skills ile ses efekti skill'leri arandı — bulunanların hepsi
+ücretli servis (ElevenLabs, HeyGen, Layer, Sonilo); owner kuralı gereği kurulmadı. agent-reach (Jina Reader) ile
+OpenGameArt'ta CC0 kayıtlar bulundu, sayfa lisansları tek tek okundu:
+- StillNorthMedia "Medieval sound effects - Weapon impacts" (CC0, 192 kHz, kılıç ağzı kılıç ağzına 9–30 vuruşluk kayıtlar),
+- qubodup "15 vocal male strain/hurt/pain/jump sounds" (CC0),
+- StarNinjas "Crowd Shouting/Speaking Ambience" (CC0; Whisper anlamlı söz bulamadı — tekrar eden uydurma).
+`scripts/v3/sfx-savas.ts` (SHA-256 sabitli; Windows tar 7z açar; `--kaynak` önceden indirilmiş arşivler — Node fetch
+80 MB'ta 15 dk takıldı, indirme artık curl): kılıç kayıtlarını `splitHits` ile tek vuruşlara böler, yalnız
+`impactProblems` geçenleri alır → `battle/atolye-v3-kilic-snm-01..16.wav`; inlemeler `nara-qubodup-01..15`; uğultu
+2,2 kHz altına süzülür (söz anlaşılmaz) → `crowd/atolye-v3-savas-ugultu-starninjas.wav` (toplam 4 MB). Ölçüm:
+yeni vuruşların spektral ağırlık merkezi 4,4–5,9 kHz, "çekiç" denen Kenney metal vuruşu 2,3 kHz.
+`src/lib/v3/mix/BattleBed.ts`: `battleWindows` (yakın haritada ilk kayıp satırından 1 sn önce sahne sonuna, sahnede
+hücum, dış haritada savaş işareti 8 sn yarım seviye; modern dönemde yok), `battleEvents` (bölüme göre sabit rastgele;
+yakında 4 kılıç/sn, 0,7 nara/sn, sağ-sol), `renderBattleBed` (stereo, −27 LUFS). Mikser yatağı konuşma altında 3:1
+kısar (müzik 8:1); `sfxLibraryFiles` aynı efektin kayıtlarını sırayla çalar; MOSS'a artık kılıç yaptırılmaz; jenerikte
+kaynaklar.
 
 **Sıradaki:** owner klibi dinler; beğenirse karşılaştırma klasöründeki yeni video YouTube dosyası olur (müzik yeni
 ayarla yeniden bestelendi, parçalar farklı). Not: miksimiz 4–12 kHz'de referanstan ~10 dB daha koyu (ses

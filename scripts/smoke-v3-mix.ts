@@ -9,7 +9,8 @@ import path from "node:path";
 import type { MusicMood, MusicTrack } from "../src/lib/audio/music/MusicLibrary";
 import { type Episode, SFX_IDS } from "../src/lib/v3/episode/EpisodeTypes";
 import { CLEAN_LOWPASS_HZ, cleanupFilter, LINE_PROMINENCE_DB, MAX_NOTCHES, whineLine, whineLines } from "../src/lib/v3/mix/AudioQuality";
-import { AMBIENCE_LUFS, ambienceChain, DUCK_ATTACK_MS, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile } from "../src/lib/v3/mix/Mixer";
+import { BATTLE_LUFS, battleEvents, battleWindows, CLASHES_PER_S, splitHits, windowGain } from "../src/lib/v3/mix/BattleBed";
+import { AMBIENCE_LUFS, ambienceChain, BATTLE_DUCK_RATIO, DUCK_ATTACK_MS, EFFECT_LINE_MIN_HZ, MAX_SCENES_PER_TRACK, placeSamples, planMusic, SAMPLE_RATE, SFX_CATEGORY, sceneMusicMood, sfxCues, sfxLibraryFile, sfxLibraryFiles } from "../src/lib/v3/mix/Mixer";
 import { composeBeds, compositionCaption, compositionKey, periodInstruments, pieceProblems, TURBO_SHIFT } from "../src/lib/v3/mix/MusicComposer";
 import { ambiencePrompt, designSounds, eraOf, IMPACT, impactProblems, MAX_AMBIENCE_PLACES, MIN_ONSET_CONTRAST_DB, onsetContrastDb, PERCUSSIVE, periodSfxPrompt, soundKey, soundProblems } from "../src/lib/v3/mix/SfxDesigner";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
@@ -197,7 +198,8 @@ async function main() {
       const sidecar = JSON.parse(readFileSync(`${file}.license.json`, "utf8")) as { license: string };
       assert.equal(sidecar.license, "CC0", id);
     }
-    assert.match(sfxLibraryFile(sfxDir, "kilic")!, /kilic-kenney.wav$/, "the recording wins over the synthesis");
+    assert.match(sfxLibraryFile(sfxDir, "kilic")!, /kilic-(snm-01|kenney).wav$/, "recorded takes win over one recording, a recording over the synthesis");
+    assert.match(sfxLibraryFile(sfxDir, "yumruk")!, /yumruk-kenney.wav$/);
     assert.match(sfxLibraryFile(sfxDir, "whoosh")!, /whoosh-01.wav$/);
   });
 
@@ -362,6 +364,51 @@ async function main() {
     const req = { mood: "epic" as const, seconds: 25, caption: "c", seed: 470877 };
     const oldKey = createHash("sha256").update(JSON.stringify({ v: 1, model: "ACE-Step/Ace-Step1.5@acestep-v15-turbo", caption: "c", seconds: 25, seed: 470877 })).digest("hex").slice(0, 24);
     assert.notEqual(compositionKey(req), oldKey);
+  });
+
+  await scenario("battle bed: single hits cut from a take, windows where the tokens fight, a steady random battle", () => {
+    const rate = 8000;
+    // A take of three clangs 0.6 s apart over a faint floor.
+    const take = Float32Array.from({ length: rate * 2 }, (_, i) => {
+      const t = (i / rate) % 0.6;
+      return 0.0005 * Math.sin(i) + (i / rate < 1.8 ? 0.8 * Math.exp(-14 * t) * Math.sin((2 * Math.PI * 1800 * i) / rate) : 0);
+    });
+    const hits = splitHits(take, rate);
+    assert.equal(hits.length, 3, JSON.stringify(hits));
+    assert.ok(hits.every((h) => !impactProblems(take.subarray(h.from, h.to), rate).length), "each piece is one blow");
+    assert.ok(Math.abs(hits[1]!.from / rate - 0.6) < 0.02);
+    const ep = {
+      donem: "1389",
+      sahneler: [
+        { harita: { savaslar: [{ ad: "Kosovo", konum: [21, 42], satir: 0 }] } },
+        { harita: { birlikler: [{ yerler: [{ satir: 0 }, { satir: 1, kayip: 2 }] }] } },
+        { kalabalik: [{ hareket: { tur: "hucum", satir: 1 } }] },
+        { harita: { birlikler: [{ yerler: [{ satir: 0 }] }] } },
+      ],
+    } as unknown as Episode;
+    const tl = {
+      scenes: [0, 1, 2, 3].map((i) => ({ sceneIndex: i, start: i * 20, end: i * 20 + 18 })),
+      lines: [0, 1, 2, 3].flatMap((i) => [0, 1].map((li) => ({ sceneIndex: i, lineIndex: li, start: i * 20 + 1 + li * 6 }))),
+    } as unknown as EpisodeTimeline;
+    const w = battleWindows(ep, tl);
+    assert.deepEqual(w.map((x) => [x.start, x.end, x.kind]), [[1, 9, "uzak"], [26, 38, "yakin"], [46, 58, "yakin"]], "marker 8 s; a fight from its first loss (1 s before) and a charge to the scene's end; no losses, no battle");
+    assert.deepEqual(battleWindows({ ...ep, donem: "1942" }, tl), [], "no swords in a modern war");
+    const ev = battleEvents(w, "kosovo");
+    assert.deepEqual(ev, battleEvents(w, "kosovo"), "the same episode, the same battle");
+    const inClose = ev.filter((e) => e.t >= 26 && e.t <= 38 && e.what === "kilic").length / 12;
+    assert.ok(inClose > CLASHES_PER_S.yakin * 0.5 && inClose < CLASHES_PER_S.yakin * 1.6, `close fight: ${inClose.toFixed(1)} clashes/s`);
+    assert.ok(ev.every((e) => w.some((x) => e.t >= x.start + 0.5 && e.t < x.end)), "nothing outside a battle");
+    assert.ok(new Set(ev.filter((e) => e.what === "kilic").map((e) => e.variant % 16)).size >= 10, "many different swords");
+    assert.equal(windowGain(w, 0.5), 0);
+    assert.ok(windowGain(w, 30) === 1 && windowGain(w, 5) === 0.5, "a marker is heard at half");
+    assert.ok(windowGain(w, 26.75) < 0.6 && windowGain(w, 37.5) < 0.5, "fades in and out");
+    // The library: every sword take in turn, before the single Kenney recording.
+    const sfxDir = path.join(__dirname, "..", "public", "sfx");
+    const swords = sfxLibraryFiles(sfxDir, "kilic");
+    if (swords.length > 1) assert.ok(swords.every((s) => /kilic-snm-\d{2}\.wav$/.test(s)) && swords.length >= 8);
+    assert.equal(sfxLibraryFiles(sfxDir, "whoosh").length, 1);
+    assert.ok(BATTLE_LUFS > AMBIENCE_LUFS && BATTLE_DUCK_RATIO < 8, "heard under the narrator, more than the ambience");
+    assert.equal(periodSfxPrompt("kilic", "orta"), undefined, "swords are recordings, never MOSS");
   });
 
   await scenario("VoxCPM voices: style per emotion, description with accent, engine choice and the off switch", async () => {

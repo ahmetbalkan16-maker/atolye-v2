@@ -1,4 +1,4 @@
-import { existsSync, promises as fs } from "node:fs";
+import { existsSync, readdirSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type MusicMood, type MusicTrack, normalizeMusicMood } from "../../audio/music/MusicLibrary";
 import type { Episode, SceneMood, SfxId } from "../episode/EpisodeTypes";
@@ -90,8 +90,19 @@ export const SFX_CATEGORY: Readonly<Record<SfxId, string>> = { whoosh: "transiti
  * (scripts/v3/sfx-uret.ts); undefined when neither is installed.
  */
 export function sfxLibraryFile(sfxDir: string, id: SfxId): string | undefined {
+  return sfxLibraryFiles(sfxDir, id)[0];
+}
+
+/**
+ * Every recording of an effect, best first: several takes of one sound (`atolye-v3-<id>-<source>-NN.wav`, e.g. the 16
+ * sword hits of scripts/v3/sfx-savas.ts) before the single Kenney recording before the synthesis. The mixer plays the
+ * takes in turn, so twelve clashes in a battle are twelve different swords, not one hammer (owner, 26 Oct 2026).
+ */
+export function sfxLibraryFiles(sfxDir: string, id: SfxId): string[] {
   const dir = path.join(sfxDir, SFX_CATEGORY[id]);
-  return [`atolye-v3-${id}-kenney.wav`, `atolye-v3-${id}-01.wav`].map((n) => path.join(dir, n)).find((p) => existsSync(p));
+  const takes = existsSync(dir) ? readdirSync(dir).filter((n) => new RegExp(`^atolye-v3-${id}-[a-z]+-\\d{2}\\.wav$`).test(n)).sort().map((n) => path.join(dir, n)) : [];
+  if (takes.length) return takes;
+  return [`atolye-v3-${id}-kenney.wav`, `atolye-v3-${id}-01.wav`].map((n) => path.join(dir, n)).filter((p) => existsSync(p)).slice(0, 1);
 }
 
 /**
@@ -233,7 +244,12 @@ export interface MixInput {
   readonly sfx: readonly { readonly file: string; readonly t: number; readonly id: SfxId }[];
   /** Quiet ambience of each scene's place (SfxDesigner), looped over the scene, under everything. */
   readonly ambience?: readonly { readonly start: number; readonly end: number; readonly file: string }[];
+  /** The battle bed (BattleBed.renderBattleBed): one stereo file as long as the episode, ducked gently under speech. */
+  readonly battle?: string;
 }
+
+/** The battle bed gives way to speech less than the music does: the fight goes on behind the narrator. */
+export const BATTLE_DUCK_RATIO = 3;
 
 /** How fast the music ducks under speech and comes back. */
 export const DUCK_ATTACK_MS = 20;
@@ -302,7 +318,7 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   await fs.writeFile(sfxFile, wavFloat32(effects));
 
   const args: string[] = ["-v", "error", "-y", "-i", dlgFile, "-i", sfxFile];
-  const chains: string[] = ["[0:a]aformat=channel_layouts=stereo,asplit=2[dlg][key]", "[1:a]aformat=channel_layouts=stereo[fx]"];
+  const chains: string[] = [`[0:a]aformat=channel_layouts=stereo,asplit=${input.battle ? 3 : 2}[dlg][key]${input.battle ? "[key2]" : ""}`, "[1:a]aformat=channel_layouts=stereo[fx]"];
   const beds: string[] = [];
   for (const [i, m] of input.music.entries()) {
     // Each bed overhangs its scenes by half a crossfade on both sides, so neighbours overlap by a full one.
@@ -324,14 +340,22 @@ export async function renderMix(paths: V3Paths, input: MixInput, out: string): P
   }
   const amb = ambience.length ? ["[amb]"] : [];
   if (ambience.length) chains.push(`${ambience.map((_, i) => `[o${i}]`).join("")}amix=inputs=${ambience.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[amb]`);
+  // The battle: under the narrator, but still heard (3:1 where the music gives way 8:1).
+  const fight = input.battle ? ["[bt]"] : [];
+  if (input.battle) {
+    args.push("-i", input.battle);
+    chains.push(`[${input.music.length + ambience.length + 2}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,apad=whole_dur=${input.duration.toFixed(3)}[bt0]`);
+    chains.push(`[bt0][key2]sidechaincompress=threshold=0.05:ratio=${BATTLE_DUCK_RATIO}:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}[bt]`);
+  }
+  const under = [...amb, ...fight];
   if (beds.length) {
     chains.push(`${beds.join("")}amix=inputs=${beds.length}:normalize=0:duration=longest,apad=whole_dur=${input.duration.toFixed(3)}[bed]`);
     // Duck the bed under speech. A 5 ms attack moved the gain within one cycle of a low horn and added 7 dB more
     // distortion above 1.5 kHz than 20 ms (measured 26 Oct 2026); 20 ms still lands before the first syllable is heard.
     chains.push(`[bed][key]sidechaincompress=threshold=0.05:ratio=8:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}[ducked]`);
-    chains.push(`[dlg][ducked][fx]${amb.join("")}amix=inputs=${3 + amb.length}:normalize=0:duration=first[mix]`);
+    chains.push(`[dlg][ducked][fx]${under.join("")}amix=inputs=${3 + under.length}:normalize=0:duration=first[mix]`);
   } else {
-    chains.push("[key]anullsink", `[dlg][fx]${amb.join("")}amix=inputs=${2 + amb.length}:normalize=0:duration=first[mix]`);
+    chains.push("[key]anullsink", `[dlg][fx]${under.join("")}amix=inputs=${2 + under.length}:normalize=0:duration=first[mix]`);
   }
   const raw = path.join(tmp, "mix-raw.wav");
   await runChecked(paths.ffmpeg, [...args, "-filter_complex", chains.join(";"), "-map", "[mix]", "-t", input.duration.toFixed(3), "-ar", String(SAMPLE_RATE), "-c:a", "pcm_f32le", raw], { timeoutMs: 30 * 60_000 });
