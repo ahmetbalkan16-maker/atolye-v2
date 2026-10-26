@@ -2,7 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { ARCH_STYLES, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
 import { periodEndYear } from "../episode/Period";
-import { resolveTactics } from "../maps/Tactics";
+import { capUnitBlocks, fitBattleMap, narrateMoves, resolveTactics } from "../maps/Tactics";
 import type { V3Emotion, V3Garment, V3Gesture } from "../render/RenderPlanTypes";
 
 /**
@@ -232,7 +232,13 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
     }
     // The close battle's order and moves: wings and screens round each side's center, charges and sweeps where the
     // narration takes them (Tactics.resolveTactics); a formation the writer gave is kept.
-    if (isObj(s.harita)) fixes.push(...resolveTactics(s.harita, `sahneler[${si}].harita`, typeof draft.donem === "string" ? periodEndYear(draft.donem) : undefined));
+    if (isObj(s.harita)) {
+      const where = `sahneler[${si}].harita`;
+      const written = typeof s.harita.genislik_km === "number" ? s.harita.genislik_km : undefined;
+      fixes.push(...capUnitBlocks(s.harita, where), ...narrateMoves(s, where), ...fitBattleMap(s.harita, where));
+      fixes.push(...resolveTactics(s.harita, where, typeof draft.donem === "string" ? periodEndYear(draft.donem) : undefined));
+      fixes.push(...fitBattleMap(s.harita, where, written));
+    }
     if (Array.isArray(s.sahne_duzeni)) {
       const before = s.sahne_duzeni.length;
       s.sahne_duzeni = (s.sahne_duzeni as unknown[]).filter((b) => isObj(b) && visible.has(String(b.karakter)));

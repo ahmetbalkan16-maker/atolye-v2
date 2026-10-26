@@ -1,3 +1,30 @@
+## 26 Ekim 2026 (gece) — V3 Mohaç denemelerinin üç zayıflığı düzeltildi; savaş haritası ordulara oturur
+
+**Owner:** "önerdiğin sorunları düzelt" (Mohaç 1526 müdahalesiz yazar denemesinin zayıflıkları); sonra "haftalık token
+bitiyor, güvenli dur, her şeyi güncelle, Gelişim Merkezi'ni kullanabileyim".
+
+**Yapılan:**
+- `582d2e9b`: MapRules adım adım anlatım kuralı (hareket espri satırında ya da hepsi tek satırda → onarım); yazar istemi
+  "TELL THE BATTLE STEP BY STEP"; 1900 öncesi toplar piyadenin önüne (`DIRECT_FIRE_UNTIL`); dövüşte toplar sırayla,
+  tüfekçi birlik yaylım ateşi (`gunfireAt`, namlu alevi + duman); owner-kurallari "savaş anlatımı".
+- Bu commit: Hastings örneğine satır satır anlatım (yazar onarımda sahne yapısını değiştirmiyordu); normalleştiricide
+  `capUnitBlocks` (3+ birlikli tarafta birlik en çok 4 blok, kayıplar orantılı), `narrateMoves` (espri satırındaki hareket
+  önceki/sonraki anlatıcı satırına), `fitBattleMap` (meydan savaşı haritası ordulara oturur: Mohaç 35 → 11,8 km,
+  32 → 17,7 km; taktikten önce ve sonra); RouteZoom taktik haritada hareket okuna yaklaşmaz, dövüşe yalnız kadraj
+  kenarında kayar.
+- Denemeler (`--yalniz-senaryo`, toplam ~$1,2): v2 toplar öne geldi ama anlatım espri satırında kaldı ve 35 km haritada
+  7×6–8 blok tek yığın; v3 benzer. Yeniden normalleştirilmiş önizlemeler `karsilastirma/mohac-taktik-v2|v3-2026-10-26/
+  onizleme-yeniden/`: düzen okunur, ateş dumanı var, yığın yok.
+
+**Doğrulama:** tsc (kök + remotion-v3) temiz; lint 0 hata / 13 eski uyarı; smoke script 22, motion 11 (K: ateş),
+episode-director 50, mix 16, council 12, render 5, backgrounds 20.
+
+**Kalan (sonraki oturum):**
+1. Yeni normalleştirici geçişleri (`capUnitBlocks`, `narrateMoves`, `fitBattleMap`) için smoke senaryosu yok — eklenmeli.
+2. v3'te yazar "Why the Ottomans Won" bilgi kartını yakın savaş haritasında 14 sn tuttu, savaş kararmış kartın altında
+   kaldı → kural: yakın savaşın hareket satırlarında bilgi kartı olmaz (MapRules + istem).
+3. Owner önizlemeleri izler; ardından müdahalesiz tam AYAS siparişi (barut çağı meydan savaşı, 3 dk).
+
 ## 26 Ekim 2026 (akşam) — V3 yakın savaşta taktik ve akıcı hareket; barut çağı ses oranı
 
 **Owner:** "2. aşamada top ve tüfek sesleri az, çok kılıç var"; "son videoda takılarak hareket var, daha akıcı olmalı";

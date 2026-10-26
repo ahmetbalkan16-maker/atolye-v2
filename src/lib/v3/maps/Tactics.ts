@@ -69,6 +69,107 @@ interface UnitInfo {
  */
 export const DIRECT_FIRE_UNTIL = 1900;
 
+/** A unit of a side that has several is at most this many blocks (a field of 7 units of 8 was one heap). */
+export const MAX_UNIT_BLOCKS = 4;
+/** A field battle's close map is never narrower than this (km). */
+export const MIN_FIELD_KM = 4;
+const NARRATOR = "anlatici";
+
+/**
+ * A side of three or more units draws each with at most MAX_UNIT_BLOCKS blocks, its losses scaled alike (the Mohács
+ * trial, 26 Oct 2026: seven units of six to eight blocks on fronts of 1.5 km were one heap on the screen).
+ */
+export function capUnitBlocks(map: Obj, where = "harita"): string[] {
+  const fixes: string[] = [];
+  if (!Array.isArray(map.birlikler)) return fixes;
+  const units = (map.birlikler as unknown[]).filter(isObj);
+  const per = new Map<unknown, number>();
+  for (const u of units) per.set(u.taraf, (per.get(u.taraf) ?? 0) + 1);
+  units.forEach((u, i) => {
+    if ((per.get(u.taraf) ?? 0) < 3 || typeof u.sayi !== "number" || u.sayi <= MAX_UNIT_BLOCKS || !Array.isArray(u.yerler)) return;
+    const was = u.sayi;
+    const k = MAX_UNIT_BLOCKS / was;
+    u.sayi = MAX_UNIT_BLOCKS;
+    // Losses scaled, each loss line keeping at least one; a unit not wiped out keeps one standing.
+    const lost = (u.yerler as unknown[]).filter(isObj).reduce((a, y) => a + (typeof y.kayip === "number" ? y.kayip : 0), 0);
+    let left = lost >= was ? MAX_UNIT_BLOCKS : MAX_UNIT_BLOCKS - 1;
+    for (const y of (u.yerler as unknown[]).filter(isObj)) {
+      if (typeof y.kayip !== "number" || y.kayip <= 0) continue;
+      const scaled = Math.min(left, Math.max(1, Math.round(y.kayip * k)));
+      y.kayip = scaled;
+      left -= scaled;
+    }
+    fixes.push(`${where}.birlikler[${i}]: ${was} blok → ${MAX_UNIT_BLOCKS} (tarafın birlikleri okunur kalsın)`);
+  });
+  return fixes;
+}
+
+/**
+ * A unit's move told by the narrator happens on the narrator's line (the Mohács trials: "the Hungarian charge…" told
+ * by the narrator, the units charging on the sultan's joke after it): a move on a character's line goes to the narrator
+ * line just before it, else just after it.
+ */
+export function narrateMoves(scene: Obj, where = "sahne"): string[] {
+  const fixes: string[] = [];
+  const map = scene.harita;
+  const lines = Array.isArray(scene.satirlar) ? (scene.satirlar as unknown[]) : [];
+  if (!isObj(map) || !Array.isArray(map.birlikler) || typeof map.genislik_km !== "number" || map.genislik_km > CLOSE_MAP_MAX_KM) return fixes;
+  const narrator = (i: number) => isObj(lines[i]) && (lines[i] as Obj).karakter === NARRATOR;
+  (map.birlikler as unknown[]).filter(isObj).forEach((u, ui) => {
+    const yerler = Array.isArray(u.yerler) ? (u.yerler as unknown[]).filter(isObj) : [];
+    const first = Math.min(...yerler.map((y) => (typeof y.satir === "number" ? y.satir : 0)));
+    for (const y of yerler) {
+      const at = typeof y.satir === "number" ? y.satir : 0;
+      const moves = (UNIT_MOVES.includes(y.hareket as UnitMove) && y.hareket !== "tut") || y.bozgun === true;
+      if (!moves || at <= first || narrator(at) || !lines[at]) continue;
+      const taken = new Set(yerler.map((o) => o.satir));
+      const to = [at - 1, at - 2].find((i) => i > first && narrator(i) && !taken.has(i)) ?? [at + 1, at + 2].find((i) => i < lines.length && narrator(i) && !taken.has(i));
+      if (to === undefined) continue;
+      y.satir = to;
+      fixes.push(`${where}.birlikler[${ui}] "${typeof u.ad === "string" ? u.ad : u.taraf}": ${at}. satırdaki (bir karakterin sözü) hareket anlatıcının ${to}. satırına alındı`);
+    }
+  });
+  return fixes;
+}
+
+/**
+ * A field battle's close map framed on its armies (the Mohács trials: the writer drew the armies within 3 km on a map
+ * 32–35 km wide, so the tokens, of a fixed size on the screen, piled up): the map narrows to the armies, their leaders'
+ * badges and a margin — a side's flight may run off it — and is centred on them. Walls and castles keep their map.
+ * Run before the tactics (their distances are shares of the width) on what the writer placed, and after them with
+ * `maxKm` (the writer's width): wings set out since may widen it again, never beyond that.
+ */
+export function fitBattleMap(map: Obj, where = "harita", maxKm?: number): string[] {
+  const centre = map.merkez;
+  const width = map.genislik_km;
+  if (!isPt(centre) || typeof width !== "number" || width > CLOSE_MAP_MAX_KM || !Array.isArray(map.birlikler)) return [];
+  if ((Array.isArray(map.surlar) && map.surlar.length) || (Array.isArray(map.yapilar) && (map.yapilar as unknown[]).some((b) => isObj(b) && b.tur === "kale"))) return [];
+  const units = (map.birlikler as unknown[]).filter(isObj);
+  if (new Set(units.map((u) => u.taraf)).size < 2) return [];
+  const pts: P[] = [];
+  for (const u of units)
+    for (const y of (Array.isArray(u.yerler) ? (u.yerler as unknown[]) : []).filter(isObj)) {
+      if (y.bozgun === true) continue;
+      if (Array.isArray(y.cephe)) pts.push(...(y.cephe as unknown[]).filter(isPt));
+      else if (isPt(y.kume)) pts.push(y.kume);
+    }
+  for (const r of Array.isArray(map.rozetler) ? (map.rozetler as unknown[]) : []) if (isObj(r) && isPt(r.konum)) pts.push(r.konum);
+  if (pts.length < 2) return [];
+  const kmLon = 111.32 * Math.max(0.2, Math.cos((centre[1] * Math.PI) / 180));
+  const [x0, x1] = [Math.min(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[0]))];
+  const [y0, y1] = [Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[1]))];
+  // The picture is 16:9: the armies' spread with a margin, the height counted as width.
+  const need = Math.max(MIN_FIELD_KM, (x1 - x0) * kmLon * 1.5, (y1 - y0) * 110.57 * 1.5 * (16 / 9));
+  const widen = maxKm !== undefined && need > width * 1.05;
+  if (!widen && need >= width * 0.8) return [];
+  const fit = Math.round(Math.min(need, maxKm ?? need) * 10) / 10;
+  if (fit === width) return [];
+  map.merkez = [Math.round(((x0 + x1) / 2) * 1e5) / 1e5, Math.round(((y0 + y1) / 2) * 1e5) / 1e5];
+  map.genislik_km = fit;
+  for (const key of Array.isArray(map.kamera) ? (map.kamera as unknown[]).filter(isObj) : []) if (typeof key.genislik_km === "number" && key.genislik_km > fit) key.genislik_km = fit;
+  return [`${where}: meydan savaşı haritası ordulara oturtuldu (${width} km → ${fit} km)`];
+}
+
 /**
  * Fills the close map's missing unit formations from `kanat` and `hareket`; returns what was done (for the log). The
  * map object is changed in place. `year`: the story's year (guns before DIRECT_FIRE_UNTIL stand in front).

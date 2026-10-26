@@ -29,6 +29,12 @@ export const MARCH_SHARE_ZOOMED = 0.55;
 export const CLOSE_MIN_ZOOM_KM = 4;
 /** A fight further than this share of the view from where the camera looks gets the camera on it. */
 export const FIGHT_FOLLOW_SHARE = 0.18;
+/**
+ * On a field battle told by its units' tactics the whole field stays in view (the Mohács trial, 26 Oct 2026: the
+ * camera dived onto a 1 km charge arrow and lost the battle): its move arrows are never zoomed into, and the camera pans
+ * to a fight only near the edge of the view.
+ */
+export const TACTICS_FIGHT_FOLLOW_SHARE = 0.4;
 
 /** Where the side losing tokens on a line stands (a front's middle, a cluster's or a siege's centre). */
 function fightAt(map: SceneMap, line: number): [number, number] | undefined {
@@ -51,10 +57,12 @@ function fightAt(map: SceneMap, line: number): [number, number] | undefined {
 export function zoomOnShortRoutes(map: SceneMap): { map: SceneMap; zoomed: number } {
   if (!map.merkez || !map.genislik_km) return { map, zoomed: 0 };
   const close = map.genislik_km <= CLOSE_MAP_MAX_KM;
+  const tactics = close && (map.birlikler ?? []).some((u) => u.kanat !== undefined || u.yerler.some((y) => y.hareket !== undefined));
   // Arrows too short to see, and marches the camera should follow (owner, 22 Oct 2026: "the camera follows the army").
   const routes = [
-    // A battle plan's arrow is no march: it is seen on the field it belongs to, never zoomed into.
-    ...(map.oklar ?? []).filter((o) => o.stil !== "plan").map((o) => ({ points: o.noktalar, line: o.satir ?? 0, share: MIN_ROUTE_SHARE, fill: ROUTE_SHARE_ZOOMED })),
+    // A battle plan's arrow is no march: it is seen on the field it belongs to, never zoomed into; nor a unit's move on
+    // a tactics field.
+    ...(tactics ? [] : (map.oklar ?? []).filter((o) => o.stil !== "plan").map((o) => ({ points: o.noktalar, line: o.satir ?? 0, share: MIN_ROUTE_SHARE, fill: ROUTE_SHARE_ZOOMED }))),
     ...(map.ordular ?? []).filter((o) => o.yol?.length).map((o) => ({ points: [o.konum, ...o.yol!], line: o.yol_satir ?? o.satir ?? 0, share: MARCH_FOLLOW_SHARE, fill: MARCH_SHARE_ZOOMED })),
     ...(map.rozetler ?? []).filter((r) => r.yol?.length).map((r) => ({ points: [r.konum, ...r.yol!], line: r.yol_satir ?? r.satir ?? 0, share: MARCH_FOLLOW_SHARE, fill: MARCH_SHARE_ZOOMED })),
     // A fleet or a column on its way (the 1453 haul over the hill behind Galata was a speck on a 12 km view).
@@ -89,7 +97,7 @@ export function zoomOnShortRoutes(map: SceneMap): { map: SceneMap; zoomed: numbe
     const at = fightAt(map, line);
     if (!at || keys.some((k) => k.satir === line)) continue;
     const { km: view, centre } = viewAt(line);
-    if (distanceKm(at, centre) <= view * FIGHT_FOLLOW_SHARE) continue;
+    if (distanceKm(at, centre) <= view * (tactics ? TACTICS_FIGHT_FOLLOW_SHARE : FIGHT_FOLLOW_SHARE)) continue;
     keys.push({ satir: line, merkez: at, genislik_km: view });
     zoomed++;
   }

@@ -402,10 +402,15 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
       {"taraf": "English", "ad": "Shield wall", "tur": "kilicli", "kanat": "merkez", "renk": "#c0392b", "amblem": "kartal", "sayi": 5,
        "etiket": "7,000 men", "yerler": [{"satir": 0, "cephe": [[lon, lat], [lon, lat]], "hatlar": 2}, {"satir": 2, "kayip": 1}, {"satir": 5, "bozgun": true, "kayip": 2}]},
       {"taraf": "English", "ad": "Fyrd", "tur": "piyade", "kanat": "sag", …, "yerler": [{"satir": 0}, {"satir": 3, "hareket": "hucum", "hedef": "Breton horse"}, {"satir": 4, "kayip": 2}]}]
-    with the lines: the archers loose their arrows, the shield wall holds; the Norman foot charges the wall; the Bretons
-    fall back and the fyrd chases them down the hill; the knights cut the fyrd down and sweep round the wall's flank; the
-    wall breaks. Each move is seen as the narrator tells it, with its arrow; a gunpowder battle the same way with
-    "tufekci" lines and "topcu" batteries.
+    "satirlar": [{"karakter": "anlatici", "metin": "<the two armies face each other on the hill>"},
+                 {"karakter": "anlatici", "metin": "<the Norman archers loose their arrows; the shield wall holds>"},
+                 {"karakter": "anlatici", "metin": "<the Norman foot charges up into the wall>"},
+                 {"karakter": "anlatici", "metin": "<the Bretons break; the fyrd chases them down the hill>"},
+                 {"karakter": "anlatici", "metin": "<the knights cut the fyrd down and sweep round the wall's flank>"},
+                 {"karakter": "anlatici", "metin": "<the wall breaks>"},
+                 {"karakter": "<the winning commander>", "metin": "<a quip, after the steps>"}]
+    — each move on the narrator line that tells it, seen as it is told, with its arrow; a gunpowder battle the same way
+    with "tufekci" lines and "topcu" batteries in front.
 
 CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,
