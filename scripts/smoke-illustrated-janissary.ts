@@ -19,14 +19,14 @@ async function main(){
  const candidate=readWorldCharacterLibrary().find(p=>p.character.id===ILLUSTRATED_JANISSARY_ID)!;
  assert(candidate);assert.throws(()=>selectWorldCharacterPack(candidate,context),/NOT_READY/);
  const art=await loadIllustratedJanissaryPreview(context);
- assert.equal(art.admission,"PREVIEW_ONLY");assert.equal(art.poses.length,9);
+ assert.equal(art.admission,"PREVIEW_ONLY", "assert.equal(art.admission,\"PREVIEW_ONLY\")");assert.equal(art.poses.length,9, "assert.equal(art.poses.length,9)");
  for(const bad of [{...context,civilization:"persia"},{...context,year:1550},{...context,characterId:"ottoman.early-modern.janissary.default.v1"},{...context,environment:"../../private"}])
   await assert.rejects(()=>loadIllustratedJanissaryPreview(bad as typeof context),/CONTEXT/);
  const timing:VolumeSentenceTiming={timing:"LOCAL_NARRATION_SENTENCES",durationSeconds:6,coverage:1,sentences:[{text:"Yeniçeri yürüyor.",start:1,end:3,action:"WALK"},{text:"Sonra diz çöküyor.",start:3,end:5,action:"KNEEL_DOWN"}]};
  const mid=illustratedPerformance(2,timing),stop=illustratedPerformance(3.5,timing);
- assert(mid.x>.4&&mid.x<.54);assert.equal(stop.x,.54);assert.equal(stop.cell,7);assert.equal(illustratedPerformance(3.5,timing).action,"KNEEL_DOWN");
+ assert(mid.x>.4&&mid.x<.54);assert.equal(stop.x,.54, "assert.equal(stop.x,.54)");assert.equal(stop.cell,7, "assert.equal(stop.cell,7)");assert.equal(illustratedPerformance(3.5,timing).action,"KNEEL_DOWN", "assert.equal(illustratedPerformance(3.5,timing).action,\"KNEEL_DOWN\")");
  const wav=originalSceneAmbience(6,"courtyard",timing);
- assert.equal(wav.toString("ascii",0,4),"RIFF");assert.equal(wav.length,44+6*16000*2);
+ assert.equal(wav.toString("ascii",0,4),"RIFF", "assert.equal(wav.toString(\"ascii\",0,4),\"RIFF\")");assert.equal(wav.length,44+6*16000*2, "assert.equal(wav.length,44+6*16000*2)");
  const energy=(from:number,to:number)=>{let v=0;for(let i=from*16000;i<to*16000;i++)v+=Math.abs(wav.readInt16LE(44+Math.round(i)*2));return v/((to-from)*16000);};
  assert(energy(1.08,1.20)>energy(.8,.92)*2,"footstep starts within measured walking cue");
  assert.throws(()=>originalSceneAmbience(121,"courtyard",timing),/INPUT/);
@@ -36,7 +36,7 @@ async function main(){
   const result=await new CharacterImageProvider().generateImage({sceneId:1,projectSlug:project.slug,prompt:"1480 yılında Osmanlı yeniçeri askeri avluda yürüyor."});
   assert(result.success&&result.filePath);
   const read=readCharacterScenePayload(fs.readFileSync(resolveRuntimeLogicalPath(result.filePath!,r.runtimeStorageContext)));
-  assert.equal(read.status,"VALID");if(read.status!=="VALID")throw Error("PAYLOAD");
+  assert.equal(read.status,"VALID", "assert.equal(read.status,\"VALID\")");if(read.status!=="VALID")throw Error("PAYLOAD");
   const normal1=await rasterizeCharacterSceneAssetFrame(read.payload,2,6),normal2=await rasterizeCharacterSceneAssetFrame(read.payload,2,6);
   assert(normal1.ok&&normal2.ok);assert.equal(hash(normal1.png),hash(normal2.png),"default renderer deterministic without preview");
   const preview=await rasterizeCharacterSceneAssetFrame(read.payload,2,6,{illustratedPreview:art,sentenceTiming:timing});
