@@ -13,7 +13,7 @@ async function main() {
   const source=fs.readFileSync(path.join(process.cwd(),"src/lib/character/illustration/IllustratedCharacter.ts"),"utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm,"");
   assert.doesNotMatch(source,/node:fs|child_process|fetch\s*\(|process\.|Date\.now|Math\.random|import\(/);
   const imports=[...source.matchAll(/from "([^"]+)"/g)].map(m=>m[1]).sort();
-  assert.deepEqual(imports,["../CharacterPose","../CharacterRig","../SceneBlocking","../SvgSceneRenderer"]);
+  assert.deepEqual(imports,["../CharacterPose","../CharacterRig","../SceneBlocking","../SvgSceneRenderer"], "assert.deepEqual(imports,[\"../CharacterPose\",\"../CharacterRig\",\"../SceneBlocking\",\"../SvgSceneRenderer\"])");
   const plan=planCharacterScene({sceneId:1,text:"Osmanlı padişahı sarayda konuşur",contextualDirection:true});
   const direction=planCharacterSceneDirection("Osmanlı padişahı sarayda konuşur",plan.request.blocking);
   for(const pose of CHARACTER_POSES) {
