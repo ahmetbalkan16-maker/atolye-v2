@@ -39,9 +39,9 @@ async function main() {
   const first = JSON.parse(fs.readFileSync(graphPath, "utf8"));
   const result = JSON.parse(fs.readFileSync(receipt, "utf8"));
   await scenario("complement covers every discovered file and applies without touching native nodes", () => {
-    assert.equal(result.complete, true);
-    assert.deepEqual(result.covered_files, [...files].sort());
-    assert.deepEqual(first.nodes.find((node: { id: string }) => node.id === "native_a"), baseGraph().nodes[0]);
+    assert.equal(result.complete, true, "assert.equal(result.complete, true)");
+    assert.deepEqual(result.covered_files, [...files].sort(), "assert.deepEqual(result.covered_files, [...files].sort())");
+    assert.deepEqual(first.nodes.find((node: { id: string }) => node.id === "native_a"), baseGraph().nodes[0], "assert.deepEqual(first.nodes.find((node: { id: string }) => node.id === \"native_a\"), baseGraph().nodes[0])");
   });
   await scenario("fragment stays self-contained for `graphify build` validation", () => {
     const fragment = JSON.parse(fs.readFileSync(out, "utf8"));
@@ -51,16 +51,16 @@ async function main() {
   await scenario("re-apply replaces the earlier complement instead of stacking it", () => {
     runCli();
     const second = JSON.parse(fs.readFileSync(graphPath, "utf8"));
-    assert.equal(second.nodes.length, first.nodes.length);
-    assert.equal(second.links.length, first.links.length);
-    assert.equal(JSON.parse(fs.readFileSync(receipt, "utf8")).applied.replacedNodes, result.nodes);
+    assert.equal(second.nodes.length, first.nodes.length, "assert.equal(second.nodes.length, first.nodes.length)");
+    assert.equal(second.links.length, first.links.length, "assert.equal(second.links.length, first.links.length)");
+    assert.equal(JSON.parse(fs.readFileSync(receipt, "utf8")).applied.replacedNodes, result.nodes, "assert.equal(JSON.parse(fs.readFileSync(receipt, \"utf8\")).applied.replacedNodes, result.nodes)");
   });
 
   const summary = summarizeAyasGraphifyGraph(first);
   assert(summary);
   await scenario("graph stays structurally clean after apply", () => {
     const { duplicateIds, duplicateEdges, dangling, selfLoops } = summary.fact;
-    assert.deepEqual({ duplicateIds, duplicateEdges, dangling, selfLoops }, { duplicateIds: 0, duplicateEdges: 0, dangling: 0, selfLoops: 0 });
+    assert.deepEqual({ duplicateIds, duplicateEdges, dangling, selfLoops }, { duplicateIds: 0, duplicateEdges: 0, dangling: 0, selfLoops: 0 }, "assert.deepEqual({ duplicateIds, duplicateEdges, dangling, selfLoops }, { duplicateIds: 0, duplicateEdges: 0, dangling: 0, selfLoops: 0 })");
   });
   await scenario("complement-only files are attested; native files are not", () => {
     assert(summary.attestedOnlyFiles.has("scripts/ayas-access-daemon.ps1"));
@@ -93,7 +93,7 @@ async function main() {
     const before = fs.readFileSync(target);
     assert.throws(() => applyStructuralComplement(target, before, { nodes: [{ id: "atolye_structural:x:file", source_file: "x" }],
       edges: [{ source: "atolye_structural:x:file", target: "missing", relation: "calls" }] }), /COMPLEMENT_DANGLING_EDGE/);
-    assert.deepEqual(fs.readFileSync(target), before);
+    assert.deepEqual(fs.readFileSync(target), before, "assert.deepEqual(fs.readFileSync(target), before)");
   });
   process.stdout.write(`Graphify structural complement smoke: PASS (${passed} scenarios)\n`);
 }
