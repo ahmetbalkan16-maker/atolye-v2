@@ -12,11 +12,11 @@ try {
   assert(!fs.existsSync(path.join(temporary,"batch-000.json")),"all batches validated before mutation");
   fs.writeFileSync(path.join(temporary,"batch-001.md"),'# Native request\n- "b": source\n');
   const answers={a:"Verified source fact.",b:"Other verified source fact."};
-  assert.deepEqual(stageNativeDescriptionAnswers(temporary,answers),{batches:2,nodes:2});
+  assert.deepEqual(stageNativeDescriptionAnswers(temporary,answers),{batches:2,nodes:2}, "assert.deepEqual(stageNativeDescriptionAnswers(temporary,answers),{batches:2,nodes:2})");
   assert.deepEqual(stageNativeDescriptionAnswers(temporary,answers),{batches:2,nodes:2},"idempotent exact answers");
   fs.writeFileSync(path.join(temporary,"batch-001.json"),'{"b":"Conflicting answer"}');
   assert.throws(()=>stageNativeDescriptionAnswers(temporary,answers),/CONFLICT/);
-  assert.equal(fs.readFileSync(path.join(temporary,"batch-001.json"),"utf8"),'{"b":"Conflicting answer"}');
+  assert.equal(fs.readFileSync(path.join(temporary,"batch-001.json"),"utf8"),'{"b":"Conflicting answer"}', "assert.equal(fs.readFileSync(path.join(temporary,\"batch-001.json\"),\"utf8\"),'{\"b\":\"Conflicting answer\"}')");
   console.log("Graphify native answer staging: PASS (all-batch validation, exact IDs, idempotence, conflict preserved)");
 } finally {
   if(path.dirname(fs.realpathSync.native(temporary))!==fs.realpathSync.native(os.tmpdir())) throw new Error("NATIVE_STAGING_CLEANUP_SCOPE");
