@@ -7,7 +7,7 @@ import {loadCinematicWorldPreviewArtwork} from "./lib/cinematic-preview-art";
 import {prepareCinematicPreviewRenderer,cinematicSpriteTop} from "../src/lib/documentary/CinematicPreviewRenderer";
 import type {CinematicShot} from "../src/lib/documentary/CinematicStoryPlan";
 async function main(){
- assert.equal(cinematicSpriteTop(996,840,810),186);
+ assert.equal(cinematicSpriteTop(996,840,810),186, "assert.equal(cinematicSpriteTop(996,840,810),186)");
  assert.throws(()=>cinematicSpriteTop(996,840,841),/FOOT/);
  const request={packDirectory:"ottoman/early-modern/janissary/cinematic-reference/v1",atlasPath:"design/cinematic-atlas.png",identityPackDirectory:"ottoman/early-modern/janissary/reference/v1",identitySheetPath:"design/pose-atlas.png",poseOverrides:[{index:7,path:"design/serving-pose.png"}]};
  await assert.rejects(loadCinematicWorldPreviewArtwork({...request,identityPackDirectory:"persia/achaemenid/immortal/default/v1"}),/IDENTITY_CONTEXT/);
