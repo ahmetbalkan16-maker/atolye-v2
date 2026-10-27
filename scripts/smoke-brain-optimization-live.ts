@@ -49,9 +49,9 @@ async function run() {
       { name: "totalTurnMs", unit: "ms", value: 3650, lowerIsBetter: true },
     ]);
     const v = compareBenchmark(BASELINE, after);
-    assert.equal(v.verdict, "ACCEPT");
+    assert.equal(v.verdict, "ACCEPT", "assert.equal(v.verdict, \"ACCEPT\")");
     assert.match(v.headline ?? "", /sttLatencyMs: 1800 ms → 1250 ms/);
-    assert.equal(v.regressions.length, 0);
+    assert.equal(v.regressions.length, 0, "assert.equal(v.regressions.length, 0)");
   });
 
   await scenario("a sub-5 % change → NEUTRAL (not worth the risk)", () => {
@@ -61,7 +61,7 @@ async function run() {
       { name: "firstWordLoss", unit: "count", value: 7, lowerIsBetter: true },
       { name: "totalTurnMs", unit: "ms", value: 4160, lowerIsBetter: true },
     ]);
-    assert.equal(compareBenchmark(BASELINE, after).verdict, "NEUTRAL");
+    assert.equal(compareBenchmark(BASELINE, after).verdict, "NEUTRAL", "assert.equal(compareBenchmark(BASELINE, after).verdict, \"NEUTRAL\")");
   });
 
   await scenario("a win on one metric but a regression on a guarded one → REJECT", () => {
@@ -72,19 +72,19 @@ async function run() {
       { name: "totalTurnMs", unit: "ms", value: 4100, lowerIsBetter: true },
     ]);
     const v = compareBenchmark(BASELINE, after);
-    assert.equal(v.verdict, "REJECT");
+    assert.equal(v.verdict, "REJECT", "assert.equal(v.verdict, \"REJECT\")");
     assert.match(v.reason, /wakeSuccessRate/);
   });
 
   await scenario("an under-sampled benchmark is not a result → REJECT", () => {
     const v = compareBenchmark({ ...BASELINE, runs: 2 }, { ...BASELINE, runs: 2 });
-    assert.equal(v.verdict, "REJECT");
+    assert.equal(v.verdict, "REJECT", "assert.equal(v.verdict, \"REJECT\")");
     assert.match(v.reason, /≥ 3 runs/);
   });
 
   await scenario("loop — OBSERVE → BASELINE → HYPOTHESIS → BENCHMARK → REGRESSION → COMPARE → accepted", () => {
     let run = buildOptimizationRun({ id: "opt-live-1", metricName: "sttLatencyMs", hypothesis: "skip the beam-search fallback for high-confidence tokens", now: NOW });
-    assert.equal(run.stage, "observe");
+    assert.equal(run.stage, "observe", "assert.equal(run.stage, \"observe\")");
     run = advanceOptimizationRun(run, { kind: "baseline", sample: BASELINE, now: NOW });
     run = advanceOptimizationRun(run, { kind: "hypothesis-ready", changedFiles: ["scripts/smoke-x.ts"], now: NOW });
     run = advanceOptimizationRun(run, {
@@ -99,7 +99,7 @@ async function run() {
     });
     run = advanceOptimizationRun(run, { kind: "regression", pass: true, detail: "all suites green", now: NOW });
     run = decideOptimization(run);
-    assert.equal(run.stage, "accepted");
+    assert.equal(run.stage, "accepted", "assert.equal(run.stage, \"accepted\")");
     assert.match(run.disposition, /ACCEPTED/);
   });
 
@@ -114,7 +114,7 @@ async function run() {
     });
     run = advanceOptimizationRun(run, { kind: "regression", pass: false, detail: "smoke-ayas-voice failed", now: NOW });
     run = decideOptimization(run);
-    assert.equal(run.stage, "rejected");
+    assert.equal(run.stage, "rejected", "assert.equal(run.stage, \"rejected\")");
     assert.match(run.disposition, /regressed the test suite/);
   });
 
@@ -122,7 +122,7 @@ async function run() {
     let run = buildOptimizationRun({ id: "opt-live-3", metricName: "x", hypothesis: "y", now: NOW });
     run = advanceOptimizationRun(run, { kind: "baseline", sample: BASELINE, now: NOW });
     run = advanceOptimizationRun(run, { kind: "hypothesis-ready", changedFiles: ["src/lib/ayas/execution/AyasExecutionGate.ts"], now: NOW });
-    assert.equal(run.stage, "halted");
+    assert.equal(run.stage, "halted", "assert.equal(run.stage, \"halted\")");
     assert.match(run.disposition, /FORBIDDEN/);
   });
 
