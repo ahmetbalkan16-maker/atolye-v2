@@ -91,72 +91,72 @@ function verified(
 async function run() {
   await scenario("empty store → empty view, health 100, honest headline", () => {
     const v = buildBrainReportCenterView({ incidents: [], learned: [], decisions: [], now: NOW });
-    assert.equal(v.reports.length, 0);
-    assert.equal(v.systemHealthPercent, 100);
-    assert.equal(v.counts.open, 0);
+    assert.equal(v.reports.length, 0, "assert.equal(v.reports.length, 0)");
+    assert.equal(v.systemHealthPercent, 100, "assert.equal(v.systemHealthPercent, 100)");
+    assert.equal(v.counts.open, 0, "assert.equal(v.counts.open, 0)");
     assert.match(v.headline, /Açık sorun yok/);
-    assert.equal(EMPTY_BRAIN_REPORT_CENTER_VIEW.systemHealthPercent, 100);
+    assert.equal(EMPTY_BRAIN_REPORT_CENTER_VIEW.systemHealthPercent, 100, "assert.equal(EMPTY_BRAIN_REPORT_CENTER_VIEW.systemHealthPercent, 100)");
   });
 
   await scenario("a verified incident with no decision → bucket 'awaiting', canDecide, health −3", () => {
     const v = buildBrainReportCenterView({ incidents: [verified()], learned: [], decisions: [], now: NOW });
-    assert.equal(v.reports.length, 1);
+    assert.equal(v.reports.length, 1, "assert.equal(v.reports.length, 1)");
     const r = v.reports[0];
-    assert.equal(r.bucket, "awaiting");
-    assert.equal(r.canDecide, true);
-    assert.equal(r.needsHumanDirect, false);
-    assert.equal(v.counts.awaitingApproval, 1);
-    assert.equal(v.counts.open, 1);
-    assert.equal(v.systemHealthPercent, 97);
+    assert.equal(r.bucket, "awaiting", "assert.equal(r.bucket, \"awaiting\")");
+    assert.equal(r.canDecide, true, "assert.equal(r.canDecide, true)");
+    assert.equal(r.needsHumanDirect, false, "assert.equal(r.needsHumanDirect, false)");
+    assert.equal(v.counts.awaitingApproval, 1, "assert.equal(v.counts.awaitingApproval, 1)");
+    assert.equal(v.counts.open, 1, "assert.equal(v.counts.open, 1)");
+    assert.equal(v.systemHealthPercent, 97, "assert.equal(v.systemHealthPercent, 97)");
     assert.match(v.headline, /onay/i);
   });
 
   await scenario("full chain — evidence, timeline, root cause + confidence, proposed fix, checks", () => {
     const r = buildBrainReportCenterView({ incidents: [verified()], learned: [], decisions: [], now: NOW }).reports[0];
-    assert.ok(r.evidence.some((e) => e.note.includes("37 olay")));
-    assert.ok(r.timeline.length >= 2);
-    assert.equal(r.timeline[0].label.includes("Açıldı"), true);
-    assert.equal(r.rootCause, "VAD pre-roll konuşma durumu kirlenmesi");
-    assert.equal(r.confidence, 0.88);
-    assert.deepEqual(r.suspectFiles, ["scripts/smoke-x.ts"]);
-    assert.ok(r.proposedFix);
+    assert.ok(r.evidence.some((e) => e.note.includes("37 olay")), "assert.ok(r.evidence.some((e) => e.note.includes(\"37 olay\")))");
+    assert.ok(r.timeline.length >= 2, "assert.ok(r.timeline.length >= 2)");
+    assert.equal(r.timeline[0].label.includes("Açıldı"), true, "assert.equal(r.timeline[0].label.includes(\"Açıldı\"), true)");
+    assert.equal(r.rootCause, "VAD pre-roll konuşma durumu kirlenmesi", "assert.equal(r.rootCause, \"VAD pre-roll konuşma durumu kirlenmesi\")");
+    assert.equal(r.confidence, 0.88, "assert.equal(r.confidence, 0.88)");
+    assert.deepEqual(r.suspectFiles, ["scripts/smoke-x.ts"], "assert.deepEqual(r.suspectFiles, [\"scripts/smoke-x.ts\"])");
+    assert.ok(r.proposedFix, "assert.ok(r.proposedFix)");
     assert.match(r.proposedFix!.summary, /1 dosya · 10 satır · SAFE · risk LOW/);
-    assert.equal(r.sandbox, "PASS");
-    assert.equal(r.regression, "PASS");
-    assert.equal(r.security, "PASS");
+    assert.equal(r.sandbox, "PASS", "assert.equal(r.sandbox, \"PASS\")");
+    assert.equal(r.regression, "PASS", "assert.equal(r.regression, \"PASS\")");
+    assert.equal(r.security, "PASS", "assert.equal(r.security, \"PASS\")");
     // the raw unified diff is NEVER surfaced
-    assert.equal(JSON.stringify(r).includes("@@"), false);
+    assert.equal(JSON.stringify(r).includes("@@"), false, "assert.equal(JSON.stringify(r).includes(\"@@\"), false)");
   });
 
   await scenario("an APPROVE decision → bucket moves to 'investigating', canDecide false, decision shown", () => {
     const inc = verified();
     const d = buildSelfHealDecision({ incidentId: inc.id, decision: "APPROVE", now: NOW });
     const r = buildBrainReportCenterView({ incidents: [inc], learned: [], decisions: [d], now: NOW }).reports[0];
-    assert.equal(r.bucket, "investigating");
-    assert.equal(r.canDecide, false);
-    assert.equal(r.operatorDecision?.decision, "APPROVE");
-    assert.equal(r.operatorDecision?.operatorApprovalId, d.operatorApprovalId);
+    assert.equal(r.bucket, "investigating", "assert.equal(r.bucket, \"investigating\")");
+    assert.equal(r.canDecide, false, "assert.equal(r.canDecide, false)");
+    assert.equal(r.operatorDecision?.decision, "APPROVE", "assert.equal(r.operatorDecision?.decision, \"APPROVE\")");
+    assert.equal(r.operatorDecision?.operatorApprovalId, d.operatorApprovalId, "assert.equal(r.operatorDecision?.operatorApprovalId, d.operatorApprovalId)");
   });
 
   await scenario("a REJECT decision → still awaiting, operator may re-decide", () => {
     const inc = verified();
     const d = buildSelfHealDecision({ incidentId: inc.id, decision: "REJECT", now: NOW });
     const r = buildBrainReportCenterView({ incidents: [inc], learned: [], decisions: [d], now: NOW }).reports[0];
-    assert.equal(r.bucket, "awaiting");
-    assert.equal(r.canDecide, true);
-    assert.equal(r.operatorDecision?.decision, "REJECT");
+    assert.equal(r.bucket, "awaiting", "assert.equal(r.bucket, \"awaiting\")");
+    assert.equal(r.canDecide, true, "assert.equal(r.canDecide, true)");
+    assert.equal(r.operatorDecision?.decision, "REJECT", "assert.equal(r.operatorDecision?.decision, \"REJECT\")");
   });
 
   await scenario("a FAILED incident → bucket 'failed', needsHumanDirect, health −16, liveState NEEDS_HUMAN", () => {
     let i = diagnosed();
     i = advanceIncident(i, { kind: "fail", reason: "teşhis sonuçsuz", now: NOW }).incident;
     const v = buildBrainReportCenterView({ incidents: [i], learned: [], decisions: [], now: NOW });
-    assert.equal(v.reports[0].bucket, "failed");
-    assert.equal(v.reports[0].needsHumanDirect, true);
-    assert.equal(v.reports[0].canDecide, false);
-    assert.equal(v.counts.failed, 1);
-    assert.equal(v.systemHealthPercent, 84);
-    assert.equal(v.liveState, "NEEDS_HUMAN");
+    assert.equal(v.reports[0].bucket, "failed", "assert.equal(v.reports[0].bucket, \"failed\")");
+    assert.equal(v.reports[0].needsHumanDirect, true, "assert.equal(v.reports[0].needsHumanDirect, true)");
+    assert.equal(v.reports[0].canDecide, false, "assert.equal(v.reports[0].canDecide, false)");
+    assert.equal(v.counts.failed, 1, "assert.equal(v.counts.failed, 1)");
+    assert.equal(v.systemHealthPercent, 84, "assert.equal(v.systemHealthPercent, 84)");
+    assert.equal(v.liveState, "NEEDS_HUMAN", "assert.equal(v.liveState, \"NEEDS_HUMAN\")");
   });
 
   await scenario("a HEALED incident → bucket 'resolved', severity tone 'resolved'", () => {
@@ -165,10 +165,10 @@ async function run() {
     i = advanceIncident(i, { kind: "monitor", now: NOW }).incident;
     i = advanceIncident(i, { kind: "healed", evidence: ["imza tekrar etmedi"], now: NOW }).incident;
     const r = buildBrainReportCenterView({ incidents: [i], learned: [], decisions: [], now: NOW }).reports[0];
-    assert.equal(r.bucket, "resolved");
-    assert.equal(r.severityTone, "resolved");
-    assert.equal(r.watchdog.verdict, "HEALED");
-    assert.ok(r.watchdog.evidence.includes("imza tekrar etmedi"));
+    assert.equal(r.bucket, "resolved", "assert.equal(r.bucket, \"resolved\")");
+    assert.equal(r.severityTone, "resolved", "assert.equal(r.severityTone, \"resolved\")");
+    assert.equal(r.watchdog.verdict, "HEALED", "assert.equal(r.watchdog.verdict, \"HEALED\")");
+    assert.ok(r.watchdog.evidence.includes("imza tekrar etmedi"), "assert.ok(r.watchdog.evidence.includes(\"imza tekrar etmedi\"))");
   });
 
   await scenario("a ROLLED_BACK incident → bucket 'rolledBack', health −8", () => {
@@ -177,16 +177,16 @@ async function run() {
     i = advanceIncident(i, { kind: "monitor", now: NOW }).incident;
     i = advanceIncident(i, { kind: "heal-failed", reason: "imza tekrar etti", now: NOW }).incident;
     const v = buildBrainReportCenterView({ incidents: [i], learned: [], decisions: [], now: NOW });
-    assert.equal(v.reports[0].bucket, "rolledBack");
-    assert.equal(v.counts.rolledBack, 1);
-    assert.equal(v.systemHealthPercent, 92);
+    assert.equal(v.reports[0].bucket, "rolledBack", "assert.equal(v.reports[0].bucket, \"rolledBack\")");
+    assert.equal(v.counts.rolledBack, 1, "assert.equal(v.counts.rolledBack, 1)");
+    assert.equal(v.systemHealthPercent, 92, "assert.equal(v.systemHealthPercent, 92)");
   });
 
   await scenario("a FORBIDDEN-area fix → needsHumanDirect, canDecide false (no approve button)", () => {
     const inc = verified(undefined, ["src/lib/brain/selfheal/BrainSelfHealGuards.ts"], "FORBIDDEN_AUTONOMOUS");
     const r = buildBrainReportCenterView({ incidents: [inc], learned: [], decisions: [], now: NOW }).reports[0];
-    assert.equal(r.needsHumanDirect, true);
-    assert.equal(r.canDecide, false);
+    assert.equal(r.needsHumanDirect, true, "assert.equal(r.needsHumanDirect, true)");
+    assert.equal(r.canDecide, false, "assert.equal(r.canDecide, false)");
   });
 
   await scenario("learned pattern joins into learning + the report's learning block", () => {
@@ -197,8 +197,8 @@ async function run() {
     const learned = buildLearnedPattern(i, { successfulFix: "pre-roll audio-only + postWakeSpeechMs gate", regressionResult: "200-turn PASS", risk: "LOW", status: "APPLIED", now: NOW });
     i = advanceIncident(i, { kind: "learned", learnedPatternId: learned.id, now: NOW }).incident;
     const v = buildBrainReportCenterView({ incidents: [i], learned: [learned], decisions: [], now: NOW });
-    assert.equal(v.learning.length, 1);
-    assert.equal(v.reports[0].learning.learned, true);
+    assert.equal(v.learning.length, 1, "assert.equal(v.learning.length, 1)");
+    assert.equal(v.reports[0].learning.learned, true, "assert.equal(v.reports[0].learning.learned, true)");
     assert.match(v.reports[0].learning.fix ?? "", /postWakeSpeechMs/);
   });
 
@@ -207,10 +207,10 @@ async function run() {
     let b = diagnosed({ symptom: "ui B", category: "ui" }, ["scripts/smoke-b.ts"]);
     b = advanceIncident(b, { kind: "fail", reason: "x", now: NOW }).incident;
     const reports = buildBrainReportCenterView({ incidents: [a, b], learned: [], decisions: [], now: NOW }).reports;
-    assert.equal(filterReports(reports, { status: "awaiting" }).length, 1);
-    assert.equal(filterReports(reports, { status: "failed" }).length, 1);
-    assert.equal(filterReports(reports, { category: "voice" }).length, 1);
-    assert.equal(filterReports(reports, { status: "all", category: "all" }).length, 2);
+    assert.equal(filterReports(reports, { status: "awaiting" }).length, 1, "assert.equal(filterReports(reports, { status: \"awaiting\" }).length, 1)");
+    assert.equal(filterReports(reports, { status: "failed" }).length, 1, "assert.equal(filterReports(reports, { status: \"failed\" }).length, 1)");
+    assert.equal(filterReports(reports, { category: "voice" }).length, 1, "assert.equal(filterReports(reports, { category: \"voice\" }).length, 1)");
+    assert.equal(filterReports(reports, { status: "all", category: "all" }).length, 2, "assert.equal(filterReports(reports, { status: \"all\", category: \"all\" }).length, 2)");
   });
 
   await scenario("systemHealthPercent clamps to 0 under heavy load", () => {
@@ -220,7 +220,7 @@ async function run() {
       return i;
     });
     const reports = buildBrainReportCenterView({ incidents: many, learned: [], decisions: [], now: NOW }).reports;
-    assert.equal(systemHealthPercent(reports), 0);
+    assert.equal(systemHealthPercent(reports), 0, "assert.equal(systemHealthPercent(reports), 0)");
   });
 
   await scenario("optimizations pass through the view", () => {
@@ -231,13 +231,13 @@ async function run() {
       optimizations: [{ id: "opt-1", headline: "sttLatency: 1800 ms → 1250 ms (+30.5%)", verdict: "ACCEPT", at: NOW }],
       now: NOW,
     });
-    assert.equal(v.optimizations.length, 1);
+    assert.equal(v.optimizations.length, 1, "assert.equal(v.optimizations.length, 1)");
     assert.match(v.optimizations[0].headline, /1250 ms/);
   });
 
   await scenario("latency observation passes through the view (default null)", () => {
     const plain = buildBrainReportCenterView({ incidents: [], learned: [], decisions: [], now: NOW });
-    assert.equal(plain.latency, null);
+    assert.equal(plain.latency, null, "assert.equal(plain.latency, null)");
 
     const withLatency = buildBrainReportCenterView({
       incidents: [],
@@ -255,8 +255,8 @@ async function run() {
       },
       now: NOW,
     });
-    assert.equal(withLatency.latency?.headline?.verdict, "REGRESSION");
-    assert.equal(EMPTY_BRAIN_REPORT_CENTER_VIEW.latency, null);
+    assert.equal(withLatency.latency?.headline?.verdict, "REGRESSION", "assert.equal(withLatency.latency?.headline?.verdict, \"REGRESSION\")");
+    assert.equal(EMPTY_BRAIN_REPORT_CENTER_VIEW.latency, null, "assert.equal(EMPTY_BRAIN_REPORT_CENTER_VIEW.latency, null)");
   });
 
   console.log(`Atölye Brain report-center smoke: PASS (${count} scenarios)`);
