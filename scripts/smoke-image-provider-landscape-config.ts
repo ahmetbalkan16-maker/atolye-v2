@@ -36,18 +36,18 @@ function env(overrides: Record<string, string | undefined>): NodeJS.ProcessEnv {
 
 function run() {
   scenario("default size is landscape 1536x1024, quality auto", () => {
-    assert.equal(imageProviderConfig.openai.size, "1536x1024");
-    assert.equal(imageProviderConfig.openai.quality, "auto");
+    assert.equal(imageProviderConfig.openai.size, "1536x1024", "assert.equal(imageProviderConfig.openai.size, \"1536x1024\")");
+    assert.equal(imageProviderConfig.openai.quality, "auto", "assert.equal(imageProviderConfig.openai.quality, \"auto\")");
     const config = getOpenAIImageProviderConfig(env({}));
-    assert.equal(config.size, "1536x1024");
-    assert.equal(config.quality, "auto");
+    assert.equal(config.size, "1536x1024", "assert.equal(config.size, \"1536x1024\")");
+    assert.equal(config.quality, "auto", "assert.equal(config.quality, \"auto\")");
   });
 
   scenario("IMAGE_OPENAI_SIZE override accepts every gpt-image-1 size", () => {
     for (const size of OPENAI_IMAGE_SIZES) {
       assert.equal(
         getOpenAIImageProviderConfig(env({ IMAGE_OPENAI_SIZE: size })).size,
-        size,
+        size, "assert.equal(\n        getOpenAIImageProviderConfig(env({ IMAGE_OPENAI_SIZE: size })).size,\n        size,\n      )",
       );
     }
   });
@@ -55,7 +55,7 @@ function run() {
   scenario("IMAGE_OPENAI_SIZE can fall back to the legacy square", () => {
     assert.equal(
       getOpenAIImageProviderConfig(env({ IMAGE_OPENAI_SIZE: "1024x1024" })).size,
-      "1024x1024",
+      "1024x1024", "assert.equal(\n      getOpenAIImageProviderConfig(env({ IMAGE_OPENAI_SIZE: \"1024x1024\" })).size,\n      \"1024x1024\",\n    )",
     );
   });
 
@@ -63,7 +63,7 @@ function run() {
     for (const quality of OPENAI_IMAGE_QUALITIES) {
       assert.equal(
         getOpenAIImageProviderConfig(env({ IMAGE_OPENAI_QUALITY: quality })).quality,
-        quality,
+        quality, "assert.equal(\n        getOpenAIImageProviderConfig(env({ IMAGE_OPENAI_QUALITY: quality })).quality,\n        quality,\n      )",
       );
     }
   });
@@ -90,9 +90,9 @@ function run() {
         IMAGE_OPENAI_MAX_RESPONSE_BYTES: "1048576",
       }),
     );
-    assert.equal(config.timeoutMs, 45000);
-    assert.equal(config.maximumResponseBytes, 1048576);
-    assert.equal(config.size, "1536x1024");
+    assert.equal(config.timeoutMs, 45000, "assert.equal(config.timeoutMs, 45000)");
+    assert.equal(config.maximumResponseBytes, 1048576, "assert.equal(config.maximumResponseBytes, 1048576)");
+    assert.equal(config.size, "1536x1024", "assert.equal(config.size, \"1536x1024\")");
   });
 
   console.log(`Image provider landscape config smoke: PASS (${count} scenarios)`);
