@@ -17,11 +17,11 @@ try {
     const directory=path.join(root,mood);fs.mkdirSync(directory);
     fs.writeFileSync(path.join(directory,"old.wav"),wav);fs.writeFileSync(path.join(directory,"new.wav"),wav);
     fs.writeFileSync(path.join(directory,"new.wav.license.json"),JSON.stringify({license:"CC0-1.0",priority:10}));
-    const selected=selectMusicTrack(mood,"stable-seed",{NODE_ENV:"test",ATOLYE_MUSIC_LIBRARY_ROOT:root});assert.equal(selected?.fileName,"new.wav");assert.equal(classifyMediaRightsStatus(selected?.license),"public-domain");
+    const selected=selectMusicTrack(mood,"stable-seed",{NODE_ENV:"test",ATOLYE_MUSIC_LIBRARY_ROOT:root});assert.equal(selected?.fileName,"new.wav", "assert.equal(selected?.fileName,\"new.wav\")");assert.equal(classifyMediaRightsStatus(selected?.license),"public-domain", "assert.equal(classifyMediaRightsStatus(selected?.license),\"public-domain\")");
     fs.writeFileSync(path.join(directory,"old.wav.license.json"),JSON.stringify({priority:1000}));
     assert.equal(selectMusicTrack(mood,"stable-seed",{NODE_ENV:"test",ATOLYE_MUSIC_LIBRARY_ROOT:root})?.fileName,"new.wav","out-of-bounds priority not admitted");
   }
   console.log("Original music: PASS (5 real bounded WAV moods, no samples/API, deterministic arrangement, no clipping, optional curated priority, licence gate retained)");
 } finally {
-  const resolved=fs.realpathSync.native(root);assert.equal(path.dirname(resolved),fs.realpathSync.native(os.tmpdir()));fs.rmSync(resolved,{recursive:true,force:true});
+  const resolved=fs.realpathSync.native(root);assert.equal(path.dirname(resolved),fs.realpathSync.native(os.tmpdir()), "assert.equal(path.dirname(resolved),fs.realpathSync.native(os.tmpdir()))");fs.rmSync(resolved,{recursive:true,force:true});
 }
