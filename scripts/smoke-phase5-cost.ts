@@ -89,12 +89,12 @@ async function run() {
       const p = await ProjectManager.createProject(`p5 ${label} ${Date.now()}`);
       const log = await usageLog(p.slug, [rec({ estimatedCost: usd, stage: "visuals", operation: "image-scene-1", provider: "openai", model: "gpt-image-1" })]);
       const receipt = buildProductionCostReceipt({ projectSlug: p.slug, usage: log, budgetUsd: 1.0 });
-      assert.equal(receipt.status, expected);
-      assert.equal(receipt.withinBudget, expected === "within-budget");
-      assert.equal(receipt.observedUsd, usd);
+      assert.equal(receipt.status, expected, "assert.equal(receipt.status, expected)");
+      assert.equal(receipt.withinBudget, expected === "within-budget", "assert.equal(receipt.withinBudget, expected === \"within-budget\")");
+      assert.equal(receipt.observedUsd, usd, "assert.equal(receipt.observedUsd, usd)");
       persistProductionCostReceipt(receipt);
       const persisted = await ProjectManager.getProject(p.slug); // sanity: project still readable
-      assert.ok(persisted);
+      assert.ok(persisted, "assert.ok(persisted)");
     });
   }
 
@@ -106,9 +106,9 @@ async function run() {
       rec({ pricingStatus: "unknown", estimatedCost: undefined, model: "mystery-model", provider: "openai" }),
     ]);
     const receipt = buildProductionCostReceipt({ projectSlug: p.slug, usage: log, budgetUsd: 1.0 });
-    assert.equal(receipt.status, "unknown-pricing");
-    assert.equal(receipt.withinBudget, false);
-    assert.equal(receipt.unknownCostCount, 1);
+    assert.equal(receipt.status, "unknown-pricing", "assert.equal(receipt.status, \"unknown-pricing\")");
+    assert.equal(receipt.withinBudget, false, "assert.equal(receipt.withinBudget, false)");
+    assert.equal(receipt.unknownCostCount, 1, "assert.equal(receipt.unknownCostCount, 1)");
   });
 
   // G ------------------------------------------------------------------
@@ -122,31 +122,31 @@ async function run() {
       rec({ provider: "mock", pricingStatus: "free", estimatedCost: 0, model: "mock-ai-provider" }),
     ]);
     const receipt = buildProductionCostReceipt({ projectSlug: p.slug, usage: log, budgetUsd: 1.0 });
-    assert.equal(receipt.observedUsd, 0.32);
-    assert.equal(receipt.byCategory.visuals, 0.12);
-    assert.equal(receipt.byCategory.audio, 0.18);
-    assert.equal(receipt.retryUsd, 0.06);
-    assert.equal(receipt.duplicateUsd, 0.06);
-    assert.equal(receipt.freeCallCount, 1);
-    assert.equal(receipt.billableCallCount, 4);
+    assert.equal(receipt.observedUsd, 0.32, "assert.equal(receipt.observedUsd, 0.32)");
+    assert.equal(receipt.byCategory.visuals, 0.12, "assert.equal(receipt.byCategory.visuals, 0.12)");
+    assert.equal(receipt.byCategory.audio, 0.18, "assert.equal(receipt.byCategory.audio, 0.18)");
+    assert.equal(receipt.retryUsd, 0.06, "assert.equal(receipt.retryUsd, 0.06)");
+    assert.equal(receipt.duplicateUsd, 0.06, "assert.equal(receipt.duplicateUsd, 0.06)");
+    assert.equal(receipt.freeCallCount, 1, "assert.equal(receipt.freeCallCount, 1)");
+    assert.equal(receipt.billableCallCount, 4, "assert.equal(receipt.billableCallCount, 4)");
     // summarizeObservedCost agrees
-    assert.equal(summarizeObservedCost(log.records).knownUsd, 0.32);
+    assert.equal(summarizeObservedCost(log.records).knownUsd, 0.32, "assert.equal(summarizeObservedCost(log.records).knownUsd, 0.32)");
   });
 
   // H ------------------------------------------------------------------
   await scenario("H: preflight - pass vs projected-exceeds vs unknown", async () => {
     const p = await ProjectManager.createProject(`p5 H ${Date.now()}`);
     const pass = await buildProductionCostPreflight({ projectSlug: p.slug, script: script(6, 9000), scenes: scenes(16), budgetUsd: 1.0 });
-    assert.equal(pass.decision, "pass");
+    assert.equal(pass.decision, "pass", "assert.equal(pass.decision, \"pass\")");
     const tiny = await buildProductionCostPreflight({ projectSlug: p.slug, script: script(6, 9000), scenes: scenes(16), budgetUsd: 0.01 });
-    assert.equal(tiny.decision, "block");
-    assert.equal(tiny.blockReason, "projected-exceeds-budget");
+    assert.equal(tiny.decision, "block", "assert.equal(tiny.decision, \"block\")");
+    assert.equal(tiny.blockReason, "projected-exceeds-budget", "assert.equal(tiny.blockReason, \"projected-exceeds-budget\")");
     const unknown = await buildProductionCostPreflight({
       projectSlug: p.slug, script: script(6, 9000), scenes: scenes(16), budgetUsd: 1.0,
       env: { OPENAI_MODEL: "gpt-nonexistent" } as unknown as NodeJS.ProcessEnv,
     });
-    assert.equal(unknown.decision, "block");
-    assert.equal(unknown.blockReason, "unknown-pricing");
+    assert.equal(unknown.decision, "block", "assert.equal(unknown.decision, \"block\")");
+    assert.equal(unknown.blockReason, "unknown-pricing", "assert.equal(unknown.blockReason, \"unknown-pricing\")");
   });
 
   // I ------------------------------------------------------------------
@@ -155,7 +155,7 @@ async function run() {
     const log = await usageLog(p.slug, [rec({ estimatedCost: 0.4, stage: "scenes", operation: "scenes" })]);
     const a = buildProductionCostReceipt({ projectSlug: p.slug, usage: log, budgetUsd: 1.0, now: () => "2026-08-30T00:00:00.000Z" });
     const b = buildProductionCostReceipt({ projectSlug: p.slug, usage: log, budgetUsd: 1.0, now: () => "2026-08-30T00:00:00.000Z" });
-    assert.deepEqual(a, b);
+    assert.deepEqual(a, b, "assert.deepEqual(a, b)");
   });
 
   console.log(`Phase 5 cost engine + $1 gate smoke: PASS (${count} scenarios)`);
