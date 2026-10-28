@@ -41,18 +41,18 @@ function run() {
   scenario("estimateNarrationSeconds is proportional to character count", () => {
     const short = estimateNarrationSeconds("a".repeat(100));
     const long = estimateNarrationSeconds("a".repeat(200));
-    assert.ok(Math.abs(long - short * 2) < 1e-9);
+    assert.ok(Math.abs(long - short * 2) < 1e-9, "assert.ok(Math.abs(long - short * 2) < 1e-9)");
   });
 
   scenario("estimateNarrationSeconds matches the calibrated default rate", () => {
     const seconds = estimateNarrationSeconds("a".repeat(1412));
     assert.ok(Math.abs(seconds - 100) < 0.1, `expected ~100s, got ${seconds}`);
-    assert.equal(DEFAULT_CHARACTERS_PER_SECOND > 10 && DEFAULT_CHARACTERS_PER_SECOND < 20, true);
+    assert.equal(DEFAULT_CHARACTERS_PER_SECOND > 10 && DEFAULT_CHARACTERS_PER_SECOND < 20, true, "assert.equal(DEFAULT_CHARACTERS_PER_SECOND > 10 && DEFAULT_CHARACTERS_PER_SECOND < 20, true)");
   });
 
   scenario("estimateNarrationSeconds of empty/whitespace text is 0, not NaN/negative", () => {
-    assert.equal(estimateNarrationSeconds(""), 0);
-    assert.equal(estimateNarrationSeconds("   \n\t  "), 0);
+    assert.equal(estimateNarrationSeconds(""), 0, "assert.equal(estimateNarrationSeconds(\"\"), 0)");
+    assert.equal(estimateNarrationSeconds("   \n\t  "), 0, "assert.equal(estimateNarrationSeconds(\"   \\n\\t  \"), 0)");
   });
 
   scenario("estimateNarrationSeconds rejects a non-positive charactersPerSecond override", () => {
@@ -61,15 +61,15 @@ function run() {
   });
 
   scenario("countNarrationWords matches a plain whitespace split", () => {
-    assert.equal(countNarrationWords("bir iki üç"), 3);
-    assert.equal(countNarrationWords(""), 0);
-    assert.equal(countNarrationWords("   "), 0);
+    assert.equal(countNarrationWords("bir iki üç"), 3, "assert.equal(countNarrationWords(\"bir iki üç\"), 3)");
+    assert.equal(countNarrationWords(""), 0, "assert.equal(countNarrationWords(\"\"), 0)");
+    assert.equal(countNarrationWords("   "), 0, "assert.equal(countNarrationWords(\"   \"), 0)");
   });
 
   scenario("reconcileChapterDurations preserves the exact original total (rounded)", () => {
     const result = reconcileChapterDurations(REAL_CHAPTERS, REAL_ESTIMATED_TOTAL);
     const sum = result.reduce((s, r) => s + r.duration, 0);
-    assert.equal(sum, Math.round(REAL_ESTIMATED_TOTAL));
+    assert.equal(sum, Math.round(REAL_ESTIMATED_TOTAL), "assert.equal(sum, Math.round(REAL_ESTIMATED_TOTAL))");
   });
 
   scenario("reconcileChapterDurations redistributes by real narration length, not the original LLM per-chapter guess", () => {
@@ -88,7 +88,7 @@ function run() {
       (byId.get(2) as number) > (byId.get(1) as number),
       `expected chapter 2 (far more real text) to receive more duration than chapter 1, got ${JSON.stringify(result)}`,
     );
-    assert.equal((byId.get(1) as number) + (byId.get(2) as number), 60);
+    assert.equal((byId.get(1) as number) + (byId.get(2) as number), 60, "assert.equal((byId.get(1) as number) + (byId.get(2) as number), 60)");
   });
 
   scenario("reconcileChapterDurations on the real i-stanbul chapters would have produced a total close to the real measured duration if the estimator itself had set the total (evidence, not the production behavior)", () => {
@@ -108,9 +108,9 @@ function run() {
 
   scenario("reconcileChapterDurations falls back to original durations on degenerate input (fail-safe, not fail-open)", () => {
     const chapters = [{ id: 1, duration: 30, narration: "text" }];
-    assert.deepEqual(reconcileChapterDurations(chapters, 0), [{ id: 1, duration: 30 }]);
-    assert.deepEqual(reconcileChapterDurations(chapters, Number.NaN), [{ id: 1, duration: 30 }]);
-    assert.deepEqual(reconcileChapterDurations([], 90), []);
+    assert.deepEqual(reconcileChapterDurations(chapters, 0), [{ id: 1, duration: 30 }], "assert.deepEqual(reconcileChapterDurations(chapters, 0), [{ id: 1, duration: 30 }])");
+    assert.deepEqual(reconcileChapterDurations(chapters, Number.NaN), [{ id: 1, duration: 30 }], "assert.deepEqual(reconcileChapterDurations(chapters, Number.NaN), [{ id: 1, duration: 30 }])");
+    assert.deepEqual(reconcileChapterDurations([], 90), [], "assert.deepEqual(reconcileChapterDurations([], 90), [])");
   });
 
   scenario("reconcileChapterDurations is language-independent (no hardcoded words/sec table)", () => {
@@ -118,13 +118,13 @@ function run() {
     // the same way -- there is no per-language branch in the estimator.
     const turkish = [{ id: 1, duration: 10, narration: "x".repeat(300) }, { id: 2, duration: 10, narration: "x".repeat(300) }];
     const result = reconcileChapterDurations(turkish, 20);
-    assert.deepEqual(result.map((r) => r.duration).sort(), [10, 10]);
+    assert.deepEqual(result.map((r) => r.duration).sort(), [10, 10], "assert.deepEqual(result.map((r) => r.duration).sort(), [10, 10])");
   });
 
   scenario("reconcileChapterDurations is idempotent/deterministic (retry/resume-safe: no drift on repeated calls)", () => {
     const first = reconcileChapterDurations(REAL_CHAPTERS, REAL_ESTIMATED_TOTAL);
     const second = reconcileChapterDurations(REAL_CHAPTERS, REAL_ESTIMATED_TOTAL);
-    assert.deepEqual(first, second);
+    assert.deepEqual(first, second, "assert.deepEqual(first, second)");
   });
 
   scenario("reconcileChapterDurations never produces a non-positive duration for a non-empty chapter", () => {
@@ -133,7 +133,7 @@ function run() {
       { id: 2, duration: 10, narration: "x" }, // tiny relative share
     ];
     const result = reconcileChapterDurations(chapters, 20);
-    assert.ok(result.every((r) => r.duration >= 1));
+    assert.ok(result.every((r) => r.duration >= 1), "assert.ok(result.every((r) => r.duration >= 1))");
   });
 
   console.log(`Narration duration estimator smoke: PASS (${count} scenarios)`);
