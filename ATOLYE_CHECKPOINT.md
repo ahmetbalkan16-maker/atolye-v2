@@ -1,3 +1,41 @@
+## 2 Kasım 2026 (gece, 3) — İlk gerçek Short denemesi (Sezar ve korsanlar); portre kaynağı düzeltmesi
+
+**Owner:** "benim vereceğim kararlara evet" (izleyici yeniden başlatma, kanal önerileri, haftalık konu planı),
+"benim yapmam gerekenleri yarın yapacağım" (Google Cloud + Studio), "şimdi kısa deneme bir Shorts yapalım, konuyu
+sen seç ve takip et"; üretim sırasında: "sadece büstlerden değil internetten fotoğraflardan çizilmiş tablolardan da
+yapabilir karakteri".
+
+**İzleyici** yeni kodla yeniden başlatıldı (pid 20408; YouTube döngüsü açık, bağlantı yok → onaylar bekler).
+**Sipariş** `20261102T140819-julius-caesar-kidnapped-by-cilician-pira` (60sn, en, mizahi): 1 sa 25 dk, 0,19 $,
+UYARIYLA teslim; 51,1 sn 1080×1920, −14,5 LUFS; paket "Julius Caesar vs. Pirates: The Ransom Showdown #Shorts".
+YouTube'a yüklenmedi (onay yok; yüklenmemeli — aşağıdaki kusurlar).
+
+**Bulgular (kareler + KURUL):**
+- **Yanlış kişiden çizim:** portre araştırmacısı Sezar için makaledeki **Pompeius büstünü** seçti — yargıç onu
+  "Pompey'in mermer büstü" diye tanımlayıp konu 10/10 verdi, dönem 8 > 7 ile gerçek Sezar büstlerini geçti. Benzerlik
+  6 → 7 → 6; iki rötuş turu yanlış referansa yaklaştıkça Sezar kötüleşti (saç bej sarık/miğfer, kuşak mor — tarihçi
+  morun 25 yaşındaki Sezar'a uymadığını söylemişti) ve **son tur teslim edildi**, en iyisi değil (`final-tur0.mp4` daha iyi).
+- **Kanca yok:** açılış anlatıcının "Julius Caesar, age 25…" cümlesi, ilk 6 sn köy çayırında tek başına duran korsan.
+- **Anlatılan ekranda yok** (kurul 5 satır yakaladı): kaçırma, fidye, filo, av — ekranda yalnız duran karakterler.
+- **Gemi seti yok:** 13 çizili manzarada güverte/kamara yok → "Pirate ship cabin" sahnesi ova (köy) oldu.
+- **Dikey kadraj:** kimse konuşmazken pencere iki karakterin ortasına gidip ikisini kenarda kesiyor; ad etiketi
+  pencere kaymadan ~0,5 sn önce önceki konuşanın üstünde beliriyor (konuşan kadraj dışı göründüğü kare bir kayma anıydı).
+- **Kurulun yanlışı:** "51 sn / hedef 60" uyarısı — Short'ta 60 üst sınır. Yerleşim/piksel ölçer 0 kusur dedi;
+  yukarıdaki iki kadraj kusuru ölçerin tanımadığı türler.
+- **İyi:** düz parlak üslup, mizah replikleri, tarihçinin kostüm düzeltmeleri, dönem görseli yargıcının ilgisiz
+  tabloları (Van Gogh vb.) elemesi, ses seviyesi, maliyet.
+
+**Düzeltildi (`5b8d4501`, canlıda):** `PortraitFaces.portraitCandidates` — baş resim + makale resimleri + Commons
+"portrait"/"painting"/"photograph" aramaları sırayla (8 aday; önceden makale resimleri 6 yeri doldurup Commons'u hiç
+yargıca ulaştırmıyordu); `namesPerson` — baş resim dışındaki aday dosya adında/açıklama başında kişinin adını taşımalı,
+sıra numaralı hükümdarda numara da (III. Murad / Mir Ali Murad elenir). Gerçek veriyle: Sezar'da Pompeius/Augustus/Cato
+çıktı, Vatikan büstü + Royer ve Camuccini tabloları girdi; Atatürk'te fotoğraflar. Smoke O24b; director 51,
+likeness 14, tsc, lint 0 hata.
+
+**Sıradaki (öneri, owner onayı):** rötuş en iyi puanlı turu teslim etsin; Short süre kontrolü üst sınır; Short
+kancası (ilk replik karakterden/eylemden); gemi güvertesi/kamara çizili seti; dikey pencere kimse konuşmazken ana
+karakteri/son konuşanı tutsun, etiket pencereyle gelsin; anlatılanı ekrana taşıyan eylemler (filo, kaçırma).
+
 ## 2 Kasım 2026 (gece, 2) — V3 YouTube: owner onaylı yükleme, haftalık takvim, kanal incelemesi
 
 **Owner kararları** (gelir sorularının cevabı): (1) kanal `@Geschichteentschlüsselt` (`UC3u0Kx_T49g9qdLFOagsN8A`)
