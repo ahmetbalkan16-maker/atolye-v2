@@ -5,7 +5,9 @@
  * pass. Run it after teaching the brain or changing its model; the brains themselves can run it, no coding agent needed.
  *
  *   npx tsx scripts/v3/kalite-sinavi.ts hazirla                  # cuts the exam frames (outside git)
- *   npx tsx scripts/v3/kalite-sinavi.ts calistir [--model gemma4:12b] [--ornek-yok] [--kenar-yok]
+ *   npx tsx scripts/v3/kalite-sinavi.ts calistir [--model gemma4:12b] [--ornek-yok] [--kenar-yok] [--olculu]
+ *        --olculu: as the production since 2 Nov 2026 — pixel check + the vision model asked only what needs an eye;
+ *        layout questions ("olcum": "yerlesim") are left out (measured from the render's boxes, not from a frame)
  *   npx tsx scripts/v3/kalite-sinavi.ts ogret --soru <id>         # teach the brain an exam frame it got wrong
  *   npx tsx scripts/v3/kalite-sinavi.ts ogret --video <mp4> --saniye <s> --tur <harita|yakin-harita|sahne|resim|gecis>
  *        --metin "<what is wrong, or why it is fine>" [--temiz] [--ad <name>] [--bolum <episode>]
@@ -22,6 +24,7 @@ import path from "node:path";
 import { resolveOllamaConfig } from "../../src/lib/ai/OllamaConfig";
 import { OllamaProvider } from "../../src/lib/ai/providers/OllamaProvider";
 import { exampleDir, recall } from "../../src/lib/v3/council/ExperienceMemory";
+import { pixelFaults, scanVideo } from "../../src/lib/v3/council/PixelCheck";
 import { edgeStripArgs, FRAME_KINDS, type FrameKind, frameExamples, judgeFrame, QUALITY_BAR, teachFrame } from "../../src/lib/v3/council/QualityBrain";
 import { coolGpuProvider, V3_OLLAMA_THERMAL } from "../../src/lib/v3/util/Gpu";
 import { runChecked } from "../../src/lib/v3/util/Proc";
@@ -36,6 +39,8 @@ interface Question {
   readonly kusurlu: boolean;
   readonly kusur?: string;
   readonly ne?: string;
+  /** Which check catches the fault in production: the render's boxes, the pixel check, or the eye (vision model). */
+  readonly olcum?: "yerlesim" | "piksel" | "goz";
 }
 
 function arg(name: string): string | undefined {
@@ -91,24 +96,37 @@ async function main() {
   const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model, timeoutMs: 300_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
   const rules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
   const lessons = process.argv.includes("--ornek-yok") ? [] : await recall(paths.workRoot, "kalite", { tur: "ders", limit: 10_000 }).catch(() => []);
+  // --olculu: as the production judges since 2 Nov 2026 — the pixel check over the source video around the frame, and
+  // the vision model asked only what needs an eye. A layout fault is measured from the render's own boxes, which an old
+  // video's frame does not have: those questions are left out of the score here (the render test covers them).
+  const measured = process.argv.includes("--olculu");
   const answers = [];
+  const leftOut: string[] = [];
   let right = 0;
   for (const q of sorular) {
     if (!existsSync(frameOf(q))) {
       console.log(`· ${q.id}: kare yok (önce "hazirla")`);
       continue;
     }
+    if (measured && q.olcum === "yerlesim") {
+      leftOut.push(q.id);
+      console.log(`· ${q.id.padEnd(28)} yerleşim kusuru: render kutularıyla ölçülür, bu karede ölçülemez`);
+      continue;
+    }
     // Never its own frame among the examples.
     const examples = await frameExamples(lessons, exampleDir(paths.workRoot), q.tur, (file) => file === `${q.id}.jpg`);
-    // The edge strips as the production shows them (not for a period picture).
-    const edges = !process.argv.includes("--kenar-yok") && q.tur !== "resim" && existsSync(edgesOf(q)) ? (await fs.readFile(edgesOf(q))).toString("base64") : undefined;
-    const v = await judgeFrame({ judge, image: (await fs.readFile(frameOf(q))).toString("base64"), donem: q.donem, rules, kind: q.tur, examples, ...(edges ? { edges } : {}) });
+    // The edge strips as the production shows them (not for a period picture; measured, not at all).
+    const edges = !measured && !process.argv.includes("--kenar-yok") && q.tur !== "resim" && existsSync(edgesOf(q)) ? (await fs.readFile(edgesOf(q))).toString("base64") : undefined;
+    const v = await judgeFrame({ judge, image: (await fs.readFile(frameOf(q))).toString("base64"), donem: q.donem, rules, kind: q.tur, examples, ...(edges ? { edges } : {}), ...(measured ? { measured: true } : {}) });
+    // The pixel faults within a frame's time of the question's moment.
+    const pixels = measured ? pixelFaults(await scanVideo(paths.ffmpeg, path.join(paths.workRoot, q.kaynak), { fps: 30, from: Math.max(0, q.saniye - 2), to: q.saniye + 2 })).filter((p) => p.from <= q.saniye + 0.05 && p.to >= q.saniye - 0.05) : [];
     // The production reports a frame under the bar with a fault named; an unreadable answer is no verdict.
-    const reported = !v.okunamadi && v.puan < QUALITY_BAR && v.sorunlar.length > 0;
-    const dogru = !v.okunamadi && reported === q.kusurlu;
+    const seen = !v.okunamadi && v.puan < QUALITY_BAR && v.sorunlar.length > 0;
+    const reported = seen || pixels.length > 0;
+    const dogru = (!v.okunamadi || pixels.length > 0) && reported === q.kusurlu;
     if (dogru) right++;
-    answers.push({ id: q.id, tur: q.tur, kusurlu: q.kusurlu, dogru, puan: v.puan, ornek: examples.length, kenar: Boolean(edges), sorunlar: v.sorunlar, ...(v.okunamadi ? { okunamadi: true } : {}) });
-    console.log(`${dogru ? "✓" : "✗"} ${q.id.padEnd(28)} ${q.kusurlu ? "kusurlu" : "temiz  "} → ${v.puan}/10 (${examples.length} örnek) ${v.sorunlar.join("; ").slice(0, 100)}`);
+    answers.push({ id: q.id, tur: q.tur, kusurlu: q.kusurlu, dogru, puan: v.puan, ornek: examples.length, kenar: Boolean(edges), sorunlar: v.sorunlar, ...(pixels.length ? { piksel: pixels.map((p) => p.ayrinti) } : {}), ...(v.okunamadi ? { okunamadi: true } : {}) });
+    console.log(`${dogru ? "✓" : "✗"} ${q.id.padEnd(28)} ${q.kusurlu ? "kusurlu" : "temiz  "} → ${v.puan}/10 (${examples.length} örnek) ${[...pixels.map((p) => `[piksel] ${p.ayrinti}`), ...v.sorunlar].join("; ").slice(0, 120)}`);
   }
   const caught = answers.filter((a) => a.kusurlu && a.dogru).length;
   const faulty = answers.filter((a) => a.kusurlu).length;
@@ -118,7 +136,7 @@ async function main() {
   // that answers the same for every frame, and such a judge is named as one.
   const balanced = faulty && answers.length - faulty ? Math.round(((caught / faulty + clean / (answers.length - faulty)) / 2) * 100) : undefined;
   const sameVerdict = answers.length > 1 && (caught + (answers.length - faulty - clean) === answers.length || (faulty - caught) + clean === answers.length);
-  const report = { tarih: new Date().toISOString(), model, kurallar: rules.length, ornekli: lessons.some((l) => l.ornek), kenarli: !process.argv.includes("--kenar-yok"), dogru: right, toplam: answers.length, ...(balanced !== undefined ? { dengeli_yuzde: balanced } : {}), hep_ayni_karar: sameVerdict, cevaplar: answers };
+  const report = { tarih: new Date().toISOString(), model, kurallar: rules.length, ornekli: lessons.some((l) => l.ornek), kenarli: !measured && !process.argv.includes("--kenar-yok"), ...(measured ? { olculu: true, disarida_yerlesim: leftOut } : {}), dogru: right, toplam: answers.length, ...(balanced !== undefined ? { dengeli_yuzde: balanced } : {}), hep_ayni_karar: sameVerdict, cevaplar: answers };
   const out = path.join(paths.workRoot, "_kutuphane", "sinav", `kalite-sonuc-${Date.now()}.json`);
   await fs.writeFile(out, JSON.stringify(report, null, 2));
   console.log(`\n${model}: ${right}/${answers.length} doğru — kusurlu karelerin ${caught}/${faulty}'ini buldu, temiz karelerin ${clean}/${answers.length - faulty}'ini geçirdi${balanced !== undefined ? `; dengeli doğruluk %${balanced} (yazı-tura %50)` : ""}${sameVerdict ? "\nUYARI: her kareye aynı kararı verdi — bu bir yargı değil, puanı yok sayın" : ""}\nrapor: ${out}`);

@@ -1,5 +1,5 @@
 {
-  "surum": 1,
+  "surum": 2,
   "aciklama": "Kalite beyninin kare kusuru sınavı (owner, 26 Eki 2026: 'kare kusuru tespitini beyine kur, o da yapabilsin'). Kareler bitmiş videolardan alınır (kaynak: çalışma köküne göre video, saniye); kusurlu bir kareyi beyin QUALITY_BAR altında puanlayıp bildirmeli, temiz bir kareyi geçirmeli. Kosova 1389 son incelemesinde Claude'un kare kare bulduğu kusurlar; kalite beyni aynı videoda 18 kareye 10/10 vermişti.",
   "sorular": [
     {
@@ -9,7 +9,8 @@
       "donem": "1389",
       "tur": "yakin-harita",
       "kusurlu": true,
-      "kusur": "Yakın savaş haritasında Prince Lazar'ın portre rozeti resmin üst kenarında yarım kesik; ok adı pulların altında kalmış."
+      "kusur": "Yakın savaş haritasında Prince Lazar'ın portre rozeti resmin üst kenarında yarım kesik; ok adı pulların altında kalmış.",
+      "olcum": "yerlesim"
     },
     {
       "id": "kosova-balon-yazi-ustune",
@@ -18,7 +19,8 @@
       "donem": "1389",
       "tur": "yakin-harita",
       "kusurlu": true,
-      "kusur": "\"NEW MANAGEMENT!\" konuşma yazısı \"BAYEZID'S COUNTERATTACK\" ok adının üstüne binmiş; Lazar'ın rozeti üst kenarda kesik."
+      "kusur": "\"NEW MANAGEMENT!\" konuşma yazısı \"BAYEZID'S COUNTERATTACK\" ok adının üstüne binmiş; Lazar'ın rozeti üst kenarda kesik.",
+      "olcum": "yerlesim"
     },
     {
       "id": "kosova-etiket-kesik",
@@ -27,7 +29,8 @@
       "donem": "1389",
       "tur": "yakin-harita",
       "kusurlu": true,
-      "kusur": "Bozguna uğrayan ordunun \"Serbian coalition\" etiketi resmin üst kenarında kesik, yalnız alt yarısı görünüyor."
+      "kusur": "Bozguna uğrayan ordunun \"Serbian coalition\" etiketi resmin üst kenarında kesik, yalnız alt yarısı görünüyor.",
+      "olcum": "yerlesim"
     },
     {
       "id": "kosova-gecis-siyah-serit",
@@ -36,7 +39,8 @@
       "donem": "1389",
       "tur": "gecis",
       "kusurlu": true,
-      "kusur": "Sahne geçişinde resmin sol kenarı boyunca geniş koyu/siyah bir şerit var; görüntü kareyi doldurmuyor."
+      "kusur": "Sahne geçişinde resmin sol kenarı boyunca geniş koyu/siyah bir şerit var; görüntü kareyi doldurmuyor.",
+      "olcum": "piksel"
     },
     {
       "id": "kosova-zemin-deniz",
@@ -45,7 +49,8 @@
       "donem": "1389",
       "tur": "gecis",
       "kusurlu": true,
-      "kusur": "Kara savaş haritasının zemini tamamen lacivert (deniz rengi) çizilmiş, tarlalar ve ağaçlar denizin üstünde yüzüyor; solda koyu şerit."
+      "kusur": "Kara savaş haritasının zemini tamamen lacivert (deniz rengi) çizilmiş, tarlalar ve ağaçlar denizin üstünde yüzüyor; solda koyu şerit.",
+      "olcum": "piksel"
     },
     {
       "id": "kosova-sakal-onluk",
@@ -54,7 +59,8 @@
       "donem": "1389",
       "tur": "sahne",
       "kusurlu": true,
-      "kusur": "Prince Lazar'ın sakalı çeneyi kaplamıyor, çenesinin altından göğsüne önlük gibi sarkan kahverengi bir parça."
+      "kusur": "Prince Lazar'ın sakalı çeneyi kaplamıyor, çenesinin altından göğsüne önlük gibi sarkan kahverengi bir parça.",
+      "olcum": "goz"
     },
     {
       "id": "kosova-devlet-adi-kesik",
@@ -63,7 +69,8 @@
       "donem": "1389",
       "tur": "harita",
       "kusurlu": true,
-      "kusur": "Haritada devlet adı sol üst kenarda kesik (\"SERBIA\" yerine \"ERBIA\" okunuyor); sağda \"BLACK SEA\" de kenarda kesik."
+      "kusur": "Haritada devlet adı sol üst kenarda kesik (\"SERBIA\" yerine \"ERBIA\" okunuyor); sağda \"BLACK SEA\" de kenarda kesik.",
+      "olcum": "yerlesim"
     },
     {
       "id": "kosova-temiz-konsey",
@@ -110,5 +117,6 @@
       "kusurlu": false,
       "ne": "Stefanović'in 1875 tarihli Kosova savaşı tablosu, altta kaynak satırı."
     }
-  ]
+  ],
+  "olcum_aciklama": "Kusurlu sorunun 'olcum' alanı onu hangi denetimin yakalayacağını söyler (2 Kas 2026): yerlesim = render sırasında yazılan kutular (LayoutCheck; eski bir videonun karesinden ölçülemez, render testiyle sınanır), piksel = PixelCheck, goz = görsel model. 'calistir --olculu' üretimdeki gibi birleştirir: piksel denetimi + yalnız göz isteyen sorularla görsel model."
 }
