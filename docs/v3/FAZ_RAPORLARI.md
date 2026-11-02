@@ -502,3 +502,20 @@ listesi: ATOLYE_CHECKPOINT.md "26 Ekim 2026".
   temiz karelere tekrarlıyor. Beynin "0 sorun"u kanıt değildir; kontrol Claude'da.
 - Doğrulama: smoke-v3-episode-director 50, council 12, motion 9, render 5, script 21, backgrounds 20, mix 13,
   likeness 14, youtube 4 PASS; tsc 0 (kök + remotion); lint 0 hata / 13 eski uyarı.
+
+## Beyin kurulu: AYAS yönetmen, benzer videolardan öğrenme, boşta gelişim (2 Kasım 2026)
+
+Owner onayı: "bunları onaylıyorum başla". Ayrıntı: ATOLYE_CHECKPOINT.md "2 Kasım 2026 (gece, 7)".
+
+- Referans incelemesi: `scripts/v3/referans.ts incele <YouTube>` — altyazı + 12 kare + tempo ölçüsü, beyin başına
+  somut dersler, ortanca hedef tempo; videonun hiçbir parçası kullanılmaz, indirilenler silinir. AYAS'a "bu videodan
+  öğren <bağlantı>" denince istek yazılır, boşta incelenir.
+- Yönetmen kurulu: her üretimde ilk kesimden sonra kurgu, araştırma, mizah ve kalite beyinleri puan verip tartışır;
+  ortalama 8'in altındaysa AYAS satır/oyun/set düzeltmelerine karar verir, düzeltmeler rötuş turunda uygulanır, en iyi
+  tur teslim edilir. Kuru çalıştırma: `scripts/v3/yonetmen-kurulu.ts --cikti <bölüm>`.
+- Boşta gelişim: `yapim.ts izle` sipariş yokken `scripts/v3/gelisim.ts dongu` çalıştırır — sınav, karşılaştırma,
+  benzer arama, istem eki/ayar denemesi (ikinci ölçümle doğrulanmayan değişiklik geri alınır), kod önerileri.
+- Rapor: AYAS sohbetinde "beyinler ne öğrendi / kurul ne dedi", Gelişim Merkezi'nde "Atölye Beyinleri" (öneriye
+  ONAYLA/REDDET yalnız karar kaydeder; kodu bir geliştirme oturumu yapar).
+- Doğrulama: smoke-v3-reference 8, director-council 8, self-improvement 4, brains-report 3 ve mevcut V3/AYAS smoke'ları
+  PASS; tsc 0; lint 0 hata / 13 eski uyarı.

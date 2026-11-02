@@ -1,3 +1,48 @@
+## 2 Kasım 2026 (gece, 7) — Beyin kurulu: benzer videolardan öğrenme, AYAS yönetmen turu, boşta gelişim, rapor
+
+**Owner:** önerilen sistemi onayladı ("bunları onaylıyorum başla"): benzer videolardan öğrenme, AYAS yönetmen,
+kendini geliştirme döngüsü, rapor; kod değişikliği yalnız öneri olarak Gelişim Merkezi'ne gelir, owner onayıyla yapılır.
+Commit'ler: `28b3fa6b` (referans), `b18d67c1` (yönetmen kurulu), `d51aba07` (döngü + rapor). Canlıya alınmadı (aşağıda).
+
+1. **Benzer videolardan öğrenme** (`ReferenceStore` + `ReferenceStudy`, `scripts/v3/referans.ts incele|ara|istekler|liste`):
+   yt-dlp araç klasöründe ayrı ortamda (`D:\URETIM\Atolye\v3-tools\yt-venv`, yt-dlp 2026.10.26, node JS çözücü);
+   videonun kendi dilindeki altyazı (çeviri istenmez, 429), 360p sessiz görüntü; kelime/dk, konuşma payı, ilk söz,
+   konuşmacı değişimi (">>"), soru payı, kesme/dk (ffmpeg sahne eşiği 0.25 — kendi videolarımız da aynı yöntemle
+   `olcum.json`), gemma4 ile 12 kare notu; gpt-4.1 beyin başına en çok 3 somut, zaman damgalı ders (gpt-4.1-mini genel
+   tavsiye yazıyordu; 5 kelimeden uzun alıntı kısaltılır); indirilenler silinir, yeniden inceleme eski dersleri siler.
+   Sancaray IV. Murad: 103 kelime/dk, dakikada 8.6 konuşmacı değişimi, 16 sn'de bir kesme, karelerin %83'ü karakter
+   ($0.015). Senaryo yazarı artık referans hedef temposunu ders olarak alır.
+2. **AYAS yönetmen kurulu** (`DirectorCouncil`, `scripts/v3/yonetmen-kurulu.ts --cikti <bölüm>` kuru çalıştırma): ilk
+   kesimden sonra kurgu/araştırma/mizah/kalite kendi alanının sorularıyla puan + en çok 5 not yazar (kare bulgularını
+   yalnız kalite görür — hepsine verilince dördü aynı notu yazıyordu), birbirine gerekçeli itiraz eder; ortalama < 8 ise
+   AYAS (gpt-4.1) menüden en çok 8 düzeltme seçer (satır yeniden yaz / sahnedeki karakterlere oyun / set değiştir);
+   düzeltmeler mevcut rötuş turuna biner (MAX_RETOUCH_ROUNDS ortak, en erken adım ses/gorsel/render), tur puanına kurul
+   ortalaması girer, eşitlikte yüksek kurul puanlı tur teslim edilir. Doğrulama: kısa sahne kimliği (s1 → s1-capture),
+   "#3" satır no, konuşanın oyunu satırın kendi jesti olur, set tarifinde insan yok, yüz/benzerlik kurulun işi değil,
+   eklenen parantezli yönerge ve satırı söylemeyen balon düzeltilir. Sezar Short'u kuru çalıştırma: kurul 6.8/10,
+   20 not, 11 itiraz, AYAS 3 satır + 4 oyun, $0.027.
+3. **Boşta gelişim döngüsü** (`SelfImprovement`, `scripts/v3/gelisim.ts dongu|durum|oneriler|onayla|reddet`): `yapim.ts
+   izle` sipariş yokken 6 saatte bir (ya da owner'ın video isteği varken) döngüyü ayrı süreçte çalıştırır, döngü bekleyen
+   siparişte durur (`ATOLYE_V3_GELISIM=0` kapatır). Görevler: istekleri incele, olcum.json ↔ referans karşılaştırması
+   (ders), son 14 günün kod isteklerini topla, benzer video ara, kalite sınavı (günde bir), ayar/istem eki denemesi.
+   **Bulgu:** aynı kalite sınavı birkaç dakika arayla %90 ve %73 verdi (8 soru, görüntü modeli tutarsız) → değişiklik
+   ancak ikinci ölçümle doğrulanırsa kalıcı (`confirmedGain`). Gerçek denemeler: örnek kare açmak %73→%63 geri alındı,
+   önerilen ek %73→%73 geri alındı. Kod önerileri: ölçülmüş bulgu hemen, yönetici fikri ikinci üretimde owner'a çıkar
+   (ilk toplamada 19'dan 1'i).
+4. **Rapor:** `BrainsReport`; AYAS sohbeti "beyinler ne öğrendi / kurul ne dedi / kurul raporu ver" ve "bu videodan öğren
+   <YouTube>" (yalnız istek yazar; bu iki niyet rapor merkezinden önce denetlenir); Gelişim Merkezi'nde "Atölye
+   Beyinleri" (`AtolyeBrainsPanel`, ONAYLA/REDDET yalnız karar kaydı, doğrulanmış oturum). Canlı sunucu alt süreç/ağ
+   modüllerine ulaşmasın diye `ReferenceStore` ve `TextOverlap` ayrıldı; firewall closure haritası değişmeden geçiyor.
+
+**Doğrulama:** smoke v3 reference 8, director-council 8, self-improvement 4, brains-report 3 (panel render), council 14,
+episode-director 55, likeness 15; ayas video-order 8, intent-routing 37, firewall closure 13 ve 24 konsol/onay smoke'u
+PASS; tsc temiz; tam lint 0 hata / 13 eski uyarı.
+
+**Açık / sıradaki:** canlıya alma owner onayı bekliyor (live dalı ileri sar + canonical pull → otomatik canlı yayın
+Gelişim Merkezi ve sohbeti günceller; sipariş izleyicisi yeniden başlatılmalı ki boşta döngü başlasın). Kurulun gerçek
+bir üretimde ilk çalışması (rötuş turunda düzeltmelerin uygulanması) henüz görülmedi. Görüntü hakeminin tutarsızlığı
+için sıcaklık/tohum sabitleme bir öneri adayı (üretim davranışını değiştirir, owner kararı).
+
 ## 2 Kasım 2026 (gece, 6) — Üç öneri düzeltildi: sfx eşlemesi, portrede yüz ölçümü, anlatılanı sahnede oynatma
 
 **Owner:** "tamam önerileri düzelt" + referans video (Sancaray, "IV. Murad" 3. bölüm, 8apicgLXhGg, 17 dk el çizimi
