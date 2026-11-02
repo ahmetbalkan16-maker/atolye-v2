@@ -133,6 +133,58 @@ export function narrateMoves(scene: Obj, where = "sahne"): string[] {
 }
 
 /**
+ * No info card darkens the close battle while its units move (the Mohács trial, 26 Oct 2026: "Why the Ottomans Won" held
+ * 14 s over the charge and the rout). A card that starts before the first move it covers ends there, its later items
+ * coming in one after another; one that starts on a move goes after the battle's last move, else before its first (a
+ * unit moves only after its first line, so line 0 is always quiet). Run after narrateMoves (it settles the move lines).
+ */
+export function clearBattleCards(scene: Obj, where = "sahne"): string[] {
+  const fixes: string[] = [];
+  const map = scene.harita;
+  const lines = Array.isArray(scene.satirlar) ? scene.satirlar.length : 0;
+  if (!isObj(map) || !Array.isArray(map.birlikler) || typeof map.genislik_km !== "number" || map.genislik_km > CLOSE_MAP_MAX_KM || !Array.isArray(scene.bilgi_kartlari)) return fixes;
+  const moving = new Set<number>();
+  for (const u of (map.birlikler as unknown[]).filter(isObj)) {
+    const yerler = Array.isArray(u.yerler) ? (u.yerler as unknown[]).filter(isObj) : [];
+    const first = Math.min(...yerler.map((y) => (typeof y.satir === "number" ? y.satir : 0)));
+    for (const y of yerler) {
+      const at = typeof y.satir === "number" ? y.satir : 0;
+      if (at > first && ((UNIT_MOVES.includes(y.hareket as UnitMove) && y.hareket !== "tut") || y.bozgun === true || (typeof y.kayip === "number" && y.kayip > 0))) moving.add(at);
+    }
+  }
+  if (!moving.size) return fixes;
+  const firstMove = Math.min(...moving);
+  const lastMove = Math.max(...moving);
+  const subs = (c: Obj) => [...(Array.isArray(c.dugumler) ? c.dugumler : []), ...(Array.isArray(c.maddeler) ? c.maddeler : [])].filter(isObj);
+  (scene.bilgi_kartlari as unknown[]).forEach((c, ci) => {
+    if (!isObj(c) || typeof c.satir !== "number") return;
+    const from = c.satir;
+    const named = subs(c).map((x) => (typeof x.satir === "number" ? x.satir : from));
+    const to = typeof c.bitis_satir === "number" ? c.bitis_satir - 1 : Math.max(from, ...named);
+    const hit = [...moving].filter((m) => m >= from && m <= to).sort((a, b) => a - b)[0];
+    if (hit === undefined) return;
+    const label = `${where}.bilgi_kartlari[${ci}]${typeof c.baslik === "string" ? ` "${c.baslik}"` : ""}`;
+    const settle = (start: number, end?: number) => {
+      c.satir = start;
+      if (end === undefined) delete c.bitis_satir;
+      else c.bitis_satir = end;
+      for (const x of subs(c)) if (typeof x.satir === "number" && (x.satir < start || (end !== undefined && x.satir >= end))) delete x.satir;
+    };
+    if (hit > from) {
+      settle(from, hit);
+      fixes.push(`${label}: ${hit}. satırda birlikler hareket ediyor — kart orada biter`);
+    } else if (lastMove + 1 < lines) {
+      settle(lastMove + 1);
+      fixes.push(`${label}: ${from}. satırda birlikler hareket ediyor — kart savaştan sonraya (${lastMove + 1}. satır) alındı`);
+    } else {
+      settle(0, firstMove);
+      fixes.push(`${label}: ${from}. satırda birlikler hareket ediyor — kart savaştan önceye (0. satır) alındı`);
+    }
+  });
+  return fixes;
+}
+
+/**
  * A field battle's close map framed on its armies (the Mohács trials: the writer drew the armies within 3 km on a map
  * 32–35 km wide, so the tokens, of a fixed size on the screen, piled up): the map narrows to the armies, their leaders'
  * badges and a margin — a side's flight may run off it — and is centred on them. Walls and castles keep their map.

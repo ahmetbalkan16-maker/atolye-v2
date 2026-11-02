@@ -2,7 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import { ARCH_STYLES, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
 import { periodEndYear } from "../episode/Period";
-import { capUnitBlocks, fitBattleMap, narrateMoves, resolveTactics } from "../maps/Tactics";
+import { capUnitBlocks, clearBattleCards, fitBattleMap, narrateMoves, resolveTactics } from "../maps/Tactics";
 import type { V3Emotion, V3Garment, V3Gesture } from "../render/RenderPlanTypes";
 
 /**
@@ -235,7 +235,7 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
     if (isObj(s.harita)) {
       const where = `sahneler[${si}].harita`;
       const written = typeof s.harita.genislik_km === "number" ? s.harita.genislik_km : undefined;
-      fixes.push(...capUnitBlocks(s.harita, where), ...narrateMoves(s, where), ...fitBattleMap(s.harita, where));
+      fixes.push(...capUnitBlocks(s.harita, where), ...narrateMoves(s, where), ...clearBattleCards(s, `sahneler[${si}]`), ...fitBattleMap(s.harita, where));
       fixes.push(...resolveTactics(s.harita, where, typeof draft.donem === "string" ? periodEndYear(draft.donem) : undefined));
       fixes.push(...fitBattleMap(s.harita, where, written));
     }

@@ -294,6 +294,8 @@ MAPS — wherever the story moves (campaigns, borders, empires, routes) show a d
     {"tur": "liste", "baslik": "Caesar's advantages", "satir": 3, "maddeler": [{"metin": "Veteran legions", "satir": 3}, {"metin": "Speed", "satir": 4}]}
         // a titled list, each item coming in with the line that says it (2–6 items, at most 6 words each)
     {"tur": "sayac", "satir": 2, "deger": 1000000, "etiket": "Gauls killed in eight years"}   // a number counting up
+  On a close battle map a card darkens the battle: give it before the first unit moves or after the last one, never
+  on the lines where units move, fight or flee.
   Tell events ON the map as they happen, line by line, the way the history-with-maps channels do: an army marches, a
   conquest sweeps over the land behind it, the old border fades, a battle flashes, a ruler flees, the camera follows.
   Never show a whole war's result at once — let the viewer watch it happen. Prefer this living map narration to a still

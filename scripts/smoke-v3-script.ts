@@ -16,7 +16,7 @@ import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
 import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
-import { resolveTactics } from "../src/lib/v3/maps/Tactics";
+import { clearBattleCards, resolveTactics } from "../src/lib/v3/maps/Tactics";
 import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
 import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
@@ -504,6 +504,74 @@ async function main() {
       ] },
     }] } as unknown as Episode).join("\n");
     assert.match(packed, /the battle is not told step by step — units move on lines 1, 2, spoken by a character/);
+  });
+
+  await scenario("the normaliser's battle passes (the Mohács trials, 26 Oct 2026): blocks capped, moves onto the narrator's line, the map fitted to the armies, no info card over the fighting", () => {
+    const HUN = { taraf: "Hungarians", renk: "#2f6fb0", amblem: "hac" };
+    const OTT = { taraf: "Ottomans", renk: "#b3263a", amblem: "hilal" };
+    const say = (karakter: string, metin: string) => ({ karakter, metin, duygu: "notr" });
+    const draft = {
+      donem: "1526",
+      sahneler: [{
+        id: "s5",
+        mekan: "Close map: Mohács battlefield",
+        satirlar: [
+          say("anlatici", "The Hungarians launched a frontal assault."),
+          say("ibrahim", "Let's see if they like surprises."),
+          say("anlatici", "The Hungarian cavalry charged the Janissaries."),
+          say("suleiman", "I love it when a plan comes together."),
+          say("anlatici", "The Hungarian army collapsed."),
+          say("anlatici", "Hungary lost its king."),
+        ],
+        bilgi_kartlari: [
+          { tur: "liste", baslik: "Why the Ottomans Won", satir: 1, maddeler: [{ metin: "Superior planning", satir: 1 }, { metin: "More cannons", satir: 1 }, { metin: "Encirclement", satir: 3 }] },
+          { tur: "sayac", satir: 2, deger: 14000, etiket: "Hungarians killed" },
+        ],
+        harita: {
+          merkez: [18.68, 45.94],
+          genislik_km: 32,
+          birlikler: [
+            { ...HUN, ad: "Hungarian cavalry", tur: "suvari", kanat: "merkez", sayi: 6, yerler: [{ satir: 0, cephe: [[18.67, 45.96], [18.69, 45.96]] }, { satir: 3, hareket: "hucum", hedef: "Janissaries", kayip: 2 }, { satir: 4, bozgun: true, kayip: 2 }] },
+            { ...HUN, ad: "Hungarian infantry", tur: "piyade", kanat: "sol", sayi: 3, yerler: [{ satir: 0 }, { satir: 3, hareket: "hucum", kayip: 1 }] },
+            { ...HUN, ad: "Hungarian right wing", tur: "suvari", kanat: "sag", sayi: 3, yerler: [{ satir: 0 }, { satir: 4, hareket: "geri", bozgun: true }] },
+            { ...OTT, ad: "Janissaries", tur: "tufekci", kanat: "merkez", sayi: 7, yerler: [{ satir: 0, cephe: [[18.67, 45.93], [18.69, 45.93]] }, { satir: 4, kayip: 3 }] },
+            { ...OTT, ad: "Ottoman artillery", tur: "topcu", kanat: "arka", sayi: 3, yerler: [{ satir: 0 }] },
+            { ...OTT, ad: "Sipahi cavalry", tur: "suvari", kanat: "sag", sayi: 6, yerler: [{ satir: 0 }, { satir: 4, hareket: "kusat", hedef: "Hungarian cavalry" }] },
+          ],
+        },
+      }],
+    };
+    const n = normalizeDraft(draft, []);
+    const s5 = (n.value as { sahneler: Record<string, unknown>[] }).sahneler[0]!;
+    const map = s5.harita as { genislik_km: number; merkez: [number, number]; birlikler: { ad: string; sayi: number; yerler: { satir: number; kayip?: number }[] }[] };
+    const unit = (ad: string) => map.birlikler.find((u) => u.ad === ad)!;
+    // capUnitBlocks: a side of three units draws each with at most four blocks, losses scaled and never all of them.
+    assert.equal(unit("Janissaries").sayi, 4);
+    assert.deepEqual(unit("Janissaries").yerler.map((y) => y.kayip ?? 0), [0, 2], "3 of 7 lost → 2 of 4");
+    assert.equal(unit("Sipahi cavalry").sayi, 4);
+    assert.deepEqual(unit("Hungarian cavalry").yerler.map((y) => y.kayip ?? 0), [0, 1, 1], "4 of 6 lost → 2 of 4, one a line");
+    // narrateMoves: the charge told on the sultan's joke goes to the narrator's line before it.
+    assert.deepEqual(unit("Hungarian cavalry").yerler.map((y) => y.satir), [0, 2, 4]);
+    assert.deepEqual(unit("Hungarian infantry").yerler.map((y) => y.satir), [0, 2]);
+    assert.ok(n.fixes.some((f) => f.includes('"Hungarian cavalry": 3. satırdaki (bir karakterin sözü) hareket anlatıcının 2. satırına alındı')), n.fixes.join("\n"));
+    // fitBattleMap: armies 3 km apart on a 32 km map → the map narrows on them (the tactics may widen it a little again).
+    assert.ok(map.genislik_km >= 4 && map.genislik_km < 16, `fitted: ${map.genislik_km} km`);
+    assert.ok(Math.abs(map.merkez[1] - 45.945) < 0.01, `centred on the armies: ${map.merkez}`);
+    assert.ok(n.fixes.some((f) => f.includes("meydan savaşı haritası ordulara oturtuldu (32 km →")), n.fixes.join("\n"));
+    // clearBattleCards: the moves are on lines 2 and 4; the list ends where the charge starts, its last item coming in
+    // after the others, and the counter told on the charge goes after the battle.
+    const [why, killed] = s5.bilgi_kartlari as { satir: number; bitis_satir?: number; maddeler?: { satir?: number }[] }[];
+    assert.deepEqual([why!.satir, why!.bitis_satir, why!.maddeler!.map((m) => m.satir)], [1, 2, [1, 1, undefined]]);
+    assert.deepEqual([killed!.satir, killed!.bitis_satir], [5, undefined]);
+    assert.ok(n.fixes.some((f) => f.includes('"Why the Ottomans Won": 2. satırda birlikler hareket ediyor — kart orada biter')), n.fixes.join("\n"));
+    assert.deepEqual(clearBattleCards(s5), [], "a second pass changes nothing");
+    assert.deepEqual(mapProblems(n.value as unknown as Episode).filter((p) => p.includes("bilgi")), []);
+    // A card on the battle's last line goes before its first move; off a close map nothing is touched.
+    const last = { satirlar: [say("anlatici", "They stand."), say("anlatici", "They flee.")], bilgi_kartlari: [{ tur: "sayac", satir: 1, deger: 5, etiket: "x" }], harita: { genislik_km: 10, birlikler: [{ ...HUN, yerler: [{ satir: 0 }, { satir: 1, bozgun: true }] }, { ...OTT, yerler: [{ satir: 0 }] }] } };
+    const wide = structuredClone({ ...last, harita: { ...last.harita, genislik_km: 900 } });
+    assert.ok(clearBattleCards(last)[0]!.includes("kart savaştan önceye (0. satır) alındı"));
+    assert.deepEqual(last.bilgi_kartlari, [{ tur: "sayac", satir: 0, bitis_satir: 1, deger: 5, etiket: "x" }]);
+    assert.deepEqual(clearBattleCards(wide), []);
   });
 
   console.log(`V3 script smoke: PASS (${scenarios} scenarios)`);
