@@ -44,11 +44,14 @@ import { HISTORICAL_BASEMAPS_CREDIT, loadSnapshot, nearestSnapshots, snapshotNam
 import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
-import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
+import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
+import { brainBudget } from "../src/lib/v3/council/BrainModels";
+import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate } from "../src/lib/v3/council/DirectorCouncil";
+import { cutMeasures, detectCuts, gapLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
 import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
-import { bestRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -675,7 +678,7 @@ async function main() {
   const bordersDir = path.join(paths.mapsDir, "historical");
   // The retouch brain's plan for this round (written by the previous run of this production), if any.
   const retouch: RetouchPlan | undefined = rotusTuru > 0 && existsSync(f("rotus-plani.json")) ? await readJson<RetouchPlan>(f("rotus-plani.json")) : undefined;
-  if (retouch) log(`↺ rötuş turu ${rotusTuru}: ${retouch.kisiler.map((k) => `${k.kisi} yeniden tasarlanıyor`).concat(retouch.setler.map((x) => `${x.sahne} seti yeniden çiziliyor`)).join("; ")}`);
+  if (retouch) log(`↺ rötuş turu ${rotusTuru}: ${retouch.kisiler.map((k) => `${k.kisi} yeniden tasarlanıyor`).concat(retouch.setler.map((x) => `${x.sahne} seti yeniden çiziliyor`), (retouch.yonetmen?.duzeltmeler ?? []).filter((e) => e.tur !== "set").map((e) => `AYAS: ${editLine(e)}`)).join("; ")}`);
   // Every step runs under the repair brain: a failure is diagnosed and remedied (wait, free the GPU, change an
   // allowed setting, skip an optional step) and the step runs again; only an unrecoverable one stops the production,
   // and then the council report still goes to AYAS. The local model thinks for unknown failures (free, no agent).
@@ -769,8 +772,10 @@ async function main() {
         const voiceMap = await readJson<VoiceMap>(path.join(paths.contentRoot, "voices.json"));
         // English characters get native voices the writer picks by description; Turkish ones keep their own ids.
         const sesler = dil === "en" ? voicesFor(voiceMap, "en").filter((id) => !id.startsWith("en-anlatici")).map((id) => ({ id, tarif: voiceMap.sesler[id]!.tarif ?? id })) : undefined;
-        // The script brain's experience: what the QC and the chief found in earlier episodes.
-        const dersler = (await recall(paths.workRoot, "kurgu", { limit: 6 }).catch(() => [])).map((l) => l.metin);
+        // The script brain's experience: what the QC and the chief found in earlier episodes, and the pace the studied
+        // reference videos of this kind keep (ReferenceStudy; owner approval, 2 Nov 2026).
+        const targets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(seconds(arg("--sure") ?? "90")));
+        const dersler = [...(targets && targetsLine(targets) ? [targetsLine(targets)] : []), ...(await recall(paths.workRoot, "kurgu", { limit: 6 }).catch(() => [])).map((l) => l.metin)];
         // The historical atlas's polities nearest the episode's year, for real borders on the maps.
         const year = periodEndYear(period);
         const tarihiSinirlar = year === undefined ? [] : (await Promise.all(nearestSnapshots(year).map(async (yil) => ({ yil, adlar: await snapshotNames(bordersDir, yil).catch(() => [] as string[]) })))).filter((x) => x.adlar.length);
@@ -1280,6 +1285,61 @@ async function main() {
     log(`kalite ölçümü: yerleşim ${layoutCount === undefined ? "ölçülmedi" : `${layoutCount} kusur`}, piksel ${pixelCount === undefined ? "ölçülmedi" : `${pixelCount} kusur`}`);
     const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0", examples: process.env.ATOLYE_V3_QUALITY_EXAMPLES === "1", measured });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10${quality.showing !== undefined ? `; anlatılanı gösterme ${quality.showing.toFixed(1)}/10` : ""}`);
+
+    // Our own pace, measured like the studied references (ReferenceStudy): the same cut filter on the final video, the
+    // speech from the timeline, where every speaker is known. Kept as olcum.json for the council and the idle loop.
+    const ours: VideoMeasures | undefined = await (async () => {
+      const lines = timeline.lines.map((l) => ({ start: l.start, end: l.end, text: splitDirections(episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex]?.metin ?? "").speech, turn: false }));
+      const turns = timeline.lines.filter((l, i) => i > 0 && l.speaker !== timeline.lines[i - 1]!.speaker).length;
+      return { sureSn: durationS, ...speechMeasures(lines, durationS, turns), ...cutMeasures(await detectCuts(paths.ffmpeg, f(final)), durationS) };
+    })().catch((e: Error) => (log(`  tempo ölçülemedi: ${e.message.slice(0, 120)}`), undefined));
+    if (ours) await writeJson(f("olcum.json"), ours);
+    const paceTargets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(target));
+    if (ours) log(`tempo: ${measuresLine(ours)}${paceTargets ? ` · ${targetsLine(paceTargets)}` : ""}`);
+
+    // The director's council (owner approval, 2 Nov 2026): script writer, historian, humourist and quality score the cut
+    // and argue; AYAS orders fixes from the fixed menu (lines, stage acts, sets) for the next retouch round, which
+    // shares MAX_RETOUCH_ROUNDS with the likeness and set retouch. Its spend counts against the video's own cap.
+    const canRevise = !process.argv.includes("--rotus-yok") && rotusTuru < MAX_RETOUCH_ROUNDS;
+    let session: CouncilSession | undefined;
+    if (!process.argv.includes("--kurul-yok")) {
+      const before = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number; adimlar: unknown[] }>(f("maliyet.json")) : { toplamUsd: 0, adimlar: [] };
+      const models = brainBudget(paths, Math.min(councilCapUsd(target), Math.max(0, capUsd - before.toplamUsd)), arg("--saglayici") ?? process.env.ATOLYE_V3_SCRIPT_PROVIDER ?? "ollama");
+      try {
+        const tempo = [ours ? `our cut: ${measuresLine(ours)}` : "", paceTargets ? targetsLine(paceTargets) : "", ...(ours && paceTargets ? measureGaps(ours, paceTargets).map((g) => gapLesson(g).metin) : [])].filter(Boolean);
+        const earlier = (await recall(paths.workRoot, "sef", { tur: "ders", limit: 5 }).catch(() => [])).map((l) => `${l.metin}${l.sonuc ? ` (${l.sonuc === "ise_yaradi" ? "worked" : "did not work"})` : ""}`);
+        session = await holdCouncil({
+          budget: models.budget,
+          critic: models.critic,
+          director: models.director,
+          episode,
+          dil,
+          round: rotusTuru,
+          canRevise,
+          context: { baslik: episode.baslik, sureSn: durationS, shorts, tempo, qc: qc.filter((r) => r.startsWith("- [ ]")).map((r) => r.slice(6)), bulgular: council.findings.filter((x) => x.onem !== "bilgi").slice(0, 30).map((x) => `${BRAIN_NAMES[x.beyin]}: ${x.baslik}${x.yer ? ` (${x.yer})` : ""} — ${x.ayrinti.slice(0, 160)}`) },
+          times: timeline,
+          lessons: async (b) => (await recall(paths.workRoot, b, { konu: `${episode.konu} ${episode.donem}`, limit: 4 }).catch(() => [])).map((l) => l.metin),
+          earlier,
+          check: (e) => void assertEpisode(e),
+          log,
+        });
+      } catch (e) {
+        log(`yönetmen kurulu toplanamadı: ${(e as Error).message.slice(0, 160)}`);
+      } finally {
+        await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + models.budget.spentUsd, adimlar: [...before.adimlar, ...models.budget.ledger] });
+      }
+    }
+    if (session) {
+      await writeJson(f("yonetmen-kurulu.json"), session);
+      council.debate("sef", "yönetmen kurulu", sessionDebate(session));
+      // A note no menu item can fix stays a finding: the manager below reads it, the idle loop may turn it into a proposal.
+      for (const n of session.raporlar.flatMap((r) => r.notlar).filter((x) => x.eylem === "yok")) council.find({ beyin: n.beyin, onem: "uyari", baslik: "kurul notu", ayrinti: `${n.sorun} → ${n.oneri}`, tur: "veri", yer: n.satir !== undefined ? `${n.sahne}#${n.satir}` : n.sahne });
+      log(`yönetmen kurulu: ${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}/10`).join(", ")} → ${session.puan}/10; ${session.karar ? `AYAS ${session.karar.duzeltmeler.length} düzeltme istedi` : session.kararYok} ($${session.maliyetUsd.toFixed(4)})`);
+      // AYAS's own experience: how the previous round's fixes moved the council's mean.
+      const applied = retouch?.yonetmen?.duzeltmeler ?? [];
+      const prev = applied.length ? (await keptRounds(work, final, rotusTuru)).find((r) => r.tur === rotusTuru - 1)?.kurul : undefined;
+      if (prev !== undefined && session.puan > 0) await remember(paths.workRoot, { bolum: episode.konu, beyin: "sef", tur: "ders", konu: "yönetmen turu", metin: `${applied.length} fixes (${[...new Set(applied.map((e) => e.tur))].join(", ")}) — ${retouch!.yonetmen!.ozet}: council ${prev} → ${session.puan}`, sonuc: session.puan > prev ? "ise_yaradi" : "ise_yaramadi" }).catch(() => undefined);
+    }
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
     try {
       const chief = scriptBudget(paths, 0.05);
@@ -1299,8 +1359,10 @@ async function main() {
     for (const o of chiefPlan?.onlemler ?? []) if (o.beyin) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
     // The retouch brain: what the brains measured decides one more round, run below by the production itself.
     const scored = { likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) };
-    const nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, ...scored });
-    thisRound = roundScore(rotusTuru, scored);
+    let nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, ...scored });
+    // AYAS's fixes ride in the same round as the likeness and set retouch, from the earlier of their steps.
+    if (canRevise && session?.karar?.duzeltmeler.length) nextRound = withDirector(nextRound, rotusTuru, session.karar);
+    thisRound = roundScore(rotusTuru, scored, session?.puan);
     if (nextRound) {
       council.debate("sef", "rötuş kararı", retouchDebate(nextRound));
       await writeJson(f("rotus-plani.json"), nextRound);
@@ -1309,7 +1371,9 @@ async function main() {
     const missing = council.findings.filter((x) => x.onem === "eksik").length;
     const report = await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: episode.baslik, log: council, ...(chiefPlan ? { plan: chiefPlan } : {}) });
     await fs.writeFile(f("KURUL.md"), councilMarkdown(episode.baslik, council, chiefPlan));
-    await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Kalite ölçümü: yerleşim ${layoutCount ?? "ölçülmedi"}${layoutCount !== undefined ? " kusur" : ""}, piksel ${pixelCount ?? "ölçülmedi"}${pixelCount !== undefined ? " kusur" : ""}\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
+    const councilLine = session ? `\n- Yönetmen kurulu: ${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}/10`).join(", ")} → ${session.puan}/10; ${session.karar ? `AYAS ${session.karar.duzeltmeler.length} düzeltme istedi${nextRound?.yonetmen ? ` (${nextRound.tur}. turda uygulanacak)` : ""}` : session.kararYok}` : "";
+    const paceLine = ours ? `\n- Tempo: ${measuresLine(ours)}${paceTargets ? ` (referans hedefi: ${targetsLine(paceTargets)})` : ""}` : "";
+    await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Kalite ölçümü: yerleşim ${layoutCount ?? "ölçülmedi"}${layoutCount !== undefined ? " kusur" : ""}, piksel ${pixelCount ?? "ölçülmedi"}${pixelCount !== undefined ? " kusur" : ""}${councilLine}${paceLine}\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
     log(`kurul raporu: ${report} · ${missing ? `UYARIYLA teslim (${missing} eksik)` : "teslim edildi"}`);
     retouchPlan = nextRound;
 
@@ -1340,6 +1404,20 @@ async function main() {
   if (retouchPlan) {
     const finalName = preview ? "final-onizleme.mp4" : "final.mp4";
     await keepRound(work, finalName, thisRound!);
+    // AYAS's fixes go into the script only now, after this round kept the script it was made from; the costume step
+    // reads the script's own orders (episode-siparisli.json), so they get the same fixes.
+    const fixes = retouchPlan.yonetmen;
+    if (fixes?.duzeltmeler.length) {
+      for (const name of ["episode.json", "episode-siparisli.json"]) {
+        if (!existsSync(f(name))) continue;
+        try {
+          await writeJson(f(name), assertEpisode(applyEdits(assertEpisode(await readJson<unknown>(f(name))), fixes.duzeltmeler, fixes.yeniden)));
+        } catch (e) {
+          log(`  AYAS'ın düzeltmeleri ${name} dosyasına işlenemedi: ${(e as Error).message.slice(0, 160)}`);
+        }
+      }
+      log(`AYAS (yönetmen): ${fixes.duzeltmeler.map(editLine).join(" · ")}`);
+    }
     const keep = process.argv.slice(2).filter((a, i, all) => !["--from-step", "--rotus-turu"].includes(a) && !["--from-step", "--rotus-turu"].includes(all[i - 1] ?? ""));
     const args = [...process.execArgv, process.argv[1]!, ...keep, ...(keep.includes("--cikti") ? [] : ["--cikti", work]), "--from-step", retouchPlan.adim, "--rotus-turu", String(retouchPlan.tur)];
     log(`↺ rötuş beyni: ${retouchPlan.tur}. tur başlıyor ("${retouchPlan.adim}" adımından)`);
