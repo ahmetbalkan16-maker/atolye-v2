@@ -110,13 +110,18 @@ async function main() {
     answers.push({ id: q.id, tur: q.tur, kusurlu: q.kusurlu, dogru, puan: v.puan, ornek: examples.length, kenar: Boolean(edges), sorunlar: v.sorunlar, ...(v.okunamadi ? { okunamadi: true } : {}) });
     console.log(`${dogru ? "✓" : "✗"} ${q.id.padEnd(28)} ${q.kusurlu ? "kusurlu" : "temiz  "} → ${v.puan}/10 (${examples.length} örnek) ${v.sorunlar.join("; ").slice(0, 100)}`);
   }
-  const report = { tarih: new Date().toISOString(), model, kurallar: rules.length, ornekli: lessons.some((l) => l.ornek), kenarli: !process.argv.includes("--kenar-yok"), dogru: right, toplam: answers.length, cevaplar: answers };
-  const out = path.join(paths.workRoot, "_kutuphane", "sinav", `kalite-sonuc-${Date.now()}.json`);
-  await fs.writeFile(out, JSON.stringify(report, null, 2));
   const caught = answers.filter((a) => a.kusurlu && a.dogru).length;
   const faulty = answers.filter((a) => a.kusurlu).length;
   const clean = answers.filter((a) => !a.kusurlu && a.dogru).length;
-  console.log(`\n${model}: ${right}/${answers.length} doğru — kusurlu karelerin ${caught}/${faulty}'ini buldu, temiz karelerin ${clean}/${answers.length - faulty}'ini geçirdi\nrapor: ${out}`);
+  // The plain count rewards a judge that calls every frame faulty (Moondream, 2 Nov 2026: 7/12 like gemma4:12b, with
+  // every frame reported and the prompt's fault list copied): the mean of the two hit rates is 50 % for any judge
+  // that answers the same for every frame, and such a judge is named as one.
+  const balanced = faulty && answers.length - faulty ? Math.round(((caught / faulty + clean / (answers.length - faulty)) / 2) * 100) : undefined;
+  const sameVerdict = answers.length > 1 && (caught + (answers.length - faulty - clean) === answers.length || (faulty - caught) + clean === answers.length);
+  const report = { tarih: new Date().toISOString(), model, kurallar: rules.length, ornekli: lessons.some((l) => l.ornek), kenarli: !process.argv.includes("--kenar-yok"), dogru: right, toplam: answers.length, ...(balanced !== undefined ? { dengeli_yuzde: balanced } : {}), hep_ayni_karar: sameVerdict, cevaplar: answers };
+  const out = path.join(paths.workRoot, "_kutuphane", "sinav", `kalite-sonuc-${Date.now()}.json`);
+  await fs.writeFile(out, JSON.stringify(report, null, 2));
+  console.log(`\n${model}: ${right}/${answers.length} doğru — kusurlu karelerin ${caught}/${faulty}'ini buldu, temiz karelerin ${clean}/${answers.length - faulty}'ini geçirdi${balanced !== undefined ? `; dengeli doğruluk %${balanced} (yazı-tura %50)` : ""}${sameVerdict ? "\nUYARI: her kareye aynı kararı verdi — bu bir yargı değil, puanı yok sayın" : ""}\nrapor: ${out}`);
 }
 
 main().catch((e) => {

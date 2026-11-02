@@ -1,3 +1,27 @@
+## 2 Kasım 2026 (öğleden sonra) — Agent Reach 1.6.1; Shorts incelemesinden OSV açık denetimi; Moondream ölçümü
+
+**Owner:** "güncelleyebilirsin agent reach ve araştırdığın kanalda ayas ya da atölye ya da yardımcı beyinler için
+hangisi bizi geliştirecekse ileriye taşıyacaksa kullan"; "uygun skill kullanabilirsin".
+
+**Yapılan:**
+- Agent Reach 1.5.0 (pipx) → 1.6.1 (uv), kurulum belgesindeki "1.5'ten yükseltme" yolu; `agent-reach setup` 5/5.
+- `17516b22` OSV (osv-scanner'ın veritabanı, exe yok): `AyasDependencyVulnerabilities` + güncelleme denemesinde
+  `VULNERABILITIES` adımı (yüksek/kritik ya da `MAL-` getiren güncelleme düşer; OSV okunamazsa deneme düşer) +
+  `scripts/ayas-dependency-vulnerabilities.ts`. İlk tarama: uygulamanın kendi paketlerinde açık yok; kökte 6 yüksek +
+  6 orta yalnız geliştirme araçlarında (miniflare → undici 7.29.1, düzeltme 7.30.1; ESLint eklentileri → zod 4.4.3,
+  minimatch); remotion-v3'te zod 4.5.4 (yüksek, düzeltme 4.6.6) ve fast-uri 3.1.8. Güvenlik kataloğu
+  dependency-audit → partial. Firewall denetimi: yeni modül yürütücü altında OWNER_LEASE, komut OTHER_ENTRIES.
+- llmfit eklenmedi: AYAS model izleme zaten VRAM'e "sığar/taşar" kararı veriyor. AntV Infographic video işine
+  dönülünce (V3 bilgi kartları). claude-video, knip, ajan iş akışları kullanılmadı (rapor: v3-runtime/karsilastirma/
+  kanal-selahattinunlu-2026-11-02/RAPOR.md §2b).
+- Moondream (Ollama `moondream`, eski v2, 1,8 B; yeni Moondream 3 Ollama'da yok, ~18 GB) indirildi ve V3 kalite
+  sınavında ölçüldü: örnekli/kenarlı istekte Ollama 400 (çoklu görsel); tek görselle 7/12 ama her kareye "kusurlu"
+  dedi, yönergedeki kusur listesini ve `<fault…>` yer tutucusunu kopyaladı (temiz 0/5). Benimsenmedi, model silindi.
+- Bu ölçümün asıl bulgusu: sınavın düz puanı, her kareye "kusurlu" diyen yargıca da gemma4:12b ile aynı 7/12'yi
+  veriyordu. `kalite-sinavi.ts` artık dengeli doğruluğu (iki isabet oranının ortalaması; hep aynı karar = %50) ve
+  "her kareye aynı karar" uyarısını yazar. Gerçek değerler: gemma4:12b %59, moondream %50. Kalite beyni hâlâ zayıf;
+  daha güçlü yerel görsel model ya da plan geometrisi denetimi (hafıza notu) açık iş.
+
 ## 2 Kasım 2026 (öğlen) — "İncele" yerine "dene": V3'ün Remotion'u güncelleme radarında; canlıya alma
 
 **Owner:** "canlıya al ilk önce; 2. olarak incele yerine dene tasarımı hangisi ayası atölyeyi gelişime açacaksa
