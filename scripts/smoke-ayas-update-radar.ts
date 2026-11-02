@@ -5,7 +5,7 @@ import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { AyasGoalResearchPanel } from "../src/components/brain/AyasGoalResearchPanel";
+import { AyasGoalResearchPanel, AyasUpdateRadarPointer } from "../src/components/brain/AyasGoalResearchPanel";
 import type { AyasExternalResearchFinding } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
 import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "../src/lib/brain/autonomy/AyasResearchEngineStatusView";
 import type { AyasResearchSeenItem } from "../src/lib/brain/autonomy/AyasResearchNoveltyStore";
@@ -137,6 +137,25 @@ scenario("the panel renders health, radar and brief, with a consent control but 
     updateApplies: [{ schemaVersion: 1, applyId: "r1", applyDecisionId: "a1", trialId: trialView.trialId, sourceId: "nextjs", toolName: "Next.js", installedVersion: next.installedVersion, targetVersion: next.latestVersion,
       baseHead: "a".repeat(40), status: "COMPLETED", startedAt: NOW, commitSha: "c".repeat(40), pushed: true, live: { status: "PUBLISHED", summary: "", attempts: 1, at: NOW } }] });
   assert.match(applied, /commit&#x27;lendi ve push&#x27;landı · canlıda|commit'lendi ve push'landı · canlıda/); assert.doesNotMatch(applied, />Uygula</); assert.doesNotMatch(applied, /Onayı geri al/);
+});
+
+scenario("Gelişim Merkezi names each update's state and points to the research tab, with no button of its own (owner, 2 Nov 2026)", () => {
+  const next = radar.find((item) => item.sourceId === "nextjs")!;
+  const base = { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 }, updateRadar: radar } as AyasResearchEngineStatusView;
+  const render = (status: AyasResearchEngineStatusView | undefined) => renderToStaticMarkup(createElement(AyasUpdateRadarPointer, { status }));
+  const approval = { decisionId: "d1", sourceId: "nextjs", toolName: "Next.js", target: next.target, installedVersion: next.installedVersion, targetVersion: next.latestVersion, bump: next.bump, applyChannel: next.applyChannel, itemHash: next.itemHash, approvedAt: NOW, status: "WAITING" as const };
+  const trial = { trialId: "ayas-update-trial-00000000-0000-4000-8000-000000000000", approvalDecisionId: "d1", sourceId: "nextjs", targetVersion: next.latestVersion, startedAt: NOW, baseHead: "a".repeat(40), preExistingSmokeFailures: [], steps: [] };
+  const fresh = render({ ...base, updateApprovals: [] });
+  assert.match(fresh, /href="\/brain\?panel=research#ayas-update-radar"/); assert.match(fresh, /Araştırma sekmesindeki Güncelleme Radarı/);
+  assert.match(fresh, /Next\.js 16\.3\.8 → 16\.4\.1: <strong>onayını bekliyor: “Onayla ve dene”<\/strong>/);
+  assert.match(fresh, /Node\.js 24\.\d+\.\d+ → 99\.1\.0: <strong>kurup sabitlemek senin adımın<\/strong>|kurup sabitlemek senin adımın/);
+  assert.match(fresh, /3 senin kararını bekliyor/);
+  assert.doesNotMatch(fresh, /<button/);
+  assert.match(render({ ...base, updateApprovals: [approval], updateTrials: [{ ...trial, status: "RUNNING", onCurrentHead: true }] }), /Next\.js 16\.3\.8 → 16\.4\.1: deneniyor/);
+  assert.match(render({ ...base, updateApprovals: [approval], updateTrials: [{ ...trial, status: "PASSED", onCurrentHead: true, trialHash: "b".repeat(64) }], updateApplies: [] }), /<strong>deneme geçti: “Uygula”yı bekliyor<\/strong>/);
+  assert.match(render({ ...base, updateApprovals: [approval], updateTrials: [{ ...trial, status: "FAILED", onCurrentHead: true, failedStep: "RENDER" }] }), /deneme başarısız: deneme videosu/);
+  assert.equal(render(undefined), "", "nothing without the research status");
+  assert.equal(render({ ...base, updateRadar: [] }), "", "nothing when every tool is current");
 });
 
 fs.rmSync(repo, { recursive: true, force: true });

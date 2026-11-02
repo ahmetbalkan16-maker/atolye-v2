@@ -43,7 +43,7 @@ import type { AyasOwnerPendingExecutionEntry, AyasOwnerRecommendation } from "@/
 import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasApprovalBinding";
 import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
-import { AyasGoalResearchPanel } from "./AyasGoalResearchPanel";
+import { AyasGoalResearchPanel, AyasUpdateRadarPointer } from "./AyasGoalResearchPanel";
 import {
   AyasAtolyePanel,
   AyasDomainTiles,
@@ -451,6 +451,7 @@ function PanelBody(props: BrainConsoleViewProps) {
       return (
         <>
           <AyasRepositorySection sources={props.controlCenter} />
+          <AyasUpdateRadarPointer status={props.researchEngineStatus} />
           <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} ownerRecommendations={props.ownerRecommendations} ownerDecisionPendingId={props.ownerDecisionPendingId} ownerDecisionError={props.ownerDecisionError} onOwnerApprovalDecision={props.onOwnerApprovalDecision} ownerApprovalPendingExecution={props.ownerApprovalPendingExecution} />
         </>
       );

@@ -15,7 +15,7 @@ update-trial 13. İkinci ön deneme `ae41181c` üzerinde **PASSED**, 11 adımın
 hiçbiri önceden bozuk değil; 61 paket değişti; imzalar doğru; açık 5 → 1, yeni açık yok; tsc kök + remotion-v3;
 lint; 15 karelik render 8 sn). Geçici betik ve depo silindi.
 
-**Sıradaki:** düzeltme canlıda; owner Gelişim Merkezi'nde Remotion kartında "Onayla ve dene" → AYAS aynı denemeyi
+**Sıradaki:** düzeltme canlıda; owner Araştırma sekmesindeki Güncelleme Radarı'nda (/brain?panel=research) Remotion kartında "Onayla ve dene" → AYAS aynı denemeyi
 kendi kaydıyla yapar → geçerse "Uygula" → remotion-v3 commit/push → V3 boştayken remotion-v3/node_modules eşitlemesi.
 
 ## 2 Kasım 2026 (öğleden sonra) — Agent Reach 1.6.1; Shorts incelemesinden OSV açık denetimi; Moondream ölçümü
@@ -86,7 +86,7 @@ verisi + altyazısı (video indirilmedi) ve kanal sahibinin repo listesi. Rapor 
 denemeye değer: Moondream (V3 görsel hakem sınavı, `beyin-sinavi.ts --modeller`), osv-scanner (AYAS güvenlik
 denetiminde açık iş), llmfit, AntV Infographic, claude-video, knip. Owner'a sunuldu; hiçbiri kurulmadı.
 
-**Sıradaki:** owner Gelişim Merkezi'nde Remotion kartında "Onayla ve dene" der → yürütücü ilk gerçek denemeyi yapar
+**Sıradaki:** owner Araştırma sekmesindeki Güncelleme Radarı'nda (/brain?panel=research) Remotion kartında "Onayla ve dene" der → yürütücü ilk gerçek denemeyi yapar
 (npm indirmesi ~200 MB, render). Geçerse "Uygula" → commit/push → V3 boştayken remotion-v3 eşitlemesi. Owner
 seçerse Shorts raporundaki denemeler.
 

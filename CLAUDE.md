@@ -163,7 +163,8 @@ This project is developed across many sequential AI sessions under strict, check
     is explicitly set in the deployment environment — off by default, so it grants no standing
     exception beyond what is already documented here. The same single-click principle covers one
     more owner action (owner decisions 2026-10-15, "dene, sonra uygula"): a human clicking
-    **"Uygula"** on an update radar card in Gelişim Merkezi, on a `PASSED` update trial run on the
+    **"Uygula"** on an update radar card (the Güncelleme Radarı lives in the Brain console's **Araştırma**
+    tab, `/brain?panel=research`; Gelişim Merkezi only lists each update's state and links there), on a `PASSED` update trial run on the
     current HEAD, is the one required explicit approval for that update's commit, push and live
     publish. It is scoped to `AyasUpdateApprovalStore.decideAyasUpdateApply` (bound to the exact
     `trialId` + `trialHash`; any drift of HEAD, the tested `package.json`/`package-lock.json` bytes

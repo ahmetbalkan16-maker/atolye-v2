@@ -195,10 +195,14 @@ function TrialSteps({ trial }: { readonly trial: AyasUpdateTrialView }) {
   return <ul>{trial.steps.map((step) => <li key={step.name}>{step.ok ? "✓" : "✗"} {TRIAL_STEP_LABEL[step.name] ?? step.name}: {step.summary.split("\n").at(-1)}</li>)}</ul>;
 }
 
-function UpdateTrialState({ trial, apply, onApply }: {
+/** The sub-package folder of a radar target (`npm:remotion-v3/remotion` → `remotion-v3`); a root package has none. */
+const workspaceOf = (target: string): string | undefined => /^npm:([a-z0-9][a-z0-9-]*)\//.exec(target)?.[1];
+
+function UpdateTrialState({ trial, apply, onApply, workspace }: {
   readonly trial: AyasUpdateTrialView | undefined;
   readonly apply: AyasUpdateApplyRecord | undefined;
   readonly onApply: (input: { trialId: string; trialHash: string }) => Promise<string | undefined>;
+  readonly workspace?: string;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -245,7 +249,9 @@ function UpdateTrialState({ trial, apply, onApply }: {
       {!confirming ? <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(true)}>Uygula</button> : (
         <div role="group" aria-label="Uygulama onayı">
           <strong>Uygularsam ne olacak?</strong>
-          <p>Denenen paket dosyaları (yalnız package.json ve package-lock.json) commit&apos;lenir ve push&apos;lanır, sonra uygulama canlıya alınır. Telefon erişimi yaklaşık bir dakika kesilir. Canlı uygulama sağlık denetiminden geçmezse önceki sürüme kendiliğinden döner.</p>
+          {workspace
+            ? <p>Denenen paket dosyaları (yalnız {workspace}/package.json ve {workspace}/package-lock.json) commit&apos;lenir ve push&apos;lanır. Canlı uygulama değişmez, telefon erişimi kesilmez. Ardından ana kopyanın {workspace} paketleri, sürmekte ya da sırada bekleyen bir video üretimi yokken yenilenir.</p>
+            : <p>Denenen paket dosyaları (yalnız package.json ve package-lock.json) commit&apos;lenir ve push&apos;lanır, sonra uygulama canlıya alınır. Telefon erişimi yaklaşık bir dakika kesilir. Canlı uygulama sağlık denetiminden geçmezse önceki sürüme kendiliğinden döner.</p>}
           <button type="button" className="bc-btn" disabled={busy} onClick={apply_}>{busy ? "KAYDEDİLİYOR…" : "Evet, uygula"}</button>
           <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(false)}>Vazgeç</button>
         </div>
@@ -283,7 +289,7 @@ function UpdateApprovalControl({ item, approval, trial, apply, onDecision, onApp
         <div className={`bc-dev__notice ${current ? "bc-dev__notice--safe" : "bc-dev__notice--warn"}`}>
           <strong>{current ? "Onaylandı" : `${approval.targetVersion} için onayın var; şimdi ${item.latestVersion} çıktı`}</strong>
           <p>{formatAyasScheduleTime(approval.approvedAt)}{pinned ? " · yeniden sabitleme owner adımı" : ""}</p>
-          {!pinned ? <UpdateTrialState trial={trial} apply={apply} onApply={onApply} /> : null}
+          {!pinned ? <UpdateTrialState trial={trial} apply={apply} onApply={onApply} {...(workspaceOf(item.target) ? { workspace: workspaceOf(item.target) } : {})} /> : null}
           {apply?.status === "COMPLETED" ? null : <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(approval.itemHash, "WITHDRAW")}>{busy ? "KAYDEDİLİYOR…" : "Onayı geri al"}</button>}
         </div>
       ) : null}
@@ -293,7 +299,7 @@ function UpdateApprovalControl({ item, approval, trial, apply, onDecision, onApp
           <strong>Onaylarsam ne olacak?</strong>
           <p>{pinned
             ? `Kararın ${item.toolName} ${item.installedVersion} → ${item.latestVersion} için kaydedilir. Node.js telefon erişimine sabitli; yeni sürümü kurup sabitlemek owner adımıdır.`
-            : `AYAS ${item.toolName} ${item.installedVersion} → ${item.latestVersion} güncellemesini ayrı bir kopyada dener: kurar, paket imzalarını doğrular, TypeScript, lint, üretim derlemesi ve testleri çalıştırır. Bu sırada ana koda ve canlıya dokunmaz. Testler geçerse kartta "Uygula" çıkar; uygulama ancak sen ona basınca olur.`} Onayı istediğin zaman geri alabilirsin.</p>
+            : `AYAS ${item.toolName} ${item.installedVersion} → ${item.latestVersion} güncellemesini ayrı bir kopyada dener: kurar, paket imzalarını ve bilinen güvenlik açıklarını denetler, TypeScript, lint, ${workspaceOf(item.target) ? "kısa bir deneme videosu" : "üretim derlemesi"} ve testleri çalıştırır. Bu sırada ana koda ve canlıya dokunmaz. Testler geçerse kartta "Uygula" çıkar; uygulama ancak sen ona basınca olur.`} Onayı istediğin zaman geri alabilirsin.</p>
           <button type="button" className="bc-btn" disabled={busy} onClick={() => decide(item.itemHash, "APPROVE")}>{busy ? "KAYDEDİLİYOR…" : pinned ? "Evet, onayla" : "Evet, onayla ve dene"}</button>
           <button type="button" className="bc-btn" disabled={busy} onClick={() => setConfirming(false)}>Vazgeç</button>
         </div>
@@ -361,6 +367,40 @@ function UpdateRadarSection({ status }: { readonly status: AyasResearchEngineSta
           })() : null}
         </article>
       )) : <p className="bc-empty">İzlenen araçların hepsi güncel.</p>}
+    </section>
+  );
+}
+
+/**
+ * Where an update waits for the owner, shown in Gelişim Merkezi (owner, 2 Nov 2026: "bu Remotion gelişim merkezinde
+ * değil araştırma sekmesinde açılıyor, onu da netleştir"). The radar and its buttons stay in the research tab, beside
+ * the sources and quotes they rest on; this lists each tool's state there and links to it. Read-only: no button here.
+ */
+export function AyasUpdateRadarPointer({ status }: { readonly status: AyasResearchEngineStatusView | undefined }) {
+  if (!status?.connected || !status.updateRadar?.length) return null;
+  const approvals = status.updateApprovals;
+  const rows = status.updateRadar.map((item) => {
+    const approval = approvals?.find((entry) => entry.sourceId === item.sourceId);
+    const trial = approval ? status.updateTrials?.find((entry) => entry.approvalDecisionId === approval.decisionId) : undefined;
+    const apply = trial ? status.updateApplies?.find((entry) => entry.trialId === trial.trialId) : undefined;
+    const [state, yours] = item.applyChannel === "OWNER_PINNED_RUNTIME" ? ["kurup sabitlemek senin adımın", true]
+      : !approvals ? ["onay durumu okunamadı", false]
+        : !approval || approval.itemHash !== item.itemHash ? ["onayını bekliyor: “Onayla ve dene”", true]
+          : apply ? [`Uygula: ${APPLY_STATUS_LABEL[apply.status] ?? apply.status}`, false]
+            : !trial ? ["onaylandı; deneme sırada", false]
+              : trial.status === "RUNNING" ? ["deneniyor", false]
+                : trial.status === "FAILED" ? [`deneme başarısız: ${TRIAL_STEP_LABEL[trial.failedStep ?? ""] ?? trial.failedStep ?? ""}`, false]
+                  : trial.status === "ABANDONED" ? ["deneme yarıda kesildi; yeniden denenecek", false]
+                    : trial.onCurrentHead && trial.trialHash ? ["deneme geçti: “Uygula”yı bekliyor", true]
+                      : ["kod değişti; yeniden denenecek", false];
+    return { item, state, yours };
+  });
+  const waiting = rows.filter((row) => row.yours).length;
+  return (
+    <section className="bc-dev__section" aria-labelledby="ayas-update-radar-pointer" data-testid="ayas-update-radar-pointer">
+      <h3 id="ayas-update-radar-pointer">Araç güncellemeleri <span>{waiting ? `${waiting} senin kararını bekliyor` : rows.length}</span></h3>
+      <p>Araç güncellemelerinin onayı (&quot;Onayla ve dene&quot;) ve &quot;Uygula&quot; düğmesi burada değil, <a href="/brain?panel=research#ayas-update-radar">Araştırma sekmesindeki Güncelleme Radarı</a>&apos;nda; kaynakları ve deneme adımları orada.</p>
+      <ul>{rows.map(({ item, state, yours }) => <li key={item.sourceId}>{item.toolName} {item.installedVersion} → {item.latestVersion}: {yours ? <strong>{state}</strong> : state}</li>)}</ul>
     </section>
   );
 }
