@@ -1,3 +1,51 @@
+## 2 Kasım 2026 (gece, 2) — V3 YouTube: owner onaylı yükleme, haftalık takvim, kanal incelemesi
+
+**Owner kararları** (gelir sorularının cevabı): (1) kanal `@Geschichteentschlüsselt` (`UC3u0Kx_T49g9qdLFOagsN8A`)
+AYAS'a bağlansın, yükleme izni ayarlansın; (2) başlangıçta haftada 2 Short + 1 uzun video, yeni PC'de artar; (3) ilk
+videolarda owner kalite kontrolü yapar, onay verirse yüklenir; (4) Fiverr'de insan döngüde, soğuk toplu mesaj yok —
+uygun. Ayrıca "doğru izleyiciye gitmesi için kanal ayarlarına bak".
+
+**Kod (`src/lib/v3/publish/`):** `YoutubeAuth` — Masaüstü OAuth istemcisi (`client.json`) + PKCE'li tek onay →
+`token.json` (yalnız `youtube.upload` + `youtube.readonly`; silme/düzenleme yok), tek kanala bağlı
+(`ATOLYE_V3_YOUTUBE_CHANNEL_ID`), gizli klasör `ATOLYE_V3_YOUTUBE_DIR` = `D:\ÜRETİM\private\AtolyeSecrets\AYAS-SECRETS\youtube`
+(her iki `.env.v3.local`'a yazıldı). `YoutubeUpload` — meta (paketin ilk başlığı, `aciklama.txt` 5000 bayta bölümler
+kesilmeden, etiketler 500'e; Eğitim, en/en-US, çocuklara özel değil, gerçekçi yapay içerik yok), 16 MiB'lik devam
+edebilen yükleme (kopan bağlantı YouTube'un son baytından), kapak, kanalın son 50 yüklemesi. `PublishCalendar` (ağsız):
+uzun Perşembe, Short Salı + Cumartesi, New York 15:00, en az 2 sa ileride; dolu slot sonraki haftaya kayar.
+`PublishApproval` (ağsız): yalnız teslim edilmiş video, `hata` yeniden onaylanabilir. `PublishOrder`: izleyicinin turu —
+bağlantı yoksa onay bekler (uyarıyla), yanlış kanal reddedilir, kanalda aynı başlık varsa durur (yarım kalmış kendi
+yüklemesiyse onu benimser), 5xx/ağ kopması oturumu saklar (tur başına 5 dk artan bekleme, 8 tur), 4xx durdurur.
+Sipariş şeması `ProductionOrder.yayin`; AYAS "Kosova videosunu yükle / son videoyu hemen yayınla / yüklemeyi
+onaylıyorum" (soru "yüklendi mi" durum sorusu kalır), birden çok eşleşmede sorar; durum cevabı YouTube satırı taşır.
+`yapim.ts izle` yükleme döngüsünü üretimin yanında çalıştırır (gece üretimi yüklemeyi bekletmez); `onayla <id>
+[--hemen]`, `yayinla`. `scripts/v3/youtube.ts baglan|durum` (127.0.0.1 dönüşü, kanal denetimi: ülke, dil, çocuk
+ayarı, 15 dk üstü izni). V2'nin `YouTubeDataApiPublishProvider`'ı V2'de kaldı (yalnız `private`, V2 paket kimliği).
+Firewall closure testi canlı sunucunun ağ koduna ulaştığını yakaladı → takvim/onay ağsız modüllere ayrıldı; artık
+canlı yüzeyler yalnız onlara ulaşıyor.
+
+**API gerçeği (2 Kasım 2026, belgeden):** `videos.insert` "unverified API projects are not restricted to private
+viewing mode"; kota ayrı "Video Uploads" kovası, günde 100 çağrı (Aralık 2025: yükleme ~1600 → ~100 birim). Onay
+ekranı *Test* modunda kalırsa izin 7 günde düşer → "Uygulamayı yayınla".
+
+**Kanal incelemesi (herkese açık veri, Agent Reach/yt-dlp):** 2 abone, 4 uzun + 3 Short, açıklama/etiketler İngilizce,
+videolar en-US/Eğitim. Uyumsuzluklar: ad Almanca + `ü`'lü tanıtıcı (öneri "History Decoded"), açıklama "cinematic"
+diyor (V3 çizgi animasyon), Almanca 17 dk video en-US işaretli (öneri liste dışı), "Aliens and Ancient Egypt" Short'u
+kimlikle çelişiyor. Ülke, çocuk ayarı, telefon doğrulaması herkese açık görünmüyor → `youtube.ts durum` bağlanınca
+okur. Ayrıntı, owner adımları ve açıklama taslağı: `docs/v3/08_YOUTUBE_KANALI.md`.
+
+**Runtime:** canlı siparişlerdeki teslim edilmiş Kosova (`20261023T154930-…`) owner'ın 1 Kasım'da elle yüklediği
+`l11IuUtYQCk` → `yayin: { durum: "yayinda", elle: true }` (yedek scratchpad'de); ikinci kez yüklenemez.
+
+**Doğrulama:** `smoke-v3-youtube-yukleme` 11 (sahte YouTube: tam yükleme, kopma + devam tek oturum, bağlantısız,
+yanlış kanal, aynı başlık, 403 kota, takvim EST/EDT, AYAS cümleleri), `smoke-ayas-video-order` 8 (teslim cevabı artık
+YouTube satırı taşır — beklenti güncellendi), firewall closure 13, intent-routing 37, auto-live-publish 12, tüm 12
+`smoke-v3-*`; tsc kök + remotion-v3; yerel lint 0 hata / 13 eski uyarı.
+
+**Açık (owner):** Google Cloud adımları (proje, YouTube Data API v3, onay ekranı Harici + yayınla, Masaüstü istemci →
+`client.json`) ve `youtube.ts baglan`; kanal adı/açıklama/liste dışı kararları. Sipariş izleyicisi yeni yükleme
+döngüsü için yeniden başlatılmalı (owner "evet"i bekliyor; şu an boşta). Haftalık konu seçimi (2 Short + 1 uzun,
+Short'lar haftanın uzun videosundan) henüz otomatik değil — sıradaki adım.
+
 ## 2 Kasım 2026 (gece) — Kalite beyni ölçer (yerleşim + piksel, sınav %61 → %90); V3 GPU çağrı içi durdurma; Shorts
 
 **Owner:** "önerilerini kabul ediyorum ama video oluşturma, bu 3 konuyu hallet; altyazı ... koymasan daha iyi; bunları
