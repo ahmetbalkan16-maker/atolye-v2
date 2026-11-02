@@ -45,10 +45,10 @@ import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { brainBudget } from "../src/lib/v3/council/BrainModels";
+import { brainBudget, brainVision, steadyJudge } from "../src/lib/v3/council/BrainModels";
 import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
 import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate } from "../src/lib/v3/council/DirectorCouncil";
-import { cutMeasures, detectCuts, gapLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
+import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
 import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
@@ -104,9 +104,12 @@ function scriptBudget(paths: V3Paths, capUsd?: number, vision = false): { budget
   return { providerName, budget: new V3Budget({ providers: { openai: vision ? new OpenAIVisionProvider() : new OpenAIProvider(), ollama }, fallback: { provider: "ollama" }, ...(capUsd !== undefined ? { capUsd } : {}) }) };
 }
 
-/** The free local vision judge (gemma4 through Ollama) for period images, sets and portraits; it waits for a cool GPU before every call. */
-function visionJudge(): AIProvider {
-  return coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
+/**
+ * The free local vision judge (gemma4 through Ollama) for period images, sets and portraits; it waits for a cool GPU
+ * before every call (BrainModels.brainVision). `steady`: temperature 0 and a fixed seed — the quality brain's measured choice.
+ */
+function visionJudge(steady = false): AIProvider {
+  return brainVision(steady);
 }
 type Step = (typeof STEPS)[number];
 
@@ -776,7 +779,14 @@ async function main() {
         // The script brain's experience: what the QC and the chief found in earlier episodes, and the pace the studied
         // reference videos of this kind keep (ReferenceStudy; owner approval, 2 Nov 2026).
         const targets = referenceTargets(await listReferences(paths.workRoot).catch(() => []), kindOf(seconds(arg("--sure") ?? "90")));
-        const dersler = [...(targets && targetsLine(targets) ? [targetsLine(targets)] : []), ...(await recall(paths.workRoot, "kurgu", { limit: 6 }).catch(() => [])).map((l) => l.metin)];
+        // Each source keeps its share, so the many lessons of studied videos never push the productions' own out:
+        // the owner's rules and 4 production lessons, 3 reference lessons, 2 of the humourist's (the writer writes the jokes).
+        const dersler = [
+          ...(targets && targetsLine(targets) ? [targetsLine(targets)] : []),
+          ...(await recall(paths.workRoot, "kurgu", { limit: 4, filter: (l) => !isReferenceLesson(l) }).catch(() => [])).map((l) => l.metin),
+          ...(await recall(paths.workRoot, "kurgu", { tur: "ders", limit: 3, filter: isReferenceLesson }).catch(() => [])).map((l) => l.metin),
+          ...(await recall(paths.workRoot, "mizah", { tur: "ders", limit: 2, filter: isReferenceLesson }).catch(() => [])).map((l) => l.metin),
+        ];
         // The historical atlas's polities nearest the episode's year, for real borders on the maps.
         const year = periodEndYear(period);
         const tarihiSinirlar = year === undefined ? [] : (await Promise.all(nearestSnapshots(year).map(async (yil) => ({ yil, adlar: await snapshotNames(bordersDir, yil).catch(() => [] as string[]) })))).filter((x) => x.adlar.length);
@@ -1287,7 +1297,10 @@ async function main() {
     const pixelCount = await pixelReview({ paths, video: f(final), plan, council }).catch((e: Error) => (log(`  piksel denetimi yapılamadı: ${e.message.slice(0, 120)}`), undefined));
     const measured = layoutCount !== undefined && pixelCount !== undefined;
     log(`kalite ölçümü: yerleşim ${layoutCount === undefined ? "ölçülmedi" : `${layoutCount} kusur`}, piksel ${pixelCount === undefined ? "ölçülmedi" : `${pixelCount} kusur`}`);
-    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0", examples: qualityExamples, measured });
+    // The judge runs steady (temperature 0, fixed seed) when the quality brain's exam chose it (SelfImprovement "sabit").
+    const steady = steadyJudge(await tunedSetting(paths.workRoot, "kalite", "sabit").catch(() => undefined));
+    if (steady) log("  kalite beyni: sabit hakem (sıcaklık 0, sabit tohum)");
+    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(steady), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0", examples: qualityExamples, measured });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10${quality.showing !== undefined ? `; anlatılanı gösterme ${quality.showing.toFixed(1)}/10` : ""}`);
 
     // Our own pace, measured like the studied references (ReferenceStudy): the same cut filter on the final video, the

@@ -7,6 +7,7 @@
  *   npx tsx scripts/v3/kalite-sinavi.ts hazirla                  # cuts the exam frames (outside git)
  *   npx tsx scripts/v3/kalite-sinavi.ts calistir [--model gemma4:12b] [--ornek-yok] [--kenar-yok] [--olculu]
  *        [--ek-kural "<a candidate rule under test>"] [--rapor <file>]   (the self-improvement loop's prompt tuning)
+ *        [--sabit]   the steady judge: temperature 0 and a fixed seed (BrainModels.STEADY_JUDGE)
  *        --olculu: as the production since 2 Nov 2026 — pixel check + the vision model asked only what needs an eye;
  *        layout questions ("olcum": "yerlesim") are left out (measured from the render's boxes, not from a frame)
  *   npx tsx scripts/v3/kalite-sinavi.ts ogret --soru <id>         # teach the brain an exam frame it got wrong
@@ -26,6 +27,7 @@ import { resolveOllamaConfig } from "../../src/lib/ai/OllamaConfig";
 import { OllamaProvider } from "../../src/lib/ai/providers/OllamaProvider";
 import { exampleDir, recall } from "../../src/lib/v3/council/ExperienceMemory";
 import { activeAdditions } from "../../src/lib/v3/council/SelfImprovement";
+import { STEADY_JUDGE } from "../../src/lib/v3/council/BrainModels";
 import { pixelFaults, scanVideo } from "../../src/lib/v3/council/PixelCheck";
 import { edgeStripArgs, FRAME_KINDS, type FrameKind, frameExamples, judgeFrame, QUALITY_BAR, teachFrame } from "../../src/lib/v3/council/QualityBrain";
 import { coolGpuProvider, V3_OLLAMA_THERMAL } from "../../src/lib/v3/util/Gpu";
@@ -95,7 +97,9 @@ async function main() {
   }
   if (cmd !== "calistir") throw new Error("Kullanım: npx tsx scripts/v3/kalite-sinavi.ts hazirla | calistir [--model <ad>] [--ornek-yok] | ogret …");
   const model = arg("--model") ?? process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b";
-  const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model, timeoutMs: 300_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
+  // --sabit: the steady judge (temperature 0, fixed seed) the production uses when the brain chose it.
+  const steady = process.argv.includes("--sabit");
+  const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model, timeoutMs: 300_000, numCtx: 8_192, format: "json" as const, think: false, ...(steady ? STEADY_JUDGE : {}) }), V3_OLLAMA_THERMAL), (s) => console.log(s));
   // The owner's rules, the brain's own kept prompt additions (SelfImprovement), and a candidate addition under test.
   const candidate = arg("--ek-kural")?.trim();
   const rules = [...(await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin), ...(await activeAdditions(paths.workRoot, "kalite").catch(() => [])), ...(candidate ? [candidate] : [])];
@@ -140,7 +144,7 @@ async function main() {
   // that answers the same for every frame, and such a judge is named as one.
   const balanced = faulty && answers.length - faulty ? Math.round(((caught / faulty + clean / (answers.length - faulty)) / 2) * 100) : undefined;
   const sameVerdict = answers.length > 1 && (caught + (answers.length - faulty - clean) === answers.length || (faulty - caught) + clean === answers.length);
-  const report = { tarih: new Date().toISOString(), model, kurallar: rules.length, ornekli: lessons.some((l) => l.ornek), kenarli: !measured && !process.argv.includes("--kenar-yok"), ...(measured ? { olculu: true, disarida_yerlesim: leftOut } : {}), dogru: right, toplam: answers.length, ...(balanced !== undefined ? { dengeli_yuzde: balanced } : {}), hep_ayni_karar: sameVerdict, cevaplar: answers };
+  const report = { tarih: new Date().toISOString(), model, ...(steady ? { sabit: true } : {}), kurallar: rules.length, ornekli: lessons.some((l) => l.ornek), kenarli: !measured && !process.argv.includes("--kenar-yok"), ...(measured ? { olculu: true, disarida_yerlesim: leftOut } : {}), dogru: right, toplam: answers.length, ...(balanced !== undefined ? { dengeli_yuzde: balanced } : {}), hep_ayni_karar: sameVerdict, cevaplar: answers };
   const out = path.join(paths.workRoot, "_kutuphane", "sinav", `kalite-sonuc-${Date.now()}.json`);
   await fs.writeFile(out, JSON.stringify({ ...report, ...(candidate ? { ek_kural: candidate } : {}) }, null, 2));
   // --rapor: the same report where the self-improvement loop reads it.

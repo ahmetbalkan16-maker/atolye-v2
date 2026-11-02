@@ -8,8 +8,19 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
+import { OllamaProvider } from "../src/lib/ai/providers/OllamaProvider";
+import { STEADY_JUDGE, steadyJudge } from "../src/lib/v3/council/BrainModels";
 import {
   activeAdditions,
+  CYCLE_EVERY_H,
+  settingTriedWithin,
+  STEADY_TRIAL_EVERY_DAYS,
+  steadyVerdict,
+  STUDIES_PER_CYCLE,
+  STUDIES_PER_DAY,
+  TASK_EVERY_H,
+  TUNABLE_SETTINGS,
   additionPrompt,
   type BrainTuning,
   confirmedGain,
@@ -157,6 +168,43 @@ async function main() {
     assert.match(p, /FAULTY \(a cut label\)/);
     assert.match(p, /do not repeat them\): "Look at the top edge"/);
     assert.match(p, /never name a person, place or episode/);
+  });
+
+  await scenario("E the steady judge: kept when its accuracy does not drop and its own runs agree; tried once a week", async () => {
+    assert.deepEqual(steadyVerdict([90, 73, 81], [82, 82, 82]), { once: 81, sonra: 82, tutarli: true, kalici: true });
+    assert.equal(steadyVerdict([90, 73, 81], [77, 77, 77]).kalici, false);
+    // Its answers still move: the seed is not honoured.
+    assert.deepEqual([steadyVerdict([70, 70, 70], [80, 90, 85]).tutarli, steadyVerdict([70, 70, 70], [80, 90, 85]).kalici], [false, false]);
+    assert.equal(steadyVerdict([70, 70], [80, 80]).kalici, false);
+    assert.ok(TUNABLE_SETTINGS.kalite?.includes("sabit"));
+    const t = settleSetting({ ekler: {}, ayarlar: {}, ayarGecmisi: [] }, "kalite", "sabit", true, 81, 82, new Date(T0), true);
+    assert.equal(t.ayarlar.kalite?.sabit, true);
+    assert.equal(settingTriedWithin(t, "kalite", "sabit", STEADY_TRIAL_EVERY_DAYS, T0 + 3 * 24 * H), true);
+    assert.equal(settingTriedWithin(t, "kalite", "sabit", STEADY_TRIAL_EVERY_DAYS, T0 + 8 * 24 * H), false);
+    assert.equal(settingTriedWithin(t, "kalite", "ornekler", STEADY_TRIAL_EVERY_DAYS, T0), false);
+    // A later trial that fails while it is on turns it off.
+    assert.equal(settleSetting(t, "kalite", "sabit", false, 81, 77, new Date(T0 + 8 * 24 * H), true).ayarlar.kalite?.sabit, false);
+    // The environment decides first; else the brain's choice.
+    assert.equal(steadyJudge(true, {}), true);
+    assert.equal(steadyJudge(undefined, {}), false);
+    assert.equal(steadyJudge(true, { ATOLYE_V3_QUALITY_STEADY: "0" }), false);
+    assert.equal(steadyJudge(false, { ATOLYE_V3_QUALITY_STEADY: "1" }), true);
+    // The provider sends the seed and temperature 0 only when asked.
+    const bodies: Record<string, unknown>[] = [];
+    const fetcher = (async (_url: unknown, init?: { body?: unknown }) => {
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({ message: { content: "{}" }, done: true, done_reason: "stop" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const base = { ...resolveOllamaConfig(), baseUrl: "http://127.0.0.1:1", model: "x", maxRetries: 0 };
+    await new OllamaProvider(fetcher, () => ({ ...base, ...STEADY_JUDGE })).generate("p");
+    await new OllamaProvider(fetcher, () => base).generate("p");
+    const opts = bodies.map((b) => b.options as Record<string, unknown>);
+    assert.deepEqual([opts[0]!.temperature, opts[0]!.seed], [0, 42]);
+    assert.equal("seed" in opts[1]!, false);
+    // Four hours between cycles (owner, 2 Nov 2026); the own search runs every cycle.
+    assert.equal(CYCLE_EVERY_H, 4);
+    assert.equal(TASK_EVERY_H.benzer, 0);
+    assert.ok(STUDIES_PER_CYCLE <= STUDIES_PER_DAY);
   });
 
   console.log(`PASS (${scenarios} scenarios)`);

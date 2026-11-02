@@ -35,11 +35,25 @@ const LINK = "https://www.youtube.com/watch?v=8apicgLXhGg";
 
 async function main() {
   await scenario("A AYAS's doors: a link with a learning verb is a study, a brain question is the report; nothing else changes", () => {
-    assert.deepEqual(detectAyasVideoIntent(`bu videodan öğren ${LINK}`), { kind: "study", url: LINK });
-    assert.deepEqual(detectAyasVideoIntent(`${LINK} şunu bir incele`), { kind: "study", url: LINK });
-    assert.deepEqual(detectAyasVideoIntent("learn from https://youtu.be/8apicgLXhGg?t=30"), { kind: "study", url: "https://youtu.be/8apicgLXhGg?t=30" });
-    assert.equal(detectAyasVideoIntent(`${LINK}`), null);
+    assert.deepEqual(detectAyasVideoIntent(`bu videodan öğren ${LINK}`), { kind: "study", urls: [LINK] });
+    assert.deepEqual(detectAyasVideoIntent(`${LINK} şunu bir incele`), { kind: "study", urls: [LINK] });
+    assert.deepEqual(detectAyasVideoIntent("learn from https://youtu.be/8apicgLXhGg?t=30"), { kind: "study", urls: ["https://youtu.be/8apicgLXhGg?t=30"] });
+    // A link alone, or with words that are no other request, is studied (owner, 2 Nov 2026: "when I send a link").
+    assert.deepEqual(detectAyasVideoIntent(`${LINK}`), { kind: "study", urls: [LINK] });
+    assert.deepEqual(detectAyasVideoIntent(`şuna bir bak ${LINK} çok iyi`), { kind: "study", urls: [LINK] });
+    // A link inside another video request keeps that request.
+    assert.equal(detectAyasVideoIntent(`Kosova videosunu yükle ${LINK}`)?.kind, "publish");
+    assert.equal(detectAyasVideoIntent(`${LINK} video durumu`)?.kind, "status");
     assert.equal(detectAyasVideoIntent("bu videodan öğren"), null);
+    assert.equal(resolveAyasPreReasoningIntent(LINK).kind, "video");
+    // A question about the video goes to the conversation; a learning verb still studies it.
+    assert.equal(detectAyasVideoIntent(`${LINK} bunu neden önerdin?`), null);
+    assert.equal(detectAyasVideoIntent(`bu kimin kanalı ${LINK}`), null);
+    assert.equal(detectAyasVideoIntent(`${LINK} bu güzel mi`), null);
+    assert.deepEqual(detectAyasVideoIntent(`${LINK} bunu incele, neden tutmuş?`), { kind: "study", urls: [LINK] });
+    // Every link of a message is studied.
+    const LINK_B = "https://youtu.be/Q-nWA0WeF98";
+    assert.deepEqual(detectAyasVideoIntent(`${LINK} ${LINK_B}`), { kind: "study", urls: [LINK, LINK_B] });
     for (const q of ["beyinler ne öğrendi?", "Kurul ne dedi", "beyinler bugün neler yaptı", "beyin raporu", "atölye beyinleri ne öğrendi", "kurul raporu ver"]) assert.deepEqual(detectAyasVideoIntent(q), { kind: "brains" }, q);
     assert.deepEqual(detectAyasVideoIntent("video durumu"), { kind: "status" });
     assert.equal(detectAyasVideoIntent("Rubicon hakkında video yap")?.kind, "order");
@@ -52,11 +66,15 @@ async function main() {
 
   await scenario("B a study request from the chat is only written, for the watcher's idle loop", async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), "v3-brains-"));
-    const answer = await answerAyasVideoIntent({ kind: "study", url: LINK }, root);
+    const answer = await answerAyasVideoIntent({ kind: "study", urls: [LINK] }, root);
     assert.match(answer, /inceleme listesine aldım/);
     assert.match(answer, /hiçbir parçası kullanılmaz/);
     const reqs = await listStudyRequests(root);
     assert.deepEqual(reqs.map((r) => [r.request.id, r.request.kaynak, r.request.durum]), [["8apicgLXhGg", "ayas", "bekliyor"]]);
+    // Two links: two requests, one answer.
+    const root2 = mkdtempSync(path.join(os.tmpdir(), "v3-brains-"));
+    assert.match(await answerAyasVideoIntent({ kind: "study", urls: [LINK, "https://youtu.be/Q-nWA0WeF98", LINK] }, root2), /^2 videoyu inceleme listesine aldım/);
+    assert.deepEqual((await listStudyRequests(root2)).map((r) => r.request.id).sort(), ["8apicgLXhGg", "Q-nWA0WeF98"]);
   });
 
   await scenario("C the report: the latest council, what references taught, the cycles, the brains' changes, the proposals", async () => {

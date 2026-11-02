@@ -1,0 +1,16 @@
+{
+  "aciklama": "Beyinlerin boşta kendi kendine aradığı videolar (owner, 2 Kasım 2026: 'benim atmamı beklemesin, ilgili videoları inceleyip kendini geliştirsin'). Döngü en uzun süredir aranmamış olanı alır; videolar yalnız öğrenmek için incelenir, hiçbir parçası kullanılmaz. tur: short = 60 sn'ye kadar, uzun = daha uzun.",
+  "aramalar": [
+    { "sorgu": "OverSimplified history", "tur": "uzun" },
+    { "sorgu": "Sancaray animasyon tarih", "tur": "uzun" },
+    { "sorgu": "DFT Tarih belgesel", "tur": "uzun" },
+    { "sorgu": "animated history documentary battle map", "tur": "uzun" },
+    { "sorgu": "history explained animation funny", "tur": "uzun" },
+    { "sorgu": "tarih animasyon belgesel", "tur": "uzun" },
+    { "sorgu": "animated map history war explained", "tur": "uzun" },
+    { "sorgu": "history shorts animation", "tur": "short" },
+    { "sorgu": "funny history short animated", "tur": "short" },
+    { "sorgu": "tarih shorts animasyon", "tur": "short" },
+    { "sorgu": "historical event explained in 60 seconds animation", "tur": "short" }
+  ]
+}

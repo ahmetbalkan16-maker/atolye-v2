@@ -434,3 +434,59 @@ export function pickSimilar(hits: readonly SearchHit[], targetS: number, opts: {
     .filter((h) => h.sureSn > 0 && kindOf(h.sureSn) === kind && h.sureSn <= 45 * 60 && !opts.studied.has(h.id) && (!opts.ownChannelId || h.kanalId !== opts.ownChannelId))
     .sort((a, b) => b.izlenme - a.izlenme)[0];
 }
+
+/** The memory source of the studied videos' lessons once they are consolidated. */
+export const REFERENCE_SUMMARY = "referans-ozet";
+
+/** A lesson the studied videos taught: one video's ("referans <id>") or their consolidation. */
+export const isReferenceLesson = (l: { readonly bolum: string }): boolean => l.bolum.startsWith("referans ") || l.bolum === REFERENCE_SUMMARY;
+
+/** A brain's reference lessons are consolidated once this many single-video lessons piled up. */
+export const CONSOLIDATE_AT = 12;
+/** A consolidation keeps at most this many lessons per brain. */
+export const MAX_CONSOLIDATED = 8;
+
+export interface ConsolidatedLesson {
+  readonly metin: string;
+  readonly tr: string;
+  /** How many studied videos showed it. */
+  readonly destek: number;
+}
+
+/**
+ * The consolidation prompt (owner, 2 Nov 2026: "learn from related videos and keep it as experience"): many videos
+ * teach the same technique in different words; the brain keeps the techniques that recur, merged, with how many videos
+ * showed each — so its prompt carries the strongest lessons, not the newest twelve.
+ */
+export function consolidationPrompt(beyin: StudyBrain, lessons: readonly { readonly metin: string; readonly kaynak: string; readonly destek: number }[]): string {
+  const role: Record<StudyBrain, string> = { kurgu: "the script writer", arastirma: "the historian", mizah: "the humour writer", kalite: "the picture critic" };
+  return `You keep the experience of ${role[beyin]} of an animated history video studio. These lessons were learned from studied videos of other channels (source in brackets, then how many videos showed it — an earlier summary already counts several):
+${lessons.map((l) => `- [${l.kaynak}] (${l.destek} video${l.destek === 1 ? "" : "s"}) ${l.metin}`).join("\n")}
+
+Merge them into at most ${MAX_CONSOLIDATED} lessons: put the techniques that several videos show together in one lesson, keep a strong single-video technique only when it is concrete, drop vague or duplicate advice. Each lesson: one concrete technique in English for any topic (at most 220 characters, no quotation of any video longer than five words), a one-line Turkish summary, and "destek": how many videos showed it — add up the counts of the lessons you merge (a lesson marked (5 videos) brings 5).
+Return ONLY JSON: {"dersler": [{"metin": "...", "tr": "...", "destek": 3}]}`;
+}
+
+/** A consolidation that can replace the lessons it merges: at least three readable lessons, strongest first. */
+export function parseConsolidation(text: string): ConsolidatedLesson[] | undefined {
+  const v = readJsonAnswer<{ dersler?: unknown }>(text);
+  if (!Array.isArray(v?.dersler)) return undefined;
+  const out = (v.dersler as Record<string, unknown>[]).flatMap((d): ConsolidatedLesson[] => {
+    const metin = typeof d?.metin === "string" ? shortenQuotes(d.metin.replace(/\s+/g, " ").trim()).slice(0, 300) : "";
+    return metin.length >= 20 ? [{ metin, tr: typeof d.tr === "string" ? d.tr.trim().slice(0, 200) : "", destek: Math.max(1, Math.min(99, Math.round(Number(d.destek) || 1))) }] : [];
+  });
+  return out.length >= 3 ? out.sort((a, b) => b.destek - a.destek).slice(0, MAX_CONSOLIDATED) : undefined;
+}
+
+/**
+ * The studio's own searches for videos to learn from (`content/v3/referans-aramalari.json`, in git): the genre and the
+ * channels the owner named, Shorts and long videos. The idle loop takes the one searched longest ago.
+ */
+export interface StudySearch {
+  readonly sorgu: string;
+  readonly tur: VideoKind;
+}
+
+export function nextSearch(searches: readonly StudySearch[], history: Readonly<Record<string, string>>): StudySearch | undefined {
+  return [...searches].sort((a, b) => (history[a.sorgu] ?? "").localeCompare(history[b.sorgu] ?? ""))[0];
+}

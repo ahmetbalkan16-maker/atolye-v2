@@ -26,7 +26,19 @@ export function brainBudget(paths: V3Paths, capUsd: number, provider = process.e
   };
 }
 
-/** The free local eye (gemma4 through Ollama), waiting for a cool GPU before every call. */
-export function brainVision(): AIProvider {
-  return coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
+/**
+ * The quality judge without chance (owner approval, 2 Nov 2026): temperature 0 and a fixed seed, so the same frame
+ * gets the same verdict. At the default 0.4 the same 8-question exam gave 90 % and 73 % minutes apart. Used only when
+ * the quality brain's exam chose it (setting "kalite.sabit", decided by SelfImprovement) or ATOLYE_V3_QUALITY_STEADY=1.
+ */
+export const STEADY_JUDGE = { temperature: 0, seed: 42 } as const;
+
+/** Whether the quality judge runs steady: the environment decides ("1"/"0"), else the brain's measured setting. */
+export function steadyJudge(tuned: boolean | undefined, env: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  return env.ATOLYE_V3_QUALITY_STEADY === "1" || (env.ATOLYE_V3_QUALITY_STEADY !== "0" && tuned === true);
+}
+
+/** The free local eye (gemma4 through Ollama), waiting for a cool GPU before every call; `steady`: see STEADY_JUDGE. */
+export function brainVision(steady = false): AIProvider {
+  return coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false, ...(steady ? STEADY_JUDGE : {}) }), V3_OLLAMA_THERMAL), (s) => console.log(s));
 }

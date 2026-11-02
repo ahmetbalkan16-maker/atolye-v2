@@ -16,23 +16,31 @@ export function improvementDir(workRoot: string): string {
 }
 
 /** The idle loop's tasks, in the order a cycle runs them. */
-export const CYCLE_TASKS = ["istekler", "karsilastir", "oneriler", "benzer", "sinav", "ayar"] as const;
+export const CYCLE_TASKS = ["istekler", "karsilastir", "oneriler", "benzer", "pekistir", "sinav", "ayar"] as const;
 export type CycleTask = (typeof CYCLE_TASKS)[number];
 
 export const TASK_NAMES: Readonly<Record<CycleTask, string>> = {
   istekler: "owner'ın verdiği videoları inceleme",
   karsilastir: "kendi videolarını referanslarla karşılaştırma",
   oneriler: "kod önerilerini Gelişim Merkezi'ne toplama",
-  benzer: "benzer video arama ve inceleme",
+  benzer: "ilgili videoları kendi arayıp inceleme",
+  pekistir: "öğrenilenleri pekiştirme",
   sinav: "kalite beyninin sınavı",
   ayar: "istem eki ve ayar denemesi",
 };
 
-/** How often a task may run (hours); the exam and the tuning use the GPU for minutes, a search costs a cent. */
-export const TASK_EVERY_H: Readonly<Record<CycleTask, number>> = { istekler: 0, karsilastir: 0, oneriler: 0, benzer: 12, sinav: 24, ayar: 24 };
+/**
+ * How often a task may run (hours). The search runs every cycle (owner, 2 Nov 2026: "don't wait for my links — study
+ * related videos on the internet by yourself"); the exam and the tuning use the GPU for minutes, so once a day.
+ */
+export const TASK_EVERY_H: Readonly<Record<CycleTask, number>> = { istekler: 0, karsilastir: 0, oneriler: 0, benzer: 0, pekistir: 24, sinav: 24, ayar: 24 };
 
-/** The pause between two full cycles of the idle loop (`ATOLYE_V3_GELISIM_ARALIK_SA` overrides). */
-export const CYCLE_EVERY_H = 6;
+/** The pause between two full cycles of the idle loop (owner, 2 Nov 2026: "4 hours"; `ATOLYE_V3_GELISIM_ARALIK_SA` overrides). */
+export const CYCLE_EVERY_H = 4;
+
+/** Videos the loop studies on its own per cycle and per day (each ~1.5 cents and ~2 minutes of the eye). */
+export const STUDIES_PER_CYCLE = 2;
+export const STUDIES_PER_DAY = 10;
 
 export interface TaskResult {
   readonly gorev: CycleTask;
@@ -234,7 +242,28 @@ export interface BrainTuning {
 }
 
 /** What a brain may change of itself; anything else is a code proposal. */
-export const TUNABLE_SETTINGS: Readonly<Partial<Record<BrainId, readonly string[]>>> = { kalite: ["ornekler"] };
+export const TUNABLE_SETTINGS: Readonly<Partial<Record<BrainId, readonly string[]>>> = { kalite: ["ornekler", "sabit"] };
+
+/** How many exam runs each side of the steady-judge trial gets, and how often that trial is repeated. */
+export const STEADY_TRIAL_RUNS = 3;
+export const STEADY_TRIAL_EVERY_DAYS = 7;
+
+/**
+ * The steady judge's trial (owner's rule, 2 Nov 2026: "kept if accuracy does not drop, taken back if it does"): three
+ * runs each way; kept when its mean is not below the noisy judge's mean. Its own runs should agree (it has no chance);
+ * when they do not, the seed is not honoured and it is not kept.
+ */
+export function steadyVerdict(base: readonly number[], steady: readonly number[]): { readonly once: number; readonly sonra: number; readonly kalici: boolean; readonly tutarli: boolean } {
+  const mean = (xs: readonly number[]) => Math.round(xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length));
+  const tutarli = steady.length > 0 && Math.max(...steady) - Math.min(...steady) === 0;
+  const once = mean(base), sonra = mean(steady);
+  return { once, sonra, tutarli, kalici: base.length >= STEADY_TRIAL_RUNS && steady.length >= STEADY_TRIAL_RUNS && tutarli && sonra >= once };
+}
+
+/** Whether a setting was tried within the last `days` (its trial is not repeated sooner). */
+export function settingTriedWithin(t: BrainTuning, beyin: BrainId, key: string, days: number, now = Date.now()): boolean {
+  return t.ayarGecmisi.some((h) => h.beyin === beyin && h.anahtar === key && now - Date.parse(h.tarih) < days * 86_400_000);
+}
 /** At most this many kept prompt additions per brain (the oldest goes when a new one is kept). */
 export const MAX_ADDITIONS = 5;
 /** An addition or setting is kept only when it raises the exam's balanced accuracy by at least this many points. */

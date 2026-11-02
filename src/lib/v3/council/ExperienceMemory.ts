@@ -60,12 +60,17 @@ export async function remember(workRoot: string, lesson: Omit<Lesson, "tarih">):
  * of piling the same advice up twice. The file is rewritten through a temporary file; other lessons keep their order.
  */
 export async function forgetSource(workRoot: string, beyin: BrainId, bolum: string): Promise<number> {
+  return forgetWhere(workRoot, beyin, (l) => l.bolum === bolum);
+}
+
+/** Drops a brain's lessons that `drop` names (an unreadable line is always kept); returns how many went. */
+export async function forgetWhere(workRoot: string, beyin: BrainId, drop: (l: Lesson) => boolean): Promise<number> {
   const file = path.join(memoryDir(workRoot), `${beyin}.jsonl`);
   if (!existsSync(file)) return 0;
   const lines = (await fs.readFile(file, "utf8")).split(/\r?\n/).filter(Boolean);
   const keep = lines.filter((l) => {
     try {
-      return (JSON.parse(l) as Lesson).bolum !== bolum;
+      return !drop(JSON.parse(l) as Lesson);
     } catch {
       return true;
     }
@@ -74,6 +79,19 @@ export async function forgetSource(workRoot: string, beyin: BrainId, bolum: stri
   await fs.writeFile(`${file}.tmp`, keep.length ? `${keep.join("\n")}\n` : "");
   await fs.rename(`${file}.tmp`, file);
   return lines.length - keep.length;
+}
+
+/** All of a brain's lessons in the order they were written. */
+export async function allLessons(workRoot: string, beyin: BrainId): Promise<Lesson[]> {
+  return readAll(workRoot, beyin);
+}
+
+/**
+ * Whether the brain already holds a lesson saying nearly the same (word overlap ≥ `min`): many studied videos teach the
+ * same technique, and the same advice written ten times would push everything else out of the prompts.
+ */
+export async function hasSimilarLesson(workRoot: string, beyin: BrainId, metin: string, min = 0.6, among: (l: Lesson) => boolean = () => true): Promise<boolean> {
+  return (await readAll(workRoot, beyin)).some((l) => among(l) && overlap(l.metin, metin) >= min);
 }
 
 async function readAll(workRoot: string, beyin: BrainId): Promise<Lesson[]> {
@@ -219,9 +237,9 @@ export const MAX_RULES = 8;
  * A brain's lessons about `konu`, most relevant first (meaning when meaning search is on, else shared words; newer
  * wins a tie), each text once; a lesson is relevant when it shares enough words OR is close enough in meaning. Without
  * `konu` the newest come first. The owner's standing rules ("kural") come first and do not count against `limit`
- * whenever no type is asked for; a type filter ("ders") leaves them out.
+ * whenever no type is asked for; a type filter ("ders") leaves them out. `filter` narrows the other lessons (by source).
  */
-export async function recall(workRoot: string, beyin: BrainId, opts: { readonly konu?: string; readonly tur?: Lesson["tur"]; readonly limit?: number; readonly minOverlap?: number; readonly minCosine?: number } = {}): Promise<Lesson[]> {
+export async function recall(workRoot: string, beyin: BrainId, opts: { readonly konu?: string; readonly tur?: Lesson["tur"]; readonly limit?: number; readonly minOverlap?: number; readonly minCosine?: number; readonly filter?: (l: Lesson) => boolean } = {}): Promise<Lesson[]> {
   const everything = await readAll(workRoot, beyin);
   const seen = new Set<string>();
   const once = (l: Lesson) => {
@@ -232,7 +250,7 @@ export async function recall(workRoot: string, beyin: BrainId, opts: { readonly 
   };
   const rules = !opts.tur || opts.tur === "kural" ? everything.filter((l) => l.tur === "kural").reverse().filter(once).slice(0, MAX_RULES).reverse() : [];
   if (opts.tur === "kural") return rules;
-  const all = everything.filter((l) => l.tur !== "kural" && (!opts.tur || l.tur === opts.tur));
+  const all = everything.filter((l) => l.tur !== "kural" && (!opts.tur || l.tur === opts.tur) && (!opts.filter || opts.filter(l)));
   const scored = all.map((l, i) => ({ l, s: opts.konu ? Math.max(overlap(opts.konu, l.konu), overlap(opts.konu, l.metin)) : 0, i, c: -1 }));
   const cos = opts.konu && scored.length ? await cosines(workRoot, opts.konu, scored.map((x) => `${x.l.konu} — ${x.l.metin}`)) : undefined;
   if (cos) scored.forEach((x, j) => (x.c = cos[j]!));

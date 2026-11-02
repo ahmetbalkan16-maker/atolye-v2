@@ -47,6 +47,9 @@ export interface OllamaConfig {
    * count against `num_predict` and can leave no room for the JSON answer.
    * `undefined` sends nothing (the model's own default). */
   readonly think?: boolean;
+  /** Fixed sampling seed (with temperature 0, the same input gets the same answer); `undefined` sends nothing. Set
+   * per caller, never from the environment (Atölye V3's quality judge when its exam chose it, 2 Nov 2026). */
+  readonly seed?: number;
 }
 
 export const OLLAMA_DEFAULTS = Object.freeze({

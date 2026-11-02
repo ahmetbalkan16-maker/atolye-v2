@@ -8,9 +8,15 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { forgetSource, recall, remember } from "../src/lib/v3/council/ExperienceMemory";
+import { allLessons, forgetSource, forgetWhere, hasSimilarLesson, recall, remember } from "../src/lib/v3/council/ExperienceMemory";
 import {
   type Caption,
+  consolidationPrompt,
+  isReferenceLesson,
+  nextSearch,
+  parseConsolidation,
+  REFERENCE_SUMMARY,
+  type StudySearch,
   coveredSeconds,
   cutMeasures,
   frameShares,
@@ -188,6 +194,43 @@ async function main() {
     assert.equal(await forgetSource(root, "kurgu", "referans z"), 1);
     assert.match(readFileSync(file, "utf8"), /\{broken/);
     assert.ok(existsSync(file));
+  });
+
+  await scenario("I own searches, consolidation and the writer's shares: the same advice never piles up", async () => {
+    const list = JSON.parse(readFileSync(path.join("content", "v3", "referans-aramalari.json"), "utf8")) as { aramalar: StudySearch[] };
+    assert.ok(list.aramalar.length >= 6);
+    assert.ok(list.aramalar.every((s) => s.sorgu.trim() && (s.tur === "short" || s.tur === "uzun")));
+    assert.ok(list.aramalar.some((s) => s.tur === "short") && list.aramalar.some((s) => s.tur === "uzun"));
+    const s3 = [{ sorgu: "a", tur: "uzun" as const }, { sorgu: "b", tur: "short" as const }, { sorgu: "c", tur: "uzun" as const }];
+    assert.equal(nextSearch(s3, {})!.sorgu, "a");
+    assert.equal(nextSearch(s3, { a: "2026-11-02T10:00:00Z", b: "2026-11-02T09:00:00Z" })!.sorgu, "c");
+    assert.equal(nextSearch(s3, { a: "2026-11-02T10:00:00Z", b: "2026-11-02T09:00:00Z", c: "2026-11-02T11:00:00Z" })!.sorgu, "b");
+    assert.equal(nextSearch([], {}), undefined);
+    assert.equal(isReferenceLesson({ bolum: "referans 8apicgLXhGg" }), true);
+    assert.equal(isReferenceLesson({ bolum: REFERENCE_SUMMARY }), true);
+    assert.equal(isReferenceLesson({ bolum: "karsilastirma x" }), false);
+    assert.equal(isReferenceLesson({ bolum: "Caesar" }), false);
+    const p = consolidationPrompt("mizah", [{ metin: "Undercut a grave line with a deadpan aside", kaynak: "IV. MURAD", destek: 1 }, { metin: "Let a side character mock the hero once a scene", kaynak: "özet", destek: 5 }]);
+    assert.match(p, /the humour writer/);
+    assert.match(p, /\[IV. MURAD\] \(1 video\) Undercut/);
+    // An earlier summary brings its own count, so its support adds up.
+    assert.match(p, /\[özet\] \(5 videos\) Let a side character/);
+    assert.match(p, /add up the counts/);
+    assert.match(p, /at most 8 lessons/);
+    const merged = parseConsolidation(JSON.stringify({ dersler: [{ metin: "Open on a character in trouble within two seconds", tr: "a", destek: 2 }, { metin: "Answer every narrator stretch with a short character reply", tr: "b", destek: 5 }, { metin: "short", destek: 9 }, { metin: "Cut to a map whenever an army moves on screen", destek: "x" }] }))!;
+    assert.deepEqual(merged.map((m) => m.destek), [5, 2, 1]);
+    assert.equal(parseConsolidation(JSON.stringify({ dersler: [{ metin: "Only one usable consolidated lesson here" }] })), undefined);
+    assert.equal(parseConsolidation("no"), undefined);
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-ref-mem-"));
+    await remember(root, { bolum: "Caesar", beyin: "kurgu", tur: "ders", konu: "senaryo", metin: "A Short of at most 60 s ran 75 s: write fewer, shorter lines." });
+    for (let i = 0; i < 5; i++) await remember(root, { bolum: `referans v${i}`, beyin: "kurgu", tur: "ders", konu: `referans: v${i}`, metin: `Reference technique number ${i} about hooks ${"z".repeat(i)}` });
+    assert.equal(await hasSimilarLesson(root, "kurgu", "Reference technique number 3 about hooks zzz"), true);
+    assert.equal(await hasSimilarLesson(root, "kurgu", "Draw every army as two facing fronts"), false);
+    // The writer's shares: production lessons and reference lessons are asked apart.
+    assert.deepEqual((await recall(root, "kurgu", { limit: 4, filter: (l) => !isReferenceLesson(l) })).map((l) => l.bolum), ["Caesar"]);
+    assert.equal((await recall(root, "kurgu", { tur: "ders", limit: 3, filter: isReferenceLesson })).length, 3);
+    assert.equal(await forgetWhere(root, "kurgu", isReferenceLesson), 5);
+    assert.equal((await allLessons(root, "kurgu")).length, 1);
   });
 
   console.log(`PASS (${scenarios} scenarios)`);

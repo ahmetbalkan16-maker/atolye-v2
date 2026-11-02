@@ -16,11 +16,11 @@
  */
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { brainBudget, brainVision } from "../../src/lib/v3/council/BrainModels";
+import { brainBudget, brainVision, steadyJudge } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
-import { forgetSource, remember } from "../../src/lib/v3/council/ExperienceMemory";
-import { gapLesson, kindOf, listReferences, listStudyRequests, measureGaps, pickSimilar, referenceTargets, saveStudyRequest, searchVideos, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
-import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
+import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v3/council/ExperienceMemory";
+import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
+import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, type ProductionOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
 import { runProcess } from "../../src/lib/v3/util/Proc";
@@ -68,7 +68,12 @@ async function qualityExam(paths: V3Paths, extra: readonly string[], tag: string
   return { ...(rep.hep_ayni_karar || rep.dengeli_yuzde === undefined ? {} : { dengeli: rep.dengeli_yuzde }), dogru: rep.dogru, toplam: rep.toplam, cevaplar: rep.cevaplar };
 }
 
-const examplesFlag = async (paths: V3Paths, on?: boolean) => ((on ?? (await tunedSetting(paths.workRoot, "kalite", "ornekler"))) ? [] : ["--ornek-yok"]);
+/** The exam's flags for the quality brain's settings as they stand (or as given): examples shown, the steady judge. */
+const examplesFlag = async (paths: V3Paths, on?: boolean, steady?: boolean) => [
+  ...((on ?? (await tunedSetting(paths.workRoot, "kalite", "ornekler"))) ? [] : ["--ornek-yok"]),
+  // The judge the production runs: the environment's override first (steadyJudge), then the brain's choice.
+  ...((steady ?? steadyJudge(await tunedSetting(paths.workRoot, "kalite", "sabit"))) ? ["--sabit"] : []),
+];
 
 async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeof brainBudget>, orders: readonly ProductionOrder[]): Promise<Omit<TaskResult, "bitis">> {
   const skip = (ayrinti: string) => ({ gorev: task, sonuc: "atlandi" as const, ayrinti });
@@ -125,20 +130,93 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     return yeni || tekrar ? ok(`${yeni} yeni öneri, ${tekrar} tekrar eden istek`) : skip("yeni rapor yok");
   }
   if (task === "benzer") {
+    // The studio's own learning (owner, 2 Nov 2026: "don't wait for my links"): a recent episode's topic first, else
+    // the studio's own searches (content/v3/referans-aramalari.json), the one searched longest ago; at most
+    // STUDIES_PER_CYCLE videos a cycle and STUDIES_PER_DAY a day.
+    const refs = await listReferences(paths.workRoot);
+    const today = refs.filter((r) => Date.now() - Date.parse(r.tarih) < 86_400_000 && /^(benzer arama|kendi araması)/.test(r.neden)).length;
+    if (today >= STUDIES_PER_DAY) return skip(`bugünkü inceleme sınırı doldu (${today}/${STUDIES_PER_DAY})`);
     const searched = await doneSet(paths, "aranan-konular.json");
-    const next = orders.filter(delivered).sort((a, b) => (b.bitis ?? "").localeCompare(a.bitis ?? "")).slice(0, 3).find((o) => !searched.has(o.id));
-    if (!next) return skip("aranacak yeni konu yok");
-    const resolved = existsSync(path.join(next.cikti!, "konu-cozumu.json")) ? (await readJson<{ konu?: string }>(path.join(next.cikti!, "konu-cozumu.json"))).konu : undefined;
-    const query = `${resolved || next.konu} ${next.dil === "tr" ? "animasyon tarih" : "animated history"}`;
-    const ours = existsSync(path.join(next.cikti!, "olcum.json")) ? (await readJson<VideoMeasures>(path.join(next.cikti!, "olcum.json"))).sureSn : 600;
-    const hits = await searchVideos(paths, query);
-    const studied = new Set((await listReferences(paths.workRoot)).map((r) => r.id));
+    const historyFile = path.join(improvementDir(paths.workRoot), "arama-gecmisi.json");
+    const history: Record<string, string> = existsSync(historyFile) ? await readJson<Record<string, string>>(historyFile) : {};
+    const searchesFile = path.join(paths.contentRoot, "referans-aramalari.json");
+    const searches = existsSync(searchesFile) ? (await readJson<{ aramalar?: StudySearch[] }>(searchesFile)).aramalar ?? [] : [];
+    const studied = new Set(refs.map((r) => r.id));
     const own = youtubeSettings(paths.repoRoot).channelId;
-    const best = pickSimilar(hits, ours, { studied, ...(own ? { ownChannelId: own } : {}) });
-    await searched.add(next.id);
-    if (!best) return ok(`"${query}" araması: aynı türden incelenmemiş video yok`);
-    const r = await studyReference({ paths, id: best.id, neden: `benzer arama: ${query}`, eye: brainVision(), budget: budget.budget, model: budget.director, log });
-    return ok(`"${query}" → "${r.baslik}" (${r.kanal}) incelendi, ${r.dersler.length} ders`);
+    // An episode's topic counts as searched only once its search went through; one that fails three times is let go
+    // (a 429 or a members-only video must neither lose the topic nor block the loop's own searches for ever).
+    const failuresFile = path.join(improvementDir(paths.workRoot), "arama-hatalari.json");
+    const failures: Record<string, number> = existsSync(failuresFile) ? await readJson<Record<string, number>>(failuresFile) : {};
+    const writeAtomic = async (file: string, data: unknown) => {
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(`${file}.tmp`, JSON.stringify(data, null, 2));
+      await fs.rename(`${file}.tmp`, file);
+    };
+    const failedNow = new Set<string>();
+    const done: string[] = [];
+    for (let i = 0; i < Math.min(STUDIES_PER_CYCLE, STUDIES_PER_DAY - today); i++) {
+      const next = orders.filter(delivered).sort((a, b) => (b.bitis ?? "").localeCompare(a.bitis ?? "")).slice(0, 3).find((o) => !searched.has(o.id) && !failedNow.has(o.id));
+      let query: string, target: number, neden: string;
+      if (next) {
+        const resolved = existsSync(path.join(next.cikti!, "konu-cozumu.json")) ? (await readJson<{ konu?: string }>(path.join(next.cikti!, "konu-cozumu.json"))).konu : undefined;
+        query = `${resolved || next.konu} ${next.dil === "tr" ? "animasyon tarih" : "animated history"}`;
+        target = existsSync(path.join(next.cikti!, "olcum.json")) ? (await readJson<VideoMeasures>(path.join(next.cikti!, "olcum.json"))).sureSn : 600;
+        neden = `benzer arama: ${query}`;
+      } else {
+        const s = nextSearch(searches, history);
+        if (!s) break;
+        query = s.sorgu;
+        target = s.tur === "short" ? 60 : 900;
+        neden = `kendi araması: ${query}`;
+        history[query] = new Date().toISOString();
+        await writeAtomic(historyFile, history);
+      }
+      try {
+        const best = pickSimilar(await searchVideos(paths, query), target, { studied, ...(own ? { ownChannelId: own } : {}) });
+        if (!best) done.push(`"${query}": incelenmemiş uygun video yok`);
+        else {
+          const r = await studyReference({ paths, id: best.id, neden, eye: brainVision(), budget: budget.budget, model: budget.director, log });
+          studied.add(r.id);
+          done.push(`"${query}" → "${r.baslik}" (${r.kanal}), ${r.dersler.length} ders`);
+        }
+        if (next) await searched.add(next.id);
+      } catch (e) {
+        // A video that cannot be read (members only, a 429) is passed; the next search goes on.
+        done.push(`"${query}": incelenemedi (${(e as Error).message.slice(0, 80)})`);
+        if (next) {
+          failedNow.add(next.id);
+          failures[next.id] = (failures[next.id] ?? 0) + 1;
+          await writeAtomic(failuresFile, failures);
+          if (failures[next.id]! >= 3) await searched.add(next.id);
+        }
+      }
+    }
+    return done.length ? ok(done.join(" · ")) : skip("aranacak bir şey yok");
+  }
+  if (task === "pekistir") {
+    // Many videos teach the same technique in other words: past CONSOLIDATE_AT single-video lessons a brain keeps the
+    // recurring techniques, merged, with how many videos showed each (the records keep every original lesson).
+    const lines: string[] = [];
+    for (const beyin of STUDY_BRAINS) {
+      const all = (await allLessons(paths.workRoot, beyin)).filter(isReferenceLesson);
+      const single = all.filter((l) => l.bolum !== REFERENCE_SUMMARY);
+      if (single.length < CONSOLIDATE_AT) continue;
+      // An earlier summary carries its video count ("referans özeti: 5 video"), so its support adds up instead of
+      // counting as one source.
+      const support = (l: (typeof all)[number]) => (l.bolum === REFERENCE_SUMMARY ? Number(/(\d+) video/.exec(l.konu)?.[1]) || 1 : 1);
+      const out = await budget.budget.generate(`gelisim-pekistir-${beyin}`, budget.director, consolidationPrompt(beyin, all.map((l) => ({ metin: l.metin, kaynak: l.bolum === REFERENCE_SUMMARY ? "özet" : l.konu.replace(/^referans: /, ""), destek: support(l) }))), { maxTokens: 1_500 });
+      const merged = parseConsolidation(out.result.content);
+      if (!merged) {
+        lines.push(`${beyin}: özet okunamadı, dersler olduğu gibi kaldı`);
+        continue;
+      }
+      // Only the lessons that were read and merged go: one a study wrote during the model call stays for the next time.
+      const read = new Set(all.map((l) => `${l.tarih}|${l.metin}`));
+      await forgetWhere(paths.workRoot, beyin, (l) => isReferenceLesson(l) && read.has(`${l.tarih}|${l.metin}`));
+      for (const m of merged) await remember(paths.workRoot, { bolum: REFERENCE_SUMMARY, beyin, tur: "ders", konu: `referans özeti: ${m.destek} video`, metin: m.metin });
+      lines.push(`${beyin}: ${all.length} ders → ${merged.length} (en güçlüsü ${merged[0]!.destek} videoda)`);
+    }
+    return lines.length ? ok(lines.join(" · ")) : skip(`pekiştirilecek kadar ders birikmedi (beyin başına ${CONSOLIDATE_AT})`);
   }
   if (task === "sinav") {
     const exam = await qualityExam(paths, await examplesFlag(paths), "son");
@@ -149,7 +227,31 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     const drop = before !== undefined && exam.dengeli !== undefined && before - exam.dengeli >= 10;
     return ok(`kalite beyni ${exam.dogru}/${exam.toplam}, dengeli doğruluk %${exam.dengeli ?? "?"}${before !== undefined ? ` (önceki %${before})` : ""}${drop ? " — UYARI: geriledi, model ya da kurallar değişmiş olabilir" : ""}`);
   }
-  // ayar: the one tunable setting, then one new prompt addition, each measured against the exam as it stands; a
+  // ayar, first the steady judge (owner approval, 2 Nov 2026): three exams with the judge as it is, three with
+  // temperature 0 and a fixed seed; kept if the accuracy does not drop. Decided once a week; a cycle with this trial
+  // does nothing else (six exams are enough GPU for one cycle).
+  if (!settingTriedWithin(await readTuning(paths.workRoot), "kalite", "sabit", STEADY_TRIAL_EVERY_DAYS)) {
+    const current = (await tunedSetting(paths.workRoot, "kalite", "sabit")) === true;
+    const runsOf = async (steady: boolean, tag: string) => {
+      const runs: number[] = [];
+      for (let i = 0; i < STEADY_TRIAL_RUNS; i++) {
+        const r = await qualityExam(paths, await examplesFlag(paths, undefined, steady), `${tag}-${i + 1}`);
+        if (r?.dengeli !== undefined) runs.push(r.dengeli);
+      }
+      return runs;
+    };
+    const noisy = await runsOf(false, "sabit-temel");
+    const steady = await runsOf(true, "sabit-aday");
+    // Too few scores (Ollama down, an exam crashed) decide nothing: the setting stays as it is and the trial comes again.
+    if (noisy.length < STEADY_TRIAL_RUNS || steady.length < STEADY_TRIAL_RUNS) return { gorev: task, sonuc: "hata", ayrinti: `sabit hakem denemesi ölçülemedi (şimdiki ${noisy.length}, sabit ${steady.length} sınav puanı); ayar değişmedi` };
+    const v = steadyVerdict(noisy, steady);
+    // Kept → on; not kept while on → turned off (recorded as a kept "off"); not kept while off → tried, stays off.
+    const turnOff = !v.kalici && current;
+    await writeTuning(paths.workRoot, settleSetting(await readTuning(paths.workRoot), "kalite", "sabit", !turnOff, v.once, v.sonra, new Date(), v.kalici || turnOff));
+    const line = (xs: readonly number[]) => xs.map((x) => `%${x}`).join("/") || "ölçülemedi";
+    return ok(`sabit hakem (sıcaklık 0, sabit tohum): şimdiki ${line(noisy)} → sabit ${line(steady)}; ${v.kalici ? "kalıcı yapıldı" : current ? "geri alındı" : "denenip bırakıldı"}${!v.tutarli && steady.length ? " (sabit hakemin cevapları bile değişti: tohum tutmuyor)" : ""}`);
+  }
+  // Then the examples setting and one new prompt addition, each measured against the exam as it stands; a
   // promising change is measured a second time with the base beside it (confirmedGain: the exam is noisy).
   const baseExamples = (await tunedSetting(paths.workRoot, "kalite", "ornekler")) === true;
   const base = await qualityExam(paths, await examplesFlag(paths, baseExamples), "ayar-temel");

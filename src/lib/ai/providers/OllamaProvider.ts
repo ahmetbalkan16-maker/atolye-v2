@@ -95,6 +95,7 @@ export class OllamaProvider implements ConfiguredAIProvider {
             ...(config.numCtx !== undefined ? { num_ctx: config.numCtx } : {}),
             ...(config.numGpu !== undefined ? { num_gpu: config.numGpu } : {}),
             ...(config.numThreads !== undefined ? { num_thread: config.numThreads } : {}),
+            ...(config.seed !== undefined ? { seed: config.seed } : {}),
           },
         }),
         signal: controller.signal,

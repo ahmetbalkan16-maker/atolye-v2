@@ -4,7 +4,7 @@ import type { AIProvider } from "../../ai/providers/AIProvider";
 import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runChecked, runProcess } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
-import { forgetSource, remember } from "./ExperienceMemory";
+import { forgetSource, hasSimilarLesson, remember } from "./ExperienceMemory";
 import { type Caption, cutMeasures, FRAME_KINDS_REF, FRAME_NOTE_PROMPT, type FrameNote, frameShares, measuresLine, parseFrameNote, parseJson3, parseStudy, type ReferenceRecord, referenceDir, sampleTimes, type SearchHit, speechMeasures, STUDY_BRAINS, studyPrompt, transcriptExcerpt, type VideoMeasures } from "./ReferenceStore";
 
 /**
@@ -123,7 +123,12 @@ export async function studyReference(input: {
     const record: ReferenceRecord = { id: ref.id, url: `https://www.youtube.com/watch?v=${ref.id}`, baslik: ref.baslik, kanal: ref.kanal, dil: ref.dil, tarih: new Date().toISOString(), neden: input.neden, olcum, kareler: notes, ozet: study?.ozet ?? "", dersler: study?.dersler ?? [], eksik };
     // A video studied again replaces what it taught before.
     if (record.dersler.length) for (const b of STUDY_BRAINS) await forgetSource(input.paths.workRoot, b, `referans ${ref.id}`);
-    for (const d of record.dersler) await remember(input.paths.workRoot, { bolum: `referans ${ref.id}`, beyin: d.beyin, tur: "ders", konu: `referans: ${ref.baslik.slice(0, 80)}`, metin: d.metin });
+    // A technique another single video already taught is kept in the record but not written twice; one found only in
+    // a consolidated summary is written, so the next consolidation counts one more video for it.
+    for (const d of record.dersler) {
+      if (await hasSimilarLesson(input.paths.workRoot, d.beyin, d.metin, 0.6, (l) => l.bolum.startsWith("referans "))) continue;
+      await remember(input.paths.workRoot, { bolum: `referans ${ref.id}`, beyin: d.beyin, tur: "ders", konu: `referans: ${ref.baslik.slice(0, 80)}`, metin: d.metin });
+    }
     const store = referenceDir(input.paths.workRoot);
     await fs.mkdir(store, { recursive: true });
     await fs.writeFile(path.join(store, `${ref.id}.json`), `${JSON.stringify(record, null, 2)}\n`);

@@ -17,14 +17,16 @@ export type AyasVideoIntent =
   | { readonly kind: "order"; readonly konu: string; readonly donem: string; readonly dil: "tr" | "en"; readonly sure?: string }
   | { readonly kind: "status" }
   | { readonly kind: "publish"; readonly words: string; readonly hemen: boolean }
-  /** "Bu videodan öğren <YouTube bağlantısı>": the brains study it while idle (ReferenceStudy). */
-  | { readonly kind: "study"; readonly url: string }
+  /** "Bu videodan öğren <YouTube bağlantısı>" or a link alone: the brains study every linked video while idle (ReferenceStudy). */
+  | { readonly kind: "study"; readonly urls: readonly string[] }
   /** "Beyinler ne öğrendi", "kurul ne dedi": the brains' council, lessons and proposals (BrainsReport). */
   | { readonly kind: "brains" };
 
 // A YouTube link with a learning verb anywhere around it (owner approval, 2 Nov 2026: "you give a link").
-const YOUTUBE_LINK = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}[^\s]*/u;
+const YOUTUBE_LINK = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}[^\s]*/gu;
 const STUDY_VERB = /(?<!\p{L})(?:öğren\p{L}*|incele\p{L}*|izle\p{L}*|analiz\p{L}*|ders\s+çıkar\p{L}*|study|learn)(?!\p{L})/u;
+// A question about the linked video ("bunu neden önerdin?", "bu kimin kanalı") goes to the conversation, not to a study.
+const QUESTION = /\?|(?<!\p{L})(?:m[iıuü]|m[iıuü]s[iıuü]n|neden|niye|nasıl|nedir|kim|kimin|hangi|ne zaman|what|why|who|how)(?!\p{L})/u;
 // The brains' report: a brain/council word and a question about what they did, learned or said.
 const BRAINS = /(?<!\p{L})(?:beyin\p{L}*|kurul\p{L}*)(?:\s+\S+){0,4}?\s+(?:ne(?:ler)?\s+öğren\p{L}*|ne\s+dedi\p{L}*|ne(?:ler)?\s+yaptı\p{L}*|ne\s+tartış\p{L}*|rapor\p{L}*|neler\s+oldu)(?!\p{L})|(?<!\p{L})(?:beyin|kurul|gelişim döngüsü)\s+rapor\p{L}*/u;
 
@@ -85,8 +87,18 @@ export function periodOf(konu: string): string {
 export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
   const t = String(text ?? "").normalize("NFC").trim().replace(/[.!?]+$/u, "");
   const lower = t.toLocaleLowerCase("tr");
-  const link = YOUTUBE_LINK.exec(t);
-  if (link && STUDY_VERB.test(lower.replace(link[0].toLocaleLowerCase("tr"), " "))) return { kind: "study", url: link[0] };
+  // YouTube links are studied (owner, 2 Nov 2026: "when I send AYAS a link, the brains study it by themselves"), every
+  // one of them, with or without a learning verb — unless the words around them are another video request ("Kosova
+  // videosunu yükle") or a question about the video, which the conversation answers.
+  const links = [...t.matchAll(YOUTUBE_LINK)].map((m) => m[0]);
+  if (links.length) {
+    const rest = links.reduce((s, l) => s.replace(l, " "), t).replace(/\s+/g, " ").trim();
+    const restLower = rest.toLocaleLowerCase("tr");
+    if (STUDY_VERB.test(restLower)) return { kind: "study", urls: links };
+    const other = rest ? detectAyasVideoIntent(rest) : null;
+    if (other) return other;
+    return QUESTION.test(restLower) ? null : { kind: "study", urls: links };
+  }
   if (BRAINS.test(lower)) return { kind: "brains" };
   if (STATUS.test(lower)) return { kind: "status" };
   const p = PUBLISH_TR.exec(lower) ?? PUBLISH_APPROVE_TR.exec(lower) ?? PUBLISH_EN.exec(t.toLowerCase());
@@ -160,8 +172,10 @@ export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = 
   if (intent.kind === "publish") return approveFromChat(workRoot, intent);
   if (intent.kind === "brains") return brainsReportText(await loadAtolyeBrainsView(workRoot));
   if (intent.kind === "study") {
-    const r = await placeStudyRequest(workRoot, intent.url, "ayas");
-    return `Videoyu inceleme listesine aldım (${r.url}). Atölye'de sipariş yokken beyinler altyazısını ve seçilmiş karelerini inceleyip temposunu ölçecek, derslerini kendi hafızalarına yazacak; videonun hiçbir parçası kullanılmaz, indirilen dosyalar ölçümden sonra silinir. Sonucu "beyinler ne öğrendi" diye sorabilir ya da Gelişim Merkezi'nde görebilirsin.`;
+    // At most five links of one message (a pasted list is not a backlog for the night).
+    const placed: string[] = [];
+    for (const url of [...new Set(intent.urls)].slice(0, 5)) placed.push((await placeStudyRequest(workRoot, url, "ayas")).url);
+    return `${placed.length > 1 ? `${placed.length} videoyu` : "Videoyu"} inceleme listesine aldım (${placed.join(", ")}). Atölye'de sipariş yokken beyinler altyazısını ve seçilmiş karelerini inceleyip temposunu ölçecek, derslerini kendi hafızalarına yazacak; videonun hiçbir parçası kullanılmaz, indirilen dosyalar ölçümden sonra silinir. Sonucu "beyinler ne öğrendi" diye sorabilir ya da Gelişim Merkezi'nde görebilirsin.`;
   }
   const order = await placeOrder(workRoot, { konu: intent.konu, donem: intent.donem, dil: intent.dil, ...(intent.sure ? { sure: intent.sure } : {}), kaynak: "ayas" });
   const waiting = (await listOrders(workRoot)).filter((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor").length;
