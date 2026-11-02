@@ -19,6 +19,8 @@ import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } f
 import { reconcileAyasDevelopmentCenterFreshness } from "@/lib/brain/autonomy/AyasDevelopmentCenterReconciliation";
 import { loadAyasControlCenterFacts } from "@/lib/brain/ui/AyasControlCenterCollector";
 import type { AyasControlCenterServerFacts } from "@/lib/brain/ui/AyasControlCenterModel";
+import { type AtolyeBrainsView, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
+import { resolveV3Paths } from "@/lib/v3/V3Paths";
 
 function reconcileForDisplay(): void {
   // Fail closed for presentation too: if HEAD or durable state cannot be
@@ -71,4 +73,11 @@ export async function refreshAyasResearchEngineStatus(): Promise<AyasResearchEng
 // approval views above keep theirs) and cannot decide, approve or execute.
 export async function refreshAyasControlCenter(): Promise<AyasControlCenterServerFacts> {
   return loadAyasControlCenterFacts();
+}
+
+// Atölye V3's brains (owner approval, 2 Nov 2026): the director's council, the lessons from reference videos, the
+// idle loop's cycles and the code proposals, read from the V3 runtime files. Read-only like every refresh here; the
+// loader never throws (an unreadable store is reported as such).
+export async function refreshAtolyeBrains(): Promise<AtolyeBrainsView> {
+  return loadAtolyeBrainsView(resolveV3Paths().workRoot);
 }

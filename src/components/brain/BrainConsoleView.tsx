@@ -35,6 +35,8 @@ import {
 } from "./ayasVoice";
 import { BrainSelfHealingPanel, type BrainReportPanelHandlers } from "./BrainSelfHealingPanel";
 import { AyasDevelopmentCenter } from "./AyasDevelopmentCenter";
+import { AtolyeBrainsPanel } from "./AtolyeBrainsPanel";
+import type { AtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
@@ -172,6 +174,10 @@ export interface BrainConsoleViewProps {
   readonly onOpenPanel?: (id: BrainPanelId) => void;
   /** Stage 11 — the server read model: the page's streamed facts and/or a refreshed value. */
   readonly controlCenter?: AyasControlCenterSources;
+  /** Atölye V3's brains in the Gelişim Merkezi tab: their council, lessons, idle loop and code proposals. */
+  readonly atolyeBrains?: AtolyeBrainsView;
+  readonly refreshAtolyeBrains?: () => Promise<AtolyeBrainsView>;
+  readonly decideAtolyeProposal?: (input: { id: string; decision: "onaylandi" | "reddedildi" }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly view: AtolyeBrainsView }>;
   /**
    * The "🧠 AYAS Raporları" home card. On mobile the command-center panel stacks
    * far below the fold, so a plain panel switch looks like nothing happened —
@@ -453,6 +459,7 @@ function PanelBody(props: BrainConsoleViewProps) {
           <AyasRepositorySection sources={props.controlCenter} />
           <AyasUpdateRadarPointer status={props.researchEngineStatus} />
           <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} ownerRecommendations={props.ownerRecommendations} ownerDecisionPendingId={props.ownerDecisionPendingId} ownerDecisionError={props.ownerDecisionError} onOwnerApprovalDecision={props.onOwnerApprovalDecision} ownerApprovalPendingExecution={props.ownerApprovalPendingExecution} />
+          <AtolyeBrainsPanel initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains} decide={props.decideAtolyeProposal} />
         </>
       );
     case "research":

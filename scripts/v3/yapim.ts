@@ -7,7 +7,8 @@
  *   npx tsx scripts/v3/yapim.ts siparis --konu "…" --donem "…" [--sure 120sn] [--dil en] [--ton mizahi] [--kaynak ayas]
  *        [--dizi "<dizi adı>" --dizi-no <n>]
  *   npx tsx scripts/v3/yapim.ts kuyruk          # makes every waiting order once, one after another
- *   npx tsx scripts/v3/yapim.ts izle            # keeps watching for orders (started at logon, one instance)
+ *   npx tsx scripts/v3/yapim.ts izle            # keeps watching for orders (started at logon, one instance); idle:
+ *                                                 the brains' self-improvement cycle (scripts/v3/gelisim.ts)
  *   npx tsx scripts/v3/yapim.ts durum           # lists orders and their state
  *   npx tsx scripts/v3/yapim.ts onayla <id> [--hemen]   # the owner's YouTube approval of a delivered video
  *   npx tsx scripts/v3/yapim.ts yayinla         # uploads the approved videos once (`izle` does it every 30 s)
@@ -15,6 +16,8 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { listStudyRequests } from "../../src/lib/v3/council/ReferenceStore";
+import { CYCLE_EVERY_H, cycleDue, improvementDir, listCycles } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, orderDir, ordersSummary, placeOrder, productionCommand, type ProductionOrder, publishLine, recoverInterrupted, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { approvePublish } from "../../src/lib/v3/publish/PublishApproval";
 import { publishApproved } from "../../src/lib/v3/publish/PublishOrder";
@@ -63,6 +66,38 @@ async function runQueue(paths: V3Paths): Promise<number> {
     made++;
   }
   return made;
+}
+
+/** After a cycle that ended badly, the watcher waits this long before it starts another. */
+const CYCLE_RETRY_MS = 30 * 60_000;
+let lastCycleFailure = 0;
+
+/**
+ * The brains' self-improvement while the studio is idle (owner approval, 2 Nov 2026; scripts/v3/gelisim.ts): a cycle
+ * runs as its own process when no order waits or runs, and the pause since the last cycle is over or an owner's video
+ * link waits to be studied; it stops at its next task when an order comes in. `ATOLYE_V3_GELISIM=0` turns it off.
+ */
+async function idleImprovement(paths: V3Paths): Promise<void> {
+  if (process.env.ATOLYE_V3_GELISIM === "0" || Date.now() - lastCycleFailure < CYCLE_RETRY_MS) return;
+  if ((await listOrders(paths.workRoot)).some((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor")) return;
+  const requestsWaiting = (await listStudyRequests(paths.workRoot)).some((x) => x.request.durum === "bekliyor");
+  const everyH = Number(process.env.ATOLYE_V3_GELISIM_ARALIK_SA) || CYCLE_EVERY_H;
+  if (!cycleDue(await listCycles(paths.workRoot), { everyH, requestsWaiting })) return;
+  const dir = improvementDir(paths.workRoot);
+  await fs.mkdir(dir, { recursive: true });
+  const logFile = createWriteStream(path.join(dir, "dongu.log"), { flags: "a" });
+  logFile.write(`\n=== ${new Date().toISOString()} gelişim döngüsü${requestsWaiting ? " (video isteği var)" : ""}\n`);
+  console.log("gelişim döngüsü başladı");
+  const code = await new Promise<number>((resolve) => {
+    const child = spawn(process.execPath, [path.join(paths.repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), path.join(paths.repoRoot, "scripts", "v3", "gelisim.ts"), "dongu"], { cwd: paths.repoRoot, env: process.env, windowsHide: true });
+    child.stdout.pipe(logFile, { end: false });
+    child.stderr.pipe(logFile, { end: false });
+    child.on("exit", (c) => resolve(c ?? 1));
+    child.on("error", () => resolve(1));
+  });
+  logFile.end();
+  if (code !== 0) lastCycleFailure = Date.now();
+  console.log(`gelişim döngüsü bitti (çıkış ${code})`);
 }
 
 /** One watcher at a time: a lock file with our pid; a stale lock (its process gone) is taken over. */
@@ -144,6 +179,7 @@ async function main() {
     })();
     for (;;) {
       await runQueue(paths).catch((e: Error) => console.error(`kuyruk hatası: ${e.message}`));
+      await idleImprovement(paths).catch((e: Error) => console.error(`gelişim döngüsü hatası: ${e.message}`));
       await new Promise((r) => setTimeout(r, 30_000));
     }
   }

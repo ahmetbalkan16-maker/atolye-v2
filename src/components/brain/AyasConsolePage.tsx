@@ -20,6 +20,8 @@ import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSn
 import { loadAyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import { reconcileAyasDevelopmentCenterFreshness } from "@/lib/brain/autonomy/AyasDevelopmentCenterReconciliation";
 import { loadAyasControlCenterFacts } from "@/lib/brain/ui/AyasControlCenterCollector";
+import { loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
+import { resolveV3Paths } from "@/lib/v3/V3Paths";
 import {
   askAyas,
   ayasModelConfigured,
@@ -31,10 +33,11 @@ import {
   refreshBrainConsole,
   refreshBrainSelfHeal,
   ayasOwnerApprovalDecision,
+  decideAtolyeProposal,
 } from "../../../app/brain/actions";
 // Stage 7A: read-only inbox refresh comes from its own observer-only action
 // module, independent of the Package B decision action above.
-import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment, refreshAyasResearchEngineStatus, refreshAyasOwnerRecommendations, refreshAyasControlCenter } from "../../../app/brain/observerActions";
+import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment, refreshAyasResearchEngineStatus, refreshAyasOwnerRecommendations, refreshAyasControlCenter, refreshAtolyeBrains } from "../../../app/brain/observerActions";
 
 import type { BrainPanelId } from "./brainCore";
 
@@ -65,6 +68,8 @@ export async function AyasConsolePage({ homepage = false, initialPanel = "chat" 
   const goalDevelopment = loadAyasGoalDevelopmentView();
   // Read-only research-engine (scheduler + source registry) status. Fail-soft (its own loader never throws).
   const researchEngineStatus = loadAyasResearchEngineStatusView();
+  // Atölye V3's brains for the Gelişim Merkezi tab — read-only runtime files; the loader never throws.
+  const atolyeBrains = await loadAtolyeBrainsView(resolveV3Paths().workRoot);
   // The operator-diagnostics links (Voice Lab / Audio Lab) live inside
   // `BrainConsoleView`'s `.bc-shell` footer now — a sibling <p> here inherited the
   // document colour scheme (dark-on-dark in iOS Light Mode) and sat below the
@@ -82,6 +87,9 @@ export async function AyasConsolePage({ homepage = false, initialPanel = "chat" 
       initialSelfHeal={selfHeal}
       initialOwnerRecommendations={ownerRecommendations}
       initialControlCenter={controlCenter}
+      initialAtolyeBrains={atolyeBrains}
+      refreshAtolyeBrains={refreshAtolyeBrains}
+      decideAtolyeProposal={decideAtolyeProposal}
       modelConfigured={modelConfigured}
       refresh={refreshBrainConsole}
       refreshSelfHeal={refreshBrainSelfHeal}

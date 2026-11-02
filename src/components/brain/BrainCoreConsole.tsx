@@ -61,6 +61,7 @@ import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealC
 import type { BrainReportStatusFilter } from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
 import type { AyasControlCenterServerFacts } from "@/lib/brain/ui/AyasControlCenterModel";
+import type { AtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
 
 /** `useSyncExternalStore` subscribe: the browser's own connectivity signal. */
 function subscribeOnline(onChange: () => void): () => void {
@@ -110,6 +111,11 @@ export interface BrainCoreConsoleProps {
   readonly initialControlCenter?: Promise<AyasControlCenterServerFacts | null>;
   /** Stage 11 — read-only Server Action that re-reads the Control Center facts (same single refresh click, no polling). */
   readonly refreshControlCenter?: () => Promise<AyasControlCenterServerFacts>;
+  /** Atölye V3's brains (council, references, idle loop, code proposals) for the Gelişim Merkezi; the panel keeps its own state. */
+  readonly initialAtolyeBrains?: AtolyeBrainsView;
+  readonly refreshAtolyeBrains?: () => Promise<AtolyeBrainsView>;
+  /** Records the owner's decision on one Atölye code proposal (session-gated; builds nothing). */
+  readonly decideAtolyeProposal?: (input: { id: string; decision: "onaylandi" | "reddedildi" }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly view: AtolyeBrainsView }>;
   readonly modelConfigured?: boolean;
   /** Server Action that re-reads the snapshot (read-only). */
   readonly refresh?: () => Promise<BrainConsoleSnapshot>;
@@ -158,6 +164,9 @@ export function BrainCoreConsole({
   initialOwnerRecommendations,
   initialControlCenter,
   refreshControlCenter,
+  initialAtolyeBrains,
+  refreshAtolyeBrains,
+  decideAtolyeProposal,
   modelConfigured,
   refresh,
   refreshSelfHeal,
@@ -881,6 +890,9 @@ export function BrainCoreConsole({
       onSelectPanel={setActivePanel}
       onOpenPanel={openPanel}
       controlCenter={controlCenter}
+      atolyeBrains={initialAtolyeBrains}
+      refreshAtolyeBrains={refreshAtolyeBrains}
+      decideAtolyeProposal={decideAtolyeProposal}
       onDraftChange={setDraft}
       onSend={send}
       onStopGenerating={chatPending ? stopGenerating : undefined}

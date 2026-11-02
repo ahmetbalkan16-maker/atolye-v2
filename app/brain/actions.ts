@@ -80,6 +80,9 @@ import {
   detectAyasReportIntent,
 } from "@/lib/brain/selfheal/BrainReportCenter";
 import { AYAS_SESSION_COOKIE, resolveAccessGate, verifySession } from "@/lib/auth/accessGate";
+import { type AtolyeBrainsView, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
+import { decideProposal } from "@/lib/v3/council/SelfImprovement";
+import { resolveV3Paths } from "@/lib/v3/V3Paths";
 import {
   ayasReplyMessage,
   type AyasReplyOutcome,
@@ -620,4 +623,29 @@ export async function ayasModelConfigured(): Promise<boolean> {
 export async function ayasChatModel(): Promise<{ model: string; overridden: boolean }> {
   const profile = resolveAyasChatModelProfile();
   return { model: profile.model, overridden: profile.overridden };
+}
+
+export interface AtolyeProposalDecisionResult {
+  readonly ok: boolean;
+  /** Present only when `ok` is false: a short, non-secret code. */
+  readonly code?: string;
+  readonly view: AtolyeBrainsView;
+}
+
+/**
+ * The owner's decision on one of Atölye V3's code proposals in the Gelişim Merkezi (owner approval, 2 Nov 2026: "code
+ * changes come only as proposals and are applied with your approval"). Records the decision only: nothing is built,
+ * committed or published — an approved proposal waits for a development session. Behind the verified brain session.
+ */
+export async function decideAtolyeProposal(input: { id: string; decision: "onaylandi" | "reddedildi" }): Promise<AtolyeProposalDecisionResult> {
+  const workRoot = resolveV3Paths().workRoot;
+  try {
+    await requireBrainSession();
+    if (input.decision !== "onaylandi" && input.decision !== "reddedildi") throw new Error("V3_PROPOSAL_BAD_DECISION");
+    await decideProposal(workRoot, String(input.id ?? ""), input.decision);
+    return { ok: true, view: await loadAtolyeBrainsView(workRoot) };
+  } catch (error) {
+    const code = /^(V3_[A-Z_]+|authentication_required|brain_report_decision_unavailable)/.exec((error as Error).message)?.[1] ?? "V3_PROPOSAL_DECISION_FAILED";
+    return { ok: false, code, view: await loadAtolyeBrainsView(workRoot) };
+  }
 }

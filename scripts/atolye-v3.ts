@@ -46,6 +46,7 @@ import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/T
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { BRAIN_NAMES, chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { brainBudget } from "../src/lib/v3/council/BrainModels";
+import { activeAdditions, harvestReport, tunedSetting } from "../src/lib/v3/council/SelfImprovement";
 import { applyEdits, councilCapUsd, type CouncilSession, editLine, holdCouncil, sessionDebate } from "../src/lib/v3/council/DirectorCouncil";
 import { cutMeasures, detectCuts, gapLesson, kindOf, listReferences, measureGaps, measuresLine, referenceTargets, speechMeasures, targetsLine, type VideoMeasures } from "../src/lib/v3/council/ReferenceStudy";
 import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
@@ -1268,7 +1269,10 @@ async function main() {
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
-    const qualityRules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
+    // The owner's rules and the quality brain's own prompt additions that its exam measured better (SelfImprovement).
+    const qualityRules = [...(await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin), ...(await activeAdditions(paths.workRoot, "kalite").catch(() => []))];
+    // Showing taught frames as examples: the environment decides, else what the brain chose by its exam.
+    const qualityExamples = process.env.ATOLYE_V3_QUALITY_EXAMPLES === "1" || (process.env.ATOLYE_V3_QUALITY_EXAMPLES !== "0" && (await tunedSetting(paths.workRoot, "kalite", "ornekler").catch(() => undefined)) === true);
     // Each frame is asked its kind's pointed questions with its top and bottom edges shown at full size; the frames it judged
     // wrongly before are shown only with ATOLYE_V3_QUALITY_EXAMPLES=1 (gemma4 copied their faults onto clean frames).
     // scripts/v3/kalite-sinavi.ts measures and teaches (owner, 26 Oct 2026).
@@ -1283,7 +1287,7 @@ async function main() {
     const pixelCount = await pixelReview({ paths, video: f(final), plan, council }).catch((e: Error) => (log(`  piksel denetimi yapılamadı: ${e.message.slice(0, 120)}`), undefined));
     const measured = layoutCount !== undefined && pixelCount !== undefined;
     log(`kalite ölçümü: yerleşim ${layoutCount === undefined ? "ölçülmedi" : `${layoutCount} kusur`}, piksel ${pixelCount === undefined ? "ölçülmedi" : `${pixelCount} kusur`}`);
-    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0", examples: process.env.ATOLYE_V3_QUALITY_EXAMPLES === "1", measured });
+    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0", examples: qualityExamples, measured });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10${quality.showing !== undefined ? `; anlatılanı gösterme ${quality.showing.toFixed(1)}/10` : ""}`);
 
     // Our own pace, measured like the studied references (ReferenceStudy): the same cut filter on the final video, the
@@ -1371,6 +1375,9 @@ async function main() {
     const missing = council.findings.filter((x) => x.onem === "eksik").length;
     const report = await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: episode.baslik, log: council, ...(chiefPlan ? { plan: chiefPlan } : {}) });
     await fs.writeFile(f("KURUL.md"), councilMarkdown(episode.baslik, council, chiefPlan));
+    // The wants only code can meet go to the Gelişim Merkezi as proposals for the owner (nothing is built by itself).
+    const wants = await harvestReport(paths.workRoot, report, path.basename(work)).catch((e: Error) => (log(`  geliştirme önerileri yazılamadı: ${e.message.slice(0, 120)}`), undefined));
+    if (wants?.yeni || wants?.tekrar) log(`  Gelişim Merkezi: ${wants.yeni} yeni geliştirme önerisi, ${wants.tekrar} tekrar eden`);
     const councilLine = session ? `\n- Yönetmen kurulu: ${session.raporlar.map((r) => `${BRAIN_NAMES[r.beyin]} ${r.puan}/10`).join(", ")} → ${session.puan}/10; ${session.karar ? `AYAS ${session.karar.duzeltmeler.length} düzeltme istedi${nextRound?.yonetmen ? ` (${nextRound.tur}. turda uygulanacak)` : ""}` : session.kararYok}` : "";
     const paceLine = ours ? `\n- Tempo: ${measuresLine(ours)}${paceTargets ? ` (referans hedefi: ${targetsLine(paceTargets)})` : ""}` : "";
     await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Kalite ölçümü: yerleşim ${layoutCount ?? "ölçülmedi"}${layoutCount !== undefined ? " kusur" : ""}, piksel ${pixelCount ?? "ölçülmedi"}${pixelCount !== undefined ? " kusur" : ""}${councilLine}${paceLine}\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);

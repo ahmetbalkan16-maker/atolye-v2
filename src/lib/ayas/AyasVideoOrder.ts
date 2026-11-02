@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { brainsReportText, loadAtolyeBrainsView } from "@/lib/v3/council/BrainsReport";
+import { placeStudyRequest } from "@/lib/v3/council/ReferenceStore";
 import { listOrders, orderProgress, ordersSummary, placeOrder, type ProductionOrder, publishLine, saveOrder } from "@/lib/v3/orders/ProductionOrders";
 import { approvePublish, awaitingApproval } from "@/lib/v3/publish/PublishApproval";
 import { slotText, videoKind } from "@/lib/v3/publish/PublishCalendar";
@@ -14,7 +16,17 @@ import { resolveV3Paths } from "@/lib/v3/V3Paths";
 export type AyasVideoIntent =
   | { readonly kind: "order"; readonly konu: string; readonly donem: string; readonly dil: "tr" | "en"; readonly sure?: string }
   | { readonly kind: "status" }
-  | { readonly kind: "publish"; readonly words: string; readonly hemen: boolean };
+  | { readonly kind: "publish"; readonly words: string; readonly hemen: boolean }
+  /** "Bu videodan öğren <YouTube bağlantısı>": the brains study it while idle (ReferenceStudy). */
+  | { readonly kind: "study"; readonly url: string }
+  /** "Beyinler ne öğrendi", "kurul ne dedi": the brains' council, lessons and proposals (BrainsReport). */
+  | { readonly kind: "brains" };
+
+// A YouTube link with a learning verb anywhere around it (owner approval, 2 Nov 2026: "you give a link").
+const YOUTUBE_LINK = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}[^\s]*/u;
+const STUDY_VERB = /(?<!\p{L})(?:öğren\p{L}*|incele\p{L}*|izle\p{L}*|analiz\p{L}*|ders\s+çıkar\p{L}*|study|learn)(?!\p{L})/u;
+// The brains' report: a brain/council word and a question about what they did, learned or said.
+const BRAINS = /(?<!\p{L})(?:beyin\p{L}*|kurul\p{L}*)(?:\s+\S+){0,4}?\s+(?:ne(?:ler)?\s+öğren\p{L}*|ne\s+dedi\p{L}*|ne(?:ler)?\s+yaptı\p{L}*|ne\s+tartış\p{L}*|rapor\p{L}*|neler\s+oldu)(?!\p{L})|(?<!\p{L})(?:beyin|kurul|gelişim döngüsü)\s+rapor\p{L}*/u;
 
 const VIDEO = "(?:video|videosu|videoyu|bölüm|bölümü|belgesel|belgeseli)";
 const MAKE = "(?:yap|yapar mısın|yapsana|hazırla|hazırlar mısın|üret|çek|oluştur)";
@@ -73,6 +85,9 @@ export function periodOf(konu: string): string {
 export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
   const t = String(text ?? "").normalize("NFC").trim().replace(/[.!?]+$/u, "");
   const lower = t.toLocaleLowerCase("tr");
+  const link = YOUTUBE_LINK.exec(t);
+  if (link && STUDY_VERB.test(lower.replace(link[0].toLocaleLowerCase("tr"), " "))) return { kind: "study", url: link[0] };
+  if (BRAINS.test(lower)) return { kind: "brains" };
   if (STATUS.test(lower)) return { kind: "status" };
   const p = PUBLISH_TR.exec(lower) ?? PUBLISH_APPROVE_TR.exec(lower) ?? PUBLISH_EN.exec(t.toLowerCase());
   if (p) {
@@ -143,6 +158,11 @@ export async function approveFromChat(workRoot: string, intent: Extract<AyasVide
 export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = resolveV3Paths().workRoot): Promise<string> {
   if (intent.kind === "status") return ordersReport(workRoot);
   if (intent.kind === "publish") return approveFromChat(workRoot, intent);
+  if (intent.kind === "brains") return brainsReportText(await loadAtolyeBrainsView(workRoot));
+  if (intent.kind === "study") {
+    const r = await placeStudyRequest(workRoot, intent.url, "ayas");
+    return `Videoyu inceleme listesine aldım (${r.url}). Atölye'de sipariş yokken beyinler altyazısını ve seçilmiş karelerini inceleyip temposunu ölçecek, derslerini kendi hafızalarına yazacak; videonun hiçbir parçası kullanılmaz, indirilen dosyalar ölçümden sonra silinir. Sonucu "beyinler ne öğrendi" diye sorabilir ya da Gelişim Merkezi'nde görebilirsin.`;
+  }
   const order = await placeOrder(workRoot, { konu: intent.konu, donem: intent.donem, dil: intent.dil, ...(intent.sure ? { sure: intent.sure } : {}), kaynak: "ayas" });
   const waiting = (await listOrders(workRoot)).filter((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor").length;
   return `Siparişi aldım: "${order.konu}" (${order.dil === "en" ? "İngilizce" : "Türkçe"}, ${order.sure.replace(/dk$/, " dk").replace(/sn$/, " sn")}). Atölye stüdyosunda araştırma, kurgu, kostüm, ortam, ses ve kalite beyinleri sırayla çalışacak; video bitince kalite beyni teslim edecek.${waiting > 1 ? ` Sırada ${waiting - 1} sipariş daha var.` : ""} Durumunu "video durumu" diye sorabilirsin.`;
