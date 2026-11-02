@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { listOrders, orderProgress, ordersSummary, placeOrder } from "@/lib/v3/orders/ProductionOrders";
+import { listOrders, orderProgress, ordersSummary, placeOrder, type ProductionOrder, publishLine, saveOrder } from "@/lib/v3/orders/ProductionOrders";
+import { approvePublish, awaitingApproval } from "@/lib/v3/publish/PublishApproval";
+import { slotText, videoKind } from "@/lib/v3/publish/PublishCalendar";
 import { resolveV3Paths } from "@/lib/v3/V3Paths";
 
 /**
@@ -11,7 +13,8 @@ import { resolveV3Paths } from "@/lib/v3/V3Paths";
  */
 export type AyasVideoIntent =
   | { readonly kind: "order"; readonly konu: string; readonly donem: string; readonly dil: "tr" | "en"; readonly sure?: string }
-  | { readonly kind: "status" };
+  | { readonly kind: "status" }
+  | { readonly kind: "publish"; readonly words: string; readonly hemen: boolean };
 
 const VIDEO = "(?:video|videosu|videoyu|bölüm|bölümü|belgesel|belgeseli)";
 const MAKE = "(?:yap|yapar mısın|yapsana|hazırla|hazırlar mısın|üret|çek|oluştur)";
@@ -22,8 +25,16 @@ const ORDER_EN = /^(?:please\s+)?make\s+(?:me\s+)?an?\s+(?:(?:short|new|\d{1,4}[
 // A video/order word in any inflection and a progress question anywhere after it ("videom ne durumda", "Sezar videosu
 // ne oldu", "video yapılıyor mu"); until 22 Oct 2026 only "video durumu"-like pairs were seen and the rest went to the
 // general model, which knows nothing of the orders.
-const STATUS_ASK = "(?:durum\\p{L}*|ne oldu|ne durumda|nerede|hazır mı|bitti mi|yapılıyor mu|yapıldı mı|tamamlandı mı|ne aşamada|hangi aşamada|hangi adımda|ilerleme\\p{L}*|ne yaptın|ne zaman biter|ne kadar kaldı)";
+const STATUS_ASK = "(?:durum\\p{L}*|ne oldu|ne durumda|nerede|hazır mı|bitti mi|yapılıyor mu|yapıldı mı|tamamlandı mı|ne aşamada|hangi aşamada|hangi adımda|ilerleme\\p{L}*|ne yaptın|ne zaman biter|ne kadar kaldı|yüklendi mi|yayınlandı mı|yayında mı|yükledin mi|yüklendi\\p{L}* mi)";
 const STATUS = new RegExp(`(?<!\\p{L})(?:video|sipariş|belgesel)\\p{L}*(?:\\s+\\S+){0,4}?\\s+${STATUS_ASK}(?!\\p{L})|video siparişleri|(?<!\\p{L})(?:video status|is my video ready|how(?:'s| is) my video)`, "u");
+// The owner's YouTube approval of a delivered video (owner, 2 Nov 2026: no upload without it): "Kosova videosunu yükle",
+// "son videoyu hemen yayınla", "video güzel olmuş, yükle", "yüklemeyi onaylıyorum". Only an imperative at the end of
+// the sentence counts; "yüklendi mi" is a status question above, "nasıl video yüklenir" matches nothing.
+const PUBLISH_VERB = "(?:yükle|yayınla|yayına al)(?:yebilirsin|yabilirsin|r misin|r mısın)?";
+const PUBLISH_TR = new RegExp(`^(?:(.{0,80}?)\\s+)?(?:video|short|shorts|bölüm|belgesel)(?:['’]?\\p{L}*)(?:[,\\s]+(?:onaylandı|onaylıyorum|onayladım|tamam|güzel|uygun|iyi|olmuş)){0,2}[,\\s]+(?:(?:hemen|şimdi|youtube['’]?a)\\s+){0,2}${PUBLISH_VERB}$`, "u");
+const PUBLISH_APPROVE_TR = /^(?:(.{0,80}?)\s+)?(?:video\p{L}*\s+)?(?:yüklemeyi|yayını|yayınlamayı)\s+onaylıyorum$/u;
+const PUBLISH_EN = /^(?:please\s+)?(?:upload|publish)\s+(?:the\s+)?(.{0,80}?)\s*(?:video|short)(?:\s+now)?$/u;
+const NOW_WORD = /(?<!\p{L})(?:hemen|şimdi|now)(?!\p{L})/u;
 
 /** A "kısa"/"short" video without a number: a short-form episode (under the long-form line, the $1 cap). */
 export const SHORT_ORDER_LENGTH = "3dk";
@@ -63,6 +74,11 @@ export function detectAyasVideoIntent(text: string): AyasVideoIntent | null {
   const t = String(text ?? "").normalize("NFC").trim().replace(/[.!?]+$/u, "");
   const lower = t.toLocaleLowerCase("tr");
   if (STATUS.test(lower)) return { kind: "status" };
+  const p = PUBLISH_TR.exec(lower) ?? PUBLISH_APPROVE_TR.exec(lower) ?? PUBLISH_EN.exec(t.toLowerCase());
+  if (p) {
+    const words = (p[1] ?? "").replace(/(?<!\p{L})(?:hemen|şimdi|now|youtube['’]?a)(?!\p{L})/gu, " ").replace(/\s+/g, " ").trim();
+    return { kind: "publish", words, hemen: NOW_WORD.test(lower) };
+  }
   const m = ORDER_TR.exec(lower) ?? ORDER_TR_COLON.exec(lower) ?? ORDER_EN.exec(t.toLowerCase());
   if (!m?.[1]) return null;
   // The topic in the owner's own casing, cut at the same length as the match.
@@ -87,9 +103,46 @@ export async function ordersReport(workRoot: string, now = new Date()): Promise<
   return lines.join("\n");
 }
 
-/** AYAS's answer: the order is placed (or the orders are reported); nothing is produced in the server. */
+const plain = (s: string) => s.toLocaleLowerCase("tr").replace(/ı/g, "i").normalize("NFD").replace(/\p{M}/gu, "").replace(/['’]/g, "");
+const NOT_TOPIC = new Set(["bu", "su", "o", "son", "en", "yeni", "ilk", "bir", "benim", "hazir", "the", "a", "an", "this", "my", "latest", "last", "new"]);
+
+/** The topic words the owner named ("kosova" from "Kosova videosunu yükle"), as stems that survive Turkish suffixes. */
+function topicStems(words: string): string[] {
+  return plain(words).split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !NOT_TOPIC.has(w)).map((w) => w.slice(0, 5));
+}
+
+function namesTopic(order: ProductionOrder, stems: readonly string[]): boolean {
+  const words = plain(order.konu).split(/[^a-z0-9]+/);
+  return stems.every((s) => words.some((w) => w.startsWith(s)));
+}
+
+/**
+ * The owner's approval from the conversation: the delivered video they named, or the only one waiting (the newest with
+ * "son"). It is only written into the order — the queue runner uploads it; several matches are listed, never guessed.
+ */
+export async function approveFromChat(workRoot: string, intent: Extract<AyasVideoIntent, { kind: "publish" }>, now = new Date()): Promise<string> {
+  const all = await listOrders(workRoot);
+  const orders = all.map((x) => x.order);
+  const delivered = orders.filter((o) => (o.durum === "teslim" || o.durum === "uyariyla_teslim") && o.video);
+  if (!delivered.length) return "YouTube'a yüklenecek teslim edilmiş bir video yok.";
+  const waiting = awaitingApproval(orders);
+  const stems = topicStems(intent.words);
+  const pick = stems.length ? delivered.filter((o) => namesTopic(o, stems)) : /(?<!\p{L})(?:son|latest|last)(?!\p{L})/u.test(intent.words) ? waiting.slice(0, 1) : waiting;
+  const list = (os: readonly ProductionOrder[]) => os.map((o) => `"${o.konu}"`).join("; ");
+  if (!pick.length) return stems.length ? `"${intent.words}" adlı teslim edilmiş bir video bulamadım.${waiting.length ? ` Onay bekleyenler: ${list(waiting)}.` : ""}` : "Onay bekleyen video yok; teslim edilenler YouTube'da ya da sırada.";
+  if (pick.length > 1) return `Hangisini yükleyeyim? ${list(pick)}. Konunun adıyla söyle (ör. "${pick[0]!.konu.split(/\s+/).slice(0, 2).join(" ")} videosunu yükle").`;
+  const order = pick[0]!;
+  if (order.yayin && order.yayin.durum !== "hata") return `"${order.konu}":${publishLine(order, now)}`;
+  approvePublish(order, orders, intent.hemen, now);
+  await saveOrder(all.find((x) => x.order === order)!.file, order);
+  const when = order.yayin!.yayinZamani ? `${slotText(order.yayin!.yayinZamani)} (New York 15:00) yayına çıkacak; o zamana kadar kanalda özel durur, yalnız sen görürsün` : "yüklenince hemen yayında olacak";
+  return `Onayını aldım: "${order.konu}" (${videoKind(order.sure) === "short" ? "Short" : "uzun video"}) YouTube'a yüklenecek ve ${when}.${order.durum === "uyariyla_teslim" ? " Not: kalite beyni bu videoyu uyarıyla teslim etmişti." : ""} Yükleme bitince "video durumu"nda bağlantısı görünür.`;
+}
+
+/** AYAS's answer: the order is placed (or the orders are reported, or a video approved); nothing is produced in the server. */
 export async function answerAyasVideoIntent(intent: AyasVideoIntent, workRoot = resolveV3Paths().workRoot): Promise<string> {
   if (intent.kind === "status") return ordersReport(workRoot);
+  if (intent.kind === "publish") return approveFromChat(workRoot, intent);
   const order = await placeOrder(workRoot, { konu: intent.konu, donem: intent.donem, dil: intent.dil, ...(intent.sure ? { sure: intent.sure } : {}), kaynak: "ayas" });
   const waiting = (await listOrders(workRoot)).filter((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor").length;
   return `Siparişi aldım: "${order.konu}" (${order.dil === "en" ? "İngilizce" : "Türkçe"}, ${order.sure.replace(/dk$/, " dk").replace(/sn$/, " sn")}). Atölye stüdyosunda araştırma, kurgu, kostüm, ortam, ses ve kalite beyinleri sırayla çalışacak; video bitince kalite beyni teslim edecek.${waiting > 1 ? ` Sırada ${waiting - 1} sipariş daha var.` : ""} Durumunu "video durumu" diye sorabilirsin.`;

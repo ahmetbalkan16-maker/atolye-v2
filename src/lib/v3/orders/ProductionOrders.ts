@@ -1,5 +1,6 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { slotText } from "../publish/PublishCalendar";
 
 /**
  * Video production orders — the door between AYAS (the manager) and Atölye V3. An order is a JSON file in runtime
@@ -43,6 +44,35 @@ export interface ProductionOrder {
   devamAdimi?: ProductionStep;
   /** The retouch round to resume (its plan is rotus-plani.json in the work dir); a resumed order without it forgot it. */
   rotusTuru?: number;
+  /** YouTube: absent until the owner approves the delivered video (owner, 2 Nov 2026: no upload without approval). */
+  yayin?: OrderPublish;
+}
+
+/**
+ * onaylandi → the watcher uploads it; yukleniyor → an upload is on its way (an interrupted one resumes);
+ * planlandi → on the channel, private until its slot; yayinda → public; hata → stopped, a new approval retries.
+ */
+export type PublishState = "onaylandi" | "yukleniyor" | "planlandi" | "yayinda" | "hata";
+
+export interface OrderPublish {
+  durum: PublishState;
+  /** When the owner approved. */
+  readonly onay: string;
+  /** Public at once instead of the next weekly slot ("hemen yayınla"). */
+  readonly hemen?: boolean;
+  /** The slot it goes public in (ISO). */
+  yayinZamani?: string;
+  videoId?: string;
+  url?: string;
+  /** What is in the way without stopping it (no connection yet, a refused thumbnail). */
+  uyari?: string;
+  hata?: string;
+  /** Upload passes so far, and the last one's time (a dropped network waits longer each pass). */
+  deneme?: number;
+  sonDeneme?: string;
+  bitis?: string;
+  /** Put on the channel by the owner's own hand before AYAS uploaded; never uploaded again. */
+  readonly elle?: boolean;
 }
 
 /** The step after the last one the production log shows done ("✓ ses (141 sn)"); the first step when none is. */
@@ -128,7 +158,21 @@ export function orderProgress(order: ProductionOrder, log: string, now = new Dat
     const why = (failed ? `${name(failed[1]!)} adımında: ${failed[2]!.slice(0, 200).trim()}` : order.ozet ?? "").replace(/^\p{Ll}/u, (c) => c.toLocaleUpperCase("tr")).replace(/(?<=[^.!?])$/u, ".");
     return `${head} durdu${took ? ` (${took} sonra)` : ""}. ${why}${repairs.length ? ` Onarım beyni ${repairs.length} kez denedi.` : ""}`.trim();
   }
-  return `${head} ${order.durum === "uyariyla_teslim" ? "uyarıyla teslim edildi" : "teslim edildi"}${order.video ? `: ${order.video}` : ""}${order.ozet ? `. ${order.ozet.slice(0, 200)}` : ""}`;
+  const delivered = `${head} ${order.durum === "uyariyla_teslim" ? "uyarıyla teslim edildi" : "teslim edildi"}${order.video ? `: ${order.video}` : ""}${order.ozet ? `. ${order.ozet.slice(0, 200)}` : ""}`;
+  const youtube = publishLine(order, now);
+  return youtube ? `${delivered}${/[.!?]$/.test(delivered) ? "" : "."}${youtube}` : delivered;
+}
+
+/** Where a delivered video stands on YouTube, and how the owner approves it when it waits. */
+export function publishLine(order: ProductionOrder, now = new Date()): string {
+  const y = order.yayin;
+  if (!y) return order.video ? ` YouTube'a henüz yüklenmedi; izlediysen ve uygunsa "videoyu yükle" de (hemen yayın için "hemen yayınla").` : "";
+  const warn = y.uyari ? ` (${y.uyari})` : "";
+  if (y.durum === "onaylandi") return ` YouTube: onaylandı, yüklenecek; ${y.yayinZamani ? `${slotText(y.yayinZamani)} yayına çıkacak` : "yüklenince hemen yayında"}${warn}.`;
+  if (y.durum === "yukleniyor") return ` YouTube: yükleniyor${warn}.`;
+  if (y.durum === "planlandi" && y.yayinZamani && Date.parse(y.yayinZamani) > now.getTime()) return ` YouTube: yüklendi, ${slotText(y.yayinZamani)} yayına çıkacak: ${y.url ?? ""}${warn}.`;
+  if (y.durum === "planlandi" || y.durum === "yayinda") return ` YouTube: yayında${y.url ? `: ${y.url}` : ""}${y.elle ? " (elle yüklenmişti)" : ""}${warn}.`;
+  return ` YouTube yüklemesi durdu: ${y.hata ?? "bilinmeyen hata"}. Yeniden denemek için "videoyu yükle" de.`;
 }
 
 export function orderDir(workRoot: string): string {

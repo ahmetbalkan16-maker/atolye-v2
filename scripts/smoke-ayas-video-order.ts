@@ -133,7 +133,8 @@ async function main() {
     const [first, second] = report.split("\n");
     assert.equal(first, '"Rubicon" (3 dk) yapılıyor, 12 dk oldu. Biten adımlar: araştırma ve senaryo, kostüm. Şimdi seslendirme adımında (3/9); onarım beyni 1. denemede: 180 sn bekleyip yeniden — ekran kartı sıcak', "en yeni sipariş önce");
     assert.match(second ?? "", /^"Sezar’ın rubicon’u geçmesi" \(3 dk\) durdu \(3 dk sonra\)\. Araştırma ve senaryo adımında: V3_RESEARCH_NOTHING.*bulunamadı\. Onarım beyni 2 kez denedi\.$/);
-    assert.equal(orderProgress({ ...failed, durum: "teslim", video: "D:/v/final.mp4", ozet: "Teslim: TAMAM" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM', "assert.equal(orderProgress({ ...failed, durum: \"teslim\", video: \"D:/v/final.mp4\", ozet: \"Teslim: TAMAM\" }, \"\"), '\"Sezar’ın rubicon’u geçmesi\" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM')");
+    // Since 2 Nov 2026 a delivered video also says where it stands on YouTube (smoke-v3-youtube-yukleme covers the rest).
+    assert.equal(orderProgress({ ...failed, durum: "teslim", video: "D:/v/final.mp4", ozet: "Teslim: TAMAM" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM. YouTube\'a henüz yüklenmedi; izlediysen ve uygunsa "videoyu yükle" de (hemen yayın için "hemen yayınla").', "assert.equal(orderProgress({ ...failed, durum: \"teslim\", video: \"D:/v/final.mp4\", ozet: \"Teslim: TAMAM\" }, \"\"), '\"Sezar’ın rubicon’u geçmesi\" (3 dk) teslim edildi: D:/v/final.mp4. Teslim: TAMAM. YouTube\\'a henüz yüklenmedi; …')");
     assert.equal(orderProgress({ ...failed, durum: "bekliyor", devamAdimi: "render" }, ""), '"Sezar’ın rubicon’u geçmesi" (3 dk) sırada; çizim (render) adımından devam edecek', "assert.equal(orderProgress({ ...failed, durum: \"bekliyor\", devamAdimi: \"render\" }, \"\"), '\"Sezar’ın rubicon’u geçmesi\" (3 dk) sırada; çizim (render) adımından devam edecek')");
   });
 

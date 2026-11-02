@@ -9,11 +9,16 @@
  *   npx tsx scripts/v3/yapim.ts kuyruk          # makes every waiting order once, one after another
  *   npx tsx scripts/v3/yapim.ts izle            # keeps watching for orders (started at logon, one instance)
  *   npx tsx scripts/v3/yapim.ts durum           # lists orders and their state
+ *   npx tsx scripts/v3/yapim.ts onayla <id> [--hemen]   # the owner's YouTube approval of a delivered video
+ *   npx tsx scripts/v3/yapim.ts yayinla         # uploads the approved videos once (`izle` does it every 30 s)
  */
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { listOrders, orderDir, ordersSummary, placeOrder, productionCommand, type ProductionOrder, recoverInterrupted, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
+import { listOrders, orderDir, ordersSummary, placeOrder, productionCommand, type ProductionOrder, publishLine, recoverInterrupted, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
+import { approvePublish } from "../../src/lib/v3/publish/PublishApproval";
+import { publishApproved } from "../../src/lib/v3/publish/PublishOrder";
+import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
 import { resolveV3Paths, type V3Paths } from "../../src/lib/v3/V3Paths";
 
 const arg = (name: string) => {
@@ -91,8 +96,22 @@ async function main() {
   }
   if (cmd === "durum") {
     const orders = await listOrders(paths.workRoot);
-    for (const { order: o } of orders) console.log(`${o.durum.padEnd(16)} ${o.id}  ${o.video ?? ""}${o.ozet ? `\n${" ".repeat(17)}${o.ozet}` : ""}`);
+    for (const { order: o } of orders) console.log(`${o.durum.padEnd(16)} ${o.id}  ${o.video ?? ""}${o.ozet ? `\n${" ".repeat(17)}${o.ozet}` : ""}${publishLine(o) ? `\n${" ".repeat(16)}${publishLine(o)}` : ""}`);
     console.log(ordersSummary(orders.map((x) => x.order)));
+    return;
+  }
+  if (cmd === "onayla") {
+    const id = process.argv[3];
+    const all = await listOrders(paths.workRoot);
+    const hit = all.find((x) => x.order.id === id);
+    if (!hit) throw new Error(`Kullanım: yapim.ts onayla <sipariş id> [--hemen] — "${id ?? ""}" bulunamadı`);
+    approvePublish(hit.order, all.map((x) => x.order), process.argv.includes("--hemen"));
+    await saveOrder(hit.file, hit.order);
+    console.log(`onaylandı: ${hit.order.id}${publishLine(hit.order)}`);
+    return;
+  }
+  if (cmd === "yayinla") {
+    console.log(`YouTube'a yüklenen: ${await publishApproved(paths.workRoot, { fetcher: fetch, settings: youtubeSettings(paths.repoRoot), log: console.log })}`);
     return;
   }
   if (cmd === "kuyruk") {
@@ -114,12 +133,21 @@ async function main() {
       await saveOrder(file, order);
       console.log(`yarıda kalan sipariş: ${order.id} → ${order.durum}${order.devamAdimi ? ` (${order.devamAdimi} adımından)` : ""}`);
     }
+    // Uploads run beside the productions, so an approved video never waits behind an overnight episode; each loop
+    // writes only its own orders (a production's order is never a delivered one).
+    const settings = youtubeSettings(paths.repoRoot);
+    void (async () => {
+      for (;;) {
+        await publishApproved(paths.workRoot, { fetcher: fetch, settings, log: console.log }).catch((e: Error) => console.error(`YouTube hatası: ${e.message}`));
+        await new Promise((r) => setTimeout(r, 30_000));
+      }
+    })();
     for (;;) {
       await runQueue(paths).catch((e: Error) => console.error(`kuyruk hatası: ${e.message}`));
       await new Promise((r) => setTimeout(r, 30_000));
     }
   }
-  throw new Error("Kullanım: yapim.ts siparis | kuyruk | izle | durum");
+  throw new Error("Kullanım: yapim.ts siparis | kuyruk | izle | durum | onayla <id> [--hemen] | yayinla");
 }
 
 main().catch((e) => {

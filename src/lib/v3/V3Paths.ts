@@ -46,7 +46,7 @@ export interface V3Paths {
   readonly ffprobe: string;
 }
 
-function loadEnvFile(file: string): Record<string, string> {
+export function loadEnvFile(file: string): Record<string, string> {
   if (!existsSync(file)) return {};
   const out: Record<string, string> = {};
   for (const raw of readFileSync(file, "utf8").split(/\r?\n/)) {
