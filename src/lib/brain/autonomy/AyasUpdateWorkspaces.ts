@@ -14,8 +14,8 @@ export interface AyasUpdateWorkspace {
   readonly carry: readonly string[];
   /** Smokes that load the sub-package's modules. */
   readonly smokes: readonly string[];
-  /** One real run of the tool after the install, from the sub-package folder with the trial's node. */
-  readonly check: { readonly label: string; readonly args: (outDir: string) => readonly string[] };
+  /** One real run of the tool after the install, from the sub-package folder with the trial's node; `port` is free. */
+  readonly check: { readonly label: string; readonly args: (outDir: string, port: number) => readonly string[] };
 }
 
 export const AYAS_UPDATE_WORKSPACES: Readonly<Record<string, AyasUpdateWorkspace>> = Object.freeze({
@@ -26,8 +26,9 @@ export const AYAS_UPDATE_WORKSPACES: Readonly<Record<string, AyasUpdateWorkspace
     smokes: Object.freeze(["scripts/smoke-v3-motion.ts", "scripts/smoke-v3-episode-director.ts", "scripts/smoke-v3-render.ts"]),
     check: Object.freeze({
       label: "Remotion ile 15 karelik deneme videosu",
-      // The Episode composition with its empty default plan: bundling, the headless Chrome and the encoder, end to end.
-      args: (outDir: string) => Object.freeze(["node_modules/@remotion/cli/remotion-cli.js", "render", "src/index.ts", "Episode", path.join(outDir, "ayas-update-trial.mp4"), "--frames=0-14", "--log=error"]),
+      // The Episode composition with its empty default plan: bundling, the headless Chrome and the encoder, end to end;
+      // on a free port, as V3's own renders (RemotionRunner), so the trial checks what production runs.
+      args: (outDir: string, port: number) => Object.freeze(["node_modules/@remotion/cli/remotion-cli.js", "render", "src/index.ts", "Episode", path.join(outDir, "ayas-update-trial.mp4"), "--frames=0-14", "--log=error", `--port=${port}`]),
     }),
   }),
 });

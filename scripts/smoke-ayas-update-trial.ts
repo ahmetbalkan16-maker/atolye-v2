@@ -128,6 +128,8 @@ function fixtureRunner(script: Script) {
     }
     if (command === "node-fake" && args[0] === "node_modules/@remotion/cli/remotion-cli.js") {
       if (script.fail?.render || !fs.existsSync(path.join(options.cwd, "node_modules", ".remotion", "chrome", "chrome.exe"))) return bad("Error: Could not find a Chrome executable");
+      // Without our own port, Remotion 4.0.538 went to the live app on :3000 (2 Nov 2026 trial).
+      if (!args.some((arg) => /^--port=\d+$/.test(arg))) return bad("Error while getting compositions: Does this look like a foreign page?");
       fs.writeFileSync(args[4]!, "mp4");
       return ok;
     }

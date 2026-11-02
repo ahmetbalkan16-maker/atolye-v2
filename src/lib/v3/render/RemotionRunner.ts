@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
+import { freeLocalPort } from "../util/FreePort";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 
@@ -76,7 +77,8 @@ export async function renderWithRemotion(paths: V3Paths, o: RemotionRenderOption
   const warm = await warmRemotionBrowser(paths).catch(() => undefined);
   if (warm !== undefined && warm > 10) o.onLine?.(`render tarayıcısı geç açıldı (${warm} sn; ısınma turu sayesinde render beklemedi)`);
   const cli = path.join(paths.remotionRoot, "node_modules", "@remotion", "cli", "remotion-cli.js");
-  const args = [cli, o.kind === "still" ? "still" : "render", "src/index.ts", "Episode", o.out, `--props=${o.planFile}`, `--public-dir=${o.publicDir}`, "--log=info"];
+  // Our own free port, never Remotion's guess (FreePort: 4.0.538 rendered against the live app on :3000).
+  const args = [cli, o.kind === "still" ? "still" : "render", "src/index.ts", "Episode", o.out, `--props=${o.planFile}`, `--public-dir=${o.publicDir}`, "--log=info", `--port=${await freeLocalPort()}`];
   if (o.kind === "still") args.push(`--frame=${o.frame ?? 0}`, "--image-format=png");
   else {
     args.push("--codec=h264", `--crf=${o.crf ?? 18}`, "--pixel-format=yuv420p");

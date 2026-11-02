@@ -8,6 +8,7 @@ import {
 import type { AyasUpdateApprovalView } from "./AyasUpdateApprovalStore";
 import { findAyasPackageUsers } from "./AyasUpdateRadar";
 import { parseAyasUpdateTarget } from "./AyasUpdateWorkspaces";
+import { freeLocalPort } from "../../v3/util/FreePort";
 import {
   ayasUpdateTrialHash, ayasUpdateTrialSha256, buildAyasUpdateInstallPlan, checkAyasPackageJsonChange, diffAyasPackageLocks, newAyasUpdateTrialId,
   readAyasCiSmokeCommands, type AyasUpdateTrialRecord, type AyasUpdateTrialStep, type AyasUpdateTrialStepName, type AyasUpdateTrialStore,
@@ -247,7 +248,7 @@ export async function runAyasUpdateTrial(approval: AyasUpdateApprovalView, head:
       // The root app's build does not include a sub-package; the tool itself is run once instead.
       const outDir = path.join(worktree, ".ayas-update-trial-out");
       fs.mkdirSync(outDir, { recursive: true });
-      const render = await exec(nodeExec, workspace.check.args(outDir), stepTimeout, packageDir);
+      const render = await exec(nodeExec, workspace.check.args(outDir, await freeLocalPort()), stepTimeout, packageDir);
       const renderOk = render.code === 0 && fs.readdirSync(outDir).some((file) => fs.statSync(path.join(outDir, file)).size > 0);
       step("RENDER", renderOk, render.durationMs, renderOk ? `${workspace.check.label} üretildi` : outcome(render));
       if (!renderOk) return fail("RENDER", `${workspace.check.label} üretilemedi`);

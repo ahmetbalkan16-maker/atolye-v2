@@ -9,6 +9,8 @@ import os from "node:os";
 import path from "node:path";
 import { CHUNK_TARGET_S, type ChunkedRenderDeps, planChunks, renderInChunks, renderKey } from "../src/lib/v3/render/ChunkedRender";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
+import { freeLocalPort } from "../src/lib/v3/util/FreePort";
+import { createServer, type AddressInfo } from "node:net";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -106,6 +108,21 @@ async function main() {
     assert.deepEqual(r, { chunks: 1, reused: 0 });
     assert.equal(one.list(), "", "no concat for a single piece");
     assert.equal(await fs.readFile(base.out, "utf8"), "120");
+  });
+
+  await scenario("F Remotion's bundle server gets a port free on IPv4 and IPv6 alike (4.0.538 took :3000 from the live app listening on ::)", async () => {
+    // A server on "::" stands for the live app; the port handed out is another one, and both stacks can bind it.
+    const app = createServer();
+    await new Promise<void>((resolve) => app.listen({ port: 0, host: "::" }, resolve));
+    const taken = (app.address() as AddressInfo).port;
+    const port = await freeLocalPort();
+    assert.ok(Number.isInteger(port) && port > 0 && port !== taken, `${port} vs ${taken}`);
+    for (const host of ["127.0.0.1", "::1"]) {
+      const probe = createServer();
+      await new Promise<void>((resolve, reject) => { probe.once("error", reject); probe.listen({ port, host }, resolve); });
+      await new Promise<void>((resolve) => probe.close(() => resolve()));
+    }
+    await new Promise<void>((resolve) => app.close(() => resolve()));
   });
 
   await fs.rm(tmp, { recursive: true, force: true });
