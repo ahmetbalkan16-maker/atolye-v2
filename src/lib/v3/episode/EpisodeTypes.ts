@@ -487,6 +487,19 @@ export interface SceneLine {
    * waters are heating up…"): a short narrator's headline over a picture, at most 70 characters.
    */
   readonly serit?: string;
+  /**
+   * What drawn characters do while the line is said — the narrator's words acted out on the stage (the Caesar Short
+   * remake, 2 Nov 2026: "the pirates laughed, Caesar laughed louder" was told over characters standing still).
+   */
+  readonly oyun?: readonly LineAct[];
+}
+
+/** One drawn character's act during a line: a gesture, a face, an effect over the head. */
+export interface LineAct {
+  readonly karakter: string;
+  readonly jest?: V3Gesture;
+  readonly duygu?: V3Emotion;
+  readonly efekt?: V3Effect;
 }
 
 /**

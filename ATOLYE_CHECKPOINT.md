@@ -1,3 +1,25 @@
+## 2 Kasım 2026 (gece, 6) — Üç öneri düzeltildi: sfx eşlemesi, portrede yüz ölçümü, anlatılanı sahnede oynatma
+
+**Owner:** "tamam önerileri düzelt" + referans video (Sancaray, "IV. Murad" 3. bölüm, 8apicgLXhGg, 17 dk el çizimi
+dizi; tek kişi yapımı) ve hedef: yardımcı beyinler AYAS'a bağlansın, AYAS yönetmen/yönetici olsun, beyinler tartışıp
+kendini geliştirsin, internetten benzer videolar izleyip deneyim edinsin — bu kısım için mimari öneri sunuldu, onay bekliyor.
+
+1. **sfx eşlemesi** (`DraftNormalizer.SFX_ALIASES`): listede olmayan efekt adı en yakın efekte (coins → para, crowd
+   laugh → kalabalik…), bilinmeyen silinir; uzunluk turları artık bu yüzden düşmez.
+2. **Portrede yüz ölçümü** (`scripts/v3/face_count.py`, OpenCV YuNet, `PortraitFaces.faceMeasurer` +
+   `portraitFaceProblem`): adaylar hakemden önce ölçülür; en büyük yüz resmin %10'undan küçükse (kalabalık sahne) ya da
+   ≥3 benzer büyüklükte yüz varsa (grup) aday elenir; yüz bulunamazsa hakem karar verir. Gerçek ölçüm: Royer 14 yüz/%5
+   ve Siemiradzki 5 yüz/%5 elendi, Napoli büstü 1 yüz/%37 kaldı.
+3. **Anlatılan sahnede** (`SceneLine.oyun` + `Director.toldActs`): senarist anlatıcı satırına sahnede kimin ne yaptığını
+   yazar (jest/duygu/efekt; doğrulayıcı ve düzeltici denetler); yazmazsa yönetmen anlatımın fiillerinden (güldü,
+   tehdit, kovaladı, fidye/altın, korktu, yakalandı, kazandı, planladı, yenildi — İngilizce ve Türkçe) cümle cümle, adı
+   geçen karakterlere hareket verir ("the pirates" → Pirate Captain). Sessiz sahnenin genel jestleri oynayana binmez.
+
+**Doğrulama:** smoke director 55 (O33 yüz ölçümü, O34 oyun), tüm 12 `smoke-v3-*`, video-order 8, firewall closure 13;
+yüz ölçerin gerçek yolu (gen-venv + model) üç Commons resmiyle; tsc kök + remotion-v3; lint 0 hata / 13 eski uyarı.
+
+**Referans video:** başlık/açıklama okundu (Agent Reach); altyazı YouTube sınırına (429) takıldı, ölçüm sonraya kaldı.
+
 ## 2 Kasım 2026 (gece, 5) — Sezar Short'u yeni kodla yeniden üretildi; iki düzeltme
 
 **Owner:** "evet" (aynı konuyu yeniden üret, farkı göster). Sipariş `20261102T162658-julius-caesar-kidnapped-by-cilician-pira`

@@ -1,5 +1,5 @@
 import { crowdId } from "../costumes/CastMapper";
-import { CLOSE_MAP_MAX_KM, type Episode, type EpisodeScene, type SceneCrowd, type SceneLine } from "../episode/EpisodeTypes";
+import { type CastEntry, CLOSE_MAP_MAX_KM, type Episode, type EpisodeScene, type LineAct, type SceneCrowd, type SceneLine } from "../episode/EpisodeTypes";
 import type {
   V3Accessory,
   V3Background,
@@ -364,6 +364,42 @@ export function opensOnNarrator(episode: Pick<Episode, "oyuncu_kadrosu" | "sahne
   return !line || !!first.harita?.merkez || !episode.oyuncu_kadrosu.some((c) => c.id === line.karakter && c.gorunur);
 }
 
+/** The narration's verbs and how the characters they are said of act them out (English and Turkish stems). */
+const TOLD_ACTS: readonly [RegExp, Omit<LineAct, "karakter">][] = [
+  [/\blaugh|\bgiggl|\bchuckl|\bmock|\bgüld|\bgülü/i, { jest: "kutla", duygu: "mutlu" }],
+  [/\bthreat|\bpromis|\bswore|\bvow|\bwarn|\btehdit|\byemin/i, { jest: "isaret_et", duygu: "kizgin" }],
+  [/\bchase|\bhunt|\bpursu|\battack|\bcrucif|\bpunish|\bexecut|\bkovala|\bsald[ıi]r|\bcezaland/i, { jest: "yumruk_kaldir", duygu: "kizgin", efekt: "ofke" }],
+  [/\bfear|\bafraid|\bscared|\btrembl|\bpanic|\bfled\b|\bflee|\bkork/i, { jest: "sasir", duygu: "korkmus", efekt: "ter" }],
+  [/\bkidnap|\bcaptur|\bseiz|\bcaught|\bchained|\bimprison|\bkaç[ıi]r|\byakala|\besir/i, { jest: "sasir", duygu: "saskin", efekt: "unlem" }],
+  [/\bpaid\b|\bpays?\b|\bransom|\btalents?\b|\bgold\b|\bmoney|\btreasure|\bfidye|\baltın/i, { jest: "kutla", duygu: "mutlu", efekt: "parilti" }],
+  [/\bwon\b|\bwins?\b|\bvictor|\btriumph|\bcelebrat|\bkazand|\bzafer/i, { jest: "kutla", duygu: "mutlu", efekt: "parilti" }],
+  [/\bplot|\bschem|\bplann|\bwonder|\bthought\b|\bdüşün/i, { jest: "dusun", duygu: "sinsi" }],
+  [/\bmourn|\bwept\b|\bcried\b|\bgriev|\bdefeated|\bağla|\byenil/i, { jest: "yuz_avucla", duygu: "uzgun" }],
+];
+const NAME_STOP = new Set(["the", "of", "and", "de", "von", "van", "ibn", "bin", "al"]);
+
+/**
+ * The narration's acts on the stage, sentence by sentence: the first verb a sentence tells, acted by the characters it
+ * names (a word of the name, or its plural: "the pirates" for the Pirate Captain). `at`: where the sentence starts in
+ * the line (0..1). Used when the writer gave no "oyun".
+ */
+export function toldActs(text: string, cast: readonly Pick<CastEntry, "id" | "ad">[]): (LineAct & { readonly at: number })[] {
+  const out: (LineAct & { at: number })[] = [];
+  let pos = 0;
+  for (const sentence of text.split(/(?<=[.!?;])\s+/)) {
+    const at = text.length ? pos / text.length : 0;
+    pos += sentence.length + 1;
+    const act = TOLD_ACTS.find(([re]) => re.test(sentence))?.[1];
+    if (!act) continue;
+    const said = sentence.toLocaleLowerCase("en-US");
+    for (const c of cast) {
+      const words = c.ad.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).filter((w) => w.length >= 3 && !NAME_STOP.has(w));
+      if (words.some((w) => new RegExp(`(^|[^\\p{L}])${w}`, "u").test(said))) out.push({ karakter: c.id, ...act, at });
+    }
+  }
+  return out;
+}
+
 /** The episode's lead: the drawn character with the most lines (the first in the cast on a tie). */
 export function episodeLead(episode: Pick<Episode, "oyuncu_kadrosu" | "sahneler">): string | undefined {
   const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.kostum).map((c) => c.id));
@@ -719,6 +755,23 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         if (line.balon?.trim()) bubbles.push({ castId: line.karakter, text: line.balon.trim(), start: ls + f(0.08), end: Math.max(le + f(0.35), ls + f(1.6)) });
       }
 
+      // The told acted out (the Caesar remake: "the pirates laughed, Caesar laughed louder" over a still stage): the
+      // writer's "oyun", else the narration's own verbs on the characters it names, each from where its sentence starts.
+      const acts = line.oyun?.length ? line.oyun.map((a) => ({ ...a, at: 0 })) : !speaker && !geo && !onMap?.badged.has(line.karakter) ? toldActs(line.metin, episode.oyuncu_kadrosu.filter((c) => tracks.has(c.id))) : [];
+      for (const a of acts) {
+        const tr = tracks.get(a.karakter);
+        if (!tr || a.karakter === line.karakter) continue;
+        const from = ls + Math.round((le - ls) * a.at) + f(0.2);
+        if (from >= le) continue;
+        const towardX = nearestOther(tracks, a.karakter)?.x;
+        if (a.jest) tr.gestures.push({ gesture: a.jest, start: from, end: Math.max(from + f(1.1), le - f(0.15)), ...(towardX !== undefined ? { toward: sideOf(tr.x, towardX) } : {}) });
+        if (a.duygu) {
+          tr.faces.push({ start: from, emotion: a.duygu });
+          tr.lastFace = a.duygu;
+        }
+        if (a.efekt) tr.effects.push({ effect: a.efekt, start: from, end: from + Math.min(f(1.6), le - from + f(0.4)) });
+      }
+
       // Listeners turn to the speaker and react a beat later.
       for (const [id, tr] of tracks) {
         if (id === line.karakter) continue;
@@ -791,15 +844,18 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         }
         framed(le, wide.to, drift, wide.y, "smooth", []);
         prevSpeaker = undefined;
+        // A line acted out above keeps its acts; the rest of a silent scene follows its mood.
         if (silentScene) {
+          const acting = new Set(acts.flatMap((a) => tracks.get(a.karakter) ?? []));
           for (const tr of actors) {
+            if (acting.has(tr)) continue;
             if (line.duygu !== tr.lastFace) {
               tr.faces.push({ start: ls + f(0.2), emotion: line.duygu });
               tr.lastFace = line.duygu;
             }
           }
           const finale = si === episode.sahneler.length - 1 && idx === lines.length - 1;
-          if (finale || le - ls >= f(1.6)) {
+          if (finale || (le - ls >= f(1.6) && !acting.size)) {
             const actor = actors[acted % actors.length]!;
             actor.gestures.push({ gesture: finale ? "el_salla" : SILENT_ACTS[acted % SILENT_ACTS.length]!, start: ls + f(0.3), end: Math.max(ls + f(1.2), le - f(0.2)) });
             acted++;

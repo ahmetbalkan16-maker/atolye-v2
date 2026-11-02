@@ -521,6 +521,7 @@ jest: ${GESTURES.join(", ")}
 hareket: ${MOVES.join(", ")}
 sfx (a sound at the start of the line — use them generously on gags, hits, entrances and punchlines, like the reference channel): ${SFX_IDS.map((id) => `${id} (${SFX_NOTES[id]})`).join(", ")}
 efekt: ${EFFECTS.join(", ")}
+oyun (on a narrator line in a character scene — SHOW what it tells: who on stage acts it out while it is said): [{"karakter": a visible cast id, "jest": …, "duygu": …, "efekt": …}], e.g. "The pirates laughed. Caesar laughed louder." → [{"karakter":"pirate","jest":"kutla","duygu":"mutlu"},{"karakter":"caesar","jest":"kutla","duygu":"mutlu","efekt":"parilti"}]
 gecis: ${TRANSITIONS.join(", ")}
 dekor tur: ${PROP_KINDS.join(", ")}
 yazi_karti stil: yer_tarih, bolum, bilgi, kelime
@@ -538,7 +539,7 @@ JSON SHAPE (an example — fill every value for this topic):
    "yazi_karti":[{"metin":"…","alt_metin":"…","stil":"yer_tarih"}],
    "sahne_duzeni":[{"karakter":"karakter-1","x":0.35,"yon":"sag"}],
    "satirlar":[
-    {"karakter":"anlatici","metin":"…","duygu":"notr","kaynak":["yazar-yil"]},
+    {"karakter":"anlatici","metin":"…","duygu":"notr","kaynak":["yazar-yil"],"oyun":[{"karakter":"karakter-1","jest":"dusun","duygu":"sinsi"}]},
     {"karakter":"karakter-1","metin":"…","duygu":"kararli","jest":"isaret_et","kurgu":true,"balon":"…"}]}]}`;
 }
 

@@ -15,7 +15,7 @@ import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import type { PartReference } from "../wardrobe/WardrobeBrain";
-import { findPortrait, type PortraitResult } from "./PortraitFaces";
+import { faceMeasurer, findPortrait, type PortraitResult } from "./PortraitFaces";
 
 /**
  * The likeness designer of the costume brain (owner direction, 20 Oct 2026): the important real people of an episode
@@ -342,7 +342,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     const noteOut = await deps.budget.generate("benzerlik-tarihci", deps.critic, periodNotePrompt(c, episode, wiki, sentences), { maxTokens: 450 }).catch((e: Error) => (log(`  benzerlik: ${c.ad} tarihçi notu alınamadı (${e.message.slice(0, 100)})`), undefined));
     const note = noteOut ? readPeriodNote(noteOut.result.content) : undefined;
     talk.push({ rol: "Tarihçi", metin: note ? `${episode.donem}: ${note.yas !== undefined ? `${note.yas} yaşında; ` : ""}${note.gorunus} | giyim: ${note.giyim}${note.fark ? ` | portrelerden farkı: ${note.fark}` : ""}` : "not yazılamadı" });
-    const portrait = await findPortrait({ cacheDir: deps.commonsCache, judge: deps.judge, person: { id: c.id, ad: c.ad, rol: c.rol, wiki }, donem: episode.donem, log }).catch(() => undefined);
+    const portrait = await findPortrait({ cacheDir: deps.commonsCache, judge: deps.judge, person: { id: c.id, ad: c.ad, rol: c.rol, wiki }, donem: episode.donem, log, faces: faceMeasurer(deps.paths) }).catch(() => undefined);
     if (portrait) portraits.set(c.id, portrait);
     talk.push({ rol: "Resim araştırmacısı", metin: portrait ? `portre: ${portrait.candidate.title.replace(/^File:/, "")} (kişi ${portrait.secim.puan}/10, dönem ${portrait.secim.donem ?? "?"}/10)` : "uygun portre yok; tarihçinin notundan çizilecek" });
     // The costume brain's memory: the owner's standing rules and lessons about this person or their dress.

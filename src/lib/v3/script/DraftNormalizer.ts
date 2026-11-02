@@ -1,5 +1,5 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
-import { ARCH_STYLES, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
+import { ARCH_STYLES, EFFECTS, EMOTIONS, GARMENTS, GESTURES, LANDSCAPES, SCENE_MOODS, SET_LIGHTS, SFX_IDS, type SfxId, TIMES_OF_DAY, WEATHERS } from "../episode/EpisodeTypes";
 import { PART_FIELDS } from "../episode/EpisodeValidator";
 import { periodEndYear } from "../episode/Period";
 import { capUnitBlocks, clearBattleCards, fitBattleMap, narrateMoves, resolveTactics } from "../maps/Tactics";
@@ -62,6 +62,31 @@ const GESTURE_ALIASES: readonly [RegExp, V3Gesture][] = [
   [/belde|hips/i, "elleri_belde"],
   [/sas[ıi]r|surpris|gasp|shock/i, "sasir"],
   [/konu[şs]|talk|speak|explain|gesture/i, "konus"],
+];
+/**
+ * Sound effects outside the library, by the words models use (the Caesar Short remake, 2 Nov 2026: all three length
+ * rounds were dropped over seven such names, and the video stayed at 36.9 s of 60). An unknown one is left out.
+ */
+const SFX_ALIASES: readonly [RegExp, SfxId][] = [
+  [/swoosh|whoosh|swish|fast|zoom|wind/i, "whoosh"],
+  [/pop|plop|blip/i, "pop"],
+  [/boing|spring|bounce|cartoon/i, "boing"],
+  [/sword|blade|kilic|kılıç|unsheath|slash/i, "kilic"],
+  [/cannon|top_?at|explo|boom|blast|gun/i, "top_atisi"],
+  [/drum|davul|war_?drum/i, "davul"],
+  [/crowd|kalabal|cheer|laugh|murmur|applause|gasp|people/i, "kalabalik"],
+  [/hammer|anvil|cekic|çekiç|chain|metal|clank/i, "cekic"],
+  [/wave|sea|ocean|dalga|splash_?sea|ship|creak/i, "dalga"],
+  [/bell|zil|chime|ding/i, "zil"],
+  [/punch|yumruk|hit|slap|smack|thump/i, "yumruk"],
+  [/fall|thud|d[üu][şs]|collapse|drop/i, "dusus"],
+  [/step|foot|adim|adım|march|walk/i, "adim"],
+  [/door|kap[ıi]|gate|knock/i, "kapi"],
+  [/coin|money|para|gold|cash|jingle|dice|talent/i, "para"],
+  [/paper|scroll|book|ka[gğ][ıi]t|letter|quill|page/i, "kagit"],
+  [/success|ba[şs]ar|win|tada|fanfare|triumph/i, "basari"],
+  [/fail|hata|wah|sad_?trombone|oops|buzz/i, "hata"],
+  [/water|splash|su\b|river|wade/i, "su"],
 ];
 
 const SHIP = /\bships?\b|galley|trireme|bireme|\bboat\b|vessel|frigate|caravel|galleon|\bgemi|kadırga|kadirga/i;
@@ -182,6 +207,25 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
         fixes.push(`${where}.jest "${l.jest}" → ${mapped ?? "silindi"}`);
         if (mapped) l.jest = mapped;
         else delete l.jest;
+      }
+      // A line's acts: only drawn characters act; a gesture or face by its near word, an unknown effect left out.
+      if (Array.isArray(l.oyun)) {
+        const drawn = new Set((Array.isArray(draft.oyuncu_kadrosu) ? (draft.oyuncu_kadrosu as unknown[]) : []).filter(isObj).filter((c) => c.gorunur !== false && c.id !== "anlatici").map((c) => c.id));
+        const acts = (l.oyun as unknown[]).filter((a): a is Obj => isObj(a) && typeof a.karakter === "string" && drawn.has(a.karakter));
+        for (const a of acts) {
+          if (typeof a.jest === "string" && !GESTURES.includes(a.jest as V3Gesture)) a.jest = GESTURE_ALIASES.find(([re]) => re.test(a.jest as string))?.[1];
+          if (typeof a.duygu === "string" && !EMOTIONS.includes(a.duygu as V3Emotion)) a.duygu = EMOTION_ALIASES.find(([re]) => re.test(a.duygu as string))?.[1];
+          if (typeof a.efekt === "string" && !(EFFECTS as readonly string[]).includes(a.efekt)) a.efekt = undefined;
+          for (const k of ["jest", "duygu", "efekt"]) if (a[k] === undefined) delete a[k];
+        }
+        if (acts.length !== l.oyun.length) fixes.push(`${where}.oyun: ${l.oyun.length - acts.length} oyun çıkarıldı (görünür karakter değil)`);
+        l.oyun = acts;
+      }
+      if (typeof l.sfx === "string" && !(SFX_IDS as readonly string[]).includes(l.sfx)) {
+        const mapped = SFX_ALIASES.find(([re]) => re.test(l.sfx as string))?.[1];
+        fixes.push(`${where}.sfx "${l.sfx}" → ${mapped ?? "silindi"}`);
+        if (mapped) l.sfx = mapped;
+        else delete l.sfx;
       }
     }
     if (typeof s.duygu === "string" && !(SCENE_MOODS as readonly string[]).includes(s.duygu)) {

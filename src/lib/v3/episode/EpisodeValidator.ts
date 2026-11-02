@@ -638,6 +638,19 @@ export function validateEpisode(input: unknown): EpisodeValidation {
       oneOf(l, "sfx", lp, SFX_IDS, true);
       oneOf(l, "efekt", lp, EFFECTS, true);
       str(l, "serit", lp, { optional: true, max: 70 });
+      if (l.oyun !== undefined) {
+        if (!Array.isArray(l.oyun)) err("SATIR_OYUN", `${lp}.oyun`, "dizi bekleniyor");
+        else
+          (l.oyun as unknown[]).forEach((a, ai) => {
+            const ap = `${lp}.oyun[${ai}]`;
+            if (!isObj(a)) return err("SATIR_OYUN", ap, "nesne bekleniyor");
+            const id = str(a, "karakter", ap);
+            if (id && !visible.has(id)) err("SATIR_OYUN", `${ap}.karakter`, `görünür karakter değil: ${id}`);
+            oneOf(a, "jest", ap, GESTURES, true);
+            oneOf(a, "duygu", ap, EMOTIONS, true);
+            oneOf(a, "efekt", ap, EFFECTS, true);
+          });
+      }
       const bubble = str(l, "balon", lp, { optional: true, max: 70 });
       if (bubble !== undefined && who && !visible.has(who)) err("BALON_ANLATICI", `${lp}.balon`, "konuşma balonu yalnız görünür karakterin satırında olur");
       if (bubble !== undefined && countWords(bubble) > 8) warn("BALON_UZUN", `${lp}.balon`, `${countWords(bubble)} kelime; balon en fazla 8 kelime`);

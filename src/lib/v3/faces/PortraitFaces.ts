@@ -1,8 +1,13 @@
+import { existsSync, promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
 import { type CandidateVerdict, passes, pickBackground, verdictLine } from "../backgrounds/BackgroundJudge";
 import { type CommonsCandidate, cachedJson, commonsByTitles, commonsPreview, searchCommons } from "../backgrounds/CommonsProvider";
 import { wikipediaCandidates } from "../backgrounds/HistorySources";
 import { periodEndYear } from "../episode/Period";
+import { runChecked } from "../util/Proc";
+import type { V3Paths } from "../V3Paths";
 
 /**
  * Portraits of the real people in an episode, to draw them after (the reference channel draws its main characters
@@ -97,6 +102,54 @@ export async function portraitCandidates(cacheDir: string, p: PortraitPerson): P
   return out;
 }
 
+/** A picture's faces as measured (scripts/v3/face_count.py, OpenCV YuNet): face heights in px, largest first. */
+export interface FaceMeasure {
+  readonly w: number;
+  readonly h: number;
+  readonly faces: readonly (readonly [number, number])[];
+}
+
+/** A portrait to draw from shows its face at least this tall (share of the picture's height). */
+export const PORTRAIT_MIN_FACE = 0.1;
+
+/**
+ * Why a candidate cannot be the portrait a cartoon is drawn from, by its measured faces (the Caesar Short remake, 2 Nov
+ * 2026: the judge scored Royer's "Vercingetorix at Caesar's feet" — 14 faces, the largest 5% of the height — 8/10 as
+ * Caesar's portrait in two rounds and 3/10 in the third). Undefined when it can, or when no face was found (a coin, a
+ * profile statue, a faded painting): then the judge decides as before.
+ */
+export function portraitFaceProblem(m: FaceMeasure): string | undefined {
+  const largest = m.faces[0]?.[0];
+  if (!largest || !m.h) return undefined;
+  if (largest / m.h < PORTRAIT_MIN_FACE) return `en büyük yüz resmin %${Math.round((largest / m.h) * 100)}'i (${m.faces.length} yüz): kalabalık sahne ya da uzak figür`;
+  const alike = m.faces.filter(([fh]) => fh >= largest * 0.6).length;
+  if (alike >= 3) return `${alike} benzer büyüklükte yüz: grup resmi, kimin olduğu belli değil`;
+  return undefined;
+}
+
+/** Measures faces with the local YuNet model; undefined for each picture when the tool cannot run. */
+export function faceMeasurer(paths: Pick<V3Paths, "genPython" | "repoRoot" | "toolsRoot">): (images: readonly Buffer[]) => Promise<(FaceMeasure | undefined)[]> {
+  return async (images) => {
+    const model = path.join(paths.toolsRoot, "models", "face_detection_yunet_2023mar.onnx");
+    if (!images.length || !existsSync(model)) return images.map(() => undefined);
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "v3-yuz-"));
+    try {
+      const files = await Promise.all(images.map(async (b, i) => {
+        const file = path.join(dir, `${i}.jpg`);
+        await fs.writeFile(file, b);
+        return file;
+      }));
+      const r = await runChecked(paths.genPython, ["-I", path.join(paths.repoRoot, "scripts", "v3", "face_count.py"), model, ...files], { timeoutMs: 120_000 });
+      const out = JSON.parse(r.stdout.trim().split(/\r?\n/).pop() ?? "[]") as ({ w?: number; h?: number; faces?: [number, number][] } | undefined)[];
+      return images.map((_, i) => (out[i]?.w && out[i]?.h && out[i]?.faces ? { w: out[i]!.w!, h: out[i]!.h!, faces: out[i]!.faces! } : undefined));
+    } catch {
+      return images.map(() => undefined);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  };
+}
+
 /**
  * The best portrait of the person for drawing them (the judge must confirm it is them, ideally at the age they had in
  * the episode's period), with its small preview for the designer. Undefined when none passes — then the likeness is
@@ -108,9 +161,20 @@ export async function findPortrait(input: {
   readonly person: PortraitPerson;
   readonly donem: string;
   readonly log: (s: string) => void;
+  /** Measures the candidates' faces first: crowd scenes and group pictures never reach the judge. */
+  readonly faces?: (images: readonly Buffer[]) => Promise<(FaceMeasure | undefined)[]>;
 }): Promise<PortraitResult | undefined> {
   const { person, log } = input;
-  const candidates = await portraitCandidates(input.cacheDir, person);
+  let candidates = await portraitCandidates(input.cacheDir, person);
+  if (input.faces && candidates.length) {
+    const shown = candidates.slice(0, MAX_PORTRAIT_CANDIDATES);
+    const previews = await Promise.all(shown.map((c) => commonsPreview(input.cacheDir, c).catch(() => undefined)));
+    const read = previews.flatMap((b, i) => (b ? [i] : []));
+    const measured = await input.faces(read.map((i) => previews[i]!));
+    const problems = new Map(read.map((i, j) => [i, measured[j] ? portraitFaceProblem(measured[j]!) : undefined] as const));
+    for (const [i, why] of problems) if (why) log(`  ${person.ad} portre ✗ yüz ölçümü: ${shown[i]!.title.replace(/^File:/, "").slice(0, 70)} — ${why}`);
+    candidates = [...shown.filter((_, i) => !problems.get(i)), ...candidates.slice(MAX_PORTRAIT_CANDIDATES)];
+  }
   if (!candidates.length) {
     log(`⚠ ${person.ad}: portre adayı bulunamadı ("${person.wiki}")`);
     return undefined;

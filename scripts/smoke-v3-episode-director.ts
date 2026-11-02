@@ -10,12 +10,12 @@ import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, se
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
 import { applyParts, rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
-import { namesPerson, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
+import { namesPerson, portraitFaceProblem, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
 import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, episodeLead, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, episodeLead, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
@@ -1504,7 +1504,12 @@ async function main() {
     assert.ok(fixes.some((f) => f.includes('"amused" → mutlu')));
     assert.equal(validateEpisode(value).ok, true, JSON.stringify(validateEpisode(value).errors.slice(0, 3)));
     const clean = normalizeDraft(JSON.parse(JSON.stringify(ep)), []);
-    assert.ok(!clean.fixes.some((f) => /duygu|jest/.test(f)), "valid values are left alone");
+    assert.ok(!clean.fixes.some((f) => /duygu|jest|sfx/.test(f)), "valid values are left alone");
+    // Sound effects too (the Caesar remake lost all three length rounds over seven names outside the library).
+    const sounds = JSON.parse(JSON.stringify(ep)) as { sahneler: { satirlar: Record<string, unknown>[] }[] };
+    sounds.sahneler[0]!.satirlar.forEach((l, i) => Object.assign(l, { sfx: ["coins_jingle", "crowd laugh", "dice roll", "mystic hum"][i] }));
+    const heard = (normalizeDraft(sounds, []).value as Episode).sahneler[0]!.satirlar.map((l) => l.sfx);
+    assert.deepEqual(heard, ["para", "kalabalik", "para", undefined]);
   });
 
   await scenario("P3 costume review: the historian reads colours by name; a part set to null, or a hat left out when hair is given, is removed (the Rubicon's legionary and Cicero)", async () => {
@@ -1768,6 +1773,41 @@ async function main() {
     const spoken = buildRenderPlan({ ...input, episode: characterFirst, timeline: tl2, output: SHORTS_SIZE });
     assert.equal(Math.min(...spoken.shots[0]!.performers.find((p) => p.castId === "mehmed")!.gestures.map((g) => g.start)), Math.round(tl2.lines[0]!.start * 30) + 2);
     assert.equal(openingHook(spoken)!.kind, "replik");
+  });
+
+  await scenario("O33 portraits by measured faces (Caesar remake): a crowd scene or a group never reaches the judge; a bust, or a picture with no face found, does", () => {
+    // Measured with scripts/v3/face_count.py on the Commons previews (2 Nov 2026).
+    const royer = { w: 960, h: 640, faces: Array.from({ length: 14 }, (_, i) => [34.6 - i, 0.8] as const) };
+    const siemiradzki = { w: 960, h: 533, faces: [[28.4, 0.89], [27, 0.82], [26.1, 0.62], [23.5, 0.75], [20.8, 0.83]] as const };
+    const naples = { w: 800, h: 1450, faces: [[541.5, 0.85]] as const };
+    const trio = { w: 900, h: 600, faces: [[120, 0.9], [110, 0.9], [100, 0.9]] as const };
+    assert.match(portraitFaceProblem(royer)!, /%5'i \(14 yüz\)/);
+    assert.ok(portraitFaceProblem(siemiradzki));
+    assert.match(portraitFaceProblem(trio)!, /3 benzer/);
+    assert.deepEqual([portraitFaceProblem(naples), portraitFaceProblem({ w: 500, h: 500, faces: [] })], [undefined, undefined]);
+  });
+
+  await scenario("O34 the told is shown (Caesar remake, story score 3/10): the writer's \"oyun\", else the narration's verbs on the characters it names", () => {
+    const cast = [{ id: "caesar", ad: "Julius Caesar" }, { id: "pirate-captain", ad: "Pirate Captain" }, { id: "roman-friend", ad: "Roman Friend" }];
+    const told = toldActs("Caesar's friends quickly raised fifty talents. The pirates laughed. Caesar laughed louder.", cast);
+    assert.deepEqual(told.map((a) => [a.karakter, a.jest, a.efekt ?? "-"]), [["caesar", "kutla", "parilti"], ["roman-friend", "kutla", "parilti"], ["pirate-captain", "kutla", "-"], ["caesar", "kutla", "-"]]);
+    assert.ok(told[2]!.at > 0.4 && told[3]!.at > told[2]!.at, "each from where its sentence starts");
+    assert.deepEqual(toldActs("Legend has it, once freed, Caesar chased down the pirates.", cast).map((a) => [a.karakter, a.jest]), [["caesar", "yumruk_kaldir"], ["pirate-captain", "yumruk_kaldir"]]);
+    assert.deepEqual(toldActs("The sea was calm that year.", cast), []);
+    // The writer's acts: validated, cleaned, played on the stage; a narrator act or an unknown character is dropped.
+    const ep = sampleEpisode();
+    const draft = JSON.parse(JSON.stringify(ep)) as { sahneler: { satirlar: Record<string, unknown>[] }[] };
+    draft.sahneler[0]!.satirlar[0]!.oyun = [{ karakter: "halil", jest: "think", duygu: "sly", efekt: "sparkles" }, { karakter: "anlatici", jest: "kutla" }, { karakter: "yok" }];
+    const cleaned = normalizeDraft(draft, []).value as Episode;
+    assert.deepEqual(cleaned.sahneler[0]!.satirlar[0]!.oyun, [{ karakter: "halil", jest: "dusun", duygu: "sinsi" }]);
+    assert.equal(validateEpisode(cleaned).ok, true);
+    assert.equal(validateEpisode({ ...cleaned, sahneler: [{ ...cleaned.sahneler[0]!, satirlar: [{ ...cleaned.sahneler[0]!.satirlar[0]!, oyun: [{ karakter: "anlatici" }] }, ...cleaned.sahneler[0]!.satirlar.slice(1)] }] }).ok, false, "only drawn characters act");
+    const tl = buildTimeline(cleaned, [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const plan = buildRenderPlan({ episode: cleaned, timeline: tl, cast: toRenderCast(cleaned.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, width: 1920, height: 1080, showCaptions: false });
+    const halil = plan.shots[0]!.performers.find((p) => p.castId === "halil")!;
+    const from = Math.round(tl.lines[0]!.start * 30) + 6;
+    assert.ok(halil.gestures.some((g) => g.gesture === "dusun" && g.start === from), JSON.stringify(halil.gestures));
+    assert.ok(halil.faces.some((x) => x.emotion === "sinsi" && x.start === from));
   });
 
   await scenario("O32 a Short's vertical window: holds the lead while no one speaks, glides to a speaker, back to the lead after a pause; the name tag waits for it", () => {
