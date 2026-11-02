@@ -48,7 +48,7 @@ import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "..
 import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
-import { bestRound, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -1321,6 +1321,7 @@ async function main() {
       await keepRound(work, final, thisRound);
       if (best.tur !== rotusTuru) {
         await restoreRound(work, final, best.tur);
+        await fs.writeFile(f("QC.md"), finalDelivery(await fs.readFile(f("QC.md"), "utf8"), best));
         if (upload) {
           await fs.rm(f(upload), { force: true });
           await fs.link(f(final), f(upload)).catch(() => fs.copyFile(f(final), f(upload)));

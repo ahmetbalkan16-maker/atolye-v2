@@ -1,3 +1,25 @@
+## 2 Kasım 2026 (gece, 5) — Sezar Short'u yeni kodla yeniden üretildi; iki düzeltme
+
+**Owner:** "evet" (aynı konuyu yeniden üret, farkı göster). Sipariş `20261102T162658-julius-caesar-kidnapped-by-cilician-pira`
+(aynı konu/60sn/en/mizahi), canlı izleyici `ec96361c` ile yaptı: 31 dk + iki rötuş turu, 0,20 $, 36,9 sn dikey.
+
+**Fark (kareler, eski üst / yeni alt):** açılış 0,3 sn'de korsan kaptan "Twenty talents! Or else!" (eskisi 6 sn anlatıcı +
+köy çayırı); setler gece kamara (lomboz, fener ışığı), gündüz güverte (yelken, deniz, küpeşte), gündüz kamara, akşam kıyı
+(eskisi 13 manzaranın ova/sahili); dikey pencere konuşanı ve sessizlikte Sezar'ı tutuyor; Siemiradzki'nin "korsanlar
+arasında Sezar" tablosu s2'de; yerleşim/piksel 0 kusur. Rötuş: Sezar üç turda da 7/10 → eşitlikte tur 0 teslim edildi.
+
+**Bulunan ve düzeltilen (bu commit):** (1) geri konan turun QC'si "teslim edildi" diyordu — o tur rötuş beklerken
+yargılanmıştı; son turdan sonra eşik altında kalan tur artık "UYARIYLA teslim" (`RetouchBrain.finalDelivery`); bu
+siparişin QC.md ve sipariş durumu elle düzeltildi (yedek scratchpad). (2) Dikey pencere konuşandan ayrılırken ad etiketi
+ekranda kalıyordu (güvertede "ROMAN FRIEND") — etiket pencere ayrılınca gider, en az 0,8 sn görünür (`windowDeparture`).
+Smoke director 53, likeness 15, tüm v3; tsc kök + remotion-v3; lint 0 hata.
+
+**Açık (öneri, owner onayı):** senarist üç uzunluk turunda listede olmayan `sfx` adları yazdı (7'şer hata) → turlar
+kullanılmadı, video 36,9 sn kaldı; taslak düzeltici duygu/jest gibi `sfx` için de eşleme yapmalı. Portre: Royer'in
+"Vercingetorix'in teslimi" tablosu (52 yaşında, atlı, kalabalık sahne) seçildi; hakem aynı tabloya turlarda 8/7 ve 3/2
+verdi (tutarsız). Kalite beyninin "anlatılanı gösterme" puanı 3,2 ve 2,8 — anlatılan olayları ekrana taşıyan eylemler
+hâlâ yok. Video yüklenmedi (owner onayı yok).
+
 ## 2 Kasım 2026 (gece, 4) — Short düzeltmeleri: en iyi rötuş turu, süre üst sınırı, kanca, gemi setleri, dikey kadraj
 
 **Owner:** Sezar Short'undan çıkan beş düzeltmeye "onaylıyorum bunlar için gerekli skill kullan ve bizim sisteme entegre

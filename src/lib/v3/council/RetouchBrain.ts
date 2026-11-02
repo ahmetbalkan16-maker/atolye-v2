@@ -83,6 +83,16 @@ export function roundLine(s: RoundScore): string {
   return `tur ${s.tur}: ${parts.join(", ") || "ölçülen kişi/set yok"} (eşik altı ${roundShortfall(s)} puan)`;
 }
 
+/**
+ * A kept round was judged while a retouch was still to come, so its QC says "teslim edildi" even when a likeness or a
+ * set stayed under the bar; after the last round that shortfall is final (Caesar, 2 Nov 2026: 7/10 in all three
+ * rounds, the first one delivered as if nothing were missing).
+ */
+export function finalDelivery(qc: string, best: RoundScore): string {
+  if (roundShortfall(best) === 0) return qc;
+  return qc.replace(/^- Teslim: teslim edildi$/m, `- Teslim: UYARIYLA teslim — rötuş turlarından sonra eşik altında kaldı (${roundLine(best)})`);
+}
+
 /** The files that make a delivered round, besides its video (kept as final-tur<N>.mp4 next to final.mp4). */
 export const ROUND_FILES = ["QC.md", "KURUL.md", "yapim-raporu.json", "youtube.json", "aciklama.txt", "CREDITS.md", "altyazi.srt", "kapak.jpg"] as const;
 

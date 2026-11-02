@@ -62,6 +62,17 @@ export function windowCentre(aims: readonly WindowAim[], frame: number, fps: num
 }
 
 /**
+ * The frame the window starts away from `castId` after their words starting at `frame` (to another speaker, or back
+ * to the lead when that is someone else); Infinity when it stays. A name tag ends there (the Caesar remake: the friend's
+ * tag hung on while the window glided to Caesar).
+ */
+export function windowDeparture(aims: readonly WindowAim[], castId: string, frame: number, fps: number, xOf: (castId: string | undefined) => number): number {
+  const lead = Math.round(fps * WINDOW_LEAD_S);
+  const next = aims.find((a) => a.frame > frame + lead && Math.abs(xOf(a.castId) - xOf(castId)) >= 2);
+  return next?.frame ?? Infinity;
+}
+
+/**
  * The frame the window has reached `castId` for words starting at `frame`: the end of the glide toward them, or `frame`
  * when the window was already there (the same speaker, or the lead it was resting on).
  */

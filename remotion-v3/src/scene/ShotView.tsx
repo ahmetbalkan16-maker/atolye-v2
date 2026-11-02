@@ -15,7 +15,7 @@ import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./Ma
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
-import { windowAims, windowArrival, windowCentre } from "./verticalWindow";
+import { windowAims, windowArrival, windowCentre, windowDeparture } from "./verticalWindow";
 
 /** A mounted performer: the horse (walking while the rider's x changes), the rider from the hips up, the near leg. */
 function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: PerformerState; m: V3CastMember; frame: number; fps: number; accessories: AccessoryIndex }) {
@@ -313,9 +313,11 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
         ? null
         : (shot.nameTags ?? []).map((t, i) => {
             const a = anchorOf(t.castId);
-            // In a Short the tag waits for the window to reach its speaker, and stays as long.
+            // In a Short the tag waits for the window to reach its speaker, stays as long, and goes when the window
+            // leaves them (shown at least 0.8 s).
             const from = vertical ? windowArrival(aims, t.castId, t.start, fps, aimX) : t.start;
-            const tag = from > t.start ? { ...t, start: from, end: t.end + (from - t.start) } : t;
+            const leaves = vertical ? Math.max(from + Math.round(fps * 0.8), windowDeparture(aims, t.castId, t.start, fps, aimX)) : Infinity;
+            const tag = from > t.start || leaves < t.end ? { ...t, start: from, end: Math.min(t.end + (from - t.start), leaves) } : t;
             return a ? <NameTag key={`n-${i}`} tag={tag} anchor={a} language={language} /> : null;
           })}
       {/* The relief map's compass and km scale stay fixed on the screen (inside the cameras they drifted to the edge); the

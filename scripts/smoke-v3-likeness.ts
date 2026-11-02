@@ -13,7 +13,7 @@ import { partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/Par
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { appearanceSentences, applySheet, castLooks, cloakFromNote, likenessOrders, noteColours, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
-import { bestRound, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
 let scenarios = 0;
@@ -312,6 +312,9 @@ async function main() {
     await restoreRound(work, "final.mp4", 1);
     assert.deepEqual(["final.mp4", "QC.md", "youtube.json", "final-tur2.mp4", "tur0/kapak.jpg"].map((n) => readFileSync(path.join(work, n), "utf8")), ["video 1", "QC 1", '{"tur":1}', "video 2", "kapak 0"]);
     assert.equal(existsSync(path.join(work, "kapak.jpg")), false, "the round had no cover");
+    // Still under the bar after the last round: the kept round is delivered with a warning, a round over it as it was.
+    assert.match(finalDelivery("- Bulgular: 0 eksik\n- Teslim: teslim edildi\n", rounds[0]!), /^- Teslim: UYARIYLA teslim — rötuş turlarından sonra eşik altında kaldı \(tur 0: caesar 6\/10/m);
+    assert.equal(finalDelivery("- Teslim: teslim edildi\n", at(1, 9)), "- Teslim: teslim edildi\n");
     scenarios++;
   } catch (e) {
     console.error("FAIL K2 retouch delivers the best-scored round");

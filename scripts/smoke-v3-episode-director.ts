@@ -35,7 +35,7 @@ import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
-import { windowAims, windowArrival, windowCentre } from "../remotion-v3/src/scene/verticalWindow";
+import { windowAims, windowArrival, windowCentre, windowDeparture } from "../remotion-v3/src/scene/verticalWindow";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -1781,8 +1781,11 @@ async function main() {
     // The tag waits for the glide; the same speaker again, or the lead the window rests on, shows it at once.
     assert.equal(windowArrival(aims, "b", 130, fps, xOf), 140);
     assert.equal(windowArrival(aims, "b", 200, fps, xOf), 200);
+    // The tag goes when the window leaves its speaker: a to b at 125, b back to the lead at 239; the lead never "leaves" itself.
+    assert.deepEqual([windowDeparture(aims, "a", 60, fps, xOf), windowDeparture(aims, "b", 130, fps, xOf), windowDeparture(aims, "b", 200, fps, xOf), windowDeparture(aims, "a", 400, fps, xOf)], [125, 239, 239, 459]);
     const leadFirst = windowAims([{ castId: "l", start: 20, end: 80 }], fps);
     assert.equal(windowArrival(leadFirst, "l", 20, fps, (id) => (id === "l" || id === undefined ? 900 : 0)), 20);
+    assert.equal(windowDeparture(leadFirst, "l", 20, fps, (id) => (id === "l" || id === undefined ? 900 : 0)), Infinity);
     // A glide cut short by the next speaker goes on from where the window is.
     const quick = windowAims([{ castId: "a", start: 60, end: 64 }, { castId: "b", start: 66, end: 120 }], fps);
     for (let fr = 50; fr < 90; fr++) assert.ok(Math.abs(windowCentre(quick, fr + 1, fps, xOf) - windowCentre(quick, fr, fps, xOf)) < 160, `jump at ${fr}`);
