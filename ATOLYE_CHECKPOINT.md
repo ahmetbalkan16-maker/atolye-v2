@@ -1,3 +1,28 @@
+## 2 Kasım 2026 (öğleden sonra, 2) — Hazırlık denetimi: açık hata yok; radarın yeri netleşti; CI yeşil
+
+**Owner:** "ayasda ya da atölyede herhangi bir açık hata var mı, her şey güncel mi, yeni video üretimine geçelim mi
+bir bak"; "bu Remotion gelişim merkezinde değil araştırma sekmesinde açılıyor, onu da netleştir".
+
+**Bulunan ve düzeltilen:**
+- AYAS Safe CI `2e7dcd7f`'den beri kırmızıydı: `17516b22` sabitli `smoke-ayas-action-firewall-closure.ts`'i
+  değiştirmişti (CF49 kapanışı). `3d988650`: EVAL manifesti 15F.4-v70 (V69 birebir arşiv, yalnız sürüm + bu
+  dosyanın commit'lenmiş içerikten sha256'sı). CI `3d988650` success.
+- `a4c5d18d`: Güncelleme Radarı Araştırma sekmesinde (`/brain?panel=research`); Gelişim Merkezi'ne düğmesiz
+  `AyasUpdateRadarPointer` (her aracın durumu, kaçı owner kararı bekliyor, bağlantı); Remotion kartının onay/Uygula
+  metinleri alt pakete göre (deneme videosu; canlı değişmez, telefon kesilmez); CLAUDE.md düzeltildi.
+
+**Tam tarama (`tum-smokelar.mjs`, 624 suite, D TEMP):** 583 PASS, 9 yalnız koşunca PASS (paralel yük), 2 dondurulmuş,
+24 ortam, 6 "gerçek" → hepsi ortam: ayas-stt (17), ayas-stt-security (7), ayas-wake-policy-v2 (55) / v3 (71),
+local-providers (71) ASCII TEMP (`D:\URETIM\private\temp`) ile PASS; f16-authority-digest-exclude-safe "real-data"
+senaryosu canlı `data/projects`'teki Sprint 204'ün 28 geçici dosyasını arıyor, dev worktree'de klasör boş (0 ≠ 28).
+Ürün hatası yok.
+
+**Hazırlık:** canlı + telefon erişimi + gözlemci healthy; V3 araç yollarının hepsi var; OpenAI anahtarı geçerli
+(`/v1/models` 200, gpt-4.1); sipariş izleyicisi çalışıyor, sırada sipariş yok; GPU 64 °C; C 241 GB, D 630 GB boş;
+Ollama gemma4:12b; canonical remotion-v3 4.0.536 + Chrome; uygulamanın kendi paketlerinde bilinen açık yok.
+Remotion 4.0.538 owner'ın "Onayla ve dene"sini bekliyor (zorunlu değil; uygulanırsa eşitleme üretim yokken olur).
+Bilinen sınır: V3 kalite beyni zayıf (dengeli %59) — üretimden sonra kareler elle kontrol edilmeli.
+
 ## 2 Kasım 2026 (akşamüstü) — Remotion 4.0.538 ön denemesi gerçek bir hata yakaladı; render boş portta
 
 **Owner:** "tamam yap" (Remotion kartında "Onayla ve dene"). Tıklama owner oturumuyla mühürlenen sahip onayı
