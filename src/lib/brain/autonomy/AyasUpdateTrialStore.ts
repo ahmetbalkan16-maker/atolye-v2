@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import type { AyasKnownVulnerability } from "./AyasDependencyVulnerabilities";
 import type { AyasUpdateApplyDecisionRecord, AyasUpdateApprovalView } from "./AyasUpdateApprovalStore";
 import type { AyasUpdateRadarItem } from "./AyasUpdateRadar";
 
@@ -13,7 +14,7 @@ import type { AyasUpdateRadarItem } from "./AyasUpdateRadar";
  */
 export type AyasUpdateTrialStatus = "RUNNING" | "PASSED" | "FAILED" | "ABANDONED";
 export type AyasUpdateTrialStepName =
-  | "WORKTREE" | "NPM_CI" | "BASELINE_SMOKES" | "NPM_INSTALL" | "LOCK_CHECK" | "SIGNATURES" | "TYPECHECK" | "LINT" | "BUILD" | "RENDER" | "SMOKES";
+  | "WORKTREE" | "NPM_CI" | "BASELINE_SMOKES" | "NPM_INSTALL" | "LOCK_CHECK" | "SIGNATURES" | "VULNERABILITIES" | "TYPECHECK" | "LINT" | "BUILD" | "RENDER" | "SMOKES";
 
 export interface AyasUpdateTrialStep {
   readonly name: AyasUpdateTrialStepName;
@@ -47,6 +48,8 @@ export interface AyasUpdateTrialRecord {
   /** Smokes that already failed before the update: reported, not counted against it. */
   readonly preExistingSmokeFailures?: readonly string[];
   readonly lockChanges?: { readonly added: number; readonly removed: number; readonly changed: number; readonly direct: readonly AyasUpdateTrialPackageChange[] };
+  /** Known vulnerabilities (OSV) of the lock before and after the update, and those the update brought in. */
+  readonly vulnerabilities?: { readonly before: number; readonly after: number; readonly introduced: readonly AyasKnownVulnerability[] };
   readonly packageJsonSha256?: string;
   readonly packageLockSha256?: string;
   /** Present only on PASSED: what an "Uygula" decision binds to. */

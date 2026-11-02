@@ -14,6 +14,7 @@ import {
   selectAyasUpdateApplyJob, selectAyasUpdateTrialJob, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord,
 } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
 import { ayasUpdateTarget, parseAyasUpdateTarget } from "../src/lib/brain/autonomy/AyasUpdateWorkspaces";
+import { introducedAyasVulnerabilities, listAyasLockPackages, summarizeAyasVulnerabilities, type AyasKnownVulnerability } from "../src/lib/brain/autonomy/AyasDependencyVulnerabilities";
 
 /**
  * Update trials (owner decisions 2026-10-15: "dene, sonra uygula"). The pure decisions, and the runner end to end with
@@ -51,6 +52,26 @@ interface Script {
   readonly smokes?: Readonly<Record<string, { readonly before: boolean; readonly after: boolean }>>;
   /** The install touches package.json beyond the approved entries. */
   readonly installTouchesScripts?: boolean;
+  /** Known vulnerabilities the fake OSV reports per name@version; `osvDown` makes it answer 503. */
+  readonly vulns?: Readonly<Record<string, readonly { readonly id: string; readonly severity: string }[]>>;
+  readonly osvDown?: boolean;
+}
+
+/** OSV's two calls (querybatch, vulns/<id>) over the script's table; records what was asked. */
+function fakeOsv(script: Script) {
+  const asked: string[] = [];
+  const severity = new Map(Object.values(script.vulns ?? {}).flat().map((v) => [v.id, v.severity]));
+  const osvFetch = async (url: string, init?: { readonly body?: string }) => {
+    asked.push(url);
+    const reply = (value: unknown) => ({ ok: !script.osvDown, status: script.osvDown ? 503 : 200, json: async () => value });
+    if (url.endsWith("/querybatch")) {
+      const queries = (JSON.parse(init!.body!) as { queries: { package: { name: string }; version: string }[] }).queries;
+      return reply({ results: queries.map((q) => { const v = script.vulns?.[`${q.package.name}@${q.version}`]; return v ? { vulns: v.map((x) => ({ id: x.id })) } : {}; }) });
+    }
+    const id = decodeURIComponent(url.slice(url.lastIndexOf("/") + 1));
+    return reply({ id, summary: `${id} summary`, database_specific: { severity: severity.get(id) } });
+  };
+  return { osvFetch, asked };
 }
 
 function fixtureRunner(script: Script) {
@@ -132,7 +153,8 @@ function runFixture(script: Script) {
   const runner = fixtureRunner(script);
   const roots = { root: path.join(base, "real"), lintRoot: path.join(base, "lint-alias") };
   const env = { PATH: "x", AYAS_ACCESS_KEY: "secret-key-value", OPENAI_API_KEY: "sk", GITHUB_TOKEN: "t", NODE_ENV: "production" };
-  return { store, runner, roots, promise: runAyasUpdateTrial(approval(script.workspace ? REMOTION_APPROVAL : {}), HEAD, { repoRoot, store, run: runner.run, trialRoots: roots, env, nodeExecPath: "node-fake", npmCli: "npm-cli-fake" }) };
+  const osv = fakeOsv(script);
+  return { store, runner, roots, osv, promise: runAyasUpdateTrial(approval(script.workspace ? REMOTION_APPROVAL : {}), HEAD, { repoRoot, store, run: runner.run, trialRoots: roots, env, nodeExecPath: "node-fake", npmCli: "npm-cli-fake", osvFetch: osv.osvFetch }) };
 }
 
 async function main(): Promise<void> {
@@ -217,7 +239,7 @@ async function main(): Promise<void> {
     const { store, runner, roots, promise } = runFixture({});
     const record = await promise;
     assert.equal(record.status, "PASSED", JSON.stringify(record.steps));
-    assert.deepEqual(record.steps.map((step) => step.name), ["WORKTREE", "NPM_CI", "BASELINE_SMOKES", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "TYPECHECK", "LINT", "BUILD", "SMOKES"]);
+    assert.deepEqual(record.steps.map((step) => step.name), ["WORKTREE", "NPM_CI", "BASELINE_SMOKES", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "VULNERABILITIES", "TYPECHECK", "LINT", "BUILD", "SMOKES"]);
     assert.deepEqual(record.installSpecs, ["next@16.4.2", "eslint-config-next@16.4.2"]);
     assert.ok(isAyasUpdateTrialIntact(record, store.readArtifacts(record.trialId)));
     assert.match(store.readArtifacts(record.trialId)!.packageJson, /"next": "16.4.2"/);
@@ -244,7 +266,7 @@ async function main(): Promise<void> {
     const { store, runner, roots, promise } = runFixture({ workspace: true });
     const record = await promise;
     assert.equal(record.status, "PASSED", JSON.stringify(record.steps));
-    assert.deepEqual(record.steps.map((step) => step.name), ["WORKTREE", "NPM_CI", "BASELINE_SMOKES", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "TYPECHECK", "LINT", "RENDER", "SMOKES"]);
+    assert.deepEqual(record.steps.map((step) => step.name), ["WORKTREE", "NPM_CI", "BASELINE_SMOKES", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "VULNERABILITIES", "TYPECHECK", "LINT", "RENDER", "SMOKES"]);
     assert.deepEqual(record.installSpecs, ["remotion@4.0.538", "@remotion/cli@4.0.538"]);
     const artifacts = store.readArtifacts(record.trialId)!;
     assert.match(artifacts.packageJson, /"@remotion\/cli": "4.0.538"/); assert.match(artifacts.packageLock, /"version": "4.0.538"/);
@@ -260,6 +282,30 @@ async function main(): Promise<void> {
     assert.equal(fs.existsSync(path.join(roots.root, record.trialId)), false, "the worktree is removed");
     const noChrome = await runFixture({ workspace: true, fail: { render: true } }).promise;
     assert.deepEqual([noChrome.status, noChrome.failedStep], ["FAILED", "RENDER"]); assert.match(noChrome.steps.at(-1)!.summary, /Chrome/);
+  });
+
+  await scenario("known vulnerabilities (OSV): one the update brings in at high or critical, or a malicious package, fails the trial; one it already had or a moderate one does not; no database, no pass", async () => {
+    // The lock before has old-dep 1.0.0; the update moves next to 16.4.2 and replaces old-dep with new-dep 2.0.0.
+    const lock = { packages: { "": { name: "x" }, "node_modules/a": { version: "1.0.0" }, "node_modules/a/node_modules/b": { version: "2.0.0" }, "node_modules/c": { version: "1.0.0", link: true }, "node_modules/d": { version: "workspace:*" } } };
+    assert.deepEqual(listAyasLockPackages(lock), [{ name: "a", version: "1.0.0", dev: false }, { name: "b", version: "2.0.0", dev: false }], "nested packages count, links and non-versions do not");
+    const v = (id: string, pkg: string, severity: AyasKnownVulnerability["severity"]): AyasKnownVulnerability => ({ id, package: pkg, severity, summary: "", dev: false });
+    assert.deepEqual(introducedAyasVulnerabilities([v("GHSA-1", "next@16.4.1", "HIGH")], [v("GHSA-1", "next@16.4.2", "HIGH"), v("GHSA-2", "new-dep@2.0.0", "LOW")]).map((x) => x.id), ["GHSA-2"], "the same advisory on the same package is not new");
+    assert.equal(summarizeAyasVulnerabilities([v("MAL-1", "x@1.0.0", "MALICIOUS"), v("G", "y@1.0.0", "HIGH"), v("H", "z@1.0.0", "HIGH")]), "1 zararlı paket, 2 yüksek");
+
+    const kept = await runFixture({ vulns: { "next@16.4.1": [{ id: "GHSA-old", severity: "HIGH" }], "next@16.4.2": [{ id: "GHSA-old", severity: "HIGH" }], "new-dep@2.0.0": [{ id: "GHSA-mild", severity: "MODERATE" }] } });
+    const ok = await kept.promise;
+    assert.equal(ok.status, "PASSED", JSON.stringify(ok.steps));
+    assert.deepEqual([ok.vulnerabilities?.before, ok.vulnerabilities?.after, ok.vulnerabilities?.introduced.map((x) => x.id)], [1, 2, ["GHSA-mild"]]);
+    assert.match(ok.steps.find((s) => s.name === "VULNERABILITIES")!.summary, /önce 1, sonra 2 .*getirdiği: 1 orta/);
+    assert.ok(kept.osv.asked.some((url) => url === "https://api.osv.dev/v1/querybatch") && kept.osv.asked.some((url) => url.endsWith("/vulns/GHSA-mild")));
+    for (const [id, severity] of [["GHSA-bad", "CRITICAL"], ["MAL-2026-1", undefined]] as const) {
+      const bad = await runFixture({ vulns: { "new-dep@2.0.0": [{ id, severity: severity ?? "" }] } }).promise;
+      assert.deepEqual([bad.status, bad.failedStep], ["FAILED", "VULNERABILITIES"], id);
+      assert.match(bad.steps.at(-1)!.summary, new RegExp(`${id} \\(new-dep@2\\.0\\.0\\)`));
+      assert.equal(bad.trialHash, undefined);
+    }
+    const down = await runFixture({ osvDown: true }).promise;
+    assert.deepEqual([down.status, down.failedStep], ["FAILED", "VULNERABILITIES"]); assert.match(down.steps.at(-1)!.summary, /OSV\) okunamadı/);
   });
 
   await scenario("a smoke broken before the update is reported, not counted; one the update breaks fails the trial", async () => {

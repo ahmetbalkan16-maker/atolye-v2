@@ -197,8 +197,11 @@ export const BRAIN_SECURITY_CATALOG: readonly BrainSecurityControl[] = Object.fr
     deterministicCheck:
       "`npm audit --production` (or `osv-scanner`) in CI; lockfile pinned; a Brain task summarises new advisories.",
     roadmapPhase: "PHASE 7 — Platform",
-    currentStatus: "not-implemented",
-    notes: ["`package-lock.json` is committed; no scheduled audit yet."],
+    currentStatus: "partial",
+    notes: [
+      "`package-lock.json` is committed; no scheduled audit yet.",
+      "Since 2026-11-02 every update trial checks the lock before and after against OSV (the database osv-scanner reads) and refuses an update that brings in a high/critical vulnerability or a malicious package; `npx tsx scripts/ayas-dependency-vulnerabilities.ts` audits the root and remotion-v3 locks on demand.",
+    ],
   },
   {
     id: "backup-recovery",

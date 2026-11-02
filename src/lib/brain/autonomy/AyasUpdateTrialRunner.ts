@@ -2,6 +2,9 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import {
+  AYAS_BLOCKING_VULNERABILITY_SEVERITIES, introducedAyasVulnerabilities, scanAyasLockVulnerabilities, summarizeAyasVulnerabilities, type AyasKnownVulnerability, type AyasOsvFetch,
+} from "./AyasDependencyVulnerabilities";
 import type { AyasUpdateApprovalView } from "./AyasUpdateApprovalStore";
 import { findAyasPackageUsers } from "./AyasUpdateRadar";
 import { parseAyasUpdateTarget } from "./AyasUpdateWorkspaces";
@@ -14,8 +17,9 @@ import {
  * Runs one owner-approved update trial (owner decisions 2026-10-15). Everything happens in a detached git worktree of
  * the current HEAD outside the repository; the canonical tree, its node_modules and the live copy are never written.
  * The checks are what CI runs on a clean checkout (npm ci, tsc, lint, the workflow's smokes) plus a production build,
- * the smokes that import the package, and two npm supply-chain checks: install scripts never run, and every installed
- * package must carry a verified registry signature. A smoke that already failed before the update is reported and not
+ * the smokes that import the package, and three supply-chain checks: install scripts never run, every installed
+ * package must carry a verified registry signature, and the update may bring in no high or critical known
+ * vulnerability nor a package reported as malicious (OSV, AyasDependencyVulnerabilities, 2026-11-02). A smoke that already failed before the update is reported and not
  * counted; any check the update makes newly fail fails the trial. The worktree is removed in every outcome. A
  * sub-package's update (AYAS_UPDATE_WORKSPACES, owner decision 2026-11-02) is installed and type-checked in its own
  * folder, and instead of the root app's build the tool itself is run once (Remotion: a short render).
@@ -104,6 +108,8 @@ export interface AyasUpdateTrialRunnerDeps {
   readonly env?: AyasChildEnv;
   readonly nodeExecPath?: string;
   readonly npmCli?: string;
+  /** The OSV database call (osv.dev); defaults to fetch. */
+  readonly osvFetch?: AyasOsvFetch;
   /** Per-step bounds; a smoke gets its own. */
   readonly stepTimeoutMs?: number;
   readonly smokeTimeoutMs?: number;
@@ -207,6 +213,25 @@ export async function runAyasUpdateTrial(approval: AyasUpdateApprovalView, head:
     const signatures = await npm(["audit", "signatures"], 5 * 60_000, packageDir);
     step("SIGNATURES", signatures.code === 0, signatures.durationMs, signatures.code === 0 ? "bütün paketlerin kayıt imzası doğrulandı" : outcome(signatures));
     if (signatures.code !== 0) return fail("SIGNATURES", "paket imzaları doğrulanamadı");
+
+    // The lock before and after, against OSV: an update must not bring in a high or critical known vulnerability or a
+    // package reported as malicious. A check that cannot reach the database fails the trial (never "nothing found").
+    const vulnStarted = Date.now();
+    let scanned: { before: readonly AyasKnownVulnerability[]; after: readonly AyasKnownVulnerability[] };
+    try {
+      const [before, after] = await Promise.all([scanAyasLockVulnerabilities(lockBefore, deps.osvFetch ? { fetcher: deps.osvFetch } : {}), scanAyasLockVulnerabilities(lockAfter, deps.osvFetch ? { fetcher: deps.osvFetch } : {})]);
+      scanned = { before, after };
+    } catch (error) {
+      step("VULNERABILITIES", false, Date.now() - vulnStarted, `güvenlik açığı veritabanı (OSV) okunamadı: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`);
+      return fail("VULNERABILITIES", "bilinen güvenlik açıkları denetlenemedi");
+    }
+    const introduced = introducedAyasVulnerabilities(scanned.before, scanned.after);
+    const blocking = introduced.filter((v) => AYAS_BLOCKING_VULNERABILITY_SEVERITIES.includes(v.severity));
+    save({ vulnerabilities: { before: scanned.before.length, after: scanned.after.length, introduced } });
+    step("VULNERABILITIES", blocking.length === 0, Date.now() - vulnStarted, blocking.length
+      ? `güncelleme yüksek önemde açık getirdi: ${blocking.slice(0, 4).map((v) => `${v.id} (${v.package})`).join(", ")}`
+      : `bilinen açık: önce ${scanned.before.length}, sonra ${scanned.after.length} (${summarizeAyasVulnerabilities(scanned.after)}); güncellemenin getirdiği: ${introduced.length ? summarizeAyasVulnerabilities(introduced) : "yok"}`);
+    if (blocking.length) return fail("VULNERABILITIES", "güncelleme bilinen yüksek önemde bir güvenlik açığı getiriyor");
 
     const typecheck = await npm(["exec", "--no", "--", "tsc", "--noEmit", "--incremental", "false"]);
     const workspaceTypecheck = typecheck.code === 0 && workspace ? await npm(["exec", "--no", "--", "tsc", "--noEmit", "--incremental", "false"], stepTimeout, packageDir) : undefined;

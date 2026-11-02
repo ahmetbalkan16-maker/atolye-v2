@@ -209,6 +209,8 @@ const SURFACES: Readonly<Record<string, Surface>> = {
     modules: {
       "src/lib/ayas/machine/AyasMachineTelemetry.ts": "READ_ONLY_PROBE", "src/lib/brain/autonomy/AyasProcessLiveness.ts": "READ_ONLY_PROBE", ...SELF_DEVELOPMENT, ...PUBLICATION, ...LOCAL_MODELS,
       "src/lib/brain/autonomy/AyasUpdateTrialRunner.ts": "OWNER_LEASE",
+      // 2026-11-02: the trial's known-vulnerability check, package names and versions to osv.dev only.
+      "src/lib/brain/autonomy/AyasDependencyVulnerabilities.ts": "OWNER_LEASE",
       "src/lib/brain/autonomy/AyasUpdateApplyRunner.ts": "OWNER_PUBLICATION",
       "src/lib/brain/autonomy/AyasModelTrialRunner.ts": "OWNER_LEASE",
     },
@@ -296,6 +298,7 @@ const OTHER_ENTRIES: Readonly<Record<string, string>> = {
   "app/page.tsx": "the owner homepage; it renders the same AyasConsolePage as the Brain page and imports the same two owner-session action modules mapped above",
   "app/brain/briefing/page.tsx": "the owner briefing page; a read-only GET that writes no metadata and imports the briefing action module mapped above",
   "scripts/ayas-crash-injection-worker.ts": "crash-injection worker; spawned only by scripts/smoke-ayas-crash-injection.ts against TEMP roots",
+  "scripts/ayas-dependency-vulnerabilities.ts": "operator CLI; read-only known-vulnerability audit of the committed locks against osv.dev (package names and versions only)",
   "scripts/ayas-developer-handoff.ts": "operator CLI; read-only Graphify and repository state",
   "scripts/ayas-graphify-status.ts": "operator CLI; read-only Graphify state",
   "scripts/ayas-propose.ts": "operator CLI (npm run ayas:propose); a person-triggered proposal producer",
