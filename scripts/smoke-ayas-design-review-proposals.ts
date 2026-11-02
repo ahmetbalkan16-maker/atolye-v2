@@ -30,7 +30,7 @@ const observation = { now: NOW, branch: "wip/test", head: "1".repeat(40), repoCl
 
 function researchCandidate(): AyasDaemonCandidate {
   const research = createAyasExternalResearchStore({ rootDir: temp("ayas-design-review-research-") });
-  research.record({ provider: "Ollama", capability: "MEMORY_CONTEXT", category: "MEMORY_CONTEXT", problemSolved: "longer local context", sourceUrl: "https://github.com/ollama/ollama/releases/tag/v0.40.5", isOfficialSource: true, featureDate: null, lastCheckedAt: NOW, confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "MIT", atolyeGapStatus: "missing", atolyeGapNotes: "fixture gap", disposition: "ACTIONABLE_PROPOSAL_CANDIDATE", dispositionReason: "OFFICIAL_HIGH_CONFIDENCE_GAP", researchMode: "DEEP" });
+  research.record({ provider: "Ollama", capability: "MEMORY_CONTEXT", category: "MEMORY_CONTEXT", problemSolved: "longer local context", sourceUrl: "https://ollama.com/blog/longer-context", isOfficialSource: true, featureDate: null, lastCheckedAt: NOW, confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "MIT", atolyeGapStatus: "missing", atolyeGapNotes: "fixture gap", disposition: "ACTIONABLE_PROPOSAL_CANDIDATE", dispositionReason: "OFFICIAL_HIGH_CONFIDENCE_GAP", researchMode: "DEEP" });
   const [candidate] = discoverAyasResearchProposalCandidates(research.list(), []);
   assert.ok(candidate);
   return candidate;

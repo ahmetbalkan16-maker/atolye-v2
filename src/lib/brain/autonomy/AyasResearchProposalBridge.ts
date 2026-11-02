@@ -29,6 +29,14 @@ export type AyasResearchDesignReviewGate = (finding: AyasExternalResearchFinding
 /** A category word such as "EXPORT" or "CODING_AGENTS" says nothing to the owner. */
 const CATEGORY_LIKE = /^[A-Z0-9_]+$/;
 
+/** The release a finding reports: its recorded version, else the tag of its release-notes URL; undefined for any other source. */
+export function ayasResearchFindingRelease(finding: Pick<AyasExternalResearchFinding, "sourceUrl" | "releaseVersion">): string | undefined {
+  if (finding.releaseVersion) return finding.releaseVersion;
+  const tag = /\/releases\/tag\/([^/?#]+)/.exec(finding.sourceUrl ?? "")?.[1];
+  if (!tag) return undefined;
+  try { return decodeURIComponent(tag); } catch { return tag; }
+}
+
 /**
  * The heading the owner reads in Gelişim Merkezi (2026-10-16): which tool, which release and the source's own words.
  * The local model often puts a category word in `capability`, while the evidence quote is verified verbatim against
@@ -36,8 +44,7 @@ const CATEGORY_LIKE = /^[A-Z0-9_]+$/;
  */
 export function ayasResearchProposalTitle(finding: Pick<AyasExternalResearchFinding, "provider" | "capability" | "sourceUrl" | "evidenceQuote" | "releaseVersion">): string {
   const provider = safeText(finding.provider, 60);
-  const tag = /\/releases\/tag\/([^/?#]+)/.exec(finding.sourceUrl ?? "")?.[1];
-  const release = safeText(finding.releaseVersion ?? (tag ? (() => { try { return decodeURIComponent(tag); } catch { return tag; } })() : ""), 40);
+  const release = safeText(ayasResearchFindingRelease(finding) ?? "", 40);
   const quote = finding.evidenceQuote ? safeText(finding.evidenceQuote, 140) : "";
   const capability = safeText(finding.capability, 120);
   const what = quote ? `"${quote}"` : CATEGORY_LIKE.test(capability) ? "" : capability;
@@ -64,6 +71,11 @@ export function discoverAyasResearchProposalCandidates(
   const everBridged = references(() => true);
   return findings
     .filter((finding) => finding.disposition !== undefined && ayasFindingMayEnterDiscovery(finding.disposition))
+    // A tool's release notes are never a design review (owner, 26 Oct 2026: every one of the 45 actionable findings was
+    // a release note — llama.cpp per-commit builds, rc builds, tools Atölye does not run, Remotion 4.0.538 — and the 17
+    // the owner approved had nothing to execute; the same six came back on every commit). A newer stable release of a
+    // tracked tool is on the update radar, where it can be tried and applied; the rest stay in the research record.
+    .filter((finding) => ayasResearchFindingRelease(finding) === undefined)
     .filter((finding) => !alreadyBridged.has(finding.findingId) && (!everBridged.has(finding.findingId) || Boolean(finding.evidenceQuote)))
     .map((finding) => ({ finding, loopEvidence: designReviewGate ? designReviewGate(finding) : [] }))
     .filter((entry): entry is { finding: AyasExternalResearchFinding; loopEvidence: readonly string[] } => entry.loopEvidence !== null)
