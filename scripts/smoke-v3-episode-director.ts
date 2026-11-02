@@ -18,6 +18,7 @@ import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, sideStem, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
+import { isShorts, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -194,6 +195,15 @@ async function main() {
     assert.ok(shot.shakes.length >= 1, "punchline shake");
     assert.ok(plan.captions.length >= 4);
     for (const page of plan.captions) assert.ok(page.words.length <= 9);
+    // The layout probe rides on every episode render (LayoutCheck): every half second, into a folder of its own.
+    assert.deepEqual(plan.layoutProbe, { every: 15, dir: `yerlesim-${ep.id.replace(/[^0-9a-zA-Z_-]+/g, "-")}` });
+    assert.equal(plan.stage, undefined, "a normal video's frame is its stage");
+    // A Short (owner, 2 Nov 2026): the same shots on the 16:9 stage, a 1080×1920 frame, no subscribe card.
+    assert.deepEqual([isShorts(60), isShorts(61)], [true, false]);
+    const short = buildRenderPlan({ episode: ep, timeline: tl, cast, accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, ...STAGE_SIZE, output: SHORTS_SIZE, endCard: false, showCaptions: false });
+    assert.deepEqual([short.width, short.height, short.stage], [1080, 1920, { width: 1920, height: 1080 }]);
+    assert.deepEqual(short.shots.map((s) => s.camera), plan.shots.map((s) => s.camera), "the stage's shots are the same");
+    assert.ok(!short.shots.some((s) => s.titleCards.some((c) => c.style === "abone")), "no subscribe card");
   });
 
   await scenario("I helpers", () => {

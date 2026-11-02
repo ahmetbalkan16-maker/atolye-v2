@@ -188,6 +188,11 @@ async function main() {
     const en = writingPrompt({ konu: "Fall of Rome", donem: "476", hedefSureSn: 90, ton: "epik", dil: "en" }, CATALOG);
     assert.ok(en.includes("American English") && en.includes("legend has it") && !en.includes("ANLATIM KURALLARI"));
     assert.ok(factCheckPrompt("{}", "en").includes("legend has it"));
+    // A Short (60 s or less, owner 2 Nov 2026): hook in 2 s, one moment, no subscribe line, a loop; longer has none of it.
+    const short = writingPrompt({ konu: "Kosovo", donem: "1389", hedefSureSn: 60, ton: "mizahi", dil: "en" }, CATALOG);
+    assert.ok(short.includes("YOUTUBE SHORT") && short.includes("within 2 seconds") && short.includes("ONE moment") && short.includes("NO subscribe line") && short.includes("a loop") && short.includes(`about ${wordBudget({ konu: "", donem: "", hedefSureSn: 60, ton: "mizahi", dil: "en" })} spoken words`), short.slice(0, 400));
+    assert.ok(writingPrompt({ konu: "Kosova", donem: "1389", hedefSureSn: 45, ton: "mizahi", dil: "tr" }, CATALOG).includes("YOUTUBE SHORTS"));
+    assert.ok(!en.includes("YOUTUBE SHORT"), "a 90 s video is a normal one");
   });
 
   await scenario("J the OpenAI key is borrowed from the named env file for this process only, and nothing else is", () => {

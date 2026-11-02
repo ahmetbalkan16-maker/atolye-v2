@@ -13,7 +13,7 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
   const local = frame - card.start;
   const enter = spring({ frame: local, fps, config: { damping: 12, stiffness: 140 } });
   const exit = interpolate(frame, [card.end - Math.round(fps * 0.3), card.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const k = H / 1080;
+  const k = Math.min(W, H) / 1080;
 
   if (card.style === "bolum") {
     // The chapter card as a parchment scroll (owner, 23 Oct 2026, after DFT Tarih's "Fatih'in Rüyası: Beyaz Şehir"): the

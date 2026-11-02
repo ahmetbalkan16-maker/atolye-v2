@@ -20,7 +20,7 @@ export const Episode: React.FC<EpisodeProps> = ({ plan }) => {
     <AbsoluteFill ref={root} style={{ backgroundColor: "#15121c" }}>
       {plan.shots.map((shot) => (
         <Sequence key={shot.id} from={shot.start} durationInFrames={shot.duration} name={shot.id}>
-          <ShotView shot={shot} cast={cast} accessories={accessories} language={plan.language ?? "tr"} />
+          <ShotView shot={shot} cast={cast} accessories={accessories} language={plan.language ?? "tr"} {...(plan.stage ? { stage: plan.stage } : {})} />
         </Sequence>
       ))}
       {plan.showCaptions ? <Captions pages={plan.captions} /> : null}

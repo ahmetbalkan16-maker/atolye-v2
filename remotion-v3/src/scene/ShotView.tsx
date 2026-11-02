@@ -49,9 +49,17 @@ export function stageTransform(x: number, depth: number, width: number, height: 
   return { px: x * width, py: height * (0.955 - 0.2 * depth), scale: 0.86 * k * (1 - 0.34 * depth) };
 }
 
-export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en" }) {
+/** A Short's window glides to a new speaker in this long (seconds), starting a little before the words. */
+const WINDOW_PAN_S = 0.5;
+const WINDOW_LEAD_S = 0.15;
+
+export function ShotView({ shot, cast, accessories, language = "tr", stage }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en"; stage?: { width: number; height: number } }) {
   const frame = useCurrentFrame();
-  const { fps, width: W, height: H } = useVideoConfig();
+  const { fps, width: OW, height: OH } = useVideoConfig();
+  // W × H: the stage the shot is laid out on — the frame itself, or for a Short (OW × OH = 1080 × 1920) the 16:9 stage
+  // under a vertical window. Titles, cards and speech are laid out on the frame.
+  const W = stage?.width ?? OW;
+  const H = stage?.height ?? OH;
   const raw = filmCamera(cameraAt(shot.camera, frame, fps), shot.id, frame, shot.duration, fps);
   const cam = clampView(raw.zoom, raw.cx, raw.cy);
   const shake = shakeAt(shot, frame);
@@ -76,9 +84,6 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
     const pushed = { x: bgCam.cx * W + (q.x - W / 2) / bgCam.zoom, y: bgCam.cy * H + (q.y - H / 2) / bgCam.zoom };
     return { x: W / 2 + (pushed.x - W / 2) / kbZoom - kbX * W, y: H / 2 + (pushed.y - H / 2) / kbZoom };
   };
-  const [seenA, seenB] = [unview({ x: 0, y: 0 }), unview({ x: W, y: H })];
-  const mapVisible = { x0: Math.max(0, seenA.x), y0: Math.max(0, seenA.y), x1: Math.min(W, seenB.x), y1: Math.min(H, seenB.y) };
-
   const performers = [...shot.performers].sort((a, b) => b.depth - a.depth);
   const states = performers.map((p) => ({ p, s: performerState(p, frame, fps), m: cast.get(p.castId) }));
   // The crowd stands behind every actor, slightly hazed by distance (one filter for the whole group).
@@ -110,12 +115,40 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
     heads.set(b.castId, { x: at.x, top: at.y, r: a.r * kbZoom * bgCam.zoom });
     badgeHeads.add(b.castId);
   }
+  // A Short (owner, 2 Nov 2026): the stage's full height fills the frame, so about a third of its width shows; the
+  // window follows whoever speaks (their bubble), gliding to a new speaker, and before anyone speaks shows the middle
+  // of the actors on stage (the middle of the stage on a map).
+  const fit = OH / H;
+  const winW = OW / fit;
+  const vertical = winW < W - 1;
+  let winX = 0;
+  if (vertical) {
+    const onStage = states.flatMap(({ p }) => (heads.has(p.castId) && !badgeHeads.has(p.castId) ? [heads.get(p.castId)!.x] : []));
+    const middle = onStage.length ? onStage.reduce((a, b) => a + b, 0) / onStage.length : W / 2;
+    const lead = Math.round(fps * WINDOW_LEAD_S);
+    let cur: { castId: string; start: number } | undefined;
+    let prev: typeof cur;
+    for (const b of [...(shot.bubbles ?? [])].sort((a, z) => a.start - z.start)) {
+      if (b.start - lead > frame || !heads.has(b.castId)) continue;
+      // The same speaker again keeps the window where it is.
+      if (!cur || cur.castId !== b.castId) [prev, cur] = [cur, b];
+    }
+    const at = (id: string | undefined) => (id ? heads.get(id)?.x : undefined) ?? middle;
+    const glide = cur ? easeInOut(Math.min(1, Math.max(0, (frame - (cur.start - lead)) / (fps * WINDOW_PAN_S)))) : 1;
+    const target = cur ? (prev ? at(prev.castId) + (at(cur.castId) - at(prev.castId)) * glide : at(cur.castId)) : middle;
+    winX = Math.min(W - winW, Math.max(0, target - winW / 2));
+  }
+  // The part of the map's own picture in the frame (the window's, for a Short).
+  const [seenA, seenB] = [unview({ x: winX, y: 0 }), unview({ x: winX + (vertical ? winW : W), y: H })];
+  const mapVisible = { x0: Math.max(0, seenA.x), y0: Math.max(0, seenA.y), x1: Math.min(W, seenB.x), y1: Math.min(H, seenB.y) };
+  // Stage → frame (identity unless a Short).
+  const toFrameX = (x: number) => (x - winX) * fit;
   const anchorOf = (castId: string): HeadAnchor | undefined => {
     const h = heads.get(castId);
     if (!h) return undefined;
     let neighbourX: number | undefined;
-    for (const [id, o] of heads) if (id !== castId && o.x > 0 && o.x < W && (neighbourX === undefined || Math.abs(o.x - h.x) < Math.abs(neighbourX - h.x))) neighbourX = o.x;
-    return { x: h.x, top: h.top, r: h.r, ...(neighbourX !== undefined ? { neighbourX } : {}) };
+    for (const [id, o] of heads) if (id !== castId && toFrameX(o.x) > 0 && toFrameX(o.x) < OW && (neighbourX === undefined || Math.abs(o.x - h.x) < Math.abs(neighbourX - h.x))) neighbourX = o.x;
+    return { x: toFrameX(h.x), top: h.top * fit, r: h.r * fit, ...(neighbourX !== undefined ? { neighbourX: toFrameX(neighbourX) } : {}) };
   };
   // While a period image is cut in, the set and everything on it is hidden.
   const insertOn = (shot.inserts ?? []).some((i) => frame >= i.start && frame < i.end);
@@ -135,6 +168,8 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#15121c", overflow: "hidden" }}>
+      {/* The stage; for a Short, scaled to the frame's height and slid to the window. */}
+      <div style={vertical ? { position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translate(${-winX * fit}px, 0px) scale(${fit})`, transformOrigin: "0 0" } : { position: "absolute", inset: 0 }}>
       <AbsoluteFill style={wrapStyle}>
         <AbsoluteFill style={{ transform: view(bgCam), transformOrigin: "0 0" }}>
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>
@@ -270,6 +305,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
           </AbsoluteFill>
         ) : null}
       </AbsoluteFill>
+      </div>
 
       {(shot.inserts ?? []).map((ins, i) => (
         <InsertView key={`ins-${i}`} insert={ins} />
@@ -289,8 +325,8 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
       {/* The relief map's compass and km scale stay fixed on the screen (inside the cameras they drifted to the edge); the
           scale counts every zoom the map is seen through: its own camera, the shot camera and the slow push. */}
       {shot.geoMap?.relief && shot.geoMap.kmPerPx && !insertOn ? (
-        <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }}>
-          <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom)} height={H} />
+        <svg width={OW} height={OH} style={{ position: "absolute", left: 0, top: 0 }}>
+          <AtlasCorner kmPerScreenPx={shot.geoMap.kmPerPx / (mapCameraAt(shot.geoMap.camera, frame, fps, W, H).zoom * bgCam.zoom * kbZoom * fit)} height={OH} width={OW} />
         </svg>
       ) : null}
       {/* The narrator's headline strips (photo documentaries), over the pictures. */}
@@ -298,7 +334,7 @@ export function ShotView({ shot, cast, accessories, language = "tr" }: { shot: V
         <TitleStrip key={`st-${i}`} strip={s} language={language} />
       ))}
       {/* The strength bar and the date stamp stay fixed on the screen over the moving map. */}
-      {shot.geoMap && !insertOn ? <MapHud map={shot.geoMap} frame={frame} fps={fps} W={W} H={H} /> : null}
+      {shot.geoMap && !insertOn ? <MapHud map={shot.geoMap} frame={frame} fps={fps} W={OW} H={OH} /> : null}
       {/* Info cards dim everything under them (DFT Tarih's charts, lists and counters over the map). */}
       {(shot.infoCards ?? []).map((c, i) => (
         <InfoCardView key={`ic-${i}`} card={c} cast={cast} accessories={accessories} language={language} />

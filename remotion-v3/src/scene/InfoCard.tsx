@@ -51,7 +51,7 @@ function Portrait({ member, accessories, x, y, r, frame, fps, seed }: { member: 
 
 function Chart({ card, frame, fps, W, H, cast, accessories }: { card: V3InfoCard; frame: number; fps: number; W: number; H: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex }) {
   const nodes = card.nodes ?? [];
-  const u = H / 1080;
+  const u = Math.min(W, H) / 1080;
   const withPortraits = nodes.some((n) => n.castIds?.length);
   const at = chartLayout(nodes, W, (card.title ? 300 : 220) * u, (withPortraits ? 720 : 840) * u);
   const boxH = 78 * u;
@@ -99,7 +99,7 @@ function Chart({ card, frame, fps, W, H, cast, accessories }: { card: V3InfoCard
 }
 
 function List({ card, frame, fps, W, H }: { card: V3InfoCard; frame: number; fps: number; W: number; H: number }) {
-  const u = H / 1080;
+  const u = Math.min(W, H) / 1080;
   const items = card.items ?? [];
   const gap = Math.min(116, 560 / Math.max(1, items.length)) * u;
   const x0 = W * 0.2;
@@ -127,7 +127,7 @@ function List({ card, frame, fps, W, H }: { card: V3InfoCard; frame: number; fps
 }
 
 function Counter({ card, frame, fps, W, H, language }: { card: V3InfoCard; frame: number; fps: number; W: number; H: number; language: "tr" | "en" }) {
-  const u = H / 1080;
+  const u = Math.min(W, H) / 1080;
   const span = Math.min(2.6, Math.max(1, ((card.end - card.start) / fps) * 0.6));
   const t = interpolate(frame, [card.start + Math.round(fps * 0.3), card.start + Math.round(fps * (0.3 + span))], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
   const from = card.from ?? 0;
@@ -153,7 +153,7 @@ export function InfoCardView({ card, cast, accessories, language = "en" }: { car
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
   if (frame < card.start || frame >= card.end) return null;
-  const u = H / 1080;
+  const u = Math.min(W, H) / 1080;
   const fade = Math.min(
     interpolate(frame, [card.start, card.start + Math.round(fps * FADE_S)], [0, 1], { extrapolateRight: "clamp" }),
     interpolate(frame, [card.end - Math.round(fps * FADE_S), card.end], [1, 0], { extrapolateLeft: "clamp" }),

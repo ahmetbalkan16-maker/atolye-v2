@@ -65,6 +65,7 @@ import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
+import { isShorts, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
@@ -637,7 +638,11 @@ async function main() {
   if (fromStep && !STEPS.includes(fromStep)) throw new Error(`--from-step şunlardan biri olmalı: ${STEPS.join(", ")}`);
   const preview = process.argv.includes("--onizleme");
   // The whole video's paid-call ceiling by its length (owner, 21 Oct 2026: $4 for a long one, $1 for a short one).
-  const baseCapUsd = videoCapUsd(seconds(arg("--sure") ?? "90"));
+  const targetS = seconds(arg("--sure") ?? "90");
+  const baseCapUsd = videoCapUsd(targetS);
+  // 60 s or less: a vertical YouTube Short (Format) — no cover, no subscribe card, no chapters, "#Shorts" in the title.
+  const shorts = isShorts(targetS);
+  if (shorts) log(`Shorts: ${targetS} sn, dikey ${SHORTS_SIZE.width}×${SHORTS_SIZE.height} (kapak ve abone kartı yok)`);
   // Retouch round of this run (0 = the first production; the retouch brain starts round 1 by itself).
   const rotusTuru = Number(arg("--rotus-turu") ?? 0);
   const given = arg("--bolum");
@@ -966,7 +971,7 @@ async function main() {
   } else synced = await readJson<LineSync[][]>(f("senkron.json"));
   const audio: LineAudio[][] = episode.sahneler.map((s, si) => s.satirlar.map((_, li) => ({ ...voiced[si]![li]!, ...synced[si]![li]! })));
   // The opening cover (episode title over the first picture) is 3.5 s of the timeline; --kapak-yok drops it.
-  const timeline = buildTimeline(episode, audio, { ...DEFAULT_TIMELINE, introS: process.argv.includes("--kapak-yok") ? 0 : 3.5 });
+  const timeline = buildTimeline(episode, audio, { ...DEFAULT_TIMELINE, introS: process.argv.includes("--kapak-yok") || shorts ? 0 : 3.5 });
 
   // 5) Görsel (gorseller-v2.json: set + dönem görseli; the old one-image-per-scene file is not reused)
   let visuals: SceneVisual[];
@@ -1013,9 +1018,10 @@ async function main() {
     pictures: visuals.map((v) => v.gorseller?.map((g) => ({ satir: g.satir, src: g.src, ...(g.caption ? { caption: g.caption } : {}), ...(g.video ? { video: true } : {}) }))),
     language: dil,
     fps,
-    width: 1920,
-    height: 1080,
-    // No burned-in subtitles (owner, 20 Oct 2026): speech bubbles on screen, altyazi.srt for YouTube's CC.
+    // Every shot is laid out on the 16:9 stage; a Short is its vertical window (ShotView).
+    ...STAGE_SIZE,
+    ...(shorts ? { output: SHORTS_SIZE, endCard: false } : {}),
+    // No burned-in subtitles (owner, 20 Oct 2026; for Shorts too, 2 Nov 2026): speech on screen, altyazi.srt for CC.
     showCaptions: process.argv.includes("--altyazi-gom"),
   });
   const silent = preview ? "video-onizleme.mp4" : "video-sessiz.mp4";
@@ -1043,8 +1049,8 @@ async function main() {
       const { budget, providerName } = scriptBudget(paths, Math.max(0, capUsd - before.toplamUsd));
       let paket: YoutubePackage;
       try {
-        const out = await budget.generate("youtube-paketi", providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" }, packagePrompt(episode), { maxTokens: 900 });
-        paket = readPackage(out.result.content, episode);
+        const out = await budget.generate("youtube-paketi", providerName === "openai" ? { provider: "openai", model: process.env.ATOLYE_V3_CRITIC_MODEL ?? "gpt-4.1-mini" } : { provider: "ollama" }, packagePrompt(episode, shorts), { maxTokens: 900 });
+        paket = readPackage(out.result.content, episode, shorts);
       } finally {
         await writeJson(f("maliyet.json"), { tavanUsd: capUsd, toplamUsd: before.toplamUsd + budget.spentUsd, adimlar: [...before.adimlar, ...budget.ledger] });
       }
@@ -1168,7 +1174,7 @@ async function main() {
     // YouTube: the package's title, the hook sentences and the chapters first, hashtags last.
     // A long episode's chapters are its chapter cards; a short one has a chapter per scene.
     const marked = chapterScenes(episode);
-    const chs = !youtube
+    const chs = !youtube || shorts
       ? []
       : marked.length >= 3
         ? chapters(marked.map((m) => timeline.scenes[m.index]?.start ?? 0), marked.map((m) => m.baslik), timeline.duration)

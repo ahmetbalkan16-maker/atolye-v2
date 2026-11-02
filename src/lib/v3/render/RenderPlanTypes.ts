@@ -546,8 +546,14 @@ export interface V3RenderPlan {
   readonly episodeId: string;
   readonly title: string;
   readonly fps: number;
+  /** The video's frame. */
   readonly width: number;
   readonly height: number;
+  /**
+   * The stage the shots are laid out on, when it is not the frame: a Short (1080×1920) shows a vertical window over the
+   * 1920×1080 stage that follows who speaks; titles, cards and speech are laid out on the frame (Format, ShotView).
+   */
+  readonly stage?: { readonly width: number; readonly height: number };
   readonly durationInFrames: number;
   readonly cast: readonly V3CastMember[];
   readonly accessories: readonly V3Accessory[];

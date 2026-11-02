@@ -35,7 +35,7 @@ export function SpeechBubble({ bubble, anchor, language, size = 1 }: { bubble: V
   const { fps, width: W, height: H } = useVideoConfig();
   if (frame < bubble.start || frame >= bubble.end) return null;
   // `size`: a badge's words on the map are lettered smaller, so they do not cover the battle.
-  const k = (H / 1080) * size;
+  const k = (Math.min(W, H) / 1080) * size;
   const pop = spring({ frame: frame - bubble.start, fps, config: { damping: 12, stiffness: 220, mass: 0.5 } });
   const out = interpolate(frame, [bubble.end - 5, bubble.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const shout = isShout(bubble.text);
@@ -89,7 +89,7 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
   if (frame < tag.start || frame >= tag.end) return null;
-  const k = H / 1080;
+  const k = Math.min(W, H) / 1080;
   const enter = spring({ frame: frame - tag.start, fps, config: { damping: 13, stiffness: 170 } });
   const out = interpolate(frame, [tag.end - 8, tag.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const name = tag.name.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US");
@@ -102,10 +102,13 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
   // Squeezed against the frame edge the label would slide onto the face: then it goes to the other side.
   const onFace = (l: number) => l < anchor.x + anchor.r * 1.4 && l + w > anchor.x - anchor.r * 1.4;
   const onLeft = onFace(place(preferLeft)) && !onFace(place(!preferLeft)) ? !preferLeft : preferLeft;
-  const left = place(onLeft);
+  // A Short's narrow frame has no room beside a head (the name sat on the turban and the face, 2 Nov 2026): it stands
+  // centred in the lower third, without the arrow.
+  const narrow = W < H;
+  const left = narrow ? (W - w) / 2 : place(onLeft);
   // Beside the face (the speech floats above the head).
   const face = anchor.top + 2.05 * anchor.r;
-  const top = Math.min(H - 160 * k, Math.max(40 * k, face - fs * 0.75));
+  const top = narrow ? H * 0.72 : Math.min(H - 160 * k, Math.max(40 * k, face - fs * 0.75));
   // Arrow from the label's inner edge to the side of the head.
   const fromX = onLeft ? left + w - 10 * k : left + 10 * k;
   const fromY = top + fs * 1.1;
@@ -116,12 +119,14 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
   const d = `M${fromX} ${fromY} Q${(fromX + toX) / 2} ${Math.max(fromY, toY) + 30 * k} ${toX} ${toY}`;
   return (
     <div style={{ position: "absolute", inset: 0, opacity: out }}>
-      <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
-        <path d={d} fill="none" stroke={INK} strokeWidth={17 * k} strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
-        <path d={d} fill="none" stroke="#e0283c" strokeWidth={9 * k} strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
-        {draw < 0.02 ? <path transform={`translate(${toX} ${toY}) rotate(${(ang * 180) / Math.PI})`} d={`M${8 * k} 0 L${-22 * k} ${-17 * k} L${-14 * k} 0 L${-22 * k} ${17 * k} Z`} fill="#e0283c" stroke={INK} strokeWidth={5 * k} strokeLinejoin="round" /> : null}
-      </svg>
-      <div {...yer("ad", tag.name)} style={{ position: "absolute", left, top, width: w, textAlign: onLeft ? "right" : "left", transform: `scale(${0.5 + 0.5 * enter})`, transformOrigin: onLeft ? "100% 50%" : "0% 50%" }}>
+      {narrow ? null : (
+        <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>
+          <path d={d} fill="none" stroke={INK} strokeWidth={17 * k} strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
+          <path d={d} fill="none" stroke="#e0283c" strokeWidth={9 * k} strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
+          {draw < 0.02 ? <path transform={`translate(${toX} ${toY}) rotate(${(ang * 180) / Math.PI})`} d={`M${8 * k} 0 L${-22 * k} ${-17 * k} L${-14 * k} 0 L${-22 * k} ${17 * k} Z`} fill="#e0283c" stroke={INK} strokeWidth={5 * k} strokeLinejoin="round" /> : null}
+        </svg>
+      )}
+      <div {...yer("ad", tag.name)} style={{ position: "absolute", left, top, width: w, textAlign: narrow ? "center" : onLeft ? "right" : "left", transform: `scale(${0.5 + 0.5 * enter})`, transformOrigin: narrow ? "50% 50%" : onLeft ? "100% 50%" : "0% 50%" }}>
         <div style={{ font: `900 ${fs}px 'Segoe UI Black', 'Arial Black', sans-serif`, color: "#ffffff", WebkitTextStroke: `${12 * k}px ${INK}`, paintOrder: "stroke fill", letterSpacing: 1.5 * k, lineHeight: 1.05 }}>{name}</div>
         {tag.role ? <div style={{ font: `800 ${28 * k}px 'Segoe UI', Arial, sans-serif`, color: "#ffe9a8", WebkitTextStroke: `${7 * k}px ${INK}`, paintOrder: "stroke fill", marginTop: 2 * k }}>{tag.role}</div> : null}
       </div>
@@ -137,7 +142,7 @@ export function InsertView({ insert }: { insert: V3Insert }) {
   const frame = useCurrentFrame();
   const { width: W, height: H } = useVideoConfig();
   if (frame < insert.start || frame >= insert.end) return null;
-  const k = H / 1080;
+  const k = Math.min(W, H) / 1080;
   const len = Math.max(1, insert.end - insert.start);
   const p = (frame - insert.start) / len;
   const kb = insert.kenBurns;
@@ -191,7 +196,7 @@ export function TitleStrip({ strip, language }: { strip: V3Strip; language: "tr"
   const frame = useCurrentFrame();
   const { fps, width: W, height: H } = useVideoConfig();
   if (frame < strip.start || frame >= strip.end) return null;
-  const k = H / 1080;
+  const k = Math.min(W, H) / 1080;
   const enter = interpolate(frame, [strip.start, strip.start + Math.round(fps * 0.35)], [0, 1], { extrapolateRight: "clamp" });
   const leave = interpolate(frame, [strip.end - Math.round(fps * 0.3), strip.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const ease = 1 - (1 - enter) ** 3;

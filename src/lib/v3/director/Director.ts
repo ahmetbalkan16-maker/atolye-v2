@@ -70,8 +70,11 @@ export interface DirectorInput {
   /** Per scene id: a close battle map's own coast (OpenStreetMap), drawn instead of Natural Earth's. */
   readonly coasts?: ReadonlyMap<string, CloseCoast>;
   readonly fps: number;
+  /** The stage every shot is laid out on (16:9). */
   readonly width: number;
   readonly height: number;
+  /** The video's own frame when it is not the stage: a Short's 1080×1920 window over the stage (Format, ShotView). */
+  readonly output?: { readonly width: number; readonly height: number };
   readonly showCaptions: boolean;
   readonly audio?: string;
   /** The closing subscribe card (default on); off for a single-scene preview (scripts/v3/harita-onizleme.ts). */
@@ -926,8 +929,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     episodeId: episode.id,
     title: episode.baslik,
     fps,
-    width: input.width,
-    height: input.height,
+    width: input.output?.width ?? input.width,
+    height: input.output?.height ?? input.height,
+    ...(input.output ? { stage: { width: input.width, height: input.height } } : {}),
     durationInFrames: f(timeline.duration),
     cast: input.cast,
     accessories: input.accessories,

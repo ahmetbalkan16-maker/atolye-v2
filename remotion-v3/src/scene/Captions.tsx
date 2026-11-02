@@ -8,7 +8,7 @@ export function Captions({ pages }: { pages: readonly V3CaptionPage[] }) {
   const { height: H, width: W } = useVideoConfig();
   const page = pages.find((p) => frame >= p.start && frame < p.end);
   if (!page) return null;
-  const k = H / 1080;
+  const k = Math.min(W, H) / 1080;
   return (
     <div style={{ position: "absolute", left: 0, right: 0, bottom: 54 * k, display: "flex", justifyContent: "center" }}>
       <div

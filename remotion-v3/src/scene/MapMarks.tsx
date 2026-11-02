@@ -191,7 +191,7 @@ function StrengthBar({ list, frame, fps, W, H }: { list: readonly Strength[]; fr
   const cur = list[i]!;
   const prev = i > 0 && (list[i - 1]!.end === undefined || list[i - 1]!.end! > cur.start) ? list[i - 1] : undefined;
   if (cur.end !== undefined && frame >= cur.end) return null;
-  const u = H / 1080;
+  const u = Math.min(W, H) / 1080;
   const open = prev ? 1 : interpolate(frame, [cur.start, cur.start + Math.round(fps * 0.8)], [0, 1], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
   const move = prev ? interpolate(frame, [cur.start, cur.start + Math.round(fps * 1.2)], [0, 1], { extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) }) : 1;
   const count = interpolate(frame, [cur.start, cur.start + Math.round(fps * 1.4)], [0, 1], { extrapolateRight: "clamp", easing: Easing.out(Easing.quad) });
@@ -239,7 +239,7 @@ function DateStamp({ dates, frame, fps, W, H }: { dates: NonNullable<V3GeoMap["d
   let i = -1;
   for (let j = 0; j < dates.length; j++) if (dates[j]!.start <= frame) i = j;
   if (i < 0) return null;
-  const u = H / 1080;
+  const u = Math.min(W, H) / 1080;
   const cur = dates[i]!;
   const enter = spring({ frame: frame - cur.start, fps, config: { damping: 13, stiffness: 160 } });
   const prev = i > 0 ? dates[i - 1] : undefined;

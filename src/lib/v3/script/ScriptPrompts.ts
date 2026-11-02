@@ -14,6 +14,7 @@ import {
   type EpisodeSource,
   type EpisodeTone,
 } from "../episode/EpisodeTypes";
+import { isShorts } from "../render/Format";
 import { type SeriesBrief, seriesText } from "./Series";
 
 /**
@@ -139,6 +140,29 @@ STORYTELLING RULES
 8. Sound: every scene has at least one "sfx" on a gag, a hit, an entrance or a punchline (see the allowed values).`,
 };
 
+/**
+ * A Short's recipe (owner, 2 Nov 2026): a hook in the first 2 seconds, one moment, ~150 words, no cover or subscribe
+ * line, the last line leading back into the first. It overrides the long rules where they differ.
+ */
+const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: number) => string>> = {
+  tr: (b, words) => `
+
+YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da daha kısa DİKEY bir video. Bu kurallar yukarıdakilerle ya da aşağıdakilerle çeliştiğinde bunlar geçerlidir:
+- İlk satır (ilk 2 saniye) kancadır: kaydıranı durduran tek, somut, şaşırtıcı cümle. Selam, başlık, "bu videoda" yok.
+- Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.
+- 2–4 sahne, yaklaşık ${words} konuşulan kelime. Üç görünür karakter; bir sahnede en fazla ikisi (dikey kare aynı anda tek konuşanı gösterir).
+- "Ne öğreneceksin" vaadi, sonraki videoya köprü ve abone daveti YOK.
+- Son satır ilk satıra bağlanır: video başa döndüğünde cümle akıp gider (döngü).`,
+  en: (b, words) => `
+
+YOUTUBE SHORT — this is a VERTICAL video of ${b.hedefSureSn} seconds or less, watched on a phone in a feed. Where these rules differ from the rules above or below, these win:
+- The very first line (within 2 seconds) is the hook: one concrete, surprising sentence that stops a scroller. No greeting, no title, no "in this video".
+- Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.
+- 2–4 scenes, about ${words} spoken words. Three visible characters; at most two of them in a scene (the vertical frame shows one speaker at a time).
+- NO "what you'll learn" promise, NO bridge to the next video and NO subscribe line.
+- The last line leads back into the first: when the video starts over, the sentence runs on (a loop).`,
+};
+
 function bankText(bank: SourceBank | undefined): string {
   if (!bank) return "";
   return `
@@ -192,7 +216,7 @@ function lessonsText(lessons: readonly string[] | undefined): string {
 /** The writer's prompt: rules in the narration language, then one shared contract section. */
 export function writingPrompt(brief: ScriptBrief, catalog: readonly PackCatalogEntry[]): string {
   const words = wordBudget(brief);
-  return `${RULES[brief.dil](brief, words)}${seriesText(brief.dizi)}${bankText(brief.kaynakBankasi)}${lessonsText(brief.dersler)}
+  return `${RULES[brief.dil](brief, words)}${isShorts(brief.hedefSureSn) ? SHORTS_RULES[brief.dil](brief, words) : ""}${seriesText(brief.dizi)}${bankText(brief.kaynakBankasi)}${lessonsText(brief.dersler)}
 
 CAST / KADRO
 - One narrator: id "anlatici", "gorunur": false, "kostum_paketi": "" and no "kostum".

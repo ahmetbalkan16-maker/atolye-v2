@@ -111,8 +111,9 @@ const SCALE_STEPS_KM = [1, 2, 5, 10, 25, 50, 100, 150, 200, 250, 300, 500, 750, 
  * An atlas's corner (owner's example map, 21 Oct 2026): a compass rose and a scale bar in kilometres that follows the
  * camera's zoom, in the badges' parchment and sepia, at the bottom left of the screen.
  */
-export function AtlasCorner({ kmPerScreenPx, height: H }: { kmPerScreenPx: number; height: number }) {
-  const u = H / 1080;
+export function AtlasCorner({ kmPerScreenPx, height: H, width = Infinity }: { kmPerScreenPx: number; height: number; width?: number }) {
+  // Sized by the frame's short side (a Short's frame is 1080 wide).
+  const u = Math.min(width, H) / 1080;
   const target = 230 * u * kmPerScreenPx;
   const km = [...SCALE_STEPS_KM].reverse().find((s) => s <= target) ?? SCALE_STEPS_KM[0]!;
   const bar = km / kmPerScreenPx;

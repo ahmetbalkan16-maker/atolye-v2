@@ -51,6 +51,15 @@ function main() {
     assert.match(packagePrompt(episode), /under 60 characters[\s\S]*2–4 words/);
   });
 
+  scenario("S a Short: #Shorts in every title and first among the hashtags, no chapter titles asked", () => {
+    const answer = JSON.stringify({ basliklar: ["Caesar Crosses the Rubicon", "Rome Panics #shorts"], kapak_basliklari: ["NO RETURN"], hashtagler: ["#history", "#Shorts", "#Rome"] });
+    const p = readPackage(answer, episode, true);
+    assert.deepEqual(p.basliklar, ["Caesar Crosses the Rubicon #Shorts", "Rome Panics #shorts"]);
+    assert.deepEqual(p.hashtagler, ["#Shorts", "#history", "#Rome"]);
+    assert.ok(!packagePrompt(episode, true).includes('"bolumler"') && packagePrompt(episode, true).includes("under 50 characters") && packagePrompt(episode).includes('"bolumler"'));
+    assert.deepEqual(readPackage(answer, episode).basliklar, ["Caesar Crosses the Rubicon", "Rome Panics #shorts"], "a normal video is left as written");
+  });
+
   scenario("B an unreadable answer still gives a title and a headline from the episode's own words", () => {
     const p = readPackage("no json", episode);
     assert.deepEqual(p.basliklar, [episode.baslik]);
