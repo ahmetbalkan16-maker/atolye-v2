@@ -1,3 +1,51 @@
+## 2 Kasım 2026 (gece) — Kalite beyni ölçer (yerleşim + piksel, sınav %61 → %90); V3 GPU çağrı içi durdurma; Shorts
+
+**Owner:** "önerilerini kabul ediyorum ama video oluşturma, bu 3 konuyu hallet; altyazı ... koymasan daha iyi; bunları
+yaptıktan sonra AYAS'ın kendi kendine gelir üretme konusuna dönmek istiyorum, eksik bir şey var mı". Üretim yapılmadı;
+doğrulama için yalnız Kosova planının 2–3 sn'lik iki test render'ı ve tek kareler (scratchpad, depoya girmedi).
+
+**1. GPU çağrı içi durdurma (`e78e4d88`):** `Gpu.ts` `V3_OLLAMA_THERMAL` — her V3 `OllamaProvider`'ı AYAS'ın
+`OllamaThermalMonitor`'ünü taşır (A2000 profili yalnız monitör için verilir), çağrı 85 °C'de kesilir; `coolGpuProvider`
+kesilen çağrıyı kart 74 altına inince bir kez yeniden dener. Altı çağrı yeri; `smoke-v3-gpu.ts` (5), thermal-monitor 18.
+
+**2. Kalite beyni ölçer (`746eea42`, sınav `3525c5da`):**
+- `remotion-v3/src/scene/LayoutProbe.tsx`: her 15 karede `data-yer` işaretli öğelerin (rozet, harita yazısı, ordu
+  etiketi, konuşma, ad etiketi, şerit, güç çubuğu/tarih, kart, başlık/kapak) kutusu Remotion `<Artifact>` ile
+  `remotion-v3/out/Episode/yerlesim-<bölüm>/` altına; `ChunkedRender` kutuları parçasıyla saklar, `yerlesim.json`'a
+  birleştirir. Parçanın ilk karesinde kök ~1 px ölçülüyordu, ölçek oradan alınmaz.
+- `LayoutCheck.ts`: kenarda >6 px taşan ya da küçüğünün %12'sinden çok çakışan kutu, ≥2 ölçüm (0,5 sn) sürerse kusur;
+  kart/kapak açıkken yalnız o; geçiş ve dönem resmi atlanır. `PixelCheck.ts`: her kare 160×90 — kenarda düz koyu şerit,
+  bir an deniz rengine boyanan zemin, bir an kararma (önceki ve sonraki saniyenin medyanına göre, ≤0,6 sn); plan
+  kasıtlı anları atlar (beyaz/mürekkep geçişi, kelime/kapak/bölüm/abone kartı, dönem resmi), kaydırma geçişi ölçülür.
+- Üretim: `layoutReview` + `pixelReview` kalite bulgusu yazar (≥1,5 sn "eksik", tür "kod"); ikisi de çalıştıysa görsel
+  modele yalnız `bozuk` (çizim) ve anlatım sorulur, kenar şeritleri gönderilmez. QC.md "Kalite ölçümü" satırı.
+- Doğrulama: Kosova 130–133 sn render'ında kutular kareye oturuyor; Lazar rozeti 110 px yukarı itilince "üst kenarda
+  kesik (34 px)", itilmeyince 0. Piksel: sınav videosunda 72,80 (kararma) ve 72,97 (deniz zemin) + aynı eski kaydırma
+  kusuru 4 geçişte daha; son teslim Kosova 0 kusur; Rubicon'daki iki işaret kasıtlı "kelime" kartıydı (plan atlar).
+  Hız ~480 kare/sn (3 dk'lık video 12 sn).
+- Sınav `calistir --olculu` (sorularda `olcum`: yerlesim/piksel/goz): gemma4:12b örneksiz **8 soruda 7, dengeli %90**
+  (kusurlu 3/3, temiz 4/5; tek yanlış alarm görsel modelin "aynı kıyafet"i). 4 yerleşim sorusu eski videonun karesinden
+  ölçülemez, puana girmez (render testi kapsar). Rapor `kalite-sonuc-1793622607509.json`.
+
+**3. Shorts (`3373789f`):** `render/Format.ts` — ≤60 sn → 1080×1920; yönetmen çekimleri yine 1920×1080 sahnede kurar
+(`plan.stage`), `ShotView` sahnenin tam yüksekliğini kareye sığdırır ve konuşanı izleyen dikey pencere (0,5 sn kayma,
+0,15 sn önden) açar; kimse konuşmadan sahnedekilerin ortası; harita yazıları pencereye kayar. Ekran öğeleri kısa kenara
+göre ölçeklenir (yatayda aynı); dar karede ad etiketi alt üçte birde, oksuz (yanda yüzün üstüne biniyordu). Senarist
+Shorts tarifi (2 sn kanca, tek an, 2–4 sahne, köprü/abone yok, döngü sonu); kapak ve abone kartı yok; paket başlıkları
+50 karakter + "#Shorts", hashtag başında #Shorts, bölüm yok; **altyazı yok** (owner). AYAS "60 saniyelik … videosu" →
+`60sn` → Shorts; bütçe süreye göre 1 $. Smoke: episode-director, script, youtube 6; tüm v3 smokeları; tsc kök +
+remotion-v3; lint 0 hata/13 eski uyarı. Yatay kare değişmedi (tek kare karşılaştırması).
+
+**Açık:** dikey harita genişliğin ~1/3'ünü gösterir (pencere yalnız konuşan rozeti izler); ilk gerçek Shorts'ta haritalar
+kötü durursa dikey çizim. Kalite: yakın haritadaki "aynı kıyafet" yanlış alarmı `ogret --soru kosova-temiz-yakin-harita`
+ile öğretilebilir (üretimde örnekler kapalı).
+
+**Gelir (owner sorusu, kod yok):** Stage 16 gelir çerçevesi (teklif fabrikası, teslim kapısı, Gelir Merkezi, Lemon
+adaptörü TEST modunda, Fiverr ilanı owner bildirimiyle aktif) kaynakta var ama hiçbiri bağlı değil: sipariş, defter,
+gelir kanıtı yok. YouTube yükleme sağlayıcısı (`YouTubeDataApiPublishProvider`) var, kanal/OAuth tanımlı değil, V3'e
+bağlı değil. Owner kararı bekleyenler: kanal ve OAuth, yayın temposu/bütçesi, ilk videoların onayı, Fiverr'de insanın
+döngüde kalması, soğuk toplu mesaj yok.
+
 ## 2 Kasım 2026 (akşam) — Kalite beyni: Qwen3-VL ölçüldü, benimsenmedi; Shorts planı owner onayı bekliyor
 
 **Owner:** "kalite beynini nasıl geliştirebiliriz, @selahattinunlu kanalında işe yarayan bir GitHub reposu yok mu …
