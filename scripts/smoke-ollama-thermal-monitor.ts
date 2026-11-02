@@ -30,25 +30,25 @@ async function main() {
   let coolReads = 0;
   const cool = new OllamaProvider(success, config, { environment: env, pollMs: 1,
     read: async () => { coolReads++; return { tripped: false, reason: "GPU 45 C" }; } });
-  assert.equal((await cool.generate("test")).complete, true);
+  assert.equal((await cool.generate("test")).complete, true, "assert.equal((await cool.generate(\"test\")).complete, true)");
   const stoppedAt = coolReads;
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(coolReads, stoppedAt, "The request must release its sensor timer.");
   let offReads = 0;
   const off = new OllamaProvider(success, config, { environment: { NODE_ENV: "test" },
     read: async () => { offReads++; throw new Error("sensor must not be called"); } });
-  assert.equal((await off.generate("test")).content, '{"ok":true}');
+  assert.equal((await off.generate("test")).content, '{"ok":true}', "assert.equal((await off.generate(\"test\")).content, '{\"ok\":true}')");
   assert.equal(offReads, 0, "Other profiles retain their original transport.");
-  assert.equal(await readAyasGpuTemperatureC({ run: async () => "\n  \n" }), undefined);
-  assert.equal(await readAyasGpuTemperatureC({ run: async () => "N/A\n" }), undefined);
-  assert.equal(await readAyasGpuTemperatureC({ run: async () => "45\n61\n" }), 61);
+  assert.equal(await readAyasGpuTemperatureC({ run: async () => "\n  \n" }), undefined, "assert.equal(await readAyasGpuTemperatureC({ run: async () => \"\\n  \\n\" }), undefined)");
+  assert.equal(await readAyasGpuTemperatureC({ run: async () => "N/A\n" }), undefined, "assert.equal(await readAyasGpuTemperatureC({ run: async () => \"N/A\\n\" }), undefined)");
+  assert.equal(await readAyasGpuTemperatureC({ run: async () => "45\n61\n" }), 61, "assert.equal(await readAyasGpuTemperatureC({ run: async () => \"45\\n61\\n\" }), 61)");
   const cpuEnv: NodeJS.ProcessEnv = { NODE_ENV: "test", OLLAMA_NUM_GPU: "0", OLLAMA_NUM_THREADS: "4" };
   let payload: Record<string, unknown> | undefined;
   const capture: typeof fetch = async (_request, options) => { payload = JSON.parse(String(options?.body)); return success(_request, options); };
   await new OllamaProvider(capture, () => resolveOllamaConfig(cpuEnv), { environment: { NODE_ENV: "test" } }).generate("test");
-  assert.deepEqual((payload?.options as { num_gpu: number; num_thread: number }).num_gpu, 0);
-  assert.equal((payload?.options as { num_thread: number }).num_thread, 4);
-  assert.equal("numGpu" in resolveOllamaConfig({ NODE_ENV: "test" }), false);
+  assert.deepEqual((payload?.options as { num_gpu: number; num_thread: number }).num_gpu, 0, "assert.deepEqual((payload?.options as { num_gpu: number; num_thread: number }).num_gpu, 0)");
+  assert.equal((payload?.options as { num_thread: number }).num_thread, 4, "assert.equal((payload?.options as { num_thread: number }).num_thread, 4)");
+  assert.equal("numGpu" in resolveOllamaConfig({ NODE_ENV: "test" }), false, "assert.equal(\"numGpu\" in resolveOllamaConfig({ NODE_ENV: \"test\" }), false)");
   assert.throws(() => resolveOllamaConfig({ NODE_ENV: "test", OLLAMA_NUM_GPU: "-1" }));
   assert.throws(() => resolveOllamaConfig({ NODE_ENV: "test", OLLAMA_NUM_THREADS: "0" }));
   const baseline: NodeJS.ProcessEnv = { NODE_ENV: "test" };

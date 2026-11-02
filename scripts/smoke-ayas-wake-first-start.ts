@@ -140,8 +140,8 @@ async function run() {
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
     await waitFor(() => a.getStatus().mic === "on");
-    assert.equal(a.getStatus().mic, "on");
-    assert.deepEqual(unavailable, []);
+    assert.equal(a.getStatus().mic, "on", "assert.equal(a.getStatus().mic, \"on\")");
+    assert.deepEqual(unavailable, [], "assert.deepEqual(unavailable, [])");
     backend.push(true);
     await waitFor(() => c.finals.length > 0);
     assert.deepEqual(c.finals, ["AYAS"], "the very first AYAS after a slow load wakes");
@@ -159,10 +159,10 @@ async function run() {
     a.startListening("tr-TR", c.handlers);
     await waitFor(() => a.getStatus().mic === "on" || unavailable.length > 0, 15_000);
     assert.deepEqual(unavailable, [], "a slow cold download must not drop the session to the browser adapter");
-    assert.equal(a.getStatus().mic, "on");
+    assert.equal(a.getStatus().mic, "on", "assert.equal(a.getStatus().mic, \"on\")");
     backend.push(true);
     await waitFor(() => c.finals.length > 0);
-    assert.deepEqual(c.finals, ["AYAS"]);
+    assert.deepEqual(c.finals, ["AYAS"], "assert.deepEqual(c.finals, [\"AYAS\"])");
     a.dispose();
   });
 
@@ -174,8 +174,8 @@ async function run() {
     });
     a.startListening("tr-TR", collectHandlers().handlers);
     await waitFor(() => unavailable.length > 0);
-    assert.deepEqual(unavailable, ["runner-init"]);
-    assert.equal(a.getStatus().mic, "fatal");
+    assert.deepEqual(unavailable, ["runner-init"], "assert.deepEqual(unavailable, [\"runner-init\"])");
+    assert.equal(a.getStatus().mic, "fatal", "assert.equal(a.getStatus().mic, \"fatal\")");
     a.dispose();
   });
 
@@ -208,8 +208,8 @@ async function run() {
     await wait(20);
     a.startListening("tr-TR", collectHandlers().handlers);
     await waitFor(() => a.getStatus().mic === "on");
-    assert.equal(a.getStatus().mic, "on");
-    assert.equal(runner.inits, 1);
+    assert.equal(a.getStatus().mic, "on", "assert.equal(a.getStatus().mic, \"on\")");
+    assert.equal(runner.inits, 1, "assert.equal(runner.inits, 1)");
     a.dispose();
   });
 
@@ -225,9 +225,9 @@ async function run() {
     assert.equal(runner.ready, false, "the first load failed");
     a.startListening("tr-TR", collectHandlers().handlers);
     await waitFor(() => a.getStatus().mic === "on");
-    assert.equal(a.getStatus().mic, "on");
-    assert.equal(runner.inits, 2);
-    assert.deepEqual(unavailable, []);
+    assert.equal(a.getStatus().mic, "on", "assert.equal(a.getStatus().mic, \"on\")");
+    assert.equal(runner.inits, 2, "assert.equal(runner.inits, 2)");
+    assert.deepEqual(unavailable, [], "assert.deepEqual(unavailable, [])");
     a.dispose();
   });
 
@@ -240,7 +240,7 @@ async function run() {
     a.startListening("tr-TR", collectHandlers().handlers);
     assert.equal(seen[0], "starting", "emitted synchronously inside the tap");
     await waitFor(() => a.getStatus().mic === "on");
-    assert.equal(seen[seen.length - 1], "on");
+    assert.equal(seen[seen.length - 1], "on", "assert.equal(seen[seen.length - 1], \"on\")");
     a.dispose();
   });
 
@@ -250,7 +250,7 @@ async function run() {
     const starting = deriveAyasPresence({ ...base, voice: { ...voice, starting: true } }).voice.value;
     assert.match(starting, /hazırlanıyor/);
     assert.doesNotMatch(starting, /bekleniyor/);
-    assert.equal(deriveAyasPresence({ ...base, voice: { ...voice, starting: false } }).voice.value, "\"AYAS\" bekleniyor (eller serbest)");
+    assert.equal(deriveAyasPresence({ ...base, voice: { ...voice, starting: false } }).voice.value, "\"AYAS\" bekleniyor (eller serbest)", "assert.equal(deriveAyasPresence({ ...base, voice: { ...voice, starting: false } }).voice.value, \"\\\"AYAS\\\" bekleniyor (eller serbest)\")");
     assert.equal(deriveAyasPresence({ ...base, voice: { ...voice, listening: false, starting: true } }).voice.value === starting, false, "voice off is not 'starting'");
   });
 
@@ -323,9 +323,9 @@ async function runServiceWorkerScenarios() {
   await scenario("sw: first wake-asset request fetches normally and keeps the copy", async () => {
     const sw = loadSw(async () => new Response("wasm-v1", { status: 200, headers: { ETag: 'W/"v1"' } }));
     const res = await sw.get(WASM);
-    assert.equal(await res!.text(), "wasm-v1");
+    assert.equal(await res!.text(), "wasm-v1", "assert.equal(await res!.text(), \"wasm-v1\")");
     await wait(0);
-    assert.equal(sw.calls.length, 1);
+    assert.equal(sw.calls.length, 1, "assert.equal(sw.calls.length, 1)");
     assert.equal(sw.calls[0].init, undefined, "the first fill may use the browser's own HTTP cache");
     assert.ok([...sw.stores.values()].some((s) => s.has(WASM)), "copy kept for the next session");
   });
@@ -339,13 +339,13 @@ async function runServiceWorkerScenarios() {
     await sw.get(WASM);
     await wait(0);
     const again = await sw.get(WASM);
-    assert.equal(await again!.text(), "wasm-v1");
-    assert.equal(sw.calls[1].init?.headers?.["If-None-Match"], 'W/"v1"');
+    assert.equal(await again!.text(), "wasm-v1", "assert.equal(await again!.text(), \"wasm-v1\")");
+    assert.equal(sw.calls[1].init?.headers?.["If-None-Match"], 'W/"v1"', "assert.equal(sw.calls[1].init?.headers?.[\"If-None-Match\"], 'W/\"v1\"')");
     assert.equal(sw.calls[1].init?.cache, "no-store", "the revalidation reaches the server, not a stale HTTP cache");
 
     version = "v2"; // a changed runtime/model is never served stale while online
     const changed = await sw.get(WASM);
-    assert.equal(await changed!.text(), "wasm-v2");
+    assert.equal(await changed!.text(), "wasm-v2", "assert.equal(await changed!.text(), \"wasm-v2\")");
     await wait(0);
     const after = await sw.get(WASM);
     assert.equal(await after!.text(), "wasm-v2", "the new copy replaced the old one");
@@ -363,7 +363,7 @@ async function runServiceWorkerScenarios() {
     await wait(0);
     online = false;
     const res = await sw.get("https://example.test/wake/ayas.onnx");
-    assert.equal(await res!.text(), "asset");
+    assert.equal(await res!.text(), "asset", "assert.equal(await res!.text(), \"asset\")");
     assert.equal(await sw.get("https://example.test/worklets/d2-audio-lab-processor.js"), undefined, "unrelated worklets untouched");
     assert.equal(await sw.get("https://example.test/api/ayas/stt"), undefined, "/api is never intercepted");
   });
@@ -374,10 +374,10 @@ async function runServiceWorkerScenarios() {
     await wait(0);
     sw.stores.set("ayas-shell-v3", new Map());
     const wakeCache = [...sw.stores.keys()].find((k) => k.startsWith("ayas-wake-"));
-    assert.ok(wakeCache);
+    assert.ok(wakeCache, "assert.ok(wakeCache)");
     await sw.activate();
     assert.ok(sw.stores.has(wakeCache!), "the 17 MB wake copy survives a worker update");
-    assert.ok(!sw.stores.has("ayas-shell-v3"));
+    assert.ok(!sw.stores.has("ayas-shell-v3"), "assert.ok(!sw.stores.has(\"ayas-shell-v3\"))");
   });
 }
 

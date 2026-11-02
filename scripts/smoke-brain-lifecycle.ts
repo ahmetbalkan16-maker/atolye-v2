@@ -68,20 +68,20 @@ const input = (over: Partial<AssessBrainReloadInput>): AssessBrainReloadInput =>
 
 scenario("first boot — no prior record", () => {
   const a = assessBrainReload(input({ prev: null }));
-  assert.equal(a.firstBoot, true);
-  assert.equal(a.cause, "first-boot");
-  assert.equal(a.unexpectedReload, false);
-  assert.equal(a.bootCount, 1);
-  assert.equal(a.previousBootId, null);
+  assert.equal(a.firstBoot, true, "assert.equal(a.firstBoot, true)");
+  assert.equal(a.cause, "first-boot", "assert.equal(a.cause, \"first-boot\")");
+  assert.equal(a.unexpectedReload, false, "assert.equal(a.unexpectedReload, false)");
+  assert.equal(a.bootCount, 1, "assert.equal(a.bootCount, 1)");
+  assert.equal(a.previousBootId, null, "assert.equal(a.previousBootId, null)");
 });
 
 scenario("navigationKindFrom — string + legacy enum + bfcache", () => {
-  assert.equal(navigationKindFrom("reload", false), "reload");
-  assert.equal(navigationKindFrom(1, false), "reload");
-  assert.equal(navigationKindFrom("navigate", false), "navigate");
-  assert.equal(navigationKindFrom("back_forward", false), "back-forward");
-  assert.equal(navigationKindFrom("navigate", true), "bfcache-restore");
-  assert.equal(navigationKindFrom(undefined, false), "unknown");
+  assert.equal(navigationKindFrom("reload", false), "reload", "assert.equal(navigationKindFrom(\"reload\", false), \"reload\")");
+  assert.equal(navigationKindFrom(1, false), "reload", "assert.equal(navigationKindFrom(1, false), \"reload\")");
+  assert.equal(navigationKindFrom("navigate", false), "navigate", "assert.equal(navigationKindFrom(\"navigate\", false), \"navigate\")");
+  assert.equal(navigationKindFrom("back_forward", false), "back-forward", "assert.equal(navigationKindFrom(\"back_forward\", false), \"back-forward\")");
+  assert.equal(navigationKindFrom("navigate", true), "bfcache-restore", "assert.equal(navigationKindFrom(\"navigate\", true), \"bfcache-restore\")");
+  assert.equal(navigationKindFrom(undefined, false), "unknown", "assert.equal(navigationKindFrom(undefined, false), \"unknown\")");
 });
 
 scenario("SW-update reload — recent marker wins over everything", () => {
@@ -95,10 +95,10 @@ scenario("SW-update reload — recent marker wins over everything", () => {
       swReloadMarkerAt: now - 500,
     }),
   );
-  assert.equal(a.cause, "sw-update");
+  assert.equal(a.cause, "sw-update", "assert.equal(a.cause, \"sw-update\")");
   assert.equal(a.browserReloadLikely, false, "an SW reload is not a browser kill");
   assert.equal(a.unexpectedReload, true, "voice was active → still worth a resume prompt");
-  assert.equal(a.bootCount, 3);
+  assert.equal(a.bootCount, 3, "assert.equal(a.bootCount, 3)");
 });
 
 scenario("bfcache restore — page was NOT destroyed, never 'unexpected'", () => {
@@ -112,9 +112,9 @@ scenario("bfcache restore — page was NOT destroyed, never 'unexpected'", () =>
       bfcacheRestore: true,
     }),
   );
-  assert.equal(a.cause, "bfcache-restore");
-  assert.equal(a.unexpectedReload, false);
-  assert.equal(a.browserReloadLikely, false);
+  assert.equal(a.cause, "bfcache-restore", "assert.equal(a.cause, \"bfcache-restore\")");
+  assert.equal(a.unexpectedReload, false, "assert.equal(a.unexpectedReload, false)");
+  assert.equal(a.browserReloadLikely, false, "assert.equal(a.browserReloadLikely, false)");
 });
 
 scenario("browser-reload-suspected — reload nav + fresh heartbeat mid-wake + no pagehide → FOREGROUND kill", () => {
@@ -127,16 +127,16 @@ scenario("browser-reload-suspected — reload nav + fresh heartbeat mid-wake + n
       navigationKind: "reload",
     }),
   );
-  assert.equal(a.cause, "browser-reload-suspected");
-  assert.equal(a.browserReloadLikely, true);
-  assert.equal(a.evictionKind, "foreground-memory-suspected");
-  assert.equal(a.unexpectedReload, true);
-  assert.ok(a.priorInstance);
-  assert.equal(a.priorInstance!.hadFreshHeartbeat, true);
-  assert.equal(a.priorInstance!.diedAtPhase, "wake");
-  assert.equal(a.priorInstance!.diedAfterMs, 34_000);
-  assert.equal(a.priorInstance!.droppedFrames, 210);
-  assert.equal(a.priorInstance!.diedHidden, false);
+  assert.equal(a.cause, "browser-reload-suspected", "assert.equal(a.cause, \"browser-reload-suspected\")");
+  assert.equal(a.browserReloadLikely, true, "assert.equal(a.browserReloadLikely, true)");
+  assert.equal(a.evictionKind, "foreground-memory-suspected", "assert.equal(a.evictionKind, \"foreground-memory-suspected\")");
+  assert.equal(a.unexpectedReload, true, "assert.equal(a.unexpectedReload, true)");
+  assert.ok(a.priorInstance, "assert.ok(a.priorInstance)");
+  assert.equal(a.priorInstance!.hadFreshHeartbeat, true, "assert.equal(a.priorInstance!.hadFreshHeartbeat, true)");
+  assert.equal(a.priorInstance!.diedAtPhase, "wake", "assert.equal(a.priorInstance!.diedAtPhase, \"wake\")");
+  assert.equal(a.priorInstance!.diedAfterMs, 34_000, "assert.equal(a.priorInstance!.diedAfterMs, 34_000)");
+  assert.equal(a.priorInstance!.droppedFrames, 210, "assert.equal(a.priorInstance!.droppedFrames, 210)");
+  assert.equal(a.priorInstance!.diedHidden, false, "assert.equal(a.priorInstance!.diedHidden, false)");
 });
 
 scenario("browser-reload-suspected — last event was visibility:hidden → BACKGROUND eviction (screen lock)", () => {
@@ -149,11 +149,11 @@ scenario("browser-reload-suspected — last event was visibility:hidden → BACK
       navigationKind: "reload",
     }),
   );
-  assert.equal(a.cause, "browser-reload-suspected");
+  assert.equal(a.cause, "browser-reload-suspected", "assert.equal(a.cause, \"browser-reload-suspected\")");
   assert.equal(a.evictionKind, "background-eviction-suspected", "screen Auto-Lock → backgrounded → evicted");
-  assert.equal(a.priorLastEvent, "visibility:hidden");
-  assert.equal(a.priorInstance!.diedHidden, true);
-  assert.equal(a.priorInstance!.wakeLockHeld, false);
+  assert.equal(a.priorLastEvent, "visibility:hidden", "assert.equal(a.priorLastEvent, \"visibility:hidden\")");
+  assert.equal(a.priorInstance!.diedHidden, true, "assert.equal(a.priorInstance!.diedHidden, true)");
+  assert.equal(a.priorInstance!.wakeLockHeld, false, "assert.equal(a.priorInstance!.wakeLockHeld, false)");
 });
 
 scenario("browser-reload-suspected — big heartbeat gap alone hints backgrounded", () => {
@@ -166,7 +166,7 @@ scenario("browser-reload-suspected — big heartbeat gap alone hints backgrounde
       navigationKind: "navigate",
     }),
   );
-  assert.equal(a.evictionKind, "background-eviction-suspected");
+  assert.equal(a.evictionKind, "background-eviction-suspected", "assert.equal(a.evictionKind, \"background-eviction-suspected\")");
 });
 
 scenario("clean pagehide before the reload → NOT a browser kill (manual reload / nav)", () => {
@@ -179,8 +179,8 @@ scenario("clean pagehide before the reload → NOT a browser kill (manual reload
       navigationKind: "reload",
     }),
   );
-  assert.equal(a.cause, "manual-reload-or-nav");
-  assert.equal(a.browserReloadLikely, false);
+  assert.equal(a.cause, "manual-reload-or-nav", "assert.equal(a.cause, \"manual-reload-or-nav\")");
+  assert.equal(a.browserReloadLikely, false, "assert.equal(a.browserReloadLikely, false)");
   assert.equal(a.unexpectedReload, true, "voice was active — still offer to resume");
 });
 
@@ -193,9 +193,9 @@ scenario("plain reload of an IDLE page → not unexpected, not a browser-kill", 
       nowMs: now,
     }),
   );
-  assert.equal(a.cause, "manual-reload-or-nav");
-  assert.equal(a.unexpectedReload, false);
-  assert.equal(a.browserReloadLikely, false);
+  assert.equal(a.cause, "manual-reload-or-nav", "assert.equal(a.cause, \"manual-reload-or-nav\")");
+  assert.equal(a.unexpectedReload, false, "assert.equal(a.unexpectedReload, false)");
+  assert.equal(a.browserReloadLikely, false, "assert.equal(a.browserReloadLikely, false)");
 });
 
 scenario("stale heartbeat (older than trust window) → priorInstance.hadFreshHeartbeat false", () => {
@@ -208,10 +208,10 @@ scenario("stale heartbeat (older than trust window) → priorInstance.hadFreshHe
       navigationKind: "navigate",
     }),
   );
-  assert.ok(a.priorInstance);
-  assert.equal(a.priorInstance!.hadFreshHeartbeat, false);
+  assert.ok(a.priorInstance, "assert.ok(a.priorInstance)");
+  assert.equal(a.priorInstance!.hadFreshHeartbeat, false, "assert.equal(a.priorInstance!.hadFreshHeartbeat, false)");
   // navigate + voice active + no pagehide is still browser-reload-likely
-  assert.equal(a.browserReloadLikely, true);
+  assert.equal(a.browserReloadLikely, true, "assert.equal(a.browserReloadLikely, true)");
 });
 
 scenario("heartbeat from a different bootId is ignored", () => {
@@ -223,7 +223,7 @@ scenario("heartbeat from a different bootId is ignored", () => {
       nowMs: now,
     }),
   );
-  assert.equal(a.priorInstance, null);
+  assert.equal(a.priorInstance, null, "assert.equal(a.priorInstance, null)");
 });
 
 scenario("stale SW marker is ignored → falls through to reload logic", () => {
@@ -237,7 +237,7 @@ scenario("stale SW marker is ignored → falls through to reload logic", () => {
     }),
   );
   assert.notEqual(a.cause, "sw-update");
-  assert.equal(a.cause, "browser-reload-suspected");
+  assert.equal(a.cause, "browser-reload-suspected", "assert.equal(a.cause, \"browser-reload-suspected\")");
 });
 
 scenario("voice active but reload is old (> eviction window) → not a browser kill", () => {
@@ -249,37 +249,37 @@ scenario("voice active but reload is old (> eviction window) → not a browser k
       navigationKind: "reload",
     }),
   );
-  assert.equal(a.cause, "manual-reload-or-nav");
-  assert.equal(a.browserReloadLikely, false);
-  assert.equal(a.unexpectedReload, true);
+  assert.equal(a.cause, "manual-reload-or-nav", "assert.equal(a.cause, \"manual-reload-or-nav\")");
+  assert.equal(a.browserReloadLikely, false, "assert.equal(a.browserReloadLikely, false)");
+  assert.equal(a.unexpectedReload, true, "assert.equal(a.unexpectedReload, true)");
 });
 
 scenario("parseBrainBootRecord — valid / corrupt / partial / previousBootId + cleanPagehide", () => {
   const good = parseBrainBootRecord(
     JSON.stringify(rec({ bootCount: 4, voiceWasActive: true, previousBootId: "p0", cleanPagehide: true })),
   );
-  assert.ok(good && good.bootCount === 4 && good.voiceWasActive === true);
-  assert.equal(good!.previousBootId, "p0");
-  assert.equal(good!.cleanPagehide, true);
-  assert.equal(parseBrainBootRecord(null), null);
-  assert.equal(parseBrainBootRecord("not json {{{"), null);
-  assert.equal(parseBrainBootRecord(JSON.stringify({ voiceWasActive: true })), null);
+  assert.ok(good && good.bootCount === 4 && good.voiceWasActive === true, "assert.ok(good && good.bootCount === 4 && good.voiceWasActive === true)");
+  assert.equal(good!.previousBootId, "p0", "assert.equal(good!.previousBootId, \"p0\")");
+  assert.equal(good!.cleanPagehide, true, "assert.equal(good!.cleanPagehide, true)");
+  assert.equal(parseBrainBootRecord(null), null, "assert.equal(parseBrainBootRecord(null), null)");
+  assert.equal(parseBrainBootRecord("not json {{{"), null, "assert.equal(parseBrainBootRecord(\"not json {{{\"), null)");
+  assert.equal(parseBrainBootRecord(JSON.stringify({ voiceWasActive: true })), null, "assert.equal(parseBrainBootRecord(JSON.stringify({ voiceWasActive: true })), null)");
   const partial = parseBrainBootRecord(JSON.stringify({ bootAt: 1, bootCount: 2 }));
-  assert.ok(partial && partial.voiceWasActive === false && partial.lastPhase === "off" && partial.cleanPagehide === false);
+  assert.ok(partial && partial.voiceWasActive === false && partial.lastPhase === "off" && partial.cleanPagehide === false, "assert.ok(partial && partial.voiceWasActive === false && partial.lastPhase === \"off\" && partial.cleanPagehide === false)");
 });
 
 scenario("parseBrainHeartbeat — valid / corrupt / missing fields default", () => {
   const good = parseBrainHeartbeat(JSON.stringify(hb({ droppedFrames: 12, phase: "capturing", visibilityState: "hidden" })));
-  assert.ok(good && good.droppedFrames === 12 && good.phase === "capturing");
-  assert.equal(good!.visibilityState, "hidden");
-  assert.equal(good!.wakeLockHeld, true);
-  assert.equal(parseBrainHeartbeat(null), null);
-  assert.equal(parseBrainHeartbeat("}{"), null);
+  assert.ok(good && good.droppedFrames === 12 && good.phase === "capturing", "assert.ok(good && good.droppedFrames === 12 && good.phase === \"capturing\")");
+  assert.equal(good!.visibilityState, "hidden", "assert.equal(good!.visibilityState, \"hidden\")");
+  assert.equal(good!.wakeLockHeld, true, "assert.equal(good!.wakeLockHeld, true)");
+  assert.equal(parseBrainHeartbeat(null), null, "assert.equal(parseBrainHeartbeat(null), null)");
+  assert.equal(parseBrainHeartbeat("}{"), null, "assert.equal(parseBrainHeartbeat(\"}{\"), null)");
   assert.equal(parseBrainHeartbeat(JSON.stringify({ phase: "wake" })), null, "no at/bootId → null");
   const bare = parseBrainHeartbeat(JSON.stringify({ bootId: "x", at: 1 }));
-  assert.ok(bare && bare.droppedFrames === -1 && bare.wakeInferences === -1 && bare.lastError === null);
-  assert.equal(bare!.visibilityState, "unknown");
-  assert.equal(bare!.wakeLockHeld, null);
+  assert.ok(bare && bare.droppedFrames === -1 && bare.wakeInferences === -1 && bare.lastError === null, "assert.ok(bare && bare.droppedFrames === -1 && bare.wakeInferences === -1 && bare.lastError === null)");
+  assert.equal(bare!.visibilityState, "unknown", "assert.equal(bare!.visibilityState, \"unknown\")");
+  assert.equal(bare!.wakeLockHeld, null, "assert.equal(bare!.wakeLockHeld, null)");
 });
 
 scenario("bootCount increments monotonically across reloads", () => {
@@ -290,7 +290,7 @@ scenario("bootCount increments monotonically across reloads", () => {
     bc = a.bootCount;
     prev = rec({ bootCount: bc, bootAt: 1_000 + i * 1_000 });
   }
-  assert.equal(bc, 5);
+  assert.equal(bc, 5, "assert.equal(bc, 5)");
 });
 
 console.log(`Brain lifecycle smoke: PASS (${count} scenarios)`);

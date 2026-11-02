@@ -18,42 +18,42 @@ function pass(label: string) {
 // Full success.
 assert.deepEqual(
   resolvePipelineStartOutcome({ success: true, slug: "roma-tarihi", projectUrl: "/project/roma-tarihi" }),
-  { kind: "navigate", to: "/project/roma-tarihi" },
+  { kind: "navigate", to: "/project/roma-tarihi" }, "assert.deepEqual(\n  resolvePipelineStartOutcome({ success: true, slug: \"roma-tarihi\", projectUrl: \"/project/roma-tarihi\" }),\n  { kind: \"navigate\", to: \"/project/roma-tarihi\" },\n)",
 );
 pass("success -> navigate");
 
 // Mid-pipeline failure that still created the project.
 assert.deepEqual(
   resolvePipelineStartOutcome({ success: false, error: "Uretim akisi tamamlanamadi.", slug: "roma-tarihi", projectUrl: "/project/roma-tarihi" }),
-  { kind: "navigate", to: "/project/roma-tarihi" },
+  { kind: "navigate", to: "/project/roma-tarihi" }, "assert.deepEqual(\n  resolvePipelineStartOutcome({ success: false, error: \"Uretim akisi tamamlanamadi.\", slug: \"roma-tarihi\", projectUrl: \"/project/roma-tarihi\" }),\n  { kind: \"navigate\", to: \"/project/roma-tarihi\" },\n)",
 );
 pass("failure + project exists -> navigate (not stranded)");
 
 // stopReason stop.
 assert.deepEqual(
   resolvePipelineStartOutcome({ success: false, error: "Stage cancelled.", slug: "x", projectUrl: "/project/x" }),
-  { kind: "navigate", to: "/project/x" },
+  { kind: "navigate", to: "/project/x" }, "assert.deepEqual(\n  resolvePipelineStartOutcome({ success: false, error: \"Stage cancelled.\", slug: \"x\", projectUrl: \"/project/x\" }),\n  { kind: \"navigate\", to: \"/project/x\" },\n)",
 );
 pass("stopReason -> navigate");
 
 // Failure with no project reference at all -> inline error.
 assert.deepEqual(
   resolvePipelineStartOutcome({ success: false, error: "Uretim akisi tamamlanamadi." }),
-  { kind: "error", message: "Uretim akisi tamamlanamadi." },
+  { kind: "error", message: "Uretim akisi tamamlanamadi." }, "assert.deepEqual(\n  resolvePipelineStartOutcome({ success: false, error: \"Uretim akisi tamamlanamadi.\" }),\n  { kind: \"error\", message: \"Uretim akisi tamamlanamadi.\" },\n)",
 );
 pass("failure, no projectUrl -> error with server message");
 
 // Empty topic.
 assert.deepEqual(
   resolvePipelineStartOutcome({ success: false, error: "Konu bos olamaz." }),
-  { kind: "error", message: "Konu bos olamaz." },
+  { kind: "error", message: "Konu bos olamaz." }, "assert.deepEqual(\n  resolvePipelineStartOutcome({ success: false, error: \"Konu bos olamaz.\" }),\n  { kind: \"error\", message: \"Konu bos olamaz.\" },\n)",
 );
 pass("bad topic -> error");
 
 // No body / no error string -> generic fallback message.
-assert.deepEqual(resolvePipelineStartOutcome(undefined), { kind: "error", message: "Üretim akışı tamamlanamadı." });
-assert.deepEqual(resolvePipelineStartOutcome(null), { kind: "error", message: "Üretim akışı tamamlanamadı." });
-assert.deepEqual(resolvePipelineStartOutcome({}), { kind: "error", message: "Üretim akışı tamamlanamadı." });
+assert.deepEqual(resolvePipelineStartOutcome(undefined), { kind: "error", message: "Üretim akışı tamamlanamadı." }, "assert.deepEqual(resolvePipelineStartOutcome(undefined), { kind: \"error\", message: \"Üretim akışı tamamlanamadı.\" })");
+assert.deepEqual(resolvePipelineStartOutcome(null), { kind: "error", message: "Üretim akışı tamamlanamadı." }, "assert.deepEqual(resolvePipelineStartOutcome(null), { kind: \"error\", message: \"Üretim akışı tamamlanamadı.\" })");
+assert.deepEqual(resolvePipelineStartOutcome({}), { kind: "error", message: "Üretim akışı tamamlanamadı." }, "assert.deepEqual(resolvePipelineStartOutcome({}), { kind: \"error\", message: \"Üretim akışı tamamlanamadı.\" })");
 pass("missing body -> generic fallback error");
 
 // Malformed / unsafe projectUrl is NOT navigated to (defence in depth).
@@ -75,7 +75,7 @@ pass("unsafe projectUrl values are refused, fall back to error");
 // A safe slug with digits and multiple dashes navigates.
 assert.deepEqual(
   resolvePipelineStartOutcome({ projectUrl: "/project/fatih-sultan-mehmet-1453" }),
-  { kind: "navigate", to: "/project/fatih-sultan-mehmet-1453" },
+  { kind: "navigate", to: "/project/fatih-sultan-mehmet-1453" }, "assert.deepEqual(\n  resolvePipelineStartOutcome({ projectUrl: \"/project/fatih-sultan-mehmet-1453\" }),\n  { kind: \"navigate\", to: \"/project/fatih-sultan-mehmet-1453\" },\n)",
 );
 pass("multi-segment slug with digits -> navigate");
 

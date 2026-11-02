@@ -152,11 +152,11 @@ async function run() {
       assert.equal(r1.success, true, JSON.stringify(r1));
       if (!r1.success || r1.provider !== "ffmpeg") throw new Error("expected ffmpeg success");
       const p1 = probe(ffprobe, absOut(r1.filePath));
-      assert.equal(p1.video.codec_name, "h264");
-      assert.equal(p1.video.width, 1920);
-      assert.equal(p1.video.height, 1080);
-      assert.equal(p1.video.avg_frame_rate, "30/1");
-      assert.equal(p1.audio.codec_name, "aac");
+      assert.equal(p1.video.codec_name, "h264", "assert.equal(p1.video.codec_name, \"h264\")");
+      assert.equal(p1.video.width, 1920, "assert.equal(p1.video.width, 1920)");
+      assert.equal(p1.video.height, 1080, "assert.equal(p1.video.height, 1080)");
+      assert.equal(p1.video.avg_frame_rate, "30/1", "assert.equal(p1.video.avg_frame_rate, \"30/1\")");
+      assert.equal(p1.audio.codec_name, "aac", "assert.equal(p1.audio.codec_name, \"aac\")");
       // all-cut -> plain concat -> full narration timeline preserved (a small
       // positive frame-rounding excess is expected, never a shortfall).
       assert.ok(
@@ -177,10 +177,10 @@ async function run() {
       assert.equal(r2.success, true, JSON.stringify(r2));
       if (!r2.success || r2.provider !== "ffmpeg") throw new Error("expected ffmpeg success");
       const p2 = probe(ffprobe, absOut(r2.filePath));
-      assert.equal(p2.video.width, 1920);
-      assert.equal(p2.video.height, 1080);
-      assert.equal(p2.video.codec_name, "h264");
-      assert.equal(p2.audio.codec_name, "aac");
+      assert.equal(p2.video.width, 1920, "assert.equal(p2.video.width, 1920)");
+      assert.equal(p2.video.height, 1080, "assert.equal(p2.video.height, 1080)");
+      assert.equal(p2.video.codec_name, "h264", "assert.equal(p2.video.codec_name, \"h264\")");
+      assert.equal(p2.audio.codec_name, "aac", "assert.equal(p2.audio.codec_name, \"aac\")");
       // The invariant: a dissolve at a junction shortens the timeline by at most
       // MAX_BLEND_SECONDS, so N dissolves lose at most N * MAX_BLEND vs the
       // all-cut baseline - the loss is bounded and cannot run away no matter how

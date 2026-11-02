@@ -60,19 +60,19 @@ function run() {
   });
 
   scenario("isProductionAdmissibleRightsStatus: only confirmed-free passes, fail-closed otherwise", () => {
-    assert.equal(isProductionAdmissibleRightsStatus("public-domain"), true);
-    assert.equal(isProductionAdmissibleRightsStatus("open-license"), true);
-    assert.equal(isProductionAdmissibleRightsStatus("verified"), true);
-    assert.equal(isProductionAdmissibleRightsStatus("unknown"), false);
-    assert.equal(isProductionAdmissibleRightsStatus("restricted"), false);
-    assert.equal(isProductionAdmissibleRightsStatus(undefined), false);
-    assert.equal(isProductionAdmissibleRightsStatus(null), false);
+    assert.equal(isProductionAdmissibleRightsStatus("public-domain"), true, "assert.equal(isProductionAdmissibleRightsStatus(\"public-domain\"), true)");
+    assert.equal(isProductionAdmissibleRightsStatus("open-license"), true, "assert.equal(isProductionAdmissibleRightsStatus(\"open-license\"), true)");
+    assert.equal(isProductionAdmissibleRightsStatus("verified"), true, "assert.equal(isProductionAdmissibleRightsStatus(\"verified\"), true)");
+    assert.equal(isProductionAdmissibleRightsStatus("unknown"), false, "assert.equal(isProductionAdmissibleRightsStatus(\"unknown\"), false)");
+    assert.equal(isProductionAdmissibleRightsStatus("restricted"), false, "assert.equal(isProductionAdmissibleRightsStatus(\"restricted\"), false)");
+    assert.equal(isProductionAdmissibleRightsStatus(undefined), false, "assert.equal(isProductionAdmissibleRightsStatus(undefined), false)");
+    assert.equal(isProductionAdmissibleRightsStatus(null), false, "assert.equal(isProductionAdmissibleRightsStatus(null), false)");
   });
 
   scenario("deterministic + case/whitespace-insensitive", () => {
-    assert.equal(classifyMediaRightsStatus("  cc by-sa 4.0  "), classifyMediaRightsStatus("CC BY-SA 4.0"));
-    assert.equal(classifyMediaRightsStatus("PUBLIC DOMAIN"), "public-domain");
-    assert.equal(classifyMediaRightsStatus("cc0"), classifyMediaRightsStatus("CC0"));
+    assert.equal(classifyMediaRightsStatus("  cc by-sa 4.0  "), classifyMediaRightsStatus("CC BY-SA 4.0"), "assert.equal(classifyMediaRightsStatus(\"  cc by-sa 4.0  \"), classifyMediaRightsStatus(\"CC BY-SA 4.0\"))");
+    assert.equal(classifyMediaRightsStatus("PUBLIC DOMAIN"), "public-domain", "assert.equal(classifyMediaRightsStatus(\"PUBLIC DOMAIN\"), \"public-domain\")");
+    assert.equal(classifyMediaRightsStatus("cc0"), classifyMediaRightsStatus("CC0"), "assert.equal(classifyMediaRightsStatus(\"cc0\"), classifyMediaRightsStatus(\"CC0\"))");
   });
 
   scenario("aligns with RealPhotoImageProvider.isFreeLicense (superset)", () => {

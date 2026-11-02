@@ -31,20 +31,20 @@ const env = { ...process.env, ATOLYE_MUSIC_LIBRARY_ROOT: root } as NodeJS.Proces
 
 function run() {
   scenario("normalizeMusicMood maps exact and hinted moods, defaults to dramatic", () => {
-    assert.equal(normalizeMusicMood("epik ve görkemli"), "epic");
-    assert.equal(normalizeMusicMood("Dark, tense battle score"), "tense");
-    assert.equal(normalizeMusicMood("sakin ve huzurlu ambient"), "calm");
-    assert.equal(normalizeMusicMood("ortaçağ folk"), "historical");
-    assert.equal(normalizeMusicMood(""), "dramatic");
-    assert.equal(normalizeMusicMood(undefined), "dramatic");
-    assert.equal(normalizeMusicMood("nothing recognizable here"), "dramatic");
+    assert.equal(normalizeMusicMood("epik ve görkemli"), "epic", "assert.equal(normalizeMusicMood(\"epik ve görkemli\"), \"epic\")");
+    assert.equal(normalizeMusicMood("Dark, tense battle score"), "tense", "assert.equal(normalizeMusicMood(\"Dark, tense battle score\"), \"tense\")");
+    assert.equal(normalizeMusicMood("sakin ve huzurlu ambient"), "calm", "assert.equal(normalizeMusicMood(\"sakin ve huzurlu ambient\"), \"calm\")");
+    assert.equal(normalizeMusicMood("ortaçağ folk"), "historical", "assert.equal(normalizeMusicMood(\"ortaçağ folk\"), \"historical\")");
+    assert.equal(normalizeMusicMood(""), "dramatic", "assert.equal(normalizeMusicMood(\"\"), \"dramatic\")");
+    assert.equal(normalizeMusicMood(undefined), "dramatic", "assert.equal(normalizeMusicMood(undefined), \"dramatic\")");
+    assert.equal(normalizeMusicMood("nothing recognizable here"), "dramatic", "assert.equal(normalizeMusicMood(\"nothing recognizable here\"), \"dramatic\")");
   });
 
   scenario("empty library: every mood lists nothing and selection returns null", () => {
     for (const mood of MUSIC_MOODS) {
-      assert.deepEqual(listTracksForMood(mood, env), []);
+      assert.deepEqual(listTracksForMood(mood, env), [], "assert.deepEqual(listTracksForMood(mood, env), [])");
     }
-    assert.equal(selectMusicTrack("epik", "some-project-slug", env), null);
+    assert.equal(selectMusicTrack("epik", "some-project-slug", env), null, "assert.equal(selectMusicTrack(\"epik\", \"some-project-slug\", env), null)");
   });
 
   scenario("populated library: lists audio files, ignores non-audio, sorts by name", () => {
@@ -53,12 +53,12 @@ function run() {
     fs.writeFileSync(path.join(root, "dramatic", "a-track.mp3"), "ID3");
     fs.writeFileSync(path.join(root, "dramatic", "notes.txt"), "ignore me");
     const tracks = listTracksForMood("dramatic", env);
-    assert.equal(tracks.length, 2);
+    assert.equal(tracks.length, 2, "assert.equal(tracks.length, 2)");
     assert.deepEqual(
       tracks.map((t) => t.fileName),
-      ["a-track.mp3", "b-track.mp3"],
+      ["a-track.mp3", "b-track.mp3"], "assert.deepEqual(\n      tracks.map((t) => t.fileName),\n      [\"a-track.mp3\", \"b-track.mp3\"],\n    )",
     );
-    assert.equal(tracks[0].title, "a-track");
+    assert.equal(tracks[0].title, "a-track", "assert.equal(tracks[0].title, \"a-track\")");
   });
 
   scenario("license sidecar is parsed when present", () => {
@@ -73,18 +73,18 @@ function run() {
       }),
     );
     const track = listTracksForMood("dramatic", env).find((t) => t.fileName === "a-track.mp3");
-    assert.ok(track);
-    assert.equal(track?.title, "Siege March");
-    assert.equal(track?.license, "Pixabay Content License");
+    assert.ok(track, "assert.ok(track)");
+    assert.equal(track?.title, "Siege March", "assert.equal(track?.title, \"Siege March\")");
+    assert.equal(track?.license, "Pixabay Content License", "assert.equal(track?.license, \"Pixabay Content License\")");
   });
 
   scenario("selectMusicTrack is deterministic per seed and falls back across moods", () => {
     // "epic" bucket empty -> falls back to the only populated bucket, "dramatic"
     const first = selectMusicTrack("epik görkemli", "istanbul-1453", env);
     const again = selectMusicTrack("epik görkemli", "istanbul-1453", env);
-    assert.ok(first);
-    assert.equal(first?.mood, "dramatic");
-    assert.deepEqual(first, again);
+    assert.ok(first, "assert.ok(first)");
+    assert.equal(first?.mood, "dramatic", "assert.equal(first?.mood, \"dramatic\")");
+    assert.deepEqual(first, again, "assert.deepEqual(first, again)");
   });
 
   console.log(`Music library smoke: PASS (${count} scenarios)`);

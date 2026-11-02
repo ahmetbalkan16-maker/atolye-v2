@@ -81,34 +81,34 @@ function scene(id: number, keywords: string[]): VisualScene {
 function run() {
   // A ----------------------------------------------------------------
   scenario("A: audit passes for admissible real media, AI-only, and no-media projects", () => {
-    assert.equal(auditProductionMediaRights([realAsset("public-domain", "Public Domain"), realAsset("open-license", "CC BY 4.0")]).pass, true);
-    assert.equal(auditProductionMediaRights([asset({ mediaOrigin: "ai", mediaType: "ai-image", provider: "openai" })]).pass, true);
-    assert.equal(auditProductionMediaRights([asset({ provider: "mock" })]).pass, true);
+    assert.equal(auditProductionMediaRights([realAsset("public-domain", "Public Domain"), realAsset("open-license", "CC BY 4.0")]).pass, true, "assert.equal(auditProductionMediaRights([realAsset(\"public-domain\", \"Public Domain\"), realAsset(\"open-license\", \"CC BY 4.0\")]).pass, true)");
+    assert.equal(auditProductionMediaRights([asset({ mediaOrigin: "ai", mediaType: "ai-image", provider: "openai" })]).pass, true, "assert.equal(auditProductionMediaRights([asset({ mediaOrigin: \"ai\", mediaType: \"ai-image\", provider: \"openai\" })]).pass, true)");
+    assert.equal(auditProductionMediaRights([asset({ provider: "mock" })]).pass, true, "assert.equal(auditProductionMediaRights([asset({ provider: \"mock\" })]).pass, true)");
     const summary = auditProductionMediaRights([realAsset("public-domain", "PD"), realAsset("open-license", "CC BY 4.0"), realAsset("verified", "Museum verified")]);
-    assert.equal(summary.summary.publicDomain, 1);
-    assert.equal(summary.summary.openLicense, 1);
-    assert.equal(summary.summary.verified, 1);
-    assert.equal(summary.realMediaAssetCount, 3);
+    assert.equal(summary.summary.publicDomain, 1, "assert.equal(summary.summary.publicDomain, 1)");
+    assert.equal(summary.summary.openLicense, 1, "assert.equal(summary.summary.openLicense, 1)");
+    assert.equal(summary.summary.verified, 1, "assert.equal(summary.summary.verified, 1)");
+    assert.equal(summary.realMediaAssetCount, 3, "assert.equal(summary.realMediaAssetCount, 3)");
   });
 
   // B ----------------------------------------------------------------
   scenario("B: restricted / unknown / missing-source / drift real assets are rejected", () => {
     const restricted = auditProductionMediaRights([realAsset("restricted", "CC BY-NC 4.0")]);
-    assert.equal(restricted.pass, false);
-    assert.equal(restricted.rejected[0].reason, "rights-not-admissible");
+    assert.equal(restricted.pass, false, "assert.equal(restricted.pass, false)");
+    assert.equal(restricted.rejected[0].reason, "rights-not-admissible", "assert.equal(restricted.rejected[0].reason, \"rights-not-admissible\")");
 
     const unknown = auditProductionMediaRights([asset({ mediaOrigin: "real", rightsStatus: undefined, license: "??", sourceUrl: "https://x/y" })]);
-    assert.equal(unknown.rejected[0].reason, "missing-rights-metadata");
+    assert.equal(unknown.rejected[0].reason, "missing-rights-metadata", "assert.equal(unknown.rejected[0].reason, \"missing-rights-metadata\")");
 
     const noSource = auditProductionMediaRights([realAsset("open-license", "CC BY 4.0", { sourceUrl: undefined })]);
-    assert.equal(noSource.rejected[0].reason, "missing-source-url");
+    assert.equal(noSource.rejected[0].reason, "missing-source-url", "assert.equal(noSource.rejected[0].reason, \"missing-source-url\")");
 
     // recorded status stronger than the licence text actually supports
     const drift = auditProductionMediaRights([realAsset("open-license", "All Rights Reserved")]);
-    assert.equal(drift.rejected[0].reason, "rights-status-drift");
+    assert.equal(drift.rejected[0].reason, "rights-status-drift", "assert.equal(drift.rejected[0].reason, \"rights-status-drift\")");
 
     // verified bypasses the drift check (out-of-band confirmation)
-    assert.equal(auditProductionMediaRights([realAsset("verified", "All Rights Reserved but cleared")]).pass, true);
+    assert.equal(auditProductionMediaRights([realAsset("verified", "All Rights Reserved but cleared")]).pass, true, "assert.equal(auditProductionMediaRights([realAsset(\"verified\", \"All Rights Reserved but cleared\")]).pass, true)");
   });
 
   // C ----------------------------------------------------------------
@@ -126,11 +126,11 @@ function run() {
     const cands = [candidate("photo", ["romanus gate"])];
     const plan = selectSceneMedia({ scenes, candidates: cands, maxAiImages: 4 });
     const overrides = sceneMediaSelectionOverrides(plan);
-    assert.equal(overrides[1], "real");
-    assert.equal(overrides[2], "ai");
+    assert.equal(overrides[1], "real", "assert.equal(overrides[1], \"real\")");
+    assert.equal(overrides[2], "ai", "assert.equal(overrides[2], \"ai\")");
     // explicit operator override is preserved
     const withExplicit = sceneMediaSelectionOverrides(plan, { 1: "ai" });
-    assert.equal(withExplicit[1], "ai");
+    assert.equal(withExplicit[1], "ai", "assert.equal(withExplicit[1], \"ai\")");
   });
 
   // E ----------------------------------------------------------------
@@ -142,12 +142,12 @@ function run() {
       ...Array.from({ length: 4 }, (_, i) => scene(i + 13, [`void scene ${i}`])),
     ];
     const plan = selectSceneMedia({ scenes, candidates: cands, maxAiImages: 4 });
-    assert.equal(plan.realPhotoScenes, 12);
-    assert.equal(plan.aiImageScenes, 4);
+    assert.equal(plan.realPhotoScenes, 12, "assert.equal(plan.realPhotoScenes, 12)");
+    assert.equal(plan.aiImageScenes, 4, "assert.equal(plan.aiImageScenes, 4)");
     const a = sceneMediaSelectionOverrides(plan);
     const b = sceneMediaSelectionOverrides(selectSceneMedia({ scenes, candidates: cands, maxAiImages: 4 }));
-    assert.deepEqual(a, b);
-    assert.equal(Object.values(a).filter((v) => v === "ai").length, 4);
+    assert.deepEqual(a, b, "assert.deepEqual(a, b)");
+    assert.equal(Object.values(a).filter((v) => v === "ai").length, 4, "assert.equal(Object.values(a).filter((v) => v === \"ai\").length, 4)");
   });
 
   // F ----------------------------------------------------------------
@@ -169,15 +169,15 @@ function run() {
     const cands = [candidate("photo", ["archival newsreel"])];
     const scenes = Array.from({ length: 6 }, (_, i) => scene(i + 1, ["archival newsreel"]));
     const plan = selectSceneMedia({ scenes, candidates: cands, maxAiImages: 100 });
-    assert.equal(plan.realPhotoScenes, 1);
-    assert.equal(plan.usedCandidateIds.length, 1);
-    assert.equal(plan.aiImageScenes, 5);
+    assert.equal(plan.realPhotoScenes, 1, "assert.equal(plan.realPhotoScenes, 1)");
+    assert.equal(plan.usedCandidateIds.length, 1, "assert.equal(plan.usedCandidateIds.length, 1)");
+    assert.equal(plan.aiImageScenes, 5, "assert.equal(plan.aiImageScenes, 5)");
   });
 
   // H ----------------------------------------------------------------
   scenario("H: RealMediaProductionFlags default off", () => {
-    assert.equal(isRealMediaSelectionEnabled({} as unknown as NodeJS.ProcessEnv), false);
-    assert.equal(isRealMediaSelectionEnabled({ ATOLYE_REAL_MEDIA_SELECTION: "on" } as unknown as NodeJS.ProcessEnv), true);
+    assert.equal(isRealMediaSelectionEnabled({} as unknown as NodeJS.ProcessEnv), false, "assert.equal(isRealMediaSelectionEnabled({} as unknown as NodeJS.ProcessEnv), false)");
+    assert.equal(isRealMediaSelectionEnabled({ ATOLYE_REAL_MEDIA_SELECTION: "on" } as unknown as NodeJS.ProcessEnv), true, "assert.equal(isRealMediaSelectionEnabled({ ATOLYE_REAL_MEDIA_SELECTION: \"on\" } as unknown as NodeJS.ProcessEnv), true)");
   });
 
   console.log(`Phase 6 production real-media wiring smoke: PASS (${count} scenarios)`);

@@ -60,7 +60,7 @@ async function run() {
   await scenario("decision — deterministic approvalId; same inputs → same id", () => {
     const a = buildSelfHealDecision({ incidentId: "sh-1", decision: "APPROVE", now: NOW });
     const b = buildSelfHealDecision({ incidentId: "sh-1", decision: "APPROVE", now: NOW });
-    assert.equal(a.operatorApprovalId, b.operatorApprovalId);
+    assert.equal(a.operatorApprovalId, b.operatorApprovalId, "assert.equal(a.operatorApprovalId, b.operatorApprovalId)");
     assert.match(a.operatorApprovalId, /^op-[0-9a-f]{8}$/);
     const c = buildSelfHealDecision({ incidentId: "sh-1", decision: "REJECT", now: NOW });
     assert.notEqual(a.operatorApprovalId, c.operatorApprovalId);
@@ -73,11 +73,11 @@ async function run() {
   });
 
   await scenario("canApplyFromDecision — true ONLY for APPROVE", () => {
-    assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "APPROVE", now: NOW })), true);
-    assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "REJECT", now: NOW })), false);
-    assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "LATER", now: NOW })), false);
-    assert.equal(canApplyFromDecision(undefined), false);
-    assert.equal(canApplyFromDecision(null), false);
+    assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "APPROVE", now: NOW })), true, "assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: \"sh-1\", decision: \"APPROVE\", now: NOW })), true)");
+    assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "REJECT", now: NOW })), false, "assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: \"sh-1\", decision: \"REJECT\", now: NOW })), false)");
+    assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: "sh-1", decision: "LATER", now: NOW })), false, "assert.equal(canApplyFromDecision(buildSelfHealDecision({ incidentId: \"sh-1\", decision: \"LATER\", now: NOW })), false)");
+    assert.equal(canApplyFromDecision(undefined), false, "assert.equal(canApplyFromDecision(undefined), false)");
+    assert.equal(canApplyFromDecision(null), false, "assert.equal(canApplyFromDecision(null), false)");
   });
 
   await scenario("describeSelfHealDecision — human line, Turkish verb", () => {
@@ -95,11 +95,11 @@ async function run() {
       store.saveIncident(inc);
       store.recordSelfHealDecision(buildSelfHealDecision({ incidentId: inc.id, decision: "APPROVE", now: NOW }));
       const d = store.loadSelfHealDecision(inc.id);
-      assert.equal(canApplyFromDecision(d), true);
+      assert.equal(canApplyFromDecision(d), true, "assert.equal(canApplyFromDecision(d), true)");
       assert.match(d!.operatorApprovalId, /^op-/);
       // a later REJECT flips it back off
       store.recordSelfHealDecision(buildSelfHealDecision({ incidentId: inc.id, decision: "REJECT", now: "2026-09-12T14:00:00.000Z" }));
-      assert.equal(canApplyFromDecision(store.loadSelfHealDecision(inc.id)), false);
+      assert.equal(canApplyFromDecision(store.loadSelfHealDecision(inc.id)), false, "assert.equal(canApplyFromDecision(store.loadSelfHealDecision(inc.id)), false)");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -107,19 +107,19 @@ async function run() {
 
   await scenario("report view — a SAFE verified incident is decidable (buttons shown)", () => {
     const r = buildBrainReportCenterView({ incidents: [verified(["scripts/smoke-x.ts"])], learned: [], decisions: [], now: NOW }).reports[0];
-    assert.equal(r.canDecide, true);
-    assert.equal(r.needsHumanDirect, false);
+    assert.equal(r.canDecide, true, "assert.equal(r.canDecide, true)");
+    assert.equal(r.needsHumanDirect, false, "assert.equal(r.needsHumanDirect, false)");
   });
 
   await scenario("report view — a REVIEW_REQUIRED verified incident is still decidable by the operator", () => {
     const r = buildBrainReportCenterView({ incidents: [verified(["src/components/brain/voice/wakeWordVoiceAdapter.ts"], "REVIEW_REQUIRED")], learned: [], decisions: [], now: NOW }).reports[0];
-    assert.equal(r.canDecide, true);
+    assert.equal(r.canDecide, true, "assert.equal(r.canDecide, true)");
   });
 
   await scenario("report view — a FORBIDDEN-area fix is needsHumanDirect, NOT decidable", () => {
     const r = buildBrainReportCenterView({ incidents: [verified(["src/lib/brain/selfheal/BrainSelfHealGuards.ts"], "FORBIDDEN_AUTONOMOUS")], learned: [], decisions: [], now: NOW }).reports[0];
-    assert.equal(r.needsHumanDirect, true);
-    assert.equal(r.canDecide, false);
+    assert.equal(r.needsHumanDirect, true, "assert.equal(r.needsHumanDirect, true)");
+    assert.equal(r.canDecide, false, "assert.equal(r.canDecide, false)");
   });
 
   await scenario("report view — once APPROVED, no further decision offered", () => {
@@ -130,8 +130,8 @@ async function run() {
       decisions: [buildSelfHealDecision({ incidentId: inc.id, decision: "APPROVE", now: NOW })],
       now: NOW,
     }).reports[0];
-    assert.equal(r.canDecide, false);
-    assert.equal(r.operatorDecision?.decision, "APPROVE");
+    assert.equal(r.canDecide, false, "assert.equal(r.canDecide, false)");
+    assert.equal(r.operatorDecision?.decision, "APPROVE", "assert.equal(r.operatorDecision?.decision, \"APPROVE\")");
   });
 
   console.log(`Atölye Brain report-approval smoke: PASS (${count} scenarios)`);

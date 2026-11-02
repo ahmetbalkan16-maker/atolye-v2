@@ -18,9 +18,9 @@ const [left, right] = ['a', 'b'];`;
   fs.writeFileSync(path.join(root, file), source);
   const index = indexTypeScript(ts, file, source);
   const method = index.records.find(r => r.owner === 'First' && r.name === 'go');
-  assert.deepEqual(method.calls, ['direct']); // nested function cannot become outer behavior
-  assert.equal(method.returns.length, 1);
-  assert.equal(index.bindings[0].module, 'node:events');
+  assert.deepEqual(method.calls, ['direct'], "assert.deepEqual(method.calls, ['direct'])"); // nested function cannot become outer behavior
+  assert.equal(method.returns.length, 1, "assert.equal(method.returns.length, 1)");
+  assert.equal(index.bindings[0].module, 'node:events', "assert.equal(index.bindings[0].module, 'node:events')");
   const graph: { nodes: Array<{ id: string; label: string; source_file: string; source_location: string; description?: string; community?: number }>; links: Array<{ source: string; target: string; relation: string }> } = {
     nodes: [
       { id: 'fixture_flag', label: 'flag()', source_file: file, source_location: 'L3' },
@@ -32,7 +32,7 @@ const [left, right] = ['a', 'b'];`;
     ], links: [{ source: 'fixture_flag', target: 'fixture_first_go', relation: 'calls' }],
   };
   const result = buildGroundedDescriptions({ root, graph, ts });
-  assert.equal(result.unresolved.length, 0);
+  assert.equal(result.unresolved.length, 0, "assert.equal(result.unresolved.length, 0)");
   assert.match(result.descriptions.fixture_flag, /Reads the requested flag/);
   assert.match(result.descriptions.fixture_first_go, /First\.go.*calls direct/);
   assert.doesNotMatch(result.descriptions.fixture_first_go, /nested/);
@@ -44,11 +44,11 @@ const [left, right] = ['a', 'b'];`;
   assert.throws(() => readSource(root, '../outside.ts'), /OUTSIDE_SCOPE/);
   assert.throws(() => readSource(root, '.env.local'), /OUTSIDE_SCOPE/);
   const stale = buildGroundedDescriptions({ root, ts, graph: { nodes: [{ ...graph.nodes[0], source_sha256: 'invalid' }], links: [] } });
-  assert.equal(stale.unresolved[0].reason, 'COMPLEMENT_SOURCE_HASH_MISMATCH');
+  assert.equal(stale.unresolved[0].reason, 'COMPLEMENT_SOURCE_HASH_MISMATCH', "assert.equal(stale.unresolved[0].reason, 'COMPLEMENT_SOURCE_HASH_MISMATCH')");
   const invariant = graphInvariant(graph);
   graph.nodes[0].description = 'A description';
   graph.nodes[0].community = 8;
-  assert.deepEqual(graphInvariant(graph), invariant);
+  assert.deepEqual(graphInvariant(graph), invariant, "assert.deepEqual(graphInvariant(graph), invariant)");
   graph.nodes[0].source_file = 'changed.ts';
   assert.notDeepEqual(graphInvariant(graph), invariant);
   console.log('PASS: 14 source grounding, method identity, nested-call exclusion, stale-symbol, import, SHA and boundary checks');

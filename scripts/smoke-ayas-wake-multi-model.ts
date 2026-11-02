@@ -193,7 +193,7 @@ async function run() {
     await settle();
 
     assert.deepEqual(finals, ["AYAS"], "UYAN and AYAS both normalize into the SAME canonical wake intent");
-    assert.equal(adapter.getStatus().wakeSource, "uyan-acoustic");
+    assert.equal(adapter.getStatus().wakeSource, "uyan-acoustic", "assert.equal(adapter.getStatus().wakeSource, \"uyan-acoustic\")");
     adapter.dispose();
   });
 
@@ -216,8 +216,8 @@ async function run() {
     backend.push("ayas"); // primary "uyan" model does NOT match this tag
     await settle();
 
-    assert.deepEqual(finals, ["AYAS"]);
-    assert.equal(adapter.getStatus().wakeSource, "ayas-acoustic");
+    assert.deepEqual(finals, ["AYAS"], "assert.deepEqual(finals, [\"AYAS\"])");
+    assert.equal(adapter.getStatus().wakeSource, "ayas-acoustic", "assert.equal(adapter.getStatus().wakeSource, \"ayas-acoustic\")");
     adapter.dispose();
   });
 
@@ -238,8 +238,8 @@ async function run() {
     for (let i = 0; i < 10; i += 1) backend.push(undefined); // silence / unrelated speech
     await settle();
 
-    assert.deepEqual(finals, []);
-    assert.equal(adapter.getStatus().wakeSource, null);
+    assert.deepEqual(finals, [], "assert.deepEqual(finals, [])");
+    assert.equal(adapter.getStatus().wakeSource, null, "assert.equal(adapter.getStatus().wakeSource, null)");
     adapter.dispose();
   });
 
@@ -288,14 +288,14 @@ async function run() {
     adapter.startListening("tr-TR", handlers);
     await settle();
 
-    assert.equal(primary.inits, 1);
-    assert.equal(alias.inits, 1);
-    assert.ok(primary.resets >= 1);
-    assert.ok(alias.resets >= 1);
+    assert.equal(primary.inits, 1, "assert.equal(primary.inits, 1)");
+    assert.equal(alias.inits, 1, "assert.equal(alias.inits, 1)");
+    assert.ok(primary.resets >= 1, "assert.ok(primary.resets >= 1)");
+    assert.ok(alias.resets >= 1, "assert.ok(alias.resets >= 1)");
 
     adapter.dispose();
-    assert.equal(primary.disposes, 1);
-    assert.equal(alias.disposes, 1);
+    assert.equal(primary.disposes, 1, "assert.equal(primary.disposes, 1)");
+    assert.equal(alias.disposes, 1, "assert.equal(alias.disposes, 1)");
   });
 
   await scenario("multi-turn: UYAN wakes turn 1, AYAS (alias) wakes turn 2 — both re-arm cleanly, wakeSource updates each time", async () => {
@@ -317,7 +317,7 @@ async function run() {
 
     backend.push("uyan");
     await settle();
-    assert.equal(adapter.getStatus().wakeSource, "uyan-acoustic");
+    assert.equal(adapter.getStatus().wakeSource, "uyan-acoustic", "assert.equal(adapter.getStatus().wakeSource, \"uyan-acoustic\")");
 
     adapter.endConversation();
     adapter.startListening("tr-TR", handlers);
@@ -325,8 +325,8 @@ async function run() {
 
     backend.push("ayas");
     await settle();
-    assert.equal(adapter.getStatus().wakeSource, "ayas-acoustic");
-    assert.deepEqual(finals, ["AYAS", "AYAS"]);
+    assert.equal(adapter.getStatus().wakeSource, "ayas-acoustic", "assert.equal(adapter.getStatus().wakeSource, \"ayas-acoustic\")");
+    assert.deepEqual(finals, ["AYAS", "AYAS"], "assert.deepEqual(finals, [\"AYAS\", \"AYAS\"])");
     adapter.dispose();
   });
 
@@ -350,7 +350,7 @@ async function run() {
 
     // the ONLY thing a caller ever receives from a wake is the text "AYAS" —
     // never a callable, never an authorization token, never a gate reference.
-    assert.equal(typeof finals[0], "string");
+    assert.equal(typeof finals[0], "string", "assert.equal(typeof finals[0], \"string\")");
     const surface = Object.getOwnPropertyNames(Object.getPrototypeOf(adapter));
     for (const banned of ["enqueue", "run", "execute", "approve", "startPipeline", "openGate", "authorize"]) {
       assert.ok(!surface.includes(banned), `adapter must not expose "${banned}"`);

@@ -55,10 +55,10 @@ async function main() {
         { id: "validate", kind: "validation", action: "run-developer-validation", requestedBy: "planner-smoke", intent: "check", plan: { validationId: "typecheck" }, dependsOn: ["graph"], expectedEvidence: "typecheck result" },
       ],
     });
-    assert.equal(outcome.ok, true);
+    assert.equal(outcome.ok, true, "assert.equal(outcome.ok, true)");
     if (outcome.ok) {
-      assert.equal(outcome.workflow.steps.length, 3);
-      assert.equal(outcome.workflow.state, "planned");
+      assert.equal(outcome.workflow.steps.length, 3, "assert.equal(outcome.workflow.steps.length, 3)");
+      assert.equal(outcome.workflow.state, "planned", "assert.equal(outcome.workflow.state, \"planned\")");
     }
   });
 
@@ -68,7 +68,7 @@ async function main() {
       kind: "automatic-repair", goal: "safe repair plan",
       steps: [{ id: "repair", kind: "repair", proposal, patches, expectedEvidence: "answer becomes 42" }],
     });
-    assert.equal(outcome.ok, true);
+    assert.equal(outcome.ok, true, "assert.equal(outcome.ok, true)");
   });
 
   await scenario("SCENARIO K — planner rejects an unknown/unregistered action, zero execution", () => {
@@ -76,8 +76,8 @@ async function main() {
       kind: "developer", goal: "invented tool",
       steps: [{ id: "bad", kind: "read", action: "run_shell_command", requestedBy: "planner-smoke", intent: "invented", plan: {}, expectedEvidence: "none" }],
     });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "unregistered-action");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "unregistered-action", "assert.equal(outcome.code, \"unregistered-action\")");
   });
 
   await scenario("SCENARIO K(b) — planner rejects a reserved (write-shaped) action id", () => {
@@ -85,8 +85,8 @@ async function main() {
       kind: "developer", goal: "reserved action",
       steps: [{ id: "bad", kind: "read", action: "resume-stage", requestedBy: "planner-smoke", intent: "reserved", plan: {}, expectedEvidence: "none" }],
     });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "unregistered-action");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "unregistered-action", "assert.equal(outcome.code, \"unregistered-action\")");
   });
 
   await scenario("SCENARIO L — planner cannot escalate budget above deterministic ceilings", () => {
@@ -94,8 +94,8 @@ async function main() {
       kind: "developer", goal: "escalate budget", budget: { maxRepairAttempts: 99 },
       steps: [safeReadIntent("status")],
     });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "budget-escalation");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "budget-escalation", "assert.equal(outcome.code, \"budget-escalation\")");
   });
 
   await scenario("SCENARIO L(b) — planner MAY request a narrower budget than the defaults", () => {
@@ -103,8 +103,8 @@ async function main() {
       kind: "developer", goal: "narrower budget", budget: { maxActions: 1 },
       steps: [safeReadIntent("status")],
     });
-    assert.equal(outcome.ok, true);
-    if (outcome.ok) assert.equal(outcome.workflow.budget.maxActions, 1);
+    assert.equal(outcome.ok, true, "assert.equal(outcome.ok, true)");
+    if (outcome.ok) assert.equal(outcome.workflow.budget.maxActions, 1, "assert.equal(outcome.workflow.budget.maxActions, 1)");
     assert.ok(AYAS_DEVELOPER_WORKFLOW_DEFAULT_BUDGET.maxActions > 1, "sanity: the default ceiling is actually wider than what was requested");
   });
 
@@ -114,7 +114,7 @@ async function main() {
       kind: "automatic-repair", goal: "authorization boundary proof",
       steps: [{ id: "repair", kind: "repair", proposal, patches, expectedEvidence: "answer becomes 42" }],
     });
-    assert.equal(outcome.ok, true);
+    assert.equal(outcome.ok, true, "assert.equal(outcome.ok, true)");
     if (!outcome.ok) return;
     let applyCalls = 0;
     await runAyasDeveloperWorkflow(outcome.workflow, { applyRepair: async () => { applyCalls += 1; return { ok: true, lifecycle: "completed" }; } }); // NO authorizations supplied
@@ -129,20 +129,20 @@ async function main() {
       kind: "automatic-repair", goal: "tampered proposal",
       steps: [{ id: "repair", kind: "repair", proposal: tampered, patches, expectedEvidence: "none" }],
     });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "proposal-fingerprint-mismatch");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "proposal-fingerprint-mismatch", "assert.equal(outcome.code, \"proposal-fingerprint-mismatch\")");
   });
 
   await scenario("duplicate step id is rejected", () => {
     const outcome = planAyasDeveloperWorkflow({ kind: "developer", goal: "dup", steps: [safeReadIntent("one"), safeReadIntent("one")] });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "duplicate-step-id");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "duplicate-step-id", "assert.equal(outcome.code, \"duplicate-step-id\")");
   });
 
   await scenario("missing/forward dependency is rejected (delegated to the existing plan validator)", () => {
     const outcome = planAyasDeveloperWorkflow({ kind: "developer", goal: "bad dep", steps: [safeReadIntent("late", ["missing"])] });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "plan-rejected");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "plan-rejected", "assert.equal(outcome.code, \"plan-rejected\")");
   });
 
   await scenario("action/kind mismatch is rejected — a 'graphify' kind step naming a non-Graphify action", () => {
@@ -150,8 +150,8 @@ async function main() {
       kind: "developer", goal: "mismatch",
       steps: [{ id: "bad", kind: "graphify", action: "inspect-repository-status", requestedBy: "planner-smoke", intent: "mismatch", plan: {}, expectedEvidence: "none" }],
     });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "action-kind-mismatch");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "action-kind-mismatch", "assert.equal(outcome.code, \"action-kind-mismatch\")");
   });
 
   await scenario("repair step with no registered validation is rejected", () => {
@@ -164,16 +164,16 @@ async function main() {
     });
     const patches: readonly AyasPatch[] = [{ filePath: rel, operation: "patch-source", expectedHash: hash(before), content: "b\n" }];
     const outcome = planAyasDeveloperWorkflow({ kind: "automatic-repair", goal: "no validation", steps: [{ id: "repair", kind: "repair", proposal, patches, expectedEvidence: "x" }] });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "no-validation-for-repair");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "no-validation-for-repair", "assert.equal(outcome.code, \"no-validation-for-repair\")");
   });
 
   await scenario("empty plan and oversize plan are rejected", () => {
-    assert.equal(planAyasDeveloperWorkflow({ kind: "developer", goal: "empty", steps: [] }).ok, false);
+    assert.equal(planAyasDeveloperWorkflow({ kind: "developer", goal: "empty", steps: [] }).ok, false, "assert.equal(planAyasDeveloperWorkflow({ kind: \"developer\", goal: \"empty\", steps: [] }).ok, false)");
     const many = Array.from({ length: AYAS_DEVELOPER_WORKFLOW_DEFAULT_BUDGET.maxSteps + 5 }, (_, i) => safeReadIntent(`s${i}`));
     const outcome = planAyasDeveloperWorkflow({ kind: "developer", goal: "too many", steps: many });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "too-many-steps");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "too-many-steps", "assert.equal(outcome.code, \"too-many-steps\")");
   });
 
   await scenario("ADVERSARIAL — shell-injection-shaped content inside a plan field is rejected (reuses AyasExecutionPolicy's own shell-like-content check, not re-implemented)", () => {
@@ -181,8 +181,8 @@ async function main() {
       kind: "developer", goal: "shell injection attempt",
       steps: [{ id: "bad", kind: "read", action: "inspect-source-file", requestedBy: "planner-smoke", intent: "x", plan: { filePath: "src/a.ts; rm -rf /" }, expectedEvidence: "none" }],
     });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "malformed-action-input");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "malformed-action-input", "assert.equal(outcome.code, \"malformed-action-input\")");
   });
 
   await scenario("ADVERSARIAL — a write-classified action id would be rejected even if one existed on the allowlist (defense in depth, currently structurally unreachable since every registered action is read-only)", () => {
@@ -191,13 +191,13 @@ async function main() {
     // planner's own `validated.spec.write` guard (AyasWorkflowPlanner.ts) is
     // retained as defense in depth for whenever a write action is added.
     const outcome = planAyasDeveloperWorkflow({ kind: "developer", goal: "sanity", steps: [safeReadIntent("status")] });
-    assert.equal(outcome.ok, true);
+    assert.equal(outcome.ok, true, "assert.equal(outcome.ok, true)");
   });
 
   await scenario("invalid step id shape is rejected", () => {
     const outcome = planAyasDeveloperWorkflow({ kind: "developer", goal: "bad id", steps: [{ id: "../escape", kind: "read", action: "inspect-repository-status", requestedBy: "x", intent: "y", plan: {}, expectedEvidence: "z" }] });
-    assert.equal(outcome.ok, false);
-    if (!outcome.ok) assert.equal(outcome.code, "invalid-step-id");
+    assert.equal(outcome.ok, false, "assert.equal(outcome.ok, false)");
+    if (!outcome.ok) assert.equal(outcome.code, "invalid-step-id", "assert.equal(outcome.code, \"invalid-step-id\")");
   });
 
   console.log(`AYAS workflow planner smoke: PASS (${count} scenarios)`);

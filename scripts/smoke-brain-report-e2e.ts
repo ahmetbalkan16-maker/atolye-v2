@@ -101,25 +101,25 @@ async function run() {
       const inc = store.saveIncident(verifiedIncident());
 
       const snap = loadBrainSelfHealSnapshot({ rootDir: root, now: () => NOW });
-      assert.equal(snap.error, null);
-      assert.equal(snap.reportCenter.reports.length, 1);
+      assert.equal(snap.error, null, "assert.equal(snap.error, null)");
+      assert.equal(snap.reportCenter.reports.length, 1, "assert.equal(snap.reportCenter.reports.length, 1)");
       const r = snap.reportCenter.reports[0];
-      assert.equal(r.id, inc.id);
-      assert.equal(r.bucket, "awaiting");
-      assert.equal(r.canDecide, true);
-      assert.equal(r.needsHumanDirect, false);
-      assert.equal(r.confidence, 0.91);
+      assert.equal(r.id, inc.id, "assert.equal(r.id, inc.id)");
+      assert.equal(r.bucket, "awaiting", "assert.equal(r.bucket, \"awaiting\")");
+      assert.equal(r.canDecide, true, "assert.equal(r.canDecide, true)");
+      assert.equal(r.needsHumanDirect, false, "assert.equal(r.needsHumanDirect, false)");
+      assert.equal(r.confidence, 0.91, "assert.equal(r.confidence, 0.91)");
       assert.match(r.rootCause ?? "", /pre-roll/);
-      assert.ok(r.timeline.length >= 3);
-      assert.equal(r.sandbox, "PASS");
-      assert.equal(r.regression, "PASS");
-      assert.equal(r.security, "PASS");
-      assert.ok(r.proposedFix);
-      assert.equal(snap.reportCenter.counts.awaitingApproval, 1);
-      assert.equal(snap.reportCenter.counts.open, 1);
-      assert.equal(snap.reportCenter.systemHealthPercent, 97);
+      assert.ok(r.timeline.length >= 3, "assert.ok(r.timeline.length >= 3)");
+      assert.equal(r.sandbox, "PASS", "assert.equal(r.sandbox, \"PASS\")");
+      assert.equal(r.regression, "PASS", "assert.equal(r.regression, \"PASS\")");
+      assert.equal(r.security, "PASS", "assert.equal(r.security, \"PASS\")");
+      assert.ok(r.proposedFix, "assert.ok(r.proposedFix)");
+      assert.equal(snap.reportCenter.counts.awaitingApproval, 1, "assert.equal(snap.reportCenter.counts.awaitingApproval, 1)");
+      assert.equal(snap.reportCenter.counts.open, 1, "assert.equal(snap.reportCenter.counts.open, 1)");
+      assert.equal(snap.reportCenter.systemHealthPercent, 97, "assert.equal(snap.reportCenter.systemHealthPercent, 97)");
       // no raw diff leaks through the snapshot
-      assert.equal(JSON.stringify(snap.reportCenter).includes("@@ -1,3"), false);
+      assert.equal(JSON.stringify(snap.reportCenter).includes("@@ -1,3"), false, "assert.equal(JSON.stringify(snap.reportCenter).includes(\"@@ -1,3\"), false)");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -139,16 +139,16 @@ async function run() {
 
       const snap = loadBrainSelfHealSnapshot({ rootDir: root, now: () => NOW });
       const r = snap.reportCenter.reports[0];
-      assert.equal(r.bucket, "investigating");
+      assert.equal(r.bucket, "investigating", "assert.equal(r.bucket, \"investigating\")");
       assert.equal(r.canDecide, false, "no further decision offered after APPROVE");
-      assert.equal(r.operatorDecision?.decision, "APPROVE");
-      assert.equal(r.operatorDecision?.operatorApprovalId, decision.operatorApprovalId);
-      assert.equal(snap.reportCenter.counts.awaitingApproval, 0);
+      assert.equal(r.operatorDecision?.decision, "APPROVE", "assert.equal(r.operatorDecision?.decision, \"APPROVE\")");
+      assert.equal(r.operatorDecision?.operatorApprovalId, decision.operatorApprovalId, "assert.equal(r.operatorDecision?.operatorApprovalId, decision.operatorApprovalId)");
+      assert.equal(snap.reportCenter.counts.awaitingApproval, 0, "assert.equal(snap.reportCenter.counts.awaitingApproval, 0)");
 
       // the CLI `apply` gate (no --operator flag) resolves the id from the store
       const stored = store.loadSelfHealDecision(inc.id);
-      assert.equal(canApplyFromDecision(stored), true);
-      assert.equal(stored!.operatorApprovalId, decision.operatorApprovalId);
+      assert.equal(canApplyFromDecision(stored), true, "assert.equal(canApplyFromDecision(stored), true)");
+      assert.equal(stored!.operatorApprovalId, decision.operatorApprovalId, "assert.equal(stored!.operatorApprovalId, decision.operatorApprovalId)");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -161,10 +161,10 @@ async function run() {
       const inc = store.saveIncident(verifiedIncident());
       store.recordSelfHealDecision(buildSelfHealDecision({ incidentId: inc.id, decision: "APPROVE", now: NOW }));
       store.recordSelfHealDecision(buildSelfHealDecision({ incidentId: inc.id, decision: "REJECT", now: "2026-09-12T19:00:00.000Z" }));
-      assert.equal(canApplyFromDecision(store.loadSelfHealDecision(inc.id)), false);
+      assert.equal(canApplyFromDecision(store.loadSelfHealDecision(inc.id)), false, "assert.equal(canApplyFromDecision(store.loadSelfHealDecision(inc.id)), false)");
       const snap = loadBrainSelfHealSnapshot({ rootDir: root, now: () => NOW });
       assert.equal(snap.reportCenter.reports[0].bucket, "awaiting", "REJECT → decidable again");
-      assert.equal(snap.reportCenter.reports[0].canDecide, true);
+      assert.equal(snap.reportCenter.reports[0].canDecide, true, "assert.equal(snap.reportCenter.reports[0].canDecide, true)");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -190,14 +190,14 @@ async function run() {
       store.saveLearnedPattern(learned);
 
       const snap = loadBrainSelfHealSnapshot({ rootDir: root, now: () => NOW });
-      assert.equal(snap.reportCenter.reports[0].bucket, "resolved");
-      assert.equal(snap.reportCenter.reports[0].watchdog.verdict, "HEALED");
-      assert.equal(snap.reportCenter.learning.length, 1);
-      assert.equal(snap.reportCenter.counts.resolved, 1);
-      assert.equal(snap.reportCenter.counts.learnedPatterns, 1);
+      assert.equal(snap.reportCenter.reports[0].bucket, "resolved", "assert.equal(snap.reportCenter.reports[0].bucket, \"resolved\")");
+      assert.equal(snap.reportCenter.reports[0].watchdog.verdict, "HEALED", "assert.equal(snap.reportCenter.reports[0].watchdog.verdict, \"HEALED\")");
+      assert.equal(snap.reportCenter.learning.length, 1, "assert.equal(snap.reportCenter.learning.length, 1)");
+      assert.equal(snap.reportCenter.counts.resolved, 1, "assert.equal(snap.reportCenter.counts.resolved, 1)");
+      assert.equal(snap.reportCenter.counts.learnedPatterns, 1, "assert.equal(snap.reportCenter.counts.learnedPatterns, 1)");
 
       // "AYAS, rapor ver" answers from this snapshot, deterministically
-      assert.deepEqual(detectAyasReportIntent("AYAS rapor ver"), { kind: "summary" });
+      assert.deepEqual(detectAyasReportIntent("AYAS rapor ver"), { kind: "summary" }, "assert.deepEqual(detectAyasReportIntent(\"AYAS rapor ver\"), { kind: \"summary\" })");
       const spoken = buildAyasReportSpokenAnswer(snap.reportCenter, { kind: "summary" });
       assert.match(spoken, /açık bir sorun yok/i);
       assert.match(spoken, /1 doğrulanmış çözüm öğrenildi/);
@@ -209,9 +209,9 @@ async function run() {
   await scenario("chain — a missing store → empty Report Center view, no crash", () => {
     const root = path.join(tmp(), "does-not-exist-yet");
     const snap = loadBrainSelfHealSnapshot({ rootDir: root, now: () => NOW });
-    assert.equal(snap.error, null);
-    assert.equal(snap.reportCenter.reports.length, 0);
-    assert.equal(snap.reportCenter.systemHealthPercent, 100);
+    assert.equal(snap.error, null, "assert.equal(snap.error, null)");
+    assert.equal(snap.reportCenter.reports.length, 0, "assert.equal(snap.reportCenter.reports.length, 0)");
+    assert.equal(snap.reportCenter.systemHealthPercent, 100, "assert.equal(snap.reportCenter.systemHealthPercent, 100)");
     assert.match(buildAyasReportSpokenAnswer(snap.reportCenter, { kind: "summary" }), /açık bir sorun yok/i);
   });
 

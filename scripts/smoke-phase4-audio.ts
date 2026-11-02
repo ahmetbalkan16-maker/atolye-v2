@@ -90,38 +90,38 @@ async function run() {
     reset();
     const p = await proj(`p4 A ${Date.now()}`);
     const o = await stage(p.id, p.slug, ["battle cannon"]);
-    assert.equal(o.staged, false);
-    if (!o.staged) assert.equal(o.reason, "no-track-in-library");
-    assert.equal(AssetManager.getProjectAssets(p.slug, p.id, ctx).assets.some((a) => a.id === BACKGROUND_MUSIC_ASSET_ID), false);
+    assert.equal(o.staged, false, "assert.equal(o.staged, false)");
+    if (!o.staged) assert.equal(o.reason, "no-track-in-library", "assert.equal(o.reason, \"no-track-in-library\")");
+    assert.equal(AssetManager.getProjectAssets(p.slug, p.id, ctx).assets.some((a) => a.id === BACKGROUND_MUSIC_ASSET_ID), false, "assert.equal(AssetManager.getProjectAssets(p.slug, p.id, ctx).assets.some((a) => a.id === BACKGROUND_MUSIC_ASSET_ID), false)");
   });
 
   await scenario("B: narration + music -> music bed staged", async () => {
     reset(); addMusic("bed.wav", "CC0 1.0");
     const p = await proj(`p4 B ${Date.now()}`);
     const o = await stage(p.id, p.slug);
-    assert.equal(o.staged, true);
+    assert.equal(o.staged, true, "assert.equal(o.staged, true)");
     if (!o.staged) return;
-    assert.equal(o.asset.mediaType, "music");
-    assert.equal(o.asset.rightsStatus, "public-domain");
+    assert.equal(o.asset.mediaType, "music", "assert.equal(o.asset.mediaType, \"music\")");
+    assert.equal(o.asset.rightsStatus, "public-domain", "assert.equal(o.asset.rightsStatus, \"public-domain\")");
   });
 
   await scenario("C: narration + ambience only -> ambience bed staged", async () => {
     reset(); addAmbience("wind.wav", "Public Domain");
     const p = await proj(`p4 C ${Date.now()}`);
     const o = await stage(p.id, p.slug, ["wind ambience over the walls"]);
-    assert.equal(o.staged, true);
+    assert.equal(o.staged, true, "assert.equal(o.staged, true)");
     if (!o.staged) return;
-    assert.equal(o.track, null);
-    assert.equal(o.asset.mediaType, "ambience");
+    assert.equal(o.track, null, "assert.equal(o.track, null)");
+    assert.equal(o.asset.mediaType, "ambience", "assert.equal(o.asset.mediaType, \"ambience\")");
   });
 
   await scenario("D: narration + music + ambience -> bed staged (mixed or music-only)", async () => {
     reset(); addMusic("bed.wav", "CC0 1.0"); addAmbience("wind.wav", "CC0");
     const p = await proj(`p4 D ${Date.now()}`);
     const o = await stage(p.id, p.slug, ["wind ambience", "distant sea"]);
-    assert.equal(o.staged, true);
+    assert.equal(o.staged, true, "assert.equal(o.staged, true)");
     if (!o.staged) return;
-    assert.ok(o.asset.filePath?.endsWith("/bgm.wav"));
+    assert.ok(o.asset.filePath?.endsWith("/bgm.wav"), "assert.ok(o.asset.filePath?.endsWith(\"/bgm.wav\"))");
   });
 
   await scenario("E: ducking - resolveBackgroundMusic returns ducking on, volume in range", async () => {
@@ -129,16 +129,16 @@ async function run() {
     const p = await proj(`p4 E ${Date.now()}`);
     await stage(p.id, p.slug);
     const bgm = resolveBackgroundMusic(p.slug, AssetManager.getProjectAssets(p.slug, p.id, ctx).assets);
-    assert.equal(bgm?.ducking, true);
-    assert.ok((bgm?.volume ?? 0) > 0 && (bgm?.volume ?? 0) <= 2.0);
+    assert.equal(bgm?.ducking, true, "assert.equal(bgm?.ducking, true)");
+    assert.ok((bgm?.volume ?? 0) > 0 && (bgm?.volume ?? 0) <= 2.0, "assert.ok((bgm?.volume ?? 0) > 0 && (bgm?.volume ?? 0) <= 2.0)");
   });
 
   await scenario("F: rights rejection - restricted music + restricted ambience -> nothing staged", async () => {
     reset(); addMusic("arr.wav", "All Rights Reserved"); addAmbience("crowd.wav", "Copyrighted");
     const p = await proj(`p4 F ${Date.now()}`);
     const o = await stage(p.id, p.slug, ["crowd ambience"]);
-    assert.equal(o.staged, false);
-    if (!o.staged) assert.equal(o.reason, "rights-not-admissible");
+    assert.equal(o.staged, false, "assert.equal(o.staged, false)");
+    if (!o.staged) assert.equal(o.reason, "rights-not-admissible", "assert.equal(o.reason, \"rights-not-admissible\")");
   });
 
   await scenario("G: deterministic - same project + library -> same track", async () => {
@@ -146,9 +146,9 @@ async function run() {
     const p = await proj(`p4 G ${Date.now()}`);
     const first = await stage(p.id, p.slug);
     const second = await stage(p.id, p.slug);
-    assert.ok(first.staged && second.staged);
+    assert.ok(first.staged && second.staged, "assert.ok(first.staged && second.staged)");
     if (!first.staged || !second.staged) return;
-    assert.equal(first.track?.fileName, second.track?.fileName);
+    assert.equal(first.track?.fileName, second.track?.fileName, "assert.equal(first.track?.fileName, second.track?.fileName)");
   });
 
   await scenario("H: duplicate avoidance - re-run keeps a single bgm asset", async () => {
@@ -157,7 +157,7 @@ async function run() {
     await stage(p.id, p.slug);
     await stage(p.id, p.slug);
     const bgm = AssetManager.getProjectAssets(p.slug, p.id, ctx).assets.filter((a) => a.id === BACKGROUND_MUSIC_ASSET_ID);
-    assert.equal(bgm.length, 1);
+    assert.equal(bgm.length, 1, "assert.equal(bgm.length, 1)");
   });
 
   await scenario("I: backward compat - a legacy bgm asset with no provenance still resolves", async () => {
@@ -170,8 +170,8 @@ async function run() {
       byteLength: saved.byteLength, durationSeconds: saved.durationSeconds, createdAt: NOW,
     }), ctx);
     const bgm = resolveBackgroundMusic(p.slug, AssetManager.getProjectAssets(p.slug, p.id, ctx).assets);
-    assert.ok(bgm?.filePath.endsWith("/bgm.wav"));
-    assert.equal(bgm?.ducking, true);
+    assert.ok(bgm?.filePath.endsWith("/bgm.wav"), "assert.ok(bgm?.filePath.endsWith(\"/bgm.wav\"))");
+    assert.equal(bgm?.ducking, true, "assert.equal(bgm?.ducking, true)");
   });
 
   console.log(`Phase 4 audio/music/SFX smoke: PASS (${count} scenarios)`);

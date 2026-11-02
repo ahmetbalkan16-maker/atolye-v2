@@ -68,7 +68,7 @@ async function captureError(operation: () => Promise<unknown>) {
   try {
     await operation();
   } catch (error) {
-    assert.ok(error instanceof Error);
+    assert.ok(error instanceof Error, "assert.ok(error instanceof Error)");
     return error;
   }
 
@@ -81,22 +81,22 @@ function assertIdentifiedError(
   failure: PipelineStateFailure,
   rawMarker: string,
 ) {
-  assert.ok(error instanceof PipelineStateError);
+  assert.ok(error instanceof PipelineStateError, "assert.ok(error instanceof PipelineStateError)");
   assert.match(error.message, new RegExp(fileName.replace(".", "\\.")));
-  assert.equal(error.failure, failure);
-  assert.equal(error.message.includes(rawMarker), false);
+  assert.equal(error.failure, failure, "assert.equal(error.failure, failure)");
+  assert.equal(error.message.includes(rawMarker), false, "assert.equal(error.message.includes(rawMarker), false)");
 }
 
 async function testMissingFiles() {
   await fs.rm(projectFolder, { recursive: true, force: true });
 
   const jobs = await readJobs();
-  assert.equal(jobs.projectSlug, slug);
-  assert.deepEqual(jobs.jobs, []);
+  assert.equal(jobs.projectSlug, slug, "assert.equal(jobs.projectSlug, slug)");
+  assert.deepEqual(jobs.jobs, [], "assert.deepEqual(jobs.jobs, [])");
 
   const history = await PipelineJobManager.listHistory(slug);
-  assert.equal(history.projectSlug, slug);
-  assert.deepEqual(history.events, []);
+  assert.equal(history.projectSlug, slug, "assert.equal(history.projectSlug, slug)");
+  assert.deepEqual(history.events, [], "assert.deepEqual(history.events, [])");
   await assert.rejects(fs.access(jobsFile));
   await assert.rejects(fs.access(historyFile));
 }
@@ -112,7 +112,7 @@ async function testMalformedJobs() {
     "malformed",
     "private-jobs-marker",
   );
-  assert.equal(await fs.readFile(jobsFile, "utf-8"), raw);
+  assert.equal(await fs.readFile(jobsFile, "utf-8"), raw, "assert.equal(await fs.readFile(jobsFile, \"utf-8\"), raw)");
 }
 
 async function testMalformedHistory() {
@@ -126,7 +126,7 @@ async function testMalformedHistory() {
     "malformed",
     "private-history-marker",
   );
-  assert.equal(await fs.readFile(historyFile, "utf-8"), raw);
+  assert.equal(await fs.readFile(historyFile, "utf-8"), raw, "assert.equal(await fs.readFile(historyFile, \"utf-8\"), raw)");
 }
 
 async function testStructurallyInvalidJobs() {
@@ -146,7 +146,7 @@ async function testStructurallyInvalidJobs() {
     "invalid",
     rawMarker,
   );
-  assert.equal(await fs.readFile(jobsFile, "utf-8"), raw);
+  assert.equal(await fs.readFile(jobsFile, "utf-8"), raw, "assert.equal(await fs.readFile(jobsFile, \"utf-8\"), raw)");
 }
 
 async function testStructurallyInvalidHistory() {
@@ -166,15 +166,15 @@ async function testStructurallyInvalidHistory() {
     "invalid",
     rawMarker,
   );
-  assert.equal(await fs.readFile(historyFile, "utf-8"), raw);
+  assert.equal(await fs.readFile(historyFile, "utf-8"), raw, "assert.equal(await fs.readFile(historyFile, \"utf-8\"), raw)");
 }
 
 async function testValidPayloads() {
   await writeRaw(jobsFile, JSON.stringify(validJobs, null, 2));
   await writeRaw(historyFile, JSON.stringify(validHistory, null, 2));
 
-  assert.deepEqual(await readJobs(), validJobs);
-  assert.deepEqual(await PipelineJobManager.listHistory(slug), validHistory);
+  assert.deepEqual(await readJobs(), validJobs, "assert.deepEqual(await readJobs(), validJobs)");
+  assert.deepEqual(await PipelineJobManager.listHistory(slug), validHistory, "assert.deepEqual(await PipelineJobManager.listHistory(slug), validHistory)");
 }
 
 async function main() {
