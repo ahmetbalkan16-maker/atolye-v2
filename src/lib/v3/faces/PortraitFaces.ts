@@ -36,15 +36,65 @@ export async function leadImage(cacheDir: string, article: string, lang = "en"):
   return name ? `File:${name}` : undefined;
 }
 
-/** Portrait candidates: the lead image first, then the article's other images, then a Commons search. */
+/** How many portraits the vision judge looks at per person. */
+export const MAX_PORTRAIT_CANDIDATES = 8;
+
+const plain = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ı/g, "i");
+/** A ruler's number after the name ("Murad I", "Mehmed II"). */
+const ROMAN = /^(?:i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii|xiii|xiv|xv|xvi)$/;
+/** Words of a name that say nothing about who it is ("the Great", "Sultan"). */
+const NOT_A_NAME = new Set(["the", "great", "king", "queen", "sultan", "emperor", "empress", "prince", "princess", "saint", "pope", "lord", "lady", "duke", "first", "second", "third", "magnificent", "conqueror", "elder", "younger"]);
+
+/**
+ * Whether a picture's file name (or the start of its description) names the person: one name word, compared by its
+ * first four letters so "Julio César" and "Iulius" still name Julius Caesar. The Caesar Short of 2 Nov 2026 was drawn
+ * after a bust of Pompey from Caesar's own article — the judge called it "Pompey's marble bust" and still scored it
+ * 10/10 as Caesar.
+ */
+export function namesPerson(c: Pick<CommonsCandidate, "title" | "description">, p: Pick<PortraitPerson, "ad" | "wiki">): boolean {
+  const words = (s: string) => plain(s).split(/[^a-z]+/).filter(Boolean);
+  const all = [...new Set([...words(p.wiki.replace(/\(.*?\)/g, "")), ...words(p.ad)])].filter((w) => !NOT_A_NAME.has(w) && !ROMAN.test(w));
+  const names = all.filter((w) => w.length >= 4).length ? all.filter((w) => w.length >= 4) : all.filter((w) => w.length >= 3);
+  const said = words(`${c.title.replace(/^File:/, "").replace(/\.\w+$/, "")} ${c.description.slice(0, 200)}`);
+  const isName = (w: string) => names.some((n) => w.startsWith(n.slice(0, 4)) || (w.length >= 4 && n.startsWith(w)));
+  if (!said.some(isName)) return false;
+  // A ruler's number: "Murad III" is not Murad I, nor is "Mir Ali Murad Khan". A person with a number needs it after
+  // their name in the picture's words (the article's lead image is judged without this).
+  const own = words(p.wiki).find((w) => ROMAN.test(w));
+  return !own || said.some((w, i) => isName(w) && said[i + 1] === own);
+}
+
+/**
+ * Portrait candidates: the article's lead image first (Wikipedia's choice of the person's likeness, judged even when its
+ * file name does not say who it is), then — taken in turn, so no one source fills the list — the article's other
+ * pictures and Commons' portraits, paintings and photographs (owner, 2 Nov 2026: "sadece büstlerden değil internetten
+ * fotoğraflardan çizilmiş tablolardan da yapabilir"). Until then the article's own pictures filled all six places, and
+ * a painting or photograph from Commons never reached the judge. Every one but the lead image must name the person.
+ */
 export async function portraitCandidates(cacheDir: string, p: PortraitPerson): Promise<CommonsCandidate[]> {
-  const out: CommonsCandidate[] = [];
+  const search = (q: string) => searchCommons(cacheDir, q, { minWidth: 400, landscape: false, limit: 8 }).catch(() => [] as CommonsCandidate[]);
   const lead = await leadImage(cacheDir, p.wiki).catch(() => undefined);
-  if (lead) out.push(...(await commonsByTitles(cacheDir, [lead], "wikipedia").catch(() => [])));
-  out.push(...(await wikipediaCandidates(cacheDir, p.wiki).catch(() => [])));
-  out.push(...(await searchCommons(cacheDir, `${p.wiki} portrait`, { minWidth: 400, landscape: false, limit: 8 }).catch(() => [])));
-  const seen = new Set<string>();
-  return out.filter((c) => !seen.has(c.url) && seen.add(c.url) && (c.width === 0 || c.height >= 400));
+  const [first, article, portraits, paintings, photographs] = await Promise.all([
+    lead ? commonsByTitles(cacheDir, [lead], "wikipedia").catch(() => [] as CommonsCandidate[]) : Promise.resolve([] as CommonsCandidate[]),
+    wikipediaCandidates(cacheDir, p.wiki).catch(() => [] as CommonsCandidate[]),
+    search(`${p.wiki} portrait`),
+    search(`${p.wiki} painting`),
+    search(`${p.wiki} photograph`),
+  ]);
+  const usable = (c: CommonsCandidate) => c.width === 0 || c.height >= 400;
+  const out = first.filter(usable).slice(0, 1);
+  const seen = new Set(out.map((c) => c.url));
+  const queues = [article, portraits, paintings, photographs].map((q) => q.filter((c) => usable(c) && namesPerson(c, p)));
+  while (out.length < MAX_PORTRAIT_CANDIDATES && queues.some((q) => q.length)) {
+    for (const q of queues) {
+      const next = q.shift();
+      if (next && !seen.has(next.url) && out.length < MAX_PORTRAIT_CANDIDATES) {
+        seen.add(next.url);
+        out.push(next);
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -60,13 +110,13 @@ export async function findPortrait(input: {
   readonly log: (s: string) => void;
 }): Promise<PortraitResult | undefined> {
   const { person, log } = input;
-  const candidates = (await portraitCandidates(input.cacheDir, person)).slice(0, 6);
+  const candidates = await portraitCandidates(input.cacheDir, person);
   if (!candidates.length) {
     log(`⚠ ${person.ad}: portre adayı bulunamadı ("${person.wiki}")`);
     return undefined;
   }
   const scene = { konu: person.ad, donem: input.donem, mekan: person.rol, tr: person.ad, en: person.wiki, anlatim: "" };
-  const pick = await pickBackground(candidates, scene, input.judge, (c) => commonsPreview(input.cacheDir, c), log, { mode: "portre", max: 6 });
+  const pick = await pickBackground(candidates, scene, input.judge, (c) => commonsPreview(input.cacheDir, c), log, { mode: "portre", max: MAX_PORTRAIT_CANDIDATES });
   for (const v of pick.verdicts) log(`  ${person.ad} portre ${passes(v) ? "✓" : "·"} ${verdictLine(v)}`);
   const traditional = pick.chosen ? undefined : traditionalPortrait(pick.verdicts, periodEndYear(input.donem));
   const chosen = pick.chosen ?? (traditional ? candidates[pick.verdicts.indexOf(traditional)] : undefined);

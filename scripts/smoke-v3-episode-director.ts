@@ -10,7 +10,7 @@ import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, se
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
 import { applyParts, rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
-import { traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
+import { namesPerson, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
 import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
@@ -1184,6 +1184,21 @@ async function main() {
     assert.equal(traditionalPortrait([v(9, 3, { tur: "fotograf" })], -44), undefined, "a photograph of a statue's copy is not a portrait");
     assert.deepEqual(previewUrls("https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/500px-F.jpg"), ["https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/500px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/330px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/250px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/960px-F.jpg", "https://upload.wikimedia.org/x/thumb/a/ab/F.jpg/640px-F.jpg"]);
     assert.deepEqual(previewUrls("https://images.metmuseum.org/a.jpg"), ["https://images.metmuseum.org/a.jpg"]);
+  });
+
+  await scenario("O24b a portrait must name the person (Caesar Short, 2 Nov 2026: drawn after a bust of Pompey); a ruler's number must match", () => {
+    const pic = (title: string, description = "") => ({ title: `File:${title}`, description });
+    const caesar = { ad: "Julius Caesar", wiki: "Julius Caesar" };
+    assert.equal(namesPerson(pic("(Venice) Pompey the Great, Museo Archeologico Nazionale.jpg"), caesar), false, "Pompey from Caesar's own article");
+    assert.equal(namesPerson(pic("Augustus Bevilacqua Glyptothek Munich 317.jpg"), caesar), false);
+    for (const t of ["Bust of Gaius Iulius Caesar in Naples.jpg", "Retrato de Julio César (26724093101) (cropped).jpg", "Caesar-Altes-Museum-Berlin.jpg", "Lionel Royer - Vercingetorix Throwing down His Weapons at the feet of Julius Caesar.jpg"]) assert.equal(namesPerson(pic(t), caesar), true, t);
+    assert.equal(namesPerson(pic("Tusculum bust.jpg", "Portrait of Julius Caesar, Tusculum"), caesar), true, "the description's start may name them");
+    const murad = { ad: "Murad I", wiki: "Murad I" };
+    assert.equal(namesPerson(pic("Paolo Veronese (Nachfolger) - Bildnis des Sultans Murad I. (1359-1389).jpg"), murad), true);
+    assert.equal(namesPerson(pic("Lütfi Abdullah - Scene of Feasting from Sultan Murad III's Siyer-i Nebi.jpg"), murad), false, "Murad III is not Murad I");
+    assert.equal(namesPerson(pic("Painting of Mir Ali Murad Khan Talpur of Khairpur.jpg"), murad), false, "a namesake without the number");
+    assert.equal(namesPerson(pic("Gentile Bellini - Sultan Mehmet II.jpg"), { ad: "Mehmed II", wiki: "Mehmed II" }), true, "Mehmet/Mehmed");
+    assert.equal(namesPerson(pic("Ataturk1930s.jpg"), { ad: "Mustafa Kemal Atatürk", wiki: "Mustafa Kemal Atatürk" }), true, "a photograph names him too");
   });
 
   await scenario("O25 Kosovo 1389 maps: two fronts on one line are pushed apart, badges resting on one spot move aside, an inland close map asks no coast, a later atlas year is flagged", () => {
