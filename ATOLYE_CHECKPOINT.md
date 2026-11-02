@@ -1,3 +1,28 @@
+## 2 Kasım 2026 (akşam) — Kalite beyni: Qwen3-VL ölçüldü, benimsenmedi; Shorts planı owner onayı bekliyor
+
+**Owner:** "kalite beynini nasıl geliştirebiliriz, @selahattinunlu kanalında işe yarayan bir GitHub reposu yok mu …
+sonra Shorts da hazırlamak istiyorum: dikey, 60 saniye; üstündekiler normal video". Kod değişmedi; elektrik kesintisi
+oturumu bir kez böldü (yarım indirme yeniden sürdürüldü).
+
+**Kalite sınavı (`kalite-sinavi.ts calistir --ornek-yok`, üretim ayarı: kenar şeritleri açık, örnek yok):**
+- gemma4:12b %61 dengeli (7/12; 7 kusurun 3'ü, 5 temizin 4'ü). Rapor `kalite-sonuc-1793610225019.json`.
+- `qwen3-vl:8b` Ollama'da **düşünen** sürümdür: 260 jeton sınırında cevap yazamadı (12 kare de okunamadı → 7/10);
+  2048 jetonla çağrılar uzadı ve GPU **88 °C**'ye çıktı (Claude durdurdu). V3'ün Ollama çağrılarında çağrı içi
+  durdurma yok: `OllamaThermalMonitor` yalnız `ATOLYE_BRAIN_HARDWARE_PROFILE=rtx-a2000-12gb` ile çalışır, V3 süreçleri
+  bu değişkeni yüklemez (`loadV3Settings` yalnız `ATOLYE_V3_*`); yalnız başlamadan önce 74 °C bekleniyor. Üretimdeki
+  kısa görsel çağrılar bu payla 85'i aşmıyor; uzun çağrı için açık risk.
+- `qwen3-vl:8b-instruct` %50, her kareye "temiz" (UYARI: hep aynı karar). Rapor `kalite-sonuc-1793618811943.json`.
+  İki Qwen modeli de silindi. Kanalda bu işi çözen repo yok (roboflow/supervision bir algılayıcı eğitimi ister).
+- Sonuç: sınavın 7 kusurundan 4'ü geometri (kenarda kesik rozet/etiket/devlet adı, yazı yazının üstünde), 2'si piksel
+  (koyu şerit, denize boyanmış kara), 1'i çizim (sakal). Videoyu biz çiziyoruz; öneri: Remotion `<Artifact>` ile
+  render sırasında rozet/etiket/balon kutularını yazıp kenar/çakışma denetimi + ffmpeg piksel denetimi, görsel model
+  yalnız çizim kusurları ve "anlatılan görünüyor mu" için.
+
+**Shorts (plan, kod yok):** ≤60 sn → 1080×1920; bileşenler 1920×1080'lik "sahne"yi görür, dikey kamera konuşanı/
+haritadaki hareketi izler, başlık/bilgi kartları ve balonlar ekran üstünde dikeye göre; senarist için Shorts tarifi
+(ilk 2 sn kanca, tek an, döngü sonu, kapak/abone kartı yok); kalite beyni dikey kenar şeritleri; AYAS "60 saniyelik"
+siparişi Shorts. Owner'dan beklenen: plan onayı, Shorts'ta kelime altyazısı gömülsün mü (uzun videoda yasak).
+
 ## 2 Kasım 2026 (öğleden sonra, 2) — Hazırlık denetimi: açık hata yok; radarın yeri netleşti; CI yeşil
 
 **Owner:** "ayasda ya da atölyede herhangi bir açık hata var mı, her şey güncel mi, yeni video üretimine geçelim mi
