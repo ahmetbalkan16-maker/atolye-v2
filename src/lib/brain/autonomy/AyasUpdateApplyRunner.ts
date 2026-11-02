@@ -6,16 +6,18 @@ import path from "node:path";
 import { recordAyasAutoLiveAttempt, type AyasAutoLiveAttempt } from "./AyasAutoLivePublish";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
-import { AYAS_DEPENDENCY_UPDATE_FILES } from "./AyasProposalRuntimeImpact";
 import type { AyasUpdateApplyDecisionRecord } from "./AyasUpdateApprovalStore";
-import { runAyasCommand, type AyasChildEnv, type AyasCommandRunner } from "./AyasUpdateTrialRunner";
+import { resolveAyasNpmCli, runAyasCommand, type AyasChildEnv, type AyasCommandRunner } from "./AyasUpdateTrialRunner";
 import {
-  ayasUpdateTrialSha256, isAyasUpdateTrialIntact, requestAyasCanonicalDependencySync, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore,
+  ayasUpdateTrialSha256, clearAyasWorkspaceSyncRequest, isAyasUpdateTrialIntact, requestAyasCanonicalDependencySync, writeAyasWorkspaceSyncRequest,
+  type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore, type AyasWorkspaceSyncRequest,
 } from "./AyasUpdateTrialStore";
+import { AYAS_UPDATE_WORKSPACES, ayasDependencyUpdateFiles, parseAyasUpdateTarget } from "./AyasUpdateWorkspaces";
 
 /**
  * Carries out one owner "Uygula" (owner decisions 2026-10-15; CLAUDE.md standing exception for this click). The
- * passed trial's exact package.json and package-lock.json bytes are committed and pushed through the guarded
+ * passed trial's exact package.json and package-lock.json bytes (the root's, or since 2026-11-02 a sub-package's such
+ * as remotion-v3/) are committed and pushed through the guarded
  * publication's dependency-update lane: clean tree, the trial's own base HEAD, exact two-file staging, one commit, a
  * plain push, local HEAD equal to the remote afterwards, then the established post-publication closure (Graphify for
  * the new HEAD). Only after the guard has closed is the live copy republished by scripts/ayas-publish-live.ps1, whose
@@ -58,9 +60,14 @@ function changedPaths(repoRoot: string): string[] {
 }
 
 /** Put the two files back exactly as HEAD has them. Used only before a commit exists. */
-function restoreDependencyFiles(repoRoot: string): void {
-  git(repoRoot, ["reset", "-q", "--", ...AYAS_DEPENDENCY_UPDATE_FILES]);
-  git(repoRoot, ["checkout", "--", ...AYAS_DEPENDENCY_UPDATE_FILES]);
+function restoreDependencyFiles(repoRoot: string, files: readonly string[]): void {
+  git(repoRoot, ["reset", "-q", "--", ...files]);
+  git(repoRoot, ["checkout", "--", ...files]);
+}
+
+/** The two files a trial's update changes: the root's, or its sub-package's (AYAS_UPDATE_WORKSPACES). */
+function dependencyFilesOf(trial: Pick<AyasUpdateTrialRecord, "target">): readonly string[] {
+  return ayasDependencyUpdateFiles(parseAyasUpdateTarget(trial.target)?.workspace);
 }
 
 type LaneOutcome = { readonly ok: true; readonly commitSha: string } | { readonly ok: false; readonly stage: string; readonly reason: string; readonly commitSha?: string };
@@ -78,20 +85,22 @@ function commitMessage(trial: AyasUpdateTrialRecord): readonly string[] {
 function publishDependencyUpdate(trial: AyasUpdateTrialRecord, artifacts: { readonly packageJson: string; readonly packageLock: string }, repoRoot: string, remoteName: string): LaneOutcome {
   if (git(repoRoot, ["status", "--porcelain"]).length) return { ok: false, stage: "PRECONDITION", reason: "working tree is not clean" };
   if (git(repoRoot, ["rev-parse", "HEAD"]) !== trial.baseHead) return { ok: false, stage: "PRECONDITION", reason: "HEAD moved since the trial" };
+  const files = dependencyFilesOf(trial);
+  const [lockFile, jsonFile] = files as readonly [string, string];
   try {
-    writeAtomic(path.join(repoRoot, "package.json"), artifacts.packageJson);
-    writeAtomic(path.join(repoRoot, "package-lock.json"), artifacts.packageLock);
+    writeAtomic(path.join(repoRoot, jsonFile), artifacts.packageJson);
+    writeAtomic(path.join(repoRoot, lockFile), artifacts.packageLock);
     const changed = changedPaths(repoRoot);
-    if (JSON.stringify(changed) !== JSON.stringify(AYAS_DEPENDENCY_UPDATE_FILES)) { restoreDependencyFiles(repoRoot); return { ok: false, stage: "SCOPE", reason: `changed ${JSON.stringify(changed)} instead of package.json and package-lock.json` }; }
-    for (const [file, expected] of [["package.json", trial.packageJsonSha256], ["package-lock.json", trial.packageLockSha256]] as const) {
-      if (ayasUpdateTrialSha256(fs.readFileSync(path.join(repoRoot, file), "utf8")) !== expected) { restoreDependencyFiles(repoRoot); return { ok: false, stage: "SCOPE", reason: `${file} does not match the tested bytes` }; }
+    if (JSON.stringify(changed) !== JSON.stringify(files)) { restoreDependencyFiles(repoRoot, files); return { ok: false, stage: "SCOPE", reason: `changed ${JSON.stringify(changed)} instead of ${jsonFile} and ${lockFile}` }; }
+    for (const [file, expected] of [[jsonFile, trial.packageJsonSha256], [lockFile, trial.packageLockSha256]] as const) {
+      if (ayasUpdateTrialSha256(fs.readFileSync(path.join(repoRoot, file), "utf8")) !== expected) { restoreDependencyFiles(repoRoot, files); return { ok: false, stage: "SCOPE", reason: `${file} does not match the tested bytes` }; }
     }
-    git(repoRoot, ["add", "--", ...AYAS_DEPENDENCY_UPDATE_FILES]);
+    git(repoRoot, ["add", "--", ...files]);
     const staged = git(repoRoot, ["diff", "--cached", "--name-only"]).split(/\r?\n/).filter(Boolean).sort();
-    if (JSON.stringify(staged) !== JSON.stringify(AYAS_DEPENDENCY_UPDATE_FILES)) { restoreDependencyFiles(repoRoot); return { ok: false, stage: "STAGING", reason: `staged ${JSON.stringify(staged)}` }; }
+    if (JSON.stringify(staged) !== JSON.stringify(files)) { restoreDependencyFiles(repoRoot, files); return { ok: false, stage: "STAGING", reason: `staged ${JSON.stringify(staged)}` }; }
     git(repoRoot, ["diff", "--cached", "--check"]);
   } catch (error) {
-    try { restoreDependencyFiles(repoRoot); } catch { /* the guard's rollback check reports what is left */ }
+    try { restoreDependencyFiles(repoRoot, files); } catch { /* the guard's rollback check reports what is left */ }
     return { ok: false, stage: "STAGING", reason: error instanceof Error ? error.message : String(error) };
   }
   let commitSha: string;
@@ -185,7 +194,7 @@ export async function runAyasUpdateApply(decision: AyasUpdateApplyDecisionRecord
 
   let lane: LaneOutcome | undefined;
   const result = await runGuardedAyasPublication<LaneOutcome>({
-    lane: "dependency-update", subjectId: trial.trialId, exactFiles: AYAS_DEPENDENCY_UPDATE_FILES, repoRoot: deps.repoRoot,
+    lane: "dependency-update", subjectId: trial.trialId, exactFiles: dependencyFilesOf(trial), repoRoot: deps.repoRoot,
     gateRoot: deps.gateRoot ?? path.join(deps.repoRoot, "data", "brain", "self-improvement"),
     publish: async () => (lane = publishDependencyUpdate(trial, artifacts!, deps.repoRoot, remoteName)),
     ...(deps.guard ? { guard: deps.guard } : {}),
@@ -198,7 +207,7 @@ export async function runAyasUpdateApply(decision: AyasUpdateApplyDecisionRecord
   }
 
   save({ commitSha: lane.commitSha, pushed: true, livePending: true });
-  const syncProblem = requestCanonicalSync(record, lane.commitSha, deps);
+  const syncProblem = requestCanonicalSync(record, trial, lane.commitSha, deps);
   if (syncProblem) save({ reasons: [syncProblem] });
   try {
     (deps.postPublicationClosure ?? ((head) => { closeAyasPostPublication(head, { repoRoot: deps.repoRoot, remoteName }); }))(lane.commitSha);
@@ -230,7 +239,8 @@ export function reconcileAyasUpdateApplyOrphan(apply: AyasUpdateApplyRecord, dep
       ? { ...apply, status: "COMPLETED", commitSha: head, pushed: true, livePending: true, finishedAt: now(), reasons: ["uygulama yarıda kesilmişti; commit ve push tamamlanmış bulundu"] }
       : { ...apply, status: "RECOVERY_REQUIRED", finishedAt: now(), reasons: ["uygulama yarıda kesildi; depo durumu elle doğrulanmalı"] };
     if (next.status === "COMPLETED") {
-      const syncProblem = requestCanonicalSync(next, head, deps);
+      const trial = deps.store.load().trials.find((entry) => entry.trialId === apply.trialId);
+      const syncProblem = requestCanonicalSync(next, trial ?? { target: "" }, head, deps);
       if (syncProblem) next = { ...next, reasons: [...(next.reasons ?? []), syncProblem] };
     }
   }
@@ -242,14 +252,62 @@ export function reconcileAyasUpdateApplyOrphan(apply: AyasUpdateApplyRecord, dep
  * Leaves the canonical node_modules sync request for the observer's wrapper (see AYAS_CANONICAL_SYNC_MARKER), bound
  * to the committed lock. Best effort: the commit already stands, so a failure is reported, never thrown.
  */
-function requestCanonicalSync(apply: AyasUpdateApplyRecord, commitSha: string, deps: Pick<AyasUpdateApplyDeps, "repoRoot" | "store" | "now">): string | undefined {
+function requestCanonicalSync(apply: AyasUpdateApplyRecord, trial: Pick<AyasUpdateTrialRecord, "target">, commitSha: string, deps: Pick<AyasUpdateApplyDeps, "repoRoot" | "store" | "now">): string | undefined {
+  const workspace = parseAyasUpdateTarget(trial.target)?.workspace;
   try {
-    requestAyasCanonicalDependencySync(deps.store.rootDir, {
-      requestedAt: (deps.now ?? (() => new Date().toISOString()))(), applyId: apply.applyId, commitSha,
-      packageLockSha256: ayasUpdateTrialSha256(fs.readFileSync(path.join(deps.repoRoot, "package-lock.json"), "utf8")),
-    });
+    const requestedAt = (deps.now ?? (() => new Date().toISOString()))();
+    const packageLockSha256 = ayasUpdateTrialSha256(fs.readFileSync(path.join(deps.repoRoot, workspace?.dir ?? "", "package-lock.json"), "utf8"));
+    // A sub-package's node_modules is reinstalled by the executor between V3 productions (syncAyasWorkspaceDependencies).
+    if (workspace) writeAyasWorkspaceSyncRequest(deps.store.rootDir, { requestedAt, applyId: apply.applyId, commitSha, workspace: workspace.dir, packageLockSha256, attempts: 0 });
+    else requestAyasCanonicalDependencySync(deps.store.rootDir, { requestedAt, applyId: apply.applyId, commitSha, packageLockSha256 });
     return undefined;
   } catch (error) {
-    return `ana kopyanın node_modules eşitleme isteği yazılamadı: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`;
+    return `ana kopyanın ${workspace ? `${workspace.dir}/` : ""}node_modules eşitleme isteği yazılamadı: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`;
+  }
+}
+
+/**
+ * Reinstalls a sub-package's node_modules in the canonical tree from its committed lock, beside the old one, then swaps
+ * the two folders (a rename on the same disk) and carries over what npm does not install (Remotion's headless Chrome).
+ * The caller runs it only while no V3 production renders from it; a folder Windows still holds open makes the swap
+ * fail before anything changed, and the request stays for the next run (bounded by AYAS_WORKSPACE_SYNC_MAX_ATTEMPTS).
+ */
+export async function syncAyasWorkspaceDependencies(request: AyasWorkspaceSyncRequest, deps: Pick<AyasUpdateApplyDeps, "repoRoot" | "store" | "now" | "run" | "env"> & { readonly nodeExecPath?: string; readonly npmCli?: string }): Promise<{ readonly ok: boolean; readonly summary: string }> {
+  const workspace = AYAS_UPDATE_WORKSPACES[request.workspace];
+  const fail = (summary: string) => {
+    writeAyasWorkspaceSyncRequest(deps.store.rootDir, { ...request, attempts: request.attempts + 1, lastError: summary.slice(0, 400) });
+    return { ok: false, summary };
+  };
+  if (!workspace) return fail(`bilinmeyen alt paket ${request.workspace}`);
+  const dir = path.join(deps.repoRoot, workspace.dir);
+  const run = deps.run ?? runAyasCommand;
+  const node = deps.nodeExecPath ?? process.execPath;
+  // The new install and the old folder both wait outside the repository (same disk, so the swap is two renames): a
+  // leftover folder inside it would dirty the tree the observer and the executor require clean.
+  const stage = path.join(path.resolve(deps.repoRoot, "..", "..", "private", "temp"), `ayas-workspace-sync-${workspace.dir}-${crypto.randomUUID()}`);
+  const current = path.join(dir, "node_modules");
+  const old = path.join(stage, "old-node_modules");
+  try {
+    fs.mkdirSync(stage, { recursive: true });
+    // HEAD's lock: a later commit that moved it again is what the request is about by then.
+    for (const file of ["package.json", "package-lock.json"]) fs.copyFileSync(path.join(dir, file), path.join(stage, file));
+    const ci = await run(node, [deps.npmCli ?? resolveAyasNpmCli(node), "ci", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: stage, timeoutMs: 30 * 60_000, env: childEnv(deps) });
+    if (ci.code !== 0) return fail(`npm ci başarısız: ${ci.output.slice(-300)}`);
+    const hadOld = fs.existsSync(current);
+    if (hadOld) fs.renameSync(current, old);
+    try { fs.renameSync(path.join(stage, "node_modules"), current); } catch (error) { if (hadOld) fs.renameSync(old, current); throw error; }
+    for (const folder of workspace.carry) {
+      const from = path.join(old, folder.replace(/^node_modules[\\/]/, ""));
+      const to = path.join(dir, folder);
+      if (!hadOld || !fs.existsSync(from) || fs.existsSync(to)) continue;
+      try { fs.renameSync(from, to); } catch { fs.cpSync(from, to, { recursive: true }); }
+    }
+    clearAyasWorkspaceSyncRequest(deps.store.rootDir, workspace.dir);
+    return { ok: true, summary: `${workspace.dir}/node_modules kilit dosyasından yenilendi (${request.commitSha.slice(0, 8)})` };
+  } catch (error) {
+    return fail(`${workspace.dir}/node_modules değiştirilemedi: ${(error instanceof Error ? error.message : String(error)).slice(0, 300)}`);
+  } finally {
+    // The old packages go with the stage folder (outside the repository, so a leftover is harmless).
+    try { fs.rmSync(stage, { recursive: true, force: true }); } catch { /* temp */ }
   }
 }

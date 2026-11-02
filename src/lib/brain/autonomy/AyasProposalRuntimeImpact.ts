@@ -29,6 +29,7 @@
  */
 
 import { declareAyasRuntimeImpactScope, type AyasRuntimeImpactDimension, type AyasRuntimeImpactScope } from "./AyasRuntimeStabilityScope";
+import { AYAS_UPDATE_WORKSPACES, ayasDependencyUpdateFiles } from "./AyasUpdateWorkspaces";
 
 export type AyasRuntimeImpactClass =
   | "TEST_ONLY"
@@ -240,30 +241,39 @@ export function classifyAyasRuntimeImpact(exactFiles: readonly string[]): AyasRu
   });
 }
 
-/** The one file set the dependency-update lane may publish (owner decision 2026-10-15). */
-export const AYAS_DEPENDENCY_UPDATE_FILES: readonly string[] = Object.freeze(["package-lock.json", "package.json"]);
+/** The root file set the dependency-update lane may publish (owner decision 2026-10-15). */
+export const AYAS_DEPENDENCY_UPDATE_FILES: readonly string[] = ayasDependencyUpdateFiles();
 
 /**
- * The dependency-update lane's own declaration. It accepts exactly package.json + package-lock.json, which every other
- * lane refuses as RUNTIME_CONFIG. Committing them restarts nothing: the canonical tree serves no process, and the live
- * copy is republished separately, after the guard has closed, by the owner-approved live publish with its own health
- * check and rollback. Anything else in the file list makes the whole publication unpublishable.
+ * Every file set the lane may publish: the root's, or one sub-package's own two files (owner decision 2026-11-02, V3's
+ * remotion-v3/). Never a mix: a publication is exactly one of these sets.
+ */
+export const AYAS_DEPENDENCY_UPDATE_FILE_SETS: readonly (readonly string[])[] = Object.freeze([
+  AYAS_DEPENDENCY_UPDATE_FILES, ...Object.values(AYAS_UPDATE_WORKSPACES).map((workspace) => ayasDependencyUpdateFiles(workspace)),
+]);
+
+/**
+ * The dependency-update lane's own declaration. It accepts exactly package.json + package-lock.json (the root's, or one
+ * sub-package's), which every other lane refuses as RUNTIME_CONFIG. Committing them restarts nothing: the canonical
+ * tree serves no process, and the live copy is republished separately, after the guard has closed, by the
+ * owner-approved live publish with its own health check and rollback. Anything else in the file list makes the whole
+ * publication unpublishable.
  */
 export function classifyAyasDependencyUpdateImpact(exactFiles: readonly string[]): AyasRuntimeImpactDecision {
   const files = (exactFiles ?? []).map(classifyAyasRuntimeImpactFile);
-  const exact = files.length === AYAS_DEPENDENCY_UPDATE_FILES.length
-    && [...files.map((entry) => normalize(entry.file))].sort().every((file, index) => file === AYAS_DEPENDENCY_UPDATE_FILES[index]);
-  if (!exact) {
+  const declared = [...files.map((entry) => normalize(entry.file))].sort();
+  const set = AYAS_DEPENDENCY_UPDATE_FILE_SETS.find((candidate) => declared.length === candidate.length && declared.every((file, index) => file === candidate[index]));
+  if (!set) {
     const general = classifyAyasRuntimeImpact(exactFiles);
     return Object.freeze({ ...general, publishable: false, serviceRestartApplicable: true, notApplicable: Object.freeze([]),
-      summary: `the dependency-update lane publishes exactly package.json and package-lock.json; this publication declares ${general.summary}` });
+      summary: `the dependency-update lane publishes exactly package.json and package-lock.json (of the root or of one sub-package); this publication declares ${general.summary}` });
   }
   return Object.freeze({
     impactClass: "RUNTIME_CONFIG",
     files: Object.freeze(files),
     publishable: true,
     serviceRestartApplicable: false,
-    summary: "RUNTIME_CONFIG across package.json and package-lock.json only (dependency-update lane)",
+    summary: `RUNTIME_CONFIG across ${set[1]!.replace(/package\.json$/, "")}package.json and ${set[0]} only (dependency-update lane)`,
     notApplicable: Object.freeze([
       "service-restart: committing the dependency manifest restarts nothing; the live copy is republished after the guard closes, with its own health check and rollback",
       "runtime-config-reload: no environment variable or gate flag is written",

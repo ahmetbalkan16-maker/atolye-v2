@@ -11,8 +11,11 @@ import path from "node:path";
 export interface AyasTrackedRelease {
   /** The tool's own name for people (the registry provider may be the vendor, e.g. Microsoft for TypeScript). */
   readonly toolName: string;
-  /** What is installed: an npm package from package-lock.json, or the Node.js runtime running AYAS. */
-  readonly installed: { readonly kind: "npm"; readonly packageName: string } | { readonly kind: "node" };
+  /**
+   * What is installed: an npm package from package-lock.json (of a sub-package in AYAS_UPDATE_WORKSPACES when
+   * `workspace` names one), or the Node.js runtime running AYAS.
+   */
+  readonly installed: { readonly kind: "npm"; readonly packageName: string; readonly workspace?: string } | { readonly kind: "node" };
   /** Captures the version of THIS package from a release title; any other title belongs to a sibling package or tool. */
   readonly titlePattern: RegExp;
   /** Optional release channel this repository follows; a release outside it is skipped (Node.js: LTS only, as pinned). */
@@ -32,6 +35,8 @@ export const AYAS_TRACKED_RELEASE_SOURCES: Readonly<Record<string, AyasTrackedRe
   "transformers-js": Object.freeze({ toolName: "Transformers.js", installed: Object.freeze({ kind: "npm", packageName: "@huggingface/transformers" }), titlePattern: VERSION_ONLY }),
   "workers-sdk": Object.freeze({ toolName: "Wrangler", installed: Object.freeze({ kind: "npm", packageName: "wrangler" }), titlePattern: new RegExp(String.raw`^wrangler@${SEMVER}$`) }),
   nodejs: Object.freeze({ toolName: "Node.js", installed: Object.freeze({ kind: "node" }), titlePattern: new RegExp(String.raw`\bVersion ${SEMVER}\b`), channelPattern: /\(LTS\)/ }),
+  // V3's renderer (owner decision 2026-11-02): its own package set in remotion-v3/, tried and applied like the root's.
+  remotion: Object.freeze({ toolName: "Remotion", installed: Object.freeze({ kind: "npm", packageName: "remotion", workspace: "remotion-v3" }), titlePattern: VERSION_ONLY }),
 });
 
 export type AyasReleaseRelevance =
@@ -63,7 +68,7 @@ export function compareAyasReleaseVersions(a: string, b: string): number {
 export function resolveAyasInstalledVersion(tracked: AyasTrackedRelease, repoRoot: string): string | null {
   if (tracked.installed.kind === "node") return process.versions.node;
   try {
-    const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, "package-lock.json"), "utf8")) as { packages?: Record<string, { version?: unknown }> };
+    const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, tracked.installed.workspace ?? "", "package-lock.json"), "utf8")) as { packages?: Record<string, { version?: unknown }> };
     const version = lock.packages?.[`node_modules/${tracked.installed.packageName}`]?.version;
     return typeof version === "string" && /^\d+\.\d+\.\d+/.test(version) ? version : null;
   } catch { return null; }

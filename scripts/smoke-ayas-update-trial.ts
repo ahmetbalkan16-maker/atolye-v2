@@ -13,6 +13,7 @@ import {
   diffAyasPackageLocks, isAyasUpdateTrialIntact, listAyasUpdateTrialViews, readAyasCiSmokeCommands, readAyasObservedHead,
   selectAyasUpdateApplyJob, selectAyasUpdateTrialJob, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord,
 } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
+import { ayasUpdateTarget, parseAyasUpdateTarget } from "../src/lib/brain/autonomy/AyasUpdateWorkspaces";
 
 /**
  * Update trials (owner decisions 2026-10-15: "dene, sonra uygula"). The pure decisions, and the runner end to end with
@@ -39,8 +40,13 @@ const PACKAGE_JSON = { name: "fixture", scripts: { lint: "eslint", build: "next 
 const LOCK = { lockfileVersion: 3, packages: { "": { name: "fixture" }, "node_modules/next": { version: "16.4.1" }, "node_modules/eslint-config-next": { version: "16.4.1" }, "node_modules/old-dep": { version: "1.0.0" } } };
 const WORKFLOW = "jobs:\n  ci:\n    steps:\n      - run: npm ci\n      - name: a\n        run: npx tsx scripts/smoke-ci-a.ts\n      - name: gate\n        run: npx tsx scripts/smoke-ci-gate.ts --gate\n";
 
+const REMOTION_JSON = { name: "atolye-remotion-v3", private: true, scripts: { render: "remotion render src/index.ts" }, dependencies: { "@remotion/cli": "4.0.536", react: "19.2.4", "react-dom": "19.2.4", remotion: "4.0.536" }, devDependencies: { typescript: "^5" } };
+const REMOTION_LOCK = { lockfileVersion: 3, packages: { "": { name: "atolye-remotion-v3" }, "node_modules/remotion": { version: "4.0.536" }, "node_modules/@remotion/cli": { version: "4.0.536" } } };
+
 interface Script {
-  readonly fail?: Partial<Record<"ci" | "install" | "audit" | "tsc" | "lint" | "build" | "worktree", boolean>>;
+  /** The worktree also holds V3's remotion-v3/ sub-package. */
+  readonly workspace?: boolean;
+  readonly fail?: Partial<Record<"ci" | "install" | "audit" | "tsc" | "lint" | "build" | "render" | "worktree", boolean>>;
   /** Smoke outcomes before and after the install (true = pass). */
   readonly smokes?: Readonly<Record<string, { readonly before: boolean; readonly after: boolean }>>;
   /** The install touches package.json beyond the approved entries. */
@@ -63,6 +69,12 @@ function fixtureRunner(script: Script) {
       fs.writeFileSync(path.join(wt, "package-lock.json"), `${JSON.stringify(LOCK, null, 2)}\n`);
       fs.writeFileSync(path.join(wt, ".github", "workflows", "ayas-safe-ci.yml"), WORKFLOW);
       for (const name of ["smoke-ci-a", "smoke-ci-gate", "smoke-next-user", "smoke-ayas-update-radar"]) fs.writeFileSync(path.join(wt, "scripts", `${name}.ts`), name === "smoke-next-user" ? "import { NextResponse } from \"next/server\";\nvoid NextResponse;\n" : "export {};\n");
+      if (script.workspace) {
+        fs.mkdirSync(path.join(wt, "remotion-v3"), { recursive: true });
+        fs.writeFileSync(path.join(wt, "remotion-v3", "package.json"), `${JSON.stringify(REMOTION_JSON, null, 2)}\n`);
+        fs.writeFileSync(path.join(wt, "remotion-v3", "package-lock.json"), `${JSON.stringify(REMOTION_LOCK, null, 2)}\n`);
+        for (const name of ["smoke-v3-motion", "smoke-v3-render"]) fs.writeFileSync(path.join(wt, "scripts", `${name}.ts`), "export {};\n");
+      }
       return ok;
     }
     if (command === "git" && args[0] === "worktree" && args[1] === "remove") { fs.rmSync(args[3]!, { recursive: true, force: true }); return ok; }
@@ -82,7 +94,8 @@ function fixtureRunner(script: Script) {
         if (script.installTouchesScripts) pkg.scripts.postinstall = "node evil.js";
         fs.writeFileSync(path.join(options.cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
         const lock = JSON.parse(fs.readFileSync(path.join(options.cwd, "package-lock.json"), "utf8"));
-        lock.packages["node_modules/next"].version = "16.4.2"; lock.packages["node_modules/eslint-config-next"].version = "16.4.2";
+        if (lock.packages["node_modules/remotion"]) { lock.packages["node_modules/remotion"].version = "4.0.538"; lock.packages["node_modules/@remotion/cli"].version = "4.0.538"; }
+        else { lock.packages["node_modules/next"].version = "16.4.2"; lock.packages["node_modules/eslint-config-next"].version = "16.4.2"; }
         delete lock.packages["node_modules/old-dep"]; lock.packages["node_modules/new-dep"] = { version: "2.0.0" };
         fs.writeFileSync(path.join(options.cwd, "package-lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
         return ok;
@@ -91,6 +104,11 @@ function fixtureRunner(script: Script) {
       if (sub[0] === "exec") return script.fail?.tsc ? bad(`${options.cwd}\\src\\x.ts(1,1): error TS2322`) : ok;
       if (sub[0] === "run" && sub[1] === "lint") return script.fail?.lint ? bad("1 error") : ok;
       if (sub[0] === "run" && sub[1] === "build") return script.fail?.build ? bad("\x1b[31mBuild error occurred\x1b[0m") : ok;
+    }
+    if (command === "node-fake" && args[0] === "node_modules/@remotion/cli/remotion-cli.js") {
+      if (script.fail?.render || !fs.existsSync(path.join(options.cwd, "node_modules", ".remotion", "chrome", "chrome.exe"))) return bad("Error: Could not find a Chrome executable");
+      fs.writeFileSync(args[4]!, "mp4");
+      return ok;
     }
     if (command === "node-fake") {
       const smoke = args[1]!;
@@ -103,15 +121,18 @@ function fixtureRunner(script: Script) {
 }
 
 let fixtureIndex = 0;
+const REMOTION_APPROVAL = { sourceId: "remotion", toolName: "Remotion", target: "npm:remotion-v3/remotion", installedVersion: "4.0.536", targetVersion: "4.0.538" } as const;
 function runFixture(script: Script) {
   const base = path.join(temp, `fixture-${fixtureIndex++}`);
   const repoRoot = path.join(base, "Atolye", "repo");
   fs.mkdirSync(repoRoot, { recursive: true });
+  // The canonical tree's Remotion Chrome, which a trial carries over instead of downloading.
+  if (script.workspace) { fs.mkdirSync(path.join(repoRoot, "remotion-v3", "node_modules", ".remotion", "chrome"), { recursive: true }); fs.writeFileSync(path.join(repoRoot, "remotion-v3", "node_modules", ".remotion", "chrome", "chrome.exe"), "exe"); }
   const store = createAyasUpdateTrialStore({ rootDir: path.join(base, "store") });
   const runner = fixtureRunner(script);
   const roots = { root: path.join(base, "real"), lintRoot: path.join(base, "lint-alias") };
   const env = { PATH: "x", AYAS_ACCESS_KEY: "secret-key-value", OPENAI_API_KEY: "sk", GITHUB_TOKEN: "t", NODE_ENV: "production" };
-  return { store, runner, roots, promise: runAyasUpdateTrial(approval(), HEAD, { repoRoot, store, run: runner.run, trialRoots: roots, env, nodeExecPath: "node-fake", npmCli: "npm-cli-fake" }) };
+  return { store, runner, roots, promise: runAyasUpdateTrial(approval(script.workspace ? REMOTION_APPROVAL : {}), HEAD, { repoRoot, store, run: runner.run, trialRoots: roots, env, nodeExecPath: "node-fake", npmCli: "npm-cli-fake" }) };
 }
 
 async function main(): Promise<void> {
@@ -212,6 +233,33 @@ async function main(): Promise<void> {
     assert.ok(smokesRun.includes("scripts/smoke-ci-gate.ts --gate") && smokesRun.includes("scripts/smoke-next-user.ts") && smokesRun.includes("scripts/smoke-ayas-update-radar.ts"));
     assert.equal(fs.existsSync(path.join(roots.root, record.trialId)), false, "the worktree is removed");
     assert.equal(store.load().trials.length, 1);
+  });
+
+  await scenario("a remotion-v3 trial installs in the sub-package, moves every @remotion package, renders instead of building (owner decision 2026-11-02)", async () => {
+    assert.deepEqual(buildAyasUpdateInstallPlan(REMOTION_JSON, "remotion", "4.0.538"), { specs: ["remotion@4.0.538", "@remotion/cli@4.0.538"], saveExact: true });
+    assert.deepEqual(parseAyasUpdateTarget("npm:remotion-v3/remotion")?.workspace?.dir, "remotion-v3");
+    assert.deepEqual([parseAyasUpdateTarget("npm:next"), parseAyasUpdateTarget("npm:@huggingface/transformers")?.packageName], [{ packageName: "next" }, "@huggingface/transformers"]);
+    assert.equal(parseAyasUpdateTarget("npm:other-dir/remotion"), undefined, "an unknown folder is never a workspace");
+    assert.equal(ayasUpdateTarget("remotion", "remotion-v3"), "npm:remotion-v3/remotion");
+    const { store, runner, roots, promise } = runFixture({ workspace: true });
+    const record = await promise;
+    assert.equal(record.status, "PASSED", JSON.stringify(record.steps));
+    assert.deepEqual(record.steps.map((step) => step.name), ["WORKTREE", "NPM_CI", "BASELINE_SMOKES", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "TYPECHECK", "LINT", "RENDER", "SMOKES"]);
+    assert.deepEqual(record.installSpecs, ["remotion@4.0.538", "@remotion/cli@4.0.538"]);
+    const artifacts = store.readArtifacts(record.trialId)!;
+    assert.match(artifacts.packageJson, /"@remotion\/cli": "4.0.538"/); assert.match(artifacts.packageLock, /"version": "4.0.538"/);
+    assert.ok(isAyasUpdateTrialIntact(record, artifacts));
+    const sub = path.join(roots.root, record.trialId, "remotion-v3");
+    const npmCalls = runner.calls.filter((call) => call.args[0] === "npm-cli-fake");
+    assert.deepEqual(npmCalls.filter((call) => call.args[1] === "ci").map((call) => call.cwd), [path.join(roots.root, record.trialId), sub], "the root's packages and the sub-package's");
+    for (const sub1 of ["install", "audit"]) assert.equal(npmCalls.find((call) => call.args[1] === sub1)!.cwd, sub, sub1);
+    assert.deepEqual(npmCalls.filter((call) => call.args[1] === "exec").map((call) => call.cwd), [path.join(roots.root, record.trialId), sub], "tsc for both");
+    assert.equal(npmCalls.some((call) => call.args[1] === "run" && call.args[2] === "build"), false, "no root build");
+    const smokesRun = runner.calls.filter((call) => call.command === "node-fake" && call.args[0] !== "npm-cli-fake" && !call.args[0]!.startsWith("node_modules/@remotion")).map((call) => call.args[1]);
+    assert.ok(smokesRun.includes("scripts/smoke-v3-motion.ts") && smokesRun.includes("scripts/smoke-v3-render.ts"), JSON.stringify(smokesRun));
+    assert.equal(fs.existsSync(path.join(roots.root, record.trialId)), false, "the worktree is removed");
+    const noChrome = await runFixture({ workspace: true, fail: { render: true } }).promise;
+    assert.deepEqual([noChrome.status, noChrome.failedStep], ["FAILED", "RENDER"]); assert.match(noChrome.steps.at(-1)!.summary, /Chrome/);
   });
 
   await scenario("a smoke broken before the update is reported, not counted; one the update breaks fails the trial", async () => {

@@ -1,3 +1,41 @@
+## 2 Kasım 2026 (öğlen) — "İncele" yerine "dene": V3'ün Remotion'u güncelleme radarında; canlıya alma
+
+**Owner:** "canlıya al ilk önce; 2. olarak incele yerine dene tasarımı hangisi ayası atölyeyi gelişime açacaksa
+yapalım; 3. C'ye alma gerek yok; 4. şu an video üretmeyeceğiz, @selahattinunlu kanalındaki bütün Shorts'ları incele".
+
+**Canlıya alma:** canlı dal (43 commit: Next.js 16.4.3, ESLint 10, AYAS mikro iyileştirmeleri) V3 dalına merge
+(`871320a2`, çakışmasız; worktree'de `npm ci`), ff push, canonical pull; otomatik canlı yayın 07:35 PUBLISHED
+(`ayas-live-871320a2`, dış erişim healthy). Graphify canonical: SOURCE_HEAD = LAST_ANALYZED = GRAPH_BUILT_FROM.
+V3 sipariş izleyicisi yeniden başlatılmadı: yalnız `ProductionOrders`/`V3Paths` yükler, üretici her siparişte diskten.
+
+**"Dene" yolu (owner kararı = tam genişleme):**
+- `AyasUpdateWorkspaces.ts` (yeni): alt paket tanımı — `remotion-v3`: npm'in kurmadığı taşınacak klasör
+  (`node_modules/.remotion`, Remotion'un Chrome'u), alt paketin modüllerini yükleyen smoke'lar (v3-motion,
+  v3-episode-director, v3-render), aracın bir gerçek çalıştırması (Episode, boş plan, 15 kare render); hedef biçimi
+  `npm:remotion-v3/remotion` (kök hedefler aynı → mevcut onayların item hash'i değişmez).
+- `AyasResearchReleaseRelevance`: `remotion` izlenen araç, kurulu sürüm `remotion-v3/package-lock.json`'dan. Derin
+  araştırma Remotion sürümlerini artık modelden önce sürüm kapısından geçirir (eski/rc sürüm analiz edilmez).
+- Radar: alt paketin etkilenen dosyaları kendi `src`'sinden; özet/doğrulama/risk alt pakete göre. Gerçek veride:
+  Remotion 4.0.536 → 4.0.538 (2 alıntı, 14 dosya).
+- Deneme koşucusu: kök + alt paket `npm ci`, Chrome kopyası canonical'dan (indirme yok), kurulum/kilit/imza alt
+  pakette, tsc kök + alt paket, lint, kök derleme yerine `RENDER` adımı, smoke'lar. Kurulum planı: `remotion` ile
+  bütün `@remotion/*` aynı sürüm.
+- Hat: `AYAS_DEPENDENCY_UPDATE_FILE_SETS` — kökün iki dosyası ya da tam olarak `remotion-v3/package.json` +
+  `package-lock.json`; karışım ve bilinmeyen klasör reddedilir. Uygula: o iki dosyayı commit/push, kök
+  `canonical-sync-required` yerine `workspace-sync-remotion-v3.json` isteği.
+- Yürütücü `WORKSPACE_SYNC`: V3'te `calisiyor`/`bekliyor` sipariş yokken `syncAyasWorkspaceDependencies` — canonical
+  `remotion-v3`'ün kilidiyle `private/temp`'te npm ci, iki rename ile takas, `.remotion` taşınır, eski paketler
+  repo dışında silinir; başarısızlıkta hiçbir şey değişmez, en çok 3 deneme.
+- CLAUDE.md "Uygula" tek tık istisnası bu iki dosya kümesini kapsayacak şekilde güncellendi. Arayüz: RENDER adım adı.
+
+**Doğrulama:** tsc temiz; smoke update-trial 12 (yeni: remotion-v3 denemesi + render hatası), update-radar 8 (yeni),
+update-apply 12 (yeni: hat kümeleri, commit kapsamı, eşitleme takası/başarısızlığı), update-approval 10,
+deep-research-engine 22, action-firewall-closure 13 ve değişen modüllere dokunan diğer AYAS smoke'ları (aşağıdaki
+commit'te listeli).
+
+**Sıradaki:** owner Gelişim Merkezi'nde Remotion kartında "Onayla ve dene" der → yürütücü ilk gerçek denemeyi yapar
+(npm indirmesi ~200 MB, render). Geçerse "Uygula" → commit/push → V3 boştayken remotion-v3 eşitlemesi.
+
 ## 2 Kasım 2026 — V3 yakın savaşta bilgi kartı savaşı karartmaz; araştırma elemesi; telefon erişimi açılış gecikmesi
 
 **Owner:** "kaldığın yeri bul … yakın çekimde taktikleri yapıyordun, birde gelişim merkezinde bir eksiklik bulmuştuk";

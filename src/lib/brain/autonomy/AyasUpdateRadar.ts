@@ -6,6 +6,7 @@ import type { AyasExternalResearchFinding } from "./AyasExternalResearchStore";
 import type { AyasResearchSeenItem } from "./AyasResearchNoveltyStore";
 import { AYAS_RESEARCH_SOURCE_REGISTRY } from "./AyasResearchSourceRegistry";
 import { AYAS_TRACKED_RELEASE_SOURCES, assessAyasReleaseRelevance, compareAyasReleaseVersions } from "./AyasResearchReleaseRelevance";
+import { ayasUpdateTarget, parseAyasUpdateTarget } from "./AyasUpdateWorkspaces";
 
 /**
  * Research integration Phase 2 (owner plan 2026-10-15, "Radar + özet + sağlık"): a read-only update radar over what
@@ -73,7 +74,7 @@ export function ayasUpdateBump(installed: string, latest: string): AyasUpdateRad
   return a![0] !== b![0] ? "MAJOR" : a![1] !== b![1] ? "MINOR" : "PATCH";
 }
 
-function sourceFiles(repoRoot: string): string[] {
+function sourceFiles(repoRoot: string, roots: readonly string[] = SCAN_ROOTS): string[] {
   const out: string[] = [];
   const walk = (dir: string): void => {
     let entries: fs.Dirent[];
@@ -84,7 +85,7 @@ function sourceFiles(repoRoot: string): string[] {
       else if (entry.isFile() && SCAN_EXTENSIONS.has(path.extname(entry.name))) out.push(relative);
     }
   };
-  for (const root of SCAN_ROOTS) walk(root);
+  for (const root of roots) walk(root);
   return out;
 }
 
@@ -112,12 +113,22 @@ function packageUsers(repoRoot: string, packageName: string): string[] {
   const files = sourceFiles(repoRoot);
   for (const file of files) { try { contents.set(file, fs.readFileSync(path.join(repoRoot, file), "utf8")); } catch { contents.set(file, ""); } }
   for (const tracked of Object.values(AYAS_TRACKED_RELEASE_SOURCES)) {
-    if (tracked.installed.kind === "npm") usersCache.users.set(tracked.installed.packageName, findAyasPackageUsers(repoRoot, tracked.installed.packageName, files, (file) => contents.get(file) ?? ""));
+    if (tracked.installed.kind === "npm" && !tracked.installed.workspace) usersCache.users.set(tracked.installed.packageName, findAyasPackageUsers(repoRoot, tracked.installed.packageName, files, (file) => contents.get(file) ?? ""));
   }
   return usersCache.users.get(packageName) ?? findAyasPackageUsers(repoRoot, packageName, files, (file) => contents.get(file) ?? "");
 }
 
 function briefFor(item: Omit<AyasUpdateRadarItem, "brief" | "itemHash">, users: readonly string[]): AyasDevelopmentBrief {
+  const workspace = parseAyasUpdateTarget(item.target)?.workspace;
+  if (workspace) {
+    return Object.freeze({
+      summary: `${item.toolName} ${item.installedVersion} → ${item.latestVersion} (${workspace.dir}/, ${item.newerStableReleases} yeni kararlı sürüm, ${item.bump === "MAJOR" ? "ana" : item.bump === "MINOR" ? "ara" : "yama"} sürüm)`,
+      affectedFileCount: users.length,
+      affectedFiles: Object.freeze(users.slice(0, MAX_LISTED_FILES)),
+      validation: Object.freeze([`${workspace.dir}: npm ci, güncelleme, kayıt imzaları, npx tsc --noEmit`, "npx tsc --noEmit", "CI-eşdeğeri lint (git'teki dosyalar)", workspace.check.label, ...workspace.smokes.map((file) => `npx tsx ${file}`)]),
+      risk: `Yalnız ${workspace.dir}/package.json ve package-lock.json değişir; canlı uygulama etkilenmez. Uygulandıktan sonra ana kopyanın ${workspace.dir}/node_modules'u, sürmekte olan bir V3 üretimi yokken yenilenir.`,
+    });
+  }
   const pinned = item.applyChannel === "OWNER_PINNED_RUNTIME";
   const risk = pinned
     ? "Telefon erişimi yayını node.exe SHA-256'sına bağlı; güncelleme yeni sürümün kurulup sabitlenmesiyle (scripts/new-pc-setup.ps1 pinleri) owner tarafından yapılır."
@@ -154,7 +165,7 @@ export function buildAyasUpdateRadar(input: {
       .filter((finding) => finding.evidenceQuote && finding.sourceUrl.startsWith(repository))
       .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)).slice(0, MAX_EVIDENCE)
       .map((finding) => Object.freeze({ quote: finding.evidenceQuote!, url: finding.sourceUrl, findingId: finding.findingId }));
-    const target = tracked.installed.kind === "npm" ? `npm:${tracked.installed.packageName}` : "Node.js runtime";
+    const target = tracked.installed.kind === "npm" ? ayasUpdateTarget(tracked.installed.packageName, tracked.installed.workspace) : "Node.js runtime";
     const base = {
       sourceId, provider: source.provider, toolName: tracked.toolName, target, installedVersion: latest.installed, latestVersion: latest.release,
       bump: ayasUpdateBump(latest.installed, latest.release), newerStableReleases: new Set(newer.map((entry) => entry.release)).size,
@@ -162,7 +173,9 @@ export function buildAyasUpdateRadar(input: {
       applyChannel: tracked.installed.kind === "node" ? "OWNER_PINNED_RUNTIME" as const : "DEVELOPMENT_SESSION" as const,
       evidence: Object.freeze(evidence),
     };
-    const users = tracked.installed.kind === "npm" ? packageUsers(input.repoRoot, tracked.installed.packageName) : [];
+    const users = tracked.installed.kind !== "npm" ? []
+      : tracked.installed.workspace ? findAyasPackageUsers(input.repoRoot, tracked.installed.packageName, sourceFiles(input.repoRoot, [`${tracked.installed.workspace}/src`]))
+        : packageUsers(input.repoRoot, tracked.installed.packageName);
     items.push(Object.freeze({ ...base, brief: briefFor(base, users), itemHash: ayasUpdateRadarItemHash(base) }));
   }
   const rank = { MAJOR: 0, MINOR: 1, PATCH: 2 };

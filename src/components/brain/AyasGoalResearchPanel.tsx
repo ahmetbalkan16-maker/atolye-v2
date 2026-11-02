@@ -182,10 +182,10 @@ const UPDATE_APPROVAL_REASON: Readonly<Record<string, string>> = {
 
 const TRIAL_STEP_LABEL: Readonly<Record<string, string>> = {
   WORKTREE: "ayrı kopya", NPM_CI: "mevcut bağımlılıklar", BASELINE_SMOKES: "güncelleme öncesi testler", NPM_INSTALL: "güncellemenin kurulması",
-  LOCK_CHECK: "paket dosyası denetimi", SIGNATURES: "paket imzaları", TYPECHECK: "TypeScript", LINT: "lint", BUILD: "üretim derlemesi", SMOKES: "testler",
+  LOCK_CHECK: "paket dosyası denetimi", SIGNATURES: "paket imzaları", TYPECHECK: "TypeScript", LINT: "lint", BUILD: "üretim derlemesi", RENDER: "deneme videosu", SMOKES: "testler",
 };
 /** A failure in these steps means the code itself would have to change; AYAS cannot do that locally today. */
-const CODE_CHANGE_STEPS = new Set(["TYPECHECK", "LINT", "BUILD", "SMOKES"]);
+const CODE_CHANGE_STEPS = new Set(["TYPECHECK", "LINT", "BUILD", "RENDER", "SMOKES"]);
 const APPLY_STATUS_LABEL: Readonly<Record<string, string>> = {
   RUNNING: "uygulanıyor", COMPLETED: "commit'lendi ve push'landı", STALE: "kod değiştiği için yeniden denenecek", REFUSED: "reddedildi; hiçbir şey değişmedi",
   ROLLED_BACK: "başarısız; değişiklik geri alındı", RECOVERY_REQUIRED: "yarıda kaldı; depo durumu elle doğrulanmalı", FAILED: "başarısız", ABANDONED: "yarıda kesildi; hiçbir şey değişmedi, yeniden denenecek",

@@ -169,8 +169,11 @@ This project is developed across many sequential AI sessions under strict, check
     `trialId` + `trialHash`; any drift of HEAD, the tested `package.json`/`package-lock.json` bytes
     or the approval invalidates it) and carried out only by the observer's update executor through
     the guarded publication's `dependency-update` lane, which accepts exactly `package.json` +
-    `package-lock.json`, never force-pushes and never resets after a commit, followed by
-    `scripts/ayas-publish-live.ps1` with its own health check and rollback. The earlier
+    `package-lock.json` — the root's, or (owner decision 2026-11-02, "hangisi ayası atölyeyi gelişime
+    açacaksa yapalım") exactly `remotion-v3/package.json` + `remotion-v3/package-lock.json` for a
+    V3 Remotion update, never a mix — never force-pushes and never resets after a commit, followed by
+    `scripts/ayas-publish-live.ps1` with its own health check and rollback (a `remotion-v3` update
+    then reinstalls the canonical `remotion-v3/node_modules` while no V3 production runs). The earlier
     "Onayla ve dene" click only lets AYAS try the update in a separate worktree; it commits nothing.
     Every other commit/push in this repository —
     including this service's own infrastructure changes — still requires separate explicit approval

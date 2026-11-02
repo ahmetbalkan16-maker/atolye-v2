@@ -4,6 +4,7 @@ import path from "node:path";
 
 import type { AyasUpdateApprovalView } from "./AyasUpdateApprovalStore";
 import { findAyasPackageUsers } from "./AyasUpdateRadar";
+import { parseAyasUpdateTarget } from "./AyasUpdateWorkspaces";
 import {
   ayasUpdateTrialHash, ayasUpdateTrialSha256, buildAyasUpdateInstallPlan, checkAyasPackageJsonChange, diffAyasPackageLocks, newAyasUpdateTrialId,
   readAyasCiSmokeCommands, type AyasUpdateTrialRecord, type AyasUpdateTrialStep, type AyasUpdateTrialStepName, type AyasUpdateTrialStore,
@@ -15,7 +16,9 @@ import {
  * The checks are what CI runs on a clean checkout (npm ci, tsc, lint, the workflow's smokes) plus a production build,
  * the smokes that import the package, and two npm supply-chain checks: install scripts never run, and every installed
  * package must carry a verified registry signature. A smoke that already failed before the update is reported and not
- * counted; any check the update makes newly fail fails the trial. The worktree is removed in every outcome.
+ * counted; any check the update makes newly fail fails the trial. The worktree is removed in every outcome. A
+ * sub-package's update (AYAS_UPDATE_WORKSPACES, owner decision 2026-11-02) is installed and type-checked in its own
+ * folder, and instead of the root app's build the tool itself is run once (Remotion: a short render).
  *
  * Effectful by design (git, npm, node): reached only from scripts/ayas-update-executor.ts, which the observer starts.
  */
@@ -118,11 +121,15 @@ export async function runAyasUpdateTrial(approval: AyasUpdateApprovalView, head:
   const smokeTimeout = deps.smokeTimeoutMs ?? 5 * 60_000;
   const studioPrivate = path.resolve(deps.repoRoot, "..", "..", "private");
   const env = ayasUpdateTrialChildEnv(deps.env ?? process.env, path.join(studioPrivate, "temp"), path.join(studioPrivate, "npm-cache"));
-  const packageName = approval.target.replace(/^npm:/, "");
+  const parsedTarget = parseAyasUpdateTarget(approval.target);
+  const packageName = parsedTarget?.packageName ?? approval.target.replace(/^npm:/, "");
+  // A sub-package (AYAS_UPDATE_WORKSPACES) is installed, checked and run in its own folder of the same worktree.
+  const workspace = parsedTarget?.workspace;
   const trialId = newAyasUpdateTrialId();
   const roots = deps.trialRoots ?? resolveAyasUpdateTrialRoots(deps.repoRoot);
   const worktree = path.join(roots.root, trialId);
   const lintWorktree = path.join(roots.lintRoot, trialId);
+  const packageDir = workspace ? path.join(worktree, workspace.dir) : worktree;
 
   let record: AyasUpdateTrialRecord = {
     schemaVersion: 1, trialId, approvalDecisionId: approval.decisionId, sourceId: approval.sourceId, toolName: approval.toolName,
@@ -148,19 +155,30 @@ export async function runAyasUpdateTrial(approval: AyasUpdateApprovalView, head:
     step("WORKTREE", worktreeAdded, added.durationMs, worktreeAdded ? `ayrı kopya ${head.slice(0, 8)}` : outcome(added));
     if (!worktreeAdded) return fail("WORKTREE", "ayrı kopya oluşturulamadı");
 
+    // The root's packages always (the smokes and tsc run from them); a sub-package's own set beside them.
     const ci = await npm(["ci", "--ignore-scripts", "--no-audit", "--no-fund"]);
-    step("NPM_CI", ci.code === 0, ci.durationMs, ci.code === 0 ? "bağımlılıklar kilit dosyasından kuruldu (kurulum betikleri çalıştırılmadı)" : outcome(ci));
-    if (ci.code !== 0) return fail("NPM_CI", "mevcut bağımlılıklar kurulamadı");
+    const workspaceCi = ci.code === 0 && workspace ? await npm(["ci", "--ignore-scripts", "--no-audit", "--no-fund"], stepTimeout, packageDir) : undefined;
+    const ciOk = ci.code === 0 && (workspaceCi === undefined || workspaceCi.code === 0);
+    step("NPM_CI", ciOk, ci.durationMs + (workspaceCi?.durationMs ?? 0), ciOk ? `bağımlılıklar kilit dosyasından kuruldu${workspace ? ` (kök ve ${workspace.dir})` : ""} (kurulum betikleri çalıştırılmadı)` : outcome(workspaceCi && workspaceCi.code !== 0 ? workspaceCi : ci));
+    if (!ciOk) return fail("NPM_CI", "mevcut bağımlılıklar kurulamadı");
+    // What npm does not install but the tool needs (Remotion's headless Chrome), copied from the canonical tree: local
+    // files only, so the trial downloads nothing beyond the packages themselves.
+    for (const folder of workspace?.carry ?? []) {
+      const from = path.join(deps.repoRoot, workspace!.dir, folder);
+      if (fs.existsSync(from)) fs.cpSync(from, path.join(packageDir, folder), { recursive: true });
+    }
 
-    const readJson = (file: string) => JSON.parse(fs.readFileSync(path.join(worktree, file), "utf8")) as Record<string, unknown>;
+    const readJson = (file: string) => JSON.parse(fs.readFileSync(path.join(packageDir, file), "utf8")) as Record<string, unknown>;
     const packageJsonBefore = readJson("package.json");
     const lockBefore = readJson("package-lock.json");
     const plan = buildAyasUpdateInstallPlan(packageJsonBefore, packageName, approval.targetVersion);
     save({ installSpecs: plan.specs });
 
-    // The smokes this update could break: CI's own, the ones that import the package, and the radar/approval suites.
+    // The smokes this update could break: CI's own, the ones that import the package (or load the sub-package's
+    // modules), and the radar/approval suites.
     const workflow = (() => { try { return fs.readFileSync(path.join(worktree, ".github", "workflows", "ayas-safe-ci.yml"), "utf8"); } catch { return ""; } })();
-    const users = findAyasPackageUsers(worktree, packageName).filter((file) => /^scripts\/smoke-[^/]+\.ts$/.test(file)).slice(0, MAX_PACKAGE_SMOKES);
+    const users = workspace ? [...workspace.smokes]
+      : findAyasPackageUsers(worktree, packageName).filter((file) => /^scripts\/smoke-[^/]+\.ts$/.test(file)).slice(0, MAX_PACKAGE_SMOKES);
     const smokeCommands = [...readAyasCiSmokeCommands(workflow), ...[...users, ...OWN_SMOKES].map((file) => [file])]
       .filter((command, index, all) => fs.existsSync(path.join(worktree, command[0]!)) && all.findIndex((other) => other.join(" ") === command.join(" ")) === index);
     const baselineStarted = Date.now();
@@ -169,12 +187,12 @@ export async function runAyasUpdateTrial(approval: AyasUpdateApprovalView, head:
     step("BASELINE_SMOKES", true, Date.now() - baselineStarted, `${smokeCommands.length} test güncellemeden önce çalıştı; ${baselineFailures.length} tanesi zaten başarısızdı`);
     save({ preExistingSmokeFailures: baselineFailures });
 
-    const install = await npm(["install", ...plan.specs, ...(plan.saveExact ? ["--save-exact"] : []), "--ignore-scripts", "--no-audit", "--no-fund"]);
-    step("NPM_INSTALL", install.code === 0, install.durationMs, install.code === 0 ? `kuruldu: ${plan.specs.join(", ")}` : outcome(install));
+    const install = await npm(["install", ...plan.specs, ...(plan.saveExact ? ["--save-exact"] : []), "--ignore-scripts", "--no-audit", "--no-fund"], stepTimeout, packageDir);
+    step("NPM_INSTALL", install.code === 0, install.durationMs, install.code === 0 ? `kuruldu: ${plan.specs.join(", ")}${workspace ? ` (${workspace.dir})` : ""}` : outcome(install));
     if (install.code !== 0) return fail("NPM_INSTALL", "güncelleme kurulamadı");
 
-    const packageJsonText = fs.readFileSync(path.join(worktree, "package.json"), "utf8");
-    const packageLockText = fs.readFileSync(path.join(worktree, "package-lock.json"), "utf8");
+    const packageJsonText = fs.readFileSync(path.join(packageDir, "package.json"), "utf8");
+    const packageLockText = fs.readFileSync(path.join(packageDir, "package-lock.json"), "utf8");
     const packageJsonAfter = JSON.parse(packageJsonText) as Record<string, unknown>;
     const lockAfter = JSON.parse(packageLockText) as { packages?: Record<string, { version?: string }> };
     const packageCheck = checkAyasPackageJsonChange(packageJsonBefore, packageJsonAfter, plan.specs);
@@ -186,21 +204,33 @@ export async function runAyasUpdateTrial(approval: AyasUpdateApprovalView, head:
     save({ lockChanges });
     if (!lockOk) return fail("LOCK_CHECK", "paket dosyaları beklenenden farklı değişti");
 
-    const signatures = await npm(["audit", "signatures"], 5 * 60_000);
+    const signatures = await npm(["audit", "signatures"], 5 * 60_000, packageDir);
     step("SIGNATURES", signatures.code === 0, signatures.durationMs, signatures.code === 0 ? "bütün paketlerin kayıt imzası doğrulandı" : outcome(signatures));
     if (signatures.code !== 0) return fail("SIGNATURES", "paket imzaları doğrulanamadı");
 
     const typecheck = await npm(["exec", "--no", "--", "tsc", "--noEmit", "--incremental", "false"]);
-    step("TYPECHECK", typecheck.code === 0, typecheck.durationMs, typecheck.code === 0 ? "TypeScript hatasız" : outcome(typecheck));
-    if (typecheck.code !== 0) return fail("TYPECHECK", "TypeScript hata verdi; güncelleme kod değişikliği gerektiriyor");
+    const workspaceTypecheck = typecheck.code === 0 && workspace ? await npm(["exec", "--no", "--", "tsc", "--noEmit", "--incremental", "false"], stepTimeout, packageDir) : undefined;
+    const typesOk = typecheck.code === 0 && (workspaceTypecheck === undefined || workspaceTypecheck.code === 0);
+    step("TYPECHECK", typesOk, typecheck.durationMs + (workspaceTypecheck?.durationMs ?? 0), typesOk ? `TypeScript hatasız${workspace ? ` (kök ve ${workspace.dir})` : ""}` : outcome(workspaceTypecheck && workspaceTypecheck.code !== 0 ? workspaceTypecheck : typecheck));
+    if (!typesOk) return fail("TYPECHECK", "TypeScript hata verdi; güncelleme kod değişikliği gerektiriyor");
 
     const lint = await npm(["run", "lint"], stepTimeout, lintWorktree);
     step("LINT", lint.code === 0, lint.durationMs, lint.code === 0 ? "lint hatasız" : outcome(lint));
     if (lint.code !== 0) return fail("LINT", "lint hata verdi; güncelleme kod ya da yapılandırma değişikliği gerektiriyor");
 
-    const build = await npm(["run", "build"]);
-    step("BUILD", build.code === 0, build.durationMs, build.code === 0 ? "üretim derlemesi başarılı" : outcome(build));
-    if (build.code !== 0) return fail("BUILD", "üretim derlemesi başarısız");
+    if (workspace) {
+      // The root app's build does not include a sub-package; the tool itself is run once instead.
+      const outDir = path.join(worktree, ".ayas-update-trial-out");
+      fs.mkdirSync(outDir, { recursive: true });
+      const render = await exec(nodeExec, workspace.check.args(outDir), stepTimeout, packageDir);
+      const renderOk = render.code === 0 && fs.readdirSync(outDir).some((file) => fs.statSync(path.join(outDir, file)).size > 0);
+      step("RENDER", renderOk, render.durationMs, renderOk ? `${workspace.check.label} üretildi` : outcome(render));
+      if (!renderOk) return fail("RENDER", `${workspace.check.label} üretilemedi`);
+    } else {
+      const build = await npm(["run", "build"]);
+      step("BUILD", build.code === 0, build.durationMs, build.code === 0 ? "üretim derlemesi başarılı" : outcome(build));
+      if (build.code !== 0) return fail("BUILD", "üretim derlemesi başarısız");
+    }
 
     const smokesStarted = Date.now();
     const newFailures: string[] = [];

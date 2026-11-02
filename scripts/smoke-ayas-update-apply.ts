@@ -11,14 +11,14 @@ import { admitAyasOwnerApproval, type AyasOwnerAdmissionAction, type AyasOwnerAd
 import { classifyAyasDependencyUpdateImpact, classifyAyasRuntimeImpact } from "../src/lib/brain/autonomy/AyasProposalRuntimeImpact";
 import { createAyasResearchSchedulerStateStore, ayasResearchSchedulerStateSchemaVersion } from "../src/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { createAyasStabilityTransactionStore } from "../src/lib/brain/autonomy/AyasRuntimeStabilityTransaction";
-import { createAyasLivePublisher, reconcileAyasUpdateApplyOrphan, runAyasUpdateApply, runAyasUpdateLivePublish } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
+import { createAyasLivePublisher, reconcileAyasUpdateApplyOrphan, runAyasUpdateApply, runAyasUpdateLivePublish, syncAyasWorkspaceDependencies } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
 import {
   AyasUpdateApprovalError, createAyasUpdateApprovalStore, decideAyasUpdateApply, decideAyasUpdateApproval, isAyasUpdateApplyOwnerAdmitted, listAyasUpdateApplyDecisions,
   type AyasUpdateApplyDecisionRecord,
 } from "../src/lib/brain/autonomy/AyasUpdateApprovalStore";
 import { ayasUpdateRadarItemHash, type AyasUpdateRadarItem } from "../src/lib/brain/autonomy/AyasUpdateRadar";
 import {
-  ayasUpdateTrialHash, createAyasUpdateTrialStore, newAyasUpdateTrialId, readAyasCanonicalSyncRequest, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore,
+  ayasUpdateTrialHash, createAyasUpdateTrialStore, listAyasWorkspaceSyncRequests, newAyasUpdateTrialId, readAyasCanonicalSyncRequest, type AyasUpdateApplyRecord, type AyasUpdateTrialRecord, type AyasUpdateTrialStore,
 } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
 
 /**
@@ -179,6 +179,76 @@ async function main(): Promise<void> {
     const sync = readAyasCanonicalSyncRequest(f.trials.rootDir);
     assert.equal(sync?.commitSha, head); assert.equal(sync?.applyId, done.applyId); assert.equal(sync?.packageLockSha256, sha(NEW_LOCK));
     assert.equal(done.reasons, undefined);
+  });
+
+  await scenario("a remotion-v3 update commits exactly its own two files, asks for its own node_modules sync, which swaps in the new packages and keeps Chrome (owner decision 2026-11-02)", async () => {
+    const sets = [["remotion-v3/package.json", "remotion-v3/package-lock.json"], ["remotion-v3/package-lock.json", "remotion-v3/package.json"]];
+    for (const files of sets) assert.equal(classifyAyasDependencyUpdateImpact(files).publishable, true, JSON.stringify(files));
+    assert.match(classifyAyasDependencyUpdateImpact(sets[0]!).summary, /remotion-v3\/package\.json and remotion-v3\/package-lock\.json/);
+    for (const files of [["package.json", "remotion-v3/package-lock.json"], ["remotion-v3/package.json"], ["remotion-v3/package.json", "remotion-v3/package-lock.json", "package.json", "package-lock.json"], ["other/package.json", "other/package-lock.json"]]) {
+      assert.equal(classifyAyasDependencyUpdateImpact(files).publishable, false, `never a mix or an unknown folder: ${JSON.stringify(files)}`);
+    }
+    const f = makeFixture();
+    const REMOTION_JSON = `${JSON.stringify({ name: "atolye-remotion-v3", dependencies: { "@remotion/cli": "4.0.536", remotion: "4.0.536" } }, null, 2)}\n`;
+    const REMOTION_LOCK = `${JSON.stringify({ lockfileVersion: 3, packages: { "": { name: "atolye-remotion-v3" }, "node_modules/remotion": { version: "4.0.536" } } }, null, 2)}\n`;
+    fs.mkdirSync(path.join(f.repoRoot, "remotion-v3"));
+    fs.writeFileSync(path.join(f.repoRoot, "remotion-v3", "package.json"), REMOTION_JSON); fs.writeFileSync(path.join(f.repoRoot, "remotion-v3", "package-lock.json"), REMOTION_LOCK);
+    fs.writeFileSync(path.join(f.repoRoot, ".gitignore"), "data/\nnode_modules/\n");
+    git(f.repoRoot, "add", "-A"); git(f.repoRoot, "commit", "-q", "-m", "remotion-v3"); git(f.repoRoot, "push", "-q", "origin", "master");
+    const item = (() => {
+      const base = { sourceId: "remotion", provider: "Remotion", toolName: "Remotion", target: "npm:remotion-v3/remotion", installedVersion: "4.0.536", latestVersion: "4.0.538", bump: "PATCH" as const,
+        newerStableReleases: 1, latestUrl: "https://example.test", lastSeenAt: "2026-10-15T06:00:00.000Z", applyChannel: "DEVELOPMENT_SESSION" as const, evidence: [],
+        brief: { summary: "", affectedFileCount: 0, affectedFiles: [], validation: [], risk: "" } };
+      return { ...base, itemHash: ayasUpdateRadarItemHash(base) };
+    })();
+    const approval = await decideAyasUpdateApproval({ sourceId: "remotion", itemHash: item.itemHash, decision: "APPROVE" }, { radar: [item], store: f.approvals, admit: admit("decideAyasUpdateRadar"), safeModeHold: () => undefined });
+    const artifacts = { packageJson: REMOTION_JSON.replaceAll("4.0.536", "4.0.538"), packageLock: REMOTION_LOCK.replace("4.0.536", "4.0.538") };
+    const trialId = newAyasUpdateTrialId();
+    const tested = { trialId, itemHash: item.itemHash, baseHead: git(f.repoRoot, "rev-parse", "HEAD"), installSpecs: ["remotion@4.0.538", "@remotion/cli@4.0.538"], packageJsonSha256: sha(artifacts.packageJson), packageLockSha256: sha(artifacts.packageLock) };
+    const trial: AyasUpdateTrialRecord = {
+      schemaVersion: 1, ...tested, approvalDecisionId: approval.decisionId, sourceId: "remotion", toolName: "Remotion", target: "npm:remotion-v3/remotion", installedVersion: "4.0.536", targetVersion: "4.0.538",
+      bump: "PATCH", status: "PASSED", startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
+      steps: (["WORKTREE", "NPM_CI", "NPM_INSTALL", "LOCK_CHECK", "SIGNATURES", "TYPECHECK", "LINT", "RENDER", "SMOKES"] as const).map((name) => ({ name, ok: true, durationMs: 1, summary: "ok" })),
+      trialHash: ayasUpdateTrialHash(tested),
+    };
+    f.trials.writeArtifacts(trialId, artifacts); f.trials.upsert(trial);
+    const done = await runAyasUpdateApply(await applyDecision(f, trial), trial, f.deps);
+    assert.equal(done.status, "COMPLETED", JSON.stringify(done.reasons));
+    const head = git(f.repoRoot, "rev-parse", "HEAD");
+    assert.deepEqual(git(f.repoRoot, "show", "--name-only", "--format=", "HEAD").split(/\r?\n/).filter(Boolean).sort(), ["remotion-v3/package-lock.json", "remotion-v3/package.json"]);
+    assert.equal(git(f.repoRoot, "show", "HEAD:remotion-v3/package.json") + "\n", artifacts.packageJson);
+    assert.equal(git(f.repoRoot, "show", "HEAD:package.json") + "\n", PACKAGE_JSON, "the root's files are untouched");
+    assert.match(git(f.repoRoot, "log", "-1", "--format=%s"), /^chore\(deps\): Remotion 4\.0\.536 -> 4\.0\.538$/);
+    assert.equal(git(f.remoteDir, "rev-parse", "master"), head); assert.deepEqual(f.published, [head]);
+    assert.equal(readAyasCanonicalSyncRequest(f.trials.rootDir), undefined, "the root's node_modules stays as it is");
+    const [request] = listAyasWorkspaceSyncRequests(f.trials.rootDir);
+    assert.deepEqual([request?.workspace, request?.commitSha, request?.packageLockSha256, request?.attempts], ["remotion-v3", head, sha(artifacts.packageLock), 0]);
+
+    // The sync: old packages and Remotion's Chrome in place; npm ci (faked) fills the stage folder outside the repository.
+    const modules = path.join(f.repoRoot, "remotion-v3", "node_modules");
+    fs.mkdirSync(path.join(modules, "remotion"), { recursive: true }); fs.writeFileSync(path.join(modules, "remotion", "v.txt"), "4.0.536");
+    fs.mkdirSync(path.join(modules, ".remotion", "chrome"), { recursive: true }); fs.writeFileSync(path.join(modules, ".remotion", "chrome", "chrome.exe"), "exe");
+    let ciOk = false;
+    const cwds: string[] = [];
+    const run = async (_command: string, args: readonly string[], options: { readonly cwd: string }) => {
+      cwds.push(options.cwd);
+      assert.ok(args.includes("ci") && args.includes("--ignore-scripts"), JSON.stringify(args));
+      if (!ciOk) return { code: 1, output: "npm ERR! network", durationMs: 1, timedOut: false };
+      fs.mkdirSync(path.join(options.cwd, "node_modules", "remotion"), { recursive: true }); fs.writeFileSync(path.join(options.cwd, "node_modules", "remotion", "v.txt"), "4.0.538");
+      return { code: 0, output: "added 1 package", durationMs: 1, timedOut: false };
+    };
+    const syncDeps = { repoRoot: f.repoRoot, store: f.trials, run, env: {}, nodeExecPath: "node-fake", npmCli: "npm-cli-fake" };
+    const failed = await syncAyasWorkspaceDependencies(request!, syncDeps);
+    assert.equal(failed.ok, false); assert.equal(fs.readFileSync(path.join(modules, "remotion", "v.txt"), "utf8"), "4.0.536", "a failed install changes nothing");
+    assert.deepEqual([listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]?.attempts, /network/.test(listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]?.lastError ?? "")], [1, true]);
+    ciOk = true;
+    const synced = await syncAyasWorkspaceDependencies(listAyasWorkspaceSyncRequests(f.trials.rootDir)[0]!, syncDeps);
+    assert.equal(synced.ok, true, synced.summary);
+    assert.equal(fs.readFileSync(path.join(modules, "remotion", "v.txt"), "utf8"), "4.0.538");
+    assert.equal(fs.readFileSync(path.join(modules, ".remotion", "chrome", "chrome.exe"), "utf8"), "exe", "Remotion's Chrome is carried over");
+    assert.deepEqual(listAyasWorkspaceSyncRequests(f.trials.rootDir), [], "the request is done");
+    assert.ok(cwds.every((cwd) => !path.resolve(cwd).startsWith(path.resolve(f.repoRoot))), "the install ran outside the repository");
+    assert.equal(git(f.repoRoot, "status", "--porcelain"), "", "nothing is left in the tree");
   });
 
   await scenario("HEAD moved since the trial: STALE, nothing committed", async () => {

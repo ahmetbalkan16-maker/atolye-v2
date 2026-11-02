@@ -13,7 +13,7 @@ import type { AyasUpdateRadarItem } from "./AyasUpdateRadar";
  */
 export type AyasUpdateTrialStatus = "RUNNING" | "PASSED" | "FAILED" | "ABANDONED";
 export type AyasUpdateTrialStepName =
-  | "WORKTREE" | "NPM_CI" | "BASELINE_SMOKES" | "NPM_INSTALL" | "LOCK_CHECK" | "SIGNATURES" | "TYPECHECK" | "LINT" | "BUILD" | "SMOKES";
+  | "WORKTREE" | "NPM_CI" | "BASELINE_SMOKES" | "NPM_INSTALL" | "LOCK_CHECK" | "SIGNATURES" | "TYPECHECK" | "LINT" | "BUILD" | "RENDER" | "SMOKES";
 
 export interface AyasUpdateTrialStep {
   readonly name: AyasUpdateTrialStepName;
@@ -177,6 +177,41 @@ export function readAyasCanonicalSyncRequest(rootDir: string): AyasCanonicalSync
   } catch { return undefined; }
 }
 
+/**
+ * A committed sub-package update (AYAS_UPDATE_WORKSPACES) leaves its node_modules in the canonical tree on the old
+ * packages. No always-on process runs from it, but a V3 production renders from it, so the executor reinstalls it
+ * between productions (syncAyasWorkspaceDependencies) and removes this marker once done. One file per sub-package.
+ */
+export interface AyasWorkspaceSyncRequest {
+  readonly schemaVersion: 1; readonly requestedAt: string; readonly applyId: string; readonly commitSha: string;
+  readonly workspace: string; readonly packageLockSha256: string; readonly attempts: number; readonly lastError?: string;
+}
+/** A sync failed this many times stops being retried: the owner (or a session) looks at it. */
+export const AYAS_WORKSPACE_SYNC_MAX_ATTEMPTS = 3;
+const workspaceSyncFile = (rootDir: string, workspace: string): string => {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(workspace)) throw new Error("workspace sync: malformed workspace name");
+  return path.join(rootDir, `workspace-sync-${workspace}.json`);
+};
+
+export function writeAyasWorkspaceSyncRequest(rootDir: string, request: Omit<AyasWorkspaceSyncRequest, "schemaVersion">): void {
+  writeAtomic(rootDir, workspaceSyncFile(rootDir, request.workspace), `${JSON.stringify({ schemaVersion: 1, ...request }, null, 2)}\n`);
+}
+
+export function listAyasWorkspaceSyncRequests(rootDir: string): readonly AyasWorkspaceSyncRequest[] {
+  let names: string[];
+  try { names = fs.readdirSync(rootDir).filter((name) => /^workspace-sync-[a-z0-9-]+\.json$/.test(name)).sort(); } catch { return []; }
+  return names.flatMap((name) => {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(rootDir, name), "utf8")) as AyasWorkspaceSyncRequest;
+      return parsed?.schemaVersion === 1 && name === `workspace-sync-${parsed.workspace}.json` ? [parsed] : [];
+    } catch { return []; }
+  });
+}
+
+export function clearAyasWorkspaceSyncRequest(rootDir: string, workspace: string): void {
+  fs.rmSync(workspaceSyncFile(rootDir, workspace), { force: true });
+}
+
 export const newAyasUpdateTrialId = (): string => `ayas-update-trial-${crypto.randomUUID()}`;
 
 /** sha256 over the exact tested bytes, the approved item and the base commit; what an "Uygula" click binds to. */
@@ -203,6 +238,8 @@ const COMPANIONS: Readonly<Record<string, readonly string[]>> = Object.freeze({
   next: ["eslint-config-next"],
   react: ["react-dom"],
 });
+/** Every listed dependency under this scope moves with the tracked package (Remotion publishes all of them as one version). */
+const COMPANION_SCOPES: Readonly<Record<string, string>> = Object.freeze({ remotion: "@remotion/" });
 
 const NPM_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
@@ -218,7 +255,9 @@ export function buildAyasUpdateInstallPlan(packageJson: PackageJson, packageName
   const spec = (name: string): string | undefined => packageJson.dependencies?.[name] ?? packageJson.devDependencies?.[name];
   const current = spec(packageName);
   if (current === undefined) throw new Error(`update install plan: ${packageName} is not a direct dependency`);
-  const companions = (COMPANIONS[packageName] ?? []).filter((name) => spec(name) !== undefined);
+  const scope = COMPANION_SCOPES[packageName];
+  const scoped = scope ? [...Object.keys(packageJson.dependencies ?? {}), ...Object.keys(packageJson.devDependencies ?? {})].filter((name) => name.startsWith(scope)).sort() : [];
+  const companions = [...new Set([...(COMPANIONS[packageName] ?? []), ...scoped])].filter((name) => spec(name) !== undefined && NPM_NAME.test(name));
   return Object.freeze({
     specs: Object.freeze([packageName, ...companions].map((name) => `${name}@${version}`)),
     saveExact: EXACT_VERSION.test(current),

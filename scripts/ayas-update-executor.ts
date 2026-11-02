@@ -8,6 +8,8 @@
  *   - LIVE_PUBLISH: a committed and pushed update whose live copy is not yet published (bounded attempts).
  *   - APPLY: an owner "Uygula" on a passed trial: commit + push through the guarded dependency-update lane, Graphify
  *     closure, then the live publish (AyasUpdateApplyRunner; CLAUDE.md standing exception for this click).
+ *   - WORKSPACE_SYNC: after an applied sub-package update (V3's remotion-v3/, owner decision 2026-11-02), its canonical
+ *     node_modules is reinstalled from the committed lock while no V3 production runs or waits. No Git change.
  *   - MODEL_SWITCH: an owner "Bu modele geç": AYAS_OLLAMA_MODEL in both .env.local files, a live restart and a short
  *     chat check, rolled back on failure (AyasModelSwitchRunner). No Git change.
  *   - AUTO_LIVE_PUBLISH: a finished task, i.e. the pushed HEAD with an application change the live copy lacks, goes
@@ -37,10 +39,14 @@ import { reconcileAyasModelSwitchOrphan, runAyasModelSwitch } from "../src/lib/b
 import { runAyasModelTrial } from "../src/lib/brain/autonomy/AyasModelTrialRunner";
 import { readAyasOwnerChatActivityAt } from "../src/lib/ayas/AyasOwnerChatActivity";
 import { AYAS_LIVE_APP_PATHS, decideAyasAutoLivePublish, readAyasAutoLiveAttempts, type AyasAutoLiveFacts } from "../src/lib/brain/autonomy/AyasAutoLivePublish";
-import { reconcileAyasUpdateApplyOrphan, runAyasAutoLivePublish, runAyasUpdateApply, runAyasUpdateLivePublish } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
+import { reconcileAyasUpdateApplyOrphan, runAyasAutoLivePublish, runAyasUpdateApply, runAyasUpdateLivePublish, syncAyasWorkspaceDependencies } from "../src/lib/brain/autonomy/AyasUpdateApplyRunner";
 import { createAyasUpdateApprovalStore, listAyasUpdateApplyDecisions, listAyasUpdateApprovals } from "../src/lib/brain/autonomy/AyasUpdateApprovalStore";
 import { resolveAyasUpdateTrialRoots, runAyasUpdateTrial } from "../src/lib/brain/autonomy/AyasUpdateTrialRunner";
-import { createAyasUpdateTrialStore, selectAyasUpdateApplyJob, selectAyasUpdateTrialJob } from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
+import {
+  AYAS_WORKSPACE_SYNC_MAX_ATTEMPTS, createAyasUpdateTrialStore, listAyasWorkspaceSyncRequests, selectAyasUpdateApplyJob, selectAyasUpdateTrialJob,
+} from "../src/lib/brain/autonomy/AyasUpdateTrialStore";
+import { listOrders } from "../src/lib/v3/orders/ProductionOrders";
+import { resolveV3Paths } from "../src/lib/v3/V3Paths";
 import { probeAyasModelHardware } from "./lib/AyasModelHardwareProbe";
 
 const root = process.cwd();
@@ -133,6 +139,18 @@ async function main(): Promise<void> {
     if (applyJob.kind === "APPLY") {
       const done = await runAyasUpdateApply(applyJob.decision, applyJob.trial, { repoRoot: root, store: trials });
       return report("APPLY_" + done.status, { applyId: done.applyId, sourceId: done.sourceId, targetVersion: done.targetVersion, commit: done.commitSha?.slice(0, 8), live: done.live?.status, reasons: done.reasons });
+    }
+
+    // An applied sub-package update (V3's remotion-v3/) reinstalls its canonical node_modules, only while no V3
+    // production runs or waits to start, since a production renders from it.
+    const workspaceSync = listAyasWorkspaceSyncRequests(trials.rootDir).find((request) => request.attempts < AYAS_WORKSPACE_SYNC_MAX_ATTEMPTS);
+    if (workspaceSync) {
+      const orders = await listOrders(resolveV3Paths(root).workRoot).catch(() => []);
+      const busy = orders.filter(({ order }) => order.durum === "calisiyor" || order.durum === "bekliyor").length;
+      if (busy) return report("WORKSPACE_SYNC_WAITING", { workspace: workspaceSync.workspace, v3Orders: busy });
+      if (dryRun) return report("DRY_RUN", { job: "WORKSPACE_SYNC", workspace: workspaceSync.workspace, commit: workspaceSync.commitSha.slice(0, 8) });
+      const done = await syncAyasWorkspaceDependencies(workspaceSync, { repoRoot: root, store: trials });
+      return report(done.ok ? "WORKSPACE_SYNC_OK" : "WORKSPACE_SYNC_FAILED", { workspace: workspaceSync.workspace, summary: done.summary });
     }
 
     // Model operations: the same owner-sealed decisions, carried out with the AYAS chat path and the loopback Ollama.
