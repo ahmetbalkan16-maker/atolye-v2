@@ -1,3 +1,50 @@
+## 2 Kasım 2026 — V3 yakın savaşta bilgi kartı savaşı karartmaz; araştırma elemesi; telefon erişimi açılış gecikmesi
+
+**Owner:** "kaldığın yeri bul … yakın çekimde taktikleri yapıyordun, birde gelişim merkezinde bir eksiklik bulmuştuk";
+oturum içinde "ayasa telefondan bağlanamıyorum, nedenine bakıp çözer misin".
+
+**Yapılan (feature/cop-adam-v3, push edildi, canlı DEĞİL):**
+- `02e44ca9` V3: `Tactics.clearBattleCards` (DraftNormalizer'da narrateMoves'tan sonra) — yakın savaş haritasında
+  birlik hareket/kayıp/bozgun satırını örten bilgi kartı o satırdan önce biter (sonraki maddeleri ardışık gelir);
+  hareket satırında başlayan kart savaştan sonraya, yer yoksa ilk hareketten önceye alınır. Yazar istemine aynı kural.
+  Gerçek Mohaç v3 bölümünde "Why the Ottomans Won" artık 2. satırda bitiyor. smoke-v3-script'e capUnitBlocks,
+  narrateMoves, fitBattleMap, clearBattleCards senaryosu (26 Ekim "Kalan 1" kapandı). Bilinen sınır: yönetmen kartı
+  en az `INFO_CARD_MIN_S` (4 sn) tutar; kısa bir espri satırında kart hareket satırına ~1 sn taşabilir.
+- `81a97109` AYAS: bir aracın sürüm notu (kayıtlı `releaseVersion` ya da `/releases/tag/` URL'si,
+  `ayasResearchFindingRelease`) tasarım incelemesi kartına dönüşmez. Bulgu: 271 bulgunun 45'i ACTIONABLE ve 45'i de
+  sürüm notu (22 llama.cpp ara derlemesi, rc'ler, kullanılmayan araçlar, Remotion 4.0.538); aynı 6 kart her commit'te
+  yeniden önerilmiş (approval-inbox'ta 750 STALE). Canlı veride (kapı açık) köprünün ürettiği kart: 0. İzlenen
+  aracın yeni kararlı sürümü güncelleme radarında kalır. Bu, 26 Ekim "Sıradaki iş 1"in (araştırma elemesi) yerine
+  geçer: kullanılan araç/sürüm karşılaştırması 2. işte "hangisi denenir" seçimi olur.
+
+**Doğrulama:** tsc temiz; lint 0 hata / 13 eski uyarı; smoke v3-script 23, v3-backgrounds 20, v3-council 12,
+v3-episode-director 50, research-proposal-bridge 7, design-review-proposals 7, continuous-self-improvement 10,
+research-improvement-loop (36 karar + 57 senaryo), research-intelligence 28, deferred-reeligibility 34,
+owner-approval-daemon-integration 5, discovery-registry 15, daemon-authority-boundary 23, discovery-run-firewall 13,
+golden-experiment-gate 11, action-firewall-closure 13.
+
+**Telefon erişimi (salt teşhis, değişiklik yok):** 06:42 açılıştan sonra erişim denetçisi canlı kopyanın
+(`ayas-live-422b1f3f`) bütünlük kontrolünü (`ayas-prebuilt-runtime.mjs --check`: 27.700 dosya, 1,34 GB, tek tek
+sha256) soğuk önbellekli HDD'de 11 dk'da bitirdi; 06:53'te uygulama + tünel + dış sağlık "healthy". 27 ve 28 Ekim
+sabahları da 12–13 dk. 28 Ekim 06:56–09:29 tünelin dakikada bir yeniden kurulması ağ kopmasıydı (NetworkProfile
+4004 olayları dakikada bir; ortak anten hattı), kod hatası değil. Öneri (owner kararı bekliyor): canlı kopyaları
+C: NVMe'ye taşımak (239 GB boş).
+
+**Canlı dal durumu:** `origin/wip/ayas-graphify-final-execution` bu daldan 43 commit önde (Next.js 16.4.3, ESLint 10,
+AYAS mikro iyileştirmeleri; araştırma köprüsüne dokunan yok). Canlıya almak için önce o dal bu dala merge edilir
+(worktree'de `npm ci` gerekir, ESLint 10), sonra ff push + canonical pull + Graphify (iki repo).
+
+**Sıradaki (owner kararı bekleyenler):**
+1. Canlıya alma (`02e44ca9`, `81a97109`).
+2. "İncele" yerine "dene" (26 Ekim iş 2) tasarımı owner'a sunuldu: Remotion (remotion-v3) güncelleme radarına; deneme
+   ayrı worktree'de remotion-v3 npm ci + tüm `@remotion/*` aynı sürüme + imza denetimi + remotion-v3 ve kök tsc +
+   `smoke-v3-*` + kısa render; "Uygula" yalnız `remotion-v3/package.json` + `package-lock.json` (dependency-update
+   lane'i ve CLAUDE.md tek tık istisnası genişler) + canonical'da remotion-v3 npm ci + sipariş izleyicisi yeniden
+   başlatma. Ollama (kurulu program) ve llama.cpp (Podman imajında sabit) worktree'de denenemez: radarda
+   "owner kurar" olarak görünür, deneme yok.
+3. Canlı kopyaların NVMe'ye taşınması (telefon erişimi açılışta ~11 dk → <1 dk beklenir).
+4. 26 Ekim'den kalan: owner Mohaç önizlemelerini izler; müdahalesiz tam AYAS siparişi (barut çağı meydan savaşı, 3 dk).
+
 ## 26 Ekim 2026 (gece, 2) — Gelişim Merkezi: onaylanan tasarım incelemeleri "yürütme bekliyor" görünmez
 
 **Owner:** "gelişim merkezinde birkaç şey onayladım, yürütme için ayrıldı diyor ama yürüt yok".
