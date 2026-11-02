@@ -15,7 +15,7 @@ import { resolveOllamaConfig } from "../../src/lib/ai/OllamaConfig";
 import { OllamaProvider } from "../../src/lib/ai/providers/OllamaProvider";
 import { pickBackground, verdictLine } from "../../src/lib/v3/backgrounds/BackgroundJudge";
 import { type ExamManifest, gradeAnswer } from "../../src/lib/v3/council/BrainExam";
-import { coolGpuProvider } from "../../src/lib/v3/util/Gpu";
+import { coolGpuProvider, V3_OLLAMA_THERMAL } from "../../src/lib/v3/util/Gpu";
 import { resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
 function arg(name: string): string | undefined {
@@ -47,7 +47,7 @@ async function main() {
   const models = (arg("--modeller") ?? process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b").split(",").map((m) => m.trim()).filter(Boolean);
   const report: { model: string; dogru: number; toplam: number; sorular: { id: string; dogru: boolean; neden: string; cevap?: string }[] }[] = [];
   for (const model of models) {
-    const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model, timeoutMs: 300_000, numCtx: 8_192, format: "json" as const, think: false })), (s) => console.log(s));
+    const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model, timeoutMs: 300_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
     const rows: (typeof report)[number]["sorular"] = [];
     for (const q of manifest.sorular) {
       const file = path.join(dir, q.gorsel);

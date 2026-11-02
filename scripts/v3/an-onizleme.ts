@@ -13,7 +13,7 @@ import { resolveOllamaConfig } from "../../src/lib/ai/OllamaConfig";
 import { OllamaProvider } from "../../src/lib/ai/providers/OllamaProvider";
 import { BackgroundDesigner, momentDesign } from "../../src/lib/v3/backgrounds/BackgroundDesigner";
 import { passes, pickBackground, verdictLine } from "../../src/lib/v3/backgrounds/BackgroundJudge";
-import { coolGpuProvider } from "../../src/lib/v3/util/Gpu";
+import { coolGpuProvider, V3_OLLAMA_THERMAL } from "../../src/lib/v3/util/Gpu";
 import { runChecked } from "../../src/lib/v3/util/Proc";
 import { loadV3Settings, resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
@@ -39,7 +39,7 @@ async function main() {
   } finally {
     await painter.close();
   }
-  const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false })), log);
+  const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), log);
   const preview = async (file: string) => {
     const jpg = path.join(paths.asciiTemp, `an-onizleme-${path.basename(file, ".png")}.jpg`);
     await runChecked(paths.ffmpeg, ["-v", "error", "-y", "-i", file, "-vf", "scale=960:-2", "-q:v", "4", jpg]);

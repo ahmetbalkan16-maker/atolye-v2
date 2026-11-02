@@ -74,7 +74,7 @@ import { EXTRA_CAP_MAX_USD, V3Budget, type V3ModelChoice, videoCapUsd } from "..
 import { buildTimeline, DEFAULT_TIMELINE, type EpisodeTimeline, type LineAudio } from "../src/lib/v3/timeline/Timeline";
 import { type TtsProviderId, TtsService, voiceCredit, type VoiceMap } from "../src/lib/v3/tts/Tts";
 import { splitDirections } from "../src/lib/v3/tts/StageDirections";
-import { coolGpuProvider, freeGpuMemory, unloadOllama, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
+import { coolGpuProvider, freeGpuMemory, unloadOllama, V3_OLLAMA_THERMAL, waitForCoolGpu } from "../src/lib/v3/util/Gpu";
 import { healthDirs, healthLine, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { runChecked, runProcess } from "../src/lib/v3/util/Proc";
 import { PRODUCTION_STEPS } from "../src/lib/v3/orders/ProductionOrders";
@@ -95,13 +95,13 @@ function scriptBudget(paths: V3Paths, capUsd?: number, vision = false): { budget
     process.env.OPENAI_API_KEY = key;
     process.env.AI_PROVIDER = "openai";
   }
-  const ollama = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_OLLAMA_MODEL ?? "gemma4:12b", timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false })), (s) => console.log(s));
+  const ollama = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_OLLAMA_MODEL ?? "gemma4:12b", timeoutMs: 1_200_000, numCtx: 16_384, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
   return { providerName, budget: new V3Budget({ providers: { openai: vision ? new OpenAIVisionProvider() : new OpenAIProvider(), ollama }, fallback: { provider: "ollama" }, ...(capUsd !== undefined ? { capUsd } : {}) }) };
 }
 
 /** The free local vision judge (gemma4 through Ollama) for period images, sets and portraits; it waits for a cool GPU before every call. */
 function visionJudge(): AIProvider {
-  return coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false })), (s) => console.log(s));
+  return coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model: process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b", timeoutMs: 180_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
 }
 type Step = (typeof STEPS)[number];
 

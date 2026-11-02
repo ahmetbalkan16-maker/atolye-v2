@@ -23,7 +23,7 @@ import { resolveOllamaConfig } from "../../src/lib/ai/OllamaConfig";
 import { OllamaProvider } from "../../src/lib/ai/providers/OllamaProvider";
 import { exampleDir, recall } from "../../src/lib/v3/council/ExperienceMemory";
 import { edgeStripArgs, FRAME_KINDS, type FrameKind, frameExamples, judgeFrame, QUALITY_BAR, teachFrame } from "../../src/lib/v3/council/QualityBrain";
-import { coolGpuProvider } from "../../src/lib/v3/util/Gpu";
+import { coolGpuProvider, V3_OLLAMA_THERMAL } from "../../src/lib/v3/util/Gpu";
 import { runChecked } from "../../src/lib/v3/util/Proc";
 import { loadV3Settings, resolveV3Paths } from "../../src/lib/v3/V3Paths";
 
@@ -88,7 +88,7 @@ async function main() {
   }
   if (cmd !== "calistir") throw new Error("Kullanım: npx tsx scripts/v3/kalite-sinavi.ts hazirla | calistir [--model <ad>] [--ornek-yok] | ogret …");
   const model = arg("--model") ?? process.env.ATOLYE_V3_VISION_MODEL ?? "gemma4:12b";
-  const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model, timeoutMs: 300_000, numCtx: 8_192, format: "json" as const, think: false })), (s) => console.log(s));
+  const judge = coolGpuProvider(new OllamaProvider(fetch, () => ({ ...resolveOllamaConfig(), model, timeoutMs: 300_000, numCtx: 8_192, format: "json" as const, think: false }), V3_OLLAMA_THERMAL), (s) => console.log(s));
   const rules = (await recall(paths.workRoot, "kalite", { tur: "kural" }).catch(() => [])).map((l) => l.metin);
   const lessons = process.argv.includes("--ornek-yok") ? [] : await recall(paths.workRoot, "kalite", { tur: "ders", limit: 10_000 }).catch(() => []);
   const answers = [];

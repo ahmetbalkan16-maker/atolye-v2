@@ -1,4 +1,6 @@
 import type { AIProvider } from "../../ai/providers/AIProvider";
+import { OllamaThermalHardStopError, type OllamaThermalMonitorOptions } from "../../ai/providers/OllamaThermalMonitor";
+import { AYAS_A2000_PROFILE_ID } from "../../ayas/machine/AyasGpuThermalAdmission";
 import { A2000_GPU_HARD_STOP_C } from "../../brain/probe/GpuThermalPolicy";
 import { runChecked, runProcess } from "./Proc";
 
@@ -57,15 +59,34 @@ export const GPU_START_C = GPU_LIMIT_C - 7;
 export const GPU_CALL_START_C = GPU_LIMIT_C - 11;
 
 /**
+ * The in-call stop for every V3 OllamaProvider (its third argument): AYAS's OllamaThermalMonitor aborts the request
+ * at GPU_LIMIT_C, but it only runs on the A2000 profile, which V3 processes never load (loadV3Settings reads
+ * ATOLYE_V3_* only). Without it a call that started below GPU_CALL_START_C could keep heating the card: a long
+ * Qwen3-VL exam call reached 88 °C on 2 Nov 2026.
+ */
+export const V3_OLLAMA_THERMAL: OllamaThermalMonitorOptions = { environment: { ...process.env, ATOLYE_BRAIN_HARDWARE_PROFILE: AYAS_A2000_PROFILE_ID } };
+
+/**
  * A model on the local card (Ollama: the vision judge, the free text fallback) that keeps the owner's temperature
  * rule on every call: a production may take longer, the PC is never pushed past the limit. A call cannot rest inside,
- * so it starts only below GPU_CALL_START_C.
+ * so it starts only below GPU_CALL_START_C; a call the in-call stop aborted runs once more on a cooled card.
  */
-export function coolGpuProvider(provider: AIProvider, log: (s: string) => void = () => {}): AIProvider {
+export function coolGpuProvider(
+  provider: AIProvider,
+  log: (s: string) => void = () => {},
+  waitCool: (limit: number) => Promise<void> = (limit) => waitForCoolGpu(log, limit),
+): AIProvider {
   return {
     generate: async (prompt, options) => {
-      await waitForCoolGpu(log, GPU_CALL_START_C);
-      return provider.generate(prompt, options);
+      await waitCool(GPU_CALL_START_C);
+      try {
+        return await provider.generate(prompt, options);
+      } catch (e) {
+        if (!(e instanceof OllamaThermalHardStopError)) throw e;
+        log(`GPU ${GPU_LIMIT_C} °C sınırına ulaştı, yerel model çağrısı durduruldu — kart soğuyunca bir kez daha denenecek`);
+        await waitCool(GPU_CALL_START_C);
+        return provider.generate(prompt, options);
+      }
     },
   };
 }
