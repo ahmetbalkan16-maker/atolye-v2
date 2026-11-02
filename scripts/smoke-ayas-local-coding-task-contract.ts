@@ -8,8 +8,8 @@ const valid = {
   exactFiles: ["src/lib/ayas/memory/AyasMemoryRetrieval.ts"], maxChangedLines: 40,
 };
 const parsed = parseAyasLocalCodingTaskContract(valid);
-assert.deepEqual(parsed.exactFiles, valid.exactFiles);
-assert.ok(Object.isFrozen(parsed) && Object.isFrozen(parsed.exactFiles));
+assert.deepEqual(parsed.exactFiles, valid.exactFiles, "assert.deepEqual(parsed.exactFiles, valid.exactFiles)");
+assert.ok(Object.isFrozen(parsed) && Object.isFrozen(parsed.exactFiles), "assert.ok(Object.isFrozen(parsed) && Object.isFrozen(parsed.exactFiles))");
 const refused: unknown[] = [
   null, [], { ...valid, schemaVersion: "2" }, { ...valid, baseHead: "main" },
   { ...valid, taskId: "coding-1" }, { ...valid, objective: "short" },
