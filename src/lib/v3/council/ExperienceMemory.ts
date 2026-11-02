@@ -54,6 +54,27 @@ export async function remember(workRoot: string, lesson: Omit<Lesson, "tarih">):
   await fs.appendFile(path.join(dir, `${lesson.beyin}.jsonl`), `${JSON.stringify(line)}\n`);
 }
 
+/**
+ * Drops a brain's lessons that came from one source (`bolum`), so a source studied again replaces its lessons instead
+ * of piling the same advice up twice. The file is rewritten through a temporary file; other lessons keep their order.
+ */
+export async function forgetSource(workRoot: string, beyin: BrainId, bolum: string): Promise<number> {
+  const file = path.join(memoryDir(workRoot), `${beyin}.jsonl`);
+  if (!existsSync(file)) return 0;
+  const lines = (await fs.readFile(file, "utf8")).split(/\r?\n/).filter(Boolean);
+  const keep = lines.filter((l) => {
+    try {
+      return (JSON.parse(l) as Lesson).bolum !== bolum;
+    } catch {
+      return true;
+    }
+  });
+  if (keep.length === lines.length) return 0;
+  await fs.writeFile(`${file}.tmp`, keep.length ? `${keep.join("\n")}\n` : "");
+  await fs.rename(`${file}.tmp`, file);
+  return lines.length - keep.length;
+}
+
 async function readAll(workRoot: string, beyin: BrainId): Promise<Lesson[]> {
   const file = path.join(memoryDir(workRoot), `${beyin}.jsonl`);
   if (!existsSync(file)) return [];

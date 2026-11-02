@@ -9,17 +9,19 @@ import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
  * own next time; a "code" finding is only ever a proposal for the owner-approved development lane — no brain and no
  * report here changes code. Every debate is kept as a transcript.
  */
-export type BrainId = "arastirma" | "kurgu" | "kostum" | "ortam" | "ses" | "kalite" | "onarim" | "sef";
+export type BrainId = "arastirma" | "kurgu" | "mizah" | "kostum" | "ortam" | "ses" | "kalite" | "onarim" | "sef";
 
 export const BRAIN_NAMES: Readonly<Record<BrainId, string>> = {
   arastirma: "Araştırma beyni",
   kurgu: "Kurgu beyni",
+  // The humourist (owner's plan, 2 Nov 2026): joins the director's council with the script writer, historian and quality.
+  mizah: "Mizah beyni",
   kostum: "Kostüm beyni",
   ortam: "Ortam beyni",
   ses: "Ses beyni",
   kalite: "Kalite beyni",
   onarim: "Hata onarım beyni",
-  sef: "Şef (AYAS adına)",
+  sef: "AYAS (yönetmen)",
 };
 
 export interface DebateEntry {
@@ -150,7 +152,7 @@ export function councilMarkdown(bolum: string, log: CouncilLog, plan?: ChiefPlan
   const line = (f: Finding) => `- **${BRAIN_NAMES[f.beyin]}** — ${f.baslik}${f.yer ? ` (${f.yer})` : ""}: ${f.ayrinti}${f.oneri ? ` → ${f.oneri}` : ""} _[${f.tur}]_`;
   const parts = [`# Yapım kurulu raporu — ${bolum}`, ""];
   if (plan) {
-    parts.push("## Şef (AYAS adına)", "", plan.ozet, "");
+    parts.push("## AYAS (yönetici)", "", plan.ozet, "");
     const item = (o: ChiefItem) => `- ${o.baslik}${o.neden ? ` — ${o.neden}` : ""}${o.beyin ? ` _(${BRAIN_NAMES[o.beyin]})_` : ""}`;
     const onlemler = chiefItems(plan.onlemler);
     const gelistirmeler = chiefItems(plan.gelistirmeler);
