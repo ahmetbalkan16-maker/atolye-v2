@@ -1,3 +1,20 @@
+## 2 Kasım 2026 (gece, 8) — Kendi kendine öğrenme: bağlantı yeter, 4 saatte bir arama, pekiştirme, sabit hakem
+
+**Owner:** "canlıya al" (`91322a23` yayında, izleyici yeniden başlatıldı); sonra "tamam kur" (sabit hakem) ve: bağlantı
+atınca beyinler kendiliğinden incelesin, döngü 4 saatte bir, "benim atmamı beklemesin… ilgili videoları inceleyip
+kendini geliştirsin ve hafızasına deneyim olarak kaydetsin". Commit `cb3661bc`.
+
+- AYAS: tek başına bağlantı (en çok 5) → inceleme; başka bir isteğin parçasıysa o istek, video hakkında soru ise sohbet.
+- Döngü 4 saatte bir; her döngüde önce son bölümün konusu, sonra `content/v3/referans-aramalari.json` (OverSimplified,
+  Sancaray, DFT Tarih, tarih animasyonu, Shorts…); döngüde 2, günde 10 video. Gerçek deneme: Sezar konusunda Weird
+  History ve Ancient Memoria incelendi (7 ders, $0.011).
+- Hafıza: benzer tek-video dersi tekrar yazılmaz; `pekistir` (günde bir) 12 ders birikince ≤8 derse birleştirir,
+  destek sayısını toplar; yazar kotalı alır (üretim 4, referans 3, mizah 2).
+- Sabit hakem (sıcaklık 0, tohum 42; `OllamaConfig.seed`): haftada bir 3+3 sınav. İlk deneme: şimdiki %83/%83/%73,
+  sabit %73/%73/%73 → tohum tutuyor ama doğruluk düştü → bırakıldı (owner kuralı: düşüyorsa geri al).
+- `code-review` (medium) 10 bulgu verdi, hepsi düzeltildi. `smoke-local-providers` Unicode TEMP'te espeak yüzünden
+  düşüyor (önceden de; ASCII TEMP'te 71 PASS).
+
 ## 2 Kasım 2026 (gece, 7) — Beyin kurulu: benzer videolardan öğrenme, AYAS yönetmen turu, boşta gelişim, rapor
 
 **Owner:** önerilen sistemi onayladı ("bunları onaylıyorum başla"): benzer videolardan öğrenme, AYAS yönetmen,
