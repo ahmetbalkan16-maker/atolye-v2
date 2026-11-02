@@ -48,12 +48,12 @@ import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "..
 import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
-import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, costumeRootsFor, designParts, partOrders, type PartRecord } from "../src/lib/v3/costumes/PartDesigner";
-import { beats, buildRenderPlan, longestEmptyStretch, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { beats, buildRenderPlan, HOOK_S, longestEmptyStretch, openingHook, opensOnNarrator, PICTURE_SHARE_TARGET, pictureShares, type SceneInsert, shotEventFrames, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import { CLOSE_MAP_MAX_KM, EPISODE_TONES, MAX_EPISODE_S, type Episode, type EpisodeTone, type SfxId } from "../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { armsOf } from "../src/lib/v3/episode/Period";
@@ -65,7 +65,7 @@ import { composeBeds, MusicComposer } from "../src/lib/v3/mix/MusicComposer";
 import { type AmbienceBed, designSounds, SfxDesigner } from "../src/lib/v3/mix/SfxDesigner";
 import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlanTypes";
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
-import { isShorts, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
 import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
@@ -1129,6 +1129,7 @@ async function main() {
 
   // 8) Birleştir + altyazı + jenerik + QC
   let retouchPlan: RetouchPlan | undefined;
+  let thisRound: RoundScore | undefined;
   await step("birlestir", async () => {
     const final = preview ? "final-onizleme.mp4" : "final.mp4";
     // AAC lifts peaks: with the ambience beds (broadband river and wind) a −1.5 dBTP mix came out at +1.7 dBTP. A limiter
@@ -1204,9 +1205,15 @@ async function main() {
     const cost = existsSync(f("maliyet.json")) ? await readJson<{ toplamUsd: number }>(f("maliyet.json")) : { toplamUsd: 0 };
     const dialogScenes = dialogueSceneRatio(episode);
     const target = episode.hedef_sure_sn;
+    const lengthRight = lengthOk(durationS, target);
+    // A Short opens on a character's line or move within HOOK_S (owner, 2 Nov 2026); a long video's first words within 10 s.
+    const opening = openingHook(plan);
+    const openingWho = opening ? (episode.oyuncu_kadrosu.find((c) => c.id === opening.castId)?.ad ?? opening.castId) : "";
     const row = (ok: boolean, text: string) => `- [${ok ? "x" : " "}] ${text}`;
     const qc = [
-      row((timeline.lines[0]?.start ?? 99) < 10, `İlk konuşma ${timeline.lines[0]?.start.toFixed(1)} sn'de (kanca ilk 10 sn içinde)`),
+      shorts
+        ? row(!!opening && opening.at <= HOOK_S, `Kanca: ${opening ? `${opening.at.toFixed(1)} sn'de ${openingWho} ${opening.kind === "replik" ? "konuşuyor" : "hareket ediyor"}` : "açılış sahnesinde karakter yok"} (Short: ilk ${HOOK_S} sn içinde karakterin repliği ya da hareketi)`)
+        : row((timeline.lines[0]?.start ?? 99) < 10, `İlk konuşma ${timeline.lines[0]?.start.toFixed(1)} sn'de (kanca ilk 10 sn içinde)`),
       row(avgGap >= 1.5 && avgGap <= 4, `Ortalama görsel olay aralığı ${avgGap.toFixed(1)} sn (hedef 2–4)`),
       row(maxGap <= 6, `En uzun olaysız aralık ${maxGap.toFixed(1)} sn (hedef ≤ 6)`),
       row(emptyStretch <= 6, `Karaktersiz en uzun süre ${emptyStretch.toFixed(1)} sn (hedef ≤ 6; ekranda kimsenin olmadığı arşiv/tablo kareleri, kapak hariç)`),
@@ -1227,7 +1234,7 @@ async function main() {
       row(!whine.length, `Ses temizliği: miksde ${whineLine(whine)} (4–18 kHz; referans belgeselde yok)`),
       row(factCheck?.durum === "tamam", `Tarih doğrulaması: ${factCheck ? `${factCheck.durum}, ${factCheck.uygulanan} düzeltme, ${factCheck.iddialar.length} bildirim` : "bölüm dışarıdan verildi, doğrulama kaydı yok"}`),
       row(mix.credits.length > 0 || images.length > 0, "CREDITS.md ve YouTube açıklama metni üretildi"),
-      row(Math.abs(durationS - target) <= target * 0.1, `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
+      row(lengthRight, shorts ? `Süre ${durationS.toFixed(1)} sn (Short: üst sınır ${target} sn, en az ${Math.round(target / 2)} sn)` : `Süre ${durationS.toFixed(1)} sn (hedef ${target} sn ±%10)`),
       // The owner's shares for a long video (23 Oct 2026); a short one is told mostly on the stage, so only reported.
       ((s) => row(target < 600 || (["harita", "sahne", "gorsel"] as const).every((k) => s[k] >= PICTURE_SHARE_TARGET[k][0] && s[k] <= PICTURE_SHARE_TARGET[k][1]), `Görüntü payları: harita %${Math.round(s.harita * 100)}, çöp adam %${Math.round(s.sahne * 100)}, dönem görseli %${Math.round(s.gorsel * 100)} (uzun videoda hedef ~%75–80 / ~%15 / %6–10)`))(pictureShares(plan)),
     ];
@@ -1251,7 +1258,8 @@ async function main() {
     for (const p of parts.filter((x) => x.kaynak === "basarisiz")) if (!council.findings.some((x) => x.yer === p.tarif)) council.find({ beyin: "kostum", onem: "eksik", baslik: "parça tasarlanamadı", ayrinti: p.tarif, tur: "veri", yer: p.tarif });
     const rms = lipsync.filter((l) => l.lipSync === "rms").length;
     if (rms) council.find({ beyin: "ses", onem: "uyari", baslik: "ağız senkronu yedekte", ayrinti: `${rms}/${lipsync.length} satır Rhubarb yerine ses düzeyiyle`, oneri: "Rhubarb çalıştırma ortamını kontrol et", tur: "ayar" });
-    if (Math.abs(durationS - target) > target * 0.1) council.find({ beyin: "kurgu", onem: "uyari", baslik: "süre hedef dışı", ayrinti: `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
+    if (!lengthRight) council.find({ beyin: "kurgu", onem: "uyari", baslik: shorts ? "Short süre sınırı dışında" : "süre hedef dışı", ayrinti: shorts ? `${durationS.toFixed(0)} sn / üst sınır ${target} sn (en az ${Math.round(target / 2)})` : `${durationS.toFixed(0)} sn / hedef ${target} sn`, oneri: durationS < target ? "senaryoya sahne bazlı satır ekle" : "satırları kısalt", tur: "ayar" });
+    if (shorts && !(opening && opening.at <= HOOK_S)) council.find({ beyin: "kurgu", onem: "uyari", baslik: "Short kancası geç", ayrinti: opening ? `ilk karakter ${opening.kind === "replik" ? "repliği" : "hareketi"} ${opening.at.toFixed(1)} sn'de (${openingWho})` : "açılış sahnesinde karakter yok", oneri: `ilk satırı bir karaktere ver ya da açılışı karakterli bir sahneyle yap (ilk ${HOOK_S} sn)`, tur: "veri", yer: episode.sahneler[0]?.id ?? "senaryo" });
     for (const claim of (factCheck?.iddialar ?? []) as { sahne?: string; satir?: number; karar?: string; gerekce?: string; sonuc?: string }[]) {
       if (claim.sonuc === "rapor" || claim.sonuc === "gecersiz_metin") council.find({ beyin: "kurgu", onem: "bilgi", baslik: `tarih editörü: ${claim.karar}`, ayrinti: claim.gerekce ?? "", tur: "veri", yer: `${claim.sahne}#${claim.satir}` });
     }
@@ -1281,14 +1289,18 @@ async function main() {
     }
     // The experience memory: what this episode taught the script brain, and the chief's measures for next time.
     const lessons: { beyin: "kurgu"; metin: string }[] = [];
-    if (Math.abs(durationS - target) > target * 0.1) lessons.push({ beyin: "kurgu", metin: `A ${target} s episode ran ${durationS.toFixed(0)} s: ${durationS < target ? "write more lines per scene and fill every scene's sure_hedef" : "write fewer, shorter lines"}.` });
+    // A Short's length is a ceiling: only running over it (or under half of it) is a lesson.
+    if (!lengthRight) lessons.push({ beyin: "kurgu", metin: shorts ? `A Short of at most ${target} s ran ${durationS.toFixed(0)} s: ${durationS > target ? "write fewer, shorter lines" : "write a few more lines"}.` : `A ${target} s episode ran ${durationS.toFixed(0)} s: ${durationS < target ? "write more lines per scene and fill every scene's sure_hedef" : "write fewer, shorter lines"}.` });
+    if (shorts && opensOnNarrator(episode)) lessons.push({ beyin: "kurgu", metin: "A Short opened on the narrator: give its very first line to a visible character, in the middle of the action." });
     if (dialogScenes < 0.4) lessons.push({ beyin: "kurgu", metin: `Only ${Math.round(dialogScenes * 100)}% of the scenes had dialogue: let the characters speak more, a quip after the narrator.` });
     if (!episode.sahneler.some((sc) => sc.satirlar.some((l) => l.sfx))) lessons.push({ beyin: "kurgu", metin: "The script gave no sfx at all: put one on a gag, a hit or an entrance in every scene." });
     for (const l of lessons) await remember(paths.workRoot, { bolum: episode.konu, beyin: l.beyin, tur: "ders", konu: "senaryo", metin: l.metin }).catch(() => undefined);
     // A measure the chief tied to no brain stays in the report only (no brain would recall it).
     for (const o of chiefPlan?.onlemler ?? []) if (o.beyin) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
     // The retouch brain: what the brains measured decides one more round, run below by the production itself.
-    const nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) });
+    const scored = { likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) };
+    const nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, ...scored });
+    thisRound = roundScore(rotusTuru, scored);
     if (nextRound) {
       council.debate("sef", "rötuş kararı", retouchDebate(nextRound));
       await writeJson(f("rotus-plani.json"), nextRound);
@@ -1300,13 +1312,33 @@ async function main() {
     await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Kalite ölçümü: yerleşim ${layoutCount ?? "ölçülmedi"}${layoutCount !== undefined ? " kusur" : ""}, piksel ${pixelCount ?? "ölçülmedi"}${pixelCount !== undefined ? " kusur" : ""}\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
     log(`kurul raporu: ${report} · ${missing ? `UYARIYLA teslim (${missing} eksik)` : "teslim edildi"}`);
     retouchPlan = nextRound;
+
+    // The last retouch round delivers the best-scored round, not itself (owner, 2 Nov 2026: Caesar's likeness went
+    // 6 → 7 → 6 and the third cut was delivered). Every round's cut and package stays in tur<N>/.
+    if (!nextRound && rotusTuru > 0) {
+      const rounds = [...(await keptRounds(work, final, rotusTuru)), thisRound];
+      const best = bestRound(rounds)!;
+      await keepRound(work, final, thisRound);
+      if (best.tur !== rotusTuru) {
+        await restoreRound(work, final, best.tur);
+        if (upload) {
+          await fs.rm(f(upload), { force: true });
+          await fs.link(f(final), f(upload)).catch(() => fs.copyFile(f(final), f(upload)));
+        }
+      }
+      const section = `\n## Rötuş turları\n\n${rounds.map((r) => `- ${roundLine(r)}${r.tur === best.tur ? " — **teslim edilen**" : ""}`).join("\n")}\n- Teslim: tur ${best.tur} (${roundVideo(final, best.tur)})${best.tur !== rotusTuru ? `; son tur ${rotusTuru} daha iyi puan almadı` : ""}\n`;
+      await fs.appendFile(f("QC.md"), section);
+      await fs.appendFile(f("KURUL.md"), section);
+      log(`rötuş: ${rounds.map(roundLine).join(" · ")} → tur ${best.tur} teslim edildi`);
+    }
   });
 
-  // One retouch round, run by the production itself (no agent needed): the same command from the plan's step. The
-  // first cut is kept next to it for comparison. The GPU and cost rules hold in the new run as in this one.
+  // One retouch round, run by the production itself (no agent needed): the same command from the plan's step. This
+  // round's cut, package and scores are kept in tur<N>/ for the last round's choice. The GPU and cost rules hold in the
+  // new run as in this one.
   if (retouchPlan) {
     const finalName = preview ? "final-onizleme.mp4" : "final.mp4";
-    await fs.copyFile(f(finalName), f(finalName.replace(/.mp4$/, `-tur${rotusTuru}.mp4`)));
+    await keepRound(work, finalName, thisRound!);
     const keep = process.argv.slice(2).filter((a, i, all) => !["--from-step", "--rotus-turu"].includes(a) && !["--from-step", "--rotus-turu"].includes(all[i - 1] ?? ""));
     const args = [...process.execArgv, process.argv[1]!, ...keep, ...(keep.includes("--cikti") ? [] : ["--cikti", work]), "--from-step", retouchPlan.adim, "--rotus-turu", String(retouchPlan.tur)];
     log(`↺ rötuş beyni: ${retouchPlan.tur}. tur başlıyor ("${retouchPlan.adim}" adımından)`);

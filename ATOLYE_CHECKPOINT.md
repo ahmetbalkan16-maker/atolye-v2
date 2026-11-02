@@ -1,3 +1,40 @@
+## 2 Kasım 2026 (gece, 4) — Short düzeltmeleri: en iyi rötuş turu, süre üst sınırı, kanca, gemi setleri, dikey kadraj
+
+**Owner:** Sezar Short'undan çıkan beş düzeltmeye "onaylıyorum bunlar için gerekli skill kullan ve bizim sisteme entegre
+et". Remotion becerisi (remotion-best-practices + markup) okundu; kare tabanlı animasyon kuralına uyuldu. Video üretilmedi;
+yalnız tek kareler (scratchpad).
+
+1. **Rötuş en iyi turu teslim eder** (`RetouchBrain`): her tur `tur<N>/` altında saklanır (video `final-tur<N>.mp4`,
+   QC/KURUL/yapim-raporu/youtube/aciklama/CREDITS/altyazı/kapak + `puan.json`). Son tur hepsini karşılaştırır: eşik
+   altı puan (benzerlik 8'in, set hakemin 7'sinin altında kalan puanlar) en az olan teslim edilir; eşitlikte önceki tur
+   (rötuş ancak daha iyi puan alırsa yerini alır). Seçilen turun dosyaları geri konur, yükleme bağlantısı yeniden
+   kurulur, QC.md ve KURUL.md'ye "Rötuş turları" bölümü eklenir. Sezar'ın 6 → 7 → 6'sında tur 1 teslim edilirdi.
+2. **Short süresi üst sınır** (`Format.lengthOk`): Short sipariş süresine kadar (en az yarısı) geçer; uzun video ±%10.
+   QC satırı, kurul bulgusu ve senarist dersi buna göre. Sezar denemesinin yazdığı 3 yanlış ders ("A 60 s episode ran 51 s:
+   write more lines") `_kutuphane/deneyim/kurgu.jsonl`'dan silindi (yedek: oturum scratchpad'i).
+3. **Kanca**: senarist kuralı — Short'un ilk satırını anlatıcı değil, görünür bir karakter söyler (≤8 kelime, jest/efekt).
+   Yönetmen güvencesi — Short'un ilk 2 sn'sinde kimse konuşmuyor/hareket etmiyorsa baş karakter (`episodeLead`: en çok
+   satırı olan) 0,15 sn'de satırın duygusuna göre bir jest + "!" efektiyle açılır. `openingHook(plan)` QC'de "Kanca: … sn'de
+   X konuşuyor/hareket ediyor (ilk 2 sn)" satırı ve kurul uyarısı; anlatıcıyla açılan Short senariste ders olur.
+   (Önce onarım turuna da koyuldu; 12 sn'lik test senaryoları da Short sayıldığından ek model turu istedi — geri alındı.)
+4. **Gemi setleri** `gemi_guvertesi` (açık deniz ufukta yavaşça yalpalar, uzak kıyı/yelken, martılar, direk + dönem
+   yelkeni ve armalar, küpeşte, güverte tahtaları, fıçı/sandık/halat, fenerler) ve `gemi_kamarasi` (tahta duvar,
+   kaburgalar, kirişler, ufku yalpalayan üç lomboz, yalpayla sallanan fenerler, harita masası, sandık, fıçılar); gece/ışıkta
+   fener parıltısı, kamarada yağmur yok. Yazar isteminde, ses ortamında; taslak düzeltici: gemi/güverte/kamara geçen mekân
+   karada bir manzara almışsa gemi setine çevrilir (kütük kulübe, limandaki gemiler, kıyıdaki kamp karada kalır).
+5. **Dikey kadraj** (`remotion-v3/src/scene/verticalWindow.ts`): kimse konuşmazken pencere çekimin baş karakterini
+   (`shot.lead`) tutar (eskiden ikisinin ortası); konuşana kayar; satırdan sonra 1,2 sn'den uzun sessizlikte baş karaktere
+   döner; yarıda kesilen kayma sıçramaz. Ad etiketi ve konuşma balonu pencere konuşana varınca belirir.
+
+**Doğrulama:** smoke `episode-director` 53 (O31 gemi seti/süre/kanca/baş karakter, O32 dikey pencere), `likeness` 15
+(K2 tur seçimi + dosyaları geri koyma), tüm 12 `smoke-v3-*`, video-order 8, firewall closure 13, intent-routing 37,
+auto-live-publish 12; tsc kök + remotion-v3; yerel lint 0 hata / 13 eski uyarı. Kareler: güverte (gündüz, akşam),
+kamara (gündüz, gece), dikey Short 1 sn (Sezar işaret + "!"), 5,7 sn (kayma, balon bekliyor), 6,0 sn (korsan, etiket).
+`scripts/v3/sahne-onizleme.ts --dikey` Short kadrajıyla önizler.
+
+**Sıradaki (owner):** aynı konuyu (Sezar ve korsanlar, 60sn) yeniden üretip farkı göstermek — owner'ın "evet"ini bekliyor.
+Açık kalan: anlatılanı ekrana taşıyan eylemler (filo, kaçırma) bu turda yapılmadı.
+
 ## 2 Kasım 2026 (gece, 3) — İlk gerçek Short denemesi (Sezar ve korsanlar); portre kaynağı düzeltmesi
 
 **Owner:** "benim vereceğim kararlara evet" (izleyici yeniden başlatma, kanal önerileri, haftalık konu planı),

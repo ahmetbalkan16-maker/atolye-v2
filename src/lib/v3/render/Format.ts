@@ -9,6 +9,15 @@ export const SHORTS_MAX_S = 60;
 
 export const isShorts = (targetS: number): boolean => targetS <= SHORTS_MAX_S;
 
+/**
+ * Whether a finished video's length is right. A Short's ordered length is a ceiling, not a target (owner, 2 Nov 2026:
+ * the first Short was flagged "51 s / target 60"): anything up to it passes, down to half of it. A normal video stays
+ * within ±10% of its target.
+ */
+export function lengthOk(durationS: number, targetS: number): boolean {
+  return isShorts(targetS) ? durationS <= targetS && durationS >= targetS / 2 : Math.abs(durationS - targetS) <= targetS * 0.1;
+}
+
 /** Where the director lays out every shot. */
 export const STAGE_SIZE = { width: 1920, height: 1080 } as const;
 

@@ -103,6 +103,10 @@ const SILENT_ACTS: readonly V3Gesture[] = ["isaret_et", "omuz_silk", "kollari_ka
 
 /** How a listener's face answers the speaker's emotion; others keep their own face. */
 const LISTENER_REACTION: Partial<Record<V3Emotion, V3Emotion>> = { kizgin: "korkmus", saskin: "saskin", mutlu: "mutlu", korkmus: "saskin" };
+/** A Short's hook: a character speaks or moves within this many seconds of the start (owner, 2 Nov 2026). */
+export const HOOK_S = 2;
+/** The lead's opening move in a Short whose first line is the narrator's, by that line's mood. */
+const HOOK_GESTURE: Partial<Record<V3Emotion, V3Gesture>> = { kizgin: "yumruk_kaldir", kararli: "yumruk_kaldir", saskin: "sasir", korkmus: "sasir", mutlu: "kutla", uzgun: "yuz_avucla" };
 
 interface Slot {
   x: number;
@@ -350,11 +354,27 @@ export function insertWindows(lines: readonly { start: number; end: number; onSc
  * MAX_INSERT_S and the character acts the narration out. Map scenes, scenes with a given background file and crowd
  * scenes are left alone.
  */
-export function stageEmptyScenes(episode: Episode): { episode: Episode; fixes: string[] } {
+/**
+ * True when the episode's first line is not a visible character's (the narrator's, or a map's) — in a Short the
+ * director then has the lead act it out, and the script brain is taught to open on a character next time.
+ */
+export function opensOnNarrator(episode: Pick<Episode, "oyuncu_kadrosu" | "sahneler">): boolean {
+  const first = episode.sahneler[0];
+  const line = first?.satirlar[0];
+  return !line || !!first.harita?.merkez || !episode.oyuncu_kadrosu.some((c) => c.id === line.karakter && c.gorunur);
+}
+
+/** The episode's lead: the drawn character with the most lines (the first in the cast on a tie). */
+export function episodeLead(episode: Pick<Episode, "oyuncu_kadrosu" | "sahneler">): string | undefined {
   const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.kostum).map((c) => c.id));
   const count = new Map<string, number>();
   for (const s of episode.sahneler) for (const l of s.satirlar) if (visible.has(l.karakter)) count.set(l.karakter, (count.get(l.karakter) ?? 0) + 1);
-  const lead = [...visible].sort((a, b) => (count.get(b) ?? 0) - (count.get(a) ?? 0))[0];
+  return [...visible].sort((a, b) => (count.get(b) ?? 0) - (count.get(a) ?? 0))[0];
+}
+
+export function stageEmptyScenes(episode: Episode): { episode: Episode; fixes: string[] } {
+  const visible = new Set(episode.oyuncu_kadrosu.filter((c) => c.gorunur && c.kostum).map((c) => c.id));
+  const lead = episodeLead(episode);
   if (!lead) return { episode, fixes: [] };
   const fixes: string[] = [];
   const sahneler = episode.sahneler.map((s) => {
@@ -533,6 +553,9 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
   const captions: V3CaptionPage[] = [];
   // Characters already introduced with a name tag (the first time they speak in the episode).
   const introduced = new Set<string>();
+  const lead = episodeLead(episode);
+  // A Short: the stage is seen through a vertical window (ShotView).
+  const vertical = !!input.output && input.output.height > input.output.width;
 
   episode.sahneler.forEach((scene, si) => {
     const st = timeline.scenes[si]!;
@@ -788,6 +811,25 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       captions.push(...captionPages(lt, fps, line.vurgu ?? [], line.metin));
     });
 
+    // Who a Short's window holds while no one speaks (owner, 2 Nov 2026: it centred between two characters and cut
+    // both): the episode's lead when on stage, else the scene's first speaker on stage, else whoever stands there.
+    const shotLead = lead && tracks.has(lead) ? lead : (lines.find((l) => tracks.has(l.speaker))?.speaker ?? [...tracks.keys()][0]);
+    // A Short opens on a character within HOOK_S (owner, 2 Nov 2026: the Caesar Short began with six seconds of the
+    // narrator over a pirate standing still): when no one speaks or moves by then, the lead acts the first line out.
+    if (vertical && si === 0 && shotLead) {
+      const hook = f(HOOK_S);
+      const t = tracks.get(shotLead)!;
+      const early = (xs: readonly { start: number }[]) => xs.some((x) => x.start <= hook);
+      const busy = [...tracks.values()].some((x) => early(x.speaking)) || [...talks.values()].some((x) => early(x.speaking)) || early(t.gestures) || early(t.moves);
+      if (!busy) {
+        const mood = lines[0] ? scene.satirlar[lines[0].lineIndex]!.duygu : "notr";
+        const towardX = nearestOther(tracks, shotLead)?.x;
+        t.gestures.push({ gesture: HOOK_GESTURE[mood] ?? "isaret_et", start: f(0.15), end: f(1.9), ...(towardX !== undefined ? { toward: sideOf(slots.get(shotLead)!.x, towardX) } : {}) });
+        t.effects.push({ effect: "unlem", start: f(0.15), end: f(1.4) });
+        t.faces.push({ start: f(0.15), emotion: mood === "notr" ? "saskin" : mood });
+      }
+    }
+
     // Scene camera cues from the script (seconds from the scene start).
     for (const cue of scene.kamera ?? []) {
       const at = f(cue.t);
@@ -883,6 +925,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       mapArrows,
       transitionIn,
       dramatized: lines.some((l) => visibleIds.has(l.speaker)),
+      ...(shotLead ? { lead: shotLead } : {}),
       bubbles: settleBubbles(bubbles, duration),
       nameTags,
       inserts,
@@ -947,6 +990,24 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
 /** Every episode render measures its boxes every half second into `out/Episode/yerlesim-<episode>` (LayoutProbe). */
 export function layoutProbeFor(episodeId: string, fps: number): NonNullable<V3RenderPlan["layoutProbe"]> {
   return { every: Math.max(1, Math.round(fps / 2)), dir: `yerlesim-${episodeId.replace(/[^0-9a-zA-Z_-]+/g, "-").slice(0, 60)}` };
+}
+
+/**
+ * The video's hook as the plan shows it: the first character line ("replik") or move ("hareket") of the opening shot
+ * (after the cover, if any), in seconds from the video's start; undefined when the opening shot has no character at all.
+ * A Short needs it within HOOK_S (owner, 2 Nov 2026).
+ */
+export function openingHook(plan: Pick<V3RenderPlan, "fps" | "shots">): { at: number; kind: "replik" | "hareket"; castId: string } | undefined {
+  const shot = plan.shots.find((s) => s.id !== "kapak");
+  if (!shot) return undefined;
+  const marks: { frame: number; kind: "replik" | "hareket"; castId: string }[] = [];
+  for (const p of shot.performers) {
+    for (const s of p.speaking) marks.push({ frame: s.start, kind: "replik", castId: p.castId });
+    for (const g of [...p.gestures, ...p.moves]) marks.push({ frame: g.start, kind: "hareket", castId: p.castId });
+  }
+  for (const b of shot.geoMap?.badges ?? []) for (const s of b.talk?.speaking ?? []) marks.push({ frame: s.start, kind: "replik", castId: b.castId });
+  const first = marks.sort((a, b) => a.frame - b.frame || (a.kind === "replik" ? -1 : 1))[0];
+  return first ? { at: (shot.start + first.frame) / plan.fps, kind: first.kind, castId: first.castId } : undefined;
 }
 
 function nearestOther<T extends { x: number }>(tracks: ReadonlyMap<string, T>, id: string): T | undefined {

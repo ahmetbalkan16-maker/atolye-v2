@@ -15,6 +15,7 @@ import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./Ma
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
+import { windowAims, windowArrival, windowCentre } from "./verticalWindow";
 
 /** A mounted performer: the horse (walking while the rider's x changes), the rider from the hips up, the near leg. */
 function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: PerformerState; m: V3CastMember; frame: number; fps: number; accessories: AccessoryIndex }) {
@@ -48,10 +49,6 @@ export function stageTransform(x: number, depth: number, width: number, height: 
   const k = height / 1080;
   return { px: x * width, py: height * (0.955 - 0.2 * depth), scale: 0.86 * k * (1 - 0.34 * depth) };
 }
-
-/** A Short's window glides to a new speaker in this long (seconds), starting a little before the words. */
-const WINDOW_PAN_S = 0.5;
-const WINDOW_LEAD_S = 0.15;
 
 export function ShotView({ shot, cast, accessories, language = "tr", stage }: { shot: V3Shot; cast: ReadonlyMap<string, V3CastMember>; accessories: AccessoryIndex; language?: "tr" | "en"; stage?: { width: number; height: number } }) {
   const frame = useCurrentFrame();
@@ -116,27 +113,20 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
     badgeHeads.add(b.castId);
   }
   // A Short (owner, 2 Nov 2026): the stage's full height fills the frame, so about a third of its width shows; the
-  // window follows whoever speaks (their bubble), gliding to a new speaker, and before anyone speaks shows the middle
-  // of the actors on stage (the middle of the stage on a map).
+  // window follows whoever speaks (their bubble), gliding to a new speaker, and while no one speaks holds the shot's
+  // lead (else the middle of the actors on stage; the middle of the stage on a map).
   const fit = OH / H;
   const winW = OW / fit;
   const vertical = winW < W - 1;
   let winX = 0;
+  const aims = vertical ? windowAims((shot.bubbles ?? []).filter((b) => heads.has(b.castId)), fps) : [];
+  let aimX = (id: string | undefined) => (id ? heads.get(id)?.x : undefined) ?? W / 2;
   if (vertical) {
     const onStage = states.flatMap(({ p }) => (heads.has(p.castId) && !badgeHeads.has(p.castId) ? [heads.get(p.castId)!.x] : []));
     const middle = onStage.length ? onStage.reduce((a, b) => a + b, 0) / onStage.length : W / 2;
-    const lead = Math.round(fps * WINDOW_LEAD_S);
-    let cur: { castId: string; start: number } | undefined;
-    let prev: typeof cur;
-    for (const b of [...(shot.bubbles ?? [])].sort((a, z) => a.start - z.start)) {
-      if (b.start - lead > frame || !heads.has(b.castId)) continue;
-      // The same speaker again keeps the window where it is.
-      if (!cur || cur.castId !== b.castId) [prev, cur] = [cur, b];
-    }
-    const at = (id: string | undefined) => (id ? heads.get(id)?.x : undefined) ?? middle;
-    const glide = cur ? easeInOut(Math.min(1, Math.max(0, (frame - (cur.start - lead)) / (fps * WINDOW_PAN_S)))) : 1;
-    const target = cur ? (prev ? at(prev.castId) + (at(cur.castId) - at(prev.castId)) * glide : at(cur.castId)) : middle;
-    winX = Math.min(W - winW, Math.max(0, target - winW / 2));
+    const rest = (shot.lead && !badgeHeads.has(shot.lead) ? heads.get(shot.lead)?.x : undefined) ?? middle;
+    aimX = (id) => (id ? heads.get(id)?.x : undefined) ?? rest;
+    winX = Math.min(W - winW, Math.max(0, windowCentre(aims, frame, fps, aimX) - winW / 2));
   }
   // The part of the map's own picture in the frame (the window's, for a Short).
   const [seenA, seenB] = [unview({ x: winX, y: 0 }), unview({ x: winX + (vertical ? winW : W), y: H })];
@@ -314,13 +304,19 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
         ? null
         : (shot.bubbles ?? []).map((b, i) => {
             const anchor = anchorOf(b.castId);
-            return anchor ? <SpeechBubble key={`b-${i}`} bubble={b} anchor={anchor} language={language} size={badgeHeads.has(b.castId) ? MAP_BUBBLE : 1} /> : null;
+            // In a Short the words wait for the window to reach their speaker (they floated over the set before).
+            const from = vertical ? Math.min(b.end - 1, windowArrival(aims, b.castId, b.start, fps, aimX)) : b.start;
+            const bubble = from > b.start ? { ...b, start: from } : b;
+            return anchor ? <SpeechBubble key={`b-${i}`} bubble={bubble} anchor={anchor} language={language} size={badgeHeads.has(b.castId) ? MAP_BUBBLE : 1} /> : null;
           })}
       {insertOn
         ? null
         : (shot.nameTags ?? []).map((t, i) => {
             const a = anchorOf(t.castId);
-            return a ? <NameTag key={`n-${i}`} tag={t} anchor={a} language={language} /> : null;
+            // In a Short the tag waits for the window to reach its speaker, and stays as long.
+            const from = vertical ? windowArrival(aims, t.castId, t.start, fps, aimX) : t.start;
+            const tag = from > t.start ? { ...t, start: from, end: t.end + (from - t.start) } : t;
+            return a ? <NameTag key={`n-${i}`} tag={tag} anchor={a} language={language} /> : null;
           })}
       {/* The relief map's compass and km scale stay fixed on the screen (inside the cameras they drifted to the edge); the
           scale counts every zoom the map is seen through: its own camera, the shot camera and the slow push. */}

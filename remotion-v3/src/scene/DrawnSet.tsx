@@ -338,6 +338,9 @@ export function torchXs(spec: V3DrawnSet): number[] {
 
 /** Where the drawn set lights the night: torch and fire positions in screen space (for the glow over the actors). */
 export function lightSpots(spec: V3DrawnSet, W: number, H: number): { x: number; y: number; r: number }[] {
+  // Aboard, any light is the ship's lanterns (no torch or open fire on a wooden deck).
+  const ship = spec.manzara === "gemi_guvertesi" ? DECK_LAMPS : spec.manzara === "gemi_kamarasi" ? CABIN_LAMPS : undefined;
+  if (ship) return spec.isik && spec.isik !== "yok" ? ship.map((l) => ({ x: l.x * W, y: l.y * H + 36, r: 300 })) : [];
   if (spec.isik === "mesale") return torchXs(spec).map((tx) => ({ x: tx * W, y: stageY(0.62, H) - 250 * 0.62, r: 330 }));
   if (spec.isik === "kamp_atesi") return [{ x: 0.5 * W, y: stageY(0.9, H) - 40, r: 520 }];
   return [];
@@ -461,6 +464,260 @@ function TentInterior({ spec, p, c, W, H, frame }: { spec: V3DrawnSet; p: Palett
   );
 }
 
+/** The sea's slow roll against a ship (degrees, and a small rise and fall in px): the world outside moves, the ship holds. */
+const shipRoll = (frame: number) => ({ deg: 1.4 * Math.sin(frame * 0.032), bob: 7 * Math.sin(frame * 0.032 + 1.2) });
+
+/** A sail's cloth and its stripe by the period: Roman red-striped linen, Greek blue, a Chinese junk's ochre. */
+const SAIL_CLOTH: Partial<Record<V3ArchStyle, readonly [string, string]>> = {
+  roma: ["#f2e4c4", "#b8402e"],
+  yunan: ["#f4ead2", "#3f6aa8"],
+  misir: ["#f1e2bc", "#3f74b8"],
+  pers: ["#efe0bd", "#2f5d9e"],
+  bizans: ["#efdcb8", "#6d2f6e"],
+  osmanli: ["#f1e3c4", "#b3263a"],
+  cin: ["#d9a560", "#8a4a2a"],
+  japon: ["#ece2c8", "#2f3f55"],
+};
+
+/** Where a ship's lanterns hang (stage x, frame height): on the mast and the stern post on deck, from the beams in a cabin. */
+const DECK_LAMPS = [
+  { x: 0.4, y: 0.53 },
+  { x: 0.93, y: 0.53 },
+] as const;
+/** Where the deck's lanterns hang from (frame height): under the sail. */
+const DECK_HOOK_Y = 0.47;
+const CABIN_LAMPS = [
+  { x: 0.275, y: 0.26 },
+  { x: 0.725, y: 0.26 },
+] as const;
+const DECK_MAST_X = 0.4;
+
+/** A planked floor (deck or cabin) from y0 down past the frame: seams along the ship, wider toward the viewer, staggered joints. */
+function Planks({ y0, W, H, fill, seam, seed }: { y0: number; W: number; H: number; fill: string; seam: string; seed: number }) {
+  const r = rng(seed);
+  const rows = 7;
+  const ys = Array.from({ length: rows }, (_, k) => y0 + (H * 1.05 - y0) * ((k + 1) / rows) ** 1.35);
+  return (
+    <g>
+      <rect x={-W * 0.1} y={y0} width={W * 1.2} height={H * 1.1 - y0} fill={fill} {...outline(5)} />
+      {ys.map((y, k) => (
+        <path key={`p${k}`} d={`M${-W * 0.1} ${y} L${W * 1.1} ${y}`} stroke={seam} strokeWidth={3} />
+      ))}
+      {ys.map((y, k) => {
+        const top = k ? ys[k - 1]! : y0;
+        const step = 260 + k * 60;
+        const off = r() * step;
+        return Array.from({ length: Math.ceil((W * 1.2) / step) + 1 }, (_, j) => <path key={`j${k}-${j}`} d={`M${-W * 0.1 + off + j * step} ${top} L${-W * 0.1 + off + j * step} ${y}`} stroke={seam} strokeWidth={3} />);
+      })}
+    </g>
+  );
+}
+
+function Barrel({ x, y, s, wood, hoop }: { x: number; y: number; s: number; wood: string; hoop: string }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`}>
+      <path d="M-44 0 Q-56 -60 -44 -120 L44 -120 Q56 -60 44 0 Z" fill={wood} {...outline(4)} />
+      <path d="M-50 -28 L50 -28 M-50 -92 L50 -92" stroke={hoop} strokeWidth={8} />
+      <ellipse cx={0} cy={-120} rx={44} ry={10} fill={mix(wood, "#000000", 0.15)} {...outline(3)} />
+    </g>
+  );
+}
+
+/** A ship's lantern on its hook at (x, y): swings by `swing` degrees, glows. */
+function ShipLantern({ x, y, len, swing, frame, i, lit }: { x: number; y: number; len: number; swing: number; frame: number; i: number; lit: boolean }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${swing})`}>
+      <path d={`M0 0 L0 ${len}`} stroke={INK} strokeWidth={3} />
+      {lit ? <circle cx={0} cy={len + 34} r={70} fill="#ffd27a" opacity={0.2 + 0.05 * Math.sin(frame * 0.3 + i)} /> : null}
+      <path d={`M-16 ${len} L16 ${len} L22 ${len + 14} L-22 ${len + 14} Z`} fill="#3a2f2a" {...outline(3)} />
+      <rect x={-18} y={len + 14} width={36} height={44} rx={6} fill={lit ? "#ffe08a" : "#b9c4c8"} {...outline(4)} />
+      <path d={`M0 ${len + 14} L0 ${len + 58}`} stroke={INK} strokeWidth={3} />
+      <path d={`M-22 ${len + 58} L22 ${len + 58} L14 ${len + 70} L-14 ${len + 70} Z`} fill="#3a2f2a" {...outline(3)} />
+    </g>
+  );
+}
+
+/**
+ * On a ship's deck at sea (Caesar and the pirates, 2 Nov 2026: "Pirate ship cabin" drawn as a field with a village):
+ * the open sea to the horizon rolling slowly against the ship, a far coast or sail, the mast with its yard and a full
+ * sail of the period, rigging, the far rail, a planked deck with barrels and rope; lanterns when the scene is lit.
+ */
+function ShipDeck({ spec, p, W, H, frame }: { spec: V3DrawnSet; p: Palette; W: number; H: number; frame: number }) {
+  const r = rng(spec.tohum + 3);
+  const d = (col: string) => mix(col, p.dimTo, p.dim);
+  const [cloth, stripe] = SAIL_CLOTH[spec.uslup] ?? (["#efe3c8", "#9e2a2a"] as const);
+  const railTop = H * 0.6;
+  const railBase = stageY(1.15, H);
+  const horizon = H * 0.43;
+  const roll = shipRoll(frame);
+  const coastLeft = r() < 0.5;
+  const coast = r() < 0.65;
+  const mastX = W * DECK_MAST_X;
+  const belly = 34 + 10 * Math.sin(frame * 0.05);
+  const sail = { x0: mastX - W * 0.19, x1: mastX + W * 0.19, top: H * 0.08, bottom: H * 0.42 };
+  const junk = spec.uslup === "cin" || spec.uslup === "japon";
+  const sailPath = `M${sail.x0} ${sail.top} L${sail.x1} ${sail.top} Q${sail.x1 + belly} ${(sail.top + sail.bottom) / 2} ${sail.x1 - 12} ${sail.bottom} Q${mastX} ${sail.bottom + belly * 0.7} ${sail.x0 + 12} ${sail.bottom} Q${sail.x0 - belly} ${(sail.top + sail.bottom) / 2} ${sail.x0} ${sail.top} Z`;
+  const lit = (spec.isik !== undefined && spec.isik !== "yok") || spec.zaman === "gece";
+  const sway = (i: number) => 4 * Math.sin(frame * 0.032 + 0.6 + i);
+  return (
+    <g>
+      {/* Beyond the ship: the sky, a far coast, the sea to the horizon, rolling a little. */}
+      <g transform={`translate(0 ${roll.bob}) rotate(${roll.deg} ${W / 2} ${railTop})`}>
+        <Sky p={p} spec={spec} W={W} H={H} frame={frame} seed={spec.tohum} />
+        {coast ? <path d={coastLeft ? `M${-W * 0.2} ${horizon + 4} L${-W * 0.2} ${horizon - 70} Q${W * 0.08} ${horizon - 120} ${W * 0.22} ${horizon - 40} Q${W * 0.3} ${horizon - 10} ${W * 0.36} ${horizon + 4} Z` : `M${W * 1.2} ${horizon + 4} L${W * 1.2} ${horizon - 80} Q${W * 0.95} ${horizon - 130} ${W * 0.8} ${horizon - 44} Q${W * 0.72} ${horizon - 12} ${W * 0.64} ${horizon + 4} Z`} fill={p.far} {...outline(4)} /> : null}
+        <Water d={`M${-W * 0.2} ${horizon} L${W * 1.2} ${horizon} L${W * 1.2} ${railBase} L${-W * 0.2} ${railBase} Z`} p={p} frame={frame} y0={horizon} y1={railBase} x0={-W * 0.2} x1={W * 1.2} flow={-0.8} id="guverte" />
+        {/* A far sail on the horizon, drifting. */}
+        <g transform={`translate(${W * (0.15 + ((r() + frame * 0.0004) % 0.75))} ${horizon + 6}) scale(0.5)`}>
+          <path d="M-60 0 L60 0 L44 22 L-44 22 Z" fill={d("#6b4226")} {...outline(4)} />
+          <path d="M0 0 L0 -110 M-40 -100 L40 -100" stroke={INK} strokeWidth={6} />
+          <path d="M-40 -100 L40 -100 Q52 -60 36 -14 L-36 -14 Q-52 -60 -40 -100 Z" fill={d(cloth)} {...outline(4)} />
+        </g>
+      </g>
+      {/* Gulls over the water by day. */}
+      {spec.zaman === "gece"
+        ? null
+        : [0, 1, 2].map((i) => {
+            const x = ((W * (0.2 + i * 0.31) + frame * (0.9 + i * 0.25)) % (W * 1.2)) - W * 0.1;
+            const y = H * (0.2 + 0.07 * i) + 10 * Math.sin(frame * 0.04 + i);
+            const flap = Math.sin(frame * 0.32 + i * 2);
+            return <path key={`g${i}`} d={`M${x - 22} ${y} Q${x - 11} ${y - 12 * flap} ${x} ${y} Q${x + 11} ${y - 12 * flap} ${x + 22} ${y}`} fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" />;
+          })}
+      {/* Rigging: stays from the masthead down to the rail. */}
+      {[-0.32, -0.16, 0.18, 0.34].map((k) => (
+        <path key={`st${k}`} d={`M${mastX} ${H * 0.02} L${mastX + k * W} ${railTop - 8}`} stroke={d("#4a3626")} strokeWidth={4} />
+      ))}
+      {/* The mast, standing on the deck behind the actors, and its yard. */}
+      <rect x={mastX - 17} y={-H * 0.1} width={34} height={stageY(0.6, H) + H * 0.1} fill={d("#7a5232")} {...outline(5)} />
+      <rect x={sail.x0 - 24} y={sail.top - 16} width={sail.x1 - sail.x0 + 48} height={20} rx={8} fill={d("#6b4226")} {...outline(4)} />
+      <defs>
+        <clipPath id="ds-yelken">
+          <path d={sailPath} />
+        </clipPath>
+      </defs>
+      <path d={sailPath} fill={d(cloth)} {...outline(5)} />
+      <g clipPath="url(#ds-yelken)">
+        {junk
+          ? [0.2, 0.4, 0.6, 0.8].map((k) => <path key={k} d={`M${sail.x0 - 60} ${sail.top + k * (sail.bottom - sail.top)} L${sail.x1 + 60} ${sail.top + k * (sail.bottom - sail.top)}`} stroke={d(stripe)} strokeWidth={8} />)
+          : [-0.11, 0.11].map((k) => <rect key={k} x={mastX + k * W - 28} y={sail.top} width={56} height={sail.bottom - sail.top + belly} fill={d(stripe)} />)}
+      </g>
+      {/* The far rail: planked bulwark, a cap rail, posts, a painted band of the period. */}
+      <rect x={-W * 0.1} y={railTop} width={W * 1.2} height={railBase - railTop} fill={d("#8a5a35")} {...outline(5)} />
+      <rect x={-W * 0.1} y={railTop + (railBase - railTop) * 0.45} width={W * 1.2} height={16} fill={d(stripe)} />
+      {Array.from({ length: 15 }, (_, i) => (
+        <rect key={`po${i}`} x={-W * 0.1 + i * (W / 12) - 10} y={railTop - 8} width={20} height={railBase - railTop + 8} fill={d("#6b4226")} {...outline(3)} />
+      ))}
+      <rect x={-W * 0.1} y={railTop - 20} width={W * 1.2} height={24} rx={8} fill={d("#5e3b22")} {...outline(4)} />
+      <Planks y0={railBase} W={W} H={H} fill={d("#c48f58")} seam={d("#8f6238")} seed={spec.tohum + 7} />
+      {/* On the deck: barrels, a coil of rope, a crate. */}
+      <Barrel x={W * 0.06} y={stageY(0.7, H)} s={0.95} wood={d("#9b6a3c")} hoop={d("#4a3626")} />
+      <Barrel x={W * 0.12} y={stageY(0.8, H)} s={0.8} wood={d("#9b6a3c")} hoop={d("#4a3626")} />
+      <g transform={`translate(${W * 0.9} ${stageY(0.75, H)})`}>
+        <rect x={-70} y={-110} width={140} height={110} fill={d("#a9783f")} {...outline(4)} />
+        <path d="M-70 -110 L70 0 M70 -110 L-70 0" stroke={d("#7a5232")} strokeWidth={6} />
+      </g>
+      <g transform={`translate(${W * 0.62} ${stageY(0.75, H)})`}>
+        {[54, 40, 26].map((rr) => (
+          <g key={rr}>
+            <ellipse cx={0} cy={-12} rx={rr} ry={rr * 0.36} fill="none" stroke={INK} strokeWidth={14} />
+            <ellipse cx={0} cy={-12} rx={rr} ry={rr * 0.36} fill="none" stroke={d("#c9a66b")} strokeWidth={8} />
+          </g>
+        ))}
+      </g>
+      {/* Lanterns on the mast and the stern post. */}
+      <rect x={W * DECK_LAMPS[1].x - 9} y={H * DECK_HOOK_Y} width={18} height={stageY(0.6, H) - H * DECK_HOOK_Y} fill={d("#6b4226")} {...outline(3)} />
+      {DECK_LAMPS.map((l, i) => (
+        <ShipLantern key={`l${i}`} x={l.x * W + (i ? 0 : 17)} y={H * DECK_HOOK_Y} len={(l.y - DECK_HOOK_Y) * H} swing={sway(i)} frame={frame} i={i} lit={lit} />
+      ))}
+    </g>
+  );
+}
+
+/**
+ * Inside a ship's cabin: planked walls between the hull's ribs, deck beams overhead, three portholes on the rolling sea,
+ * lanterns swinging from the beams with the roll, a sea chest, barrels and a chart table, a planked floor.
+ */
+function ShipCabin({ spec, p, W, H, frame }: { spec: V3DrawnSet; p: Palette; W: number; H: number; frame: number }) {
+  const d = (col: string) => mix(col, p.dimTo, p.dim);
+  const floorTop = stageY(1.15, H);
+  const roll = shipRoll(frame);
+  const swing = (i: number) => 5 * Math.sin(frame * 0.032 + 0.6 + i * 0.3);
+  const ports = [0.2, 0.5, 0.8];
+  const portY = H * 0.38;
+  const lit = (spec.isik !== undefined && spec.isik !== "yok") || spec.zaman === "gece" || spec.zaman === "aksam";
+  const boardH = 54;
+  return (
+    <g>
+      {/* The back wall: planks along the ship. */}
+      {Array.from({ length: Math.ceil((floorTop + H * 0.1) / boardH) }, (_, i) => (
+        <rect key={`w${i}`} x={-W * 0.1} y={-H * 0.1 + i * boardH} width={W * 1.2} height={boardH + 1} fill={i % 2 ? d("#a8713f") : d("#9a6535")} />
+      ))}
+      {Array.from({ length: Math.ceil((floorTop + H * 0.1) / boardH) }, (_, i) => (
+        <path key={`ws${i}`} d={`M${-W * 0.1} ${-H * 0.1 + i * boardH} L${W * 1.1} ${-H * 0.1 + i * boardH}`} stroke={d("#6b4226")} strokeWidth={3} />
+      ))}
+      {/* Portholes on the sea outside, its horizon rolling. */}
+      {ports.map((px, i) => {
+        const cx = px * W;
+        const rr = i === 1 ? 92 : 74;
+        return (
+          <g key={`ph${i}`}>
+            <defs>
+              <clipPath id={`ds-lomboz-${i}`}>
+                <circle cx={cx} cy={portY} r={rr} />
+              </clipPath>
+            </defs>
+            <g clipPath={`url(#ds-lomboz-${i})`}>
+              <rect x={cx - rr * 2} y={portY - rr * 2} width={rr * 4} height={rr * 4} fill={p.sky[1]} />
+              <g transform={`translate(0 ${roll.bob * 0.6}) rotate(${roll.deg * 3} ${cx} ${portY})`}>
+                <rect x={cx - rr * 2} y={portY - rr * 2} width={rr * 4} height={rr * 1.75} fill={p.sky[2]} />
+                <rect x={cx - rr * 2} y={portY - rr * 0.25} width={rr * 4} height={rr * 3} fill={p.water} />
+                {[0.2, 0.5, 0.8].map((k) => (
+                  <path key={k} d={`M${cx - rr + ((k * rr * 2 + frame * 0.8) % (rr * 2))} ${portY + k * rr * 0.8} q14 -5 28 0`} stroke={p.waterLight} strokeWidth={4} fill="none" strokeLinecap="round" />
+                ))}
+              </g>
+            </g>
+            <circle cx={cx} cy={portY} r={rr} fill="none" stroke={d("#c9a24a")} strokeWidth={16} />
+            <circle cx={cx} cy={portY} r={rr + 8} fill="none" {...outline(4)} />
+            <circle cx={cx} cy={portY} r={rr - 8} fill="none" {...outline(3)} />
+            {[0, 90, 180, 270].map((a) => (
+              <circle key={a} cx={cx + (rr + 0) * Math.cos((a * Math.PI) / 180)} cy={portY + rr * Math.sin((a * Math.PI) / 180)} r={4} fill={INK} />
+            ))}
+          </g>
+        );
+      })}
+      {/* The hull's ribs between the portholes, curving in toward the floor. */}
+      {[0.035, 0.35, 0.65, 0.965].map((k) => {
+        const x = k * W;
+        const lean = k < 0.5 ? 18 : -18;
+        return <path key={`rb${k}`} d={`M${x - 20} ${H * 0.08} Q${x - 20 + lean} ${H * 0.4} ${x - 20 + lean * 1.6} ${floorTop} L${x + 20 + lean * 1.6} ${floorTop} Q${x + 20 + lean} ${H * 0.4} ${x + 20} ${H * 0.08} Z`} fill={d("#6b4226")} {...outline(4)} />;
+      })}
+      {/* Deck beams overhead. */}
+      <rect x={-W * 0.1} y={-H * 0.1} width={W * 1.2} height={H * 0.19} fill={d("#5e3b22")} {...outline(5)} />
+      {[0.035, 0.35, 0.65, 0.965].map((k) => (
+        <rect key={`bm${k}`} x={k * W - 30} y={H * 0.06} width={60} height={30} fill={d("#4a3020")} {...outline(3)} />
+      ))}
+      <Planks y0={floorTop} W={W} H={H} fill={d("#6a4428")} seam={d("#452a16")} seed={spec.tohum + 7} />
+      {/* A chart table under the middle porthole, a sea chest, barrels. */}
+      <g transform={`translate(${W * 0.5} ${stageY(0.75, H)})`}>
+        <rect x={-150} y={-120} width={300} height={22} fill={d("#7a5232")} {...outline(4)} />
+        <path d="M-130 -98 L-130 0 M130 -98 L130 0" stroke={INK} strokeWidth={14} />
+        <path d="M-130 -98 L-130 0 M130 -98 L130 0" stroke={d("#7a5232")} strokeWidth={8} />
+        <path d="M-90 -122 L70 -128 L84 -120 L-76 -114 Z" fill={d("#efe0bd")} {...outline(3)} />
+      </g>
+      <g transform={`translate(${W * 0.12} ${stageY(0.7, H)})`}>
+        <rect x={-95} y={-90} width={190} height={90} fill={d("#8a5a35")} {...outline(4)} />
+        <path d="M-95 -90 Q0 -140 95 -90 Z" fill={d("#9b6a3c")} {...outline(4)} />
+        <rect x={-14} y={-80} width={28} height={30} fill={d("#c9a24a")} {...outline(3)} />
+      </g>
+      <Barrel x={W * 0.87} y={stageY(0.7, H)} s={0.9} wood={d("#9b6a3c")} hoop={d("#4a3626")} />
+      <Barrel x={W * 0.94} y={stageY(0.8, H)} s={0.75} wood={d("#9b6a3c")} hoop={d("#4a3626")} />
+      {/* Lanterns from the beams, swinging with the roll. */}
+      {CABIN_LAMPS.map((l, i) => (
+        <ShipLantern key={`cl${i}`} x={l.x * W} y={H * 0.09} len={l.y * H - H * 0.09} swing={swing(i)} frame={frame} i={i} lit={lit} />
+      ))}
+    </g>
+  );
+}
+
 export function DrawnSetBack({ spec, W, H, frame }: { spec: V3DrawnSet; W: number; H: number; frame: number }) {
   const p = PALETTES[spec.zaman];
   const c0 = STYLES[spec.uslup];
@@ -503,6 +760,8 @@ export function DrawnSetBack({ spec, W, H, frame }: { spec: V3DrawnSet; W: numbe
   }
 
   if (m === "cadir_ici") return <TentInterior spec={spec} p={p} c={c} W={W} H={H} frame={frame} />;
+  if (m === "gemi_guvertesi") return <ShipDeck spec={spec} p={p} W={W} H={H} frame={frame} />;
+  if (m === "gemi_kamarasi") return <ShipCabin spec={spec} p={p} W={W} H={H} frame={frame} />;
 
   // Outdoors: far hills, mid layer of the place, ground.
   const farHills = hillPath(W, H, 0.42, 0.58, 4, seed + 1);
@@ -670,8 +929,8 @@ function Fog({ W, H, frame, y, opacity }: { W: number; H: number; frame: number;
 export function DrawnSetFront({ spec, W, H, frame }: { spec: V3DrawnSet; W: number; H: number; frame: number }) {
   const r = rng(spec.tohum + 5);
   const lights = lightSpots(spec, W, H);
-  // Indoors no rain, snow or ground fog falls on the actors (a tent, a palace, a council hall).
-  if (spec.manzara === "cadir_ici" || spec.manzara === "saray_ici" || spec.manzara === "meclis") spec = { ...spec, hava: "acik" };
+  // Indoors no rain, snow or ground fog falls on the actors (a tent, a palace, a council hall, a ship's cabin).
+  if (spec.manzara === "cadir_ici" || spec.manzara === "saray_ici" || spec.manzara === "meclis" || spec.manzara === "gemi_kamarasi") spec = { ...spec, hava: "acik" };
   // Light enough that the actors keep their colours (the first try at 0.42 turned everyone grey).
   const grade = spec.zaman === "gece" ? { c: "#2a3a78", o: 0.26 } : spec.zaman === "aksam" ? { c: "#b0603a", o: 0.12 } : spec.zaman === "safak" ? { c: "#6a5a9a", o: 0.1 } : undefined;
   return (

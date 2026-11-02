@@ -4,7 +4,7 @@
  * Run: npx tsx scripts/smoke-v3-likeness.ts
  */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { toRenderCast } from "../src/lib/v3/costumes/CastMapper";
@@ -13,7 +13,7 @@ import { partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/Par
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { appearanceSentences, applySheet, castLooks, cloakFromNote, likenessOrders, noteColours, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
-import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
 let scenarios = 0;
@@ -81,7 +81,7 @@ const SHEET = {
   tarif: "A lean, balding Roman general with a laurel wreath and a purple-bordered toga.",
 };
 
-function main() {
+async function main() {
   scenario("A: appearance sentences — only the ones about looks and dress", () => {
     const text = "Caesar was born in 100 BC. Suetonius says he was tall, fair-complexioned and had keen black eyes. He combed his thin hair forward to hide his baldness. He crossed the Rubicon in 49 BC. He wore a purple toga and red boots on formal occasions.";
     const s = appearanceSentences(text);
@@ -282,7 +282,46 @@ function main() {
     assert.deepEqual(castLooks(romans, "caesar").length, 2);
   });
 
+  // K2 (files, so outside the synchronous scenarios).
+  try {
+    // Caesar and the pirates (2 Nov 2026): the likeness went 6 → 7 → 6 and the last round was delivered.
+    const at = (tur: number, benzerlik: number, set = 8) => roundScore(tur, { likenesses: [{ castId: "caesar", kisi: "Julius Caesar", kaynak: "tasarim", benzerlik }, { castId: "cato", kisi: "Cato", kaynak: "kutuphane" }], sets: [{ sahne: "s1", ...(set < 7 ? { esikAlti: true } : {}), secim: { puan: set, donem: 9 } }, { sahne: "s2" }] });
+    const rounds = [at(0, 6), at(1, 7), at(2, 6)];
+    assert.deepEqual(rounds[1], { tur: 1, kisiler: [{ castId: "caesar", puan: 7 }], setler: [{ sahne: "s1", puan: 8, gecti: true }] });
+    assert.deepEqual(rounds.map(roundShortfall), [2, 1, 2]);
+    assert.equal(bestRound(rounds)!.tur, 1, "the best-scored round");
+    assert.equal(bestRound([at(0, 6), at(1, 6)])!.tur, 0, "a retouch replaces a round only when it scored better");
+    assert.equal(bestRound([at(0, 9, 5), at(1, 9, 8)])!.tur, 1, "a set redrawn over the bar");
+    assert.match(roundLine(at(2, 6, 5)), /^tur 2: caesar 6\/10, s1 seti 5\/10 \(eşik altı 4 puan\)$/);
+    // Each round's cut and package are kept; the last round puts the best one back.
+    const work = mkdtempSync(path.join(os.tmpdir(), "v3-rotus-"));
+    const put = (tur: number) => {
+      writeFileSync(path.join(work, "final.mp4"), `video ${tur}`);
+      writeFileSync(path.join(work, "QC.md"), `QC ${tur}`);
+      writeFileSync(path.join(work, "youtube.json"), `{"tur":${tur}}`);
+    };
+    put(0);
+    writeFileSync(path.join(work, "kapak.jpg"), "kapak 0");
+    await keepRound(work, "final.mp4", rounds[0]!);
+    put(1);
+    rmSync(path.join(work, "kapak.jpg"));
+    await keepRound(work, "final.mp4", rounds[1]!);
+    put(2);
+    assert.deepEqual((await keptRounds(work, "final.mp4", 2)).map((r) => r.tur), [0, 1]);
+    await keepRound(work, "final.mp4", rounds[2]!);
+    await restoreRound(work, "final.mp4", 1);
+    assert.deepEqual(["final.mp4", "QC.md", "youtube.json", "final-tur2.mp4", "tur0/kapak.jpg"].map((n) => readFileSync(path.join(work, n), "utf8")), ["video 1", "QC 1", '{"tur":1}', "video 2", "kapak 0"]);
+    assert.equal(existsSync(path.join(work, "kapak.jpg")), false, "the round had no cover");
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL K2 retouch delivers the best-scored round");
+    throw e;
+  }
+
   console.log(`V3 likeness smoke: PASS (${scenarios} scenarios)`);
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

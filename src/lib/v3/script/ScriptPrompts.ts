@@ -149,6 +149,8 @@ const SHORTS_RULES: Readonly<Record<ScriptLanguage, (b: ScriptBrief, words: numb
 
 YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da daha kısa DİKEY bir video. Bu kurallar yukarıdakilerle ya da aşağıdakilerle çeliştiğinde bunlar geçerlidir:
 - İlk satır (ilk 2 saniye) kancadır: kaydıranı durduran tek, somut, şaşırtıcı cümle. Selam, başlık, "bu videoda" yok.
+  Bu satırı anlatıcı DEĞİL, sahnedeki görünür bir karakter söyler — olayın ortasında, kısa (en fazla 8 kelime), bir "jest"
+  ya da "efekt" ile; anlatıcı ondan sonra gelir. İlk sahne harita değil, karakterli bir sahnedir.
 - Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.
 - 2–4 sahne, yaklaşık ${words} konuşulan kelime. Üç görünür karakter; bir sahnede en fazla ikisi (dikey kare aynı anda tek konuşanı gösterir).
 - "Ne öğreneceksin" vaadi, sonraki videoya köprü ve abone daveti YOK.
@@ -157,6 +159,8 @@ YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da 
 
 YOUTUBE SHORT — this is a VERTICAL video of ${b.hedefSureSn} seconds or less, watched on a phone in a feed. Where these rules differ from the rules above or below, these win:
 - The very first line (within 2 seconds) is the hook: one concrete, surprising sentence that stops a scroller. No greeting, no title, no "in this video".
+  A visible character on stage says it — NOT the narrator — in the middle of the action, short (8 words at most), with a
+  "jest" or an "efekt"; the narrator comes after it. The first scene is a character scene, not a map.
 - Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.
 - 2–4 scenes, about ${words} spoken words. Three visible characters; at most two of them in a scene (the vertical frame shows one speaker at a time).
 - NO "what you'll learn" promise, NO bridge to the next video and NO subscribe line.
@@ -455,7 +459,7 @@ CROWDS — scenes feel big when the story has many people: give such scenes "kal
 LIVING SETS / ORTAM — the viewer must live the moment (owner): every character scene gets an "ortam", the drawn living set
   the renderer composes and animates (flowing water, flickering torches, stars, drifting mist, rain or snow):
   "ortam": {"zaman": "gun" | "aksam" | "gece" | "safak", "manzara": "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" |
-    "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu" | "cadir_ici" (inside a commander's tent or pavilion: the war council, the sultan's otağ), "uslup": "roma" | "yunan" |
+    "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu" | "cadir_ici" (inside a commander's tent or pavilion: the war council, the sultan's otağ) | "gemi_guvertesi" (on a ship's deck at sea: a voyage, pirates aboard, a sea fight seen from the ship) | "gemi_kamarasi" (inside a ship's cabin or below deck), "uslup": "roma" | "yunan" |
     "misir" | "pers" | "bizans" | "osmanli" | "ortacag" | "cin" | "japon" | "erken_modern" | "modern",
     "hava": "acik" | "bulutlu" | "sis" | "yagmur" | "kar", "isik": "yok" | "mesale" | "kamp_atesi",
     "nehir": [left bank, right bank] (0..1, for "nehir_gecidi": the river runs across the stage there)}

@@ -15,10 +15,10 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, infoCardsOf, sideStem, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, episodeLead, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
-import { isShorts, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
+import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
@@ -35,10 +35,11 @@ import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
+import { windowAims, windowArrival, windowCentre } from "../remotion-v3/src/scene/verticalWindow";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
-import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
+import { normalizeDraft, shipboardSet } from "../src/lib/v3/script/DraftNormalizer";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { colourName, reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../src/lib/v3/timeline/Timeline";
@@ -1725,6 +1726,67 @@ async function main() {
     const last = Math.round(tl.lines.find((l) => l.lineIndex === 2)!.start * 30) - shot.start;
     const onHim = shot.camera.filter((k) => k.frame >= last);
     assert.ok(onHim.length && onHim.every((k) => k.zoom <= 1.3 + 1e-9), JSON.stringify(onHim));
+  });
+
+  await scenario("O31 first Short (Caesar and the pirates, 2 Nov 2026): ship sets, the length as a ceiling, the hook, the lead", () => {
+    // A ship's place gets a ship's set; a log cabin, a harbour full of ships and a camp ashore stay ashore.
+    assert.deepEqual(
+      ["Pirate ship cabin, off the coast of Asia Minor, 75 BC", "Pirate ship, off the coast of Asia Minor", "Aboard Caesar's galley", "Below deck, the hold", "Lincoln's log cabin, Kentucky", "Harbour of Miletus, ships at anchor", "Pirate camp on the shore, Cilicia"].map(shipboardSet),
+      ["gemi_kamarasi", "gemi_guvertesi", "gemi_guvertesi", "gemi_kamarasi", undefined, undefined, undefined],
+    );
+    const ep = sampleEpisode();
+    const base = ep.sahneler[0]!;
+    const drafted = normalizeDraft({ ...ep, sahneler: [{ ...base, mekan: "Pirate ship cabin, off the coast of Asia Minor, 75 BC", ortam: { zaman: "gun", manzara: "ova", uslup: "roma" } }, { ...base, id: "s2", mekan: "Open sea", ortam: { zaman: "gun", manzara: "ship_deck", uslup: "roma" } }, { ...base, id: "s3", mekan: "Pirate camp on the shore", ortam: { zaman: "aksam", manzara: "sahil", uslup: "roma" } }] }, []);
+    assert.deepEqual((drafted.value as Episode).sahneler.map((s) => s.ortam!.manzara), ["gemi_kamarasi", "gemi_guvertesi", "sahil"]);
+    assert.equal(validateEpisode(drafted.value).ok, true);
+
+    // A Short's ordered length is a ceiling (51 s of a 60 s Short passes), a long video's a target.
+    assert.deepEqual([lengthOk(51, 60), lengthOk(60, 60), lengthOk(60.5, 60), lengthOk(25, 60), lengthOk(115, 120), lengthOk(105, 120)], [true, true, false, false, true, false]);
+
+    // Who opens: the narrator (the Short's lesson for the script brain) or a visible character.
+    const characterFirst: Episode = { ...ep, sahneler: [{ ...base, satirlar: base.satirlar.slice(1) }] };
+    assert.deepEqual([opensOnNarrator(ep), opensOnNarrator(characterFirst)], [true, false]);
+
+    // The narrator's 2.4 s first line: in a Short the lead (most lines) acts at once; a normal video is left alone.
+    assert.equal(episodeLead(ep), "mehmed");
+    const tl = buildTimeline(ep, [[fakeAudio(2.4), fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const cast = toRenderCast(ep.oyuncu_kadrosu, "kukla");
+    const input = { episode: ep, timeline: tl, cast, accessories: [], backgrounds: [{ src: "", kind: "drawn" as const, drawn: { zaman: "gun" as const, manzara: "gemi_guvertesi" as const, uslup: "roma" as const, tohum: 7 } }], fps: 30, ...STAGE_SIZE, endCard: false, showCaptions: false };
+    const wide = buildRenderPlan(input);
+    const short = buildRenderPlan({ ...input, output: SHORTS_SIZE });
+    assert.equal(short.shots[0]!.lead, "mehmed");
+    const hooked = short.shots[0]!.performers.find((p) => p.castId === "mehmed")!;
+    assert.ok(hooked.gestures.some((g) => g.start <= 5 && g.gesture === "isaret_et") && hooked.effects.some((e) => e.effect === "unlem" && e.start <= 5), JSON.stringify(hooked.gestures));
+    assert.ok(!wide.shots[0]!.performers.find((p) => p.castId === "mehmed")!.gestures.some((g) => g.start <= 5));
+    const hookShort = openingHook(short)!;
+    assert.deepEqual([hookShort.kind, hookShort.castId, hookShort.at <= HOOK_S], ["hareket", "mehmed", true]);
+    const hookWide = openingHook(wide)!;
+    assert.deepEqual([hookWide.kind, hookWide.castId], ["replik", "mehmed"]);
+    assert.ok(hookWide.at > HOOK_S);
+    // A Short that opens on a character's line gets no extra move.
+    const tl2 = buildTimeline(characterFirst, [[fakeAudio(1.5), fakeAudio(2), fakeAudio(1.8)]]);
+    const spoken = buildRenderPlan({ ...input, episode: characterFirst, timeline: tl2, output: SHORTS_SIZE });
+    assert.equal(Math.min(...spoken.shots[0]!.performers.find((p) => p.castId === "mehmed")!.gestures.map((g) => g.start)), Math.round(tl2.lines[0]!.start * 30) + 2);
+    assert.equal(openingHook(spoken)!.kind, "replik");
+  });
+
+  await scenario("O32 a Short's vertical window: holds the lead while no one speaks, glides to a speaker, back to the lead after a pause; the name tag waits for it", () => {
+    const fps = 30;
+    const turns = [{ castId: "a", start: 60, end: 120 }, { castId: "b", start: 130, end: 190 }, { castId: "b", start: 200, end: 230 }, { castId: "a", start: 400, end: 450 }];
+    const aims = windowAims(turns, fps);
+    assert.deepEqual(aims.map((a) => [a.frame, a.castId ?? "-"]), [[-Infinity, "-"], [55, "a"], [125, "b"], [239, "-"], [395, "a"], [459, "-"]]);
+    const xOf = (id: string | undefined) => (id === "a" ? 300 : id === "b" ? 1500 : 900);
+    const at = (frame: number) => windowCentre(aims, frame, fps, xOf);
+    assert.deepEqual([at(0), at(55), at(70), at(140), at(220), at(254)], [900, 900, 300, 1500, 1500, 900], "lead, then a, b, the same b again, back to the lead");
+    // The tag waits for the glide; the same speaker again, or the lead the window rests on, shows it at once.
+    assert.equal(windowArrival(aims, "b", 130, fps, xOf), 140);
+    assert.equal(windowArrival(aims, "b", 200, fps, xOf), 200);
+    const leadFirst = windowAims([{ castId: "l", start: 20, end: 80 }], fps);
+    assert.equal(windowArrival(leadFirst, "l", 20, fps, (id) => (id === "l" || id === undefined ? 900 : 0)), 20);
+    // A glide cut short by the next speaker goes on from where the window is.
+    const quick = windowAims([{ castId: "a", start: 60, end: 64 }, { castId: "b", start: 66, end: 120 }], fps);
+    for (let fr = 50; fr < 90; fr++) assert.ok(Math.abs(windowCentre(quick, fr + 1, fps, xOf) - windowCentre(quick, fr, fps, xOf)) < 160, `jump at ${fr}`);
+    assert.equal(windowCentre(quick, 90, fps, xOf), 1500);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

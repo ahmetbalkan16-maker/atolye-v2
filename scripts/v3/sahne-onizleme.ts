@@ -4,9 +4,10 @@
  * (owner, 22 Oct 2026: "izleyen o anı yaşamalı"); Claude/Codex gerekmez. Haritalı sahneler için harita-onizleme.ts.
  *
  *   npx tsx scripts/v3/sahne-onizleme.ts --bolum <episode.json> [--sahne <sahne id>] [--kare <saniye>,…] [--video]
- *        [--dil en|tr] [--onizleme] [--cikti <klasör>]
+ *        [--dil en|tr] [--onizleme] [--dikey] [--cikti <klasör>]
  *
- * Satır süreleri kelime sayısından tahmin edilir. Varsayılan: her satırın sonuna yakın birer kare.
+ * Satır süreleri kelime sayısından tahmin edilir. Varsayılan: her satırın sonuna yakın birer kare. --dikey: Short olarak
+ * (1080×1920, sahnenin üstünde dikey pencere).
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -17,6 +18,7 @@ import { applyParts, costumeRootsFor } from "../../src/lib/v3/costumes/PartDesig
 import { buildRenderPlan } from "../../src/lib/v3/director/Director";
 import type { Episode } from "../../src/lib/v3/episode/EpisodeTypes";
 import { assertEpisode } from "../../src/lib/v3/episode/EpisodeValidator";
+import { SHORTS_SIZE } from "../../src/lib/v3/render/Format";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
 import { splitDirections } from "../../src/lib/v3/tts/StageDirections";
@@ -66,6 +68,7 @@ async function main() {
     height: 1080,
     showCaptions: false,
     endCard: false,
+    ...(process.argv.includes("--dikey") ? { output: SHORTS_SIZE } : {}),
   });
   const planFile = path.join(out, "plan.json");
   await fs.writeFile(planFile, JSON.stringify({ plan }));

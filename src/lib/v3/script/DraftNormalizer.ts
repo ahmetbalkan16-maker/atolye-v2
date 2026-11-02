@@ -64,6 +64,19 @@ const GESTURE_ALIASES: readonly [RegExp, V3Gesture][] = [
   [/konu[şs]|talk|speak|explain|gesture/i, "konus"],
 ];
 
+const SHIP = /\bships?\b|galley|trireme|bireme|\bboat\b|vessel|frigate|caravel|galleon|\bgemi|kadırga|kadirga/i;
+const ON_SHORE = /harbou?r|\bport\b|\bdocks?\b|quay|wharf|\bpier\b|shore|beach|liman|rıhtım|rihtim|iskele|kıyı|kiyi|sahil/i;
+
+/**
+ * The ship set a scene's place names: its cabin (a cabin or hold of a ship, below deck), its deck (on deck, aboard, or
+ * a ship named with no harbour or shore beside it), else undefined. A log cabin or a harbour full of ships stays ashore.
+ */
+export function shipboardSet(mekan: string): "gemi_guvertesi" | "gemi_kamarasi" | undefined {
+  if (/below.?decks?/i.test(mekan) || (/\bcabin\b|\bhold\b|kamara|ambar/i.test(mekan) && SHIP.test(mekan))) return "gemi_kamarasi";
+  if (/\bdeck\b|aboard|on board|güverte|guverte|gemide/i.test(mekan) || (SHIP.test(mekan) && !ON_SHORE.test(mekan))) return "gemi_guvertesi";
+  return undefined;
+}
+
 /**
  * A set's and a scene's values outside their lists, by the words models use (the 1456 Belgrade run, 23 Oct 2026: three
  * length rounds were lost over "ortam" and "duygu" values, so the map repairs were never asked). Checked in order; an
@@ -73,7 +86,7 @@ const SET_ALIASES: Readonly<Record<string, { readonly list: readonly string[]; r
   zaman: { list: TIMES_OF_DAY, words: [[/dawn|sunrise|morning twilight|şafak|safak/i, "safak"], [/even|dusk|sunset|twilight|akşam|aksam/i, "aksam"], [/night|midnight|gece/i, "gece"], [/day|noon|morning|afternoon|gün|gun/i, "gun"]], fallback: "gun" },
   manzara: {
     list: LANDSCAPES,
-    words: [[/ford|crossing|geçit|gecit/i, "nehir_gecidi"], [/river|bank|kıyı|kiyi/i, "nehir_kiyisi"], [/wall|rampart|fortress|castle|citadel|gate|siege|bastion|sur|kale/i, "sur_onu"], [/inside.{0,20}tent|tent.{0,10}(interior|inside)|pavilion|otağ|otag|çadır içi|cadir ici|sultan.{0,3}s tent|commander.{0,3}s tent|war tent/i, "cadir_ici"], [/camp|tent|bivouac|ordu/i, "ordugah"], [/palace|throne|court|saray/i, "saray_ici"], [/council|hall|senate|chamber|assembly|meclis/i, "meclis"], [/square|forum|market|meydan/i, "meydan"], [/street|city|town|alley|sokak/i, "sokak"], [/beach|coast|shore|harbou?r|port|sea|sahil/i, "sahil"], [/forest|wood|orman/i, "orman"], [/hill|mountain|pass|valley|tepe/i, "tepeler"], [/plain|field|steppe|battle|ova/i, "ova"]],
+    words: [[/cabin|below.?decks?|kamara/i, "gemi_kamarasi"], [/deck|ship|galley|trireme|aboard|güverte|guverte|gemi/i, "gemi_guvertesi"], [/ford|crossing|geçit|gecit/i, "nehir_gecidi"], [/river|bank|kıyı|kiyi/i, "nehir_kiyisi"], [/wall|rampart|fortress|castle|citadel|gate|siege|bastion|sur|kale/i, "sur_onu"], [/inside.{0,20}tent|tent.{0,10}(interior|inside)|pavilion|otağ|otag|çadır içi|cadir ici|sultan.{0,3}s tent|commander.{0,3}s tent|war tent/i, "cadir_ici"], [/camp|tent|bivouac|ordu/i, "ordugah"], [/palace|throne|court|saray/i, "saray_ici"], [/council|hall|senate|chamber|assembly|meclis/i, "meclis"], [/square|forum|market|meydan/i, "meydan"], [/street|city|town|alley|sokak/i, "sokak"], [/beach|coast|shore|harbou?r|port|sea|sahil/i, "sahil"], [/forest|wood|orman/i, "orman"], [/hill|mountain|pass|valley|tepe/i, "tepeler"], [/plain|field|steppe|battle|ova/i, "ova"]],
     fallback: "ova",
   },
   uslup: { list: ARCH_STYLES, words: [[/roman|roma/i, "roma"], [/greek|yunan/i, "yunan"], [/egypt|mısır|misir/i, "misir"], [/persia|pers/i, "pers"], [/byzant|bizans/i, "bizans"], [/ottoman|osman|turk/i, "osmanli"], [/china|chinese|çin|cin/i, "cin"], [/japan|japon/i, "japon"], [/renaiss|early.?modern|baroque|17|18/i, "erken_modern"], [/modern|19|20|21/i, "modern"], [/medieval|gothic|crusad|hungar|europe|ortaçağ|ortacag/i, "ortacag"]], fallback: "ortacag" },
@@ -189,6 +202,13 @@ export function normalizeDraft(raw: unknown, catalog: readonly PackCatalogEntry[
         fixes.push(`sahneler[${si}].ortam.${field} "${v}" → ${mapped}`);
         s.ortam[field] = mapped;
       }
+    // A scene aboard a ship the writer set on land (Caesar and the pirates, 2 Nov 2026: "Pirate ship cabin" drawn as a
+    // plain with a village). A ship set the writer chose stays.
+    const aboard = isObj(s.ortam) && typeof s.mekan === "string" ? shipboardSet(s.mekan) : undefined;
+    if (aboard && isObj(s.ortam) && !String(s.ortam.manzara).startsWith("gemi_")) {
+      fixes.push(`sahneler[${si}].ortam.manzara ${String(s.ortam.manzara)} → ${aboard} ("${String(s.mekan)}")`);
+      s.ortam.manzara = aboard;
+    }
     // Tokens whose formation was written on the side instead of in its "yerler" (the Belgrade run: "kusatma", "km"
     // and "kayip" beside "yerler", so the siege had no ring and no losses): moved into the formations that lack one,
     // the losses to the last formation.

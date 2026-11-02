@@ -190,7 +190,7 @@ export interface V3Background {
 }
 
 export type V3TimeOfDay = "gun" | "aksam" | "gece" | "safak";
-export type V3Landscape = "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" | "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu" | "cadir_ici";
+export type V3Landscape = "nehir_kiyisi" | "nehir_gecidi" | "ova" | "tepeler" | "orman" | "sahil" | "sokak" | "meydan" | "saray_ici" | "meclis" | "ordugah" | "sur_onu" | "cadir_ici" | "gemi_guvertesi" | "gemi_kamarasi";
 export type V3ArchStyle = "roma" | "yunan" | "misir" | "pers" | "bizans" | "osmanli" | "ortacag" | "cin" | "japon" | "erken_modern" | "modern";
 export type V3Weather = "acik" | "bulutlu" | "sis" | "yagmur" | "kar";
 export type V3SetLight = "yok" | "mesale" | "kamp_atesi";
@@ -517,6 +517,8 @@ export interface V3Shot {
   readonly transitionIn: V3Transition;
   /** The shot has dramatised dialogue (a character speaks). No label is drawn on screen (owner, 23 Oct 2026). */
   readonly dramatized: boolean;
+  /** Who a Short's vertical window holds while no one speaks: the episode's lead on stage, else the scene's first speaker. */
+  readonly lead?: string;
   readonly bubbles?: readonly V3Bubble[];
   readonly nameTags?: readonly V3NameTag[];
   readonly inserts?: readonly V3Insert[];
