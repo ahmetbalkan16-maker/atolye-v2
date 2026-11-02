@@ -110,6 +110,28 @@ async function main() {
     assert.equal(await fs.readFile(base.out, "utf8"), "120");
   });
 
+  await scenario("G the layout probe's boxes stay with their piece, survive a crash and are merged with the video", async () => {
+    const artifacts = path.join(tmp, "remotion-out", "yerlesim-x");
+    const layout = { artifacts, out: path.join(tmp, "yerlesim.json"), every: 100, width: 1920, height: 1080 };
+    // The fake render writes a box file for every 100th frame of its piece, as LayoutProbe does.
+    const probing = (failAt?: number) => {
+      const f = fakeDeps(failAt !== undefined ? { failAt } : {});
+      const render = f.deps.render;
+      return { ...f, deps: { ...f.deps, render: async (o: Parameters<typeof render>[0]) => {
+        await fs.mkdir(artifacts, { recursive: true });
+        for (let k = Math.ceil(o.frameRange![0] / 100) * 100; k <= o.frameRange![1]; k += 100) await fs.writeFile(path.join(artifacts, `${k}.json`), JSON.stringify({ kare: k, ogeler: [] }));
+        await render(o);
+      } } };
+    };
+    await fs.mkdir(artifacts, { recursive: true });
+    await fs.writeFile(path.join(artifacts, "999999.json"), "{}");
+    await assert.rejects(renderInChunks({ ...base, layout }, probing(600).deps), /Chrome crashed/);
+    await renderInChunks({ ...base, layout }, probing().deps);
+    const merged = JSON.parse(await fs.readFile(layout.out, "utf8")) as { every: number; width: number; kareler: { kare: number }[] };
+    assert.deepEqual(merged.kareler.map((k) => k.kare), [0, 100, 200, 300, 400, 500, 600, 700, 800, 900], "the reused pieces keep their boxes; an old run's file is dropped");
+    assert.deepEqual([merged.every, merged.width], [100, 1920]);
+  });
+
   await scenario("F Remotion's bundle server gets a port free on IPv4 and IPv6 alike (4.0.538 took :3000 from the live app listening on ::)", async () => {
     // A server on "::" stands for the live app; the port handed out is another one, and both stacks can bind it.
     const app = createServer();

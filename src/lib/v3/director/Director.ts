@@ -936,7 +936,13 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     showCaptions: input.showCaptions,
     ...(input.language ? { language: input.language } : {}),
     ...(input.audio ? { audio: input.audio } : {}),
+    layoutProbe: layoutProbeFor(episode.id, fps),
   };
+}
+
+/** Every episode render measures its boxes every half second into `out/Episode/yerlesim-<episode>` (LayoutProbe). */
+export function layoutProbeFor(episodeId: string, fps: number): NonNullable<V3RenderPlan["layoutProbe"]> {
+  return { every: Math.max(1, Math.round(fps / 2)), dir: `yerlesim-${episodeId.replace(/[^0-9a-zA-Z_-]+/g, "-").slice(0, 60)}` };
 }
 
 function nearestOther<T extends { x: number }>(tracks: ReadonlyMap<string, T>, id: string): T | undefined {

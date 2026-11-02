@@ -5,6 +5,7 @@ import { type AccessoryIndex, Character } from "../character/Character";
 import { extraState } from "../character/extras";
 import { HEAD_CY } from "../character/rig";
 import { chartLayout } from "./chartLayout";
+import { yer } from "./LayoutProbe";
 
 /**
  * Info cards over the darkened picture (owner, 23 Oct 2026, after DFT Tarih's Pharsalus): the map dims and a political
@@ -165,7 +166,7 @@ export function InfoCardView({ card, cast, accessories, language = "en" }: { car
     <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, opacity: fade }}>
       {card.title ? (
         <g transform={`translate(0 ${(1 - rise) * -30 * u})`}>
-          <text x={W / 2} y={(card.kind === "sayac" ? 300 : 190) * u} textAnchor="middle" style={{ font: `700 ${62 * u}px ${TITLE_FONT}` }} fill={PARCHMENT} stroke="rgba(10,8,14,0.85)" strokeWidth={6 * u} paintOrder="stroke fill">
+          <text {...yer("kart")} x={W / 2} y={(card.kind === "sayac" ? 300 : 190) * u} textAnchor="middle" style={{ font: `700 ${62 * u}px ${TITLE_FONT}` }} fill={PARCHMENT} stroke="rgba(10,8,14,0.85)" strokeWidth={6 * u} paintOrder="stroke fill">
             {card.title}
           </text>
           <path d={`M${W / 2 - 220 * u} ${(card.kind === "sayac" ? 326 : 216) * u} L${W / 2 + 220 * u} ${(card.kind === "sayac" ? 326 : 216) * u}`} stroke={RED} strokeWidth={4 * u} strokeLinecap="round" />

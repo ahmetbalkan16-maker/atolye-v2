@@ -2,6 +2,7 @@ import React from "react";
 import { Easing, interpolate, spring } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
+import { yer } from "./LayoutProbe";
 
 /**
  * Marks over the living map (owner, 23 Oct 2026, after DFT Tarih's Belgrade 1521): white flags of surrender, flames over
@@ -217,7 +218,7 @@ function StrengthBar({ list, frame, fps, W, H }: { list: readonly Strength[]; fr
     </text>
   );
   return (
-    <g opacity={out * Math.min(1, open * 1.5)} style={{ filter: `drop-shadow(0 ${3 * u}px ${4 * u}px rgba(0,0,0,0.55))` }}>
+    <g {...yer("hud", `${cur.sides[0].label} / ${cur.sides[1].label}`)} opacity={out * Math.min(1, open * 1.5)} style={{ filter: `drop-shadow(0 ${3 * u}px ${4 * u}px rgba(0,0,0,0.55))` }}>
       {text(cur.sides[0].label.toLocaleUpperCase("en-US"), x0, top - 10 * u, 30, "start")}
       {text(cur.sides[1].label.toLocaleUpperCase("en-US"), x0 + width, top - 10 * u, 30, "end")}
       <rect x={x0 - 4 * u} y={top - 4 * u} width={width + 8 * u} height={barH + 8 * u} rx={9 * u} fill="rgba(12,10,18,0.85)" />
@@ -248,7 +249,7 @@ function DateStamp({ dates, frame, fps, W, H }: { dates: NonNullable<V3GeoMap["d
     const x = W - 46 * u - w;
     const y = 30 * u + dy;
     return (
-      <g key={key} opacity={alpha}>
+      <g key={key} {...yer("hud", text)} opacity={alpha}>
         <rect x={x} y={y} width={w} height={64 * u} rx={8 * u} fill={PARCHMENT} stroke={SEPIA} strokeWidth={3 * u} />
         <rect x={x + 6 * u} y={y + 6 * u} width={w - 12 * u} height={52 * u} rx={5 * u} fill="none" stroke={SEPIA} strokeWidth={1.2 * u} opacity={0.6} />
         <text x={x + w / 2} y={y + 44 * u} textAnchor="middle" style={{ font: `italic 700 ${36 * u}px Georgia, 'Palatino Linotype', serif` }} fill="#3a2410">

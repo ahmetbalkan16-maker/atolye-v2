@@ -9,7 +9,10 @@ import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutSkip, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
+import { cutSides, layoutFaults, MIN_PROBES, overlapShare } from "../src/lib/v3/council/LayoutCheck";
+import { BAND_MIN_FRAMES, frameStats, PIXEL_H, PIXEL_W, pixelFaults } from "../src/lib/v3/council/PixelCheck";
+import type { V3LayoutBox } from "../src/lib/v3/render/RenderPlanTypes";
 import { decideRepair, describeRepair, knownRemedy, parseRepair, type RepairContext } from "../src/lib/v3/council/RepairBrain";
 import { type ExamManifest, type ExamQuestion, gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { cosine, errorSignature, exampleDir, learnedRemedy, MAX_RULES, ollamaEmbedder, type OwnerRule, overlap, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
@@ -267,6 +270,76 @@ async function main() {
     assert.deepEqual(mixed.map((e) => e.kusurlu), [true, false], "two false alarms taught later do not crowd out the fault");
     assert.deepEqual(await frameExamples(lessons, exampleDir(root), "harita"), [], "a close map's lesson is not a wide map's");
     assert.equal((await frameExamples(lessons, exampleDir(root), "yakin-harita", (f) => f === "kosova-rozet.jpg")).length, 1, "a question never sees its own frame");
+  });
+
+  await scenario("L the layout check (owner, 2 Nov 2026): a box cut by the edge or printed over another, only when it lasts; covers and skipped frames", () => {
+    const box = (tur: V3LayoutBox["tur"], ad: string, x: number, y: number, w = 200, h = 140): V3LayoutBox => ({ tur, ad, x, y, w, h });
+    const lazarCut = box("rozet", "Prince Lazar", 660, -34);
+    assert.deepEqual(cutSides(lazarCut, 1920, 1080), { ust: 34 });
+    assert.deepEqual(cutSides(box("rozet", "x", 1, -5), 1920, 1080), {}, "a stroke or a spring's wobble is no cut");
+    assert.deepEqual(cutSides(box("yazi", "x", -500, 10), 1920, 1080), {}, "wholly outside is not shown, not cut");
+    assert.equal(overlapShare(box("balon", "a", 0, 0, 100, 100), box("yazi", "b", 50, 50, 100, 100)), 0.25);
+    const file = (kareler: { kare: number; ogeler: V3LayoutBox[] }[]) => ({ fps: 30, width: 1920, height: 1080, every: 15, kareler });
+    const faults = layoutFaults(file([
+      { kare: 0, ogeler: [lazarCut, box("balon", "NEW MANAGEMENT!", 1300, 380, 300, 70), box("yazi", "BAYEZID'S COUNTERATTACK", 1336, 395, 229, 67)] },
+      { kare: 15, ogeler: [lazarCut, box("balon", "NEW MANAGEMENT!", 1300, 380, 300, 70), box("yazi", "BAYEZID'S COUNTERATTACK", 1336, 395, 229, 67)] },
+      { kare: 30, ogeler: [box("etiket", "Serbian coalition", 500, -20, 240, 36)] },
+    ]));
+    assert.deepEqual(faults.map((f) => [f.tur, f.from, f.to]), [["kenar", 0, 1], ["ustuste", 0, 1]], "a cut on one probe only (the label) is a passing move");
+    assert.ok(faults[0]!.ayrinti.includes('"Prince Lazar" rozet üst kenarda kesik (34 px dışarıda)') && faults[1]!.ayrinti.includes("konuşma yazısı ile") && faults[1]!.ayrinti.includes("harita yazısı"), faults.map((f) => f.ayrinti).join(" | "));
+    // An info card over the picture: only the card is judged; a skipped frame ends a run.
+    const card = { kare: 0, ogeler: [box("kart", "Strength", 300, 120, 900, 70), box("yazi", "SERBIA", -40, 10), box("yazi", "BLACK SEA", 10, 10)] };
+    assert.deepEqual(layoutFaults(file([card, { ...card, kare: 15 }])), [], "names under an info card are not judged");
+    const cut = (kare: number) => ({ kare, ogeler: [lazarCut] });
+    assert.deepEqual(layoutFaults(file([cut(0), cut(15), cut(30)]), (f) => f === 15).length, 0, "a transition between two probes splits the run");
+    assert.equal(MIN_PROBES, 2);
+  });
+
+  await scenario("P the pixel check: a flat dark band down an edge, land painted as sea for a moment, designed moments skipped", () => {
+    const W = PIXEL_W;
+    const H = PIXEL_H;
+    const frame = (paint: (x: number, y: number) => [number, number, number]) => {
+      const rgb = new Uint8Array(W * H * 3);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) rgb.set(paint(x, y), (y * W + x) * 3);
+      return rgb;
+    };
+    const land: [number, number, number] = [180, 190, 140];
+    const sea: [number, number, number] = [34, 64, 106];
+    const empty: [number, number, number] = [21, 18, 28];
+    assert.deepEqual(frameStats(frame(() => land)), { sea: 0, dark: 0 });
+    const banded = frameStats(frame((x) => (x < 11 ? empty : land)));
+    assert.deepEqual(banded.band, { side: "sol", px: 132 }, "11 of 160 columns at 1920 px");
+    assert.equal(frameStats(frame(() => sea)).sea, 1);
+    // A soft vignette is no band: it darkens step by step.
+    assert.equal(frameStats(frame((x) => { const v = Math.min(180, 12 + x * 6); return [v, v, v]; })).band, undefined);
+    // Two frames of sea in a land shot are a flash; a camera that glides out to sea for good is not.
+    const at = (i: number) => i / 30;
+    const glitch = Array.from({ length: 90 }, (_, i) => ({ t: at(i), s: { sea: i === 45 || i === 46 ? 0.84 : 0.01, dark: 0 } }));
+    const flashes = pixelFaults(glitch);
+    assert.deepEqual(flashes.map((f) => f.tur), ["zemin"]);
+    assert.ok(flashes[0]!.ayrinti.includes("zemin bir an deniz rengine boyandı") && Math.abs(flashes[0]!.from - 1.5) < 1e-9, flashes[0]!.ayrinti);
+    const glide = Array.from({ length: 120 }, (_, i) => ({ t: at(i), s: { sea: i < 60 ? 0.05 : 0.8, dark: 0 } }));
+    assert.deepEqual(pixelFaults(glide), [], "a lasting change is the story");
+    const word = Array.from({ length: 90 }, (_, i) => ({ t: at(i), s: { sea: 0, dark: i >= 40 && i < 52 ? 0.95 : 0.02 } }));
+    assert.deepEqual(pixelFaults(word).map((f) => f.tur), ["karanlik"]);
+    assert.deepEqual(pixelFaults(word, (t) => t >= 40 / 30 && t < 52 / 30), [], "a full-screen word is dark by design");
+    const band = Array.from({ length: 30 }, (_, i) => ({ t: at(i), s: { sea: 0, dark: 0.1, ...(i >= 10 && i < 13 ? { band: { side: "sol" as const, px: 132 } } : {}) } }));
+    assert.deepEqual(pixelFaults(band).map((f) => [f.tur, f.ayrinti]), [["serit", "sol kenarda koyu şerit (132 px, görüntü kareyi doldurmuyor)"]]);
+    assert.equal(BAND_MIN_FRAMES, 2);
+    // The plan's designed moments: white/ink transitions, a full-screen word, a period picture; a slide is judged.
+    const plan = { fps: 30, width: 1920, height: 1080, shots: [
+      { start: 0, duration: 60, transitionIn: "kaydir", inserts: [], titleCards: [] },
+      { start: 60, duration: 60, transitionIn: "beyaz", inserts: [{ start: 30, end: 45 }], titleCards: [{ style: "kelime", start: 50, end: 59 }] },
+    ] } as unknown as Parameters<typeof pixelSkip>[0];
+    const skipPx = pixelSkip(plan);
+    assert.deepEqual([0.1, 2.1, 2.5, 3.1, 3.5, 3.8].map(skipPx), [false, true, false, true, false, true]);
+    const skipBox = layoutSkip(plan);
+    assert.deepEqual([3, 30, 63, 95].map(skipBox), [true, false, true, true], "transitions and the period picture");
+    // Measured, the vision model is asked only what needs an eye.
+    assert.deepEqual(frameChecks("sahne", true).map((c) => c.key), ["bozuk"]);
+    assert.deepEqual(frameChecks("harita", true), []);
+    const measuredPrompt = qualityPrompt("1389", [], undefined, undefined, { kind: "sahne", measured: true });
+    assert.ok(!measuredPrompt.includes('"kenar"') && measuredPrompt.includes('"bozuk": true|false') && measuredPrompt.includes("measured exactly elsewhere"), measuredPrompt);
   });
 
   console.log(`V3 council smoke: PASS (${scenarios} scenarios)`);

@@ -1,6 +1,7 @@
 import React from "react";
 import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import type { V3TitleCard } from "../../../src/lib/v3/render/RenderPlanTypes";
+import { yer } from "./LayoutProbe";
 
 const FONT = "'Segoe UI Black', 'Arial Black', 'Segoe UI', sans-serif";
 
@@ -69,7 +70,7 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
               <div style={{ width: 90 * k, height: 2 * k, background: "#7a1f2b" }} />
             </div>
           ) : null}
-          <div style={{ marginTop: 14 * k, padding: `0 ${30 * k}px`, textAlign: "center", font: `italic 700 ${84 * k}px Georgia, 'Palatino Linotype', serif`, lineHeight: 1.05, color: "#2f1d0c", textWrap: "balance", textShadow: `0 ${1 * k}px 0 rgba(255,240,200,0.6)` }}>{card.text}</div>
+          <div {...yer("kapak")} style={{ marginTop: 14 * k, padding: `0 ${30 * k}px`, textAlign: "center", font: `italic 700 ${84 * k}px Georgia, 'Palatino Linotype', serif`, lineHeight: 1.05, color: "#2f1d0c", textWrap: "balance", textShadow: `0 ${1 * k}px 0 rgba(255,240,200,0.6)` }}>{card.text}</div>
         </div>
       </div>
     );
@@ -80,7 +81,7 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
     const rise = spring({ frame: local, fps, config: { damping: 14, stiffness: 120 } });
     return (
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at 50% 55%, rgba(10,8,16,0.35) 0%, rgba(10,8,16,0.75) 100%)", opacity: exit }}>
-        <div style={{ transform: `translateY(${(1 - rise) * 60 * k}px) scale(${0.85 + 0.15 * rise})`, textAlign: "center", maxWidth: W * 0.84, font: `900 ${104 * k}px ${FONT}`, lineHeight: 1.04, color: "#fffaf0", WebkitTextStroke: `${16 * k}px #1d1b26`, paintOrder: "stroke fill", letterSpacing: 1 * k, textWrap: "balance" }}>
+        <div {...yer("kapak")} style={{ transform: `translateY(${(1 - rise) * 60 * k}px) scale(${0.85 + 0.15 * rise})`, textAlign: "center", maxWidth: W * 0.84, font: `900 ${104 * k}px ${FONT}`, lineHeight: 1.04, color: "#fffaf0", WebkitTextStroke: `${16 * k}px #1d1b26`, paintOrder: "stroke fill", letterSpacing: 1 * k, textWrap: "balance" }}>
           {card.text}
         </div>
         {card.subtext ? (
@@ -127,7 +128,7 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
     const punch = interpolate(local, [0, 4], [1.12, 1], { extrapolateRight: "clamp" });
     return (
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#0d0c12" }}>
-        <div style={{ transform: `scale(${punch})`, textAlign: "center", color: "#ffffff", font: `600 ${230 * k}px 'Bahnschrift', 'Arial Narrow', sans-serif`, fontStretch: "condensed", letterSpacing: 6 * k, lineHeight: 1 }}>
+        <div {...yer("kapak")} style={{ transform: `scale(${punch})`, textAlign: "center", color: "#ffffff", font: `600 ${230 * k}px 'Bahnschrift', 'Arial Narrow', sans-serif`, fontStretch: "condensed", letterSpacing: 6 * k, lineHeight: 1 }}>
           {card.text.toLocaleUpperCase("en-US")}
           {card.subtext ? <div style={{ font: `600 ${44 * k}px 'Bahnschrift', 'Segoe UI', sans-serif`, letterSpacing: 2 * k, color: "#cfc8d8", marginTop: 18 * k }}>{card.subtext}</div> : null}
         </div>
@@ -138,6 +139,7 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
   if (card.style === "bilgi") {
     return (
       <div
+        {...yer("baslik")}
         style={{
           position: "absolute",
           right: 50 * k,
@@ -164,6 +166,7 @@ export function TitleCard({ card }: { card: V3TitleCard }) {
   // yer_tarih: parchment stamp, top-left.
   return (
     <div
+      {...yer("baslik")}
       style={{
         position: "absolute",
         left: 60 * k,

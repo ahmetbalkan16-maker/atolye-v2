@@ -6,6 +6,8 @@ import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
 import { type CouncilLog, readJsonAnswer } from "./Council";
 import { exampleDir, type Lesson, recall, remember } from "./ExperienceMemory";
+import { type LayoutFault, type LayoutFile, layoutFaults } from "./LayoutCheck";
+import { type PixelFault, pixelFaults, scanVideo } from "./PixelCheck";
 
 /**
  * The quality brain (Kalite beyni) watches the finished video the way the owner asked a person to: a frame every few
@@ -39,15 +41,15 @@ export function designedWindows(plan: Pick<V3RenderPlan, "fps" | "shots">): Desi
  * `rules`: the owner's standing rules from the brain's memory (faults the owner found that this check missed);
  * `designed`: what this frame shows on purpose (never a fault).
  */
-export function qualityPrompt(donem: string, rules: readonly string[] = [], designed?: string, said?: string, pointed?: { readonly kind?: FrameKind; readonly examples?: readonly Pick<FrameExample, "kusurlu" | "metin">[]; readonly edges?: boolean }): string {
-  const checks = pointed ? frameChecks(pointed.kind) : [];
+export function qualityPrompt(donem: string, rules: readonly string[] = [], designed?: string, said?: string, pointed?: { readonly kind?: FrameKind; readonly examples?: readonly Pick<FrameExample, "kusurlu" | "metin">[]; readonly edges?: boolean; readonly measured?: boolean }): string {
+  const checks = pointed ? frameChecks(pointed.kind, pointed.measured) : [];
   return `You are the quality checker of an animated history show for an American YouTube channel (flat cartoon puppets, drawn sets, maps, period pictures). The story is set in ${donem}.
-Look at this frame for production faults only (not taste): a character cut in half by the frame edge, text cut off or printed over other text, unreadable text, a missing, empty or broken face or head, black or empty areas, a stretched or glitched image, an obviously modern object in a historical scene, a building or symbol of a later era than ${donem} (in antiquity: a church, a cross on a roof or tower, a bell tower, a medieval castle; before Islam: a minaret).
+Look at this frame for production faults only (not taste): ${pointed?.measured ? "" : "a character cut in half by the frame edge, text cut off or printed over other text, "}unreadable text, a missing, empty or broken face or head, ${pointed?.measured ? "" : "black or empty areas, "}a stretched or glitched image, an obviously modern object in a historical scene, a building or symbol of a later era than ${donem} (in antiquity: a church, a cross on a roof or tower, a bell tower, a medieval castle; before Islam: a minaret).${pointed?.measured ? "\nWhat is cut by the frame edge, text over text and empty or dark bands are measured exactly elsewhere: do not judge them." : ""}
 Part of the show, never a fault: the small source line under a real picture (title, artist, year, source), a sash, belt or scroll a cartoon character wears or holds, and in a real photo of ruins as they stand today a little of today far off (the Rome run of 21 Oct 2026 flagged all three); on a map, a ruler's round portrait badge with his name on a scroll under it, and the names of states, cities, seas and rivers; a crowd of soldiers or people who all wear the same uniform (the benchmark run of 22 Oct 2026 flagged these).
 ${rules.length ? `The owner also found these faults in earlier videos that this check missed — look for them too:\n${rules.map((r) => `- ${r}`).join("\n")}\n` : ""}${designed ? `By design this frame shows ${designed}; that is not a fault — judge only the rest of the frame.
 ` : ""}${said ? `The narration at this moment says: "${said.slice(0, 240)}"
 Also score "anlati" 0–10: does the picture SHOW what is being said happening — who moves, arrives, fights, flees, what changes, where it is (owner: the viewer must live the moment)? A still picture of people standing while a march or a battle is told is 0–3; the told action happening on screen is 8–10.
-` : ""}${pointed ? examplesAndChecks(pointed.kind, pointed.examples ?? [], pointed.edges) : ""}Score 0–10 how clean the frame is (10 = no fault). Return ONLY JSON: {"puan": <0-10>, ${said ? `"anlati": <0-10>, ` : ""}${checks.map((c) => `"${c.key}": true|false, `).join("")}"sorunlar": ["<fault, Turkish, at most 12 words>"]}`;
+` : ""}${pointed ? examplesAndChecks(pointed.kind, pointed.examples ?? [], pointed.edges, pointed.measured) : ""}Score 0–10 how clean the frame is (10 = no fault). Return ONLY JSON: {"puan": <0-10>, ${said ? `"anlati": <0-10>, ` : ""}${checks.map((c) => `"${c.key}": true|false, `).join("")}"sorunlar": ["<fault, Turkish, at most 12 words>"]}`;
 }
 
 /** A narration below this ("does the picture show what is said") is reported to the story brain. */
@@ -79,9 +81,15 @@ export interface FrameExample {
 /** Examples shown beside a judged frame, at most (each adds a picture to the call). */
 export const MAX_EXAMPLES = 2;
 
+/**
+ * What the render's own measures answer exactly (LayoutCheck: cut and overlapping boxes; PixelCheck: dark bands, land
+ * painted as sea): with them the vision model is asked only what needs an eye — a puppet drawn wrong.
+ */
+export const MEASURED_CHECKS: readonly string[] = ["kenar", "ustuste", "bos"];
+
 /** The questions for a kind of frame, as the prompt asks them and the schema names them. */
-export function frameChecks(kind: FrameKind | undefined): typeof FRAME_CHECKS {
-  return FRAME_CHECKS.filter((c) => !kind || c.kinds.includes(kind));
+export function frameChecks(kind: FrameKind | undefined, measured = false): typeof FRAME_CHECKS {
+  return FRAME_CHECKS.filter((c) => (!kind || c.kinds.includes(kind)) && !(measured && MEASURED_CHECKS.includes(c.key)));
 }
 
 /**
@@ -105,13 +113,14 @@ export const edgeStripArgs = (video: string, t: number, out: string): string[] =
  * The prompt's part about the pictures (examples first, the frame, its edge strips) and the pointed questions (keys
  * answered true/false).
  */
-export function examplesAndChecks(kind: FrameKind | undefined, examples: readonly Pick<FrameExample, "kusurlu" | "metin">[], edges = false): string {
+export function examplesAndChecks(kind: FrameKind | undefined, examples: readonly Pick<FrameExample, "kusurlu" | "metin">[], edges = false, measured = false): string {
+  const checks = frameChecks(kind, measured);
   const n = examples.length + 1;
   const shown = examples.length
     ? `You first see ${examples.length} earlier frame${examples.length > 1 ? "s" : ""} of this show that this check judged wrongly; learn what such a fault looks like, but say it only if you see it in the frame you judge:\n${examples.map((e, i) => `- Picture ${i + 1}: ${e.kusurlu ? `a FAULT the check missed: ${e.metin}` : `NOT a fault, though the check called it one: ${e.metin}`}`).join("\n")}\n`
     : "";
   const judged = examples.length || edges ? `The frame you judge is picture ${n}.${edges ? ` Picture ${n + 1} shows that same frame's top edge (rows 1 and 2: its left and right parts) and bottom edge (rows 3 and 4) at full size, white lines between the rows: a badge, name or text cut by the frame's top edge runs off the top of row 1 or 2, one cut by the bottom edge runs off the bottom of row 3 or 4. The left and right parts overlap in the middle, so something cut only at the side of a row, where the parts meet, is whole in the other row: that is not a fault.` : ""}\n` : "";
-  return `${shown}${judged}Answer each question about the frame you judge with true or false:\n${frameChecks(kind).map((c) => `- "${c.key}": ${c.ask}`).join("\n")}\n`;
+  return `${shown}${judged}${checks.length ? `Answer each question about the frame you judge with true or false:\n${checks.map((c) => `- "${c.key}": ${c.ask}`).join("\n")}\n` : ""}`;
 }
 
 /** What the judge said of one frame. `okunamadi`: no readable answer (scored as passing, never as a fault). */
@@ -129,12 +138,12 @@ const CHECK_FAULT_MAX = 4;
  * One frame to the vision judge (the production's watch and the quality exam use the same call). `image`: base64 JPEG;
  * `kind`: what the frame shows (asks that kind's questions); `examples`: earlier misses shown before it.
  */
-export async function judgeFrame(input: { readonly judge: AIProvider; readonly image: string; readonly donem: string; readonly rules?: readonly string[]; readonly designed?: string; readonly said?: string; readonly kind?: FrameKind; readonly examples?: readonly FrameExample[]; readonly edges?: string }): Promise<FrameVerdict> {
+export async function judgeFrame(input: { readonly judge: AIProvider; readonly image: string; readonly donem: string; readonly rules?: readonly string[]; readonly designed?: string; readonly said?: string; readonly kind?: FrameKind; readonly examples?: readonly FrameExample[]; readonly edges?: string; readonly measured?: boolean }): Promise<FrameVerdict> {
   const { said } = input;
   const examples = (input.examples ?? []).slice(0, MAX_EXAMPLES);
-  const checks = frameChecks(input.kind);
+  const checks = frameChecks(input.kind, input.measured);
   const props: Record<string, unknown> = { puan: { type: "integer" }, ...(said ? { anlati: { type: "integer" } } : {}), ...Object.fromEntries(checks.map((c) => [c.key, { type: "boolean" }])), sorunlar: { type: "array", items: { type: "string" } } };
-  const prompt = qualityPrompt(input.donem, input.rules, input.designed, said, { ...(input.kind ? { kind: input.kind } : {}), examples, edges: Boolean(input.edges) });
+  const prompt = qualityPrompt(input.donem, input.rules, input.designed, said, { ...(input.kind ? { kind: input.kind } : {}), examples, edges: Boolean(input.edges), measured: Boolean(input.measured) });
   const out = await input.judge.generate(prompt, { images: [...examples.map((e) => e.image), input.image, ...(input.edges ? [input.edges] : [])], maxTokens: 260, jsonSchema: { type: "object", properties: props, required: ["puan", ...(said ? ["anlati"] : []), ...checks.map((c) => c.key), "sorunlar"] } });
   const v = readJsonAnswer<Record<string, unknown> & { puan?: unknown; anlati?: unknown; sorunlar?: unknown[] }>(typeof out === "string" ? out : out.content);
   const read = typeof v?.puan === "number";
@@ -164,16 +173,84 @@ export async function frameExamples(lessons: readonly Lesson[], dir: string, kin
   return Promise.all(picked.map(async (l) => ({ image: (await fs.readFile(path.join(dir, l.ornek!))).toString("base64"), kusurlu: !l.konu.startsWith(FALSE_ALARM), metin: l.metin })));
 }
 
+/** A shot's transition in lasts this long (ShotView). */
+const TRANSITION_IN_S = 0.32;
+
 /** What the frame at `t` seconds shows, by the plan: a shot's first 0.32 s are its transition in (ShotView). */
 export function frameKindAt(plan: Pick<V3RenderPlan, "fps" | "shots">, t: number): FrameKind | undefined {
   const f = Math.round(t * plan.fps);
   const shot = plan.shots.find((s) => f >= s.start && f < s.start + s.duration);
   if (!shot) return undefined;
   const local = f - shot.start;
-  if (shot.transitionIn !== "kes" && local < Math.round(plan.fps * 0.32)) return "gecis";
+  if (shot.transitionIn !== "kes" && local < Math.round(plan.fps * TRANSITION_IN_S)) return "gecis";
   if ((shot.inserts ?? []).some((i) => local >= i.start && local < i.end)) return "resim";
   if (shot.geoMap) return shot.geoMap.close ? "yakin-harita" : "harita";
   return "sahne";
+}
+
+/** Frames the layout check does not judge: a shot's transition in (boxes slide and grow) and a period picture over the set. */
+export function layoutSkip(plan: Pick<V3RenderPlan, "fps" | "shots">): (frame: number) => boolean {
+  return (frame) => {
+    const kind = frameKindAt(plan, frame / plan.fps);
+    return kind === "gecis" || kind === "resim";
+  };
+}
+
+/** Title cards that darken or cover the picture on purpose. */
+const DESIGNED_DARK: ReadonlySet<string> = new Set(["kelime", "kapak", "bolum", "abone"]);
+
+/**
+ * Moments the pixel check does not judge, dark or changing by design: a white-flash or ink transition, a full-screen word,
+ * the cover, a chapter scroll, the end card, a period picture (archive film comes letterboxed). A sliding transition is
+ * judged: its dark band down the edge was a real fault (Kosovo 1389, Rubicon).
+ */
+export function pixelSkip(plan: Pick<V3RenderPlan, "fps" | "shots">): (t: number) => boolean {
+  return (t) => {
+    const f = Math.round(t * plan.fps);
+    const shot = plan.shots.find((s) => f >= s.start && f < s.start + s.duration);
+    if (!shot) return false;
+    const local = f - shot.start;
+    if ((shot.transitionIn === "beyaz" || shot.transitionIn === "murekkep") && local < Math.round(plan.fps * TRANSITION_IN_S)) return true;
+    if ((shot.inserts ?? []).some((i) => local >= i.start && local < i.end)) return true;
+    return shot.titleCards.some((c) => DESIGNED_DARK.has(c.style) && local >= c.start && local < c.end);
+  };
+}
+
+/** A measured fault shorter than this is reported as a warning, a longer one as a missing piece. */
+const MEASURED_FAULT_S = 1.5;
+
+const LAYOUT_TITLES: Readonly<Record<LayoutFault["tur"], { baslik: string; oneri: string }>> = {
+  kenar: { baslik: "kenarda kesik öğe", oneri: "öğe kadrajın içinde kalmalı: haritada rozet/etiket yeri ya da kamera, sahnede konuşma/ad etiketinin kenar payı" },
+  ustuste: { baslik: "üst üste binen yazı", oneri: "yazılardan biri kaymalı ya da ekranda kalma zamanları ayrılmalı" },
+};
+
+const PIXEL_TITLES: Readonly<Record<PixelFault["tur"], { baslik: string; oneri: string }>> = {
+  serit: { baslik: "kenarda koyu şerit", oneri: "geçişte görüntü kareyi doldurmalı (ShotView geçişleri)" },
+  zemin: { baslik: "zemin rengi bir an bozuk", oneri: "harita zemini (kabartma resmi) yüklenmeden kare çizilmiş: render parçası başı ya da geçiş" },
+  karanlik: { baslik: "bir an kararan görüntü", oneri: "geçişte ya da render parçası başında boş kare" },
+};
+
+const span = (from: number, to: number) => `${from.toFixed(1)}–${to.toFixed(1)}. sn`;
+
+/**
+ * The layout check over the boxes the render wrote (`yerlesim.json`, ChunkedRender): each cut or overlapping box that
+ * lasts becomes a quality finding with its time. Returns the number of faults, or undefined when the render wrote no boxes.
+ */
+export async function layoutReview(input: { readonly file: string; readonly plan: Pick<V3RenderPlan, "fps" | "shots">; readonly council: CouncilLog }): Promise<number | undefined> {
+  if (!existsSync(input.file)) return undefined;
+  const data = JSON.parse(await fs.readFile(input.file, "utf8")) as LayoutFile;
+  if (!data.kareler.length) return undefined;
+  const faults = layoutFaults(data, layoutSkip(input.plan));
+  for (const x of faults) input.council.find({ beyin: "kalite", onem: x.to - x.from >= MEASURED_FAULT_S ? "eksik" : "uyari", baslik: LAYOUT_TITLES[x.tur].baslik, ayrinti: x.ayrinti, oneri: LAYOUT_TITLES[x.tur].oneri, tur: "kod", yer: span(x.from, x.to) });
+  return faults.length;
+}
+
+/** The pixel check over every frame of the finished video: dark bands, a moment of land painted as sea, a flash of black. */
+export async function pixelReview(input: { readonly paths: Pick<V3Paths, "ffmpeg">; readonly video: string; readonly plan: Pick<V3RenderPlan, "fps" | "shots" | "width" | "height">; readonly council: CouncilLog }): Promise<number> {
+  const frames = await scanVideo(input.paths.ffmpeg, input.video, { fps: input.plan.fps, width: input.plan.width, height: input.plan.height });
+  const faults = pixelFaults(frames, pixelSkip(input.plan));
+  for (const x of faults) input.council.find({ beyin: "kalite", onem: x.to - x.from >= MEASURED_FAULT_S ? "eksik" : "uyari", baslik: PIXEL_TITLES[x.tur].baslik, ayrinti: x.ayrinti, oneri: PIXEL_TITLES[x.tur].oneri, tur: "kod", yer: span(x.from, x.to) });
+  return faults.length;
 }
 
 /** Lesson topics: `kare kusuru · <kind>` for a missed fault, `yanlış alarm · <kind>` for a fault that was none. */
@@ -220,6 +297,8 @@ export async function qualityReview(input: {
    * Kosovo run of 26 Oct 2026 wrote the taught "Lazar's beard hangs like a bib" on four frames, one with no Lazar in it.
    */
   readonly examples?: boolean;
+  /** The render's layout and pixel checks ran (layoutReview, pixelReview): the frames are asked only what needs an eye. */
+  readonly measured?: boolean;
 }): Promise<{ checked: number; faulty: number; averageScore: number; showing?: number }> {
   const { paths, council } = input;
   const every = input.everyS ?? 6;
@@ -241,8 +320,9 @@ export async function qualityReview(input: {
       // The pointed questions of this kind of frame, and the frames of the same kind the brain judged wrongly before.
       const kind = input.kindAt?.(t);
       const examples = await frameExamples(lessons, exampleDir(paths.workRoot), kind);
-      const edged = input.edges && kind !== "resim" ? (await runChecked(paths.ffmpeg, edgeStripArgs(input.video, t, strips)), (await fs.readFile(strips)).toString("base64")) : undefined;
-      const v = await judgeFrame({ judge: input.judge, image: (await fs.readFile(frame)).toString("base64"), donem: input.donem, ...(input.rules ? { rules: input.rules } : {}), ...(designed ? { designed } : {}), ...(said ? { said } : {}), ...(kind ? { kind } : {}), examples, ...(edged ? { edges: edged } : {}) });
+      // The edge strips showed cut badges and names; measured, they are not needed.
+      const edged = input.edges && !input.measured && kind !== "resim" ? (await runChecked(paths.ffmpeg, edgeStripArgs(input.video, t, strips)), (await fs.readFile(strips)).toString("base64")) : undefined;
+      const v = await judgeFrame({ judge: input.judge, image: (await fs.readFile(frame)).toString("base64"), donem: input.donem, ...(input.rules ? { rules: input.rules } : {}), ...(designed ? { designed } : {}), ...(said ? { said } : {}), ...(kind ? { kind } : {}), examples, ...(edged ? { edges: edged } : {}), ...(input.measured ? { measured: true } : {}) });
       const score = v.puan;
       sum += score;
       // Does the picture show what is being said (owner, 22 Oct 2026: "the viewer must live the moment").

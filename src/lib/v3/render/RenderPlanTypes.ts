@@ -559,4 +559,32 @@ export interface V3RenderPlan {
   readonly language?: "tr" | "en";
   /** Mixed soundtrack (voice + music + sfx) relative to the public dir; rendered video carries it for preview. */
   readonly audio?: string;
+  /**
+   * The render writes the on-screen boxes of badges, names, speech and cards every `every` frames into Remotion's
+   * `out/Episode/<dir>/` (LayoutProbe); the quality brain's layout check reads them (LayoutCheck).
+   */
+  readonly layoutProbe?: { readonly every: number; readonly dir: string };
+}
+
+/**
+ * What the layout probe marks (`data-yer`): `rozet` badge, `yazi` map name, `etiket` unit label, `balon` speech, `ad`
+ * name tag, `serit` headline strip, `hud` strength bar/date stamp, `kart` info card title, `baslik` place stamp or info
+ * box, `kapak` a title over the whole dimmed picture (cover, chapter scroll, one word).
+ */
+export type V3LayoutKind = "rozet" | "yazi" | "etiket" | "balon" | "ad" | "serit" | "hud" | "kart" | "baslik" | "kapak";
+
+/** One measured box on one frame, in output pixels. */
+export interface V3LayoutBox {
+  readonly tur: V3LayoutKind;
+  readonly ad: string;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** One probed frame as the render writes it. */
+export interface V3LayoutFrame {
+  readonly kare: number;
+  readonly ogeler: readonly V3LayoutBox[];
 }

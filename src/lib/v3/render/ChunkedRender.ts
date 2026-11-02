@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import type { LayoutFile } from "../council/LayoutCheck";
 import { waitForCoolGpu } from "../util/Gpu";
 import { healthDirs, waitForPcHealth } from "../util/PcHealth";
 import { runChecked } from "../util/Proc";
 import type { V3Paths } from "../V3Paths";
+import type { V3LayoutFrame } from "./RenderPlanTypes";
 import { type RemotionRenderOptions, renderWithRemotion } from "./RemotionRunner";
 
 /**
@@ -73,6 +75,11 @@ export interface ChunkedRenderOptions extends Pick<RemotionRenderOptions, "planF
   readonly chunkDir: string;
   readonly targetS?: number;
   readonly log: (s: string) => void;
+  /**
+   * The plan's layout probe: Remotion writes each piece's boxes into `artifacts` (`out/Episode/<dir>` of remotion-v3);
+   * they are kept with the piece (a reused piece keeps its boxes) and merged into `out` (LayoutFile) with the video.
+   */
+  readonly layout?: { readonly artifacts: string; readonly out: string; readonly every: number; readonly width: number; readonly height: number };
 }
 
 /** What the chunked render runs; the smoke test replaces it. */
@@ -126,6 +133,8 @@ export async function renderInChunks(o: ChunkedRenderOptions, deps: ChunkedRende
     await deps.cool(o.log);
     const part = path.join(dir, name.replace(/\.mp4$/, ".yaziliyor.mp4"));
     await fs.rm(part, { force: true });
+    // Boxes an interrupted render left behind belong to no piece.
+    if (o.layout) await fs.rm(o.layout.artifacts, { recursive: true, force: true });
     let last = "";
     await deps.render({
       planFile: o.planFile,
@@ -146,6 +155,10 @@ export async function renderInChunks(o: ChunkedRenderOptions, deps: ChunkedRende
     });
     const got = await deps.frameCount(part);
     if (got !== frames) throw new Error(`V3_RENDER_CHUNK: parça ${i + 1} ${got} kare (beklenen ${frames})`);
+    if (o.layout && existsSync(o.layout.artifacts)) {
+      await fs.mkdir(path.join(dir, "yerlesim"), { recursive: true });
+      for (const n of await fs.readdir(o.layout.artifacts)) await fs.rename(path.join(o.layout.artifacts, n), path.join(dir, "yerlesim", n));
+    }
     await fs.rename(part, file);
   }
   const joined = o.out.replace(/\.mp4$/, ".yaziliyor.mp4");
@@ -157,6 +170,13 @@ export async function renderInChunks(o: ChunkedRenderOptions, deps: ChunkedRende
   }
   const total = await deps.frameCount(joined);
   if (total !== o.durationInFrames) throw new Error(`V3_RENDER_JOIN: birleşen video ${total} kare (beklenen ${o.durationInFrames})`);
+  if (o.layout) {
+    const boxes = path.join(dir, "yerlesim");
+    const names = existsSync(boxes) ? (await fs.readdir(boxes)).filter((n) => n.endsWith(".json")) : [];
+    const kareler = (await Promise.all(names.map(async (n) => JSON.parse(await fs.readFile(path.join(boxes, n), "utf8")) as V3LayoutFrame))).sort((a, b) => a.kare - b.kare);
+    const file: LayoutFile = { fps: o.fps, width: o.layout.width, height: o.layout.height, every: o.layout.every, kareler };
+    await fs.writeFile(o.layout.out, JSON.stringify(file));
+  }
   await fs.rename(joined, o.out);
   await fs.rm(o.chunkDir, { recursive: true, force: true });
   return { chunks: chunks.length, reused };

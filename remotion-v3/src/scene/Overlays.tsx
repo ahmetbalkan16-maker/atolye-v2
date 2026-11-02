@@ -3,6 +3,7 @@ import { AbsoluteFill, Img, interpolate, OffthreadVideo, Sequence, spring, stati
 import type { V3Bubble, V3Insert, V3NameTag, V3Strip } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { BUBBLE_FONT } from "./fonts";
+import { yer } from "./LayoutProbe";
 
 /** Where a speaking character's head is on screen (after camera and shake), in output pixels. */
 export interface HeadAnchor {
@@ -58,6 +59,7 @@ export function SpeechBubble({ bubble, anchor, language, size = 1 }: { bubble: V
         <path d={`M${tickX - 8 * k} ${bottom + 4 * k} L${anchor.x + (tickX - anchor.x) * 0.25} ${bottom + tick - 4 * k}`} stroke="#ffffff" strokeWidth={5 * k} strokeLinecap="round" />
       </svg>
       <div
+        {...yer("balon")}
         style={{
           position: "absolute",
           left,
@@ -119,7 +121,7 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
         <path d={d} fill="none" stroke="#e0283c" strokeWidth={9 * k} strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset={draw} />
         {draw < 0.02 ? <path transform={`translate(${toX} ${toY}) rotate(${(ang * 180) / Math.PI})`} d={`M${8 * k} 0 L${-22 * k} ${-17 * k} L${-14 * k} 0 L${-22 * k} ${17 * k} Z`} fill="#e0283c" stroke={INK} strokeWidth={5 * k} strokeLinejoin="round" /> : null}
       </svg>
-      <div style={{ position: "absolute", left, top, width: w, textAlign: onLeft ? "right" : "left", transform: `scale(${0.5 + 0.5 * enter})`, transformOrigin: onLeft ? "100% 50%" : "0% 50%" }}>
+      <div {...yer("ad", tag.name)} style={{ position: "absolute", left, top, width: w, textAlign: onLeft ? "right" : "left", transform: `scale(${0.5 + 0.5 * enter})`, transformOrigin: onLeft ? "100% 50%" : "0% 50%" }}>
         <div style={{ font: `900 ${fs}px 'Segoe UI Black', 'Arial Black', sans-serif`, color: "#ffffff", WebkitTextStroke: `${12 * k}px ${INK}`, paintOrder: "stroke fill", letterSpacing: 1.5 * k, lineHeight: 1.05 }}>{name}</div>
         {tag.role ? <div style={{ font: `800 ${28 * k}px 'Segoe UI', Arial, sans-serif`, color: "#ffe9a8", WebkitTextStroke: `${7 * k}px ${INK}`, paintOrder: "stroke fill", marginTop: 2 * k }}>{tag.role}</div> : null}
       </div>
@@ -197,7 +199,7 @@ export function TitleStrip({ strip, language }: { strip: V3Strip; language: "tr"
     <div style={{ position: "absolute", left: 0, bottom: 92 * k, width: W, height: 82 * k, opacity: leave, overflow: "hidden" }}>
       <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: W * 0.86, transform: `translateX(${(ease - 1) * W * 0.9}px)`, background: "linear-gradient(90deg, #a51c2a 0%, #c42a37 70%, rgba(196,42,55,0) 100%)", boxShadow: `0 ${4 * k}px ${10 * k}px rgba(0,0,0,0.45)` }}>
         <div style={{ position: "absolute", left: 0, top: 0, width: 14 * k, height: "100%", background: "#f3ead7" }} />
-        <div style={{ position: "absolute", left: 48 * k, top: 0, height: "100%", display: "flex", alignItems: "center", maxWidth: W * 0.74, font: `700 ${40 * k}px 'Bahnschrift', 'Segoe UI', sans-serif`, letterSpacing: 1 * k, color: "#ffffff", textShadow: `0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.5)`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: Math.min(1, enter * 1.6) }}>
+        <div {...yer("serit")} style={{ position: "absolute", left: 48 * k, top: 0, height: "100%", display: "flex", alignItems: "center", maxWidth: W * 0.74, font: `700 ${40 * k}px 'Bahnschrift', 'Segoe UI', sans-serif`, letterSpacing: 1 * k, color: "#ffffff", textShadow: `0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.5)`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: Math.min(1, enter * 1.6) }}>
           {strip.text.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")}
         </div>
       </div>

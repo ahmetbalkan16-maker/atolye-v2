@@ -45,7 +45,7 @@ import { withRouteZoom } from "../src/lib/v3/maps/RouteZoom";
 import { designThumbnail, type ThumbnailResult } from "../src/lib/v3/thumbnail/ThumbnailDesigner";
 import { chapterScenes, chapters, chapterText, packagePrompt, readPackage, uploadFileName, type YoutubePackage } from "../src/lib/v3/thumbnail/YoutubePackage";
 import { chiefReview, CouncilLog, councilMarkdown, writeCouncilReport } from "../src/lib/v3/council/Council";
-import { designedWindows, frameKindAt, qualityReview } from "../src/lib/v3/council/QualityBrain";
+import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
 import { LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, type RetouchPlan, retouchDebate } from "../src/lib/v3/council/RetouchBrain";
@@ -1025,7 +1025,10 @@ async function main() {
       // The render's Chrome workers need RAM; the vision judge is not needed until the cover (PC health first).
       await unloadOllama(log, "render için RAM");
       // In pieces of ~3 minutes cut at shot starts: a rerun of this step renders only the pieces still missing.
-      const r = await renderInChunks({ planFile: f("plan.json"), publicDir: path.join(work, "public"), out: f(silent), chunkDir: f("render-parcalar"), durationInFrames: plan.durationInFrames, fps, cuts: plan.shots.map((s) => s.start), muted: true, log, ...(preview ? { scale: PREVIEW_SCALE } : {}), ...(Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) > 0 ? { concurrency: Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) } : {}) }, remotionDeps(paths));
+      // The render also writes where its badges, names, speech and cards stand (the quality brain's layout check).
+      const probe = plan.layoutProbe;
+      const layout = probe ? { artifacts: path.join(paths.remotionRoot, "out", "Episode", probe.dir), out: f("yerlesim.json"), every: probe.every, width: plan.width, height: plan.height } : undefined;
+      const r = await renderInChunks({ planFile: f("plan.json"), publicDir: path.join(work, "public"), out: f(silent), chunkDir: f("render-parcalar"), durationInFrames: plan.durationInFrames, fps, cuts: plan.shots.map((s) => s.start), muted: true, log, ...(layout ? { layout } : {}), ...(preview ? { scale: PREVIEW_SCALE } : {}), ...(Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) > 0 ? { concurrency: Number(process.env.ATOLYE_V3_RENDER_CONCURRENCY) } : {}) }, remotionDeps(paths));
       if (r.chunks > 1) log(`  render: ${r.chunks} parça birleştirildi${r.reused ? ` (${r.reused} parça önceki denemeden)` : ""}`);
     });
   }
@@ -1254,7 +1257,14 @@ async function main() {
     const qualityFrames = Math.max(18, Math.min(48, Math.round(durationS / 25)));
     // What is said when: each frame is also judged on whether it shows what is being told.
     const said = timeline.lines.map((l) => ({ from: l.start, to: l.end, text: splitDirections(episode.sahneler[l.sceneIndex]?.satirlar[l.lineIndex]?.metin ?? "").speech })).filter((s) => s.text);
-    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0", examples: process.env.ATOLYE_V3_QUALITY_EXAMPLES === "1" });
+    // The render's own measures (owner, 2 Nov 2026; the exam's faults were 4 of 7 geometry, 2 of 7 pixels): boxes cut by
+    // the frame or printed over each other, from what the render wrote, and dark bands and flashes, from every frame.
+    // With both, the vision model is asked only what needs an eye (a puppet drawn wrong) and whether the told shows.
+    const layoutCount = await layoutReview({ file: f("yerlesim.json"), plan, council }).catch((e: Error) => (log(`  yerleşim denetimi yapılamadı: ${e.message.slice(0, 120)}`), undefined));
+    const pixelCount = await pixelReview({ paths, video: f(final), plan, council }).catch((e: Error) => (log(`  piksel denetimi yapılamadı: ${e.message.slice(0, 120)}`), undefined));
+    const measured = layoutCount !== undefined && pixelCount !== undefined;
+    log(`kalite ölçümü: yerleşim ${layoutCount === undefined ? "ölçülmedi" : `${layoutCount} kusur`}, piksel ${pixelCount === undefined ? "ölçülmedi" : `${pixelCount} kusur`}`);
+    const quality = await qualityReview({ paths, video: f(final), durationS, maxFrames: qualityFrames, everyS: Math.max(6, (durationS - 4) / qualityFrames), donem: episode.donem, judge: visionJudge(), council, log, rules: qualityRules, designed: designedWindows(plan), said, kindAt: (t) => frameKindAt(plan, t), edges: process.env.ATOLYE_V3_QUALITY_EDGES !== "0", examples: process.env.ATOLYE_V3_QUALITY_EXAMPLES === "1", measured });
     log(`kalite beyni: ${quality.checked} kare incelendi, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10${quality.showing !== undefined ? `; anlatılanı gösterme ${quality.showing.toFixed(1)}/10` : ""}`);
     let chiefPlan: Awaited<ReturnType<typeof chiefReview>>;
     try {
@@ -1281,7 +1291,7 @@ async function main() {
     const missing = council.findings.filter((x) => x.onem === "eksik").length;
     const report = await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: episode.baslik, log: council, ...(chiefPlan ? { plan: chiefPlan } : {}) });
     await fs.writeFile(f("KURUL.md"), councilMarkdown(episode.baslik, council, chiefPlan));
-    await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
+    await fs.appendFile(f("QC.md"), `\n## Yapım kurulu\n\n- Kalite beyni: ${quality.checked} kare, ${quality.faulty} karede sorun, ortalama ${quality.averageScore.toFixed(1)}/10\n- Kalite ölçümü: yerleşim ${layoutCount ?? "ölçülmedi"}${layoutCount !== undefined ? " kusur" : ""}, piksel ${pixelCount ?? "ölçülmedi"}${pixelCount !== undefined ? " kusur" : ""}\n- Bulgular: ${missing} eksik, ${council.findings.filter((x) => x.onem === "uyari").length} uyarı (ayrıntı KURUL.md)\n- Teslim: ${missing ? "UYARIYLA teslim — eksikler AYAS'a bildirildi" : "teslim edildi"}\n`);
     log(`kurul raporu: ${report} · ${missing ? `UYARIYLA teslim (${missing} eksik)` : "teslim edildi"}`);
     retouchPlan = nextRound;
   });

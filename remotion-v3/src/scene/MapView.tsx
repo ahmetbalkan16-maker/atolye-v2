@@ -10,6 +10,7 @@ import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
 import { MapVehicles } from "./MapVehicles";
+import { yer } from "./LayoutProbe";
 
 const OCEAN = "#22406a";
 const OCEAN_DEEP = "#172e4f";
@@ -246,7 +247,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
   // On the close battle map the states are only tinted: the ground, the walls and the houses must show through.
   const fillK = map.close ? 0.35 : 0.9;
   const label = (text: string, x: number, y: number, size: number, opacity = 1) => (
-    <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" opacity={opacity} style={{ font: `900 ${size * k}px ${LABEL_FONT}`, letterSpacing: 1.5 * k }} fill="#ffffff" stroke={INK} strokeWidth={8 * k} paintOrder="stroke fill" strokeLinejoin="round">
+    <text {...yer("yazi")} x={x} y={y} textAnchor="middle" dominantBaseline="middle" opacity={opacity} style={{ font: `900 ${size * k}px ${LABEL_FONT}`, letterSpacing: 1.5 * k }} fill="#ffffff" stroke={INK} strokeWidth={8 * k} paintOrder="stroke fill" strokeLinejoin="round">
       {text.toLocaleUpperCase("en-US")}
     </text>
   );
@@ -258,7 +259,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
     // One <text> per line at its own height: tspans with dy under a middle baseline landed ~70 px off their anchor in
     // Remotion's Chrome (map still, 21 Oct 2026).
     return (
-      <g opacity={opacity} style={{ filter: `drop-shadow(0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.55))` }}>
+      <g {...yer("yazi", lines.join(" "))} opacity={opacity} style={{ filter: `drop-shadow(0 ${2 * k}px ${3 * k}px rgba(0,0,0,0.55))` }}>
         {lines.map((l, i) => (
           <text key={i} x={x} y={y + (i - (lines.length - 1) / 2) * lh + size * 0.36 * k} textAnchor="middle" style={{ font: `700 ${size * k}px ${STATE_FONT}`, fontStretch: "condensed", fontVariationSettings: "'wdth' 75, 'wght' 700", letterSpacing: 0.5 * k }} fill="#ffffff" stroke="rgba(20,20,20,0.5)" strokeWidth={2.5 * k} paintOrder="stroke fill" strokeLinejoin="round">
             {l}
@@ -707,7 +708,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
               return (
               <g key={`c${i}`}>
                 <circle cx={c.x} cy={c.y} r={6 * k} fill="#ffffff" stroke="rgba(20,20,20,0.7)" strokeWidth={2.5 * k} />
-                {name ? <text x={name.x} y={c.y + 1 * k} textAnchor={name.anchor} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
+                {name ? <text {...yer("yazi")} x={name.x} y={c.y + 1 * k} textAnchor={name.anchor} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
                   {c.label}
                 </text> : null}
               </g>
@@ -749,6 +750,9 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
                       <circle cy={cy} r={r} />
                     </clipPath>
                   </defs>
+                  {/* The badge's outline for the layout check (ring, scroll, point): the portrait inside is clipped, a
+                      group's own box would count the unclipped puppet. */}
+                  <rect {...yer("rozet", b.label)} x={-Math.max(r + 5 * k, sw / 2 + 12 * k)} y={cy - r - 5 * k} width={2 * Math.max(r + 5 * k, sw / 2 + 12 * k)} height={r + 5 * k - cy} fill="none" />
                   <g style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
                     <path d={`M${-10 * k} ${scrollY} L0 0 L${10 * k} ${scrollY} Z`} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2.5 * k} strokeLinejoin="round" />
                     <circle cy={cy} r={r + 5 * k} fill={PARCHMENT} stroke={ringStroke ?? SEPIA} strokeWidth={(ringStroke ? 6 : 3) * k} />
@@ -786,6 +790,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
                   <circle cy={cy} r={r} />
                 </clipPath>
               </defs>
+              <rect {...yer("rozet", b.label)} x={-Math.max(r + 6 * k, (b.label.length * 9 + 18) * k)} y={cy - r - 45 * k} width={2 * Math.max(r + 6 * k, (b.label.length * 9 + 18) * k)} height={r + 45 * k - cy} fill="none" />
               <path d={`M${-14 * k} ${cy + r} L0 0 L${14 * k} ${cy + r} Z`} fill="#ffffff" stroke={INK} strokeWidth={4 * k} strokeLinejoin="round" />
               <circle cy={cy} r={r + 6 * k} fill={ringStroke ?? "#ffffff"} stroke={INK} strokeWidth={5 * k} />
               <circle cy={cy} r={r} fill="#d9c9a3" />

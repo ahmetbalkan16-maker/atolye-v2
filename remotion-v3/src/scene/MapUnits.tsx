@@ -4,6 +4,7 @@ import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { along } from "./mapGeometry";
 import { separateTokens } from "./unitLayout";
+import { yer } from "./LayoutProbe";
 
 /**
  * Unit tokens and battle effects on the living map (owner, 22 Oct 2026, after the reference channel's WW2 map
@@ -626,7 +627,7 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
         const a = interpolate(frame, [first + Math.round(fps * 0.4), first + Math.round(fps * 0.9)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) * edge;
         if (a <= 0) return null;
         return (
-          <g key={`lb${ui}`} transform={`translate(${at.x} ${at.y})`} opacity={a}>
+          <g key={`lb${ui}`} {...yer("etiket", label)} transform={`translate(${at.x} ${at.y})`} opacity={a}>
             <rect x={-w / 2} y={-17 * s} width={w} height={34 * s} rx={6 * s} fill="rgba(16,12,20,0.82)" stroke={u.color} strokeWidth={3.5 * s} />
             <text x={0} y={7 * s} textAnchor="middle" style={{ font: `700 ${21 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
               {label}
@@ -651,7 +652,7 @@ export function UnitTokens({ map, frame, fps, k, view }: { map: V3GeoMap; frame:
         const x = own.x + (dir.x / d) * reach;
         const y = own.y + (dir.y / d) * reach;
         return (
-          <g key={`ad${ui}`} transform={`translate(${x} ${y})`} opacity={a}>
+          <g key={`ad${ui}`} {...yer("etiket", u.name)} transform={`translate(${x} ${y})`} opacity={a}>
             <rect x={-w / 2} y={-14 * s} width={w} height={28 * s} rx={14 * s} fill={u.color} stroke="#ffffff" strokeWidth={2.5 * s} />
             <text x={0} y={6 * s} textAnchor="middle" style={{ font: `700 ${17 * s}px 'Bahnschrift', 'Segoe UI', sans-serif` }} fill="#ffffff">
               {u.name}
