@@ -33,8 +33,18 @@ update-apply 12 (yeni: hat kümeleri, commit kapsamı, eşitleme takası/başar�
 deep-research-engine 22, action-firewall-closure 13 ve değişen modüllere dokunan diğer AYAS smoke'ları (aşağıdaki
 commit'te listeli).
 
+**Canlıya alma (2):** `d3e1d713` ff push + canonical pull; otomatik yayın 07:59 PUBLISHED (`ayas-live-d3e1d713`);
+Graphify canonical d3e1d713 CURRENT.
+
+**@selahattinunlu Shorts incelemesi (owner isteği, video üretimi yok):** agent-reach / yt-dlp ile 166 Shorts'un meta
+verisi + altyazısı (video indirilmedi) ve kanal sahibinin repo listesi. Rapor ve ham veri git dışında:
+`D:\ÜRETİM\Atolye\v3-runtime\karsilastirma\kanal-selahattinunlu-2026-11-02\RAPOR.md` (+ `shorts.json`). Atölye için
+denemeye değer: Moondream (V3 görsel hakem sınavı, `beyin-sinavi.ts --modeller`), osv-scanner (AYAS güvenlik
+denetiminde açık iş), llmfit, AntV Infographic, claude-video, knip. Owner'a sunuldu; hiçbiri kurulmadı.
+
 **Sıradaki:** owner Gelişim Merkezi'nde Remotion kartında "Onayla ve dene" der → yürütücü ilk gerçek denemeyi yapar
-(npm indirmesi ~200 MB, render). Geçerse "Uygula" → commit/push → V3 boştayken remotion-v3 eşitlemesi.
+(npm indirmesi ~200 MB, render). Geçerse "Uygula" → commit/push → V3 boştayken remotion-v3 eşitlemesi. Owner
+seçerse Shorts raporundaki denemeler.
 
 ## 2 Kasım 2026 — V3 yakın savaşta bilgi kartı savaşı karartmaz; araştırma elemesi; telefon erişimi açılış gecikmesi
 
