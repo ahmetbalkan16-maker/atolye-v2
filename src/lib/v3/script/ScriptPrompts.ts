@@ -152,7 +152,11 @@ YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da 
   Bu satırı anlatıcı DEĞİL, sahnedeki görünür bir karakter söyler — olayın ortasında, kısa (en fazla 8 kelime), bir "jest"
   ya da "efekt" ile; anlatıcı ondan sonra gelir. İlk sahne harita değil, karakterli bir sahnedir.
 - Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.
-- 2–4 sahne, yaklaşık ${words} konuşulan kelime. Üç görünür karakter; bir sahnede en fazla ikisi (dikey kare aynı anda tek konuşanı gösterir).
+- 2–4 sahne, yaklaşık ${words} konuşulan kelime. Üç görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
+- Sonucu GÖSTER, yalnız anlatma: anlatıcının bir sahnede adını andığı karakterler o sahnenin "sahne_duzeni"nde durur ve
+  anlatıcı satırı onları "oyun" ile oynatır (kovalama, yakalama, gülme) — anlatıcı başkalarının yaptığını anlatırken baş
+  karakter boş bir sette tek başına durmaz. Final anı da böyle oynanır.
+- "kelime" ve "bolum" yazı kartı YOK (tam ekran siyah kart akışta kaydırtır); en fazla ilk sahnede bir "yer_tarih".
 - "Ne öğreneceksin" vaadi, sonraki videoya köprü ve abone daveti YOK.
 - Son satır ilk satıra bağlanır: video başa döndüğünde cümle akıp gider (döngü).`,
   en: (b, words) => `
@@ -162,7 +166,11 @@ YOUTUBE SHORT — this is a VERTICAL video of ${b.hedefSureSn} seconds or less, 
   A visible character on stage says it — NOT the narrator — in the middle of the action, short (8 words at most), with a
   "jest" or an "efekt"; the narrator comes after it. The first scene is a character scene, not a map.
 - Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.
-- 2–4 scenes, about ${words} spoken words. Three visible characters; at most two of them in a scene (the vertical frame shows one speaker at a time).
+- 2–4 scenes, about ${words} spoken words. Three visible characters; at most two of them speak in a scene, standing side by side and seen together.
+- SHOW the outcome, never only tell it: the characters the narrator names in a scene stand in that scene's "sahne_duzeni"
+  and the narrator line acts them out with "oyun" (a chase, a capture, a laugh) — never the lead alone on an empty set
+  while the narration tells what others did. The payoff moment is acted the same way.
+- NO "kelime" or "bolum" title card (a full-screen black card makes a feed viewer swipe); at most one "yer_tarih" card on the first scene.
 - NO "what you'll learn" promise, NO bridge to the next video and NO subscribe line.
 - The last line leads back into the first: when the video starts over, the sentence runs on (a loop).`,
 };
@@ -243,7 +251,8 @@ CAST / KADRO
 
 SCREEN TEXT — there are NO subtitles. The only words on screen are title cards and the characters' floating speech:
 - "balon": on lines spoken by visible characters only — the words floating over the speaker's head: the punchline or
-  the key phrase of the line, 2–8 words, same language as the line, quoting or condensing it (end a shout with "!").
+  the key phrase of the line, 2–8 words, same language as the line, cut from its own words — never a new sentence or
+  another meaning: the viewer hears the line while reading it (end a shout with "!").
   Give it to most character lines, always to the funny ones; never to the narrator.
 - A "kelime" title card (one big word on black, e.g. "CRISIS", "BETRAYAL", "WRONG") two to four times per episode for an
   emphasis beat or a punchline.

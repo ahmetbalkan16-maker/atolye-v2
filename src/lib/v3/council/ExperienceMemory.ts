@@ -230,8 +230,11 @@ async function cosines(workRoot: string, query: string, texts: readonly string[]
   }
 }
 
-/** At most this many standing rules go into one prompt (the newest when there are more). */
-export const MAX_RULES = 8;
+/**
+ * At most this many standing rules go into one prompt (the newest when there are more). 12 since 3 Nov 2026: the
+ * editing brain holds 12 owner rules, and at 8 the oldest (an empty stage, map labels) had quietly dropped out.
+ */
+export const MAX_RULES = 12;
 
 /**
  * A brain's lessons about `konu`, most relevant first (meaning when meaning search is on, else shared words; newer

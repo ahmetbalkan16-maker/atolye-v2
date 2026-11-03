@@ -1,3 +1,43 @@
+## 3 Kasım 2026 — Sezar Short'u incelemesi: anlatılan sahnede oynanır, ikili birlikte görünür, kart/tablo/balon düzeltildi
+
+**Owner:** `final-tur2.mp4` "Shorts olarak atılacak kalitede mi?" → inceleme: hayır (format/ses/lisans tamam; kusurlar
+aşağıda). Ardından "başla bu düzeltmeleri yap, deneyim olarak yardımcı beyinlere aktar, tekrardan yapmasın, sonra YouTube'da
+paylaşacağımız bir Short olarak getir".
+
+Bulunan kusurlar (kareler, `tur2`): final (30–36 sn) "Caesar chased down the pirates and crucified them" boş sahilde tek
+başına duran Sezar'ın üstünde; 28,0–28,3 sn sahil 9 kare görünüp siyah "PAYBACK" kartı geliyor (kart sahnenin ilk satırına
+bağlı, satır 0,3 sn sonra başlıyor); "pirates laughed, Caesar laughed louder" dikey karede ince şerit bir tablonun üstünde;
+dikey pencere tek konuşanı tutuyor — Sezar kadraj dışını işaret ediyor, ikili hiç birlikte görünmüyor; balonlar sesten
+başka anlam ("Fifty? Wait, what?" ↔ "Uh... Sure? Fifty it is!").
+
+**Düzeltmeler (Director + remotion-v3):**
+1. **Anlatılan sahneye gelir** (`toldOnStage`, yalnız Short): anlatıcı satırının oynattığı (oyun, yoksa fiilleri) ama
+   sahnede olmayan çizili karakterler sahneye girer (sahnede en çok 2). **Kovalama** (`toldChases`): cümlenin ilk andığı
+   koşarak peşinden gider, diğerleri korkup kaçar; kovalayan bir adım geride durup yumruk kaldırır, kaçan döner (her
+   videoda, sahnedekilerle). Kovalama cümlesinin ortak "yumruk" jesti kaçana verilmez.
+2. **Dikey kadraj:** Short'ta oyuncular yan yana (`VERTICAL_SPACING` 0,15) dizilir, kamera en çok `VERTICAL_MAX_ZOOM` 1,06;
+   pencere konuşanı **konuştuğu kişiyle** birlikte tutar (`pairAim`: ikisi sığarsa ortaları, sığmazsa konuşan bütün kalır;
+   ortak her nişan için sabit — aynı uzaklıktaki iki komşu arasında satır ortasında atlama yok). Anlatıcı oynatırken
+   pencere cümlenin oyuncusuna döner (`shot.focus`).
+3. **Kart:** Short'ta "kelime"/"bolum" tam ekran kartı yok; sahnenin ilk satırındaki kart (≤0,6 sn) sahneyle açılır (her videoda).
+4. **Tablo:** Short'ta oynanan anlatıcı satırının üstüne dönem resmi gelmez; gelen resim dikey kareyi doldurup genişliği
+   boyunca kayar (bulanık zeminli ince şerit yerine).
+5. **Balon** (`faithfulBubble`): yazarın balonu, kendi kelimelerinin en az yarısı satırda varsa kalır; yoksa satırın kendisi
+   (≤9 kelime) ya da sığan son cümleleri.
+
+**Beyinlere aktarılan:** yazar istemi (Short: sonucu göster/oyun, kelime-bolum kartı yok, ikili yan yana; balon satırın kendi
+kelimeleri), `owner-kurallari.json`'a 2 kurgu + 2 kalite kuralı, `MAX_RULES` 8 → 12 (kurgu beyninin 12 kuralı da girer;
+8'de en eskileri sessizce düşüyordu); kalite beynine `kalite-sinavi ogret` ile tur2'den 3 kaçırılmış kare (boş sahil, kadraj
+dışı işaret, ince tablo) canlı deneyim hafızasına öğretildi.
+
+**Doğrulama:** smoke-v3-episode-director 56 (yeni O35: kovalama, sahneye gelen, yan yana, kart, tablo, balon, pencere);
+`smoke-v3-gpu` eski bir hatayla FAIL veriyordu (cb3661bc'den beri model kurulumu `BrainModels.ts`'te, tarama yalnız
+`scripts/`'e bakıyordu) — tarama `src/lib/v3`'ü de kapsar, PASS; tüm 16 `smoke-v3-*` PASS; tsc kök + remotion-v3;
+lint 0 hata / 13 eski uyarı. Eski bölümün s1/s2/s4 sahneleri yeni kodla dikey önizlendi (sessiz klip): kamarada ikili
+birlikte, güvertede korsan gülerken pencere ona dönüyor, sahilde Sezar kaçan korsanı yakalıyor.
+
+**Sıradaki:** canlıya alma, aynı konuyla yeni Short siparişi, kare kare inceleme, YouTube'a elle yükleme paketi (API yok).
+
 ## 3 Kasım 2026 — Gelişim Merkezi: Atölye Beyinleri "Bugün" bölümünün üstünde
 
 **Owner:** "atölye beyinleri gelişim merkezinde çok aşağıda yani sonda; onu bugün neleri geliştirmeye çalıştının üstüne

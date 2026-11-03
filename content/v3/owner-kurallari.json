@@ -108,6 +108,30 @@
       "konu": "savaş anlatımı",
       "metin": "Tell a close battle step by step: each tactical move on its own narrator line with that unit's hareket on it, never the whole battle in one sentence nor a move carried by a character's joke; guns before 1900 stand in front of their infantry.",
       "kaynak": "owner, Mohaç 1526 denemesi, 26 Ekim 2026 (\"önerdiğin sorunları düzelt\")"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "anlatılanı göster",
+      "metin": "Show what the narrator tells: the characters a narrator line names (a chase, a capture, a laugh, a revenge) stand in that scene's sahne_duzeni and act it in oyun; never the lead alone on an empty set while the narration tells the payoff (Caesar Short: the payoff told over Caesar alone on a beach).",
+      "kaynak": "owner, Sezar Short'u, 3 Kasım 2026 (\"bu düzeltmeleri yap, deneyim olarak yardımcı beyinlere aktar\")"
+    },
+    {
+      "beyin": "kurgu",
+      "konu": "balon metni",
+      "metin": "A balon is the spoken line's own words cut short, never a new sentence or another meaning: the viewer hears the line while reading it (Caesar Short: \"Fifty? Wait, what?\" floated over \"Uh... Sure? Fifty it is!\").",
+      "kaynak": "owner, Sezar Short'u, 3 Kasım 2026"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "anlatılan ekranda",
+      "metin": "The narration tells an action (a chase, a capture, a fight, laughter) while the frame shows one character standing still or an empty set.",
+      "kaynak": "owner, Sezar Short'u, 3 Kasım 2026"
+    },
+    {
+      "beyin": "kalite",
+      "konu": "dikey kadraj",
+      "metin": "In a vertical Short: a character pointing or reaching out of the frame at someone the frame does not show, two characters who talk never seen together, or a landscape painting shrunk to a thin band across the middle.",
+      "kaynak": "owner, Sezar Short'u, 3 Kasım 2026"
     }
   ]
 }

@@ -172,11 +172,15 @@ export function InsertView({ insert }: { insert: V3Insert }) {
       </AbsoluteFill>
     );
   }
+  // A Short (owner review, 3 Nov 2026: a landscape painting was a thin band across the middle of the phone): the picture
+  // fills the frame and travels across its width, the way the Ken Burns drift goes.
+  const tall = H > W;
+  const pan = kb.toX < kb.fromX ? 15 + 70 * p : 85 - 70 * p;
   return (
     <AbsoluteFill style={{ opacity: fade, backgroundColor: "#100d16", overflow: "hidden" }}>
-      <Img src={src} style={{ position: "absolute", left: -40, top: -40, width: W + 80, height: H + 80, objectFit: "cover", filter: "blur(28px) brightness(0.42) saturate(0.8)" }} />
-      <div style={{ position: "absolute", inset: 0, transform: `scale(${zoom}) translateX(${dx}px)` }}>
-        <Img src={src} style={{ width: W, height: H, objectFit: "contain", filter: "sepia(0.08) contrast(1.05)" }} />
+      {tall ? null : <Img src={src} style={{ position: "absolute", left: -40, top: -40, width: W + 80, height: H + 80, objectFit: "cover", filter: "blur(28px) brightness(0.42) saturate(0.8)" }} />}
+      <div style={{ position: "absolute", inset: 0, transform: tall ? `scale(${1 + (zoom - 1) * 0.5})` : `scale(${zoom}) translateX(${dx}px)` }}>
+        <Img src={src} style={{ width: W, height: H, objectFit: tall ? "cover" : "contain", ...(tall ? { objectPosition: `${pan}% 50%` } : {}), filter: "sepia(0.08) contrast(1.05)" }} />
       </div>
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 62%, rgba(10,6,16,0.45) 100%)" }} />
       {insert.caption ? (

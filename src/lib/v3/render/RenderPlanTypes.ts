@@ -519,6 +519,11 @@ export interface V3Shot {
   readonly dramatized: boolean;
   /** Who a Short's vertical window holds while no one speaks: the episode's lead on stage, else the scene's first speaker. */
   readonly lead?: string;
+  /**
+   * Who a Short's window turns to while the narrator tells what they do (owner review, 3 Nov 2026: "the pirates
+   * laughed" must show the pirates), in shot frames — like a speaker's words, without words.
+   */
+  readonly focus?: readonly { readonly castId: string; readonly start: number; readonly end: number }[];
   readonly bubbles?: readonly V3Bubble[];
   readonly nameTags?: readonly V3NameTag[];
   readonly inserts?: readonly V3Insert[];

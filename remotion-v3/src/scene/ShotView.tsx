@@ -15,7 +15,7 @@ import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./Ma
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
-import { windowAims, windowArrival, windowCentre, windowDeparture } from "./verticalWindow";
+import { type AimX, BODY_PER_HEAD, pairAim, windowAims, windowArrival, windowCentre, windowDeparture } from "./verticalWindow";
 
 /** A mounted performer: the horse (walking while the rider's x changes), the rider from the hips up, the near leg. */
 function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: PerformerState; m: V3CastMember; frame: number; fps: number; accessories: AccessoryIndex }) {
@@ -119,13 +119,25 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   const winW = OW / fit;
   const vertical = winW < W - 1;
   let winX = 0;
-  const aims = vertical ? windowAims((shot.bubbles ?? []).filter((b) => heads.has(b.castId)), fps) : [];
-  let aimX = (id: string | undefined) => (id ? heads.get(id)?.x : undefined) ?? W / 2;
+  // The window turns to a speaker's words, and to whom the narration acts out (`focus`).
+  const aims = vertical ? windowAims([...(shot.bubbles ?? []), ...(shot.focus ?? [])].filter((b) => heads.has(b.castId)), fps) : [];
+  let aimX: AimX = (id) => (id ? heads.get(id)?.x : undefined) ?? W / 2;
   if (vertical) {
-    const onStage = states.flatMap(({ p }) => (heads.has(p.castId) && !badgeHeads.has(p.castId) ? [heads.get(p.castId)!.x] : []));
-    const middle = onStage.length ? onStage.reduce((a, b) => a + b, 0) / onStage.length : W / 2;
-    const rest = (shot.lead && !badgeHeads.has(shot.lead) ? heads.get(shot.lead)?.x : undefined) ?? middle;
-    aimX = (id) => (id ? heads.get(id)?.x : undefined) ?? rest;
+    const actors = states.flatMap(({ p }) => (heads.has(p.castId) && !badgeHeads.has(p.castId) ? [{ id: p.castId, ...heads.get(p.castId)! }] : []));
+    const middle = actors.length ? actors.reduce((a, b) => a + b.x, 0) / actors.length : W / 2;
+    const restId = shot.lead && !badgeHeads.has(shot.lead) && heads.has(shot.lead) ? shot.lead : undefined;
+    // On a speaker (or the resting lead), and the one they talk with beside them when both fit; with no partner, the
+    // nearest — a near tie settled by name, so the window never flips between two neighbours as a head turns.
+    const withPartner = (id: string | undefined, partner: string | undefined) => {
+      const h = id ? actors.find((a) => a.id === id) : undefined;
+      if (!h) return undefined;
+      const p = partner && partner !== id ? actors.find((a) => a.id === partner) : undefined;
+      const others = actors.filter((a) => a.id !== id);
+      const near = Math.min(...others.map((a) => Math.abs(a.x - h.x)));
+      const nearest = others.filter((a) => Math.abs(a.x - h.x) <= near * 1.1 + 1).sort((a, b) => a.id.localeCompare(b.id))[0];
+      return pairAim(h.x, h.r * BODY_PER_HEAD, p ? [p] : nearest ? [nearest] : [], winW);
+    };
+    aimX = (id, partner) => (id ? (badgeHeads.has(id) ? heads.get(id)?.x : withPartner(id, partner)) : undefined) ?? withPartner(restId, partner) ?? middle;
     winX = Math.min(W - winW, Math.max(0, windowCentre(aims, frame, fps, aimX) - winW / 2));
   }
   // The part of the map's own picture in the frame (the window's, for a Short).

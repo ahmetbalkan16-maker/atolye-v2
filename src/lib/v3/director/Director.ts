@@ -385,19 +385,118 @@ const NAME_STOP = new Set(["the", "of", "and", "de", "von", "van", "ibn", "bin",
  */
 export function toldActs(text: string, cast: readonly Pick<CastEntry, "id" | "ad">[]): (LineAct & { readonly at: number })[] {
   const out: (LineAct & { at: number })[] = [];
-  let pos = 0;
-  for (const sentence of text.split(/(?<=[.!?;])\s+/)) {
-    const at = text.length ? pos / text.length : 0;
-    pos += sentence.length + 1;
+  for (const { sentence, at } of sentencesOf(text)) {
     const act = TOLD_ACTS.find(([re]) => re.test(sentence))?.[1];
     if (!act) continue;
-    const said = sentence.toLocaleLowerCase("en-US");
-    for (const c of cast) {
-      const words = c.ad.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).filter((w) => w.length >= 3 && !NAME_STOP.has(w));
-      if (words.some((w) => new RegExp(`(^|[^\\p{L}])${w}`, "u").test(said))) out.push({ karakter: c.id, ...act, at });
-    }
+    for (const c of cast) if (namedAt(sentence, c.ad) >= 0) out.push({ karakter: c.id, ...act, at });
   }
   return out;
+}
+
+/** A text's sentences, each with where it starts in the text (0..1). */
+function sentencesOf(text: string): { sentence: string; at: number }[] {
+  let pos = 0;
+  return text.split(/(?<=[.!?;])\s+/).map((sentence) => {
+    const at = text.length ? pos / text.length : 0;
+    pos += sentence.length + 1;
+    return { sentence, at };
+  });
+}
+
+/** Where a sentence first names a character (a word of the name, or its plural), or -1. */
+function namedAt(sentence: string, name: string): number {
+  const said = sentence.toLocaleLowerCase("en-US");
+  const words = name.toLocaleLowerCase("en-US").split(/[^\p{L}]+/u).filter((w) => w.length >= 3 && !NAME_STOP.has(w));
+  const at = words.map((w) => said.search(new RegExp(`(^|[^\\p{L}])${w}`, "u"))).filter((i) => i >= 0);
+  return at.length ? Math.min(...at) : -1;
+}
+
+const CHASE = /\bchase|\bhunt|\bpursu|\bran after|\bkovala|\bpeşine/i;
+
+/**
+ * The chases a narration tells, sentence by sentence: the character a chase sentence names first runs after the others
+ * it names ("Caesar chased down the pirates": Caesar after the Pirate Captain; "Sezar korsanları kovaladı" alike).
+ */
+export function toldChases(text: string, cast: readonly Pick<CastEntry, "id" | "ad">[]): { chaser: string; chased: string[]; at: number }[] {
+  return sentencesOf(text).flatMap(({ sentence, at }) => {
+    if (!CHASE.test(sentence)) return [];
+    const named = cast.map((c) => ({ id: c.id, i: namedAt(sentence, c.ad) })).filter((x) => x.i >= 0).sort((a, b) => a.i - b.i);
+    return named.length >= 2 ? [{ chaser: named[0]!.id, chased: named.slice(1).map((x) => x.id), at }] : [];
+  });
+}
+
+/** A Short's cast stands this far apart (stage widths), so two side by side fit its window (owner review, 3 Nov 2026). */
+export const VERTICAL_SPACING = 0.15;
+/** A Short's camera stays near the stage's own size: any closer, two side by side no longer fit the window. */
+export const VERTICAL_MAX_ZOOM = 1.06;
+/** How far a chased character flees, and how close the chaser stops behind them (stage widths). */
+const CHASE_FLEE = 0.2;
+
+/**
+ * A Short's narration is seen, not only heard (owner review, 3 Nov 2026: "Caesar chased down the pirates and crucified
+ * them" played over Caesar alone on an empty beach): the drawn characters a narrator line acts out ("oyun", else its
+ * verbs) who are not on the stage come on beside the others, at most two per scene. Only for a Short — it tells one
+ * moment in one place, while a long episode's narration may name someone far away. Returns who came on.
+ */
+export function toldOnStage(scene: Pick<EpisodeScene, "satirlar">, slots: Map<string, Slot>, cast: readonly Pick<CastEntry, "id" | "ad">[]): string[] {
+  const drawn = new Set(cast.map((c) => c.id));
+  const added: string[] = [];
+  for (const line of scene.satirlar) {
+    if (drawn.has(line.karakter)) continue;
+    const named = line.oyun?.length ? line.oyun.map((a) => a.karakter) : toldActs(line.metin, cast).map((a) => a.karakter);
+    for (const id of named) {
+      if (!drawn.has(id) || slots.has(id) || added.length >= 2) continue;
+      const xs = [...slots.values()].map((s) => s.x);
+      const right = xs.length ? Math.max(...xs) + 0.2 : 0.5;
+      const x = right <= 0.88 ? right : Math.max(0.12, Math.min(...xs) - 0.2);
+      const mean = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0.5;
+      slots.set(id, { x, depth: 0.08, facing: mean < x ? "left" : "right", seated: false });
+      added.push(id);
+    }
+  }
+  return added;
+}
+
+/**
+ * A Short's stage: its cast side by side about the middle, VERTICAL_SPACING apart, in their order from the left (the
+ * Caesar Short stood Caesar and the pirate half a stage apart, so the window never showed them together).
+ */
+export function squeezeForWindow(slots: Map<string, Slot>): void {
+  const order = [...slots.entries()].sort((a, b) => a[1].x - b[1].x);
+  order.forEach(([id, s], i) => slots.set(id, { ...s, x: 0.5 + (i - (order.length - 1) / 2) * VERTICAL_SPACING }));
+}
+
+const BUBBLE_STOP = new Set(
+  "the a an and or but to of in on at for with from by is are was were be been am i you he she it we they me him her us them my your his its our their this that these those so just ve bir bu şu o da de mi mı mu mü ki ile için ama ben sen biz siz onlar beni seni bana sana".split(" "),
+);
+const bubbleWords = (s: string) => s.toLocaleLowerCase("en-US").replace(/[’`]/g, "'").split(/[^\p{L}\p{N}']+/u).map((w) => w.replace(/'.*$/, "")).filter((w) => w.length > 1 && !BUBBLE_STOP.has(w));
+
+/** At most this many words float over a head when the bubble is cut from the line itself. */
+const BUBBLE_MAX_WORDS = 9;
+
+/**
+ * The words floating over a speaker, faithful to what they say (owner review, 3 Nov 2026: "Fifty? Wait, what?" floated
+ * over "Uh... Sure? Fifty it is!" — the viewer hears one sentence and reads another). The writer's bubble stays when
+ * at least half of its own words are in the line (a word counts by its first five letters, for Turkish endings);
+ * otherwise the line itself when it is short, else its last sentences that fit.
+ */
+export function faithfulBubble(balon: string, metin: string): string {
+  const own = bubbleWords(balon);
+  const said = bubbleWords(metin);
+  const stem = (w: string) => w.slice(0, 5);
+  const found = own.filter((w) => said.some((s) => stem(s) === stem(w))).length;
+  if (own.length && found * 2 >= own.length) return balon;
+  const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
+  const line = metin.trim();
+  if (words(line) <= BUBBLE_MAX_WORDS) return line;
+  const sentences = sentencesOf(line).map((x) => x.sentence.trim()).filter(Boolean);
+  let out = "";
+  for (let i = sentences.length - 1; i >= 0; i--) {
+    const next = out ? `${sentences[i]} ${out}` : sentences[i]!;
+    if (words(next) > BUBBLE_MAX_WORDS) break;
+    out = next;
+  }
+  return out || `${line.split(/\s+/).slice(0, BUBBLE_MAX_WORDS).join(" ").replace(/[,;:]$/, "")}…`;
 }
 
 /** The episode's lead: the drawn character with the most lines (the first in the cast on a tie). */
@@ -609,6 +708,11 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     // On a map, who has a badge there speaks through it and is not drawn on the stage (MapSpeakers).
     const onMap = mapped ? mapSpeakers(scene, episode.oyuncu_kadrosu.filter((c) => visibleIds.has(c.id))) : undefined;
     for (const id of onMap?.badged ?? []) slots.delete(id);
+    // A Short: whom the narration acts out comes on, and the cast stands side by side for the window.
+    if (vertical && !mapped && !photo) {
+      toldOnStage(scene, slots, episode.oyuncu_kadrosu.filter((c) => visibleIds.has(c.id)));
+      squeezeForWindow(slots);
+    }
     // A geographic map scene: things appear with the line that names them (satir), else one after another.
     const geo = mapped
       ? buildGeoMap(withNamedHighlights(scene).harita!, withCoast(input.mapData!, input.coasts?.get(scene.id)), input.width, input.height, (index, order) => (index !== undefined && lines[index] ? local(lines[index]!.start) : f(0.4 + order * 1.2)), {
@@ -662,6 +766,10 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const silentScene = tracks.size > 0 && !lines.some((l) => tracks.has(l.speaker));
     const actors = [...tracks.values()];
     let acted = 0;
+    // Narrator lines acted out on the stage (told acts, a chase): in a Short no period picture covers them, and its
+    // window turns to whom each sentence acts out.
+    const actedLines = new Set<number>();
+    const focus: { castId: string; start: number; end: number }[] = [];
     // The crowd's places and marches, known before the camera is planned: while any of it moves, the shot stays wide.
     // It cheers at a leader's rallying cry (owner, 22 Oct 2026: a crowd that lives, not identical stiff copies).
     const rallies = lines.filter((lt) => visibleIds.has(lt.speaker) && rallyingCry(scene.satirlar[lt.lineIndex]!)).map((lt) => ({ start: local(lt.start) + Math.round(fps * 0.35), end: local(lt.start) + Math.round(fps * 2.2) }));
@@ -738,7 +846,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           speaker.turns.push({ frame: ls, facing: toward });
           speaker.facing = toward;
         }
-        if (line.balon?.trim()) bubbles.push({ castId: line.karakter, text: line.balon.trim(), start: ls + f(0.08), end: Math.max(le + f(0.35), ls + f(1.6)) });
+        if (line.balon?.trim()) bubbles.push({ castId: line.karakter, text: faithfulBubble(line.balon.trim(), line.metin), start: ls + f(0.08), end: Math.max(le + f(0.35), ls + f(1.6)) });
         if (!introduced.has(line.karakter)) {
           introduced.add(line.karakter);
           const entry = episode.oyuncu_kadrosu.find((c) => c.id === line.karakter);
@@ -752,12 +860,17 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
         for (const v of lt.visemes) talk.visemes.push({ frame: ls + f(v.t), viseme: v.v });
         talk.visemes.push({ frame: le, viseme: "X" });
         talk.faces.push({ start: ls, emotion: line.duygu });
-        if (line.balon?.trim()) bubbles.push({ castId: line.karakter, text: line.balon.trim(), start: ls + f(0.08), end: Math.max(le + f(0.35), ls + f(1.6)) });
+        if (line.balon?.trim()) bubbles.push({ castId: line.karakter, text: faithfulBubble(line.balon.trim(), line.metin), start: ls + f(0.08), end: Math.max(le + f(0.35), ls + f(1.6)) });
       }
 
       // The told acted out (the Caesar remake: "the pirates laughed, Caesar laughed louder" over a still stage): the
       // writer's "oyun", else the narration's own verbs on the characters it names, each from where its sentence starts.
-      const acts = line.oyun?.length ? line.oyun.map((a) => ({ ...a, at: 0 })) : !speaker && !geo && !onMap?.badged.has(line.karakter) ? toldActs(line.metin, episode.oyuncu_kadrosu.filter((c) => tracks.has(c.id))) : [];
+      const told = !speaker && !geo && !onMap?.badged.has(line.karakter);
+      const chases = told ? toldChases(line.metin, episode.oyuncu_kadrosu.filter((x) => tracks.has(x.id))) : [];
+      const inChase = (id: string, at: number) => chases.some((c) => c.at === at && (c.chaser === id || c.chased.includes(id)));
+      // A chase sentence's runners act the chase below, not the sentence's one shared gesture.
+      const acts = line.oyun?.length ? line.oyun.map((a) => ({ ...a, at: 0 })) : told ? toldActs(line.metin, episode.oyuncu_kadrosu.filter((c) => tracks.has(c.id))).filter((a) => !inChase(a.karakter, a.at)) : [];
+      let chasing = false;
       for (const a of acts) {
         const tr = tracks.get(a.karakter);
         if (!tr || a.karakter === line.karakter) continue;
@@ -770,6 +883,56 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           tr.lastFace = a.duygu;
         }
         if (a.efekt) tr.effects.push({ effect: a.efekt, start: from, end: from + Math.min(f(1.6), le - from + f(0.4)) });
+        if (a.jest || a.duygu || a.efekt) actedLines.add(lt.lineIndex);
+      }
+      // A told chase is run on the stage: the chased flee scared, the chaser runs after them and stops a step behind,
+      // fist raised; the fled turn round, caught.
+      for (const c of chases) {
+        const chaser = tracks.get(c.chaser)!;
+        const from = ls + Math.round((le - ls) * c.at) + f(0.2);
+        if (from >= le - f(0.6)) continue;
+        let caught: number | undefined;
+        for (const id of c.chased) {
+          const tr = tracks.get(id)!;
+          const away = tr.x >= chaser.x ? 1 : -1;
+          const toX = Math.max(0.1, Math.min(0.9, tr.x + away * CHASE_FLEE));
+          const end = from + f(Math.max(0.5, Math.abs(toX - tr.x) / RUN_SPEED));
+          tr.moves.push({ start: from, end, fromX: tr.x, toX, run: true });
+          tr.x = toX;
+          tr.turns.push({ frame: end, facing: away > 0 ? "left" : "right" });
+          tr.facing = away > 0 ? "left" : "right";
+          tr.faces.push({ start: from, emotion: "korkmus" });
+          tr.lastFace = "korkmus";
+          tr.effects.push({ effect: "ter", start: from, end: end + f(1) });
+          if (caught === undefined || Math.abs(toX - chaser.x) < Math.abs(caught - chaser.x)) caught = toX;
+        }
+        if (caught === undefined) continue;
+        const dir = caught >= chaser.x ? 1 : -1;
+        const stop = caught - dir * (vertical ? VERTICAL_SPACING : 0.17);
+        const start = from + f(0.25);
+        const end = start + f(Math.max(0.5, Math.abs(stop - chaser.x) / RUN_SPEED));
+        if (Math.abs(stop - chaser.x) > 0.01) {
+          chaser.moves.push({ start, end, fromX: chaser.x, toX: stop, run: true });
+          chaser.x = stop;
+        }
+        chaser.turns.push({ frame: end, facing: dir > 0 ? "right" : "left" });
+        chaser.facing = dir > 0 ? "right" : "left";
+        chaser.faces.push({ start: from, emotion: "kizgin" });
+        chaser.lastFace = "kizgin";
+        chaser.gestures.push({ gesture: "yumruk_kaldir", start: end, end: Math.max(end + f(1.1), le - f(0.15)), toward: dir > 0 ? "right" : "left" });
+        chasing = true;
+        actedLines.add(lt.lineIndex);
+      }
+      if (vertical) {
+        // Each sentence's first actor (a chase's runner after), from where the sentence starts to where the next does.
+        const marks = [...acts.filter((a) => tracks.has(a.karakter) && a.karakter !== line.karakter).map((a) => ({ id: a.karakter, at: a.at })), ...chases.map((c) => ({ id: c.chaser, at: c.at }))]
+          .sort((a, b) => a.at - b.at)
+          .filter((m, i, all) => i === 0 || m.at !== all[i - 1]!.at);
+        marks.forEach((m, i) => {
+          const s = ls + Math.round((le - ls) * m.at);
+          const e = i + 1 < marks.length ? ls + Math.round((le - ls) * marks[i + 1]!.at) : le;
+          if (e - s >= f(0.4)) focus.push({ castId: m.id, start: s, end: e });
+        });
       }
 
       // Listeners turn to the speaker and react a beat later.
@@ -794,7 +957,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       // A line where the crowd or an actor moves across the stage is seen whole: a wide shot, so the march reads and
       // the actors keep their size against the set and the crowd (owner, 22 Oct 2026, the Rubicon crossing: close-ups
       // of the two in the river made them giants next to the legion).
-      const action = crowdMoving(ls, le) || (!!speaker && !!line.hareket && line.hareket !== "dur");
+      const action = chasing || crowdMoving(ls, le) || (!!speaker && !!line.hareket && line.hareket !== "dur");
       if (action) {
         const last = camera[camera.length - 1]!;
         key(ls - 1, last.zoom, last.cx, last.cy, "smooth");
@@ -896,9 +1059,13 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       else if (cue.tip === "cut") key(at, 1.0, 0.5, 0.5, "cut");
     }
 
-    const titleCards: V3TitleCard[] = (scene.yazi_karti ?? []).map((c) => {
+    // A Short has no full-screen word or chapter card: a second and a half of black in a 40-second feed video is a
+    // swipe away (owner review, 3 Nov 2026, the Caesar Short's "PAYBACK").
+    const titleCards: V3TitleCard[] = (scene.yazi_karti ?? []).filter((c) => !vertical || (c.stil !== "kelime" && c.stil !== "bolum")).map((c) => {
       const anchor = lines[Math.min(c.satir ?? 0, lines.length - 1)];
-      const s = anchor ? Math.max(0, local(anchor.start) - (c.stil === "bolum" ? f(0.2) : 0)) : 0;
+      const at = anchor ? Math.max(0, local(anchor.start) - (c.stil === "bolum" ? f(0.2) : 0)) : 0;
+      // A card on the scene's opening line opens with the scene: the set no longer flashes for a few frames before it.
+      const s = at <= f(0.6) ? 0 : at;
       // The parchment chapter card unrolls and rolls up again: it needs a little longer than a plain card.
       const len = c.stil === "kelime" ? f(1.3) : c.stil === "bolum" ? f(3) : f(2.8);
       return { text: c.metin, ...(c.alt_metin ? { subtext: c.alt_metin } : {}), start: s, end: Math.min(duration - 1, s + len), style: c.stil };
@@ -954,7 +1121,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const own: V3Insert[] = period && geo
       ? mapWindow.map((w) => ({ src: period.src, ...w, kenBurns: { fromZoom: 1.03, toZoom: 1.15, fromX: 0.02, toX: -0.02 }, ...(period.caption ? { caption: period.caption } : {}), ...(period.video ? { video: true } : {}) }))
       : period
-      ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
+      ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (vertical && actedLines.has(lt.lineIndex)) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
           src: period.src,
           ...w,
           // Alternate push-in and pull-out so two cutaways to the same picture do not look like a repeat.
@@ -975,13 +1142,16 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
       background: input.backgrounds[si]!,
       performers,
       props,
-      camera: geo ? mapShotCamera(fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps)) : fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps),
+      camera: geo
+        ? mapShotCamera(fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps))
+        : fillTempo(normalizeCamera(camera), shotEventFrames(performers, titleCards, []), duration, fps).map((k) => (vertical && k.zoom > VERTICAL_MAX_ZOOM ? { ...k, ...clampCam(VERTICAL_MAX_ZOOM, k.cx, k.cy) } : k)),
       shakes,
       titleCards,
       mapArrows,
       transitionIn,
       dramatized: lines.some((l) => visibleIds.has(l.speaker)),
       ...(shotLead ? { lead: shotLead } : {}),
+      ...(focus.length ? { focus } : {}),
       bubbles: settleBubbles(bubbles, duration),
       nameTags,
       inserts,

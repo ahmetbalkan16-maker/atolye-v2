@@ -73,7 +73,9 @@ async function main() {
   });
 
   await scenario("every V3 local model is built with the in-call stop", async () => {
-    const files = ["scripts/atolye-v3.ts", ...(await fs.readdir("scripts/v3")).filter((f) => f.endsWith(".ts")).map((f) => `scripts/v3/${f}`)];
+    // The brains' models are built in src/lib/v3 too since cb3661bc (BrainModels), where the scan never looked.
+    const lib = (await fs.readdir("src/lib/v3", { recursive: true })).filter((f) => f.endsWith(".ts")).map((f) => `src/lib/v3/${f.replace(/\\/g, "/")}`);
+    const files = ["scripts/atolye-v3.ts", ...(await fs.readdir("scripts/v3")).filter((f) => f.endsWith(".ts")).map((f) => `scripts/v3/${f}`), ...lib];
     let built = 0;
     for (const file of files) {
       const text = await fs.readFile(path.resolve(file), "utf8");

@@ -15,8 +15,8 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, episodeLead, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
-import type { Episode, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
@@ -35,7 +35,7 @@ import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
-import { windowAims, windowArrival, windowCentre, windowDeparture } from "../remotion-v3/src/scene/verticalWindow";
+import { pairAim, windowAims, windowArrival, windowCentre, windowDeparture } from "../remotion-v3/src/scene/verticalWindow";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -203,7 +203,10 @@ async function main() {
     assert.deepEqual([isShorts(60), isShorts(61)], [true, false]);
     const short = buildRenderPlan({ episode: ep, timeline: tl, cast, accessories: [], backgrounds: [{ src: "bg/a.png", kind: "set" }], fps: 30, ...STAGE_SIZE, output: SHORTS_SIZE, endCard: false, showCaptions: false });
     assert.deepEqual([short.width, short.height, short.stage], [1080, 1920, { width: 1920, height: 1080 }]);
-    assert.deepEqual(short.shots.map((s) => s.camera), plan.shots.map((s) => s.camera), "the stage's shots are the same");
+    // ...laid out for its window (owner review, 3 Nov 2026): the cast side by side, no camera closer than a pair fits.
+    const xs = short.shots[0]!.performers.map((p) => p.x).sort((a, b) => a - b);
+    assert.ok(Math.abs(xs[1]! - xs[0]! - VERTICAL_SPACING) < 1e-9 && Math.abs((xs[0]! + xs[1]!) / 2 - 0.5) < 1e-9, JSON.stringify(xs));
+    assert.ok(short.shots.every((s) => s.camera.every((k) => k.zoom <= VERTICAL_MAX_ZOOM + 1e-9)) && plan.shots[0]!.camera.some((k) => k.zoom > VERTICAL_MAX_ZOOM));
     assert.ok(!short.shots.some((s) => s.titleCards.some((c) => c.style === "abone")), "no subscribe card");
   });
 
@@ -1830,6 +1833,84 @@ async function main() {
     const quick = windowAims([{ castId: "a", start: 60, end: 64 }, { castId: "b", start: 66, end: 120 }], fps);
     for (let fr = 50; fr < 90; fr++) assert.ok(Math.abs(windowCentre(quick, fr + 1, fps, xOf) - windowCentre(quick, fr, fps, xOf)) < 160, `jump at ${fr}`);
     assert.equal(windowCentre(quick, 90, fps, xOf), 1500);
+  });
+
+  await scenario("O35 Caesar Short review (3 Nov 2026): the told comes on and is run, two side by side in the window, no black word card, no picture over the acting, bubbles say what is said", () => {
+    const cast = [{ id: "caesar", ad: "Julius Caesar" }, { id: "pirate-captain", ad: "Pirate Captain" }, { id: "roman-friend", ad: "Roman Friend" }];
+    assert.deepEqual(toldChases("Legend has it, once freed, Caesar chased down the pirates and crucified them—just as he’d promised.", cast), [{ chaser: "caesar", chased: ["pirate-captain"], at: 0 }]);
+    assert.deepEqual(toldChases("The pirates laughed. Caesar laughed louder.", cast), []);
+    assert.deepEqual(toldChases("Sezar korsanları kovaladı.", [{ id: "sezar", ad: "Sezar" }, { id: "korsan", ad: "Korsan Kaptan" }]).map((c) => [c.chaser, c.chased]), [["sezar", ["korsan"]]]);
+    // The Caesar Short's bubbles: a faithful cut stays; one that says something else gives way to the spoken words.
+    const pairs: [string, string, string][] = [
+      ["Twenty talents! Or else!", "Hand over twenty talents or else!", "Twenty talents! Or else!"],
+      ["Raise my ransom, please.", "Only twenty? I’m worth at least fifty!", "Only twenty? I’m worth at least fifty!"],
+      ["Fifty? Wait, what?", "Uh... Sure? Fifty it is!", "Uh... Sure? Fifty it is!"],
+      ["Nice joke, Caesar!", "Ha! Good one, Roman. Roll the dice!", "Ha! Good one, Roman. Roll the dice!"],
+      ["I’ll crucify you. Promise.", "When I’m free, I’ll crucify you all.", "I’ll crucify you. Promise."],
+      ["Aim higher next time.", "Next time, pirates, aim higher.", "Aim higher next time."],
+      ["Totally fine!", "Well, the walls have stood for a thousand years, but I think we can still try. Ready?", "Ready?"],
+    ];
+    for (const [balon, metin, want] of pairs) assert.equal(faithfulBubble(balon, metin), want, balon);
+
+    // A scene with the lead alone while the narrator tells a chase (the Short's payoff on the beach).
+    const ep0 = sampleEpisode();
+    const scene: EpisodeScene = {
+      ...ep0.sahneler[0]!,
+      sahne_duzeni: [{ karakter: "mehmed", x: 0.5 }],
+      yazi_karti: [{ metin: "Edirne, 1452", stil: "yer_tarih" }, { metin: "PAYBACK", stil: "kelime", satir: 1 }],
+      satirlar: [
+        { karakter: "mehmed", metin: "Only twenty? I’m worth at least fifty!", duygu: "kararli", balon: "Raise my ransom, please." },
+        { karakter: "anlatici", metin: "Legend has it, Mehmed chased Halil Pasha out of the palace and across the city.", duygu: "notr", kaynak: ["tdv-rumeli"] },
+        { karakter: "mehmed", metin: "Next time, Halil, aim higher.", duygu: "mutlu" },
+      ],
+    };
+    const ep: Episode = { ...ep0, sahneler: [scene] };
+    const tl = buildTimeline(ep, [[fakeAudio(2.2), fakeAudio(4), fakeAudio(1.8)]]);
+    const input = { episode: ep, timeline: tl, cast: toRenderCast(ep.oyuncu_kadrosu, "kukla"), accessories: [], backgrounds: [{ src: "", kind: "drawn" as const, drawn: { zaman: "aksam" as const, manzara: "sahil" as const, uslup: "roma" as const, tohum: 3 } }], inserts: [{ src: "period/x.jpg" }], fps: 30, ...STAGE_SIZE, endCard: false, showCaptions: false };
+    const wide = buildRenderPlan(input).shots[0]!;
+    const short = buildRenderPlan({ ...input, output: SHORTS_SIZE }).shots[0]!;
+    // A long video stays as written: Halil is not brought on, the picture covers the narration, the word card shows.
+    assert.deepEqual(wide.performers.map((p) => p.castId), ["mehmed"]);
+    assert.ok(wide.inserts?.length === 1 && wide.titleCards.some((c) => c.style === "kelime"));
+    // The Short: Halil comes on beside Mehmed, flees scared; Mehmed runs after him, stops a step behind, fist raised.
+    const narr = tl.lines[1]!;
+    const [ns, ne] = [Math.round(narr.start * 30) - Math.round(tl.scenes[0]!.start * 30), Math.round(narr.end * 30) - Math.round(tl.scenes[0]!.start * 30)];
+    const mehmed = short.performers.find((p) => p.castId === "mehmed")!;
+    const halil = short.performers.find((p) => p.castId === "halil")!;
+    assert.ok(Math.abs(Math.abs(halil.x - mehmed.x) - VERTICAL_SPACING) < 1e-9, `${mehmed.x} ${halil.x}`);
+    const flee = halil.moves[0]!;
+    const run = mehmed.moves[0]!;
+    assert.ok(flee.run && flee.start > ns && flee.start < ne && Math.sign(flee.toX - flee.fromX) === Math.sign(halil.x - mehmed.x), JSON.stringify(halil.moves));
+    assert.ok(run.run && run.start > flee.start && Math.abs(Math.abs(flee.toX - run.toX) - VERTICAL_SPACING) < 1e-9, JSON.stringify(mehmed.moves));
+    assert.ok(halil.faces.some((f) => f.emotion === "korkmus" && f.start === flee.start) && !halil.gestures.some((g) => g.gesture === "yumruk_kaldir"));
+    assert.ok(mehmed.gestures.some((g) => g.gesture === "yumruk_kaldir" && g.start === run.end));
+    // ...seen whole: no camera key closer than the window allows, no picture over the acting, no black word card.
+    assert.ok(short.camera.every((k) => k.zoom <= VERTICAL_MAX_ZOOM + 1e-9), JSON.stringify(short.camera.map((k) => k.zoom)));
+    assert.deepEqual(short.inserts, []);
+    assert.deepEqual(short.titleCards.map((c) => [c.style, c.start]), [["yer_tarih", 0]]);
+    // The bubble that said something else now says the spoken words.
+    assert.equal(short.bubbles?.[0]?.text, "Only twenty? I’m worth at least fifty!");
+
+    // A word card on the scene's first line opens with the scene (the beach flashed 9 frames before "PAYBACK").
+    const opening: Episode = { ...ep, sahneler: [{ ...scene, sahne_duzeni: undefined, yazi_karti: [{ metin: "PAYBACK", stil: "kelime" }], satirlar: scene.satirlar.slice(1) }] };
+    const tl2 = buildTimeline(opening, [[fakeAudio(4), fakeAudio(1.8)]]);
+    assert.ok(tl2.lines[0]!.start - tl2.scenes[0]!.start > 0.05, "the first line starts a little into the scene");
+    assert.equal(buildRenderPlan({ ...input, episode: opening, timeline: tl2 }).shots[0]!.titleCards[0]!.start, 0);
+
+    // The window: two side by side are framed together; a partner a whole window away does not pull; it never jumps.
+    const winW = 1080 / (1920 / 1080);
+    assert.equal(pairAim(800, 125, [{ x: 1100 }], winW), 950);
+    assert.equal(pairAim(800, 125, [{ x: 800 + 1.4 * winW }], winW), 800);
+    const lo = 800 + 125 - winW / 2;
+    assert.equal(pairAim(800, 125, [{ x: 800 - 0.85 * winW }], winW), lo, "too far for both: the speaker stays whole at the window's edge");
+    for (let d = 200; d < 1000; d += 5) assert.ok(Math.abs(pairAim(800, 125, [{ x: 800 + d + 5 }], winW) - pairAim(800, 125, [{ x: 800 + d }], winW)) < 12, `jump at ${d}`);
+    assert.equal(pairAim(800, 125, [], winW), 800);
+    // ...with whom they talk, fixed for the line (Caesar between his friend and the pirate flipped mid-line); and the
+    // narration's actor in turn (the chaser here).
+    const talk = windowAims([{ castId: "a", start: 60, end: 120 }, { castId: "b", start: 130, end: 190 }], 30);
+    assert.deepEqual(talk.map((a) => [a.castId ?? "-", a.partner ?? "-"]), [["-", "a"], ["a", "b"], ["b", "a"], ["-", "b"]]);
+    assert.deepEqual(short.focus?.map((x) => [x.castId, x.start >= ns, x.end === ne]), [["mehmed", true, true]]);
+    assert.equal(wide.focus, undefined);
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);
