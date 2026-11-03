@@ -9,6 +9,7 @@ import { along, pathLength, smoothPoints } from "./mapGeometry";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
+import { hudBoxes } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { yer } from "./LayoutProbe";
 
@@ -226,8 +227,11 @@ export function cameraAt(keys: readonly Key[] | undefined, frame: number, fps: n
  * routes, battles flash. With a world and camera keys the camera glides from region to region; names, marks and badges
  * keep their size on screen at every zoom. Coordinates arrive in world (or frame) pixels.
  */
-/** `seen`: the part of this picture (screen px) that ends up in the frame (ShotView's push and set camera). */
-export function MapView({ map, width: W, height: H, cast, accessories, duration, seen }: { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number; seen?: { x0: number; y0: number; x1: number; y1: number } }) {
+/**
+ * `seen`: the part of this picture (screen px) that ends up in the frame (ShotView's push and set camera; a Short's
+ * window); `screen`: that frame's size, when it is not this picture's (a Short).
+ */
+export function MapView({ map, width: W, height: H, cast, accessories, duration, seen, screen }: { map: V3GeoMap; width: number; height: number; cast?: ReadonlyMap<string, V3CastMember>; accessories?: AccessoryIndex; duration?: number; seen?: { x0: number; y0: number; x1: number; y1: number }; screen?: { width: number; height: number } }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -278,13 +282,17 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
   const m = 14 * k;
   // The date stamp's corner (MapMarks' DateStamp, fixed on the screen): a name slid under it is not written either (a
   // lone "A" of "BLACK SEA" showed beside the stamp).
-  const u = H / 1080;
   // So is one slid under the strength bar at the top middle (MapMarks' StrengthBar: names, bar, numbers; "SERB" ran
-  // under "OTTOMANS 30,000–40,000" while the camera glided to Kosovo).
-  const overlays = [
-    ...(map.dates?.length ? [{ x0: W - 56 * u - Math.max(150, Math.max(...map.dates.map((d) => d.text.length)) * 25 + 56) * u, y0: 0, x1: W, y1: 110 * u }] : []),
-    ...((map.strength ?? []).some((s) => s.start <= frame && (s.end === undefined || frame < s.end)) ? [{ x0: (W - 860 * u) / 2 - 12 * u, y0: 0, x1: (W + 860 * u) / 2 + 12 * u, y1: 150 * u }] : []),
-  ];
+  // under "OTTOMANS 30,000–40,000" while the camera glided to Kosovo). The marks stand on the output frame (a Short's
+  // is 1080×1920), which shows the `seen` part of this picture.
+  const out = screen ?? { width: W, height: H };
+  const view = { x0: seen?.x0 ?? 0, y0: seen?.y0 ?? 0, x1: seen?.x1 ?? W, y1: seen?.y1 ?? H };
+  const overlays = hudBoxes(map, frame, out.width, out.height).map((b) => ({
+    x0: view.x0 + (b.x0 / out.width) * (view.x1 - view.x0),
+    x1: view.x0 + (b.x1 / out.width) * (view.x1 - view.x0),
+    y0: view.y0 + (b.y0 / out.height) * (view.y1 - view.y0),
+    y1: view.y0 + (b.y1 / out.height) * (view.y1 - view.y0),
+  }));
   const slideInside = (x: number, y: number, half: { x: number; y: number }) => {
     const push = (c: number, h: number, lo: number, hi: number) => (c - h < lo + m ? lo + m - (c - h) : c + h > hi - m ? hi - m - (c + h) : 0);
     const dx = push(x, half.x, shownWorld.x0, shownWorld.x1);

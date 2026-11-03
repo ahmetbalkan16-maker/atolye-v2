@@ -57,7 +57,7 @@ async function connect(): Promise<void> {
     });
     const consent = consentUrl(client, redirectUri, state, challenge);
     console.log(`Tarayıcıda Google onay ekranı açılıyor. Açılmazsa bu adresi kendin aç:\n${consent}\n`);
-    console.log("Onay ekranında 'Geschichte entschlüsselt' kanalını seç; 'Google bu uygulamayı doğrulamadı' uyarısında Gelişmiş > devam et (uygulama senin).");
+    console.log("Onay ekranında 'Crowns & Doodles' kanalını seç; 'Google bu uygulamayı doğrulamadı' uyarısında Gelişmiş > devam et (uygulama senin).");
     // No shell: the URL's "&" would split a cmd line.
     spawn("rundll32", ["url.dll,FileProtocolHandler", consent], { detached: true, stdio: "ignore", windowsHide: true }).unref();
   }).finally(() => server.close());

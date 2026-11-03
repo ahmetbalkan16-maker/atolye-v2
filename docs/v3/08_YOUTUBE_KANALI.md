@@ -10,6 +10,10 @@ ilk videolarda **owner onayı olmadan yükleme yok**; Fiverr'de insan döngüde 
 > bekleniyor" diye bekler, hiçbir şey yüklenmez. Owner AYAS'ın teslim paketindeki başlık, açıklama, etiket ve kapağı
 > Studio'ya kendisi koyar. Bağlantı istenirse aşağıdaki adımlar geçerlidir (önce test kullanıcısı ya da yayınlanmış uygulama).
 
+> **3 Kasım 2026 (akşam):** owner kanalın adını **Crowns & Doodles** (`@CrownsAndDoodles`) yaptı (aşağıdaki 1. bulgu
+> kapandı; kanal kimliği aynı) ve Sezar Short'unu elle yükledi: `Q8JW_i5Gt0M` "Never Kidnap a Future Emperor"; sipariş
+> `elle: true` işaretli, AYAS onu bir daha yüklemez.
+
 ## Nasıl çalışır
 
 1. AYAS siparişi üretir, kalite beyni teslim eder (değişmedi).
@@ -48,7 +52,7 @@ Google hesabına yalnız sen girebilirsin; bu adımları sen yaparsın.
 6. İnen `client_secret_….json` dosyasını şu adla kaydet:
    `D:\ÜRETİM\private\AtolyeSecrets\AYAS-SECRETS\youtube\client.json`
 7. Bana "bağla" de, ya da kendin çalıştır: `npx tsx scripts/v3/youtube.ts baglan`. Tarayıcı açılır:
-   **Geschichte entschlüsselt** kanalını seç → "Google bu uygulamayı doğrulamadı" ekranında **Gelişmiş → AYAS'a git**
+   **Crowns & Doodles** kanalını seç → "Google bu uygulamayı doğrulamadı" ekranında **Gelişmiş → AYAS'a git**
    → izinleri onayla. Komut kanalı doğrular ve ayarlarını denetler (`youtube.ts durum` ile sonra da bakılır).
 
 YouTube kotası: günde 100 yükleme (Aralık 2025'ten beri ayrı kova); haftada 3 video sorun değil. Güncel API belgesine

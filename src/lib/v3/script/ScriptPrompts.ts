@@ -16,6 +16,7 @@ import {
 } from "../episode/EpisodeTypes";
 import { isShorts } from "../render/Format";
 import { type SeriesBrief, seriesText } from "./Series";
+import { SHORT_SHARES_FROM_S } from "./MapRules";
 
 /**
  * Prompt templates for the V3 script writer and its fact-check pass. Allowed values are read from the episode
@@ -147,6 +148,25 @@ STORYTELLING RULES
 };
 
 /**
+ * A Short's shares (owner, 3 Nov 2026, after DFT Tarih's Shorts — MapRules.SHORT_MAP_SHARE): the moment told on the map
+ * between a character hook and a character payoff. Not asked of one under half a minute.
+ */
+const SHORT_SHARES: Readonly<Record<ScriptLanguage, string>> = {
+  tr: `- SHORT PAYLARI (en çok izlenen tarih Short'ları harita hikâyesidir): sürenin yaklaşık %70'i haritada, %30'u çöp
+  adamlarla. Karakterli kanca sahnesinden (6–10 sn) sonra an haritada anlatılır — birkaç saniye geniş harita (nerede,
+  ne zaman), sonra olayın geçtiği yakın harita ("genislik_km" ≤ 120): gemiler yol alır, pullar yaklaşır ve teker teker
+  düşer, oklar satırla vurur; oradaki bir karakter tek cümlesini rozetinden söyler (o harita sahnesinde kendi satırı).
+  Sonuç ya da son espri kısa bir karakter sahnesinde (ya da yakın haritada) oynanır.
+`,
+  en: `- SHARES OF A SHORT (the most-watched history Shorts are map stories): about 70% of the running time on the map, about
+  30% with the stick figures. After the character hook scene (6–10 s) tell the moment on the map — a few seconds of the
+  wider map for where and when, then the close map where it happens ("genislik_km" ≤ 120): ships sail, tokens close in
+  and fall one by one, arrows strike with the lines; a character there says a one-liner from their badge (their own
+  line in that map scene). Play the payoff or the last quip in a short character scene (or on the close map).
+`,
+};
+
+/**
  * A Short's recipe (owner, 2 Nov 2026): a hook in the first 2 seconds, one moment, ~150 words, no cover or subscribe
  * line, the last line leading back into the first. It overrides the long rules where they differ.
  */
@@ -158,10 +178,11 @@ YOUTUBE SHORTS — bu, telefonda akışta izlenen ${b.hedefSureSn} saniye ya da 
   Bu satırı anlatıcı DEĞİL, sahnedeki görünür bir karakter söyler — olayın ortasında, kısa (en fazla 8 kelime), bir "jest"
   ya da "efekt" ile; anlatıcı ondan sonra gelir. İlk sahne harita değil, karakterli bir sahnedir.
 - Bütün bir savaş ya da hayat değil, TEK bir an: bir karar, bir gaf, bir hile ya da bir dönüm, sonucuyla.
-- 2–4 sahne, yaklaşık ${words} konuşulan kelime. Üç görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
+${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.tr : ""}- 3–5 sahne, yaklaşık ${words} konuşulan kelime. Üç görünür karakter; bir sahnede en fazla ikisi konuşur, yan yana durur ve birlikte görünür.
 - Sonucu GÖSTER, yalnız anlatma: anlatıcının bir sahnede adını andığı karakterler o sahnenin "sahne_duzeni"nde durur ve
   anlatıcı satırı onları "oyun" ile oynatır (kovalama, yakalama, gülme) — anlatıcı başkalarının yaptığını anlatırken baş
-  karakter boş bir sette tek başına durmaz. Final anı da böyle oynanır.
+  karakter boş bir sette tek başına durmaz. Final anı da böyle oynanır. Harita sahnesinde bunu haritadaki rozetleri,
+  pulları ve gemileri oynar.
 - "kelime" ve "bolum" yazı kartı YOK (tam ekran siyah kart akışta kaydırtır); en fazla ilk sahnede bir "yer_tarih".
 - "Ne öğreneceksin" vaadi, sonraki videoya köprü ve abone daveti YOK.
 - Son satır ilk satıra bağlanır: video başa döndüğünde cümle akıp gider (döngü).`,
@@ -172,10 +193,11 @@ YOUTUBE SHORT — this is a VERTICAL video of ${b.hedefSureSn} seconds or less, 
   A visible character on stage says it — NOT the narrator — in the middle of the action, short (8 words at most), with a
   "jest" or an "efekt"; the narrator comes after it. The first scene is a character scene, not a map.
 - Tell ONE moment, not a whole war or a whole life: a single decision, blunder, trick or turn, with its outcome.
-- 2–4 scenes, about ${words} spoken words. Three visible characters; at most two of them speak in a scene, standing side by side and seen together.
+${b.hedefSureSn >= SHORT_SHARES_FROM_S ? SHORT_SHARES.en : ""}- 3–5 scenes, about ${words} spoken words. Three visible characters; at most two of them speak in a scene, standing side by side and seen together.
 - SHOW the outcome, never only tell it: the characters the narrator names in a scene stand in that scene's "sahne_duzeni"
   and the narrator line acts them out with "oyun" (a chase, a capture, a laugh) — never the lead alone on an empty set
-  while the narration tells what others did. The payoff moment is acted the same way.
+  while the narration tells what others did. The payoff moment is acted the same way. In a map scene they act as their
+  badges, tokens and ships on the map.
 - NO "kelime" or "bolum" title card (a full-screen black card makes a feed viewer swipe); at most one "yer_tarih" card on the first scene.
 - NO "what you'll learn" promise, NO bridge to the next video and NO subscribe line.
 - The last line leads back into the first: when the video starts over, the sentence runs on (a loop).`,

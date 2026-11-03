@@ -11,11 +11,11 @@ import { cameraAt, clampView, filmCamera, shakeAt } from "./camera";
 import { DrawnSetBack, DrawnSetFront, InWater, inRiver, riverDepth } from "./DrawnSet";
 import { InfoCardView } from "./InfoCard";
 import { MapHud } from "./MapMarks";
-import { AtlasCorner, badgeAnchor, cameraAt as mapCameraAt, MapView } from "./MapView";
+import { AtlasCorner, badgeAnchor, badgeAt, cameraAt as mapCameraAt, MapView } from "./MapView";
 import { type HeadAnchor, InsertView, NameTag, SpeechBubble, TitleStrip } from "./Overlays";
 import { PropArt } from "./Props";
 import { TitleCard } from "./TitleCard";
-import { type AimX, BODY_PER_HEAD, pairAim, windowAims, windowArrival, windowCentre, windowDeparture } from "./verticalWindow";
+import { type AimX, beatAim, beatAt, BODY_PER_HEAD, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "./verticalWindow";
 
 /** A mounted performer: the horse (walking while the rider's x changes), the rider from the hips up, the near leg. */
 function Rider({ p, s, m, frame, fps, accessories }: { p: V3Performer; s: PerformerState; m: V3CastMember; frame: number; fps: number; accessories: AccessoryIndex }) {
@@ -102,12 +102,12 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   // A badge speaking on the map (MapSpeakers): its place on the map's screen, through the map layer's own transforms —
   // the slow push about the frame's middle, then the set's camera.
   const geo = shot.geoMap;
+  const push = (x: number, y: number) => ({ x: W / 2 + kbZoom * (x + kbX * W - W / 2), y: H / 2 + kbZoom * (y - H / 2) });
+  const onSet = (p: { x: number; y: number }) => ({ x: W / 2 + shake.dx + bgCam.zoom * (p.x - bgCam.cx * W), y: H / 2 + shake.dy + bgCam.zoom * (p.y - bgCam.cy * H) });
   const badgeHeads = new Set<string>();
   for (const b of geo?.badges ?? []) {
     if (!b.talk || heads.has(b.castId) || frame < b.start || (b.end !== undefined && frame >= b.end)) continue;
     const a = badgeAnchor(geo!, b, frame, fps, W, H, shot.duration);
-    const push = (x: number, y: number) => ({ x: W / 2 + kbZoom * (x + kbX * W - W / 2), y: H / 2 + kbZoom * (y - H / 2) });
-    const onSet = (p: { x: number; y: number }) => ({ x: W / 2 + shake.dx + bgCam.zoom * (p.x - bgCam.cx * W), y: H / 2 + shake.dy + bgCam.zoom * (p.y - bgCam.cy * H) });
     const at = onSet(push(a.x, a.top));
     heads.set(b.castId, { x: at.x, top: at.y, r: a.r * kbZoom * bgCam.zoom });
     badgeHeads.add(b.castId);
@@ -119,12 +119,25 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
   const winW = OW / fit;
   const vertical = winW < W - 1;
   let winX = 0;
-  // The window turns to a speaker's words, and to whom the narration acts out (`focus`).
-  const aims = vertical ? windowAims([...(shot.bubbles ?? []), ...(shot.focus ?? [])].filter((b) => heads.has(b.castId)), fps) : [];
+  // The window turns to a speaker's words, and to whom the narration acts out (`focus`); on a map with no one on its
+  // stage, to what happens on the map as well (and back to it after a badge's words).
+  const turns = vertical ? [...(shot.bubbles ?? []), ...(shot.focus ?? [])].filter((b) => heads.has(b.castId)) : [];
+  const onStage = states.some(({ p }) => heads.has(p.castId) && !badgeHeads.has(p.castId));
+  const beats = vertical && geo && !onStage ? mapBeats(geo, fps) : [];
+  const aims = vertical ? withMapBeats(windowAims(turns, fps), beats, turns, fps) : [];
   let aimX: AimX = (id) => (id ? heads.get(id)?.x : undefined) ?? W / 2;
   if (vertical) {
     const actors = states.flatMap(({ p }) => (heads.has(p.castId) && !badgeHeads.has(p.castId) ? [{ id: p.castId, ...heads.get(p.castId)! }] : []));
-    const middle = actors.length ? actors.reduce((a, b) => a + b.x, 0) / actors.length : W / 2;
+    // A map beat's place on the stage now: the map's own camera, then the slow push and the set's camera.
+    const mapCam = geo ? mapCameraAt(geo.camera, frame, fps, W, H) : undefined;
+    const stageX = (wx: number) => (mapCam ? onSet(push(W / 2 + mapCam.zoom * (wx - mapCam.x), 0)).x : wx);
+    // A marching badge is followed where it is now; anything else is framed whole, its end kept in.
+    const beatX = (i: number) => {
+      const b = beats[i]!;
+      const badge = b.badge !== undefined ? geo?.badges?.[b.badge] : undefined;
+      return badge ? stageX(badgeAt(geo!, badge, frame, fps, H, shot.duration).at.x) : beatAim(b.xs.map(stageX), stageX(b.last), winW);
+    };
+    const middle = actors.length ? actors.reduce((a, b) => a + b.x, 0) / actors.length : beats.length ? beatX(beatAt(beats, frame, fps)) : W / 2;
     const restId = shot.lead && !badgeHeads.has(shot.lead) && heads.has(shot.lead) ? shot.lead : undefined;
     // On a speaker (or the resting lead), and the one they talk with beside them when both fit; with no partner, the
     // nearest — a near tie settled by name, so the window never flips between two neighbours as a head turns.
@@ -137,7 +150,7 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
       const nearest = others.filter((a) => Math.abs(a.x - h.x) <= near * 1.1 + 1).sort((a, b) => a.id.localeCompare(b.id))[0];
       return pairAim(h.x, h.r * BODY_PER_HEAD, p ? [p] : nearest ? [nearest] : [], winW);
     };
-    aimX = (id, partner) => (id ? (badgeHeads.has(id) ? heads.get(id)?.x : withPartner(id, partner)) : undefined) ?? withPartner(restId, partner) ?? middle;
+    aimX = (id, partner) => (id?.startsWith(MAP_BEAT_ID) ? beatX(Number(id.slice(MAP_BEAT_ID.length))) : id ? (badgeHeads.has(id) ? heads.get(id)?.x : withPartner(id, partner)) : undefined) ?? withPartner(restId, partner) ?? middle;
     winX = Math.min(W - winW, Math.max(0, windowCentre(aims, frame, fps, aimX) - winW / 2));
   }
   // The part of the map's own picture in the frame (the window's, for a Short).
@@ -177,7 +190,7 @@ export function ShotView({ shot, cast, accessories, language = "tr", stage }: { 
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden" }}>
             {shot.geoMap ? (
               <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `scale(${kbZoom}) translateX(${kbX * W}px)` }}>
-                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} duration={shot.duration} seen={mapVisible} />
+                <MapView map={shot.geoMap} width={W} height={H} cast={cast} accessories={accessories} duration={shot.duration} seen={mapVisible} screen={{ width: OW, height: OH }} />
               </div>
             ) : drawn ? (
               <svg width={W} height={H} style={{ position: "absolute", left: 0, top: 0, overflow: "hidden" }}>

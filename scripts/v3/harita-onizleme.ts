@@ -4,10 +4,11 @@
  * beyni ya da AYAS bir harita anlatımını videodan önce görmek için kullanır; Claude/Codex gerekmez.
  *
  *   npx tsx scripts/v3/harita-onizleme.ts --bolum <episode.json> [--sahne <sahne id>] [--kare <saniye>,…] [--video]
- *        [--dil en|tr] [--dogrula] [--onizleme] [--cikti <klasör>]
+ *        [--dil en|tr] [--dogrula] [--onizleme] [--dikey] [--cikti <klasör>]
  *
  * Satır süreleri kelime sayısından (dakikada ~155 kelime) tahmin edilir. Varsayılan: her satırın sonuna yakın birer
- * kare (o satırla gelen her şey ekranda). Örnek: content/v3/ornekler/harita-nigbolu-1396.json.
+ * kare (o satırla gelen her şey ekranda). --dikey: Short olarak (1080×1920, haritanın üstünde dikey pencere). Örnek:
+ * content/v3/ornekler/harita-nigbolu-1396.json.
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -24,6 +25,7 @@ import { mapGroundFor } from "../../src/lib/v3/maps/MapGround";
 import { closeSiteLookup, hasCloseMap, prepareCloseMaps } from "../../src/lib/v3/maps/CloseSite";
 import { periodEndYear } from "../../src/lib/v3/backgrounds/HistorySources";
 import { checkEpisodePlaces, wikipediaPlaces } from "../../src/lib/v3/maps/PlaceCheck";
+import { SHORTS_SIZE } from "../../src/lib/v3/render/Format";
 import { PREVIEW_SCALE, renderWithRemotion } from "../../src/lib/v3/render/RemotionRunner";
 import { buildTimeline, DEFAULT_TIMELINE, type LineAudio } from "../../src/lib/v3/timeline/Timeline";
 import { splitDirections } from "../../src/lib/v3/tts/StageDirections";
@@ -105,6 +107,7 @@ async function main() {
     height: 1080,
     showCaptions: false,
     endCard: false,
+    ...(process.argv.includes("--dikey") ? { output: SHORTS_SIZE } : {}),
   });
   const planFile = path.join(out, "plan.json");
   await fs.writeFile(planFile, JSON.stringify({ plan }));

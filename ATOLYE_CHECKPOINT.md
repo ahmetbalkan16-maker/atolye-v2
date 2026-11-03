@@ -1,3 +1,48 @@
+## 3 Kasım 2026 (akşam, 5) — Short'lar ~%70 haritada (DFT Tarih Shorts incelemesi); dikey pencere haritadaki olayı izler; buton taraması kalıcı skill
+
+**Owner:** "videoyu elle yükledim, kanal adını İngilizce yaptım; diğer öneriyi kalıcı skill olarak entegre et; önceki
+oturumun değişiklikleri geliştirici beynine ders olarak işlendi mi; Short oluşturmaya sistem hazır mı" + sıraya:
+"uzun videodaki harita/yakın çekim karakter oranını (örneğin %70 harita) Shorts'a uyarla, daha önce gönderdiğim tarih
+kanalının Shorts'larına bak" + "bu incelemeleri gerekli beyinlere deneyim olarak ekle".
+
+- **Yükleme ve kanal:** sipariş `20261103T073447` `yayin: {durum: yayinda, videoId: Q8JW_i5Gt0M, elle: true}` (Kosova'daki
+  gibi; AYAS bir daha yüklemeye çalışmaz). Kanal artık **Crowns & Doodles** (`@CrownsAndDoodles`). Short kanal
+  sekmesinde, 733 izlenme; ama bu ağdan izleme sayfası "This video is unavailable" diyor (aynı yolla eski Short açılıyor)
+  → bölge/telif kısıtı olabilir, owner Studio'da bakacak.
+- **Geliştirici beyni:** son öğrenmesi 02ba2088'deydi (16:14'teki döngü eski yapim.ts ile koştu, `ogren` yoktu).
+  `gelistirici.ts ogren` elle: 0d37f455 okundu (159 değişiklik, 831 içgüdü). f112b7b5 (yalnız `src/components/brain`)
+  ve 44b388a6 (belge) `SEARCH_PATHS` dışında — beyin tasarım gereği yalnız V3 alanını öğrenir.
+- **DFT Tarih Shorts incelemesi** (agent-reach → yt-dlp, 10 Short, 2 sn'de bir kare, Claude sınıfladı): savaş/sefer
+  Short'ları %96–100 harita (Pelekanon 1329, 1,3 M: %12 dış + %87 yakın savaş haritası, karakterler haritada konuşan
+  rozet), "Sen sor" Short'ları %33–67 harita + resim + kart; karakter yakın çekimi ağırlıklı ikisi (%57–85) kanalın en
+  az izlenenleri (34 B, 187 B). Görüntü-ağırlıklı izlenme ortalaması ~%65 harita.
+- **Short payları (owner'ın %70 örneği):** `MapRules.SHORT_MAP_SHARE` 0,55–0,85 (hedef 0,70), `shareProblems(ep, true)`
+  Short'ta harita payını onarım turunda ister (az: "kancadan sonra an haritada…", çok: "kanca ve final karakterle");
+  30 sn altı Short'a sorulmaz (`SHORT_SHARES_FROM_S`). Yazar istemine "SHARES OF A SHORT / SHORT PAYLARI" (kanca
+  sahnesi → geniş harita birkaç sn → yakın harita, rozetten tek cümle → kısa karakter finali), "3–5 sahne"; harita
+  sahnesinde "sonucu göster" rozet/pul/gemiyle. QC: `SHORTS_PICTURE_SHARE_TARGET` (harita 55–85, çöp adam 15–45,
+  görsel ≤10) Short'ta artık denetlenir.
+- **Dikey pencere haritada** (`verticalWindow.mapBeats/beatAim/beatAt/withMapBeats`): konuşan yokken pencere haritanın
+  ortasında duruyordu; artık son olaya kayar (ok, ordu/gemi çıkış + 4,5 sn sonra varış, savaş, birlik hareketi/kaybı,
+  vurgu, çatışma, gedik, fetih), yürüyen rozeti `badgeAt` ile birebir izler, rozet konuşurken bekler. Kosova yürüyüşü
+  kamerasız: önce Murad Edirne'de görünmüyordu, şimdi görünür ve yürürken izlenir; yakın savaş haritası değişmedi.
+- **Güç çubuğu Short'ta tarih damgasının altında** ("SERBS" damganın altında kalıyordu): `hudLayout.ts` (BAR_W, barTop,
+  plateWidth, hudBoxes) MapMarks ve MapView'da ortak; MapView yer adı yasak kutularını çıktı karesinden (`screen`)
+  görünen bölgeye çevirir. `harita-onizleme.ts --dikey`.
+- **Beyinlere deneyim:** `_kutuphane/referanslar/` 10 DFT Short kaydı (kare notları, kare payları, kesme ölçümü;
+  konuşma hızı bilerek ölçülmedi — Türkçe kelime hızı İngilizce Short'a hedef olmasın); 5 ders (kurgu 3, kalite 1,
+  araştırma 1; `bolum` "referans DFT Tarih Shorts…"). İndirilen videolar ve kare tabloları silindi.
+- **Kalıcı skill `ayas-ui-audit`** (`.claude/skills/ayas-ui-audit/`, skill-creator ile): `run-audit.mjs` tek komut —
+  ana kopyada ve `.env*` olan kopyada çalışmayı reddeder; `next dev :3210`, tek kullanımlık anahtar, OpenAI/dayanıklı
+  yürütme/otonom yürütme boş, kendi geçici `ATOLYE_RUNTIME_ROOT` + yetki kökü (boş kök geçersiz sayılıyor), V3
+  kayıtlarının geçici kopyası; rotaları `app/` + `BrainPanelId`'den bulur; `--actions`, `--probe`, `--routes`; OZET.md;
+  sonunda sunucuyu kapatır, AGENTS.md'yi geri alır, geçicileri siler.
+- **Short'a hazırlık:** OpenAI 1 jetonluk deneme 200, Ollama açık, GPU 61 °C, D: 669 GB boş, kuyrukta iş yok, sipariş
+  izleyici çalışıyor (yeni kod üretimde ayrı süreçte yüklenir; yeniden başlatma gerekmez).
+
+**Doğrulama:** 16 `smoke-v3-*` PASS (episode-director 57: W2 harita olayları/pencere/HUD kutuları + O15 Short payları;
+script 26: Short istemi, M/L senaryoları yeni pay turuna göre); tsc 0; dikey önizleme önce/sonra kareleriyle kontrol.
+
 ## 3 Kasım 2026 (akşam, 4) — AYAS buton taraması; Uyandırma Laboratuvarı hidrasyon hatası düzeltildi; günün emirleri kontrol edildi
 
 **Owner:** "ayasa bak bütün butonlar çalışıyor mu, ana sayfaya başka gereksiz geliştirme gelmesin, ana sayfa dolmasın,

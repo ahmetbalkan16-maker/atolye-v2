@@ -4,7 +4,7 @@ import { countWords, type EpisodeValidation, validateEpisode } from "../episode/
 import { isShorts } from "../render/Format";
 import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { normalizeDraft } from "./DraftNormalizer";
-import { directBattleMaps, livenStillMaps, mapProblems, shareProblems } from "./MapRules";
+import { directBattleMaps, livenStillMaps, mapProblems, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
 import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
@@ -274,6 +274,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   const first = await budget.generate("senaryo", input.writer, writingPrompt(brief, input.catalog), opts);
   if (first.result.refused) throw new ScriptError("V3_SCRIPT_REFUSED", "model senaryoyu yazmayı reddetti");
   const writerUsed = first.used;
+  // A Short of half a minute or more is asked its own shares (map ~70%); a shorter one is not asked any.
+  const shortShares = isShorts(brief.hedefSureSn) && brief.hedefSureSn >= SHORT_SHARES_FROM_S;
   // `problems` make a script unusable; `quality` (the map rules) is asked for in the same repair rounds, but a script
   // that is valid is never lost over it.
   const check = (text: string): { value?: unknown; validation?: EpisodeValidation; problems: string[]; quality: string[] } => {
@@ -284,8 +286,8 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const validation = validateEpisode(value);
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
-    // 2026 told 3 minutes in six character scenes and three still maps); under 90 s they are not.
-    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode), ...crowdProblems(value, isShorts(brief.hedefSureSn))] };
+    // 2026 told 3 minutes in six character scenes and three still maps); a Short is asked its own (~70% map).
+    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode, shortShares), ...crowdProblems(value, isShorts(brief.hedefSureSn))] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -335,7 +337,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written).length + shareProblems(written).length + crowdProblems(written, isShorts(brief.hedefSureSn)).length;
+    const before = mapProblems(written).length + shareProblems(written, shortShares).length + crowdProblems(written, isShorts(brief.hedefSureSn)).length;
     if (revised.quality.length > before) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
       continue;

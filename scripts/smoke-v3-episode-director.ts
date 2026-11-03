@@ -17,7 +17,7 @@ import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
 import { autoSlots, BODY_HALF, beats, buildRenderPlan, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
-import type { V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
+import type { V3GeoMap, V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
@@ -35,7 +35,8 @@ import { CLOSE_MIN_ZOOM_KM, MIN_ZOOM_KM, withRouteZoom, zoomOnShortRoutes } from
 import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../src/lib/v3/maps/AdminUnits";
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
-import { pairAim, windowAims, windowArrival, windowCentre, windowDeparture } from "../remotion-v3/src/scene/verticalWindow";
+import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
+import { barTop, hudBoxes } from "../remotion-v3/src/scene/hudLayout";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -976,6 +977,10 @@ async function main() {
     assert.ok(shareProblems({ ...episode, sahneler: [sized({ ...map, ara_goruntu_satir: undefined }, 100), sized(stage, 20)] }).some((p) => p.includes('no map scene marks "ara_goruntu_satir"')));
     assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 100), sized(stage, 20)] }), []);
     assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }), [], "a short video is told on the stage freely");
+    // A Short (owner, 3 Nov 2026, after DFT Tarih's Shorts): ~70% on the map, the hook and the payoff with the figures.
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 20), sized(stage, 40)] }, true).some((p) => p.includes("map scenes take 33% of this Short") && p.includes("SHARES OF A SHORT")));
+    assert.deepEqual(shareProblems({ ...episode, sahneler: [sized(stage, 10), sized(map, 35), sized(stage, 7)] }, true), [], "a hook, the map, a payoff");
+    assert.ok(shareProblems({ ...episode, sahneler: [sized(map, 58), sized(stage, 2)] }, true)[0]!.includes("keep the hook and the payoff"));
     // Validation: the marked line must be one of the scene's.
     assert.equal(validateEpisode(episode).ok, true, JSON.stringify(validateEpisode(episode).errors.slice(0, 2)));
     assert.equal(validateEpisode({ ...episode, sahneler: [{ ...map, ara_goruntu_satir: 3 }, stage] }).ok, false);
@@ -1918,6 +1923,61 @@ async function main() {
     assert.deepEqual(talk.map((a) => [a.castId ?? "-", a.partner ?? "-"]), [["-", "a"], ["a", "b"], ["b", "a"], ["-", "b"]]);
     assert.deepEqual(short.focus?.map((x) => [x.castId, x.start >= ns, x.end === ne]), [["mehmed", true, true]]);
     assert.equal(wide.focus, undefined);
+  });
+
+  await scenario("W2 a Short told on the map (owner, 3 Nov 2026: ~70% map after DFT Tarih's Shorts): the window follows the map's beats, waits while a badge speaks, the strength bar clears the date stamp", () => {
+    const fps = 30;
+    const winW = 1080 / (1920 / 1080);
+    const map = {
+      arrows: [{ points: [{ x: 100, y: 500 }, { x: 1700, y: 500 }], color: "#c00", start: 30 }],
+      armies: [{ x: 1500, y: 300, label: "Caesar", color: "#c00", start: 0, path: [{ x: 1800, y: 300 }], moveStart: 90 }],
+      battles: [{ x: 300, y: 700, label: "Pharmacusa", start: 150 }],
+      units: [{ side: "pirates", color: "#333", emblem: "", steps: [{ start: 0, points: [{ x: 900, y: 600 }], alive: 1 }, { start: 200, points: [{ x: 1000, y: 600 }], alive: 1 }] }],
+      fights: [{ start: 240, durationS: 2 }],
+      // A still badge from the first frame; a marching one from the arrow's line on.
+      badges: [{ castId: "caesar", label: "Caesar", start: 0, path: [{ x: 1400, y: 300 }] }, { castId: "pirate", label: "Pirate", start: 30, path: [{ x: 200, y: 400 }, { x: 600, y: 400 }] }],
+      territories: [],
+    } as unknown as V3GeoMap;
+    const beats = mapBeats(map, fps);
+    // The army sets out at 90 and is shown arriving 4.5 s later (225); everything else when it starts.
+    assert.deepEqual(beats.map((b) => b.frame), [0, 30, 90, 150, 200, 225, 240]);
+    // The first beat holds what stands there from the start (the army, the badge and the tokens, merged within 0.3 s).
+    assert.deepEqual([...beats[0]!.xs].sort((a, b) => a - b), [900, 1400, 1500]);
+    assert.equal(beats[0]!.badge, undefined, "a still badge is a place, not followed");
+    assert.equal(beats[1]!.last, 600, "the latest of a merged beat ends it: the pirate's march");
+    assert.equal(beats[1]!.badge, 1, "a marching badge is followed");
+    assert.deepEqual([beats[2]!.last, beats[5]!.last], [1500, 1800], "an army is seen setting out, then arriving");
+    // A long arrow: seen arriving — its head stays inside the window.
+    const aim = beatAim([100, 1700], 1700, winW);
+    assert.ok(Math.abs(aim - 1700) < winW / 2 && aim < 1700, String(aim));
+    assert.equal(beatAim([900, 1000], 1000, winW), 950, "a short move is centred");
+    assert.equal(beatAt(beats, 0, fps), 0);
+    assert.equal(beatAt(beats, 160, fps), 3);
+    assert.equal(beatAt(beats, 10_000, fps), beats.length - 1);
+    // A badge speaking from 140 to 200: the battle (150), the move (200) and the arrival (225) wait; the fight (240) is
+    // followed; after the words the window comes back to the map (a rest aim, resolved to the latest beat).
+    const turns = [{ castId: "caesar", start: 140, end: 200 }];
+    const aims = withMapBeats(windowAims(turns, fps), beats, turns, fps);
+    const ids = aims.map((a) => a.castId ?? "-");
+    assert.deepEqual(ids, ["-", `${MAP_BEAT_ID}0`, `${MAP_BEAT_ID}1`, `${MAP_BEAT_ID}2`, "caesar", "-", `${MAP_BEAT_ID}6`]);
+    assert.ok(aims.slice(1).every((a, i) => a.frame >= aims[i]!.frame), "in time order");
+    const xs = beats.map((b) => beatAim(b.xs, b.last, winW));
+    const xOf = (frame: number) => (id: string | undefined) => (id?.startsWith(MAP_BEAT_ID) ? xs[Number(id.slice(MAP_BEAT_ID.length))]! : id === "caesar" ? 1400 : xs[beatAt(beats, frame, fps)]!);
+    const at = (frame: number) => windowCentre(aims, frame, fps, xOf(frame));
+    assert.equal(at(170), 1400, "on the speaker while the badge speaks");
+    assert.equal(at(230), xs[5], "back on the map after the words: the latest beat, the army arriving");
+    assert.equal(at(300), xs[6], "the fight");
+    // No beats: the aims are the speakers' alone.
+    assert.deepEqual(withMapBeats(windowAims(turns, fps), [], turns, fps), windowAims(turns, fps));
+
+    // The strength bar and the date stamp: side by side on the wide frame, the bar under the stamp on a Short's.
+    const marks = { dates: [{ start: 0, text: "June 1389" }], strength: [{ start: 0, sides: [{ label: "Ottomans", color: "#3a3", count: "30,000", value: 30_000 }, { label: "Serbs", color: "#35b", count: "25,000", value: 25_000 }] }] } as unknown as V3GeoMap;
+    const overlap = (a: { x0: number; y0: number; x1: number; y1: number }, b: typeof a) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    const [wideDate, wideBar] = hudBoxes(marks, 10, 1920, 1080);
+    assert.deepEqual([wideBar!.y1, overlap(wideDate!, wideBar!)], [150, false], "the 16:9 frame as before");
+    const [tallDate, tallBar] = hudBoxes(marks, 10, 1080, 1920);
+    assert.ok(tallBar!.y0 === 0 && barTop(1080, 1920) * 1 > tallDate!.y1 - 1, "the bar's top under the stamp");
+    assert.ok(overlap(tallDate!, tallBar!), "their boxes meet: names are kept from under both");
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

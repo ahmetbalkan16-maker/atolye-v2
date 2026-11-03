@@ -1,3 +1,4 @@
+import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { easeInOut } from "../character/rig";
 
 /**
@@ -116,4 +117,125 @@ export function windowArrival(aims: readonly WindowAim[], castId: string, frame:
   const aim = aims[i]!;
   if (i === 0 || aim.castId !== castId || Math.abs(xOf(aims[i - 1]!.castId, aims[i - 1]!.partner) - xOf(aim.castId, aim.partner)) < 2) return frame;
   return Math.max(frame, aim.frame + Math.round(fps * WINDOW_PAN_S));
+}
+
+/**
+ * Something happening on a map from `frame` on (world x of the points it covers; `last`: where it ends — an arrow's
+ * head, a march's goal). A Short is told mostly on the map (owner, 3 Nov 2026, after DFT Tarih's Shorts: ~70%), and the
+ * window shows only the middle third of a map held still: it follows these as it follows speakers.
+ */
+export interface MapBeat {
+  readonly frame: number;
+  readonly xs: readonly number[];
+  readonly last: number;
+  /** A ruler's badge (index in `badges`) the window follows from this beat on: it sets out, it marches. */
+  readonly badge?: number;
+}
+
+/** Aims at a map beat carry this id and the beat's index. */
+export const MAP_BEAT_ID = "harita:";
+
+/** Beats closer than this (seconds) are one: two arrows drawn on the same line are shown together. */
+const BEAT_MERGE_S = 0.3;
+
+/**
+ * An army or a ship setting out is shown where it starts, then — after the shortest march (MapView's MARCH_MIN_S) —
+ * where it is going, so it walks into the window.
+ */
+const MOVE_REACH_S = 4.5;
+
+type Pt = { readonly x: number; readonly y: number };
+
+/**
+ * A map's beats in time order: arrows drawn, armies, badges and ships appearing and setting out, ships firing or going
+ * down, battles flaring, lines and siege works growing, a breach, a conquest sweeping, tokens moving, highlighted,
+ * falling or fighting. What stands on the map from its first frame is its first beat: where the window starts.
+ */
+export function mapBeats(map: V3GeoMap, fps: number): MapBeat[] {
+  const raw: { frame: number; points: readonly Pt[]; last?: Pt; badge?: number }[] = [];
+  const add = (frame: number | undefined, points: readonly Pt[], more: { last?: Pt; badge?: number } = {}) => {
+    if (frame !== undefined && Number.isFinite(frame) && points.length) raw.push({ frame, points, ...more });
+  };
+  const setOut = (start: number, from: number | undefined, path: readonly Pt[]) => {
+    add(start, path.slice(0, 1));
+    if (path.length < 2) return;
+    const go = from ?? start;
+    add(go, path, { last: path[0]! });
+    add(go + Math.round(MOVE_REACH_S * fps), path);
+  };
+  for (const a of map.arrows) add(a.start, a.points);
+  for (const a of map.armies) setOut(a.start, a.moveStart, a.path?.length ? [a, ...a.path] : [a]);
+  (map.badges ?? []).forEach((b, i) => {
+    add(b.start, b.path.slice(0, 1));
+    if (b.path.length > 1) add(b.moveStart ?? b.start, b.path, { badge: i });
+  });
+  for (const v of map.vehicles ?? []) {
+    const end = v.path[v.path.length - 1];
+    setOut(v.start, v.moveStart, v.path);
+    if (v.target && end) add(v.fireStart, [end, v.target]);
+    if (end) add(v.lossStart, [end]);
+  }
+  for (const b of map.battles ?? []) add(b.start, [b]);
+  for (const l of map.lines ?? []) add(l.start, l.points);
+  for (const s of map.siegeLines ?? []) add(s.start, s.points);
+  for (const w of map.close?.walls ?? []) if (w.breach) add(w.breach.start, [w.breach]);
+  for (const t of map.territories) if (t.spread?.length && t.labelX !== undefined && t.labelY !== undefined) add(t.start, [{ x: t.labelX, y: t.labelY }]);
+  // Tokens: a formation in effect at a frame (the last step begun), its moves, losses and highlights; a fight is
+  // everyone's.
+  const units = map.units ?? [];
+  const stepAt = (u: (typeof units)[number], frame: number) => [...u.steps].reverse().find((s) => s.start <= frame) ?? u.steps[0];
+  for (const u of units) {
+    u.steps.forEach((s, i) => {
+      add(s.start, [...(i > 0 ? u.steps[i - 1]!.points : []), ...s.points]);
+      if (s.losses?.length) add(s.start + Math.round(Math.min(...s.losses) * fps), s.points);
+    });
+    for (const h of u.highlights ?? []) add(h.start, stepAt(u, h.start)?.points ?? []);
+  }
+  for (const f of map.fights ?? []) add(f.start, units.flatMap((u) => stepAt(u, f.start)?.points ?? []));
+  raw.sort((a, b) => a.frame - b.frame);
+  // Merged beats: all their points, the end of the latest, the first marching badge (followed).
+  const merged: { frame: number; points: Pt[]; last: Pt; badge?: number }[] = [];
+  for (const r of raw) {
+    const prev = merged[merged.length - 1];
+    const last = r.last ?? r.points[r.points.length - 1]!;
+    if (prev && r.frame - prev.frame <= BEAT_MERGE_S * fps) {
+      prev.points.push(...r.points);
+      prev.last = last;
+      if (prev.badge === undefined && r.badge !== undefined) prev.badge = r.badge;
+    } else merged.push({ frame: r.frame, points: [...r.points], last, ...(r.badge !== undefined ? { badge: r.badge } : {}) });
+  }
+  return merged.map((m) => ({ frame: m.frame, xs: m.points.map((p) => p.x), last: m.last.x, ...(m.badge !== undefined ? { badge: m.badge } : {}) }));
+}
+
+/**
+ * Where the window centres for a beat (stage x): the middle of what it covers, but never so far that its end (`last`)
+ * leaves the window — a long arrow is seen arriving.
+ */
+export function beatAim(xs: readonly number[], last: number, winW: number): number {
+  const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const reach = winW * 0.38;
+  return Math.min(last + reach, Math.max(last - reach, mid));
+}
+
+/** The latest beat begun by `frame` (with the window's lead), else the first: where the window rests on a map. */
+export function beatAt(beats: readonly MapBeat[], frame: number, fps: number): number {
+  const lead = Math.round(fps * WINDOW_LEAD_S);
+  let i = 0;
+  while (i + 1 < beats.length && beats[i + 1]!.frame - lead <= frame) i++;
+  return i;
+}
+
+/**
+ * A map shot's aims: its speakers' (badges with a bubble) and its beats. A beat while a badge speaks — or in the pause
+ * after — waits: the window stays on the words, and comes back to the map afterwards (to its latest beat).
+ */
+export function withMapBeats(aims: readonly WindowAim[], beats: readonly MapBeat[], turns: readonly WindowTurn[], fps: number): WindowAim[] {
+  if (!beats.length || !aims.length) return [...aims];
+  const lead = Math.round(fps * WINDOW_LEAD_S);
+  const rest = Math.round(fps * WINDOW_REST_S);
+  const busy = (f: number) => turns.some((t) => f >= t.start - lead && f < t.end + rest);
+  const isBeat = (a: WindowAim) => (a.castId?.startsWith(MAP_BEAT_ID) ? 0 : 1);
+  const beatAims = beats.flatMap((b, i): WindowAim[] => (busy(b.frame) ? [] : [{ frame: b.frame - lead, castId: `${MAP_BEAT_ID}${i}` }]));
+  // On the same frame a speaker wins (the later aim is the one held).
+  return [aims[0]!, ...[...aims.slice(1), ...beatAims].sort((a, b) => a.frame - b.frame || isBeat(a) - isBeat(b))];
 }

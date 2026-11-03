@@ -3,6 +3,7 @@ import { Easing, interpolate, spring } from "remotion";
 import type { V3GeoMap } from "../../../src/lib/v3/render/RenderPlanTypes";
 import { INK } from "../character/rig";
 import { yer } from "./LayoutProbe";
+import { BAR_W, barTop, plateWidth } from "./hudLayout";
 
 /**
  * Marks over the living map (owner, 23 Oct 2026, after DFT Tarih's Belgrade 1521): white flags of surrender, flames over
@@ -199,10 +200,10 @@ function StrengthBar({ list, frame, fps, W, H }: { list: readonly Strength[]; fr
   // Each side keeps at least a sliver of the bar, so 80,000 against 7,000 still shows both colours.
   const share = (s: Strength) => Math.min(0.92, Math.max(0.08, s.sides[0].value / Math.max(1, s.sides[0].value + s.sides[1].value)));
   const split = prev ? share(prev) + (share(cur) - share(prev)) * move : share(cur);
-  const width = 860 * u;
+  const width = BAR_W * u;
   const barH = 30 * u;
   const x0 = (W - width) / 2;
-  const top = 66 * u;
+  const top = barTop(W, H) * u;
   const mid = x0 + width * split;
   const number = (side: 0 | 1) => {
     const to = cur.sides[side];
@@ -245,7 +246,7 @@ function DateStamp({ dates, frame, fps, W, H }: { dates: NonNullable<V3GeoMap["d
   const prev = i > 0 ? dates[i - 1] : undefined;
   const leave = prev ? interpolate(frame - cur.start, [0, Math.round(fps * 0.35)], [1, 0], { extrapolateRight: "clamp" }) : 0;
   const plate = (text: string, dy: number, alpha: number, key: string) => {
-    const w = Math.max(150, text.length * 25 + 56) * u;
+    const w = plateWidth(text) * u;
     const x = W - 46 * u - w;
     const y = 30 * u + dy;
     return (

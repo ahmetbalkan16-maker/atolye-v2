@@ -553,6 +553,9 @@ export function longestEmptyStretch(plan: V3RenderPlan): number {
 /** The owner's shares for a long video (23 Oct 2026): map about 75–80%, stick figures about 15%, period pictures 6–10%. */
 export const PICTURE_SHARE_TARGET = { harita: [0.72, 0.84], sahne: [0.1, 0.2], gorsel: [0.06, 0.1] } as const;
 
+/** A Short's (owner, 3 Nov 2026, after DFT Tarih's Shorts; MapRules.SHORT_MAP_SHARE): map ~70%, stick figures ~30%. */
+export const SHORTS_PICTURE_SHARE_TARGET = { harita: [0.55, 0.85], sahne: [0.15, 0.45], gorsel: [0, 0.1] } as const;
+
 /**
  * How the finished video divides between the map, the stage (the stick figures' scenes) and period pictures (cutaways,
  * and a scene that is one picture), as shares of its running time; the opening cover is left out.

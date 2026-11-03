@@ -170,16 +170,36 @@ function mapLives(h: SceneMap): boolean {
 }
 
 /**
+ * A Short's map share (owner, 3 Nov 2026: "like the long video, ~70% map, the rest the characters' close-ups — look at
+ * DFT Tarih's Shorts"). Ten of them, frame by frame: the battle and campaign Shorts 96–100% map (Pelekanon 1329, 1.3M
+ * views: 12% wide map, 87% close battle map, people speaking as badges), the question Shorts 33–67% map; the two built on
+ * character close-ups (74–85%) were the channel's least watched. Our stick figures carry the hook and the payoff.
+ */
+export const SHORT_MAP_SHARE = { min: 0.55, aim: 0.7, max: 0.85 } as const;
+
+/** A Short shorter than this is one scene and a punchline: no room for a hook, a map and a payoff, so no shares. */
+export const SHORT_SHARES_FROM_S = 30;
+
+/**
  * The owner's shares for a long video (23 Oct 2026, after DFT Tarih): ~75–80% map, ~15% stick figures, 6–10% period
  * pictures. Asked of each chapter of a long episode (two minutes or so): too much of it on the stage, or a mostly-map
- * chapter with no picture moment marked.
+ * chapter with no picture moment marked. A Short (`shorts`) is asked its own share (SHORT_MAP_SHARE).
  */
-export function shareProblems(episode: Episode): string[] {
+export function shareProblems(episode: Episode, shorts = false): string[] {
   const scenes = Array.isArray(episode?.sahneler) ? episode.sahneler : [];
   const total = scenes.reduce((a, s) => a + (s.sure_hedef ?? 0), 0);
-  if (total < 90) return [];
   const map = scenes.filter((s) => s.harita?.merkez);
   const onStage = total - map.reduce((a, s) => a + (s.sure_hedef ?? 0), 0);
+  if (shorts) {
+    if (total <= 0) return [];
+    const share = 1 - onStage / total;
+    const pct = Math.round(share * 100);
+    const aim = Math.round(SHORT_MAP_SHARE.aim * 100);
+    if (share < SHORT_MAP_SHARE.min) return [`map scenes take ${pct}% of this Short (aim ~${aim}%): after the character hook, tell the moment on the map — a few seconds of the wider map for where it happens, then the close map where it happens (ships sail, tokens close in and fall, arrows strike, line by line; a character's quip from their badge) — and keep one short character scene for the payoff — SHARES OF A SHORT`];
+    if (share > SHORT_MAP_SHARE.max) return [`map scenes take ${pct}% of this Short (aim ~${aim}%): keep the hook and the payoff as character scenes — the stick figures carry about ${100 - aim}% of a Short — SHARES OF A SHORT`];
+    return [];
+  }
+  if (total < 90) return [];
   const out: string[] = [];
   if (onStage / total > 0.35) out.push(`character scenes take ${Math.round((onStage / total) * 100)}% of this part (aim ~15%): tell more of it on the map — the march, the camp, the battle line by line on the close map — and keep one short character scene for the council, the quarrel or the reaction — SHARES OF A LONG VIDEO`);
   if (map.length && !map.some((s) => s.ara_goruntu_satir !== undefined)) out.push(`no map scene marks "ara_goruntu_satir": give one map scene the line whose moment gets its period picture (and its "arka_plan_sorgusu" for that picture) — PERIOD IMAGES`);
