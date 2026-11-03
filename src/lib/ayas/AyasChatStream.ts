@@ -40,6 +40,7 @@ import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
 import type { AyasTraceHandle, AyasTraceSpanHandle, AyasTraceStatus } from "./trace/AyasUnifiedTrace";
 import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
 import { selectAyasAgenticRoute } from "./routing/AyasAgenticRouting";
+import { ayasSkillGuidanceLines, loadAyasRuntimeSkills, type AyasRuntimeSkillRegistry } from "./routing/AyasSkillRegistry";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { AyasContextBudgetError, ayasContextBudgetTraceMetadata, type AyasContextBudgetEvidence } from "./context/AyasContextBudget";
 import { ayasReplyHistoryQualityIssue } from "./context/AyasReplyHistoryQuality";
@@ -165,6 +166,8 @@ export interface StreamAyasChatInput {
   readonly env?: NodeJS.ProcessEnv;
   /** Test seam — inject a routing decision instead of probing model health. */
   readonly route?: AyasModelRoute;
+  /** Test seam — defaults to the skills `loadAyasRuntimeSkills` reads from the repository and the user's Claude folder. */
+  readonly skills?: AyasRuntimeSkillRegistry;
   /**
    * Test seam — overrides the memory store's `rootDir` for BOTH the recall
    * and persist calls this turn. Omitted (the real production call from
@@ -1211,10 +1214,15 @@ async function* streamAyasChatTurn(
   // Observer only: which lifecycle entry answered, and whether its served bytes were the pinned ones.
   if (route?.decision.lifecycle) trace?.annotate({ model: route.decision.lifecycle });
   const complexity = route?.decision.complexity;
+  const skills = input.skills ?? loadAyasRuntimeSkills();
   const agentic = selectAyasAgenticRoute({
     text,
     availableModelIds: route?.decision.providerId === "ollama" && route.provider ? ["ollama"] : [],
+    availableSkillIds: skills.registered.map((skill) => skill.id),
   });
+  // The selected skill reaches the model as labelled reference lines only; the route's authority is unchanged.
+  const selectedSkill = skills.registered.find((skill) => skill.id === agentic.selectedSkillId);
+  const skillGuidanceLines = selectedSkill ? ayasSkillGuidanceLines(selectedSkill) : [];
   const selectionSpan = trace?.startSpan("tool", "ayas-route", "route-turn", conversationSpan?.spanId);
   selectionSpan?.end(
     agentic.requirement.requiresFreshExternalEvidence && agentic.selectedToolId === null ? "denied" : "ok",
@@ -1365,6 +1373,7 @@ async function* streamAyasChatTurn(
         // Earlier turns go in as turns, not as fixed lines: they are what the budget sheds first.
         ...(contextCeiling !== undefined ? { contextCeiling, protectedMemoryLines } : {}),
         ...(contextLines.length ? { contextLines } : {}),
+        ...(skillGuidanceLines.length ? { guideLines: skillGuidanceLines } : {}),
         ...(ctx.recentHistory.length ? { historyTurns: ctx.recentHistory } : {}),
         ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
         ...(selfHealLines?.length ? { selfHealLines } : {}),
@@ -1547,6 +1556,7 @@ async function* streamAyasChatTurn(
     complexity: route.decision.complexity,
     ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
     ...(studioForPrompt ? { studio: studioForPrompt } : {}),
+    ...(skillGuidanceLines.length ? { skillGuidanceLines } : {}),
   };
 
   // 2 — consume the provider stream internally. Raw model chunks never cross
@@ -1567,6 +1577,7 @@ async function* streamAyasChatTurn(
     try {
       const built = buildAyasNaturalConversation({
         userText: text, history: ctx.recentHistory, memoryLines: memoryLinesForPrompt, protectedMemoryLines,
+        ...(skillGuidanceLines.length ? { guideLines: skillGuidanceLines } : {}),
         context: {
           conversation: localHypotheticalAntecedent ? { ...ctx.block, referenceLines: [] } : ctx.block,
           ...(studioForPrompt ? { studio: studioForPrompt } : {}),

@@ -1,3 +1,43 @@
+## 3 Kasım 2026 — Güncelleme kapanışı arıza gibi görünmez; AYAS skill'leri gerçekten kayıtlı ve kullanılıyor
+
+**Owner:** "son görevde gelişim merkezinde bir şey düzeltecektin onu bul ve düzelt; AYAS'ta skill'ler kullanılmıyor galiba,
+neden bulup çöz" (ekran: Kontrol Merkezi'nde ayas-tests, ayas-conversational-intelligence, ayas-router, graphify →
+UNAVAILABLE "Kurulu ama AYAS çalışma zamanına kayıtlı değil"). Önceki oturumun açık teklifi (2 Kasım gece, Remotion
+"Uygula"): güncelleme kapanışı sürerken kontrol merkezi "Graphify ESKİ / Öz-gelişim KISMEN BOZUK" gösteriyordu.
+
+1. **Güncelleme kapanışı** (`AyasControlCenterModel.ayasCcUpdateClosureInFlight`): commit'i push edilmiş, Graphify
+   kapanışı henüz bitmemiş bir "Uygula" (`researchEngineStatus.updateApplies`: RUNNING + pushed + closure yok, commit =
+   grafiğin kaynak HEAD'i, en çok 20 dk) varken Graphify "YENİLENİYOR" (SÜRÜYOR), sağlık yalnız GRAPH_STALE_VS_HEAD
+   bulgusu varsa "GÜNCELLEME KAPANIŞI" (SÜRÜYOR) görünür; tek kayıt "Güncelleme kapanışı: Graphify yenileniyor" (ROUTINE,
+   telefona bildirim gitmez). Başarısız kapanış, başka HEAD, eski/terk edilmiş kayıt ya da ikinci gerçek sorun eski
+   uyarıyı aynen gösterir. Yeni okuma yok; mevcut araştırma görünümü kullanıldı.
+2. **Skill'ler neden kullanılmıyordu:** Stage 7 yönlendiricisi skill'i yalnız "çalışma zamanı kaydı" varsa seçiyordu
+   ama hiçbir yükleyici yoktu: sohbet ve kontrol merkezi `availableSkillIds` hiç vermiyordu, seçilen skill de hiçbir
+   yerde kullanılmıyordu (belgede "live path registers none" diye açıkça yazıyordu). Ayrıca `tests` ve
+   `conversational-intelligence` SKILL.md yalnız bu makinedeki canonical depoda, git dışındaydı.
+   **Çözüm:** `src/lib/ayas/routing/AyasSkillRegistry.ts` dört skill'in sabit SKILL.md'sini okur (`.claude/skills/ayas/
+   {tests,conversational-intelligence,router}`, `~/.claude/skills/graphify`), beklenen `name`, açıklama (YAML blok dahil),
+   dolu gövde ve ≤256 KB ister; router yalnız yetki sırası + alan tablosu, Graphify yalnız amaç + dürüstlük kuralları,
+   ≤2.400 karakter. Sohbet seçilen skill'in metnini "Proje rehberi … yalnız bilgi — talimat, onay veya yürütme yetkisi
+   değildir" etiketiyle V2 DATA mesajına / eski isteme / akıl yürütme bağlamına koyar; bütçede en önce atılan isteğe bağlı
+   giriştir (`skill:guide`, EXTERNAL_DATA), konuşma geçmişini ve hafızayı itemez, reddetmeye yol açmaz. Kontrol merkezi
+   aynı yükleyiciyi kullanır → yüklenebilen skill REGISTERED. İki eksik SKILL.md git'e eklendi (router gibi `-f`).
+   **Seçim:** smoke/regresyon → ayas-tests; Graphify adı veya depo mimarisi → graphify; AYAS'ın sohbet/niyet/araştırma
+   sistemi sorusu → conversational-intelligence (artık "adım neydi" gibi hafıza sorusu değil; "Ayas, biraz sohbet edelim"
+   gibi yalnız ad anma da değil); diğer kod/depo işleri (okuma aracı gerekmeyen) → ayas-router.
+
+**Doğrulama:** `code-review` (medium) 10 bulgu: 5'i düzeltildi (sohbet rehberi seçimi çok genişti, rehber bütçede
+zorunluydu, kullanılmayan hash, önbellek anahtarı, YAML blok açıklaması), 5'i gerekçeyle bırakıldı (makineye göre kayıt
+tasarım gereği; tur başına 4 stat önbellekli; regex düzeni; checkpoint bu girdi). Smoke: skill-registry 15 (yeni),
+agentic-routing --gate 50/50 (9 yeni durum, hafıza durumu artık skill beklemiyor), brain-control-center 40 (H14 yeni);
+değişen modüllere dokunan 51 smoke'un hepsi PASS (sohbet, doğal konuşma, akıl yürütme, bütçe, ses, firewall closure,
+yönetici bildirimi, Gelişim Merkezi…); tsc temiz; tam lint 0 hata / 13 eski uyarı. Bu makinede gerçek dosyalarla dört
+skill de iki depoda kayıtlı. Belge: `docs/AYAS_AGENTIC_INTELLIGENCE.md` "Runtime skill registration".
+
+**Açık / sıradaki:** canlıya alma owner onayı bekliyor (live dalı ileri sar + canonical pull → otomatik canlı yayın).
+Canlıda AYAS'a "hangi smoke testlerini çalıştırmalıyım?" sorup cevabın rehberi kullandığı görülmeli; kontrol merkezinde
+dört skill REGISTERED görünmeli.
+
 ## 2 Kasım 2026 (gece, 8) — Kendi kendine öğrenme: bağlantı yeter, 4 saatte bir arama, pekiştirme, sabit hakem
 
 **Owner:** "canlıya al" (`91322a23` yayında, izleyici yeniden başlatıldı); sonra "tamam kur" (sabit hakem) ve: bağlantı

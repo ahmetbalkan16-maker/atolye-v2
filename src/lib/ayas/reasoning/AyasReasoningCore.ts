@@ -17,9 +17,11 @@
  */
 
 import {
+  AYAS_SKILL_GUIDE_CONTEXT_ID,
   AyasContextBudgetError,
   ayasHistoryContextCandidates,
   ayasMemoryContextCandidates,
+  ayasSkillGuideContextCandidates,
   buildBudgetedAyasPrompt,
   type AyasContextBudgetEvidence,
 } from "../context/AyasContextBudget";
@@ -58,6 +60,8 @@ export interface RunAyasReasoningInput {
   readonly complexity: AyasChatComplexity;
   readonly provider: AyasModelProvider;
   readonly contextLines?: readonly string[];
+  /** The selected skill's reference lines, rendered after `contextLines`; the first thing the budget sheds. */
+  readonly guideLines?: readonly string[];
   readonly memoryLines?: readonly string[];
   readonly selfHealLines?: readonly string[];
   readonly signal?: AbortSignal;
@@ -101,8 +105,8 @@ export function buildAyasReasoningTrace(result: AyasReasoningResult): AyasReason
 export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<RunAyasReasoningOutcome> {
   const turns = input.historyTurns ?? [];
   const memory = input.memoryLines ?? [];
-  const render = (keptTurns: typeof turns, keptMemory: readonly string[]) => {
-    const contextLines = [...(input.contextLines ?? []), ...(keptTurns.length ? [RECENT_TURNS_HEADING, ...keptTurns.map(reasoningTurnLine)] : [])];
+  const render = (keptTurns: typeof turns, keptMemory: readonly string[], keepGuide = true) => {
+    const contextLines = [...(input.contextLines ?? []), ...(keepGuide ? input.guideLines ?? [] : []), ...(keptTurns.length ? [RECENT_TURNS_HEADING, ...keptTurns.map(reasoningTurnLine)] : [])];
     return buildAyasReasoningPrompt({
       userText: input.userText,
       complexity: input.complexity,
@@ -122,11 +126,12 @@ export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<Ru
       const budgeted = buildBudgetedAyasPrompt({
         ceiling: input.contextCeiling,
         outputReserve: REASONING_MAX_TOKENS,
-        candidates: [...ayasHistoryContextCandidates(turns, reasoningTurnLine), ...ayasMemoryContextCandidates(memory, protectedMemory)],
+        candidates: [...ayasHistoryContextCandidates(turns, reasoningTurnLine), ...ayasMemoryContextCandidates(memory, protectedMemory), ...ayasSkillGuideContextCandidates(input.guideLines)],
         render: (selected) =>
           render(
             turns.filter((_, index) => selected.has(`history:${index}`)),
             memory.filter((line, index) => protectedMemory.has(line) || selected.has(`memory:${index}`)),
+            selected.has(AYAS_SKILL_GUIDE_CONTEXT_ID),
           ),
       });
       prompt = budgeted.prompt;

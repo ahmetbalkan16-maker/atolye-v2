@@ -755,6 +755,33 @@ async function main(): Promise<void> {
     assert.notEqual(d.statusLabel, "TEMİZ · EŞİT");
   });
 
+  await scenario("held-out", "H14", "update closure: stale graph after a pushed 'Uygula' reads as in progress, never as broken; a failed, foreign or old closure keeps the warning", async () => {
+    const base = await healthyServer();
+    const server = withServer(base, {
+      graphify: ok({ ...valueOf(base.graphify), classification: "GRAPH_STALE", structuralStatus: "STALE", lastAnalyzedHead: OLD_HEAD, structuralReasons: ["HEAD_MOVED"], recoveryCommand: "graphify update --scope all --no-description --no-label .", nextAction: "Run the refresh." }) as Server["graphify"],
+      health: ok({ ...valueOf(base.health), verdict: "DEGRADED", findings: [{ code: "GRAPH_STALE_VS_HEAD", severity: "WARN", subject: "graph", message: "graph-dependent discovery is paused" }] }) as Server["health"],
+    });
+    const apply = { schemaVersion: 1 as const, applyId: "ayas-update-apply-run-x", applyDecisionId: "d", trialId: "t", sourceId: "remotion", toolName: "Remotion", installedVersion: "4.0.536", targetVersion: "4.0.538", baseHead: OLD_HEAD, status: "RUNNING" as const, startedAt: minutesAgo(2), commitSha: HEAD, pushed: true, livePending: true };
+    const withApplies = (applies: readonly (typeof apply & { closure?: { ok: boolean; summary: string } })[]) => ({ ...healthyInputs(), researchEngineStatus: { ...healthyInputs().researchEngineStatus!, updateApplies: applies } });
+    const view = build(server, withApplies([apply]));
+    assert.equal(domain(view, "graphify").attention, "IN_PROGRESS");
+    assert.equal(domain(view, "graphify").statusLabel, "YENİLENİYOR");
+    assert.match(domain(view, "graphify").summary, /Remotion 4\.0\.538/);
+    assert.equal(domain(view, "health").attention, "IN_PROGRESS");
+    assert.doesNotMatch(domain(view, "health").statusLabel, /BOZUK/);
+    assert.deepEqual(view.attention.map((entry) => `${entry.level}:${entry.id}`), ["IN_PROGRESS:graphify:update-closure"]);
+    assert.doesNotMatch(renderAttention(server, withApplies([apply])), /KISMEN BOZUK|GRAPH_STALE/);
+    // Anything outside the window stays the real warning.
+    for (const other of [{ ...apply, closure: { ok: false, summary: "graphify failed" } }, { ...apply, commitSha: "c".repeat(40) }, { ...apply, startedAt: minutesAgo(25) }, { ...apply, status: "RECOVERY_REQUIRED" as never }]) {
+      const stale = build(server, withApplies([other]));
+      assert.equal(domain(stale, "graphify").attention, "WARNING");
+      assert.equal(domain(stale, "health").statusLabel, "KISMEN BOZUK");
+    }
+    // A second, real problem is never hidden behind the closure.
+    const twoProblems = withServer(server, { health: ok({ ...valueOf(server.health), findings: [...valueOf(server.health).findings, { code: "OBSERVER_HEARTBEAT_STALE", severity: "WARN", subject: "observer", message: "heartbeat stale" }] }) as Server["health"] });
+    assert.equal(domain(build(twoProblems, withApplies([apply])), "health").statusLabel, "KISMEN BOZUK");
+  });
+
   await scenario("integration", "I3", "performance: pure build over a large fixture stays cheap", async () => {
     const base = await healthyServer();
     const many = Array.from({ length: 200 }, (_, i) => proposal({ proposalId: `prop-${String(i).padStart(12, "0")}`, createdAt: minutesAgo(i) }));

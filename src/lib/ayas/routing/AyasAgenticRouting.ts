@@ -54,7 +54,7 @@ const TOOL_CLASS: Partial<Record<keyof typeof AYAS_EXECUTION_ALLOWLIST, readonly
 export interface AyasAvailabilityEvidence {
   /** Only IDs confirmed by a current provider probe may appear here. */
   readonly availableModelIds: readonly string[];
-  /** Project-local files alone do not register a runtime skill. */
+  /** Project-local files alone do not register a runtime skill; `AyasSkillRegistry` supplies the ones it loaded. */
   readonly availableSkillIds?: readonly string[];
   /** Only agents with a real caller-owned adapter may appear here. */
   readonly availableAgentIds?: readonly string[];
@@ -164,9 +164,15 @@ export function describeAyasTask(text: string): AyasTaskRequirement {
     else if (graphifyState) requiredToolId = "query-graphify";
     else if (project) requiredToolId = isAyasDevelopmentStatusQuery(text) ? "ayas-development-status" : "list-production-projects";
   }
-  const relevantSkillId = smokePlan ? "ayas-tests"
-    : repoAnalysis ? "graphify"
-    : taskClass === "memory" ? "ayas-conversational-intelligence" : null;
+  // A remembered-fact question needs the memory lines, not the chat's developer guide; questions about AYAS's own
+  // chat, intents or research system do. The router index is the fallback for other repository/coding turns.
+  // Naming AYAS while chatting ("Ayas, biraz sohbet edelim", "bunu istemiyorum") is not a question about its system.
+  const ayasSystem = /\bayas\w*\b/.test(t) && (/\b(niyet\w*|intent\w*|prompt\w*|zamanlayici\w*|planlayici\w*|deterministik)\b/.test(t)
+    || (/\b(sohbet\w*|arastirma\w*|hedef\w*|ses\w*|voice)\b/.test(t) && /\b(nasil calis\w*|nasil isle\w*|mimari\w*|sistem\w*|altyapi\w*|kod\w*)\b/.test(t)));
+  const relevantSkillId = smokePlan || /\b(smoke\w*|regresyon\w*|regression\w*)\b/.test(t) ? "ayas-tests"
+    : repoAnalysis || /\bgraphify\b/.test(t) ? "graphify"
+    : ayasSystem ? "ayas-conversational-intelligence"
+    : (taskClass === "repository" || taskClass === "coding") && requiredToolId === null ? "ayas-router" : null;
   return {
     taskClass, action: mutation, mutation, requiresFreshExternalEvidence: fresh, privateLocal,
     complex: code || classifyAyasComplexity(text) === "COMPLEX", ambiguous,

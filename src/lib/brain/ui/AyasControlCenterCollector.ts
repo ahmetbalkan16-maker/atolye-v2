@@ -10,7 +10,7 @@
  *  - graphify           → `collectAyasGraphifyFacts` + `evaluateAyasGraphifyState` (Stage 10A)
  *  - experiments        → `AyasResearchExperimentStore` read methods (Stage 8)
  *  - memory             → `AyasMemoryStore.snapshot()`, reduced to counts here
- *  - capabilities       → `inventoryAyasCapabilities` + the Ollama provider's own health probe (Stage 7)
+ *  - capabilities       → `inventoryAyasCapabilities` + the Ollama provider's own health probe (Stage 7) + the skills `loadAyasRuntimeSkills` loaded
  *  - security           → `resolveAccessGate` mode + `AYAS_LAST_SECURITY_REVIEW` (Stage 9)
  *  - atolye             → `loadAyasProjectCatalog` (read-only, runtime-relative paths only)
  *  - roadmap            → the committed `ROADMAP.md` "Next roadmap stage" line
@@ -41,6 +41,7 @@ import { evaluateAyasGraphifyState } from "../../ayas/developer/AyasGraphifyStat
 import { AYAS_MEMORY_MAX_RECORDS, createAyasMemoryStore } from "../../ayas/memory/AyasMemoryStore";
 import { ayasMemoryRecordFact, currentAyasMemoryFactRecords } from "../../ayas/memory/AyasMemoryTemporal";
 import { inventoryAyasCapabilities } from "../../ayas/routing/AyasAgenticRouting";
+import { loadAyasRuntimeSkills } from "../../ayas/routing/AyasSkillRegistry";
 import { createOllamaAyasProvider } from "../../ayas/model/OllamaAyasProvider";
 import { AYAS_LAST_SECURITY_REVIEW } from "../../ayas/security/AyasSecurityReviewRecord";
 import { loadAyasProjectCatalog, summarizeAyasProductionProjects, type AyasProjectCatalogView } from "../../ayas/AyasProjectCatalog";
@@ -329,14 +330,14 @@ function readMemory(cwd: string, now: () => string): AyasCcFact<AyasCcMemoryFact
   };
 }
 
-async function readCapabilities(env: NodeJS.ProcessEnv, fetcher: typeof fetch | undefined, now: () => string): Promise<AyasCcFact<AyasCcCapabilityFacts>> {
+async function readCapabilities(cwd: string, env: NodeJS.ProcessEnv, fetcher: typeof fetch | undefined, now: () => string): Promise<AyasCcFact<AyasCcCapabilityFacts>> {
   const ollama = createOllamaAyasProvider(env, fetcher ?? fetch);
   const health = ollama.configured ? await ollama.health() : { available: false, detail: "ollama: yapılandırılmamış", checkedAtMs: Date.parse(now()) };
   return {
     kind: "ok",
     observedAt: now(),
     value: {
-      items: inventoryAyasCapabilities({ availableModelIds: health.available ? ["ollama"] : [] }),
+      items: inventoryAyasCapabilities({ availableModelIds: health.available ? ["ollama"] : [], availableSkillIds: loadAyasRuntimeSkills({ repoRoot: cwd }).registered.map((skill) => skill.id) }),
       ollama: { configured: ollama.configured, available: health.available, detail: ayasCcText(health.detail, 60), checkedAt: new Date(health.checkedAtMs).toISOString(), model: ollama.model ? ayasCcText(ollama.model, 60) : null },
     },
   };
@@ -402,7 +403,7 @@ async function collectAyasControlCenterFacts(options: AyasControlCenterCollectOp
     source(now, timeoutMs, () => readGraphify(cwd, env, now), "GRAPHIFY_READ_FAILED"),
     source(now, timeoutMs, () => readExperiments(cwd, now), "EXPERIMENT_READ_FAILED"),
     source(now, timeoutMs, () => readMemory(cwd, now), "MEMORY_READ_FAILED"),
-    source(now, timeoutMs, () => readCapabilities(env, options.fetcher, now), "CAPABILITY_READ_FAILED"),
+    source(now, timeoutMs, () => readCapabilities(cwd, env, options.fetcher, now), "CAPABILITY_READ_FAILED"),
     source(now, timeoutMs, () => readSecurity(env, now), "SECURITY_READ_FAILED"),
     source(now, timeoutMs, () => readAtolye(options.loadProjectCatalog ?? loadAyasProjectCatalog, now), "ATOLYE_READ_FAILED"),
     source(now, timeoutMs, () => readRoadmap(cwd, now), "ROADMAP_READ_FAILED"),

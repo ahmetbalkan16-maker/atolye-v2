@@ -148,6 +148,14 @@ export function ayasMemoryContextCandidates(lines: readonly string[], protectedL
     tokenEstimate: estimateAyasContextLineTokens(line), relevance: 1, recency: -index,
   }]);
 }
+/** A selected skill's reference lines: optional and shed first, so they never displace the owner's turns or memory. */
+export const AYAS_SKILL_GUIDE_CONTEXT_ID = "skill:guide";
+export function ayasSkillGuideContextCandidates(lines: readonly string[] | undefined): AyasContextCandidate[] {
+  return lines?.length ? [{
+    id: AYAS_SKILL_GUIDE_CONTEXT_ID, class: "EXTERNAL_DATA", trust: "TRUSTED", provenance: "RETRIEVAL", protected: false,
+    tokenEstimate: lines.reduce((sum, line) => sum + estimateAyasContextLineTokens(line), 0), relevance: 0, recency: 0,
+  }] : [];
+}
 /** Counts and flags for the trace. */
 export function ayasContextBudgetTraceMetadata(evidence: AyasContextBudgetEvidence): Record<string, number | boolean | null> {
   return { contextCeiling: evidence.ceiling, outputReserve: evidence.outputReserve, contextEstimate: evidence.estimatedPromptTokens, selectedCount: evidence.selected.length, excludedCount: evidence.excluded.length, protectedRetained: evidence.protectedRetained };

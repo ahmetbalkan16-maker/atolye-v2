@@ -7,7 +7,7 @@
  */
 
 // Relative, not `@/`: this module is bundled into the phone gateway Worker, and every other `@/` import here is type-only.
-import { ayasHistoryContextCandidates, ayasMemoryContextCandidates, buildBudgetedAyasPrompt, type AyasContextBudgetEvidence } from "../../lib/ayas/context/AyasContextBudget";
+import { AYAS_SKILL_GUIDE_CONTEXT_ID, ayasHistoryContextCandidates, ayasMemoryContextCandidates, ayasSkillGuideContextCandidates, buildBudgetedAyasPrompt, type AyasContextBudgetEvidence } from "../../lib/ayas/context/AyasContextBudget";
 import { resolveAyasVoiceReadiness, type AyasMicPermissionState, type AyasVoiceReadiness, type AyasVoiceState } from "./ayasVoice";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { BrainTaskStatus } from "@/types/brainWorker";
@@ -688,6 +688,8 @@ export interface AyasChatPromptInput {
   readonly conversation?: AyasConversationPromptBlock;
   /** Optional recalled long-term memory lines (Phase 2 · Phase C). */
   readonly memoryLines?: readonly string[];
+  /** Optional reference text of the registered skill the router selected (`ayasSkillGuidanceLines`); never authority. */
+  readonly skillGuidanceLines?: readonly string[];
   /**
    * Chat-quality sprint: the coarse turn shape from `classifyAyasComplexity`
    * (already computed by `AyasChatStream.ts` for routing — no new classifier,
@@ -993,12 +995,13 @@ export function buildBudgetedAyasChatPrompt(
   return buildBudgetedAyasPrompt({
     ceiling: contextBudget.ceiling,
     outputReserve: contextBudget.outputReserve,
-    candidates: [...ayasHistoryContextCandidates(window, ayasPromptHistoryLine), ...ayasMemoryContextCandidates(memory, protectedMemory)],
+    candidates: [...ayasHistoryContextCandidates(window, ayasPromptHistoryLine), ...ayasMemoryContextCandidates(memory, protectedMemory), ...ayasSkillGuideContextCandidates(input.skillGuidanceLines)],
     render: (selected) =>
       buildAyasChatPrompt({
         ...base,
         history: window.filter((_, index) => selected.has(`history:${index}`)),
         memoryLines: memory.filter((line, index) => protectedMemory.has(line) || selected.has(`memory:${index}`)),
+        skillGuidanceLines: selected.has(AYAS_SKILL_GUIDE_CONTEXT_ID) ? input.skillGuidanceLines : undefined,
       }),
   });
 }
@@ -1094,6 +1097,7 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     ...(input.conversation?.referenceLines && input.conversation.referenceLines.length
       ? ["", ...input.conversation.referenceLines]
       : []),
+    ...(input.skillGuidanceLines?.length ? ["", ...input.skillGuidanceLines] : []),
     "",
     ...(input.conversation?.historySummary && input.conversation.historySummary.length
       ? ["Daha eski turların özeti:", ...input.conversation.historySummary, ""]

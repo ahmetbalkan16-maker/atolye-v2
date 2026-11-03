@@ -30,6 +30,7 @@ import { isAyasDesignReviewMutationKind } from "../autonomy/AyasDesignReviewKind
 import type { AyasMicroBatchDevelopmentView } from "../autonomy/AyasMicroBatchDevelopmentView";
 import type { AyasOwnerRecommendationsView } from "../autonomy/AyasOwnerRecommendationsView";
 import type { AyasResearchEngineStatusView } from "../autonomy/AyasResearchEngineStatusView";
+import type { AyasUpdateApplyRecord } from "../autonomy/AyasUpdateTrialStore";
 import type { AyasGoalDevelopmentView } from "../autonomy/AyasGoalDevelopmentView";
 import type { AyasAutonomousView } from "../autonomy/AyasAutonomousView";
 import type { AyasHealthVerdict, AyasHealthSeverity } from "../autonomy/AyasSelfImprovementHealth";
@@ -341,6 +342,26 @@ function maxAttention(levels: readonly AyasCcAttention[]): AyasCcAttention {
 
 function pluralCount(n: number, word: string): string { return `${n} ${word}`; }
 
+/** The closure took ~3.5 min on 2026-11-03; a RUNNING apply older than this no longer explains a stale graph. */
+export const AYAS_CC_UPDATE_CLOSURE_WINDOW_MS = 20 * 60_000;
+
+/**
+ * An "Uygula" whose commit is already pushed (HEAD moved) while its post-publication closure still rebuilds Graphify
+ * for that commit (`AyasUpdateApplyRunner` writes `closure` when it ends). Only this window turns a stale graph into
+ * "in progress"; a failed closure, another HEAD or an abandoned apply keeps the warning.
+ */
+export function ayasCcUpdateClosureInFlight(input: AyasControlCenterInput): AyasUpdateApplyRecord | null {
+  const graph = input.server?.graphify.kind === "ok" ? input.server.graphify.value : null;
+  const at = isoMs(input.server?.generatedAt);
+  if (!graph || graph.classification !== "GRAPH_STALE" || !graph.sourceHead || at === null) return null;
+  return (input.researchEngineStatus?.updateApplies ?? []).find((apply) => apply.status === "RUNNING" && apply.pushed === true && !apply.closure
+    && apply.commitSha === graph.sourceHead && at - (isoMs(apply.startedAt) ?? Number.NEGATIVE_INFINITY) <= AYAS_CC_UPDATE_CLOSURE_WINDOW_MS) ?? null;
+}
+
+function updateClosureLine(apply: AyasUpdateApplyRecord): string {
+  return `${ayasCcText(apply.toolName, 40)} ${ayasCcText(apply.targetVersion, 30)} güncellemesi yayında (${ayasCcShortSha(apply.commitSha)}); Graphify yeni commit için yenileniyor, birkaç dakika sürer.`;
+}
+
 interface DomainSeed {
   readonly id: AyasCcDomainId;
   readonly title: string;
@@ -382,7 +403,7 @@ const HEALTH_LABEL: Readonly<Record<AyasHealthVerdict, { readonly attention: Aya
 
 const OBSERVER_NOT_RUNNING = new Set(["OBSERVER_STATE_ABSENT", "OBSERVER_STATE_UNREADABLE", "OBSERVER_LOCK_ABSENT", "OBSERVER_OWNER_DEAD", "OBSERVER_HEARTBEAT_STALE", "OBSERVER_HEARTBEAT_UNREADABLE"]);
 
-function healthDomain(fact: AyasCcFact<AyasCcHealthFacts> | undefined, items: AyasCcAttentionItem[]): AyasCcDomainStatus {
+function healthDomain(fact: AyasCcFact<AyasCcHealthFacts> | undefined, items: AyasCcAttentionItem[], closure: AyasUpdateApplyRecord | null): AyasCcDomainStatus {
   const seed: DomainSeed = { id: "health", title: "AYAS sağlığı", source: "AyasSelfImprovementHealth", panel: "autonomous" };
   if (!fact || fact.kind !== "ok") {
     const status = factStatus(seed, fact, "Sağlık verisi yok.");
@@ -390,8 +411,12 @@ function healthDomain(fact: AyasCcFact<AyasCcHealthFacts> | undefined, items: Ay
     return status;
   }
   const health = fact.value;
-  const mapped = HEALTH_LABEL[health.verdict] ?? HEALTH_LABEL.UNKNOWN;
   const top = health.findings.filter((finding) => finding.severity !== "INFO");
+  // The stale graph is the update closure's own step: discovery waits for it, nothing is broken.
+  if (closure && health.verdict === "DEGRADED" && top.length > 0 && top.every((finding) => finding.code === "GRAPH_STALE_VS_HEAD")) {
+    return { ...seed, attention: "IN_PROGRESS", statusLabel: "GÜNCELLEME KAPANIŞI", summary: "Graphify yeni commit için yenileniyor; graf tabanlı keşif bitene kadar bekliyor.", availability: "OK", observedAt: fact.observedAt, dataAt: health.observer.heartbeatAt, dataAtLabel: "son gözlemci kalp atışı" };
+  }
+  const mapped = HEALTH_LABEL[health.verdict] ?? HEALTH_LABEL.UNKNOWN;
   const summary = top.length ? ayasCcText(top[0].message) : "Gözlemci ve araştırma döngüsü beklenen düzende.";
   if (mapped.attention === "ACTION_REQUIRED" || mapped.attention === "WARNING") {
     items.push({
@@ -631,7 +656,7 @@ const GRAPHIFY_LABEL: Readonly<Record<string, { readonly attention: AyasCcAttent
   GRAPH_EXTRACTION_FAILED: { attention: "WARNING", label: "ÇIKARIM BAŞARISIZ" },
 };
 
-function graphifyDomain(fact: AyasCcFact<AyasCcGraphifyFacts> | undefined, items: AyasCcAttentionItem[]): AyasCcDomainStatus {
+function graphifyDomain(fact: AyasCcFact<AyasCcGraphifyFacts> | undefined, items: AyasCcAttentionItem[], closure: AyasUpdateApplyRecord | null): AyasCcDomainStatus {
   const seed: DomainSeed = { id: "graphify", title: "Graphify", source: "AyasGraphifyState (Stage 10A)", panel: "system" };
   if (!fact || fact.kind !== "ok") {
     const status = factStatus(seed, fact, "Graphify durumu yok.");
@@ -643,6 +668,11 @@ function graphifyDomain(fact: AyasCcFact<AyasCcGraphifyFacts> | undefined, items
   const heads = `kaynak ${ayasCcShortSha(graph.sourceHead)} · analiz ${ayasCcShortSha(graph.lastAnalyzedHead)}`;
   const partial = graph.incompleteCodeFiles.length ? ` · ${graph.incompleteCodeFiles.length} dosya grafikte yok` : "";
   const summary = `${heads} · yapısal ${graph.structuralStatus} · anlamsal ${graph.semanticStatus}${partial}`;
+  if (closure) {
+    const reason = updateClosureLine(closure);
+    items.push({ id: "graphify:update-closure", domain: "graphify", level: "IN_PROGRESS", title: "Güncelleme kapanışı: Graphify yenileniyor", reason, source: "AyasUpdateApplyRunner · AyasGraphifyState", at: closure.startedAt, next: { kind: "READ_ONLY", label: "Araştırma sekmesinde izle", panel: "research" }, details: [] });
+    return { ...seed, attention: "IN_PROGRESS", statusLabel: "YENİLENİYOR", summary: reason, availability: "OK", observedAt: fact.observedAt, dataAt: graph.analyzedAt, dataAtLabel: "son Graphify güncellemesi" };
+  }
   if (mapped.attention === "WARNING") {
     items.push({
       id: `graphify:${graph.classification}`,
@@ -744,7 +774,7 @@ export function ayasCcCapabilityRow(item: AyasCapability, ollama: AyasCcCapabili
     return row("LOCAL-ONLY", item.mutates ? "Yazar — sahip onayı gerekir." : "Salt okunur, yerel.");
   }
   if (item.type === "skill") {
-    return item.source === "runtime-registration" ? row("REGISTERED", "AYAS çalışma zamanına kayıtlı.") : row("UNAVAILABLE", "Kurulu ama AYAS çalışma zamanına kayıtlı değil.");
+    return item.source === "runtime-registration" ? row("REGISTERED", "AYAS çalışma zamanına kayıtlı; ilgili sorularda rehber olarak okunur.") : row("UNAVAILABLE", "Skill dosyası bulunamadı ya da doğrulanamadı; AYAS çalışma zamanına kayıtlı değil.");
   }
   if (item.type === "model") {
     if (item.id === "ollama") {
@@ -911,12 +941,13 @@ const OVERALL_LABEL: Readonly<Record<AyasCcAttention, string>> = {
 export function buildAyasControlCenterView(input: AyasControlCenterInput): AyasControlCenterView {
   const server = input.server;
   const items: AyasCcAttentionItem[] = [];
+  const closure = ayasCcUpdateClosureInFlight(input);
   const domains: AyasCcDomainStatus[] = [
-    healthDomain(server?.health, items),
+    healthDomain(server?.health, items, closure),
     autonomyDomain(server?.health, input.autonomous),
     approvalsDomain(input, items),
     developmentDomain(server?.development, items),
-    graphifyDomain(server?.graphify, items),
+    graphifyDomain(server?.graphify, items, closure),
     researchDomain(input, items),
     experimentsDomain(server?.experiments, items),
     memoryDomain(server?.memory, items),

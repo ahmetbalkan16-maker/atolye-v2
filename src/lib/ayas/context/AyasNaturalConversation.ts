@@ -1,7 +1,7 @@
 /** Opt-in local conversational transport. No model selection, storage or execution authority. */
 import type { AyasConversationMessage } from "../model/AyasModelTypes";
 import {
-  ayasHistoryContextCandidates, ayasMemoryContextCandidates, buildBudgetedAyasPrompt,
+  AYAS_SKILL_GUIDE_CONTEXT_ID, ayasHistoryContextCandidates, ayasMemoryContextCandidates, ayasSkillGuideContextCandidates, buildBudgetedAyasPrompt,
   type AyasContextBudgetEvidence,
 } from "./AyasContextBudget";
 
@@ -72,6 +72,8 @@ export interface AyasNaturalConversationInput {
   readonly context: Readonly<Record<string, unknown>>;
   readonly memoryLines: readonly string[];
   readonly protectedMemoryLines?: readonly string[];
+  /** The selected skill's reference lines, rendered as `projectGuide` DATA; the first thing the budget sheds. */
+  readonly guideLines?: readonly string[];
   /** Undefined is only an in-process test double; null refuses a real unknown window. */
   readonly ceiling?: number | null;
   readonly outputReserve: number;
@@ -88,6 +90,7 @@ export function buildAyasNaturalConversation(input: AyasNaturalConversationInput
   const render = (selected: ReadonlySet<string>): string => {
     const data = {
       ...Object.fromEntries(Object.entries(input.context).filter(([, value]) => hasContent(value))),
+      ...(selected.has(AYAS_SKILL_GUIDE_CONTEXT_ID) ? { projectGuide: input.guideLines } : {}),
       rememberedFacts: input.memoryLines.filter((line, index) => protectedLines.has(line) || selected.has(`memory:${index}`)),
     };
     return JSON.stringify([
@@ -102,6 +105,7 @@ export function buildAyasNaturalConversation(input: AyasNaturalConversationInput
   const candidates = [
     ...ayasHistoryContextCandidates(history, turn => JSON.stringify({ role: turn.role === "user" ? "user" : "assistant", content: turn.text })),
     ...ayasMemoryContextCandidates(input.memoryLines, protectedLines),
+    ...ayasSkillGuideContextCandidates(input.guideLines),
   ];
   const built = input.ceiling === undefined
     ? { prompt: render(new Set(candidates.map(candidate => candidate.id))) }
