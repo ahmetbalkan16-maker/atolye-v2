@@ -48,10 +48,14 @@ golden-vault ve BrainPatchSafety kullanan AYAS suite'leri PASS; tsc 0; lint 0 ha
 1920×1080, 1280×900, 390 px gerçek kayıtlarla ekran görüntüsünde kontrol edildi.
 
 **Açık:** beynin kod yazması yok (owner karnesine bakıp karar verecek); hazır işin "UYGULA" düğmesi yapılmadı.
-**Kalan adım (kullanım sınırı nedeniyle güvenli durma, 3 Kasım ~15:10):** canlıya alma yapılmadı — `feature/cop-adam-v3`
-push'landı; sıradaki: canlı dala (`origin/wip/ayas-graphify-final-execution`) ff/merge push, canonical `git pull --ff-only`,
-Graphify yenileme, `auto-live-publish.json`'da yeni `ayas-live-<sha>` kontrolü, boştayken sipariş izleyicinin yeniden
-başlatılması (yapim.ts değişti: akşam tetikleyicisi ancak yeniden başlatınca çalışır).
+**Canlı (3 Kasım ~16:50, kullanım sınırı durmasından sonraki oturum):** `origin/wip/ayas-graphify-final-execution`
+02ba2088 → 0d37f455 ileri sarıldı, canonical `git pull --ff-only`, Graphify yenilendi (SOURCE/LAST_ANALYZED/BUILT_FROM
+0d37f455, yapısal + semantic CURRENT, eksik yok); gözlemci yayınladı: `ayas-live-0d37f455` PUBLISHED (13:47→13:49Z, dış
+erişim healthy, geri dönüş 02ba2088), istemci paketinde "Beyin meclisi" var. Canlı ana ekran giriş istediği için gözle
+kontrol owner'da.
+**Açık:** sipariş izleyici (pid 15284, 06:45'ten beri eski yapim.ts) boştayken yeniden başlatılamadı — `taskkill` otomatik
+modda "Interfere With Workloads" diye reddedildi; owner komutu ya da "evet"i bekliyor. Geliştirici anahtarı canonical
+`.env.v3.local`'da açık, ama kuyrukta açık iş yok (iki onaylı iş "yapıldı"), yani bu akşam kaçan iş yok.
 
 ---
 
