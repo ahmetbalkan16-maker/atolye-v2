@@ -14,8 +14,11 @@ görünmez. Veri, karar ve onay akışı değişmedi.
 owner-recommendations-view 13, owner-exact-preview 20, action-firewall-closure 13 PASS; developer-intelligence exit 0;
 `tsc --noEmit` temiz; `lint-yerel` 0 hata (13 eski uyarı).
 
-YouTube bağlantısı (aynı gün soruldu): `D:\ÜRETİM\private\AtolyeSecrets\AYAS-SECRETS\youtube\` klasörü hâlâ boş —
-`client.json` konmadı, `youtube.ts baglan` çalışmadı. Adımlar `docs/v3/08_YOUTUBE_KANALI.md` "Bir kerelik bağlantı".
+YouTube bağlantısı (aynı gün): owner `client.json`'u koydu, ama Google onay ekranı "Erişim engellendi" dedi (uygulama
+test modunda; "Uygulamayı yayınla" Branding'de ana sayfa/gizlilik/şartlar bağlantısı olmadan kapalı). **Owner kararı:
+yüklemeleri elle yapacak, API bağlantısı yok** (`docs/v3/08_YOUTUBE_KANALI.md` başındaki not). Kanal incelendi (agent-reach
+/ yt-dlp): 2 abone, 4 uzun + 3 Short, Almanca ad ve bir Almanca video, düzensiz yükleme (30 Haz, 2 Tem, 2 Eyl, 1 Kas);
+İngilizce ad olarak "Crowns & Doodles" önerildi ("History Decoded" adında en az 4 kanal var).
 
 ## 3 Kasım 2026 — Güncelleme kapanışı arıza gibi görünmez; AYAS skill'leri gerçekten kayıtlı ve kullanılıyor
 

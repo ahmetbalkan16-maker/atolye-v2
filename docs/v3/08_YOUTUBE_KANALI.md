@@ -4,6 +4,12 @@ Owner kararları (2 Kasım 2026): kanal **Geschichte entschlüsselt** (`@Geschic
 `UC3u0Kx_T49g9qdLFOagsN8A`) AYAS'a bağlanır; başlangıçta **haftada 2 Short + 1 uzun video** (yeni PC'de artar);
 ilk videolarda **owner onayı olmadan yükleme yok**; Fiverr'de insan döngüde kalır, soğuk toplu mesaj yok.
 
+> **3 Kasım 2026 owner kararı: yüklemeleri owner elle yapar; YouTube API bağlantısı kurulmadı.** Google, test
+> modundan çıkış için ana sayfa + gizlilik politikası + kullanım şartları bağlantısı istiyor; test modunda izin 7 günde
+> düşüyor. `client.json` sırlar klasöründe duruyor ama `token.json` yok; AYAS'a "yükle" denirse sipariş "YouTube bağlantısı
+> bekleniyor" diye bekler, hiçbir şey yüklenmez. Owner AYAS'ın teslim paketindeki başlık, açıklama, etiket ve kapağı
+> Studio'ya kendisi koyar. Bağlantı istenirse aşağıdaki adımlar geçerlidir (önce test kullanıcısı ya da yayınlanmış uygulama).
+
 ## Nasıl çalışır
 
 1. AYAS siparişi üretir, kalite beyni teslim eder (değişmedi).
