@@ -13,7 +13,7 @@ import { partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/Par
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { appearanceSentences, applySheet, castLooks, cloakFromNote, likenessOrders, noteColours, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
-import { bestRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
 let scenarios = 0;
@@ -318,6 +318,32 @@ async function main() {
     scenarios++;
   } catch (e) {
     console.error("FAIL K2 retouch delivers the best-scored round");
+    throw e;
+  }
+
+  try {
+    // The third Caesar Short (3 Nov 2026): round 2 died on OpenAI 429s with rounds 0 (7/10) and 1 (6/10) kept.
+    const work = mkdtempSync(path.join(os.tmpdir(), "v3-rotus-hata-"));
+    const score = (tur: number, puan: number) => ({ tur, kisiler: [{ castId: "caesar", puan }], setler: [] });
+    for (const [tur, puan] of [[0, 7], [1, 6]] as const) {
+      writeFileSync(path.join(work, "final.mp4"), `video ${tur}`);
+      writeFileSync(path.join(work, "QC.md"), `- Teslim: teslim edildi\n`);
+      writeFileSync(path.join(work, "KURUL.md"), `kurul ${tur}\n`);
+      await keepRound(work, "final.mp4", score(tur, puan));
+    }
+    writeFileSync(path.join(work, "final.mp4"), "video 2, half made");
+    const best = await deliverAfterFailedRound(work, "final.mp4", 2, "çıkış 1; ayrıntı uret.log");
+    assert.equal(best?.tur, 0);
+    assert.equal(readFileSync(path.join(work, "final.mp4"), "utf8"), "video 0");
+    const qc = readFileSync(path.join(work, "QC.md"), "utf8");
+    assert.match(qc, /^- Teslim: UYARIYLA teslim — rötuş turlarından sonra eşik altında kaldı/m);
+    assert.match(qc, /tur 0: caesar 7\/10 .* — \*\*teslim edilen\*\*\n- tur 1: caesar 6\/10.*\n- Tur 2 başarısız oldu \(çıkış 1; ayrıntı uret\.log\); teslim: tur 0 \(final-tur0\.mp4\)/);
+    assert.match(readFileSync(path.join(work, "KURUL.md"), "utf8"), /^kurul 0\n\n## Rötuş turları/);
+    // Nothing kept: the failure stands.
+    assert.equal(await deliverAfterFailedRound(mkdtempSync(path.join(os.tmpdir(), "v3-rotus-bos-")), "final.mp4", 1, "çıkış 1"), undefined);
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL K3 a failed retouch round delivers the best kept round");
     throw e;
   }
 

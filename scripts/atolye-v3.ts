@@ -52,7 +52,7 @@ import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listRefe
 import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
-import { bestRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -1442,7 +1442,17 @@ async function main() {
     const args = [...process.execArgv, process.argv[1]!, ...keep, ...(keep.includes("--cikti") ? [] : ["--cikti", work]), "--from-step", retouchPlan.adim, "--rotus-turu", String(retouchPlan.tur)];
     log(`↺ rötuş beyni: ${retouchPlan.tur}. tur başlıyor ("${retouchPlan.adim}" adımından)`);
     const r = await runProcess(process.execPath, args, { onLine: log, env: process.env });
-    if (r.code !== 0) throw new Error(`rötuş turu başarısız (çıkış ${r.code}); ilk kesim ${finalName.replace(/.mp4$/, `-tur${rotusTuru}.mp4`)} olarak duruyor`);
+    if (r.code !== 0) {
+      // A failed round delivers the best round kept before it, with a warning, instead of failing the order.
+      const best = await deliverAfterFailedRound(work, finalName, retouchPlan.tur, `çıkış ${r.code}; ayrıntı uret.log`);
+      if (!best) throw new Error(`rötuş turu başarısız (çıkış ${r.code}); ilk kesim ${finalName.replace(/.mp4$/, `-tur${rotusTuru}.mp4`)} olarak duruyor`);
+      const upload = preview ? undefined : uploadFileName(episode, dil);
+      if (upload) {
+        await fs.rm(f(upload), { force: true });
+        await fs.link(f(finalName), f(upload)).catch(() => fs.copyFile(f(finalName), f(upload)));
+      }
+      log(`rötuş turu ${retouchPlan.tur} başarısız (çıkış ${r.code}) → tur ${best.tur} uyarıyla teslim edildi`);
+    }
   }
 }
 

@@ -157,6 +157,24 @@ export async function restoreRound(work: string, finalName: string, tur: number)
   for (const name of ROUND_FILES_IF_KEPT) if (existsSync(path.join(dir, name))) await fs.copyFile(path.join(dir, name), path.join(work, name));
 }
 
+/**
+ * A retouch round that failed no longer loses the video (the third Caesar Short, 3 Nov 2026: OpenAI answered 429 to
+ * the last round's cover four times and the whole order failed with two finished cuts on disk): the best round kept
+ * before it is put back and delivered with a warning, as the last round would have delivered it. Undefined when no
+ * round was kept. The caller links the upload file again.
+ */
+export async function deliverAfterFailedRound(work: string, finalName: string, failed: number, why: string): Promise<RoundScore | undefined> {
+  const rounds = await keptRounds(work, finalName, failed);
+  const best = bestRound(rounds);
+  if (!best) return undefined;
+  await restoreRound(work, finalName, best.tur);
+  const qc = path.join(work, "QC.md");
+  if (existsSync(qc)) await fs.writeFile(qc, finalDelivery(await fs.readFile(qc, "utf8"), best));
+  const section = `\n## Rötuş turları\n\n${rounds.map((r) => `- ${roundLine(r)}${r.tur === best.tur ? " — **teslim edilen**" : ""}`).join("\n")}\n- Tur ${failed} başarısız oldu (${why}); teslim: tur ${best.tur} (${roundVideo(finalName, best.tur)})\n`;
+  for (const name of ["QC.md", "KURUL.md"]) if (existsSync(path.join(work, name))) await fs.appendFile(path.join(work, name), section);
+  return best;
+}
+
 /** The retouch decision as a council transcript (Turkish, for KURUL.md and AYAS's inbox). */
 export function retouchDebate(plan: RetouchPlan): DebateEntry[] {
   return [

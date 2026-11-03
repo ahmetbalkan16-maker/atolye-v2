@@ -50,8 +50,21 @@ smoke-v3-script'in 12/42 sn kısa brief'leri 14/50 sn'ye (aynı kelime hedefleri
 PASS, tsc kök + remotion-v3, lint 0 hata. Açık: genel iç mekân seti (kulübe/oda) yok; tasarlanan an resminde bir kalyon
 (dönem dışı gemi) vardı — hakem dönem 10/10 verdi.
 
-**Sıradaki:** canlıya alma, aynı konuyla yeni Short siparişi (eskisinin arkasında kuyrukta), kare kare inceleme, YouTube'a
-elle yükleme paketi (API yok).
+Owner eski siparişi kendisi durdurdu (`taskkill`).
+
+**Üçüncü üretim (sipariş `20261103T073447-…`, a8c096d3 canlıda) — teslim edildi, yüklemeye hazır:** 105 kelime, **44,0 sn**
+dikey, −14,6 LUFS / −2,8 dBTP, 0,20 $; kanca 0,3 sn; ikili her karede birlikte, ad etiketleri kendi karakterinde, balonlar
+sözlerden, siyah kart/tablo yok, akşam sahnesi kamp ateşi başında. Kalite beyni bu kez 38. sn'deki "anlatılan aksiyon
+yok" karesini 0/10 ile yakaladı (öğretilen örnekten). Rötuş: tur 0 Sezar 7/10, tur 1 6/10; **tur 2'nin kapak adımı
+OpenAI 429** (4 deneme, ~5 dk) ile düştü ve bütün sipariş "hata" oldu. **Düzeltme:** `RetouchBrain.deliverAfterFailedRound`
+— başarısız rötuş turu, önceki en iyi turu geri koyup uyarıyla teslim eder (smoke-v3-likeness K3). Bu sipariş aynı
+fonksiyonla elle kurtarıldı (tur 0 teslim, QC'ye "Rötuş turları", sipariş `uyariyla_teslim`; yedek oturum scratchpad'inde).
+Video: `v3-runtime\bolumler\20261103T073447-…\final.mp4` (= `julius-caesar-and-the-cilician-pirates-75-bc-animated-history.mp4`).
+
+**Açık:** OpenAI 429'un nedeni (kota/kredi mi hız sınırı mı) owner'ın OpenAI faturalama sayfasında görülmeli; youtube.json
+etiketlerinde "OverSimplified style" (başka kanalın adı — yüklerken çıkarılmalı); açıklamada videoda görünmeyen dönem
+resimleri de kaynak olarak geçiyor; genel iç mekân seti yok; ikinci sahnede arkadaş konuşurken pencere onu bir önceki
+konuşanla (korsan) eşliyor, muhatabı Sezar'la değil.
 
 ## 3 Kasım 2026 — Gelişim Merkezi: Atölye Beyinleri "Bugün" bölümünün üstünde
 
