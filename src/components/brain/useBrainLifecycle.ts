@@ -363,11 +363,13 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
   const getTelemetry = useCallback<() => BrainLifecycleTelemetry>(() => {
     const s = stateRef.current!;
     const pi = assessment.priorInstance;
+    // Same rule as `assessment`: until hydration completes, browser-only values
+    // read exactly as the server rendered them (the wake lab renders this).
     return {
-      bootId,
+      bootId: hydrated ? bootId : "ssr",
       previousBootId: assessment.previousBootId,
       bootCount: assessment.bootCount,
-      sessionUptimeMs: Date.now() - startedAt,
+      sessionUptimeMs: hydrated ? Date.now() - startedAt : 0,
       reloadCause: bfcacheRestored ? "bfcache-restore" : assessment.cause,
       navigationKind: bfcacheRestored ? "bfcache-restore" : assessment.navigationKind,
       browserReloadLikely: assessment.browserReloadLikely && !bfcacheRestored,
@@ -385,20 +387,20 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       priorLastEvent: assessment.priorLastEvent,
       wakeLockHeld: s.wakeLockHeld,
       voiceSessionCount: s.voiceSessionCount,
-      voiceCycleCount: s.voiceCycleCount,
+      voiceCycleCount: hydrated ? s.voiceCycleCount : OFF_ASSESSMENT.priorVoiceCycles,
       lastVoicePhase: s.lastPhase,
       wakeDroppedFrames: typeof s.health.droppedFrames === "number" ? s.health.droppedFrames : -1,
       lastCaptureMs: typeof s.health.lastCaptureMs === "number" ? s.health.lastCaptureMs : -1,
       lastSttMs: typeof s.health.lastSttMs === "number" ? s.health.lastSttMs : -1,
       lastWakeToCaptureMs: typeof s.health.lastWakeToCaptureMs === "number" ? s.health.lastWakeToCaptureMs : -1,
       recoveryCount: s.recoveryCount,
-      visibilityState: typeof document === "undefined" ? "unknown" : document.visibilityState,
-      onlineState: typeof navigator === "undefined" ? true : navigator.onLine !== false,
-      serviceWorkerState: swState(),
+      visibilityState: !hydrated || typeof document === "undefined" ? "unknown" : document.visibilityState,
+      onlineState: !hydrated || typeof navigator === "undefined" ? true : navigator.onLine !== false,
+      serviceWorkerState: hydrated ? swState() : "unsupported",
       lastLifecycleEvent: lastEventRef.current?.name ?? "boot",
       lastLifecycleEventAt: lastEventRef.current?.at ?? startedAt,
     };
-  }, [assessment, bfcacheRestored, bootId, startedAt]);
+  }, [assessment, bfcacheRestored, bootId, hydrated, startedAt]);
 
   return {
     assessment,
