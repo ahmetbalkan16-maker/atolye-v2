@@ -709,11 +709,14 @@ async function main() {
         tried = action.tur === "dur" ? undefined : { topic: remedyTopic(s, message), action };
         log(`⚕ onarım beyni [${s}, deneme ${attempt}]: ${describeRepair(action)}`);
         council.find({ beyin: "onarim", onem: action.tur === "dur" ? "eksik" : "uyari", baslik: `${s} adımında hata`, ayrinti: `${message.slice(0, 300)} → ${describeRepair(action)} (${action.kaynak})`, tur: action.kaynak === "bilinen" || action.kaynak === "hafiza" ? "ayar" : "kod", yer: s });
-        if (action.tur === "dur" || attempt >= 4) {
+        // Out of attempts, an optional step is left out, never the video (3 Nov 2026: the cover's fourth 429 ended a
+        // whole retouch round).
+        const exhausted = attempt >= 4 && action.tur !== "dur";
+        if (action.tur === "dur" || (exhausted && !skip)) {
           await writeCouncilReport({ workDir: work, workRoot: paths.workRoot, bolum: konu, log: council }).catch(() => undefined);
           throw new Error(`ADIM ${s} başarısız: ${message}`);
         }
-        if (action.tur === "atla" && skip) {
+        if ((action.tur === "atla" || exhausted) && skip) {
           const r = await skip();
           log(`↷ ${s} atlandı, üretim sürüyor`);
           return r;

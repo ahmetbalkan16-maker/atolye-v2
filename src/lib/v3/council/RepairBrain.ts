@@ -35,6 +35,9 @@ export function knownRemedy(c: RepairContext): RepairAction | undefined {
   if (/ENOSPC|no space left/i.test(e)) return { tur: "dur", neden: "disk dolu" };
   if (/V3_GPU_TOO_HOT/.test(e)) return { tur: "bekle_tekrar", saniye: 180, neden: "ekran kartı sıcak; soğuması bekleniyor" };
   if (/CUDA out of memory|OutOfMemoryError|CUBLAS_STATUS_ALLOC|out of memory/i.test(e)) return { tur: "gpu_bosalt", neden: "ekran kartı belleği dolu" };
+  // An empty OpenAI account answers 429 too, and no wait refills it (3 Nov 2026: the Caesar Short's cover waited 5 min
+  // on "credit_balance_exhausted" and the round died); an optional step goes on without it.
+  if (/insufficient_quota|credit_balance_exhausted|billing_hard_limit/i.test(e)) return c.optional ? { tur: "atla", neden: "OpenAI kredisi bitti; bu özellik bu videoda yok" } : { tur: "dur", neden: "OpenAI kredisi bitti — platform.openai.com/settings/organization/billing sayfasından kredi yüklenmeli" };
   // Status codes inside our error codes too ("COMMONS_DOWNLOAD_429": \b would not see the underscore edge).
   if (/(^|[^0-9])(429|503|502|504)([^0-9]|$)|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|fetch failed|network/i.test(e)) return { tur: "bekle_tekrar", saniye: Math.min(240, 30 * c.attempt), neden: "ağ ya da hız sınırı; bekleyip yeniden" };
   if (/ECONNREFUSED.*11434|ollama/i.test(e) && /refused|unavailable|not running/i.test(e)) return { tur: "bekle_tekrar", saniye: 45, neden: "yerel model sunucusu (Ollama) yanıt vermiyor" };

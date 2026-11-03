@@ -44,7 +44,12 @@ async function createChatCompletion(
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI request failed: ${response.status}`);
+    // A rate limit and an empty account are both 429; only the error's type/code tells them apart.
+    const detail = await response
+      .json()
+      .then((b: { error?: { type?: unknown; code?: unknown } }) => [b?.error?.type, b?.error?.code].filter((x): x is string => typeof x === "string" && x.length > 0).join(" ").slice(0, 80))
+      .catch(() => "");
+    throw new Error(`OpenAI request failed: ${response.status}${detail ? ` ${detail}` : ""}`);
   }
 
   return (await response.json()) as ChatCompletionResponse;

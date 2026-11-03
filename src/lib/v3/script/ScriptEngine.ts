@@ -1,6 +1,7 @@
 import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
+import { isShorts } from "../render/Format";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, shareProblems } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
@@ -82,6 +83,13 @@ function withBankSources(episode: Episode, bank: SourceBank | undefined): Episod
  * ±10% the QC checks on the finished video.
  */
 const LENGTH_BAND = [0.9, 1.1] as const;
+/**
+ * A Short's length is a ceiling (Format.lengthOk: up to it, down to half of it), so a shorter script is fine down to
+ * this share of its budget (~35 s of a 60 s Short): the third Caesar Short's 98 words (44 s) were sent to three
+ * expansion rounds that came back at 151–159 words, over the ceiling, and were all dropped.
+ */
+const SHORTS_LENGTH_BAND = [0.65, 1.1] as const;
+const lengthBand = (brief: ScriptBrief): readonly [number, number] => (isShorts(brief.hedefSureSn) ? SHORTS_LENGTH_BAND : LENGTH_BAND);
 /** Share of scenes that must carry an exchange (two or more lines by visible characters). */
 export const MIN_DIALOGUE_SCENES = 0.3;
 /** Visible characters an episode needs (the narrator is not drawn). */
@@ -113,9 +121,9 @@ export function sceneShortfalls(episode: Episode, targetWords: number): string[]
 }
 
 /** How far a script is from its targets: 0 is on target; length and dialogue both count. */
-function revisionGap(episode: Episode, target: number): number {
+function revisionGap(episode: Episode, target: number, band: readonly [number, number] = LENGTH_BAND): number {
   const words = spokenWords(episode);
-  const lengthGap = words < target * LENGTH_BAND[0] ? target * LENGTH_BAND[0] - words : words > target * LENGTH_BAND[1] ? words - target * LENGTH_BAND[1] : 0;
+  const lengthGap = words < target * band[0] ? target * band[0] - words : words > target * band[1] ? words - target * band[1] : 0;
   return lengthGap / Math.max(1, target) + Math.max(0, MIN_DIALOGUE_SCENES - dialogueSceneRatio(episode)) + 0.2 * Math.max(0, MIN_VISIBLE_CAST - visibleCast(episode));
 }
 
@@ -299,10 +307,11 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
   let written = livened.episode;
   let validation = livened.fixes.length ? validateEpisode(written) : state.validation!;
   const targetWords = wordBudget(brief);
+  const band = lengthBand(brief);
   let lengthRounds = 0;
   // Revision attempts for length, dialogue and cast; one is kept only if it is valid and closer to the targets,
   // otherwise the best version so far is tried again.
-  while (lengthRounds < MAX_REVISIONS && revisionGap(written, targetWords) > 0) {
+  while (lengthRounds < MAX_REVISIONS && revisionGap(written, targetWords, band) > 0) {
     lengthRounds++;
     const extra: string[] = [];
     const ratio = dialogueSceneRatio(written);
@@ -312,7 +321,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     // Models stop short of a whole-script word count (the Rubicon script stayed ~20% short after three rounds); a
     // per-scene shortfall is something they do act on.
     const words = spokenWords(written);
-    if (words < targetWords * LENGTH_BAND[0]) extra.push(...sceneShortfalls(written, targetWords));
+    if (words < targetWords * band[0]) extra.push(...sceneShortfalls(written, targetWords));
     const next = await budget.generate(`uzunluk-${lengthRounds}`, writerUsed, lengthPrompt(JSON.stringify(written), spokenWords(written), targetWords, extra), opts);
     const revised = check(next.result.content);
     // A dropped round says why in the log (the Rubicon's three were dropped silently; the cause had to be replayed).
@@ -320,7 +329,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} kullanılmadı — ${revised.problems.length} sorun: ${revised.problems.slice(0, 3).join("; ").slice(0, 240)}`);
       continue;
     }
-    if (revisionGap(revised.value as Episode, targetWords) >= revisionGap(written, targetWords)) {
+    if (revisionGap(revised.value as Episode, targetWords, band) >= revisionGap(written, targetWords, band)) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} hedefe yaklaşmadı (${spokenWords(revised.value as Episode)}/${targetWords} kelime)`);
       continue;
     }

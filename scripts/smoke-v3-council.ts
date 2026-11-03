@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { openai } from "../src/lib/ai/client";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { BRAIN_NAMES, chiefItems, CouncilLog, councilMarkdown, readInbox, writeCouncilReport } from "../src/lib/v3/council/Council";
 import { designedWindows, EDGE_STRIPS_FILTER, edgeStripArgs, frameChecks, frameExamples, frameKindAt, judgeFrame, layoutSkip, pixelSkip, qualityPrompt, teachFrame } from "../src/lib/v3/council/QualityBrain";
@@ -62,6 +63,28 @@ async function main() {
     assert.equal(knownRemedy(ctx("V3_RESEARCH_THIN: yalnız 3 doğrulanmış olgu", { step: "senaryo" }))?.tur, "bekle_tekrar");
     assert.equal(knownRemedy(ctx("V3_RESEARCH_THIN: yalnız 3 doğrulanmış olgu", { step: "senaryo", attempt: 2 }))?.tur, "dur");
     assert.equal(knownRemedy(ctx("TypeError: cannot read properties of undefined")), undefined);
+  });
+
+  await scenario("A2 an empty OpenAI account (also a 429) is not waited out: a required step stops, an optional one is skipped", async () => {
+    const realFetch = globalThis.fetch;
+    const realKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test";
+    globalThis.fetch = (async () => new Response(JSON.stringify({ error: { message: "You have no credits remaining.", type: "insufficient_quota", code: "credit_balance_exhausted" } }), { status: 429 })) as typeof fetch;
+    let message = "";
+    try {
+      await openai.chat.completions.create({ model: "gpt-4.1-mini", messages: [{ role: "user", content: "x" }] }).catch((e: Error) => (message = e.message));
+    } finally {
+      globalThis.fetch = realFetch;
+      if (realKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = realKey;
+    }
+    assert.equal(message, "OpenAI request failed: 429 insufficient_quota credit_balance_exhausted");
+    assert.equal(knownRemedy(ctx(message, { step: "senaryo" }))?.tur, "dur");
+    assert.match(describeRepair(knownRemedy(ctx(message, { step: "senaryo" }))!), /OpenAI kredisi bitti/);
+    assert.equal(knownRemedy(ctx(`ADIM kapak: ${message}`, { step: "kapak", optional: true }))?.tur, "atla");
+    // A real rate limit (no account code in the message) is still waited out.
+    assert.equal(knownRemedy(ctx("OpenAI request failed: 429 requests rate_limit_exceeded"))?.tur, "bekle_tekrar");
+    assert.equal(knownRemedy(ctx("OpenAI request failed: 429"))?.tur, "bekle_tekrar");
   });
 
   await scenario("B an unknown failure goes to the model, which may only pick an allowed action", async () => {

@@ -519,3 +519,15 @@ Owner onayı: "bunları onaylıyorum başla". Ayrıntı: ATOLYE_CHECKPOINT.md "2
   ONAYLA/REDDET yalnız karar kaydeder; kodu bir geliştirme oturumu yapar).
 - Doğrulama: smoke-v3-reference 8, director-council 8, self-improvement 4, brains-report 3 ve mevcut V3/AYAS smoke'ları
   PASS; tsc 0; lint 0 hata / 13 eski uyarı.
+
+## Hata/masraf taraması: OpenAI kredisi, Short uzunluk bandı, isteğe bağlı adım (3 Kasım 2026)
+
+Owner isteği: "sistemi tara, açık var mı… boşu boşuna API parası harcıyoruz". Ayrıntı: ATOLYE_CHECKPOINT.md
+"3 Kasım 2026 (öğleden sonra)".
+
+- OpenAI hesabında kredi bitmiş (429 `credit_balance_exhausted`); hata metni artık türü/kodu taşır, onarım beyni kredi
+  bitince beklemeden durur (isteğe bağlı adımı atlar).
+- Short'ta uzunluk bandı tavanın yarısına kadar geçerli olan Short kuralına göre (%65–110): geçerli kısa taslak artık
+  ücretli uzatma turuna gönderilmez (önceden sipariş başına ~0,11 $ boşa).
+- Denemeleri biten isteğe bağlı adım (kapak) üretimi değil yalnız kendini bırakır.
+- Doğrulama: smoke-v3-council 15, script 24 ve ilgili V3 smoke'ları PASS; tsc 0; lint 0 hata / 13 eski uyarı.

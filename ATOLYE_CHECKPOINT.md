@@ -1,3 +1,43 @@
+## 3 Kasım 2026 (öğleden sonra) — V3 hata/masraf taraması: OpenAI kredisi bitmiş; boşa giden uzunluk turları, kapak turu düşürüyordu
+
+**Owner:** "sistemi bir tara, açık var mı, hata veren… boşu boşuna API parası harcıyoruz… bir yeri yaparken başka yeri
+bozma". Tarama kanıttan yapıldı: 7 siparişin `maliyet.json`, `uret.log`, `yapim-raporu.json` kayıtları + ilgili kod.
+
+**Bulgular:**
+1. **OpenAI kredisi bitti** — 3 Kasım 09:05'ten beri her çağrı 429 `insufficient_quota / credit_balance_exhausted`
+   (tek 1-token istekle doğrulandı). Önceki girişteki "429'un nedeni" açığı budur. İstemci (`src/lib/ai/client.ts`) yanıt
+   gövdesini atıyordu; onarım beyni bunu hız sınırı sanıp 30+60+90+120 sn bekliyordu. **Owner kredi yüklemeden yeni
+   sipariş senaryo adımında durur.**
+2. **Uzunluk turları en büyük masraf** — 7 siparişin 5'inde 3 turun hepsi harcandı (sipariş başına ~0,11 $, toplamın
+   %40–58'i). Short'ta bant ±%10 olduğundan 98 kelimelik (44 sn, Short kuralına göre geçerli) taslak 120'ye uzatılmak
+   istendi; model 151–159'a taşırdı, üç tur atıldı. `064532`'de kabul edilen tur 145 kelime → 66 sn, tavan aşıldı.
+   (Geçersiz sfx yüzünden atılan turlar 08a477ab'den beri normalleştiricide çözülü.)
+3. **İsteğe bağlı kapak adımı bütün turu düşürüyordu** — `step()` 4. denemede `skip` olsa da durduruyordu; yorum "without
+   it the video is still made" diyordu.
+
+**Düzeltmeler:** `client.ts` hata metnine OpenAI hata türü/kodu eklenir (`OpenAI request failed: 429 insufficient_quota
+credit_balance_exhausted`; başka tüketici metni eşleştirmiyor); `RepairBrain.knownRemedy` kredi bitince zorunlu adımı
+"OpenAI kredisi bitti — …billing" ile hemen durdurur, isteğe bağlıyı atlar (gerçek hız sınırı yine beklenir);
+`atolye-v3.ts step()` denemeler bitince isteğe bağlı adımı atlar (`dur` kararı yine durdurur; yalnız kapakta skip var);
+`ScriptEngine` Short'ta uzunluk bandı `SHORTS_LENGTH_BAND` [0,65, 1,1] (≈35–56 sn) — normal video ±%10 kalır.
+
+**Doğrulama:** smoke-v3-council 15 (yeni A2: sahte 429 gövdesi → mesaj, dur/atla, gerçek hız sınırı bekle), smoke-v3-script
+24 (yeni L2: 20 sn Short, 21/31 kelime → tur yok), backgrounds, brains-report, director-council, episode-director,
+self-improvement, youtube, likeness, mix PASS; tsc 0; lint 0 hata / 13 eski uyarı.
+
+**Owner sorusu — onaylanan öneriler işleniyor mu?** Hayır, kendiliğinden değil: `decideProposal` yalnız `durum:
+onaylandi` yazar, hiçbir kod onaylıyı okuyup işe başlamaz, `yapildi` durumunu yazan kod da yok (arayüz bunu söylüyor).
+Onaylanan 2 öneri: "sahne bazlı satır ekleme" 6cc07128'den (20 Eki) beri vardı; "anlatılanı sahnede senkron oynatma"
+08a477ab + 22a8bbc9 ile yapıldı — ikisi de hâlâ `onaylandi`. 26 bekleyen önerinin çoğu genel fikir ve bir kısmı zaten
+var (ölçülü yerleşim kontrolü, ACE-Step besteci): şef beyin mevcut yetenekleri bilmiyor.
+
+**Açık (owner kararı):** kredi yükleme; onaylanan öneriyi kapatma/kuyruğa alma yolu; rötuş turu benzerliği düşürünce
+durma (bu Short'ta 7→6→4, hakem turdan tura çelişiyor: "saç daha dolgun" → "saç fazla dolgun"); uzun videoda uzunluk
+turu bütün JSON'u yeniden yazıyor (~4k çıktı token/tur); Chicago müzesi uzun sorguda alakasız sonuçları (baykuş,
+kaplan…) görsel hakeme gönderiyor; 15 `ayas-live-*` anlık görüntüsü yine birikmiş.
+
+---
+
 ## 3 Kasım 2026 — Sezar Short'u incelemesi: anlatılan sahnede oynanır, ikili birlikte görünür, kart/tablo/balon düzeltildi
 
 **Owner:** `final-tur2.mp4` "Shorts olarak atılacak kalitede mi?" → inceleme: hayır (format/ses/lisans tamam; kusurlar

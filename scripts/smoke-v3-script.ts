@@ -263,6 +263,16 @@ async function main() {
     assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (0 → 1)")), logs.join("\n"));
   });
 
+  await scenario("L2 a Short under its word budget but well over half its ceiling is not sent to a paid expansion round", async () => {
+    // 20 s Short: budget 20 × 0.85 × 1.8 ≈ 31 words; the fixture's 21 words are ~68% of it — a normal video's ±10% band
+    // would have asked for more (the third Caesar Short: three rounds, all dropped over the ceiling).
+    const openai = new FakeProvider([validJson(), JSON.stringify({ iddialar: [] })]);
+    const budget = new V3Budget({ providers: { openai } });
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 20, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget });
+    assert.deepEqual([out.lengthRounds, out.spokenWords, out.targetWords], [0, 21, 31]);
+    assert.equal(budget.ledger.map((e) => e.step).join(","), "senaryo,dogrulama");
+  });
+
   await scenario("N research: a fact is kept only when its quote is really in the cited article", () => {
     const articles = [{ title: "Crossing the Rubicon", revid: 1, timestamp: "2026-08-19T00:00:00Z", text: "In January 49 BC, Julius Caesar led a single legion, Legio XIII Gemina, across the Rubicon river.\nThe phrase “the die is cast” is attributed to him." }];
     const id = sourceId("Crossing the Rubicon");
