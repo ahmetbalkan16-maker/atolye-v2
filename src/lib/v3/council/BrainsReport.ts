@@ -4,7 +4,7 @@ import { listOrders } from "../orders/ProductionOrders";
 import { BRAIN_NAMES } from "./Council";
 import { type CouncilSession, editLine } from "./DirectorCouncil";
 import { kindOf, listReferences, measuresLine, referenceTargets, targetsLine } from "./ReferenceStore";
-import { cycleLine, listCycles, listProposals, needsOwner, readTuning } from "./SelfImprovement";
+import { cycleLine, type DevProposal, listCycles, listProposals, needsOwner, readTuning } from "./SelfImprovement";
 
 /**
  * What the brains did, as the owner reads it (owner approval, 2 Nov 2026: "debates and lessons show in AYAS's chat
@@ -33,9 +33,27 @@ export interface AtolyeBrainsView {
   readonly oneriler: readonly { readonly id: string; readonly beyin: string; readonly baslik: string; readonly neden: string; readonly sayi: number; readonly olcum: boolean }[];
   readonly fikirSayisi: number;
   readonly kararlar: readonly { readonly baslik: string; readonly durum: string }[];
+  /** The development queue (DevQueue): approved proposals and what the developer did with them, open ones first. */
+  readonly kuyruk: readonly { readonly id: string; readonly baslik: string; readonly durum: string; readonly ayrinti: string }[];
 }
 
-const EMPTY: Omit<AtolyeBrainsView, "connected"> = { referanslar: [], hedefler: [], donguler: [], degisiklikler: [], oneriler: [], fikirSayisi: 0, kararlar: [] };
+const EMPTY: Omit<AtolyeBrainsView, "connected"> = { referanslar: [], hedefler: [], donguler: [], degisiklikler: [], oneriler: [], fikirSayisi: 0, kararlar: [], kuyruk: [] };
+
+const QUEUE_LABEL: Readonly<Record<string, string>> = { yapiliyor: "Geliştiriliyor", hazir: "Hazır — uygulanmayı bekliyor", onaylandi: "Kuyrukta", yapilamadi: "Yapılamadı", yapildi: "Yapıldı" };
+const QUEUE_ORDER = ["yapiliyor", "hazir", "onaylandi", "yapilamadi", "yapildi"];
+
+/** The queue's rows: every open job, and the last five finished ones. */
+function queueRows(proposals: readonly DevProposal[]): AtolyeBrainsView["kuyruk"] {
+  const open = proposals.filter((p) => QUEUE_ORDER.slice(0, 4).includes(p.durum)).sort((a, b) => QUEUE_ORDER.indexOf(a.durum) - QUEUE_ORDER.indexOf(b.durum));
+  const done = proposals.filter((p) => p.durum === "yapildi").sort((a, b) => (b.is?.bitis ?? b.karar?.tarih ?? "").localeCompare(a.is?.bitis ?? a.karar?.tarih ?? "")).slice(0, 5);
+  return [...open, ...done].map((p) => ({
+    id: p.id,
+    baslik: p.baslik,
+    durum: QUEUE_LABEL[p.durum] ?? p.durum,
+    ayrinti:
+      p.durum === "hazir" ? `dal ${p.is?.dal ?? "?"} · ${p.is?.dosyalar?.length ?? 0} dosya · testler geçti` : p.durum === "yapilamadi" ? `${(p.is?.sorunlar ?? []).join(" | ").slice(0, 240)} (deneme ${p.is?.deneme ?? 0})` : (p.is?.ozet ?? "").replace(/\s+/g, " ").slice(0, 240),
+  }));
+}
 
 /** The latest council of a production (or of a dry run) among the orders' work folders. */
 async function latestCouncil(workRoot: string): Promise<AtolyeBrainsView["kurul"]> {
@@ -90,6 +108,7 @@ export async function loadAtolyeBrainsView(workRoot: string): Promise<AtolyeBrai
       oneriler: proposals.filter(needsOwner).sort((a, b) => b.sayi - a.sayi || b.tarih.localeCompare(a.tarih)).slice(0, 12).map((p) => ({ id: p.id, beyin: BRAIN_NAMES[p.beyin] ?? p.beyin, baslik: p.baslik, neden: p.neden, sayi: p.sayi, olcum: p.kaynakTuru === "olcum" })),
       fikirSayisi: proposals.filter((p) => p.durum === "bekliyor" && !needsOwner(p)).length,
       kararlar: proposals.filter((p) => p.karar).sort((a, b) => (b.karar?.tarih ?? "").localeCompare(a.karar?.tarih ?? "")).slice(0, 5).map((p) => ({ baslik: p.baslik, durum: p.durum })),
+      kuyruk: queueRows(proposals),
     };
   } catch (e) {
     return { connected: false, error: (e as Error).message.slice(0, 200), ...EMPTY };
@@ -112,5 +131,7 @@ export function brainsReportText(v: AtolyeBrainsView): string {
   if (v.donguler.length) parts.push(`Son gelişim döngüsü: ${v.donguler[0]!.ozet}.`);
   if (v.degisiklikler.length) parts.push(`Beyinlerin kendi değişiklikleri: ${v.degisiklikler.slice(0, 3).join(" · ")}.`);
   parts.push(v.oneriler.length ? `Onayını bekleyen ${v.oneriler.length} kod önerisi var (Gelişim Merkezi): ${v.oneriler.slice(0, 3).map((o) => `"${o.baslik}"${o.sayi > 1 ? ` (${o.sayi} üretimde)` : ""}`).join("; ")}. Kod yalnız senin onayınla değişir.` : `Onayını bekleyen kod önerisi yok${v.fikirSayisi ? ` (${v.fikirSayisi} fikir, başka bir üretimde tekrar ederse sana gelir)` : ""}.`);
+  const open = v.kuyruk.filter((k) => k.durum !== "Yapıldı");
+  if (v.kuyruk.length) parts.push(`Geliştirme kuyruğu: ${open.length ? open.map((k) => `"${k.baslik}" — ${k.durum}`).join("; ") : "açık iş yok"}${v.kuyruk.length > open.length ? ` (${v.kuyruk.length - open.length} iş yapıldı)` : ""}.`);
   return parts.join("\n");
 }

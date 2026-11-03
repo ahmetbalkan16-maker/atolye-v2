@@ -543,3 +543,14 @@ Owner kararları üzerine. Ayrıntı: ATOLYE_CHECKPOINT.md "3 Kasım 2026 (akşa
 - Uzun video: süreye göre derin araştırma; planda bölüm bağlantıları; her bölüm öncekinin yazılan sonundan devam eder;
   birleşince hikâye editörü kopuklukları düzeltir.
 - Doğrulama: 16 smoke-v3 PASS; tsc 0; lint 0 hata / 13 eski uyarı.
+
+## Geliştirme kuyruğu ve Atölye geliştiricisi (3 Kasım 2026 akşam)
+
+Owner kararı: onaylanan öneri kuyruğa girsin, geliştirmeyi sistem kendisi yapsın. Ayrıntı: ATOLYE_CHECKPOINT.md
+"3 Kasım 2026 (akşam, 2)".
+
+- Onaylanan öneri kuyruğa girer; boşta döngü (sipariş yokken, gece saatlerinde) onu ayrı bir git kopyasında Claude Code
+  ile yapar, yalnız V3 dosyalarına dokunmuşsa ve tsc + bütün smoke-v3 + lint geçerse yerel dalda "hazır" bırakır.
+  Push ve canlıya alma yok; `scripts/v3/gelistirici.ts uygula` ile birleştirilir.
+- Varsayılan kapalı: açmak için canonical `.env.v3.local`'a `ATOLYE_V3_GELISTIRICI=1` (owner).
+- Doğrulama: self-improvement 7, brains-report 3, 16 smoke-v3 PASS; tsc 0; lint 0 hata.

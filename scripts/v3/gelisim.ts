@@ -18,6 +18,8 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { brainBudget, brainVision, steadyJudge } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
+import { develop, developerLock } from "../../src/lib/v3/council/Developer";
+import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
 import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v3/council/ExperienceMemory";
 import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
 import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
@@ -78,6 +80,21 @@ const examplesFlag = async (paths: V3Paths, on?: boolean, steady?: boolean) => [
 async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeof brainBudget>, orders: readonly ProductionOrder[]): Promise<Omit<TaskResult, "bitis">> {
   const skip = (ayrinti: string) => ({ gorev: task, sonuc: "atlandi" as const, ayrinti });
   const ok = (ayrinti: string) => ({ gorev: task, sonuc: "tamam" as const, ayrinti });
+  if (task === "gelistir") {
+    // The development queue: one approved proposal per cycle, only while the developer is switched on and in its hours.
+    const window = developerWindow(process.env);
+    if (!window.acik) return skip(window.neden);
+    const job = nextJob((await listProposals(paths.workRoot)).map((x) => x.proposal));
+    if (!job) return skip("kuyrukta iş yok");
+    const release = await developerLock(paths.workRoot);
+    if (!release) return skip("geliştirici başka bir işte");
+    try {
+      const done = await develop(job, { repoRoot: paths.repoRoot, workRoot: paths.workRoot, log });
+      return ok(`"${done.baslik}": ${done.durum === "hazir" ? `hazır — dal ${done.is?.dal}` : done.durum === "yapildi" ? "değişiklik gerekmedi" : `yapılamadı — ${(done.is?.sorunlar ?? []).join(" | ").slice(0, 200)}`}`);
+    } finally {
+      await release();
+    }
+  }
   if (task === "istekler") {
     const waiting = (await listStudyRequests(paths.workRoot)).filter((x) => x.request.durum === "bekliyor");
     if (!waiting.length) return skip("bekleyen video isteği yok");
@@ -371,7 +388,7 @@ async function main() {
     const id = process.argv[3];
     if (!id) throw new Error(`Kullanım: gelisim.ts ${cmd} <öneri id> [--not "…"]`);
     const p = await decideProposal(paths.workRoot, id, cmd === "onayla" ? "onaylandi" : "reddedildi", arg("--not"));
-    log(`${p.durum}: ${p.baslik}${p.durum === "onaylandi" ? " — bir geliştirme oturumu bunu yapacak; kod kendiliğinden değişmez" : ""}`);
+    log(`${p.durum}: ${p.baslik}${p.durum === "onaylandi" ? ` — geliştirme kuyruğunda; ${developerWindow(process.env).neden} (scripts/v3/gelistirici.ts liste)` : ""}`);
     return;
   }
   throw new Error("Kullanım: gelisim.ts dongu [--zorla] [--yalniz …] | durum | oneriler | onayla <id> | reddet <id>");

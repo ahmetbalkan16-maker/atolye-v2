@@ -5,7 +5,7 @@
  * Run: npx tsx scripts/smoke-v3-self-improvement.ts
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
@@ -41,9 +41,14 @@ import {
   taskDue,
   triedBefore,
   tunedSetting,
+  type DevProposal,
+  updateProposal,
   wantsOf,
   writeTuning,
 } from "../src/lib/v3/council/SelfImprovement";
+import { applyBuild, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
+import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, nextJob, taskPacket } from "../src/lib/v3/council/DevQueue";
+import { runProcess } from "../src/lib/v3/util/Proc";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -205,6 +210,86 @@ async function main() {
     assert.equal(CYCLE_EVERY_H, 4);
     assert.equal(TASK_EVERY_H.benzer, 0);
     assert.ok(STUDIES_PER_CYCLE <= STUDIES_PER_DAY);
+  });
+
+  await scenario("F the development queue: approved first, a failed build once more after a day, only V3 files, night hours, switched off by default", async () => {
+    const p = (id: string, durum: DevProposal["durum"], extra: Partial<DevProposal> = {}): DevProposal => ({ id, tarih: at(0), beyin: "kurgu", baslik: id, neden: "n", kaynaklar: ["ep1"], sayi: 2, durum, ...extra });
+    const list = [p("eski-hata", "yapilamadi", { is: { deneme: 1, baslangic: at(0), bitis: at(1) } }), p("ikinci", "onaylandi", { karar: { tarih: at(3) } }), p("birinci", "onaylandi", { karar: { tarih: at(2) } }), p("bekleyen", "bekliyor")];
+    assert.equal(nextJob(list, T0 + 30 * H)?.id, "birinci", "the earliest approval first");
+    assert.equal(nextJob(list.filter((x) => x.durum !== "onaylandi"), T0 + 30 * H)?.id, "eski-hata", "a failed build again after a day");
+    assert.equal(nextJob(list.filter((x) => x.durum !== "onaylandi"), T0 + 10 * H), undefined, "not within the day");
+    assert.equal(nextJob([p("iki-kez", "yapilamadi", { is: { deneme: MAX_DEV_TRIES, baslangic: at(0), bitis: at(1) } })], T0 + 99 * H), undefined, "two tries at most");
+    assert.deepEqual(forbiddenChanges(["src/lib/v3/mix/X.ts", "scripts\\smoke-v3-mix.ts", "scripts/v3/yapim.ts", "remotion-v3/src/Episode.tsx", "package.json", "src/lib/ayas/A.ts", "app/brain/actions.ts", ".env.v3.local", "scripts/smoke-ayas-x.ts"]), ["package.json", "src/lib/ayas/A.ts", "app/brain/actions.ts", ".env.v3.local", "scripts/smoke-ayas-x.ts"]);
+    const night = new Date(2026, 10, 3, 3, 0), day = new Date(2026, 10, 3, 14, 0);
+    assert.deepEqual([developerWindow({}, night).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1" }, night).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1" }, day).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1", ATOLYE_V3_GELISTIRICI_SAAT: "22-6" }, new Date(2026, 10, 3, 23, 0)).acik], [false, true, false, true]);
+    const packet = taskPacket(p("x", "onaylandi", { baslik: "Crowds that cheer", karar: { tarih: at(2), not: "make it loud" } }), { sorunlar: ["tsc failed"] });
+    assert.ok(packet.includes("TITLE: Crowds that cheer") && packet.includes("OWNER'S NOTE: make it loud") && packet.includes("THE LAST ATTEMPT WAS THROWN AWAY BECAUSE: tsc failed") && packet.includes("already does this"));
+    assert.ok(DEVELOPER_RULES.includes("Do NOT run git") && DEVELOPER_RULES.includes("Never\n  package.json"));
+    assert.deepEqual(changedPaths(" M src/lib/v3/a.ts\n?? scripts/smoke-v3-b.ts\nR  docs/v3/old.md -> docs/v3/new.md\n"), ["src/lib/v3/a.ts", "scripts/smoke-v3-b.ts", "docs/v3/new.md"]);
+    const agent = claudeAgent({ APPDATA: "C:\\AppData", ATOLYE_V3_CLAUDE_CLI: "" });
+    assert.ok(agent[1]!.endsWith(path.join("@anthropic-ai", "claude-code", "cli-wrapper.cjs")) && agent.includes("-p") && agent.includes("acceptEdits") && agent.some((a) => a.startsWith("--allowedTools=Read,Edit,Write,Glob,Grep,Bash(npx tsc:*)")) && !agent.some((a) => /git/i.test(a) && a.startsWith("--allowedTools")));
+  });
+
+  await scenario("G the developer builds in its own worktree: a kept build is committed on its branch, a bad one thrown away, the checkout and its node_modules untouched", async () => {
+    const base = mkdtempSync(path.join(os.tmpdir(), "v3-gelistirici-"));
+    const repo = path.join(base, "repo");
+    const work = path.join(base, "runtime");
+    mkdirSync(path.join(repo, "src", "lib", "v3"), { recursive: true });
+    mkdirSync(path.join(repo, "node_modules", "pkg"), { recursive: true });
+    writeFileSync(path.join(repo, "node_modules", "pkg", "keep.txt"), "the checkout's own dependency");
+    writeFileSync(path.join(repo, ".gitignore"), "/node_modules\n");
+    writeFileSync(path.join(repo, "src", "lib", "v3", "a.ts"), "export const a = 1;\n");
+    const g = async (args: string[], cwd = repo) => {
+      const r = await runProcess("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd });
+      assert.equal(r.code, 0, `${args.join(" ")}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    await g(["init", "-q", "-b", "main"]);
+    await g(["add", "-A"]);
+    await g(["commit", "-q", "-m", "init"]);
+    const head = await g(["rev-parse", "HEAD"]);
+    await proposeDevelopment(work, { beyin: "kurgu", baslik: "Change a", neden: "n", kaynak: "ep1", kaynakTuru: "olcum" });
+    const id = (await listProposals(work))[0]!.proposal.id;
+    await decideProposal(work, id, "onaylandi");
+    // The fake agent edits a V3 file (in the worktree it runs in) and prints its summary.
+    const fakeAgent = (code: string) => [process.execPath, "-e", `${code};process.stdin.resume();process.stdin.on("end",()=>console.log("değiştirdim"))`];
+    const deps = (agentCode: string, checks: string[][]) => ({ repoRoot: repo, workRoot: work, worktreeRoot: path.join(base, "gelistirme"), agent: fakeAgent(agentCode), checks, log: () => {} });
+    const pass = [[process.execPath, "-e", "require('fs').accessSync('node_modules/pkg/keep.txt')"]];
+    const job = (await listProposals(work))[0]!.proposal;
+    const done = await develop(job, deps(`require("fs").writeFileSync("src/lib/v3/a.ts","export const a = 2;\\n")`, pass));
+    assert.equal(done.durum, "hazir", JSON.stringify(done.is));
+    assert.deepEqual([done.is?.dal, done.is?.dosyalar, done.is?.deneme], [`gelistirme/${id}`, ["src/lib/v3/a.ts"], 1]);
+    assert.match(await g(["log", "-1", "--format=%s", `gelistirme/${id}`]), /^feat\(v3\): Change a$/);
+    assert.equal(await g(["rev-parse", "HEAD"]), head, "the checkout's branch did not move");
+    assert.equal(readFileSync(path.join(repo, "src", "lib", "v3", "a.ts"), "utf8"), "export const a = 1;\n", "its working tree untouched");
+    assert.equal(readFileSync(path.join(repo, "node_modules", "pkg", "keep.txt"), "utf8"), "the checkout's own dependency", "removing the worktree never entered the linked node_modules");
+    assert.equal(existsSync(path.join(base, "gelistirme", id)), false, "the worktree is gone, the branch stays");
+    // Applying the kept build fast-forwards the checkout.
+    assert.deepEqual(await applyBuild(done, repo), { ok: true, neden: `ileri sarıldı (gelistirme/${id})` });
+    // (git may check it out with CRLF on Windows.)
+    assert.equal(readFileSync(path.join(repo, "src", "lib", "v3", "a.ts"), "utf8").replace(/\r\n/g, "\n"), "export const a = 2;\n");
+    // A change outside the V3 files, or a failing check, throws the build away (branch deleted, reason kept).
+    await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi" }));
+    const outside = await develop((await listProposals(work))[0]!.proposal, deps(`require("fs").writeFileSync("package.json","{}")`, pass));
+    assert.equal(outside.durum, "yapilamadi");
+    assert.match(outside.is!.sorunlar![0]!, /izin dışı dosyalar değişti: package.json/);
+    assert.equal(outside.is?.deneme, 2);
+    await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi", is: { deneme: 0, baslangic: at(0) } }));
+    const failing = await develop((await listProposals(work))[0]!.proposal, deps(`require("fs").writeFileSync("src/lib/v3/a.ts","broken")`, [[process.execPath, "-e", "process.exit(3)"]]));
+    assert.equal(failing.durum, "yapilamadi");
+    assert.match(failing.is!.sorunlar![0]!, /^kontrol geçmedi/);
+    assert.equal((await runProcess("git", ["branch", "--list", `gelistirme/${id}`], { cwd: repo })).stdout.trim(), "", "a thrown-away build leaves no branch");
+    assert.ok(existsSync(path.join(work, "_kutuphane", "gelisim", "isler", id, "ajan-1.log")), "the agent's transcript is kept");
+    // Nothing to change: done, with the agent's reason for the owner.
+    await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi", is: { deneme: 0, baslangic: at(0) } }));
+    const nothing = await develop((await listProposals(work))[0]!.proposal, deps("0", pass));
+    assert.deepEqual([nothing.durum, nothing.is?.ozet], ["yapildi", "Değişiklik yapılmadı — değiştirdim"]);
+    // One developer at a time.
+    const release = await developerLock(work);
+    assert.ok(release);
+    assert.equal(await developerLock(work), undefined);
+    await release!();
+    assert.ok(await developerLock(work));
   });
 
   console.log(`PASS (${scenarios} scenarios)`);

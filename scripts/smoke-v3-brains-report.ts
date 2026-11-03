@@ -17,7 +17,7 @@ import { answerAyasVideoIntent, detectAyasVideoIntent } from "../src/lib/ayas/Ay
 import { brainsReportText, loadAtolyeBrainsView } from "../src/lib/v3/council/BrainsReport";
 import type { CouncilSession } from "../src/lib/v3/council/DirectorCouncil";
 import { listStudyRequests, type ReferenceRecord } from "../src/lib/v3/council/ReferenceStudy";
-import { proposeDevelopment, recordCycle, settleAddition, writeTuning } from "../src/lib/v3/council/SelfImprovement";
+import { decideProposal, listProposals, proposeDevelopment, recordCycle, settleAddition, updateProposal, writeTuning } from "../src/lib/v3/council/SelfImprovement";
 import { placeOrder, saveOrder, orderDir } from "../src/lib/v3/orders/ProductionOrders";
 
 let scenarios = 0;
@@ -127,8 +127,19 @@ async function main() {
     assert.match(html, /Notch the 6 kHz whine/);
     assert.equal((html.match(/>ONAYLA</g) ?? []).length, 1);
     assert.match(html, /1 fikir daha bekliyor/);
-    assert.match(html, /Beyinler kodu değiştiremez/);
+    assert.match(html, /Beyinler kodu kendileri değiştiremez. Onayladığın öneri geliştirme kuyruğuna girer/);
     assert.doesNotMatch(html, /An AI composer/);
+    assert.doesNotMatch(html, /Geliştirme kuyruğu/, "nothing approved yet");
+    // An approved proposal is in the development queue; the developer's kept build waits "hazır" on its branch.
+    const idea = (await listProposals(root)).find((x) => x.proposal.baslik === "An AI composer")!.proposal;
+    await decideProposal(root, idea.id, "onaylandi");
+    const queued = await loadAtolyeBrainsView(root);
+    assert.deepEqual(queued.kuyruk.map((k) => [k.baslik, k.durum]), [["An AI composer", "Kuyrukta"]]);
+    assert.match(brainsReportText(queued), /Geliştirme kuyruğu: "An AI composer" — Kuyrukta\./);
+    await updateProposal(root, idea.id, (q) => ({ ...q, durum: "hazir", is: { deneme: 1, baslangic: "2026-11-03T02:00:00Z", bitis: "2026-11-03T02:40:00Z", dal: `gelistirme/${idea.id}`, dosyalar: ["src/lib/v3/mix/MusicComposer.ts"] } }));
+    const ready = await loadAtolyeBrainsView(root);
+    assert.deepEqual(ready.kuyruk.map((k) => [k.durum, k.ayrinti]), [["Hazır — uygulanmayı bekliyor", `dal gelistirme/${idea.id} · 1 dosya · testler geçti`]]);
+    assert.match(renderToStaticMarkup(createElement(AtolyeBrainsPanel, { initial: ready })), /Geliştirme kuyruğu:.*<b>Hazır — uygulanmayı bekliyor<\/b> — An AI composer/);
     // An unreadable store says so; no view renders nothing.
     assert.match(renderToStaticMarkup(createElement(AtolyeBrainsPanel, { initial: { ...v, connected: false, error: "EACCES" } })), /Kayıtlar okunamadı: EACCES/);
     assert.equal(renderToStaticMarkup(createElement(AtolyeBrainsPanel, {})), "");

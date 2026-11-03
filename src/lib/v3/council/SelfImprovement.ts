@@ -1,6 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { type BrainId, BRAIN_NAMES, type Finding } from "./Council";
+import type { DevJob } from "./DevQueue";
 import { overlap } from "./TextOverlap";
 
 /**
@@ -8,7 +9,8 @@ import { overlap } from "./TextOverlap";
  * owner linked and videos similar to the studio's own, compare their own delivered videos with those references and
  * write lessons, sit their exams, and change their own prompt additions and settings — a change is kept only when the
  * exam measures it better, otherwise it is taken back and never tried again. A change to code is never made here: it
- * becomes a proposal in the Gelişim Merkezi, and only the owner's approval lets a development session build it.
+ * becomes a proposal in the Gelişim Merkezi, and only the owner's approval puts it in the development queue (DevQueue),
+ * where the studio's developer builds it in a worktree of its own (Developer).
  * Everything lives under `<workRoot>/_kutuphane/gelisim/`.
  */
 export function improvementDir(workRoot: string): string {
@@ -16,7 +18,7 @@ export function improvementDir(workRoot: string): string {
 }
 
 /** The idle loop's tasks, in the order a cycle runs them. */
-export const CYCLE_TASKS = ["istekler", "karsilastir", "oneriler", "benzer", "pekistir", "sinav", "ayar"] as const;
+export const CYCLE_TASKS = ["istekler", "karsilastir", "oneriler", "benzer", "pekistir", "sinav", "ayar", "gelistir"] as const;
 export type CycleTask = (typeof CYCLE_TASKS)[number];
 
 export const TASK_NAMES: Readonly<Record<CycleTask, string>> = {
@@ -27,13 +29,14 @@ export const TASK_NAMES: Readonly<Record<CycleTask, string>> = {
   pekistir: "öğrenilenleri pekiştirme",
   sinav: "kalite beyninin sınavı",
   ayar: "istem eki ve ayar denemesi",
+  gelistir: "onaylanan bir öneriyi geliştirme (kuyruk)",
 };
 
 /**
  * How often a task may run (hours). The search runs every cycle (owner, 2 Nov 2026: "don't wait for my links — study
  * related videos on the internet by yourself"); the exam and the tuning use the GPU for minutes, so once a day.
  */
-export const TASK_EVERY_H: Readonly<Record<CycleTask, number>> = { istekler: 0, karsilastir: 0, oneriler: 0, benzer: 0, pekistir: 24, sinav: 24, ayar: 24 };
+export const TASK_EVERY_H: Readonly<Record<CycleTask, number>> = { istekler: 0, karsilastir: 0, oneriler: 0, benzer: 0, pekistir: 24, sinav: 24, ayar: 24, gelistir: 0 };
 
 /** The pause between two full cycles of the idle loop (owner, 2 Nov 2026: "4 hours"; `ATOLYE_V3_GELISIM_ARALIK_SA` overrides). */
 export const CYCLE_EVERY_H = 4;
@@ -101,7 +104,7 @@ export function cycleDue(cycles: readonly CycleRecord[], opts: { readonly everyH
 
 /**
  * A development proposal for the owner (Gelişim Merkezi): something only a code change can fix. The brains only ever
- * write it; the owner approves or rejects it, and an approved one waits for a development session to build it.
+ * write it; the owner approves or rejects it, and an approved one waits in the development queue for the developer.
  */
 export interface DevProposal {
   readonly id: string;
@@ -119,8 +122,23 @@ export interface DevProposal {
    * already has: an idea asks for the owner only once it comes back from another production.
    */
   readonly kaynakTuru?: "olcum" | "fikir";
-  durum: "bekliyor" | "onaylandi" | "reddedildi" | "yapildi";
+  /**
+   * onaylandi: in the development queue (DevQueue); yapiliyor: the developer is building it; hazir: built and checked on
+   * its own branch, waiting to be applied; yapilamadi: the build was thrown away (why in `is`); yapildi: in the studio.
+   */
+  durum: "bekliyor" | "onaylandi" | "reddedildi" | "yapiliyor" | "hazir" | "yapilamadi" | "yapildi";
   karar?: { readonly tarih: string; readonly not?: string };
+  /** The developer's work on it. */
+  is?: DevJob;
+}
+
+/** Rewrites one proposal (the developer's progress, a closing note); the change is atomic like every proposal write. */
+export async function updateProposal(workRoot: string, id: string, change: (p: DevProposal) => DevProposal): Promise<DevProposal> {
+  const hit = (await listProposals(workRoot)).find((x) => x.proposal.id === id);
+  if (!hit) throw new Error(`V3_PROPOSAL_NOT_FOUND: ${id}`);
+  const next = change(hit.proposal);
+  await writeProposal(hit.file, next);
+  return next;
 }
 
 /** An idea needs the owner once this many productions raised it; a measured fault at once. */

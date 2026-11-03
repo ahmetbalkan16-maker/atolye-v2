@@ -1,3 +1,36 @@
+## 3 Kasım 2026 (akşam, 2) — Geliştirme kuyruğu ve Atölye geliştiricisi (varsayılan kapalı)
+
+**Owner kararı:** "onayladığım öneri iş kuyruğuna gitsin ve geliştirmeyi kendisi ya da AYAS yapsın". Bulunan: AYAS'ın
+canlı bir Claude/Codex bağdaştırıcısı yok (`AyasDeveloperHandoff`: paket yalnız elle yapıştırılır); öneri onayı yalnız
+`durum: onaylandi` yazıyordu, `yapildi` yazan kod yoktu.
+
+- `council/DevQueue.ts` (saf): `nextJob` (en eski onay; başarısız iş bir gün sonra bir kez daha, en çok 2), `forbiddenChanges`
+  (yalnız src/lib/v3, scripts/v3, smoke-v3-*, remotion-v3/src, content/v3, docs/v3), `developerWindow`
+  (`ATOLYE_V3_GELISTIRICI=1` + saat `ATOLYE_V3_GELISTIRICI_SAAT`, varsayılan 1–7), `DEVELOPER_RULES` (git yok, AGENTS.md
+  oturum adımları yok, izinli alan, smoke ile kanıt), `taskPacket`.
+- `council/Developer.ts`: `develop` — checkout HEAD'inden `gelistirme/<id>` dalında ayrı worktree (`D:\ÜRETİM\Atolye\
+  gelistirme\<id>`, node_modules junction), `claude -p --permission-mode acceptEdits --allowedTools=Read,Edit,Write,Glob,Grep,
+  Bash(npx tsc:*),Bash(npx tsx scripts/smoke-v3-:*)` (görev stdin'den), sonra izinli dosya + tsc + bütün smoke-v3 + lint;
+  geçerse dalda commit → `hazir`, geçmezse dal silinir → `yapilamadi` (neden + ajan/kontrol kaydı
+  `_kutuphane/gelisim/isler/<id>/`); değişiklik yoksa `yapildi` + ajanın gerekçesi. Worktree silinmeden önce junction'lar
+  tek başına kaldırılır (smoke: bağlı node_modules dokunulmadan kalır). Push/canlı yok. `applyBuild` ff-only, olmazsa
+  çakışmasız merge. `developerLock` tek geliştirici.
+- Boşta döngüye `gelistir` görevi (son görev, döngü başına bir iş); `scripts/v3/gelistirici.ts liste|calistir|uygula|kapat`.
+- Gelişim Merkezi "Atölye Beyinleri": "Geliştirme kuyruğu" listesi (Kuyrukta / Geliştiriliyor / Hazır / Yapılamadı /
+  Yapıldı), uyarı metni yenilendi; AYAS sohbet raporuna kuyruk satırı.
+- Onaylı iki öneri kapatıldı (ikisi de yapılmıştı): kurgu-2 (sceneShortfalls 6cc07128 + Short bandı 63881724), kurgu-6
+  (toldActs/toldOnStage 08a477ab/22a8bbc9 + CrowdRules 6bbd9916).
+- Gerçek Claude CLI bu bayraklarla başsız çalıştı (çıkış 0, 5 sn). **Açma adımı** (canonical `.env.v3.local`'a
+  `ATOLYE_V3_GELISTIRICI=1`) otomatik modda "[Create Unsafe Agents]" ile reddedildi → geliştirici kapalı; açmak owner'ın
+  kararı ve elle yapacağı satır.
+- Anlık görüntü temizliği bitti: 15 eski `ayas-live-*` silindi, canlı 6bbd9916 + geri dönüş 63881724 kaldı (D: 669 GB boş).
+
+**Doğrulama:** smoke-v3-self-improvement 7 (F kuyruk/alan/saat/paket/bayraklar, G gerçek git worktree + sahte ajan: hazır
+dal, ff uygulama, izin dışı dosya ve kalan kontrol reddi, değişiklik yok, kilit, junction güvenliği), brains-report 3
+(kuyruk görünümü); 16 smoke-v3 + action-firewall(-closure) PASS; tsc 0; lint 0 hata / 13 eski uyarı.
+
+---
+
 ## 3 Kasım 2026 (akşam) — Rötuş kendi durur ve ders alır; anlatılan topluluk kalabalık olarak görünür; uzun video tek hikâye
 
 **Owner kararları** (taramanın açıkları üzerine): "rötuş kendisi durmalı, bunu bilmeli, hataları tecrübe olarak kaydetmeli";

@@ -101,7 +101,7 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
 
       <section className="bc-dev__section" aria-labelledby="atolye-oneriler">
         <h3 id="atolye-oneriler">Kod Önerileri — Onayını Bekleyenler <span>{view.oneriler.length}</span></h3>
-        <p className="bc-dev__notice bc-dev__notice--warn">Beyinler kodu değiştiremez. Onayladığın öneri bir geliştirme oturumunda yapılır; onay hiçbir şeyi kendiliğinden kurmaz ya da yayınlamaz.</p>
+        <p className="bc-dev__notice bc-dev__notice--warn">Beyinler kodu kendileri değiştiremez. Onayladığın öneri geliştirme kuyruğuna girer; Atölye geliştiricisi onu sipariş yokken ayrı bir kopyada yapar, testlerden geçerse ayrı bir dalda &quot;hazır&quot; olur. Hiçbir şey kendiliğinden canlıya geçmez.</p>
         {view.oneriler.length ? (
           <div className="bc-dev__timeline">
             {view.oneriler.map((o) => (
@@ -118,6 +118,12 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
           </div>
         ) : <p className="bc-empty">Onayını bekleyen kod önerisi yok.</p>}
         {view.fikirSayisi ? <p className="bc-empty">{view.fikirSayisi} fikir daha bekliyor; başka bir üretimde tekrar ederse buraya gelir.</p> : null}
+        {view.kuyruk.length ? (
+          <>
+            <p><b>Geliştirme kuyruğu:</b></p>
+            <ul className="bc-dev__micro-items">{view.kuyruk.map((k) => <li key={k.id} className="bc-dev__micro-item" data-testid={`atolye-queue-${k.id}`}><b>{k.durum}</b> — {k.baslik}{k.ayrinti ? <> · <span>{k.ayrinti}</span></> : null}</li>)}</ul>
+          </>
+        ) : null}
         {view.kararlar.length ? <details><summary>Son kararların ({view.kararlar.length})</summary><ul>{view.kararlar.map((x) => <li key={x.baslik}>{x.durum === "onaylandi" ? "Onaylandı" : x.durum === "reddedildi" ? "Reddedildi" : x.durum}: {x.baslik}</li>)}</ul></details> : null}
       </section>
     </section>
