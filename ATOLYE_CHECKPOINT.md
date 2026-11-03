@@ -34,9 +34,12 @@ değişen modüllere dokunan 51 smoke'un hepsi PASS (sohbet, doğal konuşma, ak
 yönetici bildirimi, Gelişim Merkezi…); tsc temiz; tam lint 0 hata / 13 eski uyarı. Bu makinede gerçek dosyalarla dört
 skill de iki depoda kayıtlı. Belge: `docs/AYAS_AGENTIC_INTELLIGENCE.md` "Runtime skill registration".
 
-**Açık / sıradaki:** canlıya alma owner onayı bekliyor (live dalı ileri sar + canonical pull → otomatik canlı yayın).
-Canlıda AYAS'a "hangi smoke testlerini çalıştırmalıyım?" sorup cevabın rehberi kullandığı görülmeli; kontrol merkezinde
-dört skill REGISTERED görünmeli.
+**Canlıda:** owner yeni kalıcı kural verdi — "her zaman görev bitiminde otomatik canlıya al, onay alma benden" (bundan
+sonra doğrulanmış her görev sonunda live dalı ileri sar + canonical pull + Graphify; çalışan sipariş/iş varsa beklenir).
+`8a8284a4` live dalında, canonical çekildi, otomatik yayın `ayas-live-8a8284a4` PUBLISHED (dış erişim healthy; geri
+dönüş `ayas-live-923267c7`), Graphify iki depoda GRAPH_CURRENT. Sipariş izleyicisi yeniden başlatılmadı (V3 kodu
+değişmedi). **Sıradaki:** kontrol merkezinde dört skill'in REGISTERED görünmesi ve AYAS'ın "hangi smoke testlerini
+çalıştırmalıyım?" cevabında rehberi kullanması henüz owner ekranında görülmedi.
 
 ## 2 Kasım 2026 (gece, 8) — Kendi kendine öğrenme: bağlantı yeter, 4 saatte bir arama, pekiştirme, sabit hakem
 
