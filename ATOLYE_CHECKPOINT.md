@@ -36,7 +36,22 @@ dışı işaret, ince tablo) canlı deneyim hafızasına öğretildi.
 lint 0 hata / 13 eski uyarı. Eski bölümün s1/s2/s4 sahneleri yeni kodla dikey önizlendi (sessiz klip): kamarada ikili
 birlikte, güvertede korsan gülerken pencere ona dönüyor, sahilde Sezar kaçan korsanı yakalıyor.
 
-**Sıradaki:** canlıya alma, aynı konuyla yeni Short siparişi, kare kare inceleme, YouTube'a elle yükleme paketi (API yok).
+**İlk yeniden üretim (sipariş `20261103T064532-…`, 22a8bbc9 canlıda):** senarist kurallara uydu (tam ekran kart yok,
+her anlatıcı satırında oyun, finalde korsan sahnede, balonlar sözlerden); ikili hep birlikte. Yeni bulunanlar (render,
+kare kare): **66 sn** (155 kelime; Short sınırı 60); dar karede ad etiketi ortada → iki kişi yan yana olunca "CILICIAN
+PIRATE CHIEF" Sezar'ın gövdesindeydi; s4 için çizilen **tasarlanan an** resmi (Romalılar kıyıda saldırıyor) oynanan satır
+kuralı yüzünden hiç girmedi; dört sahne de aynı güneşli sahil ("Inside pirate hut" dahil — iç mekân seti yok). Bu
+sipariş kullanılmayacak (üretim sürecini durdurma izni otomatik modda reddedildi; kendi bitmesi bekleniyor).
+
+**İkinci düzeltme turu:** `wordBudget` Short'ta tavanın %85'i (`SHORTS_FILL`; 60 sn → 120 kelime); dar karede ad etiketi
+kendi karakterinin gövdesinde, uzun ad küçülerek yarım kareye sığar; `SceneInsert.designed` (üretim `tasarim` işaretini
+geçirir) — tasarlanan an resmi Short'ta oynanan satırın üstüne de girer, bulunmuş dönem tablosu girmez. Testler:
+smoke-v3-script'in 12/42 sn kısa brief'leri 14/50 sn'ye (aynı kelime hedefleri); O35'e tasarlanan an. 16 `smoke-v3-*`
+PASS, tsc kök + remotion-v3, lint 0 hata. Açık: genel iç mekân seti (kulübe/oda) yok; tasarlanan an resminde bir kalyon
+(dönem dışı gemi) vardı — hakem dönem 10/10 verdi.
+
+**Sıradaki:** canlıya alma, aynı konuyla yeni Short siparişi (eskisinin arkasında kuyrukta), kare kare inceleme, YouTube'a
+elle yükleme paketi (API yok).
 
 ## 3 Kasım 2026 — Gelişim Merkezi: Atölye Beyinleri "Bugün" bölümünün üstünde
 

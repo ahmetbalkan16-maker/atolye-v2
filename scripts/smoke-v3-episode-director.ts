@@ -1887,6 +1887,13 @@ async function main() {
     // ...seen whole: no camera key closer than the window allows, no picture over the acting, no black word card.
     assert.ok(short.camera.every((k) => k.zoom <= VERTICAL_MAX_ZOOM + 1e-9), JSON.stringify(short.camera.map((k) => k.zoom)));
     assert.deepEqual(short.inserts, []);
+    // ...unless the picture was designed for the moment: it shows what the stage cannot (the second Caesar Short's
+    // army on the shore was never cut in over the acted payoff).
+    // (A chase keeps every picture away: no cutaway while anyone moves.) A told laugh, acted where it stands:
+    const laugh: Episode = { ...ep, sahneler: [{ ...scene, yazi_karti: undefined, satirlar: [scene.satirlar[0]!, { ...scene.satirlar[1]!, metin: "Mehmed laughed at Halil Pasha all evening, and the whole court laughed along." }, scene.satirlar[2]!] }] };
+    const laughInput = { ...input, episode: laugh, output: SHORTS_SIZE };
+    assert.equal(buildRenderPlan(laughInput).shots[0]!.inserts?.length ?? 0, 0, "a found painting stays off the acting");
+    assert.equal(buildRenderPlan({ ...laughInput, inserts: [{ src: "bg/s4-an.png", designed: true }] }).shots[0]!.inserts?.length, 1);
     assert.deepEqual(short.titleCards.map((c) => [c.style, c.start]), [["yer_tarih", 0]]);
     // The bubble that said something else now says the spoken words.
     assert.equal(short.bubbles?.[0]?.text, "Only twenty? I’m worth at least fifty!");

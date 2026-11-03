@@ -76,8 +76,14 @@ const GARMENT_NOTES: Readonly<Record<(typeof GARMENTS)[number], string>> = {
 
 export const SHOES = ["kahve-cizme", "kahve-mest", "kirmizi-cizme", "kirmizi-mest", "sari-cizme", "sari-mest", "siyah-cizme"] as const;
 
+/**
+ * A Short's length is a ceiling, not a target (Format.lengthOk): its words aim at this share of it, so the spoken video
+ * with its pauses and the length band's +10% stays under (the second Caesar Short: 155 words for 60 s ran 66 s).
+ */
+export const SHORTS_FILL = 0.85;
+
 export function wordBudget(brief: ScriptBrief): number {
-  return Math.round(brief.hedefSureSn * WORDS_PER_SECOND[brief.dil]);
+  return Math.round(brief.hedefSureSn * (isShorts(brief.hedefSureSn) ? SHORTS_FILL : 1) * WORDS_PER_SECOND[brief.dil]);
 }
 
 function catalogText(catalog: readonly PackCatalogEntry[]): string {

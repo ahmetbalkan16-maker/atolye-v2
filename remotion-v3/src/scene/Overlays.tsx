@@ -93,8 +93,13 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
   const enter = spring({ frame: frame - tag.start, fps, config: { damping: 13, stiffness: 170 } });
   const out = interpolate(frame, [tag.end - 8, tag.end], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const name = tag.name.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US");
-  const fs = 54 * k;
-  const w = Math.max(name.length * fs * 0.72, (tag.role?.length ?? 0) * 26 * k * 0.55) + 20 * k;
+  // A Short's narrow frame has no room beside a head (the name sat on the turban and the face, 2 Nov 2026): the name
+  // stands in the lower third on its own character's body, without the arrow, lettered small enough to stay within
+  // about half the frame — two stand side by side in it, and a centred name sat on the other one (3 Nov 2026).
+  const narrow = W < H;
+  const fs = narrow ? Math.min(54 * k, (W * 0.48) / Math.max(1, name.length * 0.72)) : 54 * k;
+  const roleFs = narrow ? Math.max(20 * k, (28 * k * fs) / (54 * k)) : 28 * k;
+  const w = Math.max(name.length * fs * 0.72, (tag.role?.length ?? 0) * roleFs * 0.5) + 20 * k;
   const room = { left: anchor.x - anchor.r * 1.3, right: W - anchor.x - anchor.r * 1.3 };
   const preferLeft = anchor.neighbourX !== undefined ? anchor.neighbourX > anchor.x : room.left > room.right;
   const gap = anchor.r * 1.25 + 70 * k;
@@ -102,10 +107,7 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
   // Squeezed against the frame edge the label would slide onto the face: then it goes to the other side.
   const onFace = (l: number) => l < anchor.x + anchor.r * 1.4 && l + w > anchor.x - anchor.r * 1.4;
   const onLeft = onFace(place(preferLeft)) && !onFace(place(!preferLeft)) ? !preferLeft : preferLeft;
-  // A Short's narrow frame has no room beside a head (the name sat on the turban and the face, 2 Nov 2026): it stands
-  // centred in the lower third, without the arrow.
-  const narrow = W < H;
-  const left = narrow ? (W - w) / 2 : place(onLeft);
+  const left = narrow ? Math.min(W - 20 * k - w, Math.max(20 * k, anchor.x - w / 2)) : place(onLeft);
   // Beside the face (the speech floats above the head).
   const face = anchor.top + 2.05 * anchor.r;
   const top = narrow ? H * 0.72 : Math.min(H - 160 * k, Math.max(40 * k, face - fs * 0.75));
@@ -127,8 +129,8 @@ export function NameTag({ tag, anchor, language }: { tag: V3NameTag; anchor: Hea
         </svg>
       )}
       <div {...yer("ad", tag.name)} style={{ position: "absolute", left, top, width: w, textAlign: narrow ? "center" : onLeft ? "right" : "left", transform: `scale(${0.5 + 0.5 * enter})`, transformOrigin: narrow ? "50% 50%" : onLeft ? "100% 50%" : "0% 50%" }}>
-        <div style={{ font: `900 ${fs}px 'Segoe UI Black', 'Arial Black', sans-serif`, color: "#ffffff", WebkitTextStroke: `${12 * k}px ${INK}`, paintOrder: "stroke fill", letterSpacing: 1.5 * k, lineHeight: 1.05 }}>{name}</div>
-        {tag.role ? <div style={{ font: `800 ${28 * k}px 'Segoe UI', Arial, sans-serif`, color: "#ffe9a8", WebkitTextStroke: `${7 * k}px ${INK}`, paintOrder: "stroke fill", marginTop: 2 * k }}>{tag.role}</div> : null}
+        <div style={{ font: `900 ${fs}px 'Segoe UI Black', 'Arial Black', sans-serif`, color: "#ffffff", WebkitTextStroke: `${(12 * fs) / 54}px ${INK}`, paintOrder: "stroke fill", letterSpacing: 1.5 * k, lineHeight: 1.05 }}>{name}</div>
+        {tag.role ? <div style={{ font: `800 ${roleFs}px 'Segoe UI', Arial, sans-serif`, color: "#ffe9a8", WebkitTextStroke: `${7 * k * (roleFs / (28 * k))}px ${INK}`, paintOrder: "stroke fill", marginTop: 2 * k }}>{tag.role}</div> : null}
       </div>
     </div>
   );

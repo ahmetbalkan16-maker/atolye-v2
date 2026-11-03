@@ -41,6 +41,11 @@ export interface SceneInsert {
   readonly caption?: string;
   /** An archive film clip (mp4) instead of a still. */
   readonly video?: boolean;
+  /**
+   * A picture designed for this moment (none real existed): it shows what the stage cannot — an army, burning ships —
+   * so a Short cuts to it even over a line its characters act out.
+   */
+  readonly designed?: boolean;
 }
 
 /** One of a scene's further pictures (`gorseller`), resolved into the render public dir: cut in over line `satir`. */
@@ -1121,7 +1126,7 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
     const own: V3Insert[] = period && geo
       ? mapWindow.map((w) => ({ src: period.src, ...w, kenBurns: { fromZoom: 1.03, toZoom: 1.15, fromX: 0.02, toX: -0.02 }, ...(period.caption ? { caption: period.caption } : {}), ...(period.video ? { video: true } : {}) }))
       : period
-      ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (vertical && actedLines.has(lt.lineIndex)) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
+      ? insertWindows(lines.map((lt) => ({ start: local(lt.start), end: local(lt.end), onScreen: visibleIds.has(lt.speaker) || (vertical && !period.designed && actedLines.has(lt.lineIndex)) || (living && (lt === firstLine || moving(local(lt.start), local(lt.end)))) })), duration, fps, tracks.size > 0).map((w, i) => ({
           src: period.src,
           ...w,
           // Alternate push-in and pull-out so two cutaways to the same picture do not look like a repeat.

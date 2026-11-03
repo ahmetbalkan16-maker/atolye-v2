@@ -1030,7 +1030,7 @@ async function main() {
     cast,
     accessories: await loadAccessories(costumeRootsFor(paths), cast),
     backgrounds: backgrounds.map((b): V3Background => ({ src: b.src, kind: b.kind, ...(b.kenBurns ? { kenBurns: b.kenBurns } : {}), ...(b.drawn ? { drawn: b.drawn } : {}) })),
-    inserts: visuals.map((v) => (v.arsiv && v.set.kaynak !== "arsiv" ? { src: v.arsiv.src, ...(v.arsiv.caption ? { caption: v.arsiv.caption } : {}), ...(v.arsiv.video ? { video: true } : {}) } : undefined)),
+    inserts: visuals.map((v) => (v.arsiv && v.set.kaynak !== "arsiv" ? { src: v.arsiv.src, ...(v.arsiv.caption ? { caption: v.arsiv.caption } : {}), ...(v.arsiv.video ? { video: true } : {}), ...(v.arsiv.tasarim ? { designed: true } : {}) } : undefined)),
     pictures: visuals.map((v) => v.gorseller?.map((g) => ({ satir: g.satir, src: g.src, ...(g.caption ? { caption: g.caption } : {}), ...(g.video ? { video: true } : {}) }))),
     language: dil,
     fps,
