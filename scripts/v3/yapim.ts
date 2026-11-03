@@ -8,7 +8,8 @@
  *        [--dizi "<dizi adı>" --dizi-no <n>]
  *   npx tsx scripts/v3/yapim.ts kuyruk          # makes every waiting order once, one after another
  *   npx tsx scripts/v3/yapim.ts izle            # keeps watching for orders (started at logon, one instance); idle:
- *                                                 the brains' self-improvement cycle (scripts/v3/gelisim.ts)
+ *                                                 the brains' self-improvement cycle (scripts/v3/gelisim.ts), and
+ *                                                 from 16:30 the development queue (scripts/v3/gelistirici.ts aksam)
  *   npx tsx scripts/v3/yapim.ts durum           # lists orders and their state
  *   npx tsx scripts/v3/yapim.ts onayla <id> [--hemen]   # the owner's YouTube approval of a delivered video
  *   npx tsx scripts/v3/yapim.ts yayinla         # uploads the approved videos once (`izle` does it every 30 s)
@@ -16,13 +17,14 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, promises as fs } from "node:fs";
 import path from "node:path";
+import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
 import { listStudyRequests } from "../../src/lib/v3/council/ReferenceStore";
-import { CYCLE_EVERY_H, cycleDue, improvementDir, listCycles } from "../../src/lib/v3/council/SelfImprovement";
+import { CYCLE_EVERY_H, cycleDue, improvementDir, listCycles, listProposals } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders, orderDir, ordersSummary, placeOrder, productionCommand, type ProductionOrder, publishLine, recoverInterrupted, saveOrder } from "../../src/lib/v3/orders/ProductionOrders";
 import { approvePublish } from "../../src/lib/v3/publish/PublishApproval";
 import { publishApproved } from "../../src/lib/v3/publish/PublishOrder";
 import { youtubeSettings } from "../../src/lib/v3/publish/YoutubeAuth";
-import { resolveV3Paths, type V3Paths } from "../../src/lib/v3/V3Paths";
+import { loadEnvFile, resolveV3Paths, type V3Paths } from "../../src/lib/v3/V3Paths";
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(name);
@@ -98,6 +100,40 @@ async function idleImprovement(paths: V3Paths): Promise<void> {
   logFile.end();
   if (code !== 0) lastCycleFailure = Date.now();
   console.log(`gelişim döngüsü bitti (çıkış ${code})`);
+}
+
+/** After an evening run the watcher looks at the development queue again this much later at the soonest. */
+const EVENING_RECHECK_MS = 10 * 60_000;
+let lastEvening = 0;
+
+/**
+ * The evening's development (owner, 3 Nov 2026: "her akşam otomatik olarak Claude bunları işleme alsın, 16:30'da"):
+ * while the developer is switched on and inside its hours, no order waits or runs and an approved job waits,
+ * `gelistirici.ts aksam` builds the queue — the developer brain's research note first, Claude in its own worktree, the
+ * studio's checks, then the brain grades itself. The switch is read from `.env.v3.local` each time, so turning it on or
+ * off needs no restart.
+ */
+async function eveningDevelopment(paths: V3Paths): Promise<void> {
+  if (Date.now() - lastEvening < EVENING_RECHECK_MS) return;
+  const env = { ...loadEnvFile(path.join(paths.repoRoot, ".env.v3.local")), ...process.env };
+  if (!developerWindow(env).acik) return;
+  if ((await listOrders(paths.workRoot)).some((x) => x.order.durum === "bekliyor" || x.order.durum === "calisiyor")) return;
+  if (!nextJob((await listProposals(paths.workRoot)).map((x) => x.proposal))) return;
+  lastEvening = Date.now();
+  const dir = improvementDir(paths.workRoot);
+  await fs.mkdir(dir, { recursive: true });
+  const logFile = createWriteStream(path.join(dir, "gelistirici.log"), { flags: "a" });
+  logFile.write(`\n=== ${new Date().toISOString()} akşam geliştirmesi\n`);
+  console.log("akşam geliştirmesi başladı");
+  const code = await new Promise<number>((resolve) => {
+    const child = spawn(process.execPath, [path.join(paths.repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), path.join(paths.repoRoot, "scripts", "v3", "gelistirici.ts"), "aksam"], { cwd: paths.repoRoot, env: process.env, windowsHide: true });
+    child.stdout.pipe(logFile, { end: false });
+    child.stderr.pipe(logFile, { end: false });
+    child.on("exit", (c) => resolve(c ?? 1));
+    child.on("error", () => resolve(1));
+  });
+  logFile.end();
+  console.log(`akşam geliştirmesi bitti (çıkış ${code})`);
 }
 
 /** One watcher at a time: a lock file with our pid; a stale lock (its process gone) is taken over. */
@@ -180,6 +216,7 @@ async function main() {
     for (;;) {
       await runQueue(paths).catch((e: Error) => console.error(`kuyruk hatası: ${e.message}`));
       await idleImprovement(paths).catch((e: Error) => console.error(`gelişim döngüsü hatası: ${e.message}`));
+      await eveningDevelopment(paths).catch((e: Error) => console.error(`akşam geliştirmesi hatası: ${e.message}`));
       await new Promise((r) => setTimeout(r, 30_000));
     }
   }

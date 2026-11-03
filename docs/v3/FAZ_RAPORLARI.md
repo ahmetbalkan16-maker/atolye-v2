@@ -554,3 +554,20 @@ Owner kararı: onaylanan öneri kuyruğa girsin, geliştirmeyi sistem kendisi ya
   Push ve canlıya alma yok; `scripts/v3/gelistirici.ts uygula` ile birleştirilir.
 - Varsayılan kapalı: açmak için canonical `.env.v3.local`'a `ATOLYE_V3_GELISTIRICI=1` (owner).
 - Doğrulama: self-improvement 7, brains-report 3, 16 smoke-v3 PASS; tsc 0; lint 0 hata.
+
+## Geliştirici beyni ve ana ekrandaki beyin meclisi (3 Kasım 2026 akşam, 3)
+
+Owner kararları: "Claude yerine Atölye kendi geliştirici programını yazsın; geliştirme gün boyu biriksin, araştırsın,
+her akşam 16:30'da Claude işlesin; yapılanları tecrübe edip kendini geliştirsin; hiçbir şey indirmeyelim" ve ana ekran
+talimatı "yardımcı beyinler ana ekranda gözüksün, konuşsun, tartışsın, video yapılırken iş bölümü yapsın; başka bir
+şeyi bozma". Ayrıntı: ATOLYE_CHECKPOINT.md "3 Kasım 2026 (akşam, 3)".
+
+- `council/DevBrain.ts` (saf + kayıt): tahmin, karne (isabet/kesinlik/arama kapsamı/karar), güven puanlı içgüdüler
+  (aday → doğrulandı → bırakıldı; continuous-learning ve self-improving-agent skill'lerinden), geçmiş değişiklik
+  hafızası, dersler, beynin notları. `council/DevResearch.ts`: git grep + model (gpt-4.1-mini, yoksa gemma4) ile
+  araştırma; commit sınavı (ebeveyn revizyonda tahmin); Claude'dan sonra notlama ve ders.
+- Boşta döngü: `ogren` (yeni commit'ler), `arastir` (kuyruk); akşam 16:30–07:00 izleyici `gelistirici.ts aksam`.
+  Claude'un görev paketine beynin araştırma notu eklenir.
+- Ana ekran: `src/components/homepage/AyasBrainCouncil.tsx` + `council/BrainCouncilFeed.ts` (yalnız gerçek kayıt);
+  politika `docs/AYAS_HOMEPAGE_POLICY.md` "Atölye brain council".
+- İlk gerçek çalışma: 158 commit okundu, 821 içgüdü; ilk 4 commit sınavında değişen dosyaları bulma %33.

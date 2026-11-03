@@ -101,7 +101,7 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
 
       <section className="bc-dev__section" aria-labelledby="atolye-oneriler">
         <h3 id="atolye-oneriler">Kod Önerileri — Onayını Bekleyenler <span>{view.oneriler.length}</span></h3>
-        <p className="bc-dev__notice bc-dev__notice--warn">Beyinler kodu kendileri değiştiremez. Onayladığın öneri geliştirme kuyruğuna girer; Atölye geliştiricisi onu sipariş yokken ayrı bir kopyada yapar, testlerden geçerse ayrı bir dalda &quot;hazır&quot; olur. Hiçbir şey kendiliğinden canlıya geçmez.</p>
+        <p className="bc-dev__notice bc-dev__notice--warn">Beyinler kodu kendileri değiştiremez. Onayladığın öneri geliştirme kuyruğuna girer; gün içinde geliştirici beyni onu araştırır, her akşam 16:30&apos;dan sonra Claude onu sipariş yokken ayrı bir kopyada yapar, testlerden geçerse ayrı bir dalda &quot;hazır&quot; olur. Hiçbir şey kendiliğinden canlıya geçmez.</p>
         {view.oneriler.length ? (
           <div className="bc-dev__timeline">
             {view.oneriler.map((o) => (
@@ -126,6 +126,25 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
         ) : null}
         {view.kararlar.length ? <details><summary>Son kararların ({view.kararlar.length})</summary><ul>{view.kararlar.map((x) => <li key={x.baslik}>{x.durum === "onaylandi" ? "Onaylandı" : x.durum === "reddedildi" ? "Reddedildi" : x.durum}: {x.baslik}</li>)}</ul></details> : null}
       </section>
+
+      {view.gelistirici ? <DevBrainSection g={view.gelistirici} /> : null}
+    </section>
+  );
+}
+
+const LEVEL: Readonly<Record<NonNullable<AtolyeBrainsView["gelistirici"]>["hazirlik"]["seviye"], string>> = { baslangic: "YENİ BAŞLADI", ogreniyor: "ÖĞRENİYOR", yaklasiyor: "YAKLAŞIYOR", hazir: "HAZIR OLABİLİR" };
+
+/** The developer brain: its report card against Claude's real changes, what it knows, its lessons and notes. */
+function DevBrainSection({ g }: { readonly g: NonNullable<AtolyeBrainsView["gelistirici"]> }) {
+  return (
+    <section className="bc-dev__section" aria-labelledby="atolye-gelistirici" data-testid="atolye-dev-brain">
+      <h3 id="atolye-gelistirici">Geliştirici Beyni <span>{LEVEL[g.hazirlik.seviye]}</span></h3>
+      <p className="bc-dev__notice bc-dev__notice--safe">Gün içinde onaylanan işleri araştırır ve tahminini yazar; her akşam 16:30&apos;dan sonra işi Claude yapar, beyin kendi tahminini Claude&apos;un yaptığıyla karşılaştırıp öğrenir. Her yeni commit&apos;te de aynı sınava girer. Kod yazmaz; karnesi yeterli olunca daha fazlasına sen karar verirsin.</p>
+      <p><b>Karne:</b> {g.hazirlik.ozet}</p>
+      <p>Hafıza: {g.gecmis} değişiklik · {g.icgudu.toplam} içgüdü ({g.icgudu.dogrulanan} doğrulandı, {g.icgudu.reddedilen} bırakıldı)</p>
+      {g.notlar.length ? <ul className="bc-dev__micro-items">{g.notlar.map((n) => <li key={`${n.tarih}${n.gorev}`} className="bc-dev__micro-item"><b>{when(n.tarih)}</b> — {n.gorev.slice(0, 90)}: {n.satir}</li>)}</ul> : null}
+      {g.dersler.length ? <details><summary>Dersleri ({g.dersler.length})</summary><ul>{g.dersler.map((d) => <li key={d}>{d}</li>)}</ul></details> : null}
+      {g.akis.length ? <details><summary>Notları ({g.akis.length})</summary><ul>{g.akis.map((t) => <li key={`${t.tarih}${t.metin}`}><b>{when(t.tarih)}</b>{t.kime ? ` → ${t.kime}` : ""}: {t.metin}</li>)}</ul></details> : null}
     </section>
   );
 }

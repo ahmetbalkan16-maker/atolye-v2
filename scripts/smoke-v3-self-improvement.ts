@@ -48,6 +48,9 @@ import {
 } from "../src/lib/v3/council/SelfImprovement";
 import { applyBuild, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
 import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, nextJob, taskPacket } from "../src/lib/v3/council/DevQueue";
+import { type DevGrade, firedInstincts, gradedFiles, gradeGuess, learnInstincts, listChanges, listGrades, listLessons, loadDevBrainView, readiness, readInstincts, READY_WINDOW, researchNote, similarChanges, START_CONFIDENCE, taskWords } from "../src/lib/v3/council/DevBrain";
+import { learnFromCommits, needsResearch, researchQueue, runDevJob } from "../src/lib/v3/council/DevResearch";
+import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { runProcess } from "../src/lib/v3/util/Proc";
 
 let scenarios = 0;
@@ -290,6 +293,121 @@ async function main() {
     assert.equal(await developerLock(work), undefined);
     await release!();
     assert.ok(await developerLock(work));
+  });
+
+  await scenario("H the developer brain grades itself, learns instincts (candidate → confirmed → dropped), works from 16:30 and hands Claude its note", () => {
+    // Graded: the V3 code and data, not notes and not the smoke suites (the test is chosen apart).
+    assert.deepEqual(gradedFiles(["src\\lib\\v3\\mix\\A.ts", "scripts/smoke-v3-mix.ts", "docs/v3/FAZ_RAPORLARI.md", "content/v3/x.json", "content/v3/notlar.md", "app/page.tsx", "src/lib/v3/mix/A.ts"]), ["content/v3/x.json", "src/lib/v3/mix/A.ts"]);
+    assert.deepEqual(taskWords("Anlatılan topluluk KALABALIK görünür; İstanbul ve the crowd"), ["anlatilan", "topluluk", "kalabalik", "gorunur", "istanbul", "crowd"]);
+    const g = { id: "j", kaynak: "is" as const, gorev: "t", dosyalar: ["src/lib/v3/a.ts", "src/lib/v3/b.ts"], adaylar: ["src/lib/v3/a.ts", "src/lib/v3/b.ts", "src/lib/v3/c.ts"], karar: "yapilmali" as const };
+    const graded = gradeGuess(g, ["src/lib/v3/a.ts", "src/lib/v3/c.ts", "scripts/smoke-v3-a.ts"]);
+    assert.deepEqual([graded.isabet, graded.kesinlik, graded.adayIsabet, graded.kararDogru], [0.5, 0.5, 1, true]);
+    assert.deepEqual([gradeGuess({ ...g, dosyalar: [], karar: "var" }, []).isabet, gradeGuess({ ...g, dosyalar: [], karar: "var" }, []).kararDogru, gradeGuess(g, []).kararDogru], [1, true, false]);
+    // Instincts: a new file starts as a candidate; another source on a similar task confirms it; misses lower it.
+    const task = "kalabalık sahnede askerler yürür";
+    let list = learnInstincts([], task, ["src/lib/v3/script/CrowdRules.ts"], "c1");
+    assert.deepEqual([list.length, list[0]!.guven, list[0]!.durum], [1, START_CONFIDENCE, "aday"]);
+    assert.equal(learnInstincts(list, task, ["src/lib/v3/script/CrowdRules.ts"], "c1")[0]!.guven, START_CONFIDENCE, "the same source twice confirms nothing");
+    list = learnInstincts(list, "kalabalık askerler sahnede koşar", ["src/lib/v3/script/CrowdRules.ts"], "c2");
+    list = learnInstincts(list, "askerler kalabalık sahnede bekler", ["src/lib/v3/script/CrowdRules.ts"], "c3");
+    assert.deepEqual([list[0]!.guven, list[0]!.durum, list[0]!.kanit], [0.7, "dogrulandi", ["c1", "c2", "c3"]]);
+    assert.equal(firedInstincts(list, "sahnede kalabalık askerler")[0]?.dosya, "src/lib/v3/script/CrowdRules.ts");
+    assert.equal(firedInstincts(list, "müzik yatağı sesi").length, 0);
+    for (const [k, other] of ["m1", "m2", "m3", "m4", "m5", "m6"].entries()) list = learnInstincts(list, `askerler kalabalık sahnede ${k}`, ["src/lib/v3/mix/Other.ts"], other);
+    const crowd = list.find((i) => i.dosya.endsWith("CrowdRules.ts"))!;
+    assert.deepEqual([crowd.durum, crowd.guven < 0.2], ["reddedildi", true], "an instinct that keeps missing is dropped");
+    // Past changes: only earlier ones, never the task's own.
+    const past = [{ id: "a", tarih: at(1), mesaj: "kalabalık askerler sahnede", dosyalar: ["x"] }, { id: "b", tarih: at(5), mesaj: "kalabalık askerler sahnede yürür", dosyalar: ["y"] }];
+    assert.deepEqual(similarChanges(past, "askerler kalabalık sahnede", { before: at(3) }).map((c) => c.id), ["a"]);
+    assert.deepEqual(similarChanges(past, "askerler kalabalık sahnede", { exclude: "a" }).map((c) => c.id), ["b"]);
+    // The report card: too few grades is a start; twenty good ones say "may be ready".
+    const grade = (isabet: number, kesinlik: number): DevGrade => ({ id: "x", kaynak: "commit", tarih: at(0), gorev: "t", tahmin: [], gercek: [], isabet, kesinlik, adayIsabet: 1 });
+    assert.equal(readiness([grade(1, 1)]).seviye, "baslangic");
+    assert.equal(readiness(Array.from({ length: 8 }, () => grade(0.4, 0.3))).seviye, "ogreniyor");
+    assert.equal(readiness(Array.from({ length: 8 }, () => grade(0.7, 0.5))).seviye, "yaklasiyor");
+    assert.equal(readiness(Array.from({ length: READY_WINDOW }, () => grade(0.9, 0.7))).seviye, "hazir");
+    assert.match(readiness(Array.from({ length: 8 }, () => grade(0.5, 0.25))).ozet, /^öğreniyor — son 8 işte: değişen dosyaları bulma %50 · andığı dosyalarda doğruluk %25 · arama kapsamı %100$/);
+    // From 16:30 to 7 by default (owner, 3 Nov 2026); whole hours still work.
+    const on = { ATOLYE_V3_GELISTIRICI: "1" };
+    const clock = (h: number, m: number) => developerWindow(on, new Date(2026, 10, 3, h, m)).acik;
+    assert.deepEqual([clock(16, 29), clock(16, 30), clock(23, 0), clock(6, 59), clock(7, 0), clock(12, 0)], [false, true, true, true, false, false]);
+    assert.equal(developerWindow({ ...on, ATOLYE_V3_GELISTIRICI_SAAT: "1-7" }, new Date(2026, 10, 3, 3, 0)).acik, true);
+    assert.equal(developerWindow({ ...on, ATOLYE_V3_GELISTIRICI_SAAT: "1-7" }, new Date(2026, 10, 3, 17, 0)).acik, false);
+    // Claude gets the brain's note, marked as an apprentice's guess; without a note the packet is as before.
+    const p = { id: "x", beyin: "kurgu" as const, baslik: "Crowds", neden: "n", kaynaklar: [], karar: { tarih: at(0) } };
+    assert.ok(taskPacket(p, undefined, "# Geliştirici beyninin araştırması\nsrc/lib/v3/a.ts").includes("THE STUDIO'S OWN DEVELOPER BRAIN RESEARCHED THIS TODAY"));
+    assert.ok(!taskPacket(p).includes("DEVELOPER BRAIN"));
+  });
+
+  await scenario("I the developer brain in a real git repo: an exam on the newest commit at its parent, research before the build, graded against Claude's change, a lesson when it missed", async () => {
+    const base = mkdtempSync(path.join(os.tmpdir(), "v3-gelistirici-beyni-"));
+    const repo = path.join(base, "repo");
+    const work = path.join(base, "runtime");
+    const g = async (args: string[], cwd = repo) => {
+      const r = await runProcess("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd });
+      assert.equal(r.code, 0, `${args.join(" ")}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    const write = (f: string, s: string) => {
+      mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
+      writeFileSync(path.join(repo, f), s);
+    };
+    write("src/lib/v3/mix/Mixer.ts", "/** Mixes the music bed under the narration. More text. */\nexport const musicVolume = 0.3;\n");
+    write("src/lib/v3/script/Writer.ts", "/** Writes the narration. */\nexport const writer = 1;\n");
+    write(".gitignore", "/node_modules\n");
+    await g(["init", "-q", "-b", "main"]);
+    await g(["add", "-A"]);
+    await g(["commit", "-q", "-m", "feat(v3): ilk"]);
+    write("src/lib/v3/mix/Mixer.ts", "/** Mixes the music bed under the narration. */\nexport const musicVolume = 0.25;\n");
+    await g(["commit", "-q", "-am", "fix(v3): müzik sesi kısıldı"]);
+    write("src/lib/v3/mix/Mixer.ts", "/** Mixes the music bed under the narration. */\nexport const musicVolume = 0.2;\nexport const crowdVolume = 0.5;\n");
+    write("docs/v3/notlar.md", "not\n");
+    await g(["add", "-A"]);
+    await g(["commit", "-q", "-m", "feat(v3): kalabalık sesi müziğin altında"]);
+    // A fake model: search words, then the guess (one real path, one made up), then a lesson.
+    const prompts: string[] = [];
+    let pick = ["src/lib/v3/mix/Mixer.ts", "src/lib/v3/mix/YokBoyle.ts"];
+    const model = {
+      generate: async (prompt: string) => {
+        prompts.push(prompt);
+        const content = prompt.includes("search terms") ? '{"terimler": ["musicVolume", "Mixer"]}' : prompt.includes("Write ONE lesson") ? '{"ders": "Ses işleri mix klasöründe; önce Mixer.ts\'e bak."}' : JSON.stringify({ dosyalar: pick, karar: "yapilmali", plan: "Mixer.ts'te ses düzeyi değişir.", test: "scripts/smoke-v3-mix.ts" });
+        return { content, finishReason: "stop" as const, refused: false, complete: true, truncated: false };
+      },
+    };
+    const deps = { repoRoot: repo, workRoot: work, budget: new V3Budget({ providers: { mock: model }, capUsd: 0 }), model: { provider: "mock" as const }, log: () => {} };
+    // First pass: the older commits are read, the newest is the exam (guessed at its parent, which lacks crowdVolume).
+    const first = await learnFromCommits(deps, 1);
+    assert.deepEqual([first.okunan, first.sinav], [3, 1]);
+    const grades = await listGrades(work);
+    assert.deepEqual([grades.length, grades[0]!.kaynak, grades[0]!.gercek, grades[0]!.isabet, grades[0]!.kesinlik], [1, "commit", ["src/lib/v3/mix/Mixer.ts"], 1, 1], "the made-up path is not counted");
+    assert.ok(prompts.some((x) => x.includes("TASK (Turkish): kalabalık sesi müziğin altında")), "the exam's task is the subject without its type");
+    assert.ok(prompts.some((x) => x.includes("SIMILAR PAST CHANGES") && x.includes("müzik sesi kısıldı")), "the earlier change is remembered");
+    assert.ok(!prompts.some((x) => x.includes("SIMILAR PAST CHANGES") && x.includes('"kalabalık sesi müziğin altında" →')), "never its own answer");
+    assert.equal((await listChanges(work)).length, 3);
+    assert.ok((await readInstincts(work)).some((i) => i.dosya === "src/lib/v3/mix/Mixer.ts"));
+    assert.equal((await learnFromCommits(deps, 1)).okunan, 0, "a commit is read once");
+    // A job: researched by day (guess recorded, note written), then Claude's build grades it.
+    await proposeDevelopment(work, { beyin: "ses", baslik: "Kalabalık sesi daha yüksek", neden: "savaş sahnesinde duyulmuyor", kaynak: "ep1", kaynakTuru: "olcum" });
+    const id = (await listProposals(work))[0]!.proposal.id;
+    await decideProposal(work, id, "onaylandi");
+    const job = (await listProposals(work))[0]!.proposal;
+    assert.equal(await needsResearch(work, job), true);
+    assert.deepEqual(await researchQueue([job], deps), [`"Kalabalık sesi daha yüksek": 1 dosya`]);
+    assert.equal(await needsResearch(work, job), false, "researched once");
+    assert.match(readFileSync(researchNote(work, id), "utf8"), /Mixer\.ts — Mixes the music bed under the narration\./);
+    // The evening: Claude (a fake agent) gets the note with its task, changes a file the brain did not name.
+    const seen = path.join(base, "paket.txt");
+    const agent = [process.execPath, "-e", `let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{require("fs").writeFileSync(${JSON.stringify(seen)},s);require("fs").writeFileSync("src/lib/v3/script/Writer.ts","/** Writes. */\\nexport const writer = 2;\\n");console.log("Writer.ts değişti")})`];
+    pick = ["src/lib/v3/mix/Mixer.ts"];
+    const done = await runDevJob(job, deps, { agent, checks: [], worktreeRoot: path.join(base, "gelistirme") });
+    assert.equal(done.durum, "hazir", JSON.stringify(done.is));
+    assert.ok(readFileSync(seen, "utf8").includes("THE STUDIO'S OWN DEVELOPER BRAIN RESEARCHED THIS TODAY") && readFileSync(seen, "utf8").includes("Mixer.ts"));
+    const jobGrade = (await listGrades(work)).at(-1)!;
+    assert.deepEqual([jobGrade.kaynak, jobGrade.gercek, jobGrade.isabet, jobGrade.kararDogru], ["is", ["src/lib/v3/script/Writer.ts"], 0, true]);
+    assert.deepEqual((await listLessons(work)).map((l) => l.metin), ["Ses işleri mix klasöründe; önce Mixer.ts'e bak."], "a miss teaches a lesson");
+    const view = await loadDevBrainView(work);
+    assert.equal(view.notlar.length, 2);
+    assert.ok(view.akis.some((t) => t.kime === "Claude") && view.akis.some((t) => /tahminim %0 tuttu/.test(t.metin)));
   });
 
   console.log(`PASS (${scenarios} scenarios)`);

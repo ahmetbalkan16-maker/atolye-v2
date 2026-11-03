@@ -7,6 +7,7 @@ import type { BrainConsoleViewProps } from "../brain/BrainConsoleView";
 import type { AyasControlCenterInputs } from "../brain/AyasControlCenter";
 import { describeBrainCoreState } from "../brain/brainCore";
 import { buildAyasControlCenterView, type AyasCcDomainId } from "@/lib/brain/ui/AyasControlCenterModel";
+import { AyasBrainCouncil } from "./AyasBrainCouncil";
 
 type IconName = "home" | "cube" | "memory" | "search" | "growth" | "gear" | "graph" | "tasks" | "check" | "chat" | "mic" | "arrow";
 
@@ -82,10 +83,13 @@ export function AyasHomepage(props: HomepageProps) {
         </aside>
 
         <section className="ah-hero" aria-label="AYAS canlı beyin">
-          <AyasBrainHero state={props.coreState} />
-          <div className="ah-state" role="status"><span className="ah-dot" aria-hidden="true" /><strong>{info.tr}</strong><span>{info.label}</span></div>
-          {props.snapshot.errors.length > 0 && <p className="ah-error" role="alert">Durum okunamadı. <Link href="/brain?panel=system">Ayrıntıları incele →</Link></p>}
-          {voice?.recovering && <p className="ah-notice" role="status">Ses bağlantısı toparlanıyor.</p>}
+          {/* Atölye's brains around the central brain: the owner's explicit homepage instruction of 3 Nov 2026. */}
+          <AyasBrainCouncil initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains}>
+            <AyasBrainHero state={props.coreState} />
+            <div className="ah-state" role="status"><span className="ah-dot" aria-hidden="true" /><strong>{info.tr}</strong><span>{info.label}</span></div>
+            {props.snapshot.errors.length > 0 && <p className="ah-error" role="alert">Durum okunamadı. <Link href="/brain?panel=system">Ayrıntıları incele →</Link></p>}
+            {voice?.recovering && <p className="ah-notice" role="status">Ses bağlantısı toparlanıyor.</p>}
+          </AyasBrainCouncil>
         </section>
 
         <section className="ah-command ah-glass" id="bc-command-center" aria-label="AYAS komut merkezi">

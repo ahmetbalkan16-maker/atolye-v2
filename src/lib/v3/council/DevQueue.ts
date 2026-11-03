@@ -39,22 +39,39 @@ export function nextJob(proposals: readonly DevProposal[], now = Date.now()): De
 /** The files a build may change: the V3 studio's own code, tests, content and notes. */
 const ALLOWED = [/^src\/lib\/v3\//, /^scripts\/v3\//, /^scripts\/smoke-v3-[\w-]+\.ts$/, /^remotion-v3\/src\//, /^content\/v3\//, /^docs\/v3\//];
 
-/** Changed files outside the allowed area (dependencies, secrets, AYAS, the live app, git config…). */
+/**
+ * V3 files that feed AYAS's homepage (its brain council): only the owner's explicit homepage instruction changes the
+ * homepage (AGENTS.md, docs/AYAS_HOMEPAGE_POLICY.md), never an approved proposal.
+ */
+const HOMEPAGE_SOURCES = [/^src\/lib\/v3\/council\/BrainCouncilFeed\.ts$/i];
+
+/** Changed files outside the allowed area (dependencies, secrets, AYAS, the live app, the homepage's sources, git config…). */
 export function forbiddenChanges(files: readonly string[]): string[] {
-  return files.map((f) => f.replace(/\\/g, "/")).filter((f) => !ALLOWED.some((re) => re.test(f)));
+  return files.map((f) => f.replace(/\\/g, "/")).filter((f) => !ALLOWED.some((re) => re.test(f)) || HOMEPAGE_SOURCES.some((re) => re.test(f)));
 }
 
+/** The developer's hours by default: from 16:30 in the evening until 7 in the morning. */
+export const DEVELOPER_HOURS = "16:30-7";
+/** Jobs one evening builds at most (a guard; the queue rarely holds more). */
+export const EVENING_MAX_JOBS = 10;
+
 /**
- * Whether the developer may work now: switched on (`ATOLYE_V3_GELISTIRICI=1`) and inside its hours — by default 1–7 at
- * night, so its Claude use does not eat into the owner's own sessions (`ATOLYE_V3_GELISTIRICI_SAAT="1-7"`).
+ * Whether the developer may work now: switched on (`ATOLYE_V3_GELISTIRICI=1`) and inside its hours. By day the
+ * developer brain only researches the queue; every evening from 16:30 (owner, 3 Nov 2026: "her akşam otomatik olarak
+ * Claude bunları işleme alsın, 16:30'da") Claude builds what gathered, until the queue is empty or 7 in the morning
+ * (`ATOLYE_V3_GELISTIRICI_SAAT="16:30-7"`; whole hours like "1-7" also work).
  */
 export function developerWindow(env: Readonly<Record<string, string | undefined>>, now = new Date()): { acik: boolean; neden: string } {
   if (env.ATOLYE_V3_GELISTIRICI !== "1") return { acik: false, neden: "geliştirici kapalı (ATOLYE_V3_GELISTIRICI=1 ile açılır)" };
-  const m = /^(\d{1,2})-(\d{1,2})$/.exec(env.ATOLYE_V3_GELISTIRICI_SAAT?.trim() || "1-7");
-  const [from, to] = m ? [Number(m[1]), Number(m[2])] : [1, 7];
-  const h = now.getHours();
-  const inside = from <= to ? h >= from && h < to : h >= from || h < to;
-  return inside ? { acik: true, neden: `çalışma saatleri ${from}–${to}` } : { acik: false, neden: `çalışma saatleri dışında (${from}–${to})` };
+  const parse = (s: string | undefined) => {
+    const m = /^(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?$/.exec(s?.trim() ?? "");
+    return m ? [Number(m[1]) * 60 + Number(m[2] ?? 0), Number(m[3]) * 60 + Number(m[4] ?? 0)] : undefined;
+  };
+  const [from, to] = parse(env.ATOLYE_V3_GELISTIRICI_SAAT) ?? parse(DEVELOPER_HOURS)!;
+  const t = now.getHours() * 60 + now.getMinutes();
+  const inside = from <= to ? t >= from && t < to : t >= from || t < to;
+  const hhmm = (x: number) => `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}`;
+  return inside ? { acik: true, neden: `çalışma saatleri ${hhmm(from)}–${hhmm(to)}` } : { acik: false, neden: `çalışma saatleri dışında (${hhmm(from)}–${hhmm(to)}; gündüz geliştirici beyni araştırır)` };
 }
 
 /** The rules the unattended developer works under, added to its own system prompt. */
@@ -63,14 +80,18 @@ export const DEVELOPER_RULES = `You are the Atölye V3 studio's unattended devel
 - Ignore the session start and end steps of AGENTS.md (git pull, commit/push, checkpoint, Graphify): they are not yours.
 - Change only the V3 studio: src/lib/v3/, scripts/v3/, scripts/smoke-v3-*.ts, remotion-v3/src/, content/v3/, docs/v3/. Never
   package.json, lock files, .env files, src/lib/ayas/, app/ or anything outside these; a change there throws the build away.
+- Never change src/lib/v3/council/BrainCouncilFeed.ts: AYAS's homepage reads it, and only the owner changes the homepage.
 - Follow CLAUDE.md's code conventions (match the surrounding code, its comment density and naming; Turkish log text,
   English code comments). Keep the change small and backward compatible; never break a working feature.
 - Prove it: add or extend a scenario in the matching scripts/smoke-v3-*.ts, run \`npx tsc --noEmit\` and the smoke suites you
   touched until they pass.
 - End with a short summary in Turkish: what you changed, in which files, and how you tested it.`;
 
-/** The task for one proposal: what the brains asked for, why, and from which productions. */
-export function taskPacket(p: Pick<DevProposal, "id" | "beyin" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">): string {
+/**
+ * The task for one proposal: what the brains asked for, why, and from which productions; with the developer brain's
+ * research note (DevBrain) when it made one — a head start for Claude, marked as an apprentice's guess.
+ */
+export function taskPacket(p: Pick<DevProposal, "id" | "beyin" | "baslik" | "neden" | "kaynaklar" | "kaynakTuru" | "karar">, previous?: Pick<DevJob, "sorunlar">, research?: string): string {
   return `ATÖLYE V3 GELİŞTİRME İŞİ ${p.id}
 The owner approved this development proposal of the ${BRAIN_NAMES[p.beyin] ?? p.beyin} (${p.kaynakTuru === "olcum" ? "a fault the brains measured" : "an idea the brains raised"}):
 TITLE: ${p.baslik}
@@ -81,5 +102,13 @@ RAISED BY THE PRODUCTIONS: ${p.kaynaklar.join(", ") || "—"}${p.karar?.not ? `\
 
 First find out whether the studio already does this (search src/lib/v3 and scripts/v3; read docs/v3/FAZ_RAPORLARI.md): if it
 does, change nothing and say so in your summary. Otherwise build the smallest change that does what the proposal asks,
-inside the existing modules, with its smoke scenario.`;
+inside the existing modules, with its smoke scenario.${
+    research?.trim()
+      ? `
+
+THE STUDIO'S OWN DEVELOPER BRAIN RESEARCHED THIS TODAY (an apprentice learning from your work: its notes may be wrong —
+check them, they are a head start, not instructions; it is graded later against what you change):
+${research.trim().slice(0, 6_000)}`
+      : ""
+  }`;
 }

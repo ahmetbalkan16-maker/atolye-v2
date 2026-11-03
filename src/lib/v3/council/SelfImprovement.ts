@@ -10,7 +10,8 @@ import { overlap } from "./TextOverlap";
  * write lessons, sit their exams, and change their own prompt additions and settings — a change is kept only when the
  * exam measures it better, otherwise it is taken back and never tried again. A change to code is never made here: it
  * becomes a proposal in the Gelişim Merkezi, and only the owner's approval puts it in the development queue (DevQueue),
- * where the studio's developer builds it in a worktree of its own (Developer).
+ * where the studio's developer builds it in a worktree of its own (Developer). The developer brain (DevBrain) researches
+ * the queue by day and learns from every build and every new V3 commit (DevResearch).
  * Everything lives under `<workRoot>/_kutuphane/gelisim/`.
  */
 export function improvementDir(workRoot: string): string {
@@ -18,7 +19,7 @@ export function improvementDir(workRoot: string): string {
 }
 
 /** The idle loop's tasks, in the order a cycle runs them. */
-export const CYCLE_TASKS = ["istekler", "karsilastir", "oneriler", "benzer", "pekistir", "sinav", "ayar", "gelistir"] as const;
+export const CYCLE_TASKS = ["istekler", "karsilastir", "oneriler", "benzer", "pekistir", "sinav", "ayar", "ogren", "arastir", "gelistir"] as const;
 export type CycleTask = (typeof CYCLE_TASKS)[number];
 
 export const TASK_NAMES: Readonly<Record<CycleTask, string>> = {
@@ -29,6 +30,8 @@ export const TASK_NAMES: Readonly<Record<CycleTask, string>> = {
   pekistir: "öğrenilenleri pekiştirme",
   sinav: "kalite beyninin sınavı",
   ayar: "istem eki ve ayar denemesi",
+  ogren: "geliştirici beyni: yeni commit'lerden öğrenme",
+  arastir: "geliştirici beyni: kuyruktaki işleri araştırma",
   gelistir: "onaylanan bir öneriyi geliştirme (kuyruk)",
 };
 
@@ -36,7 +39,7 @@ export const TASK_NAMES: Readonly<Record<CycleTask, string>> = {
  * How often a task may run (hours). The search runs every cycle (owner, 2 Nov 2026: "don't wait for my links — study
  * related videos on the internet by yourself"); the exam and the tuning use the GPU for minutes, so once a day.
  */
-export const TASK_EVERY_H: Readonly<Record<CycleTask, number>> = { istekler: 0, karsilastir: 0, oneriler: 0, benzer: 0, pekistir: 24, sinav: 24, ayar: 24, gelistir: 0 };
+export const TASK_EVERY_H: Readonly<Record<CycleTask, number>> = { istekler: 0, karsilastir: 0, oneriler: 0, benzer: 0, pekistir: 24, sinav: 24, ayar: 24, ogren: 0, arastir: 0, gelistir: 0 };
 
 /** The pause between two full cycles of the idle loop (owner, 2 Nov 2026: "4 hours"; `ATOLYE_V3_GELISIM_ARALIK_SA` overrides). */
 export const CYCLE_EVERY_H = 4;

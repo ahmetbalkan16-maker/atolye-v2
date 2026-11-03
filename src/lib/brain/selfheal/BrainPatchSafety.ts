@@ -162,7 +162,9 @@ const RULES: readonly Rule[] = Object.freeze([
         || ["app/page.tsx", "app/layout.tsx", "app/globals.css",
           "src/components/brain/ayasconsolepage.tsx", "src/components/brain/braincoreconsole.tsx",
           "src/components/brain/brainconsoleview.tsx", "docs/ayas_homepage_policy.md",
-          "agents.md", "scripts/smoke-ayas-homepage-v2.ts", "scripts/smoke-ayas-owner-ui-v2.ts"].includes(target);
+          "agents.md", "scripts/smoke-ayas-homepage-v2.ts", "scripts/smoke-ayas-owner-ui-v2.ts",
+          // The homepage's brain council reads its words from here (owner's homepage instruction, 2026-11-03).
+          "src/lib/v3/council/braincouncilfeed.ts"].includes(target);
     },
   },
   {

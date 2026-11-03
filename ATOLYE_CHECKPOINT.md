@@ -1,3 +1,60 @@
+## 3 Kasım 2026 (akşam, 3) — Geliştirici beyni (gündüz araştırır, akşam Claude'dan öğrenir) ve ana ekranda beyin meclisi
+
+**Owner kararları:** OpenAI kredisi yüklendi (1 jetonluk deneme 200). "Claude yerine Atölye kendi geliştirici programını
+yazsın; geliştirme gün boyunca biriksin, araştırsın, her akşam 16:30'da Claude işlesin; kendi beynimiz tam potansiyele
+ulaşana kadar böyle; yapılanları tecrübe edecek, kendini geliştirecek; hiçbir şey indirmeyelim; uygun skill kullan,
+GitHub'a bak". Ana ekran için açık talimat: "yardımcı beyinler AYAS'ın ana ekranında gözüksün; kendi aralarında
+konuşacak, tartışacak; video yapılırken iş bölümü yapacak" (+ ajan kartlı beyin görseli); "başka bir şeyi bozma".
+Ücretli API ile tam ajan ve yerel 30B kod modeli (19 GB indirme) seçenekleri owner'a sunuldu, ikisi de seçilmedi.
+
+- **Skill araştırması:** `npx skills find` → `zhaono1/agent-playbook@self-improving-agent` (35,5 bin kurulum: aday →
+  doğrulandı → uygulandı/reddedildi yaşam döngüsü, kanıtsız ders yok) ve `affaan-m/ecc@continuous-learning-v2` (11,6 bin:
+  güven puanlı atomik "içgüdüler" 0,3–0,9). Kurulmadı (ikisi de Claude oturumu için); fikirleri koda işlendi.
+- `council/DevBrain.ts` (süreç başlatmaz, canlı sunucu okur): `gradeGuess` (değişen dosyaları bulma, andığı dosyalarda
+  doğruluk, arama kapsamı, "zaten var mı" kararı; not/test dosyaları sayılmaz), `learnInstincts` (0,4 aday; başka kaynak
+  doğrularsa +0,15, ≥0,6 ve 2 kaynak = doğrulandı; ateşlenip ıskalarsa −0,1, <0,2 bırakıldı; en çok 1500),
+  `similarChanges` (yalnız önceki değişiklikler, anlık karşılaştırma), `readiness` (son 20: başlangıç / öğreniyor /
+  yaklaşıyor / hazır olabilir — %80 bulma, %60 doğruluk), kayıtlar `_kutuphane/gelisim/gelistirici/`
+  (tahminler, karne, içgüdüler, geçmiş, dersler, akış).
+- `council/DevResearch.ts`: `guessTask` (model arama sözcükleri + görevin kendi sözcükleri → `git grep` revizyonda, nadir
+  sözcük ağır; benzer geçmiş + içgüdü puanı; dosya özetleri; model ≤6 dosya + karar + plan + test seçer, uydurma yol
+  atılır), `researchJob` (HEAD'de, tahmin Claude'dan ÖNCE kaydedilir, not `isler/<id>/arastirma.md`), `learnFromCommits`
+  (yeni V3 commit'leri eskiden yeniye; en yeni 4'ü sınav — ebeveynde, ≤8 dosyalı; hepsi hafızaya), `learnFromBuild`
+  (Claude'un değiştirdiğiyle not; ıskada model tek ders yazar), `runDevJob`. Model: gpt-4.1-mini (`brainBudget` critic),
+  yoksa gemma4 — indirme yok.
+- `DevQueue`: varsayılan saat **16:30–07:00** (`HH:MM` desteği), akşam en çok 10 iş, Claude paketine beynin notu
+  ("an apprentice … may be wrong"), `BrainCouncilFeed.ts` geliştiriciye yasak. Döngüye `ogren` + `arastir` görevleri;
+  `yapim.ts izle` her 30 sn'de `.env.v3.local`'ı okuyup saat açık + sipariş yok + iş varsa `gelistirici.ts aksam`
+  başlatır (log `gelisim/gelistirici.log`); yeni komutlar `karne | arastir | ogren | aksam`.
+- **Ana ekran** (owner talimatı, `docs/AYAS_HOMEPAGE_POLICY.md` "Atölye brain council"): `homepage/AyasBrainCouncil.tsx`
+  merkez beynin iki yanında 10 beyin kartı (ne yaptığı; çalışan parlar; son 15 dk konuşan "Konuşuyor") + altta "Beyin
+  meclisi" (son 5 söz; telefonda 3, kartlar yatay şerit). Veri `council/BrainCouncilFeed.ts` → mevcut
+  `loadAtolyeBrainsView`: çalışan üretimin adımı iş bölümünü belirler (senaryo: araştırma+kurgu+mizah, gardırop: kostüm,
+  ses/senkron/miks: ses, görsel/kapak: ortam, render: AYAS, birleştir: kalite), `uret.log`'un son satırları sahibine
+  (`logLineBrain`; GPU/sağlık/sayaç satırları kimseye), rapor tartışmaları (rol), yönetmen kurulu (puan, itiraz, AYAS),
+  döngü sonuçları, geliştirici beyninin notları. Kaydı olmayan "henüz kaydı yok", okunamayan "okunamadı" der. Sayfa
+  görünürken 30 sn'de bir salt-okunur `refreshAtolyeBrains`; kabuk yoklama yapmaz. `BrainCouncilFeed.ts`
+  `BrainPatchSafety`'de FORBIDDEN_AUTONOMOUS. Gelişim Merkezi'ne "Geliştirici Beyni" bölümü; AYAS raporuna satır.
+  `smoke-ayas-owner-ui-v2` `AyasHomepage.tsx`'i 98c36b2 ile bayt bayt eşit istiyordu: artık 98c36b2'ye tam olarak bu
+  talimatın iki eklemesi (import + kahraman içeriğini saran meclis) uygulanmış hali bekleniyor; başka her fark düşer
+  (izin dışı tek satırlık mutant denendi: çıkış 1).
+- İlk gerçek çalışma (gpt-4.1-mini, ~1 sent, 24 sn): 158 commit okundu, 821 içgüdü; 4 commit sınavı %100/%0/%14/%17 →
+  "yeni başladı — bulma %33 · doğruluk %25 · arama kapsamı %45".
+
+**Doğrulama:** self-improvement 9 (H karne/içgüdü/16:30/paket notu, I gerçek git: commit sınavı ebeveynde, kendi cevabını
+görmez, araştırma notu, sahte Claude notu alır, ıskada ders), brains-report 4 (D meclis: gerçek günlük satırları, iş
+bölümü, boş/okunamaz durum), homepage-v2 13 (2 yeni), 16 smoke-v3 + firewall/closure/development-center/owner-ui/
+golden-vault ve BrainPatchSafety kullanan AYAS suite'leri PASS; tsc 0; lint 0 hata / 13 eski uyarı; ana ekran
+1920×1080, 1280×900, 390 px gerçek kayıtlarla ekran görüntüsünde kontrol edildi.
+
+**Açık:** beynin kod yazması yok (owner karnesine bakıp karar verecek); hazır işin "UYGULA" düğmesi yapılmadı.
+**Kalan adım (kullanım sınırı nedeniyle güvenli durma, 3 Kasım ~15:10):** canlıya alma yapılmadı — `feature/cop-adam-v3`
+push'landı; sıradaki: canlı dala (`origin/wip/ayas-graphify-final-execution`) ff/merge push, canonical `git pull --ff-only`,
+Graphify yenileme, `auto-live-publish.json`'da yeni `ayas-live-<sha>` kontrolü, boştayken sipariş izleyicinin yeniden
+başlatılması (yapim.ts değişti: akşam tetikleyicisi ancak yeniden başlatınca çalışır).
+
+---
+
 ## 3 Kasım 2026 (akşam, 2) — Geliştirme kuyruğu ve Atölye geliştiricisi (varsayılan kapalı)
 
 **Owner kararı:** "onayladığım öneri iş kuyruğuna gitsin ve geliştirmeyi kendisi ya da AYAS yapsın". Bulunan: AYAS'ın

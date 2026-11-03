@@ -24,6 +24,16 @@ Voice permission/disclosure, conversation persistence, streaming abort, audio in
 
 Regression: `scripts/smoke-ayas-homepage-v2.ts` is an independent new suite. Do not modify frozen historical evaluators to make this design appear accepted.
 
+## Atölye brain council (2026-11-03)
+
+Explicit owner instruction about the homepage, 2026-11-03: "yardımcı beyinler ayasın ana ekranında gözükebilir; sürekli kendi aralarında konuşacak, geliştirecek ve tartışacaklar; bir video yapılırken iş bölümü yapacak" (with a reference picture of agent cards around a central brain).
+
+- The hero shows Atölye V3's brains around the central brain (`src/components/homepage/AyasBrainCouncil.tsx`): each brain with what it does now, and below the brain the council's latest five words. On narrow screens the brains become horizontal strips under the brain. The central brain, its states, the rail, the command panel, both navigations and the dock are unchanged.
+- Truth: everything comes from the records the brains write, read by `src/lib/v3/council/BrainCouncilFeed.ts` through the existing read-only `loadAtolyeBrainsView` (the Gelişim Merkezi's own loader): a running production's step decides who works (the division of labour) and its log's latest lines are their words; the latest report's debates, the director's council, the idle loop's results and the developer brain's notes fill the rest. A brain without a record says "henüz kaydı yok"; an unreadable store says so; a brain is shown speaking only when its words are under 15 minutes old. No activity is invented.
+- Refresh: while the page is visible the council calls the existing read-only `refreshAtolyeBrains` server action every 30 seconds — the homepage's only refresh, added by this instruction. The shell (`AyasHomepage.tsx`) still does not poll. The council has no decide, approve or execute path.
+- `BrainCouncilFeed.ts` is `FORBIDDEN_AUTONOMOUS` in `BrainPatchSafety` and outside the V3 developer's allowed files (`DevQueue.forbiddenChanges`): no automatic process changes what the homepage says.
+- `scripts/smoke-ayas-owner-ui-v2.ts` still pins `AyasHomepage.tsx` to 98c36b2, now plus exactly this addition (the council's import and its wrapper around the hero's unchanged content); any other difference fails.
+
 ## Shared owner workspace (2026-10-07)
 
 The owner-approved shared `src/components/workspace/` frame applies only to subpages; `/` returns the existing central-brain composition. Explicit navigation is never generated from capabilities. The entire shared workspace directory and `scripts/smoke-ayas-owner-ui-v2.ts` are also FORBIDDEN_AUTONOMOUS, since the root layout imports its stylesheet. Automatic development cannot add homepage features through shared code.

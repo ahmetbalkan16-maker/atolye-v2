@@ -89,7 +89,19 @@ async function main() {
     assert.match(source, /pathname === "\/"\) return children/);
     for (const token of ["fetch(", "setInterval(", "requestAnimationFrame(", "useEffect("]) assert.ok(!source.includes(token));
     assert.equal(manifest().start_url, "/"); assert.equal(manifest().scope, "/"); assert.equal(manifest().id, "/brain");
-    assert.equal(execFileSync("git", ["diff", "98c36b2", "--", "src/components/homepage/AyasHomepage.tsx", "app/manifest.ts"], { encoding: "utf8" }), "");
+    assert.equal(execFileSync("git", ["diff", "98c36b2", "--", "app/manifest.ts"], { encoding: "utf8" }), "");
+    // The homepage shell is 98c36b2's plus exactly one owner-instructed addition (2026-11-03, docs/AYAS_HOMEPAGE_POLICY.md
+    // "Atölye brain council"): the council's import and its wrapper around the hero's unchanged content. Any other
+    // difference fails.
+    const lf = (s: string) => s.replace(/\r\n/g, "\n");
+    const frozenHome = lf(execFileSync("git", ["show", "98c36b2:src/components/homepage/AyasHomepage.tsx"], { encoding: "utf8" }));
+    const anchor = 'import { buildAyasControlCenterView, type AyasCcDomainId } from "@/lib/brain/ui/AyasControlCenterModel";\n';
+    const hero = /(<section className="ah-hero" aria-label="AYAS canlı beyin">\n)((?: {10}\S.*\n)+?)( {8}<\/section>)/;
+    assert.ok(frozenHome.includes(anchor) && hero.test(frozenHome));
+    const expectedHome = frozenHome
+      .replace(anchor, `${anchor}import { AyasBrainCouncil } from "./AyasBrainCouncil";\n`)
+      .replace(hero, (_, open: string, inner: string, close: string) => `${open}          {/* Atölye's brains around the central brain: the owner's explicit homepage instruction of 3 Nov 2026. */}\n          <AyasBrainCouncil initial={props.atolyeBrains} refresh={props.refreshAtolyeBrains}>\n${inner.replace(/^/gm, "  ").replace(/ {2}$/, "")}          </AyasBrainCouncil>\n${close}`);
+    assert.equal(lf(fs.readFileSync("src/components/homepage/AyasHomepage.tsx", "utf8")), expectedHome);
     // public/sw.js keeps its launch constants, precache and navigation handling byte-identical to 98c36b2. Its one
     // permitted addition (2026-10-19, owner-requested first-wake fix) is the wake asset cache that
     // scripts/smoke-ayas-wake-first-start.ts guards.

@@ -23,6 +23,8 @@ export interface DeveloperDeps {
   /** Commands run in the worktree after the agent, each must exit 0 (default: tsc, every V3 smoke, the lint). */
   readonly checks?: readonly (readonly string[])[];
   readonly agentTimeoutMs?: number;
+  /** The developer brain's research note for the job (DevResearch), added to the task. */
+  readonly research?: string;
   readonly log: (s: string) => void;
 }
 
@@ -99,7 +101,7 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     const add = await git(d.repoRoot, ["worktree", "add", "-b", branch, dir, "HEAD"]);
     if (add.code !== 0) return await fail([`çalışma kopyası açılamadı: ${(add.stderr || add.stdout).slice(-300)}`]);
     for (const l of LINKS) if (existsSync(path.join(d.repoRoot, l))) await fs.symlink(path.join(path.resolve(d.repoRoot), l), path.join(dir, l), "junction");
-    const packet = taskPacket(p, p.is);
+    const packet = taskPacket(p, p.is, d.research);
     await fs.writeFile(path.join(record, `gorev-${job.deneme}.md`), packet);
     d.log(`  geliştirici: "${p.baslik}" — ${dir} içinde çalışıyor (deneme ${job.deneme})`);
     const agent = d.agent ?? claudeAgent();

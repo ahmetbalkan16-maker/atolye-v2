@@ -3,7 +3,7 @@
  * watcher (`yapim.ts izle`) runs a cycle by itself when no order waits and the pause since the last one is over; a cycle
  * stops at the next task when an order comes in.
  *
- *   npx tsx scripts/v3/gelisim.ts dongu [--zorla] [--yalniz istekler,karsilastir,oneriler,benzer,sinav,ayar]
+ *   npx tsx scripts/v3/gelisim.ts dongu [--zorla] [--yalniz istekler,karsilastir,oneriler,benzer,pekistir,sinav,ayar,ogren,arastir,gelistir]
  *   npx tsx scripts/v3/gelisim.ts durum                    # last cycles, exams, the brains' own changes
  *   npx tsx scripts/v3/gelisim.ts oneriler                 # code proposals for the owner (Gelişim Merkezi)
  *   npx tsx scripts/v3/gelisim.ts onayla <id> [--not "…"]  # the owner's decision; nothing is built by it
@@ -18,8 +18,10 @@ import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { brainBudget, brainVision, steadyJudge } from "../../src/lib/v3/council/BrainModels";
 import { readJsonAnswer } from "../../src/lib/v3/council/Council";
-import { develop, developerLock } from "../../src/lib/v3/council/Developer";
+import { listGrades, readiness } from "../../src/lib/v3/council/DevBrain";
+import { developerLock } from "../../src/lib/v3/council/Developer";
 import { developerWindow, nextJob } from "../../src/lib/v3/council/DevQueue";
+import { learnFromCommits, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { allLessons, forgetSource, forgetWhere, remember } from "../../src/lib/v3/council/ExperienceMemory";
 import { CONSOLIDATE_AT, consolidationPrompt, gapLesson, isReferenceLesson, kindOf, listReferences, listStudyRequests, measureGaps, nextSearch, parseConsolidation, pickSimilar, REFERENCE_SUMMARY, referenceTargets, saveStudyRequest, searchVideos, STUDY_BRAINS, type StudySearch, studyReference, type VideoMeasures } from "../../src/lib/v3/council/ReferenceStudy";
 import { activeAdditions, additionPrompt, confirmedGain, CYCLE_TASKS, settingTriedWithin, STEADY_TRIAL_EVERY_DAYS, STUDIES_PER_CYCLE, STUDIES_PER_DAY, STEADY_TRIAL_RUNS, steadyVerdict, type CycleRecord, type CycleTask, cycleLine, decideProposal, harvestReport, improvementDir, listCycles, listProposals, MIN_GAIN, readTuning, recordCycle, settleAddition, settleSetting, TASK_NAMES, type TaskResult, taskDue, triedBefore, tunedSetting, writeTuning } from "../../src/lib/v3/council/SelfImprovement";
@@ -80,6 +82,17 @@ const examplesFlag = async (paths: V3Paths, on?: boolean, steady?: boolean) => [
 async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeof brainBudget>, orders: readonly ProductionOrder[]): Promise<Omit<TaskResult, "bitis">> {
   const skip = (ayrinti: string) => ({ gorev: task, sonuc: "atlandi" as const, ayrinti });
   const ok = (ayrinti: string) => ({ gorev: task, sonuc: "tamam" as const, ayrinti });
+  const research = { repoRoot: paths.repoRoot, workRoot: paths.workRoot, budget: budget.budget, model: budget.critic, log };
+  if (task === "ogren") {
+    // The developer brain sits its exam on the new V3 commits and adds them to what it knows.
+    const r = await learnFromCommits(research);
+    return r.okunan ? ok(`${r.ozet}; ${readiness(await listGrades(paths.workRoot)).ozet}`) : skip(r.ozet);
+  }
+  if (task === "arastir") {
+    // By day the developer brain researches what waits for the evening (its guess is written before Claude builds).
+    const done = await researchQueue((await listProposals(paths.workRoot)).map((x) => x.proposal), research);
+    return done.length ? ok(done.join(" · ")) : skip("araştırılacak yeni iş yok");
+  }
   if (task === "gelistir") {
     // The development queue: one approved proposal per cycle, only while the developer is switched on and in its hours.
     const window = developerWindow(process.env);
@@ -89,7 +102,7 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     const release = await developerLock(paths.workRoot);
     if (!release) return skip("geliştirici başka bir işte");
     try {
-      const done = await develop(job, { repoRoot: paths.repoRoot, workRoot: paths.workRoot, log });
+      const done = await runDevJob(job, research);
       return ok(`"${done.baslik}": ${done.durum === "hazir" ? `hazır — dal ${done.is?.dal}` : done.durum === "yapildi" ? "değişiklik gerekmedi" : `yapılamadı — ${(done.is?.sorunlar ?? []).join(" | ").slice(0, 200)}`}`);
     } finally {
       await release();

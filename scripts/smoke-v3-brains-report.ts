@@ -14,7 +14,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
 import { AtolyeBrainsPanel } from "../src/components/brain/AtolyeBrainsPanel";
 import { answerAyasVideoIntent, detectAyasVideoIntent } from "../src/lib/ayas/AyasVideoOrder";
+import { currentStep, loadBrainCouncil, logLineBrain } from "../src/lib/v3/council/BrainCouncilFeed";
 import { brainsReportText, loadAtolyeBrainsView } from "../src/lib/v3/council/BrainsReport";
+import { say } from "../src/lib/v3/council/DevBrain";
 import type { CouncilSession } from "../src/lib/v3/council/DirectorCouncil";
 import { listStudyRequests, type ReferenceRecord } from "../src/lib/v3/council/ReferenceStudy";
 import { decideProposal, listProposals, proposeDevelopment, recordCycle, settleAddition, updateProposal, writeTuning } from "../src/lib/v3/council/SelfImprovement";
@@ -143,6 +145,71 @@ async function main() {
     // An unreadable store says so; no view renders nothing.
     assert.match(renderToStaticMarkup(createElement(AtolyeBrainsPanel, { initial: { ...v, connected: false, error: "EACCES" } })), /Kayıtlar okunamadı: EACCES/);
     assert.equal(renderToStaticMarkup(createElement(AtolyeBrainsPanel, {})), "");
+  });
+
+  await scenario("D the homepage's council: a production's step decides who works, its log lines are the brains' words; debates, cycles and the developer brain fill the rest; nothing is made up", async () => {
+    // Real log lines (Caesar Short, 3 Nov 2026) go to the brain that wrote them; the PC's health and counters to no one.
+    const lines: [string, string | undefined][] = [
+      ["✓ gardirop (248 sn)", "sef"],
+      ["  Julius Caesar portre ✓ konu 10/10, dönem 7/10, diger · Bust Julius Caesar.jpg", "kostum"],
+      ["  · konu 0/10, dönem 3/10, eser · AIC 100345: Adoration", "ortam"],
+      ["⚠ s2-negotiation: DÖNEME AİT GÖRSEL BULUNAMADI — 4 aday incelendi", "ortam"],
+      ["  müzik: yatak 1 (historical): özgün müzik", "ses"],
+      ["ses temizliği: ortam 65509c6e.wav — 23 sabit tiz çizgi → 1", "ses"],
+      ["⚕ onarım beyni [kapak, deneme 3]: 90 sn bekleyip yeniden", "onarim"],
+      ["- [x] Ses seviyesi -14.0 LUFS", "kalite"],
+      ["  kapak portre ✓ konu 9/10, dönem 8/10", "ortam"],
+      ["↺ rötuş beyni: 1. tur başlıyor", "sef"],
+      ["GPU 74 °C — soğuması bekleniyor (sınır 74 °C)", undefined],
+      ["sağlık: GPU 70 °C · işlemci hız %85", undefined],
+      ["  render 1200/1204", undefined],
+      ["Ollama gemma4:12b bellekten indiriliyor (render için RAM)", undefined],
+    ];
+    for (const [l, who] of lines) assert.equal(logLineBrain(l)?.kim, who, l);
+    assert.equal(logLineBrain("✓ ses (375 sn)")?.metin, "seslendirme bitti (375 sn)");
+    assert.equal(currentStep("✓ senaryo (95 sn)\n✓ gardirop (248 sn)\n"), "ses");
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-meclis-"));
+    // Nothing recorded yet: every brain waits and says it has no record.
+    const empty = await loadBrainCouncil(root);
+    assert.deepEqual([empty.beyinler.length, empty.akis.length, empty.uretim], [10, 0, undefined]);
+    assert.ok(empty.beyinler.every((b) => b.durum === "bekliyor" && b.is === "henüz kaydı yok"));
+    // A delivered production with its brains' debates, a cycle, the developer brain's notes, a production running.
+    const done = await placeOrder(root, { konu: "Rubicon", donem: "49 BC", sure: "60sn" }, new Date("2026-11-03T08:00:00Z"));
+    Object.assign(done, { durum: "teslim", bitis: "2026-11-03T09:00:00Z", cikti: path.join(root, "bolumler", done.id) });
+    await saveOrder(path.join(orderDir(root), `${done.id}.json`), done);
+    mkdirSync(done.cikti!, { recursive: true });
+    writeFileSync(path.join(done.cikti!, "yapim-raporu.json"), JSON.stringify({ tarih: "2026-11-03T09:00:00Z", tartismalar: [{ beyin: "kostum", konu: "kostüm incelemesi", kayit: [{ rol: "Tarihçi", metin: "toga too bright" }, { rol: "Şef", metin: "2 düzeltme uygulandı" }] }] }));
+    await recordCycle(root, { basla: "2026-11-03T10:00:00Z", bitis: "2026-11-03T10:05:00Z", gorevler: [{ gorev: "benzer", sonuc: "tamam", ayrinti: "1 video incelendi", bitis: "2026-11-03T10:02:00Z" }, { gorev: "ogren", sonuc: "tamam", ayrinti: "3 commit okundu", bitis: "2026-11-03T10:04:00Z" }, { gorev: "sinav", sonuc: "atlandi", ayrinti: "", bitis: "2026-11-03T10:05:00Z" }], maliyetUsd: 0 });
+    await say(root, "işi araştırdım", undefined, new Date("2026-11-03T11:00:00Z"));
+    await say(root, "notumla Claude'a veriyorum", "Claude", new Date("2026-11-03T11:01:00Z"));
+    const run = await placeOrder(root, { konu: "Caesar and the pirates", donem: "75 BC", sure: "60sn" }, new Date("2026-11-03T12:00:00Z"));
+    Object.assign(run, { durum: "calisiyor", cikti: path.join(root, "bolumler", run.id) });
+    await saveOrder(path.join(orderDir(root), `${run.id}.json`), run);
+    mkdirSync(run.cikti!, { recursive: true });
+    writeFileSync(path.join(run.cikti!, "uret.log"), ["✓ senaryo (95 sn)", "GPU 74 °C — soğuması bekleniyor (sınır 74 °C)", "  Julius Caesar portre ✓ konu 10/10, dönem 7/10", "gardırop: \"Caesar's laurel\" tasarlandı", ""].join("\n"));
+    const kurul = { tarih: "2026-11-03T08:30:00Z", beyinler: [{ ad: "Mizah beyni", puan: 6, notlar: ["s4#1: espri zayıf → daha keskin"] }], itirazlar: ["Araştırma beyni (n1): tarih bozulur"], ayas: "Espri düzelecek." };
+    const v = await loadBrainCouncil(root, kurul);
+    assert.match(v.uretim!, /^"Caesar and the pirates" yapılıyor — kostüm adımı \(2\/9\)$/);
+    const by = (id: string) => v.beyinler.find((b) => b.id === id)!;
+    assert.deepEqual([by("kostum").durum, by("kostum").is], ["calisiyor", "kostüm adımında"], "the step's brain works");
+    assert.deepEqual([by("ses").durum, by("ses").is], ["bekliyor", "henüz kaydı yok"]);
+    assert.equal(by("arastirma").is, "ilgili videoları kendi arayıp inceleme: 1 video incelendi", "a waiting brain shows its last record");
+    assert.equal(by("gelistirici").is, "notumla Claude'a veriyorum");
+    // The feed: newest first — the running production's words, then the developer brain, the cycle, the debates, the council.
+    assert.deepEqual(v.akis.slice(0, 3).map((l) => [l.kim, l.metin]), [["kostum", "gardırop: \"Caesar's laurel\" tasarlandı"], ["kostum", "Julius Caesar portre ✓ konu 10/10, dönem 7/10"], ["sef", "araştırma ve senaryo bitti (95 sn)"]]);
+    assert.ok(v.akis.some((l) => l.kim === "gelistirici" && l.kime === "Claude"));
+    assert.ok(v.akis.some((l) => l.kim === "kostum" && l.rol === "Tarihçi" && l.metin === "kostüm incelemesi: toga too bright"));
+    assert.ok(v.akis.some((l) => l.kim === "mizah" && l.kime === "AYAS" && l.metin === "6/10 — s4#1: espri zayıf → daha keskin"));
+    assert.ok(v.akis.some((l) => l.kim === "arastirma" && l.metin === "itiraz (n1): tarih bozulur"));
+    assert.ok(!v.akis.some((l) => /GPU|sınav/.test(l.metin)), "no health line, no skipped task");
+    // The brains' report carries the council and the developer brain; the Gelişim Merkezi shows the brain's card.
+    const report = await loadAtolyeBrainsView(root);
+    assert.equal(report.meclis.beyinler.length, 10);
+    assert.equal(report.gelistirici?.hazirlik.seviye, "baslangic");
+    assert.match(brainsReportText(report), /Geliştirici beyni \(gündüz araştırır, akşam 16:30'dan sonra Claude yapar, o da Claude'dan öğrenir\): henüz bir tahmini notlanmadı/);
+    const html = renderToStaticMarkup(createElement(AtolyeBrainsPanel, { initial: report }));
+    assert.match(html, /Geliştirici Beyni <span>YENİ BAŞLADI<\/span>/);
+    assert.match(html, /her akşam 16:30&#x27;dan sonra Claude onu sipariş yokken ayrı bir kopyada yapar/);
   });
 
   console.log(`PASS (${scenarios} scenarios)`);
