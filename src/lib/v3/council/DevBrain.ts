@@ -40,6 +40,8 @@ export interface DevGuess {
   /** Its search's best candidates before it chose (to tell a bad search from a bad choice). */
   readonly adaylar: readonly string[];
   readonly model: string;
+  /** The declarations (functions, constants, types) it expects to be added or changed — where in the files. */
+  readonly semboller?: readonly string[];
 }
 
 /** How close a guess came to what really changed. */
@@ -58,6 +60,9 @@ export interface DevGrade {
   readonly adayIsabet: number;
   /** Jobs only: whether it was right that the studio already did it (or did not). */
   readonly kararDogru?: boolean;
+  /** When the real declarations are known (commits): the share of them it named (0..1). */
+  readonly sembolIsabet?: number;
+  readonly gercekSemboller?: readonly string[];
 }
 
 /** One learned association: a task like `tetik` touches `dosya`. */
@@ -112,13 +117,27 @@ export function similarity(a: string, b: string): number {
   return common / Math.min(x.size, y.size);
 }
 
-/** Grades a guess against the files that really changed. */
-export function gradeGuess(g: Pick<DevGuess, "id" | "kaynak" | "gorev" | "dosyalar" | "adaylar" | "karar">, changed: readonly string[], now = new Date()): DevGrade {
+/** The most declarations a guess names (and the most a grade asks it to find). */
+export const MAX_GUESS_SYMBOLS = 10;
+
+/**
+ * Grades a guess against the files that really changed and, when known, the declarations that really changed (the
+ * share it named of them, out of at most MAX_GUESS_SYMBOLS: a commit that touched thirty functions asks for ten).
+ */
+export function gradeGuess(
+  g: Pick<DevGuess, "id" | "kaynak" | "gorev" | "dosyalar" | "adaylar" | "karar" | "semboller">,
+  changed: readonly string[],
+  now = new Date(),
+  realSymbols: readonly string[] = [],
+): DevGrade {
   const real = gradedFiles(changed);
   const named = gradedFiles(g.dosyalar);
   const hit = named.filter((f) => real.includes(f)).length;
   const cand = new Set(gradedFiles(g.adaylar));
   const round = (x: number) => Math.round(x * 100) / 100;
+  const symbols = [...new Set(realSymbols)];
+  const guessed = new Set(g.semboller ?? []);
+  const symbolHit = symbols.filter((s) => guessed.has(s)).length;
   return {
     id: g.id,
     kaynak: g.kaynak,
@@ -131,6 +150,7 @@ export function gradeGuess(g: Pick<DevGuess, "id" | "kaynak" | "gorev" | "dosyal
     kesinlik: round(named.length ? hit / named.length : real.length ? 0 : 1),
     adayIsabet: round(real.length ? real.filter((f) => cand.has(f)).length / real.length : 1),
     ...(g.kaynak === "is" ? { kararDogru: (g.karar === "var") === (real.length === 0) } : {}),
+    ...(symbols.length ? { sembolIsabet: round(Math.min(1, symbolHit / Math.min(symbols.length, MAX_GUESS_SYMBOLS))), gercekSemboller: symbols.slice(0, 40) } : {}),
   };
 }
 
@@ -193,6 +213,173 @@ export function similarChanges(past: readonly PastChange[], task: string, opts: 
     .slice(0, opts.limit ?? 5);
 }
 
+/** What one file's change was in code: the declarations it added or changed and the lines it added (shortened). */
+export interface CodeTouch {
+  readonly dosya: string;
+  /** Top-level declarations (functions, constants, types, classes; JSON: keys) the change added or changed. */
+  readonly semboller: readonly string[];
+  readonly eklenen: number;
+  readonly silinen: number;
+  /** The added lines, hunk by hunk (`@@ <enclosing line>` then the code), at most EXCERPT_CHARS. */
+  readonly ornek: string;
+}
+
+/**
+ * One change as code (owner, 3 Nov 2026: "nereye ne kod değişikliği yaptığını öğrensin, ilerde Claude yokken kendisi
+ * kod yazabilmeli"): per file the declarations it added or changed and an excerpt of the code it added, the smoke suites
+ * that proved it, and — when a pass had budget for it — how it was done, in a few Turkish sentences. The brain's worked
+ * examples: a guess sees the code of the past changes most like its task, and Claude's evening packet carries them.
+ */
+export interface CodeExperience {
+  readonly id: string;
+  readonly tarih: string;
+  readonly gorev: string;
+  readonly dosyalar: readonly CodeTouch[];
+  readonly testler: readonly string[];
+  /** Turkish, 2-4 sentences: which file got which function, how they connect, how it was tested. */
+  readonly nasil?: string;
+}
+
+export const MAX_SYMBOLS_PER_FILE = 12;
+export const EXCERPT_CHARS = 1_200;
+const MAX_TOUCHED_FILES = 12;
+
+const DECL = /^(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?(?:async\s+)?(?:function\*?|const|let|var|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/;
+const JSON_KEY = /^\s*"([^"\\]{2,40})"\s*:/;
+
+/** The declaration a line opens at the top level of a file (no indentation), if any. */
+export function declaredName(line: string): string | undefined {
+  return DECL.exec(line)?.[1];
+}
+
+/** The top-level declarations of a source file and the lines (1-based, inclusive) each spans, its doc comment included. */
+export function declarationSpans(source: string): { ad: string; bas: number; son: number }[] {
+  const lines = source.split(/\r?\n/);
+  const heads: { ad: string; bas: number }[] = [];
+  for (let k = 0; k < lines.length; k++) {
+    const name = declaredName(lines[k]!);
+    if (!name) continue;
+    // The comment right above a declaration is its own (`/** … */` or `//` lines).
+    let start = k;
+    while (start > 0 && /^\s*(?:\/\*\*|\*|\*\/|\/\/)/.test(lines[start - 1]!)) start--;
+    heads.push({ ad: name, bas: start + 1 });
+  }
+  return heads.map((h, i) => ({ ...h, son: (heads[i + 1]?.bas ?? lines.length + 1) - 1 }));
+}
+
+/** One file's part of a unified diff: where it added and deleted (post-image line numbers), counts, the added text. */
+export interface FileDiff {
+  readonly dosya: string;
+  /** Post-image line numbers of the added lines that carry code (blank ones say nothing about where). */
+  readonly eklenenSatirlar: readonly number[];
+  /**
+   * Post-image line numbers where code lines were deleted (the line now standing there) — not the lines of a declaration
+   * removed outright, which belong to it and would otherwise be blamed on the declaration that follows.
+   */
+  readonly silinenYerler: readonly number[];
+  readonly eklenen: number;
+  readonly silinen: number;
+  /** The declarations seen on added or deleted lines themselves (enough when the post-image is not at hand). */
+  readonly satirSembolleri: readonly string[];
+  readonly ornek: string;
+}
+
+/** Splits `git show --format= -U<n>` output into files (a cut-off diff simply ends early). */
+export function parseDiff(diff: string): FileDiff[] {
+  type Cur = { dosya: string; add: number[]; delAt: number[]; added: number; del: number; sym: string[]; ex: string[]; at: number; removing: boolean };
+  const out: Cur[] = [];
+  let cur: Cur | undefined;
+  for (const line of diff.split(/\r?\n/)) {
+    const head = /^diff --git a\/.+? b\/(.+)$/.exec(line);
+    if (head) {
+      cur = { dosya: head[1]!, add: [], delAt: [], added: 0, del: 0, sym: [], ex: [], at: 0, removing: false };
+      out.push(cur);
+      continue;
+    }
+    if (!cur || /^(?:\+\+\+ |--- |index |new file|deleted file|similarity|rename |old mode|new mode|Binary )/.test(line)) continue;
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@ ?(.*)$/.exec(line);
+    if (hunk) {
+      cur.at = Number(hunk[1]);
+      cur.removing = false;
+      cur.ex.push(`@@ ${hunk[2]!.trim()}`.trim());
+      continue;
+    }
+    const body = line.slice(1);
+    const named = (s: string) => {
+      const n = declaredName(s) ?? (cur!.dosya.endsWith(".json") ? JSON_KEY.exec(s)?.[1] : undefined);
+      if (n && !cur!.sym.includes(n)) cur!.sym.push(n);
+      return n;
+    };
+    if (line.startsWith("+")) {
+      cur.removing = false;
+      cur.added++;
+      named(body);
+      if (body.trim()) {
+        cur.add.push(cur.at);
+        cur.ex.push(body);
+      }
+      cur.at++;
+    } else if (line.startsWith("-")) {
+      cur.del++;
+      // A deleted line opening a top-level declaration starts a removed block: the lines after it are its own.
+      if (declaredName(body)) cur.removing = true;
+      named(body);
+      if (!cur.removing && body.trim()) cur.delAt.push(cur.at);
+    } else if (line.startsWith(" ")) {
+      cur.removing = false;
+      cur.at++;
+    }
+  }
+  return out.map((c) => {
+    let ornek = c.ex.filter((l, i, a) => !(l.startsWith("@@") && (a[i + 1] === undefined || a[i + 1]!.startsWith("@@")))).join("\n");
+    if (ornek.length > EXCERPT_CHARS) ornek = `${ornek.slice(0, EXCERPT_CHARS)}\n…`;
+    return { dosya: c.dosya, eklenenSatirlar: c.add, silinenYerler: c.delAt, eklenen: c.added, silinen: c.del, satirSembolleri: c.sym, ornek };
+  });
+}
+
+/**
+ * The declarations a file's change touched: every top-level declaration whose span holds an added line or a deletion,
+ * in file order; without the post-image (a deleted file, a JSON file), the declarations on the changed lines.
+ */
+export function touchedDeclarations(fd: FileDiff, postImage?: string): string[] {
+  if (postImage === undefined || !/\.(?:m?[jt]sx?)$/.test(fd.dosya)) return fd.satirSembolleri.slice(0, MAX_SYMBOLS_PER_FILE);
+  const spans = declarationSpans(postImage);
+  const lines = [...fd.eklenenSatirlar, ...fd.silinenYerler];
+  const hit = spans.filter((s) => lines.some((n) => n >= s.bas && n <= s.son)).map((s) => s.ad);
+  // A declaration removed outright no longer has a span; its deleted line still names it.
+  const gone = fd.satirSembolleri.filter((n) => !spans.some((s) => s.ad === n));
+  return [...new Set([...hit, ...gone])].slice(0, MAX_SYMBOLS_PER_FILE);
+}
+
+/** A smoke suite of the V3 studio (what proved a change). */
+export const isV3Smoke = (f: string) => /^scripts\/smoke-v3-[\w-]+\.ts$/.test(f.replace(/\\/g, "/"));
+
+/** A change's code experience from its diff and the post-images of its files (graded files only; suites as tests). */
+export function codeExperience(input: { readonly id: string; readonly tarih: string; readonly gorev: string; readonly diff: string; readonly postImages: Readonly<Record<string, string | undefined>> }): CodeExperience {
+  const files = parseDiff(input.diff);
+  const graded = new Set(gradedFiles(files.map((f) => f.dosya)));
+  const touches = files
+    .filter((f) => graded.has(f.dosya))
+    .map((f) => ({ dosya: f.dosya, semboller: touchedDeclarations(f, input.postImages[f.dosya]), eklenen: f.eklenen, silinen: f.silinen, ornek: f.ornek }))
+    // The biggest changes first: they say most about how it was done.
+    .sort((a, b) => b.eklenen + b.silinen - (a.eklenen + a.silinen))
+    .slice(0, MAX_TOUCHED_FILES);
+  return { id: input.id, tarih: input.tarih, gorev: input.gorev, dosyalar: touches, testler: [...new Set(files.map((f) => f.dosya).filter(isV3Smoke))].sort() };
+}
+
+/** All the declarations a change touched, its biggest files first. */
+export const changedSymbols = (x: Pick<CodeExperience, "dosyalar">): string[] => [...new Set(x.dosyalar.flatMap((t) => t.semboller))];
+
+/** The code experience as a guess's prompt and the research note show it: files with their declarations, then the recipe. */
+export function codeExperienceLines(x: CodeExperience, opts: { readonly ornek?: number } = {}): string[] {
+  const lines = x.dosyalar.slice(0, 6).map((t) => `  ${t.dosya} (+${t.eklenen}/-${t.silinen})${t.semboller.length ? `: ${t.semboller.slice(0, 8).join(", ")}` : ""}`);
+  if (x.testler.length) lines.push(`  test: ${x.testler.slice(0, 4).join(", ")}`);
+  if (x.nasil) lines.push(`  nasıl: ${x.nasil}`);
+  const top = x.dosyalar[0];
+  if (opts.ornek && top?.ornek) lines.push(`  kod (${top.dosya}):`, ...top.ornek.slice(0, opts.ornek).split("\n").map((l) => `    ${l}`));
+  return lines;
+}
+
 /** How ready the apprentice is, from its last grades. */
 export interface Readiness {
   readonly n: number;
@@ -201,6 +388,8 @@ export interface Readiness {
   readonly adayIsabet: number;
   /** Jobs only. */
   readonly karar?: number;
+  /** Grades that knew the real declarations: how many of them it named (the step before writing the code itself). */
+  readonly sembol?: number;
   readonly seviye: "baslangic" | "ogreniyor" | "yaklasiyor" | "hazir";
   /** Turkish, one line. */
   readonly ozet: string;
@@ -214,13 +403,15 @@ export function readiness(grades: readonly DevGrade[]): Readiness {
   const isabet = mean(last.map((g) => g.isabet)), kesinlik = mean(last.map((g) => g.kesinlik)), adayIsabet = mean(last.map((g) => g.adayIsabet));
   const decided = last.filter((g) => g.kararDogru !== undefined);
   const karar = decided.length ? mean(decided.map((g) => (g.kararDogru ? 1 : 0))) : undefined;
+  const withSymbols = last.filter((g) => g.sembolIsabet !== undefined);
+  const sembol = withSymbols.length ? mean(withSymbols.map((g) => g.sembolIsabet!)) : undefined;
   const seviye = last.length < 5 ? "baslangic" : last.length >= READY_WINDOW && isabet >= 80 && kesinlik >= 60 ? "hazir" : isabet >= 60 ? "yaklasiyor" : "ogreniyor";
   const name = { baslangic: "yeni başladı", ogreniyor: "öğreniyor", yaklasiyor: "yaklaşıyor", hazir: "hazır olabilir" }[seviye];
   // (Percentages without a case ending: Turkish picks it by how the number is read.)
   const ozet = last.length
-    ? `${name} — son ${last.length} işte: değişen dosyaları bulma %${isabet} · andığı dosyalarda doğruluk %${kesinlik} · arama kapsamı %${adayIsabet}${karar !== undefined ? ` · "zaten var mı" kararı %${karar}` : ""}`
+    ? `${name} — son ${last.length} işte: değişen dosyaları bulma %${isabet} · andığı dosyalarda doğruluk %${kesinlik} · arama kapsamı %${adayIsabet}${sembol !== undefined ? ` · değişen fonksiyonları bulma %${sembol}` : ""}${karar !== undefined ? ` · "zaten var mı" kararı %${karar}` : ""}`
     : "henüz bir tahmini notlanmadı";
-  return { n: last.length, isabet, kesinlik, adayIsabet, ...(karar !== undefined ? { karar } : {}), seviye, ozet };
+  return { n: last.length, isabet, kesinlik, adayIsabet, ...(karar !== undefined ? { karar } : {}), ...(sembol !== undefined ? { sembol } : {}), seviye, ozet };
 }
 
 const file = (workRoot: string, name: string) => path.join(devBrainDir(workRoot), name);
@@ -247,6 +438,15 @@ export const recordChange = (workRoot: string, c: PastChange) => append(workRoot
 export const listGuesses = (workRoot: string) => readLines<DevGuess>(file(workRoot, "tahminler.jsonl"));
 export const listGrades = (workRoot: string) => readLines<DevGrade>(file(workRoot, "karne.jsonl"));
 export const listChanges = (workRoot: string) => readLines<PastChange>(file(workRoot, "gecmis.jsonl"));
+
+export const recordCodeExperience = (workRoot: string, x: CodeExperience) => append(workRoot, "kod.jsonl", x);
+
+/** The code experiences, one per change: a later line for the same change (its recipe written afterwards) wins. */
+export async function listCodeExperience(workRoot: string): Promise<CodeExperience[]> {
+  const byId = new Map<string, CodeExperience>();
+  for (const x of await readLines<CodeExperience>(file(workRoot, "kod.jsonl"))) byId.set(x.id, { ...byId.get(x.id), ...x });
+  return [...byId.values()];
+}
 
 /** The latest guess for a job or commit. */
 export async function lastGuess(workRoot: string, id: string): Promise<DevGuess | undefined> {
@@ -292,7 +492,16 @@ export function researchNote(workRoot: string, id: string): string {
 }
 
 /** The research note as the brain writes it (Turkish; the paths and the plan are what Claude needs). */
-export function researchMarkdown(g: DevGuess, extra: { readonly benzer: readonly { readonly mesaj: string; readonly dosyalar: readonly string[] }[]; readonly icguduler: readonly Instinct[]; readonly ozetler: Readonly<Record<string, string>> }): string {
+export function researchMarkdown(
+  g: DevGuess,
+  extra: {
+    readonly benzer: readonly { readonly mesaj: string; readonly dosyalar: readonly string[] }[];
+    readonly icguduler: readonly Instinct[];
+    readonly ozetler: Readonly<Record<string, string>>;
+    /** The code of the most similar past changes (how they were done). */
+    readonly kod?: readonly CodeExperience[];
+  },
+): string {
   const lines = [
     `# Geliştirici beyninin araştırması — ${g.gorev}`,
     "",
@@ -304,6 +513,7 @@ export function researchMarkdown(g: DevGuess, extra: { readonly benzer: readonly
     "",
     "**Değişeceğini düşündüğü dosyalar:**",
     ...g.dosyalar.map((f) => `- ${f}${extra.ozetler[f] ? ` — ${extra.ozetler[f]}` : ""}`),
+    ...(g.semboller?.length ? ["", `**Ekleneceğini/değişeceğini düşündüğü bildirimler:** ${g.semboller.join(", ")}`] : []),
     ...(g.test ? ["", `**Test:** ${g.test}`] : []),
     "",
     "**Aramasının öbür adayları:**",
@@ -311,6 +521,10 @@ export function researchMarkdown(g: DevGuess, extra: { readonly benzer: readonly
   ];
   if (extra.benzer.length) lines.push("", "**Benzer geçmiş değişiklikler:**", ...extra.benzer.map((c) => `- "${c.mesaj}" → ${c.dosyalar.slice(0, 6).join(", ")}`));
   if (extra.icguduler.length) lines.push("", "**İçgüdüleri:**", ...extra.icguduler.slice(0, 6).map((i) => `- "${i.tetik}" → ${i.dosya} (güven ${i.guven})`));
+  if (extra.kod?.length) {
+    lines.push("", "**Benzer geçmiş değişikliklerin kodu (nerede, ne, nasıl):**");
+    for (const [k, x] of extra.kod.slice(0, 3).entries()) lines.push(`- "${x.gorev}" (${x.id.slice(0, 10)})`, ...codeExperienceLines(x, k === 0 ? { ornek: 700 } : {}));
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -319,17 +533,22 @@ export interface DevBrainView {
   readonly hazirlik: Readiness;
   readonly icgudu: { readonly toplam: number; readonly dogrulanan: number; readonly reddedilen: number };
   readonly gecmis: number;
+  /** Changes whose code it read (where, what), how many of them with a written recipe, and the newest one's recipe. */
+  readonly kod?: { readonly toplam: number; readonly tarifli: number; readonly sonTarif?: { readonly gorev: string; readonly nasil: string } };
   readonly dersler: readonly string[];
   readonly notlar: readonly { readonly tarih: string; readonly gorev: string; readonly satir: string }[];
   readonly akis: readonly DevTalk[];
 }
 
 export async function loadDevBrainView(workRoot: string): Promise<DevBrainView> {
-  const [grades, instincts, past, lessons, talk] = await Promise.all([listGrades(workRoot), readInstincts(workRoot), listChanges(workRoot), listLessons(workRoot), recentTalk(workRoot, 12)]);
+  const [grades, instincts, past, lessons, talk, code] = await Promise.all([listGrades(workRoot), readInstincts(workRoot), listChanges(workRoot), listLessons(workRoot), recentTalk(workRoot, 12), listCodeExperience(workRoot)]);
+  const recipes = code.filter((x) => x.nasil).sort((a, b) => Date.parse(a.tarih) - Date.parse(b.tarih));
+  const last = recipes.at(-1);
   return {
     hazirlik: readiness(grades),
     icgudu: { toplam: instincts.length, dogrulanan: instincts.filter((i) => i.durum === "dogrulandi").length, reddedilen: instincts.filter((i) => i.durum === "reddedildi").length },
     gecmis: past.length,
+    kod: { toplam: code.length, tarifli: recipes.length, ...(last ? { sonTarif: { gorev: last.gorev, nasil: last.nasil! } } : {}) },
     dersler: lessons.slice(-5).reverse().map((l) => l.metin),
     notlar: grades.slice(-6).reverse().map((g) => ({ tarih: g.tarih, gorev: g.gorev, satir: `${g.kaynak === "is" ? "iş" : "commit"}: ${g.gercek.length} dosyadan ${Math.round(g.isabet * g.gercek.length)} bulundu, ${g.tahmin.length} tahminin ${Math.round(g.kesinlik * g.tahmin.length)} doğru${g.kararDogru === undefined ? "" : g.kararDogru ? ", karar doğru" : ", karar yanlış"}` })),
     akis: talk.reverse(),

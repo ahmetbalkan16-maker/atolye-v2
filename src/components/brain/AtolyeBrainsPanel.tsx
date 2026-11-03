@@ -142,6 +142,8 @@ function DevBrainSection({ g }: { readonly g: NonNullable<AtolyeBrainsView["geli
       <p className="bc-dev__notice bc-dev__notice--safe">Gün içinde onaylanan işleri araştırır ve tahminini yazar; her akşam 16:30&apos;dan sonra işi Claude yapar, beyin kendi tahminini Claude&apos;un yaptığıyla karşılaştırıp öğrenir. Her yeni commit&apos;te de aynı sınava girer. Kod yazmaz; karnesi yeterli olunca daha fazlasına sen karar verirsin.</p>
       <p><b>Karne:</b> {g.hazirlik.ozet}</p>
       <p>Hafıza: {g.gecmis} değişiklik · {g.icgudu.toplam} içgüdü ({g.icgudu.dogrulanan} doğrulandı, {g.icgudu.reddedilen} bırakıldı)</p>
+      {g.kod?.toplam ? <p>Kod deneyimi: {g.kod.toplam} değişikliğin kodu (hangi dosyada hangi fonksiyon, eklenen kod, testi) · {g.kod.tarifli} tanesinin nasıl yapıldığını kendi sözleriyle yazdı</p> : null}
+      {g.kod?.sonTarif ? <details><summary>Son tarifi — {g.kod.sonTarif.gorev.slice(0, 80)}</summary><p>{g.kod.sonTarif.nasil}</p></details> : null}
       {g.notlar.length ? <ul className="bc-dev__micro-items">{g.notlar.map((n) => <li key={`${n.tarih}${n.gorev}`} className="bc-dev__micro-item"><b>{when(n.tarih)}</b> — {n.gorev.slice(0, 90)}: {n.satir}</li>)}</ul> : null}
       {g.dersler.length ? <details><summary>Dersleri ({g.dersler.length})</summary><ul>{g.dersler.map((d) => <li key={d}>{d}</li>)}</ul></details> : null}
       {g.akis.length ? <details><summary>Notları ({g.akis.length})</summary><ul>{g.akis.map((t) => <li key={`${t.tarih}${t.metin}`}><b>{when(t.tarih)}</b>{t.kime ? ` → ${t.kime}` : ""}: {t.metin}</li>)}</ul></details> : null}

@@ -48,7 +48,33 @@ import {
 } from "../src/lib/v3/council/SelfImprovement";
 import { applyBuild, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
 import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, nextJob, taskPacket } from "../src/lib/v3/council/DevQueue";
-import { type DevGrade, firedInstincts, gradedFiles, gradeGuess, learnInstincts, listChanges, listGrades, listLessons, loadDevBrainView, readiness, readInstincts, READY_WINDOW, researchNote, similarChanges, START_CONFIDENCE, taskWords } from "../src/lib/v3/council/DevBrain";
+import {
+  changedSymbols,
+  codeExperience,
+  codeExperienceLines,
+  declarationSpans,
+  type DevGrade,
+  EXCERPT_CHARS,
+  firedInstincts,
+  gradedFiles,
+  gradeGuess,
+  learnInstincts,
+  listChanges,
+  listCodeExperience,
+  listGrades,
+  listLessons,
+  loadDevBrainView,
+  parseDiff,
+  readiness,
+  readInstincts,
+  READY_WINDOW,
+  researchMarkdown,
+  researchNote,
+  similarChanges,
+  START_CONFIDENCE,
+  taskWords,
+  touchedDeclarations,
+} from "../src/lib/v3/council/DevBrain";
 import { learnFromCommits, needsResearch, researchQueue, runDevJob } from "../src/lib/v3/council/DevResearch";
 import { V3Budget } from "../src/lib/v3/script/V3Budget";
 import { runProcess } from "../src/lib/v3/util/Proc";
@@ -370,7 +396,13 @@ async function main() {
     const model = {
       generate: async (prompt: string) => {
         prompts.push(prompt);
-        const content = prompt.includes("search terms") ? '{"terimler": ["musicVolume", "Mixer"]}' : prompt.includes("Write ONE lesson") ? '{"ders": "Ses işleri mix klasöründe; önce Mixer.ts\'e bak."}' : JSON.stringify({ dosyalar: pick, karar: "yapilmali", plan: "Mixer.ts'te ses düzeyi değişir.", test: "scripts/smoke-v3-mix.ts" });
+        const content = prompt.includes("search terms")
+          ? '{"terimler": ["musicVolume", "Mixer"]}'
+          : prompt.includes("Write ONE lesson")
+            ? '{"ders": "Ses işleri mix klasöründe; önce Mixer.ts\'e bak."}'
+            : prompt.includes("learn HOW it was done")
+              ? '{"nasil": "Mixer.ts\'te musicVolume kısıldı, yanına crowdVolume sabiti eklendi."}'
+              : JSON.stringify({ dosyalar: pick, semboller: ["Mixer.ts#crowdVolume", "yokBoyle()"], karar: "yapilmali", plan: "Mixer.ts'te ses düzeyi değişir.", test: "scripts/smoke-v3-mix.ts" });
         return { content, finishReason: "stop" as const, refused: false, complete: true, truncated: false };
       },
     };
@@ -382,10 +414,27 @@ async function main() {
     assert.deepEqual([grades.length, grades[0]!.kaynak, grades[0]!.gercek, grades[0]!.isabet, grades[0]!.kesinlik], [1, "commit", ["src/lib/v3/mix/Mixer.ts"], 1, 1], "the made-up path is not counted");
     assert.ok(prompts.some((x) => x.includes("TASK (Turkish): kalabalık sesi müziğin altında")), "the exam's task is the subject without its type");
     assert.ok(prompts.some((x) => x.includes("SIMILAR PAST CHANGES") && x.includes("müzik sesi kısıldı")), "the earlier change is remembered");
-    assert.ok(!prompts.some((x) => x.includes("SIMILAR PAST CHANGES") && x.includes('"kalabalık sesi müziğin altında" →')), "never its own answer");
+    assert.ok(!prompts.some((x) => x.includes("SIMILAR PAST CHANGES") && (x.includes('"kalabalık sesi müziğin altında" →') || x.includes('"kalabalık sesi müziğin altında":'))), "never its own answer");
+    // The code: every commit's declarations and added code are kept; the exam saw the parent's declarations, never the answer.
+    const examPrompt = prompts.find((x) => x.includes("TASK (Turkish): kalabalık sesi müziğin altında") && x.includes("Decide which files"))!;
+    assert.ok(examPrompt.includes("declares: musicVolume"), "the candidates' declarations at the parent");
+    assert.ok(examPrompt.includes("src/lib/v3/mix/Mixer.ts (+2/-2): musicVolume"), "the similar change shown as code");
+    assert.ok(!examPrompt.includes("crowdVolume"), "the answer's new constant is not in the exam");
+    assert.deepEqual([first.kod, first.tarif], [3, 3]);
+    const code = await listCodeExperience(work);
+    assert.equal(code.length, 3);
+    const newest = code.find((x) => x.gorev === "kalabalık sesi müziğin altında")!;
+    assert.deepEqual(newest.dosyalar.map((t) => [t.dosya, t.semboller, t.eklenen, t.silinen]), [["src/lib/v3/mix/Mixer.ts", ["musicVolume", "crowdVolume"], 2, 1]], "docs are not graded files");
+    assert.match(newest.dosyalar[0]!.ornek, /export const crowdVolume = 0\.5;/);
+    assert.equal(newest.nasil, "Mixer.ts'te musicVolume kısıldı, yanına crowdVolume sabiti eklendi.");
+    assert.equal(grades[0]!.sembolIsabet, 0.5, "named crowdVolume of musicVolume + crowdVolume; a made-up name counts nothing");
+    assert.deepEqual(grades[0]!.gercekSemboller, ["musicVolume", "crowdVolume"]);
+    assert.match(readiness(grades).ozet, /değişen fonksiyonları bulma %50/);
     assert.equal((await listChanges(work)).length, 3);
     assert.ok((await readInstincts(work)).some((i) => i.dosya === "src/lib/v3/mix/Mixer.ts"));
     assert.equal((await learnFromCommits(deps, 1)).okunan, 0, "a commit is read once");
+    const view0 = await loadDevBrainView(work);
+    assert.deepEqual([view0.kod?.toplam, view0.kod?.tarifli], [3, 3]);
     // A job: researched by day (guess recorded, note written), then Claude's build grades it.
     await proposeDevelopment(work, { beyin: "ses", baslik: "Kalabalık sesi daha yüksek", neden: "savaş sahnesinde duyulmuyor", kaynak: "ep1", kaynakTuru: "olcum" });
     const id = (await listProposals(work))[0]!.proposal.id;
@@ -394,7 +443,11 @@ async function main() {
     assert.equal(await needsResearch(work, job), true);
     assert.deepEqual(await researchQueue([job], deps), [`"Kalabalık sesi daha yüksek": 1 dosya`]);
     assert.equal(await needsResearch(work, job), false, "researched once");
-    assert.match(readFileSync(researchNote(work, id), "utf8"), /Mixer\.ts — Mixes the music bed under the narration\./);
+    const note = readFileSync(researchNote(work, id), "utf8");
+    assert.match(note, /Mixer\.ts — Mixes the music bed under the narration\./);
+    assert.match(note, /Benzer geçmiş değişikliklerin kodu/);
+    assert.match(note, /nasıl: Mixer\.ts'te musicVolume kısıldı/, "Claude's packet carries how the similar change was done");
+    assert.match(note, /Ekleneceğini\/değişeceğini düşündüğü bildirimler:\*\* crowdVolume, yokBoyle/);
     // The evening: Claude (a fake agent) gets the note with its task, changes a file the brain did not name.
     const seen = path.join(base, "paket.txt");
     const agent = [process.execPath, "-e", `let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{require("fs").writeFileSync(${JSON.stringify(seen)},s);require("fs").writeFileSync("src/lib/v3/script/Writer.ts","/** Writes. */\\nexport const writer = 2;\\n");console.log("Writer.ts değişti")})`];
@@ -404,10 +457,92 @@ async function main() {
     assert.ok(readFileSync(seen, "utf8").includes("THE STUDIO'S OWN DEVELOPER BRAIN RESEARCHED THIS TODAY") && readFileSync(seen, "utf8").includes("Mixer.ts"));
     const jobGrade = (await listGrades(work)).at(-1)!;
     assert.deepEqual([jobGrade.kaynak, jobGrade.gercek, jobGrade.isabet, jobGrade.kararDogru], ["is", ["src/lib/v3/script/Writer.ts"], 0, true]);
+    // Claude's build is read as code from its branch: Writer.ts's `writer` changed, and the lesson prompt names it.
+    assert.deepEqual([jobGrade.sembolIsabet, jobGrade.gercekSemboller], [0, ["writer"]]);
+    const built = (await listCodeExperience(work)).find((x) => x.id === id)!;
+    assert.deepEqual(built.dosyalar.map((t) => [t.dosya, t.semboller]), [["src/lib/v3/script/Writer.ts", ["writer"]]]);
+    assert.ok(built.nasil, "a recipe for Claude's build");
+    assert.ok(prompts.some((x) => x.includes("Write ONE lesson") && x.includes("(declarations: writer)")));
     assert.deepEqual((await listLessons(work)).map((l) => l.metin), ["Ses işleri mix klasöründe; önce Mixer.ts'e bak."], "a miss teaches a lesson");
     const view = await loadDevBrainView(work);
     assert.equal(view.notlar.length, 2);
     assert.ok(view.akis.some((t) => t.kime === "Claude") && view.akis.some((t) => /tahminim %0 tuttu/.test(t.metin)));
+  });
+
+  await scenario("J code experience from a diff: declarations by span (doc comment, a removed function, blank lines), JSON keys, tests apart, biggest file first, excerpt capped", () => {
+    const post = ['import x from "y";', "", "/** Mixes. */", "export const musicVolume = 0.2;", "", "export function duck(v: number): number {", "  return v * 0.5;", "}", "", "/** New. */", "export const crowdVolume = 0.5;"].join("\n");
+    assert.deepEqual(declarationSpans(post).map((s) => [s.ad, s.bas, s.son]), [["musicVolume", 3, 5], ["duck", 6, 9], ["crowdVolume", 10, 11]], "a doc comment belongs to its declaration");
+    const diff = [
+      "diff --git a/src/lib/v3/mix/Mixer.ts b/src/lib/v3/mix/Mixer.ts",
+      "index 1111111..2222222 100644",
+      "--- a/src/lib/v3/mix/Mixer.ts",
+      "+++ b/src/lib/v3/mix/Mixer.ts",
+      '@@ -3,9 +3,11 @@ import x from "y";',
+      " /** Mixes. */",
+      "-export const musicVolume = 0.3;",
+      "+export const musicVolume = 0.2;",
+      " ",
+      "-export function oldDuck(): void {",
+      "-  return;",
+      "-}",
+      "-",
+      " export function duck(v: number): number {",
+      "   return v * 0.5;",
+      " }",
+      "+",
+      "+/** New. */",
+      "+export const crowdVolume = 0.5;",
+      "diff --git a/content/v3/voices.json b/content/v3/voices.json",
+      "--- a/content/v3/voices.json",
+      "+++ b/content/v3/voices.json",
+      "@@ -1,3 +1,4 @@",
+      " {",
+      '+  "khalid": { "voice": "x" },',
+      '   "rawson": {}',
+      " }",
+      "diff --git a/scripts/smoke-v3-mix.ts b/scripts/smoke-v3-mix.ts",
+      "--- a/scripts/smoke-v3-mix.ts",
+      "+++ b/scripts/smoke-v3-mix.ts",
+      "@@ -1 +1,2 @@",
+      " a",
+      "+b",
+      "diff --git a/docs/v3/notlar.md b/docs/v3/notlar.md",
+      "@@ -1 +1 @@",
+      "-x",
+      "+y",
+    ].join("\n");
+    const files = parseDiff(diff);
+    assert.deepEqual(files.map((f) => f.dosya), ["src/lib/v3/mix/Mixer.ts", "content/v3/voices.json", "scripts/smoke-v3-mix.ts", "docs/v3/notlar.md"]);
+    const mixer = files[0]!;
+    assert.deepEqual([mixer.eklenenSatirlar, mixer.silinenYerler, mixer.eklenen, mixer.silinen], [[4, 10, 11], [], 4, 5], "the blank added line and the removed function's lines blame nobody");
+    assert.deepEqual(touchedDeclarations(mixer, post), ["musicVolume", "crowdVolume", "oldDuck"], "duck itself was left alone");
+    assert.deepEqual(touchedDeclarations(mixer), ["musicVolume", "oldDuck", "crowdVolume"], "without the post-image: the changed lines' own declarations");
+    // A body line deleted inside a function is that function's change.
+    const inside = parseDiff(["diff --git a/src/lib/v3/a.ts b/src/lib/v3/a.ts", "@@ -6,3 +6,2 @@ export function duck(v: number): number {", "-  v++;", "   return v * 0.5;", " }"].join("\n"))[0]!;
+    assert.deepEqual(touchedDeclarations(inside, post), ["duck"]);
+    const x = codeExperience({ id: "abc", tarih: "2026-11-03T20:00:00+03:00", gorev: "kalabalık sesi", diff, postImages: { "src/lib/v3/mix/Mixer.ts": post } });
+    assert.deepEqual(x.dosyalar.map((t) => [t.dosya, t.semboller]), [["src/lib/v3/mix/Mixer.ts", ["musicVolume", "crowdVolume", "oldDuck"]], ["content/v3/voices.json", ["khalid"]]], "biggest first; notes and suites are not graded files");
+    assert.deepEqual(x.testler, ["scripts/smoke-v3-mix.ts"]);
+    assert.deepEqual(changedSymbols(x), ["musicVolume", "crowdVolume", "oldDuck", "khalid"]);
+    assert.equal(x.dosyalar[0]!.ornek, ['@@ import x from "y";', "export const musicVolume = 0.2;", "/** New. */", "export const crowdVolume = 0.5;"].join("\n"));
+    const lines = codeExperienceLines({ ...x, nasil: "Mixer.ts'e crowdVolume eklendi." }, { ornek: 40 });
+    assert.deepEqual(lines.slice(0, 4), ["  src/lib/v3/mix/Mixer.ts (+4/-5): musicVolume, crowdVolume, oldDuck", "  content/v3/voices.json (+1/-0): khalid", "  test: scripts/smoke-v3-mix.ts", "  nasıl: Mixer.ts'e crowdVolume eklendi."]);
+    assert.ok(lines.includes("  kod (src/lib/v3/mix/Mixer.ts):"));
+    const long = parseDiff(["diff --git a/src/lib/v3/b.ts b/src/lib/v3/b.ts", "@@ -0,0 +1,1 @@", `+export const big = "${"x".repeat(3_000)}";`].join("\n"))[0]!;
+    assert.ok(long.ornek.length <= EXCERPT_CHARS + 2 && long.ornek.endsWith("…"));
+    // The symbol grade: out of at most ten, names only.
+    const many = Array.from({ length: 30 }, (_, i) => `f${i}`);
+    const g = gradeGuess({ id: "c", kaynak: "commit", gorev: "t", dosyalar: [], adaylar: [], karar: "yapilmali", semboller: many.slice(0, 5) }, [], new Date(), many);
+    assert.equal(g.sembolIsabet, 0.5);
+    assert.equal(gradeGuess({ id: "c", kaynak: "commit", gorev: "t", dosyalar: [], adaylar: [], karar: "yapilmali" }, []).sembolIsabet, undefined, "no real declarations, no symbol grade");
+    // The research note shows what it expects to declare and how similar changes were done.
+    const md = researchMarkdown(
+      { id: "j", kaynak: "is", tarih: "t", gorev: "g", dosyalar: ["src/lib/v3/mix/Mixer.ts"], karar: "yapilmali", plan: "p", adaylar: [], model: "m", semboller: ["crowdVolume"] },
+      { benzer: [], icguduler: [], ozetler: {}, kod: [{ ...x, nasil: "Mixer.ts'e crowdVolume eklendi." }] },
+    );
+    assert.match(md, /bildirimler:\*\* crowdVolume/);
+    assert.match(md, /- "kalabalık sesi" \(abc\)\n {2}src\/lib\/v3\/mix\/Mixer\.ts \(\+4\/-5\)/);
+    assert.match(md, /kod \(src\/lib\/v3\/mix\/Mixer\.ts\):\n {4}@@ import x/);
   });
 
   console.log(`PASS (${scenarios} scenarios)`);

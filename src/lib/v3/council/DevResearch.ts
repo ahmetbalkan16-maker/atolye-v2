@@ -4,18 +4,27 @@ import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
 import { runProcess } from "../util/Proc";
 import { readJsonAnswer } from "./Council";
 import {
+  changedSymbols,
+  type CodeExperience,
+  codeExperience,
+  codeExperienceLines,
+  declarationSpans,
   type DevGuess,
   firedInstincts,
   gradedFiles,
   gradeGuess,
   type Instinct,
+  isV3Smoke,
   lastGuess,
   learnInstincts,
   listChanges,
+  listCodeExperience,
   listLessons,
   MAX_GUESS_FILES,
+  MAX_GUESS_SYMBOLS,
   readInstincts,
   recordChange,
+  recordCodeExperience,
   recordGrade,
   recordGuess,
   recordLesson,
@@ -63,14 +72,76 @@ async function filesAt(repoRoot: string, rev: string): Promise<string[]> {
   return r.code === 0 ? gradedFiles(r.stdout.split(/\r?\n/).filter(Boolean)) : [];
 }
 
-/** What a file says it does: the first sentence of its first doc comment. */
-async function fileSummary(repoRoot: string, rev: string, file: string): Promise<string> {
-  if (file.endsWith(".json")) return "veri dosyası";
+/** What a file says it does (the first sentence of its first doc comment) and what it declares at the top level. */
+async function fileFacts(repoRoot: string, rev: string, file: string): Promise<{ ozet: string; bildirimler: string[] }> {
+  if (file.endsWith(".json")) return { ozet: "veri dosyası", bildirimler: [] };
   const r = await git(repoRoot, ["show", `${rev}:${file}`]);
+  const bildirimler = [...new Set(declarationSpans(r.stdout).map((s) => s.ad))];
   const doc = /\/\*\*([\s\S]*?)\*\//.exec(r.stdout.slice(0, 8_000))?.[1];
-  if (!doc) return "";
+  if (!doc) return { ozet: "", bildirimler };
   const text = doc.replace(/^\s*\*\s?/gm, " ").replace(/\s+/g, " ").trim();
-  return (/^(.+?[.!?])(\s|$)/.exec(text)?.[1] ?? text).slice(0, 180);
+  return { ozet: (/^(.+?[.!?])(\s|$)/.exec(text)?.[1] ?? text).slice(0, 180), bildirimler };
+}
+
+/** Candidates whose declarations the guess sees (the rest only by path and summary). */
+const DECLARED_CANDIDATES = 10;
+/** Declarations named per candidate in the guess's prompt. */
+const DECLARATIONS_SHOWN = 14;
+
+/**
+ * The code of a change at `rev` (a commit, or the tip of a build's branch): its graded files' diff with two lines of
+ * context, each code file's post-image for the declaration spans, the V3 smoke suites it touched as its tests.
+ */
+export async function readCodeExperience(repoRoot: string, rev: string, meta: { readonly id: string; readonly tarih: string; readonly gorev: string }): Promise<CodeExperience> {
+  const files = (await commitFiles(repoRoot, rev)).map((f) => f.replace(/\\/g, "/"));
+  const wanted = [...gradedFiles(files), ...files.filter(isV3Smoke)];
+  if (!wanted.length) return { ...meta, dosyalar: [], testler: [] };
+  const diff = await git(repoRoot, ["show", "--format=", "--no-color", "--no-renames", "-U2", rev, "--", ...wanted]);
+  const postImages: Record<string, string | undefined> = {};
+  for (const f of gradedFiles(files).filter((x) => /\.(?:m?[jt]sx?)$/.test(x))) {
+    const r = await git(repoRoot, ["show", `${rev}:${f}`]);
+    postImages[f] = r.code === 0 ? r.stdout : undefined;
+  }
+  return codeExperience({ ...meta, diff: diff.stdout, postImages });
+}
+
+/** Recipes written per learning pass (the newest changes without one first; ~0.1 cent each). */
+export const RECIPES_PER_PASS = 6;
+/** Code shown to the recipe writer, all files together. */
+const RECIPE_CODE_CHARS = 5_000;
+
+/** How a change was done, in the apprentice's words (Turkish, 2-4 sentences), from its code; undefined without an answer. */
+export async function writeRecipe(x: CodeExperience, d: ResearchDeps): Promise<string | undefined> {
+  if (!x.dosyalar.length) return undefined;
+  let budget = RECIPE_CODE_CHARS;
+  const code: string[] = [];
+  for (const t of x.dosyalar) {
+    if (budget <= 200 || !t.ornek) break;
+    const part = t.ornek.slice(0, Math.min(budget, 1_200));
+    code.push(`--- ${t.dosya}\n${part}`);
+    budget -= part.length;
+  }
+  const prompt = `You are the apprentice developer of Atölye V3, a TypeScript studio that makes animated history videos. The senior developer finished a task; learn HOW it was done, so that one day you can make such a change alone.
+TASK (Turkish): ${x.gorev}
+WHAT CHANGED (file (+added/-removed lines): top-level declarations added or changed):
+${codeExperienceLines(x).join("\n")}
+ADDED CODE (shortened; "@@" lines name the enclosing code):
+${code.join("\n")}
+Write in Turkish, 2-4 sentences, how it was done: which file got which function or constant (use the real names), how the pieces connect (who calls what, where a rule or setting lives), and how it was tested. No praise, no generalities. Return ONLY JSON: {"nasil": "..."}`;
+  try {
+    const out = await d.budget.generate("gelistirici-tarif", d.model, prompt, { maxTokens: 400 });
+    const nasil = readJsonAnswer<{ nasil?: unknown }>(out.result.content)?.nasil;
+    return typeof nasil === "string" && nasil.trim() ? nasil.replace(/\s+/g, " ").trim().slice(0, 700) : undefined;
+  } catch (e) {
+    d.log(`  geliştirici beyni: tarif yazılamadı (${(e as Error).message.slice(0, 120)})`);
+    return undefined;
+  }
+}
+
+/** The code experiences of some changes, by id, in the order asked. */
+async function codeOf(workRoot: string, ids: readonly string[]): Promise<CodeExperience[]> {
+  const all = new Map((await listCodeExperience(workRoot)).map((x) => [x.id, x]));
+  return ids.flatMap((id) => (all.has(id) ? [all.get(id)!] : []));
 }
 
 /** Search words for a task: the model's English code words and the task's own words. */
@@ -120,7 +191,7 @@ async function grepScores(repoRoot: string, rev: string, terms: readonly string[
 export async function guessTask(
   input: { readonly id: string; readonly kaynak: DevGuess["kaynak"]; readonly gorev: string; readonly rev: string; readonly before?: string },
   d: ResearchDeps,
-): Promise<{ guess: DevGuess; benzer: { mesaj: string; dosyalar: readonly string[] }[]; icguduler: Instinct[]; ozetler: Record<string, string> }> {
+): Promise<{ guess: DevGuess; benzer: { mesaj: string; dosyalar: readonly string[] }[]; icguduler: Instinct[]; ozetler: Record<string, string>; kod: CodeExperience[] }> {
   const all = await filesAt(d.repoRoot, input.rev);
   const folders = [...new Set(all.filter((f) => f.startsWith("src/lib/v3/")).map((f) => f.split("/")[3]!).filter((x) => !x.includes(".")))];
   const terms = await searchTerms(input.gorev, folders, d);
@@ -138,24 +209,41 @@ export async function guessTask(
   for (const i of icguduler) add(i.dosya, 8 * i.guven, `içgüdü ${i.guven}`);
   const ranked = [...scores.entries()].sort((a, b) => b[1].puan - a[1].puan).slice(0, CANDIDATES).map(([f]) => f);
   const ozetler: Record<string, string> = {};
-  for (const f of ranked) ozetler[f] = await fileSummary(d.repoRoot, input.rev, f);
+  const bildirimler: Record<string, string[]> = {};
+  for (const f of ranked) {
+    const facts = await fileFacts(d.repoRoot, input.rev, f);
+    ozetler[f] = facts.ozet;
+    bildirimler[f] = facts.bildirimler;
+  }
   const lessons = (await listLessons(d.workRoot)).slice(-6).map((l) => l.metin);
-  const prompt = `You are the apprentice developer of Atölye V3, a TypeScript studio that makes animated history videos. Before the senior developer builds a task you guess where the change goes; you are graded on it later.
+  // The code of the most similar past changes (never the task's own: `benzer` already leaves it out).
+  const kod = await codeOf(d.workRoot, benzer.map((c) => c.id));
+  const codeById = new Map(kod.map((x) => [x.id, x]));
+  const similarLine = (c: (typeof benzer)[number], k: number) => {
+    const x = codeById.get(c.id);
+    return x?.dosyalar.length ? [`- "${c.mesaj}":`, ...codeExperienceLines(x, k === 0 ? { ornek: 500 } : {})].join("\n") : `- "${c.mesaj}" → ${c.dosyalar.slice(0, 6).join(", ")}`;
+  };
+  const prompt = `You are the apprentice developer of Atölye V3, a TypeScript studio that makes animated history videos. Before the senior developer builds a task you guess where the change goes — which files and which declarations in them; you are graded on it later.
 TASK (Turkish): ${input.gorev}
 
-CANDIDATE FILES your search found (path — what the file says it does — why it came up):
-${ranked.map((f, i) => `${i + 1}. ${f} — ${ozetler[f] || "?"} — ${[...(scores.get(f)?.kelimeler.length ? [`words: ${scores.get(f)!.kelimeler.slice(0, 5).join(", ")}`] : []), ...(why.get(f) ?? []).slice(0, 2)].join("; ")}`).join("\n") || "(none)"}
-${benzer.length ? `\nSIMILAR PAST CHANGES:\n${benzer.map((c) => `- "${c.mesaj}" → ${c.dosyalar.slice(0, 6).join(", ")}`).join("\n")}\n` : ""}${lessons.length ? `\nYOUR LESSONS FROM EARLIER GUESSES:\n${lessons.map((l) => `- ${l}`).join("\n")}\n` : ""}
-Decide which files (at most ${MAX_GUESS_FILES}; usually 1-4) a developer would change for this task, whether the studio already does it, and how. Name only real paths, preferably from the candidates.
-Return ONLY JSON: {"dosyalar": ["path", ...], "karar": "var" | "yapilmali", "plan": "<Turkish, 2-4 sentences: what changes where>", "test": "scripts/smoke-v3-<name>.ts"}`;
+CANDIDATE FILES your search found (path — what the file says it does — why it came up — what it declares):
+${ranked.map((f, i) => `${i + 1}. ${f} — ${ozetler[f] || "?"} — ${[...(scores.get(f)?.kelimeler.length ? [`words: ${scores.get(f)!.kelimeler.slice(0, 5).join(", ")}`] : []), ...(why.get(f) ?? []).slice(0, 2)].join("; ")}${i < DECLARED_CANDIDATES && bildirimler[f]?.length ? ` — declares: ${bildirimler[f]!.slice(0, DECLARATIONS_SHOWN).join(", ")}` : ""}`).join("\n") || "(none)"}
+${benzer.length ? `\nSIMILAR PAST CHANGES (where and what the senior changed, how it was done):\n${benzer.map(similarLine).join("\n")}\n` : ""}${lessons.length ? `\nYOUR LESSONS FROM EARLIER GUESSES:\n${lessons.map((l) => `- ${l}`).join("\n")}\n` : ""}
+Decide which files (at most ${MAX_GUESS_FILES}; usually 1-4) a developer would change for this task, which top-level declarations (functions, constants, types; existing names from "declares" or the new names you would add, at most ${MAX_GUESS_SYMBOLS}) would be added or changed, whether the studio already does it, and how. Name only real paths, preferably from the candidates.
+Return ONLY JSON: {"dosyalar": ["path", ...], "semboller": ["name", ...], "karar": "var" | "yapilmali", "plan": "<Turkish, 2-4 sentences: what changes where>", "test": "scripts/smoke-v3-<name>.ts"}`;
   let guess: DevGuess = { id: input.id, kaynak: input.kaynak, tarih: new Date().toISOString(), gorev: input.gorev, dosyalar: ranked.slice(0, 3), karar: "yapilmali", plan: "", adaylar: ranked, model: modelName(d.model) };
   try {
     const out = await d.budget.generate("gelistirici-tahmin", d.model, prompt, { maxTokens: 700 });
-    const raw = readJsonAnswer<{ dosyalar?: unknown; karar?: unknown; plan?: unknown; test?: unknown }>(out.result.content);
+    const raw = readJsonAnswer<{ dosyalar?: unknown; semboller?: unknown; karar?: unknown; plan?: unknown; test?: unknown }>(out.result.content);
     if (raw) {
       const named = Array.isArray(raw.dosyalar) ? gradedFiles(raw.dosyalar.filter((f): f is string => typeof f === "string").map((f) => f.trim())).filter((f) => all.includes(f)).slice(0, MAX_GUESS_FILES) : [];
+      // Names only ("RetouchBrain.ts#roundImproved" and "roundImproved()" both mean roundImproved).
+      const symbols = Array.isArray(raw.semboller)
+        ? [...new Set(raw.semboller.filter((s): s is string => typeof s === "string").map((s) => s.trim().replace(/^.*[#:.]/, "").replace(/\(.*$/, "")).filter((s) => /^[A-Za-z_$][\w$]{1,60}$/.test(s)))].slice(0, MAX_GUESS_SYMBOLS)
+        : [];
       guess = {
         ...guess,
+        ...(symbols.length ? { semboller: symbols } : {}),
         dosyalar: named.length || raw.karar === "var" ? named : guess.dosyalar,
         karar: raw.karar === "var" ? "var" : "yapilmali",
         plan: typeof raw.plan === "string" ? raw.plan.replace(/\s+/g, " ").trim().slice(0, 700) : "",
@@ -166,7 +254,7 @@ Return ONLY JSON: {"dosyalar": ["path", ...], "karar": "var" | "yapilmali", "pla
   } catch (e) {
     d.log(`  geliştirici beyni: model cevap vermedi, arama sırası kullanıldı (${(e as Error).message.slice(0, 120)})`);
   }
-  return { guess, benzer, icguduler, ozetler };
+  return { guess, benzer, icguduler, ozetler, kod };
 }
 
 /** Whether a job needs (new) research: never researched, or tried again since its last research. */
@@ -179,11 +267,11 @@ const jobTask = (p: Pick<DevProposal, "baslik" | "neden" | "karar">) => `${p.bas
 
 /** Researches one approved job at the checkout's HEAD; the guess is recorded before anyone builds it. */
 export async function researchJob(p: DevProposal, d: ResearchDeps): Promise<DevGuess> {
-  const { guess, benzer, icguduler, ozetler } = await guessTask({ id: p.id, kaynak: "is", gorev: jobTask(p), rev: "HEAD" }, d);
+  const { guess, benzer, icguduler, ozetler, kod } = await guessTask({ id: p.id, kaynak: "is", gorev: jobTask(p), rev: "HEAD" }, d);
   await recordGuess(d.workRoot, guess);
   const note = researchNote(d.workRoot, p.id);
   await fs.mkdir(path.dirname(note), { recursive: true });
-  await fs.writeFile(note, researchMarkdown(guess, { benzer, icguduler, ozetler }));
+  await fs.writeFile(note, researchMarkdown(guess, { benzer, icguduler, ozetler, kod }));
   await say(d.workRoot, `"${p.baslik.slice(0, 80)}" işini araştırdım: ${guess.karar === "var" ? "stüdyoda zaten var gibi görünüyor, akşam Claude doğrulayacak" : `${guess.dosyalar.length} dosyada değişiklik bekliyorum${guess.dosyalar[0] ? ` (en güçlü aday ${path.posix.basename(guess.dosyalar[0])})` : ""}`}.`);
   return guess;
 }
@@ -213,7 +301,8 @@ async function v3Commits(repoRoot: string, limit = 400): Promise<{ sha: string; 
 }
 
 async function commitFiles(repoRoot: string, sha: string): Promise<string[]> {
-  const r = await git(repoRoot, ["diff-tree", "--no-commit-id", "--name-only", "-r", sha]);
+  // `--root`: a first commit lists its files too (without it, nothing).
+  const r = await git(repoRoot, ["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", sha]);
   return r.stdout.split(/\r?\n/).filter(Boolean);
 }
 
@@ -222,17 +311,28 @@ export const commitTask = (subject: string) => subject.replace(/^(feat|fix|docs|
 
 /**
  * Learns from the V3 commits it has not seen: the newest few are exam questions (guessed at the parent, graded against
- * the commit's files, only commits of at most EXAM_MAX_FILES graded files), every one then joins its memory of past
- * changes and its instincts. The first pass reads the whole history this way, oldest first.
+ * the commit's files and declarations, only commits of at most EXAM_MAX_FILES graded files), every one then joins its
+ * memory of past changes and its instincts. Every V3 commit's code is read too (where, which declarations, the added
+ * code, the tests) — also the ones read before code was kept, so the whole history becomes worked examples — and the
+ * newest `recipes` changes without a recipe get one. The first pass reads the whole history this way, oldest first.
  */
-export async function learnFromCommits(d: ResearchDeps, exams = EXAMS_PER_PASS): Promise<{ okunan: number; sinav: number; ozet: string }> {
+export async function learnFromCommits(d: ResearchDeps, exams = EXAMS_PER_PASS, recipes = RECIPES_PER_PASS): Promise<{ okunan: number; sinav: number; kod: number; tarif: number; ozet: string }> {
   const seen = new Set((await listChanges(d.workRoot)).map((c) => c.id));
-  const fresh = (await v3Commits(d.repoRoot)).filter((c) => !seen.has(c.sha));
-  if (!fresh.length) return { okunan: 0, sinav: 0, ozet: "yeni commit yok" };
+  const coded = new Set((await listCodeExperience(d.workRoot)).map((x) => x.id));
+  const commits = await v3Commits(d.repoRoot);
+  const fresh = commits.filter((c) => !seen.has(c.sha));
   let instincts = await readInstincts(d.workRoot);
   const examFrom = Math.max(0, fresh.length - exams);
   const results: string[] = [];
   let sinav = 0;
+  let kod = 0;
+  const readCode = async (c: (typeof commits)[number], task: string) => {
+    const x = await readCodeExperience(d.repoRoot, c.sha, { id: c.sha, tarih: c.tarih, gorev: task });
+    await recordCodeExperience(d.workRoot, x);
+    coded.add(c.sha);
+    kod++;
+    return x;
+  };
   for (const [k, c] of fresh.entries()) {
     const files = await commitFiles(d.repoRoot, c.sha);
     const graded = gradedFiles(files);
@@ -241,21 +341,41 @@ export async function learnFromCommits(d: ResearchDeps, exams = EXAMS_PER_PASS):
       // The exam comes before the answer joins the memory: the guess is made at the parent, with what was known then.
       const { guess } = await guessTask({ id: c.sha, kaynak: "commit", gorev: task, rev: `${c.sha}^`, before: c.tarih }, d);
       await recordGuess(d.workRoot, guess);
-      const grade = gradeGuess(guess, files);
+      const code = await readCode(c, task);
+      const grade = gradeGuess(guess, files, new Date(), changedSymbols(code));
       await recordGrade(d.workRoot, grade);
       sinav++;
-      results.push(`"${task.slice(0, 50)}": %${Math.round(grade.isabet * 100)}`);
-      await say(d.workRoot, `Commit sınavı — "${task.slice(0, 70)}": değişen ${grade.gercek.length} dosyanın ${Math.round(grade.isabet * grade.gercek.length)} tanesini buldum${grade.isabet < 1 && grade.adayIsabet > grade.isabet ? " (kalanlar aramamda vardı, seçemedim)" : ""}.`);
-    }
+      results.push(`"${task.slice(0, 50)}": %${Math.round(grade.isabet * 100)}${grade.sembolIsabet !== undefined ? ` (fonksiyon %${Math.round(grade.sembolIsabet * 100)})` : ""}`);
+      const symbolsFound = grade.sembolIsabet !== undefined ? `; değişen ${Math.min(grade.gercekSemboller!.length, MAX_GUESS_SYMBOLS)} bildirimin ${Math.round(grade.sembolIsabet * Math.min(grade.gercekSemboller!.length, MAX_GUESS_SYMBOLS))} tanesini bildim` : "";
+      await say(d.workRoot, `Commit sınavı — "${task.slice(0, 70)}": değişen ${grade.gercek.length} dosyanın ${Math.round(grade.isabet * grade.gercek.length)} tanesini buldum${grade.isabet < 1 && grade.adayIsabet > grade.isabet ? " (kalanlar aramamda vardı, seçemedim)" : ""}${symbolsFound}.`);
+    } else if (graded.length) await readCode(c, task);
     // Every commit is recorded, so it is read once (one that changed only notes has no files to learn).
     await recordChange(d.workRoot, { id: c.sha, tarih: c.tarih, mesaj: task, dosyalar: graded });
     if (graded.length) instincts = learnInstincts(instincts, task, graded, c.sha.slice(0, 10));
   }
-  await writeInstincts(d.workRoot, instincts);
+  // Commits read before the brain kept code: their code now, without an exam (git only, no model).
+  const past = new Map((await listChanges(d.workRoot)).map((c) => [c.id, c]));
+  for (const c of commits) {
+    const p = past.get(c.sha);
+    if (!coded.has(c.sha) && p?.dosyalar.length) await readCode(c, p.mesaj);
+  }
+  if (fresh.length) await writeInstincts(d.workRoot, instincts);
+  // Recipes: the newest changes without one first, within this pass's share.
+  let tarif = 0;
+  const shas = new Set(commits.map((c) => c.sha));
+  const waiting = (await listCodeExperience(d.workRoot)).filter((x) => !x.nasil && x.dosyalar.length && shas.has(x.id)).sort((a, b) => Date.parse(b.tarih) - Date.parse(a.tarih));
+  for (const x of waiting.slice(0, Math.max(0, recipes))) {
+    const nasil = await writeRecipe(x, d);
+    if (!nasil) continue;
+    await recordCodeExperience(d.workRoot, { ...x, nasil });
+    tarif++;
+  }
   const okunan = fresh.length;
-  const ozet = `${okunan} commit okundu${sinav ? `, ${sinav} sınav: ${results.join(" · ")}` : ""}`;
+  if (!okunan && !kod && !tarif) return { okunan: 0, sinav: 0, kod: 0, tarif: 0, ozet: "yeni commit yok" };
+  const ozet = `${okunan} commit okundu${sinav ? `, ${sinav} sınav: ${results.join(" · ")}` : ""}${kod ? `; ${kod} değişikliğin kodu okundu` : ""}${tarif ? `, ${tarif} tarif yazıldı` : ""}`;
   if (okunan > sinav) await say(d.workRoot, `${okunan - sinav} değişikliği hafızama ekledim (toplam içgüdü ${instincts.length}).`);
-  return { okunan, sinav, ozet };
+  if (kod || tarif) await say(d.workRoot, `${kod ? `${kod} değişikliğin kodunu okudum (hangi dosyada hangi fonksiyon, eklenen kod, testi)` : ""}${kod && tarif ? "; " : ""}${tarif ? `${tarif} tanesinin nasıl yapıldığını kendi sözlerimle yazdım` : ""}.`);
+  return { okunan, sinav, kod, tarif, ozet };
 }
 
 /**
@@ -270,18 +390,29 @@ export async function learnFromBuild(p: DevProposal, d: ResearchDeps): Promise<s
   if (p.durum !== "hazir" && p.durum !== "yapildi") return "iş bitmedi";
   const changed = p.is?.dosyalar ?? [];
   const guess = await lastGuess(d.workRoot, p.id);
-  await recordChange(d.workRoot, { id: p.id, tarih: new Date().toISOString(), mesaj: p.baslik, dosyalar: gradedFiles(changed) });
+  const now = new Date().toISOString();
+  await recordChange(d.workRoot, { id: p.id, tarih: now, mesaj: p.baslik, dosyalar: gradedFiles(changed) });
   if (gradedFiles(changed).length) await writeInstincts(d.workRoot, learnInstincts(await readInstincts(d.workRoot), jobTask(p), changed, p.id));
+  // What Claude wrote, as code: the kept build is the one commit on its branch.
+  let symbols: string[] = [];
+  if (p.is?.dal && gradedFiles(changed).length) {
+    const x = await readCodeExperience(d.repoRoot, p.is.dal, { id: p.id, tarih: now, gorev: p.baslik }).catch(() => undefined);
+    if (x?.dosyalar.length) {
+      const nasil = await writeRecipe(x, d);
+      await recordCodeExperience(d.workRoot, { ...x, ...(nasil ? { nasil } : {}) });
+      symbols = changedSymbols(x);
+    }
+  }
   if (!guess) return "tahmini yoktu";
-  const grade = gradeGuess(guess, changed);
+  const grade = gradeGuess(guess, changed, new Date(), symbols);
   await recordGrade(d.workRoot, grade);
   const line = `Claude "${p.baslik.slice(0, 60)}" işini bitirdi (${grade.gercek.length} dosya); tahminim %${Math.round(grade.isabet * 100)} tuttu${grade.kararDogru === false ? ", \"zaten var mı\" kararım yanlıştı" : ""}.`;
   await say(d.workRoot, line);
-  if (grade.isabet >= 1 && grade.kararDogru !== false) return line;
+  if (grade.isabet >= 1 && grade.kararDogru !== false && (grade.sembolIsabet ?? 1) >= 0.5) return line;
   const prompt = `You are the apprentice developer of Atölye V3. Before the senior developer built a task you guessed where the change would go; compare and learn.
 TASK: ${jobTask(p)}
-YOUR GUESS: ${guess.karar === "var" ? "the studio already does it" : `change ${guess.dosyalar.join(", ") || "nothing named"}`}. Your plan: ${guess.plan || "—"}
-WHAT THE SENIOR DID: changed ${grade.gercek.join(", ") || "nothing (the studio already did it)"}. Their summary: ${(p.is?.ozet ?? "").slice(0, 1200)}
+YOUR GUESS: ${guess.karar === "var" ? "the studio already does it" : `change ${guess.dosyalar.join(", ") || "nothing named"}`}${guess.semboller?.length ? ` (declarations: ${guess.semboller.join(", ")})` : ""}. Your plan: ${guess.plan || "—"}
+WHAT THE SENIOR DID: changed ${grade.gercek.join(", ") || "nothing (the studio already did it)"}${symbols.length ? ` (declarations: ${symbols.slice(0, 15).join(", ")})` : ""}. Their summary: ${(p.is?.ozet ?? "").slice(0, 1200)}
 Write ONE lesson for similar tasks next time, general enough to reuse (where such changes go, what to check first), in Turkish, at most 2 sentences. Return ONLY JSON: {"ders": "..."}`;
   try {
     const out = await d.budget.generate("gelistirici-ders", d.model, prompt, { maxTokens: 250 });

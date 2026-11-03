@@ -7,17 +7,19 @@
  *   npx tsx scripts/v3/gelistirici.ts liste
  *   npx tsx scripts/v3/gelistirici.ts karne                          (the developer brain's report card and lessons)
  *   npx tsx scripts/v3/gelistirici.ts arastir [--id <öneri id>]       (research now; the guess is recorded)
- *   npx tsx scripts/v3/gelistirici.ts ogren [--sinav <n>]             (exam on new V3 commits, then learn them)
+ *   npx tsx scripts/v3/gelistirici.ts ogren [--sinav <n>] [--tarif <n>]  (exam on new V3 commits, then learn them and
+ *                                                                     their code; n "how it was done" recipes)
+ *   npx tsx scripts/v3/gelistirici.ts kod [--id <sha|öneri id>]       (what it learned of a change as code)
  *   npx tsx scripts/v3/gelistirici.ts aksam                          (the evening: every waiting job, inside the hours)
  *   npx tsx scripts/v3/gelistirici.ts calistir [--id <öneri id>]     (builds one now, whatever the hours)
  *   npx tsx scripts/v3/gelistirici.ts uygula --id <öneri id>          (into this checkout's branch; push stays yours)
  *   npx tsx scripts/v3/gelistirici.ts kapat --id <öneri id> --not "…"  (already done elsewhere)
  */
 import { brainBudget } from "../../src/lib/v3/council/BrainModels";
-import { listGrades, loadDevBrainView, readiness, say } from "../../src/lib/v3/council/DevBrain";
+import { codeExperienceLines, listCodeExperience, listGrades, loadDevBrainView, readiness, say } from "../../src/lib/v3/council/DevBrain";
 import { applyBuild, developerLock } from "../../src/lib/v3/council/Developer";
 import { developerWindow, EVENING_MAX_JOBS, nextJob } from "../../src/lib/v3/council/DevQueue";
-import { EXAMS_PER_PASS, learnFromCommits, type ResearchDeps, researchJob, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
+import { EXAMS_PER_PASS, learnFromCommits, RECIPES_PER_PASS, type ResearchDeps, researchJob, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { listProposals, updateProposal } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders } from "../../src/lib/v3/orders/ProductionOrders";
 import { loadV3Settings, resolveV3Paths } from "../../src/lib/v3/V3Paths";
@@ -57,6 +59,7 @@ async function main() {
     const v = await loadDevBrainView(paths.workRoot);
     log(`geliştirici beyni: ${v.hazirlik.ozet}`);
     log(`hafıza: ${v.gecmis} değişiklik · ${v.icgudu.toplam} içgüdü (${v.icgudu.dogrulanan} doğrulandı, ${v.icgudu.reddedilen} bırakıldı)`);
+    if (v.kod) log(`kod deneyimi: ${v.kod.toplam} değişikliğin kodu (dosya, fonksiyon, eklenen kod, test) · ${v.kod.tarifli} tanesinin "nasıl yapıldı" tarifi${v.kod.sonTarif ? `\n  son tarif — ${v.kod.sonTarif.gorev.slice(0, 70)}: ${v.kod.sonTarif.nasil}` : ""}`);
     for (const n of v.notlar) log(`  ${n.tarih.slice(0, 16)} ${n.gorev.slice(0, 70)} — ${n.satir}`);
     for (const d of v.dersler) log(`  ders: ${d}`);
     return;
@@ -77,8 +80,18 @@ async function main() {
   }
   if (cmd === "ogren") {
     const d = deps();
-    const r = await learnFromCommits(d, Number(arg("--sinav")) || EXAMS_PER_PASS);
+    const recipes = arg("--tarif");
+    const r = await learnFromCommits(d, Number(arg("--sinav")) || EXAMS_PER_PASS, recipes !== undefined && Number.isFinite(Number(recipes)) ? Number(recipes) : RECIPES_PER_PASS);
     log(`${r.ozet}\n${readiness(await listGrades(paths.workRoot)).ozet}`);
+    return;
+  }
+  if (cmd === "kod") {
+    // What the brain knows of one change as code (a sha prefix or a job id), else of the newest five.
+    const all = (await listCodeExperience(paths.workRoot)).sort((a, b) => Date.parse(b.tarih) - Date.parse(a.tarih));
+    const want = arg("--id");
+    const pick = want ? all.filter((x) => x.id.startsWith(want)) : all.slice(0, 5);
+    if (!pick.length) return log(want ? `kod deneyimi yok: ${want}` : "henüz kod deneyimi yok");
+    for (const x of pick) log([`${x.id.slice(0, 10)} ${x.tarih.slice(0, 16)} — ${x.gorev}`, ...codeExperienceLines(x, want ? { ornek: 1_200 } : {})].join("\n"));
     return;
   }
   if (cmd === "aksam") {
