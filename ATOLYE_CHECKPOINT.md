@@ -41,7 +41,20 @@ kanalının Shorts'larına bak" + "bu incelemeleri gerekli beyinlere deneyim ola
   izleyici çalışıyor (yeni kod üretimde ayrı süreçte yüklenir; yeniden başlatma gerekmez).
 
 **Doğrulama:** 16 `smoke-v3-*` PASS (episode-director 57: W2 harita olayları/pencere/HUD kutuları + O15 Short payları;
-script 26: Short istemi, M/L senaryoları yeni pay turuna göre); tsc 0; dikey önizleme önce/sonra kareleriyle kontrol.
+script 26: Short istemi, M/L senaryoları yeni pay turuna göre); tsc 0 (kök + remotion-v3); lint 0 hata / 13 eski uyarı;
+dikey önizleme önce/sonra kareleriyle kontrol. Skill gerçek çalıştırmayla denendi (`--actions`): 29 sayfa, 279 görünüm
+kontrolü, 6 açılır başlık temiz sayfada yeniden denendi, sohbet 6 sn'de yanıt, Çıkış ve 12 kart çalışıyor, "sorun yok";
+AGENTS.md geri alındı, port boş, geçiciler silindi. Denemede düzeltilen: boş `ATOLYE_RUNTIME_ROOT` sunucuyu düşürüyordu
+(RUNTIME_STORAGE_CONFIGURATION_INVALID → geçici kök), sıcak sunucuda about:blank'in geç yükleme olayı girişi boş
+sayfada çalıştırıyordu (artık origin + readyState beklenir), "Komut Merkezi" ana sayfada yok.
+
+**Canlı:** `1b13b2de` feature dalına ve `origin/wip/ayas-graphify-final-execution`'a (ileri sarma) push'landı, canonical
+`git pull --ff-only`, Graphify 1b13b2de için CURRENT (yapısal + semantic, kopya temiz, tamamlayıcı 15/15 PASS);
+gözlemci yayınladı: `ayas-live-1b13b2de` PUBLISHED (15:50→15:53Z, dış erişim healthy, geri dönüş f112b7b5). Sipariş
+izleyici değişen dosyaları yüklemiyor (üretim ayrı süreçte), yeniden başlatma gerekmedi.
+
+**Açık:** henüz haritalı bir Short üretilmedi — ilk sipariş gerçek denemedir (yazar %70'i tutturabiliyor mu, dikey
+harita okunuyor mu). Owner: Short'un Studio'daki kısıt durumu.
 
 ## 3 Kasım 2026 (akşam, 4) — AYAS buton taraması; Uyandırma Laboratuvarı hidrasyon hatası düzeltildi; günün emirleri kontrol edildi
 
