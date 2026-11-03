@@ -21,9 +21,9 @@ for (const item of AYAS_LOCAL_CODING_QUALIFICATION_VAULT) {
   const workspace = createAyasLocalCodingWorkspace({ repoRoot, task });
   try {
     assert.deepEqual(files(workspace.root), [...task.exactFiles].sort(), "only exact source files may be exposed");
-    assert.ok(!fs.existsSync(path.join(workspace.root, ".git")));
-    assert.ok(!fs.existsSync(path.join(workspace.root, item.evaluatorScript)));
-    assert.ok(!fs.existsSync(path.join(workspace.root, "scripts", "fixtures")));
+    assert.ok(!fs.existsSync(path.join(workspace.root, ".git")), "assert.ok(!fs.existsSync(path.join(workspace.root, \".git\")))");
+    assert.ok(!fs.existsSync(path.join(workspace.root, item.evaluatorScript)), "assert.ok(!fs.existsSync(path.join(workspace.root, item.evaluatorScript)))");
+    assert.ok(!fs.existsSync(path.join(workspace.root, "scripts", "fixtures")), "assert.ok(!fs.existsSync(path.join(workspace.root, \"scripts\", \"fixtures\")))");
     for (const file of task.exactFiles) {
       const projected = fs.readFileSync(path.join(workspace.root, file));
       assert.deepEqual(projected, git(`${item.baseHead}:${file}`), "workspace must hold exact baseline bytes");
@@ -33,10 +33,10 @@ for (const item of AYAS_LOCAL_CODING_QUALIFICATION_VAULT) {
         assert.ok(!text.includes(hidden), "workspace source must not embed hidden qualification identity");
       }
     }
-    assert.ok(!JSON.stringify(files(workspace.root)).includes(item.fixHead));
+    assert.ok(!JSON.stringify(files(workspace.root)).includes(item.fixHead), "assert.ok(!JSON.stringify(files(workspace.root)).includes(item.fixHead))");
     assert.equal(planAyasLocalCodingContainer({ engine: "docker", adapter: {
       adapterId: "local-probe", image: `local/ayas-probe@sha256:${"a".repeat(64)}`,
-    }, task, workspaceRoot: workspace.root }).workspaceRoot, workspace.root);
+    }, task, workspaceRoot: workspace.root }).workspaceRoot, workspace.root, "assert.equal(planAyasLocalCodingContainer({ engine: \"docker\", adapter: {\n      adapterId: \"local-probe\", image: `local/ayas-probe@sha256:${\"a\".repeat(64)}`,\n    }, task, workspaceRoot: workspace.root }).workspaceRoot, workspace.root)");
     cases += 1;
   } finally { destroyAyasLocalCodingWorkspace(workspace); }
   assert.ok(!fs.existsSync(workspace.root), "owned TEMP workspace must be removed");
