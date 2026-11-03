@@ -1,7 +1,7 @@
 import { cachedJson } from "../backgrounds/CommonsProvider";
 import type { EpisodeSource } from "../episode/EpisodeTypes";
 import type { SourceBank } from "../script/ScriptPrompts";
-import type { V3Budget, V3ModelChoice } from "../script/V3Budget";
+import { LONG_FORM_MIN_S, type V3Budget, type V3ModelChoice } from "../script/V3Budget";
 
 /**
  * Builds a verified source bank for any topic, so the script writer never works from memory alone: the topic's
@@ -62,14 +62,31 @@ export function normalizeForMatch(s: string): string {
     .toLowerCase();
 }
 
-export function factPrompt(konu: string, donem: string, articles: readonly WikiArticle[], dil: "tr" | "en"): string {
+/**
+ * How deep the research goes for a video of this length: a long one (owner, 3 Nov 2026: "uzun hikâyede konunun derinine
+ * kadar inmeli") reads more articles and keeps three times the facts — background, causes, every phase, consequences —
+ * so the chapters rest on the story itself instead of padding thirty facts over twenty minutes.
+ */
+export function researchDepth(seconds: number | undefined): { articles: number; search: number; facts: string; maxTokens: number; long: boolean } {
+  return seconds !== undefined && seconds > LONG_FORM_MIN_S ? { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true } : { articles: 3, search: 4, facts: "15–30", maxTokens: 6_000, long: false };
+}
+
+export function factPrompt(konu: string, donem: string, articles: readonly WikiArticle[], dil: "tr" | "en", seconds?: number): string {
   const lang = dil === "tr" ? "Turkish" : "English";
-  return `You are a careful history researcher preparing a fact sheet for a short documentary.
+  const depth = researchDepth(seconds);
+  return `You are a careful history researcher preparing a fact sheet for a ${depth.long ? `long documentary (${Math.round(seconds! / 60)} minutes, told in chapters)` : "short documentary"}.
 TOPIC: ${konu}
 PERIOD: ${donem}
 
-From the articles below, list 15–30 atomic facts the documentary could use about this topic: who, what, when, where, numbers,
-names, causes, consequences, and colourful verified details (good material for jokes). Only facts the article states.
+From the articles below, list ${depth.facts} atomic facts the documentary could use about this topic: who, what, when, where, numbers,
+names, causes, consequences, and colourful verified details (good material for jokes). Only facts the article states.${
+    depth.long
+      ? `
+Cover the WHOLE story in depth, in this order: the background and the causes; the people, their motives and rivalries; every
+phase of the events with its places, dates and numbers; the turning points; the consequences and what it changed. A long
+documentary that has only the headline facts skips the story between them.`
+      : ""
+  }
 For every fact give:
 - "metin": the fact as one short sentence in ${lang};
 - "kaynak": the article id it comes from;
@@ -177,20 +194,23 @@ export async function researchTopic(input: {
   readonly model: V3ModelChoice;
   readonly extraTitles?: readonly string[];
   readonly maxArticles?: number;
+  /** The video's length: a long one is researched deeper (researchDepth). */
+  readonly seconds?: number;
   readonly log?: (s: string) => void;
 }): Promise<ResearchResult> {
   const log = input.log ?? (() => {});
-  const titles = [...new Set([...(input.extraTitles ?? []), ...(await searchArticles(input.cacheDir, `${input.konu} ${input.donem}`, 4))])];
+  const depth = researchDepth(input.seconds);
+  const titles = [...new Set([...(input.extraTitles ?? []), ...(await searchArticles(input.cacheDir, `${input.konu} ${input.donem}`, depth.search))])];
   const articles: WikiArticle[] = [];
   // A title that does not exist (or redirects to one already read) gives its place to the next candidate.
   for (const t of titles) {
-    if (articles.length >= (input.maxArticles ?? 3)) break;
+    if (articles.length >= (input.maxArticles ?? depth.articles)) break;
     const a = await fetchArticle(input.cacheDir, t);
     if (a && a.text.length > 800 && !articles.some((x) => x.title === a.title)) articles.push(a);
   }
   if (!articles.length) throw new Error(`V3_RESEARCH_NOTHING: "${input.konu}" için okunabilir Wikipedia makalesi bulunamadı`);
   log(`araştırma: ${articles.map((a) => `"${a.title}" (rev ${a.revid})`).join(", ")}`);
-  const out = await input.budget.generate("arastirma", input.model, factPrompt(input.konu, input.donem, articles, input.dil), { maxTokens: 6_000, jsonSchema: { type: "object" } });
+  const out = await input.budget.generate("arastirma", input.model, factPrompt(input.konu, input.donem, articles, input.dil, input.seconds), { maxTokens: depth.maxTokens, jsonSchema: { type: "object" } });
   const start = out.result.content.indexOf("{");
   const end = out.result.content.lastIndexOf("}");
   let raw: unknown = {};

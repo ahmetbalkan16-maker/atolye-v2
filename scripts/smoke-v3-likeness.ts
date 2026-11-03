@@ -12,8 +12,8 @@ import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariet
 import { partOrders, partProblems, partPrompt } from "../src/lib/v3/costumes/PartDesigner";
 import { AGES, type CastCostume, type Episode, EYE_STYLES, FACE_SHAPES, HAIR_STYLES, NOSES } from "../src/lib/v3/episode/EpisodeTypes";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { appearanceSentences, applySheet, castLooks, cloakFromNote, likenessOrders, noteColours, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
-import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
+import { appearanceSentences, applySheet, bestVersion, castLooks, cloakFromNote, historyLines, likenessHistory, likenessOrders, likenessPlateau, noteColours, peopleDir, periodNotePrompt, personVersions, readPeriodNote, sheetPrompt, withNoteCloak } from "../src/lib/v3/faces/LikenessDesigner";
+import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, retouchDebate, roundImproved, roundLine, roundScore, roundShortfall } from "../src/lib/v3/council/RetouchBrain";
 import type { V3Paths } from "../src/lib/v3/V3Paths";
 
 let scenarios = 0;
@@ -226,6 +226,44 @@ async function main() {
     assert.doesNotMatch(sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Pompey", undefined, undefined), /FELL SHORT/);
   });
 
+  scenario("L2 retouch stops by itself: a round no better than the best opens no other; a stuck likeness opens none", () => {
+    const r = (tur: number, puan: number, kurul?: number) => ({ tur, kisiler: [{ castId: "caesar", puan }], setler: [], ...(kurul ? { kurul } : {}) });
+    assert.equal(roundImproved([], r(0, 7)), true, "the first cut has nothing to beat");
+    assert.equal(roundImproved([r(0, 7)], r(1, 6)), false, "worse: stop (Caesar 7 → 6 → 4)");
+    assert.equal(roundImproved([r(0, 7)], r(1, 7)), false, "a tie keeps the earlier round and stops");
+    assert.equal(roundImproved([r(0, 6)], r(1, 7)), true);
+    assert.equal(roundImproved([r(0, 7, 6)], r(1, 7, 8)), true, "the council's better mean counts at equal likeness");
+    const plan = { kisiler: [{ castId: "caesar", kisi: "Julius Caesar", puan: 7, farklar: ["hair should be thicker"] }] };
+    const [worse] = likenessLessons(plan, r(1, 6), "75 BC", () => "Full short hair, purple-striped toga");
+    assert.equal(worse!.sonuc, "ise_yaramadi");
+    assert.match(worse!.metin, /Julius Caesar \(75 BC\): redesigning from the notes "hair should be thicker" lowered the likeness 7 → 6\/10 — do not repeat that change/);
+    assert.match(worse!.konu, /Julius Caesar 75 BC/, "the designer recalls lessons by the person's name and period");
+    assert.equal(likenessLessons(plan, r(1, 8), "75 BC", () => undefined)[0]!.sonuc, "ise_yaradi");
+    assert.match(likenessLessons(plan, r(1, 7), "75 BC", () => undefined)[0]!.metin, /did not help/);
+    assert.deepEqual(likenessLessons(plan, { tur: 1, kisiler: [], setler: [] }, "75 BC", () => undefined), [], "not measured, nothing learned");
+    const v = (benzerlik?: number, tarif = "t", farklar: string[] = []) => ({ file: `f${benzerlik}`, tarif, farklar, ...(benzerlik !== undefined ? { benzerlik } : {}) });
+    // Caesar 75 BC as it stood on 3 Nov 2026: seven designs, 7 7 7 7 6 7 6.
+    const caesar = [7, 7, 7, 7, 6, 7, 6].map((s, i) => v(s, `design ${i + 1}`));
+    assert.equal(likenessPlateau(caesar), true);
+    assert.equal(likenessPlateau(caesar.slice(0, 2)), false, "two tries are not enough to call it stuck");
+    assert.equal(likenessPlateau([v(5), v(6), v(7)]), false, "still improving");
+    assert.equal(likenessPlateau([v(8), v(6), v(6)]), false, "one reached the bar: not stuck");
+    assert.equal(likenessPlateau([v(), v(), v(6)]), false, "unchecked designs do not count");
+    assert.equal(bestVersion(caesar)!.tarif, "design 6", "the best score, the newest of equal ones — not the newest file");
+    assert.equal(bestVersion([v(undefined, "a"), v(undefined, "b")])!.tarif, "b", "nothing checked: the newest");
+    assert.equal(bestVersion([]), undefined);
+    const lines = historyLines([v(6, "round face", ["hair too full"]), v(7, "oval face"), v(4, "combover")]);
+    assert.deepEqual(lines, ['7/10: "oval face"', '6/10: "round face" — art director: hair too full', '4/10: "combover"']);
+    const ep = episode();
+    const p = sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Pompey", undefined, undefined, ["hair"], [], lines);
+    assert.match(p, /EARLIER DESIGNS OF Pompey FOR 49 BC, SCORED NEXT TO THE PORTRAIT \(best first\):\n- 7\/10: "oval face"/);
+    assert.match(p, /Never undo a feature a better-scored design had/);
+    assert.doesNotMatch(sheetPrompt(ep.oyuncu_kadrosu[1]!, ep, "Pompey", undefined, undefined), /EARLIER DESIGNS/);
+    const likenesses = [{ castId: "caesar", kisi: "Julius Caesar", kaynak: "tasarim", benzerlik: 7, farklar: ["hair"] }];
+    assert.ok(planRetouch({ round: 0, likenesses, sets: [] }));
+    assert.equal(planRetouch({ round: 0, likenesses, sets: [], plateau: new Set(["caesar"]) }), undefined, "a stuck likeness opens no round");
+  });
+
   scenario("M cloak: the sheet's pelerin, the historian's cloak as fallback, validated, drawn by the rig", () => {
     const base = episode().oyuncu_kadrosu[1]!.kostum!;
     assert.equal(applySheet(base, { ...SHEET, pelerin: "#a02020" }).kostum.pelerin, "#a02020");
@@ -318,6 +356,28 @@ async function main() {
     scenarios++;
   } catch (e) {
     console.error("FAIL K2 retouch delivers the best-scored round");
+    throw e;
+  }
+
+  try {
+    // The people library's history: every version with its check, oldest first; a missing check counts as unchecked.
+    const root = mkdtempSync(path.join(os.tmpdir(), "v3-kisiler-gecmis-"));
+    const paths = { workRoot: root } as unknown as V3Paths;
+    mkdirSync(peopleDir(paths), { recursive: true });
+    const put = (name: string, tarif: string, check?: { benzerlik: number; farklar: string[] }) => {
+      writeFileSync(path.join(peopleDir(paths), name), JSON.stringify({ kisi: "Julius Caesar", tarif }));
+      if (check) writeFileSync(path.join(peopleDir(paths), `${name}.kontrol.json`), JSON.stringify(check));
+    };
+    put("julius-caesar--75-bc.json", "oval face", { benzerlik: 7, farklar: ["hair thicker"] });
+    put("julius-caesar--75-bc--v2.json", "full hair", { benzerlik: 6, farklar: ["hair too full"] });
+    put("julius-caesar--75-bc--v3.json", "no check yet");
+    const h = await likenessHistory(paths, "Julius Caesar", "75 BC");
+    assert.deepEqual(h.map((x) => [x.tarif, x.benzerlik]), [["oval face", 7], ["full hair", 6], ["no check yet", undefined]]);
+    assert.equal(bestVersion(h)!.tarif, "oval face", "a worse retouch is not the look the next episode reuses");
+    assert.deepEqual(await likenessHistory(paths, "Pompey", "75 BC"), []);
+    scenarios++;
+  } catch (e) {
+    console.error("FAIL L3 people library history");
     throw e;
   }
 

@@ -32,7 +32,7 @@ import { drawnBackground } from "../src/lib/v3/backgrounds/DrawnSetChoice";
 import { findPeriodCandidates, insertCaption, periodEndYear } from "../src/lib/v3/backgrounds/HistorySources";
 import { attributionLine, type CreditRecord } from "../src/lib/v3/backgrounds/LicenseFilter";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
-import { checkLikenesses, designLikenesses, keepLikenesses, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
+import { checkLikenesses, designLikenesses, keepLikenesses, likenessHistory, likenessPlateau, type LikenessRecord, noteColours } from "../src/lib/v3/faces/LikenessDesigner";
 import { clothesClashes, distinctLooks } from "../src/lib/v3/costumes/LookVariety";
 import { loadMapData, type Polygon } from "../src/lib/v3/maps/MapBuilder";
 import { type CloseCoast, OSM_CREDIT } from "../src/lib/v3/maps/CloseCoast";
@@ -52,7 +52,7 @@ import { cutMeasures, detectCuts, gapLesson, isReferenceLesson, kindOf, listRefe
 import { designedWindows, frameKindAt, layoutReview, pixelReview, qualityReview } from "../src/lib/v3/council/QualityBrain";
 import { decideRepair, describeRepair, type RepairAction } from "../src/lib/v3/council/RepairBrain";
 import { learnedRemedy, ollamaEmbedder, type OwnerRule, recall, remedyTopic, remember, seedRules, enableMeaningSearch } from "../src/lib/v3/council/ExperienceMemory";
-import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
+import { bestRound, deliverAfterFailedRound, finalDelivery, keepRound, keptRounds, LIKENESS_OK, likenessLessons, MAX_RETOUCH_ROUNDS, planRetouch, restoreRound, roundImproved, roundLine, roundScore, type RetouchPlan, retouchDebate, type RoundScore, roundVideo, withDirector } from "../src/lib/v3/council/RetouchBrain";
 import { OpenAIVisionProvider } from "../src/lib/v3/wardrobe/OpenAIVision";
 import { reviewCostumes } from "../src/lib/v3/wardrobe/WardrobeBrain";
 import { loadAccessories, packCatalog } from "../src/lib/v3/costumes/CostumePackLoader";
@@ -771,6 +771,7 @@ async function main() {
             budget,
             model: researcher,
             extraTitles: [...(arg("--wiki") ?? "").split("|").map((t) => t.trim()).filter(Boolean), ...(topic?.wiki ?? [])],
+            seconds: targetS,
             log,
           });
           await writeJson(f("kaynak-bankasi.json"), research.bank);
@@ -1379,10 +1380,24 @@ async function main() {
     for (const o of chiefPlan?.onlemler ?? []) if (o.beyin) await remember(paths.workRoot, { bolum: episode.konu, beyin: o.beyin, tur: "onlem", konu: o.baslik, metin: `${o.baslik}: ${o.neden}` }).catch(() => undefined);
     // The retouch brain: what the brains measured decides one more round, run below by the production itself.
     const scored = { likenesses, sets: backgrounds.map((b, si) => ({ sahne: episode.sahneler[si]!.id, ...(b.esikAlti ? { esikAlti: true } : {}), ...(b.secim ? { secim: b.secim } : {}) })) };
-    let nextRound = process.argv.includes("--rotus-yok") ? undefined : planRetouch({ round: rotusTuru, ...scored });
-    // AYAS's fixes ride in the same round as the likeness and set retouch, from the earlier of their steps.
-    if (canRevise && session?.karar?.duzeltmeler.length) nextRound = withDirector(nextRound, rotusTuru, session.karar);
     thisRound = roundScore(rotusTuru, scored, session?.puan);
+    const earlierRounds = rotusTuru > 0 ? await keptRounds(work, final, rotusTuru) : [];
+    // What this round's redesigns did to each likeness goes to the costume brain's memory, better or worse.
+    if (retouch?.kisiler.length) for (const l of likenessLessons(retouch, thisRound, episode.donem, (id) => likenesses.find((x) => x.castId === id)?.tarif)) await remember(paths.workRoot, { bolum: episode.konu, beyin: "kostum", tur: "ders", ...l }).catch(() => undefined);
+    // A person whose designs stopped getting closer to the portrait opens no more rounds; their best design is reused.
+    const plateau = new Set<string>();
+    for (const l of likenesses.filter((x) => x.kaynak === "tasarim" && x.benzerlik !== undefined && x.benzerlik < LIKENESS_OK)) if (likenessPlateau(await likenessHistory(paths, l.kisi, episode.donem))) plateau.add(l.castId);
+    if (plateau.size) log(`↺ rötuş beyni: ${[...plateau].join(", ")} — tasarımlar portreye yaklaşmıyor; yeniden tasarım turu açılmıyor`);
+    // A round no better than the best before it stops the retouch: the best round is delivered below.
+    const improved = roundImproved(earlierRounds, thisRound);
+    if (!improved) {
+      const why = `tur ${rotusTuru} en iyi turu geçmedi (${roundLine(thisRound)}; en iyisi ${roundLine(bestRound([...earlierRounds, thisRound])!)}); yeni rötuş turu açılmıyor, en iyi tur teslim edilecek`;
+      log(`↺ rötuş beyni: ${why}`);
+      council.debate("sef", "rötuş kararı", [{ rol: "Rötuş beyni", metin: why }]);
+    }
+    let nextRound = process.argv.includes("--rotus-yok") || !improved ? undefined : planRetouch({ round: rotusTuru, ...scored, plateau });
+    // AYAS's fixes ride in the same round as the likeness and set retouch, from the earlier of their steps.
+    if (canRevise && improved && session?.karar?.duzeltmeler.length) nextRound = withDirector(nextRound, rotusTuru, session.karar);
     if (nextRound) {
       council.debate("sef", "rötuş kararı", retouchDebate(nextRound));
       await writeJson(f("rotus-plani.json"), nextRound);

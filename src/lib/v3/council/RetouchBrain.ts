@@ -52,12 +52,14 @@ export interface RetouchInput {
   readonly round: number;
   readonly likenesses: readonly { readonly castId: string; readonly kisi: string; readonly kaynak: string; readonly benzerlik?: number; readonly farklar?: readonly string[] }[];
   readonly sets: readonly { readonly sahne: string; readonly esikAlti?: boolean; readonly secim?: { readonly puan: number; readonly donem?: number; readonly sorun?: string } }[];
+  /** People whose likeness is stuck (LikenessDesigner.likenessPlateau): no round is opened for them. */
+  readonly plateau?: ReadonlySet<string>;
 }
 
 export function planRetouch(input: RetouchInput): RetouchPlan | undefined {
   if (input.round >= MAX_RETOUCH_ROUNDS) return undefined;
   const kisiler = input.likenesses
-    .filter((l) => l.kaynak === "tasarim" && l.benzerlik !== undefined && l.benzerlik < LIKENESS_OK)
+    .filter((l) => l.kaynak === "tasarim" && l.benzerlik !== undefined && l.benzerlik < LIKENESS_OK && !input.plateau?.has(l.castId))
     .map((l) => ({ castId: l.castId, kisi: l.kisi, puan: l.benzerlik!, farklar: l.farklar ?? [] }));
   const setler = input.sets
     .filter((s) => s.esikAlti)
@@ -99,6 +101,30 @@ export function roundShortfall(s: RoundScore): number {
  */
 export function bestRound(scores: readonly RoundScore[]): RoundScore | undefined {
   return [...scores].sort((a, b) => roundShortfall(a) - roundShortfall(b) || (b.kurul ?? 0) - (a.kurul ?? 0) || a.tur - b.tur)[0];
+}
+
+/**
+ * Whether a retouch round earned another one: only a round better than every round before it (owner, 3 Nov 2026,
+ * after the Caesar Short's likeness went 7 → 6 → 4 on the judge's contradicting notes: "it must stop by itself and
+ * know it"). A tie keeps the earlier round, so a round that changed nothing stops too.
+ */
+export function roundImproved(earlier: readonly RoundScore[], current: RoundScore): boolean {
+  return !earlier.length || bestRound([...earlier, current])!.tur === current.tur;
+}
+
+/**
+ * What a retouch round taught the costume brain about each person it redesigned, so the designer does not repeat a
+ * change that made the cartoon less like the portrait (English: it goes into the designer's prompt).
+ */
+export function likenessLessons(plan: Pick<RetouchPlan, "kisiler">, current: RoundScore, donem: string, tarifOf: (castId: string) => string | undefined): { konu: string; metin: string; sonuc: "ise_yaradi" | "ise_yaramadi" }[] {
+  return plan.kisiler.flatMap((k) => {
+    const now = current.kisiler.find((x) => x.castId === k.castId)?.puan;
+    if (now === undefined) return [];
+    const notes = k.farklar.length ? `the notes "${k.farklar.join("; ")}"` : "no notes";
+    const design = tarifOf(k.castId);
+    const result = now > k.puan ? `raised the likeness ${k.puan} → ${now}/10` : now < k.puan ? `lowered the likeness ${k.puan} → ${now}/10 — do not repeat that change, keep the earlier design's features` : `left the likeness at ${now}/10 — those notes did not help`;
+    return [{ konu: `${k.kisi} ${donem} benzerlik`, metin: `${k.kisi} (${donem}): redesigning from ${notes} ${result}${design ? ` (design: "${design}")` : ""}.`, sonuc: now > k.puan ? ("ise_yaradi" as const) : ("ise_yaramadi" as const) }];
+  });
 }
 
 /** One round in a line (Turkish, for QC.md and KURUL.md). */

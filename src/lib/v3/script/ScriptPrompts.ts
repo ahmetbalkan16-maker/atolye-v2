@@ -457,7 +457,10 @@ CLOSE BATTLE MAP — when the story arrives at ONE battlefield, siege or city's 
     — each move on the narrator line that tells it, seen as it is told, with its arrow; a gunpowder battle the same way
     with "tufekci" lines and "topcu" batteries in front.
 
-CROWDS — scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
+CROWDS — a group the narrator tells is SEEN as a group (owner): a scene whose lines tell of soldiers, troops, an army,
+  pirates, guards, sailors, rebels or a mob carries a "kalabalik" of them — several figures, never one character standing
+  in for many ("Caesar came back with troops and captured the pirates" shows Roman soldiers AND a band of pirates).
+  Scenes feel big when the story has many people: give such scenes "kalabalik" (extras who never speak):
   [{"ad": "Ottoman workers", "kostum_paketi": "…", "kostum": {same shape as a cast costume}, "sayi": 6–30,
     "duzen": "sira" (a row or two) | "meclis" (council benches) | "ordu" (a block of soldiers),
     "taraf": "sol" | "sag" | "tum", "ruh_hali": "notr" | "coskulu" (cheering) | "korkmus" (scared),

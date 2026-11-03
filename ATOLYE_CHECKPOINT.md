@@ -1,3 +1,35 @@
+## 3 Kasım 2026 (akşam) — Rötuş kendi durur ve ders alır; anlatılan topluluk kalabalık olarak görünür; uzun video tek hikâye
+
+**Owner kararları** (taramanın açıkları üzerine): "rötuş kendisi durmalı, bunu bilmeli, hataları tecrübe olarak kaydetmeli";
+"uzun videoda hikâye atlamamalı, konu bütün olmalı, konunun derinine inmeli"; "alakasız görüntü istemiyorum… askerler
+diyorsa birden fazla asker olacak"; eski anlık görüntüler silinebilir.
+
+1. **Rötuş:** `RetouchBrain.roundImproved` — en iyi turu geçmeyen tur (eşitlik dahil) yeni tur açmaz, log + kurul tartışması;
+   `likenessLessons` — her yeniden tasarımın sonucu (7→6 "do not repeat that change") kostüm beyninin deneyimine yazılır.
+   Kök neden: Sezar MÖ 75 için kütüphanede 7 tasarım, hepsi 6–7/10; tasarımcı önceki tasarımları görmüyordu, kütüphane
+   en yeniyi (kötüleşeni) alıyordu. `LikenessDesigner`: `likenessHistory`/`bestVersion` (en iyi puanlı sürüm yeniden
+   kullanılır), `historyLines` (tasarımcı istemine "EARLIER DESIGNS … best first", çelişen not = hakem gürültüsü),
+   `likenessPlateau` (≥3 kontrollü tasarım, hiçbiri 8 değil, son ikisi ilerlemedi → yeniden çizilmez, rötuş turu açılmaz,
+   kurul uyarısı "benzerlik tıkandı").
+2. **Kalabalık:** yeni `script/CrowdRules.ts` — anlatıcının andığı topluluk (troops, soldiers, army, pirates, guards… /
+   askerler, ordu, korsanlar…) sahnede `kalabalik` ister: yazar kuralı, harita kurallarıyla aynı onarım turunda
+   `crowdProblems`, son çare `addToldCrowds` (kadrodaki eşinin kostümü; asker yoksa komutanın askerleri — zırh/üniforma,
+   miğfer `yeni:helmet of <komutan>'s soldiers (<dönem>)` gardıroba; cümlenin ilk andığı grup hareketi alır, yakalanan
+   korkmuş durur). Short'ta anılan her grup; uzun videoda yalnız cümlede bir şey yapan (Rubicon "disband his army" senatoya
+   ordu koymaz). Gerçek bölümlerde: Sezar Short'u s1 korsanlar, s4 askerler (yürür) + korsanlar (korkmuş); Kosova ve
+   Rubicon'da yanlış alarm 0. Alakasız müze adayları zaten hakemde eleniyordu (konu 0/10, kullanılmadı).
+3. **Uzun video:** araştırma süreye göre (`researchDepth`: uzunda 6 makale, 40–90 olgu, "Cover the WHOLE story in depth");
+   plan "GO DEEP" + "ONE CONTINUOUS STORY" kuralları ve her bölüm için zorunlu `baglanti`; her bölüm önceki bölümün
+   **gerçekte yazılan** sonunu görür (`chapterEnding`: son yer + satırlar); birleşince hikâye editörü (`continuityPrompt`,
+   adım `akis`, gpt-4.1) bütün metni okuyup kopukluk başına bir satırı düzeltir (bölümü bozarsa hiçbiri uygulanmaz).
+4. 14 eski `ayas-live-*` anlık görüntüsü siliniyor (canlı 63881724 + geri dönüş 8609a091 kalır).
+
+**Doğrulama:** 16 `smoke-v3-*` PASS (likeness 18: L2 rötuş durur/ders/tıkanma, L3 kütüphane geçmişi; script 26: P
+kalabalık, N2 araştırma derinliği, uzun video senaryosu bağlantı + önceki bölümün sonu + akış düzeltmesi); tsc 0;
+lint 0 hata / 13 eski uyarı. Gerçek üretimle denenmedi: OpenAI kredisi bitik.
+
+---
+
 ## 3 Kasım 2026 (öğleden sonra) — V3 hata/masraf taraması: OpenAI kredisi bitmiş; boşa giden uzunluk turları, kapak turu düşürüyordu
 
 **Owner:** "sistemi bir tara, açık var mı, hata veren… boşu boşuna API parası harcıyoruz… bir yeri yaparken başka yeri

@@ -159,8 +159,11 @@ export function castLooks(episode: Episode, exceptId: string): string[] {
     });
 }
 
-export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined, fixes?: readonly string[], lessons: readonly string[] = []): string {
+export function sheetPrompt(c: CastEntry, episode: Episode, wiki: string, note: PeriodNote | undefined, portraitTitle: string | undefined, fixes?: readonly string[], lessons: readonly string[] = [], history: readonly string[] = []): string {
   const retouch = fixes?.length ? `\nA PREVIOUS CARTOON OF ${wiki} WAS SET NEXT TO THE PORTRAIT AND FELL SHORT. The art director's differences: ${fixes.join("; ")}. Fix exactly these (order new parts where needed); keep what was right.\n` : "";
+  const historyBlock = history.length
+    ? `\nEARLIER DESIGNS OF ${wiki} FOR ${episode.donem}, SCORED NEXT TO THE PORTRAIT (best first):\n${history.map((h) => `- ${h}`).join("\n")}\nStart from the best-scored design and change only what its notes name. Never undo a feature a better-scored design had: a note that contradicts an earlier design's notes is the judge's noise, not an instruction.\n`
+    : "";
   const others = castLooks(episode, c.id);
   const othersBlock = others.length
     ? `\nTHE OTHER NAMED CHARACTERS OF THE EPISODE ALREADY LOOK LIKE THIS:\n${others.map((o) => `- ${o}`).join("\n")}\n${wiki} must be told apart from every one of them at a glance by the clothes too, not only the face: where history allows, a different garment, colours, cloak or headwear (the reference channel colour-codes its characters).\n`
@@ -172,7 +175,7 @@ THE EPISODE: "${episode.konu}", set in ${episode.donem}. Draw them as they looke
 HISTORIAN'S NOTE for ${episode.donem}: ${note ? `age ${note.yas ?? "unknown"}; looks: ${note.gorunus}; dress: ${note.giyim}${note.simge ? `; carries: ${note.simge}` : ""}${note.fark ? `; differs from the famous portraits: ${note.fark}` : ""}` : "none"}
 ${portraitTitle ? `PORTRAIT (attached): ${portraitTitle.replace(/^File:/, "")} — take their features and dress from it, corrected by the historian's note for ${episode.donem}.` : "No portrait was found: work from the historian's note."}
 THE SCRIPT'S COSTUME (keep what already fits): ${JSON.stringify(c.kostum ?? {})}
-${othersBlock}${lessonBlock}${retouch}
+${othersBlock}${lessonBlock}${historyBlock}${retouch}
 Choose:
 - "yuz": {"sekil": yuvarlak (round) | oval | uzun (long) | genis (wide, heavy jowls) | kare (square jaw); "ten": skin colour #RRGGBB for a flat cartoon (light skin is a pale warm white like #f6e7d8; darker skins true to the person — judged from who they were and the historian's notes, never from the paint of an old fresco, icon, miniature or varnished painting, which age darkens and browns); "burun": kucuk (small) | duz (straight) | iri (big, round) | kemerli (aquiline, Roman) | kalkik (upturned); "kas_renk": eyebrow colour #RRGGBB (their hair colour; grey or white when old); "yas": genc (under 35) | orta (35–55) | yasli (over 55)}
 - "sac": parametric hair {"stil": kisa (short) | dalgali (wavy) | yan_ayrik (side part) | uzun (to the shoulders) | topuz (bun) | orgu (braids) | kel (bald) | kivircik (curly) | kakul (fringe) | geriye (combed back) | seyrek (receding: bald crown, hair at the back and sides); "renk": #RRGGBB}, or null when a drawn haircut is ordered or the headwear hides all the hair.
@@ -281,6 +284,63 @@ export function personVersions(paths: V3Paths, wiki: string, donem: string): str
   return out;
 }
 
+/** One kept design of a person for a period, with its side-by-side check (no score when it was never checked). */
+export interface LikenessVersion {
+  readonly file: string;
+  readonly tarif: string;
+  readonly benzerlik?: number;
+  readonly farklar: readonly string[];
+}
+
+/** Every kept design of a person for a period with its check, oldest first. */
+export async function likenessHistory(paths: V3Paths, wiki: string, donem: string): Promise<LikenessVersion[]> {
+  const out: LikenessVersion[] = [];
+  for (const file of personVersions(paths, wiki, donem)) {
+    try {
+      const stored = JSON.parse(await fs.readFile(file, "utf8")) as { tarif?: unknown };
+      const check = await readCheck(file).catch(() => undefined);
+      out.push({ file, tarif: typeof stored.tarif === "string" ? stored.tarif : "", ...(typeof check?.benzerlik === "number" ? { benzerlik: check.benzerlik } : {}), farklar: check?.farklar ?? [] });
+    } catch {
+      // An unreadable version is skipped; the others still count.
+    }
+  }
+  return out;
+}
+
+/**
+ * The design to reuse: the best-checked one (the newest of equal scores), else the newest. The newest alone was
+ * reused until 3 Nov 2026, so a retouch that made a likeness worse became the person's look for the next episode.
+ */
+export function bestVersion(versions: readonly LikenessVersion[]): LikenessVersion | undefined {
+  const checked = versions.filter((v) => v.benzerlik !== undefined);
+  if (!checked.length) return versions.at(-1);
+  return checked.reduce((best, v) => (v.benzerlik! >= best.benzerlik! ? v : best));
+}
+
+/** Checked designs it takes before a likeness that stays under the bar counts as stuck. */
+export const PLATEAU_DESIGNS = 3;
+
+/**
+ * Whether another redesign is futile: at least PLATEAU_DESIGNS checked designs, none at LIKENESS_OK, and the last two
+ * no better than the best before them (Caesar in 75 BC, 2–3 Nov 2026: seven designs, all 6–7/10, the judge's notes
+ * flipping from "hair fuller" to "hair too full"). A stuck person keeps the best design and opens no retouch round.
+ */
+export function likenessPlateau(versions: readonly LikenessVersion[]): boolean {
+  const scores = versions.flatMap((v) => (v.benzerlik !== undefined ? [v.benzerlik] : []));
+  if (scores.length < PLATEAU_DESIGNS || scores.some((s) => s >= LIKENESS_OK)) return false;
+  return Math.max(...scores.slice(-2)) <= Math.max(...scores.slice(0, -2));
+}
+
+/** The earlier designs as the designer's memory: best first, with what the art director said of each. */
+export function historyLines(versions: readonly LikenessVersion[], limit = 4): string[] {
+  return versions
+    .filter((v) => v.benzerlik !== undefined && v.tarif)
+    .map((v, i) => ({ v, i }))
+    .sort((a, b) => b.v.benzerlik! - a.v.benzerlik! || b.i - a.i)
+    .slice(0, limit)
+    .map(({ v }) => `${v.benzerlik}/10: "${v.tarif}"${v.farklar.length ? ` — art director: ${v.farklar.join("; ")}` : ""}`);
+}
+
 function nextPersonFile(paths: V3Paths, wiki: string, donem: string): string {
   const n = personVersions(paths, wiki, donem).length + 1;
   const base = path.join(peopleDir(paths), `${slug(wiki)}--${slug(donem)}`);
@@ -321,18 +381,24 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     // A likeness finished for this person and period in an earlier episode: reused while all its parts still exist,
     // unless the retouch brain asked for a redesign or its side-by-side check fell short (then its differences are
     // the designer's instruction).
-    const saved = personVersions(paths, wiki, episode.donem).pop();
-    const lastCheck = saved ? await readCheck(saved) : undefined;
-    const fixes = deps.redo?.get(c.id) ?? (lastCheck && lastCheck.benzerlik < LIKENESS_OK ? lastCheck.farklar : undefined);
-    if (saved && !fixes) {
-      const stored = JSON.parse(await fs.readFile(saved, "utf8")) as { kostum: CastCostume; tarif?: string; not?: PeriodNote };
+    const history = await likenessHistory(paths, wiki, episode.donem);
+    const best = bestVersion(history);
+    // A stuck likeness keeps its best design: one more redesign from the same notes only repeats the earlier tries.
+    const stuck = likenessPlateau(history);
+    const fixes = deps.redo?.get(c.id) ?? (!stuck && best?.benzerlik !== undefined && best.benzerlik < LIKENESS_OK ? best.farklar : undefined);
+    if (best && !fixes) {
+      const stored = JSON.parse(await fs.readFile(best.file, "utf8")) as { kostum: CastCostume; tarif?: string; not?: PeriodNote };
       const parts = PART_FIELDS.map((f) => (stored.kostum as unknown as Record<string, unknown>)[f]).filter((v): v is string => typeof v === "string");
       const resolvable = parts.every((ref) => known.has(ref.includes("/") ? ref : `${c.kostum_paketi}/${ref}`));
       const next = withCostume(current, c.id, { ...withNoteCloak(stored.kostum, stored.not), ...(c.kostum!.el_arka ? { el_arka: c.kostum!.el_arka } : {}) });
       if (resolvable && validateEpisode(next).ok) {
         current = next;
-        records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.not ? { not: stored.not } : {}), ...(stored.tarif ? { tarif: stored.tarif } : {}), siparisler: [], sorunlar: [] });
-        log(`  benzerlik: ${c.ad} — ${episode.donem} için kişi kütüphanesinde`);
+        records.push({ castId: c.id, kisi: wiki, donem: episode.donem, kaynak: "kutuphane", ...(stored.not ? { not: stored.not } : {}), ...(stored.tarif ? { tarif: stored.tarif } : {}), ...(stuck && best.benzerlik !== undefined ? { benzerlik: best.benzerlik, farklar: best.farklar } : {}), siparisler: [], sorunlar: [] });
+        if (stuck) {
+          const tries = history.filter((v) => v.benzerlik !== undefined).length;
+          log(`  benzerlik: ${c.ad} — ${tries} tasarım ${LIKENESS_OK}/10'a ulaşamadı; en iyisi (${best.benzerlik}/10) kullanılıyor, yeniden çizilmiyor`);
+          deps.council?.find({ beyin: "kostum", onem: "uyari", baslik: "benzerlik tıkandı", ayrinti: `${c.ad} (${episode.donem}): ${tries} tasarım ${LIKENESS_OK}/10 altında kaldı; en iyisi ${best.benzerlik}/10 — "${best.tarif}"`, tur: "veri", yer: c.id });
+        } else log(`  benzerlik: ${c.ad} — ${episode.donem} için kişi kütüphanesinde`);
         continue;
       }
     }
@@ -348,7 +414,7 @@ export async function designLikenesses(episode: Episode, deps: LikenessDeps): Pr
     // The costume brain's memory: the owner's standing rules and lessons about this person or their dress.
     const lessons = (await recall(paths.workRoot, "kostum", { konu: `${wiki} ${c.rol} ${episode.donem} ${note?.giyim ?? ""}`, limit: 3 }).catch(() => [])).map((l) => l.metin);
     const sheetOut = await deps.budget
-      .generate("benzerlik-tasarim", deps.designer, sheetPrompt(c, current, wiki, note, portrait?.candidate.title, fixes, lessons), { maxTokens: 900, ...(portrait ? { images: [portrait.preview.toString("base64")] } : {}) })
+      .generate("benzerlik-tasarim", deps.designer, sheetPrompt(c, current, wiki, note, portrait?.candidate.title, fixes, lessons, historyLines(history)), { maxTokens: 900, ...(portrait ? { images: [portrait.preview.toString("base64")] } : {}) })
       .catch((e: Error) => (log(`  benzerlik: ${c.ad} kart yazılamadı (${e.message.slice(0, 100)})`), undefined));
     const sheet = sheetOut ? readJsonAnswer<Record<string, unknown>>(sheetOut.result.content) : undefined;
     if (!sheet) {

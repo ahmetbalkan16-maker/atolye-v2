@@ -2,6 +2,7 @@ import type { PackCatalogEntry } from "../costumes/CostumePackLoader";
 import type { Episode } from "../episode/EpisodeTypes";
 import { countWords, type EpisodeValidation, validateEpisode } from "../episode/EpisodeValidator";
 import { isShorts } from "../render/Format";
+import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, shareProblems } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
@@ -284,7 +285,7 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
     const problems = [...validation.errors.slice(0, 40).map((e) => `${e.path} ${e.code}: ${e.message}`), ...bankProblems(value, brief.kaynakBankasi)];
     // The owner's shares (map ~75–80%, stick figures ~15%) are asked of a short video too (the first AYAS trial of 23 Oct
     // 2026 told 3 minutes in six character scenes and three still maps); under 90 s they are not.
-    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode)] };
+    return { value, validation, problems, quality: problems.length ? [] : [...mapProblems(value), ...shareProblems(value as Episode), ...crowdProblems(value, isShorts(brief.hedefSureSn))] };
   };
   let raw = first.result.content;
   let state = check(raw);
@@ -334,13 +335,20 @@ export async function writeScript(input: ScriptEngineInput): Promise<ScriptOutco
       continue;
     }
     // A longer script that loses what the map rules won is no better: they are not asked again after these rounds.
-    const before = mapProblems(written).length + shareProblems(written).length;
+    const before = mapProblems(written).length + shareProblems(written).length + crowdProblems(written, isShorts(brief.hedefSureSn)).length;
     if (revised.quality.length > before) {
       input.log?.(`  senaryo: uzunluk turu ${lengthRounds} harita sorunlarını artırdı (${before} → ${revised.quality.length}): ${revised.quality.join(" | ").slice(0, 200)}`);
       continue;
     }
     written = revised.value as Episode;
     validation = revised.validation!;
+  }
+  // A group the narrator tells that no round put on the stage gets its crowd as a last resort.
+  const crowded = addToldCrowds(written, isShorts(brief.hedefSureSn));
+  for (const fix of crowded.fixes) input.log?.(`  senaryo: ${fix}`);
+  if (crowded.episode !== written) {
+    written = crowded.episode;
+    validation = validateEpisode(written);
   }
   // The director's pass on the battle maps (badges with the line naming them, a fallen ruler's X, routs, charge arrows).
   const directed = directBattleMaps(written);

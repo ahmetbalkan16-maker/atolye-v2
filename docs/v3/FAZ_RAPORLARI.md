@@ -531,3 +531,15 @@ Owner isteği: "sistemi tara, açık var mı… boşu boşuna API parası harcı
   ücretli uzatma turuna gönderilmez (önceden sipariş başına ~0,11 $ boşa).
 - Denemeleri biten isteğe bağlı adım (kapak) üretimi değil yalnız kendini bırakır.
 - Doğrulama: smoke-v3-council 15, script 24 ve ilgili V3 smoke'ları PASS; tsc 0; lint 0 hata / 13 eski uyarı.
+
+## Rötuş durur ve ders alır; topluluk kalabalık görünür; uzun video tek hikâye (3 Kasım 2026 akşam)
+
+Owner kararları üzerine. Ayrıntı: ATOLYE_CHECKPOINT.md "3 Kasım 2026 (akşam)".
+
+- Rötuş: iyileşmeyen tur yeni tur açmaz; her yeniden tasarımın sonucu kostüm beyninin dersi olur; kütüphane en iyi
+  puanlı tasarımı kullanır; tıkanmış benzerlik (≥3 tasarım, ilerleme yok) yeniden çizilmez.
+- Kalabalık: anlatıcının andığı topluluk sahnede birden fazla figürdür (`script/CrowdRules.ts`; yazar kuralı, onarım
+  turu, son çare).
+- Uzun video: süreye göre derin araştırma; planda bölüm bağlantıları; her bölüm öncekinin yazılan sonundan devam eder;
+  birleşince hikâye editörü kopuklukları düzeltir.
+- Doğrulama: 16 smoke-v3 PASS; tsc 0; lint 0 hata / 13 eski uyarı.

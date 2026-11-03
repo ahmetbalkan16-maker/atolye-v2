@@ -10,7 +10,7 @@ import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "..
 import type { PackCatalogEntry } from "../src/lib/v3/costumes/CostumePackLoader";
 import { applyParts, partOrders, partProblems } from "../src/lib/v3/costumes/PartDesigner";
 import type { Episode } from "../src/lib/v3/episode/EpisodeTypes";
-import { articleSource, readTopic, resolveTopic, sourceId, topicPrompt, verifyFacts } from "../src/lib/v3/research/SourceResearch";
+import { articleSource, factPrompt, readTopic, researchDepth, resolveTopic, sourceId, topicPrompt, verifyFacts } from "../src/lib/v3/research/SourceResearch";
 import { applyFactCheck, extractJson, ScriptError, sceneShortfalls, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import { factCheckPrompt, wordBudget, writingPrompt } from "../src/lib/v3/script/ScriptPrompts";
 import { chapterCount, isLongForm, prefixScenes, readOutline } from "../src/lib/v3/script/LongForm";
@@ -18,6 +18,8 @@ import { normalizeDraft } from "../src/lib/v3/script/DraftNormalizer";
 import { mapSpeakers } from "../src/lib/v3/maps/MapSpeakers";
 import { clearBattleCards, resolveTactics } from "../src/lib/v3/maps/Tactics";
 import { livenStillMaps, mapProblems } from "../src/lib/v3/script/MapRules";
+import { addToldCrowds, crowdProblems, toldGroups } from "../src/lib/v3/script/CrowdRules";
+import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
 import { V3Budget, V3BudgetError, videoCapUsd } from "../src/lib/v3/script/V3Budget";
 import { voxcpmLanguages } from "../src/lib/v3/tts/Voxcpm";
 import { loadV3Settings, v3Secret } from "../src/lib/v3/V3Paths";
@@ -263,6 +265,49 @@ async function main() {
     assert.ok(logs.some((m) => m.includes("uzunluk turu 1 harita sorunlarını artırdı (0 → 1)")), logs.join("\n"));
   });
 
+  await scenario("P a group the narrator tells is seen as a crowd: asked in the repair round, added as a last resort", async () => {
+    const narrators = new Set(["anlatici"]);
+    const line = (metin: string) => ({ satirlar: [{ karakter: "anlatici", metin, duygu: "notr" as const }] });
+    // A Short tells its one moment: every group the narrator names; a long episode only a group that acts.
+    assert.deepEqual(toldGroups(line("Once freed, Caesar came back with troops. He captured the pirates."), narrators).map((g) => [g.stem, g.soldiers, g.first]), [["troop", true, true], ["pirate", false, true]]);
+    assert.deepEqual(toldGroups(line("The Senate orders Caesar to disband his army and come home."), narrators, true), [], "an army far away is not on this stage");
+    assert.deepEqual(toldGroups(line("The janissaries stormed the walls."), narrators, true).map((g) => g.stem), ["janissar"]);
+    assert.deepEqual(toldGroups(line("Askerler kaleye saldırdı, korsanları da yakaladılar."), narrators, true).map((g) => g.stem), ["asker", "korsan"], "the caught pirates are there too");
+    assert.deepEqual(toldGroups(line("The army, the soldiers and the troops: one group."), narrators).map((g) => g.stem), ["army"]);
+    assert.deepEqual(toldGroups({ satirlar: [{ karakter: "mehmed", metin: "My soldiers!", duygu: "notr" }] }, narrators), [], "only the narrator's telling counts");
+    const ep = episode();
+    const told = { ...ep, hedef_sure_sn: 20, sahneler: ep.sahneler.map((s, i) => (i === 1 ? { ...s, satirlar: [{ karakter: "anlatici", metin: "Mehmed came back with his soldiers. He captured the pirates.", duygu: "notr" as const }, ...s.satirlar] } : s)) };
+    assert.match(crowdProblems(told, true)[0]!, /^scene "s2-divan" tells of "soldiers" and "pirates" but shows no crowd of them/);
+    assert.deepEqual(crowdProblems({ ...told, sahneler: told.sahneler.map((s, i) => (i === 1 ? { ...s, kalabalik: [{ ad: "Ottoman soldiers", kostum_paketi: "ottoman-1453", kostum: ep.oyuncu_kadrosu[3]!.kostum!, sayi: 6, duzen: "ordu" as const }, { ad: "Pirates", kostum_paketi: "ottoman-1453", kostum: ep.oyuncu_kadrosu[3]!.kostum!, sayi: 4, duzen: "sira" as const }] } : s)) }, true), [], "a crowd of each group: nothing to ask");
+    // The last resort: soldiers dressed like the armoured cast member, moving with the line; no one to dress the pirates.
+    const fixed = addToldCrowds(told, true);
+    const crowd = fixed.episode.sahneler[1]!.kalabalik!;
+    assert.deepEqual(crowd.map((c) => [c.ad, c.sayi, c.duzen, c.kostum.giysi, c.hareket?.tur]), [["Soldiers", 5, "ordu", "zirh", "yuru"]]);
+    assert.ok(fixed.fixes.some((x) => x.includes('"pirates" anlatılıyor ama kalabalığı giydirecek oyuncu yok')), fixed.fixes.join("\n"));
+    assert.equal(validateEpisode(fixed.episode).ok, true);
+    // No soldier in the cast: the commander's men, their helmet ordered for the period.
+    const noArmour = { ...told, oyuncu_kadrosu: told.oyuncu_kadrosu.filter((c) => c.id !== "zaganos") };
+    const men = addToldCrowds(noArmour, true).episode.sahneler[1]!.kalabalik![0]!;
+    assert.deepEqual([men.kostum.giysi, men.kostum.bas, men.kostum.renkler.ana], ["zirh", "yeni:helmet of II. Mehmed's soldiers (1452)", "#b3263a"]);
+    // Through the writer: the repair round asks for the crowd; a round that breaks the script is dropped, the crowd added.
+    const openai = new FakeProvider([JSON.stringify(told), "", JSON.stringify({ iddialar: [] })]);
+    const logs: string[] = [];
+    const out = await writeScript({ brief: { konu: "x", donem: "1452", hedefSureSn: 20, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai } }), log: (m) => logs.push(m) });
+    assert.ok(openai.calls[1]!.prompt.includes("CROWDS") && openai.calls[1]!.prompt.includes('"soldiers"'), "the repair round asks for the crowd");
+    assert.equal(out.episode.sahneler[1]!.kalabalik?.[0]?.ad, "Soldiers");
+    assert.ok(logs.some((m) => m.includes("kalabalık eklendi")), logs.join("\n"));
+  });
+
+  await scenario("N2 a long video is researched deeper: more articles, three times the facts, the whole story in order", () => {
+    assert.deepEqual(researchDepth(180), { articles: 3, search: 4, facts: "15–30", maxTokens: 6_000, long: false });
+    assert.deepEqual(researchDepth(1200), { articles: 6, search: 8, facts: "40–90", maxTokens: 12_000, long: true });
+    const article = { title: "Fall of Constantinople", revid: 1, timestamp: "2026-01-01T00:00:00Z", text: "The city fell on 29 May 1453." };
+    const long = factPrompt("Fall of Constantinople", "1453", [article], "en", 1200);
+    assert.ok(long.includes("long documentary (20 minutes") && long.includes("list 40–90 atomic facts") && long.includes("Cover the WHOLE story in depth"));
+    const short = factPrompt("Fall of Constantinople", "1453", [article], "en", 60);
+    assert.ok(short.includes("short documentary") && short.includes("list 15–30") && !short.includes("Cover the WHOLE story"));
+  });
+
   await scenario("L2 a Short under its word budget but well over half its ceiling is not sent to a paid expansion round", async () => {
     // 20 s Short: budget 20 × 0.85 × 1.8 ≈ 31 words; the fixture's 21 words are ~68% of it — a normal video's ±10% band
     // would have asked for more (the third Caesar Short: three rounds, all dropped over the ceiling).
@@ -345,18 +390,28 @@ async function main() {
     assert.deepEqual([videoCapUsd(120), videoCapUsd(1080)], [1, 4]);
     const base = episode();
     const { sahneler, ...header } = base;
-    const outline = { ...header, hedef_sure_sn: 720, bolumler: Array.from({ length: 6 }, (_, i) => ({ id: `b${i + 1}-bolum`, baslik: `Bölüm ${i + 1}`, ozet: `Bu bölümde olay ${i + 1} anlatılır, yerleri ve yılları ile birlikte.`, sure_sn: 100 })) };
-    // Per chapter: the scenes, one lengthening round (a short chapter) that does not help, the fact check.
+    const outline = { ...header, hedef_sure_sn: 720, bolumler: Array.from({ length: 6 }, (_, i) => ({ id: `b${i + 1}-bolum`, baslik: `Bölüm ${i + 1}`, ozet: `Bu bölümde olay ${i + 1} anlatılır, yerleri ve yılları ile birlikte.`, sure_sn: 100, ...(i ? { baglanti: `Bölüm ${i}'in sonundaki divandan devam eder.` } : {}) })) };
+    // Per chapter: the scenes, one lengthening round (a short chapter) that does not help, the fact check; then the
+    // story editor's pass over the whole, which mends one break.
     const answers = [JSON.stringify(outline)];
     for (let i = 0; i < 6; i++) answers.push(JSON.stringify({ sahneler }), JSON.stringify({ ...header, sahneler }), JSON.stringify({ iddialar: [] }));
+    answers.push(JSON.stringify({ kopukluklar: [{ sahne: "b2-bolum-s1-kanca", satir: 0, sorun: "bölüm 1'den zaman atlıyor", yeni_metin: "İki yıl sonra Boğaz'da yeni bir kale yükseliyordu." }, { sahne: "yok", satir: 0, sorun: "x", yeni_metin: "y" }] }));
     const openai = new FakeProvider(answers);
     const lines: string[] = [];
     const out = await writeScript({ brief: { konu: "Uzun konu", donem: "1453", hedefSureSn: 720, ton: "mizahi", dil: "tr" }, catalog: CATALOG, writer: { provider: "openai", model: "gpt-4.1" }, checker: { provider: "openai", model: "gpt-4.1" }, budget: new V3Budget({ providers: { openai }, capUsd: 4 }), log: (s) => lines.push(s) });
-    assert.equal(openai.calls.length, 19);
+    assert.equal(openai.calls.length, 20);
     assert.ok(openai.calls[0]!.prompt.includes("STEP 1: THE PLAN") && openai.calls[0]!.prompt.includes("in 6 chapters"));
+    assert.ok(openai.calls[0]!.prompt.includes("GO DEEP") && openai.calls[0]!.prompt.includes("ONE CONTINUOUS STORY") && openai.calls[0]!.prompt.includes('"baglanti"'));
     assert.ok(openai.calls[1]!.prompt.includes("CHAPTER 1 OF 6") && openai.calls[1]!.prompt.includes("FIXED CAST"));
+    assert.ok(!openai.calls[1]!.prompt.includes("AS WRITTEN"), "the first chapter has no chapter before it");
     assert.ok(openai.calls[4]!.prompt.includes("CHAPTER 2 OF 6") && openai.calls[4]!.prompt.includes("THE STORY SO FAR"));
+    // The chapter before as written: its last place and lines, and the plan's bridge.
+    assert.ok(openai.calls[4]!.prompt.includes('THE CHAPTER BEFORE, AS WRITTEN — it ended at "Edirne Sarayı"') && openai.calls[4]!.prompt.includes("  Anlatıcı: Bir kale dört ayda biter mi?") && openai.calls[4]!.prompt.includes("(the plan: Bölüm 1'in sonundaki divandan devam eder.)"), openai.calls[4]!.prompt.slice(-1800));
     assert.ok(openai.calls[16]!.prompt.includes("This is the last chapter"));
+    assert.ok(openai.calls[19]!.prompt.includes("story editor") && openai.calls[19]!.prompt.includes("[b6-bolum-s2-divan | Edirne Sarayı]"));
+    assert.equal(out.episode.sahneler.find((s) => s.id === "b2-bolum-s1-kanca")!.satirlar[0]!.metin, "İki yıl sonra Boğaz'da yeni bir kale yükseliyordu.");
+    assert.ok(lines.some((l) => l.includes("akış denetimi: 1 kopukluk düzeltildi — b2-bolum-s1-kanca#0: bölüm 1'den zaman atlıyor")), lines.join("\n"));
+    assert.ok(readOutline({ ...outline, bolumler: outline.bolumler.map((b) => ({ ...b, baglanti: undefined })) }, { hedefSureSn: 720 }).problems.some((p) => p.startsWith("bolumler[1].baglanti is missing")), "a plan with no bridges is sent back");
     assert.equal(out.episode.sahneler.length, sahneler.length * 6);
     assert.ok(out.episode.sahneler.every((s) => /^b[1-6]-bolum-/.test(s.id)), "every scene id starts with its chapter");
     assert.equal(new Set(out.episode.sahneler.map((s) => s.id)).size, out.episode.sahneler.length, "no two scenes share an id");
