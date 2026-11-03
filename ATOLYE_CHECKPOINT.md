@@ -1,3 +1,22 @@
+## 3 Kasım 2026 — Gelişim Merkezi: Atölye Beyinleri "Bugün" bölümünün üstünde
+
+**Owner:** "atölye beyinleri gelişim merkezinde çok aşağıda yani sonda; onu bugün neleri geliştirmeye çalıştının üstüne
+alsak, AYAS öneriyorun altına."
+
+`AyasDevelopmentCenter` yeni `beforeToday` yuvası alır; `BrainConsoleView` `AtolyeBrainsPanel`'i artık sona değil bu yuvaya
+verir. Sıra: AYAS'ın Önerileri → Onaylandı/Yürütme Bekleniyor → Onay Bekleyenler → İnceleme → Küçük Geliştirme Paketi →
+**Atölye Beyinleri** → Bugün Neleri Geliştirmeye Çalıştı? → Geçmiş Kararlar. Gelişim kutusu okunamazsa da panel görünür
+(kendi deposunu okur). Panel ince bir çerçeveyle (`.bc-dev--sub`) sınırlanır; altındaki "Bugün" bölümü ona aitmiş gibi
+görünmez. Veri, karar ve onay akışı değişmedi.
+
+**Doğrulama:** `smoke-ayas-development-center` 64 (yeni sıra senaryosu dahil), `smoke-ayas-micro-batch-development-center`
+27, `smoke-v3-brains-report` 3, brain-control-center 40, homepage-v2 11, owner-ui-v2 36, brain-core-ui 43,
+owner-recommendations-view 13, owner-exact-preview 20, action-firewall-closure 13 PASS; developer-intelligence exit 0;
+`tsc --noEmit` temiz; `lint-yerel` 0 hata (13 eski uyarı).
+
+YouTube bağlantısı (aynı gün soruldu): `D:\ÜRETİM\private\AtolyeSecrets\AYAS-SECRETS\youtube\` klasörü hâlâ boş —
+`client.json` konmadı, `youtube.ts baglan` çalışmadı. Adımlar `docs/v3/08_YOUTUBE_KANALI.md` "Bir kerelik bağlantı".
+
 ## 3 Kasım 2026 — Güncelleme kapanışı arıza gibi görünmez; AYAS skill'leri gerçekten kayıtlı ve kullanılıyor
 
 **Owner:** "son görevde gelişim merkezinde bir şey düzeltecektin onu bul ve düzelt; AYAS'ta skill'ler kullanılmıyor galiba,

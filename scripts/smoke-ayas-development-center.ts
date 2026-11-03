@@ -243,6 +243,20 @@ async function main() {
     assert.deepEqual(view.history.map((item) => item.proposalId).sort(), ["new", "old", "other"]);
     assert.deepEqual(view.pending.map((item) => item.proposalId), ["new"]);
   });
+  // 2026-11-03 owner request: the Atölye Beyinleri panel sits below AYAS's proposals and above "Bugün".
+  await scenario("beforeToday renders after the approval sections and before Bugün, and survives an unreadable inbox", () => {
+    const slot = createElement("section", { "data-testid": "atolye-brains" });
+    const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([proposal()]), NOW), onDecision: () => undefined, beforeToday: slot }));
+    const at = (needle: string) => { const i = html.indexOf(needle); assert.ok(i >= 0, needle); return i; };
+    assert.ok(at('id="ayas-dev-pending"') < at('data-testid="atolye-brains"'));
+    assert.ok(at('data-testid="atolye-brains"') < at('id="ayas-dev-today"'));
+    assert.ok(at('id="ayas-dev-today"') < at('id="ayas-dev-history"'));
+    const offline = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: { connected: false, error: "EACCES", pending: [], today: [], history: [] }, beforeToday: slot }));
+    assert.match(offline, /Gelişim Merkezi okunamadı/); assert.match(offline, /data-testid="atolye-brains"/);
+    const view = fs.readFileSync(path.join(process.cwd(), "src/components/brain/BrainConsoleView.tsx"), "utf8");
+    assert.match(view, /beforeToday=\{<AtolyeBrainsPanel /);
+    assert.equal(view.match(/<AtolyeBrainsPanel /g)?.length, 1);
+  });
   console.log(`AYAS Gelişim Merkezi smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-development-center", scenarios: count }));
 }

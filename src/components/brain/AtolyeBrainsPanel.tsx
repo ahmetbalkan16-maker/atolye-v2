@@ -57,7 +57,7 @@ export function AtolyeBrainsPanel({ initial, refresh, decide }: {
 
   const k = view.kurul;
   return (
-    <section className="bc-dev" aria-label="Atölye Beyinleri" data-testid="atolye-brains">
+    <section className="bc-dev bc-dev--sub" aria-label="Atölye Beyinleri" data-testid="atolye-brains">
       <header className="bc-dev__hero"><span>Atölye V3</span><h2>Atölye Beyinleri</h2><p>Yönetmen kurulunun tartışması, benzer videolardan öğrenilenler, boşta kendini geliştirme ve onayını bekleyen kod önerileri.</p></header>
 
       <section className="bc-dev__section" aria-labelledby="atolye-kurul">

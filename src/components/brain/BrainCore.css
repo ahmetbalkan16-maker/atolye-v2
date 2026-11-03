@@ -479,6 +479,8 @@ body:has(.bc-shell) {
 
 /* -------------------------------------------------- Gelişim Merkezi --- */
 .bc-dev { display: grid; gap: 24px; }
+/* A panel nested inside the Gelişim Merkezi (Atölye Beyinleri): framed so the sections after it don't read as its own. */
+.bc-dev--sub { padding: 16px; border: 1px solid var(--bc-border); border-radius: 18px; }
 .bc-dev__hero {
   padding: 18px;
   border: 1px solid hsl(188 86% 55% / 0.22);
@@ -1403,6 +1405,7 @@ body:has(.bc-shell) {
   .bc-presence__cta { align-self: stretch; text-align: center; padding: 12px 18px; }
   .bc-presence__reach span[aria-hidden="true"] { overflow-wrap: anywhere; }
   .bc-dev__proposal, .bc-dev__timeline-card, .bc-dev__hero { padding: 13px; }
+  .bc-dev--sub { padding: 10px; }
   .bc-dev__proposal-head { flex-direction: column; }
   .bc-dev__facts { grid-template-columns: 1fr; }
   .bc-dev__actions .bc-btn { flex: 1 1 130px; min-height: 44px; }
