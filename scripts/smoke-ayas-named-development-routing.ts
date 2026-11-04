@@ -51,8 +51,8 @@ for (const query of otherQueries) {
   assert.notEqual(resolveAyasPreReasoningIntent(query).kind, "development-status", query);
   assert.notEqual(resolveDeterministicToolCandidate(query)?.action, "ayas-development-status", query);
 }
-assert.equal(AYAS_EXECUTION_ALLOWLIST["ayas-development-status"].write, false);
-assert.equal(AYAS_EXECUTION_ALLOWLIST["ayas-development-status"].destructive, false);
+assert.equal(AYAS_EXECUTION_ALLOWLIST["ayas-development-status"].write, false, "assert.equal(AYAS_EXECUTION_ALLOWLIST[\"ayas-development-status\"].write, false)");
+assert.equal(AYAS_EXECUTION_ALLOWLIST["ayas-development-status"].destructive, false, "assert.equal(AYAS_EXECUTION_ALLOWLIST[\"ayas-development-status\"].destructive, false)");
 async function verifyStatusTruth(): Promise<void> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-status-truth-"));
   // The inbox is only read. Audit leases and conversational memory are private.
@@ -84,12 +84,12 @@ async function verifyStatusTruth(): Promise<void> {
       memoryStore: { rootDir: path.join(root, "memory") } })) events.push(event);
   });
   const done = events.find((event) => event.type === "done");
-  assert.ok(done?.type === "done");
-  assert.equal(done.actionTrace?.tool, "ayas-development-status"); assert.equal(done.actionTrace?.executed, true);
+  assert.ok(done?.type === "done", "assert.ok(done?.type === \"done\")");
+  assert.equal(done.actionTrace?.tool, "ayas-development-status", "assert.equal(done.actionTrace?.tool, \"ayas-development-status\")"); assert.equal(done.actionTrace?.executed, true, "assert.equal(done.actionTrace?.executed, true)");
   assert.equal(done.text, expected, "model guesses must never replace durable development facts");
-  assert.equal(done.source, "fallback"); assert.equal(classifyAyasReplyFallback(done.reason), "deterministic");
+  assert.equal(done.source, "fallback", "assert.equal(done.source, \"fallback\")"); assert.equal(classifyAyasReplyFallback(done.reason), "deterministic", "assert.equal(classifyAyasReplyFallback(done.reason), \"deterministic\")");
   assert.equal(calls, 1, "no second model call may invent dates or approval counts");
-  assert.equal(events.filter((event) => event.type === "delta").map((event) => event.type === "delta" ? event.text : "").join(""), done.text);
+  assert.equal(events.filter((event) => event.type === "delta").map((event) => event.type === "delta" ? event.text : "").join(""), done.text, "assert.equal(events.filter((event) => event.type === \"delta\").map((event) => event.type === \"delta\" ? event.text : \"\").join(\"\"), done.text)");
 }
 verifyStatusTruth().then(() => console.log(`AYAS named development routing smoke: PASS (${statusQueries.length + otherQueries.length + 1} scenarios)`))
   .catch((error) => { console.error(error); process.exitCode = 1; });
