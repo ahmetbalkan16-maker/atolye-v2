@@ -103,7 +103,9 @@ async function runTask(task: CycleTask, paths: V3Paths, budget: ReturnType<typeo
     if (!release) return skip("geliştirici başka bir işte");
     try {
       const done = await runDevJob(job, research);
-      return ok(`"${done.baslik}": ${done.durum === "hazir" ? `hazır — dal ${done.is?.dal}` : done.durum === "yapildi" ? "değişiklik gerekmedi" : `yapılamadı — ${(done.is?.sorunlar ?? []).join(" | ").slice(0, 200)}`}`);
+      return ok(
+        `"${done.baslik}": ${done.durum === "hazir" ? `hazır — dal ${done.is?.dal}` : done.durum === "yapildi" ? "değişiklik gerekmedi" : done.durum === "onaylandi" ? `Claude kullanım sınırı; ${done.is?.bekle?.slice(0, 16) ?? "?"} sonrasına bırakıldı, deneme sayılmadı` : `yapılamadı — ${(done.is?.sorunlar ?? []).join(" | ").slice(0, 200)}`}`,
+      );
     } finally {
       await release();
     }

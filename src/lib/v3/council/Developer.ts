@@ -1,7 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { runProcess } from "../util/Proc";
-import { DEVELOPER_RULES, type DevJob, forbiddenChanges, taskPacket } from "./DevQueue";
+import { DEVELOPER_RULES, type DevJob, forbiddenChanges, taskPacket, usageLimitUntil } from "./DevQueue";
 import { type DevProposal, improvementDir, updateProposal } from "./SelfImprovement";
 
 /**
@@ -108,6 +108,15 @@ export async function develop(p: DevProposal, d: DeveloperDeps): Promise<DevProp
     const run = await runProcess(agent[0]!, agent.slice(1), { cwd: dir, input: packet, timeoutMs: d.agentTimeoutMs ?? AGENT_TIMEOUT_MS });
     await fs.writeFile(path.join(record, `ajan-${job.deneme}.log`), `${run.stdout}\n--- stderr ---\n${run.stderr}`);
     const ozet = run.stdout.trim().slice(-1500);
+    const until = run.code !== 0 ? usageLimitUntil(`${run.stdout}\n${run.stderr}`) : undefined;
+    if (until) {
+      // Claude's usage limit, not the job: back in the queue until it resets, this try not counted.
+      const sorun = `Claude kullanım sınırı: ${(run.stderr || run.stdout).trim().slice(-200)}`;
+      d.log(`  geliştirici: "${p.baslik}" — ${sorun}; ${until.slice(0, 16)} sonrasına bırakıldı (deneme sayılmadı)`);
+      await dropWorktree(d.repoRoot, dir).catch(() => undefined);
+      await git(d.repoRoot, ["branch", "-D", branch]).catch(() => undefined);
+      return await updateProposal(d.workRoot, p.id, (q) => ({ ...q, durum: "onaylandi", is: { ...job, deneme: job.deneme - 1, bitis: new Date().toISOString(), bekle: until, sorunlar: [sorun] } }));
+    }
     if (run.code !== 0) return await fail([`ajan çıkış kodu ${run.code}: ${(run.stderr || run.stdout).trim().slice(-300)}`]);
     const status = await git(dir, ["status", "--porcelain", "-uall"]);
     const dosyalar = changedPaths(status.stdout);

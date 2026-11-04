@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import type { AIProvider } from "../../ai/providers/AIProvider";
 import { type CandidateVerdict, passes, pickBackground, verdictLine } from "../backgrounds/BackgroundJudge";
-import { type CommonsCandidate, cachedJson, commonsByTitles, commonsPreview, searchCommons } from "../backgrounds/CommonsProvider";
+import { type CommonsCandidate, cachedJson, commonsPreview, searchCommons, wikiFilesByTitles } from "../backgrounds/CommonsProvider";
 import { wikipediaCandidates } from "../backgrounds/HistorySources";
 import { periodEndYear } from "../episode/Period";
 import { runChecked } from "../util/Proc";
@@ -80,7 +80,7 @@ export async function portraitCandidates(cacheDir: string, p: PortraitPerson): P
   const search = (q: string) => searchCommons(cacheDir, q, { minWidth: 400, landscape: false, limit: 8 }).catch(() => [] as CommonsCandidate[]);
   const lead = await leadImage(cacheDir, p.wiki).catch(() => undefined);
   const [first, article, portraits, paintings, photographs] = await Promise.all([
-    lead ? commonsByTitles(cacheDir, [lead], "wikipedia").catch(() => [] as CommonsCandidate[]) : Promise.resolve([] as CommonsCandidate[]),
+    lead ? wikiFilesByTitles(cacheDir, [lead]).catch(() => [] as CommonsCandidate[]) : Promise.resolve([] as CommonsCandidate[]),
     wikipediaCandidates(cacheDir, p.wiki).catch(() => [] as CommonsCandidate[]),
     search(`${p.wiki} portrait`),
     search(`${p.wiki} painting`),

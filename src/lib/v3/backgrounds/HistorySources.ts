@@ -1,4 +1,4 @@
-import { type CommonsCandidate, cachedJson, commonsByTitles, searchCommons } from "./CommonsProvider";
+import { type CommonsCandidate, cachedJson, searchCommons, wikiFilesByTitles } from "./CommonsProvider";
 import { type Era, eraOf, periodEndYear } from "../episode/Period";
 import { judgeLicense } from "./LicenseFilter";
 
@@ -21,9 +21,12 @@ export async function wikipediaFileTitles(cacheDir: string, article: string, lan
   return titles.filter((t) => !ARTICLE_CHROME.test(t));
 }
 
-/** The article's images that live on Commons with a free license (local fair-use files simply do not resolve). */
+/**
+ * The article's images with a free license: on Commons, or uploaded to the Wikipedia itself (a local fair-use file fails
+ * the licence check like any other non-free one).
+ */
 export async function wikipediaCandidates(cacheDir: string, article: string, lang = "en"): Promise<CommonsCandidate[]> {
-  return commonsByTitles(cacheDir, await wikipediaFileTitles(cacheDir, article, lang), "wikipedia");
+  return wikiFilesByTitles(cacheDir, await wikipediaFileTitles(cacheDir, article, lang), lang);
 }
 
 interface MetObject {

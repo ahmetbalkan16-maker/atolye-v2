@@ -4,13 +4,17 @@
  * Run: npx tsx scripts/smoke-v3-backgrounds.ts
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
 import { ancientPlace, designFor, LANDSCAPE_NEGATIVE, landscapeOnly, periodLook, periodNegatives, periodRewritePrompt, readPeriodRewrite } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import type { EpisodeScene } from "../src/lib/v3/episode/EpisodeTypes";
 import { type CandidateVerdict, fitScore, judgePrompt, MAX_JUDGED, MIN_FALLBACK_SUBJECT, MIN_FIT_SCORE, laterEraQuestion, parseLaterEra, parseVerdict, passes, periodFallback, periodWordsCheck, pickBackground, type SceneForJudge, unreadableVerdicts, VERDICT_RETRY_TOKENS, VERDICT_TOKENS } from "../src/lib/v3/backgrounds/BackgroundJudge";
 import { gradeAnswer } from "../src/lib/v3/council/BrainExam";
 import { CLIP_POOL, clipQuery, orderByClip } from "../src/lib/v3/backgrounds/ClipRanker";
-import { cleanObjectName, type CommonsCandidate, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
+import { cleanObjectName, type CommonsCandidate, wikiFilesByTitles, yearOf } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { aliasQueries, insertCaption, periodEndYear, periodRank } from "../src/lib/v3/backgrounds/HistorySources";
 import { wordBudget } from "../src/lib/v3/script/ScriptPrompts";
 
@@ -319,6 +323,54 @@ async function main() {
     assert.equal(pick.chosen?.title, "File:lorrain.jpg");
     assert.equal(pick.verdicts[0]!.sonrakiCag, "bell tower behind the columns");
     assert.deepEqual(asked.map((x) => x.replace("img:File:", "")), ["canaletto.jpg", "lorrain.jpg"], "only passing period images are asked");
+  });
+
+  await scenario("W an article's files: Commons first, then the Wikipedia's own free uploads (Lloyd Mathews' portrait); local fair use and shared files from the wiki are not taken", async () => {
+    // Answers seeded in the JSON cache by address, as Wikimedia would give them (no network).
+    const cacheDir = mkdtempSync(path.join(os.tmpdir(), "v3-wiki-dosyalari-"));
+    const ask = (api: string, titles: readonly string[]) =>
+      `${api}?${new URLSearchParams({
+        action: "query",
+        format: "json",
+        titles: titles.join("|"),
+        prop: "imageinfo",
+        iiprop: "url|size|mime|extmetadata",
+        iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
+        iiurlwidth: "3840",
+      })}`;
+    const seed = (url: string, json: unknown) => writeFileSync(path.join(cacheDir, `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`), JSON.stringify(json));
+    const info = (name: string, license: string, repo?: string) => ({
+      title: `File:${name}`,
+      ...(repo ? { imagerepository: repo } : {}),
+      imageinfo: [{ url: `https://upload.wikimedia.org/x/${name}`, descriptionurl: `https://x/File:${name}`, mime: "image/jpeg", width: 1304, height: 1794, extmetadata: { LicenseShortName: { value: license }, DateTimeOriginal: { value: "circa 1890's" } } }],
+    });
+    const titles = ["File:Lloyd_mathews.JPG", "File:Poster.jpg", "File:Zanzibar_palace.jpg", "File:Rejected_on_commons.jpg"];
+    const norm = titles.filter((t) => t.includes("_")).map((t) => ({ from: t, to: t.replace(/_/g, " ") }));
+    seed(ask("https://commons.wikimedia.org/w/api.php", titles), {
+      query: {
+        normalized: norm,
+        pages: {
+          "-1": { title: "File:Lloyd mathews.JPG", missing: "" },
+          "-2": { title: "File:Poster.jpg", missing: "" },
+          "7": info("Zanzibar palace.jpg", "CC BY-SA 4.0"),
+          "8": info("Rejected on commons.jpg", "All rights reserved"),
+        },
+      },
+    });
+    const rest = ["File:Lloyd_mathews.JPG", "File:Poster.jpg", "File:Rejected_on_commons.jpg"];
+    seed(ask("https://en.wikipedia.org/w/api.php", rest), {
+      query: {
+        normalized: rest.filter((t) => t.includes("_")).map((t) => ({ from: t, to: t.replace(/_/g, " ") })),
+        pages: { "1": info("Lloyd mathews.JPG", "PD-US", "local"), "2": info("Poster.jpg", "Fair use", "local"), "3": info("Rejected on commons.jpg", "CC BY 4.0", "shared") },
+      },
+    });
+    const got = await wikiFilesByTitles(cacheDir, titles);
+    assert.deepEqual(got.map((c) => [c.title, c.credit.license]), [["File:Lloyd mathews.JPG", "PD-US"], ["File:Zanzibar palace.jpg", "CC BY-SA 4.0"]], "the article's order; fair use and Commons' own rejected file stay out");
+    assert.equal(got[0]!.source, "wikipedia");
+    // Everything found on Commons: the wiki is not asked (nothing is seeded for it).
+    seed(ask("https://commons.wikimedia.org/w/api.php", ["File:Zanzibar_palace.jpg"]), { query: { normalized: [{ from: "File:Zanzibar_palace.jpg", to: "File:Zanzibar palace.jpg" }], pages: { "7": info("Zanzibar palace.jpg", "CC BY-SA 4.0") } } });
+    assert.deepEqual((await wikiFilesByTitles(cacheDir, ["File:Zanzibar_palace.jpg"])).map((c) => c.title), ["File:Zanzibar palace.jpg"]);
+    rmSync(cacheDir, { recursive: true, force: true });
   });
 
   console.log(`V3 backgrounds smoke: PASS (${scenarios} scenarios)`);

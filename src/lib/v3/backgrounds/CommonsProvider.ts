@@ -217,8 +217,11 @@ export async function commonsByTitle(cacheDir: string, title: string): Promise<C
   return page && info ? toCandidate(page.title, info) : undefined;
 }
 
-/** Several files by exact title (≤ 50, any order kept), skipping missing and non-free ones. */
-export async function commonsByTitles(cacheDir: string, titles: readonly string[], source: CommonsCandidate["source"] = "commons"): Promise<CommonsCandidate[]> {
+/**
+ * Several files by exact title (≤ 50, any order kept), skipping missing and non-free ones. `api` another wiki's
+ * (a Wikipedia's own uploads): there only its local files count — a shared one is Commons' and was judged there.
+ */
+export async function commonsByTitles(cacheDir: string, titles: readonly string[], source: CommonsCandidate["source"] = "commons", api = API): Promise<CommonsCandidate[]> {
   if (!titles.length) return [];
   const params = new URLSearchParams({
     action: "query",
@@ -229,7 +232,9 @@ export async function commonsByTitles(cacheDir: string, titles: readonly string[
     iiextmetadatafilter: "LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired|LicenseUrl|ObjectName|ImageDescription|DateTimeOriginal",
     iiurlwidth: "3840",
   });
-  const json = (await cachedJson(cacheDir, `${API}?${params}`)) as { query?: { normalized?: { from: string; to: string }[]; pages?: Record<string, { title: string; imageinfo?: ImageInfo[] }> } };
+  const json = (await cachedJson(cacheDir, `${api}?${params}`)) as {
+    query?: { normalized?: { from: string; to: string }[]; pages?: Record<string, { title: string; imagerepository?: string; imageinfo?: ImageInfo[] }> };
+  };
   const byTitle = new Map(Object.values(json.query?.pages ?? {}).map((p) => [p.title, p]));
   const norm = new Map((json.query?.normalized ?? []).map((n) => [n.from, n.to]));
   const out: CommonsCandidate[] = [];
@@ -237,10 +242,32 @@ export async function commonsByTitles(cacheDir: string, titles: readonly string[
     const page = byTitle.get(norm.get(t) ?? t);
     const info = page?.imageinfo?.[0];
     if (!page || !info || !/^image\/(jpeg|png)$/.test(info.mime)) continue;
+    if (api !== API && page.imagerepository !== "local") continue;
     const c = toCandidate(page.title, info, source);
     if (c) out.push(c);
   }
   return out;
+}
+
+/** A file title as MediaWiki compares it ("File:Lloyd_mathews.JPG" is "File:Lloyd mathews.JPG"). */
+const titleKey = (t: string) => t.replace(/_/g, " ").trim().toLowerCase();
+
+/**
+ * Files a Wikipedia article names: from Commons, then the ones uploaded to that Wikipedia itself, which Commons does not
+ * have. "Lloyd mathews.JPG" — the only portrait of Zanzibar's army commander, the lead image of his article, PD-US — is
+ * such a local en.wikipedia file: the Zanzibar Short of 3 Nov 2026 asked only Commons, found nothing and drew him from a
+ * description. The licence check is the same for both.
+ */
+export async function wikiFilesByTitles(cacheDir: string, titles: readonly string[], lang = "en", source: CommonsCandidate["source"] = "wikipedia"): Promise<CommonsCandidate[]> {
+  const fromCommons = await commonsByTitles(cacheDir, titles, source);
+  const have = new Set(fromCommons.map((c) => titleKey(c.title)));
+  const rest = titles.filter((t) => !have.has(titleKey(t)));
+  if (!rest.length) return fromCommons;
+  const local = await commonsByTitles(cacheDir, rest, source, `https://${lang}.wikipedia.org/w/api.php`).catch(() => [] as CommonsCandidate[]);
+  if (!local.length) return fromCommons;
+  // The article's own order (its lead picture first).
+  const at = (c: CommonsCandidate) => titles.findIndex((t) => titleKey(t) === titleKey(c.title));
+  return [...fromCommons, ...local].sort((a, b) => at(a) - at(b));
 }
 
 /** Downloads a candidate (standard rendition, at most 3840 px wide) as a local asset with its credit. */

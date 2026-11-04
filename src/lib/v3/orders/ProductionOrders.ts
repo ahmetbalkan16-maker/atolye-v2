@@ -183,11 +183,20 @@ function slug(text: string): string {
   return text.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "siparis";
 }
 
+/**
+ * The longest topic an order takes. A longer one is refused, never cut: the Zanzibar Short of 3 Nov 2026 was ordered with
+ * 330 characters, kept 300 ("…Khalid's supporters are made to pa") and lost its payoff — Britain billing them for the
+ * shells — without anyone noticing.
+ */
+export const MAX_ORDER_TOPIC = 600;
+
 export async function placeOrder(workRoot: string, o: { konu: string; donem: string; sure?: string; dil?: "tr" | "en"; ton?: string; kaynak?: string; dizi?: { ad: string; no: number } }, now = new Date()): Promise<ProductionOrder> {
+  const konu = o.konu.trim().replace(/\s+/g, " ");
+  if (konu.length > MAX_ORDER_TOPIC) throw new Error(`V3_ORDER_TOPIC_TOO_LONG: konu ${konu.length} karakter, en çok ${MAX_ORDER_TOPIC} — kısaltıp yeniden ver (kesilirse sonu kaybolur)`);
   const dir = orderDir(workRoot);
   await fs.mkdir(dir, { recursive: true });
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\..*$/, "");
-  const order: ProductionOrder = { id: `${stamp}-${slug(o.konu)}`, konu: o.konu.trim().slice(0, 300), donem: o.donem.trim().slice(0, 120), sure: o.sure ?? DEFAULT_ORDER_LENGTH, dil: o.dil ?? "en", ton: o.ton ?? "mizahi", kaynak: o.kaynak ?? "owner", ...(o.dizi?.ad.trim() ? { dizi: { ad: o.dizi.ad.trim().slice(0, 40), no: Math.max(1, Math.min(99, Math.round(o.dizi.no))) } } : {}), olusturuldu: now.toISOString(), durum: "bekliyor" };
+  const order: ProductionOrder = { id: `${stamp}-${slug(konu)}`, konu, donem: o.donem.trim().slice(0, 120), sure: o.sure ?? DEFAULT_ORDER_LENGTH, dil: o.dil ?? "en", ton: o.ton ?? "mizahi", kaynak: o.kaynak ?? "owner", ...(o.dizi?.ad.trim() ? { dizi: { ad: o.dizi.ad.trim().slice(0, 40), no: Math.max(1, Math.min(99, Math.round(o.dizi.no))) } } : {}), olusturuldu: now.toISOString(), durum: "bekliyor" };
   const file = path.join(dir, `${order.id}.json`);
   if (existsSync(file)) throw new Error(`V3_ORDER_EXISTS: ${order.id}`);
   await fs.writeFile(file, `${JSON.stringify(order, null, 2)}\n`);

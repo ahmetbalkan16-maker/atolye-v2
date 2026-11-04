@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { resolveAyasPreReasoningIntent } from "../src/lib/ayas/AyasIntentRouting";
 import { answerAyasVideoIntent, detectAyasVideoIntent, lengthOf, ordersReport, periodOf, SHORT_ORDER_LENGTH } from "../src/lib/ayas/AyasVideoOrder";
-import { DEFAULT_ORDER_LENGTH, listOrders, MAX_RESUMES, orderProgress, PRODUCTION_STEPS, productionCommand, type ProductionOrder, recoverInterrupted, resumeStep } from "../src/lib/v3/orders/ProductionOrders";
+import { DEFAULT_ORDER_LENGTH, listOrders, MAX_ORDER_TOPIC, MAX_RESUMES, orderProgress, placeOrder, PRODUCTION_STEPS, productionCommand, type ProductionOrder, recoverInterrupted, resumeStep } from "../src/lib/v3/orders/ProductionOrders";
 
 let scenarios = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -149,6 +149,16 @@ async function main() {
     assert.deepEqual(productionCommand("D:/repo", { ...order, devamAdimi: "ses" }, "D:/out", "openai").args.slice(-2), ["--from-step", "ses"], "assert.deepEqual(productionCommand(\"D:/repo\", { ...order, devamAdimi: \"ses\" }, \"D:/out\", \"openai\").args.slice(-2), [\"--from-step\", \"ses\"])");
     const echoed = spawnSync(process.execPath, ["-e", "process.stdout.write(JSON.stringify(process.argv.slice(1)))", ...args.slice(2, 6)], { encoding: "utf8", windowsHide: true });
     assert.deepEqual(JSON.parse(echoed.stdout), ["uret", "--konu", "Sezar’ın rubicon’u geçmesi & calc", "--donem"], "the child receives the topic whole");
+  });
+
+  await scenario("I a long topic is kept whole up to the limit and refused beyond it — never cut (the Zanzibar Short lost its payoff at 300)", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "ayas-video-uzun-"));
+    const zanzibar = "The Anglo-Zanzibar War (27 August 1896), the shortest war in history: Sultan Khalid bin Barghash seizes the palace, Admiral Rawson's ultimatum runs out at 9:00, five Royal Navy ships shell the palace, the royal yacht Glasgow sinks, the war is over in 38 minutes and Khalid's supporters are made to pay for the shells";
+    const kept = await placeOrder(root, { konu: `  ${zanzibar.replace("palace,", "palace,\n ")}  `, donem: "1896", sure: "60sn" });
+    assert.equal(kept.konu, zanzibar, "whole, its spaces folded");
+    assert.ok(kept.konu.endsWith("pay for the shells"));
+    await assert.rejects(placeOrder(root, { konu: "x".repeat(MAX_ORDER_TOPIC + 1), donem: "1896" }), /V3_ORDER_TOPIC_TOO_LONG/);
+    assert.equal((await listOrders(root)).length, 1, "the refused one wrote nothing");
   });
 
   console.log(`AYAS video order smoke: PASS (${scenarios} scenarios)`);

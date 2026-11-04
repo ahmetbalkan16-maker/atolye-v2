@@ -47,7 +47,7 @@ import {
   writeTuning,
 } from "../src/lib/v3/council/SelfImprovement";
 import { applyBuild, changedPaths, claudeAgent, develop, developerLock } from "../src/lib/v3/council/Developer";
-import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, nextJob, taskPacket } from "../src/lib/v3/council/DevQueue";
+import { DEVELOPER_RULES, developerWindow, forbiddenChanges, MAX_DEV_TRIES, nextJob, taskPacket, usageLimitUntil, waitingForLimit } from "../src/lib/v3/council/DevQueue";
 import {
   changedSymbols,
   codeExperience,
@@ -248,6 +248,19 @@ async function main() {
     assert.equal(nextJob(list.filter((x) => x.durum !== "onaylandi"), T0 + 30 * H)?.id, "eski-hata", "a failed build again after a day");
     assert.equal(nextJob(list.filter((x) => x.durum !== "onaylandi"), T0 + 10 * H), undefined, "not within the day");
     assert.equal(nextJob([p("iki-kez", "yapilamadi", { is: { deneme: MAX_DEV_TRIES, baslangic: at(0), bitis: at(1) } })], T0 + 99 * H), undefined, "two tries at most");
+    // The usage limit's reset time, in this PC's clock: the next such time, a minute after it.
+    const evening = new Date(2026, 10, 3, 21, 13);
+    const reset = (s: string, now = evening) => {
+      const d = new Date(usageLimitUntil(s, now)!);
+      return [d.getDate(), d.getHours(), d.getMinutes()];
+    };
+    assert.deepEqual(reset("You've hit your session limit · resets 9:40pm (Europe/Istanbul)"), [3, 21, 41]);
+    assert.deepEqual(reset("Claude usage limit reached · resets 9:40pm", new Date(2026, 10, 3, 22, 0)), [4, 21, 41], "already past: tomorrow");
+    assert.deepEqual(reset("You've hit your weekly limit · resets 12am"), [4, 0, 1]);
+    assert.deepEqual(reset("session limit reached, resets at 14:05"), [4, 14, 6]);
+    assert.equal(new Date(usageLimitUntil("You've hit your limit", evening)!).getTime() - evening.getTime(), 3_600_000, "no time given: an hour");
+    assert.equal(usageLimitUntil("error TS2307: Cannot find module", evening), undefined, "any other failure is a real try");
+    assert.equal(usageLimitUntil("rate limit exceeded on api.openai.com", evening), undefined);
     assert.deepEqual(forbiddenChanges(["src/lib/v3/mix/X.ts", "scripts\\smoke-v3-mix.ts", "scripts/v3/yapim.ts", "remotion-v3/src/Episode.tsx", "package.json", "src/lib/ayas/A.ts", "app/brain/actions.ts", ".env.v3.local", "scripts/smoke-ayas-x.ts"]), ["package.json", "src/lib/ayas/A.ts", "app/brain/actions.ts", ".env.v3.local", "scripts/smoke-ayas-x.ts"]);
     const night = new Date(2026, 10, 3, 3, 0), day = new Date(2026, 10, 3, 14, 0);
     assert.deepEqual([developerWindow({}, night).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1" }, night).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1" }, day).acik, developerWindow({ ATOLYE_V3_GELISTIRICI: "1", ATOLYE_V3_GELISTIRICI_SAAT: "22-6" }, new Date(2026, 10, 3, 23, 0)).acik], [false, true, false, true]);
@@ -313,6 +326,16 @@ async function main() {
     await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi", is: { deneme: 0, baslangic: at(0) } }));
     const nothing = await develop((await listProposals(work))[0]!.proposal, deps("0", pass));
     assert.deepEqual([nothing.durum, nothing.is?.ozet], ["yapildi", "Değişiklik yapılmadı — değiştirdim"]);
+    // Claude's usage limit (3 Nov 2026: three approved jobs lost a try each): back in the queue until the reset, no try spent, no branch.
+    await updateProposal(work, id, (q) => ({ ...q, durum: "onaylandi", is: { deneme: 1, baslangic: at(0) } }));
+    const limitAgent = [process.execPath, "-e", `process.stdin.resume();process.stdin.on("end",()=>{console.log("You've hit your session limit · resets 9:40pm (Europe/Istanbul)");process.exit(1)})`];
+    const limited = await develop((await listProposals(work))[0]!.proposal, { ...deps("0", pass), agent: limitAgent });
+    assert.deepEqual([limited.durum, limited.is?.deneme], ["onaylandi", 1], "the try is not counted");
+    assert.ok(limited.is?.bekle && Date.parse(limited.is.bekle) > Date.now() && waitingForLimit(limited));
+    assert.match(limited.is!.sorunlar![0]!, /^Claude kullanım sınırı/);
+    assert.equal(nextJob([limited]), undefined, "it waits for the reset");
+    assert.equal(nextJob([limited], Date.parse(limited.is!.bekle!) + 1)?.id, id, "then it is first again");
+    assert.equal((await runProcess("git", ["branch", "--list", `gelistirme/${id}`], { cwd: repo })).stdout.trim(), "");
     // One developer at a time.
     const release = await developerLock(work);
     assert.ok(release);

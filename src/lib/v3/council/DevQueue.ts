@@ -24,14 +24,46 @@ export interface DevJob {
   readonly sorunlar?: readonly string[];
   /** Where the agent's transcript and the checks' output are kept. */
   readonly kayit?: string;
+  /** Claude's usage limit stopped the last run: the job waits in the queue until then (the try is not counted). */
+  readonly bekle?: string;
 }
 
 export const MAX_DEV_TRIES = 2;
 const RETRY_AFTER_MS = 24 * 3_600_000;
 
-/** The next proposal to build: the earliest approved one, else a failed one that may be tried again. */
+/**
+ * Claude's own usage limit, as its CLI says it ("You've hit your session limit · resets 9:40pm (Europe/Istanbul)"). The
+ * job is not at fault: on 3 Nov 2026 the evening's three approved jobs each lost one of their two tries to it while a
+ * development session used the same account.
+ */
+const USAGE_LIMIT = /(?:session|usage|weekly|daily)\s+limit|hit your (?:\w+\s+)?limit|limit\s*[·•-]\s*resets/i;
+/** Without a reset time in the message, the developer looks again after this long. */
+const LIMIT_WAIT_MS = 3_600_000;
+
+/**
+ * When a failed agent run hit the usage limit: until when the queue should wait (the reset time it named, the next such
+ * clock time from `now` in this PC's time zone, else an hour), or undefined when it failed for another reason.
+ */
+export function usageLimitUntil(output: string, now = new Date()): string | undefined {
+  if (!USAGE_LIMIT.test(output)) return undefined;
+  const m = /resets\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?/i.exec(output);
+  if (!m) return new Date(now.getTime() + LIMIT_WAIT_MS).toISOString();
+  let h = Number(m[1]) % 24;
+  const pm = m[3]?.toLowerCase().startsWith("p");
+  if (m[3]) h = (h % 12) + (pm ? 12 : 0);
+  const at = new Date(now);
+  at.setHours(h, Number(m[2] ?? 0), 0, 0);
+  if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
+  // A minute after the reset, so the first try finds it open.
+  return new Date(at.getTime() + 60_000).toISOString();
+}
+
+/** Whether a job is waiting out Claude's usage limit at `now`. */
+export const waitingForLimit = (p: Pick<DevProposal, "is">, now = Date.now()) => !!p.is?.bekle && Date.parse(p.is.bekle) > now;
+
+/** The next proposal to build: the earliest approved one (not waiting out a usage limit), else a failed one that may be tried again. */
 export function nextJob(proposals: readonly DevProposal[], now = Date.now()): DevProposal | undefined {
-  const approved = proposals.filter((p) => p.durum === "onaylandi").sort((a, b) => (a.karar?.tarih ?? a.tarih).localeCompare(b.karar?.tarih ?? b.tarih));
+  const approved = proposals.filter((p) => p.durum === "onaylandi" && !waitingForLimit(p, now)).sort((a, b) => (a.karar?.tarih ?? a.tarih).localeCompare(b.karar?.tarih ?? b.tarih));
   if (approved[0]) return approved[0];
   return proposals.find((p) => p.durum === "yapilamadi" && (p.is?.deneme ?? 0) < MAX_DEV_TRIES && now - Date.parse(p.is?.bitis ?? p.tarih) >= RETRY_AFTER_MS);
 }

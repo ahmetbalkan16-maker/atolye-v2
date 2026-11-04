@@ -18,7 +18,7 @@
 import { brainBudget } from "../../src/lib/v3/council/BrainModels";
 import { codeExperienceLines, listCodeExperience, listGrades, loadDevBrainView, readiness, say } from "../../src/lib/v3/council/DevBrain";
 import { applyBuild, developerLock } from "../../src/lib/v3/council/Developer";
-import { developerWindow, EVENING_MAX_JOBS, nextJob } from "../../src/lib/v3/council/DevQueue";
+import { developerWindow, EVENING_MAX_JOBS, nextJob, waitingForLimit } from "../../src/lib/v3/council/DevQueue";
 import { EXAMS_PER_PASS, learnFromCommits, RECIPES_PER_PASS, type ResearchDeps, researchJob, researchQueue, runDevJob } from "../../src/lib/v3/council/DevResearch";
 import { listProposals, updateProposal } from "../../src/lib/v3/council/SelfImprovement";
 import { listOrders } from "../../src/lib/v3/orders/ProductionOrders";
@@ -48,7 +48,7 @@ async function main() {
   if (cmd === "liste") {
     log(`geliştirici: ${developerWindow(process.env).neden}`);
     for (const p of proposals.filter((x) => x.durum in LABEL)) {
-      log(`${LABEL[p.durum]!.padEnd(15)} ${p.id}  ${p.baslik}`);
+      log(`${LABEL[p.durum]!.padEnd(15)} ${p.id}  ${p.baslik}${waitingForLimit(p) ? `  (Claude sınırı: ${p.is!.bekle!.slice(0, 16)} sonrası)` : ""}`);
       if (p.is?.dal) log(`${" ".repeat(16)}dal: ${p.is.dal} · ${p.is.dosyalar?.length ?? 0} dosya`);
       if (p.is?.sorunlar?.length) log(`${" ".repeat(16)}neden: ${p.is.sorunlar.join(" | ").slice(0, 240)}`);
       if (p.is?.ozet) log(`${" ".repeat(16)}${p.is.ozet.replace(/\s+/g, " ").slice(0, 240)}`);
@@ -119,6 +119,13 @@ async function main() {
         }
         const done = await runDevJob(job, d);
         log(`${LABEL[done.durum] ?? done.durum}: ${done.baslik}`);
+        if (waitingForLimit(done)) {
+          // Every other job would meet the same limit: the evening waits for it (the order watcher calls again).
+          log(`durdu: Claude kullanım sınırı, ${done.is!.bekle!.slice(0, 16)} sonrasına kadar`);
+          await say(paths.workRoot, `Claude'un kullanım sınırı doldu; "${done.baslik.slice(0, 60)}" ve sıradakiler sınır açılınca (${new Date(done.is!.bekle!).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}) yapılacak, deneme hakları yanmadı.`, "AYAS");
+          made++;
+          break;
+        }
       }
       if (made) await say(paths.workRoot, `Bu akşam ${made} iş Claude'dan geçti; ${readiness(await listGrades(paths.workRoot)).ozet}.`, "AYAS");
     } finally {
