@@ -316,7 +316,14 @@ export function parseDecision(episode: Episode, text: string, maxEdits = MAX_EDI
 const SEP = "\u0001";
 const lineKey = (sahne: string, satir: number) => `${sahne}${SEP}${satir}`;
 
-export function rewritePrompt(episode: Episode, edits: readonly DirectorEdit[], dil: string): string {
+/**
+ * A Short's rewritten line may grow this much at most (share of its old length, and a few characters): the Zanzibar
+ * remake's retouch round (4 Nov 2026) let lines grow up to 1.8× and the 48 s Short ran 60.1 s, over the ceiling.
+ */
+export const SHORT_REWRITE_GROWTH = 1.1;
+const SHORT_REWRITE_SLACK = 15;
+
+export function rewritePrompt(episode: Episode, edits: readonly DirectorEdit[], dil: string, opts: { readonly short?: boolean } = {}): string {
   const rows = edits.flatMap((e) => {
     if (e.tur !== "satir") return [];
     const sc = episode.sahneler.find((s) => s.id === e.sahne)!;
@@ -325,7 +332,7 @@ export function rewritePrompt(episode: Episode, edits: readonly DirectorEdit[], 
     const after = sc.satirlar[e.satir + 1];
     return [`- ${e.sahne}#${e.satir} — ${line.karakter} (${line.duygu}): "${line.metin}"${line.balon ? ` | bubble: "${line.balon}"` : ""}\n  before: ${before ? `${before.karakter}: "${before.metin}"` : "(scene start)"} | after: ${after ? `${after.karakter}: "${after.metin}"` : "(scene end)"}\n  AYAS: ${e.talimat}`];
   });
-  return `You are the script writer of "${episode.baslik}" (an animated history video, ${episode.donem}). AYAS, the director, asked for these lines to be rewritten. Write each new line in the video's language (${dil === "tr" ? "Turkish" : "American English"}); keep its speaker, every name, date and fact it carries, and add no new fact; keep it at most 240 characters and within about ±40% of its old length; keep stage directions in (parentheses) only where the old line had them; follow AYAS's instruction. A line with a speech bubble gets a new "balon" of at most 8 words taken from the new line.
+  return `You are the script writer of "${episode.baslik}" (an animated history video, ${episode.donem}). AYAS, the director, asked for these lines to be rewritten. Write each new line in the video's language (${dil === "tr" ? "Turkish" : "American English"}); keep its speaker, every name, date and fact it carries, and add no new fact (when AYAS asks for context, use only what the other lines already say); keep it at most 240 characters and ${opts.short ? "NO LONGER than its old line — this is a YouTube Short at its time limit; a funny line stays funny" : "within about ±40% of its old length"}; keep stage directions in (parentheses) only where the old line had them; follow AYAS's instruction. A line with a speech bubble gets a new "balon" of at most 8 words taken from the new line.
 ${rows.join("\n")}
 Return ONLY JSON, "sahne" and "satir" as given above: {"satirlar": [{"sahne": "${edits.find((e) => e.tur === "satir")?.sahne ?? exampleScene(episode)}", "satir": 3, "metin": "...", "balon": "..."}]}`;
 }
@@ -346,7 +353,7 @@ export function bubbleFor(metin: string, offered: string): string {
 }
 
 /** The writer's rewrites that can be used: an ordered line, a new non-empty text of a sane length; a bubble only where one was. */
-export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], text: string): LineRewrite[] {
+export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], text: string, opts: { readonly short?: boolean } = {}): LineRewrite[] {
   const asked = new Set(edits.flatMap((e) => (e.tur === "satir" ? [lineKey(e.sahne, e.satir)] : [])));
   const v = readJsonAnswer<{ satirlar?: unknown }>(text);
   const out = new Map<string, LineRewrite>();
@@ -357,7 +364,8 @@ export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], 
     const line = sc.satirlar[Number(r.satir)]!;
     // A stage direction "(stands tall)" only where the old line had one (the Caesar dry run's writer added one).
     const metin = (line.metin.includes("(") ? clip(r.metin, 240) : clip(r.metin, 240).replace(/\s*\([^)]*\)\s*/g, " ").trim());
-    if (!metin || metin === line.metin || metin.length > Math.max(line.metin.length * 1.8, line.metin.length + 80) || metin.length < Math.min(12, line.metin.length)) continue;
+    const longest = opts.short ? Math.max(line.metin.length * SHORT_REWRITE_GROWTH, line.metin.length + SHORT_REWRITE_SLACK) : Math.max(line.metin.length * 1.8, line.metin.length + 80);
+    if (!metin || metin === line.metin || metin.length > longest || metin.length < Math.min(12, line.metin.length)) continue;
     const balon = line.balon ? bubbleFor(metin, clip(r.balon, 70)) : "";
     out.set(key, { sahne: sc.id, satir: Number(r.satir), eski: line.metin, metin, ...(balon ? { balon } : {}) });
   }
@@ -398,6 +406,14 @@ export function applyEdits(episode: Episode, edits: readonly DirectorEdit[], rew
       };
     }),
   };
+}
+
+/** The rewrites the fact check flags (wrong or disputed), with its reason; the other claims (old lines) are not the rewrite's. */
+export function droppedRewrites(rewrites: readonly LineRewrite[], claims: readonly { readonly sahne: string; readonly satir: number; readonly karar: string; readonly gerekce?: string }[]): (LineRewrite & { readonly gerekce: string })[] {
+  return rewrites.flatMap((r) => {
+    const c = claims.find((x) => x.sahne === r.sahne && Number(x.satir) === r.satir && (x.karar === "yanlis" || x.karar === "tartismali"));
+    return c ? [{ ...r, gerekce: c.gerekce ?? c.karar }] : [];
+  });
 }
 
 /** The fixes that are in effect: a line fix only with its rewrite (an unusable rewrite drops it). */
@@ -450,6 +466,13 @@ export async function holdCouncil(input: {
   readonly lessons: (beyin: Critic) => Promise<readonly string[]>;
   readonly earlier: readonly string[];
   readonly check: (e: Episode) => void;
+  /**
+   * The script's fact check (the production's editor against its source bank) on the episode the rewrites make: the
+   * claims it finds wrong or disputed. A rewritten line it flags is dropped and the old one — already checked — stays
+   * (Zanzibar remake, 4 Nov 2026: a rewrite asked for "context" wrote "After Sultan Hamoud died…" — Hamad died; Hamoud
+   * succeeded him). Undefined: no check (as before).
+   */
+  readonly factCheck?: (e: Episode) => Promise<readonly { readonly sahne: string; readonly satir: number; readonly karar: string; readonly gerekce?: string }[] | undefined>;
   readonly maxEdits?: number;
   readonly log?: (s: string) => void;
 }): Promise<CouncilSession> {
@@ -497,8 +520,15 @@ export async function holdCouncil(input: {
   if (!decision) return done({ kararYok: "AYAS'ın kararı okunamadı" });
   let yeniden: LineRewrite[] = [];
   if (decision.duzeltmeler.some((e) => e.tur === "satir")) {
-    const rw = await input.budget.generate("ayas-yeniden-yazim", input.director, rewritePrompt(input.episode, decision.duzeltmeler, input.dil), { maxTokens: 2_000 }).catch(() => undefined);
-    yeniden = rw ? parseRewrites(input.episode, decision.duzeltmeler, rw.result.content) : [];
+    const short = { short: input.context.shorts };
+    const rw = await input.budget.generate("ayas-yeniden-yazim", input.director, rewritePrompt(input.episode, decision.duzeltmeler, input.dil, short), { maxTokens: 2_000 }).catch(() => undefined);
+    yeniden = rw ? parseRewrites(input.episode, decision.duzeltmeler, rw.result.content, short) : [];
+    if (yeniden.length && input.factCheck) {
+      const claims = await input.factCheck(applyEdits(input.episode, decision.duzeltmeler, yeniden)).catch(() => undefined);
+      const flagged = droppedRewrites(yeniden, claims ?? []);
+      for (const d of flagged) log(`  AYAS'ın yeniden yazdığı satır doğrulamadan geçmedi, eskisi kalıyor: ${d.sahne}#${d.satir} "${d.metin.slice(0, 90)}" — ${d.gerekce.slice(0, 160)}`);
+      if (flagged.length) yeniden = yeniden.filter((r) => !flagged.some((d) => d.sahne === r.sahne && d.satir === r.satir));
+    }
   }
   const duzeltmeler = effectiveEdits(decision.duzeltmeler, yeniden);
   try {

@@ -29,6 +29,8 @@ import {
   parseDecision,
   parseReply,
   parseRewrites,
+  droppedRewrites,
+  rewritePrompt,
   sessionDebate,
 } from "../src/lib/v3/council/DirectorCouncil";
 import { bestRound, keepRound, restoreRound, retouchDebate, type RoundScore, roundLine, withDirector } from "../src/lib/v3/council/RetouchBrain";
@@ -204,6 +206,39 @@ async function main() {
     assert.ok(lines.some((l) => /itiraz n3: anlatıcı satırı sade kalmalı/.test(l.metin)));
     assert.ok(lines.some((l) => l.rol === "AYAS (yönetmen)" && /kurul 6.3\/10/.test(l.metin) && /satır yeniden yazılacak/.test(l.metin)));
     assert.ok(lines.some((l) => /"Right behind you, sir! Mostly\." → "Right behind you, sir! Well/.test(l.metin)));
+  });
+
+  await scenario("E2 the Zanzibar remake's retouch (4 Nov 2026): a Short's rewrite may not grow, and a rewrite the fact check flags keeps the old line", async () => {
+    const edit: DirectorEdit[] = [{ tur: "satir", sahne: STAGE, satir: 5, talimat: "add context", neden: "" }];
+    const longer = JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "Right behind you, sir, as always, since the Senate's last decree, mostly." }] });
+    assert.equal(parseRewrites(episode, edit, longer).length, 1, "a long video's line may grow");
+    assert.equal(parseRewrites(episode, edit, longer, { short: true }).length, 0, "a Short's may not (48 s ran 60.1 s)");
+    assert.equal(parseRewrites(episode, edit, JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "Right behind you, sir! Mostly. Ish." }] }), { short: true }).length, 1, "a few characters more is fine");
+    assert.match(rewritePrompt(episode, edit, "en", { short: true }), /NO LONGER than its old line/);
+    assert.match(rewritePrompt(episode, edit, "en"), /±40%/);
+    // The editor flags the rewrite: AYAS's line fix is dropped, the act stays; the old line was already checked.
+    const model = () =>
+      new CouncilModel({
+        critic: () => critic(5, [{ sahne: STAGE, satir: 5, sorun: "bağlam yok", oneri: "bağlam ekle", eylem: "satir" }]),
+        director: JSON.stringify({ ozet: "x", duzeltmeler: [{ tur: "satir", sahne: STAGE, satir: 5, talimat: "Add why", neden: "araştırma" }, { tur: "oyun", sahne: STAGE, satir: 0, oyun: [{ karakter: "legionary", jest: "omuz_silk" }], neden: "kalite" }] }),
+        rewrite: JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "After Sultan Hamoud died, right behind you!" }] }),
+      });
+    const logged: string[] = [];
+    const checked: string[] = [];
+    const run = (factCheck?: Parameters<typeof holdCouncil>[0]["factCheck"]) =>
+      holdCouncil({ budget: budgetOf(model()), critic: { provider: "ollama" }, director: { provider: "ollama" }, episode, dil: "en", round: 0, canRevise: true, context: { baslik: "", sureSn: 48, shorts: true }, lessons: async () => [], earlier: [], check: () => {}, log: (s) => logged.push(s), ...(factCheck ? { factCheck } : {}) });
+    const flagged = await run(async (e) => {
+      checked.push(e.sahneler[1]!.satirlar[5]!.metin);
+      return [{ sahne: STAGE, satir: 5, karar: "yanlis", gerekce: "Hamad died; Hamoud succeeded him" }, { sahne: STAGE, satir: 1, karar: "yanlis", gerekce: "an old line" }];
+    });
+    assert.deepEqual(checked, ["After Sultan Hamoud died, right behind you!"], "the check sees the episode the rewrites make");
+    assert.deepEqual([flagged.karar!.yeniden.length, flagged.karar!.duzeltmeler.map((d) => d.tur)], [0, ["oyun"]]);
+    assert.ok(logged.some((l) => /doğrulamadan geçmedi.*Hamad died/.test(l)));
+    const passing = await run(async () => [{ sahne: STAGE, satir: 5, karar: "dogru" }]);
+    assert.equal(passing.karar!.yeniden.length, 1);
+    const unread = await run(async () => undefined);
+    assert.equal(unread.karar!.yeniden.length, 1, "an unreadable check drops nothing");
+    assert.deepEqual(droppedRewrites([{ sahne: "a", satir: 1, eski: "x", metin: "y" }], [{ sahne: "a", satir: 1, karar: "tartismali" }]).map((d) => d.gerekce), ["tartismali"]);
   });
 
   await scenario("F AYAS is not asked when the cut passes, no round is left, or nothing is fixable; bad fixes are dropped", async () => {

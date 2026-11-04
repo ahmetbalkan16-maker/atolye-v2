@@ -6,7 +6,7 @@ import { addToldCrowds, crowdProblems } from "./CrowdRules";
 import { normalizeDraft } from "./DraftNormalizer";
 import { directBattleMaps, livenStillMaps, mapProblems, shareProblems, SHORT_SHARES_FROM_S } from "./MapRules";
 import { isLongForm, writeLongScript } from "./LongForm";
-import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
+import { factCheckPrompt, lengthPrompt, repairPrompt, type ScriptBrief, type ScriptLanguage, type SourceBank, wordBudget, writingPrompt } from "./ScriptPrompts";
 import type { V3Budget, V3ModelChoice } from "./V3Budget";
 
 /**
@@ -197,6 +197,15 @@ function readFactCheck(text: string): { iddialar: FactClaim[]; genel_not?: strin
     }];
   });
   return { iddialar, ...(typeof v.genel_not === "string" && v.genel_not.trim() ? { genel_not: v.genel_not.trim() } : {}) };
+}
+
+/**
+ * The editor's fact check of an episode against the source bank, as the script step runs it — the claims, or undefined
+ * when its answer could not be read. (The director council checks its rewritten lines with it.)
+ */
+export async function checkFacts(episode: Episode, dil: ScriptLanguage, bank: SourceBank | undefined, budget: V3Budget, checker: V3ModelChoice): Promise<FactClaim[] | undefined> {
+  const out = await budget.generate("dogrulama-rotus", checker, factCheckPrompt(JSON.stringify(episode), dil, bank), { maxTokens: FACT_CHECK_MAX_TOKENS });
+  return readFactCheck(out.result.content)?.iddialar;
 }
 
 /**

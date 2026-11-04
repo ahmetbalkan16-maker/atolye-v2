@@ -71,7 +71,7 @@ import type { V3Background, V3RenderPlan } from "../src/lib/v3/render/RenderPlan
 import { remotionDeps, renderInChunks } from "../src/lib/v3/render/ChunkedRender";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { PREVIEW_SCALE } from "../src/lib/v3/render/RemotionRunner";
-import { dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
+import { checkFacts, dialogueSceneRatio, ScriptError, writeScript } from "../src/lib/v3/script/ScriptEngine";
 import type { ScriptBrief, ScriptLanguage, SourceBank } from "../src/lib/v3/script/ScriptPrompts";
 import { researchTopic, resolveTopic, type TopicResolution } from "../src/lib/v3/research/SourceResearch";
 import { episodeSummary, loadSeries, recordEpisode, seriesBrief } from "../src/lib/v3/script/Series";
@@ -1342,6 +1342,8 @@ async function main() {
           lessons: async (b) => (await recall(paths.workRoot, b, { konu: `${episode.konu} ${episode.donem}`, limit: 4 }).catch(() => [])).map((l) => l.metin),
           earlier,
           check: (e) => void assertEpisode(e),
+          // Rewritten lines pass the script's own fact check against the source bank (a flagged one keeps its old text).
+          factCheck: async (e) => checkFacts(e, dil, existsSync(f("kaynak-bankasi.json")) ? await readJson<SourceBank>(f("kaynak-bankasi.json")) : undefined, models.budget, models.critic),
           log,
         });
       } catch (e) {
