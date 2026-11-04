@@ -31,9 +31,9 @@ function baseInput(overrides: Partial<Omit<AyasMicroItem, "schemaVersion" | "mic
 scenario("create persists a DISCOVERED item and load returns it", () => {
   const store = createAyasMicroItemStore({ rootDir: root() });
   const item = store.create(baseInput());
-  assert.equal(item.state, "DISCOVERED");
+  assert.equal(item.state, "DISCOVERED", "assert.equal(item.state, \"DISCOVERED\")");
   const loaded = store.load(item.microItemId);
-  assert.deepEqual(loaded, item);
+  assert.deepEqual(loaded, item, "assert.deepEqual(loaded, item)");
 });
 
 scenario("load throws AYAS_MICRO_ITEM_NOT_FOUND for an unknown id", () => {
@@ -45,7 +45,7 @@ scenario("list returns every created item", () => {
   const store = createAyasMicroItemStore({ rootDir: root() });
   store.create(baseInput({ semanticKey: "a" }));
   store.create(baseInput({ semanticKey: "b" }));
-  assert.equal(store.list().length, 2);
+  assert.equal(store.list().length, 2, "assert.equal(store.list().length, 2)");
 });
 
 scenario("findBySemanticKey finds items regardless of state, dedup lookup", () => {
@@ -53,20 +53,20 @@ scenario("findBySemanticKey finds items regardless of state, dedup lookup", () =
   const item = store.create(baseInput({ semanticKey: "target-key" }));
   store.create(baseInput({ semanticKey: "other-key" }));
   const hits = store.findBySemanticKey("target-key");
-  assert.equal(hits.length, 1);
-  assert.equal(hits[0]!.microItemId, item.microItemId);
+  assert.equal(hits.length, 1, "assert.equal(hits.length, 1)");
+  assert.equal(hits[0]!.microItemId, item.microItemId, "assert.equal(hits[0]!.microItemId, item.microItemId)");
 });
 
 scenario("valid transition DISCOVERED -> SANDBOX_VALIDATED -> BATCHED -> EXECUTED succeeds at each step", () => {
   const store = createAyasMicroItemStore({ rootDir: root() });
   const item = store.create(baseInput());
   const v = store.transition(item.microItemId, "SANDBOX_VALIDATED", "2026-09-16T00:01:00.000Z");
-  assert.equal(v.state, "SANDBOX_VALIDATED");
+  assert.equal(v.state, "SANDBOX_VALIDATED", "assert.equal(v.state, \"SANDBOX_VALIDATED\")");
   const b = store.transition(item.microItemId, "BATCHED", "2026-09-16T00:02:00.000Z", { batchId: "ayas-micro-batch-fixture" });
-  assert.equal(b.state, "BATCHED");
-  assert.equal(b.batchId, "ayas-micro-batch-fixture");
+  assert.equal(b.state, "BATCHED", "assert.equal(b.state, \"BATCHED\")");
+  assert.equal(b.batchId, "ayas-micro-batch-fixture", "assert.equal(b.batchId, \"ayas-micro-batch-fixture\")");
   const e = store.transition(item.microItemId, "EXECUTED", "2026-09-16T00:03:00.000Z");
-  assert.equal(e.state, "EXECUTED");
+  assert.equal(e.state, "EXECUTED", "assert.equal(e.state, \"EXECUTED\")");
 });
 
 scenario("an invalid transition (DISCOVERED -> BATCHED, skipping SANDBOX_VALIDATED) is refused", () => {
@@ -100,7 +100,7 @@ scenario("two items with different semanticKey are independent — no dedup coll
   const a = store.create(baseInput({ semanticKey: "a" }));
   const b = store.create(baseInput({ semanticKey: "b" }));
   assert.notEqual(a.microItemId, b.microItemId);
-  assert.equal(store.list().length, 2);
+  assert.equal(store.list().length, 2, "assert.equal(store.list().length, 2)");
 });
 
 scenario("a fresh store reading the same rootDir sees items created by an earlier store instance — cross-restart durability", () => {
@@ -108,7 +108,7 @@ scenario("a fresh store reading the same rootDir sees items created by an earlie
   const store1 = createAyasMicroItemStore({ rootDir: dir });
   const item = store1.create(baseInput());
   const store2 = createAyasMicroItemStore({ rootDir: dir });
-  assert.deepEqual(store2.load(item.microItemId), item);
+  assert.deepEqual(store2.load(item.microItemId), item, "assert.deepEqual(store2.load(item.microItemId), item)");
 });
 
 console.log(`AYAS micro item smoke: PASS (${count} scenarios)`);
