@@ -1,3 +1,48 @@
+## 3–4 Kasım 2026 — Geliştirici beyni kodu öğrenir; Zanzibar Short'u AYAS'a verildi; portre/konu/sınır düzeltmeleri; onaylı 3 iş yapıldı
+
+**Owner (3 Kas akşam):** "kod yazan beyin senin kod değişikliğini deneyim olarak kaydetti mi, nereye ne kod değişikliği
+yaptığını öğrensin, ilerde Claude yokken kendisi kod yazabilmeli; en çok izlenme potansiyeli bir Shorts konusu seç, AYAS'a
+ver, izle, gerekli beyinlere deneyim kazandığından emin ol" + "internetten geniş arama yapılabilir… yüzleri kıyafetleri
+çıkartılabilir". **4 Kas sabah:** "dün akşam elektrik kesildi, video yarım kaldı, ne durumda bak, göreve devam et".
+
+- **Geliştirici beyni kodu öğrenir (c1a88eef):** `_kutuphane/gelisim/gelistirici/kod.jsonl` — her V3 değişikliği için dosya →
+  dokunulan üst düzey bildirimler (fonksiyon/sabit/tip, JSON anahtarı), eklenen kodun kısa örneği, smoke testleri ve modelin
+  yazdığı "nasıl yapıldı" tarifi. Sınav fonksiyon düzeyinde de notlanır ("değişen fonksiyonları bulma %"); tahmin istemi aday
+  dosyaların bildirimlerini ve benzer değişikliklerin kodunu görür; akşam Claude'un işi `gelistirme/<id>` dalından okunur;
+  araştırma notu (Claude'un paketi) benzer değişikliklerin kodunu taşır. `gelistirici.ts kod --id <sha>`, `ogren --tarif <n>`.
+  İlk geçiş: 161 değişikliğin kodu, 20 tarif; 1b13b2de öğrenildi. Bugün c6f4a83a + 5eee7092 de (6 tarif daha). Sonraki basamak
+  (yapılmadı): beyin bir commit sınavında yamayı kendi yazsın, smoke testleriyle notlansın.
+- **Zanzibar Short'u (sipariş 20261103T162939, kaynak ayas):** "Anglo-Zanzibar Savaşı — tarihin en kısa savaşı (38 dk)".
+  Elektrik kesilmeden bitmişti: 21:12'de UYARIYLA teslim, 51,7 sn dikey, $0,39, tur 0 (Halid 8/10, Rawson 7/10, kurul 7/10;
+  tur 1 iyileşmediği için durdu). Bütün beyinler deneyim kazandı (kurgu 128→137, kostüm 32→38, kalite 54→58, ortam 70→72; ses,
+  onarım, araştırma, mizah, şef +1); boş döngü konuyla ilgili videoları da inceledi. Benim kare incelemem: konu 300 karakterde
+  kesilmişti ("…made to pa") → en iyi final (mermilerin faturası) yazara ulaşmadı; Mathews'un portresi bulunamadı (tariften
+  çizildi); saray "open fire"dan önce yanıyordu, yat pencerenin dışında ve "Sunk"tan 3 sn önce battı; dikey pencerede
+  kesik rozetler, "HOUSE OF WONDERS" Halid'in parşömeninin altında. Yüklenmeye değer değil.
+- **c6f4a83a:** (1) Portre Wikipedia'nın kendi dosyalarından da gelir — `CommonsProvider.wikiFilesByTitles` (önce Commons, sonra
+  `imagerepository=local`, aynı lisans denetimi; gerçek "Fair use" afişi reddedildi); Mathews'un PD-US portresi artık ilk aday.
+  Owner'ın "Google'dan görüntü" önerisine cevap: lisanssız arama görselleri kullanılmaz; serbest lisanslı kaynaklar genişletildi.
+  (2) `placeOrder` konuyu kesmez: `MAX_ORDER_TOPIC` 600, aşan `V3_ORDER_TOPIC_TOO_LONG`. (3) Akşam geliştiricisi dün owner'ın
+  21:01'de onayladığı 3 işi "You've hit your session limit" ile düşürüp deneme hakkı yakmıştı (aynı hesabı bu oturum
+  kullanıyordu): `DevQueue.usageLimitUntil` sıfırlanma saatini okur, iş deneme sayılmadan `onaylandi` + `bekle` ile döner,
+  akşam döngüsü ilk sınırda durur.
+- **5eee7092 — onaylı 3 iş elle (kurgu-15, kalite-33, kalite-34; `kapat` ile kapatıldı):** harita olayları anlatan kelimede
+  (`MapBuilder.TOLD_WORDS`/`toldAt`, `Director.toldWordAt`: ateş "fire"da, yangın "hit"te ve mermiler düşmeden asla, ilk kayıp
+  "Sunk"ta; satırında yoksa en yakın satır); dikey pencere ilk batışı ve yangınları izler; rozet kadrajda bütün kalır
+  (`hudLayout.badgeEdgeFit`: yeri görünürken içeri kayar, yeri çıkınca söner); kenarın kestiği yer adları söner;
+  `CloseLabels.badgeBox` gerçek parşömen boyutu; konuşan rozetin altındaki ad söner. `harita-onizleme.ts` bölüm klasörünün
+  ses.json + senkron.json'u ile gerçek zamanlamayla önizler. Zanzibar önizlemesinde önce/sonra doğrulandı.
+
+**Doğrulama:** tüm smoke-v3 (16 paket; episode-director 58 yeni W3, self-improvement 10, backgrounds 21) + ayas-video-order 9 +
+action-firewall-closure 13 + development-center 64 + homepage-v2 13 PASS; tsc 0 (kök + remotion-v3); lint 0 hata / 13 eski uyarı.
+
+**Canlı:** 5eee7092 `origin/wip/ayas-graphify-final-execution`'a ileri sarıldı, canonical pull, Graphify 5eee7092 için CURRENT
+(yapısal + semantic, tamamlayıcı 15/15). Sipariş izleyicisini yeniden başlatma (taskkill) otomatik modda reddedildi — gerekli
+değil (üretim diskteki yeni kodla ayrı süreçte koşar; izleyicide yalnız kuyruk kontrolü eskidir), owner isterse yeniden başlatır.
+
+**Açık:** Zanzibar Short'unun yeniden yapımı `20261104T042227` (tam konu, Mathews portresi, düzeltmelerle) üretimde — sonucu
+ve kare incelemesi bir sonraki kayıtta.
+
 ## 3 Kasım 2026 (akşam, 5) — Short'lar ~%70 haritada (DFT Tarih Shorts incelemesi); dikey pencere haritadaki olayı izler; buton taraması kalıcı skill
 
 **Owner:** "videoyu elle yükledim, kanal adını İngilizce yaptım; diğer öneriyi kalıcı skill olarak entegre et; önceki
