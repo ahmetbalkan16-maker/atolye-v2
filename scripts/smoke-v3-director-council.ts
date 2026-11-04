@@ -30,6 +30,7 @@ import {
   parseReply,
   parseRewrites,
   droppedRewrites,
+  newFacts,
   rewritePrompt,
   sessionDebate,
 } from "../src/lib/v3/council/DirectorCouncil";
@@ -221,7 +222,7 @@ async function main() {
       new CouncilModel({
         critic: () => critic(5, [{ sahne: STAGE, satir: 5, sorun: "bağlam yok", oneri: "bağlam ekle", eylem: "satir" }]),
         director: JSON.stringify({ ozet: "x", duzeltmeler: [{ tur: "satir", sahne: STAGE, satir: 5, talimat: "Add why", neden: "araştırma" }, { tur: "oyun", sahne: STAGE, satir: 0, oyun: [{ karakter: "legionary", jest: "omuz_silk" }], neden: "kalite" }] }),
-        rewrite: JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "After Sultan Hamoud died, right behind you!" }] }),
+        rewrite: JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "Right behind you, sir! Probably." }] }),
       });
     const logged: string[] = [];
     const checked: string[] = [];
@@ -231,7 +232,7 @@ async function main() {
       checked.push(e.sahneler[1]!.satirlar[5]!.metin);
       return [{ sahne: STAGE, satir: 5, karar: "yanlis", gerekce: "Hamad died; Hamoud succeeded him" }, { sahne: STAGE, satir: 1, karar: "yanlis", gerekce: "an old line" }];
     });
-    assert.deepEqual(checked, ["After Sultan Hamoud died, right behind you!"], "the check sees the episode the rewrites make");
+    assert.deepEqual(checked, ["Right behind you, sir! Probably."], "the check sees the episode the rewrites make");
     assert.deepEqual([flagged.karar!.yeniden.length, flagged.karar!.duzeltmeler.map((d) => d.tur)], [0, ["oyun"]]);
     assert.ok(logged.some((l) => /doğrulamadan geçmedi.*Hamad died/.test(l)));
     const passing = await run(async () => [{ sahne: STAGE, satir: 5, karar: "dogru" }]);
@@ -239,6 +240,13 @@ async function main() {
     const unread = await run(async () => undefined);
     assert.equal(unread.karar!.yeniden.length, 1, "an unreadable check drops nothing");
     assert.deepEqual(droppedRewrites([{ sahne: "a", satir: 1, eski: "x", metin: "y" }], [{ sahne: "a", satir: 1, karar: "tartismali" }]).map((d) => d.gerekce), ["tartismali"]);
+    // The check that needs no model: a rewrite brings no number, month or unknown name of its own (the fact check let
+    // "At exactly 9:00 AM, August 27, Rawson delivered his ultimatum" through — it was delivered on the 26th).
+    assert.deepEqual(newFacts(episode, "Leave by 9:00, or face the Navy.", "At exactly 9:00, August 27, we deliver it: leave or face the Navy."), ["August", "27"]);
+    assert.deepEqual(newFacts(episode, "The old ruler died suddenly.", "After Sultan Hamad died, Caesar took the palace."), ["Sultan", "Hamad"], "Caesar is in the cast; a title and a name the episode never says");
+    assert.deepEqual(newFacts(episode, "Right behind you, sir! Mostly.", "Right behind you, Caesar! Well... mostly."), [], "a known name, no number");
+    assert.deepEqual(newFacts(episode, "January, 49 BC. Night.", "Night in January, 49 BC."), [], "the old line's own date may move");
+    assert.equal(parseRewrites(episode, edit, JSON.stringify({ satirlar: [{ sahne: STAGE, satir: 5, metin: "Right behind you, sir! Since 49 BC." }] })).length, 0, "a rewrite with a new number is not used");
   });
 
   await scenario("F AYAS is not asked when the cut passes, no round is left, or nothing is fixable; bad fixes are dropped", async () => {

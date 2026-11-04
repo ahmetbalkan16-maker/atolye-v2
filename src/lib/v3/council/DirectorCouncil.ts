@@ -352,6 +352,41 @@ export function bubbleFor(metin: string, offered: string): string {
   return cut.length <= 8 ? last.trim() : `${cut.slice(0, 8).join(" ").replace(/[,;:]$/, "")}…`;
 }
 
+const MONTHS =
+  /^(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık)$/iu;
+const SENTENCE_STARTERS = new Set(["the", "a", "an", "at", "on", "in", "but", "and", "after", "before", "well", "so", "then", "now", "yes", "no", "oh", "please", "even", "right", "who", "what", "why", "how", "is", "it", "i", "we", "you", "they", "he", "she", "this", "that", "history", "bu", "ve", "ama", "sonra", "önce"]);
+
+/**
+ * What a rewritten line says that the old one did not and the episode nowhere does: numbers, months, and names
+ * (capitalised words) — the writer's new facts. The rewrite prompt forbids them and the fact check missed some: the
+ * Zanzibar remake's rounds wrote "After Sultan Hamoud died on August 25…" and "At exactly 9:00 AM, August 27, Rawson
+ * delivered his ultimatum" (it was delivered on the 26th, ran out at 9:00 on the 27th). Empty: nothing new.
+ */
+export function newFacts(episode: Episode, oldLine: string, newLine: string): string[] {
+  const norm = (s: string) => s.toLocaleLowerCase("en-US").replace(/[’']s$/u, "");
+  const tokens = (s: string) => s.split(/[^\p{L}\p{N}:’']+/u).filter(Boolean);
+  const old = new Set(tokens(oldLine).map(norm));
+  const known = new Set([
+    ...old,
+    ...episode.sahneler.flatMap((sc) => sc.satirlar.flatMap((l) => tokens(l.metin).map(norm))),
+    ...episode.oyuncu_kadrosu.flatMap((c) => tokens(`${c.ad} ${c.id}`).map(norm)),
+    ...tokens(`${episode.baslik} ${episode.konu} ${episode.donem}`).map(norm),
+  ]);
+  const out: string[] = [];
+  // A sentence's first word is capitalised anyway ("Forward, Thirteenth! Into history!"): only later ones may be names.
+  const sentenceStart = new Set(newLine.split(/(?<=[.!?…])\s+/u).map((s) => norm(tokens(s)[0] ?? "")));
+  for (const [i, t] of tokens(newLine).entries()) {
+    const n = norm(t);
+    const isNumber = /\d/.test(t);
+    const isMonth = MONTHS.test(t);
+    const isName = /^\p{Lu}/u.test(t) && !SENTENCE_STARTERS.has(n) && i > 0 && !sentenceStart.has(n);
+    // Numbers and months must be in the old line itself (a date moved from elsewhere is still a new claim here).
+    if ((isNumber || isMonth) && !old.has(n)) out.push(t);
+    else if (isName && !known.has(n)) out.push(t);
+  }
+  return [...new Set(out)];
+}
+
 /** The writer's rewrites that can be used: an ordered line, a new non-empty text of a sane length; a bubble only where one was. */
 export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], text: string, opts: { readonly short?: boolean } = {}): LineRewrite[] {
   const asked = new Set(edits.flatMap((e) => (e.tur === "satir" ? [lineKey(e.sahne, e.satir)] : [])));
@@ -366,6 +401,8 @@ export function parseRewrites(episode: Episode, edits: readonly DirectorEdit[], 
     const metin = (line.metin.includes("(") ? clip(r.metin, 240) : clip(r.metin, 240).replace(/\s*\([^)]*\)\s*/g, " ").trim());
     const longest = opts.short ? Math.max(line.metin.length * SHORT_REWRITE_GROWTH, line.metin.length + SHORT_REWRITE_SLACK) : Math.max(line.metin.length * 1.8, line.metin.length + 80);
     if (!metin || metin === line.metin || metin.length > longest || metin.length < Math.min(12, line.metin.length)) continue;
+    // No new numbers, dates or names (the writer's facts are not checked against the sources line by line).
+    if (newFacts(episode, line.metin, metin).length) continue;
     const balon = line.balon ? bubbleFor(metin, clip(r.balon, 70)) : "";
     out.set(key, { sahne: sc.id, satir: Number(r.satir), eski: line.metin, metin, ...(balon ? { balon } : {}) });
   }
