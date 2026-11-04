@@ -10,7 +10,7 @@ import { episodeSummary, loadSeries, recordEpisode, seriesBrief, seriesLabel, se
 import { productionCommand } from "../src/lib/v3/orders/ProductionOrders";
 import { topicPrompt } from "../src/lib/v3/research/SourceResearch";
 import { applyParts, rowCells, STILL_ROW_MAX } from "../src/lib/v3/costumes/PartDesigner";
-import { namesPerson, portraitFaceProblem, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
+import { LEAD_MIN_HEIGHT, namesPerson, portraitFaceProblem, traditionalPortrait } from "../src/lib/v3/faces/PortraitFaces";
 import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
@@ -1208,6 +1208,12 @@ async function main() {
     assert.equal(namesPerson(pic("Painting of Mir Ali Murad Khan Talpur of Khairpur.jpg"), murad), false, "a namesake without the number");
     assert.equal(namesPerson(pic("Gentile Bellini - Sultan Mehmet II.jpg"), { ad: "Mehmed II", wiki: "Mehmed II" }), true, "Mehmet/Mehmed");
     assert.equal(namesPerson(pic("Ataturk1930s.jpg"), { ad: "Mustafa Kemal Atatürk", wiki: "Mustafa Kemal Atatürk" }), true, "a photograph names him too");
+    // The realm after "of" names no one (Zanzibar remake, 4 Nov 2026: Zanzibar's stamps came up as Hamoud's pictures).
+    const hamoud = { ad: "Hamoud bin Mohammed", wiki: "Hamoud bin Mohammed of Zanzibar" };
+    assert.equal(namesPerson(pic("1899ca 5a Zanzibar Yv62 Mi60 SG197 bistre.jpg"), hamoud), false);
+    assert.equal(namesPerson(pic("Hamoud bin mhamed (cropped).jpg"), hamoud), true);
+    assert.equal(namesPerson(pic("Joan of Arc miniature graded.jpg"), { ad: "Joan of Arc", wiki: "Joan of Arc" }), true, "the name before 'of' still counts");
+    assert.equal(LEAD_MIN_HEIGHT <= 248, true, "Wikipedia's 192×248 crop of Hamoud's face is kept");
   });
 
   await scenario("O25 Kosovo 1389 maps: two fronts on one line are pushed apart, badges resting on one spot move aside, an inland close map asks no coast, a later atlas year is flagged", () => {

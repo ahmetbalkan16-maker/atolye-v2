@@ -41,6 +41,13 @@ export async function leadImage(cacheDir: string, article: string, lang = "en"):
   return name ? `File:${name}` : undefined;
 }
 
+/**
+ * The article's lead image may be smaller than a found picture (400 px): Wikipedia's own crop of the person's face is
+ * often a few hundred pixels — Hamoud bin Mohammed's, 192×248, was thrown away in the Zanzibar remake (4 Nov 2026) and he
+ * was drawn from a description. A cartoon needs the face's features, not its detail.
+ */
+export const LEAD_MIN_HEIGHT = 200;
+
 /** How many portraits the vision judge looks at per person. */
 export const MAX_PORTRAIT_CANDIDATES = 8;
 
@@ -58,7 +65,9 @@ const NOT_A_NAME = new Set(["the", "great", "king", "queen", "sultan", "emperor"
  */
 export function namesPerson(c: Pick<CommonsCandidate, "title" | "description">, p: Pick<PortraitPerson, "ad" | "wiki">): boolean {
   const words = (s: string) => plain(s).split(/[^a-z]+/).filter(Boolean);
-  const all = [...new Set([...words(p.wiki.replace(/\(.*?\)/g, "")), ...words(p.ad)])].filter((w) => !NOT_A_NAME.has(w) && !ROMAN.test(w));
+  // "Hamoud bin Mohammed of Zanzibar": the realm after "of" names no one (Zanzibar's stamps came up as his pictures).
+  const realm = (s: string) => s.replace(/\(.*?\)/g, "").replace(/\s+of\s+.*$/i, "");
+  const all = [...new Set([...words(realm(p.wiki)), ...words(realm(p.ad))])].filter((w) => !NOT_A_NAME.has(w) && !ROMAN.test(w));
   const names = all.filter((w) => w.length >= 4).length ? all.filter((w) => w.length >= 4) : all.filter((w) => w.length >= 3);
   const said = words(`${c.title.replace(/^File:/, "").replace(/\.\w+$/, "")} ${c.description.slice(0, 200)}`);
   const isName = (w: string) => names.some((n) => w.startsWith(n.slice(0, 4)) || (w.length >= 4 && n.startsWith(w)));
@@ -86,8 +95,8 @@ export async function portraitCandidates(cacheDir: string, p: PortraitPerson): P
     search(`${p.wiki} painting`),
     search(`${p.wiki} photograph`),
   ]);
-  const usable = (c: CommonsCandidate) => c.width === 0 || c.height >= 400;
-  const out = first.filter(usable).slice(0, 1);
+  const usable = (c: CommonsCandidate, min = 400) => c.width === 0 || c.height >= min;
+  const out = first.filter((c) => usable(c, LEAD_MIN_HEIGHT)).slice(0, 1);
   const seen = new Set(out.map((c) => c.url));
   const queues = [article, portraits, paintings, photographs].map((q) => q.filter((c) => usable(c) && namesPerson(c, p)));
   while (out.length < MAX_PORTRAIT_CANDIDATES && queues.some((q) => q.length)) {
