@@ -9,7 +9,7 @@ import { along, pathLength, smoothPoints } from "./mapGeometry";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
-import { badgeEdgeFit, badgeExtent, hudBoxes } from "./hudLayout";
+import { badgeEdgeFits, badgeExtent, hudBoxes } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { yer } from "./LayoutProbe";
 
@@ -356,16 +356,19 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
   };
   // Each badge where it stands this frame: on its route, swelling while it talks, slid whole into the frame from an
   // edge while its place is in view, fading as its place leaves (a Short's window shows a third of the map).
-  const badgePlaces = (map.badges ?? []).map((b) => {
+  const badgeBase = (map.badges ?? []).map((b) => {
     const { at, progress } = badgeAt(map, b, frame, fps, H, duration);
     const swell = talkSwell(b, frame);
     const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } }) * swell;
     const ext = badgeExtent(b.label, relief);
-    const size = { half: ext.half * k * pop, up: ext.up * k * pop };
-    const fit = badgeEdgeFit(at, size, shownWorld, 14 * k, 60 * k);
-    const placed = { x: at.x + fit.dx, y: at.y + fit.dy };
-    const alpha = visible(b.start, b.end) * fit.alpha;
-    return { at, progress, swell, pop, fit, placed, alpha, box: { x0: placed.x - size.half, x1: placed.x + size.half, y0: placed.y - size.up, y1: placed.y + 6 * k } };
+    return { at, progress, swell, pop, size: { half: ext.half * k * pop, up: ext.up * k * pop }, shown: visible(b.start, b.end), priority: swell > 1.01 ? 1 : 0 };
+  });
+  // Together, so one slid in from an edge never lands on another (badgeEdgeFits).
+  const badgeFits = badgeEdgeFits(badgeBase, shownWorld, 14 * k, 60 * k);
+  const badgePlaces = badgeBase.map((p, i) => {
+    const fit = badgeFits[i]!;
+    const placed = { x: p.at.x + fit.dx, y: p.at.y + fit.dy };
+    return { ...p, fit, placed, alpha: p.shown * fit.alpha, box: { x0: placed.x - p.size.half, x1: placed.x + p.size.half, y0: placed.y - p.size.up, y1: placed.y + 6 * k } };
   });
   // A place's name under a badge gives way while the badge is there (Zanzibar Short, 3 Nov 2026: "HOUSE OF WONDERS"
   // lay under the scroll of "Sultan Khalid bin Barghash", where no other place was free): the speaker is the moment's

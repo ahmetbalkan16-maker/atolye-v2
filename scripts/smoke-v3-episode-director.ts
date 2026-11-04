@@ -36,7 +36,7 @@ import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
 import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
-import { badgeEdgeFit, badgeExtent, barTop, hudBoxes } from "../remotion-v3/src/scene/hudLayout";
+import { badgeEdgeFit, badgeEdgeFits, badgeExtent, barTop, hudBoxes } from "../remotion-v3/src/scene/hudLayout";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -2052,6 +2052,28 @@ async function main() {
     assert.equal(badgeEdgeFit({ x: 900, y: 60 }, size, view, 14, 60).dy, 85, "pushed down from the top");
     assert.equal(badgeEdgeFit({ x: 900, y: 500 }, { half: 400, up: 131 }, view, 14, 60).dx, 0, "wider than the view: centred");
     assert.deepEqual(badgeExtent("Sultan Khalid bin Barghash", true), { half: 178.5, up: 131 });
+    // Together (the remake, 4 Nov 2026): Rawson's badge cut by the left edge must not slide onto Khalid's beside it —
+    // it stays and fades as the edge cuts in; a badge with room still slides.
+    const pair = badgeEdgeFits(
+      [
+        { at: { x: 660, y: 500 }, size, shown: 1 },
+        { at: { x: 1000, y: 500 }, size, shown: 1 },
+      ],
+      view,
+      14,
+      60,
+    );
+    assert.deepEqual([pair[0]!.dx, pair[0]!.alpha], [0, 0], "120 of its 360 px cut: gone, not slid onto Khalid");
+    assert.deepEqual(pair[1], { dx: 0, dy: 0, alpha: 1 }, "Khalid, whole inside, untouched");
+    const alone = badgeEdgeFits([{ at: { x: 660, y: 500 }, size, shown: 1 }, { at: { x: 1000, y: 500 }, size, shown: 0 }], view, 14, 60);
+    assert.equal(alone[0]!.dx, 134, "the other not on the map yet: it slides in");
+    const slight = badgeEdgeFits([{ at: { x: 760, y: 500 }, size, shown: 1 }, { at: { x: 1000, y: 500 }, size, shown: 1 }], view, 14, 60);
+    assert.ok(slight[0]!.dx === 0 && slight[0]!.alpha < 0.5 && slight[1]!.alpha === 1, "20 px cut beside a whole one: mostly gone — one whole badge, not two half ones");
+    // Both cut (the window between them): the less cut one comes in whole, the other goes; the speaker comes first.
+    const both = badgeEdgeFits([{ at: { x: 640, y: 500 }, size, shown: 1 }, { at: { x: 1100, y: 500 }, size, shown: 1 }], view, 14, 60);
+    assert.deepEqual([both[1]!.dx, both[1]!.alpha, both[0]!.alpha], [-94, 1, 0]);
+    const talking = badgeEdgeFits([{ at: { x: 640, y: 500 }, size, shown: 1, priority: 1 }, { at: { x: 1100, y: 500 }, size, shown: 1 }], view, 14, 60);
+    assert.deepEqual([talking[0]!.dx, talking[0]!.alpha, talking[1]!.alpha], [154, 1, 0]);
 
     // The close map keeps names off a badge's real scroll: "Sultan Khalid bin Barghash" is ~360 px wide, not 150.
     const box = badgeBox("Sultan Khalid bin Barghash", true);

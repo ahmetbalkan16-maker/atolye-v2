@@ -61,3 +61,41 @@ export function badgeEdgeFit(
   const dy = at.y - size.up < view.y0 + margin ? view.y0 + margin - (at.y - size.up) : 0;
   return { dx, dy, alpha };
 }
+
+type Box = { x0: number; y0: number; x1: number; y1: number };
+const boxOf = (at: { x: number; y: number }, size: { half: number; up: number }, d = { dx: 0, dy: 0 }): Box => ({ x0: at.x + d.dx - size.half, x1: at.x + d.dx + size.half, y0: at.y + d.dy - size.up, y1: at.y + d.dy });
+const meets = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+/**
+ * All the badges on a map frame at once (badgeEdgeFit each), so a badge slid in from the edge never lands on another:
+ * the Zanzibar remake (4 Nov 2026) slid Rawson's scroll, cut by the window's left edge, onto Khalid's beside it —
+ * spaceBadges had set them apart, wider than a Short's window. Badges are settled in turn — the one speaking
+ * (`priority`) first, then the least cut — and each keeps its slide unless it would land on one already settled; then
+ * it stays and is gone as soon as the edge cuts into it (a tenth). Two half-cut, half-faded badges read worse than
+ * one whole. `shown`: each badge's own visibility now (0 = not on the map).
+ */
+export function badgeEdgeFits(
+  badges: readonly { readonly at: { x: number; y: number }; readonly size: { half: number; up: number }; readonly shown: number; readonly priority?: number }[],
+  view: Box,
+  margin: number,
+  fade: number,
+): { dx: number; dy: number; alpha: number }[] {
+  const first = badges.map((b) => badgeEdgeFit(b.at, b.size, view, margin, fade));
+  const cutOf = (i: number) => {
+    const own = boxOf(badges[i]!.at, badges[i]!.size);
+    return Math.max(0, view.x0 - own.x0, own.x1 - view.x1, view.y0 - own.y0) / Math.max(1e-6, 2 * badges[i]!.size.half);
+  };
+  const order = badges.map((_, i) => i).sort((a, b) => (badges[b]!.priority ?? 0) - (badges[a]!.priority ?? 0) || cutOf(a) - cutOf(b) || a - b);
+  const settled: Box[] = [];
+  const out: { dx: number; dy: number; alpha: number }[] = badges.map(() => ({ dx: 0, dy: 0, alpha: 0 }));
+  for (const i of order) {
+    const b = badges[i]!;
+    const f = first[i]!;
+    const slid = boxOf(b.at, b.size, f);
+    const fits = (!f.dx && !f.dy) || !settled.some((s) => meets(slid, s));
+    const r = fits ? f : { dx: 0, dy: 0, alpha: f.alpha * Math.max(0, 1 - cutOf(i) * 10) };
+    out[i] = r;
+    if (b.shown > 0 && r.alpha > 0) settled.push(boxOf(b.at, b.size, r));
+  }
+  return out;
+}
