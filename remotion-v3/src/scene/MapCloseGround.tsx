@@ -266,9 +266,34 @@ function RoadName({ text, k }: { text: string; k: number }) {
  * The close map's ground features, between the coloured states and the cities, tokens and ships. `k`: world px per
  * 1080p screen px at this frame, for the names' places (placeCloseLabels' spots: an anchor plus a screen offset).
  */
-export function CloseGround({ close, frame, fps, era, label, k }: { close: Close; frame: number; fps: number; era: V3GeoMap["era"]; label: Label; k: number }) {
+export function CloseGround({
+  close,
+  frame,
+  fps,
+  era,
+  label,
+  k,
+  nameShown,
+}: {
+  close: Close;
+  frame: number;
+  fps: number;
+  era: V3GeoMap["era"];
+  label: Label;
+  k: number;
+  /** How much of a name shows (1 = all) at its centre: a speaking badge over it makes it give way (MapView). */
+  nameShown?: (text: string, size: number, cx: number, cy: number) => number;
+}) {
   const u = close.unit;
-  const at = (spot: Spot, x: number, y: number) => (spot ? `translate(${spot.x + spot.dx * k} ${spot.y + spot.dy * k})` : `translate(${x} ${y})`);
+  const xy = (spot: Spot, x: number, y: number) => (spot ? { x: spot.x + spot.dx * k, y: spot.y + spot.dy * k } : { x, y });
+  const at = (spot: Spot, x: number, y: number) => {
+    const p = xy(spot, x, y);
+    return `translate(${p.x} ${p.y})`;
+  };
+  const shown = (text: string, size: number, spot: Spot, x: number, y: number) => {
+    const p = xy(spot, x, y);
+    return nameShown ? nameShown(text, size, p.x, p.y) : 1;
+  };
   return (
     <g>
       {close.ground.map((g, i) => (g.kind === "orman" ? <Woods key={`g${i}`} {...g} u={u} /> : g.kind === "tarla" ? <Fields key={`g${i}`} {...g} u={u} /> : <Hill key={`g${i}`} {...g} u={u} />))}
@@ -299,7 +324,7 @@ export function CloseGround({ close, frame, fps, era, label, k }: { close: Close
             {burning(s, frame, fps).map(({ it, grow }) => (
               <Flames key={`f${it.seed}`} x={it.x} y={it.y} u={u} frame={frame} seed={it.seed} grow={grow} />
             ))}
-            {s.label ? <g transform={at(s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g> : null}
+            {s.label ? <g transform={at(s.labelSpot, s.x, s.y)} opacity={shown(s.label, 30, s.labelSpot, s.x, s.y)}>{label(s.label, 30)}</g> : null}
           </g>
         );
       })}
@@ -347,7 +372,14 @@ export function CloseGround({ close, frame, fps, era, label, k }: { close: Close
                 <Burst x={w.breach!.x} y={w.breach!.y} r={u * 2.2} p={(frame - w.breach!.start) / (fps * 1.6)} era={era} seed={wi + 77} />
               </g>
             ) : null}
-            {w.label ? <g transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${wallLabelAt(w, close.settlements, u).x} ${wallLabelAt(w, close.settlements, u).y})`}>{label(w.label, 26)}</g> : null}
+            {w.label ? (
+              <g
+                transform={w.labelSpot ? at(w.labelSpot, 0, 0) : `translate(${wallLabelAt(w, close.settlements, u).x} ${wallLabelAt(w, close.settlements, u).y})`}
+                opacity={shown(w.label, 26, w.labelSpot, wallLabelAt(w, close.settlements, u).x, wallLabelAt(w, close.settlements, u).y)}
+              >
+                {label(w.label, 26)}
+              </g>
+            ) : null}
           </g>
         );
       })}
@@ -359,7 +391,7 @@ export function CloseGround({ close, frame, fps, era, label, k }: { close: Close
             <g transform={`translate(${b.x} ${b.y})`}>
               <Building kind={b.kind} u={u} />
             </g>
-            {b.label ? <g transform={at(b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g> : null}
+            {b.label ? <g transform={at(b.labelSpot, b.x, b.y + u * 1.1)} opacity={shown(b.label, 24, b.labelSpot, b.x, b.y + u * 1.1)}>{label(b.label, 24)}</g> : null}
           </g>
         ) : null;
       })}

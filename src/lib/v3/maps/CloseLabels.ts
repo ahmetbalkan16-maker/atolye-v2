@@ -56,6 +56,23 @@ export function nameBox(text: string, size: number, relief: boolean): { w: numbe
   return { w: longest * (relief ? LABEL_CHAR_W : 0.78) * size + PAD * 2, h: lines.length * size * (relief ? 0.98 : 1.1) + PAD * 2 };
 }
 
+/**
+ * A speaking badge's box round its place (1080p px), as remotion-v3's MapView draws it: the relief map's portrait ring
+ * over a parchment scroll as wide as the name, with a point down to the place; the cartoon map's ring with the name
+ * plate on top. A little room for the swell while it talks (up to 1.14). Keep in step with MapView's badge.
+ */
+export function badgeBox(label: string, relief: boolean): Rect {
+  const swell = 1.14;
+  if (relief) {
+    const r = 44;
+    const half = Math.max(r + 5, (label.length * 11.5 + 34) / 2 + 12);
+    return { x0: -half * swell, y0: -(27 + 11 + 2 * r + 5) * swell, x1: half * swell, y1: 6 };
+  }
+  const r = 48;
+  const half = Math.max(r + 6, label.length * 9 + 18);
+  return { x0: -half * swell, y0: -(r + 34 + r + 45) * swell, x1: half * swell, y1: 6 };
+}
+
 /** The camera stops of a map: each key until the next one; a map without keys is one stop over the whole frame. */
 export function cameraStops(m: V3GeoMap, width: number, height: number): Stop[] {
   const world = m.world ?? { width, height };
@@ -186,8 +203,12 @@ function marksOf(m: V3GeoMap, close: Close, relief: boolean): Obstacle[] {
     for (const p of samples(v.path, u * 4)) out.push({ x: p.x, y: p.y, s, from: v.start, to: v.end ?? Infinity, weight: 3 + v.count });
   }
   // A badge's portrait and name scroll count as much as a city's name: the speakers talk from them (Belgrade: the
-  // defender's scroll lay over "Belgrade Fortress").
-  for (const b of m.badges ?? []) for (const p of [b.path[0], b.path[b.path.length - 1]]) if (p) out.push({ x: p.x, y: p.y, s: { x0: -75, y0: -140, x1: 75, y1: 6 }, from: b.start, to: b.end ?? Infinity, weight: CITY_WEIGHT });
+  // defender's scroll lay over "Belgrade Fortress"), at their real size — a fixed 150 px box let "HOUSE OF WONDERS"
+  // sit under the 360 px scroll of "Sultan Khalid bin Barghash" (Zanzibar Short, 3 Nov 2026) — and along their way.
+  for (const b of m.badges ?? []) {
+    const s = badgeBox(b.label, relief);
+    for (const p of b.path.length > 1 ? samples(b.path, u * 4) : b.path) out.push({ x: p.x, y: p.y, s, from: b.start, to: b.end ?? Infinity, weight: CITY_WEIGHT });
+  }
   for (const b of m.battles ?? []) out.push({ x: b.x, y: b.y, s: { x0: -52, y0: -50, x1: 52, y1: 50 }, from: b.start, to: Infinity, weight: 12 });
   // The walls' stone, towers and gates; the story's buildings; chains and lines; roads (cheap: a name may cross one).
   for (const w of close.walls) {

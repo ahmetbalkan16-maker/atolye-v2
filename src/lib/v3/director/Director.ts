@@ -688,6 +688,23 @@ export function infoCardsOf(scene: Pick<EpisodeScene, "bilgi_kartlari">, lines: 
   });
 }
 
+/**
+ * When (seconds, on the episode's clock) a scene's line says a word matching `word`: the first such word of line
+ * `index`; when that line has none, of the scene's other lines, nearest to it first (the Zanzibar writer put the fleet's
+ * fire on the line after the one that says "open fire"). Undefined when no line says it. Words are compared without
+ * their punctuation ("Sunk" in "Sunk before…", "fire." at a sentence's end).
+ */
+export function toldWordAt(lines: readonly Pick<LineTiming, "start" | "words">[], index: number | undefined, word: RegExp): number | undefined {
+  if (index === undefined || !lines.length) return undefined;
+  const order = lines.map((_, i) => i).sort((a, b) => Math.abs(a - index) - Math.abs(b - index) || a - b);
+  for (const i of order) {
+    const lt = lines[i]!;
+    const hit = lt.words.find((w) => word.test(w.text.replace(/[^\p{L}\p{N}'’-]+/gu, "")));
+    if (hit) return lt.start + hit.start;
+  }
+  return undefined;
+}
+
 export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
   const { episode, timeline, fps } = input;
   const f = (sec: number) => Math.round(sec * fps);
@@ -732,6 +749,10 @@ export function buildRenderPlan(input: DirectorInput): V3RenderPlan {
           ...(onMap?.sideBadges.length ? { sideBadges: onMap.sideBadges } : {}),
           ...(onMap?.lines.size ? { badgeLines: onMap.lines } : {}),
           lineEnd: (index) => (lines[index] ? local(lines[index]!.end) : undefined),
+          toldAt: (index, word) => {
+            const sec = toldWordAt(lines, index, word);
+            return sec === undefined ? undefined : local(sec);
+          },
           fps,
         })
       : undefined;

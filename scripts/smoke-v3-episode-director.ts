@@ -15,15 +15,15 @@ import { previewUrls } from "../src/lib/v3/backgrounds/CommonsProvider";
 import { cpuThrottled, healthLine, healthVerdict, waitForPcHealth } from "../src/lib/v3/util/PcHealth";
 import { crowdCast, toRenderCast } from "../src/lib/v3/costumes/CastMapper";
 import { CostumePackError, costumesRoot, loadAccessories, svgBody } from "../src/lib/v3/costumes/CostumePackLoader";
-import { autoSlots, BODY_HALF, beats, buildRenderPlan, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
+import { autoSlots, BODY_HALF, beats, buildRenderPlan, toldWordAt, episodeLead, faithfulBubble, HOOK_S, infoCardsOf, openingHook, opensOnNarrator, sideStem, toldActs, toldChases, VERTICAL_MAX_ZOOM, VERTICAL_SPACING, withNamedHighlights, photoSequence, pictureShares, withPictures, rallyingCry, captionPages, cleanFrame, fillTempo, insertWindows, longestEmptyStretch, mapShotCamera, MAX_INSERT_S, normalizeCamera, placeCrowd, stageEmptyScenes } from "../src/lib/v3/director/Director";
 import type { Episode, EpisodeScene, SceneMap } from "../src/lib/v3/episode/EpisodeTypes";
 import type { V3GeoMap, V3Insert } from "../src/lib/v3/render/RenderPlanTypes";
 import { isShorts, lengthOk, SHORTS_SIZE, STAGE_SIZE } from "../src/lib/v3/render/Format";
 import { momentDesign, momentText } from "../src/lib/v3/backgrounds/BackgroundDesigner";
 import { maxDesignedPictures } from "../src/lib/v3/backgrounds/MomentPictures";
 import { validateEpisode } from "../src/lib/v3/episode/EpisodeValidator";
-import { backgroundStates, buildGeoMap, clipRing, deepFront, separateFronts, spaceBadges, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
-import { cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
+import { backgroundStates, buildGeoMap, TOLD_WORDS, clipRing, deepFront, separateFronts, spaceBadges, formationPoints, lineKm, routScatter, shipLook, strengthValue, declutterMap, labelLines, labelPoint, mapStageX, mapView, mapWorld, placeStateLabels, project, shiftFor, STATE_COLOURS, cutRoute, overlandStretches, throughBreach, windingRoad, withCoast } from "../src/lib/v3/maps/MapBuilder";
+import { badgeBox, cameraStops, nameBox } from "../src/lib/v3/maps/CloseLabels";
 import { castleRing, castleStyleFor, fitWall, joinPieces, kmBetween, roundness, stripCentreline } from "../src/lib/v3/maps/CastleShapes";
 import { placeWall, prepareCloseMaps, siteFromNominatim, siteFromOverpass } from "../src/lib/v3/maps/CloseSite";
 import { directBattleMaps, mapProblems, shareProblems, toldKilled } from "../src/lib/v3/script/MapRules";
@@ -36,7 +36,7 @@ import { ADMIN_QUANT_DEG, assignUnits, coastEdges, dissolve, unitsIn } from "../
 import { separateTokens } from "../remotion-v3/src/scene/unitLayout";
 import { chartLayout } from "../remotion-v3/src/scene/chartLayout";
 import { beatAim, beatAt, MAP_BEAT_ID, mapBeats, pairAim, windowAims, windowArrival, windowCentre, windowDeparture, withMapBeats } from "../remotion-v3/src/scene/verticalWindow";
-import { barTop, hudBoxes } from "../remotion-v3/src/scene/hudLayout";
+import { badgeEdgeFit, badgeExtent, barTop, hudBoxes } from "../remotion-v3/src/scene/hudLayout";
 import { checkMapPlaces, decidePlace, distanceKm, placeToleranceKm } from "../src/lib/v3/maps/PlaceCheck";
 import type { AIProvider } from "../src/lib/ai/providers/AIProvider";
 import { CouncilLog } from "../src/lib/v3/council/Council";
@@ -1978,6 +1978,74 @@ async function main() {
     const [tallDate, tallBar] = hudBoxes(marks, 10, 1080, 1920);
     assert.ok(tallBar!.y0 === 0 && barTop(1080, 1920) * 1 > tallDate!.y1 - 1, "the bar's top under the stamp");
     assert.ok(overlap(tallDate!, tallBar!), "their boxes meet: names are kept from under both");
+  });
+
+  await scenario("W3 the Zanzibar Short's map (owner-approved jobs, 3 Nov 2026): events land on the words that tell them, the window sees the sinking, badges stay whole in the frame, long scrolls keep names off", () => {
+    const fps = 30;
+    // "At 9:00 sharp, the British ships open fire. The palace is hit. The royal yacht? Sunk before…" (line 0) — the writer
+    // put the fleet's fire on line 1, which never says it.
+    const lines = [
+      { start: 10, words: [{ text: "At", start: 0.1, end: 0.2 }, { text: "open", start: 2, end: 2.2 }, { text: "fire.", start: 2.24, end: 2.6 }, { text: "hit.", start: 3.4, end: 3.6 }, { text: "yacht?", start: 4.7, end: 5 }, { text: "Sunk", start: 5.5, end: 5.8 }] },
+      { start: 20, words: [{ text: "Maybe", start: 0, end: 0.3 }, { text: "basement.", start: 1, end: 1.4 }] },
+    ];
+    assert.equal(toldWordAt(lines, 0, TOLD_WORDS.kayip), 15.5, "punctuation off, on the episode's clock");
+    assert.equal(toldWordAt(lines, 1, TOLD_WORDS.ates), 12.24, "the line that says it, nearest first");
+    assert.equal(toldWordAt(lines, 1, /^tea$/i), undefined);
+    assert.equal(toldWordAt(lines, undefined, TOLD_WORDS.ates), undefined);
+    for (const w of ["sunk", "sank", "sinks", "destroyed", "battı", "batırıldı"]) assert.ok(TOLD_WORDS.kayip.test(w), w);
+    for (const w of ["fire", "shelled", "bombardment", "ateş", "bombalandı"]) assert.ok(TOLD_WORDS.ates.test(w), w);
+    for (const w of ["hit", "ablaze", "burning", "yandı", "alevler"]) assert.ok(TOLD_WORDS.yangin.test(w), w);
+    assert.ok(!TOLD_WORDS.kayip.test("sunset") && !TOLD_WORDS.ates.test("fireworks") && !TOLD_WORDS.yangin.test("history"));
+
+    // Built map: the shot starts at 10 s; the fleet fires on "fire", the palace burns on "hit" (not before the shells
+    // land), the yacht's first loss on "Sunk".
+    const square = [[[39.1, -6.25], [39.25, -6.25], [39.25, -6.05], [39.1, -6.05], [39.1, -6.25]] as const] as const;
+    const data = { land: [square], lakes: [], rivers: [], countries: new Map() };
+    const zan: SceneMap = {
+      merkez: [39.19, -6.16],
+      genislik_km: 8,
+      araclar: [
+        { tur: "gemi", renk: "#2e6fd1", sayi: 5, konum: [39.15, -6.2], satir: 0, hedef: [39.19, -6.16], ates_satir: 1 },
+        { tur: "gemi", renk: "#b3263a", sayi: 1, konum: [39.24, -6.1], satir: 0, kayip: 1, kayip_satir: 0 },
+      ],
+      yanginlar: [{ konum: [39.19, -6.16], satir: 0 }],
+    } as unknown as SceneMap;
+    const local = (sec: number) => Math.round(sec * fps) - 10 * fps;
+    const toldAt = (i: number | undefined, w: RegExp) => {
+      const s = toldWordAt(lines, i, w);
+      return s === undefined ? undefined : local(s);
+    };
+    const start = (i: number | undefined) => (i !== undefined && lines[i] ? local(lines[i]!.start) : 0);
+    const told = buildGeoMap(zan, data as never, 1920, 1080, start, { toldAt, fps });
+    const [fleet, yacht] = told.vehicles!;
+    assert.equal(fleet!.fireStart, local(12.24), "on 'fire.' in line 0");
+    assert.equal(told.fires![0]!.start, local(13.4), "on 'hit.', after the shells land");
+    assert.equal(yacht!.lossStart! + Math.round(yacht!.losses![0]! * fps), local(15.5), "goes down on 'Sunk'");
+    // Without words (or a line that tells nothing) the line starts as before; a fire never before its shells land.
+    const plain = buildGeoMap(zan, data as never, 1920, 1080, start, { fps });
+    assert.deepEqual([plain.vehicles![0]!.fireStart, plain.vehicles![1]!.lossStart, plain.fires![0]!.start], [start(1), start(0), start(1) + fps]);
+
+    // The window: the sinking is a beat when the first one goes down, a fire where it starts.
+    const beats = mapBeats(told, fps);
+    const sink = local(15.5);
+    assert.ok(beats.some((b) => b.frame === sink), JSON.stringify(beats.map((b) => b.frame)));
+    assert.ok(beats.some((b) => b.frame === told.fires![0]!.start));
+
+    // A badge stays whole: slid in from the edge while its place is in view, fading as its place leaves.
+    const view = { x0: 600, y0: 0, x1: 1200, y1: 1080 };
+    const size = { half: 180, up: 131 };
+    assert.deepEqual(badgeEdgeFit({ x: 900, y: 500 }, size, view, 14, 60), { dx: 0, dy: 0, alpha: 1 });
+    assert.deepEqual(badgeEdgeFit({ x: 1150, y: 500 }, size, view, 14, 60), { dx: 1186 - 1330, dy: 0, alpha: 1 }, "slid left, whole");
+    assert.equal(badgeEdgeFit({ x: 1230, y: 500 }, size, view, 14, 60).alpha, 0.5, "its place 30 px out: half faded");
+    assert.equal(badgeEdgeFit({ x: 1300, y: 500 }, size, view, 14, 60).alpha, 0, "gone");
+    assert.equal(badgeEdgeFit({ x: 900, y: 60 }, size, view, 14, 60).dy, 85, "pushed down from the top");
+    assert.equal(badgeEdgeFit({ x: 900, y: 500 }, { half: 400, up: 131 }, view, 14, 60).dx, 0, "wider than the view: centred");
+    assert.deepEqual(badgeExtent("Sultan Khalid bin Barghash", true), { half: 178.5, up: 131 });
+
+    // The close map keeps names off a badge's real scroll: "Sultan Khalid bin Barghash" is ~360 px wide, not 150.
+    const box = badgeBox("Sultan Khalid bin Barghash", true);
+    assert.ok(box.x1 - box.x0 > 380 && box.y0 < -140, JSON.stringify(box));
+    assert.ok(badgeBox("Ali", true).x1 >= 49 && badgeBox("Ali", false).x1 >= 54, "a short name: the ring's width");
   });
 
   console.log(`V3 episode/director smoke: PASS (${scenarios} scenarios)`);

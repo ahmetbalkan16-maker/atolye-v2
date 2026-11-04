@@ -612,7 +612,47 @@ export function mapOnScreen(m: V3GeoMap, frame: number, width: number, height: n
  * the lines each badged character speaks, so their badge stays in view for them.
  */
 /** `lineEnd`: the frame a line ends (a glow lasts while its line is told). */
-type GeoMapOptions = { readonly relief?: string; readonly castName?: (id: string) => string | undefined; readonly language?: "tr" | "en"; readonly era?: V3GeoMap["era"]; readonly year?: number; readonly sideBadges?: readonly SideBadge[]; readonly badgeLines?: ReadonlyMap<string, readonly number[]>; readonly lineEnd?: (index: number) => number | undefined; readonly fps?: number };
+type GeoMapOptions = {
+  readonly relief?: string;
+  readonly castName?: (id: string) => string | undefined;
+  readonly language?: "tr" | "en";
+  readonly era?: V3GeoMap["era"];
+  readonly year?: number;
+  readonly sideBadges?: readonly SideBadge[];
+  readonly badgeLines?: ReadonlyMap<string, readonly number[]>;
+  readonly lineEnd?: (index: number) => number | undefined;
+  readonly fps?: number;
+  /**
+   * The frame a scene's line says a word matching `word` (the first such word; the scene's other lines when its own
+   * has none, nearest first), or undefined: map events land on the word that tells them.
+   */
+  readonly toldAt?: (index: number | undefined, word: RegExp) => number | undefined;
+};
+
+/**
+ * Words that tell a map event, English and Turkish (owner's approved proposal, 2 Nov 2026: "anlatılan metinle senkronize
+ * hareket"). The Zanzibar Short of 3 Nov 2026 told "the British ships open fire. The palace is hit. The royal yacht? Sunk"
+ * in one line: the palace burned from the line's first frame, before a shot was fired, and the yacht went down 2.4 s in,
+ * three seconds before "Sunk" — off the window too.
+ */
+// (\p{L}, not \w: a Turkish ending's "ı" is no \w — "batırıldı" slipped.)
+export const TOLD_WORDS = {
+  /** A ship, gun or unit lost. */
+  kayip: /^(?:sunk|sink\p{L}*|sank|wreck\p{L}*|destroy\p{L}*|blown|blew|lost|capsiz\p{L}*|bat(?:ı|ar|tı|ır)\p{L}*|yok\s?edil\p{L}*|parçala\p{L}*|kaybed\p{L}*)$/iu,
+  /** Fire opened. */
+  ates: /^(?:fire[sd]?|firing|shell\p{L}*|bombard\p{L}*|cannon\p{L}*|guns?|blast\p{L}*|ateş\p{L}*|bombala\p{L}*|döv\p{L}*|topa)$/iu,
+  /** A place hit and burning ("fire" alone is the guns' word: "open fire" came before "the palace is hit"). */
+  yangin: /^(?:hit|struck|burn\p{L}*|ablaze|flames?|blaze\p{L}*|explod\p{L}*|vurul\p{L}*|yan(?:ar|dı|ıyor|gın)\p{L}*|alev\p{L}*|tutuş\p{L}*|isabet\p{L}*)$/iu,
+} as const;
+
+/** Seconds from a ship's or gun's first shot to the fire it starts where it aims. */
+const FIRE_LANDS_S = 1;
+
+/** The frame a told event starts: the word that tells it, else its line's start; never before `notBefore`. */
+function toldStart(opts: GeoMapOptions, lineStart: (index: number | undefined, order: number) => number, index: number | undefined, order: number, word: RegExp, notBefore = 0): number {
+  const at = opts.toldAt?.(index, word);
+  return Math.max(notBefore, at ?? lineStart(index, order));
+}
 
 /**
  * What a side's number on the strength bar counts for (the bar's share): the middle of a range ("15,000–25,000" →
@@ -1330,16 +1370,22 @@ function projectGeoMap(
     const hauls = stretches.filter((o) => (o.from > 0 || fromShore) && o.to < 1).map((o) => ({ from: Math.round(((o.from - ends.from) / (ends.to - ends.from || 1)) * 1000) / 1000, to: Math.round(((o.to - ends.from) / (ends.to - ends.from || 1)) * 1000) / 1000 }));
     const count = Math.max(1, Math.min(6, Math.round(a.sayi ?? 1)));
     const lost = a.kayip_satir !== undefined ? Math.min(count, Math.max(0, Math.round(a.kayip ?? 0))) : 0;
+    const start = lineStart(a.satir, i);
+    const losses = lost ? unitLossDelaysS(lost) : [];
+    // The first one goes down on the word that tells it ("Sunk"), the rest after it as before.
+    const fps = opts.fps ?? 30;
+    const told = lost ? opts.toldAt?.(a.kayip_satir, TOLD_WORDS.kayip) : undefined;
+    const lossStart = lost ? (told !== undefined ? Math.max(start, told - Math.round(losses[0]! * fps)) : lineStart(a.kayip_satir, i)) : undefined;
     return {
       kind: a.tur === "gemi" ? shipLook(opts.year) : a.tur,
       color: a.renk,
       count,
-      ...(lost ? { lossStart: lineStart(a.kayip_satir, i), losses: unitLossDelaysS(lost) } : {}),
-      start: lineStart(a.satir, i),
+      ...(lost ? { lossStart: lossStart!, losses } : {}),
+      start,
       ...(a.bitis_satir !== undefined ? { end: lineStart(a.bitis_satir, i) } : {}),
       path: kept,
       ...(a.yol?.length && kept.length > 1 ? { moveStart: lineStart(a.yol_satir ?? a.satir, i) } : {}),
-      ...(a.hedef ? { target: toPx(aimAt(a.hedef)), fireStart: lineStart(a.ates_satir ?? a.yol_satir ?? a.satir, i) } : {}),
+      ...(a.hedef ? { target: toPx(aimAt(a.hedef)), fireStart: toldStart(opts, lineStart, a.ates_satir ?? a.yol_satir ?? a.satir, i, TOLD_WORDS.ates, start) } : {}),
       ...(hauls.length ? { overland: hauls } : {}),
     };
   });
@@ -1497,7 +1543,14 @@ function projectGeoMap(
   }));
   const flags = (map.teslim ?? []).map((t, i) => ({ ...toPx(t.konum), start: lineStart(t.satir, i), ...(t.ad ? { label: t.ad } : {}) }));
   const fireKm = Math.max(0.4, (map.genislik_km ?? 0) * 0.03);
-  const fires = (map.yanginlar ?? []).map((y, i) => ({ ...toPx(y.konum), start: lineStart(y.satir, i), ...(y.bitis_satir !== undefined ? { end: lineStart(y.bitis_satir, i) } : {}), size: r1((y.km ?? fireKm) * pxPerKm) }));
+  // A place catches fire on the word that tells it ("hit", "ablaze"), and never before the shots aimed at it land (a
+  // second after they are fired).
+  const fires = (map.yanginlar ?? []).map((y, i) => {
+    const at = toPx(y.konum);
+    const size = r1((y.km ?? fireKm) * pxPerKm);
+    const shotsLand = vehicles.filter((v) => v.target && v.fireStart !== undefined && Math.hypot(v.target.x - at.x, v.target.y - at.y) <= Math.max(size, 40)).map((v) => v.fireStart! + Math.round(FIRE_LANDS_S * (opts.fps ?? 30)));
+    return { ...at, start: toldStart(opts, lineStart, y.satir, i, TOLD_WORDS.yangin, shotsLand.length ? Math.min(...shotsLand) : 0), ...(y.bitis_satir !== undefined ? { end: lineStart(y.bitis_satir, i) } : {}), size };
+  });
   const glows = (map.vurgular ?? []).flatMap((g, i): NonNullable<V3GeoMap["glows"]>[number][] => {
     const start = lineStart(g.satir, i);
     const end = glowEnd(g.satir, g.bitis_satir, i);

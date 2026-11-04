@@ -87,7 +87,24 @@ async function main() {
   // The close battle map's own coast and elevation, or the wide map's relief.
   const ground = await mapGroundFor(paths, scene.harita, pub, base.land, (s) => console.log(s));
   const relief = ground.relief;
-  const audio = scene.satirlar.map((l): LineAudio => ({ file: "sessiz.wav", duration: estimatedSeconds(l.metin), visemes: [{ t: 0, v: "X" }], words: [], lipSync: "rms" }));
+  // A produced episode's own voice timings (its folder's ses.json lengths and senkron.json words, one list per scene):
+  // lines as long as they were spoken and their words where they fell, so map events on a told word preview where the
+  // video has them. (After a retouch round they are that round's voices.)
+  const folder = path.dirname(path.resolve(arg("--bolum")!));
+  const si = full.sahneler.indexOf(scene);
+  const readList = <T>(name: string) =>
+    fs
+      .readFile(path.join(folder, name), "utf8")
+      .then((s) => JSON.parse(s) as T)
+      .catch(() => undefined);
+  const lengths = (await readList<{ satirlar?: { duration: number }[][] }>("ses.json"))?.satirlar?.[si];
+  const synced = (await readList<Pick<LineAudio, "visemes" | "words" | "lipSync">[][]>("senkron.json"))?.[si];
+  const real =
+    lengths?.length === scene.satirlar.length && synced?.length === scene.satirlar.length
+      ? synced.map((s, i): LineAudio => ({ file: "sessiz.wav", duration: lengths[i]!.duration, visemes: s.visemes, words: s.words, lipSync: s.lipSync }))
+      : undefined;
+  if (real) console.log(`önizleme: ${scene.id} satırlarının gerçek ses süreleri ve kelime zamanları (ses.json, senkron.json)`);
+  const audio = real ?? scene.satirlar.map((l): LineAudio => ({ file: "sessiz.wav", duration: estimatedSeconds(l.metin), visemes: [{ t: 0, v: "X" }], words: [], lipSync: "rms" }));
   const timeline = buildTimeline(episode, [audio], { ...DEFAULT_TIMELINE, introS: 0 });
   const cast = [...toRenderCast(episode.oyuncu_kadrosu, "kukla"), ...crowdCast(episode, "kukla")];
   const plan = buildRenderPlan({

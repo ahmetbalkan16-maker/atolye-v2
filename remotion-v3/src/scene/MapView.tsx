@@ -9,7 +9,7 @@ import { along, pathLength, smoothPoints } from "./mapGeometry";
 import { BattleBursts, UnitTokens } from "./MapUnits";
 import { CloseGround } from "./MapCloseGround";
 import { BadgeCross, crossedFilter, MapMarks } from "./MapMarks";
-import { hudBoxes } from "./hudLayout";
+import { badgeEdgeFit, badgeExtent, hudBoxes } from "./hudLayout";
 import { MapVehicles } from "./MapVehicles";
 import { yer } from "./LayoutProbe";
 
@@ -354,6 +354,43 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
     const a = interpolate(frame, [start, start + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return end === undefined ? a : a * interpolate(frame, [end, end + Math.round(fps * 0.6)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   };
+  // Each badge where it stands this frame: on its route, swelling while it talks, slid whole into the frame from an
+  // edge while its place is in view, fading as its place leaves (a Short's window shows a third of the map).
+  const badgePlaces = (map.badges ?? []).map((b) => {
+    const { at, progress } = badgeAt(map, b, frame, fps, H, duration);
+    const swell = talkSwell(b, frame);
+    const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } }) * swell;
+    const ext = badgeExtent(b.label, relief);
+    const size = { half: ext.half * k * pop, up: ext.up * k * pop };
+    const fit = badgeEdgeFit(at, size, shownWorld, 14 * k, 60 * k);
+    const placed = { x: at.x + fit.dx, y: at.y + fit.dy };
+    const alpha = visible(b.start, b.end) * fit.alpha;
+    return { at, progress, swell, pop, fit, placed, alpha, box: { x0: placed.x - size.half, x1: placed.x + size.half, y0: placed.y - size.up, y1: placed.y + 6 * k } };
+  });
+  // A place's name under a badge gives way while the badge is there (Zanzibar Short, 3 Nov 2026: "HOUSE OF WONDERS"
+  // lay under the scroll of "Sultan Khalid bin Barghash", where no other place was free): the speaker is the moment's
+  // focus. `cx`,`cy`: the name's centre (world px); its size by its letters, as the names are written. 1 = fully shown.
+  // A name the frame's edge cuts fades as the edge cuts in, gone at a quarter (the Zanzibar Short's window left "ZA / PA"
+  // of "ZANZIBAR PALACE" at its right edge).
+  const nameShown = (text: string, size: number, cx: number, cy: number) => {
+    const lines = labelLines(text.toLocaleUpperCase("en-US"));
+    const hw = (Math.max(...lines.map((l) => l.length)) * (relief ? 0.58 : 0.78) * size * k) / 2;
+    const hh = (lines.length * size * (relief ? 0.98 : 1.1) * k) / 2;
+    const area = 4 * hw * hh;
+    const inX = Math.max(0, Math.min(cx + hw, shownWorld.x1) - Math.max(cx - hw, shownWorld.x0));
+    const inY = Math.max(0, Math.min(cy + hh, shownWorld.y1) - Math.max(cy - hh, shownWorld.y0));
+    const cut = area > 0 ? 1 - (inX * inY) / area : 0;
+    const edge = Math.max(0, 1 - cut * 4);
+    if (edge <= 0 || !badgePlaces.length) return edge;
+    let give = 0;
+    for (const p of badgePlaces) {
+      if (p.alpha <= 0) continue;
+      const ox = Math.max(0, Math.min(cx + hw, p.box.x1) - Math.max(cx - hw, p.box.x0));
+      const oy = Math.max(0, Math.min(cy + hh, p.box.y1) - Math.max(cy - hh, p.box.y0));
+      if (area > 0 && (ox * oy) / area > 0.1) give = Math.max(give, p.alpha);
+    }
+    return edge * (1 - give);
+  };
   // A sweeping conquest gets its border (and its colour to the coast) once the sweep has covered the land.
   const borderAlpha = (t: V3GeoMap["territories"][number]) =>
     t.spread?.length ? visible(t.start + Math.round(sweepSeconds(t.start) * fps), t.end) : t.start > 0 ? visible(t.start - Math.round(fps * 0.6), t.end) : visible(t.start, t.end);
@@ -528,7 +565,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           </>
         )}
         {/* The close battle map's ground: woods, fields, roads, the city's roofs, the camp, the walls and the buildings. */}
-        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} /> : null}
+        {map.close ? <CloseGround close={map.close} frame={frame} fps={fps} era={map.era} label={(t, s) => markLabel(t, s)} k={k} nameShown={nameShown} /> : null}
         {map.cities.map((c, i) =>
           relief ? null : (
             <g key={`c${i}`}>
@@ -714,8 +751,12 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
         {relief
           ? map.cities.map((c, i) => {
               const name = cityName(c, 25, 12 * k);
+              // The name's centre beside its dot, for giving way to a speaking badge (cities are written in sentence case,
+              // about 0.55 of the size a letter; nameShown counts capitals, a little wider).
+              const half = (c.label.length * 0.55 * 25 * k) / 2;
+              const shownName = name ? nameShown(c.label, 25 * 0.95, name.anchor === "start" ? name.x + half : name.x - half, c.y) : 1;
               return (
-              <g key={`c${i}`}>
+              <g key={`c${i}`} opacity={shownName < 1 ? 0.25 + 0.75 * shownName : 1}>
                 <circle cx={c.x} cy={c.y} r={6 * k} fill="#ffffff" stroke="rgba(20,20,20,0.7)" strokeWidth={2.5 * k} />
                 {name ? <text {...yer("yazi")} x={name.x} y={c.y + 1 * k} textAnchor={name.anchor} dominantBaseline="middle" style={{ font: `700 ${25 * k}px ${STATE_FONT}`, filter: `drop-shadow(0 ${1.5 * k}px ${2 * k}px rgba(0,0,0,0.6))` }} fill="#ffffff" stroke="rgba(20,20,20,0.55)" strokeWidth={2.5 * k} paintOrder="stroke fill">
                   {c.label}
@@ -730,10 +771,11 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           if (a <= 0) return null;
           // A campaign (owner, 21 Oct 2026: "Bayezid sets out, the badge moves showing where he goes"): the badge sets off
           // with its line, takes longer on a longer road, and leaves a dotted trail behind it.
-          const { at, progress } = badgeAt(map, b, frame, fps, H, duration);
-          // A speaking badge swells a little and its ring turns gold, so the viewer sees who talks.
-          const swell = talkSwell(b, frame);
-          const pop = spring({ frame: frame - b.start, fps, config: { damping: 12, stiffness: 180 } }) * swell;
+          // Where it stands (badgePlaces): whole in the frame, its point still reaching the place. A speaking badge swells
+          // a little and its ring turns gold, so the viewer sees who talks.
+          const { progress, swell, pop, fit, placed } = badgePlaces[i]!;
+          if (fit.alpha <= 0) return null;
+          const tip = { x: -fit.dx / Math.max(pop, 1e-3), y: -fit.dy / Math.max(pop, 1e-3) };
           const ringStroke = swell > 1.02 ? "#e8b23a" : undefined;
           const facing = progress > 0 && progress < 1 && b.path.length > 1 && b.path[b.path.length - 1]!.x < b.path[0]!.x ? "left" : "right";
           const extra: V3Extra = { castId: b.castId, x: 0, depth: 0, facing, scale: 1, mood: "notr", seed: i * 97 + 13 };
@@ -753,7 +795,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
             return (
               <g key={`g${i}`}>
                 {trail ? <path d={trail} fill="none" stroke={ROUTE_RED} strokeWidth={9 * k} strokeLinecap="round" strokeDasharray={`0.1 ${17 * k}`} opacity={a} style={{ filter: `drop-shadow(0 ${1.5 * k}px ${1.5 * k}px rgba(0,0,0,0.55))` }} /> : null}
-                <g transform={`translate(${at.x} ${at.y}) scale(${pop})`} opacity={a}>
+                <g transform={`translate(${placed.x} ${placed.y}) scale(${pop})`} opacity={a * fit.alpha}>
                   <defs>
                     <clipPath id={`${id}-badge${i}`}>
                       <circle cy={cy} r={r} />
@@ -763,7 +805,7 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
                       group's own box would count the unclipped puppet. */}
                   <rect {...yer("rozet", b.label)} x={-Math.max(r + 5 * k, sw / 2 + 12 * k)} y={cy - r - 5 * k} width={2 * Math.max(r + 5 * k, sw / 2 + 12 * k)} height={r + 5 * k - cy} fill="none" />
                   <g style={{ filter: `drop-shadow(0 ${3 * k}px ${4 * k}px rgba(0,0,0,0.5))` }}>
-                    <path d={`M${-10 * k} ${scrollY} L0 0 L${10 * k} ${scrollY} Z`} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2.5 * k} strokeLinejoin="round" />
+                    <path d={`M${-10 * k} ${scrollY} L${tip.x} ${tip.y} L${10 * k} ${scrollY} Z`} fill={PARCHMENT} stroke={SEPIA} strokeWidth={2.5 * k} strokeLinejoin="round" />
                     <circle cy={cy} r={r + 5 * k} fill={PARCHMENT} stroke={ringStroke ?? SEPIA} strokeWidth={(ringStroke ? 6 : 3) * k} />
                   </g>
                   <circle cy={cy} r={r} fill="#d9c9a3" />
@@ -793,14 +835,14 @@ export function MapView({ map, width: W, height: H, cast, accessories, duration,
           // own name and the territory's stay readable (the map trial's badge sat on "Söğüt" and "OTTOMANS").
           const cy = -(r + 34 * k);
           return (
-            <g key={`g${i}`} transform={`translate(${at.x} ${at.y}) scale(${pop})`} opacity={a}>
+            <g key={`g${i}`} transform={`translate(${placed.x} ${placed.y}) scale(${pop})`} opacity={a * fit.alpha}>
               <defs>
                 <clipPath id={`${id}-badge${i}`}>
                   <circle cy={cy} r={r} />
                 </clipPath>
               </defs>
               <rect {...yer("rozet", b.label)} x={-Math.max(r + 6 * k, (b.label.length * 9 + 18) * k)} y={cy - r - 45 * k} width={2 * Math.max(r + 6 * k, (b.label.length * 9 + 18) * k)} height={r + 45 * k - cy} fill="none" />
-              <path d={`M${-14 * k} ${cy + r} L0 0 L${14 * k} ${cy + r} Z`} fill="#ffffff" stroke={INK} strokeWidth={4 * k} strokeLinejoin="round" />
+              <path d={`M${-14 * k} ${cy + r} L${tip.x} ${tip.y} L${14 * k} ${cy + r} Z`} fill="#ffffff" stroke={INK} strokeWidth={4 * k} strokeLinejoin="round" />
               <circle cy={cy} r={r + 6 * k} fill={ringStroke ?? "#ffffff"} stroke={INK} strokeWidth={5 * k} />
               <circle cy={cy} r={r} fill="#d9c9a3" />
               {m && accessories ? (
